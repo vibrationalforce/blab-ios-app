@@ -1,27 +1,30 @@
-build: 2026-07-19 v10.79.301 (AUv3 — ehrliche Korrektur + CI entblockt)
+build: 2026-07-19 v10.79.302 (AUv3-FIX-Kandidat #1 — Appex App-Group-Mismatch)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: KURSKORREKTUR nach hartem Beweis. v300 (fail-on-stripped) lief ROT und hat
-  damit bewiesen: inter-app-audio wird beim Signieren aus dem App-Bundle gestrippt
-  (das Auto-Managed-Profil trägt die veraltete Capability nicht). ABER: iOS-AUv3-
-  Hosting braucht dieses Entitlement GAR NICHT — jeder Host (AUM/GarageBand/Drambo)
-  findet Fremd-Plugins ohne. Meine inter-app-audio-These war falsch; ich habe sie
-  mehrfach als "den Fix" verkauft. Das stimmt nicht — Entschuldigung.
+notes: ULTRACODE-HEAL-ERGEBNIS (14-Agenten-Sweep, adversarial verifiziert). Der
+  wahrscheinlichste, JETZT-code-fixbare Grund, warum sich EchoelBodyVibe in KEINEM
+  Host öffnen lässt (AUM "sieht es, öffnet es aber nicht"; -3000 in jedem Host):
 
-  WAS WIRKLICH KAPUTT IST (host-unabhängig, reproduziert in JEDEM Host):
-  EchoelBodyVibe INSTANZIIERT NICHT. AUM "sieht es, öffnet es aber nicht"; unsere
-  eigene Self-Probe scheitert mit -3000 (invalidComponentID = "auf diesem Gerät nicht
-  registriert / Reinstall-Territorium"). Das ist ein pluginkit-Registrierungs-Problem,
-  kein Host-Entitlement.
+  APP-GROUP-ENTITLEMENT-MISMATCH am Appex. Das Appex forderte hart
+  `group.com.echoelmusic`. Wenn die App-ID `com.echoelmusic.app.auv3` diese App
+  Group im Portal NICHT wirklich grantet hat, registriert iOS die Komponente aus
+  der Info.plist (deshalb listet AUM sie), verweigert aber den Start des Extension-
+  Prozesses → -3000 überall, dauerhaft über alle Builds. Das ist die Lehrbuch-
+  Signatur für "sichtbar, öffnet nirgends".
 
-  DIESER BUILD: (1) CI-Gate von HART-FAIL auf WARNUNG zurück — ein dauerhaft rotes
-  Pflicht-Gate blockierte sonst JEDEN künftigen Deploy für ein Entitlement, das
-  wahrscheinlich egal ist. (2) v300 kam wegen dieses roten Gates NIE bei TestFlight an;
-  dieser v301 lädt wieder hoch → sauberer, aktueller Reinstall-Ziel-Build. Kein
-  App-Verhalten geändert.
+  FIX (dieser Build): App-Group aus `EchoelmusicAUv3.entitlements` entfernt. Der AU
+  braucht die Group zum Instanziieren NICHT — der Live-Vitals-Bridge (App→Plugin)
+  degradiert sauber zu "Host setzt die Parameter". Das Plugin funktioniert weiter,
+  verliert nur vorübergehend die Live-Bio-Brücke.
 
-  BITTE 1 SACHE TESTEN (klärt stale-Registrierung vs. echter Appex-Defekt):
-  Echoelmusic KOMPLETT löschen (App-Icon lange drücken → App entfernen → App löschen),
-  dann v301 aus TestFlight NEU installieren, einmal öffnen. Danach in AUM: lässt sich
-  EchoelBodyVibe jetzt ÖFFNEN? Und in Echoelmusics eigenem AUv3-Browser: erscheint
-  jetzt irgendetwas (auch nur "Echoel")? Das Ergebnis sagt mir exakt, wo der Fehler
-  sitzt — ohne weitere Rätsel.
+  BITTE TESTEN (klärt es hart): Echoelmusic KOMPLETT löschen → Gerät NEU STARTEN →
+  v302 aus TestFlight frisch installieren → einmal öffnen. Dann in AUM: lässt sich
+  EchoelBodyVibe JETZT ÖFFNEN?
+    - ÖFFNET → der App-Group-Mismatch WAR das Tor. Dann entscheiden wir: so lassen
+      (ohne Live-Bridge) oder die App Group im Portal für com.echoelmusic.app.auv3
+      granten und die Brücke zurückholen.
+    - ÖFFNET IMMER NOCH NICHT → tieferer Signatur-/iOS-Pfad; dann brauche ich EINE
+      Zeile frisches Gerät-Log (iOS-Version + ob `rawMakers` je einen Nicht-Apple-
+      Hersteller zeigt), das trennt OS-Blackout von unserem Code.
+
+  PARALLEL (optional, bestätigt Kandidat #1 hart): im Portal prüfen, ob App Groups
+  für die App-ID `com.echoelmusic.app.auv3` mit `group.com.echoelmusic` aktiviert ist.

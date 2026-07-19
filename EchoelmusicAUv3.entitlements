@@ -2,10 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- App Groups (shared data with host app) -->
-	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>group.com.echoelmusic</string>
-	</array>
+	<!-- App Groups (group.com.echoelmusic) REMOVED 2026-07-19 (ultracode-heal,
+	     AUv3 candidate #1). SYMPTOM: EchoelBodyVibe registers (AUM lists it) but
+	     fails to INSTANTIATE in EVERY host (AUM "won't open"; our self-probe returns
+	     -3000 invalidComponentID) — the host-independent signature of an extension
+	     whose process launch iOS DENIES. A common cause is an App-Group entitlement
+	     the extension's App ID (com.echoelmusic.app.auv3) is not actually granted in
+	     the portal: iOS registers the AudioComponent from Info.plist but refuses to
+	     start the appex process → -3000 everywhere, persistent across builds.
+	     The AU does NOT need the group to instantiate: BioFeedbackManager's
+	     App-Group read (pullSharedVitals, EchoelmusicAudioUnit.swift:367-377)
+	     degrades cleanly to "host set the params" when the suite is absent — the
+	     plugin still works, it only loses the live main-app->plugin vitals bridge.
+	     If a fresh clean-install then OPENS the plugin, this mismatch WAS the gate.
+	     To restore the live bridge later: grant App Groups (group.com.echoelmusic)
+	     to the com.echoelmusic.app.auv3 App ID in the portal, THEN re-add the key
+	     here - do not re-add it before the App ID carries the capability. -->
 </dict>
 </plist>
