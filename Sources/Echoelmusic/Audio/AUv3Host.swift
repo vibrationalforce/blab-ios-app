@@ -20,6 +20,9 @@ import AVFoundation
 #if canImport(AudioToolbox)
 import AudioToolbox
 #endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// A discovered Audio Unit (value type — safe to list, persist, test).
 /// Codable (AU-2): the host records WHICH plugins occupy the global slots so
@@ -131,6 +134,11 @@ public final class AUv3Host {
     /// Re-scan trigger for late third-party AUv3 registrations (see scan()).
     /// The host lives for the app's lifetime, so the observer is never removed.
     @ObservationIgnored private var registrationObserver: NSObjectProtocol?
+    /// Re-scan trigger for AUv3 extensions registered BEFORE this launch: those never
+    /// fire kAudioComponentRegistrationsChangedNotification, so RETURNING to the
+    /// foreground (after the user opened a plugin's own app to activate it) is the
+    /// missing signal. Set once; never removed (host lives the app's lifetime).
+    @ObservationIgnored private var foregroundObserver: NSObjectProtocol?
     /// Retry ladder for a cold / late-registering third-party AUv3 registry (see scan()).
     @ObservationIgnored private var scanAttempt = 0
     /// Once-per-process gate for the own-AUv3 self-instantiate probe (see the
@@ -717,6 +725,27 @@ public final class AUv3Host {
                 }
             }
         }
+        // FOREGROUND RE-SCAN (baseline AU-host hygiene, mirrors the registration
+        // observer above): an extension registered BEFORE this launch never fires
+        // kAudioComponentRegistrationsChangedNotification, and an in-session Rescan
+        // hits the same cold process cache — but RETURNING TO THE FOREGROUND (the user
+        // just opened the plugin's own app to activate it, then came back to Echoel) is
+        // a genuinely new registry state iOS may now serve this process. Re-scan on
+        // foreground WHILE STILL COLD; a no-op once warm (guarded) and independent of
+        // the once-per-process self-probe diagnostic (a warm result just clears the cold
+        // UI, it never changes the probe verdict). Subscribe ONCE; host lives app-life.
+        #if canImport(UIKit)
+        if foregroundObserver == nil {
+            foregroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self, self.registryColdForProcess else { return }
+                    self.scan()
+                }
+            }
+        }
+        #endif
         // Query the all-match wildcard AND each hosted type explicitly, AND the
         // full-registry enumeration (`passingTest`), then de-dupe. The all-zero
         // wildcard is documented to return everything, but the enumeration path
