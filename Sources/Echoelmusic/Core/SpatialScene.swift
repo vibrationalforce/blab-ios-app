@@ -232,9 +232,18 @@ public struct SpatialScene: Codable, Sendable, Equatable {
         public let room: RoomModel?
         /// Revision of the scene this diff produces.
         public let toRevision: UInt64
+        /// The TARGET object order (ids), present only when the order differs from
+        /// `old` — array position is the ADM/IEM object index (the scene array is
+        /// the routing table), so order is semantic and must converge too. Without
+        /// it, a pure reorder (or a remove+re-add that moves an id to the end)
+        /// produces an EMPTY structural diff, and the peers would silently disagree
+        /// on which object is /adm/obj/1. Optional for wire back-compat: a diff
+        /// that omits it (a legacy sender) applies add/remove/change only, the
+        /// pre-order behavior. Absent key auto-decodes to nil (synthesized Codable).
+        public let order: [String]?
 
         public var isEmpty: Bool {
-            added.isEmpty && removed.isEmpty && changed.isEmpty && room == nil
+            added.isEmpty && removed.isEmpty && changed.isEmpty && room == nil && order == nil
         }
     }
 
@@ -252,11 +261,15 @@ public struct SpatialScene: Codable, Sendable, Equatable {
             }
         }
         let removed = old.objects.map(\.id).filter { newByID[$0] == nil }
+        let newOrder = objects.map(\.id)
         return Diff(added: added,
                     removed: removed,
                     changed: changed,
                     room: room == old.room ? nil : room,
-                    toRevision: revision)
+                    toRevision: revision,
+                    // Carry the target order only when it actually differs, so an
+                    // unchanged/content-only diff stays `isEmpty`-clean and lean.
+                    order: newOrder == old.objects.map(\.id) ? nil : newOrder)
     }
 
     /// Apply a diff (from a peer). Returns the updated scene; `revision`
@@ -271,6 +284,20 @@ public struct SpatialScene: Codable, Sendable, Equatable {
         }
         for obj in diff.added where next.object(id: obj.id) == nil {
             next.objects.append(obj)
+        }
+        // Reconcile ORDER last (after add/remove/change so every target id is
+        // present), so array position — the ADM/IEM object index — converges too.
+        // A well-formed diff's `order` lists every target id; anything not named
+        // (never happens for a diff from diff()) is kept at the end so no object
+        // is ever dropped.
+        if let order = diff.order {
+            let byID = Dictionary(next.objects.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            var reordered = order.compactMap { byID[$0] }
+            if reordered.count != next.objects.count {
+                let named = Set(order)
+                reordered.append(contentsOf: next.objects.filter { !named.contains($0.id) })
+            }
+            next.objects = reordered
         }
         if let room = diff.room { next.room = room }
         next.revision = diff.toRevision

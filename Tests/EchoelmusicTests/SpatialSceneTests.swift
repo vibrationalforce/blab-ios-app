@@ -148,6 +148,47 @@ final class SpatialSceneTests: XCTestCase {
         scene.upsert(SpatialObject(id: "a"))
         let diff = scene.diff(from: scene)
         XCTAssertTrue(diff.isEmpty)
+        XCTAssertNil(diff.order, "identical order → no order payload")
+    }
+
+    // Array position IS the ADM/IEM object index, so order must converge too.
+    // A pure reorder produces an empty STRUCTURAL diff; without the order payload
+    // the peers would silently disagree on which object is /adm/obj/1.
+    func testPureReorder_convergesAndIsNotEmpty() {
+        var old = SpatialScene()
+        old.upsert(SpatialObject(id: "A"))
+        old.upsert(SpatialObject(id: "B"))       // [A, B]
+        var new = SpatialScene()
+        new.upsert(SpatialObject(id: "B"))
+        new.upsert(SpatialObject(id: "A"))       // [B, A]
+
+        let diff = new.diff(from: old)
+        XCTAssertFalse(diff.isEmpty, "a reorder is a real change to send")
+        XCTAssertEqual(diff.added, [])
+        XCTAssertEqual(diff.removed, [])
+        XCTAssertEqual(diff.changed, [])
+        XCTAssertEqual(diff.order, ["B", "A"])
+
+        let converged = old.applying(diff)
+        XCTAssertEqual(converged.objects.map(\.id), ["B", "A"], "peer converges on the new order")
+        XCTAssertEqual(converged.revision, new.revision)
+    }
+
+    // Add/remove that also shifts positions: order still converges exactly.
+    func testAddRemove_reordersToTarget() {
+        var old = SpatialScene()
+        old.upsert(SpatialObject(id: "A"))
+        old.upsert(SpatialObject(id: "B"))
+        old.upsert(SpatialObject(id: "C"))       // [A, B, C]
+
+        var new = SpatialScene()                 // built in a different order
+        new.upsert(SpatialObject(id: "C"))
+        new.upsert(SpatialObject(id: "A"))
+        new.upsert(SpatialObject(id: "D"))       // [C, A, D]  (B removed, D added)
+
+        let converged = old.applying(new.diff(from: old))
+        XCTAssertEqual(converged.objects.map(\.id), ["C", "A", "D"])
+        XCTAssertEqual(converged, new)
     }
 
     func testApplyingDiffReproducesNewScene() {

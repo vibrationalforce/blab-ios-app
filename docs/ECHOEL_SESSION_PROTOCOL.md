@@ -153,9 +153,17 @@ Sizes in meters (1…200 wall, 1…60 height), `decayTime` seconds (0.1…30),
   "removed": [ "object-id", ... ],
   "changed": [ SpatialObject, ... ],
   "room": RoomModel | null,
-  "toRevision": 8
+  "toRevision": 8,
+  "order": [ "object-id", ... ] | null
 }
 ```
+
+- `order` — the TARGET object order (ids), present only when the order differs
+  from the receiver's base. Array position is the ADM/IEM object index (the scene
+  array is the routing table), so order is semantic and must converge too — a pure
+  reorder otherwise yields an empty structural diff and peers would disagree on
+  which object is `/adm/obj/1`. Additive optional field (a legacy sender omits it →
+  receiver applies add/remove/change only, the pre-order behavior); no major bump.
 
 ## Versioning rules
 
