@@ -281,8 +281,12 @@ public final class PatternEngine {
         // change / regenerate). scheduleTick invalidates the old timer first.
         if isPlaying {
             let base = 60.0 / tempo / 4.0
-            let s = Swift.min(Swift.max(swing, 0), 0.5)
-            scheduleTick(after: (currentStep % 2 == 0) ? base * (1 + s) : base * (1 - s))
+            // Between ticks `currentStep` is the NEXT step to play; the gap before
+            // it is decided by the JUST-PLAYED step (currentStep − 1), exactly as
+            // advance() schedules it. Passing `currentStep` here inverted the swing
+            // for the one step right after a mid-play tempo change.
+            let justPlayed = (currentStep + PatternEngine.stepCount - 1) % PatternEngine.stepCount
+            scheduleTick(after: PatternEngine.swingGap(afterStep: justPlayed, base: base, swing: swing))
         }
     }
 
@@ -470,10 +474,22 @@ public final class PatternEngine {
 
         // Gap to the NEXT step. Swing lengthens the gap that follows a downbeat
         // (even step), delaying the off-beat; the following gap shortens to keep
-        // each beat-pair the same total length (tempo preserved).
+        // each beat-pair the same total length (tempo preserved). Shared with the
+        // setTempo re-arm via swingGap so the two paths can never diverge again.
         let base = 60.0 / tempo / 4.0
+        scheduleTick(after: PatternEngine.swingGap(afterStep: step, base: base, swing: swing))
+    }
+
+    /// The gap (seconds) that FOLLOWS `justPlayedStep` — the wait before the next
+    /// step. Swing lengthens the gap after an EVEN step (delaying the off-beat) and
+    /// shortens the one after an odd step, so each even/odd pair keeps the same
+    /// total length (tempo preserved). Pure + `nonisolated` — the single source of
+    /// truth for both `advance()` and the `setTempo` re-arm. `swing` is clamped to
+    /// [0, 0.5]. The re-arm MUST pass the JUST-PLAYED step (currentStep − 1),
+    /// because between ticks `currentStep` already points at the NEXT step.
+    nonisolated static func swingGap(afterStep justPlayedStep: Int,
+                                     base: Double, swing: Double) -> Double {
         let s = Swift.min(Swift.max(swing, 0), 0.5)
-        let interval = (step % 2 == 0) ? base * (1 + s) : base * (1 - s)
-        scheduleTick(after: interval)
+        return (justPlayedStep % 2 == 0) ? base * (1 + s) : base * (1 - s)
     }
 }
