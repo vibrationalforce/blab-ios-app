@@ -29,12 +29,36 @@ The main loop (the PM) then synthesizes 6–8 vetted lead-reports, not 20 raw on
 | **PLAN/ARCHITECTURE** | `planning-agent` | plan-first for big/ambiguous items — the "ERST PLAN + Council" front door; breaks work into atomic slices before any build cycle | before a large, multi-file, or ambiguous item |
 | **RELEASE/CI** | `build-error-resolver` | keeping both gates green + owning the tokenless deploy (`.deploy/release`, `testflight.yml`, entitlements/provisioning) | every push / red gate / deploy |
 | **RED-TEAM / SKEPTIC** | `general-purpose` (N refuters) | adversarially trying to BREAK a risky slice (N refuters, majority-kill), not just review it | only irreversible / high-risk changes (deletes, audio-thread, protected triad, deploys) |
+| **DEVICE-VERIFY / RELIABILITY-QA** | `general-purpose` (+ `device-log-triage`/`watch-clip`/`video-watch` skills; pairs `tdd-agent`) | the post-deploy FEEDBACK stage: intake any founder device signal (`echoel_diag.log`, `.ips`, MetricKit, screen clip) → root-cause → ROUTE to the right domain team; owns the NEEDS-FOUNDER-VERIFY backlog + the flip-vs-rollback call per blind sensory flag at freeze-lift; adds a recurrence guard (test/lint on the known failure-class file) before the fix ships | a founder pastes a crash/diag log or clip; any on-device crash/freeze/anomaly; freeze-lift backlog burndown; a fix lands in a recurring failure-class file (sheet-chain, audio-route, LaunchGuard/SafeMode) |
 | **DSP-CORRECTNESS** | `dsp-reviewer` | algorithm correctness (biquads, FFT/vDSP, Rausch triad READ-ONLY) — distinct from audio-thread safety | only DSP/ or Bio/ math changes |
 | **ADAPTIVE DESIGN/UX** | `general-purpose` (armed with the Uncodixfy rules) | look & feel & accessibility — Uncodixfy compliance (radii ≤16, no glassmorphism, solid fills, `EchoelValueField`), adaptive/responsive layout (Dynamic Type, `ScaledMetric`, device sizes, dark/light), a11y (VoiceOver, reduce-motion, flash ≤3 Hz WCAG), and the "wow"/contemplative quality bar. DISTINCT from UI/STUDIO (which owns state-flow/freeze/sheet correctness) — they compose on a UI slice. | any user-facing UI/visual change, new screen/panel, or a "make it feel right" ask |
 | **MEMORY/RECONCILE** | `general-purpose` | keeping the task list + `memory/` + `decisions.csv` honest — catch mislabeled-done, stale claims, drift | weekly / on task-list drift |
 
 **Standing cross-cut reviewers** every code change passes before ship:
 `concurrency-reviewer`, `code-reviewer`, `security-agent`.
+
+## Leadership & steward roles (decision-ownership, NOT worker fan-out)
+
+Teams supply vetted analysis + throughput; ROLES own standing DECISIONS. A role
+convenes, decides, and gets out of the way — it does not fan out workers or touch
+`Sources/`. The build half of the loop was well-covered; these fill the STEERING and
+FEEDBACK halves the coverage audit found orphaned.
+
+| Role | Owns the decision | Relationship / when |
+|------|-------------------|---------------------|
+| **Head of Product** | the WHAT/WHY: keeps ONE canonical REIHENFOLGE, reconciling the ~70 `PLAN_*.md` + BACKLOG + MASTERPLAN into a single ranked roadmap; every cut/keep + monetization-scope call (EchoelStore, RTMP/Broadcast, Video deferral); ambiguous-ask → intent→spec | sits ABOVE the PM main loop (PM executes one verified slice/cycle against the order HoP sets). DISTINCT from `the-council`/`grand-council` (they advise then leave — HoP owns the standing decision), from `vision-gate` (filters INBOUND inspiration — HoP owns the OUTBOUND roadmap), and from PLAN/ARCHITECTURE (decomposes the HOW of an already-chosen task). Runs continuously while the founder is away. |
+| **Head of Quality** (Definition-of-Done) | the "is it actually good" bar gates don't cover: organic/professional SOUND, contemplative "wow" VISUAL; whether a NEEDS-FOUNDER-VERIFY item is truly closeable | peer to Head of Product (HoP owns WHAT ships next; HoQ owns whether what shipped meets the bar). Delegates device root-cause to DEVICE-VERIFY; keeps the sensory judgment. On any safe-default slice, a "make it sound/feel professional" ask, or a release-readiness check. |
+| **EchoelAI Safety Owner** | sign-off before ANY `EchoelAI/` slice ships: binding a model apply-closure to `Core/ParameterApplyRouter.swift` (the concrete keyPath→live-voice-setter hole), any new FoundationModels `@Generable`/Tool wrapper, any `FeatureFlags.echoelAI` flip. Enforces the ADR write-path law ("the model NEVER writes DSP state directly") + no-audio-thread + Release-bit-identical gating | lead `security-agent` (LLM guardrail/injection lens) with `audio-thread-reviewer` standing cross-cut. Any cycle touching `Sources/Echoelmusic/EchoelAI/**` or wiring a model closure to the router/EngineBus. |
+| **Persistence & Schema-Migration Steward** | approval of any persisted `Codable` field rename/removal, any `*Store` add/rename, container/format change. Mandates `schemaVersion` + `decodeIfPresent` + non-destructive fallback — ends the silent `try?`-decode that vaporizes user docs on a field rename (only `SpatialScene` is versioned today) | lead `code-reviewer`. Lightweight standing role (the ~12 stores are too multi-domain to fold into DAW/TIMELINE). Any change to a persisted `Codable` type or a `*Store`. |
+| **App Store Release-Compliance Owner** | the submission-time go/no-go: 2.1/2.3/5.1.3 reject-risk sign-off, privacy-nutrition-label + age-rating answers, the `fastlane/metadata` skip-metadata safety call | folded into RELEASE/CI as its release-gate seat — convenes the existing reviewers (`security-agent` privacy + `bio-safety-reviewer` health-claim + `echoel-marketing` copy), no new team. Before any App Store submission or change to `fastlane/metadata`/`PrivacyInfo.xcprivacy`/entitlements. |
+
+### Fold-ins (deliberately NOT new teams)
+
+- **Core/ control-plane** (EngineBus topics, SignalRouter, `ParameterApplyRouter`, store schemas, `FeatureFlags`/`ProGate`) → PLAN/ARCHITECTURE's explicit Owns, with `concurrency-reviewer` standing.
+- **Runtime performance budget** (CPU<30%, mem<200MB, 120fps, audio<10ms, bio 120Hz; `benchmark.yml`) → RELEASE/CI, composing AUDIO/DSP (latency) + VIDEO/VISUAL (fps) on the relevant slice.
+- **Governance/knowledge** (CLAUDE.md drift, `HARNESS_LEDGER`, `review.sh` backlog, active scratchpad PLANs, decisions.csv taxonomy) → widen MEMORY/RECONCILE's charter.
+- **All user-facing brand-red-line copy** (not just bio copy) → widen BIO's copy scope + UI/STUDIO.
+- **Commerce/StoreKit** (`EchoelStore`/`ProGate`, dormant) → AUv3/PLATFORM, convened only on activation.
 
 ### Continuous processing — ONE PM loop, teams plug in per-task
 
@@ -70,6 +94,13 @@ law applies to the roster itself. So:
   never raw worker output.
 - If activating a team wouldn't change the decision, don't — coordination overhead
   is the failure mode in the other direction.
+
+**Deliberately rejected** (coverage audit 2026-07-19 — do NOT re-add without new evidence):
+a standalone Eng/Architecture lead or separate CORE team (duplicates the-council Architect
++ PLAN/ARCHITECTURE); a standalone Performance team (folds into RELEASE/CI); Head of Growth
++ a Localization team (growth folds into Head of Product; localization is a deliberate v1.0
+iPhone-first single-market deferral — zero `.strings` today); standalone EchoelAI/Commerce/
+Community worker teams (all decision-ownership or dormant, covered by roles/fold-ins above).
 
 ## The lead's job (the quality gate)
 
