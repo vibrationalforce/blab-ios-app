@@ -211,3 +211,27 @@ DO THIS INSTEAD: the App ID's Inter-App-Audio capability state is only readable 
 developer portal (or a key with Admin). Ask the founder for a 30 s portal READ (developer.apple.com
 → Identifiers → com.echoelmusic.app → is "Inter-App Audio" enabled?). Do NOT burn more deploys on
 CI entitlement diagnostics.
+
+## AUv3 device-test ROUTED (2026-07-20, founder answer on v317/2425)
+v316's component-version bump 10000→10001 shipped in v317, yet the device log STILL shows
+0 third-party + ownAUv3 false + self-probe -3000. Founder confirmed (AskUserQuestion): they
+did NOT reboot the iPhone and did NOT open another AU host (GarageBand/AUM) first — "nur App neu".
+→ CONCLUSION: this is cause-1 (cold device AudioComponentRegistrar serving THIS process an
+Apple-only snapshot), NOT our manifest/version and NOT a code bug. The version-bump theory is
+now REFUTED as the cure for the 0-external symptom (it only ever addressed our own unit).
+DO THIS INSTEAD: no more AUv3 discovery CODE until the founder runs the full warm sequence
+(delete → REBOOT iPhone → reinstall via TestFlight → open GarageBand/AUM plugin list once →
+Echoel → Rescan). If external plugins appear → cold registry confirmed, done. If STILL 0 after
+the full sequence → THEN it routes to cause-3 (appex registration/provisioning; check archived
+appex profile) — only then is a code/CI move warranted. The v318/v319 browser + one-tap
+assignment surfaces are already built and ready to show them the moment discovery works.
+
+## PLAYBOOK (2026-07-20) — trust the compiler gate over a reviewer's symbol-location claim
+v319 shipped `LaneAUInstrumentHost.maxEffectsPerLane`; the code-reviewer "confirmed" it as a
+public static let at LaneAUInstrumentHost.swift:45. Xcode compile-check went RED: the constant
+actually lives on `LaneAUAssignment` (a struct in the SAME file, line 45) — the reviewer matched
+the FILE+LINE from grep but not the OWNING TYPE. Lesson: a reviewer subagent's "symbol X exists
+at file:line" is a grep hit, not a type-resolution proof. When a member reference is load-bearing,
+grep for `static .* <name>` and read the ENCLOSING type, or just let the compile gate arbitrate —
+don't treat the reviewer's location claim as ground truth. (SwiftPM was green here too; only the
+stricter Xcode app-target gate caught it — always wait for BOTH gates on member-access changes.)
