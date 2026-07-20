@@ -73,6 +73,37 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
         XCTAssertTrue(d.guidance.isEmpty)
     }
 
+    // MARK: - Copyable report (one-tap founder→developer hand-off)
+
+    // The report is the deciding fact in one pastable line: how many units iOS
+    // returned, how many third-party, whether our own appex showed, the probe
+    // verdict, AND the manufacturer NAMES iOS handed this process. If that maker
+    // list is Apple-only while AUM shows dozens, iOS is serving an Apple-only
+    // registry to this app; if it names real makers absent from the list, our
+    // filter dropped them. Pure/deterministic ⇒ CI-verifiable off-device.
+    func testReport_namesTheMakersAndCounts() {
+        let d = AUv3ScanDiagnostic(
+            rawComponentCount: 42, thirdPartyCount: 0, ownAUv3Present: false,
+            scanAttempt: 4, selfProbe: .instantiateOK,
+            rawMakers: ["Apple", "Moog Music Inc.", "Imaginando"])
+        let r = d.report
+        XCTAssertTrue(r.contains("42"), "carries the raw component count")
+        XCTAssertTrue(r.contains("0 third-party"), "carries the third-party count")
+        XCTAssertTrue(r.contains("not visible"), "states own AUv3 visibility")
+        XCTAssertTrue(r.contains("Moog Music Inc."), "names the makers iOS returned")
+        XCTAssertTrue(r.contains("Imaginando"))
+        XCTAssertTrue(r.lowercased().contains("instantiate-ok") || r.lowercased().contains("list stale"),
+                      "carries the self-probe verdict")
+    }
+
+    // Empty maker list must read as an explicit "none", not a dangling "[]" the
+    // founder can't interpret.
+    func testReport_emptyMakers_readsAsNone() {
+        let d = AUv3ScanDiagnostic(rawComponentCount: 0, thirdPartyCount: 0,
+                                   ownAUv3Present: false, scanAttempt: 0)
+        XCTAssertTrue(d.report.contains("[none]"), "empty maker set reads as a legible none")
+    }
+
     // MARK: - Load-failure message (founder-visible "won't open" triage)
 
     // When a plugin is DISCOVERED but fails at LOAD/open time (founder 2026-07-19:

@@ -6,6 +6,9 @@ import AVFoundation
 #if canImport(AudioToolbox)
 import AudioToolbox
 #endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // AUv3BrowserView.swift
 // Echoel — the AUv3 browser + host. Lists the Audio Unit instruments and effects
@@ -33,6 +36,18 @@ struct AUv3BrowserView: View {
     /// Where a tapped EFFECT is inserted: the instrument's own channel, or the master bus.
     private enum EffectTarget: String, CaseIterable { case channel = "Channel"; case master = "Master" }
     @State private var effectTarget: EffectTarget = .channel
+
+    /// Momentary "Copied" confirmation for the diagnostic copy button.
+    @State private var copiedDiagnostic = false
+
+    /// Copy the full AUv3 scan diagnostic to the clipboard so the founder can paste
+    /// the deciding fact (which makers iOS returned to this app) in one tap.
+    private func copyDiagnostic(_ text: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = text
+        #endif
+        copiedDiagnostic = true
+    }
 
     var body: some View {
         Group {
@@ -145,6 +160,19 @@ struct AUv3BrowserView: View {
                             .textSelection(.enabled)
                             .padding(.top, 2)
                     }
+                }
+                // One-tap copy of the FULL diagnostic (names which manufacturers iOS
+                // actually returned to this app) so the deciding fact travels without
+                // hunting for a log line. Shown whenever discovery looks wrong.
+                if let diag = host.diagnostic, host.registryColdForProcess || host.hasNoThirdPartyUnits {
+                    Button { copyDiagnostic(diag.report) } label: {
+                        Label(copiedDiagnostic ? "Copied — paste it to the developer" : "Copy diagnostic",
+                              systemImage: copiedDiagnostic ? "checkmark" : "doc.on.doc")
+                            .font(EchoelTheme.font(12, .semibold))
+                            .foregroundStyle(EchoelTheme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 4)
                 }
                 if let err = host.loadError {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)

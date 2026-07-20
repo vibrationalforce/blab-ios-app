@@ -67,6 +67,12 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
     public var scanAttempt: Int
     /// Verdict of the once-per-process self-instantiate probe (nil until it runs).
     public var selfProbe: SelfProbe?
+    /// The DISTINCT manufacturer display-names iOS returned to THIS process, before
+    /// our type filter. This is the single most decisive field: if it lists only
+    /// "Apple" while AUM (same device) shows dozens, iOS is serving this process an
+    /// Apple-only registry (an app/process issue); if it names Moog/Imaginando/etc.
+    /// yet the instrument list stays empty, OUR split/filter dropped them. Sorted.
+    public var rawMakers: [String]
 
     /// The own-AUv3 self-instantiate probe result (see `performScan`).
     public enum SelfProbe: Equatable, Sendable {
@@ -77,12 +83,13 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
     }
 
     public init(rawComponentCount: Int, thirdPartyCount: Int, ownAUv3Present: Bool,
-                scanAttempt: Int, selfProbe: SelfProbe? = nil) {
+                scanAttempt: Int, selfProbe: SelfProbe? = nil, rawMakers: [String] = []) {
         self.rawComponentCount = rawComponentCount
         self.thirdPartyCount = thirdPartyCount
         self.ownAUv3Present = ownAUv3Present
         self.scanAttempt = scanAttempt
         self.selfProbe = selfProbe
+        self.rawMakers = rawMakers
     }
 
     /// Cold ⇒ the process saw NO real third-party units and not even our own AUv3.
@@ -107,6 +114,23 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
                 + " Self-test: FAILED (\(domain) \(code)) — the plugin extension isn't registered on this device."
                 + " Reinstall Echoelmusic or restart the device. For third-party plugins, open each plugin's own app once."
         }
+    }
+
+    /// A complete, self-contained diagnostic the founder can COPY with one tap and
+    /// paste back — so the deciding fact (which makers iOS returns to THIS process)
+    /// travels without hunting for a small on-screen line or exporting a device log.
+    /// Pure/deterministic, so it is CI-verifiable off-device.
+    public var report: String {
+        let probe: String
+        switch selfProbe {
+        case .none:            probe = "pending"
+        case .instantiateOK:   probe = "instantiate-OK (list stale)"
+        case let .failed(d, c): probe = "FAILED \(d)#\(c) (appex unregistered)"
+        }
+        let makers = rawMakers.isEmpty ? "none" : rawMakers.joined(separator: ", ")
+        return "Echoel AUv3 scan[try \(scanAttempt)]: iOS returned \(rawComponentCount) Audio Units — "
+            + "\(thirdPartyCount) third-party, own AUv3 \(ownAUv3Present ? "visible" : "not visible"), "
+            + "self-probe \(probe). Makers iOS gave this app: [\(makers)]."
     }
 
     /// A founder- and log-friendly one-line reason for a FAILED AU load — for the
@@ -853,7 +877,8 @@ public final class AUv3Host {
                                         thirdPartyCount: thirdPartyCount,
                                         ownAUv3Present: ownAUv3,
                                         scanAttempt: scanAttempt,
-                                        selfProbe: diagnostic?.selfProbe)
+                                        selfProbe: diagnostic?.selfProbe,
+                                        rawMakers: rawMakers)
         // Cold-cache / late-registration backstop: when the OS returns only Apple
         // built-ins, the third-party registry is likely not warm yet for this
         // process — and because those extensions were registered BEFORE this launch,
