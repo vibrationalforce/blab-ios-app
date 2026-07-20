@@ -200,3 +200,14 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 - **Meta-Lektion:** „Research-confirmed" ohne primäre API-Verifikation ist eine
   Vermutung. Bei wiederholtem „das ist der Fix" ohne Landung → Hypothese selbst
   anzweifeln, nicht die nächste Variante derselben Hypothese bauen.
+
+## DEAD-END (2026-07-20) — reading AUv3/host entitlements from CI to decide the -3000 scan gate
+Tried 3 ways across v312-315, ALL dead: (1) `codesign -d` on the xcarchive app = DEV-signed
+(get-task-allow=true), strips healthkit/app-groups/IAA regardless of the App ID → aussagelos;
+(2) read the distribution `.ipa` = there IS no .ipa (ExportOptions `destination: upload` uploads
+directly, writes nothing to disk); (3) ASC-API `/v1/bundleIds/{id}/bundleIdCapabilities` = the
+upload key lacks Identifiers read-scope (App-Manager, not Admin) → 403/inconclusive.
+DO THIS INSTEAD: the App ID's Inter-App-Audio capability state is only readable by a human in the
+developer portal (or a key with Admin). Ask the founder for a 30 s portal READ (developer.apple.com
+→ Identifiers → com.echoelmusic.app → is "Inter-App Audio" enabled?). Do NOT burn more deploys on
+CI entitlement diagnostics.

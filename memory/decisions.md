@@ -843,3 +843,23 @@ Architectural and strategic decisions with context and rationale.
   Portal-CHANGE auf Verdacht".
 - **Status:** offen bis ASC-Abfrage (nächster Deploy) ODER Founder-Portal-Blick — dann EIN
   belegter Schritt.
+
+### 2026-07-20 KORREKTUR 5 — ALLE drei automatisierten AUv3-Entitlement-Reads erschöpft → Founder-Portal-READ ist der einzige Weg
+- **v315/2423:** die ASC-API-Capability-Abfrage lief, gab aber KEIN ::notice/::warning auf
+  stdout aus → der except-Zweig feuerte (Abfrage fehlgeschlagen, nur in die Summary
+  geschrieben). Ursache: der Upload-Key (App-Store-Connect) hat vermutlich App-Manager-Rolle
+  = darf Builds hochladen, aber NICHT /v1/bundleIds lesen (Identifiers-Scope braucht Admin) →
+  403 → inconclusive.
+- **DEAD-ENDS (nicht erneut versuchen — alle drei automatisierten Wege tot):**
+  1. Archiv-Entitlements (`codesign -d` auf xcarchive) = DEV-signiert (get-task-allow=true),
+     NICHT der Ship-Satz → healthkit/app-groups/IAA fehlen dort IMMER, aussagelos.
+  2. .ipa-Entitlements = es gibt keine .ipa (ExportOptions `destination: upload` lädt direkt
+     hoch, schreibt nichts auf Platte).
+  3. ASC-API bundleIdCapabilities = Upload-Key fehlt Identifiers-Read-Scope (403/inconclusive).
+     (Würde funktionieren, wenn der Key Admin-Rolle bekäme — aber Key-Rolle ändern ist
+     Founder-Sache und nicht nötig, wenn der Founder eh 30 s ins Portal schaut.)
+- **EINZIGER verbleibender Weg = Founder-Portal-READ (30 s, GUCKEN nicht ändern):**
+  developer.apple.com → Identifiers → com.echoelmusic.app → ist "Inter-App Audio" angehakt?
+  Nein → anhaken = belegter Fix. Ja → ausgeschlossen → Host-Blindheit → AUM prime→rescan.
+- **STOP-Regel:** keine weiteren AUv3-Diagnose-Deploys. 4 Deploys (v312-315) an CI-Diagnose =
+  genug. Nächste AUv3-Bewegung erst nach Founder-Portal-Info ODER Founder-AUM-prime-Test.

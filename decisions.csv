@@ -256,3 +256,4 @@ date,decision,reasoning,expected_outcome,review_date,status
 2026-07-20,AUv3-entitlement-verdict-read-wrong-artifact,archive-is-dev-signed-not-shipped-ipa,trustworthy-ipa-read-discriminates-3-cases,2026-08-19,open
 2026-07-20,#1-automation-in-track-option-C-staged,precision-editor-edits-loop-layer-not-document-automation,unified-store-one-curve-drawn-and-typed,2026-08-19,in-progress
 2026-07-20,AUv3-pivot-to-ASC-API-bundle-capabilities,both-signed-artifact-reads-dead-archive-devsigned-no-ipa-on-disk,authoritative-source-of-truth-query,2026-08-19,open
+2026-07-20,AUv3-all-automated-entitlement-reads-exhausted,archive-devsigned+no-ipa+asckey-lacks-identifiers-scope,founder-portal-read-is-only-path-stop-diagnostic-deploys,2026-08-19,founder-gated
