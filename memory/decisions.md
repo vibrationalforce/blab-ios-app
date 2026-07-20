@@ -879,3 +879,22 @@ Architectural and strategic decisions with context and rationale.
   Red Herring (Gerät hat schlicht keine anderen AU-Apps installiert).
 - **Status:** Entitlement-Deploys GESTOPPT. Nächster Schritt = Senior-Dev-Code-Audit von
   AUv3Host (self-probe + scan) gegen das Appex-Info.plist AudioComponents-Manifest.
+
+### 2026-07-20 AUv3 Team-Deepdive (workflow) → Version-Bump 10000→10001 als cheapest code fix
+- **Team-Synthese (3 Agenten + Synthese, wf_25a17d9e-cf0):** stärkster Befund — Founder hat VIELE
+  Fremd-AUv3 installiert, Log zeigt 0 → das ist KEIN Manifest-Fehler von uns, sondern die iOS-
+  AudioComponentRegistry, die auf dem Gerät kalt/veraltet ist (DevForums 89762; iOS re-scannt nicht
+  bei Same-Version-Reinstall). IAA ist deprecated + irrelevant (Founder hatte recht auszuschließen).
+- **Cheapest CODE fix (GEBAUT):** AudioComponents `version` 10000→10001 in project.yml:189 +
+  Resources/EchoelmusicAUv3/Info.plist:57 (byte-identisch, Gesetz #32). iOS keyt Registry auf
+  type/subtype/manufacturer/VERSION — die Version blieb beim Struktur-Fix vom 16.07. unverändert,
+  also wird die alte fehlgeschlagene Registrierung de-dupliziert/weitergereicht. Bump = Neu-Ingest.
+- **EHRLICHER CAVEAT:** repariert NUR unsere eigene Unit; die 0-Fremd-Units sind geräteseitige
+  Registry-Kälte → Founder-Gerätetest (App löschen → iPhone NEUSTART → TestFlight-Reinstall →
+  AUM/GarageBand-Liste einmal öffnen → Echoel Rescan). Kein Overclaim.
+- **Follow-on (Founder-Ziel, NACH Discovery-Beweis):** die Maschinerie existiert; es fehlt nur die
+  Ein-Tipp-Spurzuweisung (AUAssignTarget enum + `.plugins(lane?)` am bestehenden Sheet + row-tap →
+  setLaneInstrument/setLaneEffects). Plan: scratchpads/PLAN_AUV3_REGISTRATION_2026-07-20.md.
+- **type=augn vs aumu:** bekannter Produkt-Defekt (Instrument gehört als MusicDevice), NICHT die
+  Unsichtbarkeits-Ursache; separate spätere Änderung, dann wieder Version bumpen.
+- **Gate: proceed** — Version-Bump deployt; Rest = Founder-Gerätetest entscheidet Ursache 1/3/4.

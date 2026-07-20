@@ -54,7 +54,7 @@
 					<key>subtype</key>
 					<string>echl</string>
 					<key>version</key>
-					<integer>10000</integer>
+					<integer>10001</integer>
 					<key>sandboxSafe</key>
 					<true/>
 					<key>tags</key>
