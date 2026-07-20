@@ -56,3 +56,21 @@ door name `.minimumScaleFactor(0.85)` · strip `.dynamicTypeSize(...xLarge)` cap
 (hSize is not a 10 Hz publisher). See commit this cycle.
 
 ## AUv3 — separate free-text agent (schema team failed); see next status.
+
+## BodyVibe surface — API investigation done (2026-07-20 cont.)
+RESOLVED (all exist, public):
+- `TimelineStore.setLaneGenreOverride(_ laneID, genre: MusicStyle?)` (TimelineStore.swift:545)
+- `lane.genreOverride` (Timeline.swift:120/164, decodeIfPresent — Codable-safe), `mood`, `variationSeed`
+- `LaneComposerInput.composeLaneOverrides` consumes them; `LaneCompositionSection` (private in
+  ArrangeTimelineView:2093) already renders Genre+Mood+Variation per lane (shown for secondary MIDI lanes).
+- `ArrangeModal` enum (267) + id (290) + `modalEditor` dispatch (448) — add `.bodyVibe(TimelineLane)` here.
+- Genre picker pattern = grouped MusicStyle.Category (ArrangeTimelineView:2146).
+- BioStripView = leaf reading EngineBus/CameraRPPG/Transport from env (inherited by sheets).
+
+**BLOCKER (genuine ambiguity → founder ask):** NO bio lane is ever created — default doc =
+MIDI 1 + Audio 1 (TimelineStore:58-72); `isBio: true` appears NOWHERE in Sources. So "BodyVibe =
+the bioVoice lane's editor" has no host lane. WHERE the surface attaches (new seeded lane vs header
+bio element vs standalone) is a user-visible architectural call + (for the lane option) a migration
+question for existing saved projects. Asked founder. Once answered, first slice = BodyVibeSurfaceView
+(Genre-override picker via public API + BioStripView leaf) reached from the chosen trigger; then fold
+in mood/sound/generate/visual + Face source per the team design.
