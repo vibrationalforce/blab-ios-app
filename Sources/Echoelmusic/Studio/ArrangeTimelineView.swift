@@ -1512,7 +1512,8 @@ private struct RegionBlockView: View {
             contentOffsetTicks: region.contentOffsetTicks,
             contentOffsetSeconds: region.contentOffsetSeconds, ppb: ppb, snap: snap) : 0
         let resizeW = isResizing ? TimelineDragMath.trailingTrimPreviewDeltaW(
-            rawDeltaX: resizeDelta, lengthTicks: region.lengthTicks, ppb: ppb, snap: snap) : 0
+            rawDeltaX: resizeDelta, lengthTicks: region.lengthTicks, ppb: ppb, snap: snap,
+            neighbourEdges: neighbourEdges, startTick: region.startTick) : 0   // #56 C7 butt-join
         // Gate-aware (#56 MEDIUM #2): a row the store refuses (kind mismatch /
         // out of bounds / bio) previews as NO shift — release is a visual no-op
         // instead of a jump-back. Computed FIRST because the horizontal preview
@@ -1755,10 +1756,22 @@ private struct RegionBlockView: View {
                 let deltaTicks = Int((value.translation.width / ppb
                                       * CGFloat(TimelineTime.ticksPerBeat)).rounded())
                 let raw = region.lengthTicks + deltaTicks
-                let snapped = snap == .off ? raw : TimelineSnap.snap(raw, to: snap)
+                // #56 C7: the trailing edge magnetizes to neighbour clip edges
+                // (butt-join), same feel as the move edge-magnet — candidates read
+                // here in the action (never body — freeze rule), each expressed as
+                // a length from our start so OUR end lands on the edge. Parity with
+                // trailingTrimPreviewDeltaW (same neighbourEdges, minus startTick).
+                let magnetTicks = Int((8.0 / ppb * CGFloat(TimelineTime.ticksPerBeat)).rounded())
+                let candidates = timeline.document.regions(in: region.laneID)
+                    .filter { $0.id != region.id }
+                    .flatMap { [$0.startTick, $0.endTick] }
+                    .map { $0 - region.startTick }
+                let snapped = TimelineSnap.snapWithEdges(raw, to: snap,
+                                                         edges: candidates, magnetTicks: magnetTicks)
                 timeline.resizeRegion(
                     id: region.id,
                     lengthTicks: max(TimelineTime.ticksPerTransportStep, snapped))
+                if snapped != raw { snapPulse += 1 }   // fühlbares Einrasten (C7)
             }
     }
 

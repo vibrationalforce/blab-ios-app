@@ -173,6 +173,46 @@ final class TimelineDragMathTests: XCTestCase {
         XCTAssertEqual(d, CGFloat(TimelineTime.ticksPerTransportStep - 480) * 24 / 480)
     }
 
+    // MARK: - Trailing trim · neighbour-edge magnetism (#56 C7 butt-join)
+
+    func testTrailingTrimPreview_endKissesNeighbourStart_parityWithCommit() {
+        // Region start 480, length 960 (end 1440). +4pt → raw length 1040. Neighbour
+        // start 1500 → length candidate 1020 (dist 20 ≤160 magnet AND ≤ grid 1080's
+        // 40) → END lands on 1500, length previews 1020.
+        let start = 480, length = 960
+        let neighbourEdges = [1500, 2000]         // neighbour start/end
+        let d = TimelineDragMath.trailingTrimPreviewDeltaW(
+            rawDeltaX: 4, lengthTicks: length, ppb: 24, snap: .sixteenth,
+            neighbourEdges: neighbourEdges, startTick: start)
+        // Commit parity (resizeGesture.onEnded C7 branch, verbatim):
+        let raw = length + Int((4.0 / 24.0 * 480.0).rounded())      // 1040
+        let magnetTicks = Int((8.0 / 24.0 * 480.0).rounded())       // 160
+        let candidates = neighbourEdges.map { $0 - start }          // [1020, 1520]
+        let committed = max(TimelineTime.ticksPerTransportStep,
+                            TimelineSnap.snapWithEdges(raw, to: .sixteenth,
+                                                       edges: candidates, magnetTicks: magnetTicks))
+        XCTAssertEqual(committed, 1020)                             // end = 480+1020 = 1500
+        XCTAssertEqual(d, CGFloat(committed - length) * 24 / 480)
+    }
+
+    func testTrailingTrimPreview_edgesOutsideWindow_fallBackToGrid() {
+        // Only far neighbours → magnet never engages → identical to grid-only preview.
+        let d = TimelineDragMath.trailingTrimPreviewDeltaW(
+            rawDeltaX: 4, lengthTicks: 960, ppb: 24, snap: .sixteenth,
+            neighbourEdges: [5000], startTick: 480)
+        let gridOnly = TimelineDragMath.trailingTrimPreviewDeltaW(
+            rawDeltaX: 4, lengthTicks: 960, ppb: 24, snap: .sixteenth)
+        XCTAssertEqual(d, gridOnly)
+    }
+
+    func testTrailingTrimPreview_magnetStillFloorsAtMinLength() {
+        // A neighbour edge that would shrink below one step is floored, like the commit.
+        let d = TimelineDragMath.trailingTrimPreviewDeltaW(
+            rawDeltaX: -500, lengthTicks: 480, ppb: 24, snap: .sixteenth,
+            neighbourEdges: [500], startTick: 480)   // candidate length 20 < floor 120
+        XCTAssertEqual(d, CGFloat(TimelineTime.ticksPerTransportStep - 480) * 24 / 480)
+    }
+
     // MARK: - Front trim
 
     func testFrontTrimPreview_zeroOffset_trimOnlyNeverExtends() {

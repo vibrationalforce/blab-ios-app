@@ -124,13 +124,35 @@ public enum TimelineDragMath {
     /// The preview WIDTH delta (points) for a trailing trim: the edge draws at
     /// the snapped length its release will commit, floored at `minTicks`
     /// (the commit floors at one transport step).
+    ///
+    /// Neighbour-edge magnetism (#56 C7): when `neighbourEdges` is supplied (the
+    /// raw start/end ticks of the OTHER regions in this lane, self excluded — the
+    /// SAME parent-captured value the move preview uses, never a per-frame store
+    /// read), the trailing edge magnetizes so the clip's END kisses a neighbour
+    /// edge (butt-join), exactly as the commit does: each edge becomes a LENGTH
+    /// candidate `edge - startTick`, and one within `magnetPoints` that is at
+    /// least as close as the grid pull wins. Empty `neighbourEdges` → pure grid,
+    /// unchanged.
     public static func trailingTrimPreviewDeltaW(rawDeltaX: CGFloat, lengthTicks: Int,
                                                  ppb: CGFloat, snap: SnapResolution,
-                                                 minTicks: Int = TimelineTime.ticksPerTransportStep)
+                                                 minTicks: Int = TimelineTime.ticksPerTransportStep,
+                                                 neighbourEdges: [Int] = [],
+                                                 startTick: Int = 0,
+                                                 magnetPoints: CGFloat = 8)
         -> CGFloat {
         let raw = lengthTicks + tickDelta(fromPoints: rawDeltaX, ppb: ppb)
-        let snapped = snap == .off ? raw : TimelineSnap.snap(raw, to: snap)
-        let committed = Swift.max(minTicks, snapped)
+        let snappedOrEdge: Int
+        if neighbourEdges.isEmpty || !(ppb.isFinite && ppb > 0) {
+            snappedOrEdge = snap == .off ? raw : TimelineSnap.snap(raw, to: snap)
+        } else {
+            let magnetTicks = Swift.max(0,
+                Int((magnetPoints / ppb * CGFloat(TimelineTime.ticksPerBeat)).rounded()))
+            // Neighbour edges as a LENGTH from our start → our END kisses the edge.
+            let candidates = neighbourEdges.map { $0 - startTick }
+            snappedOrEdge = TimelineSnap.snapWithEdges(raw, to: snap,
+                                                       edges: candidates, magnetTicks: magnetTicks)
+        }
+        let committed = Swift.max(minTicks, snappedOrEdge)
         return CGFloat(committed - lengthTicks) * pointsPerTick(ppb: ppb)
     }
 
