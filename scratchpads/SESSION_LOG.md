@@ -7737,3 +7737,24 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
   dim diagnostic line, so founder can read the two numbers now without waiting for v309.
 - **Deploy:** batching v309 = header-usableBio (b06742c) + AUv3 copy-diagnostic (60bdaaa),
   both device-visible. Bump gated on Xcode Compile Check green for 60bdaaa.
+
+### 2026-07-20 — AUv3 root cause: iOS gives Echoel Apple-ONLY (founder diagnostic)
+- **Founder pasted (v309 copy button worked):** "iOS returned 101 Audio Units — 0 third-party,
+  own AUv3 not visible, self-probe pending. Makers: [Apple]." (try 0.)
+- **Verdict: CASE 1 (app/process), NOT our filter.** iOS vends Echoel's process only in-process
+  Apple built-ins; zero out-of-process AUv3 (incl. our own appex). AUM sees 25 on same device.
+- **Investigation:** `inter-app-audio` entitlement is ALREADY in Echoelmusic.entitlements (added
+  ~v296 for this exact bug per its comment) — yet value is UNCHANGED (v296: 101/0, v309: 101/0)
+  → that fix did NOT take. Likely because IAA is DEPRECATED and CODE_SIGN_STYLE: Automatic can't
+  provision a deprecated capability onto the App ID → entitlement present in file, DEAD in the
+  signed build. DevForums 127481 confirms IAA is the classic fix; 89762 + our search note the
+  "open GarageBand's AU list → return → they appear" registry-priming behaviour.
+- **Two founder experiments requested:** (A) open AUM → return to Echoel Browse AUv3 → do they
+  appear? (yes ⇒ registry-priming issue, CODE-fixable; no ⇒ hard provisioning block, portal). 
+  (B) leave Browse AUv3 open ~20s → re-copy → gives try-4 + self-probe verdict (instantiate OK =
+  stale list/code-fix; FAILED -3000 = unregistered/portal).
+- **Fix candidates held ready:** if priming → prime the AudioComponent registry ourselves at host
+  init the way GarageBand does (instantiate/enumerate to warm it), re-query on completion. If
+  provisioning → verify IAA actually enabled on App ID `com.echoelmusic.app` (founder portal step),
+  OR confirm IAA is a red herring on iOS 18 and find the modern requirement.
+- **NOT a blind fix this cycle** — device-iterate law; waiting on A/B result to pick the RIGHT fix.
