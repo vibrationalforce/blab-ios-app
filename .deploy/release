@@ -1,29 +1,44 @@
-build: 2026-07-20 v10.79.315 (AUv3: autoritative App-ID-Capability-Abfrage + Automation-S1)
+build: 2026-07-20 v10.79.316 (AUv3: Component-Version-Bump 10000->10001 + Gerätetest)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD 0db3f70 — beide Gates grün.
+notes: HEAD e2504f5 — beide Gates grün.
 
-  AUV3 — DIESER BUILD HOLT DIE DEFINITIVE ANTWORT (kein Signatur-Artefakt mehr).
-  Ehrlich zu try 1-4: zwei CI-Versuche, die Ship-Entitlements zu lesen, liefen
-  ins Leere — das Archiv ist Dev-signiert (nicht der Ship-Build), und die .ipa
-  existiert gar nicht (destination:upload laedt direkt hoch, schreibt nichts auf
-  Platte). Drei Deploys am Artefakt = Kreisen. Stopp.
+  AUV3 — TEAM-DEEPDIVE-ERGEBNIS (dein "super magical ultracode Senior Apple dev +
+  Team"). Drei Spezialisten + Synthese. Kernbefund:
+  • Dein Handy zeigt 0 FREMD-AUv3, obwohl du VIELE installiert hast. Das kann KEIN
+    Fehler in unserem Plugin sein — das ist die iOS-AudioComponent-Registry, die
+    auf dem Gerät kalt/veraltet ist (iOS re-scannt NICHT bei Reinstall derselben
+    Version). IAA war eine tote Fährte (seit iOS 13 deprecated, für AUv3 irrelevant
+    — du hattest recht, es auszuschließen).
 
-  JETZT die QUELLE DER WAHRHEIT: dieser Build fragt via App-Store-Connect-API die
-  aktivierten Capabilities der App-ID com.echoelmusic.app ab (bundleIdCapabilities)
-  und sagt DIREKT, ob "Inter-App Audio" aktiviert ist — genau das dokumentierte
-  Third-Party-AU-Scan-Gate (DevForums 127481/89762). Keine Signatur-Zweideutigkeit,
-  terminal:
-    • INTER_APP_AUDIO aktiviert -> Gate offen -> Entitlement NICHT die Ursache ->
-      Host-Blindheit -> AUM/GarageBand einmal oeffnen -> zurueck -> Rescan.
-    • INTER_APP_AUDIO NICHT aktiviert -> DAS ist der Fix: im Portal anhaken -> Save
-      -> ich re-archiviere (das deklarierte Entitlement ueberlebt dann das Signieren).
-  Ich lese die CI-Summary nach dem Build und melde den EINEN belegten Schritt.
+  DER EINE CODE-FIX IN DIESEM BUILD: die Komponenten-`version` 10000 -> 10001
+  (project.yml + Info.plist, byte-identisch). iOS keyt die Registry auf
+  type/subtype/manufacturer/VERSION — die Version blieb beim Struktur-Fix vom
+  16.07. unverändert, also wird die alte fehlgeschlagene Registrierung
+  de-dupliziert und weitergereicht. Bump = iOS liest unser Plugin als NEU ein.
 
-  Dein 30-Sekunden-Sofortweg (nur GUCKEN): developer.apple.com -> Identifiers ->
-  com.echoelmusic.app -> ist "Inter-App Audio" angehakt? Sag mir was da steht.
+  EHRLICH: das repariert NUR unser eigenes Plugin. Die 0-Fremd-Units löst es NICHT
+  — das ist Geräte-Registry-Kälte. Dafür der Gerätetest.
 
-  AUCH DRIN — AUTOMATION IN DER SPUR #1, Slice S1: der Praezisions-Editor bekommt
-  in S2 die RICHTIGE song-absolute Spur-Automation statt der abgekoppelten Loop-
-  Schicht. S1 = die Store-Paritaet (setValue/curve/curvature/clear), rein +
-  getestet, Pflicht-Reviewer 0 Defekte. Plus WCAG-AA-Kontrast, EN-Copy, Brand-
-  Rotlinie aus den letzten Zyklen.
+  DEIN GERÄTETEST (entscheidet die Ursache in EINEM Neustart-Zyklus):
+  1. AUM (gratis AUv3-Host) + ein gratis Fremd-AUv3-Effekt installieren.
+  2. Echoel löschen.
+  3. iPhone NEU STARTEN (leert die AudioComponentRegistry).
+  4. Diesen Build (v316) über TestFlight neu installieren.
+  5. BEVOR du Echoel öffnest: AUM oder GarageBand einmal öffnen, Plugin-Liste
+     ansehen, schließen (weckt die Registry).
+  6. Echoel öffnen -> AUv3-Browser -> Rescan.
+  Ergebnis melden:
+   (A) Fremd-AUs erscheinen jetzt -> Registry war kalt (Hauptursache); erscheint
+       EchoelBodyVibe auch -> Version-Bump hat gewirkt.
+   (B) Fremd-AUs da, aber EchoelBodyVibe fehlt/-3000 -> in AUM laden versuchen:
+       AUM kann's auch nicht -> Provisioning des Appex (prüfe ich im CI);
+       AUM kann's -> Fehler nur in Echoels Host-Prozess.
+   (C) Fremd-AUs weiter 0 in Echoel, aber AUM sieht sie -> Echoels In-Process-
+       Snapshot ist blind.
+
+  DEIN EIGENTLICHES ZIEL (externe Effekte/Instrumente einfach auf die Spur laden):
+  fast fertig — die Maschinerie steht, es fehlt nur der Ein-Tipp-Zuweisungs-
+  Schritt (liefere ich als kleine Folge-Änderung, sobald die Registry warm ist).
+
+  AUCH DRIN: Automation-in-Spur S1 (Store-Parität, getestet), plus die
+  Konvergenz aus den letzten Zyklen (AA-Kontrast, EN-Copy, Brand-Rotlinie).
