@@ -165,7 +165,14 @@ public final class ModulationEngine {
         // tempo/params off a dead value. `usableBio()` returns the freshest frame
         // only while it is within ITS OWN source's window (rPPG/BLE 6 s, Watch 90 s),
         // else nil, so the mod-brain simply idles instead of steering on stale data.
-        guard let frame = bus.usableBio() else { return }
+        guard let frame = bus.usableBio() else {
+            // Stale/absent bio: the mod-brain idles AND the item-2 meter must go BLANK —
+            // never keep displaying the last amounts as if the body still drove them
+            // (the honesty companion to the freshness gate). Guarded so a steady stale
+            // state doesn't churn the @Observable every tick.
+            if !lastOutputs.isEmpty { lastOutputs = [:] }
+            return
+        }
         guard frame.timestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = frame.timestamp
         apply(frame)

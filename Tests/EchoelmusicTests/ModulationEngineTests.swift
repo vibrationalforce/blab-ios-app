@@ -212,6 +212,26 @@ final class ModulationEngineTests: XCTestCase {
         XCTAssertFalse(called)
     }
 
+    // #60 item-2 honesty: once bio goes stale the live-modulation meter must BLANK,
+    // not keep displaying the last amounts as if the body were still driving them.
+    func testTick_staleFrame_blanksTheMeter() async {
+        let bus = EngineBus()
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "seq.tempo")]))
+        engine.register("seq.tempo") { _ in }
+
+        // Fresh frame populates the meter (lastOutputs, the item-2 readout).
+        bus.publish(bio: frame(coh: 1.0, ts: CFAbsoluteTimeGetCurrent()))
+        try? await Task.sleep(for: .milliseconds(20))
+        engine.tick(from: bus)
+        XCTAssertFalse(engine.lastOutputs.isEmpty, "a fresh frame populates the item-2 meter")
+
+        // A stale frame (100 s old, past the fallback window) must blank it.
+        bus.publish(bio: frame(coh: 1.0, ts: CFAbsoluteTimeGetCurrent() - 100))
+        try? await Task.sleep(for: .milliseconds(20))
+        engine.tick(from: bus)
+        XCTAssertTrue(engine.lastOutputs.isEmpty, "stale bio must blank the meter (item-2 honesty)")
+    }
+
     // MARK: - lifecycle
 
     func testStartStop_togglesIsActive() {
