@@ -116,14 +116,14 @@ struct PatchbayView: View {
     /// = whether that output is currently sending (low-frequency isActive — freeze-safe).
     private var networkOutSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Netzwerk-Ausgabe").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
+            Text("Network output").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
             outputRow("OSC", active: osc.isActive, host: oscHost, port: oscPort)
             outputRow("ADM-OSC", active: admOSC.isActive, host: admHost, port: admPort)
-            outputRow("sACN · Licht", active: sacn.isActive, host: sacnHost, port: sacnPort,
+            outputRow("sACN · Light", active: sacn.isActive, host: sacnHost, port: sacnPort,
                       universe: sacnUniverse, universeRange: 1...63_999)
-            outputRow("Art-Net · Licht", active: artNet.isActive, host: artNetHost, port: artNetPort,
+            outputRow("Art-Net · Light", active: artNet.isActive, host: artNetHost, port: artNetPort,
                       universe: artNetUniverse, universeRange: 0...32_767)
-            Text("Ziel-IP + Port pro Ausgang — Änderungen wirken sofort, wenn der Ausgang läuft. OSC/ADM stehen auf ‚localhost‘ (dieses Gerät); für Resolume · TouchDesigner · MadMapper die IP des Zielrechners eintragen. Art-Net sendet standardmäßig per Broadcast (255.255.255.255) an alle LAN-Knoten.")
+            Text("Target IP + port per output — changes take effect immediately while the output is running. OSC/ADM default to 'localhost' (this device); for Resolume · TouchDesigner · MadMapper enter the target computer's IP. Art-Net sends by broadcast (255.255.255.255) to all LAN nodes by default.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -184,7 +184,7 @@ struct PatchbayView: View {
 
     private var lichtSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Licht").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
+            Text("Light").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
             HStack(spacing: 10) {
                 EchoelValueField(label: "Master", value: grandMasterBinding,
                                  range: 0...1, unit: "", decimals: 2)
@@ -193,7 +193,7 @@ struct PatchbayView: View {
                     artNet.blackout = newState
                     sacn.blackout = newState
                 } label: {
-                    Text(artNet.blackout ? "Blackout AN" : "Blackout")
+                    Text(artNet.blackout ? "Blackout ON" : "Blackout")
                         .font(EchoelTheme.font(13, .semibold))
                         .foregroundStyle(artNet.blackout ? EchoelTheme.onPrimary : EchoelTheme.text)
                         .padding(.horizontal, 14).frame(height: 40)
@@ -203,9 +203,9 @@ struct PatchbayView: View {
                             .strokeBorder(artNet.blackout ? EchoelTheme.danger : EchoelTheme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(artNet.blackout ? "Blackout aktiv — Licht wieder einschalten" : "Blackout — Licht sofort dunkel")
+                .accessibilityLabel(artNet.blackout ? "Blackout active — turn the light back on" : "Blackout — black out the light immediately")
             }
-            Text("Master skaliert die Helligkeit aller gesendeten Lichtdaten (Art-Net + sACN). Blackout schaltet sofort dunkel; das Zurückkommen blendet flimmerfrei ein.")
+            Text("Master scales the brightness of all outgoing light data (Art-Net + sACN). Blackout goes dark instantly; the return fades back in flicker-free.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
