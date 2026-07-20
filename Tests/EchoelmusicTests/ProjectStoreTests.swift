@@ -42,6 +42,24 @@ final class ProjectCodableTests: XCTestCase {
         XCTAssertEqual(p.style, .dubTechno, "unknown style → safe default")
         XCTAssertEqual(p.fxCharacter, .auto, "unknown character → auto")
     }
+
+    /// Forward-compat guard (Persistence-Steward): a project SAVED BY A NEWER BUILD
+    /// carries fields this build doesn't know yet. Opening it must NOT throw — a
+    /// TestFlight user on an older build (or an older reinstall reading the App
+    /// Group's persisted projects) must never lose a newer-saved project. Synthesized
+    /// Codable ignores unknown keys today; this locks that so a future custom decoder
+    /// can't silently regress it into data loss.
+    func testForwardCompat_unknownFutureKeysAreIgnored() throws {
+        let p = sample("Cross-Build")
+        let encoded = try JSONEncoder().encode(p)
+        var obj = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        obj["swingFromAFutureBuild"] = 0.42          // a scalar a future schema might add
+        obj["futureNestedThing"] = ["enabled": true] // …or a nested object
+        let data = try JSONSerialization.data(withJSONObject: obj)
+        let back = try JSONDecoder().decode(Project.self, from: data)
+        XCTAssertEqual(back, p, "unknown future keys ignored; every known field survives intact")
+    }
 }
 
 @MainActor

@@ -39,6 +39,14 @@ final class SynthPatchTests: XCTestCase {
         XCTAssertNil(decoded.unisonVoices, "missing unison key → nil (off)")
         XCTAssertNil(decoded.unisonDetuneCents)
         XCTAssertEqual(decoded.name, "Old Pad")
+        // This JSON also predates outputLevel + warmthDrive: the decode succeeding
+        // at all proves any later field stayed OPTIONAL (a non-optional addition
+        // would throw here). Lock their computed fallbacks too, so a change to the
+        // fallback is caught rather than silently altering every old patch.
+        XCTAssertNil(decoded.outputLevel)
+        XCTAssertNil(decoded.warmthDrive)
+        XCTAssertEqual(decoded.level, 1.0, accuracy: 1e-6, "no outputLevel → unity")
+        XCTAssertEqual(decoded.warmth, 0, accuracy: 1e-6, "no warmthDrive → dry")
     }
 
     func testFactoryIDsAreStable() {
