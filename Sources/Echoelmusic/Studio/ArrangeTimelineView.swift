@@ -40,6 +40,12 @@ struct ArrangeTimelineView: View {
     // source of truth, just reachable where the work happens.
     @Environment(TrackFXStore.self) private var trackFX
     @Environment(PolySynthVoice.self) private var synth
+    // Adaptive head column: fits the narrowest supported iPhone (360 pt) and lets iPad
+    // breathe, replacing the old fixed 140. Read by BOTH the ruler spacer and the lane
+    // head so the two columns stay pixel-aligned. Size class changes only on rotation /
+    // device — NOT a 10 Hz @Observable, so the menu-freeze law is untouched.
+    @Environment(\.horizontalSizeClass) private var hSize
+    private var headWidth: CGFloat { hSize == .regular ? 184 : Self.labelWidth }
     /// The rack, used for THREE low-frequency reads, none in `body`:
     ///  · H12 kind-true audition — `kits`/`subs` (the per-lane kit/sub voices the
     ///    clip editor previews through), read only inside door-open handlers.
@@ -104,7 +110,12 @@ struct ArrangeTimelineView: View {
 
     // fileprivate: the extracted RegionBlockView leaf (same file) reuses laneHeight.
     fileprivate static let laneHeight: CGFloat = 56
-    private static let labelWidth: CGFloat = 140
+    // iPhone floor for the head column. Was a FIXED 140 — but the mix strip's honest
+    // footprint (record·M·S·gain·auto with the gain field's real 54 pt) is ~162, so a
+    // 140 frame overflowed and (being centre-aligned) shifted the whole head LEFT until
+    // "MIDI 1" clipped off the left screen edge. 162 = the honest floor; `headWidth`
+    // makes it size-class adaptive so iPad breathes. Read via `headWidth`, never directly.
+    private static let labelWidth: CGFloat = 162
     private static let rulerHeight: CGFloat = 24
 
     /// One identity colour per content kind — DAW convention, drawn from the
@@ -859,7 +870,7 @@ struct ArrangeTimelineView: View {
 
     private var laneLabels: some View {
         VStack(spacing: 0) {
-            Color.clear.frame(width: Self.labelWidth, height: Self.rulerHeight)
+            Color.clear.frame(width: headWidth, height: Self.rulerHeight)
             ForEach(timeline.document.lanes) { lane in
                 laneHeader(lane)
                 // T1: the open automation row's HEAD cell — same height as the
@@ -892,7 +903,9 @@ struct ArrangeTimelineView: View {
                 rollLane: timeline.document.rollLaneID, capacity: laneVoiceRack.capacity
             ) != nil ? lane.id : nil,
             onOpenEditor: { activeModal = .automation },
-            onClose: { automationOpen.remove(lane.id) })
+            onClose: { automationOpen.remove(lane.id) },
+            // Keep the open-automation-row cell pixel-aligned under the adaptive head.
+            columnWidth: headWidth)
     }
 
     private func automationTargetBinding(_ laneID: UUID) -> Binding<String> {
@@ -930,7 +943,10 @@ struct ArrangeTimelineView: View {
             laneDoor(lane)
             if !lane.isBio { laneMixStrip(lane) }
         }
-        .frame(width: Self.labelWidth, height: Self.laneHeight)
+        // Leading-pin: any residual overflow spills RIGHT under the column border,
+        // never off the LEFT screen edge (the old centre default shifted the whole
+        // head left until "MIDI 1" clipped). This one alignment is the actual un-clip.
+        .frame(width: headWidth, height: Self.laneHeight, alignment: .leading)
         // Kind-identity stripe on the leading edge (DAW convention) — the lane
         // head and its regions share one colour, so the eye pairs them.
         .overlay(alignment: .leading) {
@@ -1052,6 +1068,7 @@ struct ArrangeTimelineView: View {
                         .font(EchoelTheme.font(10, .medium))
                         .foregroundStyle(EchoelTheme.text)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.85)   // scales "MIDI 1" down, never "MID…"
                     // Item 3 (founder: "sichtbare Instrument/FX-Belegung pro Spur"):
                     // the track's instrument + FX AT A GLANCE — it was menu-only until
                     // now (the head only carried a binary puzzle icon, never WHICH
@@ -1146,11 +1163,15 @@ struct ArrangeTimelineView: View {
             // chip pattern as M/S. Fits: 114 pt strip + 3 + 21 = 138 ≤ 140.
             automationRowToggle(lane)
         }
-        // Fit the whole strip (record-arm · M · S · gain) inside the 140 pt lane
-        // column: leading 8, tight 3 pt gaps, a 30 pt gain box (empty-label field =
-        // box only now). Founder 2026-07-15: the old 40 pt box + label dead-space
-        // overflowed → the record button + colour stripe clipped off the left edge.
+        // Fit the whole strip (record-arm · M · S · gain) inside the lane column:
+        // leading 8, tight 3 pt gaps, a 30 pt gain box (empty-label field = box only).
+        // Founder 2026-07-15: the old 40 pt box + label dead-space overflowed → the
+        // record button + colour stripe clipped off the left edge.
         .padding(.leading, 8).padding(.trailing, 4)
+        // The chrome chips (record/M/S/auto 21 pt, gain 30 pt) are fixed-size controls,
+        // not content — cap Dynamic Type so accessibility text can't overflow them and
+        // re-trigger the clip. The door name + panels still scale fully (Edit D).
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
     }
 
     /// T1: the automation-row chevron/glyph on the track head — a mixToggle-

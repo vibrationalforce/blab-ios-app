@@ -176,6 +176,11 @@ struct TimelineAutomationHeadCell: View {
     let onOpenEditor: () -> Void
     /// Folds the row back up.
     let onClose: () -> Void
+    /// Width of the head column — MUST match the lane head's adaptive `headWidth`
+    /// (162 iPhone / 184 iPad) so this open-automation-row cell stays pixel-aligned
+    /// under the track head. Declared last so the memberwise init keeps it trailing;
+    /// defaults to 140 only for back-compat / previews.
+    var columnWidth: CGFloat = 140
 
     @Environment(AutomationPlayer.self) private var automation
 
@@ -244,7 +249,7 @@ struct TimelineAutomationHeadCell: View {
             }
         }
         .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 6)
-        .frame(width: 140, height: TimelineAutomationRow.rowHeight)
+        .frame(width: columnWidth, height: TimelineAutomationRow.rowHeight)
         .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
     }
 }
