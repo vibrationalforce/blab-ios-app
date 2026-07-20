@@ -161,6 +161,17 @@ struct AUv3BrowserView: View {
                             .padding(.top, 2)
                     }
                 }
+                // Proven user-side workaround (Apple DevForums 127481/89762): another
+                // Audio Unit HOST enumerating the plugins warms iOS's shared registry,
+                // after which this app sees them too. Lets the founder use their plugins
+                // TODAY while the in-app discovery fix lands. Honest scope — a workaround,
+                // not a claim the bug is fixed.
+                if host.registryColdForProcess || host.hasNoThirdPartyUnits {
+                    Text("Workaround that works now: open GarageBand or another AU host (e.g. AUM) so it lists your plugins, then come back here and tap Rescan. Enumerating them in any host refreshes iOS's plugin registry for this app.")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                }
                 // One-tap copy of the FULL diagnostic (names which manufacturers iOS
                 // actually returned to this app) so the deciding fact travels without
                 // hunting for a log line. Shown whenever discovery looks wrong.

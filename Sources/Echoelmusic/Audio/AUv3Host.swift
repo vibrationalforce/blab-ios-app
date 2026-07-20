@@ -914,19 +914,30 @@ public final class AUv3Host {
             probeDesc.componentType = kAudioUnitType_Generator
             probeDesc.componentSubType = Self.fourCC("echl")
             probeDesc.componentManufacturer = Self.ownManufacturer
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 do {
                     _ = try await Self.instantiate(probeDesc, name: "Echoelmusic (own-AUv3 probe)")
                     EchoelCrashLog.breadcrumb(
                         "auv3 self-probe: INSTANTIATE OK — registry serves the own appex; the component LIST is stale for this process")
+                    guard let self else { return }
                     // Surface the verdict on-screen too (founder-visible), so the
                     // next build discriminates stale-list vs. unregistered without a log.
-                    diagnostic?.selfProbe = .instantiateOK
+                    self.diagnostic?.selfProbe = .instantiateOK
+                    // INSTANTIATE-OK means the out-of-process AU registry IS reachable
+                    // from this process (it just served our own appex) while the
+                    // component LIST came back Apple-only — the classic stale-list
+                    // split. Establishing that XPC/registry link commonly warms the
+                    // process's component cache, so re-enumerate ONCE now: the list may
+                    // finally include the third-party plugins it was missing. Bounded —
+                    // the probe fires at most once per process (didProbeOwnComponent),
+                    // so this warm re-scan fires at most once; generation-guarded inside
+                    // scan(). A no-op if the list is still cold (just runs the ladder).
+                    if self.registryColdForProcess { self.scan() }
                 } catch {
                     let e = error as NSError
                     EchoelCrashLog.breadcrumb(
                         "auv3 self-probe: FAILED \(e.domain)#\(e.code) — own appex not registered on this device (restart/reinstall territory)")
-                    diagnostic?.selfProbe = .failed(domain: e.domain, code: e.code)
+                    self?.diagnostic?.selfProbe = .failed(domain: e.domain, code: e.code)
                 }
             }
         }
