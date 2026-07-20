@@ -73,23 +73,37 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
     /// Apple-only registry (an app/process issue); if it names Moog/Imaginando/etc.
     /// yet the instrument list stays empty, OUR split/filter dropped them. Sorted.
     public var rawMakers: [String]
+    /// The app's own "vX.Y.Z (build)" string, stamped at scan time. A device paste
+    /// of `report` is only actionable if we KNOW which build produced it — TestFlight
+    /// update-in-place makes "the fix shipped, symptom persists" unprovable otherwise
+    /// (grill 2026-07-20: "try N maps to no build number"). Pinned here so every
+    /// pasted scan line carries its build. Empty = not stamped (older/test path).
+    public var buildVersion: String
 
     /// The own-AUv3 self-instantiate probe result (see `performScan`).
     public enum SelfProbe: Equatable, Sendable {
         /// Registry SERVES our appex; the component LIST is stale for this process.
         case instantiateOK
-        /// iOS has NOT registered the appex on this device (restart/reinstall).
+        /// The own component did NOT resolve in THIS process's AudioComponent
+        /// registry (OSStatus, e.g. -3000 invalidComponentID). NOTE: -3000 is a
+        /// registry FIND miss emitted BEFORE any extension launch — NOT proof the
+        /// appex is "launch-denied". Combined with 0 third-party from every vendor
+        /// it points at this HOST PROCESS being served an Apple-only registry, or
+        /// the appex not being in the live registry (grill 2026-07-20 refuted the
+        /// earlier launch-denial reading). The AUM prime-then-rescan discriminates.
         case failed(domain: String, code: Int)
     }
 
     public init(rawComponentCount: Int, thirdPartyCount: Int, ownAUv3Present: Bool,
-                scanAttempt: Int, selfProbe: SelfProbe? = nil, rawMakers: [String] = []) {
+                scanAttempt: Int, selfProbe: SelfProbe? = nil, rawMakers: [String] = [],
+                buildVersion: String = "") {
         self.rawComponentCount = rawComponentCount
         self.thirdPartyCount = thirdPartyCount
         self.ownAUv3Present = ownAUv3Present
         self.scanAttempt = scanAttempt
         self.selfProbe = selfProbe
         self.rawMakers = rawMakers
+        self.buildVersion = buildVersion
     }
 
     /// Cold ⇒ the process saw NO real third-party units and not even our own AUv3.
@@ -110,9 +124,14 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
                 + " Self-test: OK — iOS DOES serve our plugin, but this app's plugin LIST is stale."
                 + " Fully quit Echoelmusic (swipe it away) and reopen — that reliably refreshes the list."
         case let .failed(domain, code):
+            // -3000 = invalidComponentID = the component did not RESOLVE in this
+            // process's registry (a find miss BEFORE any launch), not proof the
+            // appex is launch-denied. With 0 third-party from every vendor the
+            // decisive test is priming another host, not a blind reinstall (grill
+            // 2026-07-20). Point the founder at the one action that discriminates.
             return counts
-                + " Self-test: FAILED (\(domain) \(code)) — the plugin extension isn't registered on this device."
-                + " Reinstall Echoelmusic or restart the device. For third-party plugins, open each plugin's own app once."
+                + " Self-test: FAILED (\(domain) \(code)) — iOS did not resolve any out-of-process plugin for this app (not even ours)."
+                + " Open AUM or GarageBand once (let it list plugins), then return here and Rescan. Only if AUM also can't open our plugin: reinstall Echoelmusic or restart the device."
         }
     }
 
@@ -125,10 +144,14 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
         switch selfProbe {
         case .none:            probe = "pending"
         case .instantiateOK:   probe = "instantiate-OK (list stale)"
-        case let .failed(d, c): probe = "FAILED \(d)#\(c) (appex unregistered)"
+        // -3000 = invalidComponentID = a registry FIND miss (not "unregistered
+        // appex" — that reading was refuted 2026-07-20). Label it as what it is.
+        case let .failed(d, c): probe = "FAILED \(d)#\(c) (component unresolved in-process)"
         }
         let makers = rawMakers.isEmpty ? "none" : rawMakers.joined(separator: ", ")
-        return "Echoel AUv3 scan[try \(scanAttempt)]: iOS returned \(rawComponentCount) Audio Units — "
+        // Build stamp FIRST so a pasted line is always pinnable to a build.
+        let build = buildVersion.isEmpty ? "" : "\(buildVersion) — "
+        return "Echoel AUv3 scan[try \(scanAttempt)]: \(build)iOS returned \(rawComponentCount) Audio Units — "
             + "\(thirdPartyCount) third-party, own AUv3 \(ownAUv3Present ? "visible" : "not visible"), "
             + "self-probe \(probe). Makers iOS gave this app: [\(makers)]."
     }
@@ -193,6 +216,18 @@ public final class AUv3Host {
     }
     private static let appleManufacturer = AUv3Host.fourCC("appl")
     private static let ownManufacturer = AUv3Host.fourCC("Echo")
+
+    /// "vX.Y.Z (build)" stamped into each scan diagnostic so a pasted device line
+    /// is always pinnable to the build that produced it (grill 2026-07-20: "try N
+    /// maps to no build number" made "the fix shipped, symptom persists" unprovable).
+    /// Reads Bundle.main at runtime, so it is stamped IN at scan time and kept OUT of
+    /// the pure, CI-testable `report`. `nonisolated` — pure runtime read, no actor state.
+    nonisolated static var appBuildStamp: String {
+        let info = Bundle.main.infoDictionary
+        let v = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let b = info?["CFBundleVersion"] as? String ?? "?"
+        return "v\(v) (\(b))"
+    }
 
     /// True when a scan completed but returned NO real third-party units — only
     /// Apple's built-ins and/or Echoel's own bundled AUv3. Drives the browser's
@@ -878,7 +913,8 @@ public final class AUv3Host {
                                         ownAUv3Present: ownAUv3,
                                         scanAttempt: scanAttempt,
                                         selfProbe: diagnostic?.selfProbe,
-                                        rawMakers: rawMakers)
+                                        rawMakers: rawMakers,
+                                        buildVersion: Self.appBuildStamp)
         // Cold-cache / late-registration backstop: when the OS returns only Apple
         // built-ins, the third-party registry is likely not warm yet for this
         // process — and because those extensions were registered BEFORE this launch,
@@ -935,8 +971,13 @@ public final class AUv3Host {
                     if self.registryColdForProcess { self.scan() }
                 } catch {
                     let e = error as NSError
+                    // -3000 = invalidComponentID = a registry FIND miss (component
+                    // did not resolve in THIS process) BEFORE any launch — with 0
+                    // third-party this reads as host-process registry blindness or an
+                    // unregistered component, NOT a launch-denied appex (grill
+                    // 2026-07-20). Prime another host + rescan discriminates.
                     EchoelCrashLog.breadcrumb(
-                        "auv3 self-probe: FAILED \(e.domain)#\(e.code) — own appex not registered on this device (restart/reinstall territory)")
+                        "auv3 self-probe: FAILED \(e.domain)#\(e.code) — own component did not resolve in-process (host sees 0 out-of-process AUs); prime another AU host then rescan")
                     self?.diagnostic?.selfProbe = .failed(domain: e.domain, code: e.code)
                 }
             }

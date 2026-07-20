@@ -1,11 +1,14 @@
 // AUv3ScanDiagnosticTests.swift
 // Pins the founder-visible AUv3 discovery diagnostic — the on-screen twin of the
-// device-log breadcrumb. The whole point is that the NEXT TestFlight build lets
-// the founder read WHICH of the two cold-registry causes they hit without pasting
-// a log: (a) the process's component LIST is stale though iOS serves the appex
-// (self-probe INSTANTIATE OK → "fully quit + reopen"), vs. (b) the appex is
-// genuinely unregistered on the device (self-probe FAILED → reinstall/restart).
-// guidance is pure + deterministic, so it is fully CI-verifiable off-device.
+// device-log breadcrumb, readable off a device paste without a log. The self-probe
+// discriminates: (a) the process's component LIST is stale though iOS serves the
+// appex (INSTANTIATE OK → "fully quit + reopen"), vs. (b) the own component did NOT
+// RESOLVE in this process (FAILED, -3000 = invalidComponentID = a registry find
+// miss BEFORE any launch — NOT the refuted "appex launch-denied" reading; grill
+// 2026-07-20). With 0 third-party from every vendor, (b)'s decisive action is
+// priming another host then rescanning, reinstall only as fallback. The report also
+// carries the build stamp so a paste is pinnable to a build. guidance/report are
+// pure + deterministic, so they are fully CI-verifiable off-device.
 
 import XCTest
 @testable import Echoelmusic
@@ -54,14 +57,27 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
         XCTAssertFalse(g.contains("reinstall"), "INSTANTIATE OK ⇒ registration is fine, do not tell the user to reinstall")
     }
 
-    // Cold + probe FAILED → the appex is not registered on THIS device → reinstall /
-    // restart the device; the OSStatus code is surfaced for triage.
-    func testGuidance_coldProbeFailed_saysReinstallAndShowsCode() {
+    // Cold + probe FAILED → -3000 = invalidComponentID is a registry FIND miss (the
+    // component did not RESOLVE in this process), NOT proof the appex is launch-denied
+    // (grill 2026-07-20 refuted that). With 0 third-party from every vendor the
+    // decisive action is priming another host (AUM/GarageBand) then rescanning —
+    // reinstall is only the fallback if AUM ALSO can't open our plugin. The OSStatus
+    // code stays surfaced for triage.
+    func testGuidance_coldProbeFailed_saysPrimeThenRescan_reinstallOnlyAsFallback() {
         let d = AUv3ScanDiagnostic(rawComponentCount: 28, thirdPartyCount: 0,
                                    ownAUv3Present: false, scanAttempt: 4,
                                    selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000))
         let g = d.guidance
-        XCTAssertTrue(g.lowercased().contains("reinstall") || g.lowercased().contains("not registered"))
+        let lower = g.lowercased()
+        XCTAssertTrue(lower.contains("aum") || lower.contains("garageband"),
+                      "primary action is priming another AU host")
+        XCTAssertTrue(lower.contains("rescan"), "then rescan in Echoel")
+        // Reinstall must be framed as the FALLBACK ('only if'), not the first move.
+        if let reinstallRange = lower.range(of: "reinstall") {
+            let before = lower[lower.startIndex..<reinstallRange.lowerBound]
+            XCTAssertTrue(before.contains("only if"),
+                          "reinstall is the fallback, not the primary instruction")
+        }
         XCTAssertTrue(g.contains("-3000"), "surface the OSStatus code for device triage")
     }
 
@@ -102,6 +118,30 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
         let d = AUv3ScanDiagnostic(rawComponentCount: 0, thirdPartyCount: 0,
                                    ownAUv3Present: false, scanAttempt: 0)
         XCTAssertTrue(d.report.contains("[none]"), "empty maker set reads as a legible none")
+    }
+
+    // The build stamp, when present, rides in the report so a pasted device line is
+    // pinnable to a build (grill 2026-07-20: "try N maps to no build number"). Absent
+    // (default "") ⇒ no stray prefix, so older/test paths still read cleanly.
+    func testReport_carriesBuildStampWhenPresent() {
+        let d = AUv3ScanDiagnostic(rawComponentCount: 42, thirdPartyCount: 0,
+                                   ownAUv3Present: false, scanAttempt: 4,
+                                   selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000),
+                                   rawMakers: ["Apple"], buildVersion: "v10.79.312 (2421)")
+        let r = d.report
+        XCTAssertTrue(r.contains("v10.79.312 (2421)"), "the build stamp pins the scan to a build")
+        // The refuted 'appex unregistered' phrasing must be gone; the honest label stays.
+        XCTAssertFalse(r.lowercased().contains("appex unregistered"),
+                       "the refuted launch-denial reading must not reappear")
+        XCTAssertTrue(r.lowercased().contains("unresolved") || r.contains("-3000"),
+                      "surfaces the resolve-miss honestly with its code")
+    }
+
+    func testReport_noBuildStamp_hasNoStrayPrefix() {
+        let d = AUv3ScanDiagnostic(rawComponentCount: 10, thirdPartyCount: 0,
+                                   ownAUv3Present: false, scanAttempt: 1)
+        XCTAssertTrue(d.report.contains("scan[try 1]: iOS returned"),
+                      "with no build stamp the line flows straight from try-count to counts")
     }
 
     // MARK: - Load-failure message (founder-visible "won't open" triage)
