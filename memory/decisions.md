@@ -784,3 +784,25 @@ Architectural and strategic decisions with context and rationale.
   Fremd-AUs erscheinen = GELÖST. Wenn nicht hinzufügbar = definitiv ausgeschlossen.
 - Code-seitig bereits erledigt: Registration-Notification-Observer + Re-Scan (Research-Ursache C).
 - **Review:** 2026-08-20.
+
+### 2026-07-20 KORREKTUR 3 — AUv3-Entitlement-Verdikt las das FALSCHE Artefakt (Archiv statt .ipa)
+- **Auslöser:** v313/2421 CI-Diagnose meldete "inter-app-audio STRIPPED → Portal ändern".
+  BEVOR ich das dem Founder als Handlung gab, geprüft: der Dump las
+  `Echoelmusic.xcarchive/.../Echoelmusic.app` — das ist das DEVELOPMENT-signierte
+  Archiv (`get-task-allow=true`, minimales Team-Profil). Dort fehlen healthkit,
+  app-groups UND inter-app-audio ALLE — obwohl healthkit live shippt. Distribution-
+  Entitlements werden erst bei `-exportArchive` angewandt. Also war das "STRIPPED"-
+  Verdikt am falschen Artefakt gemessen und NICHT aussagekräftig für den Ship-Build.
+- **Beinahe-Fehler:** hätte fast einen Portal-Change auf einem Fehlmesswert empfohlen —
+  genau das "kein Portal-Change auf Verdacht", das der Founder verboten hat. Zweiter
+  Über-Schluss in Folge (nach der Grill-Korrektur), diesmal VOR der Founder-Ansage
+  gefangen.
+- **Fix:** neuer non-blocking CI-Schritt liest die DISTRIBUTION `.ipa` NACH dem Export
+  (das echte hochgeladene Artefakt), dumpt den VOLLEN Host-Entitlement-Satz und
+  diskriminiert 3 Fälle: (a) IAA present → Scan-Gate offen, Rest = Host-Blindheit;
+  (b) IAA absent ABER healthkit present → App-ID fehlt speziell Inter-App-Audio →
+  Portal-Enable IST der Fix; (c) IAA UND healthkit absent → breiteres Provisioning-
+  Problem, KEIN Portal-Change darauf. Alter Archiv-Schritt entschärft (nur noch
+  roher Pre-Export-Dump, verweist aufs .ipa-Verdikt).
+- **Status:** offen — nächster Deploy erzeugt das vertrauenswürdige Verdikt; ERST dann
+  Founder-Ansage mit belegtem einzelnem Schritt.

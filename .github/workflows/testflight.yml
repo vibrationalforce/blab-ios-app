@@ -498,20 +498,20 @@ jobs:
       # Still NON-BLOCKING (a permanently-red gate would block every deploy).
       - name: "Report Inter-App-Audio entitlement in the SIGNED app (non-blocking)"
         run: |
+          # NOTE: this reads the xcarchive app, which is DEVELOPMENT-signed
+          # (get-task-allow=true) with a minimal team profile — healthkit,
+          # app-groups AND inter-app-audio all read as "absent" here even though
+          # they ship fine, because distribution entitlements are applied at
+          # -exportArchive, not at archive time. So a "missing" IAA in THIS step
+          # is EXPECTED and NOT actionable. The authoritative read is the
+          # "DISTRIBUTION .ipa entitlements" step AFTER export. This step stays
+          # only as a raw pre-export dump. (v313/2421 confirmed the archive drops
+          # everything but application-identifier / appclip / team / task-allow.)
           APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
           ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
-          echo "=== signed host entitlements (filtered) ==="
-          echo "$ENT" | grep -iE "inter-app|application-identifier|application-groups|aps-environment|healthkit" || echo "(none matched)"
-          if echo "$ENT" | grep -qi "inter-app-audio"; then
-            echo "AUV3 inter-app-audio: PRESENT in signed binary"
-            echo "✅ AUv3 host entitlement inter-app-audio PRESENT in signed app — third-party AU scanning is unblocked (verify on device)" >> $GITHUB_STEP_SUMMARY
-          elif [ -z "$(echo "$ENT" | tr -d '[:space:]')" ]; then
-            echo "::warning title=AUv3 entitlement check inconclusive::codesign returned no entitlements."
-            echo "⚠️ AUv3 entitlement check inconclusive (codesign empty)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "::warning title=AUv3 inter-app-audio STRIPPED — likely the third-party-discovery gate::Enable 'Inter-App Audio' on the com.echoelmusic.app App ID in the developer portal, then re-archive (Apple DevForums 127481/89762)."
-            echo "❌ AUv3 inter-app-audio STRIPPED from the signed app — this is the documented gate for third-party AU discovery (DevForums 127481/89762). FIX: enable 'Inter-App Audio' on the com.echoelmusic.app App ID in the portal, then re-archive; automatic signing will keep it." >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "=== PRE-EXPORT archive host entitlements (dev-signed; NOT the shipped set) ==="
+          echo "$ENT" | grep -iE "inter-app|application-identifier|application-groups|aps-environment|healthkit|get-task-allow" || echo "(none matched)"
+          echo "ℹ️ Archive is dev-signed (minimal team profile) — inter-app-audio/healthkit/app-groups all read absent here regardless of the App ID. See the 'DISTRIBUTION .ipa entitlements' step for the authoritative AUv3 verdict." >> $GITHUB_STEP_SUMMARY
 
       # AUv3-APPEX-SIGN-DIAGNOSE (device try 1/3 2026-07-20: self-probe still FAILED
       # -3000 AFTER the App-Group removal shipped (v306+) AND after reinstall —
@@ -653,6 +653,63 @@ jobs:
             exit 1
           fi
           echo "=== EXPORT & UPLOAD SUCCESSFUL ==="
+
+      # AUv3-ENTITLEMENT-TRUTH (device try 1/3 on v313/2421: the ARCHIVE-based
+      # step above reported inter-app-audio STRIPPED — but it reads the
+      # xcarchive app, which is DEVELOPMENT-signed (get-task-allow=true) with a
+      # minimal team profile, so healthkit/app-groups look stripped there TOO
+      # even though they ship fine. That verdict is NOT the shipped binary. The
+      # DISTRIBUTION .ipa produced by -exportArchive is the real, uploaded
+      # artifact — read ITS entitlements to get a trustworthy answer. Prints the
+      # FULL host entitlement set so inter-app-audio, healthkit, and app-groups
+      # are all visible at once, which discriminates the three real cases:
+      #   • inter-app-audio PRESENT            → scanning unblocked; if scan still
+      #                                           fails on device it is host
+      #                                           registry-blindness (AUM prime).
+      #   • IAA absent BUT healthkit PRESENT   → inter-app-audio SPECIFICALLY not
+      #                                           granted → the App ID lacks the
+      #                                           Inter-App Audio capability → the
+      #                                           portal enable IS the fix.
+      #   • IAA absent AND healthkit absent    → the whole distribution set is
+      #                                           minimal → a broader provisioning
+      #                                           problem, NOT just IAA.
+      # NON-BLOCKING, read-only, never fails the build.
+      - name: "Report DISTRIBUTION .ipa entitlements — the real shipped set (non-blocking)"
+        run: |
+          set +e
+          IPA=$(ls ./build/*.ipa 2>/dev/null | head -1)
+          echo "## AUv3 entitlement truth (distribution .ipa)" >> $GITHUB_STEP_SUMMARY
+          if [ -z "$IPA" ] || [ ! -f "$IPA" ]; then
+            echo "⚠️ no .ipa found under ./build — cannot read distribution entitlements" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          WORK=$(mktemp -d)
+          unzip -q -o "$IPA" -d "$WORK" 2>/dev/null || true
+          APP=$(ls -d "$WORK"/Payload/*.app 2>/dev/null | head -1)
+          if [ -z "$APP" ] || [ ! -d "$APP" ]; then
+            echo "⚠️ could not locate Payload/*.app inside the .ipa" >> $GITHUB_STEP_SUMMARY
+            rm -rf "$WORK"; exit 0
+          fi
+          ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
+          echo "=== distribution host entitlements (full) ==="
+          echo "$ENT"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$ENT" | grep -iE "inter-app|application-identifier|application-groups|aps-environment|healthkit|cloudkit|get-task-allow" >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "(no key entitlements matched)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          HAS_IAA=$(echo "$ENT" | grep -qi "inter-app-audio" && echo yes || echo no)
+          HAS_HK=$(echo "$ENT" | grep -qi "healthkit" && echo yes || echo no)
+          if [ "$HAS_IAA" = yes ]; then
+            echo "::notice title=AUv3 IAA present (shipped)::inter-app-audio IS in the distribution .ipa — third-party AU scanning is unblocked; if scan still fails it is host registry-blindness (AUM prime→rescan)."
+            echo "✅ inter-app-audio PRESENT in the DISTRIBUTION .ipa — scanning is unblocked at the entitlement level. A still-failing scan on device = host registry-blindness, not a signing gate." >> $GITHUB_STEP_SUMMARY
+          elif [ "$HAS_HK" = yes ]; then
+            echo "::warning title=AUv3 IAA specifically stripped::healthkit ships but inter-app-audio does not — the App ID lacks the Inter-App Audio capability. Enable it on com.echoelmusic.app in the portal, then re-archive."
+            echo "❌ inter-app-audio ABSENT while healthkit IS present in the distribution .ipa → the App ID is NOT granted Inter-App Audio (other capabilities survive, so this is specific, not a broad profile issue). FIX: enable 'Inter-App Audio' on com.echoelmusic.app in the developer portal, then re-archive (automatic signing keeps it). Documented gate: DevForums 127481/89762." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "::warning title=AUv3 entitlement read inconclusive::neither inter-app-audio nor healthkit present in the .ipa read — broader provisioning question, do NOT change the portal on this alone."
+            echo "⚠️ NEITHER inter-app-audio NOR healthkit present in the distribution read — this is a BROADER provisioning/entitlement question, not specific to Inter-App Audio. Do NOT change the portal on this alone; investigate the distribution profile capability set first." >> $GITHUB_STEP_SUMMARY
+          fi
+          rm -rf "$WORK"
+          echo "(non-blocking diagnostic — never fails the build)"
 
       - name: "Verify build landed in App Store Connect"
         env:
