@@ -1,27 +1,24 @@
-build: 2026-07-20 v10.79.310 (AUv3 Apple-only-Recovery + Leiste S1: Video-Chip raus)
+build: 2026-07-20 v10.79.311 (Adaptive Spurköpfe — "MIDI 1" nicht mehr abgeschnitten)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Batch seit v309 — beide Gates grün, je ein Pflicht-Reviewer 0 Defekte.
+notes: HEAD bf1e002 — beide Gates grün (Xcode Compile Check + CI/CD Pipeline),
+  Pflicht-Reviewer 0 Defekte (die eine MEDIUM columnWidth-Desync vorab gefixt).
 
-  AUv3 — ZWEI GEERDETE RECOVERY-SCHRITTE (nach deiner 101-Apple/0-Fremd-Diagnose):
-  • Selbst-Aufwärm-Rescan: Wenn Echoels Selbsttest die EIGENE AUv3 erfolgreich
-    instanziieren kann (= die aus-Prozess-Registry ist erreichbar, nur die Liste
-    kam Apple-only zurück), fragt Echoel EINMAL automatisch neu ab — das
-    Instanziieren wärmt die Prozess-Registry, die zweite Abfrage kann deine
-    Plugins dann enthalten. Loop-/wiedereintritt-sicher (Reviewer 0 Defekte).
-  • Sofort-Workaround im leeren AUv3-Zustand: „Öffne GarageBand oder AUM (irgend-
-    einen AU-Host), lass ihn deine Plugins auflisten, komm zurück → Rescan." Ein
-    anderer Host weckt iOS' geteiltes Register → danach sieht auch Echoel sie.
-    Damit kannst du deine Plugins HEUTE benutzen, während der In-App-Fix reift.
-  • Bestätigt: die Inter-App-Audio-Entitlement wird vom verwalteten Profil raus-
-    gestreift (deprecated) — deshalb war der frühere Versuch wirkungslos.
+  ADAPTIVE SPURKÖPFE (dein Screenshot — der Spurkopf war links abgeschnitten):
+  • "MIDI 1" wird nicht mehr abgeschnitten. Der Kopf ist jetzt LINKS verankert
+    (.leading) statt zentriert — jeder Rest-Überhang fällt nach RECHTS unter die
+    Spaltenkante, nie über den linken Bildschirmrand raus (das war die eigentliche
+    Ursache: der zentrierte Überlauf schob den ganzen Kopf nach links, bis das
+    Label wegklippte).
+  • Adaptive Breite: 184 pt auf dem iPad (Regular width), 162 pt auf dem iPhone —
+    passt auf jede Bildschirmgröße, vom Team so entworfen.
+  • Der Türname skaliert (minimumScaleFactor 0.85) und die Mix-Leiste ist auf
+    xLarge Dynamic Type gedeckelt, damit ein langer Name / große Systemschrift den
+    Kopf nicht sprengt.
 
-  UNTERE LEISTE — SLICE 1 (dein Screenshot, rotes X auf Video):
-  • Video-Chip aus der unteren Leiste entfernt. Video bleibt über das Header-Film-
-    Icon erreichbar → kein Orphan, der Chip war redundant. Die Leiste löst sich
-    gestaffelt weiter auf (Mix/FX/Synth/Sound je eigene Slice, erst Ersatz pro
-    Spur/BodyVibe verifizieren, dann entfernen).
-
-  WEITER OFFEN AN DICH (entscheidet den strukturellen AUv3-Fix):
-  In ECHOEL „Browse AUv3…" ~20 Sek offen lassen → „Copy diagnostic" → einfügen.
-  Die Zeile sagt dann self-probe OK oder FAILED — OK = In-App-Fix greift,
-  FAILED = wir brauchen manuelles Inter-App-Audio-Provisioning (dein Portal).
+  WEITER (still, bis Founder-Antwort):
+  • EchoelBodyVibe-Oberfläche erste Slice ist GEBAUT (BioStrip + Genre/Mood/
+    Variation pro Bio-Spur, "Read pulse" scharfstellen) und im Pflicht-Review —
+    liefert "Genre auch in EchoelBodyVibe" und schaltet die restliche Leisten-
+    Auflösung frei. Kommt im nächsten Deploy nach Review + grünen Gates.
+  • AUv3: warte auf deinen Neustart-+-Reinstall-Test (self-probe OK = In-App-Fix
+    greift; FAILED = Null-Risiko-Appex-Profil-Diagnose in CI, dann Portal).
