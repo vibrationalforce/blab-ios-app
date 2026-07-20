@@ -739,3 +739,26 @@ Architectural and strategic decisions with context and rationale.
   eine nicht-gewährte Capability verlangt oder App-ID/Team-Mismatch/Wildcard → Portal-Fix
   (Capability an com.echoelmusic.app.auv3 gewähren / Profil neu). Danach Gerät-Verify.
 - **Review:** 2026-08-19.
+
+### 2026-07-20 (KORREKTUR) AUv3 -3000: NICHT Launch-Denial — Host-Registry-Blindheit
+- **Widerruft die frühere 2026-07-20-Entscheidung** ("appex signing/provisioning launch-denial").
+  Adversarialer Grill (6 unabhängige Skeptiker, Workflow wf_dd99de9f) hat sie WIDERLEGT.
+- **−3000 = invalidComponentID = Registry-FIND-Miss** (Komponente resolved NICHT in DIESEM Prozess),
+  emittiert VOR jedem Extension-Launch. Ein launch-denied Appex würde später scheitern (−66748/−66749)
+  oder in unseren 10-s-Timeout laufen (eigene Domain, nicht NSOSStatusErrorDomain). Falsches Stadium.
+- **Symptom ist prozessweit** (0 Fremd-AUs von ALLEN Herstellern) → Fehler sitzt im HOST-Prozess,
+  nicht in der Appex-Signatur (die kann nicht Moog/Imaginando verschwinden lassen). Own-Appex-−3000 =
+  Spezialfall derselben Blindheit.
+- **Unsaubere Annahme aufgedeckt:** "AUM listet EchoelBodyVibe → registriert" war NIE vom Founder
+  bestätigt (vom "Morgen-Test" zu "Fakt" verhärtet). Ganze Launch-Denial-Erzählung stand darauf.
+- **Rangliste lebende Theorien:** (1) Host-Prozess-Registry-Blindheit [stärkste] · (2) Appex-
+  Registrierungs-Fehler/veralteter pluginkit-Eintrag (update-in-place nie durch clean-reinstall geklärt)
+  · (3) iOS-cold-registry-quirk [teils selbst-widerlegend] · (4) ~~Launch-Denial~~ widerlegt.
+- **Entscheidender Test (Founder, Gerät, kein Code/Build): AUM prime-then-rescan** — AUM öffnen/listen,
+  prüfen ob eigene Appex namentlich drin, zurück zu Echoel → Rescan. Trennt Host-Blindheit vs
+  Registrierungs-Fehler + testet die unbestätigte "AUM-listet"-Prämisse. KEIN Portal-Change auf Verdacht.
+- **Code-Fix (ca98371):** Diagnose ehrlich (resolve-miss statt "appex unregistered", prime-then-rescan
+  statt blind-reinstall) + Build-Stamp in jeder Scan-Zeile (try N → Build eindeutig). Reviewer 0 Defekte.
+- **CI-Appex-Signing-Dump (c7e95b7) inspiziert das falsche Artefakt** (Appex statt Host) — nicht schädlich
+  (non-blocking), aber nicht entscheidend; bleibt als Appex-Signatur-Entlastung nützlich.
+- **Review:** 2026-08-19.

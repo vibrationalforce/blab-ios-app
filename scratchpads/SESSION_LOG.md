@@ -7824,3 +7824,14 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
   - **ui-state-reviewer: 0 Defekte** (freeze/env/exhaustiveness/sheet/compile alle PASS).
   - Non-defect: arm() cancelt armTask nicht bei onDisappear (kurzlebig+idempotent, wie BioSourceView — akzeptabel).
 - OFFEN: CI-Gates auf 8ff3051 → dann v312-Deploy für BodyVibe. Nächste Slices: mood/sound/generate/visual + Face-Source; danach Leisten-Auflösung S2ff freigeschaltet.
+
+---
+## 2026-07-20 (cont.) — AUv3 Grill + Ehrlichkeits-Fix
+- Founder "Grill from all sides" → adversarialer Workflow (6 Skeptiker + Synthese, wf_dd99de9f).
+- VERDIKT: meine "signing/provisioning launch-denial"-These WIDERLEGT. -3000=invalidComponentID=
+  Registry-FIND-Miss vor Launch; prozessweit 0 Fremd-AUs = Host-Prozess-Blindheit, nicht Appex-Signatur.
+  "AUM listet unsere Appex" war nie bestätigt (Prämisse gekippt).
+- Entscheidender Founder-Gerätetest: AUM prime-then-rescan (kein Code/Build). KEIN Portal-Change auf Verdacht.
+- FIX (ca98371, Reviewer 0 Defekte): AUv3-Diagnose ehrlich (resolve-miss, prime-then-rescan statt reinstall)
+  + Build-Stamp "vX.Y.Z (build)" in jeder Scan-Zeile (try N eindeutig einem Build zuordenbar). Tests grün.
+- Frühere Decision-Zeile korrigiert (memory/decisions.md + decisions.csv).
