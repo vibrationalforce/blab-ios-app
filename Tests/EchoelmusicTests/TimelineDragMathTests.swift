@@ -52,6 +52,60 @@ final class TimelineDragMathTests: XCTestCase {
         XCTAssertEqual(d, CGFloat(rawTicks) * 24 / 480)
     }
 
+    // MARK: - Move · neighbour-edge magnetism preview (#56 C6)
+
+    // ppb 24 → magnetTicks = Int((8/24*480).rounded()) = 160. Candidates the
+    // preview builds mirror the commit: each neighbour edge and (edge − length).
+
+    func testMovePreview_magnetizesToStartEdge_parityWithCommit() {
+        // +52 pt from 480 → raw 1520; neighbour start 1500 sits 20 ticks away
+        // (≤160 magnet AND nearer than the 1/16 grid at 1560) → preview lands 1500.
+        let neighbourEdges = [1500, 1980]      // a neighbour region start/end
+        let length = 480
+        let d = TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: 52, startTick: 480, ppb: 24, snap: .sixteenth,
+            neighbourEdges: neighbourEdges, lengthTicks: length)
+        // Commit parity (moveGesture.onEnded edge-magnet branch, verbatim):
+        let deltaTicks = Int((52.0 / 24.0 * 480.0).rounded())
+        let raw = max(0, 480 + deltaTicks)
+        let magnetTicks = Int((8.0 / 24.0 * 480.0).rounded())
+        let candidates = neighbourEdges.flatMap { [$0, $0 - length] }
+        let committed = TimelineSnap.snapWithEdges(raw, to: .sixteenth,
+                                                   edges: candidates, magnetTicks: magnetTicks)
+        XCTAssertEqual(committed, 1500)
+        XCTAssertEqual(d, CGFloat(committed - 480) * 24 / 480)
+    }
+
+    func testMovePreview_endKissesNeighbourEdge_viaLengthCandidate() {
+        // Our end (start+length) kisses a neighbour start 2000: candidate 2000−480
+        // = 1520 wins, so the whole clip previews seated so its RIGHT edge butts up.
+        let neighbourEdges = [2000, 2400]
+        let length = 480
+        let d = TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: 52, startTick: 480, ppb: 24, snap: .sixteenth,   // raw 1520
+            neighbourEdges: neighbourEdges, lengthTicks: length)
+        XCTAssertEqual(d, CGFloat(1520 - 480) * 24 / 480)   // start committed at 1520
+    }
+
+    func testMovePreview_edgesOutsideWindow_fallBackToGrid() {
+        // The only neighbour is far away (3000): magnet never engages → plain grid.
+        let d = TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: 52, startTick: 480, ppb: 24, snap: .sixteenth,
+            neighbourEdges: [3000], lengthTicks: 480)          // raw 1520 → grid 1560
+        let gridOnly = TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: 52, startTick: 480, ppb: 24, snap: .sixteenth)
+        XCTAssertEqual(d, gridOnly)
+    }
+
+    func testMovePreview_emptyEdges_unchangedGridBehaviour() {
+        // No neighbours passed ⇒ identical to the pre-C6 grid-only preview.
+        let withArg = TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: 50, startTick: 480, ppb: 24, snap: .sixteenth, neighbourEdges: [])
+        let plain = TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: 50, startTick: 480, ppb: 24, snap: .sixteenth)
+        XCTAssertEqual(withArg, plain)
+    }
+
     func testLaneShift_roundsAtHalfRow() {
         XCTAssertEqual(TimelineDragMath.laneShift(fromPoints: 20, laneHeight: 56), 0)
         XCTAssertEqual(TimelineDragMath.laneShift(fromPoints: 29, laneHeight: 56), 1)

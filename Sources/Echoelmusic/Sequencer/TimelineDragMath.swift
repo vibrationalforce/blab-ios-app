@@ -13,10 +13,12 @@
 // leaf-local).
 //
 // HONEST SCOPE (documented deltas from the commit path, all release-safe):
-// • Neighbour-edge magnetism (snapWithEdges, ±8 pt) stays COMMIT-ONLY — the
-//   live preview would need per-frame store reads for the edge candidates
-//   (freeze-law). Residual release motion: at most the small magnet pull,
-//   not the half-cell grid jump this slice removes.
+// • Neighbour-edge magnetism (snapWithEdges, ±8 pt) is now PREVIEWED too (#56 C6):
+//   the PARENT lane row captures the neighbour edge ticks once (a user-rate value,
+//   like `laneGates`) and passes them down, so the leaf magnetizes in-body without
+//   ever touching the store during the drag (freeze-law honoured). The half-cell
+//   grid jump AND the residual magnet pull at release are both gone. On a lane
+//   change the caller passes no edges, matching the commit's plain-grid branch.
 // • The front-trim min-start clamp uses the EXACT tick twin
 //   (`contentOffsetTicks`, M1b). `trimmedStart` now prefers the SAME twin, so
 //   preview and commit agree exactly for every modern region at ANY tempo
@@ -86,11 +88,34 @@ public enum TimelineDragMath {
 
     /// The horizontal preview delta (points) for a body move: the clip draws at
     /// the grid-snapped start tick its release will commit (`.off` = stepless,
-    /// clamped ≥ 0 like the commit). Edge magnetism is commit-only (see header).
+    /// clamped ≥ 0 like the commit).
+    ///
+    /// Neighbour-edge magnetism (#56 C6): when `neighbourEdges` is supplied (the
+    /// raw start/end ticks of the OTHER regions in this lane, self excluded — a
+    /// user-rate value captured by the PARENT, never a per-frame store read in
+    /// the leaf), the preview magnetizes to a neighbour edge exactly as the
+    /// commit does: each edge and `edge - lengthTicks` (so OUR end can kiss an
+    /// edge too) is a candidate, and one within `magnetPoints` screen-points that
+    /// is at least as close as the grid pull wins. This closes the last residual
+    /// release jump (the magnet was previously commit-only). Empty `neighbourEdges`
+    /// → pure grid behaviour, unchanged. The caller passes `[]` on a lane change
+    /// so the preview matches the commit's plain-grid branch there.
     public static func movePreviewDeltaX(rawDeltaX: CGFloat, startTick: Int,
-                                         ppb: CGFloat, snap: SnapResolution) -> CGFloat {
+                                         ppb: CGFloat, snap: SnapResolution,
+                                         neighbourEdges: [Int] = [],
+                                         lengthTicks: Int = 0,
+                                         magnetPoints: CGFloat = 8) -> CGFloat {
         let raw = Swift.max(0, startTick + tickDelta(fromPoints: rawDeltaX, ppb: ppb))
-        let committed = snap == .off ? raw : TimelineSnap.snap(raw, to: snap)
+        let committed: Int
+        if neighbourEdges.isEmpty || !(ppb.isFinite && ppb > 0) {
+            committed = snap == .off ? raw : TimelineSnap.snap(raw, to: snap)
+        } else {
+            let magnetTicks = Swift.max(0,
+                Int((magnetPoints / ppb * CGFloat(TimelineTime.ticksPerBeat)).rounded()))
+            let candidates = neighbourEdges.flatMap { [$0, $0 - lengthTicks] }
+            committed = TimelineSnap.snapWithEdges(raw, to: snap,
+                                                   edges: candidates, magnetTicks: magnetTicks)
+        }
         return CGFloat(committed - startTick) * pointsPerTick(ppb: ppb)
     }
 

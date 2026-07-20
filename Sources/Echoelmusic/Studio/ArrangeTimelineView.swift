@@ -1328,11 +1328,19 @@ struct ArrangeTimelineView: View {
                 }
             }
             Group {
-                ForEach(timeline.document.regions(in: lane.id)) { region in
+                let laneRegions = timeline.document.regions(in: lane.id)
+                ForEach(laneRegions) { region in
                     // Each region is its OWN leaf view that owns its live gesture deltas
                     // (@GestureState since #56 slice 1) — so a trim drag re-renders ONLY
                     // that clip, never the whole timeline (the old root-@State resize made
                     // every drag frame rebuild all lanes + ruler + playhead, 2026-07-15).
+                    // #56 C6: this region's neighbour edge ticks, captured here in the
+                    // PARENT (edit-rate) so the leaf can preview edge magnetism without a
+                    // per-frame store read (freeze law) — self excluded, exactly the
+                    // candidates the move commit builds.
+                    let neighbourEdges = laneRegions
+                        .filter { $0.id != region.id }
+                        .flatMap { [$0.startTick, $0.endTick] }
                     RegionBlockView(region: region, ppb: ppb, snap: snap,
                                     selectMode: isSelecting,
                                     isSelected: selectedRegions.contains(region.id),
@@ -1345,6 +1353,7 @@ struct ArrangeTimelineView: View {
                                     },
                                     laneIndex: laneIndex,
                                     laneGates: laneGates,
+                                    neighbourEdges: neighbourEdges,
                                     performanceMode: performanceMode,
                                     launchQuantize: launchQuantize,
                                     laneIsBio: lane.isBio,
@@ -1432,6 +1441,11 @@ private struct RegionBlockView: View {
     /// preview seats only on rows the store will actually accept.
     var laneIndex: Int = 0
     var laneGates: [TimelineDragMath.LaneGate] = []
+    /// Raw start/end ticks of the OTHER regions in this lane (self excluded),
+    /// captured by the parent lane row at build time (#56 C6). A user-rate value
+    /// — the leaf uses it for edge-magnetism preview without ever reading the
+    /// document during a drag (freeze law). Empty ⇒ pure grid preview.
+    var neighbourEdges: [Int] = []
     /// Performance mode (founder 2026-07-17): draws the launch glyph on MIDI clips
     /// and SUSPENDS this region's move/trim gestures (a tap must launch, not scrub).
     var performanceMode: Bool = false
@@ -1499,14 +1513,20 @@ private struct RegionBlockView: View {
             contentOffsetSeconds: region.contentOffsetSeconds, ppb: ppb, snap: snap) : 0
         let resizeW = isResizing ? TimelineDragMath.trailingTrimPreviewDeltaW(
             rawDeltaX: resizeDelta, lengthTicks: region.lengthTicks, ppb: ppb, snap: snap) : 0
-        let moveX = isMoving ? TimelineDragMath.movePreviewDeltaX(
-            rawDeltaX: moveDelta.width, startTick: region.startTick, ppb: ppb, snap: snap) : 0
         // Gate-aware (#56 MEDIUM #2): a row the store refuses (kind mismatch /
         // out of bounds / bio) previews as NO shift — release is a visual no-op
-        // instead of a jump-back.
+        // instead of a jump-back. Computed FIRST because the horizontal preview
+        // below suppresses edge magnetism on a lane change (commit parity).
         let rowShift = isMoving ? TimelineDragMath.gatedLaneShift(
             fromPoints: moveDelta.height, laneHeight: laneHeight,
             laneIndex: laneIndex, gates: laneGates) : 0
+        // #56 C6: preview the SAME neighbour-edge magnetism the release commits,
+        // fed by the parent-captured `neighbourEdges` (no store read in this leaf).
+        // On a lane change the commit uses plain grid, so drop the edges here too.
+        let moveX = isMoving ? TimelineDragMath.movePreviewDeltaX(
+            rawDeltaX: moveDelta.width, startTick: region.startTick, ppb: ppb, snap: snap,
+            neighbourEdges: rowShift == 0 ? neighbourEdges : [],
+            lengthTicks: region.lengthTicks) : 0
         let x = CGFloat(region.startTick) / CGFloat(TimelineTime.ticksPerBeat) * ppb + frontX + moveX
         let w = max(6, CGFloat(region.lengthTicks) / CGFloat(TimelineTime.ticksPerBeat) * ppb - 2 + resizeW - frontX)
         let clip = clips.clip(id: region.clipID)
