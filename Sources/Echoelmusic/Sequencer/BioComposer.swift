@@ -495,6 +495,26 @@ public enum BioComposer {
         return deltas
     }
 
+    /// Snap a scale-degree offset onto the nearest chord tone of the sounding
+    /// chord, in scale-degree space and across octaves. `tones` are chord-tone
+    /// offsets (e.g. `[0, 2, 4]` triad, `[0, 4, 7]` power chord) that may span
+    /// more than one octave; each is imaged to the octave nearest `deg` and the
+    /// closest wins. This is what lets a stepwise (singing) lead re-anchor to the
+    /// harmony on strong beats — chord tones on the beat, passing tones between —
+    /// so the line outlines the chord instead of drifting out of it. Pure.
+    static func nearestChordDegree(_ deg: Int, tones: [Int], degreesPerOctave n: Int) -> Int {
+        guard !tones.isEmpty, n > 0 else { return deg }
+        var best = deg
+        var bestDist = Int.max
+        for t in tones {
+            let k = Int((Double(deg - t) / Double(n)).rounded())   // octave image nearest deg
+            let cand = t + k * n
+            let dist = abs(cand - deg)
+            if dist < bestDist { bestDist = dist; best = cand }
+        }
+        return best
+    }
+
     /// Generate music from a bio snapshot, in the requested genre.
     /// How much to thin the FAST melodic layers (lead note count, arp/pulse subdivision)
     /// for a given PLAYBACK tempo, so a take keeps a good vibe instead of turning hectic as
@@ -1485,12 +1505,17 @@ public enum BioComposer {
             }
         }
 
-        // 3) Lead melody — ALWAYS consonant: every note is a chord tone of the
-        //    chord sounding at that step, so it can never clash (no weird/aimless
-        //    intervals). Density, contour and rhythm are animated by the body —
-        //    inhale lifts the line, a busier signal adds notes — so every take
-        //    surprises while staying musical. (Replaces the old free-wandering
-        //    scale-degree lead that could drift out of the harmony.)
+        // 3) Lead melody — a SINGING line, not an arpeggio (founder 2026-07-20
+        //    "sicherstellen dass keine Melodien Melodien sind"): the line moves
+        //    STEPWISE through the scale (the motif deltas are scale steps → mostly
+        //    2nds), and every metrically-STRONG note snaps to the nearest chord tone
+        //    so it outlines the harmony — chord tones on the beat, passing / neighbour
+        //    tones between. That is the missing middle ground between the old free
+        //    scale-walk (drifted out of the chord → aimless) and the chord-tone-only
+        //    walk (leapt a 3rd every note → an arpeggio, not a melody). Everything
+        //    stays diatonic (scale degrees) so it can't clash, and the strong-beat
+        //    anchor stops it drifting. Density, contour and rhythm are animated by the
+        //    body — inhale lifts the line, a busier signal adds notes.
         if profile.leadDensity > 0 {
             // Liveliness scales how many lead notes; darkness drops the register.
             let lively = 0.6 + 0.8 * clamp01(mood.liveliness)
@@ -1501,15 +1526,23 @@ public enum BioComposer {
             // densityScale thins the line as the playback tempo rises (constant-ish
             // notes-per-second) so a fast take sings instead of machine-gunning; 1.0 at/below
             // the comfortable baseline leaves the count exactly as before.
-            let count = max(2, Int((profile.leadDensity * (1.6 + busy * 1.6) * lively * densityScale).rounded()))
+            // Floor of 3 (was 2): a 2-note phrase is two strong beats with no room
+            // for a passing tone between them → a bare chord-tone leap (an arpeggio,
+            // the thing we're removing). Three notes guarantee at least one off-beat
+            // passing tone, so even the sparsest take sings a step.
+            let count = max(3, Int((profile.leadDensity * (1.6 + busy * 1.6) * lively * densityScale).rounded()))
             var lastStart = -1
             // Seed-vary the opening tone so the lead doesn't always begin on the same
             // pitch (a big part of "it's the same tune again"). Breath still biases
             // low on inhale / higher on exhale; the seed adds the individual offset.
-            var toneIdx = (breathPhase < 0.5 ? 0 : 1)
+            // `scaleDeg` is a scale-degree offset from the sounding chord's root — it
+            // STARTS on a chord tone and then walks the scale stepwise (see below).
+            let startToneIdx = (breathPhase < 0.5 ? 0 : 1)
                 + Int(structureRNG.next() % UInt64(max(1, tones.count)))
+            var scaleDeg = tones[((startToneIdx % tones.count) + tones.count) % tones.count]
             // Motif contour (Cycle 3): the line follows a seeded statement→answer
-            // shape that resolves, instead of a random walk — so it sings.
+            // shape that resolves, instead of a random walk — so it sings. The deltas
+            // are read as SCALE STEPS (a 2nd per unit), giving a stepwise melody.
             let leadDeltas = Self.motifDeltas(count: count,
                                               directionBias: breathPhase < 0.5 ? 0.72 : 0.30,
                                               weird: mood.weird, rng: &rng)
@@ -1535,7 +1568,16 @@ public enum BioComposer {
                 } else {
                     leadAlts = []
                 }
-                let chordTone = tones[((toneIdx % tones.count) + tones.count) % tones.count]
+                // Anchor the harmony: the FIRST note, the LAST note (phrase
+                // resolution) and every on-beat note snap to the nearest chord tone,
+                // so the stepwise line outlines the chord and settles on it. Off-beat
+                // notes keep the scale step (a passing / neighbour tone) that sings.
+                let onStrongBeat = (startStep % 4 == 0) || i == 0 || i == count - 1
+                if onStrongBeat {
+                    scaleDeg = Self.nearestChordDegree(scaleDeg, tones: tones,
+                                                       degreesPerOctave: key.degreesPerOctave)
+                }
+                let chordTone = scaleDeg
                 let leadAlteration = ChordSuggest.alteration(forToneOffset: chordTone,
                                                              degreesPerOctave: key.degreesPerOctave,
                                                              in: leadAlts)
@@ -1575,10 +1617,11 @@ public enum BioComposer {
                 // evolving rng so the detail still breathes.
                 let ornamentP = clamp01(mood.liveliness) * 0.35 + busy * 0.15 + clamp01(mood.virtuosity) * 0.5
                 if length >= 2, startStep + 1 < stepCount, structureRNG.unit() < ornamentP {
-                    let gIdx = toneIdx + (rng.unit() < 0.5 ? 1 : -1)
-                    let gTone = tones[((gIdx % tones.count) + tones.count) % tones.count]
-                    let gPitch = Self.tameLeadPitch(key.degree(chordRoot + gTone, octave: profile.leadOctave + octShift)
-                                                    + ChordSuggest.alteration(forToneOffset: gTone,
+                    // A grace note is a neighbouring SCALE tone (a 2nd) leading into
+                    // the main note — the classic ornament, still diatonic/in-key.
+                    let gDeg = scaleDeg + (rng.unit() < 0.5 ? 1 : -1)
+                    let gPitch = Self.tameLeadPitch(key.degree(chordRoot + gDeg, octave: profile.leadOctave + octShift)
+                                                    + ChordSuggest.alteration(forToneOffset: gDeg,
                                                                               degreesPerOctave: key.degreesPerOctave,
                                                                               in: leadAlts)
                                                     + lift)
@@ -1590,9 +1633,10 @@ public enum BioComposer {
                 }
                 notes.append(Note(id: nextUUID(&rng), pitch: Swift.min(127, Swift.max(0, Self.tameLeadPitch(pitch + lift))),
                                   startStep: mainStart, lengthSteps: mainLen, velocity: velocity, role: .lead))
-                // Advance along the motif contour (statement→answer, resolving)
-                // instead of a random walk — chord-tone-locked above, so still in key.
-                toneIdx += leadDeltas[i]
+                // Advance the singing line one motif step (a scale step) — the
+                // statement→answer contour walks the scale; strong beats above
+                // re-anchor it to a chord tone so it can't drift out of the harmony.
+                scaleDeg += leadDeltas[i]
             }
         }
         return notes
