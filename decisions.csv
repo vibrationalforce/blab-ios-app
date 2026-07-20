@@ -255,3 +255,4 @@ date,decision,reasoning,expected_outcome,review_date,status
 2026-07-20,KORREKTUR AUv3 third-party discovery = missing inter-app-audio entitlement (App ID capability),DevForums 127481/89762 exact symptom; entitlement declared but stripped at signing because App ID lacks the capability; session-timing + query-bug ruled out,founder enables Inter-App Audio on com.echoelmusic.app App ID in portal then re-archive; CI reports PRESENT/STRIPPED with the fix,2026-08-20,open
 2026-07-20,AUv3-entitlement-verdict-read-wrong-artifact,archive-is-dev-signed-not-shipped-ipa,trustworthy-ipa-read-discriminates-3-cases,2026-08-19,open
 2026-07-20,#1-automation-in-track-option-C-staged,precision-editor-edits-loop-layer-not-document-automation,unified-store-one-curve-drawn-and-typed,2026-08-19,in-progress
+2026-07-20,AUv3-pivot-to-ASC-API-bundle-capabilities,both-signed-artifact-reads-dead-archive-devsigned-no-ipa-on-disk,authoritative-source-of-truth-query,2026-08-19,open

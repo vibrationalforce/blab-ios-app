@@ -826,3 +826,20 @@ Architectural and strategic decisions with context and rationale.
 - **Gate: proceed** — S1 GEBAUT+committet (813aab4), Reviewer 0 Defekte. Golden: Row-Store +
   Loop-Dispatch unverändert. Verify (S2, Gerät): in Row zeichnen → Präzision öffnen → SELBE
   Kurve, getippt persistiert+spielt.
+
+### 2026-07-20 KORREKTUR 4 — beide Signatur-Artefakt-Reads tot; Pivot auf autoritative ASC-API-Capability-Abfrage
+- **v314/2422:** der .ipa-Read (KORREKTUR 3) lief, fand aber KEINE .ipa — ExportOptions nutzt
+  `destination: upload` (xcodebuild lädt direkt zu ASC hoch, schreibt keine .ipa auf Platte).
+  Beide Artefakt-Wege sind damit tot: Archiv = Dev-signiert (nicht Ship), .ipa = existiert nicht.
+- **Muster erkannt (HARNESS_LEDGER-Disziplin):** 3 Deploys am Signatur-Artefakt = Kreisen. STOP.
+- **Pivot:** die QUELLE DER WAHRHEIT abfragen statt Artefakte — App-ID-Capabilities via ASC-API
+  (`/v1/bundleIds` → `/bundleIdCapabilities`). Sagt DIREKT ob INTER_APP_AUDIO auf
+  com.echoelmusic.app aktiviert ist = exakt das dokumentierte Third-Party-AU-Scan-Gate. Keine
+  Signatur/Artefakt-Zweideutigkeit, terminal. Non-blocking CI-Schritt (continue-on-error),
+  reitet auf dem NÄCHSTEN Deploy mit (kein dedizierter 4. AUv3-Deploy).
+- **Founder-Sofortweg (parallel, READ nicht CHANGE):** developer.apple.com → Identifiers →
+  com.echoelmusic.app → ist "Inter-App Audio" aktiviert? Nein → das ist der belegte Fix. Ja →
+  ausgeschlossen, Host-Blindheit (AUM prime→rescan). 30-Sekunden-Blick, respektiert "kein
+  Portal-CHANGE auf Verdacht".
+- **Status:** offen bis ASC-Abfrage (nächster Deploy) ODER Founder-Portal-Blick — dann EIN
+  belegter Schritt.

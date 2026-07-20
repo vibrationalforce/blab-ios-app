@@ -654,61 +654,69 @@ jobs:
           fi
           echo "=== EXPORT & UPLOAD SUCCESSFUL ==="
 
-      # AUv3-ENTITLEMENT-TRUTH (device try 1/3 on v313/2421: the ARCHIVE-based
-      # step above reported inter-app-audio STRIPPED — but it reads the
-      # xcarchive app, which is DEVELOPMENT-signed (get-task-allow=true) with a
-      # minimal team profile, so healthkit/app-groups look stripped there TOO
-      # even though they ship fine. That verdict is NOT the shipped binary. The
-      # DISTRIBUTION .ipa produced by -exportArchive is the real, uploaded
-      # artifact — read ITS entitlements to get a trustworthy answer. Prints the
-      # FULL host entitlement set so inter-app-audio, healthkit, and app-groups
-      # are all visible at once, which discriminates the three real cases:
-      #   • inter-app-audio PRESENT            → scanning unblocked; if scan still
-      #                                           fails on device it is host
-      #                                           registry-blindness (AUM prime).
-      #   • IAA absent BUT healthkit PRESENT   → inter-app-audio SPECIFICALLY not
-      #                                           granted → the App ID lacks the
-      #                                           Inter-App Audio capability → the
-      #                                           portal enable IS the fix.
-      #   • IAA absent AND healthkit absent    → the whole distribution set is
-      #                                           minimal → a broader provisioning
-      #                                           problem, NOT just IAA.
-      # NON-BLOCKING, read-only, never fails the build.
-      - name: "Report DISTRIBUTION .ipa entitlements — the real shipped set (non-blocking)"
+      # AUv3-ENTITLEMENT-TRUTH — AUTHORITATIVE SOURCE (device try 1/2421+2422:
+      # two prior reads were defeated by the artifact, not the answer. The
+      # xcarchive app is DEVELOPMENT-signed (get-task-allow=true, minimal team
+      # profile) so it strips healthkit/app-groups/IAA even though they ship; and
+      # ExportOptions uses destination:upload, so NO .ipa is ever written to disk
+      # to inspect. The signed-artifact path is a dead end here. So query the
+      # SOURCE OF TRUTH instead: the App ID's enabled capabilities via the App
+      # Store Connect API (bundleIdCapabilities). That says DIRECTLY whether
+      # Inter-App Audio is granted on com.echoelmusic.app — which is exactly the
+      # documented third-party-AU-scan gate (DevForums 127481/89762) — with no
+      # signing/artifact ambiguity. NON-BLOCKING, read-only.
+      - name: "Report App ID capabilities via ASC API — the AUv3 scan-gate truth (non-blocking)"
+        continue-on-error: true
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          BUNDLE_ID: com.echoelmusic.app
         run: |
           set +e
-          IPA=$(ls ./build/*.ipa 2>/dev/null | head -1)
-          echo "## AUv3 entitlement truth (distribution .ipa)" >> $GITHUB_STEP_SUMMARY
-          if [ -z "$IPA" ] || [ ! -f "$IPA" ]; then
-            echo "⚠️ no .ipa found under ./build — cannot read distribution entitlements" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
-          WORK=$(mktemp -d)
-          unzip -q -o "$IPA" -d "$WORK" 2>/dev/null || true
-          APP=$(ls -d "$WORK"/Payload/*.app 2>/dev/null | head -1)
-          if [ -z "$APP" ] || [ ! -d "$APP" ]; then
-            echo "⚠️ could not locate Payload/*.app inside the .ipa" >> $GITHUB_STEP_SUMMARY
-            rm -rf "$WORK"; exit 0
-          fi
-          ENT=$(codesign -d --entitlements :- "$APP" 2>/dev/null || true)
-          echo "=== distribution host entitlements (full) ==="
-          echo "$ENT"
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$ENT" | grep -iE "inter-app|application-identifier|application-groups|aps-environment|healthkit|cloudkit|get-task-allow" >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "(no key entitlements matched)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          HAS_IAA=$(echo "$ENT" | grep -qi "inter-app-audio" && echo yes || echo no)
-          HAS_HK=$(echo "$ENT" | grep -qi "healthkit" && echo yes || echo no)
-          if [ "$HAS_IAA" = yes ]; then
-            echo "::notice title=AUv3 IAA present (shipped)::inter-app-audio IS in the distribution .ipa — third-party AU scanning is unblocked; if scan still fails it is host registry-blindness (AUM prime→rescan)."
-            echo "✅ inter-app-audio PRESENT in the DISTRIBUTION .ipa — scanning is unblocked at the entitlement level. A still-failing scan on device = host registry-blindness, not a signing gate." >> $GITHUB_STEP_SUMMARY
-          elif [ "$HAS_HK" = yes ]; then
-            echo "::warning title=AUv3 IAA specifically stripped::healthkit ships but inter-app-audio does not — the App ID lacks the Inter-App Audio capability. Enable it on com.echoelmusic.app in the portal, then re-archive."
-            echo "❌ inter-app-audio ABSENT while healthkit IS present in the distribution .ipa → the App ID is NOT granted Inter-App Audio (other capabilities survive, so this is specific, not a broad profile issue). FIX: enable 'Inter-App Audio' on com.echoelmusic.app in the developer portal, then re-archive (automatic signing keeps it). Documented gate: DevForums 127481/89762." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "::warning title=AUv3 entitlement read inconclusive::neither inter-app-audio nor healthkit present in the .ipa read — broader provisioning question, do NOT change the portal on this alone."
-            echo "⚠️ NEITHER inter-app-audio NOR healthkit present in the distribution read — this is a BROADER provisioning/entitlement question, not specific to Inter-App Audio. Do NOT change the portal on this alone; investigate the distribution profile capability set first." >> $GITHUB_STEP_SUMMARY
-          fi
-          rm -rf "$WORK"
+          python3 -m pip install --user --break-system-packages 'pyjwt[crypto]>=2.8' >/dev/null 2>&1 || true
+          python3 - <<'PY'
+          import os, sys, time, json, urllib.request
+          SUM = os.environ.get('GITHUB_STEP_SUMMARY')
+          def w(line):
+              if SUM:
+                  with open(SUM, 'a') as f: f.write(line + "\n")
+          w("## AUv3 scan-gate truth — App ID capabilities (ASC API)")
+          try:
+              import jwt
+              tok = jwt.encode(
+                  {"iss": os.environ['ASC_ISSUER_ID'], "exp": int(time.time()) + 600,
+                   "aud": "appstoreconnect-v1"},
+                  os.environ['ASC_KEY_CONTENT'], algorithm="ES256",
+                  headers={"kid": os.environ['ASC_KEY_ID']})
+              hdr = {"Authorization": "Bearer " + tok}
+              bid = os.environ['BUNDLE_ID']
+              def get(url):
+                  req = urllib.request.Request(url, headers=hdr)
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      return json.load(r)
+              base = "https://api.appstoreconnect.apple.com/v1"
+              q = get(f"{base}/bundleIds?filter%5Bidentifier%5D={bid}&limit=1")
+              data = q.get("data", [])
+              if not data:
+                  w(f"⚠️ bundle id `{bid}` not found via ASC API — cannot read capabilities."); sys.exit(0)
+              rid = data[0]["id"]
+              caps = get(f"{base}/bundleIds/{rid}/bundleIdCapabilities?limit=200")
+              types = sorted({c.get("attributes", {}).get("capabilityType", "?")
+                              for c in caps.get("data", [])})
+              w("Enabled capabilities on the App ID:")
+              w("```\n" + ("\n".join(types) if types else "(none returned)") + "\n```")
+              has_iaa = "INTER_APP_AUDIO" in types
+              if has_iaa:
+                  print("::notice title=AUv3 scan-gate OPEN::Inter-App Audio IS enabled on the App ID — the entitlement is not the blocker; a still-failing scan on device is host registry-blindness (AUM prime -> rescan).")
+                  w("✅ **INTER_APP_AUDIO is ENABLED** on the App ID. The documented scan gate is OPEN — so the entitlement is NOT the cause. A still-failing device scan = host registry-blindness (open AUM/GarageBand once, back to Echoel, Rescan). No portal change needed.")
+              else:
+                  print("::warning title=AUv3 scan-gate CLOSED::Inter-App Audio is NOT enabled on the com.echoelmusic.app App ID — this is the documented third-party-AU-scan gate. Enable it in the portal, then re-archive.")
+                  w("❌ **INTER_APP_AUDIO is NOT enabled** on `com.echoelmusic.app`. This is the documented gate for third-party AU discovery (DevForums 127481/89762). **FIX (one portal step): developer.apple.com -> Certificates, IDs & Profiles -> Identifiers -> com.echoelmusic.app -> enable 'Inter-App Audio' -> Save.** Automatic signing then keeps the already-declared entitlement, and the next archive can enumerate third-party AUv3.")
+          except Exception as e:
+              w(f"⚠️ ASC capability query failed ({type(e).__name__}: {e}) — inconclusive, no portal change on this alone.")
+          sys.exit(0)
+          PY
           echo "(non-blocking diagnostic — never fails the build)"
 
       - name: "Verify build landed in App Store Connect"
