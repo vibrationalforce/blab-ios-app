@@ -1,33 +1,38 @@
-build: 2026-07-20 v10.79.312 (EchoelBodyVibe-Oberfläche + ehrliche AUv3-Diagnose)
+build: 2026-07-20 v10.79.313 (Konvergenz: EN/Brand-Copy + AA-Kontrast + AUv3-Entitlement-Beweis)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD 2eb9cbf — beide Gates grün (Xcode Compile Check + CI/CD Pipeline),
-  je Pflicht-Reviewer 0 Defekte.
+notes: HEAD 8553d64 — beide Gates grün (Xcode Compile Check + CI/CD Pipeline).
 
-  ECHOELBODYVIBE — INSTRUMENT-OBERFLÄCHE, ERSTE SLICE (dein Verdikt "Man wählt
-  das ganz normal als Instrument aus" + "Genre auch in EchoelBodyVibe"):
-  • Eine Spur mit Instrument "EchoelBodyVibe" (der bio-generative Voice) öffnet
-    über ihre Spurkopf-Tür eine EIGENE Oberfläche: der Live-Bio-Strip (HR/HRV/
-    Br/Coh, "Read pulse" schaltet die Kamera-Quelle scharf) PLUS die EIGENE
-    Genre-/Mood-/Variations-Wahl DIESER Spur. Genau die "Genre kommt auch in
-    EchoelBodyVibe"-Tür — und die per-Spur-Heimat, die die weitere Auflösung der
-    unteren Leiste freischaltet.
-  • Über die EINE bestehende Sheet-Tür gebaut (kein Sheet-Ketten-Wachstum), nur
-    Low-Freq-Reads im Host-Body (Freeze-Gesetz eingehalten).
+  KONVERGENZ-DURCHGANG (deine Antwort "Alles soll funktionieren inklusive
+  accessible and brand fit" — kein Rewrite, sondern durchziehen). Ein 4-Achsen-
+  Audit fand die App im Kern gesund: EIN echter Funktionsbug, NULL Crash/Freeze-
+  Defekte. Der Rest = Copy + Accessibility. Dieser Build bündelt die sicheren,
+  blind-schiffbaren Fixes:
+  • "Kein Ton"-Banner auf der Home-Fläche jetzt ENGLISCH (war Deutsch).
+  • Routing-/EchoelLux-Sheet komplett ENGLISCH ("Light", "Blackout ON", AX-Labels).
+  • BRAND-ROTLINIE: die esoterische Zuschreibung "Hans Cousto's Cosmic Octave"
+    aus der Farb-/Licht-Copy entfernt — Mechanik jetzt schlicht beschrieben
+    (Ton oktavweise verdoppelt bis in den sichtbaren Bereich, via CIE 1931).
+  • ACCESSIBILITY: Sekundaer-/Einheitentext-Kontrast angehoben (dim 0.55 -> 0.65)
+    -> auf Panel-Fuellungen von ~5:1 auf ~6.5:1, klar ueber der WCAG-AA-Schwelle
+    4.5:1. Nirgends wird es schlechter (dim ist ueberall hell-auf-dunkel).
 
-  AUV3 — EHRLICHE DIAGNOSE (nach dem 6-Skeptiker-Grill deiner "Grill from all
-  sides"-Aufforderung — meine frühere "Signing/Launch-Denial"-These war FALSCH):
-  • −3000 = invalidComponentID = ein Registry-FIND-Miss (die Komponente wurde in
-    DIESEM Prozess nicht gefunden), VOR jedem Extension-Start. Zusammen mit "0
-    Fremd-Plugins von ALLEN Herstellern" = der Host-Prozess ist blind, nicht die
-    Appex-Signatur. Die Diagnose sagt das jetzt ehrlich: Anleitung ist "AUM/Garage-
-    Band einmal öffnen → zurück → Rescan" (reinstall nur als Fallback), NICHT mehr
-    "appex unregistered → reinstall".
-  • BUILD-STAMP in jeder Scan-Zeile: "vX.Y.Z (build) — …" → dein nächstes
-    "try N" ist eindeutig einem Build zuordenbar (Zweideutigkeit erledigt).
-  • Dieser Build dumpt zusätzlich non-blocking die signierten Appex-Entitlements +
-    das Provisioning-Profil in die CI-Summary (Zusatzdatenpunkt, nicht entscheidend).
-
-  DER ENTSCHEIDENDE TEST LIEGT BEI DIR (Gerät, kein Code): AUM öffnen → steht
-  "EchoelBodyVibe (Echo)" namentlich drin? → zurück zu Echoel → Rescan. Erscheinen
-  dann Fremd-Plugins in Echoel = Host-Blindheit (Appex ok, KEIN Portal-Change).
-  Fehlt die eigene Appex auch in AUM = Registrierungs-Fehler → erst clean-reinstall.
+  AUV3 — DER ENTSCHEIDENDE BEWEIS LAEUFT IN DIESEM BUILD (keine Portal-Aenderung
+  auf Verdacht, wie von dir gefordert):
+  • NEUE Evidenz (Apple DevForums 127481 + 89762, exakt unser Symptom): das
+    "Inter-App Audio"-ENTITLEMENT ist der Gatekeeper fuers Scannen VON FREMD-AUs
+    (seit iOS 11). Das Protokoll ist veraltet — das Entitlement gated das Scannen
+    weiter. Genau das erklaert "0 Fremd-Plugins, nur Apple".
+  • Bei uns IST das Entitlement deklariert (Echoelmusic.entitlements). ABER
+    automatisches Signing kann nur Capabilities aufnehmen, die die App-ID im
+    Portal aktiviert hat — fehlt "Inter-App Audio" dort, wird das Entitlement
+    beim Signieren GESTRICHEN.
+  • DIESER Build dumpt in die CI-Summary die ENTITLEMENTS DES SIGNIERTEN Appex.
+    Damit ist der Fall entscheidbar, nicht geraten:
+      – Zeigt die CI "inter-app-audio STRIPPED" -> Ursache bestaetigt -> EIN
+        Portal-Schritt: "Inter-App Audio" auf der App-ID com.echoelmusic.app
+        aktivieren, neu archivieren, fertig (Auto-Signing behaelt es dann).
+      – Zeigt die CI "inter-app-audio PRESENT" -> diese These ist widerlegt -> es
+        bleibt Host-Registry-Blindheit -> dein Geraetetest (AUM oeffnen -> zurueck
+        -> Rescan) entscheidet.
+  • Ich lese die CI-Summary nach dem Build und sage dir dann den EINEN naechsten
+    Schritt — belegt, nicht vermutet.
