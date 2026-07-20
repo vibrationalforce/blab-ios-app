@@ -1,3 +1,26 @@
+## 2026-07-20 (ULTRACODE cron) — #77 Melodien SINGEN: Lead schrittweise statt Arpeggio (v324, beide Gates grün)
+
+- **Founder "überwiegend schlecht die Genres … sicherstellen dass keine Melodien Melodien sind":**
+  Kern-Ursache gefunden — die Haupt-Genre-Lead (`composeHarmonic`, BioComposer) lief über
+  die AKKORDTÖNE (`toneIdx` in `tones`), jeder Motif-Schritt sprang ≥ eine Terz → ein
+  gebrochener Akkord (Arpeggio), keine gesungene Melodie. Beweis: die zwei Pfade, die schon
+  lange gut klangen (`trapMelody`, `ambientMelody`), liefen IMMER schrittweise über Skalen-
+  Stufen.
+- **Fix (054f7d7, eine Datei + Tests):** Lead läuft jetzt SCHRITTWEISE durch die Tonleiter
+  (`scaleDeg`, Motif-Deltas = Skalen-Schritte) und rastet auf BETONTEN Zählzeiten
+  (`startStep%4==0 || i==0 || i==count-1`) via neuem puren `nearestChordDegree` auf den
+  nächsten Akkordton ein — Akkordtöne auf der Zählzeit, diatonische Durchgangstöne dazwischen.
+  Verzierung = Nachbar-Skalenton. Lead-Minimum 2→3 (jede Phrase trägt ≥ 1 Durchgangston).
+  Die fehlende Mitte zwischen frei-driftend (2026-07-07 verworfen) und Akkordton-only (arpeggiert).
+- **Verifiziert:** dsp-reviewer PASS (Determinismus + In-Key + Speicher-Sicherheit, RNG-Draw-
+  Sequenz unverändert). Neuer `BioComposerLeadMelodyTests` (nearestChordDegree-Fälle +
+  schrittweises Intervall > 20 % gepoolt + in-key). **Xcode Compile Check UND CI/CD Pipeline
+  beide grün** auf 054f7d7. Deployt v10.79.324.
+- **EHRLICH:** compile-verifiziert, NICHT ohren-verifiziert (Audio-Qualität = Gerät). Founder hört.
+- **Rest von #77 (beats/harmony "klingen gleich") = EAR-GATED:** i-iv-V wird von 5 Genres
+  AUTHENTISCH geteilt (Rock/Blues/Folk), Beat-Skelett-Differenzierung ist blindes Muster-Design.
+  Founder bot Ohren an ("nenn die 2-3 schlimmsten") → kein blindes Tuning bis dahin (decisions.csv).
+
 ## 2026-07-20 (ULTRACODE cron) — Road-to-TestFlight: 3 verifizierte grüne Slices, Deploy GEHALTEN
 
 - **#60 Meter-Blank bei stale Bio (c79ff5f, item-2 Ehrlichkeit):** `ModulationEngine.tick`
