@@ -7795,3 +7795,21 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
 - **NEXT:** await founder reinstall+restart result. If structural: plan manual-signing slice
   with Council (risk = deploy pipeline). Meanwhile continue Leiste dissolution (S2: Mix) as the
   non-blocked track.
+
+### 2026-07-20 — AUv3 structural (team verdict): reinstall+restart FIRST, IAA is a red herring
+- **Team (free-text agent, high effort) conclusion, high confidence:**
+  - inter-app-audio = RED HERRING: stripped by managed profile anyway (never shipped with it) AND
+    cannot explain the -3000 on our OWN appex. Do NOT re-add it; do NOT switch to manual signing
+    (HIGH risk to the only green deploy path, deprecated capability may be un-toggleable).
+  - Real cause: pluginkit registration failure of the embedded appex — most plausibly a STALE
+    launch-denied registration surviving TestFlight update-in-place. Declaration+embed are
+    CI-proven correct (augn/echl/Echo). -3000 = registration/launch failure, not declaration.
+  - Candidate #1 (App-Group removal from appex, 7f8acbf 2026-07-19) already shipped v308-310 but
+    only ever installed as update-in-place → its fix may not have taken at the pluginkit layer.
+  - **RECOMMENDATION: delete + power-cycle + reinstall FIRST (validates the shipped fix AND is the
+    standard -3000 remedy). Land no signing change now.**
+  - Ready-but-held (respects CI DO-NOT rule): Action B = extend testflight.yml's NON-BLOCKING report
+    to dump the APPEX signed entitlements + embedded.mobileprovision (codesign -d --entitlements +
+    security cms -D). Zero pipeline risk. Land ONLY IF reinstall still shows -3000 (and note it's a
+    CI edit → founder-ok per "mach alles richtig", but gated on need).
+- **Relayed to founder:** the delete+restart+reinstall test is THE next step; no risky signing change.
