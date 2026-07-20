@@ -1,3 +1,27 @@
+## 2026-07-20 (ULTRACODE cron) — ULTRA-AUDIT: alle Subsysteme gescannt, 3 HIGH-Bugs geheilt (v325) + 1 CRITICAL gefunden
+
+- **Founder-Befehl (ultracode):** "geh davon aus dass noch nichts richtig funktioniert, trommel alle
+  Teams zusammen, no-sleep-loop, ultra-audit, feel all weak parts, ultra-heal them, bring all parts to live."
+  Plus 3 Inspiration-Reels (OmniRoute AI-Gateway = REJECT/watch; Anthropic Advisor/Orchestrator-Muster
+  = ADOPT-PIPELINE, direkt angewandt). Kein Echoel-Mitschnitt.
+- **`echoel-ultraaudit` Workflow (15 Agenten, 10 Subsystem-Auditoren + adversariale Verify-Fan-out,
+  0 Fehler, ~2.1M Token):** fand nur **4 echte Defekte** bei 10 Subsystemen — die Basis ist SOLIDER
+  als "nichts geht". Jeder kritische Fund wurde von einem zweiten Agenten gegengeprüft (killt Fehlalarme).
+- **3 HIGH geheilt (d5fea4c, v325, Reviewer: alle 4 PASS compile-sicher):**
+  1. **ArtNet/DMX App-Trap** — nicht-finiter (NaN/Inf) Kanal → `UInt8(_×255)`/`UInt16(_×65535)` traps.
+     `clampUnit` jetzt NaN-safe (→0), bit-identisch für endliche Werte. (ArtNetSender + MusicMediaMapping)
+  2. **Timeline Join Sekunden-Domäne** — geschnittener Clip nach Tempo-Wechsel nicht mehr fügbar (MIDI +
+     jeder Clip, stille Ablehnung). Jetzt tick-invariant (`other.contentOffsetTicks == contentOffsetTicks
+     + lengthTicks`); Legacy fällt auf Sekunden zurück. + Cross-Tempo-Regressionstest.
+  3. **VideoRecorder Namenskollision** — 1-Sek-Auflösung → schnelles Re-Record überschreibt/scheitert,
+     kein Video. UUID-Suffix.
+- **CRITICAL gefunden (Task #78, nächster Zyklus):** die **294 Testdateien laufen in KEINER CI** —
+  project.yml hat kein Test-Target, kein Workflow ruft `swift test`. `xcodebuild test-without-building`
+  läuft gegen ein Scheme ohne Test-Target = 0 Tests. **"Gates grün" hieß bisher nur "App kompiliert",
+  NICHT "Tests bestehen"** — die Melodie-Tests (v324) wurden nie ausgeführt. Heilung = Test-Target in
+  project.yml verdrahten (hohe Sprengweite, Council zuerst, kann CI rot machen indem lange versteckte
+  Test-Failures auftauchen → inkrementell).
+
 ## 2026-07-20 (ULTRACODE cron) — #77 Melodien SINGEN: Lead schrittweise statt Arpeggio (v324, beide Gates grün)
 
 - **Founder "überwiegend schlecht die Genres … sicherstellen dass keine Melodien Melodien sind":**
