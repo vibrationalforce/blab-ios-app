@@ -175,6 +175,39 @@ final class EngineBusTests: XCTestCase {
         XCTAssertNotNil(bus.latestBio)
     }
 
+    // MARK: - usableBio() per-source window (drives the bio-shaping readout)
+
+    /// The bio-shaping guide reads `usableBio()` (the SAME gate the sound engine
+    /// uses), NOT the fixed-5 s `freshBio()`. A latent wrist/Watch reading stays
+    /// usable for 90 s and keeps driving the music — so the guide must keep showing
+    /// its amounts, where `freshBio(5 s)` would falsely blank them to "—".
+    func testUsableBio_keepsLatentWatchFrame_whereFreshBioDrops() async {
+        let bus = EngineBus()
+        let sixtySecondsOld = CFAbsoluteTimeGetCurrent() - 60
+        bus.publish(bio: BioSampleFrame(
+            timestamp: sixtySecondsOld, heartRateBPM: 64, hrvNormalized: 0.5,
+            breathRate: 12, breathPhase: 0.25, coherence: 0.6, motionEnergy: 0.1,
+            source: .watch))                       // 90 s window
+        await Task.yield()
+        XCTAssertNotNil(bus.usableBio(),
+            "a 60 s-old Watch reading is still usable (90 s window) — the sound uses it")
+        XCTAssertNil(bus.freshBio(maxAge: 5),
+            "the old fixed 5 s gate would have blanked it — the reason the guide switched")
+    }
+
+    /// usableBio() still blanks a truly frozen LIVE source: a BLE strap frame past
+    /// its 6 s window is not usable, so the readout honestly goes quiet.
+    func testUsableBio_expiresFrozenLiveSource() async {
+        let bus = EngineBus()
+        bus.publish(bio: BioSampleFrame(
+            timestamp: CFAbsoluteTimeGetCurrent() - 10, heartRateBPM: 72,
+            hrvNormalized: 0.5, breathRate: 12, breathPhase: 0.25, coherence: 0.6,
+            motionEnergy: 0.1, source: .ble))      // 6 s window
+        await Task.yield()
+        XCTAssertNil(bus.usableBio(), "a 10 s-old BLE frame is past its 6 s window")
+        XCTAssertNotNil(bus.latestBio, "raw snapshot still held, only the usable view expires")
+    }
+
     // MARK: - BioSource.faceCam (A5 additive source)
 
     func testFaceCam_rawValueAppendedStable() {

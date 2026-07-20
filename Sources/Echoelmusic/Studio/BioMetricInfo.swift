@@ -257,9 +257,16 @@ struct BioMetricsGuideView: View {
         .presentationDetents([.medium, .large])
     }
 
-    /// A FRESH bio frame or nil — a stale/expired reading stops the bars moving
-    /// (honest: "nothing live is driving the sound"), matching the strip's freshness.
-    private var liveBio: BioSampleFrame? { bus.freshBio() }
+    /// A USABLE bio frame or nil — the SAME gate the sound engine asks
+    /// (`ModulationEngine.tick` → `usableBio()`), so "how your body shapes the
+    /// sound" shows amounts EXACTLY when the body is actually shaping it. Using the
+    /// fixed 5 s `freshBio()` here under-reported for latent sources: a wrist/Watch
+    /// reading stays usable for 90 s and keeps driving the music, but the bars
+    /// blanked to "—" after 5 s — a false "your body isn't driving" while it was.
+    /// `usableBio()` honours each source's own window (BLE/rPPG 6 s, Watch 90 s),
+    /// still blanks a truly frozen source, and reads `latestBio` so the freeze-law
+    /// note above still holds (this sheet leaf is the only body observing it).
+    private var liveBio: BioSampleFrame? { bus.usableBio() }
 
     /// The moving "right now" bar for a shaping row. `live == false` (no fresh
     /// signal) draws only the muted track. Fill is clamped ≥ 2 pt so a tiny live
