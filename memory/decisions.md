@@ -721,3 +721,21 @@ Architectural and strategic decisions with context and rationale.
   „Genre → BodyVibe" (2026-07-20) ist damit eindeutig: Genre gehört in die Instrument-Oberfläche.
 - **Status:** die BodyVibe-Oberfläche existiert als eigener Screen noch NICHT (die Teile leben
   heute verstreut in EchoelStudioView). Aufbau = mehrzyklige Arbeit (#67/#68). Review-Datum 2026-08-19.
+
+### 2026-07-20 AUv3 -3000: beide In-App-Theorien widerlegt → Signing/Provisioning
+- **Befund (try 1/3 nach Reinstall):** Self-probe der EIGENEN Appex bleibt -3000,
+  OBWOHL (a) App-Group-Removal seit v306+ live ist UND (b) reinstall gemacht wurde.
+  → cold-registry UND appex-App-Group als Ursache BEIDE widerlegt.
+- **Repo/Code sind nachweislich korrekt:** Appex embedded (PlugIns/), AudioComponents
+  unter NSExtensionAttributes (augn/echl/Echo), PrincipalClass AudioUnitViewController
+  conformt AUAudioUnitFactory synchron, Modulname + fourCCs matchen. KEINE In-Code-Ursache übrig.
+- **Restursache = Appex-Prozess-Launch-Denial (Signing/Provisioning-Fakt der Appex),
+  NICHT Host-App.** Appex ist REGISTRIERT (AUM listet sie), startet aber nirgends.
+- **Entscheidung:** Non-blocking, read-only CI-Schritt ergänzt (testflight.yml, c7e95b7):
+  dumpt Appex-SIGNIERTE-Entitlements + embedded.mobileprovision (Name/App-ID/Team) +
+  App-Profil zum Vergleich. Nie `exit 1` → grüner Deploy-Pfad unberührt. Council:
+  proceed-with-mitigation (vorgeplante FAILED-Pfad-Aktion, reversibel, YAML+bash geprüft).
+- **Nächster Schritt:** Diagnose-Output aus dem v312-Build lesen → wenn Appex-App-ID/Profil
+  eine nicht-gewährte Capability verlangt oder App-ID/Team-Mismatch/Wildcard → Portal-Fix
+  (Capability an com.echoelmusic.app.auv3 gewähren / Profil neu). Danach Gerät-Verify.
+- **Review:** 2026-08-19.

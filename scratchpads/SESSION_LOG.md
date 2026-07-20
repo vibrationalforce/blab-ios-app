@@ -7813,3 +7813,14 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
     security cms -D). Zero pipeline risk. Land ONLY IF reinstall still shows -3000 (and note it's a
     CI edit → founder-ok per "mach alles richtig", but gated on need).
 - **Relayed to founder:** the delete+restart+reinstall test is THE next step; no risky signing change.
+
+---
+## 2026-07-20 (cont.) — EchoelBodyVibe surface slice 1 + v311 deploy
+- **v311 deployed** (c5e3907): adaptive Spurköpfe (bf1e002) — beide Gates grün, Reviewer 0 Defekte. TestFlight baut HEAD ohne unreviewten BodyVibe.
+- **BodyVibe slice 1 built + committed** (8ff3051): founder 2026-07-20 "Man wählt das ganz normal als Instrument aus" + "Genre auch in EchoelBodyVibe".
+  - NEW Studio/BodyVibeSurfaceView.swift — bioVoice-Spur-Tür → Oberfläche: BioStripView-Leaf (Read-pulse armt Kamera + bioModulation) + LaneCompositionSection (Genre/Mood/Variation der Spur) + Header/Footer. Freeze-law clean (Body liest nur isRunning + lane.name).
+  - ArrangeTimelineView: ArrangeModal.bodyVibe(TimelineLane) case + id + modalEditor dispatch (reuse single .sheet, keine Chain-Wachstum) + Tür-Button in laneDoor bei builtinInstrument==.bioVoice.
+  - LaneCompositionSection private→internal (cross-file host).
+  - **ui-state-reviewer: 0 Defekte** (freeze/env/exhaustiveness/sheet/compile alle PASS).
+  - Non-defect: arm() cancelt armTask nicht bei onDisappear (kurzlebig+idempotent, wie BioSourceView — akzeptabel).
+- OFFEN: CI-Gates auf 8ff3051 → dann v312-Deploy für BodyVibe. Nächste Slices: mood/sound/generate/visual + Face-Source; danach Leisten-Auflösung S2ff freigeschaltet.
