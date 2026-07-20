@@ -7758,3 +7758,19 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
   provisioning → verify IAA actually enabled on App ID `com.echoelmusic.app` (founder portal step),
   OR confirm IAA is a red herring on iOS 18 and find the modern requirement.
 - **NOT a blind fix this cycle** — device-iterate law; waiting on A/B result to pick the RIGHT fix.
+
+### 2026-07-20 — AUv3 Apple-only recovery (self-warm re-query + host-priming tip), v310
+- **Grounded, non-blind** response to the 101-Apple/0-third-party diagnostic (IAA confirmed
+  stripped by managed profile → dead lever):
+  1. `AUv3Host`: on self-probe INSTANTIATE-OK (registry reachable, list stale), re-enumerate
+     once — the XPC/registry link warms the process cache. Bounded (probe once-per-process),
+     generation-guarded, guarded on still-cold. `[weak self]` fix to both probe branches.
+  2. `AUv3BrowserView`: empty-state now surfaces the DevForums-proven host-priming workaround
+     (open GarageBand/AUM → return → Rescan) so the founder can use plugins TODAY.
+- **Reviewer (concurrency): 0 defects** — loop-safety, actor isolation, generation guard,
+  freeze-law all verified. Commit 405b078.
+- v309 (fcc6ac0) TestFlight confirmed completed/success + founder-confirmed deployed.
+- **STILL the real fork (device):** if self-warm re-query populates the list → in-app fix works
+  (best case). If not → the host-priming workaround is the interim, and a proper Inter-App-Audio
+  MANUAL provisioning profile (founder portal) is the remaining structural fix. Need founder's
+  post-retry self-probe verdict (instantiate OK vs FAILED) OR the AUM-prime experiment result.
