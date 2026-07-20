@@ -337,12 +337,18 @@ struct BioStripView: View {
     /// FRESH frames. A frozen reading (dropped strap, lifted finger, stalled Watch)
     /// expires after the freshness window, so the strip stops claiming a live body.
     private var hasLiveSignal: Bool {
-        if let bio = bus.freshBio(), bio.source != .fallback { return true }
+        // Gate on `usableBio()` — the SAME per-source window the sound engine uses
+        // (ModulationEngine.tick). The fixed-5 s `freshBio()` here made the strip
+        // flicker to "No signal" for a Watch/HealthKit source that publishes only
+        // every few minutes (its reading stays usable for 90 s and keeps driving
+        // the music), so the live indicator now matches whether the body is
+        // actually shaping the sound. A truly frozen source still expires.
+        if let bio = bus.usableBio(), bio.source != .fallback { return true }
         return false
     }
 
     private var sourceText: String {
-        if let bio = bus.freshBio(), bio.source != .fallback {
+        if let bio = bus.usableBio(), bio.source != .fallback {
             return sourceLabel(bio.source)
         }
         return "No signal"
