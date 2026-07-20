@@ -7716,3 +7716,24 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
   — batching toward v309 (v308 freshly out, unverified by founder). No `.deploy/release` bump.
 - **#61 EEG scouted:** `BrainwaveModulation.swift` core (96da4b0) still has ZERO consumers —
   pure/tested foundation, unwired to `BioSampleFrame`/`ModSource`. Candidate next wiring point.
+
+### 2026-07-20 — AUv3 real cause narrowed: AUM works, Echoel scans 0 (REIHENFOLGE #3)
+- **Founder clarified the 3-build confusion:** his screen-recording was **AUM**, not Echoel.
+  AUM shows all ~25 third-party AUv3 (AudioKit/Moog/Imaginando/Koala/Drambo/ToneBoosters…)
+  → the plugins ARE installed and registered with iOS. **Echoel scans 0, even on Rescan.**
+- **Diagnosis:** NOT a cold-registry/not-installed problem. Echoel's scan uses the same API
+  as AUM (all-match + per-type + full-registry `passingTest`), so the deciding fact is WHICH
+  makers iOS hands Echoel's process. Code comment already notes even Echoel's OWN appex
+  ('Echo') never shows in its own list → smells like iOS serving Echoel an Apple-only registry.
+- **This cycle (observability, unblocks the real fix):** `AUv3ScanDiagnostic` gains `rawMakers`
+  + a pure `report` string (counts + own-AUv3 + self-probe verdict + maker names); AUv3 browser
+  empty-state gets a **Copy diagnostic** button (UIKit-guarded `UIPasteboard`). Commit 60bdaaa.
+  Reviewer (ui-state) 0 defects. Two pure tests added.
+- **Why not blind-fix:** need the maker list to split "iOS gives Echoel Apple-only" (app/process
+  issue) from "makers present but our split/filter drops them" (our bug). Device-iterate law.
+- **NEXT after founder pastes the report:** if makers = Apple-only → investigate why iOS serves
+  this process an in-process-only registry (session/entitlement/timing); if real makers present
+  → fix `Self.split`/`HostedAUInfo` filter. Also candidate: the current build ALREADY shows the
+  dim diagnostic line, so founder can read the two numbers now without waiting for v309.
+- **Deploy:** batching v309 = header-usableBio (b06742c) + AUv3 copy-diagnostic (60bdaaa),
+  both device-visible. Bump gated on Xcode Compile Check green for 60bdaaa.
