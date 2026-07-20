@@ -1,27 +1,27 @@
-build: 2026-07-20 v10.79.306 (Clip kein Sprung beim Loslassen + Foundations)
+build: 2026-07-20 v10.79.307 (Trim-Butt-Join + Bio-Ehrlichkeit durchgezogen)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Batch seit v305 — Gates grün, je ein Pflicht-Reviewer 0 Defekte.
+notes: Batch seit v306 — Gates grün, je ein Pflicht-Reviewer 0 Defekte.
 
-  SICHTBAR AUF DEM GERÄT:
-  • #56 C6 — Clip-Move: KEIN Sprung mehr beim Loslassen. Beim Verschieben eines
-    Clips nahe an einen Nachbar-Clip rastet die Vorschau jetzt LIVE an dessen Kante
-    ein (Butt-Join), genau dort wo der Release committet — Loslassen ist ein
-    optischer No-Op statt eines kleinen Zuckens. (Die Kanten-Magnetik lief bisher
-    nur beim Commit; jetzt Vorschau == Commit für Grid UND Kante.)
+  SICHTBAR/SPÜRBAR AUF DEM GERÄT:
+  • #56 C7 — Trim-Kante rastet an Nachbar-Clips (Butt-Join). Beim Trimmen der
+    rechten Clip-Kante nahe einem Nachbarn dockt das Ende jetzt magnetisch an
+    dessen Kante an — wie das Verschieben (C6) in v306. Damit ist die Clip-
+    Handhabung rund: Move springt nicht, Trim dockt an, beides mit voller
+    Vorschau/Commit-Parität.
 
-  UNTER DER HAUBE (Fundament, noch nicht sicht-/hörbar):
-  • #60 — Der Live-„welchen Parameter bewegt dein Körper"-Meter geht LEER, sobald
-    die Bio einfriert (Gurt ab / Finger weg / Watch steht), statt den letzten Wert
-    als Steuerung vorzutäuschen.
-  • #20 SpatialAutomationMapping — reine Brücke, damit eine aufgenommene
-    Immersive-Stage-Puck-Geste als Position abspielbar wird.
-  • #61 BrainwaveModulation — EEG-Modulationsquelle (Haffelder: Bandleistung +
-    Hemisphären-Kohärenz), reiner getesteter Core, noch nicht verdrahtet.
+  BIO-EHRLICHKEIT DURCHGEZOGEN (dieselbe Frische-Sprache überall):
+  • #2 — Der Readout „How your body shapes the sound" zeigt seine Balken jetzt
+    genau dann, wenn der Körper den Sound tatsächlich formt. Vorher blankten sie
+    nach 5 s — auch wenn eine Puls-über-Uhr-Messung (90-s-Fenster) die Musik
+    weiter formte. Jetzt nutzt der Readout dasselbe Fenster wie die Klang-Engine.
+  • #2 — Ebenso die FX-Bio-Modulation: sie lief auf dem alten 5-s-Fenster und
+    starb für Watch-Quellen zu früh, während der Rest der Modulation weiterlief.
+    Jetzt konsistent — jeder klangformende Bio-Pfad hat EINE Autorität.
 
-  WEITER OFFEN AN DICH (aus v305, in diesem Build erneut enthalten):
+  WEITER OFFEN AN DICH (aus v305/v306, hier erneut enthalten):
   Öffne eine Spur → „Browse AUv3…". Wenn keine Fremd-Plugins auftauchen, steht dort
-  jetzt eine Diagnose-Zeile, z.B. „iOS returned 42 Audio Units — 0 third-party,
-  Echoel's own plugin not visible." Lies mir diese EINE Zeile vor (oder Screenshot):
+  eine Diagnose-Zeile, z.B. „iOS returned 42 Audio Units — 0 third-party, Echoel's
+  own plugin not visible." Lies mir diese EINE Zeile vor (oder Screenshot):
    • „0 third-party" → iOS liefert deine Plugins nicht an diese App → jede Plugin-App
      EINMAL öffnen, Echoel komplett beenden (wegwischen), neu starten.
    • „third-party > 0" aber Liste bleibt Apple-only → Echoel-Filter-Bug, die Zahl
