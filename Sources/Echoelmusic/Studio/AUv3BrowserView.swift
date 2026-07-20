@@ -428,6 +428,11 @@ struct AUv3BrowserView: View {
         .padding(.horizontal, 10)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill.opacity(0.5)))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        // VoiceOver: a MIDI plugin is display-only (not a button) — say what it is
+        // and that it's detected, so it doesn't read as a dead, unexplained control.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(au.name), \(au.manufacturer), MIDI plugin")
+        .accessibilityValue("Detected — routing arrives in an update")
     }
 
     @ViewBuilder
@@ -488,6 +493,15 @@ struct AUv3BrowserView: View {
         // window (AU-2 review: a tap in the gap between two restore loads would
         // be guard-dropped with no feedback while the row looked enabled).
         .disabled(host.isLoading || host.isRestoringChains)
+        // VoiceOver: one clear spoken row instead of the disjoint pieces the
+        // composed HStack would otherwise read (name · maker · a bare glyph).
+        // Announces WHAT it is, its state, and what a tap does.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(au.name), \(au.manufacturer), \(au.isInstrument ? "instrument" : "audio effect")")
+        .accessibilityValue(highlighted ? (au.isInstrument ? "Loaded" : "In chain") : "")
+        .accessibilityHint(laneTarget != nil
+            ? "Adds it to this track"
+            : (au.isInstrument ? "Loads this instrument" : "Adds it to the \(effectTarget.rawValue) chain"))
     }
 }
 #endif
