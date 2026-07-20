@@ -343,30 +343,40 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // leads only (Soft Keys / Warm Strings / Hollow Reed / Pluck / Choir Vox /
         // Deep Sub): pure warm synth, gentle top end, no shrill spectrum. Genre
         // character comes from envelope + progression, not a piercing lead.
+        // DE-HOMOGENISED (founder 2026-07-20: "die Genres klingen teilweise gleich").
+        // The 2026-07-07 warm-only pass had collapsed NINE lead-bearing genres onto the
+        // identical "Soft Keys" lead — the single biggest "they all sound the same" tell.
+        // Every lead-bearing genre is now spread across the SIX approved warm patches so
+        // no patch carries more than three (guarded in MusicStyleLeadTests), while every
+        // lead stays inside the warm set — no shrill "Bright Lead"/"Glass Bell"/"Vapor
+        // Lead" and no plastic real-instrument emulation ever returns. Character now
+        // reads distinctly per genre (a plucky rock'n'roll vs a reedy rock vs Rhodes
+        // jazz) without any bright/harsh reintroduction. Exact per-genre timbre is
+        // device-tunable; the INVARIANT is: warm-set only + spread.
         switch self {
-        case .dubTechno:          return "Pluck"
-        case .trap:               return "Soft Keys"     // was Glass Bell (glassy 0.8)
-        case .vaporwave:          return "Warm Strings"  // was Vapor Lead (bright)
-        case .eighties:           return "Soft Keys"     // was Bright Lead
-        case .disco:              return "Soft Keys"     // was Bright Lead
-        case .synthwave:          return "Warm Strings"  // was Bright Lead
+        case .dubTechno:          return "Pluck"         // sustained — unused
+        case .trap:               return "Soft Keys"     // sustained — unused
+        case .vaporwave:          return "Warm Strings"  // sustained — unused
+        case .eighties:           return "Soft Keys"
+        case .disco:              return "Warm Strings"  // was Soft Keys (spread)
+        case .synthwave:          return "Warm Strings"
         case .earlySynth:         return "Pluck"
-        case .futuristic:         return "Hollow Reed"   // was Glass Bell
-        case .sciFi:              return "Choir Vox"
-        case .psytrance:          return "Pluck"         // was Bright Lead — plucky, not shrill
-        case .esotericMeditation: return "Choir Vox"
+        case .futuristic:         return "Hollow Reed"
+        case .sciFi:              return "Choir Vox"      // sustained — unused
+        case .psytrance:          return "Pluck"
+        case .esotericMeditation: return "Choir Vox"     // sustained — unused
         case .classical:          return "Soft Keys"
         case .jazz:               return "Soft Keys"     // warm Rhodes-style keys
-        case .klezmer:            return "Hollow Reed"   // was Bright Lead — reedy + warm
+        case .klezmer:            return "Hollow Reed"   // reedy + warm
         case .oriental:           return "Choir Vox"
-        case .punk:               return "Soft Keys"     // was Bright Lead
-        case .rocknroll:          return "Soft Keys"     // was Bright Lead
-        case .rock:               return "Soft Keys"     // was Bright Lead
-        case .ska:                return "Soft Keys"     // was Bright Lead
-        case .rocksteady:         return "Soft Keys"
-        case .heavyMetal:         return "Hollow Reed"   // was Bright Lead
+        case .punk:               return "Choir Vox"     // was Soft Keys (spread)
+        case .rocknroll:          return "Pluck"         // was Soft Keys — twangy plucked feel
+        case .rock:               return "Hollow Reed"   // was Soft Keys — warm organ-ish lead
+        case .ska:                return "Warm Strings"  // was Soft Keys (spread)
+        case .rocksteady:         return "Choir Vox"     // was Soft Keys (spread)
+        case .heavyMetal:         return "Deep Sub"      // was Hollow Reed — low + dark fits metal
         case .doom:               return "Deep Sub"
-        case .selfObservation:    return "Choir Vox"     // (drone: leadDensity 0, unused)
+        case .selfObservation:    return "Choir Vox"     // sustained — unused
         }
     }
 

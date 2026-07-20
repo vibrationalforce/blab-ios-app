@@ -1,7 +1,25 @@
-build: 2026-07-20 v10.79.320 (Fix: Ein-Tipp-Zuweisung — Effekt-Limit-Konstante korrigiert)
+build: 2026-07-20 v10.79.321 (Genres klingen unterschiedlicher — Lead-Timbre entstapelt)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD — Xcode-Compile-Check-Rotfix zu v319. Der Effekt-Ketten-Deckel liegt auf
-  LaneAUAssignment.maxEffectsPerLane (nicht LaneAUInstrumentHost) — ein falscher Typ-Name
-  ließ den Xcode-Gate rot laufen (SwiftPM war grün, aber der App-Ziel-Compiler strenger).
-  Funktion unverändert: Ein-Tipp "Instrument/Effekt direkt auf die Spur" (v319), jetzt
-  compilergrün auf beiden Gates. Kein Verhaltensunterschied.
+notes: HEAD (MusicStyle.leadPatchName + Invarianten-Test) — Pflicht-Review 0 Defekte, Verteilung nachgerechnet.
+
+  DEINE RÜCKMELDUNG ("Die Genres klingen teilweise gleich"): eine klare Code-Ursache
+  gefunden und behoben — NEUN Lead-tragende Genres teilten sich exakt dieselbe Lead-
+  Stimme "Soft Keys" (der 2026-07-07-Warm-Only-Pass hatte sie alle daraufhin
+  zusammengezogen). Das war der größte "klingt alles gleich"-Grund.
+
+  BEHOBEN (rein, testgesichert, kein Audio-Thread):
+  • Jedes Lead-tragende Genre auf die SECHS freigegebenen WARMEN Patches verteilt
+    (Soft Keys · Warm Strings · Hollow Reed · Pluck · Choir Vox · Deep Sub) — höchstens
+    3 pro Patch statt 9 auf einem. Genre-Charakter liest sich jetzt deutlicher (z.B.
+    Rock'n'Roll gezupft, Rock reedig-warm, Jazz Rhodes, Metal/Doom tief).
+  • HART GESICHERT per neuem Invarianten-Test: kein Genre landet je auf einem grellen
+    oder Plastik-Real-Instrument-Lead (nie mehr Rückfall auf "Bright Lead") — die
+    Warm-Only-Regel von 2026-07-07 bleibt garantiert erhalten. Und: ≤3 pro Patch, ≥5
+    verschiedene — die Homogenisierung kann nicht zurückschleichen.
+
+  EHRLICH: das ist EIN klarer Hebel gegen "gleich". Das "teilweise unprofessionell"
+  kann ich ohne Hören nicht blind treffen (die Genres innerhalb eines Beat-Typs teilen
+  sich noch dasselbe Schlagzeugmuster — z.B. Rock und Jazz denselben Backbeat; das ist
+  wahrscheinlich der nächste große Hebel, aber Beat-Design blind zu raten wäre riskant).
+  Sag mir 2-3 Genres, die am schlimmsten klingen (und ob "gleich wie X" oder "klingt
+  schlecht") — dann treffe ich den nächsten Zyklus gezielt statt blind zu tunen.

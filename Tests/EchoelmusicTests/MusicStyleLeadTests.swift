@@ -1,0 +1,60 @@
+// MusicStyleLeadTests.swift
+// Echoel — guards the genre lead-timbre identity so genres never collapse onto
+// one lead again (founder 2026-07-20: "die Genres klingen teilweise gleich"),
+// and so a lead never resolves to a shrill/real-instrument patch (founder
+// 2026-07-07: warm synth only). These are pure invariants over MusicStyle.
+
+import XCTest
+@testable import Echoelmusic
+
+final class MusicStyleLeadTests: XCTestCase {
+
+    /// The only lead patches a genre may name — the founder-approved WARM set.
+    /// Excludes every bright ("Bright Lead", "Glass Bell", "Vapor Lead") and every
+    /// plastic real-instrument emulation ("Violin", "Clarinet", "Trumpet", …).
+    private let warmLeadSet: Set<String> = [
+        "Soft Keys", "Warm Strings", "Hollow Reed", "Pluck", "Choir Vox", "Deep Sub"
+    ]
+
+    /// Genres whose generated take actually carries an audible lead line.
+    private var leadBearing: [MusicStyle] {
+        MusicStyle.allCases.filter {
+            !$0.harmonicProfile.sustained && $0.harmonicProfile.leadDensity > 0
+        }
+    }
+
+    func testEveryLeadPatchIsInTheWarmSet() {
+        // No genre may resolve to a bright or real-instrument lead — including via
+        // the "Bright Lead" fallback if the name were missing from the factory.
+        for s in MusicStyle.allCases {
+            XCTAssertTrue(warmLeadSet.contains(s.leadPatchName),
+                          "\(s) lead '\(s.leadPatchName)' is outside the approved warm set")
+        }
+    }
+
+    func testEveryLeadPatchExistsInTheFactory() {
+        // A name absent from SynthPatch.factory silently falls back to the banned
+        // "Bright Lead" at apply time — assert every name resolves.
+        let factoryNames = Set(SynthPatch.factory.map(\.name))
+        for s in MusicStyle.allCases {
+            XCTAssertTrue(factoryNames.contains(s.leadPatchName),
+                          "\(s) lead '\(s.leadPatchName)' is not a factory patch (would fall back to Bright Lead)")
+        }
+    }
+
+    func testLeadTimbresAreSpreadNotCollapsed() {
+        // The core "klingen gleich" guard: lead-bearing genres must not pile onto one
+        // patch. Before 2026-07-20 nine shared "Soft Keys"; now each warm patch carries
+        // at most three, and at least five distinct patches are in play.
+        let leads = leadBearing.map(\.leadPatchName)
+        XCTAssertFalse(leads.isEmpty, "there must be lead-bearing genres to guard")
+
+        let counts = Dictionary(grouping: leads, by: { $0 }).mapValues(\.count)
+        let maxShared = counts.values.max() ?? 0
+        XCTAssertLessThanOrEqual(maxShared, 3,
+            "no warm lead patch may be shared by more than 3 lead-bearing genres (got \(counts))")
+
+        XCTAssertGreaterThanOrEqual(Set(leads).count, 5,
+            "lead-bearing genres must use at least 5 distinct warm leads (got \(Set(leads).sorted()))")
+    }
+}
