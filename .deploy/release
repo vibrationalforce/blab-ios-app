@@ -1,23 +1,30 @@
-build: 2026-07-20 v10.79.323 (AUv3-Browser barrierefrei — VoiceOver liest die Plugin-Zeilen klar)
+build: 2026-07-20 v10.79.324 (2432) — Melodien SINGEN jetzt (Schritt statt Arpeggio)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD (AUv3BrowserView a11y) — reine Accessibility-Modifier, keine Logik/State-Änderung, kein Verhaltensrisiko.
+notes: HEAD (BioComposer Lead-Melodie) — reine Kompositions-Logik, kein Audio-Thread,
+  Determinismus + In-Key nachweislich erhalten (dsp-reviewer PASS).
 
-  Zu deinem wiederkehrenden AUv3-Scan: die App-Seite ist erschöpfend geprüft und
-  KORREKT — eigene AUv3 sauber eingebettet (project.yml-Dependency), Manifest unter
-  NSExtensionAttributes, Version 10001, 3-Kategorien-Ansicht + Ein-Tipp-Spurzuweisung
-  fertig, In-App-Hilfe mit dem Warm-Durchlauf. Der -3000 + 0 Fremd-Plugins ist zu 100%
-  die KALTE Geräte-Registry — davon habe ich mich mehrfach überzeugt. Kein Code von
-  hier kann sie wärmen; der eine fehlende Schritt ist auf dem Gerät:
-    App löschen → iPhone NEU STARTEN → via TestFlight neu installieren →
-    einmal GarageBand/AUM öffnen → Echoel → Rescan.
-  Danach erscheinen die Fremd-Plugins in der fertigen Ansicht.
+  Zu deinem "überwiegend schlecht — sicherstellen dass keine Melodien Melodien sind":
+  DAS war der Kern-Fehler. Die Lead-Stimme lief bisher über die AKKORDTÖNE — jeder
+  Melodie-Schritt sprang mindestens eine Terz. Das ist ein gebrochener Akkord
+  (Arpeggio), KEINE Melodie. Genau darum klang es "unprofessionell / gleich".
 
-  DIESEN TAKT (sicher, nicht-blind, in genau der Ansicht, die du ständig öffnest):
-  VoiceOver liest die Plugin-Zeilen jetzt als EINE klare Ansage — Name, Hersteller,
-  ob Instrument / Audio-Effekt / MIDI-Plugin, plus Zustand (Geladen / in der Kette)
-  und was ein Tippen tut — statt zusammenhangloser Einzelfetzen. MIDI-Zeilen sagen
-  ehrlich "erkannt, Routing kommt per Update". Barrierefrei-first (CLAUDE.md).
+  JETZT läuft die Lead-Linie SCHRITTWEISE durch die Tonleiter (wie eine gesungene
+  Melodie), und rastet nur auf den BETONTEN Zählzeiten (Downbeat / erster / letzter
+  Ton) auf den nächsten Akkordton ein — Akkordtöne auf der Zählzeit, Durchgangstöne
+  dazwischen. Das ist die fehlende Mitte zwischen dem alten frei-wandernden Lauf (der
+  aus dem Akkord driftete) und dem reinen Akkordton-Lauf (der arpeggierte). Alles
+  bleibt in der Tonart (Tonleiter-Stufen), die Betonungs-Anker verhindern das Driften.
+  Verzierung = jetzt ein Nachbar-Ton (Sekunde), nicht ein Akkord-Sprung. Minimum 3
+  statt 2 Lead-Töne, damit selbst die sparsamste Phrase einen Durchgangston singt.
 
-  Genres: der große hörbare Hebel (unterschiedliche Lead-Stimmen) läuft über v321/v322
-  auf TestFlight. Für den nächsten (Beat-Differenzierung) brauche ich deine Ohren:
-  hör die Genres, nenn mir die 2-3 schlimmsten — dann treffe ich gezielt statt blind.
+  Die beiden Pfade, die schon lange gut klangen (Trap-Bell, Meditations-Linie), liefen
+  IMMER schon schrittweise — die waren der Beweis. Nur die Haupt-Genre-Lead hing am
+  Akkord fest; das ist jetzt behoben, für alle Genres mit Lead (Rock/Pop/Disco/…).
+
+  EHRLICH: das ist COMPILE-verifiziert (Reviewer + neue Melodie-Tests: stufenweise
+  Intervalle, in-key, deterministisch) — NICHT ohren-verifiziert. Hör bitte rein: die
+  Melodien sollten jetzt eine erkennbare Linie singen statt zu klimpern. Wenn ein Genre
+  noch klimpert, nenn es mir — dann drehe ich gezielt (z.B. Betonungs-Raster feiner).
+
+  Beat-Differenzierung (das andere "klingen gleich") wartet weiter auf deine Ohren:
+  nenn mir die 2-3 schlimmsten, dann treffe ich statt blind zu raten.
