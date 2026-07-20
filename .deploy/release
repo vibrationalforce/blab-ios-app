@@ -1,38 +1,26 @@
-build: 2026-07-20 v10.79.313 (Konvergenz: EN/Brand-Copy + AA-Kontrast + AUv3-Entitlement-Beweis)
+build: 2026-07-20 v10.79.314 (AUv3-Entitlement-BEWEIS am echten .ipa — trustworthy read)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD 8553d64 — beide Gates grün (Xcode Compile Check + CI/CD Pipeline).
+notes: HEAD (CI-fix) — beide Gates grün.
 
-  KONVERGENZ-DURCHGANG (deine Antwort "Alles soll funktionieren inklusive
-  accessible and brand fit" — kein Rewrite, sondern durchziehen). Ein 4-Achsen-
-  Audit fand die App im Kern gesund: EIN echter Funktionsbug, NULL Crash/Freeze-
-  Defekte. Der Rest = Copy + Accessibility. Dieser Build bündelt die sicheren,
-  blind-schiffbaren Fixes:
-  • "Kein Ton"-Banner auf der Home-Fläche jetzt ENGLISCH (war Deutsch).
-  • Routing-/EchoelLux-Sheet komplett ENGLISCH ("Light", "Blackout ON", AX-Labels).
-  • BRAND-ROTLINIE: die esoterische Zuschreibung "Hans Cousto's Cosmic Octave"
-    aus der Farb-/Licht-Copy entfernt — Mechanik jetzt schlicht beschrieben
-    (Ton oktavweise verdoppelt bis in den sichtbaren Bereich, via CIE 1931).
-  • ACCESSIBILITY: Sekundaer-/Einheitentext-Kontrast angehoben (dim 0.55 -> 0.65)
-    -> auf Panel-Fuellungen von ~5:1 auf ~6.5:1, klar ueber der WCAG-AA-Schwelle
-    4.5:1. Nirgends wird es schlechter (dim ist ueberall hell-auf-dunkel).
+  WARUM SOFORT NOCHMAL DEPLOY (nur weil du gerade aktiv AUv3 testest):
+  Der v313-Diagnoseschritt hat das FALSCHE Artefakt gelesen. Er las die
+  xcarchive-App — die ist ENTWICKLUNGS-signiert (get-task-allow=true, minimales
+  Team-Profil). Dort fehlen healthkit, app-groups UND inter-app-audio ALLE,
+  obwohl healthkit live shippt. Distribution-Entitlements werden erst beim Export
+  angewandt. Also war das v313-"STRIPPED" am falschen Build gemessen — NICHT
+  aussagekraeftig. Ich haette fast einen Portal-Change auf einem Fehlmesswert
+  empfohlen (genau dein "kein Portal-Change auf Verdacht") — VOR der Ansage
+  gefangen.
 
-  AUV3 — DER ENTSCHEIDENDE BEWEIS LAEUFT IN DIESEM BUILD (keine Portal-Aenderung
-  auf Verdacht, wie von dir gefordert):
-  • NEUE Evidenz (Apple DevForums 127481 + 89762, exakt unser Symptom): das
-    "Inter-App Audio"-ENTITLEMENT ist der Gatekeeper fuers Scannen VON FREMD-AUs
-    (seit iOS 11). Das Protokoll ist veraltet — das Entitlement gated das Scannen
-    weiter. Genau das erklaert "0 Fremd-Plugins, nur Apple".
-  • Bei uns IST das Entitlement deklariert (Echoelmusic.entitlements). ABER
-    automatisches Signing kann nur Capabilities aufnehmen, die die App-ID im
-    Portal aktiviert hat — fehlt "Inter-App Audio" dort, wird das Entitlement
-    beim Signieren GESTRICHEN.
-  • DIESER Build dumpt in die CI-Summary die ENTITLEMENTS DES SIGNIERTEN Appex.
-    Damit ist der Fall entscheidbar, nicht geraten:
-      – Zeigt die CI "inter-app-audio STRIPPED" -> Ursache bestaetigt -> EIN
-        Portal-Schritt: "Inter-App Audio" auf der App-ID com.echoelmusic.app
-        aktivieren, neu archivieren, fertig (Auto-Signing behaelt es dann).
-      – Zeigt die CI "inter-app-audio PRESENT" -> diese These ist widerlegt -> es
-        bleibt Host-Registry-Blindheit -> dein Geraetetest (AUM oeffnen -> zurueck
-        -> Rescan) entscheidet.
-  • Ich lese die CI-Summary nach dem Build und sage dir dann den EINEN naechsten
-    Schritt — belegt, nicht vermutet.
+  WAS v314 ANDERS MACHT: ein neuer Schritt liest die DISTRIBUTION .ipa NACH dem
+  Export (das echte hochgeladene Artefakt) und dumpt den vollen Entitlement-Satz.
+  Damit ist der Fall EINDEUTIG entscheidbar:
+    (a) inter-app-audio PRESENT -> Scan-Gate offen -> ein weiter fehlender Scan =
+        Host-Registry-Blindheit (AUM einmal oeffnen -> zurueck -> Rescan).
+    (b) IAA ABSENT, aber healthkit PRESENT -> die App-ID hat speziell "Inter-App
+        Audio" nicht -> EIN Portal-Schritt ist der Fix (dann belegt, nicht geraten).
+    (c) IAA UND healthkit absent -> breiteres Provisioning-Thema, KEIN Portal-
+        Change darauf.
+
+  Ich lese das v314-CI-Verdikt und melde dir dann den EINEN belegten Schritt.
+  Keine Aktion deinerseits noetig, bis ich das Ergebnis habe.
