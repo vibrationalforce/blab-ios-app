@@ -1,3 +1,32 @@
+## 2026-07-20 (ULTRACODE cron) — Road-to-TestFlight: 3 verifizierte grüne Slices, Deploy GEHALTEN
+
+- **#60 Meter-Blank bei stale Bio (c79ff5f, item-2 Ehrlichkeit):** `ModulationEngine.tick`
+  leert `lastOutputs` (den "welchen Parameter bewegt der Körper"-Meter), wenn `usableBio()`
+  nil liefert — nie den letzten Betrag zeigen, als steuere der Körper noch. Guard
+  `if !lastOutputs.isEmpty` → kein @Observable-Churn. Test + concurrency-Verify: 0 Defekte.
+- **#20 SpatialAutomationMapping (9a1eb76, pur):** die fehlende Brücke — Record-Hälfte
+  (AutomationGestureRecorder), Playback-Sampler (AutomationLane.value(atTick:)) und
+  Bühnen-Geometrie (ImmersiveStageMath) waren da, aber NICHTS mappte SpatialPosition ↔
+  normalisierte [0..1] Recorder-Dimensionen. Jetzt: normalize(position) für capture,
+  position(atTick:from:base:) rekonstruiert die Puck-Position (unberührte Dimension → base,
+  2D-Drag behält Höhe). Foundation-only, 0 Edits an bestehenden Files. code-reviewer: 0 Defekte.
+- **#61 BrainwaveModulation Core (96da4b0, Foundation-first):** Founder-07-16 Haffelder —
+  EEG als Modulationsquelle. Reiner Core (wie VocoderCore): EEGBandPowers (sanitized),
+  relativePower, relaxationIndex, arousalIndex (Delta exkludiert), meditativeIndex,
+  hemisphereCoherence (skaleninvariante Cosinus-Similarität). Alle Outputs finite+clamped,
+  jede Division guarded, self-observation nicht klinisch. NICHT an BioSampleFrame/ModSource
+  verdrahtet (ModSource hängt an BioSampleFrame-Feldern → das berührte die ganze Bio-Pipeline,
+  nicht sicher ohne Compiler) — späterer geräte-gated Takt. dsp-reviewer: 0 Defekte.
+- **Gates:** CI/CD Pipeline (SwiftPM Build + Tests) grün auf allen dreien; Xcode Compile
+  Check grün auf c79ff5f/9a1eb76, auf 96da4b0 (reine Foundation-Additionen) folgend.
+- **DEPLOY-ENTSCHEIDUNG: GEHALTEN.** Council: der Batch ist 1 subtiler Ehrlichkeits-Fix +
+  2 UN-verdrahtete Foundations — auf dem Gerät nicht von v305 unterscheidbar, und ein Deploy
+  würde die offene AUv3-Diagnose-Bitte (v305) überschreiben, ohne neue AUv3-Info. Halte bis
+  entweder (a) Founder liest die v305-Diagnose-Zeile, oder (b) ein geräte-sichtbarer Slice
+  landet — dann deploye ihn MIT diesen Foundations.
+- **Weiterhin offen an Founder:** v305 AUv3-Diagnose vorlesen (Spur → "Browse AUv3…" → die
+  "iOS returned N — X third-party"-Zeile).
+
 # Healing Log — Persistent Session Memory
 
 ## Purpose
