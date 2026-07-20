@@ -238,8 +238,13 @@ struct AUv3BrowserView: View {
     @ViewBuilder private var troubleshootDisclosure: some View {
         DisclosureGroup(isExpanded: $showTroubleshoot) {
             VStack(alignment: .leading, spacing: 8) {
-                helpStep("Open the plugin's own app once, then come back and tap Rescan.")
-                helpStep("If it still doesn't show, reopen Echoelmusic.")
+                // The genuinely effective cold-registry sequence (device log
+                // 2026-07-20: many plugins installed, iOS still served this app only
+                // Apple units). Opening another AU host once re-scans the shared
+                // registry; a restart is what actually registers newly-installed
+                // plugins system-wide.
+                helpStep("Open GarageBand (or another Audio Unit host) once and view its plugin list — that wakes up iOS's shared plugin registry — then return here and tap Rescan.")
+                helpStep("Still not showing? Restart your iPhone, reopen Echoelmusic, and tap Rescan. iOS often only registers newly-installed plugins after a restart.")
                 if let diag = host.diagnostic {
                     Button { copyDiagnostic(diag.report) } label: {
                         Label(copiedDiagnostic ? "Copied" : "Copy details for support",

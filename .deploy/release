@@ -1,25 +1,21 @@
-build: 2026-07-20 v10.79.321 (Genres klingen unterschiedlicher — Lead-Timbre entstapelt)
+build: 2026-07-20 v10.79.322 (AUv3-Hilfe: der wirksame Warm-Durchlauf steht jetzt drin)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD (MusicStyle.leadPatchName + Invarianten-Test) — Pflicht-Review 0 Defekte, Verteilung nachgerechnet.
+notes: HEAD (AUv3BrowserView Hilfetext) — Copy-only in der zugeklappten Hilfe, kein Verhaltensrisiko.
 
-  DEINE RÜCKMELDUNG ("Die Genres klingen teilweise gleich"): eine klare Code-Ursache
-  gefunden und behoben — NEUN Lead-tragende Genres teilten sich exakt dieselbe Lead-
-  Stimme "Soft Keys" (der 2026-07-07-Warm-Only-Pass hatte sie alle daraufhin
-  zusammengezogen). Das war der größte "klingt alles gleich"-Grund.
+  Zu deinem wiederkehrenden AUv3-Scan (0 Fremd-Plugins, -3000): ich habe PROAKTIV
+  die Build-Seite geprüft — die eigene AUv3 IST korrekt in die App eingebettet
+  (App-Dependency in project.yml), Manifest sitzt unter NSExtensionAttributes,
+  Version 10001, Bundle com.echoelmusic.app.auv3. Also KEIN Build-/Einbettungs-Bug;
+  der -3000 ist die kalte Geräte-Registry (diesem App-Prozess werden nur Apple-
+  Einheiten geliefert). Das ist die Ursache, die nur der Warm-Durchlauf löst.
 
-  BEHOBEN (rein, testgesichert, kein Audio-Thread):
-  • Jedes Lead-tragende Genre auf die SECHS freigegebenen WARMEN Patches verteilt
-    (Soft Keys · Warm Strings · Hollow Reed · Pluck · Choir Vox · Deep Sub) — höchstens
-    3 pro Patch statt 9 auf einem. Genre-Charakter liest sich jetzt deutlicher (z.B.
-    Rock'n'Roll gezupft, Rock reedig-warm, Jazz Rhodes, Metal/Doom tief).
-  • HART GESICHERT per neuem Invarianten-Test: kein Genre landet je auf einem grellen
-    oder Plastik-Real-Instrument-Lead (nie mehr Rückfall auf "Bright Lead") — die
-    Warm-Only-Regel von 2026-07-07 bleibt garantiert erhalten. Und: ≤3 pro Patch, ≥5
-    verschiedene — die Homogenisierung kann nicht zurückschleichen.
+  DAMIT DU (und jeder Nutzer im selben Zustand) den echten Weg im App findet:
+  Der zugeklappte Aufklapper "Not seeing a plugin you installed?" nennt jetzt die
+  WIRKSAME Sequenz statt generischer Schritte:
+  1. GarageBand (oder anderen AU-Host) einmal öffnen, Plugin-Liste ansehen →
+     das weckt iOS' geteilte Registry → zurück, Rescan tippen.
+  2. Immer noch nichts? iPhone neu starten, Echoel neu öffnen, Rescan — iOS
+     registriert frisch installierte Plugins oft erst nach einem Neustart.
 
-  EHRLICH: das ist EIN klarer Hebel gegen "gleich". Das "teilweise unprofessionell"
-  kann ich ohne Hören nicht blind treffen (die Genres innerhalb eines Beat-Typs teilen
-  sich noch dasselbe Schlagzeugmuster — z.B. Rock und Jazz denselben Backbeat; das ist
-  wahrscheinlich der nächste große Hebel, aber Beat-Design blind zu raten wäre riskant).
-  Sag mir 2-3 Genres, die am schlimmsten klingen (und ob "gleich wie X" oder "klingt
-  schlecht") — dann treffe ich den nächsten Zyklus gezielt statt blind zu tunen.
+  (Hauptbild bleibt ruhig/professionell — die Schritte stehen bewusst nur im
+  Aufklapper, niemandem ins Gesicht gedrückt.)
