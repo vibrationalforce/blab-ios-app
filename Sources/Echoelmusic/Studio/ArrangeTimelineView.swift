@@ -562,7 +562,7 @@ struct ArrangeTimelineView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(EchoelTheme.warning)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Kein Ton — die Melodie ist stumm")
+                Text("No sound — this track is muted")
                     .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
                 Text(Self.silenceReasonText(reason))
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -570,7 +570,7 @@ struct ArrangeTimelineView: View {
             }
             Spacer(minLength: 8)
             Button { timeline.unsilenceRollSlot() } label: {
-                Text("Ton an")
+                Text("Sound on")
                     .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
                     .padding(.horizontal, 12).frame(height: 30)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -592,9 +592,9 @@ struct ArrangeTimelineView: View {
 
     private static func silenceReasonText(_ reason: TimelineDocument.RollSilenceReason) -> String {
         switch reason {
-        case .muted:       return "Die Spur \u{201E}MIDI 1\u{201C} ist gemutet \u{2014} tippe \u{201E}Ton an\u{201C} oder das M an der Spur."
-        case .otherSoloed: return "Eine andere Spur ist auf Solo \u{2014} MIDI 1 ist deshalb still."
-        case .levelZero:   return "Der Pegel von \u{201E}MIDI 1\u{201C} steht auf 0."
+        case .muted:       return "The track \u{201C}MIDI 1\u{201D} is muted \u{2014} tap \u{201C}Sound on\u{201D} or the M on the track."
+        case .otherSoloed: return "Another track is soloed \u{2014} so MIDI 1 is silent."
+        case .levelZero:   return "The level of \u{201C}MIDI 1\u{201D} is at 0."
         }
     }
 
