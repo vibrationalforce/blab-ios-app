@@ -510,6 +510,55 @@ jobs:
             echo "ℹ️ AUv3 host entitlement inter-app-audio STRIPPED (managed profile) — non-blocking; not believed to gate discovery" >> $GITHUB_STEP_SUMMARY
           fi
 
+      # AUv3-APPEX-SIGN-DIAGNOSE (device try 1/3 2026-07-20: self-probe still FAILED
+      # -3000 AFTER the App-Group removal shipped (v306+) AND after reinstall —
+      # both prior theories disproven). The extension is REGISTERED (AUM lists it)
+      # but its PROCESS launch is denied everywhere, which is a code-signing /
+      # provisioning fact of the APPEX, not the host app. The existing step above
+      # only dumps the APP's entitlements; this one dumps the APPEX's OWN signed
+      # entitlements + its embedded provisioning profile — the exact data that
+      # decides whether iOS will launch the extension. NON-BLOCKING, read-only,
+      # never fails the build (mirrors the step above): it only records the truth in
+      # the job summary so the next build discriminates the remaining causes
+      # (entitlement the appex App ID isn't granted · App-ID/Team mismatch · a
+      # wildcard-only profile · get-task-allow drift) without guesswork.
+      - name: "Report AUv3 APPEX signed entitlements + provisioning (non-blocking)"
+        run: |
+          APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
+          APPEX="$APP/PlugIns/EchoelmusicAUv3.appex"
+          echo "## AUv3 appex signing diagnostic" >> $GITHUB_STEP_SUMMARY
+          if [ ! -d "$APPEX" ]; then
+            echo "⚠️ appex not found at $APPEX (embed step should have caught this)" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          echo "=== appex signed entitlements ==="
+          AENT=$(codesign -d --entitlements :- "$APPEX" 2>/dev/null || true)
+          echo "$AENT" | grep -iE "application-identifier|application-groups|team-identifier|get-task-allow|aps-environment|inter-app|beta-reports|com.apple" || echo "(no entitlements — appex signed with none)"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$AENT" | grep -iE "application-identifier|application-groups|team-identifier|get-task-allow" >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "(appex entitlements: none matched)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          # Embedded provisioning profile — the grant side. A profile whose
+          # entitlements/App-ID don't cover what the appex requests => launch denial.
+          # Decode a .mobileprovision to a temp plist, then read fields (PlistBuddy
+          # on /dev/stdin is flaky — a real file is robust). Echoes empty on absence.
+          readprof() { # $1 = .mobileprovision path, $2 = label
+            local prof="$1" label="$2" tmp
+            [ -f "$prof" ] || { echo "⚠️ $label has NO embedded.mobileprovision (App Store archives may strip it)" >> $GITHUB_STEP_SUMMARY; return; }
+            tmp=$(mktemp)
+            security cms -D -i "$prof" -o "$tmp" 2>/dev/null || true
+            local name appid team
+            name=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$tmp" 2>/dev/null || true)
+            appid=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$tmp" 2>/dev/null || true)
+            team=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$tmp" 2>/dev/null || true)
+            echo "$label profile: name='$name' application-identifier='$appid' team='$team'"
+            echo "- $label profile application-identifier: \`$appid\` (name: $name, team: $team)" >> $GITHUB_STEP_SUMMARY
+            rm -f "$tmp"
+          }
+          readprof "$APPEX/embedded.mobileprovision" "appex"
+          readprof "$APP/embedded.mobileprovision" "app"
+          echo "(appex application-identifier should be TEAM.com.echoelmusic.app.auv3, sharing the app's team prefix — a mismatch or wildcard explains the launch denial)" >> $GITHUB_STEP_SUMMARY
+          echo "(non-blocking diagnostic — never fails the build)"
+
       - name: "Export & Upload to TestFlight"
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
