@@ -863,3 +863,19 @@ Architectural and strategic decisions with context and rationale.
   Nein → anhaken = belegter Fix. Ja → ausgeschlossen → Host-Blindheit → AUM prime→rescan.
 - **STOP-Regel:** keine weiteren AUv3-Diagnose-Deploys. 4 Deploys (v312-315) an CI-Diagnose =
   genug. Nächste AUv3-Bewegung erst nach Founder-Portal-Info ODER Founder-AUM-prime-Test.
+
+### 2026-07-20 AUv3 WENDE — Founder bestätigt: Inter-App Audio IST angehakt → Entitlement-Theorie TOT
+- **Founder-Antwort:** "IAA ist angehakt." → die dokumentierte DevForums-Entitlement-Gate-These
+  ist WIDERLEGT. Das Entitlement ist da. -3000 ist KEIN Signing/Entitlement-Problem.
+- **Reframe (Founder):** Gegentests mit Fremd-Hosts sind zweitrangig — der sinnvolle Test ist,
+  dass UNSERE EIGENE AUv3 erscheint (self-probe -3000 = eigene Komponente nicht auflösbar).
+  Ziel: "innerhalb Echoelmusic eine ganz einfache Lösung für externe Effekte + Instrumente."
+  Auftrag: "super magical ultracode Senior Apple developer mit Special vibrational force Team"
+  = tiefe Senior-Apple-Audio-Untersuchung + Council, nicht weiter am Entitlement raten.
+- **Neue Leитhypothese (Code-Ebene, nicht Umgebung):** -3000 = invalidComponentID auf der
+  EIGENEN Appex = die AudioComponentDescription der self-probe (type/subtype/manufacturer
+  4-char codes) matcht evtl. NICHT den AudioComponents-Eintrag im Appex-Info.plist; ODER die
+  Registrierung der eigenen eingebetteten Appex greift nicht. "0 third-party" ist evtl. ein
+  Red Herring (Gerät hat schlicht keine anderen AU-Apps installiert).
+- **Status:** Entitlement-Deploys GESTOPPT. Nächster Schritt = Senior-Dev-Code-Audit von
+  AUv3Host (self-probe + scan) gegen das Appex-Info.plist AudioComponents-Manifest.
