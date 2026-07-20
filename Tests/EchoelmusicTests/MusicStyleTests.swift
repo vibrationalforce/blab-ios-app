@@ -56,6 +56,26 @@ final class MusicStyleTests: XCTestCase {
         }
     }
 
+    func testEveryGenreHasADistinctMusicalIdentity() {
+        // Durable guard for founder 2026-07-20 "die Genres klingen teilweise gleich":
+        // no two genres may share their whole harmonic+rhythmic DNA — the scale, the
+        // chord progression, the chord voicing AND the groove skeleton. A collision
+        // means two genres would generate structurally identical starting material;
+        // this test makes "genres stay distinct" a property no future edit can quietly
+        // break (it holds today — every genre differs on at least one axis).
+        var seen: [String: MusicStyle] = [:]
+        for s in MusicStyle.allCases {
+            let p = s.harmonicProfile
+            let fingerprint = "\(s.scale)|\(p.progression)|\(p.chordTones)|\(s.beatArchetype)"
+            if let other = seen[fingerprint] {
+                XCTFail("\(s) and \(other) share an identical musical identity (\(fingerprint)) — differentiate one axis")
+            }
+            seen[fingerprint] = s
+        }
+        XCTAssertEqual(seen.count, MusicStyle.allCases.count,
+                       "every genre must carry a unique scale·progression·voicing·groove fingerprint")
+    }
+
     func testRockGenresUseRealPowerChords() {
         // Founder 2026-07-11 "Rockakkorde": the rock family voices a real power chord
         // (root + fifth + octave root), not a bare dyad.
