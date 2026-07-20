@@ -806,3 +806,23 @@ Architectural and strategic decisions with context and rationale.
   roher Pre-Export-Dump, verweist aufs .ipa-Verdikt).
 - **Status:** offen — nächster Deploy erzeugt das vertrauenswürdige Verdikt; ERST dann
   Founder-Ansage mit belegtem einzelnem Schritt.
+
+### 2026-07-20 #1 Automation-in-Spur: Option C (precision editor → document.automation), staged S1→S2→S3
+- **Founder #1 (REIHENFOLGE):** "Automation in der Spur (im Clip UND clip-übergreifend, alle
+  Parameter via EchoelParameterRegistry)." Mandat: ERST PLAN + Council.
+- **Befund:** #1 ist zu 90% gebaut — ClipAutomationView (im Clip), TimelineAutomationRow
+  (song-wide, document.automation, persistiert+gespielt), Registry-Targets + per-Track
+  (track.<laneID>.<base>). DIE Lücke = der Präzisions-Editor `AutomationView` editiert die
+  DISKONNEKTIERTE Loop-Schicht (AutomationPlayer.lanes, 1 Takt, masterLevel-default), und
+  `.automation` trägt keinen Parameter/Track-Kontext. → getippte Wert/Kurve/Bend-Edits
+  persistieren/spielen nicht mit dem Song. Der eine echte Funktionsbug.
+- **Council:** Option C (Editor auf document.automation umhängen, Fläche behalten) vor D
+  (Editor-Tür löschen, Präzision in die Row falten = mehr Arbeit) und A/B (Loop-Layer
+  rausreißen = Playback-Spine anfassen, nein). Store-Spine existiert schon (add/move/remove).
+- **Slices:** S1 (pur, getestet, 0 Geräterisiko) Store-Parität setValue/setCurve/setCurvature/
+  clearAutomation → S2 (gerätegated) Modal-Payload `.automation(parameter:,laneID:)` am
+  BESTEHENDEN Case (keine neue Sheet), Canvas song-absolut, seed auf Parameter → S3
+  (gerätegated) Loop-Layer-Editorpfad aufräumen.
+- **Gate: proceed** — S1 GEBAUT+committet (813aab4), Reviewer 0 Defekte. Golden: Row-Store +
+  Loop-Dispatch unverändert. Verify (S2, Gerät): in Row zeichnen → Präzision öffnen → SELBE
+  Kurve, getippt persistiert+spielt.
