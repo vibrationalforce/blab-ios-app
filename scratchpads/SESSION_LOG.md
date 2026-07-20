@@ -7700,3 +7700,19 @@ laneVoiceRack-@Environment gescheitert, e1f4cfd behob es).
 **Deferred (brauchen eigenen fokussierten Zyklus, NICHT halb bauen):** #61 EEG-Socket
 (7 Felder auf hot BioSampleFrame + Socket-Design → BIO-Team-Zyklus), #66/#67/#55
 Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
+
+### 2026-07-20 — usableBio consistency sweep: header strip (REIHENFOLGE #2)
+- **Point:** `BioStripView.hasLiveSignal` + `sourceText` swapped `freshBio()` (fixed 5 s)
+  → `usableBio()` (per-source window). Header live tag was the last place in the sweep
+  still on the strict 5 s gate — Watch/HealthKit sources (publish every few minutes,
+  usable 90 s) flickered "No signal" while their reading still drove the music.
+- **Reviewer (ui-state):** 4/4 PASS, 0 defects. Same single `latestBio` observation
+  (freeze-law preserved), `.fallback` exclusion intact, same `BioSampleFrame?` return,
+  no consumer breaks.
+- **Noted for a future cycle (NOT this one):** `coherenceString` (line 413) still reads
+  `freshBio()` — the only metric *number* that expires (all others hold `latestBio` raw
+  as a calm-hold). Left deliberately; revisit whether coherence should hold-last too.
+- **Commit:** b06742c. Gates were green at HEAD (v308, b5fc1cd) before push. **NOT deployed**
+  — batching toward v309 (v308 freshly out, unverified by founder). No `.deploy/release` bump.
+- **#61 EEG scouted:** `BrainwaveModulation.swift` core (96da4b0) still has ZERO consumers —
+  pure/tested foundation, unwired to `BioSampleFrame`/`ModSource`. Candidate next wiring point.
