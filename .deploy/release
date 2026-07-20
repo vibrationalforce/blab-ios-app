@@ -1,26 +1,29 @@
-build: 2026-07-20 v10.79.314 (AUv3-Entitlement-BEWEIS am echten .ipa — trustworthy read)
+build: 2026-07-20 v10.79.315 (AUv3: autoritative App-ID-Capability-Abfrage + Automation-S1)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD (CI-fix) — beide Gates grün.
+notes: HEAD 0db3f70 — beide Gates grün.
 
-  WARUM SOFORT NOCHMAL DEPLOY (nur weil du gerade aktiv AUv3 testest):
-  Der v313-Diagnoseschritt hat das FALSCHE Artefakt gelesen. Er las die
-  xcarchive-App — die ist ENTWICKLUNGS-signiert (get-task-allow=true, minimales
-  Team-Profil). Dort fehlen healthkit, app-groups UND inter-app-audio ALLE,
-  obwohl healthkit live shippt. Distribution-Entitlements werden erst beim Export
-  angewandt. Also war das v313-"STRIPPED" am falschen Build gemessen — NICHT
-  aussagekraeftig. Ich haette fast einen Portal-Change auf einem Fehlmesswert
-  empfohlen (genau dein "kein Portal-Change auf Verdacht") — VOR der Ansage
-  gefangen.
+  AUV3 — DIESER BUILD HOLT DIE DEFINITIVE ANTWORT (kein Signatur-Artefakt mehr).
+  Ehrlich zu try 1-4: zwei CI-Versuche, die Ship-Entitlements zu lesen, liefen
+  ins Leere — das Archiv ist Dev-signiert (nicht der Ship-Build), und die .ipa
+  existiert gar nicht (destination:upload laedt direkt hoch, schreibt nichts auf
+  Platte). Drei Deploys am Artefakt = Kreisen. Stopp.
 
-  WAS v314 ANDERS MACHT: ein neuer Schritt liest die DISTRIBUTION .ipa NACH dem
-  Export (das echte hochgeladene Artefakt) und dumpt den vollen Entitlement-Satz.
-  Damit ist der Fall EINDEUTIG entscheidbar:
-    (a) inter-app-audio PRESENT -> Scan-Gate offen -> ein weiter fehlender Scan =
-        Host-Registry-Blindheit (AUM einmal oeffnen -> zurueck -> Rescan).
-    (b) IAA ABSENT, aber healthkit PRESENT -> die App-ID hat speziell "Inter-App
-        Audio" nicht -> EIN Portal-Schritt ist der Fix (dann belegt, nicht geraten).
-    (c) IAA UND healthkit absent -> breiteres Provisioning-Thema, KEIN Portal-
-        Change darauf.
+  JETZT die QUELLE DER WAHRHEIT: dieser Build fragt via App-Store-Connect-API die
+  aktivierten Capabilities der App-ID com.echoelmusic.app ab (bundleIdCapabilities)
+  und sagt DIREKT, ob "Inter-App Audio" aktiviert ist — genau das dokumentierte
+  Third-Party-AU-Scan-Gate (DevForums 127481/89762). Keine Signatur-Zweideutigkeit,
+  terminal:
+    • INTER_APP_AUDIO aktiviert -> Gate offen -> Entitlement NICHT die Ursache ->
+      Host-Blindheit -> AUM/GarageBand einmal oeffnen -> zurueck -> Rescan.
+    • INTER_APP_AUDIO NICHT aktiviert -> DAS ist der Fix: im Portal anhaken -> Save
+      -> ich re-archiviere (das deklarierte Entitlement ueberlebt dann das Signieren).
+  Ich lese die CI-Summary nach dem Build und melde den EINEN belegten Schritt.
 
-  Ich lese das v314-CI-Verdikt und melde dir dann den EINEN belegten Schritt.
-  Keine Aktion deinerseits noetig, bis ich das Ergebnis habe.
+  Dein 30-Sekunden-Sofortweg (nur GUCKEN): developer.apple.com -> Identifiers ->
+  com.echoelmusic.app -> ist "Inter-App Audio" angehakt? Sag mir was da steht.
+
+  AUCH DRIN — AUTOMATION IN DER SPUR #1, Slice S1: der Praezisions-Editor bekommt
+  in S2 die RICHTIGE song-absolute Spur-Automation statt der abgekoppelten Loop-
+  Schicht. S1 = die Store-Paritaet (setValue/curve/curvature/clear), rein +
+  getestet, Pflicht-Reviewer 0 Defekte. Plus WCAG-AA-Kontrast, EN-Copy, Brand-
+  Rotlinie aus den letzten Zyklen.
