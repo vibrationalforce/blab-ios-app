@@ -5,6 +5,9 @@
 #if canImport(AVFoundation) && canImport(Accelerate)
 import XCTest
 import Foundation
+#if canImport(AudioToolbox)
+import AudioToolbox
+#endif
 @testable import Echoelmusic
 
 final class AUv3HostTests: XCTestCase {
@@ -31,6 +34,47 @@ final class AUv3HostTests: XCTestCase {
         let s = AUv3Host.split([])
         XCTAssertTrue(s.instruments.isEmpty)
         XCTAssertTrue(s.effects.isEmpty)
+    }
+
+    // MARK: 3-way categorize (MIDI plugins · instruments · audio effects)
+
+    private func au(_ name: String, type: UInt32, id: String? = nil) -> HostedAUInfo {
+        // isInstrument mirrors the scan's own rule so Category derivation matches production.
+        let inst = (type == kAudioUnitType_MusicDevice || type == kAudioUnitType_Generator)
+        return HostedAUInfo(id: id ?? "m.\(name)", name: name, manufacturer: "m",
+                            isInstrument: inst, componentType: type)
+    }
+
+    func testCategory_derivesFromComponentType() {
+        XCTAssertEqual(au("A", type: kAudioUnitType_MIDIProcessor).category, .midiPlugin)
+        XCTAssertEqual(au("B", type: kAudioUnitType_MusicDevice).category, .instrument)
+        XCTAssertEqual(au("C", type: kAudioUnitType_Generator).category, .instrument)
+        XCTAssertEqual(au("D", type: kAudioUnitType_Effect).category, .audioEffect)
+        XCTAssertEqual(au("E", type: kAudioUnitType_MusicEffect).category, .audioEffect)
+    }
+
+    func testCategorize_sortsIntoThreeBuckets_alphabetical() {
+        let infos = [au("Zeta", type: kAudioUnitType_MusicDevice),
+                     au("arp", type: kAudioUnitType_MIDIProcessor),
+                     au("Reverb", type: kAudioUnitType_Effect),
+                     au("Beta", type: kAudioUnitType_Generator),
+                     au("Chord", type: kAudioUnitType_MIDIProcessor),
+                     au("delay", type: kAudioUnitType_MusicEffect)]
+        let c = AUv3Host.categorize(infos)
+        XCTAssertEqual(c.midi.map(\.name), ["arp", "Chord"])          // case-insensitive sort
+        XCTAssertEqual(c.instruments.map(\.name), ["Beta", "Zeta"])
+        XCTAssertEqual(c.effects.map(\.name), ["delay", "Reverb"])
+    }
+
+    func testCategorize_dedupesByID() {
+        let infos = [au("Arp", type: kAudioUnitType_MIDIProcessor, id: "dup"),
+                     au("Arp (copy)", type: kAudioUnitType_MIDIProcessor, id: "dup")]
+        XCTAssertEqual(AUv3Host.categorize(infos).midi.count, 1)
+    }
+
+    func testCategorize_empty() {
+        let c = AUv3Host.categorize([])
+        XCTAssertTrue(c.midi.isEmpty && c.instruments.isEmpty && c.effects.isEmpty)
     }
 
     // MARK: - AU-2 review: a failed restore must NEVER erase the chain record

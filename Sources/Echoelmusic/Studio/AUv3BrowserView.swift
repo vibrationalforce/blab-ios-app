@@ -163,9 +163,14 @@ struct AUv3BrowserView: View {
                     }
                 }
                 if host.loaded != nil || !host.loadedEffects.isEmpty || !host.loadedMasterEffects.isEmpty { loadedBar }
-                section("Instruments", host.instruments, icon: "pianokeys")
+                // Sorted into the three families a production/performance workflow
+                // reaches for (founder 2026-07-20): MIDI plugins · instruments · audio
+                // effects. Each family lays out in an ADAPTIVE grid — one column on a
+                // phone, more as the window widens (iPad / landscape / Stage Manager).
+                categorySection("MIDI Plugins", host.midiPlugins, icon: "pianokeys.inverse", kind: .midiPlugin)
+                categorySection("Instruments", host.instruments, icon: "pianokeys", kind: .instrument)
                 if !host.effects.isEmpty { effectTargetPicker }
-                section("Effects", host.effects, icon: "dial.medium")
+                categorySection("Audio Effects", host.effects, icon: "dial.medium", kind: .audioEffect)
                 Text("Tap an instrument to load it; tap an effect to add it to the Channel or Master chain you've selected. Open a loaded plugin's own controls with “Open”.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
@@ -325,21 +330,64 @@ struct AUv3BrowserView: View {
         [1, 3, 6, 8, 10].contains(semitone % 12)
     }
 
+    /// One plugin family, laid out in an adaptive grid. On a phone this is a single
+    /// column; the grid grows to 2–3 columns as width allows so a big installed
+    /// library stays scannable in a production/performance session. MIDI plugins are
+    /// display-only for now (routing lands in an update); instruments + effects load.
     @ViewBuilder
-    private func section(_ title: String, _ items: [HostedAUInfo], icon: String) -> some View {
+    private func categorySection(_ title: String, _ items: [HostedAUInfo], icon: String,
+                                 kind: HostedAUInfo.Category) -> some View {
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Text(title).font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
                     Text("\(items.count)").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
-                ForEach(items) { au in row(au, icon: icon) }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 10)],
+                          alignment: .leading, spacing: 10) {
+                    ForEach(items) { au in row(au, icon: icon, kind: kind) }
+                }
+                if kind == .midiPlugin {
+                    Text("Detected on this device. Instruments and audio effects load and play now; MIDI-plugin routing arrives in an update.")
+                        .font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
 
     @ViewBuilder
-    private func row(_ au: HostedAUInfo, icon: String) -> some View {
+    private func row(_ au: HostedAUInfo, icon: String, kind: HostedAUInfo.Category) -> some View {
+        if kind == .midiPlugin {
+            midiRow(au, icon: icon)
+        } else {
+            loadableRow(au, icon: icon)
+        }
+    }
+
+    /// A MIDI-processor plugin: shown so the library is complete, but NOT tappable —
+    /// MIDI routing isn't wired yet, so a load affordance would be a dead tap. Honest,
+    /// calm, professional (no fake action).
+    private func midiRow(_ au: HostedAUInfo, icon: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).font(.system(size: 13)).foregroundStyle(EchoelTheme.dim)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(au.name).font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text).lineLimit(1)
+                Text(au.manufacturer).font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Text("MIDI").font(EchoelTheme.font(9, .semibold)).foregroundStyle(EchoelTheme.dim)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(RoundedRectangle(cornerRadius: 4).fill(EchoelTheme.fill))
+        }
+        .frame(height: 40)
+        .padding(.horizontal, 10)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill.opacity(0.5)))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func loadableRow(_ au: HostedAUInfo, icon: String) -> some View {
         // Instrument is single-slot (Loaded badge); effects append to the targeted
         // chain, so they stay tappable (you can add more) and highlight when present.
         let highlighted: Bool = {

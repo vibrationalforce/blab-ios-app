@@ -49,6 +49,26 @@ public struct HostedAUInfo: Identifiable, Sendable, Equatable, Codable {
         self.componentSubType = componentSubType
         self.componentManufacturer = componentManufacturer
     }
+
+    /// The three professional buckets a host groups plugins into (founder 2026-07-20:
+    /// "sortiert nach MIDI Plugins, Instrumenten und Audio Effekten"). Derived from the
+    /// stored `componentType`, so it needs NO new persisted field (Codable stays stable):
+    /// MIDIProcessor → MIDI plugin · MusicDevice/Generator → instrument · Effect/
+    /// MusicEffect (and anything else) → audio effect.
+    public enum Category: String, Sendable, CaseIterable {
+        case midiPlugin, instrument, audioEffect
+    }
+    public var category: Category {
+        #if canImport(AudioToolbox)
+        switch componentType {
+        case kAudioUnitType_MIDIProcessor:                          return .midiPlugin
+        case kAudioUnitType_MusicDevice, kAudioUnitType_Generator:  return .instrument
+        default:                                                    return .audioEffect
+        }
+        #else
+        return isInstrument ? .instrument : .audioEffect
+        #endif
+    }
 }
 
 /// Founder-visible discovery diagnostic — the on-screen twin of the device-log
@@ -187,6 +207,10 @@ public extension AUPluginRef {
 @Observable
 public final class AUv3Host {
 
+    /// MIDI-processing plugins (kAudioUnitType_MIDIProcessor) — MIDI in → MIDI out,
+    /// no audio (arpeggiators, chord tools…). Scanned + categorized + shown; hosting
+    /// them in the MIDI chain is the follow-on slice.
+    public private(set) var midiPlugins: [HostedAUInfo] = []
     public private(set) var instruments: [HostedAUInfo] = []
     public private(set) var effects: [HostedAUInfo] = []
     public private(set) var didScan = false
@@ -234,7 +258,7 @@ public final class AUv3Host {
     /// "open your plugin apps once" guidance (the founder has many installed that
     /// haven't surfaced to this host).
     public var hasNoThirdPartyUnits: Bool {
-        didScan && total > 0 && (instruments + effects).allSatisfy {
+        didScan && total > 0 && (instruments + effects + midiPlugins).allSatisfy {
             $0.componentManufacturer == Self.appleManufacturer || $0.componentManufacturer == Self.ownManufacturer
         }
     }
@@ -309,7 +333,7 @@ public final class AUv3Host {
         self.replaceBuiltInVoice = UserDefaults.standard.bool(forKey: Self.replaceKey)
     }
 
-    public var total: Int { instruments.count + effects.count }
+    public var total: Int { midiPlugins.count + instruments.count + effects.count }
 
     // MARK: - Parameter bridge (U2c) — hosted-AU params → registry + router
 
@@ -830,7 +854,8 @@ public final class AUv3Host {
         // third-party instrument/effect shows up, not just Apple's.
         var descriptions = [AudioComponentDescription()]   // all-zero = every component
         for t in [kAudioUnitType_MusicDevice, kAudioUnitType_Generator,
-                  kAudioUnitType_Effect, kAudioUnitType_MusicEffect] {
+                  kAudioUnitType_Effect, kAudioUnitType_MusicEffect,
+                  kAudioUnitType_MIDIProcessor] {
             var d = AudioComponentDescription()
             d.componentType = t
             descriptions.append(d)
@@ -854,7 +879,12 @@ public final class AUv3Host {
             // include it so they appear (founder: "sehe nur die Apple AUv3").
             let isInstrument = (type == kAudioUnitType_MusicDevice || type == kAudioUnitType_Generator)
             let isEffect = (type == kAudioUnitType_Effect || type == kAudioUnitType_MusicEffect)
-            guard isInstrument || isEffect else { return nil }
+            // MIDI-effect / MIDI-processor plugins (arpeggiators, note filters,
+            // scale-quantizers) register as MIDIProcessor. Surface them as a third
+            // category so the browser can list them separately (founder: sort into
+            // "Midi Plugins · Instrumente · Audio Effekte").
+            let isMIDI = (type == kAudioUnitType_MIDIProcessor)
+            guard isInstrument || isEffect || isMIDI else { return nil }
             let desc = c.audioComponentDescription
             // APPLE's own Generator units (AUAudioFilePlayer, AUScheduledSoundPlayer)
             // are programmatic file-player API building blocks — they NEVER sound
@@ -876,13 +906,14 @@ public final class AUv3Host {
                 componentManufacturer: desc.componentManufacturer
             )
         }
-        let split = Self.split(infos)
-        instruments = split.instruments
-        effects = split.effects
+        let cats = Self.categorize(infos)
+        midiPlugins = cats.midi
+        instruments = cats.instruments
+        effects = cats.effects
         // Into the pastable device log: what the registry actually returned —
         // the one line that separates "our query filters them out" from "iOS
         // hasn't registered them" when a device shows only Apple units.
-        let makers = Set(instruments.map(\.manufacturer) + effects.map(\.manufacturer))
+        let makers = Set(midiPlugins.map(\.manufacturer) + instruments.map(\.manufacturer) + effects.map(\.manufacturer))
             .sorted().joined(separator: ", ")
         // Discriminators for the device log: how many NON-Apple components the OS
         // returned, and whether even Echoel's OWN bundled AUv3 ("Echo") is visible.
@@ -896,7 +927,7 @@ public final class AUv3Host {
             $0.audioComponentDescription.componentManufacturer == Self.ownManufacturer
         }
         EchoelCrashLog.breadcrumb(
-            "auv3 scan[try \(scanAttempt)]: \(instruments.count) instruments + \(effects.count) effects — makers: \(makers)"
+            "auv3 scan[try \(scanAttempt)]: \(midiPlugins.count) midi + \(instruments.count) instruments + \(effects.count) effects — makers: \(makers)"
             + " | raw \(components.count) comps, 3rd-party \(thirdPartyCount), ownAUv3 \(ownAUv3)"
             + ", rawMakers: [\(rawMakers.joined(separator: ","))]"
             + " rawTypes: [\(rawTypes.joined(separator: ","))]")
@@ -1089,11 +1120,27 @@ public final class AUv3Host {
     }
 
     /// Pure split + de-dupe + alphabetical sort (testable without any installed AUs).
+    /// KEPT for back-compat (public API + AUv3HostTests); `categorize` supersedes it
+    /// for the 3-way browser. Effects here include MIDI plugins (the old 2-way world).
     public static func split(_ infos: [HostedAUInfo]) -> (instruments: [HostedAUInfo], effects: [HostedAUInfo]) {
         var seen = Set<String>()
         let unique = infos.filter { seen.insert($0.id).inserted }
         let inst = unique.filter { $0.isInstrument }.sorted { $0.name.lowercased() < $1.name.lowercased() }
         let fx = unique.filter { !$0.isInstrument }.sorted { $0.name.lowercased() < $1.name.lowercased() }
         return (inst, fx)
+    }
+
+    /// Pure 3-way categorize + de-dupe + alphabetical sort (testable without any
+    /// installed AUs). Routes each unit by its `category` (MIDIProcessor → midi;
+    /// MusicDevice/Generator → instruments; everything else → effects), so the
+    /// browser can present "Midi Plugins · Instrumente · Audio Effekte" (founder ask).
+    public static func categorize(_ infos: [HostedAUInfo])
+        -> (midi: [HostedAUInfo], instruments: [HostedAUInfo], effects: [HostedAUInfo]) {
+        var seen = Set<String>()
+        let unique = infos.filter { seen.insert($0.id).inserted }
+        func sorted(_ c: HostedAUInfo.Category) -> [HostedAUInfo] {
+            unique.filter { $0.category == c }.sorted { $0.name.lowercased() < $1.name.lowercased() }
+        }
+        return (sorted(.midiPlugin), sorted(.instrument), sorted(.audioEffect))
     }
 }
