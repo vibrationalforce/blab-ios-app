@@ -1,27 +1,7 @@
-build: 2026-07-20 v10.79.319 (Ein-Tipp: externes Instrument/Effekt direkt auf die Spur)
+build: 2026-07-20 v10.79.320 (Fix: Ein-Tipp-Zuweisung — Effekt-Limit-Konstante korrigiert)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD (AUv3BrowserView + ArrangeTimelineView) — Pflicht-Review 0 Defekte, globaler Pfad byte-identisch, Gates werden verifiziert.
-
-  DEIN ZIEL ("eine ganz einfache Lösung für externe Effekte und Instrumente …
-  direkt auf DIESE Spur"): jetzt da — der genau angekündigte nächste Schritt aus v318.
-
-  GEBAUT (Ein-Tipp-Zuweisung):
-  • Im Spurkopf-Menü: "Add instrument or effect…" öffnet den Plugin-Browser JETZT
-    zielgerichtet auf GENAU DIESE Spur. Ein Tipp auf ein Instrument setzt den
-    Spur-Sound, ein Tipp auf einen Effekt hängt ihn an die Effektkette der Spur
-    (bis zum Limit von 3). Keine Browse→Laden→Schließen→"Assign"-Runde mehr.
-  • Im Browser oben ein deutliches Band "Tap an instrument or effect to add it to
-    <Spurname>" plus eine kurze Bestätigung pro Zuweisung ("<Plugin> → <Spur>").
-  • Sortierung in 3 Familien + adaptives Raster (aus v318) bleibt — die Zuweisung
-    läuft direkt aus dieser übersichtlichen Ansicht.
-  • Der globale Plugin-Browser (ohne Spur-Ziel) bleibt exakt wie zuvor.
-
-  Technik: die bereits soliden Bausteine verdrahtet — setLaneInstrument /
-  setLaneEffects (persistiert im Timeline-Dokument), LaneAUInstrumentHost
-  instanziiert die Spur-Plugins aus den Referenzen. Eine Sheet-Tür (Metadata-Gesetz
-  gewahrt), kein 10-Hz-Read, Founder-Geräte-Verify: Plugin auf zwei Spuren legen,
-  beide klingen beim Play mit ihrem eigenen Instrument/Effekt.
-
-  Nächste Schritte (geplant): Item 1 S2 (Präzisions-Automations-Editor auf die
-  Song-Spur umbiegen) — bereit, aber bewusst für einen Founder-präsenten Takt
-  aufgehoben (Verhaltensänderung an einem funktionierenden Editor, live gegenprüfen).
+notes: HEAD — Xcode-Compile-Check-Rotfix zu v319. Der Effekt-Ketten-Deckel liegt auf
+  LaneAUAssignment.maxEffectsPerLane (nicht LaneAUInstrumentHost) — ein falscher Typ-Name
+  ließ den Xcode-Gate rot laufen (SwiftPM war grün, aber der App-Ziel-Compiler strenger).
+  Funktion unverändert: Ein-Tipp "Instrument/Effekt direkt auf die Spur" (v319), jetzt
+  compilergrün auf beiden Gates. Kein Verhaltensunterschied.

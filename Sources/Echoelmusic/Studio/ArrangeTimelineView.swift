@@ -487,7 +487,7 @@ struct ArrangeTimelineView: View {
                     assignInstrument: { timeline.setLaneInstrument(id: lane.id, AUPluginRef($0)) },
                     assignEffect: { au in
                         let current = timeline.document.lanes.first { $0.id == lane.id }?.effects ?? []
-                        guard current.count < LaneAUInstrumentHost.maxEffectsPerLane else { return false }
+                        guard current.count < LaneAUAssignment.maxEffectsPerLane else { return false }
                         timeline.setLaneEffects(id: lane.id, current + [AUPluginRef(au)])
                         return true
                     }))
