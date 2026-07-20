@@ -2216,7 +2216,7 @@ struct EchoelStudioView: View {
             visualPresetRow
             MusicColourRowView()
             visualAdjustFields
-            Text("Colour defaults to the heard tone octave-transposed into visible light (after Hans Cousto's Cosmic Octave, rendered via CIE 1931); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
+            Text("Colour defaults to the heard tone octave-transposed into visible light (its frequency doubled until it reaches the visible band, rendered via CIE 1931); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             touchSoundSection
