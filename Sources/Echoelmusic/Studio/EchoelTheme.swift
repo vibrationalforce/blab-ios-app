@@ -17,7 +17,12 @@ enum EchoelTheme {
     static let bg      = Color.black                                          // --bg #000
     static let surface = Color(red: 0.055, green: 0.055, blue: 0.070)         // panel fill
     static let text    = Color(red: 0.878, green: 0.878, blue: 0.878)         // --text #e0e0e0
-    static let dim     = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.55) // --dim
+    // --dim: lifted 0.55 → 0.65 for WCAG AA. `dim` is light-on-dark everywhere
+    // (secondary/unit labels), so more opacity = more contrast — no usage regresses.
+    // On panel fills (surface #0e0e12) this moves secondary text from ~5:1 to ~6.5:1,
+    // clearing the 4.5:1 AA floor with margin. Deliberately a touch more opaque than the
+    // site's --dim (accessibility-first in the app; still reads muted, not bright).
+    static let dim     = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.65) // --dim (AA-lifted)
     static let border  = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.10) // subtle
     static let fill    = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.06) // --glass-ish
     // CI rule (mirrors echoelmusic.com): the site is MONOCHROME — every primary
