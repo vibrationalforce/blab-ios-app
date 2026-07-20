@@ -783,6 +783,43 @@ public final class TimelineStore {
         persist()
     }
 
+    // MARK: Precision edits (S1 — the deep editor authors THIS store, not the
+    // loop layer). Value-only / curve / curvature mirror AutomationPlayer's
+    // per-keyframe ops but on the song-absolute document lane, so the precision
+    // sheet and the inline row edit ONE curve. Each commits once (structural
+    // persist, HARNESS_LEDGER relocate-storm law). Unknown parameter/id = no-op.
+
+    /// Revalue a keyframe in place (no tick change) — the precision editor's typed
+    /// value field and its vertical point-drag land here.
+    public func setAutomationValue(parameter: String, id: UUID, normalized value: Double) {
+        guard let i = automationLaneIndex(forParameter: parameter) else { return }
+        document.automation[i].setValue(id: id, value)
+        persist()
+    }
+
+    /// Set a keyframe's segment shape (Linear glide vs Hold step).
+    public func setAutomationCurve(parameter: String, id: UUID, _ curve: AutomationCurve) {
+        guard let i = automationLaneIndex(forParameter: parameter) else { return }
+        document.automation[i].setCurve(id: id, curve)
+        persist()
+    }
+
+    /// Bend the segment leaving a keyframe (the canvas' vertical between-points drag).
+    public func setAutomationCurvature(parameter: String, id: UUID, _ curvature: Double) {
+        guard let i = automationLaneIndex(forParameter: parameter) else { return }
+        document.automation[i].setCurvature(id: id, curvature)
+        persist()
+    }
+
+    /// Clear a parameter's automation entirely — the lane is dropped (no ghost
+    /// lanes; matches the precision sheet's "Clear" and removeAutomationPoint's
+    /// empty-lane contract).
+    public func clearAutomation(parameter: String) {
+        guard let i = automationLaneIndex(forParameter: parameter) else { return }
+        document.automation.remove(at: i)
+        persist()
+    }
+
     // MARK: - Persistence
 
     /// H5b: fires after EVERY persisted document change (assignment edits, lane
