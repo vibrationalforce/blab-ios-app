@@ -134,6 +134,17 @@ struct AUv3BrowserView: View {
                     Text("Only Apple's built-in units showed up. Third-party AUv3 sometimes register late — this list keeps refreshing for a few seconds. If yours still don't appear, open each plugin's app once (that registers its AUv3 with iOS), then tap Rescan.")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
+                    // Ground-truth diagnostic — the numbers that separate "iOS isn't
+                    // serving your plugins to this app" (0 third-party) from an Echoel
+                    // filter bug (third-party > 0 but the list stays Apple-only).
+                    // Selectable so it can be pasted straight into a bug report.
+                    if let diag = host.diagnostic {
+                        Text("Diagnostic: iOS returned \(diag.rawComponentCount) Audio Units — \(diag.thirdPartyCount) third-party, Echoel's own plugin \(diag.ownAUv3Present ? "visible" : "not visible"). If third-party is 0, iOS hasn't handed your installed plugins to this app yet — open each plugin's own app once, then fully quit and reopen Echoel.")
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                            .padding(.top, 2)
+                    }
                 }
                 if let err = host.loadError {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
