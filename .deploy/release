@@ -1,27 +1,26 @@
-build: 2026-07-20 v10.79.308 (Clip-Handhabung komplett + Persistenz-Härtung)
+build: 2026-07-20 v10.79.309 (AUv3-Ursache eingegrenzt + Header-Live-Signal ehrlich)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Batch seit v307 — Gates grün, je ein Pflicht-Reviewer 0 Defekte.
+notes: Batch seit v308 — beide Gates grün, je ein Pflicht-Reviewer 0 Defekte.
 
-  SPÜRBAR AUF DEM GERÄT — Clip-Handhabung jetzt RUND:
-  • #56 C8 — auch die LINKE Trim-Kante rastet an Nachbar-Clips (Butt-Join). Damit
-    ist die Clip-Trilogie komplett:
-      – Verschieben springt nicht mehr beim Loslassen (C6, v306)
-      – rechte Trim-Kante dockt an (C7, v307)
-      – linke Trim-Kante dockt an (C8, jetzt)
-    Alles mit voller Vorschau==Commit-Parität (kein Zucken) und Freeze-Gesetz-treu.
+  DER AUv3-DURCHBRUCH (dank deinem AUM-Video):
+  • Dein AUM-Screen-Recording hat die Ursache umgedreht: deine ~25 Plugins SIND
+    installiert und bei iOS registriert — AUM zeigt sie alle. Echoel bekommt sie
+    trotzdem NICHT (0, auch beim Rescan). Also KEIN „kalte Registry"-Problem mehr,
+    sondern Echoel-spezifisch: entweder gibt iOS Echoels Prozess nur Apple-Units,
+    oder unser Filter verschluckt sie.
+  • NEU (#3): „Browse AUv3…" → unter der leeren Liste gibt es jetzt einen
+    „Copy diagnostic"-Knopf. Ein Tap kopiert die Zeile INKL. der Hersteller-Namen,
+    die iOS an diese App liefert. Das ist die EINE Tatsache, die den Fall entscheidet.
 
-  UNTER DER HAUBE (Datensicherheit, nicht sichtbar):
-  • Persistenz-Härtung: ein Projekt/Patch, das eine NEUERE App-Version gespeichert
-    hat, lädt jetzt garantiert auch auf einer älteren Version (unbekannte Zukunfts-
-    Felder werden ignoriert statt zu scheitern) — schützt deine gespeicherte Arbeit
-    über TestFlight-Versionen hinweg. Nur Test-Guards, kein Verhalten geändert.
+  BITTE AN DICH (30 Sekunden, entblockt den echten Fix):
+  In ECHOEL (nicht AUM!): eine Spur öffnen → „Browse AUv3…" → „Copy diagnostic"
+  tippen → mir die kopierte Zeile einfügen. Darin steht:
+    • Zahl „third-party": 0  → iOS gibt Echoel nur Apple → App-/Prozess-Ursache.
+    • „third-party" > 0, Liste bleibt Apple-only → unser Filter-Bug.
+  Beide Fälle fixe ich dann GEZIELT statt zu raten.
 
-  WEITER OFFEN AN DICH (aus v305–v307, hier erneut enthalten):
-  Öffne eine Spur → „Browse AUv3…". Wenn keine Fremd-Plugins auftauchen, steht dort
-  eine Diagnose-Zeile, z.B. „iOS returned 42 Audio Units — 0 third-party, Echoel's
-  own plugin not visible." Lies mir diese EINE Zeile vor (oder Screenshot):
-   • „0 third-party" → iOS liefert deine Plugins nicht an diese App → jede Plugin-App
-     EINMAL öffnen, Echoel komplett beenden (wegwischen), neu starten.
-   • „third-party > 0" aber Liste bleibt Apple-only → Echoel-Filter-Bug, die Zahl
-     beweist es → schick mir die Zeile, ich fixe es gezielt.
-  Damit fixe ich die ECHTE AUv3-Ursache statt zu raten. Text ist kopierbar.
+  EHRLICHER (Bio, gerätesichtbar):
+  • Das Live-Signal oben (HR/HRV/Br/Coh-Strip) zeigt jetzt „live", solange dein
+    Körper den Klang formt — auch bei Apple Watch / HealthKit, die nur alle paar
+    Minuten messen (vorher blinkte es fälschlich auf „No signal", obwohl die Musik
+    weiterlief). Gleiches Zeitfenster wie die Klang-Engine.
