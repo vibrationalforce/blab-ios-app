@@ -1,28 +1,30 @@
-build: 2026-07-20 v10.79.317 (AUv3-Plugin-Sheet professionalisiert — Workaround-Wände raus)
+build: 2026-07-20 v10.79.318 (AUv3-Browser: 3 Kategorien + adaptives Fenster)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD (AUv3BrowserView-Rework) — beide Gates grün, Pflicht-UI-Review 0 Defekte.
+notes: HEAD (AUv3BrowserView + AUv3Host) — Pflicht-Review 0 Defekte, Gates werden verifiziert.
 
-  DEINE RÜCKMELDUNG ("kommt so derbe unprofessionell — überarbeite das komplette
-  Ding, aus allen Perspektiven"): das Plugin-Sheet zeigte JEDEM Nutzer drei Absätze
-  iOS-Innereien — "iOS hasn't handed this app the plugin registry", den rohen
-  -3000-Selbsttest, einen "Diagnostic: iOS returned N Audio Units"-Dump, eine
-  "open GarageBand as a workaround"-Zeile und einen dauersichtbaren "Copy diagnostic
-  to the developer"-Button. Recht hast du: das wirkt für Profis unprofessionell und
-  verschreckt Laien.
+  DEIN AUFTRAG ("die Plugins sollen ordentlich gescannt, sortiert nach Midi Plugins,
+  Instrumenten und Audio Effekten geladen und vorallem richtig in einem adaptiven
+  Fenster dargestellt werden — übersichtlich in den Produktions- und Performance-
+  Workflow eingebunden"): umgesetzt.
 
-  KOMPLETT ÜBERARBEITET (View-only, keine Host-Logik angefasst):
-  • ALLE Workaround-/Fehlercode-/Registry-Wände RAUS aus dem Hauptbild. Kein -3000,
-    kein "quit the app", kein "GarageBand"-Workaround, kein Entwickler-Dump mehr.
-  • Stattdessen EINE ruhige, menschliche Zeile: "Only the built-in Apple Audio Units
-    are here right now. Instruments and effects you install appear automatically."
-  • Die technischen Schritte + "Copy details for support" liegen jetzt in einem
-    ZUGEKLAPPTEN Aufklapper "Not seeing a plugin you installed?" — für Profis/Support
-    auf Wunsch da, aber niemandem ins Gesicht gedrückt. Ruhig aus allen Perspektiven.
-  • Untere Hilfe auf zwei knappe Sätze gekürzt.
+  GEBAUT:
+  • SORTIERUNG in DREI Familien, genau wie gewünscht — "MIDI Plugins · Instrumente ·
+    Audio Effekte". Jede Familie mit eigener Überschrift + Anzahl.
+  • Der Scan erfasst jetzt AUCH MIDI-Plugins (MIDIProcessor-Typ: Arpeggiatoren,
+    Noten-Filter, Scale-Quantizer) — vorher fielen die durchs Typ-Raster und tauchten
+    nirgends auf. Jede Familie wird per stabilem Komponenten-Typ eindeutig einsortiert.
+  • ADAPTIVES FENSTER: die Listen liegen in einem mitwachsenden Raster — eine Spalte
+    am iPhone, mehrere Spalten sobald mehr Breite da ist (iPad / Querformat / Stage
+    Manager). Eine große Plugin-Bibliothek bleibt so im Produktions-/Performance-
+    Einsatz übersichtlich statt als endlose Einzelliste.
+  • Instrumente + Audio-Effekte LADEN wie gehabt (Channel-/Master-Ziel bleibt).
+    MIDI-Plugins werden ehrlich als "erkannt" gezeigt (kleines MIDI-Kennzeichen), aber
+    noch NICHT als Lade-Button — die MIDI-Routing-Verkabelung kommt als nächster Schritt
+    (kein toter Tipp, keine Scheinaktion — sauber und professionell).
 
-  ZUSAMMEN MIT v316 (Component-Version-Bump 10000->10001): sobald die Registry warm
-  ist (dein Neustart-Gerätetest), erscheinen ECHTE Plugins in der jetzt sauberen
-  Liste — das saubere Bild UND der Registrierungs-Fix greifen zusammen.
+  ZUSAMMEN mit v316 (Component-Version-Bump) + v317 (professionalisiertes Sheet):
+  sobald die Registry warm ist (dein Neustart-Gerätetest), erscheinen ECHTE Fremd-
+  Plugins in dieser jetzt sauber sortierten, adaptiven Ansicht.
 
-  Nächster Schritt (Folge-Slice, schon geplant): Ein-Tipp-Zuweisung "externes
-  Instrument/Effekt direkt auf DIESE Spur" — dein eigentliches Ziel.
+  Nächster Schritt (geplant): Ein-Tipp-Zuweisung "Instrument/Effekt direkt auf DIESE
+  Spur" + MIDI-Plugin-Routing in die Instrumenten-Kette.
