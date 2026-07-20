@@ -287,6 +287,11 @@ struct ArrangeTimelineView: View {
         case clipAutomation(TimelineRegion)
         /// The Immersive Stage — the Touch surface that places every track in space.
         case spatial
+        /// EchoelBodyVibe — the bio-generative INSTRUMENT surface, opened from a
+        /// track whose built-in instrument is `.bioVoice` (founder 2026-07-20:
+        /// "Man wählt das ganz normal als Instrument aus"). Reuses THIS one sheet
+        /// slot — no new `.sheet` (metadata law).
+        case bodyVibe(TimelineLane)
         var id: String {
             switch self {
             case .lane(let l):   return "lane-\(l.id)"
@@ -297,6 +302,7 @@ struct ArrangeTimelineView: View {
             case .automation:    return "automation"
             case .clipAutomation(let r): return "clipautomation-\(r.id)"
             case .spatial:       return "spatial"
+            case .bodyVibe(let l): return "bodyvibe-\(l.id)"
             }
         }
     }
@@ -505,6 +511,12 @@ struct ArrangeTimelineView: View {
             // L1/S2b: draw automation INTO the region's clip, clip-relative.
             ClipAutomationView(clipID: region.clipID, spanTicks: clipSpanTicks(region))
         case .spatial:            ImmersiveStageView()
+        case .bodyVibe(let lane):
+            // EchoelBodyVibe — the body-plays-the-voice surface for this bioVoice
+            // track. First slice: live bio strip (leaf) + this lane's own
+            // genre/mood/variation. Later slices fold in sound/generate/visual +
+            // the Face-camera source. Reads only document-level state here.
+            BodyVibeSurfaceView(laneID: lane.id, laneName: lane.name)
         }
     }
 
@@ -959,6 +971,16 @@ struct ArrangeTimelineView: View {
 
     private func laneDoor(_ lane: TimelineLane) -> some View {
         Menu {
+            // EchoelBodyVibe (founder 2026-07-20 "Man wählt das ganz normal als
+            // Instrument aus"): a track whose built-in instrument is `.bioVoice`
+            // opens the bio-generative surface — live body + this lane's own
+            // genre/mood. Its own top door so the body-plays-the-voice flow is
+            // one tap, not buried under "Open MIDI clip".
+            if !lane.isBio, lane.kind == .midi, lane.builtinInstrument == .bioVoice {
+                Button { activeModal = .bodyVibe(lane) } label: {
+                    Label("Open EchoelBodyVibe", systemImage: TrackInstrument.bioVoice.systemImage)
+                }
+            }
             if !lane.isBio, lane.kind == .midi {
                 // H12: secondary MIDI lanes open THEIR OWN clip (ensure +
                 // region editor); the primary roll lane keeps the shared roll.
@@ -2089,8 +2111,12 @@ private struct LaneFXEditor: View {
 /// no 10 Hz observable anywhere near this sheet (freeze law). Mood offers the
 /// curated MoodPreset.factory names (pick a feeling, not 8 dials — per-dimension
 /// fine-tuning is a deliberate later slice).
+///
+/// Internal (not private): re-hosted by `BodyVibeSurfaceView` so the bioVoice
+/// track's own genre/mood/variation live there too (founder 2026-07-20 "Genre
+/// Auswahl kommt auch in EchoelBodyVibe"). Same leaf, two hosts — one control.
 @MainActor
-private struct LaneCompositionSection: View {
+struct LaneCompositionSection: View {
     let laneName: String
     let laneID: UUID
     @Environment(TimelineStore.self) private var timeline
