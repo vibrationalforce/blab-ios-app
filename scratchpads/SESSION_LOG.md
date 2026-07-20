@@ -7774,3 +7774,24 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
   (best case). If not → the host-priming workaround is the interim, and a proper Inter-App-Audio
   MANUAL provisioning profile (founder portal) is the remaining structural fix. Need founder's
   post-retry self-probe verdict (instantiate OK vs FAILED) OR the AUM-prime experiment result.
+
+### 2026-07-20 — AUv3 self-probe = FAILED -3000 (own appex unregistered): decisive fork
+- **Founder pasted (v309/310 self-probe):** "try 1 ... 0 third-party, own AUv3 not visible,
+  self-probe FAILED NSOSStatusErrorDomain#-3000 (appex unregistered). Makers: [Apple]."
+- **Checked:** the AUv3 appex Info.plist AudioComponents = type 'augn'(Generator)/subtype
+  'echl'/manufacturer 'Echo' — EXACTLY matches the self-probe description. So -3000 is NOT a
+  declaration mismatch/code bug; iOS genuinely has NOT registered our embedded appex on this
+  device/process. Combined with Apple-only host discovery → iOS serves this process no
+  out-of-process AudioComponents at all (neither third-party nor our own).
+- **My v310 self-warm fix does NOT help this case** (it only fires on instantiate-OK; here it's
+  FAILED). Honest.
+- **Fork given to founder:** (1) cheap test — delete Echoel + RESTART iPhone + reinstall from
+  TestFlight + re-copy diagnostic (−3000 is commonly a stale pluginkit registration fixed by a
+  clean reinstall+restart; the diagnostic already recommends this). (2) if STILL −3000 →
+  structural: Inter-App-Audio entitlement is stripped by automatic signing (deprecated) → real
+  fix = MANUAL provisioning with an explicit IAA profile (founder portal + careful pipeline
+  change; it's our only green deploy path, do NOT blind-change). Council + founder portal when
+  we get there.
+- **NEXT:** await founder reinstall+restart result. If structural: plan manual-signing slice
+  with Council (risk = deploy pipeline). Meanwhile continue Leiste dissolution (S2: Mix) as the
+  non-blocked track.
