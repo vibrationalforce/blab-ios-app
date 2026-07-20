@@ -1174,9 +1174,17 @@ struct EchoelStudioView: View {
     //               the name open via the transport "•••" door ("session") —
     //               chrome-door-only, same pattern as Master/Export/Tempo.
     // Master/Export were already chrome-door-only.
+    // Dissolving the bottom chip bar (founder 2026-07-20: "die untere Leiste komplett
+    // auflösen … Video kann gelöscht werden"). S1: drop `.video` — the recordings library
+    // is founder-deleted from navigation; the immersive visual window stays reachable via
+    // the header monitor button. The `.video` case + videoPanel stay compiling (unreferenced
+    // now) so the removal is reversible; a later slice deletes the dead panel. Following
+    // slices retire mix/effects/synth/sound as each function is verified reachable per-track,
+    // then the bar goes entirely (PLAN_LEISTE_DISSOLVE_2026-07-20).
     private static let studioChips: [StudioMenu] =
         StudioMenu.allCases.filter { $0 != .master && $0 != .export && $0 != .bio
-                                     && $0 != .composition && $0 != .session }
+                                     && $0 != .composition && $0 != .session
+                                     && $0 != .video }
 
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {

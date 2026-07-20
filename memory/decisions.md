@@ -706,3 +706,18 @@ Architectural and strategic decisions with context and rationale.
   5. **NICHT gelockert (Physik/Sicherheit, kein Dogma):** Audio-Thread-Gesetze,
      Rausch-Triade READ-ONLY, Flash ≤3 Hz, keine Heilversprechen, Sheet-Ketten-
      Decke, 10-Hz-Freeze-Regel, keine neuen Dependencies ohne Ask.
+
+### 2026-07-20 EchoelBodyVibe = die bio-generative INSTRUMENT-Oberfläche (Founder-Klärung)
+- **Founder-O-Ton:** „EchoelBodyVibe vereint im Wesentlichen was Echoelmusic als Instrument
+  war, BEVOR wir den radikalen DMMW-Pfad eingeschlagen haben, PLUS alle Erneuerungen, die wir
+  seitdem in diesem Bereich aufgenommen haben (Mimik- und Body-Erkennung etc.)."
+- **Bedeutung:** „DMMW-Pfad" = der tracks-zentrische DAW-Umbau (heutiges Home = WorkspaceView →
+  ArrangeTimelineView-Spuren). **EchoelBodyVibe** ist NICHT nur ein Voice-Kind — es ist (soll
+  werden) die OBERFLÄCHE des bio-generativen Instruments: der alte Compose-Flow
+  (Genre/Key/Scale/Kammerton/Tempo → generate → play, bio-reaktiv, FX-Charakter, Visual) +
+  die neuen Kamera-Bio-Modulatoren (A5 FaceExpressionBioPublisher = Mimik, Körpersprache).
+- **Konsequenz für die Leisten-Auflösung:** generative/Charakter-Controls (Genre, Mood, Sound)
+  → EchoelBodyVibe; produktionsseitige Controls (Mix, FX, Synth-Instrument) → Spurköpfe.
+  „Genre → BodyVibe" (2026-07-20) ist damit eindeutig: Genre gehört in die Instrument-Oberfläche.
+- **Status:** die BodyVibe-Oberfläche existiert als eigener Screen noch NICHT (die Teile leben
+  heute verstreut in EchoelStudioView). Aufbau = mehrzyklige Arbeit (#67/#68). Review-Datum 2026-08-19.
