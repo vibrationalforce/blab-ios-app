@@ -261,4 +261,4 @@ date,decision,reasoning,expected_outcome,review_date,status
 2026-07-20,lead-melody-stepwise-not-arpeggio,harmonic-lead-walked-chord-tones-so-every-step-leapt-a-third,scale-walk+strong-beat-chord-tone-anchor-so-it-sings-and-cant-drift,2026-08-19,shipped
 2026-07-20,genre-beat-and-harmony-differentiation-is-ear-gated,i-iv-V-shared-authentically-beat-skeleton-shared-founder-offered-ears,wait-for-founder-2-3-worst-genres-before-blind-tuning,2026-08-19,founder-gated
 2026-07-20,ultra-audit-heal-3-high-bugs,artnet-nan-trap+timeline-seconds-rejoin+videorecorder-name-collision,shipped-v325-reviewer-all-pass,2026-08-19,shipped
-2026-07-20,CRITICAL-294-tests-never-run-in-CI,project.yml-has-no-test-target+no-workflow-calls-swift-test,gates-green-meant-app-compiles-not-tests-pass-must-wire-test-target-next-cycle,2026-07-27,open
+2026-07-20,CRITICAL-294-tests-never-run-in-CI,project.yml-has-no-test-target+no-workflow-calls-swift-test,slice1-walking-skeleton-GREEN-ci-runs-a-real-test-now-slice2-reveal-first-for-294,2026-07-27,in-progress

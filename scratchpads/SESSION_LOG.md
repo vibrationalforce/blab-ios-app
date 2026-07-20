@@ -1,3 +1,20 @@
+## 2026-07-20 (ULTRACODE cron) — CI TESTET ENDLICH: Test-Gate scharfgeschaltet (Task #78 Slice 1, beide Gates grün)
+
+- **Kritischer Fund umgesetzt (b9b13ad):** die 294 Tests liefen in KEINER CI. Kein lokaler xcodegen →
+  **Walking-Skeleton**: `EchoelmusicTests`-Target (bundle.unit-test, app-hosted) in project.yml + ins
+  bestehende `Echoelmusic`-Scheme `test:`-Action verdrahtet (war leer → 0 Tests) + `Tests/CISmoke/
+  CISmokeTests.swift` (`@testable import Echoelmusic`, 2 echte reine Symbole: MusicalKey.degree,
+  BioComposer.nearestChordDegree). Reviewer: SAFE-TO-PUSH (Syntax/Isolation/Symbole/TEST_HOST alle ok).
+- **BEIDE Gates grün auf b9b13ad:** Xcode Compile Check (xcodegen akzeptiert Target) UND CI/CD Pipeline
+  (build-for-testing baut das Bundle, test-without-building FÜHRT den Smoke aus + besteht). **Zum ersten
+  Mal läuft in Echoels CI ein echter Test.** Plumbing bewiesen: xcodegen-Syntax · iOS-Sim-Lauf ·
+  @testable-Linking · TEST_HOST-Auto-Wiring · App-Host-Launch. Kein Deploy-Bump (bewusst).
+- **Slice 2 (nächster Zyklus, REVEAL-FIRST):** die 294 NICHT all-or-nothing ins Haupt-Scheme biegen (eine
+  nie-kompilierte Datei → Haupt-Gate rot). Stattdessen eigenes Target/Scheme + NICHT-blockierender Report,
+  damit die echten 294-Failures sichtbar werden, ohne das grüne Gate zu brechen; dann inkrementell fixen,
+  dann scharfschalten. LOW-Schuld (Reviewer): ci.yml:433-451 `-only-testing:.../ComprehensiveTestSuite`
+  bei Slice 2 repointen/entfernen.
+
 ## 2026-07-20 (ULTRACODE cron) — ULTRA-AUDIT: alle Subsysteme gescannt, 3 HIGH-Bugs geheilt (v325) + 1 CRITICAL gefunden
 
 - **Founder-Befehl (ultracode):** "geh davon aus dass noch nichts richtig funktioniert, trommel alle
