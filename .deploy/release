@@ -1,30 +1,26 @@
-build: 2026-07-20 v10.79.324 (2432) — Melodien SINGEN jetzt (Schritt statt Arpeggio)
+build: 2026-07-20 v10.79.325 (2433) — Ultra-Audit-Heilung: 3 echte HIGH-Bugs behoben
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD (BioComposer Lead-Melodie) — reine Kompositions-Logik, kein Audio-Thread,
-  Determinismus + In-Key nachweislich erhalten (dsp-reviewer PASS).
+notes: HEAD (d5fea4c) — Fan-out-Ultra-Audit (15 Agenten, adversarial verifiziert) fand
+  4 echte Defekte; die 3 sicheren sind geheilt (Reviewer: alle PASS, compile-sicher).
 
-  Zu deinem "überwiegend schlecht — sicherstellen dass keine Melodien Melodien sind":
-  DAS war der Kern-Fehler. Die Lead-Stimme lief bisher über die AKKORDTÖNE — jeder
-  Melodie-Schritt sprang mindestens eine Terz. Das ist ein gebrochener Akkord
-  (Arpeggio), KEINE Melodie. Genau darum klang es "unprofessionell / gleich".
+  Founder-Befehl "geh davon aus dass noch nichts richtig funktioniert, ultra-audit,
+  heal alle schwachen Teile": ich habe ALLE Subsysteme rücksichtslos gescannt. Ergebnis
+  ehrlich — die Basis ist SOLIDER als "nichts geht" (nur 4 echte Defekte bei 10 Subsystemen),
+  aber die 3 gefixten sind real und wichtig:
 
-  JETZT läuft die Lead-Linie SCHRITTWEISE durch die Tonleiter (wie eine gesungene
-  Melodie), und rastet nur auf den BETONTEN Zählzeiten (Downbeat / erster / letzter
-  Ton) auf den nächsten Akkordton ein — Akkordtöne auf der Zählzeit, Durchgangstöne
-  dazwischen. Das ist die fehlende Mitte zwischen dem alten frei-wandernden Lauf (der
-  aus dem Akkord driftete) und dem reinen Akkordton-Lauf (der arpeggierte). Alles
-  bleibt in der Tonart (Tonleiter-Stufen), die Betonungs-Anker verhindern das Driften.
-  Verzierung = jetzt ein Nachbar-Ton (Sekunde), nicht ein Akkord-Sprung. Minimum 3
-  statt 2 Lead-Töne, damit selbst die sparsamste Phrase einen Durchgangston singt.
+  1. ART-NET / DMX-Licht — App-ABSTURZ: ein nicht-finiter (NaN/Inf) Bio-/Musik-Kanal lief in
+     UInt8(_×255)/UInt16(_×65535) und ließ die App HART traps. Jetzt NaN-sicher (→0), für alle
+     endlichen Werte bit-identisch.
+  2. TIMELINE JOIN — nach Tempo-Wechsel nicht mehr fügbar: das Zusammenfügen prüfte Clip-
+     Kontinuität in SEKUNDEN, also ließ sich ein geschnittener Clip nach einer Tempo-Änderung
+     nicht mehr zusammenfügen (MIDI + jeder Clip, stille Ablehnung). Jetzt tempo-invariant über
+     Ticks + Cross-Tempo-Regressionstest.
+  3. VIDEO-RECORDER — kein Video gespeichert: Dateinamen kollidierten bei schnellem Re-Record
+     (1-Sekunden-Auflösung) → AVAssetWriter scheiterte still. Jetzt UUID-Suffix.
 
-  Die beiden Pfade, die schon lange gut klangen (Trap-Bell, Meditations-Linie), liefen
-  IMMER schon schrittweise — die waren der Beweis. Nur die Haupt-Genre-Lead hing am
-  Akkord fest; das ist jetzt behoben, für alle Genres mit Lead (Rock/Pop/Disco/…).
+  GRÖSSTER FUND (kritisch, nächster Zyklus): die 294 Testdateien laufen in KEINER CI —
+  project.yml hat kein Test-Target, kein Workflow ruft `swift test`. "Gates grün" hieß bisher
+  nur "App kompiliert", NICHT "Tests bestehen". Das heile ich als Nächstes sauber (project.yml-
+  Änderung, hohe Sprengweite → eigener Zyklus + Council), damit das Sicherheitsnetz echt wird.
 
-  EHRLICH: das ist COMPILE-verifiziert (Reviewer + neue Melodie-Tests: stufenweise
-  Intervalle, in-key, deterministisch) — NICHT ohren-verifiziert. Hör bitte rein: die
-  Melodien sollten jetzt eine erkennbare Linie singen statt zu klimpern. Wenn ein Genre
-  noch klimpert, nenn es mir — dann drehe ich gezielt (z.B. Betonungs-Raster feiner).
-
-  Beat-Differenzierung (das andere "klingen gleich") wartet weiter auf deine Ohren:
-  nenn mir die 2-3 schlimmsten, dann treffe ich statt blind zu raten.
+  Melodie (v324) läuft parallel — hör die Genres, nenn die 2-3 schwächsten für gezielte Arbeit.
