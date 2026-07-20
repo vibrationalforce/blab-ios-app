@@ -270,9 +270,10 @@ struct ArrangeTimelineView: View {
         /// Per-lane sound: the melodic-bus insert editor (roll voices).
         case laneFX(TimelineLane)
         /// The AUv3 host browser — external instruments/effects, ON the track
-        /// (founder: "Externe AUv3 inbegriffen"). Same env-driven view as the
-        /// menu-bar Plugins chip; this is a second DOOR, not a second system.
-        case plugins
+        /// (founder: "Externe AUv3 inbegriffen"). Carries the invoking lane so a
+        /// tap in the browser assigns DIRECTLY to that track (founder 2026-07-20:
+        /// "einfache Lösung … direkt auf die Spur"); nil = the global browser.
+        case plugins(TimelineLane?)
         /// E2a (founder: "alles vertikal auf die Spuren"): the synth patch
         /// editor, on the MIDI lane. Re-doors PatchEditorView (its studio
         /// sheet trigger died with the Tools grid — deep audit 2026-07-12).
@@ -297,7 +298,7 @@ struct ArrangeTimelineView: View {
             case .lane(let l):   return "lane-\(l.id)"
             case .region(let r): return "region-\(r.id)"
             case .laneFX(let l): return "lanefx-\(l.id)"
-            case .plugins:       return "plugins"
+            case .plugins(let l): return "plugins-\(l?.id.uuidString ?? "global")"
             case .patch(let l):  return "patch-\(l.id)"
             case .automation:    return "automation"
             case .clipAutomation(let r): return "clipautomation-\(r.id)"
@@ -474,7 +475,25 @@ struct ArrangeTimelineView: View {
                 editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
             }
         case .laneFX(let lane):   LaneFXEditor(laneName: lane.name, laneID: lane.id)
-        case .plugins:            AUv3BrowserView()
+        case .plugins(let lane):
+            if let lane {
+                // Direct-to-track: tapping an instrument sets the lane's sound; an
+                // effect appends to its chain (capped). LaneAUInstrumentHost.
+                // syncAssignments instantiates from the persisted refs. Read the
+                // LIVE lane each time (a prior assign in the same sheet may have
+                // grown the chain) — never the captured snapshot.
+                AUv3BrowserView(laneTarget: .init(
+                    name: lane.name,
+                    assignInstrument: { timeline.setLaneInstrument(id: lane.id, AUPluginRef($0)) },
+                    assignEffect: { au in
+                        let current = timeline.document.lanes.first { $0.id == lane.id }?.effects ?? []
+                        guard current.count < LaneAUInstrumentHost.maxEffectsPerLane else { return false }
+                        timeline.setLaneEffects(id: lane.id, current + [AUPluginRef(au)])
+                        return true
+                    }))
+            } else {
+                AUv3BrowserView()
+            }
         case .patch(let lane):
             // #23 S2 — the patch editor, seeded from THIS lane's own timbre.
             // Secondary lane: nil ⇒ a fresh Init (persisted on change, heard on
@@ -1040,8 +1059,8 @@ struct ArrangeTimelineView: View {
                 // AUv3 host; Assign records what's loaded onto THIS lane (persisted
                 // intent — per-lane routing waits for multi-roll).
                 Section {
-                    Button { activeModal = .plugins } label: {
-                        Label("Browse AUv3…", systemImage: "puzzlepiece.extension")
+                    Button { activeModal = .plugins(lane) } label: {
+                        Label("Add instrument or effect…", systemImage: "puzzlepiece.extension")
                     }
                     if let loaded = auHost.loaded, loaded.isInstrument {
                         Button {

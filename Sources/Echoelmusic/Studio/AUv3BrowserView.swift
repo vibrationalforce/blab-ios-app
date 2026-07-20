@@ -24,6 +24,23 @@ struct AUv3BrowserView: View {
     @Environment(\.dismiss) private var dismiss
     var embedded = false
 
+    /// When the browser is opened FOR a specific track, a tap on an instrument or
+    /// effect assigns it straight to that track (founder 2026-07-20: "eine ganz
+    /// einfache Lösung für externe Effekte und Instrumente … direkt auf die Spur")
+    /// — no Browse → load → dismiss → "Assign loaded" round-trip. nil = the global
+    /// browser, byte-identical to before.
+    struct LaneAssignTarget {
+        let name: String
+        /// Set this track's instrument to the tapped unit.
+        let assignInstrument: (HostedAUInfo) -> Void
+        /// Append the tapped effect to this track's chain; false if the chain is full.
+        let assignEffect: (HostedAUInfo) -> Bool
+    }
+    var laneTarget: LaneAssignTarget? = nil
+
+    /// Transient confirmation after a lane assignment ("<plugin> → <track>").
+    @State private var assignBadge: String?
+
     /// Which hosted plugin's own UI to present — the instrument, a channel insert
     /// effect, or a master-bus effect (by chain index).
     private struct PluginUIRequest: Identifiable {
@@ -125,6 +142,21 @@ struct AUv3BrowserView: View {
                     .buttonStyle(.plain)
                     .accessibilityHint("Re-scans for Audio Units you've installed since opening the app")
                 }
+                // Lane-assign mode: make it obvious a tap lands on THIS track, and
+                // echo each assignment (founder: direct-to-track, no round-trip).
+                if let target = laneTarget {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle").font(.system(size: 12))
+                            .foregroundStyle(EchoelTheme.accent)
+                        Text(assignBadge ?? "Tap an instrument or effect to add it to “\(target.name)”.")
+                            .font(EchoelTheme.font(12)).foregroundStyle(assignBadge == nil ? EchoelTheme.dim : EchoelTheme.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.accent.opacity(0.10)))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.accent.opacity(0.4), lineWidth: 1))
+                }
                 // Calm, human states only — no iOS-registry internals, no error
                 // codes, no "quit the app / open GarageBand" walls on the main sheet
                 // (founder 2026-07-20: "solche workarounds nerven — unprofessionell").
@@ -162,16 +194,23 @@ struct AUv3BrowserView: View {
                             .buttonStyle(.plain)
                     }
                 }
-                if host.loaded != nil || !host.loadedEffects.isEmpty || !host.loadedMasterEffects.isEmpty { loadedBar }
+                // The global host preview (loaded instrument + preview keyboard) is
+                // about the shared audition chain — hide it in lane-assign mode, where
+                // the point is to write onto the track, not audition globally.
+                if laneTarget == nil,
+                   host.loaded != nil || !host.loadedEffects.isEmpty || !host.loadedMasterEffects.isEmpty { loadedBar }
                 // Sorted into the three families a production/performance workflow
                 // reaches for (founder 2026-07-20): MIDI plugins · instruments · audio
                 // effects. Each family lays out in an ADAPTIVE grid — one column on a
                 // phone, more as the window widens (iPad / landscape / Stage Manager).
                 categorySection("MIDI Plugins", host.midiPlugins, icon: "pianokeys.inverse", kind: .midiPlugin)
                 categorySection("Instruments", host.instruments, icon: "pianokeys", kind: .instrument)
-                if !host.effects.isEmpty { effectTargetPicker }
+                // Channel/Master picker only matters for the global host chain.
+                if laneTarget == nil, !host.effects.isEmpty { effectTargetPicker }
                 categorySection("Audio Effects", host.effects, icon: "dial.medium", kind: .audioEffect)
-                Text("Tap an instrument to load it; tap an effect to add it to the Channel or Master chain you've selected. Open a loaded plugin's own controls with “Open”.")
+                Text(laneTarget == nil
+                     ? "Tap an instrument to load it; tap an effect to add it to the Channel or Master chain you've selected. Open a loaded plugin's own controls with “Open”."
+                     : "Tap an instrument to set this track's sound; tap an effect to add it to the track's chain.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
@@ -390,15 +429,29 @@ struct AUv3BrowserView: View {
     private func loadableRow(_ au: HostedAUInfo, icon: String) -> some View {
         // Instrument is single-slot (Loaded badge); effects append to the targeted
         // chain, so they stay tappable (you can add more) and highlight when present.
+        // In lane-assign mode the highlight (global-host state) doesn't apply.
         let highlighted: Bool = {
+            if laneTarget != nil { return false }
             if au.isInstrument { return host.loaded == au }
             return effectTarget == .master ? host.loadedMasterEffects.contains(au)
                                             : host.loadedEffects.contains(au)
         }()
         Button {
-            Task {
-                if !au.isInstrument && effectTarget == .master { await host.loadMasterEffect(au) }
-                else { await host.load(au) }
+            if let target = laneTarget {
+                // Direct-to-track: write the assignment, echo it, no global load.
+                if au.isInstrument {
+                    target.assignInstrument(au)
+                    assignBadge = "“\(au.name)” → \(target.name)"
+                } else {
+                    assignBadge = target.assignEffect(au)
+                        ? "“\(au.name)” → \(target.name)"
+                        : "\(target.name)'s effect chain is full."
+                }
+            } else {
+                Task {
+                    if !au.isInstrument && effectTarget == .master { await host.loadMasterEffect(au) }
+                    else { await host.load(au) }
+                }
             }
         } label: {
             HStack(spacing: 10) {
