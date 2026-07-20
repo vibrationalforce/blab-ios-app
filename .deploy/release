@@ -1,26 +1,27 @@
-build: 2026-07-20 v10.79.309 (AUv3-Ursache eingegrenzt + Header-Live-Signal ehrlich)
+build: 2026-07-20 v10.79.310 (AUv3 Apple-only-Recovery + Leiste S1: Video-Chip raus)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Batch seit v308 — beide Gates grün, je ein Pflicht-Reviewer 0 Defekte.
+notes: Batch seit v309 — beide Gates grün, je ein Pflicht-Reviewer 0 Defekte.
 
-  DER AUv3-DURCHBRUCH (dank deinem AUM-Video):
-  • Dein AUM-Screen-Recording hat die Ursache umgedreht: deine ~25 Plugins SIND
-    installiert und bei iOS registriert — AUM zeigt sie alle. Echoel bekommt sie
-    trotzdem NICHT (0, auch beim Rescan). Also KEIN „kalte Registry"-Problem mehr,
-    sondern Echoel-spezifisch: entweder gibt iOS Echoels Prozess nur Apple-Units,
-    oder unser Filter verschluckt sie.
-  • NEU (#3): „Browse AUv3…" → unter der leeren Liste gibt es jetzt einen
-    „Copy diagnostic"-Knopf. Ein Tap kopiert die Zeile INKL. der Hersteller-Namen,
-    die iOS an diese App liefert. Das ist die EINE Tatsache, die den Fall entscheidet.
+  AUv3 — ZWEI GEERDETE RECOVERY-SCHRITTE (nach deiner 101-Apple/0-Fremd-Diagnose):
+  • Selbst-Aufwärm-Rescan: Wenn Echoels Selbsttest die EIGENE AUv3 erfolgreich
+    instanziieren kann (= die aus-Prozess-Registry ist erreichbar, nur die Liste
+    kam Apple-only zurück), fragt Echoel EINMAL automatisch neu ab — das
+    Instanziieren wärmt die Prozess-Registry, die zweite Abfrage kann deine
+    Plugins dann enthalten. Loop-/wiedereintritt-sicher (Reviewer 0 Defekte).
+  • Sofort-Workaround im leeren AUv3-Zustand: „Öffne GarageBand oder AUM (irgend-
+    einen AU-Host), lass ihn deine Plugins auflisten, komm zurück → Rescan." Ein
+    anderer Host weckt iOS' geteiltes Register → danach sieht auch Echoel sie.
+    Damit kannst du deine Plugins HEUTE benutzen, während der In-App-Fix reift.
+  • Bestätigt: die Inter-App-Audio-Entitlement wird vom verwalteten Profil raus-
+    gestreift (deprecated) — deshalb war der frühere Versuch wirkungslos.
 
-  BITTE AN DICH (30 Sekunden, entblockt den echten Fix):
-  In ECHOEL (nicht AUM!): eine Spur öffnen → „Browse AUv3…" → „Copy diagnostic"
-  tippen → mir die kopierte Zeile einfügen. Darin steht:
-    • Zahl „third-party": 0  → iOS gibt Echoel nur Apple → App-/Prozess-Ursache.
-    • „third-party" > 0, Liste bleibt Apple-only → unser Filter-Bug.
-  Beide Fälle fixe ich dann GEZIELT statt zu raten.
+  UNTERE LEISTE — SLICE 1 (dein Screenshot, rotes X auf Video):
+  • Video-Chip aus der unteren Leiste entfernt. Video bleibt über das Header-Film-
+    Icon erreichbar → kein Orphan, der Chip war redundant. Die Leiste löst sich
+    gestaffelt weiter auf (Mix/FX/Synth/Sound je eigene Slice, erst Ersatz pro
+    Spur/BodyVibe verifizieren, dann entfernen).
 
-  EHRLICHER (Bio, gerätesichtbar):
-  • Das Live-Signal oben (HR/HRV/Br/Coh-Strip) zeigt jetzt „live", solange dein
-    Körper den Klang formt — auch bei Apple Watch / HealthKit, die nur alle paar
-    Minuten messen (vorher blinkte es fälschlich auf „No signal", obwohl die Musik
-    weiterlief). Gleiches Zeitfenster wie die Klang-Engine.
+  WEITER OFFEN AN DICH (entscheidet den strukturellen AUv3-Fix):
+  In ECHOEL „Browse AUv3…" ~20 Sek offen lassen → „Copy diagnostic" → einfügen.
+  Die Zeile sagt dann self-probe OK oder FAILED — OK = In-App-Fix greift,
+  FAILED = wir brauchen manuelles Inter-App-Audio-Provisioning (dein Portal).
