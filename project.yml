@@ -315,6 +315,32 @@ targets:
         DEVELOPMENT_TEAM: ""
     dependencies: []
 
+  # ===========================================================================
+  # EchoelmusicTests — unit-test bundle (heals the "294 tests ran in NO CI"
+  # ultra-audit finding, 2026-07-20). WALKING SKELETON: sources point at a tiny
+  # smoke test first to prove the plumbing (xcodegen target syntax + iOS-sim
+  # test run + `@testable import` module linking) in isolation from whether all
+  # 294 real files compile. SLICE 2 repoints `sources` at Tests/EchoelmusicTests.
+  # Hosted by the app (dependency below) → XcodeGen wires TEST_HOST automatically.
+  # ===========================================================================
+  EchoelmusicTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/CISmoke
+    dependencies:
+      - target: Echoelmusic
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.echoelmusic.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        SDKROOT: iphoneos
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+
 # =============================================================================
 # SCHEMES
 # =============================================================================
@@ -328,6 +354,11 @@ schemes:
       config: Debug
     test:
       config: Debug
+      # Heals the false-green test gate: the existing ci.yml `test-without-building
+      # -scheme Echoelmusic` step now actually runs a test target (was empty → 0
+      # tests). Smoke target today; the 294-file suite once its compile is verified.
+      targets:
+        - EchoelmusicTests
     profile:
       config: Release
     analyze:
