@@ -1,44 +1,28 @@
-build: 2026-07-20 v10.79.316 (AUv3: Component-Version-Bump 10000->10001 + Gerätetest)
+build: 2026-07-20 v10.79.317 (AUv3-Plugin-Sheet professionalisiert — Workaround-Wände raus)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD e2504f5 — beide Gates grün.
+notes: HEAD (AUv3BrowserView-Rework) — beide Gates grün, Pflicht-UI-Review 0 Defekte.
 
-  AUV3 — TEAM-DEEPDIVE-ERGEBNIS (dein "super magical ultracode Senior Apple dev +
-  Team"). Drei Spezialisten + Synthese. Kernbefund:
-  • Dein Handy zeigt 0 FREMD-AUv3, obwohl du VIELE installiert hast. Das kann KEIN
-    Fehler in unserem Plugin sein — das ist die iOS-AudioComponent-Registry, die
-    auf dem Gerät kalt/veraltet ist (iOS re-scannt NICHT bei Reinstall derselben
-    Version). IAA war eine tote Fährte (seit iOS 13 deprecated, für AUv3 irrelevant
-    — du hattest recht, es auszuschließen).
+  DEINE RÜCKMELDUNG ("kommt so derbe unprofessionell — überarbeite das komplette
+  Ding, aus allen Perspektiven"): das Plugin-Sheet zeigte JEDEM Nutzer drei Absätze
+  iOS-Innereien — "iOS hasn't handed this app the plugin registry", den rohen
+  -3000-Selbsttest, einen "Diagnostic: iOS returned N Audio Units"-Dump, eine
+  "open GarageBand as a workaround"-Zeile und einen dauersichtbaren "Copy diagnostic
+  to the developer"-Button. Recht hast du: das wirkt für Profis unprofessionell und
+  verschreckt Laien.
 
-  DER EINE CODE-FIX IN DIESEM BUILD: die Komponenten-`version` 10000 -> 10001
-  (project.yml + Info.plist, byte-identisch). iOS keyt die Registry auf
-  type/subtype/manufacturer/VERSION — die Version blieb beim Struktur-Fix vom
-  16.07. unverändert, also wird die alte fehlgeschlagene Registrierung
-  de-dupliziert und weitergereicht. Bump = iOS liest unser Plugin als NEU ein.
+  KOMPLETT ÜBERARBEITET (View-only, keine Host-Logik angefasst):
+  • ALLE Workaround-/Fehlercode-/Registry-Wände RAUS aus dem Hauptbild. Kein -3000,
+    kein "quit the app", kein "GarageBand"-Workaround, kein Entwickler-Dump mehr.
+  • Stattdessen EINE ruhige, menschliche Zeile: "Only the built-in Apple Audio Units
+    are here right now. Instruments and effects you install appear automatically."
+  • Die technischen Schritte + "Copy details for support" liegen jetzt in einem
+    ZUGEKLAPPTEN Aufklapper "Not seeing a plugin you installed?" — für Profis/Support
+    auf Wunsch da, aber niemandem ins Gesicht gedrückt. Ruhig aus allen Perspektiven.
+  • Untere Hilfe auf zwei knappe Sätze gekürzt.
 
-  EHRLICH: das repariert NUR unser eigenes Plugin. Die 0-Fremd-Units löst es NICHT
-  — das ist Geräte-Registry-Kälte. Dafür der Gerätetest.
+  ZUSAMMEN MIT v316 (Component-Version-Bump 10000->10001): sobald die Registry warm
+  ist (dein Neustart-Gerätetest), erscheinen ECHTE Plugins in der jetzt sauberen
+  Liste — das saubere Bild UND der Registrierungs-Fix greifen zusammen.
 
-  DEIN GERÄTETEST (entscheidet die Ursache in EINEM Neustart-Zyklus):
-  1. AUM (gratis AUv3-Host) + ein gratis Fremd-AUv3-Effekt installieren.
-  2. Echoel löschen.
-  3. iPhone NEU STARTEN (leert die AudioComponentRegistry).
-  4. Diesen Build (v316) über TestFlight neu installieren.
-  5. BEVOR du Echoel öffnest: AUM oder GarageBand einmal öffnen, Plugin-Liste
-     ansehen, schließen (weckt die Registry).
-  6. Echoel öffnen -> AUv3-Browser -> Rescan.
-  Ergebnis melden:
-   (A) Fremd-AUs erscheinen jetzt -> Registry war kalt (Hauptursache); erscheint
-       EchoelBodyVibe auch -> Version-Bump hat gewirkt.
-   (B) Fremd-AUs da, aber EchoelBodyVibe fehlt/-3000 -> in AUM laden versuchen:
-       AUM kann's auch nicht -> Provisioning des Appex (prüfe ich im CI);
-       AUM kann's -> Fehler nur in Echoels Host-Prozess.
-   (C) Fremd-AUs weiter 0 in Echoel, aber AUM sieht sie -> Echoels In-Process-
-       Snapshot ist blind.
-
-  DEIN EIGENTLICHES ZIEL (externe Effekte/Instrumente einfach auf die Spur laden):
-  fast fertig — die Maschinerie steht, es fehlt nur der Ein-Tipp-Zuweisungs-
-  Schritt (liefere ich als kleine Folge-Änderung, sobald die Registry warm ist).
-
-  AUCH DRIN: Automation-in-Spur S1 (Store-Parität, getestet), plus die
-  Konvergenz aus den letzten Zyklen (AA-Kontrast, EN-Copy, Brand-Rotlinie).
+  Nächster Schritt (Folge-Slice, schon geplant): Ein-Tipp-Zuweisung "externes
+  Instrument/Effekt direkt auf DIESE Spur" — dein eigentliches Ziel.
