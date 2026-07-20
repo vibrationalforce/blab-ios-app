@@ -105,7 +105,15 @@ public final class FXBioModulator {
 
     private func tick() {
         guard let c = chain else { return }
-        let frame = bus?.freshBio()
+        // Gate on `usableBio()` — the SAME per-source window the mod-brain uses
+        // (ModulationEngine.tick). The fixed-5 s `freshBio()` here meant FX
+        // bio-modulation stopped after 5 s for a latent Watch/HealthKit source
+        // (90 s window) while the main modulation kept steering — inconsistent
+        // sound shaping off the same body. Now every sound-shaping bio gate is
+        // the one authority: a frame usable to the engine is usable to the FX,
+        // and a frame the engine drops (`nil`) drops the FX bio offset too (the
+        // `guard let frame else { continue }` below leaves the base value).
+        let frame = bus?.usableBio()
         let now = Float(CFAbsoluteTimeGetCurrent() - startTime)
         let active = activeTargets
         for target in active {
