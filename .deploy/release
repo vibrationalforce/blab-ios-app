@@ -1,24 +1,33 @@
-build: 2026-07-20 v10.79.311 (Adaptive Spurköpfe — "MIDI 1" nicht mehr abgeschnitten)
+build: 2026-07-20 v10.79.312 (EchoelBodyVibe-Oberfläche + ehrliche AUv3-Diagnose)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD bf1e002 — beide Gates grün (Xcode Compile Check + CI/CD Pipeline),
-  Pflicht-Reviewer 0 Defekte (die eine MEDIUM columnWidth-Desync vorab gefixt).
+notes: HEAD 2eb9cbf — beide Gates grün (Xcode Compile Check + CI/CD Pipeline),
+  je Pflicht-Reviewer 0 Defekte.
 
-  ADAPTIVE SPURKÖPFE (dein Screenshot — der Spurkopf war links abgeschnitten):
-  • "MIDI 1" wird nicht mehr abgeschnitten. Der Kopf ist jetzt LINKS verankert
-    (.leading) statt zentriert — jeder Rest-Überhang fällt nach RECHTS unter die
-    Spaltenkante, nie über den linken Bildschirmrand raus (das war die eigentliche
-    Ursache: der zentrierte Überlauf schob den ganzen Kopf nach links, bis das
-    Label wegklippte).
-  • Adaptive Breite: 184 pt auf dem iPad (Regular width), 162 pt auf dem iPhone —
-    passt auf jede Bildschirmgröße, vom Team so entworfen.
-  • Der Türname skaliert (minimumScaleFactor 0.85) und die Mix-Leiste ist auf
-    xLarge Dynamic Type gedeckelt, damit ein langer Name / große Systemschrift den
-    Kopf nicht sprengt.
+  ECHOELBODYVIBE — INSTRUMENT-OBERFLÄCHE, ERSTE SLICE (dein Verdikt "Man wählt
+  das ganz normal als Instrument aus" + "Genre auch in EchoelBodyVibe"):
+  • Eine Spur mit Instrument "EchoelBodyVibe" (der bio-generative Voice) öffnet
+    über ihre Spurkopf-Tür eine EIGENE Oberfläche: der Live-Bio-Strip (HR/HRV/
+    Br/Coh, "Read pulse" schaltet die Kamera-Quelle scharf) PLUS die EIGENE
+    Genre-/Mood-/Variations-Wahl DIESER Spur. Genau die "Genre kommt auch in
+    EchoelBodyVibe"-Tür — und die per-Spur-Heimat, die die weitere Auflösung der
+    unteren Leiste freischaltet.
+  • Über die EINE bestehende Sheet-Tür gebaut (kein Sheet-Ketten-Wachstum), nur
+    Low-Freq-Reads im Host-Body (Freeze-Gesetz eingehalten).
 
-  WEITER (still, bis Founder-Antwort):
-  • EchoelBodyVibe-Oberfläche erste Slice ist GEBAUT (BioStrip + Genre/Mood/
-    Variation pro Bio-Spur, "Read pulse" scharfstellen) und im Pflicht-Review —
-    liefert "Genre auch in EchoelBodyVibe" und schaltet die restliche Leisten-
-    Auflösung frei. Kommt im nächsten Deploy nach Review + grünen Gates.
-  • AUv3: warte auf deinen Neustart-+-Reinstall-Test (self-probe OK = In-App-Fix
-    greift; FAILED = Null-Risiko-Appex-Profil-Diagnose in CI, dann Portal).
+  AUV3 — EHRLICHE DIAGNOSE (nach dem 6-Skeptiker-Grill deiner "Grill from all
+  sides"-Aufforderung — meine frühere "Signing/Launch-Denial"-These war FALSCH):
+  • −3000 = invalidComponentID = ein Registry-FIND-Miss (die Komponente wurde in
+    DIESEM Prozess nicht gefunden), VOR jedem Extension-Start. Zusammen mit "0
+    Fremd-Plugins von ALLEN Herstellern" = der Host-Prozess ist blind, nicht die
+    Appex-Signatur. Die Diagnose sagt das jetzt ehrlich: Anleitung ist "AUM/Garage-
+    Band einmal öffnen → zurück → Rescan" (reinstall nur als Fallback), NICHT mehr
+    "appex unregistered → reinstall".
+  • BUILD-STAMP in jeder Scan-Zeile: "vX.Y.Z (build) — …" → dein nächstes
+    "try N" ist eindeutig einem Build zuordenbar (Zweideutigkeit erledigt).
+  • Dieser Build dumpt zusätzlich non-blocking die signierten Appex-Entitlements +
+    das Provisioning-Profil in die CI-Summary (Zusatzdatenpunkt, nicht entscheidend).
+
+  DER ENTSCHEIDENDE TEST LIEGT BEI DIR (Gerät, kein Code): AUM öffnen → steht
+  "EchoelBodyVibe (Echo)" namentlich drin? → zurück zu Echoel → Rescan. Erscheinen
+  dann Fremd-Plugins in Echoel = Host-Blindheit (Appex ok, KEIN Portal-Change).
+  Fehlt die eigene Appex auch in AUM = Registrierungs-Fehler → erst clean-reinstall.
