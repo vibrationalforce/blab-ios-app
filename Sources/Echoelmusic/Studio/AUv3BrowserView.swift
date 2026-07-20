@@ -40,6 +40,10 @@ struct AUv3BrowserView: View {
     /// Momentary "Copied" confirmation for the diagnostic copy button.
     @State private var copiedDiagnostic = false
 
+    /// The technical guidance stays collapsed by default — a professional sheet
+    /// never fronts iOS-registry internals. Pros/support can expand it on demand.
+    @State private var showTroubleshoot = false
+
     /// Copy the full AUv3 scan diagnostic to the clipboard so the founder can paste
     /// the deciding fact (which makers iOS returned to this app) in one tap.
     private func copyDiagnostic(_ text: String) {
@@ -121,69 +125,17 @@ struct AUv3BrowserView: View {
                     .buttonStyle(.plain)
                     .accessibilityHint("Re-scans for Audio Units you've installed since opening the app")
                 }
+                // Calm, human states only — no iOS-registry internals, no error
+                // codes, no "quit the app / open GarageBand" walls on the main sheet
+                // (founder 2026-07-20: "solche workarounds nerven — unprofessionell").
+                // Any genuine "your plugins aren't here yet" case gets ONE quiet line
+                // plus an OPTIONAL, collapsed troubleshooting disclosure below.
                 if host.didScan && host.total == 0 {
-                    Text("No Audio Units found. Install AUv3 instruments or effects from the App Store; they'll appear here.")
-                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if host.registryColdForProcess {
-                    // Night audit 2026-07-16: in this state Rescan provably hits the
-                    // same cold cache (performScan's own backstop comment) — the one
-                    // action that reliably helps is restarting the app. Say THAT.
-                    Text("iOS hasn't handed this app the plugin registry yet (not even Echoelmusic's own Audio Unit is visible). Quit Echoelmusic fully and reopen it — that reliably refreshes the registry. If plugins are still missing afterwards, open each plugin's app once, then restart again.")
-                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.warning)
-                        .fixedSize(horizontal: false, vertical: true)
-                    // Precise diagnostic (founder-visible twin of the device-log
-                    // breadcrumb): once the once-per-process self-test lands it says
-                    // WHICH cause this is — a stale component list (quit+reopen) vs.
-                    // an unregistered extension (reinstall). Selectable so it can be
-                    // pasted into a bug report.
-                    if let diag = host.diagnostic, !diag.guidance.isEmpty {
-                        Text(diag.guidance)
-                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .textSelection(.enabled)
-                            .padding(.top, 2)
-                    }
-                } else if host.hasNoThirdPartyUnits {
-                    Text("Only Apple's built-in units showed up. Third-party AUv3 sometimes register late — this list keeps refreshing for a few seconds. If yours still don't appear, open each plugin's app once (that registers its AUv3 with iOS), then tap Rescan.")
-                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-                    // Ground-truth diagnostic — the numbers that separate "iOS isn't
-                    // serving your plugins to this app" (0 third-party) from an Echoel
-                    // filter bug (third-party > 0 but the list stays Apple-only).
-                    // Selectable so it can be pasted straight into a bug report.
-                    if let diag = host.diagnostic {
-                        Text("Diagnostic: iOS returned \(diag.rawComponentCount) Audio Units — \(diag.thirdPartyCount) third-party, Echoel's own plugin \(diag.ownAUv3Present ? "visible" : "not visible"). If third-party is 0, iOS hasn't handed your installed plugins to this app yet — open each plugin's own app once, then fully quit and reopen Echoel.")
-                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .textSelection(.enabled)
-                            .padding(.top, 2)
-                    }
-                }
-                // Proven user-side workaround (Apple DevForums 127481/89762): another
-                // Audio Unit HOST enumerating the plugins warms iOS's shared registry,
-                // after which this app sees them too. Lets the founder use their plugins
-                // TODAY while the in-app discovery fix lands. Honest scope — a workaround,
-                // not a claim the bug is fixed.
-                if host.registryColdForProcess || host.hasNoThirdPartyUnits {
-                    Text("Workaround that works now: open GarageBand or another AU host (e.g. AUM) so it lists your plugins, then come back here and tap Rescan. Enumerating them in any host refreshes iOS's plugin registry for this app.")
-                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 4)
-                }
-                // One-tap copy of the FULL diagnostic (names which manufacturers iOS
-                // actually returned to this app) so the deciding fact travels without
-                // hunting for a log line. Shown whenever discovery looks wrong.
-                if let diag = host.diagnostic, host.registryColdForProcess || host.hasNoThirdPartyUnits {
-                    Button { copyDiagnostic(diag.report) } label: {
-                        Label(copiedDiagnostic ? "Copied — paste it to the developer" : "Copy diagnostic",
-                              systemImage: copiedDiagnostic ? "checkmark" : "doc.on.doc")
-                            .font(EchoelTheme.font(12, .semibold))
-                            .foregroundStyle(EchoelTheme.accent)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 4)
+                    quietNote("Install AUv3 instruments or effects from the App Store — they appear here automatically.")
+                    troubleshootDisclosure
+                } else if host.registryColdForProcess || host.hasNoThirdPartyUnits {
+                    quietNote("Only the built-in Apple Audio Units are here right now. Instruments and effects you install appear automatically.")
+                    troubleshootDisclosure
                 }
                 if let err = host.loadError {
                     Text(err).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.danger)
@@ -214,7 +166,7 @@ struct AUv3BrowserView: View {
                 section("Instruments", host.instruments, icon: "pianokeys")
                 if !host.effects.isEmpty { effectTargetPicker }
                 section("Effects", host.effects, icon: "dial.medium")
-                Text("Tap an instrument to load it (play it from the keyboard or your song). Effects go to the target you pick: the instrument's own Channel chain (instrument → fx → master) or the Master bus (the whole mix → fx → output). Open any loaded plugin's own interface with “Open”. Each plugin's own settings return when you reload it.")
+                Text("Tap an instrument to load it; tap an effect to add it to the Channel or Master chain you've selected. Open a loaded plugin's own controls with “Open”.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
@@ -225,6 +177,52 @@ struct AUv3BrowserView: View {
         // Always refresh on open so newly-installed AUv3 appear (was scan-once → stale),
         // and clear any stale load error from a previous visit (QA #5).
         .onAppear { host.clearLoadError(); host.scan() }
+    }
+
+    /// A single, calm status line — muted, no icon-shout, no error code. The
+    /// professional replacement for the old troubleshooting walls.
+    private func quietNote(_ text: String) -> some View {
+        Text(text)
+            .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Optional, COLLAPSED-by-default help. A curious user or support can open it;
+    /// everyone else never sees registry jargon. Gentle human steps + a discreet
+    /// "copy details" for a bug report (the technical string lives here, not on the
+    /// main sheet).
+    @ViewBuilder private var troubleshootDisclosure: some View {
+        DisclosureGroup(isExpanded: $showTroubleshoot) {
+            VStack(alignment: .leading, spacing: 8) {
+                helpStep("Open the plugin's own app once, then come back and tap Rescan.")
+                helpStep("If it still doesn't show, reopen Echoelmusic.")
+                if let diag = host.diagnostic {
+                    Button { copyDiagnostic(diag.report) } label: {
+                        Label(copiedDiagnostic ? "Copied" : "Copy details for support",
+                              systemImage: copiedDiagnostic ? "checkmark" : "doc.on.doc")
+                            .font(EchoelTheme.font(11, .semibold))
+                            .foregroundStyle(EchoelTheme.dim)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+                }
+            }
+            .padding(.top, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text("Not seeing a plugin you installed?")
+                .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.dim)
+        }
+        .tint(EchoelTheme.dim)
+        .padding(.top, 2)
+    }
+
+    private func helpStep(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Circle().fill(EchoelTheme.dim).frame(width: 3, height: 3).padding(.top, 7)
+            Text(text).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // Where tapped effects land — the instrument channel or the master bus.
