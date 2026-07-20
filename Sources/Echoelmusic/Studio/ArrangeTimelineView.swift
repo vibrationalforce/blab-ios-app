@@ -1510,7 +1510,8 @@ private struct RegionBlockView: View {
         let frontX = isFrontResizing ? TimelineDragMath.frontTrimPreviewDeltaX(
             rawDeltaX: frontDelta, startTick: region.startTick, endTick: region.endTick,
             contentOffsetTicks: region.contentOffsetTicks,
-            contentOffsetSeconds: region.contentOffsetSeconds, ppb: ppb, snap: snap) : 0
+            contentOffsetSeconds: region.contentOffsetSeconds, ppb: ppb, snap: snap,
+            neighbourEdges: neighbourEdges) : 0   // #56 C8 butt-join (left edge)
         let resizeW = isResizing ? TimelineDragMath.trailingTrimPreviewDeltaW(
             rawDeltaX: resizeDelta, lengthTicks: region.lengthTicks, ppb: ppb, snap: snap,
             neighbourEdges: neighbourEdges, startTick: region.startTick) : 0   // #56 C7 butt-join
@@ -1845,9 +1846,19 @@ private struct RegionBlockView: View {
                 let deltaTicks = Int((value.translation.width / ppb
                                       * CGFloat(TimelineTime.ticksPerBeat)).rounded())
                 let rawStart = region.startTick + deltaTicks
-                let snapped = snap == .off ? rawStart : TimelineSnap.snap(rawStart, to: snap)
+                // #56 C8: the leading edge magnetizes to neighbour clip edges
+                // (butt-join), same feel as move/trailing — candidates read here in
+                // the action (never body — freeze rule). trimRegionStart still applies
+                // the media/end clamp, so preview == commit for any proposed start.
+                let magnetTicks = Int((8.0 / ppb * CGFloat(TimelineTime.ticksPerBeat)).rounded())
+                let candidates = timeline.document.regions(in: region.laneID)
+                    .filter { $0.id != region.id }
+                    .flatMap { [$0.startTick, $0.endTick] }
+                let snapped = TimelineSnap.snapWithEdges(rawStart, to: snap,
+                                                         edges: candidates, magnetTicks: magnetTicks)
                 timeline.trimRegionStart(id: region.id, toTick: max(0, snapped),
                                          bpm: beatPlayer.pattern.tempo)
+                if snapped != rawStart { snapPulse += 1 }   // fühlbares Einrasten (C8)
             }
     }
 }

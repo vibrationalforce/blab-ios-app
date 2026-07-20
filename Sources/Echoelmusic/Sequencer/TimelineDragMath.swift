@@ -174,9 +174,25 @@ public enum TimelineDragMath {
     public static func frontTrimPreviewDeltaX(rawDeltaX: CGFloat, startTick: Int,
                                               endTick: Int, contentOffsetTicks: Int,
                                               contentOffsetSeconds: Double,
-                                              ppb: CGFloat, snap: SnapResolution) -> CGFloat {
+                                              ppb: CGFloat, snap: SnapResolution,
+                                              neighbourEdges: [Int] = [],
+                                              magnetPoints: CGFloat = 8) -> CGFloat {
         let raw = startTick + tickDelta(fromPoints: rawDeltaX, ppb: ppb)
-        let snapped = snap == .off ? Swift.max(0, raw) : TimelineSnap.snap(raw, to: snap)
+        // #56 C8: the LEADING edge magnetizes to neighbour clip edges (butt-join
+        // to the clip on the left), completing the move/trailing/front trilogy.
+        // The start tick lands DIRECTLY on a neighbour edge (no length transform),
+        // BEFORE the media/end clamps below — so a magnet that would trim past the
+        // media floor is clamped identically to the grid path (C4 parity holds for
+        // any proposed start). Empty `neighbourEdges` → pure grid, unchanged.
+        let snapped: Int
+        if neighbourEdges.isEmpty || !(ppb.isFinite && ppb > 0) {
+            snapped = snap == .off ? Swift.max(0, raw) : TimelineSnap.snap(raw, to: snap)
+        } else {
+            let magnetTicks = Swift.max(0,
+                Int((magnetPoints / ppb * CGFloat(TimelineTime.ticksPerBeat)).rounded()))
+            snapped = TimelineSnap.snapWithEdges(raw, to: snap,
+                                                 edges: neighbourEdges, magnetTicks: magnetTicks)
+        }
         let minStart: Int
         if contentOffsetTicks > 0 {
             minStart = Swift.max(0, startTick - contentOffsetTicks)

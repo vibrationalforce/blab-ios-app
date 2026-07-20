@@ -266,4 +266,50 @@ final class TimelineDragMathTests: XCTestCase {
             contentOffsetTicks: 0, contentOffsetSeconds: 1.5, ppb: 24, snap: .off)
         XCTAssertLessThan(d, 0, "legacy region may preview a left-extend; commit clamps")
     }
+
+    // MARK: - Front trim · neighbour-edge magnetism (#56 C8 butt-join, left edge)
+
+    func testFrontTrimPreview_startKissesNeighbourEnd_buttJoin() {
+        // Start 960, dragging left → raw 820. A left-neighbour ENDING at 800 pulls
+        // the start onto 800 (dist 20 ≤160 AND ≤ the 1/16 grid 840's 20). Big media
+        // offset so the floor (0) doesn't interfere. Start butts against the neighbour.
+        let d = TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: -7, startTick: 960, endTick: 2400,
+            contentOffsetTicks: 2000, contentOffsetSeconds: 0, ppb: 24, snap: .sixteenth,
+            neighbourEdges: [500, 800])
+        XCTAssertEqual(d, CGFloat(800 - 960) * 24 / 480)   // start committed at 800
+    }
+
+    func testFrontTrimPreview_mediaFloorClampsMagnet() {
+        // Same magnet target 800, but a SMALL media offset (100) floors the start at
+        // 960-100 = 860 → the floor wins over the magnet (proves clamp applies AFTER
+        // the magnet, preserving C4 parity with trimRegionStart).
+        let d = TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: -7, startTick: 960, endTick: 2400,
+            contentOffsetTicks: 100, contentOffsetSeconds: 0, ppb: 24, snap: .sixteenth,
+            neighbourEdges: [800])
+        XCTAssertEqual(d, CGFloat(860 - 960) * 24 / 480)   // clamped up to the media floor
+    }
+
+    func testFrontTrimPreview_edgesOutsideWindow_fallBackToGrid() {
+        let d = TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: -7, startTick: 960, endTick: 2400,
+            contentOffsetTicks: 2000, contentOffsetSeconds: 0, ppb: 24, snap: .sixteenth,
+            neighbourEdges: [5000])
+        let gridOnly = TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: -7, startTick: 960, endTick: 2400,
+            contentOffsetTicks: 2000, contentOffsetSeconds: 0, ppb: 24, snap: .sixteenth)
+        XCTAssertEqual(d, gridOnly)
+    }
+
+    func testFrontTrimPreview_emptyEdges_unchanged() {
+        let withArg = TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: -40, startTick: 960, endTick: 2400,
+            contentOffsetTicks: 2000, contentOffsetSeconds: 0, ppb: 24, snap: .sixteenth,
+            neighbourEdges: [])
+        let plain = TimelineDragMath.frontTrimPreviewDeltaX(
+            rawDeltaX: -40, startTick: 960, endTick: 2400,
+            contentOffsetTicks: 2000, contentOffsetSeconds: 0, ppb: 24, snap: .sixteenth)
+        XCTAssertEqual(withArg, plain)
+    }
 }
