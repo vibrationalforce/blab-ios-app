@@ -762,3 +762,25 @@ Architectural and strategic decisions with context and rationale.
 - **CI-Appex-Signing-Dump (c7e95b7) inspiziert das falsche Artefakt** (Appex statt Host) — nicht schädlich
   (non-blocking), aber nicht entscheidend; bleibt als Appex-Signatur-Entlastung nützlich.
 - **Review:** 2026-08-19.
+
+### 2026-07-20 (KORREKTUR 2) AUv3 Fremd-Discovery: inter-app-audio-Entitlement IST der Gate
+- **Widerruft die "IAA = red herring"-Note.** Fokussierte Tiefen-Recherche (Apple DevForums
+  127481 + 89762, EXAKTES Symptom "AVAudioUnitComponentManager liefert nur Apple-AUs, 0 Fremd"):
+  seit iOS 11 gatet die **inter-app-audio-ENTITLEMENT** die Fähigkeit eines Prozesses, Fremd-
+  Audio-Komponenten überhaupt zu SCANNEN. Ohne sie → nur Apple-Builtins (genau Echoels Symptom).
+  Das IAA-*Protokoll* ist deprecated, die *Entitlement* gatet das Scannen weiter.
+- **Zwei SEPARATE Symptome, früher fälschlich vermengt:** (1) 0 Fremd-AUs = fehlende IAA-
+  Entitlement [fixbar]. (2) eigene Appex −3000 = separates pluginkit/Signing-Problem [andere Spur].
+  Die Session-Timing-These ist widerlegt (Session ist vor jedem Scan aktiv, per Launch-Sequenz).
+- **Zustand:** `inter-app-audio` STEHT in Echoelmusic.entitlements (L41), wird aber beim Signing
+  RAUSGESTREIFT — automatisches Signing kann nur Capabilities provisionieren, die die App-ID im
+  Portal bereits aktiviert hat, und com.echoelmusic.app hat "Inter-App Audio" NICHT aktiviert.
+- **FIX (Founder-Portal-Aktion, EVIDENZBASIERT nicht auf Verdacht):** "Inter-App Audio"-Capability
+  auf der App-ID com.echoelmusic.app im Developer-Portal aktivieren → neu archivieren → Signing
+  behält die Entitlement → Prozess kann Fremd-AUv3 enumerieren. CI-Step (testflight.yml) meldet
+  jetzt PRESENT ✅ / STRIPPED ❌ mit genau dieser Fix-Anweisung.
+- **Rest-Unbekannte:** ob Apple die Capability auf iOS 18 noch anbietet/honoriert (IAA seit iOS 13
+  deprecated). Test ist billig: aktivieren → CI meldet PRESENT → deployen → Founder scannt. Wenn
+  Fremd-AUs erscheinen = GELÖST. Wenn nicht hinzufügbar = definitiv ausgeschlossen.
+- Code-seitig bereits erledigt: Registration-Notification-Observer + Re-Scan (Research-Ursache C).
+- **Review:** 2026-08-20.

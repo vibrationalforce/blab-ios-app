@@ -478,21 +478,24 @@ jobs:
           [ -n "$PRINCIPAL" ] || fail "NSExtensionPrincipalClass missing"
           echo "AUv3 embed OK: $APPEX ($EXEC), component $TYPE/$SUB/$MFR, principal $PRINCIPAL"
 
-      # AUv3-HOST-ENTITLEMENT-SICHTBARKEIT (device 2026-07-19).
-      # HISTORY & HONEST CORRECTION: v300 (fail-on-stripped) PROVED via its red run
-      # that inter-app-audio is stripped from the signed app — the auto-managed
-      # "iOS Team Provisioning Profile" does not carry the (deprecated) Inter-App
-      # Audio capability, so automatic signing drops it. That fact is now captured.
-      # BUT the hypothesis that inter-app-audio gates third-party AUv3 discovery is
-      # very likely WRONG: modern iOS AUv3 hosting via AVAudioUnitComponentManager
-      # needs NO entitlement (AUM/GarageBand/Drambo enumerate without it). The real,
-      # host-independent symptom is that EchoelBodyVibe fails to INSTANTIATE (AUM
-      # "sees but won't open"; our self-probe returns -3000 invalidComponentID =
-      # "not registered on this device / reinstall territory") — a pluginkit
-      # registration/appex issue, not a host entitlement. So this step is now a
-      # NON-BLOCKING visibility report only: it records the signed-entitlement state
-      # in the job summary but NEVER fails the build (a permanently-red required gate
-      # would block every deploy for an entitlement that probably doesn't matter).
+      # AUv3-HOST-ENTITLEMENT-SICHTBARKEIT (device 2026-07-19; re-corrected 2026-07-20).
+      # v300 (fail-on-stripped) PROVED inter-app-audio is STRIPPED from the signed app:
+      # automatic signing can only provision a capability the App ID already has enabled
+      # in the portal, and com.echoelmusic.app does NOT have "Inter-App Audio" enabled,
+      # so the declared entitlement is dropped at signing.
+      # DEEP-RESEARCH CORRECTION (2026-07-20, Apple DevForums 127481 + 89762, EXACT
+      # symptom "AVAudioUnitComponentManager returns only Apple AUs, zero third-party"):
+      # since iOS 11 the inter-app-audio ENTITLEMENT gates a process's ability to SCAN
+      # third-party audio components at all — with it absent, discovery returns Apple
+      # built-ins only (precisely Echoel's symptom). The IAA *protocol* is deprecated,
+      # but the *entitlement* still gates scanning. (The earlier "probably doesn't gate
+      # discovery" note was wrong; it conflated the deprecated protocol with the still-
+      # active scan gate, and used the SEPARATE own-appex -3000 pluginkit issue to
+      # dismiss it.) THE FIX is a portal action: enable "Inter-App Audio" on the
+      # com.echoelmusic.app App ID; then this entitlement survives signing and the
+      # process can enumerate third-party AUv3. Residual unknown: whether Apple still
+      # offers/honors the capability on iOS 18 — this report is how we verify it took.
+      # Still NON-BLOCKING (a permanently-red gate would block every deploy).
       - name: "Report Inter-App-Audio entitlement in the SIGNED app (non-blocking)"
         run: |
           APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
@@ -501,13 +504,13 @@ jobs:
           echo "$ENT" | grep -iE "inter-app|application-identifier|application-groups|aps-environment|healthkit" || echo "(none matched)"
           if echo "$ENT" | grep -qi "inter-app-audio"; then
             echo "AUV3 inter-app-audio: PRESENT in signed binary"
-            echo "ℹ️ AUv3 host entitlement inter-app-audio PRESENT in signed app" >> $GITHUB_STEP_SUMMARY
+            echo "✅ AUv3 host entitlement inter-app-audio PRESENT in signed app — third-party AU scanning is unblocked (verify on device)" >> $GITHUB_STEP_SUMMARY
           elif [ -z "$(echo "$ENT" | tr -d '[:space:]')" ]; then
             echo "::warning title=AUv3 entitlement check inconclusive::codesign returned no entitlements."
             echo "⚠️ AUv3 entitlement check inconclusive (codesign empty)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "::warning title=AUv3 inter-app-audio stripped::inter-app-audio not in signed app (managed profile lacks the deprecated capability). Likely irrelevant to AUv3 discovery — see appex-instantiation track."
-            echo "ℹ️ AUv3 host entitlement inter-app-audio STRIPPED (managed profile) — non-blocking; not believed to gate discovery" >> $GITHUB_STEP_SUMMARY
+            echo "::warning title=AUv3 inter-app-audio STRIPPED — likely the third-party-discovery gate::Enable 'Inter-App Audio' on the com.echoelmusic.app App ID in the developer portal, then re-archive (Apple DevForums 127481/89762)."
+            echo "❌ AUv3 inter-app-audio STRIPPED from the signed app — this is the documented gate for third-party AU discovery (DevForums 127481/89762). FIX: enable 'Inter-App Audio' on the com.echoelmusic.app App ID in the portal, then re-archive; automatic signing will keep it." >> $GITHUB_STEP_SUMMARY
           fi
 
       # AUv3-APPEX-SIGN-DIAGNOSE (device try 1/3 2026-07-20: self-probe still FAILED
