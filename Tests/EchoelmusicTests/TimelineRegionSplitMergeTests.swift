@@ -170,6 +170,21 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
         XCTAssertEqual(m.lengthTicks, r.lengthTicks)
     }
 
+    /// Ultra-audit heal (2026-07-20): a clean split must stay rejoinable even AFTER
+    /// the project tempo moves. The old seconds-domain contiguity check drifted with
+    /// tempo and silently refused the re-join; the tick-twin check is tempo-invariant.
+    func testSplitThenMerge_rejoinsAfterTempoChange() {
+        let r = region(start: 0, length: 1920, offset: 0)
+        let (first, second) = try! XCTUnwrap(r.split(at: 640, bpm: 120))   // cut at 120 BPM
+        // Re-join checked at a DIFFERENT tempo — must still abut (regression guard).
+        XCTAssertTrue(first.abuts(second, bpm: 90),
+                      "a clean split stays rejoinable after the tempo changes")
+        XCTAssertTrue(first.abuts(second, bpm: 174),
+                      "…at any tempo, not just the split tempo")
+        let m = first.merged(with: second)
+        XCTAssertEqual(m.lengthTicks, r.lengthTicks, "re-join reconstructs the whole region")
+    }
+
     // MARK: - Stretch mode (the editor's Warp/Tape choice persists onto the placement)
 
     func testRegion_defaultStretchModeIsClean() {

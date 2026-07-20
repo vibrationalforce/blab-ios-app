@@ -249,7 +249,10 @@ final class VideoRecorder {
         }
         let dir = docs.appendingPathComponent("Videos", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let stamp = Int(Date().timeIntervalSince1970)
+        // Collision-proof: a 1-second-resolution stamp alone lets a rapid re-record
+        // reuse the same filename → AVAssetWriter fails to .error and no video saves.
+        // Keep the epoch prefix for human sortability, add a UUID suffix for uniqueness.
+        let stamp = "\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(8))"
         return dir.appendingPathComponent("echoel_\(stamp).mp4")
     }
 

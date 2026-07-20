@@ -312,7 +312,9 @@ public final class ArtNetSender {
         }
     }
 
-    private static func clampUnit(_ x: Float) -> Float { Swift.min(Swift.max(x, 0), 1) }
+    // NaN-safe: a non-finite bio/music channel (NaN/Inf) would otherwise reach
+    // UInt8(_ * 255) / UInt16(_ * 65535) below and TRAP the app. Map non-finite → 0.
+    private static func clampUnit(_ x: Float) -> Float { Swift.min(Swift.max(x.isFinite ? x : 0, 0), 1) }
     private static func byte(_ unit: Float) -> UInt8 { UInt8(clampUnit(unit) * 255) }
 
     /// A unit value as a 16-bit coarse(MSB)+fine(LSB) DMX channel pair.

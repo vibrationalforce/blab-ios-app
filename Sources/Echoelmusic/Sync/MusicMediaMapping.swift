@@ -70,7 +70,9 @@ public enum MusicMediaMap {
 
     // MARK: Helpers (match ArtNetSender's byte/word encoding)
 
-    private static func clampUnit(_ x: Float) -> Float { Swift.min(Swift.max(x, 0), 1) }
+    // NaN-safe (mirrors ArtNetSender): a non-finite channel would trap byte()/word()
+    // in the UInt8/UInt16 conversion below. Map non-finite → 0.
+    private static func clampUnit(_ x: Float) -> Float { Swift.min(Swift.max(x.isFinite ? x : 0, 0), 1) }
     private static func clamp(_ v: Float, _ lo: Float, _ hi: Float) -> Float { Swift.min(Swift.max(v, lo), hi) }
     private static func byte(_ unit: Float) -> UInt8 { UInt8(clampUnit(unit) * 255) }
     private static func word(_ unit: Float) -> [UInt8] {

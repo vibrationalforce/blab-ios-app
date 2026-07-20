@@ -332,6 +332,14 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
               gain == other.gain, warpEnabled == other.warpEnabled,
               stretchMode == other.stretchMode
         else { return false }
+        // Prefer the tempo-invariant tick twin (M1b) when present: a clean split
+        // keeps `second.contentOffsetTicks == first.contentOffsetTicks + first.lengthTicks`
+        // at ANY tempo, so Join stays losslessly reversible after the project tempo
+        // moves (the seconds check below drifts and silently refuses the re-join).
+        if contentOffsetTicks > 0 || other.contentOffsetTicks > 0 {
+            return other.contentOffsetTicks == contentOffsetTicks + lengthTicks
+        }
+        // Legacy regions (no tick twin) fall through to the original seconds check.
         let expectedOffset = contentOffsetSeconds
             + TimelineTime.seconds(fromTicks: lengthTicks, bpm: bpm)
         return abs(other.contentOffsetSeconds - expectedOffset) < 1e-6
