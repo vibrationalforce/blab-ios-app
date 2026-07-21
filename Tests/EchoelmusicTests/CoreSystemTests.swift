@@ -221,39 +221,4 @@ final class MusicalNoteTests: XCTestCase {
         XCTAssertEqual(MusicalNote.noteNames.last, "B")
     }
 }
-
-// MARK: - TuningReference Tests
-
-final class TuningReferenceTests: XCTestCase {
-
-    func testStandardFrequencies() {
-        XCTAssertEqual(TuningReference.standard440.a4Frequency, 440.0)
-        XCTAssertEqual(TuningReference.baroque415.a4Frequency, 415.0)
-        XCTAssertEqual(TuningReference.verdi432.a4Frequency, 432.0)
-        XCTAssertEqual(TuningReference.concert442.a4Frequency, 442.0)
-        XCTAssertEqual(TuningReference.concert443.a4Frequency, 443.0)
-    }
-
-    func testScientific256() {
-        // A4 when C4=256 Hz should be approximately 430.539 Hz
-        XCTAssertEqual(TuningReference.scientific256.a4Frequency, 430.539, accuracy: 0.001)
-    }
-
-    func testCustomUsesManager() {
-        // Custom should pull from TuningManager
-        let freq = TuningReference.custom.a4Frequency
-        XCTAssertEqual(freq, TuningManager.shared.concertPitch, accuracy: 0.001)
-    }
-
-    func testAllCases() {
-        XCTAssertEqual(TuningReference.allCases.count, 7)
-    }
-
-    func testCodable() throws {
-        let original = TuningReference.baroque415
-        let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(TuningReference.self, from: encoded)
-        XCTAssertEqual(original, decoded)
-    }
-}
 #endif

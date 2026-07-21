@@ -7,6 +7,12 @@
 import XCTest
 @testable import Echoelmusic
 
+// @MainActor: the property defaults below read PianoRollModel.highPitch/lowPitch/
+// stepCount, which are main-actor-isolated statics on the @MainActor model — reading
+// them as stored-property defaults in a nonisolated XCTestCase is
+// "main actor-isolated default value in a nonisolated context". The hit-test itself
+// (RollHitTest.classify) stays pure; isolating the test class is the minimal fix.
+@MainActor
 final class RollHitTestTests: XCTestCase {
 
     // Canonical geometry for the tests.
