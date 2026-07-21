@@ -106,6 +106,7 @@ final class TimelineTests: XCTestCase {
 
     // MARK: - Legacy-song migration (Stage 1b)
 
+    @MainActor
     func testMigration_sectionsBecomeBarAlignedRegionsOnMIDILane() {
         let clipA = UUID(), clipB = UUID()
         let sections = [
@@ -132,6 +133,7 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(doc.regions(in: doc.lanes[1].id), [])
     }
 
+    @MainActor
     func testMigration_emptySong_seedsDefaultLanesOnly() {
         let doc = TimelineStore.migrate(sections: [])
         XCTAssertEqual(doc.lanes.count, 2)

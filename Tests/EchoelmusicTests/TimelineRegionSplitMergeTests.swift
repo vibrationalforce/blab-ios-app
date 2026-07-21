@@ -234,6 +234,15 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
 @MainActor
 final class TimelineStoreSplitMergeTests: XCTestCase {
 
+    // Pure-region helpers for the CLIP-6 gain / split-value tests below. The
+    // store-level tests declare their own local lane/clip (which shadow these).
+    private let lane = UUID()
+    private let clip = UUID()
+    private func region(start: Int, length: Int, offset: Double = 0) -> TimelineRegion {
+        TimelineRegion(laneID: lane, clipID: clip, startTick: start,
+                       lengthTicks: length, contentOffsetSeconds: offset)
+    }
+
     func testSplitRegions_razorsEveryCrossedRegion_thenJoinRestores() {
         let store = TimelineStore()
         // Unique lane/clip so this test counts only ITS regions — a fresh TimelineStore
