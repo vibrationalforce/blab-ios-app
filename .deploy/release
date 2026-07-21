@@ -1,40 +1,46 @@
-build: 2026-07-21B — MIDI-Import-Fix + SpectralColor-Korrekturen + Test-Suite-Health (#78)
+build: 2026-07-21C — Audio-Lane-Hook (flag OFF) + Genre-Intro-Fix (#77) + Website-SEO (#52) + Clip-Zittern-Debounce (#56 C6)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder "Mach gerne erstmal alles fertig und dann TestFlight mit Checkliste" — sichere,
-  bereits reviewte Fixes seit dem letzten Build (0f1120c) gebündelt.
+notes: Founder "Ultracode Ultracontext Ultragreballtasks Arbeite alles ab dann TestFlight deploy" —
+  Backlog-Triage-Workflow (8 parallele Survey-Agenten über den offenen Baustellen-Stand) +
+  sequenzielle Umsetzung jedes tatsächlich blind-bearbeitbaren Punkts, jeder mit Pflicht-Reviewer
+  vor dem Commit. Danach echte Founder-Ohr-Antwort zu #77 eingearbeitet.
 
-  Seit dem letzten Deploy (0f1120c) auf dem Branch:
-  · MIDI-Import-Fix (5fbc498): `MIDIFileImporter` las das division-Feld am falschen Byte-Offset
-    (u16(8) statt u16(12) — SMF-Spec-Bug, gegen `MIDIFileExporter`s Schreib-Reihenfolge
-    verifiziert). Importierte MIDI-Dateien hatten dadurch die falsche Ticks-pro-Viertel-Auflösung.
-    Reviewer-PASS (Offset-Mathematik, Bounds-Sicherheit, kein Audio-Thread-Kontakt).
-  · 2 echte SpectralColor-Bugs behoben (d517cac), Swift UND der gespiegelte Metal-Shader
-    (MetalBioView) synchron gefixt (Design-Invariante: beide müssen übereinstimmen):
-    - Akkord-Farb-Mittelung deckelte bei 6 Partialtönen statt 12 (zu grobe Clusterfarbe bei
-      dichten Akkorden).
-    - Wellenlängen→RGB-Gamut-Mapping clippte negative Farbkanäle VOR der Normierung — das
-      kollabierte eine ganze Farbtonbande auf falsche Werte. Jetzt: entsättigen (den negativsten
-      Kanal abziehen), dann normieren — korrekte Farbtreue quer über das Spektrum.
-    - Beide von einer eigenen dsp-reviewer-Untersuchung numerisch verifiziert (Python-Portierung
-      beider Algorithmen, Fix bestätigt ohne Regression auf ~25 weiteren Tests).
-  · #78 Test-Suite-Health: der volle 294-Datei-Testlauf (`full-tests.yml`, non-blocking Reveal)
-    läuft jetzt bis auf EINEN bekannten, dokumentierten Rest sauber durch — 15+ echte
-    Test-/Sources-Bugs in dieser Zyklusreihe gefunden und behoben (u.a. BioSignalDeconvolver
-    Stateful-Doppel-Call, EchoelDDSP-Default-Drift, VideoInTracks-Zeitrechnung,
-    SpectralColor-Notenposition-Präzision). Offen bleibt NUR das Bundling der
-    Community-FX/Mood-Presets (kosmetisch — betrifft ausschließlich optionale
-    Community-Beispiel-Presets, kein Crash, kein Kernfeature; 4 Fixversuche dokumentiert in
-    memory/decisions.md, braucht echten Xcode-Zugriff zur Diagnose).
-  · Tracker-Bereinigung: mehrere veraltete Plan-/Status-Einträge (Leiste-Auflösung,
-    Modus-Wechsel-Türen, Convergence-Batch) gegen den tatsächlichen Code verifiziert und
-    korrigiert — keine Funktionsänderung, nur ehrliche Buchführung für künftige Zyklen.
+  Seit dem letzten Deploy (5d79e9a) auf dem Branch:
+  · Task #13 S1 (b1a38b9): RecordController bekommt einen AudioTakeRecording-Protokoll-Seam,
+    der MultiTrackRecorder ohne AVFoundation-Import ansteuern kann — FeatureFlags.audioLaneRecording
+    bleibt OFF, also Verhalten-identisch zu vorher. audio-thread-reviewer fand + ich fixte VOR dem
+    Push eine echte Re-Entrancy-Race: ein überlappender Transport.stop() (z.B. der bestehende
+    Route-Loss-Handler) hätte eine noch-nicht-fertige Audio-Aufnahme still verwerfen können.
+  · Task #77 (0bc1a9d): direkte Founder-Ohr-Rückmeldung "viele klingen am Anfang etwas zu unruhig
+    wegen lauter Melodie" — die Lead-Melodie tritt jetzt in Bar 0 einer frischen Aufnahme leiser
+    ein (0.72×), die Groove-Spuren (Bass/Pad/Drums) bekommen einen Takt Vorlauf. code-reviewer
+    fing einen echten Bug in der ersten Umsetzung (Dämpfung landete VOR arrangementBars, wiederholte
+    sich also JEDE Loop-Runde statt nur einmal) — korrigierte Verdrahtung sitzt jetzt in
+    PianoRollModel.loadArrangement, nur der einmalige Stopped-Load wird gedämpft. Bekannte,
+    akzeptierte Grenze: ein 1-Bar-Loop erreicht den Pfad nicht (fällt auf den unveränderten
+    load()-Fallback).
+  · Task #52 Website-SEO (01b913f, 34d2771): press.html (seit 07-16 live) fehlte im Sitemap UND
+    war von keiner Seite aus klickbar — beides nachgezogen (Sitemap-Eintrag + Footer-Link auf der
+    Startseite). Reine docs/-Änderung, kein Sources-Risiko.
+  · Task #56 C6 (4b75941): TimelineStore.persist() schrieb bei JEDER der ~47 Mutations-Stellen
+    synchron JSON auf Disk — genau der Frame, an dem ein Clip-Drag-Release schon snapt/magnetet,
+    was zur "Zittern"-Beschwerde beitrug. Disk-Write ist jetzt debounced (nur der letzte Write
+    einer Serie landet wirklich); In-Memory-Dokument + onDocumentChanged bleiben synchron.
+    flushPendingSave() erzwingt einen sofortigen Write, verdrahtet in den .background-Übergang,
+    damit ein Edit im Debounce-Fenster nie verloren geht. concurrency-reviewer fing 2 bestehende
+    Tests, die einen synchronen Write annahmen — beide auf flushPendingSave() vor dem Reload
+    umgestellt.
 
-  Bekannte offene Punkte (bewusst NICHT in diesem Build angefasst, device-gated oder
-  founder-gated): Automation-Präzisions-Editor-Umstellung auf song-absolute Ticks (S2,
-  Canvas-Retarget ohne Simulator/Gerät nicht verifizierbar), Clip-Zittern-Restkandidaten C3/C6/C7
-  (warten auf eine echte Echoel-Bildschirmaufnahme), Genre-Klang-Verbesserung #77 (Root-Cause
-  bereits in 0f1120c enthalten — wartet auf dein Ohr-Feedback), AUv3 "-3000" (Portal/Registrierung,
-  nicht durch Code lösbar).
+  Bekannte offene Punkte (bewusst NICHT in diesem Build angefasst, device-gated/founder-gated/
+  bewusst sequenziert): Automation-Präzisions-Editor-Retarget (S2, Gerät nötig), Clip-Zittern
+  C3/C7 (warten auf eine echte Bildschirmaufnahme), AUv3 "-3000" (Portal/Registrierung),
+  EchoelPublish/Weather-Synth/EEG-Quelle/Bio-Session-Brain (bewusster Ideen-Parkplatz, erst nach
+  der A-Serie), Leiste-Verteilung S2-S6 (wartet auf eine Founder-Redesign-Entscheidung — Mix/
+  Synth/Sound-Chips tragen einzigartige Funktionen, die sonst verwaisen würden), BodyVibe
+  Kamera-Modulator (Info.plist-Datenschutztext braucht Founder-Freigabe vor Flag-ON), DAW#4
+  Video-Spuren (kein sicherer nicht-geräte-gebundener Slice gefunden).
 
-  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf jedem Commit dieser Reihe
-  (zuletzt verifiziert auf 7124471, dem letzten Sources-Commit vor diesem Deploy).
+  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf jedem Sources-Commit dieser
+  Reihe (zuletzt verifiziert auf 4b75941, dem letzten Commit vor diesem Deploy). Jeder
+  Sources-Commit hatte vor dem Push einen Pflicht-Reviewer-Pass (audio-thread-reviewer × 1,
+  code-reviewer × 1, concurrency-reviewer × 1).
