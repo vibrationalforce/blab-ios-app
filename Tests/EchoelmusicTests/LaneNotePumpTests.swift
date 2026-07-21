@@ -11,6 +11,18 @@ final class LaneNotePumpTests: XCTestCase {
         pump.step(step).map { ($0.pitch, $0.isOn) }
     }
 
+    // `[(Int, Bool)]` can't use XCTAssertEqual — a tuple can't conform to Equatable
+    // (though `(Int, Bool) == (Int, Bool)` is synthesized). Compare element-wise so
+    // the terse `[(pitch, isOn)]` literals stay readable.
+    private func assertFires(_ actual: [(Int, Bool)], _ expected: [(Int, Bool)],
+                             file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(actual.count, expected.count,
+                       "event count \(actual) vs \(expected)", file: file, line: line)
+        for (a, e) in zip(actual, expected) {
+            XCTAssertTrue(a == e, "\(a) != \(e)", file: file, line: line)
+        }
+    }
+
     func testEmptyPumpIsIdle() {
         var pump = LaneNotePump()
         XCTAssertTrue(pump.isEmpty)
@@ -22,14 +34,14 @@ final class LaneNotePumpTests: XCTestCase {
         var pump = LaneNotePump()
         // One 1-step note at step 4 (start tick 480, length 120 → endStep 5).
         pump.load([Note(pitch: 60, startStep: 4, lengthSteps: 1, velocity: 0.7)])
-        XCTAssertEqual(fire(&pump, 3), [])
+        assertFires(fire(&pump, 3), [])
         // Onset at step 4.
         let on = fire(&pump, 4)
-        XCTAssertEqual(on, [(60, true)])
+        assertFires(on, [(60, true)])
         XCTAssertEqual(pump.soundingPitches, [60])
         // Release at step 5 (exclusive end).
         let off = fire(&pump, 5)
-        XCTAssertEqual(off, [(60, false)])
+        assertFires(off, [(60, false)])
         XCTAssertTrue(pump.soundingPitches.isEmpty)
     }
 
@@ -66,12 +78,12 @@ final class LaneNotePumpTests: XCTestCase {
         // A whole-bar note: start 0, length 16 → endStep 16, 16 % 16 == 0.
         pump.load([Note(pitch: 36, startStep: 0, lengthSteps: 16, velocity: 0.9)])
         // Bar 1 onset.
-        XCTAssertEqual(fire(&pump, 0), [(36, true)])
+        assertFires(fire(&pump, 0), [(36, true)])
         // Nothing mid-bar.
-        for s in 1..<16 { XCTAssertEqual(fire(&pump, s), []) }
+        for s in 1..<16 { assertFires(fire(&pump, s), []) }
         // Bar 2 step 0: release the old, then re-attack — clean loop.
         let wrap = fire(&pump, 0)
-        XCTAssertEqual(wrap, [(36, false), (36, true)])
+        assertFires(wrap, [(36, false), (36, true)])
         XCTAssertEqual(pump.soundingPitches, [36])
     }
 
@@ -84,7 +96,7 @@ final class LaneNotePumpTests: XCTestCase {
         ])
         _ = pump.step(0)                      // A on
         let s4 = fire(&pump, 4)               // A off, then B on
-        XCTAssertEqual(s4, [(62, false), (62, true)])
+        assertFires(s4, [(62, false), (62, true)])
         XCTAssertEqual(pump.soundingPitches, [62])
     }
 
