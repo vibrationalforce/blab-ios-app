@@ -4,6 +4,27 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-21 Task #77 done: no genre auto-generates a lead melody (leadDensity → 0 everywhere); rhythmic-diversity ask deferred to its own PLAN
+- **Founder ear-feedback:** "Die Genres Psytrance bis Rocksteady werden sehr stressig wegen den
+  Melodien. Melodien sollen die Leute selbst machen." Council (inline) extended the named
+  17-genre range to all 23 genres in `MusicStyle.swift` for a uniform invariant — no genre should
+  be a silent exception a future edit could reintroduce. `harmonicProfile.leadDensity` is now
+  `0.0` everywhere; `BioComposer` gates its whole lead-generation path behind `leadDensity > 0`,
+  so it never emits an auto lead note for any style. `leadPatchName` (the lead voice's warm
+  timbre) is untouched — a user playing their own melody still gets the genre-appropriate patch.
+  Shipped `9dce29b`; code-reviewer caught one missed test (`NoteRoleTests.swift`) that would have
+  broken on the next run — fixed before commit. Two now-permanently-vacuous emergent tests were
+  deleted (not `XCTSkip`'d — the premise is permanently false, not conditionally false) and one
+  new canonical invariant test added to `MusicStyleTests.swift`.
+- **Second, larger founder ask same message:** "Ansonsten ist rhythmische Vielfalt bei allen
+  Genres gefragt, die sich am Biofeedback orientieren soll." — deliberately NOT started this
+  cycle. This touches `BioComposer.swift`'s shared beat-archetype functions (`fourOnFloorBeat`/
+  `backbeatBeat`/`offbeatBeat`/`halfTimeBeat`, each reused across 3-6 genres) and needs its own
+  PLAN + Council pass first (same discipline as "Automation in der Spur"), logged in
+  `decisions.csv` as `task-rhythmic-diversity-biofeedback-deferred`.
+
+---
+
 ### 2026-07-21 CommunityLibrary/MoodPreset JSON bundling: 4 attempts failed, sandbox diagnostics exhausted — parking, do not retry blind
 - **Symptom:** `CommunityLibraryTests.testBundledFXCommunity_loadsSeededExample` /
   `testCuratedCommunity_includesBundledCommunity` and `MoodPresetTests.testBundledCommunity_loadsSeededExample`
