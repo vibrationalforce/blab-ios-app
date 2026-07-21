@@ -1250,6 +1250,12 @@ public final class EchoelDDSP: @unchecked Sendable {
     private var _smoothedAmplitude: Float = 0.45
     private var _spectralUpdateCounter: Int = 0
     private var _lfoPhase: Float = 0  // Internal LFO for filter sweep
+    // coherenceTrend→morph change-gate (audio-thread review): remember the last morph
+    // shape/position we actually applied so the 10 Hz mapping only calls setMorphPosition
+    // (which rewrites the shared pre-allocated spectral buffer) on a REAL change — never
+    // every frame on a slow trend. -1 = "nothing applied yet".
+    private var _lastMorphPos: Float = -1
+    private var _lastMorphShape: SpectralShape? = nil
 
     /// Patch-baseline timbre values, captured in `SynthPatch.apply(to:)`. Biofeedback
     /// modulates SUBTLY AROUND these (founder: "Biofeedback ändert dann nur subtil die Filter
@@ -1271,10 +1277,18 @@ public final class EchoelDDSP: @unchecked Sendable {
         profile: BioMapProfile = .natural
     ) {
         // =====================================================================
-        // BIO-REACTIVE MAPPINGS — DESIGNED TO BE AUDIBLE
-        // Each mapping must produce a change the user can HEAR.
-        // Previous ranges were too subtle (0.15-0.45 brightness = inaudible).
-        // Now: dramatic but musical. The user must FEEL their body in the sound.
+        // BIO-REACTIVE MAPPINGS — AUDIBLE DEVIATION AROUND THE CHOSEN PATCH (ONE LAW)
+        // Each bio input is an audible-sized, CLAMPED deviation around the patch's own
+        // value, CENTERED on the neutral reading (HRV 0.5, trend 0, breath a ≤1.0
+        // factor) so a resting body = exactly the patch's sound. Audible enough to hear
+        // the body (fixes #77 "genres sound the same"), bounded so the chosen character
+        // survives (honours the A8 audit: never an absolute overwrite that plasters
+        // every patch to one timbre). Physiology is a MODULATION SOURCE + self-observation
+        // only — no health claim, no valence on any timbre direction.
+        // NOTE: for BioReactiveSynthVoice this function runs ON the audio render thread
+        // (SPSC-drained inside render(), see header L54-60). Every line here is
+        // allocation-free EVEN ON the audio thread: scalar/C-math into pre-allocated
+        // buffers only — never add an Array/String/dictionary/lock/Task here.
         // =====================================================================
 
         let smoothCoeff: Float = 0.92  // Slightly faster response than 0.95
@@ -1292,12 +1306,17 @@ public final class EchoelDDSP: @unchecked Sendable {
         let baseFilter: Float = 0.08 + coherence * 0.35  // 0.08-0.43 base
         let hrShift: Float = heartRate * 0.2               // +0.0-0.2 from HR
         let lfoSweep: Float = lfoValue * 0.15              // ±0.15 LFO sweep
-        let targetBrightness = (baseFilter + hrShift + lfoSweep).clamped(to: 0.05...0.8)
+        // HRV variability → brightness: ±0.10 deviation centered on neutral HRV 0.5 (more
+        // beat-to-beat variation right now = a notch more open overtones). Brightness carries
+        // no patch character (A8), so a bold-but-clamped term here is audible without
+        // threatening the chosen timbre. HRV also keeps colouring reverbMix at L1330.
+        let hrvBright: Float = (hrvVariability - 0.5) * 0.20
+        let targetBrightness = (baseFilter + hrShift + lfoSweep + hrvBright).clamped(to: 0.05...0.8)
         _smoothedBrightness = _smoothedBrightness * smoothCoeff + targetBrightness * (1.0 - smoothCoeff)
         brightness = _smoothedBrightness
 
         // Filter opens with coherence — starts at 220 Hz (dark), blooms toward 1800 Hz (open)
-        // Coherence drives the opening (body must relax to hear the filter open)
+        // Higher coherence opens the filter (instrument-control mapping, no wellness valence)
         // Very slow smoothing (α=0.97) for silky transitions
         let targetCutoff: Float = 200 + coherence * 1600
         filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03
@@ -1313,7 +1332,15 @@ public final class EchoelDDSP: @unchecked Sendable {
         let ampBase: Float = 0.35 + coherence * 0.15     // Calm = fuller
         let ampPulse: Float = ampBase + lfoValue * 0.12   // 0.35-0.62 range — gentler
         _smoothedAmplitude = _smoothedAmplitude * smoothCoeff + ampPulse * (1.0 - smoothCoeff)
-        amplitude = _smoothedAmplitude
+        // Breath phase → amplitude swell (ALL profiles — the sound rises and falls with the
+        // breath). Raised cosine: 0 at the exhale trough AND the phase wrap, 1 mid-breath — its
+        // merit is that TROUGH PLACEMENT (loudest mid-cycle, quiet at both ends), giving one
+        // clean swell per breath. Downward-only factor (≤ 1.0) so it can never push past the
+        // −1 dBFS master trim. Written into `amplitude`, NOT `_smoothedAmplitude`, so the swell
+        // never accumulates in the one-pole state.
+        let breathSwell: Float = 0.5 - 0.5 * cosf(breathPhase * 2 * .pi)
+        let swellDepth: Float = (profile == .harmonicSeries) ? 0.18 : 0.10
+        amplitude = (_smoothedAmplitude * (1.0 - swellDepth + swellDepth * breathSwell)).clamped(to: 0...1)
 
         // 3. Heart rate → Vibrato depth — GENTLE drift, not a wobble (founder: bio should be
         //    subtle). ~0.4 cent at rest → ~2.4 cent when active, a fraction of the old range.
@@ -1337,14 +1364,39 @@ public final class EchoelDDSP: @unchecked Sendable {
         lfoToFilterDepth = 0.05 + breathDepth * 0.3  // Deeper breath = more filter movement
 
         // HARMONIC-SERIES profile (opt-in; §1.2). Body drives the harmonic structure:
-        // HRV opens the overtone richness (variability → harmonic spread), and the
-        // breath phase swells the amplitude (audible breath). Overrides two outputs on
-        // top of the natural mappings; `.natural` skips this entirely (identical sound).
+        // HRV opens the overtone richness (variability → harmonic spread). `.natural`
+        // skips this (identical sound). The breath-amplitude swell now lives in the shared
+        // path above (a deeper swellDepth for .harmonicSeries), so it is NOT re-applied here.
         // 10 Hz control-plane writes; the render loop re-smooths harmonicity/gain.
         if profile == .harmonicSeries {
             harmonicity = (0.40 + hrvVariability * 0.50).clamped(to: 0.05...0.98) // HRV → overtone spread
-            let breathSwell = 0.5 + 0.5 * sinf(breathPhase * 2 * .pi)              // 0..1 over the breath
-            amplitude = (amplitude * (0.82 + 0.18 * breathSwell)).clamped(to: 0...1)
+        }
+
+        // 8. Coherence TREND → slow spectral morph (INTENTIONALLY THE LAST spectral write:
+        //    it must win over the earlier brightness.didSet rebuild). A slope (not an instant
+        //    value) leans the spectrum around the patch's OWN shape — morphPosition 0 == the
+        //    patch's spectralShape, so this is a deviation-from-baseline that RELEASES to the
+        //    pure base at neutral trend (re-enabling spectralShape.didSet, guarded by
+        //    `morphTarget == nil`). rising→.natural / falling→.metallic is an ARBITRARY
+        //    engineering mapping with NO wellbeing valence — user-facing copy must NEVER call a
+        //    rising-coherence sound "purer/calmer/better/healthier". Assign morphTarget DIRECTLY
+        //    (never startMorph — it re-zeros morphPosition every call). CHANGE-GATED so the
+        //    shared spectral-buffer rebuild fires only on a real change, not every 10 Hz frame.
+        let trendMag = abs(coherenceTrend)
+        if trendMag < 0.10 {                                   // deadband → release to the patch shape
+            if morphTarget != nil {
+                morphTarget = nil                              // clear FIRST so the crossfade is skipped …
+                setMorphPosition(0)                            // … and the PURE base envelope is rebuilt this frame
+                _lastMorphShape = nil; _lastMorphPos = 0
+            }
+        } else {
+            let newShape: SpectralShape = coherenceTrend > 0 ? .natural : .metallic
+            let pos = Swift.min((trendMag - 0.10) / 0.90 * 0.30, 0.30)   // 0 at deadband edge → 0.30 cap
+            if newShape != _lastMorphShape || abs(pos - _lastMorphPos) > 0.005 {
+                morphTarget = newShape
+                setMorphPosition(pos)                          // clamps 0...1 AND rebuilds the crossfade this frame
+                _lastMorphShape = newShape; _lastMorphPos = pos
+            }
         }
     }
 

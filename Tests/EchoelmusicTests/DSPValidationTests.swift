@@ -89,18 +89,18 @@ final class BioReactiveDDSPValidationTests: XCTestCase {
 
     // MARK: - Breath → Amplitude & Noise Mapping
 
-    /// Breath phase 0 → low amplitude, breath phase 1 → high amplitude
+    /// Breath swell is a raised cosine: LOUDEST mid-breath (phase 0.5), quiet at the exhale
+    /// trough (phase 0.0 AND 1.0 are both troughs). Two fresh engines get the identical call
+    /// sequence so _smoothedAmplitude matches; only the breath multiplier differs.
     func testBreathPhaseToAmplitude() {
-        let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
-
-        ddsp.applyBioReactive(coherence: 0.5, breathPhase: 0.0)
-        let quietAmp = ddsp.amplitude
-
-        ddsp.applyBioReactive(coherence: 0.5, breathPhase: 1.0)
-        let loudAmp = ddsp.amplitude
-
-        XCTAssertLessThan(quietAmp, loudAmp,
-                          "Higher breath phase should produce louder amplitude")
+        let peak = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
+        let trough = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
+        for _ in 0..<40 {
+            peak.applyBioReactive(coherence: 0.5, breathPhase: 0.5)
+            trough.applyBioReactive(coherence: 0.5, breathPhase: 0.0)
+        }
+        XCTAssertGreaterThan(peak.amplitude, trough.amplitude,
+                             "Mid-breath swell peak is louder than the exhale trough")
     }
 
     /// Deep breathing → more filter LFO movement (breathing sweep). Since the A8
@@ -121,16 +121,19 @@ final class BioReactiveDDSPValidationTests: XCTestCase {
 
     // MARK: - Coherence Trend → Spectral Morphing
 
-    // #77 CANARY — vanished mapping. The current `applyBioReactive` accepts but never
-    // reads `coherenceTrend`; the coherence-trend → spectral-morph mapping is absent
-    // from the shipped path. Skipped, not rewritten-green — pending the founder #77
-    // decision (restore or retire). See BioDDSPMappingTests + status delta 2026-07-21.
-    func testRisingCoherenceMorphsToNatural() throws {
-        throw XCTSkip("#77: coherenceTrend→spectral-morph mapping absent in current applyBioReactive path. Founder decision pending.")
+    // #77 RESTORED: coherenceTrend leans the spectral morph (rising→.natural, falling→.metallic;
+    // arbitrary engineering shape names, no wellbeing valence). |trend| ≥ 0.10 deadband.
+    func testRisingCoherenceMorphsToNatural() {
+        let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
+        ddsp.applyBioReactive(coherence: 0.8, coherenceTrend: 0.8)
+        XCTAssertEqual(ddsp.morphTarget, .natural, "Rising coherence leans toward natural")
+        XCTAssertGreaterThan(ddsp.morphPosition, 0, "morph active above the deadband")
     }
 
-    func testFallingCoherenceMorphsToMetallic() throws {
-        throw XCTSkip("#77: coherenceTrend→spectral-morph mapping absent in current applyBioReactive path. Founder decision pending.")
+    func testFallingCoherenceMorphsToMetallic() {
+        let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
+        ddsp.applyBioReactive(coherence: 0.3, coherenceTrend: -0.8)
+        XCTAssertEqual(ddsp.morphTarget, .metallic, "Falling coherence leans toward metallic")
     }
 
     /// Stable coherence → no morphing
