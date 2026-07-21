@@ -398,7 +398,7 @@ final class EchoelDDSPParameterDefaultTests: XCTestCase {
     // MARK: - Harmonic Parameter Defaults
 
     func testDefault_frequency() {
-        XCTAssertEqual(ddsp.frequency, 220.0, "Default frequency should be 220.0 Hz")
+        XCTAssertEqual(ddsp.frequency, 110.0, "Default frequency should be 110.0 Hz (A2, deep warm base)")
     }
 
     func testDefault_harmonicLevel() {
@@ -406,27 +406,27 @@ final class EchoelDDSPParameterDefaultTests: XCTestCase {
     }
 
     func testDefault_harmonicity() {
-        XCTAssertEqual(ddsp.harmonicity, 0.7, accuracy: 0.001, "Default harmonicity should be 0.7")
+        XCTAssertEqual(ddsp.harmonicity, 0.88, accuracy: 0.001, "Default harmonicity should be 0.88 (clean pad)")
     }
 
     // MARK: - Noise Parameter Defaults
 
     func testDefault_noiseLevel() {
-        XCTAssertEqual(ddsp.noiseLevel, 0.3, accuracy: 0.001, "Default noiseLevel should be 0.3")
+        XCTAssertEqual(ddsp.noiseLevel, 0.01, accuracy: 0.001, "Default noiseLevel should be 0.01 (minimal, clean)")
     }
 
     // MARK: - Envelope Defaults
 
     func testDefault_amplitude() {
-        XCTAssertEqual(ddsp.amplitude, 0.8, accuracy: 0.001, "Default amplitude should be 0.8")
+        XCTAssertEqual(ddsp.amplitude, 0.5, accuracy: 0.001, "Default amplitude should be 0.5 (room for modulation)")
     }
 
     func testDefault_attack() {
-        XCTAssertEqual(ddsp.attack, 0.01, accuracy: 0.001, "Default attack should be 0.01")
+        XCTAssertEqual(ddsp.attack, 0.5, accuracy: 0.001, "Default attack should be 0.5 (audible but smooth)")
     }
 
     func testDefault_decay() {
-        XCTAssertEqual(ddsp.decay, 0.1, accuracy: 0.001, "Default decay should be 0.1")
+        XCTAssertEqual(ddsp.decay, 0.5, accuracy: 0.001, "Default decay should be 0.5 (moderate into sustain)")
     }
 
     func testDefault_sustain() {
@@ -434,7 +434,7 @@ final class EchoelDDSPParameterDefaultTests: XCTestCase {
     }
 
     func testDefault_release() {
-        XCTAssertEqual(ddsp.release, 0.3, accuracy: 0.001, "Default release should be 0.3")
+        XCTAssertEqual(ddsp.release, 2.0, accuracy: 0.001, "Default release should be 2.0 (ambient tail)")
     }
 
     func testDefault_envelopeCurve() {
@@ -444,11 +444,11 @@ final class EchoelDDSPParameterDefaultTests: XCTestCase {
     // MARK: - Reverb Defaults
 
     func testDefault_reverbMix() {
-        XCTAssertEqual(ddsp.reverbMix, 0.0, accuracy: 0.001, "Default reverbMix should be 0.0")
+        XCTAssertEqual(ddsp.reverbMix, 0.25, accuracy: 0.001, "Default reverbMix should be 0.25 (moderate reverb)")
     }
 
     func testDefault_reverbDecay() {
-        XCTAssertEqual(ddsp.reverbDecay, 1.5, accuracy: 0.001, "Default reverbDecay should be 1.5")
+        XCTAssertEqual(ddsp.reverbDecay, 2.0, accuracy: 0.001, "Default reverbDecay should be 2.0 (moderate tail)")
     }
 
     // MARK: - Spectral Control Defaults
@@ -458,7 +458,7 @@ final class EchoelDDSPParameterDefaultTests: XCTestCase {
     }
 
     func testDefault_brightness() {
-        XCTAssertEqual(ddsp.brightness, 0.5, accuracy: 0.001, "Default brightness should be 0.5")
+        XCTAssertEqual(ddsp.brightness, 0.25, accuracy: 0.001, "Default brightness should be 0.25 (dark trance character)")
     }
 
     // MARK: - Morphing Defaults
@@ -1354,7 +1354,7 @@ final class EchoelDDSPBrightnessRangeTests: XCTestCase {
     }
 
     func testBrightness_default() {
-        XCTAssertEqual(ddsp.brightness, 0.5, accuracy: 0.001)
+        XCTAssertEqual(ddsp.brightness, 0.25, accuracy: 0.001, "dark trance character default")
     }
 
     func testBrightness_settingZero() {
