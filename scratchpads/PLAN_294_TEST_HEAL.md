@@ -128,11 +128,28 @@ SynthPatchApply · TimelineStoreAutomationEdit(2).
   <=1.0 · abuts 0.5 (480 PPQ) · FXChain chorus-off · SessionNaming Drums4bar ·
   Reverb 0.25/2.0 · Cellular.reset singleCenter · Morph via setMorphPosition (×2).
 
+**Cycle 2 (2073b39 + f639f52 + b05a127 + 980d95e) — healed 4 clusters (11 tests):**
+- REAL-BUG: EchoelDDSP init negative-SAMPLERATE crash — generateReverbIR used the raw
+  `sampleRate` param → `Int(0.02*negative)` range trap. Surfaced AFTER cycle-1's #19 fix
+  un-blocked its test-runner clone (reveal-quirk in action). Fixed to `self.sampleRate`
+  (clamped `max(1,…)`). dsp-reviewer PASS: byte-identical valid path, NO remaining raw-param
+  trap in init.
+- TEST-DRIFT: DSPTests EchoelDDSP default/reverb params (frequency 110, harmonicity 0.88,
+  noiseLevel 0.01, amplitude 0.5; reverbMix 0.25) against verified Sources defaults.
+- TEST-DRIFT: PolySynthVoice allocation (7 tests) — noteOn/off/allOff only ENQUEUE to the
+  SPSC queue now; poly mutates on the audio thread inside renderOnAudioThread. Extracted the
+  render's note-drain into a byte-identical `drainNoteCommands()` shared by render + a
+  `#if DEBUG pumpNoteCommandsForTesting()`; tests pump before asserting. audio-thread-reviewer
+  PASS (render byte-identical, no audio-thread violation, DEBUG pump can't reach production).
+- TEST-DRIFT: breath→noise → breath→filter-movement (2 tests, BioIntegration + DSPValidation).
+  A8 audit moved breath depth off noiseLevel onto `lfoToFilterDepth = 0.05 + breathDepth*0.3`;
+  noise now tracks coherence. Both tests pinned coherence 0.5 → noise delta always 0. Assert
+  the real relationship (deeper breath → more filter movement).
+
 **Remaining for next cycles:**
 - TEST-DRIFT: #6 BioEndToEnd + #23 CrossSynth (applyBioReactive redesigned → rewrite to
-  direction/range asserts, not exact linear formulas) · #12-16 PolySynthVoice (noteOn now
-  only ENQUEUES to the SPSC queue; activeVoiceCount stays 0 until a render drains it → pump
-  a render block before asserting, or add a test-only sync drain).
+  direction/range asserts, not exact linear formulas). NOTE: verify against the 980d95e reveal
+  FIRST — some may already be green (breath-family healed this cycle).
 - SIM-ENV: #2/#3/#4 Community/Mood bundled JSON (`.process("Resources")` flattens subdirs →
   `urls(…subdirectory:"Community/fx")` nil; needs `.copy` of Resources/Community/** or a
   flattened-root loader — build-config, care) · #29/#30 TimelineStore AppGroupStore temp-dir
