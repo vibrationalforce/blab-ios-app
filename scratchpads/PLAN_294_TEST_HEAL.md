@@ -146,10 +146,30 @@ SynthPatchApply · TimelineStoreAutomationEdit(2).
   noise now tracks coherence. Both tests pinned coherence 0.5 → noise delta always 0. Assert
   the real relationship (deeper breath → more filter movement).
 
+**Cycle 3 (35fb16e) — BioDDSPMapping cluster + PolySynth unison (test-only):**
+- HEALED (mapping intact, direction/range asserts replace dead exact formulas):
+  coherence→harmonicity ×4 · heartRate→vibrato ×1 · PolySynthVoice applyPatch (RICHNESS
+  unison default = 2 voices/note → assert >=1, no-crash intent).
+- ⚠️ **#77 CANARY — 3 bio-mappings VANISHED from the shipped `applyBioReactive` path**
+  (XCTSkip'd with loud markers, NOT rewritten-green, so the loss stays visible):
+  1. **HRV→brightness** — gone; brightness now coherence/HR/LFO-driven, HRV → reverbMix only.
+  2. **breath-phase→amplitude swell** — only in opt-in `.harmonicSeries`, absent in default `.natural`.
+  3. **coherenceTrend→spectral-morph** — `coherenceTrend` param accepted but NEVER read.
+  The function `applyBioReactive` (EchoelDDSP L1263-1348) is a palimpsest: its own header
+  says "DESIGNED TO BE AUDIBLE… previous ranges too subtle" while the A8 block below says
+  "modulate SUBTLY". These 3 lost mappings are a plausible ROOT CAUSE of **#77 (genres sound
+  the same / unprofessional)** — the body stopped driving brightness, amplitude-swell and
+  morph. **When #78 gate is green and REIHENFOLGE reaches #77: decide restore (Sources fix +
+  un-skip the 7 tests, likely the #77 answer) vs retire (delete tests).** Not asked as a
+  blocking question — #77 already tracks it; this is the head-start.
+
 **Remaining for next cycles:**
-- TEST-DRIFT: #6 BioEndToEnd + #23 CrossSynth (applyBioReactive redesigned → rewrite to
-  direction/range asserts, not exact linear formulas). NOTE: verify against the 980d95e reveal
-  FIRST — some may already be green (breath-family healed this cycle).
+- TEST-DRIFT: #6 BioEndToEnd + #23 CrossSynth (verify vs newest reveal; may share the
+  vanished-mapping root — check before rewriting).
+- SIM-ENV/founder-gated/protected (unchanged): Community/Mood bundled JSON · AppGroupStore
+  pollution · SamplerVoice 74s · ModulationEngine guard value>0 (#24/#25) · BioSignalDeconvolver
+  (protected triad, dsp-reviewer) · EchoelMeter · BioComposer ×2 · EchoelFXChain ×3 ·
+  BioMusicDirector gate-off · SpectralColorCIE Kammerton (#21) · SynthPatchApply · TimelineStore ×2.
 - SIM-ENV: #2/#3/#4 Community/Mood bundled JSON (`.process("Resources")` flattens subdirs →
   `urls(…subdirectory:"Community/fx")` nil; needs `.copy` of Resources/Community/** or a
   flattened-root loader — build-config, care) · #29/#30 TimelineStore AppGroupStore temp-dir

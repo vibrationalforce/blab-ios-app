@@ -4,6 +4,26 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-21 #77-Canary: 3 Bio-Mappings aus `applyBioReactive` verschwunden (Test-Heal-Befund)
+- **Befund (beim #78 294-Test-Heal entdeckt):** der A8-Overhaul von `EchoelDDSP.applyBioReactive`
+  (Sources L1263-1348) hat drei dokumentierte Bio→Sound-Mappings STILL fallengelassen:
+  1. **HRV→Brightness** — weg; Brightness ist jetzt Kohärenz/HR/LFO-getrieben, HRV nur noch → reverbMix.
+  2. **Atemphase→Amplituden-Swell** — nur im opt-in `.harmonicSeries`, im Default `.natural` ABWESEND.
+  3. **coherenceTrend→Spectral-Morph** — Param wird angenommen aber NIE gelesen.
+- **Palimpsest:** die Funktion trägt widersprüchliche Kommentare — Header "DESIGNED TO BE AUDIBLE…
+  previous ranges too subtle", A8-Block darunter "modulate SUBTLY". Die verlorenen Mappings sind
+  ein plausibler ROOT-CAUSE von **#77 (Genres klingen gleich/unprofessionell)**: der Körper treibt
+  Brightness/Amplitude-Swell/Morph nicht mehr.
+- **Entscheidung:** die 7 betroffenen Tests (BioDDSPMappingTests + DSPValidation morph) sind
+  **XCTSkip mit lautem #77-Marker**, NICHT grün-umgeschrieben — der Verlust bleibt sichtbar. Die
+  intakten Mappings (Kohärenz→Harmonizität, HR→Vibrato, Richtung erhalten) wurden auf
+  Richtungs-/Range-Asserts geheilt. **Nicht als blockierende Frage an Founder** gestellt — #77
+  trackt es bereits; dies ist der Vorsprung. Wenn REIHENFOLGE #77 erreicht: restore (Sources-Fix +
+  Tests entsperren, wahrscheinlich die #77-Antwort) vs retire (Tests löschen).
+- **Review-Datum:** beim Start von #77.
+
+---
+
 ### 2026-07-18 #23 per-Lane-SynthPatch: staged, persist-first (Council)
 - **Founder-Quelle #23:** jede MIDI-Spur trägt ihre eigene optionale `SynthPatch` —
   per-Instrument-Klangfarbe pro Spur, wie in einem echten DAW.
