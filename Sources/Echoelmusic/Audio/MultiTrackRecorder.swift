@@ -228,4 +228,26 @@ public enum MultiTrackRecorderError: Error, Sendable {
     /// `AVAudioFile(forWriting:)` failed.
     case fileCreationFailed
 }
+
+// MARK: - AudioTakeRecording (task #13, PLAN_AUDIO_LANE_RECORDING_2026-07-21.md)
+
+/// Lets `RecordController` drive this recorder without importing AVFoundation
+/// itself. `stop()` reads `recordingSeconds` BEFORE it would be reset by a
+/// future `startRecording()` — safe here since nothing else calls
+/// `startRecording()` again until this `stop()` returns.
+extension MultiTrackRecorder: AudioTakeRecording {
+    public func start() { startRecording() }
+
+    public func stop() async -> (url: URL, seconds: Double)? {
+        // `startRecording()` fails silently on a bad permission/engine/file state
+        // (sets `lastError`, never flips `isRecording`) — without this guard,
+        // `stopRecording()`'s `guard isRecording else { return trackURLs }` would
+        // hand back a PRIOR take's URL (trackURLs accumulates across the whole
+        // session), attaching the wrong audio file to this take.
+        guard isRecording else { return nil }
+        let seconds = recordingSeconds
+        guard let url = await stopRecording().last else { return nil }
+        return (url, seconds)
+    }
+}
 #endif

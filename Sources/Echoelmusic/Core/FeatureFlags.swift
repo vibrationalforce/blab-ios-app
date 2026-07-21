@@ -75,6 +75,15 @@ public enum FeatureFlags {
         /// an inferred emotion. `FeatureFlags.set(.cameraExpression, true)` is the
         /// one-line enable lever once wired.
         case cameraExpression  = "feature.cameraExpression"
+        /// Task #13 (PLAN_AUDIO_LANE_RECORDING_2026-07-21.md): real mic capture
+        /// onto an armed audio-input lane via `MultiTrackRecorder`. OFF = the app
+        /// wires `RecordController` with no audio recorder at all, so its new
+        /// audio-capture branch never runs — Release bit-identical.
+        /// `RecordPlan.targets`/`RecordSource.captureImplemented` deliberately
+        /// keep excluding `.audioInput` regardless of this flag (this flag only
+        /// gates the CAPTURE wiring itself — the honest Record-button gate is a
+        /// separate, still-device-gated follow-up flip, S3 in the plan).
+        case audioLaneRecording = "feature.audioLaneRecording"
     }
 
     // MARK: - Reads (absent key = false = OFF; Release default)
@@ -98,6 +107,7 @@ public enum FeatureFlags {
     public static var laneAUInstruments: Bool { isOn(.laneAUInstruments) }
     public static var voiceKindRouting: Bool { isOn(.voiceKindRouting) }
     public static var cameraExpression: Bool { isOn(.cameraExpression) }
+    public static var audioLaneRecording: Bool { isOn(.audioLaneRecording) }
 
     // MARK: - Writes (developer/staging surfaces only — no shipped UI yet)
 

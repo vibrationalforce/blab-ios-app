@@ -141,6 +141,40 @@ final class RecordAnchorTests: XCTestCase {
         XCTAssertTrue(RecordPlan.targets(in: TimelineDocument(lanes: lanes)).isEmpty)
     }
 
+    // MARK: - armedAudioLaneIDs (task #13, PLAN_AUDIO_LANE_RECORDING_2026-07-21.md S1)
+
+    func testArmedAudioLaneIDs_returnsOnlyArmedAudioLanes_inDocumentOrder() {
+        let audioID1 = UUID()
+        let audioID2 = UUID()
+        let lanes = [
+            TimelineLane(id: audioID1, name: "Mic 1", kind: .audio, isArmed: true),
+            TimelineLane(name: "Synth", kind: .midi, builtinInstrument: .polySynth, isArmed: true),
+            TimelineLane(name: "Off Mic", kind: .audio, isArmed: false),
+            TimelineLane(id: audioID2, name: "Mic 2", kind: .audio, isArmed: true),
+        ]
+        let ids = RecordPlan.armedAudioLaneIDs(in: TimelineDocument(lanes: lanes))
+        XCTAssertEqual(ids, [audioID1, audioID2])
+    }
+
+    func testArmedAudioLaneIDs_noArmedAudioLane_isEmpty() {
+        let lanes = [
+            TimelineLane(name: "Synth", kind: .midi, builtinInstrument: .polySynth, isArmed: true),
+            TimelineLane(name: "Off Mic", kind: .audio, isArmed: false),
+        ]
+        XCTAssertTrue(RecordPlan.armedAudioLaneIDs(in: TimelineDocument(lanes: lanes)).isEmpty)
+    }
+
+    func testArmedAudioLaneIDs_doesNotChangeTargets_captureImplementedGateStaysHonest() {
+        // The new helper is purely additive — it must never make .audioInput
+        // count as a `targets()` result (that promise is what keeps the Record
+        // button honest until S3's device-verified flip).
+        let audioID = UUID()
+        let lanes = [TimelineLane(id: audioID, name: "Mic", kind: .audio, isArmed: true)]
+        let doc = TimelineDocument(lanes: lanes)
+        XCTAssertEqual(RecordPlan.armedAudioLaneIDs(in: doc), [audioID])
+        XCTAssertTrue(RecordPlan.targets(in: doc).isEmpty)
+    }
+
     // MARK: - bioNormalized
 
     func testBioNormalized_midRange_isBetweenZeroAndOne() {

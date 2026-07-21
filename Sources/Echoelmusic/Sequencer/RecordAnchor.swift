@@ -87,6 +87,19 @@ public enum RecordPlan {
             return (laneID: lane.id, source: source)
         }
     }
+
+    /// Every ARMED lane whose source is `.audioInput`, in document order. Used
+    /// internally by the (flag-gated) audio-capture wiring — task #13,
+    /// PLAN_AUDIO_LANE_RECORDING_2026-07-21.md — to find a lane that requested a
+    /// mic take, independent of `captureImplemented`/`targets` (which stay the
+    /// honest, user-facing "will this actually run a take" gate for the Record
+    /// button; this helper does not change that promise). Today's recorder
+    /// captures a single mic stream, so a caller consults only the first result —
+    /// any further armed audio lanes are silently not captured (a documented
+    /// single-lane limit, not a bug).
+    public static func armedAudioLaneIDs(in doc: TimelineDocument) -> [UUID] {
+        doc.lanes.filter { $0.isArmed && $0.recordSource == .audioInput }.map(\.id)
+    }
 }
 
 /// Normalize a live bio reading into a flash-safe, UI-friendly 0…1 control value

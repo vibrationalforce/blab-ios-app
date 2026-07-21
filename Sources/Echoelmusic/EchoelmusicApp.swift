@@ -903,8 +903,14 @@ struct EchoelmusicApp: App {
                 // and tee external MIDI notes into it. Arming a track's Record button +
                 // playing captures its input into a Clip + region on that lane. The tee
                 // closures are no-ops unless a take is running (RecordController gates).
+                // Task #13 (PLAN_AUDIO_LANE_RECORDING_2026-07-21.md, S1): the real
+                // mic-capture hook, gated OFF by default — FeatureFlags.audioLaneRecording
+                // stays false until S2 (duration/latency) + a device verify land, so
+                // this passes nil today and the app is behavior-identical.
                 recordController.wire(transport: transport, timeline: timelineStore,
-                                      clips: clipStore, bus: bus)
+                                      clips: clipStore, bus: bus,
+                                      audioRecorder: FeatureFlags.audioLaneRecording
+                                          ? audioEngine.multiTrackRecorder : nil)
                 midiPub.onRecordNoteOn = { [weak recordController] note, velocity in
                     recordController?.recordNoteOn(pitch: note, velocity: velocity)
                 }

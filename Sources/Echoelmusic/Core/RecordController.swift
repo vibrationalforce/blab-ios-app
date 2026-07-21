@@ -10,6 +10,18 @@
 import Foundation
 import Observation
 
+/// Anything that can capture microphone audio to a file for the span of one
+/// take. Kept as a narrow protocol (not a direct `MultiTrackRecorder` import)
+/// so `RecordController` stays Engine-free per the file law above — the app
+/// wires a real recorder in; a test wires a spy in. `stop()` returns the
+/// finished file + its measured length, or nil if nothing was captured (e.g.
+/// `start()` never actually produced a file).
+@MainActor
+public protocol AudioTakeRecording: AnyObject {
+    func start()
+    func stop() async -> (url: URL, seconds: Double)?
+}
+
 @MainActor
 @Observable
 public final class RecordController {
@@ -25,16 +37,35 @@ public final class RecordController {
     @ObservationIgnored private var armed = false
     @ObservationIgnored private var lastTick = 0
 
+    /// Task #13 (PLAN_AUDIO_LANE_RECORDING_2026-07-21.md, S1): an injected mic
+    /// recorder for real audio-lane capture. nil (the default, and the shipped
+    /// wiring unless `FeatureFlags.audioLaneRecording` is on) keeps every branch
+    /// below inert — behavior byte-identical to before this recorder existed.
+    @ObservationIgnored private weak var audioRecorder: (any AudioTakeRecording)?
+    /// The one audio lane `audioRecorder` is capturing for the in-flight take,
+    /// if any (today's recorder captures a single mic stream — the first armed
+    /// audio lane wins; see `RecordPlan.armedAudioLaneIDs`).
+    @ObservationIgnored private var recordingAudioLaneID: UUID?
+    /// The async tail of the last `stop()` (awaiting the audio file + committing
+    /// every take) — nil once it has finished, or when the last take had no
+    /// audio leg. Exposed (non-`private`) purely so a test can await the SAME
+    /// work `commitOnStop` fires-and-forgets, instead of racing it.
+    @ObservationIgnored private(set) var pendingFinish: Task<Void, Never>?
+
     public init() {}
 
     /// Wire to the live clock + stores. Call once at startup after the transport is
     /// relayed by PatternEngine. Subscribes to the transport step (start take + poll
     /// bio) and stop (commit). The app installs the MIDI tee → `recordNoteOn/Off`.
-    public func wire(transport: Transport, timeline: TimelineStore, clips: ClipStore, bus: EngineBus) {
+    /// `audioRecorder` is the S1 mic-capture hook (nil = no audio recording, the
+    /// default and today's shipped behavior).
+    public func wire(transport: Transport, timeline: TimelineStore, clips: ClipStore, bus: EngineBus,
+                      audioRecorder: (any AudioTakeRecording)? = nil) {
         self.transport = transport
         self.timeline = timeline
         self.clips = clips
         self.bus = bus
+        self.audioRecorder = audioRecorder
         transport.addStepSubscriber("record", priority: 950) { [weak self] pos in
             self?.onStep(pos)
         }
@@ -66,6 +97,10 @@ public final class RecordController {
         armed = false
         recorder.cancel()
         isRecording = false
+        if let audioRecorder, recordingAudioLaneID != nil {
+            recordingAudioLaneID = nil
+            Task { _ = await audioRecorder.stop() }
+        }
     }
 
     // MARK: - Fed by the app's MIDI tee (no-op unless a take is running)
@@ -86,7 +121,17 @@ public final class RecordController {
         lastTick = tick
         if !recorder.isRecording {
             guard let timeline else { return }
-            let targets = RecordPlan.targets(in: timeline.document)
+            var targets = RecordPlan.targets(in: timeline.document)
+            // S1 (flag-gated, task #13): an injected audio recorder plus an armed
+            // .audioInput lane starts a real mic capture alongside any MIDI/bio
+            // take. `captureImplemented`/`RecordPlan.targets` deliberately still
+            // exclude .audioInput — the Record-button's honest gate is unchanged —
+            // so with no audioRecorder wired (today's default) this is a no-op.
+            if let audioRecorder, let audioLaneID = RecordPlan.armedAudioLaneIDs(in: timeline.document).first {
+                targets.append((laneID: audioLaneID, source: .audioInput))
+                recordingAudioLaneID = audioLaneID
+                audioRecorder.start()
+            }
             guard !targets.isEmpty else { return }
             recorder.start(targets: targets, anchorTick: tick)
         }
@@ -99,14 +144,49 @@ public final class RecordController {
     }
 
     private func commitOnStop() {
+        // Re-entrancy guard: Transport.stop() has no "already stopped" check and
+        // other callers (e.g. the app's route-loss handler) can invoke it again
+        // while the FIRST stop's audio finish is still in flight — without this,
+        // that second call would see `recorder.isRecording` still true (the take
+        // isn't finished yet) and `recordingAudioLaneID` already nil, take the
+        // synchronous branch, and `recorder.finish()` the take out from under the
+        // pending Task — silently dropping the mic file that's still being awaited.
+        guard pendingFinish == nil else { return }
         guard recorder.isRecording else { armed = false; isRecording = false; return }
-        let takes = recorder.finish(atTick: lastTick)
-        commit(takes)
         armed = false
         isRecording = false
+        let stopTick = lastTick
+        if let audioRecorder, let laneID = recordingAudioLaneID {
+            recordingAudioLaneID = nil
+            // The mic file only finalizes after an async stop — commit waits for
+            // it so the audio take lands in the SAME batch as any MIDI/bio takes,
+            // exactly like a synchronous commit would have. The transport's stop
+            // subscriber (this function) must stay synchronous, so the tail is a
+            // tracked, fire-and-continue Task rather than an `await` here.
+            pendingFinish = Task { @MainActor [weak self] in
+                await self?.finishWithAudio(audioRecorder, laneID: laneID, atTick: stopTick)
+                self?.pendingFinish = nil
+            }
+        } else {
+            commit(recorder.finish(atTick: stopTick), atTick: stopTick)
+        }
     }
 
-    private func commit(_ takes: [RecordedTake]) {
+    /// Awaits the mic file for `laneID`, feeds it into the pure recorder, and
+    /// commits every take from this stop (audio + any MIDI/bio in the same
+    /// take). Not `private` so a test can await it directly instead of racing
+    /// the fire-and-continue `Task` `commitOnStop` spawns. `tick` is the stop
+    /// tick CAPTURED at stop time — `self.lastTick` must not be read here
+    /// instead, since a new take may already have started (and moved it) by
+    /// the time the `await` below returns.
+    func finishWithAudio(_ audioRecorder: any AudioTakeRecording, laneID: UUID, atTick tick: Int) async {
+        if let result = await audioRecorder.stop() {
+            recorder.captureAudio(laneID: laneID, mediaRef: result.url.path, durationSeconds: result.seconds)
+        }
+        commit(recorder.finish(atTick: tick), atTick: tick)
+    }
+
+    private func commit(_ takes: [RecordedTake], atTick stopTick: Int) {
         guard let clips, let timeline else { return }
         for take in takes {
             // Captured clips live in a free ClipStore slot (the region resolves its
@@ -118,7 +198,7 @@ public final class RecordController {
                 laneID: take.laneID,
                 clipID: take.clip.id,
                 startTick: take.startTick,
-                lengthTicks: Self.takeLength(fromAnchor: take.startTick, toStop: lastTick)))
+                lengthTicks: Self.takeLength(fromAnchor: take.startTick, toStop: stopTick)))
         }
     }
 
