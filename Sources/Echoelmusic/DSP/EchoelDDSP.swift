@@ -516,44 +516,49 @@ public final class EchoelDDSP: @unchecked Sendable {
         // voices (identical seeds make poly noise add coherently / comb-filter).
         self.prngState = noiseSeed == 0 ? 0x12345678 : noiseSeed
 
-        self.harmonicAmplitudes = [Float](repeating: 0, count: harmonicCount)
-        self.partialStretch = [Float](repeating: 1, count: harmonicCount)   // filled by rebuildPartialStretch() below
-        self.noiseMagnitudes = [Float](repeating: 0, count: noiseBandCount)
-        self.phases = [Float](repeating: 0, count: harmonicCount)
-        self.smoothedAmplitudes = [Float](repeating: 0, count: harmonicCount)
+        // All buffer sizing below reads the CLAMPED self.* params (self.harmonicCount /
+        // self.noiseBandCount / self.frameSize, each `max(1, …)` above) — never the raw
+        // init parameters. A negative raw param would make a `count:`/range negative and
+        // fatally trap [Float](repeating:count:) before init finishes. Byte-identical for
+        // every valid input (self.x == x when x >= 1).
+        self.harmonicAmplitudes = [Float](repeating: 0, count: self.harmonicCount)
+        self.partialStretch = [Float](repeating: 1, count: self.harmonicCount)   // filled by rebuildPartialStretch() below
+        self.noiseMagnitudes = [Float](repeating: 0, count: self.noiseBandCount)
+        self.phases = [Float](repeating: 0, count: self.harmonicCount)
+        self.smoothedAmplitudes = [Float](repeating: 0, count: self.harmonicCount)
         // Shimmer phases start spread by the golden angle (deterministic, maximally
         // incommensurate) so the partial wobbles never line up into a tremolo.
-        self.shimmerPhases = (0..<harmonicCount).map { Float($0) * 2.399963 }
-        self.shimmerWeights = [Float](repeating: 1, count: harmonicCount)
-        self.aaWeights = [Float](repeating: 0, count: harmonicCount)
+        self.shimmerPhases = (0..<self.harmonicCount).map { Float($0) * 2.399963 }
+        self.shimmerWeights = [Float](repeating: 1, count: self.harmonicCount)
+        self.aaWeights = [Float](repeating: 0, count: self.harmonicCount)
 
         // vDSP scratch buffers
-        self.vdspPhaseIncrements = [Float](repeating: 0, count: harmonicCount)
-        self.vdspSinBuffer = [Float](repeating: 0, count: harmonicCount)
-        self.vdspCosBuffer = [Float](repeating: 0, count: harmonicCount)
+        self.vdspPhaseIncrements = [Float](repeating: 0, count: self.harmonicCount)
+        self.vdspSinBuffer = [Float](repeating: 0, count: self.harmonicCount)
+        self.vdspCosBuffer = [Float](repeating: 0, count: self.harmonicCount)
 
         // Multi-band noise buffers
-        let fftSize = noiseBandCount * 2
+        let fftSize = self.noiseBandCount * 2
         self.noiseFFTBuffer = [Float](repeating: 0, count: fftSize)
-        self.noiseOutputBuffer = [Float](repeating: 0, count: frameSize + fftSize)
+        self.noiseOutputBuffer = [Float](repeating: 0, count: self.frameSize + fftSize)
         self.noiseOverlapBuffer = [Float](repeating: 0, count: fftSize)
-        self.noiseFilterState = [Float](repeating: 0, count: noiseBandCount)
+        self.noiseFilterState = [Float](repeating: 0, count: self.noiseBandCount)
 
         // Pre-compute noise filter coefficients (avoids exp() on audio thread)
-        let spacing = 1.0 / Float(noiseBandCount)
-        self.noiseFilterAlphas = (0..<noiseBandCount).map { band in
+        let spacing = 1.0 / Float(self.noiseBandCount)
+        self.noiseFilterAlphas = (0..<self.noiseBandCount).map { band in
             let centerFreq = Float(band + 1) * spacing
             return exp(-2.0 * Float.pi * centerFreq * 0.5)
         }
 
         // Spectral morph buffers
-        self.morphSourceAmplitudes = [Float](repeating: 0, count: harmonicCount)
-        self.morphTargetAmplitudes = [Float](repeating: 0, count: harmonicCount)
+        self.morphSourceAmplitudes = [Float](repeating: 0, count: self.harmonicCount)
+        self.morphTargetAmplitudes = [Float](repeating: 0, count: self.harmonicCount)
 
         // Reverb IR buffers — pre-allocate for the max render block the poly engine
         // can deliver (4096). Sized at 2048 before, so blocks 2049–4096 silently
         // skipped the reverb → audible wet-tail dropouts as host block size varied.
-        let reverbCap = max(frameSize, 4096)
+        let reverbCap = max(self.frameSize, 4096)
         self.reverbFrameBuffer = [Float](repeating: 0, count: reverbCap)
         self.reverbWetBuffer = [Float](repeating: 0, count: reverbCap)
 
