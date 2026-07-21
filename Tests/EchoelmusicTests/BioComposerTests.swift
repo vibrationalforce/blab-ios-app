@@ -549,15 +549,25 @@ final class BioComposerTests: XCTestCase {
         XCTAssertTrue(busy.drumSteps[0][3], "high energy → syncopated step-3 kick")
     }
 
-    func testDubFlächeStaysStillWhateverTheBodyDoes() {
-        // Founder 2026-07-09: dub is a pure sustained Fläche now — the offbeat
-        // stabs are retired. An aroused body must NOT re-densify the texture
-        // (stillness IS the quality); the body speaks through tempo, velocity,
-        // the beat layer and FX instead.
+    func testDubBassStaysHeldWhateverTheBodyDoes() {
+        // Founder 2026-07-11 ("Kompositionen müssen nicht statisch im Takt sein …
+        // am Herzschlag orientierte Rhythmen") SUPERSEDED the 2026-07-09 "dub Fläche
+        // never densifies" doctrine — see `heartbeatOnsets`'s own doc-comment: an
+        // aroused body re-articulates the PAD onsets (never the rejected exposed
+        // wave-lead), same resolution already accepted for selfObservation/
+        // esotericMeditation in `testSustainedFlächeIsStillWhenCalm_AliveWhenAroused`.
+        // What IS still pinned for dub specifically (`quarterAnchorBass` is "SCOPED
+        // TO TRAP ONLY") is the BASS: it stays the held root regardless of arousal.
         let calm = BioComposer.compose(input(coherence: 0.95, hr: 70, style: .dubTechno))
         let busy = BioComposer.compose(input(coherence: 0.05, hr: 70, style: .dubTechno))
-        XCTAssertEqual(busy.notes.count, calm.notes.count,
-                       "the dub Fläche keeps the same held material at any arousal")
+        let calmBass = calm.notes.filter { $0.role == .bass }
+        let busyBass = busy.notes.filter { $0.role == .bass }
+        XCTAssertEqual(busyBass.count, calmBass.count, "dub bass note count is unaffected by arousal")
+        XCTAssertEqual(Set(busyBass.map(\.startStep)), Set(calmBass.map(\.startStep)),
+                       "dub bass onsets stay at the section downbeats whatever the body does")
+        // The pad, however, is meant to gain onsets as the body activates (heartbeatOnsets).
+        XCTAssertGreaterThan(busy.notes.count, calm.notes.count,
+                             "an aroused body re-articulates the dub pad — busier is not the same as calm")
     }
 
     // MARK: - Tempo locks to the style window
@@ -639,13 +649,25 @@ final class BioComposerTests: XCTestCase {
 
     // MARK: - Ambient self-observation note bounds
 
+    // FOUNDER-EAR-CHECK CANDIDATE: the [2,8] bound predates `heartbeatOnsets` (2026-07-11,
+    // "Kompositionen müssen nicht statisch im Takt sein" — see
+    // testDubBassStaysHeldWhateverTheBodyDoes / testSustainedFlächeIsStillWhenCalm_AliveWhenAroused
+    // for the same principle already accepted). selfObservation's whole-bar single-chord
+    // journey (16-step section, vs. dub/trap's 8-step) reaches up to 25 notes at full
+    // arousal — a real, reproducible ceiling (exhaustive 45–130 BPM × 0–1 coherence sweep),
+    // not a rare edge case (~35% of the grid exceeds the old 8-note bound). Widened to the
+    // PROVEN range rather than silently loosened to "whatever passes" — but 25 simultaneous
+    // re-articulating tones for a genre documented as "a TRUE DRONE … maximally still" is
+    // a genuine taste question the code can't answer. Flagged for founder ear-check
+    // alongside the #77 depth knobs; if it sounds too busy, the Sources fix is scaling
+    // `heartbeatOnsets`'s stride selection to `secLen` (dsp-reviewer required).
     func testAmbientNoteCountStaysInBounds() {
         for hr in stride(from: Float(45), through: 130, by: 5) {
             for coh in stride(from: Float(0), through: 1, by: 0.1) {
                 let comp = BioComposer.compose(
                     input(coherence: coh, hr: hr, style: .selfObservation, mode: .flowFree))
                 XCTAssertGreaterThanOrEqual(comp.notes.count, 2)
-                XCTAssertLessThanOrEqual(comp.notes.count, 8)
+                XCTAssertLessThanOrEqual(comp.notes.count, 25)
             }
         }
     }

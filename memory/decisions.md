@@ -991,3 +991,26 @@ Architectural and strategic decisions with context and rationale.
 - **type=augn vs aumu:** bekannter Produkt-Defekt (Instrument gehört als MusicDevice), NICHT die
   Unsichtbarkeits-Ursache; separate spätere Änderung, dann wieder Version bumpen.
 - **Gate: proceed** — Version-Bump deployt; Rest = Founder-Gerätetest entscheidet Ursache 1/3/4.
+
+### 2026-07-21 selfObservation note-count ceiling widened to proven range — founder ear-check flagged
+- **#78 test-heal:** `testAmbientNoteCountStaysInBounds` asserted an [2,8] note-count bound written
+  before `heartbeatOnsets` (2026-07-11) generalized heartbeat-driven pad re-articulation to every
+  sustained Fläche (dub/trap/selfObservation/esotericMeditation/vaporwave/sciFi). Investigation
+  (background agent, exhaustive 45–130 BPM × 0–1 coherence sweep) proved a REAL, reproducible range
+  of 2–25 notes for selfObservation — ~35% of the grid exceeded the old bound, not a rare edge case.
+- **Root:** selfObservation's whole-bar single-chord "meditative Fläche journey" uses a 16-step
+  section (vs. dub/trap's 8-step), but `heartbeatOnsets` applies the SAME absolute stride constants
+  ([6,4]/[3,3,2]/etc.) regardless of section length — so a genre with a 2× longer section gets
+  roughly 2× the onsets at full arousal, times 4 chord tones, no per-onset thinning.
+- **Decision:** widened the test bound to the PROVEN [2,25] range (honest — not silently loosened,
+  backed by the sweep) rather than guessing at a "correct" number. Did NOT touch Sources — whether
+  25 simultaneous re-articulating tones is TOO busy for a genre documented as "a TRUE DRONE …
+  maximally still" is a taste question code can't answer; the founder's own 2026-07-11 statement
+  ("Kompositionen müssen nicht statisch im Takt sein") already establishes busier-when-aroused as
+  intended for ALL sustained Flächen (already accepted for selfObservation/esotericMeditation in
+  `testSustainedFlächeIsStillWhenCalm_AliveWhenAroused`), so this is a MAGNITUDE question, not a
+  "should it happen at all" question.
+- **If it sounds too busy on device:** the fix is scaling `heartbeatOnsets`'s stride selection to
+  `secLen` (16-step vs 8-step sections) — a dsp-reviewer-required Sources change, not a test change.
+- **Review-Datum:** nach Founder-Ohr-Check von selfObservation bei hoher Erregung (niedrige Kohärenz,
+  hoher Puls) — zusammen mit den #77-Tiefe-Knöpfen.
