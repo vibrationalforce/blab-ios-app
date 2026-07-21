@@ -214,14 +214,14 @@ public final class SACNSender {
     // MARK: - Pure kernels (testable without a socket)
 
     /// The spec multicast group for a universe: 239.255.{high}.{low}.
-    public static func multicastHost(universe: Int) -> String {
+    public nonisolated static func multicastHost(universe: Int) -> String {
         let u = Swift.max(1, universe)
         return "239.255.\((u >> 8) & 0xFF).\(u & 0xFF)"
     }
 
     /// Builds a full E1.31 Data Packet (always 512 slots). `channels` is padded
     /// to 512 with zeros. `cid` must be 16 bytes. Pure — unit-testable.
-    public static func e131Packet(universe: Int, sequence: UInt8, cid: [UInt8], channels: [UInt8]) -> Data {
+    public nonisolated static func e131Packet(universe: Int, sequence: UInt8, cid: [UInt8], channels: [UInt8]) -> Data {
         let slotCount = 512
         var slots = channels
         if slots.count < slotCount { slots += Array(repeating: 0, count: slotCount - slots.count) }
