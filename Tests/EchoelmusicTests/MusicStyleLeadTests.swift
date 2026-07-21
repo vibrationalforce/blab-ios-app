@@ -16,11 +16,17 @@ final class MusicStyleLeadTests: XCTestCase {
         "Soft Keys", "Warm Strings", "Hollow Reed", "Pluck", "Choir Vox", "Deep Sub"
     ]
 
-    /// Genres whose generated take actually carries an audible lead line.
+    /// Genres that carry a LEAD VOICE identity — a warm timbre a user can play
+    /// their own melody on (touch/MPE/piano roll), as opposed to a pure sustained
+    /// Fläche with no lead voice at all. Since founder 2026-07-21 ("Melodien
+    /// sollen die Leute selbst machen") no genre auto-generates lead NOTES
+    /// anymore (leadDensity is 0 everywhere — see MusicStyleTests.swift), but the
+    /// per-genre lead PATCH assignment (leadPatchName → EchoelStudioView applies
+    /// it to the piano roll's lead voice) still matters for whatever the user
+    /// plays themselves — hence filtering on `!sustained` alone now, not
+    /// `leadDensity > 0` (which would be vacuously empty).
     private var leadBearing: [MusicStyle] {
-        MusicStyle.allCases.filter {
-            !$0.harmonicProfile.sustained && $0.harmonicProfile.leadDensity > 0
-        }
+        MusicStyle.allCases.filter { !$0.harmonicProfile.sustained }
     }
 
     func testEveryLeadPatchIsInTheWarmSet() {

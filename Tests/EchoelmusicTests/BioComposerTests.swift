@@ -355,24 +355,12 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
-    func testLeadsNeverPierceTheCeilingAcrossGenres() {
-        // No generated lead note sits in the piercing top octaves — even for a busy body
-        // on the brightest/highest genres (this is the "piepsig künstlich" fix).
-        let melodic = MusicStyle.allCases.filter {
-            !$0.harmonicProfile.sustained && $0.harmonicProfile.leadDensity > 0
-        }
-        for style in melodic {
-            for root in [0, 5, 9] {
-                let key = MusicalKey(root: root, scale: style.scale)
-                let comp = BioComposer.compose(
-                    input(coherence: 0.1, hr: 130, seed: 3, key: key, style: style))
-                for n in comp.notes where n.role == .lead {
-                    XCTAssertLessThanOrEqual(n.pitch, 84,
-                        "\(style) root \(root): lead \(n.pitch) is piercingly high (> C6)")
-                }
-            }
-        }
-    }
+    // testLeadsNeverPierceTheCeilingAcrossGenres removed (founder 2026-07-21:
+    // "Melodien sollen die Leute selbst machen" — every genre's leadDensity is now
+    // 0, so BioComposer never emits a .lead-role note to measure; tameLeadPitch
+    // itself stays covered by testTameLeadPitchFoldsPiercingHighsDownKeepingPitchClass
+    // above, and the "no auto-lead" invariant is asserted once, canonically, in
+    // MusicStyleTests.testNoGenreAutoGeneratesLeadNotes).
 
     func testOnlyBeatGenresCarryDrums() {
         for style in MusicStyle.allCases {

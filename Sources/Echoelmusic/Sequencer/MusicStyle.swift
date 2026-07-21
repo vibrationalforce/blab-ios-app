@@ -450,20 +450,26 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
                                    padOctave: 4, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0, sustained: true)
         case .eighties:
+            // NO auto-lead (founder 2026-07-21: "Psytrance bis Rocksteady werden
+            // sehr stressig wegen den Melodien. Melodien sollen die Leute selbst
+            // machen") — same PURE FLÄCHE pattern already applied to the calmer
+            // genres, extended to the whole remaining melodic roster. The lead
+            // VOICE/timbre (leadPatchName) is unchanged — a user still plays their
+            // own melody on it.
             return HarmonicProfile(progression: [0, 4, 5, 3], chordTones: [0, 2, 4],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: true, leadDensity: 0.5)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: true, leadDensity: 0.0)
         case .disco:
             return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4, 6],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.5)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         case .synthwave:
             return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 2, 4],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: true, leadDensity: 0.6)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: true, leadDensity: 0.0)
         case .earlySynth:
             return HarmonicProfile(progression: [0, 0], chordTones: [0, 2, 4],
-                                   padOctave: 3, leadOctave: 4, arpeggiated: true, leadDensity: 0.4)
+                                   padOctave: 3, leadOctave: 4, arpeggiated: true, leadDensity: 0.0)
         case .futuristic:
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
-                                   padOctave: 4, leadOctave: 6, arpeggiated: false, leadDensity: 0.3)
+                                   padOctave: 4, leadOctave: 6, arpeggiated: false, leadDensity: 0.0)
         case .sciFi:
             // PURE FLÄCHE (founder 2026-07-09: "reine Wellen-Töne stechen raus …
             // besser wenn die komplett weg sind — nur chillige mystische Flächen"):
@@ -473,8 +479,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
                                    padOctave: 3, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0, sustained: true)
         case .psytrance:
+            // NO auto-lead (founder 2026-07-21, see .eighties above).
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4],
-                                   padOctave: 2, leadOctave: 4, arpeggiated: true, leadDensity: 0.7)
+                                   padOctave: 2, leadOctave: 4, arpeggiated: true, leadDensity: 0.0)
         case .esotericMeditation:
             // WEITERGEHEN (founder 2026-07-11: "bleibt auf Flächen liegen … soll
             // weitergehen und sich mit dem Herzschlag weiterentwickeln"). A frozen
@@ -486,44 +493,46 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
                                    padOctave: 3, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0, sustained: true)
         case .classical:
+            // NO auto-lead (founder 2026-07-21, see .eighties above).
             return HarmonicProfile(progression: [0, 3, 4, 0], chordTones: [0, 2, 4],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.45)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         case .jazz:
             return HarmonicProfile(progression: [0, 3, 5, 1], chordTones: [0, 2, 4, 6],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.6)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         case .klezmer:
             return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.7)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         case .oriental:
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 2, 4],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.7)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         case .punk:
             // Rockakkorde (founder 2026-07-11): a real POWER CHORD = root + fifth +
             // octave root ([0,4,7]), the chunky rock/punk voicing, not a bare dyad.
+            // NO auto-lead (founder 2026-07-21, see .eighties above).
             return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 4, 7],
-                                   padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.4)
+                                   padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.0)
         case .rocknroll:
             return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.5)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         case .rock:
             // Rockakkorde (founder 2026-07-11): full power chord (root + fifth + octave).
             return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 4, 7],
-                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.5)
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false, leadDensity: 0.0)
         case .ska:
             return HarmonicProfile(progression: [0, 3, 4], chordTones: [0, 2, 4],
-                                   padOctave: 4, leadOctave: 5, arpeggiated: true, leadDensity: 0.5)
+                                   padOctave: 4, leadOctave: 5, arpeggiated: true, leadDensity: 0.0)
         case .rocksteady:
             return HarmonicProfile(progression: [0, 5, 3, 4], chordTones: [0, 2, 4],
-                                   padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.4)
+                                   padOctave: 3, leadOctave: 4, arpeggiated: false, leadDensity: 0.0)
         case .heavyMetal:
             // Rockakkorde (founder 2026-07-11): low, dark power chord (root+fifth+octave)
             // in phrygian — the metal chug.
             return HarmonicProfile(progression: [0, 1, 0], chordTones: [0, 4, 7],
-                                   padOctave: 2, leadOctave: 4, arpeggiated: false, leadDensity: 0.5)
+                                   padOctave: 2, leadOctave: 4, arpeggiated: false, leadDensity: 0.0)
         case .doom:
             // Rockakkorde (founder 2026-07-11): crushing downtuned power chord.
             return HarmonicProfile(progression: [0], chordTones: [0, 4, 7],
-                                   padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.2)
+                                   padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.0)
         case .dubTechno:
             // PURE FLÄCHE (founder 2026-07-09): NO lead, sustained — the bespoke
             // offbeat stabs are retired from the flow (see BioComposer.compose).

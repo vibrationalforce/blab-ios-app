@@ -96,6 +96,22 @@ final class MusicStyleTests: XCTestCase {
         XCTAssertEqual(MusicStyle.trap.beatArchetype, .signature)
     }
 
+    func testNoGenreAutoGeneratesLeadNotes() {
+        // Founder 2026-07-21: "Die Genres Psytrance bis Rocksteady werden sehr
+        // stressig wegen den Melodien. Melodien sollen die Leute selbst machen." —
+        // extended (Council, same day) from the named 17-genre range to every
+        // remaining melodic genre, so the invariant is uniform and not a partial
+        // list a future genre could silently fall outside of. BioComposer gates
+        // its whole lead-generation path behind `leadDensity > 0`, so this is the
+        // single authoritative place asserting NO genre auto-generates a lead
+        // melody. The per-genre lead PATCH (leadPatchName) is untouched — a user
+        // still plays their own melody on that genre's warm timbre.
+        for style in MusicStyle.allCases {
+            XCTAssertEqual(style.harmonicProfile.leadDensity, 0,
+                           "\(style): leadDensity must be 0 — melodies are user-performed, not auto-generated")
+        }
+    }
+
     func testEveryHarmonicGenreVoicesAChord() {
         // Every genre except the two bespoke-melody signature beats and
         // self-observation voices its harmony through harmonicProfile — the

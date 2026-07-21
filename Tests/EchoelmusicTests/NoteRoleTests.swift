@@ -14,9 +14,15 @@ final class NoteRoleTests: XCTestCase {
                           style: style, mode: .studioLocked, lockedTempo: 110, seed: 7)
     }
 
-    func testHarmonicTakeCarriesAllThreeRoles() {
+    func testHarmonicTakeCarriesBassAndHarmony() {
+        // Was "...AllThreeRoles" (asserting .lead too) until founder 2026-07-21
+        // ("Melodien sollen die Leute selbst machen") set every genre's
+        // leadDensity to 0 — BioComposer.compose no longer emits a .lead-role
+        // note for any style, so that assertion is retired here too (see
+        // MusicStyleTests.testNoGenreAutoGeneratesLeadNotes for the canonical
+        // invariant). Bass + harmony are still generated for every harmonic take.
         let roles = Set(BioComposer.compose(input(.synthwave)).notes.map { $0.role })
-        XCTAssertTrue(roles.contains(.lead),    "a harmonic take needs a lead line")
+        XCTAssertFalse(roles.contains(.lead),   "no genre auto-generates a lead line anymore")
         XCTAssertTrue(roles.contains(.harmony), "a harmonic take needs pad/chord/pulse harmony")
         XCTAssertTrue(roles.contains(.bass),    "a harmonic take needs a bass line")
     }
