@@ -14,6 +14,12 @@ final class TimelineStoreAutomationEditTests: XCTestCase {
 
     @MainActor
     func testSetAutomationValue_revaluesTheKeyframeWithoutMoving() throws {
+        // Unique per test: AppGroupStore falls back to Application Support in CI/
+        // SwiftPM (no App Group container there), so a fresh TimelineStore can load
+        // a "masterLevel" lane a DIFFERENT test left on disk under the shared class
+        // `param` — same trap already solved in TimelineRegionSplitMergeTests.swift
+        // (delta-on-own-lane idiom). Isolate on a parameter no other test touches.
+        let param = "test.setValue.\(UUID())"
         let store = TimelineStore()
         guard let p = store.addAutomationPoint(parameter: param, tick: 480, value: 0.2) else {
             return XCTFail("no point")
@@ -53,6 +59,9 @@ final class TimelineStoreAutomationEditTests: XCTestCase {
 
     @MainActor
     func testUnknownParameterOrID_noCrashNoChange() throws {
+        // See testSetAutomationValue_revaluesTheKeyframeWithoutMoving: isolate on a
+        // parameter no other test's leftover disk state can pollute.
+        let param = "test.unknownID.\(UUID())"
         let store = TimelineStore()
         guard let p = store.addAutomationPoint(parameter: param, tick: 240, value: 0.4) else {
             return XCTFail("no point")
