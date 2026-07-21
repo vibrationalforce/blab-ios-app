@@ -81,3 +81,13 @@ zum Beat) — exakt das Muster, das Automation-S2 zu Recht "device-gated" gemach
 
 → **Gate: proceed mit S1 im nächsten Zyklus** (reines Wiring + Test, kein Geräte-Risiko).
 S2/S3 bleiben je ein eigener, geräte-gegateter Zyklus.
+
+## S1 — SHIPPED (2026-07-21, commit b1a38b9)
+
+RecordController.AudioTakeRecording hook wired, FeatureFlags.audioLaneRecording default OFF.
+audio-thread-reviewer: PASS-WITH-NOTES — found + fixed a real re-entrancy race (overlapping
+Transport.stop() could drop a mic take mid-async-finish); guard + regression test added before
+push. CI green (Xcode Compile Check + Echoelmusic CI/CD Pipeline, run 29857396468 et al.).
+
+S2 (duration/latency correctness) and S3 (device-verified captureImplemented flip) remain
+device-gated, each its own future cycle. Nothing further to do on this plan until a device run.
