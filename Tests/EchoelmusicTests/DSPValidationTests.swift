@@ -22,17 +22,24 @@ final class BioReactiveDDSPValidationTests: XCTestCase {
     func testCoherenceZeroProducesLowHarmonicity() {
         let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
         ddsp.applyBioReactive(coherence: 0.0)
-        // Formula: harmonicity = 0.3 + coherence * 0.7
-        XCTAssertEqual(ddsp.harmonicity, 0.3, accuracy: 0.05,
-                       "Zero coherence should produce ~0.3 harmonicity (noisy)")
+        // A8 audit: harmonicity is now PATCH-RELATIVE around the neutral base
+        // (bioBaseHarmonicity 0.88 + (coherence − 0.5)·0.12), not the retired
+        // 0.3 + coherence·0.7. Low coherence → below the neutral base (tenser),
+        // still finite + in range. Direction, not an exact value.
+        XCTAssertTrue(ddsp.harmonicity.isFinite)
+        XCTAssertLessThan(ddsp.harmonicity, 0.88,
+                          "Zero coherence sits below the neutral harmonicity base")
+        XCTAssertGreaterThanOrEqual(ddsp.harmonicity, 0.05)
     }
 
-    /// Coherence 1.0 → harmonicity should be high (~1.0)
+    /// Coherence 1.0 → harmonicity should sit ABOVE the neutral base (purer).
     func testCoherenceOneProducesHighHarmonicity() {
         let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
         ddsp.applyBioReactive(coherence: 1.0)
-        XCTAssertEqual(ddsp.harmonicity, 1.0, accuracy: 0.05,
-                       "Full coherence should produce ~1.0 harmonicity (pure)")
+        XCTAssertTrue(ddsp.harmonicity.isFinite)
+        XCTAssertGreaterThan(ddsp.harmonicity, 0.88,
+                             "Full coherence sits above the neutral harmonicity base")
+        XCTAssertLessThanOrEqual(ddsp.harmonicity, 0.98)
     }
 
     /// Coherence → Harmonicity must be monotonically increasing
@@ -66,17 +73,21 @@ final class BioReactiveDDSPValidationTests: XCTestCase {
 
     // MARK: - Heart Rate → Vibrato Mapping
 
-    /// Heart rate normalized 0→1 should map to vibrato 0→3 Hz
+    /// Heart rate normalized 0→1 raises the vibrato RATE. A8 audit: the mapping is
+    /// `0.05 + heartRate·0.15` (a slow, musical 0.05→0.20 Hz sweep), not the retired
+    /// 0→3 Hz. Assert the direction + that it stays slow, not an exact old value.
     func testHeartRateToVibratoRate() {
         let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
 
         ddsp.applyBioReactive(coherence: 0.5, heartRate: 0.0)
-        XCTAssertEqual(ddsp.vibratoRate, 0.0, accuracy: 0.1,
-                       "Zero heart rate → no vibrato")
+        let slowRate = ddsp.vibratoRate
+        XCTAssertTrue(slowRate.isFinite)
+        XCTAssertLessThan(slowRate, 0.15, "Zero heart rate → very slow vibrato")
 
         ddsp.applyBioReactive(coherence: 0.5, heartRate: 1.0)
-        XCTAssertEqual(ddsp.vibratoRate, 3.0, accuracy: 0.3,
-                       "Max heart rate → ~3 Hz vibrato")
+        let fastRate = ddsp.vibratoRate
+        XCTAssertGreaterThan(fastRate, slowRate, "Higher heart rate raises the vibrato rate")
+        XCTAssertLessThan(fastRate, 1.0, "Vibrato stays slow/musical even at max heart rate")
     }
 
     /// Vibrato depth should stay subtle (max ~0.15 semitones)
@@ -357,8 +368,13 @@ final class CrossSynthBioCoherenceTests: XCTestCase {
         ddsp.applyBioReactive(coherence: 0.1)
         bank.applyBioReactive(coherence: 0.1)
 
-        // DDSP: low harmonicity = more noise (tenser)
-        XCTAssertLessThan(ddsp.harmonicity, 0.45, "DDSP should have low harmonicity at low coherence")
+        // DDSP: A8 audit made harmonicity patch-relative + narrow (0.82–0.94), so the
+        // retired "< 0.45" no longer holds. The surviving truth is DIRECTIONAL: low
+        // coherence is LESS harmonic (tenser) than high coherence.
+        let tenseHarmonicity = ddsp.harmonicity
+        ddsp.applyBioReactive(coherence: 0.9)
+        XCTAssertLessThan(tenseHarmonicity, ddsp.harmonicity,
+                          "DDSP is less harmonic (tenser) at low coherence than at high")
 
         // ModalBank: high stiffness = inharmonic (bell-like, tenser)
         XCTAssertGreaterThan(bank.stiffness, 0.6, "ModalBank should have high stiffness at low coherence")

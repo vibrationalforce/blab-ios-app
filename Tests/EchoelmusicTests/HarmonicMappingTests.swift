@@ -72,7 +72,10 @@ final class HarmonicMappingTests: XCTestCase {
 
     func testHarmonicSeries_differsFromNatural_sameInputs() {
         // Low coherence + high HRV is exactly where the two profiles disagree:
-        // natural → coherence-low → ~0.45; harmonicSeries → HRV-high → ~0.90.
+        // natural → patch-relative base (0.88 + (coh−0.5)·0.12 → ~0.82 at coh 0);
+        // harmonicSeries → HRV-driven overtone spread (0.40 + hrv·0.50 → ~0.90).
+        // A8 narrowed the natural range, so the gap is ~0.08 — assert a realistic
+        // margin that still proves the two profiles are audibly distinct.
         ddsp.applyBioReactive(coherence: 0.0, hrvVariability: 1.0, profile: .natural)
         let natural = ddsp.harmonicity
 
@@ -80,7 +83,7 @@ final class HarmonicMappingTests: XCTestCase {
         other.applyBioReactive(coherence: 0.0, hrvVariability: 1.0, profile: .harmonicSeries)
         let harmonic = other.harmonicity
 
-        XCTAssertGreaterThan(harmonic, natural + 0.1,
+        XCTAssertGreaterThan(harmonic, natural + 0.03,
                              "For the same body state the two profiles must produce audibly different timbre")
     }
 
