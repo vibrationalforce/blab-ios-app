@@ -11,6 +11,28 @@
 > oberste offene Slice ziehen → Gates → Deploy → Verify-Spalte aktualisieren.
 > Erledigtes wandert nach ERLEDIGT (mit Build-Nummer), nichts wird gelöscht.
 
+## 2026-07-21 Session-Ergänzung B (Ultracode-Sweep, 11-Agent-Triage + Task #79 Slice A)
+
+Founder "Ultracode no sleep mode in Opus 4.8": Workflow-Sweep über ALLE offenen
+Backlog-Punkte (#40, #51, #52, #53, #55, #56, #59, #60, #61, #67, #68), je ein
+unabhängiger Opus-Agent, read-only, mit Pflicht-Zitat aus decisions.csv/Board vor
+jedem `blocked_reason`. Ergebnis: **alle 11 bestätigt weiterhin korrekt blockiert**
+(geräte-/founder-/entscheidungs-gated) — keine neuen blind-baubaren Splitter
+gefunden, nichts hat sich seit der letzten Prüfung geändert. Volle Zitate je Task
+im Workflow-Journal (`wf_2b471bbf-b14`) und in `decisions.csv` (Zeile
+`ultracode-sweep-11-tasks-reconfirmed-blocked`).
+
+Parallel dazu lief der bereits geplante **Task #79 Slice A Pilot** (siehe
+`scratchpads/PLAN_RHYTHMIC_DIVERSITY_2026-07-21.md`) durch Implement→Review→Commit:
+
+| Punkt | Commit | Verify |
+|-------|--------|--------|
+| Task #79 Slice A — `GenreFlavor`-Overlay (hatDensityBias/percGhostStep/kickPushEnabled) für die 6 `.fourOnFloor`-Genres | ab7f29b | code-reviewer APPROVED. Deklarativ, RNG-frei, bio-frei — Determinismus unangetastet. `testFourOnFloorKicksEveryBeat` bleibt grün, 2 neue Tests (Cross-Genre-Distinctness + Determinismus) grün. |
+
+Nächster Schritt laut Plan: bei Erfolg (Founder-Ohr-Check auf dem nächsten Build)
+Flavor-Overlay auf die übrigen 3 Archetypes (backbeat/offbeat/halfTime) ausrollen,
+dann Slice B (stärkere Bio-Kopplung).
+
 ## 2026-07-21 Session-Ergänzung (Board war seit 07-18 nicht mehr geführt — Hygiene-Nachtrag, keine Zeilen gelöscht)
 
 REIHENFOLGE (Founder-Verdikt v10.79.183, 5→1→2→3→4) war zu Sessionbeginn bereits vollständig
