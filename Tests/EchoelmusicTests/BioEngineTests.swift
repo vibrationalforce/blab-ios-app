@@ -252,7 +252,7 @@ final class RMSSDAlgorithmTests: XCTestCase {
         let patterns: [[Double]] = [
             [Double](repeating: 1000.0, count: 15),
             (0..<15).map { Double($0) * 100.0 },
-            (0..<15).map { 1000.0 + Double.random(in: -500...500) }
+            (0..<15).map { _ in 1000.0 + Double.random(in: -500...500) }
         ]
 
         for pattern in patterns {

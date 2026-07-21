@@ -52,7 +52,7 @@ final class BioComposerTests: XCTestCase {
                 for root in [0, 5, 7, 9] {
                     let key = MusicalKey(root: root, scale: scale)
                     let comp = BioComposer.compose(
-                        input(coherence: 0.2, hr: 110, key: key, style: style, seed: 42))
+                        input(coherence: 0.2, hr: 110, seed: 42, key: key, style: style))
                     for note in comp.notes {
                         XCTAssertTrue(key.contains(note.pitch),
                                       "\(style): \(key.name): pitch \(note.pitch) must be in key")
@@ -182,8 +182,8 @@ final class BioComposerTests: XCTestCase {
     }
 
     func testTrap_arousedBassIsDeterministic() {
-        let a = BioComposer.compose(input(coherence: 0.05, hr: 130, style: .trap, seed: 0xB8))
-        let b = BioComposer.compose(input(coherence: 0.05, hr: 130, style: .trap, seed: 0xB8))
+        let a = BioComposer.compose(input(coherence: 0.05, hr: 130, seed: 0xB8, style: .trap))
+        let b = BioComposer.compose(input(coherence: 0.05, hr: 130, seed: 0xB8, style: .trap))
         XCTAssertEqual(a, b, "the quarter pedal is seed-deterministic")
     }
 
@@ -365,7 +365,7 @@ final class BioComposerTests: XCTestCase {
             for root in [0, 5, 9] {
                 let key = MusicalKey(root: root, scale: style.scale)
                 let comp = BioComposer.compose(
-                    input(coherence: 0.1, hr: 130, key: key, style: style, seed: 3))
+                    input(coherence: 0.1, hr: 130, seed: 3, key: key, style: style))
                 for n in comp.notes where n.role == .lead {
                     XCTAssertLessThanOrEqual(n.pitch, 84,
                         "\(style) root \(root): lead \(n.pitch) is piercingly high (> C6)")
@@ -412,10 +412,10 @@ final class BioComposerTests: XCTestCase {
     func testArchetypeBeatIsDeterministicAndSettlesWithCoherence() {
         // Same seed → identical groove; a settled body (calm > 0.7) must produce a
         // SUBSET of the energetic take's hits (the backbone stays, extras drop).
-        let a = BioComposer.compose(input(coherence: 0.2, hr: 110, style: .punk, seed: 7))
-        let b = BioComposer.compose(input(coherence: 0.2, hr: 110, style: .punk, seed: 7))
+        let a = BioComposer.compose(input(coherence: 0.2, hr: 110, seed: 7, style: .punk))
+        let b = BioComposer.compose(input(coherence: 0.2, hr: 110, seed: 7, style: .punk))
         XCTAssertEqual(a.drumSteps, b.drumSteps)
-        let settled = BioComposer.compose(input(coherence: 0.9, hr: 60, style: .punk, seed: 7))
+        let settled = BioComposer.compose(input(coherence: 0.9, hr: 60, seed: 7, style: .punk))
         for t in 0..<8 {
             for s in 0..<16 where settled.drumSteps[t][s] {
                 XCTAssertTrue(a.drumSteps[t][s],
@@ -662,8 +662,8 @@ final class BioComposerTests: XCTestCase {
         for style in [MusicStyle.dubTechno, .trap] {
             var sawStrictlyFewer = false
             for seed in UInt64(1)...24 {
-                let aroused = BioComposer.compose(input(coherence: 0.2, hr: 115, style: style, seed: seed))
-                let settled = BioComposer.compose(input(coherence: 0.95, hr: 115, style: style, seed: seed))
+                let aroused = BioComposer.compose(input(coherence: 0.2, hr: 115, seed: seed, style: style))
+                let settled = BioComposer.compose(input(coherence: 0.95, hr: 115, seed: seed, style: style))
                 XCTAssertLessThanOrEqual(drumHits(settled), drumHits(aroused),
                                          "\(style): settled groove must not exceed aroused (seed \(seed))")
                 if drumHits(settled) < drumHits(aroused) { sawStrictlyFewer = true }
