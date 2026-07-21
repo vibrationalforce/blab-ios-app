@@ -2,8 +2,10 @@
 // CoreSystemTests.swift
 // Echoelmusic — Phase 1 Test Coverage
 //
-// Tests for core infrastructure: NumericExtensions,
-// AudioConstants, TuningReference, MusicalNote
+// Tests for core infrastructure: VideoFrameQueue, BioDataQueue, NumericExtensions.
+// (AudioConstants / MusicalNote tests removed 2026-07-21: AudioConstants was
+//  replaced by AudioConfiguration and MusicalNote is now a {frequencyHz,
+//  amplitude} chord note — the old pitch/name API no longer exists.)
 
 import XCTest
 @testable import Echoelmusic
@@ -106,119 +108,4 @@ final class NumericExtensionsTests: XCTestCase {
     }
 }
 
-// MARK: - AudioConstants Tests
-
-final class AudioConstantsTests: XCTestCase {
-
-    func testBufferSizes() {
-        XCTAssertEqual(AudioConstants.ultraLowLatencyBuffer, 128)
-        XCTAssertEqual(AudioConstants.lowLatencyBuffer, 256)
-        XCTAssertEqual(AudioConstants.normalBuffer, 512)
-        XCTAssertEqual(AudioConstants.highQualityBuffer, 1024)
-    }
-
-    func testCarrierFrequencies() {
-        XCTAssertEqual(AudioConstants.standardCarrierFrequency, 440.0)
-        XCTAssertEqual(AudioConstants.alternativeCarrierFrequency, 432.0)
-    }
-
-    func testBrainwaveFrequencies() {
-        XCTAssertEqual(AudioConstants.Brainwave.delta, 2.0)
-        XCTAssertEqual(AudioConstants.Brainwave.theta, 6.0)
-        XCTAssertEqual(AudioConstants.Brainwave.alpha, 10.0)
-        XCTAssertEqual(AudioConstants.Brainwave.beta, 20.0)
-        XCTAssertEqual(AudioConstants.Brainwave.gamma, 40.0)
-    }
-
-    func testBrainwaveRanges() {
-        XCTAssertTrue(AudioConstants.Brainwave.deltaRange.contains(2.0))
-        XCTAssertTrue(AudioConstants.Brainwave.thetaRange.contains(6.0))
-        XCTAssertTrue(AudioConstants.Brainwave.alphaRange.contains(10.0))
-        XCTAssertTrue(AudioConstants.Brainwave.betaRange.contains(20.0))
-        XCTAssertTrue(AudioConstants.Brainwave.gammaRange.contains(40.0))
-    }
-
-    func testCoherenceNormalize() {
-        XCTAssertEqual(AudioConstants.Coherence.normalize(50.0 as Double), 0.5, accuracy: 0.001)
-        XCTAssertEqual(AudioConstants.Coherence.normalize(0.0 as Double), 0.0, accuracy: 0.001)
-        XCTAssertEqual(AudioConstants.Coherence.normalize(100.0 as Double), 1.0, accuracy: 0.001)
-    }
-
-    func testCoherenceNormalizeClamps() {
-        XCTAssertEqual(AudioConstants.Coherence.normalize(-10.0 as Double), 0.0, accuracy: 0.001)
-        XCTAssertEqual(AudioConstants.Coherence.normalize(150.0 as Double), 1.0, accuracy: 0.001)
-    }
-
-    func testCoherenceNormalizeFloat() {
-        let result: Float = AudioConstants.Coherence.normalize(75.0 as Float)
-        XCTAssertEqual(result, 0.75, accuracy: 0.01)
-    }
-
-    func testCoherenceDenormalize() {
-        XCTAssertEqual(AudioConstants.Coherence.denormalize(0.5), 50.0, accuracy: 0.001)
-        XCTAssertEqual(AudioConstants.Coherence.denormalize(1.0), 100.0, accuracy: 0.001)
-    }
-
-    func testCoherenceThresholds() {
-        XCTAssertTrue(AudioConstants.Coherence.isLowCoherence(30.0))
-        XCTAssertFalse(AudioConstants.Coherence.isLowCoherence(50.0))
-        XCTAssertTrue(AudioConstants.Coherence.isHighCoherence(70.0))
-        XCTAssertFalse(AudioConstants.Coherence.isHighCoherence(50.0))
-    }
-
-    func testAmplitudeRanges() {
-        XCTAssertLessThanOrEqual(AudioConstants.minAmplitude, AudioConstants.defaultAmplitude)
-        XCTAssertLessThanOrEqual(AudioConstants.defaultAmplitude, AudioConstants.maxSafeAmplitude)
-    }
-
-    func testBreathingConstants() {
-        XCTAssertEqual(AudioConstants.Breathing.coherenceBreathsPerMinute, 6.0)
-        XCTAssertEqual(AudioConstants.Breathing.inhaleDuration + AudioConstants.Breathing.exhaleDuration,
-                       AudioConstants.Breathing.cycleDuration, accuracy: 0.01)
-    }
-}
-
-// MARK: - MusicalNote Tests
-
-final class MusicalNoteTests: XCTestCase {
-
-    func testA4FromFrequency() {
-        let note = MusicalNote.fromFrequency(440.0)
-        XCTAssertEqual(note.name, "A")
-        XCTAssertEqual(note.octave, 4)
-        XCTAssertEqual(note.midiNumber, 69)
-        XCTAssertEqual(note.displayName, "A4")
-    }
-
-    func testMiddleCFromFrequency() {
-        let note = MusicalNote.fromFrequency(261.63)
-        XCTAssertEqual(note.name, "C")
-        XCTAssertEqual(note.octave, 4)
-        XCTAssertEqual(note.midiNumber, 60)
-    }
-
-    func testZeroFrequency() {
-        let note = MusicalNote.fromFrequency(0)
-        XCTAssertEqual(note.name, "-")
-        XCTAssertEqual(note.frequency, 0)
-    }
-
-    func testNegativeFrequency() {
-        let note = MusicalNote.fromFrequency(-100)
-        XCTAssertEqual(note.name, "-")
-    }
-
-    func testCustomReferenceA4() {
-        // With A4=432, 432 Hz should be A4
-        let note = MusicalNote.fromFrequency(432.0, referenceA4: 432.0)
-        XCTAssertEqual(note.name, "A")
-        XCTAssertEqual(note.octave, 4)
-    }
-
-    func testNoteNames() {
-        XCTAssertEqual(MusicalNote.noteNames.count, 12)
-        XCTAssertEqual(MusicalNote.noteNames.first, "C")
-        XCTAssertEqual(MusicalNote.noteNames.last, "B")
-    }
-}
 #endif
