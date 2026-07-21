@@ -48,8 +48,15 @@ final class VideoImportLandingTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: audioDest.path), "audio copy lands on disk")
         XCTAssertEqual(audioDest.pathExtension, "wav", "extension is preserved")
         XCTAssertTrue(audioDest.path.contains("Media/Audio"), "audio goes under Media/Audio")
-        XCTAssertNotEqual(audioDest.lastPathComponent, tmp.lastPathComponent,
-                          "the copy gets a fresh unique name (no collision)")
+        // O11 gave imports a READABLE name (the source's own base name), not a UUID —
+        // so a first-time import with nothing yet taken in Media/Audio naturally reuses
+        // `tmp`'s own name; that is correct, not a collision. "Fresh unique name (no
+        // collision)" is proven by re-importing the SAME source: the dest directory now
+        // has that name taken, so the second copy must disambiguate (numeric suffix).
+        let audioDest2 = try MediaLibrary.importAudio(from: tmp)
+        defer { try? FileManager.default.removeItem(at: audioDest2) }
+        XCTAssertNotEqual(audioDest2.lastPathComponent, audioDest.lastPathComponent,
+                          "re-importing the same source gets a fresh unique name (no collision)")
 
         let videoSrc = FileManager.default.temporaryDirectory
             .appendingPathComponent("echoel-import-src-\(UUID().uuidString).mov")
