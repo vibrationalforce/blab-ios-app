@@ -238,13 +238,16 @@ struct AUv3BrowserView: View {
     @ViewBuilder private var troubleshootDisclosure: some View {
         DisclosureGroup(isExpanded: $showTroubleshoot) {
             VStack(alignment: .leading, spacing: 8) {
-                // The genuinely effective cold-registry sequence (device log
-                // 2026-07-20: many plugins installed, iOS still served this app only
-                // Apple units). Opening another AU host once re-scans the shared
-                // registry; a restart is what actually registers newly-installed
-                // plugins system-wide.
-                helpStep("Open GarageBand (or another Audio Unit host) once and view its plugin list — that wakes up iOS's shared plugin registry — then return here and tap Rescan.")
-                helpStep("Still not showing? Restart your iPhone, reopen Echoelmusic, and tap Rescan. iOS often only registers newly-installed plugins after a restart.")
+                // Professional stance (founder 2026-07-21: "No AUM/rescan guidance …
+                // stay professional"): the app does NOT tell users to open a
+                // competitor host, tap Rescan, reinstall, or restart the phone —
+                // that reads as a workaround, not a product. Installed Audio Units
+                // appear on their own; the only affordance here is a discreet
+                // copy-details for a support hand-off. The technical string lives in
+                // `diagnostic.report`, never on the main sheet.
+                Text("Audio Units you install appear here automatically. If one stays missing, send us the details below and we'll look into it.")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let diag = host.diagnostic {
                     Button { copyDiagnostic(diag.report) } label: {
                         Label(copiedDiagnostic ? "Copied" : "Copy details for support",
@@ -259,19 +262,11 @@ struct AUv3BrowserView: View {
             .padding(.top, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("Not seeing a plugin you installed?")
+            Text("Missing a plugin?")
                 .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.dim)
         }
         .tint(EchoelTheme.dim)
         .padding(.top, 2)
-    }
-
-    private func helpStep(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Circle().fill(EchoelTheme.dim).frame(width: 3, height: 3).padding(.top, 7)
-            Text(text).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-        }
     }
 
     // Where tapped effects land — the instrument channel or the master bus.

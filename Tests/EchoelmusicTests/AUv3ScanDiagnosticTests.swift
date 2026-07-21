@@ -45,40 +45,33 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
         XCTAssertTrue(g.contains("0 third-party"))
     }
 
-    // Cold + INSTANTIATE OK → the registry DOES serve the appex; the component
-    // list is stale for this process → the fix is a full quit+reopen, NOT reinstall.
-    func testGuidance_coldInstantiateOK_saysReopenNotReinstall() {
+    // PROFESSIONAL STANCE (founder 2026-07-21: "No AUM/rescan guidance … stay
+    // professional"): cold guidance states an HONEST cause but must NEVER tell the
+    // user to open a competitor host, tap Rescan, reinstall, or restart the phone.
+    // Cold + INSTANTIATE OK → registry serves the appex, the list is refreshing.
+    func testGuidance_coldInstantiateOK_isCalmNoWorkaround() {
         let d = AUv3ScanDiagnostic(rawComponentCount: 28, thirdPartyCount: 0,
                                    ownAUv3Present: false, scanAttempt: 4,
                                    selfProbe: .instantiateOK)
         let g = d.guidance.lowercased()
-        XCTAssertTrue(g.contains("reopen") || g.contains("quit"))
-        XCTAssertTrue(g.contains("stale") || g.contains("list"))
-        XCTAssertFalse(g.contains("reinstall"), "INSTANTIATE OK ⇒ registration is fine, do not tell the user to reinstall")
+        XCTAssertTrue(g.contains("refresh") || g.contains("list"))
+        for banned in ["aum", "garageband", "rescan", "reinstall", "restart", "swipe"] {
+            XCTAssertFalse(g.contains(banned), "no workaround instruction: '\(banned)'")
+        }
     }
 
-    // Cold + probe FAILED → -3000 = invalidComponentID is a registry FIND miss (the
-    // component did not RESOLVE in this process), NOT proof the appex is launch-denied
-    // (grill 2026-07-20 refuted that). With 0 third-party from every vendor the
-    // decisive action is priming another host (AUM/GarageBand) then rescanning —
-    // reinstall is only the fallback if AUM ALSO can't open our plugin. The OSStatus
-    // code stays surfaced for triage.
-    func testGuidance_coldProbeFailed_saysPrimeThenRescan_reinstallOnlyAsFallback() {
+    // Cold + probe FAILED (unstamped bundle) → honest cause + OSStatus for triage,
+    // NO user workaround steps.
+    func testGuidance_coldProbeFailed_isHonestCauseNoWorkaround() {
         let d = AUv3ScanDiagnostic(rawComponentCount: 28, thirdPartyCount: 0,
                                    ownAUv3Present: false, scanAttempt: 4,
                                    selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000))
         let g = d.guidance
         let lower = g.lowercased()
-        XCTAssertTrue(lower.contains("aum") || lower.contains("garageband"),
-                      "primary action is priming another AU host")
-        XCTAssertTrue(lower.contains("rescan"), "then rescan in Echoel")
-        // Reinstall must be framed as the FALLBACK ('only if'), not the first move.
-        if let reinstallRange = lower.range(of: "reinstall") {
-            let before = lower[lower.startIndex..<reinstallRange.lowerBound]
-            XCTAssertTrue(before.contains("only if"),
-                          "reinstall is the fallback, not the primary instruction")
-        }
         XCTAssertTrue(g.contains("-3000"), "surface the OSStatus code for device triage")
+        for banned in ["aum", "garageband", "rescan", "reinstall", "restart", "swipe"] {
+            XCTAssertFalse(lower.contains(banned), "no workaround instruction: '\(banned)'")
+        }
     }
 
     // Bundle-probe DISCRIMINATOR (founder 2026-07-21, reboot refuted): when the

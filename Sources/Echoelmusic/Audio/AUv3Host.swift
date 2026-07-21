@@ -146,14 +146,17 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
     /// (unregistered appex) — the two remaining causes once the retries are spent.
     public var guidance: String {
         guard isCold else { return "" }
+        // PROFESSIONAL STANCE (founder 2026-07-21: "No AUM/rescan guidance … stay
+        // professional"): this string carries an HONEST cause for a support/dev
+        // hand-off — it must NOT instruct the user to open a competitor host, tap
+        // Rescan, reinstall, or restart the phone. Those workaround steps are gone.
         let counts = "iOS handed this app \(rawComponentCount) Audio Units — 0 third-party, own AUv3 not visible."
         switch selfProbe {
         case .none:
-            return counts + " Running a self-test to find out why…"
+            return counts + " Checking available Audio Units…"
         case .instantiateOK:
             return counts
-                + " Self-test: OK — iOS DOES serve our plugin, but this app's plugin LIST is stale."
-                + " Fully quit Echoelmusic (swipe it away) and reopen — that reliably refreshes the list."
+                + " Self-test: OK — iOS serves our plugin; the Audio Unit list is still refreshing."
         case let .failed(domain, code):
             // -3000 = invalidComponentID = the component did not RESOLVE in this
             // process's registry (a find miss BEFORE any launch), not proof the
@@ -179,11 +182,10 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
                     + " Self-test: FAILED (\(domain) \(code)) — and our plugin is NOT embedded in the installed app (\(bundledAUv3))."
                     + " That points at the build/embed step; the next archive must bundle the .appex under PlugIns/."
             }
-            // Bundle not yet stamped (pure-value path) → the pre-bundle-probe advice:
-            // prime another host, then rescan; reinstall only as a fallback.
+            // Bundle not yet stamped (pure-value path) → honest cause only, no
+            // user workaround steps (professional stance above).
             return counts
-                + " Self-test: FAILED (\(domain) \(code)) — iOS did not resolve any out-of-process plugin for this app (not even ours)."
-                + " Open AUM or GarageBand once (let it list plugins), then return here and Rescan. Only if AUM also can't open our plugin: reinstall Echoelmusic or restart the device."
+                + " Self-test: FAILED (\(domain) \(code)) — iOS did not resolve any out-of-process Audio Unit for this app (not even ours). Diagnostics captured for support."
         }
     }
 
@@ -1117,7 +1119,9 @@ public final class AUv3Host {
         var errorDescription: String? {
             switch self {
             case .timedOut(let name):
-                return "\(name) is not responding — open the plugin's own app once, or reinstall it."
+                // Professional stance (founder 2026-07-21): state the fact, no
+                // "reinstall it" / open-another-app workaround copy to the user.
+                return "\(name) didn’t respond in time and wasn’t loaded."
             }
         }
     }
