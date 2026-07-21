@@ -21,6 +21,9 @@ final class PolySynthVoiceTests: XCTestCase {
         voice.noteOn(pitch: 60)
         voice.noteOn(pitch: 64)
         voice.noteOn(pitch: 67)
+        // noteOn only ENQUEUES (audio thread applies it — see the first-note-crash
+        // fix); pump the queue as the render block would before asserting allocation.
+        voice.pumpNoteCommandsForTesting()
         XCTAssertEqual(voice.activeVoiceCount, 3, "a triad allocates three voices")
     }
 
@@ -29,6 +32,7 @@ final class PolySynthVoiceTests: XCTestCase {
         voice.noteOn(pitch: 60)
         voice.noteOn(pitch: 64)
         voice.noteOff(pitch: 60)
+        voice.pumpNoteCommandsForTesting()
         XCTAssertEqual(voice.activeVoiceCount, 1, "only the released pitch frees its voice")
     }
 
@@ -36,6 +40,7 @@ final class PolySynthVoiceTests: XCTestCase {
         let voice = PolySynthVoice(maxVoices: 6)
         voice.noteOn(pitch: 60)
         voice.noteOff(pitch: 72) // never held
+        voice.pumpNoteCommandsForTesting()
         XCTAssertEqual(voice.activeVoiceCount, 1)
     }
 
@@ -45,6 +50,7 @@ final class PolySynthVoiceTests: XCTestCase {
         voice.noteOn(pitch: 64)
         voice.noteOn(pitch: 67)
         voice.allNotesOff()
+        voice.pumpNoteCommandsForTesting()
         XCTAssertEqual(voice.activeVoiceCount, 0)
     }
 
@@ -54,6 +60,7 @@ final class PolySynthVoiceTests: XCTestCase {
         for pitch in [60, 62, 64, 65, 67] {
             voice.noteOn(pitch: pitch)
         }
+        voice.pumpNoteCommandsForTesting()
         XCTAssertLessThanOrEqual(voice.activeVoiceCount, 3,
                                  "active voices never exceed the pool size")
     }
@@ -63,6 +70,7 @@ final class PolySynthVoiceTests: XCTestCase {
         // Out-of-range velocities must not crash or push an invalid amplitude.
         voice.noteOn(pitch: 60, velocity: 5.0)
         voice.noteOn(pitch: 64, velocity: -2.0)
+        voice.pumpNoteCommandsForTesting()
         XCTAssertEqual(voice.activeVoiceCount, 2)
     }
 
@@ -82,6 +90,7 @@ final class PolySynthVoiceTests: XCTestCase {
         patch.brightness = 0.9
         patch.harmonicity = 0.5
         voice.apply(patch)
+        voice.pumpNoteCommandsForTesting()
         // Patch recall is a fan-out; assert it leaves the voice in a valid state.
         XCTAssertEqual(voice.activeVoiceCount, 1)
     }

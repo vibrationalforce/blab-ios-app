@@ -651,22 +651,7 @@ public final class PolySynthVoice {
         // one thread — never racing the render. Must run before the silence guard
         // so the first note both flips hasEverSounded and is applied atomically wrt
         // rendering.
-        while let cmd = noteCommands.dequeue() {
-            switch cmd.kind {
-            case .on:
-                hasEverSounded = true
-                renderIdle = false; idleQuietFrames = 0   // wake IN this block
-                poly.noteOn(note: Int(cmd.pitch), velocity: cmd.velocity)
-            case .off:
-                poly.noteOff(note: Int(cmd.pitch))
-            case .allOff:
-                poly.allNotesOff()
-            case .slide:
-                hasEverSounded = true   // a slide's noteOn-fallback must not be muted
-                renderIdle = false; idleQuietFrames = 0
-                poly.slideNote(from: Int(cmd.pitch2), to: Int(cmd.pitch), velocity: cmd.velocity)
-            }
-        }
+        drainNoteCommands()
         guard hasEverSounded else {
             Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
             return
@@ -747,6 +732,42 @@ public final class PolySynthVoice {
             copy(&scratchR, to: abl[1], count: count, total: frameCount)
         }
     }
+
+    /// Drain the note-command queue into the poly engine. Extracted verbatim from
+    /// the render block so the audio thread and the DEBUG test-pump share ONE code
+    /// path — the render path is byte-identical to before (same call site, same
+    /// per-command effects). Audio-thread safe: lock-free dequeue + arithmetic voice
+    /// state, no alloc. Owned by the one audio thread in production.
+    nonisolated(unsafe) private func drainNoteCommands() {
+        while let cmd = noteCommands.dequeue() {
+            switch cmd.kind {
+            case .on:
+                hasEverSounded = true
+                renderIdle = false; idleQuietFrames = 0   // wake IN this block
+                poly.noteOn(note: Int(cmd.pitch), velocity: cmd.velocity)
+            case .off:
+                poly.noteOff(note: Int(cmd.pitch))
+            case .allOff:
+                poly.allNotesOff()
+            case .slide:
+                hasEverSounded = true   // a slide's noteOn-fallback must not be muted
+                renderIdle = false; idleQuietFrames = 0
+                poly.slideNote(from: Int(cmd.pitch2), to: Int(cmd.pitch), velocity: cmd.velocity)
+            }
+        }
+    }
+
+    #if DEBUG
+    /// TEST ONLY. Simulate one audio-thread pump of the note-command queue so a
+    /// unit test can observe control-plane allocation (`activeVoiceCount`) after
+    /// `noteOn`/`noteOff` — which, since the first-note-crash fix, only ENQUEUE and
+    /// are applied on the audio thread inside `renderOnAudioThread`. This drains the
+    /// SAME queue via the SAME `drainNoteCommands()` the render uses; it does not run
+    /// the DSP render. Never call from production code.
+    internal func pumpNoteCommandsForTesting() {
+        drainNoteCommands()
+    }
+    #endif
 
     nonisolated(unsafe) private func copy(
         _ src: inout [Float],
