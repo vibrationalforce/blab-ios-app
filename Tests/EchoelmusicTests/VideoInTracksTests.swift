@@ -66,13 +66,14 @@ final class VideoInTracksTests: XCTestCase {
         XCTAssertFalse(VideoRegionSync.isActive(startTick: 10, lengthTicks: 5, playheadTick: 15))
     }
 
-    func testScrub_inactiveReturnsNil_activeMatchesResolve() {
+    func testScrub_inactiveReturnsNil_activeMatchesResolve() throws {
         XCTAssertNil(VideoRegionSync.scrubSourceSeconds(
             startTick: 1920, lengthTicks: 1920, contentOffsetSeconds: 0, bpm: bpm,
             nativeDurationSeconds: 10, playheadTick: 0))
-        XCTAssertEqual(VideoRegionSync.scrubSourceSeconds(
+        let active = try XCTUnwrap(VideoRegionSync.scrubSourceSeconds(
             startTick: 0, lengthTicks: 1920, contentOffsetSeconds: 0.5, bpm: bpm,
-            nativeDurationSeconds: 10, playheadTick: 960), 0.75, accuracy: 1e-9)
+            nativeDurationSeconds: 10, playheadTick: 960))
+        XCTAssertEqual(active, 0.75, accuracy: 1e-9)
     }
 
     // MARK: - VideoRegionTrim

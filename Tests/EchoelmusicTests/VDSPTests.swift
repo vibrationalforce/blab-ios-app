@@ -306,7 +306,7 @@ final class EchoelModalBankTests: XCTestCase {
     }
 
     func testMaterialPresetCases() {
-        let cases = MaterialPreset.allCases
+        let cases = EchoelModalBank.MaterialPreset.allCases
         XCTAssertEqual(cases.count, 8)
         XCTAssertTrue(cases.contains(.bell))
         XCTAssertTrue(cases.contains(.plate))
@@ -319,7 +319,7 @@ final class EchoelModalBankTests: XCTestCase {
     }
 
     func testExcitationTypeCases() {
-        let cases = ExcitationType.allCases
+        let cases = EchoelModalBank.ExcitationType.allCases
         XCTAssertEqual(cases.count, 3)
         XCTAssertTrue(cases.contains(.impulse))
         XCTAssertTrue(cases.contains(.continuous))
@@ -372,7 +372,7 @@ final class EchoelModalBankTests: XCTestCase {
 
     func testMaterialPresetSwitch() {
         let bank = EchoelModalBank()
-        for material in MaterialPreset.allCases where material != .custom {
+        for material in EchoelModalBank.MaterialPreset.allCases where material != .custom {
             bank.material = material
             XCTAssertEqual(bank.material, material)
         }
