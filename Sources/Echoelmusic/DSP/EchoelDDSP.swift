@@ -564,8 +564,11 @@ public final class EchoelDDSP: @unchecked Sendable {
 
         // Initialize convolution reverb with a synthetic IR. maxInputLength must
         // match the buffer cap or the convolution truncates large blocks.
+        // Clamped self.sampleRate (not the raw param): a negative sampleRate makes
+        // generateReverbIR's `Int(0.02 * sampleRate)` negative → a `0..<negative`
+        // invalid-range trap. self.sampleRate == sampleRate for every valid input.
         self.reverbConvolution = EchoelConvolution(kernel: EchoelDDSP.generateReverbIR(
-            decay: 1.5, sampleRate: sampleRate, length: 4096
+            decay: 1.5, sampleRate: self.sampleRate, length: 4096
         ), maxInputLength: reverbCap)
 
         // Initialize with natural spectral envelope
