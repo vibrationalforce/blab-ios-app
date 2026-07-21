@@ -188,25 +188,24 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
 
     // MARK: - Load-failure message (founder-visible "won't open" triage)
 
-    // When a plugin is DISCOVERED but fails at LOAD/open time (founder 2026-07-19:
-    // "wird in AUM erkannt aber lässt sich nicht öffnen"), localizedDescription
-    // hides the OSStatus behind a vague string. The load-failure message must
-    // surface the raw domain#code so a device screenshot pins the cause.
-    func testLoadFailureMessage_carriesTheRawOSStatusCode() {
+    // PROFESSIONAL STANCE (founder 2026-07-21: "stay professional"): a plugin that
+    // fails at LOAD/open time shows a CALM human reason — the raw OSStatus domain#code
+    // is NOT dumped on screen (it lives in the load-path breadcrumb + os_log the
+    // device log carries). The visible message must name the plugin + reason, no jargon.
+    func testLoadFailureMessage_isCalmNoRawOSStatusJargon() {
         let msg = AUv3ScanDiagnostic.loadFailureMessage(
-            name: "Zeeon", domain: "NSOSStatusErrorDomain", code: -3000,
-            localized: "The operation couldn’t be completed.")
+            name: "Zeeon", localized: "The operation couldn’t be completed.")
         XCTAssertTrue(msg.contains("Zeeon"), "names the plugin that failed")
-        XCTAssertTrue(msg.contains("-3000"), "surfaces the OSStatus code that localizedDescription hides")
-        XCTAssertTrue(msg.contains("NSOSStatusErrorDomain"), "surfaces the error domain")
+        XCTAssertTrue(msg.contains("The operation couldn’t be completed."), "keeps the human reason")
+        XCTAssertFalse(msg.contains("-3000"), "no raw OSStatus code on screen")
+        XCTAssertFalse(msg.lowercased().contains("nsosstatuserrordomain"), "no error-domain jargon on screen")
+        XCTAssertFalse(msg.contains("["), "no bracketed technical suffix")
     }
 
-    // The human-readable localizedDescription is kept alongside the code — the code
-    // is for triage, the prose is for the founder.
+    // The human-readable localizedDescription is the whole visible message.
     func testLoadFailureMessage_keepsTheHumanReadableReason() {
         let msg = AUv3ScanDiagnostic.loadFailureMessage(
-            name: "BigReverb", domain: "com.acme.fx", code: -1,
-            localized: "Unsupported channel layout.")
+            name: "BigReverb", localized: "Unsupported channel layout.")
         XCTAssertTrue(msg.contains("Unsupported channel layout."))
         XCTAssertTrue(msg.contains("BigReverb"))
     }

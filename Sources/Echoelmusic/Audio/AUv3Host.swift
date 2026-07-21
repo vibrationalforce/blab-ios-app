@@ -213,16 +213,15 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
             + "self-probe \(probe). Makers iOS gave this app: [\(makers)].\(embed)"
     }
 
-    /// A founder- and log-friendly one-line reason for a FAILED AU load — for the
-    /// symptom AFTER discovery works: the plugin is listed but won't open (founder
-    /// 2026-07-19: "wird in AUM erkannt aber lässt sich nicht öffnen"). The raw
-    /// OSStatus is what actually pins the cause (e.g. NSOSStatusErrorDomain -3000
-    /// invalidComponentID = the extension isn't instantiable for this process;
-    /// -10868 = unsupported format), but `localizedDescription` buries it under
-    /// "The operation couldn’t be completed." — so the domain#code is surfaced
-    /// explicitly. Pure/primitive, so it is CI-verifiable off-device.
-    static func loadFailureMessage(name: String, domain: String, code: Int, localized: String) -> String {
-        "Could not load \(name): \(localized) [\(domain) \(code)]"
+    /// A calm, one-line reason for a FAILED AU load — the symptom AFTER discovery
+    /// works: the plugin is listed but won't open (founder 2026-07-19: "wird in AUM
+    /// erkannt aber lässt sich nicht öffnen"). PROFESSIONAL STANCE (founder
+    /// 2026-07-21): the VISIBLE string carries only the human reason — the raw
+    /// OSStatus `domain#code` that pins the cause is NOT dumped on screen (it is
+    /// already recorded in the load-path breadcrumb + os_log, which the device log
+    /// carries for triage). Pure/primitive, so it is CI-verifiable off-device.
+    static func loadFailureMessage(name: String, localized: String) -> String {
+        "Could not load \(name): \(localized)"
     }
 }
 
@@ -511,7 +510,7 @@ public final class AUv3Host {
         } catch {
             let e = error as NSError
             loadError = AUv3ScanDiagnostic.loadFailureMessage(
-                name: info.name, domain: e.domain, code: e.code, localized: e.localizedDescription)
+                name: info.name, localized: e.localizedDescription)
             EchoelCrashLog.breadcrumb("auv3 load FAILED '\(info.name)': \(e.domain)#\(e.code) — \(e.localizedDescription)")
             log.audio("AUv3 load failed: \(e.domain)#\(e.code)", level: .error)
         }
@@ -589,7 +588,7 @@ public final class AUv3Host {
         } catch {
             let e = error as NSError
             loadError = AUv3ScanDiagnostic.loadFailureMessage(
-                name: info.name, domain: e.domain, code: e.code, localized: e.localizedDescription)
+                name: info.name, localized: e.localizedDescription)
             EchoelCrashLog.breadcrumb("auv3 master-fx load FAILED '\(info.name)': \(e.domain)#\(e.code) — \(e.localizedDescription)")
             log.audio("AUv3 master effect load failed: \(e.domain)#\(e.code)", level: .error)
         }
