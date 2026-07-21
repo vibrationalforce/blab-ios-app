@@ -167,8 +167,18 @@ a founder-requested feature; any change needs a Council look at gesture preceden
   shape), verify grips + tap-audition + long-press menu on device before shipping.
 - **Slice 2 (3 files, TDD):** C4 — `TimelineDragMath` pure core + tests + wire live
   snap/clamp preview so release never jumps.
-- **Slice 3 (1-2 files):** C5 — cache `resolveRef` per mediaRef out of the per-frame body;
-  then reassess C6/C7 against the recording.
+- **Slice 3 — BUILT** (`9253e0e`): C5 — `resolveRef` now cached into `@State private var
+  resolvedMediaURL` via `.task(id: clip?.mediaRef)`; both consumers (`auditionURL`,
+  `audioWaveformOverlay`) read the cached value, zero per-frame file-system probes.
+  (This entry went stale — the fix shipped 2026-07-1x but the Slices list was never
+  updated; corrected 2026-07-21.)
+
+**Remaining open in this audit:** C3 (device-gated, needs founder recording — see above),
+C6 (LOW, persist() debounce — deliberately NOT picked up blind: touches every mutation
+call site in TimelineStore, "later, careful" per the original note, and no founder ask
+forces it), C7 (needs the recording to confirm before touching a founder-requested
+context-menu gesture). Nothing here is actionable without the founder's recording except
+C6, which is scoped as its own careful cycle, not a Ralph Wiggum quick pick.
 
 ## Slice-2 review follow-ups (05c9ae4 APPROVE, addressed in the next commit)
 
