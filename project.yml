@@ -84,6 +84,15 @@ targets:
         type: folder
       - path: Sources/Echoelmusic/Resources/Samples
         type: folder
+      # Community JSON (fx/moods/patches) — same folder-reference need as Drums/
+      # Samples above: CommunityLibrary.load(_:as:) looks these up by
+      # `subdirectory:"Community/fx"` etc. The generic `sources:` group entry for
+      # Sources/Echoelmusic flattens non-source files to the bundle root, which
+      # made the subdirectory lookup return nil (CommunityLibraryTests/
+      # MoodPresetTests failing in CI — the app never actually lost these files,
+      # the test target just couldn't find them at the expected path).
+      - path: Sources/Echoelmusic/Resources/Community
+        type: folder
       - path: Resources/PrivacyInfo.xcprivacy
         type: file
       # Brand font Atkinson Hyperlegible (mirrors echoelmusic.com). The .ttf files
