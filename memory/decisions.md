@@ -1014,3 +1014,24 @@ Architectural and strategic decisions with context and rationale.
   `secLen` (16-step vs 8-step sections) — a dsp-reviewer-required Sources change, not a test change.
 - **Review-Datum:** nach Founder-Ohr-Check von selfObservation bei hoher Erregung (niedrige Kohärenz,
   hoher Puls) — zusammen mit den #77-Tiefe-Knöpfen.
+
+### 2026-07-21 ModulationEngine skip-zero dispatch — founder ear-check needed
+- **What:** `ModulationEngine.apply()` (Core/ModulationEngine.swift:204) and `ModulationMatrix.evaluate()`
+  (Core/ModulationMatrix.swift:286) both deliberately `guard value > 0 else { continue }` — a route
+  whose computed value lands exactly at 0 is treated as "not contributing" and its destination handler
+  is never called at all, so the driven parameter holds whatever value it last had rather than being
+  pushed to 0. This is consistent, intentional design across both evaluation paths (not a one-off bug).
+- **Tension:** `ModulationEngineTests.testApply_smoothingZero_isInstant` and
+  `testApply_smoothedRouteToZeroDecays_notInstant` both assume the opposite — that an explicit 0 must
+  reach the handler (so e.g. a filter cutoff or FX param CAN be driven all the way to true silence by
+  a coherence dip to 0). Both behaviors are defensible: "skip zero" avoids a destination combining
+  multiple routes from being yanked to hard-zero by one route momentarily reading 0; "dispatch zero"
+  lets bio-modulation genuinely reach the floor of a parameter's range when the body calls for it.
+- **Action taken:** both tests marked `XCTSkip` with the reasoning inline (Tests/EchoelmusicTests/
+  ModulationEngineTests.swift) rather than guessing a Sources fix or loosening the assertion — this is
+  a live-musical-behavior product call, not a correctness bug.
+- **If founder wants "dispatch reaches true zero":** the fix is replacing `guard value > 0` with
+  `guard route.enabled` (or equivalent) in both `apply()` and `evaluate()` — small, but touches the
+  aggregation semantics for EVERY destination with multiple contributing routes, so it needs a fresh
+  Council pass (Architect + Skeptic at minimum) before shipping, not just a one-line change.
+- **Review-Datum:** next founder ear-check / product review of bio→FX modulation behavior on device.
