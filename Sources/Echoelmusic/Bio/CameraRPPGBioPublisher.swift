@@ -115,7 +115,10 @@ public final class CameraRPPGBioPublisher {
     public private(set) var displayBPM: Double = 0
     /// Only readings at/above this confidence move `displayBPM` (higher than `lockThreshold`
     /// so the noisy 0.35–0.55 band holds instead of wandering).
-    static let displayThreshold = 0.6
+    /// `nonisolated`: a pure constant, so the pure `pulseTrustworthy` gate and its
+    /// Foundation-only unit tests (CameraRPPGTrustTests) can read it without hopping
+    /// to the main actor. Runtime-identical; no observation/render effect.
+    nonisolated static let displayThreshold = 0.6
     /// Max change of the shown pulse per ~100 ms tick — a physiological slew cap so the
     /// displayed BPM can never jump. 1.0 bpm/tick ≈ 10 bpm/s: calm enough that a resting
     /// readout doesn't visibly twitch, still fast enough to track a genuine rise/fall within
@@ -156,7 +159,7 @@ public final class CameraRPPGBioPublisher {
     /// — the pulse must EARN trust. On this device real locks always carry strong acf
     /// (0.57–0.84); junk maxes ~0.29, so 0.4 separates them cleanly. (Camera is the approximate
     /// fallback — a chest strap gives clean beat-to-beat directly and is the preferred source.)
-    static let trustAutoFloor = 0.4
+    nonisolated static let trustAutoFloor = 0.4
 
     /// STRONG autocorrelation that, on its OWN, proves a real pulse regardless of the
     /// confidence metric (device log 1783420026: acf climbed to 0.59–0.72 with a
@@ -167,12 +170,12 @@ public final class CameraRPPGBioPublisher {
     /// should not have to wait for confidence to catch up. Set well above the junk
     /// ceiling (~0.29, see trustAutoFloor note) so the high-conf/low-acf self-agreeing
     /// junk case can never reach it.
-    static let strongAutoFloor = 0.6
+    nonisolated static let strongAutoFloor = 0.6
 
     /// A reading may move the display / latch the tempo when it is EITHER confident AND
     /// corroborated by real periodicity, OR carries strong periodicity on its own. The
     /// junk case (conf high, acf ~0.14) still fails BOTH clauses. Pure → unit-testable.
-    static func pulseTrustworthy(confidence: Double, autoStrength: Double) -> Bool {
+    nonisolated static func pulseTrustworthy(confidence: Double, autoStrength: Double) -> Bool {
         (confidence >= displayThreshold && autoStrength >= trustAutoFloor)
             || autoStrength >= strongAutoFloor
     }
