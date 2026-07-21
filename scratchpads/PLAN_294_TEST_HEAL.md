@@ -24,7 +24,8 @@ until build-for-testing goes green.
 | 361775a | @MainActor sender tests (ADMOSC/ArtNet init() from nonisolated) | class-level `@MainActor` |
 | 3542105 | Timeline suite: migrate() @MainActor · misplaced gain tests (lane/clip/region scope) · 3× Double? accuracy | @MainActor method · add helpers to class 2 · XCTUnwrap |
 | 9825e44 | EchoelRenderLayout azimuth Double? · FaceExpression bag [String:Double]→[String:Float] | XCTUnwrap · type annotation |
-| **65dd32b** | AudioEngineTests: 7 dead-API classes (Metronome*/CountInMode/TunerReading/MusicalNote-ext/TuningReference-ext removed/redesigned) | delete obsolete classes |
+| 65dd32b | AudioEngineTests: 7 dead-API classes (Metronome*/CountInMode/TunerReading/MusicalNote-ext/TuningReference-ext removed/redesigned) | delete obsolete classes |
+| **57329c0** | AUv3HostTests split/categorize (@MainActor class) · AUParameterMapping registry method · AudioRegionPlayback filePos Double? | class/method @MainActor · XCTUnwrap |
 
 > CORRECTION (65dd32b): reveal #14's AudioEngineTests:111-135 lines were NOT noise —
 > they were REAL dead-API errors (CountInMode/MetronomeConfiguration are REMOVED types).
