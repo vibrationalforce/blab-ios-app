@@ -11,6 +11,36 @@
 > oberste offene Slice ziehen → Gates → Deploy → Verify-Spalte aktualisieren.
 > Erledigtes wandert nach ERLEDIGT (mit Build-Nummer), nichts wird gelöscht.
 
+## 2026-07-21 Session-Ergänzung (Board war seit 07-18 nicht mehr geführt — Hygiene-Nachtrag, keine Zeilen gelöscht)
+
+REIHENFOLGE (Founder-Verdikt v10.79.183, 5→1→2→3→4) war zu Sessionbeginn bereits vollständig
+geschlossen/geräte-verifiziert-abwartend — kein neuer Code-Bedarf dort. Backlog-Triage-Workflow
+(8 parallele Survey-Agenten über #40/#51/#52/#55/#56/#59-61/#67/#68) fand fast alles gerät-/
+founder-/sequenz-gated (Details je Zeile unten in AKTIV/OFFEN); tatsächlich blind bearbeitbar
+waren 2 Punkte, plus 1 direkter Founder-Ohr-Fix:
+
+| Punkt | Commit | Verify |
+|-------|--------|--------|
+| Task #13 S1 — Audio-Lane-Recording-Hook (`AudioTakeRecording`-Seam, Flag OFF) | b1a38b9 | audio-thread-reviewer PASS-WITH-NOTES, fand+fixte Re-Entrancy-Race vor Push. Verhalten-identisch (Flag OFF) |
+| Task #77 — Lead-Melodie in Bar 0 leiser (0.72×), direkte Founder-Ohr-Antwort "am Anfang ... laute Melodie" | 0bc1a9d | code-reviewer fing echten Bug (Dämpfung wiederholte sich jede Loop-Runde) vor Push; korrigierte Verdrahtung in `PianoRollModel.loadArrangement`. Tiefere Beat-Skelett/Progression-Frage bleibt ohren-gated (`decisions.csv:262`) |
+| Task #52 — press.html Sitemap + Footer-Link | 01b913f, 34d2771 | docs-only, kein Sources-Risiko |
+| Task #56 C6 — TimelineStore.persist() Disk-Write debounced (trailing-edge, ~47 Call-Sites) | 4b75941 | concurrency-reviewer PASS, fing 2 Tests mit falscher Sync-Write-Annahme (auf flushPendingSave() umgestellt) |
+
+**TestFlight Build 2436 deployed** (62abddc → testflight.yml run 29864595254): Archive ✓ →
+Export & Upload ✓ → ASC-Verify `state=VALID` (2026-07-21 20:18 UTC). Bündelt außerdem den bereits
+laufenden b1a38b9/0bc1a9d/etc.-Stand.
+
+**Bestätigt weiterhin blockiert (kein Code-Handeln, korrekt so):**
+- #51 EchoelPublish — explizit auf v1.2 Broadcast-Ära verschoben (`decisions.csv:208`, 2026-07-15
+  Entscheidung), kein Plan-Doc jetzt, würde eine bestehende Entscheidung überschreiben.
+- #55 Leiste S2-S6 — Founder-Redesign-Entscheidung nötig (Mix/Synth/Sound-Chips tragen
+  einzigartige Funktionen, siehe `PLAN_LEISTE_DISSOLVE_2026-07-20.md`).
+- #56 Rest (C3/C7) — brauchen die echte Founder-Bildschirmaufnahme.
+- #59/#60/#61 — bewusster Ideen-Parkplatz, erst nach der A-Serie (Founder-Sequenzierung, O10).
+- #67/#68 BodyVibe — Info.plist-Datenschutztext (Front-Kamera-Beschreibung) braucht
+  Founder-Freigabe vor Flag-ON; Track-Panel-Rest ist Geräte-Ohr-Verify.
+- #40 DAW#4 Video — kein sicherer nicht-geräte-gebundener Slice in dieser Triage gefunden.
+
 ## AKTIV (in dieser Reihenfolge ziehen)
 
 | # | Baustelle | Founder-Quelle | Nächste Slice | Verify-Weg | Route |
