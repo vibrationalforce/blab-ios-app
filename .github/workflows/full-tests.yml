@@ -89,18 +89,20 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "### Full suite reveal (non-blocking)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- build-for-testing: ${{ steps.build.outcome }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- test-without-building: ${{ steps.run.outcome }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "First compile errors (if any):" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          grep -E "error:|warning: .*deprecated" full-build.log 2>/dev/null | head -40 >> "$GITHUB_STEP_SUMMARY" || echo "(no compile errors captured)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "Failing tests (if any):" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          grep -E "failed|error:" full-test.log 2>/dev/null | head -40 >> "$GITHUB_STEP_SUMMARY" || echo "(none captured)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "### Full suite reveal (non-blocking)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "- build-for-testing: ${{ steps.build.outcome }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "- test-without-building: ${{ steps.run.outcome }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Distinct compile errors, most-frequent first — printed to STDOUT (tee) so
+          # they're readable from the job-log tail even without artifact download.
+          echo "===ECHOEL_BUILD_ERRORS_BEGIN==="
+          grep -hoE "error: .*" full-build.log 2>/dev/null | sort | uniq -c | sort -rn | head -40 | tee -a "$GITHUB_STEP_SUMMARY" || echo "(no compile errors captured)"
+          echo "===ECHOEL_BUILD_ERRORS_END==="
+          echo "===ECHOEL_ERROR_FILES_BEGIN==="
+          grep -hoE "/[^ ]+\.swift:[0-9]+:[0-9]+: error:" full-build.log 2>/dev/null | sed -E 's#.*/(Tests/[^:]+):([0-9]+):.*#\1:\2#' | sort -u | head -50
+          echo "===ECHOEL_ERROR_FILES_END==="
+          echo "===ECHOEL_TEST_FAILURES_BEGIN==="
+          grep -E "failed|error:" full-test.log 2>/dev/null | head -30 || echo "(none captured)"
+          echo "===ECHOEL_TEST_FAILURES_END==="
 
       - name: Upload logs
         if: always()
