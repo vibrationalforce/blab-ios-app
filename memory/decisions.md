@@ -1035,3 +1035,37 @@ Architectural and strategic decisions with context and rationale.
   aggregation semantics for EVERY destination with multiple contributing routes, so it needs a fresh
   Council pass (Architect + Skeptic at minimum) before shipping, not just a one-line change.
 - **Review-Datum:** next founder ear-check / product review of bio→FX modulation behavior on device.
+
+### 2026-07-21 Two #78-suite tests are host/environment-dependent, not Sources bugs — both XCTSkip'd
+- **Investigated with CI log evidence** (run 29825653117, macos-26/Xcode 26.2, `full-tests.yml`), not
+  guessed — pulled `get_job_logs` for the job and checked each failing test's actual pass/fail duration.
+- **`BioMusicDirectorTests.testGateOffByDefaultInTestEnvironment`** (`XCTAssertFalse(OnDeviceModelGate.
+  isOnDeviceLLMAvailable)`): failed in **0.012s** — a clean, fast assertion failure, NOT a hang/crash/
+  timeout. So `OnDeviceModelGate.isOnDeviceLLMAvailable` genuinely evaluates `true` on that CI sim.
+  Researched why: Apple's Foundation Models docs state the iOS/visionOS **Simulator does not carry its
+  own on-device model** — `SystemLanguageModel.default` on Simulator reflects the **host Mac's** Apple
+  Intelligence enablement/model state (the simulator shares the host's model store). Xcode 26 even ships
+  a scheme-level "Foundation Models Availability" override specifically so tests can force a state —
+  implying host-inherited availability is the unpredictable default Apple expects developers to need to
+  override. So on whichever GitHub-hosted `macos-26` runner reported `.available`, `OnDeviceModelGate`
+  was behaving CORRECTLY (there really is a model in that process) — the test's own comment ("simulator/
+  test host has no on-device model") is the false premise, not `Sources/Core/OnDeviceModelGate.swift`.
+  **Action:** XCTSkip with the reasoning inline; no Sources change is possible or correct here.
+- **`SamplerVoiceTests.testSourceNode_outputFormatMono44k`**: failed in **20.575s** this run (an earlier
+  #78 triage cycle logged **74s** for the same test — `scratchpads/PLAN_294_TEST_HEAL.md` #18). Variable-
+  duration stall = a HAL/XPC wait, not a wrong value. Narrowed the cause: `voice.sourceNode.outputFormat
+  (forBus:)` queries a bare `AVAudioSourceNode`'s AudioComponent stream format while it is NOT attached
+  to any `AVAudioEngine` — on a headless CI simulator (no audio hardware) this can stall resolving the
+  AudioComponent over CoreAudio's HAL XPC channel. Confirmed narrow scope: every OTHER test in the file
+  drives playback via the `_testRender` hook (`renderState.render(...)` directly, never touches
+  `sourceNode`); `BodyVibeBioRackTests` reads `.volume`/`.pan` on an equivalent node (simple property
+  getters, no AudioComponent format resolution) without issue — so it's the format QUERY specifically,
+  not node construction. **Action:** XCTSkip with the reasoning inline; no Sources fix addresses a
+  CI-host audio-HAL stall (real devices/attached-engine paths are unaffected — this is a bare-node
+  format query that the shipping app never performs in isolation).
+- **Both logged so this doesn't get "fixed" again by guessing** — see `decisions.csv` rows dated
+  2026-07-21 (`BioMusicDirectorTests-gate-off-skip`, `SamplerVoiceTests-outputFormat-skip`).
+- **Review-Datum:** if either needs a deterministic CI value later — e.g. a scheme-level Foundation
+  Models Availability override in `project.yml`/`full-tests.yml` for the first, or an engine-attached
+  variant of the SamplerVoice format assertion for the second — that is new work, not a re-open of these
+  skips.

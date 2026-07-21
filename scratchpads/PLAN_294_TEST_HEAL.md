@@ -167,9 +167,18 @@ SynthPatchApply · TimelineStoreAutomationEdit(2).
 - TEST-DRIFT: #6 BioEndToEnd + #23 CrossSynth (verify vs newest reveal; may share the
   vanished-mapping root — check before rewriting).
 - SIM-ENV/founder-gated/protected (unchanged): Community/Mood bundled JSON · AppGroupStore
-  pollution · SamplerVoice 74s · ModulationEngine guard value>0 (#24/#25) · BioSignalDeconvolver
+  pollution · ModulationEngine guard value>0 (#24/#25) · BioSignalDeconvolver
   (protected triad, dsp-reviewer) · EchoelMeter · BioComposer ×2 · EchoelFXChain ×3 ·
-  BioMusicDirector gate-off · SpectralColorCIE Kammerton (#21) · SynthPatchApply · TimelineStore ×2.
+  SpectralColorCIE Kammerton (#21) · SynthPatchApply · TimelineStore ×2.
+- **RESOLVED 2026-07-21 (CI-log-verified, see `memory/decisions.md`): SamplerVoice outputFormat
+  (#18) and BioMusicDirector gate-off both XCTSkip'd with inline reasoning** — CI logs (run
+  29825653117) showed the SamplerVoice one fails in 20.575s (variable HAL/XPC stall on a bare
+  `AVAudioSourceNode.outputFormat(forBus:)` query, not attached to an engine — narrowly scoped,
+  every other test in the file bypasses `sourceNode` via `_testRender`) and the BioMusicDirector
+  one fails in a clean 0.012s (real value, not a hang) because iOS 26+ Simulator's
+  `SystemLanguageModel.default` inherits the HOST MAC's Apple Intelligence state rather than
+  always reporting unavailable — confirmed via Apple's own Foundation Models docs (simulator
+  shares the host's model store). Neither is a Sources bug.
 - SIM-ENV: #2/#3/#4 Community/Mood bundled JSON (`.process("Resources")` flattens subdirs →
   `urls(…subdirectory:"Community/fx")` nil; needs `.copy` of Resources/Community/** or a
   flattened-root loader — build-config, care) · #29/#30 TimelineStore AppGroupStore temp-dir
