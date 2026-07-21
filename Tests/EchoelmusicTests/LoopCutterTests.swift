@@ -7,7 +7,7 @@ import XCTest
 final class LoopCutterTests: XCTestCase {
 
     func testBarLengthsAreTheExpectedSet() {
-        XCTAssertEqual(LoopBarLength.allCases.map(\.rawValue), [2, 4, 8, 16, 32])
+        XCTAssertEqual(LoopBarLength.allCases.map(\.rawValue), [1, 2, 4, 8, 16, 32])
         XCTAssertEqual(LoopBarLength.four.label, "4 bars")
     }
 

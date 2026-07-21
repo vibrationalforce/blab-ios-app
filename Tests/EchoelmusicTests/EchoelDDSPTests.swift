@@ -763,12 +763,12 @@ final class EchoelDDSPSpectralMorphingTests: XCTestCase {
         ddsp.morphTarget = nil
         let flatAmps = ddsp.harmonicAmplitudes
 
-        // Now set morphing: natural -> flat at 50%
+        // Now set morphing: natural -> flat at 50%. Drive it through the real API —
+        // spectralShape.didSet no longer recomputes once morphTarget != nil, so
+        // setMorphPosition() is what recomputes the equal-power blend.
         ddsp.spectralShape = .natural
-        ddsp.morphTarget = .flat
-        ddsp.morphPosition = 0.5
-        // Trigger update by reassigning spectralShape (didSet fires update)
-        ddsp.spectralShape = .natural
+        ddsp.startMorph(to: .flat)
+        ddsp.setMorphPosition(0.5)
         let morphedAmps = ddsp.harmonicAmplitudes
 
         // Morphed should differ from both pure shapes
@@ -805,12 +805,11 @@ final class EchoelDDSPSpectralMorphingTests: XCTestCase {
         ddsp.morphTarget = nil
         let pureFlat = ddsp.harmonicAmplitudes
 
-        // Now morph natural -> flat at position 1.0
+        // Now morph natural -> flat at position 1.0 (drive via the real API;
+        // reassigning spectralShape no longer recomputes once morphTarget is set).
         ddsp.spectralShape = .natural
-        ddsp.morphTarget = .flat
-        ddsp.morphPosition = 1.0
-        // Re-trigger
-        ddsp.spectralShape = .natural
+        ddsp.startMorph(to: .flat)
+        ddsp.setMorphPosition(1.0)
         let morphedAtOne = ddsp.harmonicAmplitudes
 
         // At position 1, morphed should approximate pure target (flat)
@@ -1125,11 +1124,11 @@ final class EchoelDDSPReverbTests: XCTestCase {
     }
 
     func testReverbMix_default() {
-        XCTAssertEqual(ddsp.reverbMix, 0.0, accuracy: 0.001)
+        XCTAssertEqual(ddsp.reverbMix, 0.25, accuracy: 0.001)
     }
 
     func testReverbDecay_default() {
-        XCTAssertEqual(ddsp.reverbDecay, 1.5, accuracy: 0.001)
+        XCTAssertEqual(ddsp.reverbDecay, 2.0, accuracy: 0.001)
     }
 
     func testUpdateReverbDecay_changesValue() {

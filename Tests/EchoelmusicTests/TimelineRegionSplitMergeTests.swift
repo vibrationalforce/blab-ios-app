@@ -129,9 +129,9 @@ final class TimelineRegionSplitMergeTests: XCTestCase {
     // MARK: - Merge (the undo of a split)
 
     func testAbuts_sameLaneClipTouchingMediaContiguous_true() {
-        // a is 480 ticks = 0.25 s @ 120 BPM; b's media starts exactly there.
+        // a is 480 ticks = one quarter = 0.5 s @ 120 BPM (480 PPQ); b's media starts exactly there.
         let a = region(start: 0, length: 480, offset: 0)
-        let b = region(start: 480, length: 480, offset: 0.25)   // media-contiguous
+        let b = region(start: 480, length: 480, offset: 0.5)   // media-contiguous
         XCTAssertTrue(a.abuts(b, bpm: 120))
     }
 

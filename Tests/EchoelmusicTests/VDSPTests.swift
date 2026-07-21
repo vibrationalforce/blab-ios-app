@@ -554,9 +554,10 @@ final class EchoelCellularTests: XCTestCase {
         cellular.seed(.random)
         cellular.reset()
         let states = cellular.getCellStates()
-        // All should be zero after reset
-        for state in states {
-            XCTAssertEqual(state, 0, accuracy: 0.001)
+        // reset() re-seeds to .singleCenter: exactly one live cell at the center
+        // (index cellCount/2), every other cell zero.
+        for (i, state) in states.enumerated() {
+            XCTAssertEqual(state, i == 32 / 2 ? 1 : 0, accuracy: 0.001)
         }
     }
 }

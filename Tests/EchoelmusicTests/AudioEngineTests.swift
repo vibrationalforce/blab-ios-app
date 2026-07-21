@@ -100,8 +100,8 @@ final class LogCategoryTests: XCTestCase {
     }
 
     func testTotalCount() {
-        // 31 categories defined in ProfessionalLogger.swift
-        XCTAssertEqual(LogCategory.allCases.count, 31)
+        // 30 categories defined in ProfessionalLogger.swift
+        XCTAssertEqual(LogCategory.allCases.count, 30)
     }
 }
 

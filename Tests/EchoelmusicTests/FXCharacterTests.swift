@@ -128,6 +128,7 @@ final class FXChainFilterStageTests: XCTestCase {
         let chain = EchoelFXChain()
         chain.saturationEnabled = false
         chain.limiterEnabled = false
+        chain.chorusEnabled = false   // chorus defaults ON — disable for true transparency
         let (l, r) = chain.processStereo(0.5, -0.3)
         XCTAssertEqual(l, 0.5, accuracy: 1e-6)
         XCTAssertEqual(r, -0.3, accuracy: 1e-6)

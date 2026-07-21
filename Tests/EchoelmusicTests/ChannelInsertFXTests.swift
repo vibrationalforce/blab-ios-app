@@ -62,7 +62,9 @@ final class ChannelInsertFXTests: XCTestCase {
         var fx = ChannelInsertFX(type: .off, drive: 1)
         // A hot input should be soft-clipped toward ±1 by the tanh saturator.
         let y = fx.process(5.0)
-        XCTAssertLessThan(abs(y), 1.0, "drive soft-clips a hot sample")
+        // tanhf saturates: a very hot input reaches ±1 exactly in Float32
+        // (tanhf(25) rounds to 1.0f), so the bound is inclusive.
+        XCTAssertLessThanOrEqual(abs(y), 1.0, "drive soft-clips a hot sample")
         XCTAssertGreaterThan(y, 0.5, "still passes most of the level")
     }
 

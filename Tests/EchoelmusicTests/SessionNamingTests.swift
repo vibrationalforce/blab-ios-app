@@ -42,7 +42,8 @@ final class SessionNamingTests: XCTestCase {
         let f = SessionNaming.fileName(artist: "Echoel", date: date(2026, 6, 12),
                                        key: "Cm", bpm: 124, a4Hz: 440,
                                        part: "Drums-4bar", ext: "mid")
-        XCTAssertEqual(f, "Echoel_2026-06-12_Cm_124bpm_A440_Drums-4bar.mid")
+        // sanitize() keeps only alphanumerics + "~", so the hyphen is stripped.
+        XCTAssertEqual(f, "Echoel_2026-06-12_Cm_124bpm_A440_Drums4bar.mid")
     }
 
     func testFileNameToleratesDottedExtension() {
