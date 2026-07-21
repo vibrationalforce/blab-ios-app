@@ -54,7 +54,9 @@ final class EchoelFXChainTests: XCTestCase {
 
     func testProcessBufferMonoBypassIsPassthrough() {
         let fx = EchoelFXChain(sampleRate: sr)
-        fx.saturationEnabled = false; fx.limiterEnabled = false // all stages off
+        // saturation, chorus AND limiter are default-ON (RICHNESS overhaul made chorus
+        // default-on) — disable all three for a true passthrough.
+        fx.saturationEnabled = false; fx.chorusEnabled = false; fx.limiterEnabled = false
         var buf = (0..<256).map { sinf(Float($0) * 0.11) }
         let original = buf
         fx.processBufferMono(&buf, frameCount: buf.count)
@@ -65,8 +67,13 @@ final class EchoelFXChainTests: XCTestCase {
 
     func testProcessBufferMonoDelayProducesTail() {
         let fx = EchoelFXChain(sampleRate: sr)
-        fx.delayEnabled = true; fx.limiterEnabled = false
-        fx.delay.mix = 1.0; fx.delay.feedback = 0.0; fx.delay.timeSeconds = 0.005 // 240 samples
+        // Isolate the delay: saturation + chorus are default-on and would colour the tail.
+        fx.saturationEnabled = false; fx.chorusEnabled = false; fx.limiterEnabled = false
+        // Configure the delay time BEFORE enabling: the OFF→ON reset() snaps the smoothed
+        // time to the target (0.005 s = 240 smp), skipping the ~40 ms declick glide that
+        // otherwise starts from the 0.375 s default and smears the echo away from 240.
+        fx.delay.mix = 1.0; fx.delay.feedback = 0.0; fx.delay.timeSeconds = 0.005
+        fx.delayEnabled = true
         var buf = [Float](repeating: 0, count: 512)
         buf[0] = 1.0
         fx.processBufferMono(&buf, frameCount: buf.count)
@@ -151,8 +158,10 @@ final class EchoelFXChainTests: XCTestCase {
     func testReassignSameEnabledValue_keepsLiveTail() {
         let fx = EchoelFXChain(sampleRate: sr)
         fx.limiterEnabled = false; fx.saturationEnabled = false; fx.chorusEnabled = false
-        fx.delayEnabled = true
+        // Configure BEFORE the first enable so the OFF→ON reset() snaps the smoothed delay
+        // time to 240 smp (else the ~40 ms glide from the 0.375 s default smears the echo).
         fx.delay.mix = 1.0; fx.delay.feedback = 0.0; fx.delay.timeSeconds = 0.005 // 240 smp
+        fx.delayEnabled = true
         _ = fx.processStereo(1.0, 1.0)            // impulse into the line
         fx.delayEnabled = true                    // same-value write (preset apply pattern)
         var laterPeak: Float = 0
