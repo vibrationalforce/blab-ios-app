@@ -21,7 +21,8 @@ until build-for-testing goes green.
 | fc50df5 | SignalRouter statics + 3 test drifts (throws/Float/extent) | `nonisolated static` + test |
 | 65530a7 | VDSPTests nested-enum qualify (10) · VideoInTracksTests:73 `Double?` | qualify + XCTUnwrap |
 | 60e8ec4 | MicrotonalTuningTests:124 `Array.first` Double? | throws + XCTUnwrap |
-| **361775a** | @MainActor sender tests (ADMOSC/ArtNet init() from nonisolated) | class-level `@MainActor` |
+| 361775a | @MainActor sender tests (ADMOSC/ArtNet init() from nonisolated) | class-level `@MainActor` |
+| **3542105** | Timeline suite: migrate() @MainActor · misplaced gain tests (lane/clip/region scope) · 3× Double? accuracy | @MainActor method · add helpers to class 2 · XCTUnwrap |
 
 > Note: reveal #14's ERROR_FILES list (head -50, all A*) was cascade-noisy —
 > AudioEngineTests:111-135 (CountInMode/MetronomeConfig, NOT @MainActor) were
