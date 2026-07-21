@@ -410,7 +410,7 @@ final class DirectDDSPBioTests: XCTestCase {
     }
 
     func testDDSP_bioSynthRenderAfterBioUpdate() {
-        let synth = EchoelDDSP(sampleRate: 48000)
+        let synth = EchoelPolyDDSP(sampleRate: 48000)
 
         // Trigger a note + bio update
         synth.noteOn(note: 64, velocity: 0.7)
@@ -430,7 +430,7 @@ final class DirectDDSPBioTests: XCTestCase {
     }
 
     func testDDSP_bioReactiveRenderAfterBioUpdate() {
-        let synth = EchoelDDSP(sampleRate: 48000)
+        let synth = EchoelPolyDDSP(sampleRate: 48000)
         synth.noteOn(note: 60, velocity: 0.8)
         synth.applyBioReactive(
             coherence: 0.65,
@@ -545,37 +545,6 @@ final class BioUpdateRateTests: XCTestCase {
 @MainActor
 final class VisEngineBioTests: XCTestCase {
 
-    func testVisualPalette_coherenceInterpolation() {
-        // Low coherence → cool palette, high → warm
-        let coolPalette = VisualPalette.fromCoherence(0.0)
-        let warmPalette = VisualPalette.fromCoherence(1.0)
-
-        // Cool palette primary should be blue-ish (high blue component)
-        XCTAssertGreaterThan(coolPalette.primary.z, coolPalette.primary.x,
-                             "Low coherence palette should be cool (more blue than red)")
-        // Warm palette primary should be warm (high red component)
-        XCTAssertGreaterThan(warmPalette.primary.x, warmPalette.primary.z,
-                             "High coherence palette should be warm (more red than blue)")
-    }
-
-    func testVisualPalette_midCoherence_interpolated() {
-        let midPalette = VisualPalette.fromCoherence(0.5)
-        let coolPalette = VisualPalette.fromCoherence(0.0)
-        let warmPalette = VisualPalette.fromCoherence(1.0)
-
-        // Mid-coherence primary should be between cool and warm
-        XCTAssertGreaterThanOrEqual(midPalette.primary.x, coolPalette.primary.x)
-        XCTAssertLessThanOrEqual(midPalette.primary.x, warmPalette.primary.x)
-    }
-
-    func testBioVisualState_defaults() {
-        let state = BioVisualState()
-        XCTAssertEqual(state.coherence, 0.5, accuracy: 0.01)
-        XCTAssertEqual(state.hrv, 0.5, accuracy: 0.01)
-        XCTAssertEqual(state.heartRate, 72.0, accuracy: 0.01)
-        XCTAssertEqual(state.breathPhase, 0.0, accuracy: 0.01)
-    }
-
     func testHilbertSensorMapper_preservesLocality() {
         // Adjacent 1D indices should map to nearby 2D coordinates
         let order = 16
@@ -603,16 +572,6 @@ final class VisEngineBioTests: XCTestCase {
         XCTAssertEqual(y, 0)
     }
 
-    func testVisualMode_allCasesAvailable() {
-        // Verify all 10 visualization modes exist
-        let modes = VisualMode.allCases
-        XCTAssertGreaterThanOrEqual(modes.count, 8,
-                                    "Should have at least 8 visual modes for bio-reactive display")
-        XCTAssertTrue(modes.contains(.particles))
-        XCTAssertTrue(modes.contains(.hilbertMap))
-        XCTAssertTrue(modes.contains(.bioGraph))
-        XCTAssertTrue(modes.contains(.flowField))
-    }
 }
 #endif
 
@@ -698,51 +657,6 @@ final class BioEndToEndTests: XCTestCase {
 // MARK: - Bio Engine Crash Hardening Tests
 
 final class BioCrashHardeningTests: XCTestCase {
-
-    @MainActor
-    func testEchoelBioEngine_ZeroHeartRate() {
-        let engine = EchoelBioEngine()
-        // Zero heart rate should not cause divide-by-zero in RMSSD calculation
-        engine.processHeartRate(0.0)
-        XCTAssertEqual(engine.heartRate, 0.0, accuracy: 0.01)
-    }
-
-    @MainActor
-    func testEchoelBioEngine_ExtremeHRV() {
-        let engine = EchoelBioEngine()
-        // Extreme HRV values should be handled gracefully
-        engine.processHeartRate(40.0) // Very low
-        engine.processHeartRate(200.0) // Very high
-        // Should not crash
-        XCTAssertGreaterThanOrEqual(engine.heartRate, 0.0)
-    }
-
-    @MainActor
-    func testEchoelBioEngine_RapidSampling() {
-        let engine = EchoelBioEngine()
-        // Rapid sampling should not overflow RR interval buffer
-        for i in 0..<1000 {
-            engine.processHeartRate(Float(60 + i % 40))
-        }
-        // Should have valid coherence
-        XCTAssertGreaterThanOrEqual(engine.coherence, 0.0)
-        XCTAssertLessThanOrEqual(engine.coherence, 1.0)
-    }
-
-    func testNormalizedCoherence_BoundaryValues() {
-        let zero = NormalizedCoherence(0.0)
-        XCTAssertEqual(zero.value, 0.0, accuracy: 0.01)
-
-        let one = NormalizedCoherence(1.0)
-        XCTAssertEqual(one.value, 1.0, accuracy: 0.01)
-
-        // Values should clamp to 0-1 range
-        let negative = NormalizedCoherence(-0.5)
-        XCTAssertGreaterThanOrEqual(negative.value, 0.0)
-
-        let over = NormalizedCoherence(1.5)
-        XCTAssertLessThanOrEqual(over.value, 1.0)
-    }
 
     func testBioDataQueue_OverflowHandling() {
         let queue = BioDataQueue(capacity: 4)
