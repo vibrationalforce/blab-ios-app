@@ -50,7 +50,7 @@ public enum MIDIFileImporter {
         guard data[0] == 0x4D, data[1] == 0x54, data[2] == 0x68, data[3] == 0x64 else {
             throw ImportError.notAMIDIFile
         }
-        let division = u16(8)
+        let division = u16(12)
         guard division & 0x8000 == 0, division > 0 else { throw ImportError.unsupportedDivision }
         let filePPQ = division
         p = 8 + u32(4)   // skip to first chunk after the header body
