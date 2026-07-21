@@ -28,12 +28,17 @@ final class VideoInTracksTests: XCTestCase {
     }
 
     func testSync_midRegion_addsElapsedSecondsAtTempo() {
-        // 960 ticks into the region = half a quarter = 0.25 s at 120 BPM.
+        // 960 ticks into the region = 2 quarters = 1.0 s at 120 BPM (480 PPQ, so
+        // seconds = ticks/480 * 60/bpm = 960/480 * 0.5 = 1.0). The prior "half a
+        // quarter = 0.25 s" comment/expectation here was the test's own arithmetic
+        // error (960 ticks is a HALF BAR, not a half quarter) — Sources' resolve()
+        // matches TimelineTime.seconds(fromTicks:bpm:) exactly, verified against
+        // the passing testFactory_regionSizedToTempo (2.0 s @120 BPM == 1920 ticks).
         let r = VideoRegionSync.resolve(startTick: 1920, lengthTicks: 1920,
                                         contentOffsetSeconds: 1.0, bpm: bpm,
                                         nativeDurationSeconds: 10, playheadTick: 1920 + 960)
         guard case let .play(s) = r else { return XCTFail("expected play") }
-        XCTAssertEqual(s, 1.25, accuracy: 1e-9)
+        XCTAssertEqual(s, 2.0, accuracy: 1e-9)
     }
 
     func testSync_pastRegionEnd_isInactive() {
@@ -70,10 +75,12 @@ final class VideoInTracksTests: XCTestCase {
         XCTAssertNil(VideoRegionSync.scrubSourceSeconds(
             startTick: 1920, lengthTicks: 1920, contentOffsetSeconds: 0, bpm: bpm,
             nativeDurationSeconds: 10, playheadTick: 0))
+        // 960 ticks elapsed = 1.0 s at 120 BPM (see testSync_midRegion_… for the
+        // same arithmetic correction) → offset 0.5 + elapsed 1.0 = 1.5.
         let active = try XCTUnwrap(VideoRegionSync.scrubSourceSeconds(
             startTick: 0, lengthTicks: 1920, contentOffsetSeconds: 0.5, bpm: bpm,
             nativeDurationSeconds: 10, playheadTick: 960))
-        XCTAssertEqual(active, 0.75, accuracy: 1e-9)
+        XCTAssertEqual(active, 1.5, accuracy: 1e-9)
     }
 
     // MARK: - VideoRegionTrim

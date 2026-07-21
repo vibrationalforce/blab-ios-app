@@ -136,9 +136,16 @@ final class SpectralColorTests: XCTestCase {
 
     func testNotePosition_octaveHeight_lowAtBottom() {
         // Grid law: low notes at the bottom (+y up in the shader field coordinate).
-        let c3 = SpectralColor.notePosition(forHz: 130.81)   // C3
-        let c4 = SpectralColor.notePosition(forHz: 261.63)   // C4
-        let c5 = SpectralColor.notePosition(forHz: 523.25)   // C5
+        // notePosition floors log2(hz/C0) to bucket the octave — the commonly-quoted
+        // 2-decimal note table (130.81/261.63/523.25) rounds DOWN from the true C0*2^n
+        // values (130.8128/261.6256/523.2511), so 130.81 and 523.25 floor into the
+        // octave BELOW their real one (2.99997→2, 4.99997→4) while 261.63 rounds up
+        // and floors correctly (4.00002→4) — a false failure from test-literal
+        // precision, not from Sources. Use the exact C0*2^n multiples instead.
+        let c0 = 16.351597831287414
+        let c3 = SpectralColor.notePosition(forHz: c0 * 8)    // C3
+        let c4 = SpectralColor.notePosition(forHz: c0 * 16)   // C4
+        let c5 = SpectralColor.notePosition(forHz: c0 * 32)   // C5
         XCTAssertLessThan(c3.y, c4.y)
         XCTAssertLessThan(c4.y, c5.y)
         XCTAssertEqual(c4.y, 0, accuracy: 1e-6, "octave 4 is the vertical centre")
