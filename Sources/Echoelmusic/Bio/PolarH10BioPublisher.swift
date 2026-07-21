@@ -182,7 +182,7 @@ public final class PolarH10BioPublisher: NSObject {
     /// RMSSD in milliseconds from RR intervals given in **seconds**. Thin
     /// seconds→ms adapter over the shared `HRVMetrics` kernel; kept for tests
     /// and any seconds-native caller.
-    static func rmssdMs(fromRRSeconds rr: [Double]) -> Double {
+    nonisolated static func rmssdMs(fromRRSeconds rr: [Double]) -> Double {
         HRVMetrics.rmssd(rrMs: rr.map { $0 * 1000.0 })
     }
 

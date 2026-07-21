@@ -175,7 +175,7 @@ public final class OSCSender {
     /// OSC address for a discrete bio event, mirroring the continuous
     /// `/echoelmusic/bio/*` space with an `/event/` segment. Pure mapping,
     /// unit-testable without a socket.
-    public static func address(for kind: BioEvent.Kind) -> String {
+    public nonisolated static func address(for kind: BioEvent.Kind) -> String {
         switch kind {
         case .heartbeat:         return "/echoelmusic/bio/event/heartbeat"
         case .breathInhaleOnset: return "/echoelmusic/bio/event/breath/inhale"
@@ -214,7 +214,7 @@ public final class OSCSender {
     /// Encode one OSC message: null-terminated address + 4-byte padded,
     /// type tag string (",f" / ",ff" / ...) + 4-byte padded, then
     /// each float as big-endian 32-bit.
-    public static func encode(address: String, floats: [Float]) -> Data {
+    public nonisolated static func encode(address: String, floats: [Float]) -> Data {
         var data = Data()
         data.append(paddedOSCString(address))
         let tags = "," + String(repeating: "f", count: floats.count)
@@ -227,7 +227,7 @@ public final class OSCSender {
     }
 
     /// Append a null terminator then pad to the next 4-byte boundary.
-    private static func paddedOSCString(_ s: String) -> Data {
+    private nonisolated static func paddedOSCString(_ s: String) -> Data {
         var bytes = Array(s.utf8)
         bytes.append(0)
         while bytes.count % 4 != 0 { bytes.append(0) }
