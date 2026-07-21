@@ -19,8 +19,8 @@ Deploy strategy: ACCUMULATE these fixes across cycles, then ONE batch deploy
 | 3 | Lane-head M/S/record chips "sub-AA touch target" | ArrangeTimelineView.swift:1230,1261 | S | no | ✅ DECLINED — chips 21×28 meet WCAG 2.5.8 AA (h28≥24; w21+3gap=24pt center = spacing exception). Audit's contentShape(-8) would overlap neighbors in the packed 3pt strip → worse. Not applied. |
 | 4 | Secondary/unit text fails AA contrast (`dim` #e0e0e0@0.55 near floor on panel fills) | EchoelTheme.swift:20 | S | no | ✅ DONE 8553d64 — dim 0.55→0.65. Recomputed WCAG: on surface #0e0e12 ~5:1→~6.5:1 (clears 4.5 AA); light-on-dark everywhere so NO usage regresses. |
 | 5 | Bio strip can't grow w/ Dynamic Type (hard `.system(size:)` + minScale 0.6 → shrinks to ~7pt) | BioStripView.swift:141 | M→L | **yes (sim/device)** | DEFERRED — NOT blind-safe. The 0.6 floor EXISTS to fit narrow phones (SE); raising it truncates ("…"), and a true fix = conditional reflow on sizeCategory, unverifiable without a build/sim (no local compiler). Do with a sim run, not blind. |
-| 6 | German copy in Routing/EchoelLux sheet | PatchbayView.swift:126,187,196,206,208 | S | no | TODO — "Licht"→"Light", "Blackout AN"→"Blackout ON", AX + help → English |
-| 7 | Esoteric attribution "Hans Cousto's Cosmic Octave" in shipping copy | EchoelStudioView.swift:2219; LightScienceInfo.swift:65 | S | no | TODO (brand red-line) — drop the name, describe mechanism plainly (octave-transposed tone → visible band via CIE 1931). VERIFY the surrounding sentence still reads right. |
+| 6 | German copy in Routing/EchoelLux sheet | PatchbayView.swift:126,187,196,206,208 | S | no | ✅ DONE d5775a1 |
+| 7 | Esoteric attribution "Hans Cousto's Cosmic Octave" in shipping copy | EchoelStudioView.swift:2219; LightScienceInfo.swift:65 | S | no | ✅ DONE ec22fa5 |
 | 8 | Root `.sheet` chain near metadata ceiling (GUARDRAIL, not broken) | EchoelStudioView.swift:690 | M | yes(launch) | STANDING — before ANY new modal there, consolidate to one `.sheet(item:)` enum. Do not append. |
 
 ## Honest read (answers the rewrite question)
