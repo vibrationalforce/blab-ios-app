@@ -14,7 +14,12 @@ until build-for-testing goes green.
 | 097472e | stale `TuningReferenceTests` dup · dead `UndoRedoManager` tests · RollHitTest @MainActor | delete stale / isolate |
 | 7c55759 | 13× rPPG trust statics (CameraRPPGTrustTests) | `nonisolated static` |
 | f6bce70 | 17× OSC encode/address + RMSSD statics | `nonisolated static` |
-| **(this)** | BioComposerTests seed-arg-order (9) · BioEngineTests:255 closure `_ in` | mechanical API-order |
+| 982600d | BioComposerTests seed-arg-order (9) · BioEngineTests:255 closure `_ in` | mechanical API-order |
+| 9540b4f | sACN packet statics (SACNSenderTests) | `nonisolated static` |
+| 001aeaa | BioIntegrationTests DDSP/removed-type drift | type-swap + delete-removed |
+| fbcfe93 | LaneNotePump tuple-array asserts | element-wise helper |
+| fc50df5 | SignalRouter statics + 3 test drifts (throws/Float/extent) | `nonisolated static` + test |
+| **65530a7** | VDSPTests nested-enum qualify (10) · VideoInTracksTests:73 `Double?` | qualify + XCTUnwrap |
 
 ## REMAINING — BioIntegrationTests.swift (NEXT cycle, needs care)
 
