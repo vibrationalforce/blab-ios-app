@@ -624,7 +624,8 @@ public enum BioComposer {
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
-                (drumSteps, drumAccents) = fourOnFloorBeat(energy: energy, calm: calm, rng: &rng)
+                (drumSteps, drumAccents) = fourOnFloorBeat(energy: energy, calm: calm,
+                                                           flavor: input.style.beatFlavor, rng: &rng)
             case .backbeat:
                 (drumSteps, drumAccents) = backbeatBeat(energy: energy, calm: calm, rng: &rng)
             case .offbeat:
@@ -706,7 +707,15 @@ public enum BioComposer {
     // UNCONDITIONALLY so a spacious take is a strict subset of the same seed.
 
     /// Kick on every beat, offbeat hats, backbeat clap — disco/synth-pop/psy drive.
-    private static func fourOnFloorBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+    /// `flavor` (task #79 Slice A) is a purely declarative per-genre overlay: it never
+    /// draws from `rng`, so the seeded melody + the pOpen/pPerc draws below stay
+    /// byte-identical to before — the same genre+seed+bio always reproduces, while
+    /// two DIFFERENT four-on-floor genres now diverge in hats/perc/kick. The archetype
+    /// core (kick on every beat + backbeat clap on 2 & 4) is applied first and is never
+    /// removed by the overlay.
+    private static func fourOnFloorBeat(energy: Float, calm: Float,
+                                        flavor: MusicStyle.GenreFlavor = .neutral,
+                                        rng: inout SeededRNG)
         -> (steps: [[Bool]], accents: [[Bool]]) {
         var steps = emptyGrid()
         var accents = emptyGrid()
@@ -732,6 +741,24 @@ public enum BioComposer {
         if energy > 0.35 && !spacious && pOpen < 0.7 { steps[Track.openHat][14] = true }
         let pPerc = rng.unit()
         if !spacious && pPerc < 0.5 { steps[Track.perc][pPerc < 0.25 ? 7 : 15] = true }
+
+        // --- Per-genre flavor overlay (task #79) — bio-independent, RNG-free ---
+        // Hat texture: dense fills the on-beats too (driving), sparse thins the
+        // offbeat hats to a lighter lift; the neutral band leaves the hats as-is.
+        if flavor.hatDensityBias >= 0.5 {
+            for s in [0, 8] { steps[Track.closedHat][s] = true }
+        } else if flavor.hatDensityBias <= -0.5 {
+            steps[Track.closedHat][6] = false
+            steps[Track.closedHat][14] = false
+        }
+        // A single genre-signature perc ghost on a genre-unique step — this is what
+        // guarantees two four-on-floor genres never share bit-identical drumSteps.
+        if steps[Track.perc].indices.contains(flavor.percGhostStep) {
+            steps[Track.perc][flavor.percGhostStep] = true
+        }
+        // Optional syncopated kick push into the "1" — an EXTRA hit only; the
+        // on-every-beat kicks placed above are untouched.
+        if flavor.kickPushEnabled { steps[Track.kick][14] = true }
 
         return (steps, accents)
     }

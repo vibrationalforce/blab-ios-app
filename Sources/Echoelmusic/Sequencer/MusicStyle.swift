@@ -232,6 +232,58 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// A tiny per-genre rhythmic fingerprint layered ON TOP of a shared beat
+    /// archetype (Slice A, task #79 — "rhythmische Vielfalt"). The 4 archetype
+    /// builders in `BioComposer` stay the single source of the core groove
+    /// (kick-every-beat, backbeat clap, …); this overlay makes genres that share
+    /// an archetype hearably distinct WITHOUT writing one beat function per genre.
+    /// Hard-capped at three fields on purpose (Architect: no catch-all for
+    /// arbitrary special cases). Purely declarative — no bio, no RNG — so it never
+    /// perturbs the seeded melody/percussion draws and stays deterministic.
+    public struct GenreFlavor: Sendable, Equatable {
+        /// Tilts the closed-hat texture. `>= 0.5` fills the on-beats too (busy,
+        /// driving 8ths); `<= -0.5` thins the offbeat hats to a lighter, sparser
+        /// lift; the neutral band leaves the archetype's hats untouched.
+        public var hatDensityBias: Float
+        /// The 16th step a single genre-signature perc ghost lands on. Choosing a
+        /// distinct step per genre guarantees two same-archetype genres never
+        /// produce bit-identical `drumSteps`. Kept off the beat/clap/seeded-perc
+        /// slots so it reads as its own fingerprint.
+        public var percGhostStep: Int
+        /// Adds a syncopated kick push into the "1" (step 14) — an extra hit only,
+        /// never touching the on-every-beat kicks that define the archetype.
+        public var kickPushEnabled: Bool
+
+        public init(hatDensityBias: Float, percGhostStep: Int, kickPushEnabled: Bool) {
+            self.hatDensityBias = hatDensityBias
+            self.percGhostStep = percGhostStep
+            self.kickPushEnabled = kickPushEnabled
+        }
+
+        /// Neutral overlay — leaves an archetype builder exactly as it was.
+        public static let neutral = GenreFlavor(hatDensityBias: 0, percGhostStep: -1,
+                                                kickPushEnabled: false)
+    }
+
+    /// The genre's rhythmic fingerprint (see `GenreFlavor`). Declared here next to
+    /// `beatArchetype` so the per-genre character lives with the rest of the genre
+    /// identity. Only the six `.fourOnFloor` genres carry a distinct flavor today
+    /// (Slice A pilot); every other genre returns `.neutral` (no behaviour change).
+    public var beatFlavor: GenreFlavor {
+        switch self {
+        // The six four-on-floor genres: each gets its own hat texture + a unique
+        // perc-ghost step so they stop sharing one loop. Ghost steps are all off
+        // the kick beats (0/4/8/12), the claps (4/12) and the seeded perc (7/15).
+        case .disco:      return GenreFlavor(hatDensityBias:  0.7, percGhostStep:  3, kickPushEnabled: false)
+        case .eighties:   return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  5, kickPushEnabled: false)
+        case .earlySynth: return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  9, kickPushEnabled: false)
+        case .futuristic: return GenreFlavor(hatDensityBias:  0.0, percGhostStep: 11, kickPushEnabled: true)
+        case .psytrance:  return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 13, kickPushEnabled: true)
+        case .synthwave:  return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  1, kickPushEnabled: false)
+        default:          return .neutral
+        }
+    }
+
     /// The BPM window a take locks within (Studio mode clamps into this).
     public var tempoRange: ClosedRange<Double> {
         switch self {
