@@ -83,7 +83,7 @@ final class SubCharacterTests: XCTestCase {
     func testHeat_isLoudnessCompensated_atFundamentalPeak() {
         // The fundamental's peak (phase π/2) must stay in a tight window across
         // the whole heat range — heat shifts harmonic content, not level.
-        let peaks: [Float] = [0, 0.5, 1].map { heat in
+        let peaks: [Float] = ([0, 0.5, 1] as [Float]).map { heat in
             let c = SubCharacter.coefficients(presence: 0, heat: heat)
             return abs(SubCharacter.sample(phase: .pi / 2, coefficients: c))
         }

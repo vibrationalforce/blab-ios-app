@@ -62,13 +62,13 @@ final class SpatialSceneStoreTests: XCTestCase {
         XCTAssertEqual(store.object(forLane: a.id)?.position, moved)
     }
 
-    func testRebuildPreservesMovedExtent() {
+    func testRebuildPreservesMovedExtent() throws {
         let store = SpatialSceneStore()
         let a = lane("A")
         store.rebuild(from: [a])
         store.setExtent(laneID: a.id, 0.9)
         store.rebuild(from: [a])
-        XCTAssertEqual(store.object(forLane: a.id)?.extent, 0.9, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(store.object(forLane: a.id)?.extent), 0.9, accuracy: 0.0001)
     }
 
     // MARK: Add / remove lanes
@@ -101,12 +101,12 @@ final class SpatialSceneStoreTests: XCTestCase {
         XCTAssertEqual(store.object(forLane: a.id)?.position, p)
     }
 
-    func testSetExtentUpdatesObject() {
+    func testSetExtentUpdatesObject() throws {
         let store = SpatialSceneStore()
         let a = lane("A")
         store.rebuild(from: [a])
         store.setExtent(laneID: a.id, 0.42)
-        XCTAssertEqual(store.object(forLane: a.id)?.extent, 0.42, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(store.object(forLane: a.id)?.extent), 0.42, accuracy: 0.0001)
     }
 
     func testSetPositionOnUnknownLaneIsNoOp() {

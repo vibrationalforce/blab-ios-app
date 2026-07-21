@@ -33,7 +33,7 @@ final class SynthPatchLevelTests: XCTestCase {
 
     // MARK: - Factory calibration
 
-    func testFactoryPatchesCarryACalibratedLevel() {
+    func testFactoryPatchesCarryACalibratedLevel() throws {
         for p in SynthPatch.factory {
             let level = try XCTUnwrap(p.outputLevel, "\(p.name): factory patch must be calibrated")
             XCTAssertGreaterThanOrEqual(level, 0.45, "\(p.name): level not below the trim floor")
