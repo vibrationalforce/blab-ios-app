@@ -24,11 +24,11 @@ final class EchoelDDSPTests: XCTestCase {
     func testDefaultParameters() {
         let ddsp = EchoelDDSP()
         XCTAssertEqual(ddsp.harmonicCount, 64)
-        XCTAssertEqual(ddsp.frequency, 220.0)
+        XCTAssertEqual(ddsp.frequency, 110.0)                       // A2 — deep, warm base
         XCTAssertEqual(ddsp.harmonicLevel, 0.8, accuracy: 0.01)
-        XCTAssertEqual(ddsp.harmonicity, 0.7, accuracy: 0.01)
-        XCTAssertEqual(ddsp.noiseLevel, 0.3, accuracy: 0.01)
-        XCTAssertEqual(ddsp.amplitude, 0.8, accuracy: 0.01)
+        XCTAssertEqual(ddsp.harmonicity, 0.88, accuracy: 0.01)      // clean pad — mostly harmonic
+        XCTAssertEqual(ddsp.noiseLevel, 0.01, accuracy: 0.01)       // minimal noise — clean
+        XCTAssertEqual(ddsp.amplitude, 0.5, accuracy: 0.01)         // moderate — room for modulation
     }
 
     func testHarmonicAmplitudesCount() {
@@ -131,7 +131,7 @@ final class EchoelDDSPTests: XCTestCase {
 
     func testReverbParameters() {
         let ddsp = EchoelDDSP()
-        XCTAssertEqual(ddsp.reverbMix, 0.0, accuracy: 0.001)
+        XCTAssertEqual(ddsp.reverbMix, 0.25, accuracy: 0.001)   // moderate reverb default
         ddsp.reverbMix = 0.4
         ddsp.reverbDecay = 2.5
         XCTAssertEqual(ddsp.reverbMix, 0.4, accuracy: 0.01)
