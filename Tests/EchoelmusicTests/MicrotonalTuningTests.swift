@@ -117,11 +117,12 @@ final class MicrotonalTuningTests: XCTestCase {
 
     // MARK: library integrity
 
-    func testLibrary_defaultsAreSane() {
+    func testLibrary_defaultsAreSane() throws {
         XCTAssertEqual(TuningSystem.library.first?.id, "edo12", "12-TET is the safe default")
         for t in TuningSystem.library {
             XCTAssertFalse(t.degreesCents.isEmpty, "\(t.id) has degrees")
-            XCTAssertEqual(t.degreesCents.first, 0, accuracy: acc, "\(t.id) starts at the tonic")
+            let firstDegree = try XCTUnwrap(t.degreesCents.first, "\(t.id) has degrees")
+            XCTAssertEqual(firstDegree, 0, accuracy: acc, "\(t.id) starts at the tonic")
             XCTAssertGreaterThan(t.periodCents, 0, "\(t.id) has a positive period")
             // strictly ascending within the period
             XCTAssertEqual(t.degreesCents, t.degreesCents.sorted(), "\(t.id) is ascending")
