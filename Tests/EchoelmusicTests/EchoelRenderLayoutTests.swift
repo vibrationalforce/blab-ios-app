@@ -108,10 +108,10 @@ final class EchoelRenderLayoutTests: XCTestCase {
 
     func testLeftIsPositiveNinetyPreserved() throws {
         let layout = try parse(octaJSON)
-        let left = layout.loudspeakerLayout.loudspeakers.first { $0.channel == 3 }
-        XCTAssertEqual(left?.azimuth, 90, accuracy: 0.001)   // channel 3 sits at LEFT = +90
-        let right = layout.loudspeakerLayout.loudspeakers.first { $0.channel == 7 }
-        XCTAssertEqual(right?.azimuth, -90, accuracy: 0.001)  // channel 7 = right = -90
+        let left = try XCTUnwrap(layout.loudspeakerLayout.loudspeakers.first { $0.channel == 3 })
+        XCTAssertEqual(left.azimuth, 90, accuracy: 0.001)   // channel 3 sits at LEFT = +90
+        let right = try XCTUnwrap(layout.loudspeakerLayout.loudspeakers.first { $0.channel == 7 })
+        XCTAssertEqual(right.azimuth, -90, accuracy: 0.001)  // channel 7 = right = -90
     }
 
     // MARK: Round-trip (IEM base survives encode→decode)

@@ -245,7 +245,7 @@ final class FaceExpressionMappingTests: XCTestCase {
     /// device publisher will — mapping then `updated(...)`.
     func testRawChannels_feedsSmootherToTarget() {
         var m = FaceExpressionMapping(timeConstant: 0.05)
-        let bag = ["mouthSmileLeft": 1.0, "mouthSmileRight": 1.0, "jawOpen": 1.0]
+        let bag: [String: Float] = ["mouthSmileLeft": 1.0, "mouthSmileRight": 1.0, "jawOpen": 1.0]
         let (s, b, j) = FaceExpressionMapping.rawChannels(from: bag)
         for _ in 0..<80 {
             m = m.updated(rawSmile: s, rawBrowRaise: b, rawJawOpen: j, dt: 0.05)
