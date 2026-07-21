@@ -10,6 +10,7 @@ import AudioToolbox
 #endif
 @testable import Echoelmusic
 
+@MainActor
 final class AUv3HostTests: XCTestCase {
 
     private func au(_ name: String, instrument: Bool, id: String? = nil) -> HostedAUInfo {

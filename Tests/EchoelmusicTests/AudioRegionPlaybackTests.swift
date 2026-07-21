@@ -20,17 +20,17 @@ final class AudioRegionPlaybackTests: XCTestCase {
 
     // MARK: - filePositionSeconds
 
-    func testFilePosition_atRegionStart_isContentOffset() {
+    func testFilePosition_atRegionStart_isContentOffset() throws {
         let r = region(start: 480, offset: 2.0)
-        XCTAssertEqual(AudioRegionPlayback.filePositionSeconds(for: r, atTick: 480, bpm: 120),
-                       2.0, accuracy: 1e-9, "at the region start the file plays from its trim-in point")
+        let pos = try XCTUnwrap(AudioRegionPlayback.filePositionSeconds(for: r, atTick: 480, bpm: 120))
+        XCTAssertEqual(pos, 2.0, accuracy: 1e-9, "at the region start the file plays from its trim-in point")
     }
 
-    func testFilePosition_midRegion_advancesByElapsed() {
+    func testFilePosition_midRegion_advancesByElapsed() throws {
         // Enter 480 ticks (0.5 s @120) into a region that starts at tick 0, trim-in 2.0.
         let r = region(start: 0, offset: 2.0)
-        XCTAssertEqual(AudioRegionPlayback.filePositionSeconds(for: r, atTick: 480, bpm: 120),
-                       2.5, accuracy: 1e-9, "mid-region the file position = offset + elapsed")
+        let pos = try XCTUnwrap(AudioRegionPlayback.filePositionSeconds(for: r, atTick: 480, bpm: 120))
+        XCTAssertEqual(pos, 2.5, accuracy: 1e-9, "mid-region the file position = offset + elapsed")
     }
 
     func testFilePosition_outsideRegion_isNil() {

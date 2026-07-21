@@ -132,6 +132,7 @@ final class AUParameterMappingTests: XCTestCase {
                                                      subType: osType("synt"), params: []).isEmpty)
     }
 
+    @MainActor
     func testDescriptors_registerIntoRegistry_isQueryable() {
         let reg = EchoelParameterRegistry()
         let ds = AUParameterMapping.descriptors(
