@@ -51,29 +51,40 @@ jobs:
           xcodegen generate --spec project.yml
         # xcodegen breakage WOULD be a real problem — let it fail loudly here.
 
+      - name: Show available simulators
+        run: xcrun simctl list devices available | grep -E "iPhone|iPad" | head -30 || true
+
       - name: Build the 294-file suite (reveal-only)
         id: build
         continue-on-error: true
         run: |
           set -o pipefail
+          # generic/platform=iOS Simulator builds for the sim SDK without needing a
+          # specific device — robust against runner image sim-name/OS drift (the
+          # previous OS=18.2/iPhone 16 Pro pin did NOT exist on the macos-26 runner,
+          # and the `|| cat` mask hid the destination-not-found failure → false green).
+          # NO mask now: pipefail lets xcodebuild's real exit set steps.build.outcome,
+          # while continue-on-error keeps the JOB non-blocking. Honest reveal.
           xcodebuild build-for-testing \
             -scheme EchoelmusicFullTests \
-            -destination 'platform=iOS Simulator,OS=18.2,name=iPhone 16 Pro' \
+            -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
-            2>&1 | tee full-build.log | xcpretty || cat full-build.log
+            2>&1 | tee full-build.log
 
       - name: Run the 294-file suite (reveal-only)
         id: run
         continue-on-error: true
         run: |
           set -o pipefail
+          # A concrete bootable sim present on macos-26 / Xcode 26.2 (see the
+          # "Show available simulators" step). No OS pin → tolerant of the exact runtime.
           xcodebuild test-without-building \
             -scheme EchoelmusicFullTests \
-            -destination 'platform=iOS Simulator,OS=18.2,name=iPhone 16 Pro' \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
             -configuration Debug \
             -parallel-testing-enabled YES \
-            2>&1 | tee full-test.log | xcpretty || cat full-test.log
+            2>&1 | tee full-test.log
 
       - name: Summary
         if: always()
