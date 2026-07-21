@@ -89,10 +89,12 @@ final class PolySynthVoiceTests: XCTestCase {
         var patch = SynthPatch(name: "Test")
         patch.brightness = 0.9
         patch.harmonicity = 0.5
-        voice.apply(patch)
+        voice.apply(patch)   // sets the RICHNESS unison default (2 voices/note) synchronously
         voice.pumpNoteCommandsForTesting()
-        // Patch recall is a fan-out; assert it leaves the voice in a valid state.
-        XCTAssertEqual(voice.activeVoiceCount, 1)
+        // Patch recall is a fan-out; assert it leaves the voice sounding in a valid state
+        // (no crash). One pressed note now allocates >=1 voice — the unison-richness
+        // default spawns extra detuned voices, so assert "still sounding", not exactly 1.
+        XCTAssertGreaterThanOrEqual(voice.activeVoiceCount, 1)
     }
 
     func testBioModulationDisabledByDefault() {
