@@ -67,7 +67,11 @@ final class BioSignalDeconvolverTests: XCTestCase {
         for n in 0..<Int(sr) {
             let x = Float(sin(2 * .pi * mains * Double(n) / sr))
             inPower += x * x
-            outPower += dec.process(x).value * dec.process(x).value
+            // One process() call per sample — the prior double call advanced the
+            // stateful notch filter twice per loop iteration and squared two
+            // different consecutive outputs instead of one measurement.
+            let y = dec.process(x).value
+            outPower += y * y
         }
         // Notch should drop power by at least 20 dB. Use a generous
         // 10x ratio threshold so the test survives Q tuning.

@@ -454,7 +454,11 @@ final class EchoelDDSPParameterDefaultTests: XCTestCase {
     // MARK: - Spectral Control Defaults
 
     func testDefault_spectralShape() {
-        XCTAssertEqual(ddsp.spectralShape, .natural, "Default spectralShape should be natural")
+        // .dark is the deliberate default ("Dark = warm rolloff",
+        // EchoelDDSP.swift:232) — the dark-trance character also pinned by the
+        // sibling testDefault_brightness (0.25). This test's ".natural"
+        // expectation predates that default; Sources is intentional here.
+        XCTAssertEqual(ddsp.spectralShape, .dark, "Default spectralShape should be dark (warm rolloff, dark-trance character)")
     }
 
     func testDefault_brightness() {
