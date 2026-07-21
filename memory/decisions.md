@@ -58,6 +58,23 @@ Architectural and strategic decisions with context and rationale.
   im geshippten Profil steckt.
 - **Review-Datum:** nach dem Portal-Toggle + Re-Archive (Founder), oder nächster Geräte-Scan mit `Embedded: …`.
 
+### 2026-07-21 IAA-Hypothese WIDERLEGT + WeatherKit-Capability-Mismatch gefunden (Founder-Portal-Video)
+- **Founder-Portal-Video (com.echoelmusic.app, Team W5BJA7KCMS, heute 12:40):** direkte Sicht auf die App-ID-Capabilities.
+  - **Inter-App Audio = ANGEHAKT ✓** — bestätigt „IAA war immer schon angehakt". → Die IAA-Gate-Hypothese für
+    „0 third-party AUv3" ist **WIDERLEGT**. IAA ist NICHT die AUv3-Ursache. (Korrigiert die 6bef665-Guidance-Annahme.)
+  - **WeatherKit = NICHT angehakt ☐** (unter „App Services", während MusicKit ✓ / ShazamKit ✓).
+- **WeatherKit-Mismatch:** `Echoelmusic.entitlements` deklariert `com.apple.developer.weatherkit`, aber die App-ID
+  gewährt die Capability NICHT. WeatherKit wird real genutzt (`Core/WeatherProvider.swift:56`
+  `WeatherService.shared.weather(for:)`, live via `weatherEnabled`). → Founder soll WeatherKit im Portal anhaken
+  (App Services → WeatherKit → Save). Sonst: Wetter-Fetch schlägt still fehl + deklariertes-aber-nicht-gewährtes
+  Entitlement = Provisioning-Inkonsistenz.
+- **AUv3-Stand nach dieser Runde:** embed ✓ + sign ✓ + provision ✓ + IAA ✓ + Deklaration ✓ — ALLES korrekt, trotzdem
+  -3000 / 0 third-party über mehrere Reboots. Verbleibende wahrscheinlichste Ursache: **veraltetes/inkonsistentes
+  Provisioning-Profil** (der WeatherKit-Mismatch ist ein konkreter Beleg für Profil-Inkonsistenz). **Bester
+  verbliebener Hebel:** WeatherKit anhaken → RE-ARCHIVE (automatic signing regeneriert ALLE Profile frisch, App+appex)
+  → AUv3-Scan neu prüfen. Fixt WeatherKit sicher UND ist der beste Schuss auf AUv3. Wenn danach immer noch -3000:
+  iOS-26-pluginkit-Quirk-Verdacht (anderer Ansatz nötig).
+
 ---
 
 ### 2026-07-21 #77-Canary: 3 Bio-Mappings aus `applyBioReactive` verschwunden (Test-Heal-Befund)
