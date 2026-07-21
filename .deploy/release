@@ -1,46 +1,37 @@
-build: 2026-07-21C — Audio-Lane-Hook (flag OFF) + Genre-Intro-Fix (#77) + Website-SEO (#52) + Clip-Zittern-Debounce (#56 C6)
+build: 2026-07-21D — Genre-Melodie-Autopilot aus (#77 Teil 2, Founder-Ohr-Feedback)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder "Ultracode Ultracontext Ultragreballtasks Arbeite alles ab dann TestFlight deploy" —
-  Backlog-Triage-Workflow (8 parallele Survey-Agenten über den offenen Baustellen-Stand) +
-  sequenzielle Umsetzung jedes tatsächlich blind-bearbeitbaren Punkts, jeder mit Pflicht-Reviewer
-  vor dem Commit. Danach echte Founder-Ohr-Antwort zu #77 eingearbeitet.
+notes: Founder direkt: "Neuer TestFlight bitte."
 
-  Seit dem letzten Deploy (5d79e9a) auf dem Branch:
-  · Task #13 S1 (b1a38b9): RecordController bekommt einen AudioTakeRecording-Protokoll-Seam,
-    der MultiTrackRecorder ohne AVFoundation-Import ansteuern kann — FeatureFlags.audioLaneRecording
-    bleibt OFF, also Verhalten-identisch zu vorher. audio-thread-reviewer fand + ich fixte VOR dem
-    Push eine echte Re-Entrancy-Race: ein überlappender Transport.stop() (z.B. der bestehende
-    Route-Loss-Handler) hätte eine noch-nicht-fertige Audio-Aufnahme still verwerfen können.
-  · Task #77 (0bc1a9d): direkte Founder-Ohr-Rückmeldung "viele klingen am Anfang etwas zu unruhig
-    wegen lauter Melodie" — die Lead-Melodie tritt jetzt in Bar 0 einer frischen Aufnahme leiser
-    ein (0.72×), die Groove-Spuren (Bass/Pad/Drums) bekommen einen Takt Vorlauf. code-reviewer
-    fing einen echten Bug in der ersten Umsetzung (Dämpfung landete VOR arrangementBars, wiederholte
-    sich also JEDE Loop-Runde statt nur einmal) — korrigierte Verdrahtung sitzt jetzt in
-    PianoRollModel.loadArrangement, nur der einmalige Stopped-Load wird gedämpft. Bekannte,
-    akzeptierte Grenze: ein 1-Bar-Loop erreicht den Pfad nicht (fällt auf den unveränderten
-    load()-Fallback).
-  · Task #52 Website-SEO (01b913f, 34d2771): press.html (seit 07-16 live) fehlte im Sitemap UND
-    war von keiner Seite aus klickbar — beides nachgezogen (Sitemap-Eintrag + Footer-Link auf der
-    Startseite). Reine docs/-Änderung, kein Sources-Risiko.
-  · Task #56 C6 (4b75941): TimelineStore.persist() schrieb bei JEDER der ~47 Mutations-Stellen
-    synchron JSON auf Disk — genau der Frame, an dem ein Clip-Drag-Release schon snapt/magnetet,
-    was zur "Zittern"-Beschwerde beitrug. Disk-Write ist jetzt debounced (nur der letzte Write
-    einer Serie landet wirklich); In-Memory-Dokument + onDocumentChanged bleiben synchron.
-    flushPendingSave() erzwingt einen sofortigen Write, verdrahtet in den .background-Übergang,
-    damit ein Edit im Debounce-Fenster nie verloren geht. concurrency-reviewer fing 2 bestehende
-    Tests, die einen synchronen Write annahmen — beide auf flushPendingSave() vor dem Reload
-    umgestellt.
+  Seit dem letzten Deploy (62abddc) auf dem Branch:
+  · Task #77 Teil 2 (9dce29b): Founder-Ohr-Feedback "Die Genres Psytrance bis Rocksteady
+    werden sehr stressig wegen den Melodien. Melodien sollen die Leute selbst machen." —
+    Council (inline) erweiterte den genannten 17-Genre-Bereich auf alle 23 Genres für eine
+    einheitliche Invariante: MusicStyle.harmonicProfile.leadDensity ist jetzt 0.0 überall.
+    BioComposer generiert damit für KEIN Genre mehr eine automatische Lead-Melodie mehr —
+    Bass/Harmony/Drums unverändert. leadPatchName (das warme Lead-Timbre) bleibt unverändert,
+    d.h. wer selbst eine Melodie spielt (Touch/MPE/Piano Roll) bekommt weiterhin den
+    genre-passenden Klang. code-reviewer fing vor dem Commit einen sonst gebrochenen Test
+    (NoteRoleTests.swift, erwartete noch eine Lead-Rolle) — korrigiert. Zwei dadurch dauerhaft
+    leere Emergent-Tests entfernt (nicht XCTSkip — die Prämisse ist dauerhaft falsch, nicht nur
+    vorübergehend), ein neuer kanonischer Invarianten-Test ergänzt
+    (MusicStyleTests.testNoGenreAutoGeneratesLeadNotes).
+  · Entscheidung geloggt (decisions.csv + memory/decisions.md, a857eac): der zweite,
+    größere Founder-Ask derselben Nachricht — "rhythmische Vielfalt bei allen Genres,
+    die sich am Biofeedback orientieren soll" — ist bewusst NICHT in diesem Build. Er
+    berührt BioComposer.swift's geteilte Beat-Archetyp-Funktionen (fourOnFloorBeat/
+    backbeatBeat/offbeatBeat/halfTimeBeat, je über 3-6 Genres geteilt) und braucht einen
+    eigenen PLAN + Council-Durchgang zuerst (gleiche Disziplin wie "Automation in der
+    Spur"). Als Task #79 im Tracker angelegt.
 
   Bekannte offene Punkte (bewusst NICHT in diesem Build angefasst, device-gated/founder-gated/
-  bewusst sequenziert): Automation-Präzisions-Editor-Retarget (S2, Gerät nötig), Clip-Zittern
-  C3/C7 (warten auf eine echte Bildschirmaufnahme), AUv3 "-3000" (Portal/Registrierung),
-  EchoelPublish/Weather-Synth/EEG-Quelle/Bio-Session-Brain (bewusster Ideen-Parkplatz, erst nach
-  der A-Serie), Leiste-Verteilung S2-S6 (wartet auf eine Founder-Redesign-Entscheidung — Mix/
-  Synth/Sound-Chips tragen einzigartige Funktionen, die sonst verwaisen würden), BodyVibe
-  Kamera-Modulator (Info.plist-Datenschutztext braucht Founder-Freigabe vor Flag-ON), DAW#4
-  Video-Spuren (kein sicherer nicht-geräte-gebundener Slice gefunden).
+  bewusst sequenziert, unverändert seit dem letzten Deploy): Automation-Präzisions-Editor-
+  Retarget (S2, Gerät nötig), Clip-Zittern C3/C7 (warten auf eine echte Bildschirmaufnahme),
+  AUv3 "-3000" (Portal/Registrierung), EchoelPublish/Weather-Synth/EEG-Quelle/Bio-Session-Brain
+  (bewusster Ideen-Parkplatz), Leiste-Verteilung S2-S6 (wartet auf Founder-Redesign-Entscheidung),
+  BodyVibe Kamera-Modulator (Info.plist-Datenschutztext braucht Founder-Freigabe), DAW#4
+  Video-Spuren (kein sicherer nicht-geräte-gebundener Slice gefunden), rhythmische Vielfalt
+  via Biofeedback (Task #79, neu — braucht eigenen Plan zuerst).
 
-  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf jedem Sources-Commit dieser
-  Reihe (zuletzt verifiziert auf 4b75941, dem letzten Commit vor diesem Deploy). Jeder
-  Sources-Commit hatte vor dem Push einen Pflicht-Reviewer-Pass (audio-thread-reviewer × 1,
-  code-reviewer × 1, concurrency-reviewer × 1).
+  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf 9dce29b (verifiziert via
+  actions_list vor diesem Deploy). Sources-Commit hatte einen Pflicht-Reviewer-Pass
+  (code-reviewer, fing die NoteRoleTests-Lücke).
