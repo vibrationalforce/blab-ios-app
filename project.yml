@@ -72,6 +72,21 @@ targets:
         type: group
         excludes:
           - "**/*.md"
+          # Drums/Samples/Community are declared ONLY via the explicit
+          # `resources: type: folder` entries below (they need the real
+          # subdirectory structure preserved for `subdirectory:`-based bundle
+          # lookups). Without these excludes the generic group walk ALSO
+          # registers every file under them individually (flattened), so each
+          # file was double-declared — resources: type: folder + Community's
+          # own explicit entry (added to fix CommunityLibraryTests/
+          # MoodPresetTests, project.yml commit 95f0602) did not actually
+          # resolve the CI failures, because the flattened duplicate from this
+          # group walk was what the build kept. Excluding them here removes
+          # the ambiguity at its root instead of guessing at Xcode's
+          # duplicate-resolution order.
+          - "Resources/Drums/**"
+          - "Resources/Samples/**"
+          - "Resources/Community/**"
     resources:
       - path: Sources/Echoelmusic/Resources/Assets.xcassets
       # (Removed 2026-07-07: the GeneralUser GS soundfont bundle entry — the
