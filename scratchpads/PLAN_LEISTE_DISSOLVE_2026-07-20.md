@@ -44,11 +44,35 @@ Founder-Screenshot (v10.79.309/2417), drei rote Markierungen + Text:
    Ask 3 (Genre→BodyVibe) HOLD bis BodyVibe-Oberfläche existiert (#67/#68) — dann Founder-Ask.
 
 ## Slices
-- **S1 (dieser Zyklus):** `.video` aus `studioChips`-Filter → Video-Chip verschwindet aus der
-  Leiste. videoPanel-Code bleibt kompilierend (unreferenziert, spätere Löschung eigener Slice).
-  Test: falls ein Test die Chip-Menge pinnt, anpassen.
-- **S2:** Mix-Chip — verify mixerPanel bietet nichts Einzigartiges (Master ist eigener,
-  ausgeschlossener Chip) → entfernen.
-- **S3–S5:** FX/Synth/Sound analog (verify → remove).
-- **S6:** Mood → BodyVibe (nach Oberfläche + Founder-Ask); dann ist die Leiste leer → ganz raus.
-- **T1:** adaptive Spurköpfe (ArrangeTimelineView), fließende Breiten, kein Clipping.
+- **S1 (SHIPPED, `eaa684a`):** `.video` aus `studioChips`-Filter → Video-Chip raus. War sicher
+  weil Founder explizit ge-X-t hat und der Ersatz (Header-Monitor) schon lief.
+- **S2 VERIFY-ERGEBNIS (2026-07-21) — Annahme widerlegt, NICHT entfernen:** direkt im Code
+  gelesen (`EchoelStudioView.mixerPanel`, ~1429-1501) — der Mix-Chip ist NICHT redundant zum
+  Lane-Head-Gain. Er ist der EINZIGE Zugang zu: Bass/Melodic/Drums Bus-Filter+Drive-Strips UND
+  dem kompletten eingebetteten `ChannelRackView` (pro-Drum-Channel Level/Mute/Solo/Insert-FX/
+  Sample-Tür — `ChannelRackView(` kommt EXAKT einmal im ganzen Sources-Baum vor, genau hier).
+  Das "Hackbrett" ist seit dem Plan (07-20) hier konsolidiert worden — die Prämisse ist
+  überholt. Entfernen würde die B5-Sample-Tür + die einzige Drum-Kanalzug-Oberfläche verwaisen
+  (CLAUDE.md-Gesetz-Verstoß). **S2 gestoppt.**
+- **S4 VERIFY-ERGEBNIS (2026-07-21) — Annahme ebenfalls widerlegt, NICHT entfernen:** `visualPanel`
+  (~2191-2224, der "Synth"-Chip) ist mehr als der Header-Monitor-Toggle — er trägt zusätzlich
+  Look-Presets/-Customizer, `MusicColourRowView`, Visual-Adjust-Felder UND `touchSoundSection`
+  (welcher Patch die Vollbild-Touch-Fläche spielt + Positions-Morph). Der Header-Monitor-Button
+  toggelt nur Sichtbarkeit — er ersetzt keine dieser Einstellungen. **S4 gestoppt.**
+- **S5 VERIFY-ERGEBNIS (2026-07-21):** `soundPanel` (~2735+) ist der komplette Patch-Editor
+  (Tone/Filter/Envelope/Space+Vibrato/Sub-Bass, alle auf 0.0001 genau) — eindeutig eine primäre
+  Editier-Oberfläche, kein Kandidat für Löschung ohne Ersatz-UI. **S5 gestoppt.**
+- **S3/S6 nicht mehr einzeln geprüft** — beim gleichen Muster (Panels sind seit dem Plan-Datum
+  gewachsen) ist eine ungeprüfte Löschung nicht zu rechtfertigen; siehe Gesamtbefund unten.
+- **T1 (offen):** adaptive Spurköpfe (ArrangeTimelineView), fließende Breiten, kein Clipping —
+  unverändert vom Chip-Schicksal, kann unabhängig weiterlaufen.
+
+## Gesamtbefund (2026-07-21) — Plan-Prämisse überholt, Kurskorrektur
+Die Leiste ist heute kein Restmüll mehr, sondern der einzige Zugang zu mehreren gewachsenen
+Haupt-Oberflächen (voller Patch-Editor, Pro-Mixer mit Drum-Kanalzügen, Visual-Look-Customizer).
+"Auflösen" im Sinn von "Chip weg, weil eh woanders erreichbar" trifft nur noch auf Video zu
+(bereits erledigt). Eine echte Auflösung der restigen Chips bräuchte eine bewusste Redesign-
+Entscheidung (WOHIN ziehen diese Oberflächen um — Spur-Ebene? eigener Screen?), keine
+Ein-Zeilen-Verify-und-Löschen-Slice. **Empfehlung: S2-S6 auf Founder-Klärung warten** (welche
+Ziel-Oberfläche für Mix/Sound/FX/Synth/Mood), nicht blind weiterlöschen. Kein Regressionsrisiko
+eingegangen — nichts entfernt, nur die überholte Planannahme korrigiert.
