@@ -1,37 +1,35 @@
-build: 2026-07-21D — Genre-Melodie-Autopilot aus (#77 Teil 2, Founder-Ohr-Feedback)
+build: 2026-07-21E — Rhythmus-Vielfalt Slice A (#79) + verifizierter Modellwechsel-Clean-Check
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder direkt: "Neuer TestFlight bitte."
+notes: Founder "Ultracode no sleep mode" + "Überprüfe alles, vermeide Modellwechsel-Fehler".
 
-  Seit dem letzten Deploy (62abddc) auf dem Branch:
-  · Task #77 Teil 2 (9dce29b): Founder-Ohr-Feedback "Die Genres Psytrance bis Rocksteady
-    werden sehr stressig wegen den Melodien. Melodien sollen die Leute selbst machen." —
-    Council (inline) erweiterte den genannten 17-Genre-Bereich auf alle 23 Genres für eine
-    einheitliche Invariante: MusicStyle.harmonicProfile.leadDensity ist jetzt 0.0 überall.
-    BioComposer generiert damit für KEIN Genre mehr eine automatische Lead-Melodie mehr —
-    Bass/Harmony/Drums unverändert. leadPatchName (das warme Lead-Timbre) bleibt unverändert,
-    d.h. wer selbst eine Melodie spielt (Touch/MPE/Piano Roll) bekommt weiterhin den
-    genre-passenden Klang. code-reviewer fing vor dem Commit einen sonst gebrochenen Test
-    (NoteRoleTests.swift, erwartete noch eine Lead-Rolle) — korrigiert. Zwei dadurch dauerhaft
-    leere Emergent-Tests entfernt (nicht XCTSkip — die Prämisse ist dauerhaft falsch, nicht nur
-    vorübergehend), ein neuer kanonischer Invarianten-Test ergänzt
-    (MusicStyleTests.testNoGenreAutoGeneratesLeadNotes).
-  · Entscheidung geloggt (decisions.csv + memory/decisions.md, a857eac): der zweite,
-    größere Founder-Ask derselben Nachricht — "rhythmische Vielfalt bei allen Genres,
-    die sich am Biofeedback orientieren soll" — ist bewusst NICHT in diesem Build. Er
-    berührt BioComposer.swift's geteilte Beat-Archetyp-Funktionen (fourOnFloorBeat/
-    backbeatBeat/offbeatBeat/halfTimeBeat, je über 3-6 Genres geteilt) und braucht einen
-    eigenen PLAN + Council-Durchgang zuerst (gleiche Disziplin wie "Automation in der
-    Spur"). Als Task #79 im Tracker angelegt.
+  Seit dem letzten Deploy (76b2d31) auf dem Branch:
+  · Task #79 Slice A (ab7f29b): "rhythmische Vielfalt bei allen Genres" — erster Schnitt.
+    Neuer deklarativer GenreFlavor-Overlay (hatDensityBias / percGhostStep / kickPushEnabled,
+    hart auf 3 Felder begrenzt) liegt ÜBER dem geteilten .fourOnFloor-Archetyp, sodass die
+    6 Vier-Viertel-Genres (Disco, Eighties, EarlySynth, Futuristic, Psytrance, Synthwave)
+    hörbar unterschiedliche Loops erzeugen, OHNE eine eigene Beat-Funktion pro Genre. Der
+    Overlay zieht KEIN RNG und liest KEIN Biofeedback — gleicher Seed+Genre bleibt also
+    byte-identisch/deterministisch. Archetyp-Kern (Kick auf jeder Zählzeit + Backbeat-Clap
+    auf 2&4) bleibt unangetastet. code-reviewer approved; testFourOnFloorKicksEveryBeat
+    bleibt grün, 2 neue Tests (Cross-Genre-Distinctness + Determinismus) grün.
+    Plan: scratchpads/PLAN_RHYTHMIC_DIVERSITY_2026-07-21.md (Slice A Pilot; nächster Schritt
+    nach Founder-Ohr-Check: Overlay auf backbeat/offbeat/halfTime ausrollen, dann Slice B
+    stärkere Bio-Kopplung).
 
-  Bekannte offene Punkte (bewusst NICHT in diesem Build angefasst, device-gated/founder-gated/
-  bewusst sequenziert, unverändert seit dem letzten Deploy): Automation-Präzisions-Editor-
-  Retarget (S2, Gerät nötig), Clip-Zittern C3/C7 (warten auf eine echte Bildschirmaufnahme),
-  AUv3 "-3000" (Portal/Registrierung), EchoelPublish/Weather-Synth/EEG-Quelle/Bio-Session-Brain
-  (bewusster Ideen-Parkplatz), Leiste-Verteilung S2-S6 (wartet auf Founder-Redesign-Entscheidung),
-  BodyVibe Kamera-Modulator (Info.plist-Datenschutztext braucht Founder-Freigabe), DAW#4
-  Video-Spuren (kein sicherer nicht-geräte-gebundener Slice gefunden), rhythmische Vielfalt
-  via Biofeedback (Task #79, neu — braucht eigenen Plan zuerst).
+  Verifikation (Founder-Ask "Überprüfe alles, Modellwechsel-Fehler"):
+  · Working-Tree sauber (kein halbfertiger Stand vom Sonnet→Opus-Wechsel).
+  · #77-Vollständigkeit: leadDensity=0.0 bei ALLEN 23 Genres bestätigt (keine Lücke).
+  · #79: beatFlavor-switch vollständig+default, Track-Symbole existieren, percGhostStep
+    bounds-checked, Test-Helper-Signaturen passen.
+  · Unabhängiger code-reviewer über den kombinierten Session-Diff (9dce29b+ab7f29b):
+    NULL Befunde, explizit sauber — keine unvollständigen Edits, keine gelöschte
+    Live-Coverage, keine Tautologie-Tests, Rausch-Triad unberührt.
+  · Ultracode-Sweep (11 Opus-Agenten) über alle offenen Backlog-Punkte
+    (#40/51/52/53/55/56/59/60/61/67/68): alle bestätigt korrekt blockiert (device-/
+    founder-/decision-gated), keine übersehene blind-baubare Arbeit.
 
-  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf 9dce29b (verifiziert via
-  actions_list vor diesem Deploy). Sources-Commit hatte einen Pflicht-Reviewer-Pass
-  (code-reviewer, fing die NoteRoleTests-Lücke).
+  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline + Full Test Suite ALLE grün auf
+  ab7f29b (verifiziert vor diesem Deploy).
+
+  Bekannte offene Punkte (unverändert, bewusst nicht angefasst): siehe letzter Deploy —
+  device-/founder-gated (#40, #55, #56-Rest, #67/68) + Ideen-Parkplatz (#51, #59/60/61).
