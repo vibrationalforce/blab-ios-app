@@ -19,7 +19,8 @@ until build-for-testing goes green.
 | 001aeaa | BioIntegrationTests DDSP/removed-type drift | type-swap + delete-removed |
 | fbcfe93 | LaneNotePump tuple-array asserts | element-wise helper |
 | fc50df5 | SignalRouter statics + 3 test drifts (throws/Float/extent) | `nonisolated static` + test |
-| **65530a7** | VDSPTests nested-enum qualify (10) · VideoInTracksTests:73 `Double?` | qualify + XCTUnwrap |
+| 65530a7 | VDSPTests nested-enum qualify (10) · VideoInTracksTests:73 `Double?` | qualify + XCTUnwrap |
+| **60e8ec4** | MicrotonalTuningTests:124 `Array.first` Double? (LAST error) | throws + XCTUnwrap |
 
 ## REMAINING — BioIntegrationTests.swift (NEXT cycle, needs care)
 
@@ -51,4 +52,11 @@ This one file carries a whole REMOVED subsystem — investigate + delete/repair 
    forces step success → false green); flip the main `Echoelmusic` scheme test target
    from `EchoelmusicTests` (smoke) to `EchoelmusicFullTests`; retire the smoke target.
    Also repoint ci.yml:433-451 `-only-testing:…/ComprehensiveTestSuite`.
+   **Exact ci.yml sites (read 2026-07-21):**
+   - L86-88 matrix `destination:` (iPhone 16 Pro / iPhone SE 3rd) → the iOS test job's
+     build-for-testing (L150-156) + test-without-building (L161-168).
+   - L432-449 SECOND job: `-scheme Echoelmusic -destination …iPhone 16 Pro`
+     `-only-testing:EchoelmusicTests/ComprehensiveTestSuite/…` → repoint to FullTests + iPhone 17.
+   - L156/168/438/449 carry the `… | tee …log | xcpretty || cat log` / `|| true` mask → drop.
+   - macOS/watch/tv/vision jobs (L255-389) are separate schemes — leave untouched this slice.
 3. Then the safety-net is REAL: a red test finally reddens a gate.
