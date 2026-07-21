@@ -23,13 +23,15 @@ until build-for-testing goes green.
 | 60e8ec4 | MicrotonalTuningTests:124 `Array.first` Double? | throws + XCTUnwrap |
 | 361775a | @MainActor sender tests (ADMOSC/ArtNet init() from nonisolated) | class-level `@MainActor` |
 | 3542105 | Timeline suite: migrate() @MainActor · misplaced gain tests (lane/clip/region scope) · 3× Double? accuracy | @MainActor method · add helpers to class 2 · XCTUnwrap |
-| **9825e44** | EchoelRenderLayout azimuth Double? · FaceExpression bag [String:Double]→[String:Float] | XCTUnwrap · type annotation |
+| 9825e44 | EchoelRenderLayout azimuth Double? · FaceExpression bag [String:Double]→[String:Float] | XCTUnwrap · type annotation |
+| **65dd32b** | AudioEngineTests: 7 dead-API classes (Metronome*/CountInMode/TunerReading/MusicalNote-ext/TuningReference-ext removed/redesigned) | delete obsolete classes |
 
-> Note: reveal #14's ERROR_FILES list (head -50, all A*) was cascade-noisy —
-> AudioEngineTests:111-135 (CountInMode/MetronomeConfig, NOT @MainActor) were
-> red herrings. The 2 authoritative messages were `init()` + `descriptor(for:)`.
-> The registry-descriptor callers (EchoelParameterRegistryTests/AUParameterBridgeTests)
-> are ALREADY @MainActor → descriptor culprit is elsewhere; next reveal names it.
+> CORRECTION (65dd32b): reveal #14's AudioEngineTests:111-135 lines were NOT noise —
+> they were REAL dead-API errors (CountInMode/MetronomeConfiguration are REMOVED types).
+> The reveal's dedup BUILD_ERRORS ('init()'+'descriptor(for:)', count 1 each) did NOT
+> map cleanly to the ~50 ERROR_FILES sites — a serialized-diagnostics/log quirk. LESSON:
+> when BUILD_ERRORS messages don't match the ERROR_FILES list, TRUST ERROR_FILES +
+> grep Sources for each referenced type; removed type → delete the test class.
 
 ## REMAINING — BioIntegrationTests.swift (NEXT cycle, needs care)
 
