@@ -212,6 +212,34 @@ final class PianoRollModelTests: XCTestCase {
         XCTAssertEqual(model.notes.first?.pitch, 60, "stopped → bar 0 is present before playback")
     }
 
+    func testLoadArrangement_stoppedFreshTake_softensBar0LeadInNotesOnly() {
+        // Task #77 (founder ear-feedback 2026-07-21): the very first play of a fresh
+        // take softens the LEAD only — `.notes` (what plays immediately) reflects it,
+        // but `arrangementBars` (everything a wrap or export reads) must NOT — an
+        // earlier version baked the softening into the cycling array itself, which
+        // made the melody duck every `loopBars` bars forever (reviewer-caught).
+        let model = PianoRollModel()
+        let loudLead = Note(pitch: 60, startStep: 0, velocity: 0.9, role: .lead)
+        let bass = Note(pitch: 36, startStep: 0, velocity: 0.8, role: .bass)
+        let bars = [[loudLead, bass],
+                    [Note(pitch: 62, startStep: 0, velocity: 0.9, role: .lead)],
+                    [Note(pitch: 64, startStep: 0, velocity: 0.9, role: .lead)]]
+        model.loadArrangement(bars, playing: false)
+
+        let sounding = model.notes
+        let soundingLead = sounding.first { $0.role == .lead }
+        let soundingBass = sounding.first { $0.role == .bass }
+        XCTAssertEqual(soundingLead?.velocity, 0.9 * IntroAttenuation.leadFactor, accuracy: 1e-6,
+                       "the note array about to sound must carry the softened lead")
+        XCTAssertEqual(soundingBass?.velocity, 0.8, accuracy: 1e-6, "bass is never touched")
+
+        // Export/cycling reads `arrangementBars`, which must stay the TRUE, unsoftened bars.
+        let exported = model.arrangementForExport().notes
+        let exportedLead = exported.first { $0.pitch == 60 && $0.role == .lead }
+        XCTAssertEqual(exportedLead?.velocity, 0.9, accuracy: 1e-6,
+                       "the cycling/export array must never carry the one-shot softening")
+    }
+
     func testLoadArrangement_singleBarFallsBackToPlainLoad() {
         let model = PianoRollModel()
         model.loadArrangement([[Note(pitch: 67, startStep: 4)]], playing: false)

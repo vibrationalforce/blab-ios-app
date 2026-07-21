@@ -539,8 +539,21 @@ public final class PianoRollModel {
             allNotesOff()
             pendingNotes = nil
             playedBars = 0
+            // `arrangementBars` stays the TRUE bars — every wrap (`trigger`'s
+            // `arrangementBars[(playedBars + offset) % count]`) and `arrangementForExport()`
+            // read straight from it, so cycling/export are never touched by the line below.
             arrangementBars = bars
-            notes = bars[0]
+            // Task #77 (founder ear-feedback 2026-07-21, "am Anfang ... laute Melodie"):
+            // ONLY the note array staged into `notes` right now — what actually sounds
+            // the instant Play is pressed after a fresh Generate — gets its lead
+            // softened, so the groove has a beat to establish first. This must NOT be
+            // baked into `arrangementBars`: an earlier version of this fix did exactly
+            // that and the softening then recurred on every wrap back to bar 0 (every
+            // `loopBars` bars, forever) — audio-thread-reviewer-caught regression before
+            // ship. A stop→replay of the same take re-primes `notes` from
+            // `arrangementBars[0]` directly (see `pattern.onStop` below) — the softened
+            // entrance is a once-per-fresh-take event, not reapplied on every replay.
+            notes = IntroAttenuation.apply(bars[0], isFirstBar: true)
         }
     }
 
