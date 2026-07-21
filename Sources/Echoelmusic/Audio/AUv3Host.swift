@@ -162,12 +162,16 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
             // many times, still cold — so it is NOT the cold-registry timing quirk).
             let embedded = bundledAUv3.lowercased()
             if embedded.contains("echl") {
-                // Bundle is correct on THIS device, yet the registry can't find it →
-                // iOS-side pluginkit registration (the com.echoelmusic.app.auv3
-                // provisioning capability) — no app code or reboot fixes this.
+                // Bundle is correct on THIS device (build 2433 archive: "AUv3 embed OK"
+                // + own com.echoelmusic.app.auv3 provisioning profile), yet the process
+                // sees 0 out-of-process units. The documented gate for third-party-AU
+                // enumeration is the HOST app's Inter-App Audio capability on the
+                // com.echoelmusic.app App ID (DevForums 127481/89762): the entitlement
+                // is declared in the app, but only takes effect if the App ID grants it.
+                // A portal step, then a re-archive — no reboot/reinstall fixes it.
                 return counts
                     + " Self-test: FAILED (\(domain) \(code)), BUT our plugin IS embedded and correctly declared in the installed app (\(bundledAUv3))."
-                    + " So the app is built right — iOS simply hasn't registered the extension. This is the App-ID/provisioning of com.echoelmusic.app.auv3 in App Store Connect, not something a reboot or reinstall fixes."
+                    + " So the app is built right — the remaining lever is the Inter-App Audio capability on the com.echoelmusic.app App ID (developer.apple.com → Identifiers → enable Inter-App Audio → re-archive). Not something a reboot or reinstall fixes."
             }
             if !embedded.isEmpty {
                 // We checked the bundle and our .appex is NOT there → build/embed miss.

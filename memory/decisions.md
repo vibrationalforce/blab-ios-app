@@ -36,7 +36,27 @@ Architectural and strategic decisions with context and rationale.
   Echo/augn/echl" ⇒ bundle correct, fault is iOS pluginkit/portal provisioning (NOT app-fixable, NOT
   reboot-fixable) → founder verifies `com.echoelmusic.app.auv3` App-ID in App Store Connect; ".appex
   absent" ⇒ build/embed miss → fix the archive.
-- **Review-Datum:** nach der nächsten Geräte-Scan-Zeile mit `Embedded: …` (build ≥ der fbbde21-Deploy).
+- **ARCHIV-LOG BEWEIS (Build 2433, testflight run 29785000489, gelesen 2026-07-21):** der Archiv-Job
+  hat drei nicht-blockierende AUv3-Diagnoseschritte. Fakten aus dem echten Log:
+  - ✅ **`AUv3 embed OK`**: `Echoelmusic.app/PlugIns/EchoelmusicAUv3.appex`, component `augn/echl/Echo`,
+    principal `EchoelmusicAUv3.AudioUnitViewController`. → Ursache (c) „appex nicht eingebettet" WIDERLEGT.
+  - ✅ **`Provisioning Profile: com.echoelmusic.app.auv3`** mit eigener `application-identifier` — der appex
+    ist mit dediziertem App-ID-Profil signiert. → Provisioning des appex ist korrekt.
+  - ❓ **Inter-App-Audio Scan-Gate: INCONCLUSIVE** — der ASC-Capability-Query (Schritt „AUv3 scan-gate truth")
+    fiel in den Exception/not-found-Zweig, KEIN OPEN/CLOSED-Verdikt (kein `##[notice/warning] scan-gate` im Log).
+- **KONKLUSION:** die App ist zu 100% korrekt gebaut (appex eingebettet+signiert+provisioniert, CI-verifiziert)
+  → KEIN Build-Bug, NICHT reboot-fixbar. Der eine verbleibende dokumentierte Hebel für „0 third-party" ist die
+  **`Inter-App Audio`-Capability auf der HOST-App-ID `com.echoelmusic.app`** (DevForums 127481/89762): das
+  Entitlement `inter-app-audio` IST in `Echoelmusic.entitlements` deklariert, wirkt aber nur, wenn die App-ID
+  im Portal die Capability gewährt. CI konnte den Zustand nicht bestätigen.
+- **FOUNDER-AKTION (Portal, ohne Build nötig für DEINEN Teil):** developer.apple.com → Certificates, IDs &
+  Profiles → Identifiers → `com.echoelmusic.app` → „Inter-App Audio" aktivieren → Save. Dann re-archive
+  (automatic signing übernimmt das bereits deklarierte Entitlement) → Scan sollte third-party sehen.
+- **CODE (fbbde21 + Folge-Commit):** on-device-guidance nennt jetzt exakt diesen IAA-App-ID-Gate. Offener
+  Vorschlag (CI-Config, braucht Founder-Nick): den ASC-Query härten, damit das nächste Archiv den Gate-Zustand
+  KONKLUSIV meldet + `codesign -d --entitlements` auf die signierte App prüfen ob `inter-app-audio` wirklich
+  im geshippten Profil steckt.
+- **Review-Datum:** nach dem Portal-Toggle + Re-Archive (Founder), oder nächster Geräte-Scan mit `Embedded: …`.
 
 ---
 

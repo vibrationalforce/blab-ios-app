@@ -94,8 +94,8 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
         let g = d.guidance
         let lower = g.lowercased()
         XCTAssertTrue(lower.contains("embedded"), "states the appex IS embedded")
-        XCTAssertTrue(lower.contains("provisioning") || lower.contains("app store connect"),
-                      "routes to the portal/provisioning cause")
+        XCTAssertTrue(lower.contains("inter-app audio") && lower.contains("app id"),
+                      "routes to the documented Inter-App Audio App-ID gate (the portal lever)")
         XCTAssertFalse(lower.contains("open aum"),
                        "priming AUM is not the action when the bundle is proven correct")
     }
