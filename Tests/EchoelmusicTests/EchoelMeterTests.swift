@@ -18,6 +18,14 @@ final class EchoelMeterTests: XCTestCase {
     func testFullScaleDCIsZeroDb() {
         let m = EchoelMeter()
         let buf = [Float](repeating: 1.0, count: 2000)
+        // A FRESH meter's inter-sample interpolation history starts at zero, so the
+        // very first call sees a genuine 0→1 step edge — the Catmull-Rom estimator
+        // correctly reports the inter-sample overshoot that edge produces (real
+        // true-peak-meter behavior, not a bug). Process the DC buffer twice so the
+        // history is warmed to true steady state before asserting the "flat DC"
+        // reading — matches how a continuous audio stream (no cold-start edge)
+        // actually measures.
+        m.process(buf, frameCount: buf.count)
         m.process(buf, frameCount: buf.count)
         XCTAssertEqual(m.peakDb, 0, accuracy: 0.1)
         XCTAssertEqual(m.rmsDb, 0, accuracy: 0.1)

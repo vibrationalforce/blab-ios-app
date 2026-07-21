@@ -9,14 +9,20 @@ import XCTest
 final class PulsePeriodEstimatorTests: XCTestCase {
 
     /// Build `seconds` of a sine at `hz` sampled at `rate`, with optional noise.
-    private func sine(hz: Double, rate: Double, seconds: Double, noise: Float = 0) -> [Float] {
+    /// SeededRNG (deterministic, CLAUDE.md law) — `SystemRandomNumberGenerator` made
+    /// this test flaky: a true-random noise realization can occasionally push the
+    /// autocorrelation peak outside the accuracy window on an unlucky CI run. A fixed
+    /// seed makes the noisy signal reproducible while still genuinely testing "does
+    /// the estimator recover the tone through noise" — the algorithmic intent.
+    private func sine(hz: Double, rate: Double, seconds: Double, noise: Float = 0,
+                       seed: UInt64 = 42) -> [Float] {
         let n = Int(rate * seconds)
         var out = [Float](); out.reserveCapacity(n)
-        var rng = SystemRandomNumberGenerator()
+        var rng = SeededRNG(seed: seed)
         for i in 0..<n {
             let t = Double(i) / rate
             var v = Float(sin(2 * Double.pi * hz * t))
-            if noise > 0 { v += Float.random(in: -noise...noise, using: &rng) }
+            if noise > 0 { v += (rng.unit() * 2 - 1) * noise }
             out.append(v)
         }
         return out
