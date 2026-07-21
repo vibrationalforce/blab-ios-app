@@ -381,6 +381,13 @@ targets:
         # Same Xcode 26 explicit-modules workaround as EchoelmusicTests (see above):
         # `@testable import` of the app target needs implicit-module resolution here.
         SWIFT_ENABLE_EXPLICIT_MODULES: NO
+        # Hosted-xctest Swift symbol resolution: the 294-file suite references app
+        # property descriptors / nominal type descriptors / key paths (e.g.
+        # `l_keypath` on Scale) that ld does not resolve from the host binary at
+        # link even with TEST_HOST/BUNDLE_LOADER set. Defer those to runtime — the
+        # bundle is injected into the host app, which exports the (public) symbols.
+        # Scoped to this REVEAL-ONLY test target; never in a shipped product.
+        OTHER_LDFLAGS: "$(inherited) -Xlinker -undefined -Xlinker dynamic_lookup"
 
 # =============================================================================
 # SCHEMES

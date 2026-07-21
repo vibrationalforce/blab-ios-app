@@ -25,6 +25,12 @@ on:
 env:
   XCODE_VERSION: '26.2'
   XCODEGEN_VERSION: '2.42.0'
+  # CURRENT_PROJECT_VERSION is `${BUILD_NUMBER:=1}` in project.yml, but XcodeGen
+  # does not honor the `:=` default → without BUILD_NUMBER it resolves EMPTY, and
+  # the sim refuses to install the app because the embedded EchoelmusicAUv3.appex
+  # placeholder requires a non-empty CFBundleVersion. The real TestFlight build
+  # sets BUILD_NUMBER; pin a stand-in here so the reveal can actually install+run.
+  BUILD_NUMBER: '1'
 
 jobs:
   full-tests:
