@@ -81,6 +81,55 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
         XCTAssertTrue(g.contains("-3000"), "surface the OSStatus code for device triage")
     }
 
+    // Bundle-probe DISCRIMINATOR (founder 2026-07-21, reboot refuted): when the
+    // -3000 probe fails AND the embedded-appex fact shows our .appex IS present +
+    // declares echl, the app is built right and the fault is iOS-side registration
+    // (portal/provisioning) — the guidance must say so, and must NOT tell the founder
+    // to reboot/reinstall (they already rebooted many times).
+    func testGuidance_probeFailed_appexEmbedded_pointsAtPortalNotReboot() {
+        let d = AUv3ScanDiagnostic(rawComponentCount: 101, thirdPartyCount: 0,
+                                   ownAUv3Present: false, scanAttempt: 4,
+                                   selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000),
+                                   bundledAUv3: "EchoelmusicAUv3=Echo/augn/echl")
+        let g = d.guidance
+        let lower = g.lowercased()
+        XCTAssertTrue(lower.contains("embedded"), "states the appex IS embedded")
+        XCTAssertTrue(lower.contains("provisioning") || lower.contains("app store connect"),
+                      "routes to the portal/provisioning cause")
+        XCTAssertFalse(lower.contains("open aum"),
+                       "priming AUM is not the action when the bundle is proven correct")
+    }
+
+    // The mirror case: probe failed AND the .appex is genuinely absent from the
+    // installed bundle → a build/embed miss, not a portal issue.
+    func testGuidance_probeFailed_appexAbsent_pointsAtBuild() {
+        let d = AUv3ScanDiagnostic(rawComponentCount: 101, thirdPartyCount: 0,
+                                   ownAUv3Present: false, scanAttempt: 4,
+                                   selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000),
+                                   bundledAUv3: "no .appex embedded")
+        let lower = d.guidance.lowercased()
+        XCTAssertTrue(lower.contains("not embedded"), "states the appex is missing from the bundle")
+        XCTAssertTrue(lower.contains("build") || lower.contains("plugins"),
+                      "routes to the build/embed step")
+    }
+
+    // The embedded-appex fact rides in the pastable report when stamped, so a device
+    // paste alone splits build-miss from registration-miss. Absent (default "") ⇒ no
+    // stray "Embedded:" clause.
+    func testReport_carriesEmbeddedAppexWhenStamped() {
+        let d = AUv3ScanDiagnostic(rawComponentCount: 101, thirdPartyCount: 0,
+                                   ownAUv3Present: false, scanAttempt: 4,
+                                   selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000),
+                                   rawMakers: ["Apple"], buildVersion: "v10.79.330 (2440)",
+                                   bundledAUv3: "EchoelmusicAUv3=Echo/augn/echl")
+        XCTAssertTrue(d.report.contains("Embedded: EchoelmusicAUv3=Echo/augn/echl"),
+                      "the embedded-appex fact rides in the report")
+        let plain = AUv3ScanDiagnostic(rawComponentCount: 10, thirdPartyCount: 0,
+                                       ownAUv3Present: false, scanAttempt: 1)
+        XCTAssertFalse(plain.report.contains("Embedded:"),
+                       "no embedded clause when the field is unstamped")
+    }
+
     // A non-cold diagnostic yields no cold guidance to show (the browser only shows
     // guidance while cold), so guidance is empty when discovery is healthy.
     func testGuidance_notCold_isEmpty() {

@@ -99,6 +99,16 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
     /// (grill 2026-07-20: "try N maps to no build number"). Pinned here so every
     /// pasted scan line carries its build. Empty = not stamped (older/test path).
     public var buildVersion: String
+    /// What the app's OWN embedded PlugIns actually contain on THIS device
+    /// (see `AUv3Host.bundledAUv3Stamp`). This is the field that finally SPLITS a
+    /// `-3000` registry miss into its two look-alike causes: `.appex` **absent**
+    /// ⇒ the archive did not embed/install the extension (a BUILD fix); `.appex`
+    /// **present + declaring Echo/augn/echl** yet invisible to the registry ⇒ the
+    /// bundle is correct and the fault is iOS-side pluginkit registration
+    /// (`com.echoelmusic.app.auv3` provisioning / an OS registration miss) — NOT
+    /// fixable in app code, and NOT cured by a reboot (founder 2026-07-21: rebooted
+    /// many times, still cold). Empty = not stamped (older/test path).
+    public var bundledAUv3: String
 
     /// The own-AUv3 self-instantiate probe result (see `performScan`).
     public enum SelfProbe: Equatable, Sendable {
@@ -116,7 +126,7 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
 
     public init(rawComponentCount: Int, thirdPartyCount: Int, ownAUv3Present: Bool,
                 scanAttempt: Int, selfProbe: SelfProbe? = nil, rawMakers: [String] = [],
-                buildVersion: String = "") {
+                buildVersion: String = "", bundledAUv3: String = "") {
         self.rawComponentCount = rawComponentCount
         self.thirdPartyCount = thirdPartyCount
         self.ownAUv3Present = ownAUv3Present
@@ -124,6 +134,7 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
         self.selfProbe = selfProbe
         self.rawMakers = rawMakers
         self.buildVersion = buildVersion
+        self.bundledAUv3 = bundledAUv3
     }
 
     /// Cold ⇒ the process saw NO real third-party units and not even our own AUv3.
@@ -146,9 +157,26 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
         case let .failed(domain, code):
             // -3000 = invalidComponentID = the component did not RESOLVE in this
             // process's registry (a find miss BEFORE any launch), not proof the
-            // appex is launch-denied. With 0 third-party from every vendor the
-            // decisive test is priming another host, not a blind reinstall (grill
-            // 2026-07-20). Point the founder at the one action that discriminates.
+            // appex is launch-denied. The embedded-appex fact now DISCRIMINATES the
+            // two look-alike causes (founder 2026-07-21 refuted reboot: rebooted
+            // many times, still cold — so it is NOT the cold-registry timing quirk).
+            let embedded = bundledAUv3.lowercased()
+            if embedded.contains("echl") {
+                // Bundle is correct on THIS device, yet the registry can't find it →
+                // iOS-side pluginkit registration (the com.echoelmusic.app.auv3
+                // provisioning capability) — no app code or reboot fixes this.
+                return counts
+                    + " Self-test: FAILED (\(domain) \(code)), BUT our plugin IS embedded and correctly declared in the installed app (\(bundledAUv3))."
+                    + " So the app is built right — iOS simply hasn't registered the extension. This is the App-ID/provisioning of com.echoelmusic.app.auv3 in App Store Connect, not something a reboot or reinstall fixes."
+            }
+            if !embedded.isEmpty {
+                // We checked the bundle and our .appex is NOT there → build/embed miss.
+                return counts
+                    + " Self-test: FAILED (\(domain) \(code)) — and our plugin is NOT embedded in the installed app (\(bundledAUv3))."
+                    + " That points at the build/embed step; the next archive must bundle the .appex under PlugIns/."
+            }
+            // Bundle not yet stamped (pure-value path) → the pre-bundle-probe advice:
+            // prime another host, then rescan; reinstall only as a fallback.
             return counts
                 + " Self-test: FAILED (\(domain) \(code)) — iOS did not resolve any out-of-process plugin for this app (not even ours)."
                 + " Open AUM or GarageBand once (let it list plugins), then return here and Rescan. Only if AUM also can't open our plugin: reinstall Echoelmusic or restart the device."
@@ -171,9 +199,12 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
         let makers = rawMakers.isEmpty ? "none" : rawMakers.joined(separator: ", ")
         // Build stamp FIRST so a pasted line is always pinnable to a build.
         let build = buildVersion.isEmpty ? "" : "\(buildVersion) — "
+        // Embedded-appex fact: splits an unregistered appex (BUILD) from an
+        // embedded-but-unregistered appex (iOS/portal). Only appended when stamped.
+        let embed = bundledAUv3.isEmpty ? "" : " Embedded: \(bundledAUv3)."
         return "Echoel AUv3 scan[try \(scanAttempt)]: \(build)iOS returned \(rawComponentCount) Audio Units — "
             + "\(thirdPartyCount) third-party, own AUv3 \(ownAUv3Present ? "visible" : "not visible"), "
-            + "self-probe \(probe). Makers iOS gave this app: [\(makers)]."
+            + "self-probe \(probe). Makers iOS gave this app: [\(makers)].\(embed)"
     }
 
     /// A founder- and log-friendly one-line reason for a FAILED AU load — for the
@@ -251,6 +282,51 @@ public final class AUv3Host {
         let v = info?["CFBundleShortVersionString"] as? String ?? "?"
         let b = info?["CFBundleVersion"] as? String ?? "?"
         return "v\(v) (\(b))"
+    }
+
+    /// Reads the app's OWN embedded PlugIns to answer the one question the component
+    /// registry cannot: is our `.appex` physically present in the installed bundle on
+    /// THIS device, and what AudioComponents does its embedded Info.plist declare?
+    /// This is the decisive discriminator for a `-3000` registry FIND miss — it splits
+    /// two states that look identical from the registry side:
+    ///   • `.appex` **absent** ⇒ the archive did not embed/install the extension → a
+    ///     BUILD/embed fix (the appex must land under `PlugIns/`).
+    ///   • `.appex` **present + declares `Echo/augn/echl`** yet invisible to the
+    ///     registry ⇒ the bundle is correct and the fault is iOS-side pluginkit
+    ///     registration (the `com.echoelmusic.app.auv3` App-ID/provisioning capability)
+    ///     — NOT fixable in app code, and (founder 2026-07-21) NOT cured by a reboot.
+    /// Pure runtime read of `Bundle.main` (no actor state, Foundation-only); never
+    /// throws — any failure degrades to a descriptive string. Stamped into the
+    /// diagnostic at scan time (like `appBuildStamp`), kept OUT of the pure `report`
+    /// value type so `report` stays deterministic/CI-testable.
+    nonisolated static var bundledAUv3Stamp: String {
+        guard let plugins = Bundle.main.builtInPlugInsURL,
+              let entries = try? FileManager.default.contentsOfDirectory(
+                  at: plugins, includingPropertiesForKeys: nil) else {
+            return "PlugIns dir unreadable"
+        }
+        let appexes = entries.filter { $0.pathExtension == "appex" }
+        guard !appexes.isEmpty else { return "no .appex embedded" }
+        var lines: [String] = []
+        for appex in appexes {
+            let name = appex.deletingPathExtension().lastPathComponent
+            guard let info = Bundle(url: appex)?.infoDictionary,
+                  let ext = info["NSExtension"] as? [String: Any] else {
+                lines.append("\(name)(no NSExtension)")
+                continue
+            }
+            let attrs = ext["NSExtensionAttributes"] as? [String: Any]
+            if let first = (attrs?["AudioComponents"] as? [[String: Any]])?.first {
+                let t = first["type"] as? String ?? "?"
+                let s = first["subtype"] as? String ?? "?"
+                let m = first["manufacturer"] as? String ?? "?"
+                lines.append("\(name)=\(m)/\(t)/\(s)")
+            } else {
+                let point = ext["NSExtensionPointIdentifier"] as? String ?? "?"
+                lines.append("\(name)(\(point), NO AudioComponents under NSExtensionAttributes)")
+            }
+        }
+        return lines.joined(separator: ", ")
     }
 
     /// True when a scan completed but returned NO real third-party units — only
@@ -945,7 +1021,8 @@ public final class AUv3Host {
                                         scanAttempt: scanAttempt,
                                         selfProbe: diagnostic?.selfProbe,
                                         rawMakers: rawMakers,
-                                        buildVersion: Self.appBuildStamp)
+                                        buildVersion: Self.appBuildStamp,
+                                        bundledAUv3: Self.bundledAUv3Stamp)
         // Cold-cache / late-registration backstop: when the OS returns only Apple
         // built-ins, the third-party registry is likely not warm yet for this
         // process — and because those extensions were registered BEFORE this launch,
