@@ -7899,3 +7899,24 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
 - FIX (ca98371, Reviewer 0 Defekte): AUv3-Diagnose ehrlich (resolve-miss, prime-then-rescan statt reinstall)
   + Build-Stamp "vX.Y.Z (build)" in jeder Scan-Zeile (try N eindeutig einem Build zuordenbar). Tests grün.
 - Frühere Decision-Zeile korrigiert (memory/decisions.md + decisions.csv).
+
+---
+## 2026-07-21 (cont.) — #78 CommunityLibrary bundling: parked after 4x fail, diagnostics exhausted
+- 4th consecutive attempt (`eea6928`, multi-candidate-bundle + path-suffix search, 2 reviewer passes)
+  confirmed via full-tests.yml CI reveal to have ZERO effect — same 3 tests still fail
+  (`CommunityLibraryTests.testBundledFXCommunity_loadsSeededExample`/`testCuratedCommunity_includesBundledCommunity`,
+  `MoodPresetTests.testBundledCommunity_loadsSeededExample`).
+- Tried a temporary `XCTFail`-dump diagnostic test — confirmed (again) `full-tests.yml`'s
+  grep-based Summary step never captures XCTFail message bodies, only pass/fail one-liners.
+  Tried downloading the raw artifact log directly — blocked by sandbox egress proxy policy
+  (Azure Blob Storage host explicitly rejected, confirmed via `$HTTPS_PROXY/__agentproxy/status`).
+  Both channels are dead ends for this sandbox — removed the diagnostic test (`Tests/EchoelmusicTests/CommunityLibraryTests.swift`).
+- **Decision: STOP guessing blind, park it.** Documented full history + next-step recipe in
+  `memory/decisions.md` and a row in `decisions.csv` — needs a future session with real Xcode/simulator
+  access to inspect the built `.xctest`/`.app` bundle's actual `Contents/Resources` to find out whether
+  the seeded JSON is even copied in, and at what path.
+- Open founder question still unanswered: whether to deploy a TestFlight now (real fixes ready: MIDI
+  import division-byte fix, 2 SpectralColor bugs, gates green) or wait for the AUv3 device-verify on
+  the already-shipped `0f1120c` build first. Holding off on any deploy until that's resolved.
+- Next: pivot to REIHENFOLGE item 1 (Automation-in-Spur, needs "ERST PLAN + Council") or item 2
+  (Bio-Modulation live sichtbar) as the next substantive #REIHENFOLGE work.

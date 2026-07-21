@@ -4,6 +4,55 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-21 CommunityLibrary/MoodPreset JSON bundling: 4 attempts failed, sandbox diagnostics exhausted — parking, do not retry blind
+- **Symptom:** `CommunityLibraryTests.testBundledFXCommunity_loadsSeededExample` /
+  `testCuratedCommunity_includesBundledCommunity` and `MoodPresetTests.testBundledCommunity_loadsSeededExample`
+  fail in the `full-tests.yml` reveal — the seeded `Resources/Community/fx/aurora-drift.json` /
+  `Resources/Community/moods/aurora-calm.json` never show up via `CommunityLibrary.fx`/`.patches` at test
+  runtime, even though both JSON files were read in full and are valid, complete, and decode-compatible
+  with their target Codable structs (`FXPreset.init(from:)` is fully lenient via `try?` defaults;
+  `MoodPreset` uses synthesized `Codable` with matching keys) — schema mismatch is ruled out.
+- **Four consecutive fix attempts, all confirmed via full-tests.yml CI reveal to have ZERO effect:**
+  1. `a935b46`-adjacent: project.yml — added a dedicated `type: folder` resource entry for `Community`
+     (mirroring the existing `Drums`/`Samples` entries). No change in the next reveal run.
+  2. `8f362ea`: project.yml — excluded `Community/Drums/Samples` from the generic
+     `sources: type: group` walk (removing a suspected double-declaration/flatten conflict). No change.
+  3+4. `eea6928`: rewrote `CommunityLibrary.load()` to search multiple candidate bundles
+     (`Bundle.main` + `Bundle(for: BundleAnchor.self)`, deduped by `bundleURL`) and match JSON files by
+     path-SUFFIX anywhere in the resource tree (not `Bundle.urls(subdirectory:)`, which assumes an exact
+     top-level path). Two code-reviewer passes, both PASS. Still zero effect — same 3 tests still fail.
+- **Diagnostic channels tried and confirmed DEAD in this sandbox — do not retry:**
+  - A temporary `XCTFail` dump of `Bundle.main.resourceURL` + a full recursive listing
+    (`testDiagnostic_dumpBundleContents`, added `5fc4b2b`, removed this cycle) produced no usable output:
+    `full-tests.yml`'s Summary step only greps `full-test.log` for `"failed|error:"` — this NEVER captures
+    XCTFail assertion message bodies, only Xcode's parallel-test one-line pass/fail summaries. Confirmed
+    twice by grepping the raw log for the expected dump text (bundlePath, resourceURL, "Aurora", etc.) —
+    zero matches both times.
+  - Tried downloading the raw `full-build.log`/`full-test.log` artifact directly via
+    `download_workflow_run_artifact` to bypass the grep entirely — got a signed Azure Blob Storage URL,
+    but `curl` returns 403; confirmed via `$HTTPS_PROXY/__agentproxy/status` that the sandbox's egress
+    proxy explicitly rejects `productionresultssa0.blob.core.windows.net` (`connect_rejected`, "policy
+    denial"). This channel is permanently blocked from this sandbox.
+- **Assessment:** after a multi-bundle, anywhere-in-tree, path-suffix search STILL finds nothing, the most
+  likely remaining explanation is that the seeded JSON files never get copied into ANY bundle reachable at
+  test runtime during the CI build at all — i.e. an Xcode build-phase/resource-copy issue that requires
+  actually inspecting the built `.xctest`/`.app` bundle's `Contents/Resources` on a real Xcode/simulator
+  session, which is not possible from this sandbox (no local compiler, no artifact download, no assertion
+  detail in logs).
+- **Decision: STOP guessing at this specific issue.** 4 attempts is enough diagnostic signal that the fix
+  needs eyes on the actual build product, not another blind Sources/project.yml change. Parked as a known,
+  documented, open item. **Next step for a future session with real Xcode/device access:** build
+  `EchoelmusicFullTests` locally or on a Mac, then inspect
+  `<DerivedData>/.../EchoelmusicFullTests.xctest/Contents/Resources/` (or the hosting app's bundle, given
+  `TEST_HOST`/`BUNDLE_LOADER` wiring) directly to see whether `Community/fx/aurora-drift.json` physically
+  exists there and under what exact path — that single fact (present vs. absent, and at what path) will
+  immediately indicate whether this is a resource-copy-phase gap (fix project.yml/Xcode target directly)
+  or a runtime bundle-resolution gap (fix `CommunityLibrary.candidateBundles`/`load()` again with the now-
+  known real path). Do not re-attempt without that ground truth.
+- **Review date:** whenever a session next has real Xcode/simulator/device access to Echoelmusic.
+
+---
+
 ### 2026-07-21 AUv3 -3000: candidate #1 (App-Group removal) DISPROVEN by device log (v10.79.325/2433)
 - **Device log (founder, try 0-4):** iOS returns 101 AUs, ALL `[Apple]` — `3rd-party 0, ownAUv3 false`,
   self-probe `NSOSStatusErrorDomain#-3000` (own component unresolved in-process). Persists across app
