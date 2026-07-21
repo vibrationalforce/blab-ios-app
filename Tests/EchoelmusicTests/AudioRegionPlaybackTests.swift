@@ -125,7 +125,13 @@ final class AudioRegionPlaybackTests: XCTestCase {
                                                         transportPlaying: false))
         XCTAssertNil(AudioRegionPlayback.auditionWindow(for: region(start: 0), bpm: -120,
                                                         transportPlaying: false))
-        XCTAssertNil(AudioRegionPlayback.auditionWindow(for: region(start: 0, length: 0), bpm: 120,
+        // TimelineRegion.init clamps lengthTicks to max(1, …) (div-by-zero guard),
+        // so `length: 0` can no longer construct an empty region — the defensive
+        // check in auditionWindow now only guards a POST-construction mutation
+        // (lengthTicks is a public var). Mutate directly to exercise that path.
+        var empty = region(start: 0)
+        empty.lengthTicks = 0
+        XCTAssertNil(AudioRegionPlayback.auditionWindow(for: empty, bpm: 120,
                                                         transportPlaying: false))
     }
 
@@ -159,7 +165,11 @@ final class AudioRegionPlaybackTests: XCTestCase {
 
     func testEditWindow_badTempoOrEmptyRegion_isNil() {
         XCTAssertNil(AudioRegionPlayback.editWindow(for: region(start: 0), bpm: 0))
-        XCTAssertNil(AudioRegionPlayback.editWindow(for: region(start: 0, length: 0), bpm: 120))
+        // See testAuditionWindow_badTempoOrEmptyRegion_isNil: init clamps lengthTicks
+        // to max(1, …), so an empty region can only exist via post-construction mutation.
+        var empty = region(start: 0)
+        empty.lengthTicks = 0
+        XCTAssertNil(AudioRegionPlayback.editWindow(for: empty, bpm: 120))
     }
 
     func testEditWindow_negativeOffset_clampsToZero() {
