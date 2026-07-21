@@ -20,7 +20,14 @@ until build-for-testing goes green.
 | fbcfe93 | LaneNotePump tuple-array asserts | element-wise helper |
 | fc50df5 | SignalRouter statics + 3 test drifts (throws/Float/extent) | `nonisolated static` + test |
 | 65530a7 | VDSPTests nested-enum qualify (10) · VideoInTracksTests:73 `Double?` | qualify + XCTUnwrap |
-| **60e8ec4** | MicrotonalTuningTests:124 `Array.first` Double? (LAST error) | throws + XCTUnwrap |
+| 60e8ec4 | MicrotonalTuningTests:124 `Array.first` Double? | throws + XCTUnwrap |
+| **361775a** | @MainActor sender tests (ADMOSC/ArtNet init() from nonisolated) | class-level `@MainActor` |
+
+> Note: reveal #14's ERROR_FILES list (head -50, all A*) was cascade-noisy —
+> AudioEngineTests:111-135 (CountInMode/MetronomeConfig, NOT @MainActor) were
+> red herrings. The 2 authoritative messages were `init()` + `descriptor(for:)`.
+> The registry-descriptor callers (EchoelParameterRegistryTests/AUParameterBridgeTests)
+> are ALREADY @MainActor → descriptor culprit is elsewhere; next reveal names it.
 
 ## REMAINING — BioIntegrationTests.swift (NEXT cycle, needs care)
 
