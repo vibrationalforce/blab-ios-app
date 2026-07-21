@@ -420,6 +420,42 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    // MARK: - Rhythmic diversity (task #79 Slice B — backbeat / rock family)
+
+    /// The same founder ask extended to the six backbeat genres: they must not all
+    /// render one loop. With identical seed/energy/coherence at least two diverge in
+    /// `drumSteps`, while the archetype core (snare on 2 & 4) still holds for every one.
+    func testBackbeatGenresAreRhythmicallyDistinct() {
+        let backbeat: [MusicStyle] = [.rock, .punk, .rocknroll, .heavyMetal, .jazz, .oriental]
+        var patterns: [[[Bool]]] = []
+        for style in backbeat {
+            let comp = BioComposer.compose(input(coherence: 0.4, hr: 100, seed: 0x1234, style: style))
+            // Core signature intact for every genre — the overlay never dissolves the backbeat.
+            XCTAssertTrue(comp.drumSteps[1][4] && comp.drumSteps[1][12],
+                          "\(style) keeps the snare backbeat on 2 & 4")
+            patterns.append(comp.drumSteps)
+        }
+        // Concrete pair: rock (perc ghost @6) vs jazz (sparse hats, ghost @5) must differ.
+        XCTAssertNotEqual(patterns[0], patterns[4],
+                          "rock and jazz must not share bit-identical drumSteps")
+        // All six carry a distinct perc-ghost step → all six patterns are distinct.
+        let distinct = Set(patterns.map { "\($0)" })
+        XCTAssertEqual(distinct.count, backbeat.count,
+                       "the six backbeat genres must each render a distinct loop")
+    }
+
+    /// Determinism must survive the backbeat overlay too: same seed + bio + genre →
+    /// identical output every call (the overlay is declarative, draws no RNG).
+    func testBackbeatFlavorIsDeterministic() {
+        for style in [MusicStyle.rock, .punk, .rocknroll, .heavyMetal, .jazz, .oriental] {
+            let a = BioComposer.compose(input(coherence: 0.35, hr: 108, seed: 0xABCD, style: style))
+            let b = BioComposer.compose(input(coherence: 0.35, hr: 108, seed: 0xABCD, style: style))
+            XCTAssertEqual(a.drumSteps, b.drumSteps, "\(style): drums must reproduce exactly")
+            XCTAssertEqual(a.drumAccents, b.drumAccents, "\(style): accents must reproduce exactly")
+            XCTAssertEqual(a, b, "\(style): the whole take must be deterministic")
+        }
+    }
+
     func testBackbeatSnareOnTwoAndFour() {
         let comp = BioComposer.compose(input(hr: 100, style: .rock))
         XCTAssertTrue(comp.drumSteps[1][4] && comp.drumSteps[1][12], "rock snare on 2 & 4")

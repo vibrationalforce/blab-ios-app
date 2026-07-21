@@ -267,8 +267,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
 
     /// The genre's rhythmic fingerprint (see `GenreFlavor`). Declared here next to
     /// `beatArchetype` so the per-genre character lives with the rest of the genre
-    /// identity. Only the six `.fourOnFloor` genres carry a distinct flavor today
-    /// (Slice A pilot); every other genre returns `.neutral` (no behaviour change).
+    /// identity. The six `.fourOnFloor` genres (Slice A) and the six `.backbeat`
+    /// genres (Slice B — rock family) carry a distinct flavor; every other genre
+    /// returns `.neutral` (no behaviour change).
     public var beatFlavor: GenreFlavor {
         switch self {
         // The six four-on-floor genres: each gets its own hat texture + a unique
@@ -280,6 +281,18 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic: return GenreFlavor(hatDensityBias:  0.0, percGhostStep: 11, kickPushEnabled: true)
         case .psytrance:  return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 13, kickPushEnabled: true)
         case .synthwave:  return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  1, kickPushEnabled: false)
+        // The six backbeat genres (rock family): the perc track is free in this
+        // archetype, so each genre's ghost step is collision-free by construction;
+        // all six steps are distinct AND off the snare backbeat (4/12) and the
+        // kick anchors (0/8/10/6). Hat bias tilts the driving 8th-hat texture:
+        // punk/metal drive to 16ths, jazz/oriental breathe. kickPush adds an extra
+        // syncopated kick into the "1" for the two most aggressive genres only.
+        case .rock:       return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  6, kickPushEnabled: false)
+        case .punk:       return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 15, kickPushEnabled: true)
+        case .rocknroll:  return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  3, kickPushEnabled: false)
+        case .heavyMetal: return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 11, kickPushEnabled: true)
+        case .jazz:       return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  5, kickPushEnabled: false)
+        case .oriental:   return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  9, kickPushEnabled: false)
         default:          return .neutral
         }
     }

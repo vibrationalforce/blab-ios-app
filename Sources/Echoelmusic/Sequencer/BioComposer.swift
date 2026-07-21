@@ -627,7 +627,8 @@ public enum BioComposer {
                 (drumSteps, drumAccents) = fourOnFloorBeat(energy: energy, calm: calm,
                                                            flavor: input.style.beatFlavor, rng: &rng)
             case .backbeat:
-                (drumSteps, drumAccents) = backbeatBeat(energy: energy, calm: calm, rng: &rng)
+                (drumSteps, drumAccents) = backbeatBeat(energy: energy, calm: calm,
+                                                        flavor: input.style.beatFlavor, rng: &rng)
             case .offbeat:
                 (drumSteps, drumAccents) = offbeatBeat(energy: energy, calm: calm, rng: &rng)
             case .halfTime:
@@ -751,20 +752,35 @@ public enum BioComposer {
             steps[Track.closedHat][6] = false
             steps[Track.closedHat][14] = false
         }
-        // A single genre-signature perc ghost on a genre-unique step — this is what
-        // guarantees two four-on-floor genres never share bit-identical drumSteps.
-        if steps[Track.perc].indices.contains(flavor.percGhostStep) {
-            steps[Track.perc][flavor.percGhostStep] = true
-        }
-        // Optional syncopated kick push into the "1" — an EXTRA hit only; the
-        // on-every-beat kicks placed above are untouched.
-        if flavor.kickPushEnabled { steps[Track.kick][14] = true }
+        // Genre-signature perc ghost + optional kick push (shared, RNG-free — the
+        // archetype-independent half of the flavor overlay, see applyFlavorGhost).
+        applyFlavorGhost(&steps, flavor: flavor)
 
         return (steps, accents)
     }
 
+    /// The archetype-INDEPENDENT half of a genre flavor overlay (task #79): a single
+    /// genre-unique perc ghost — what guarantees two genres in the SAME archetype
+    /// never share bit-identical `drumSteps` — plus an optional syncopated kick push
+    /// into the "1" (step 14, an EXTRA hit only). Draws NO rng, so the seeded draws
+    /// upstream stay byte-identical and the take is deterministic. Both writes are
+    /// additive and bounds-checked; `.neutral` (percGhostStep -1, no push) is a no-op.
+    private static func applyFlavorGhost(_ steps: inout [[Bool]], flavor: MusicStyle.GenreFlavor) {
+        if steps[Track.perc].indices.contains(flavor.percGhostStep) {
+            steps[Track.perc][flavor.percGhostStep] = true
+        }
+        if flavor.kickPushEnabled { steps[Track.kick][14] = true }
+    }
+
     /// Kick 1 (+3), snare 2 & 4, driving 8th hats — rock/punk/metal backbone.
-    private static func backbeatBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+    /// `flavor` (task #79 Slice B) is the same purely declarative, RNG-free per-genre
+    /// overlay used by `fourOnFloorBeat`: it never draws `rng`, so the seeded pKick/
+    /// pOpen draws stay byte-identical and the take reproduces exactly, while two
+    /// DIFFERENT backbeat genres now diverge (hats/perc/kick). The archetype core
+    /// (snare on 2 & 4, kick anchors) is placed first and never removed by the overlay.
+    private static func backbeatBeat(energy: Float, calm: Float,
+                                     flavor: MusicStyle.GenreFlavor = .neutral,
+                                     rng: inout SeededRNG)
         -> (steps: [[Bool]], accents: [[Bool]]) {
         var steps = emptyGrid()
         var accents = emptyGrid()
@@ -787,6 +803,17 @@ public enum BioComposer {
         for s in stride(from: 0, to: stepCount, by: 2) { steps[Track.closedHat][s] = true }
         let pOpen = rng.unit()
         if energy > 0.6 && !spacious && pOpen < 0.6 { steps[Track.openHat][14] = true }
+
+        // --- Per-genre flavor overlay (task #79 Slice B) — bio-independent, RNG-free ---
+        // Hat texture over the driving 8ths: dense fills the 16th offbeats (punk/metal
+        // drive), sparse thins to a quarter-note pulse (jazz/oriental breathe); the
+        // neutral band leaves the 8ths as-is.
+        if flavor.hatDensityBias >= 0.5 {
+            for s in stride(from: 1, to: stepCount, by: 2) { steps[Track.closedHat][s] = true }
+        } else if flavor.hatDensityBias <= -0.5 {
+            for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = false }
+        }
+        applyFlavorGhost(&steps, flavor: flavor)
 
         return (steps, accents)
     }
