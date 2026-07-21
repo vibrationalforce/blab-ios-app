@@ -45,6 +45,12 @@ settings:
       DEBUG_INFORMATION_FORMAT: "dwarf"
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: "DEBUG $(inherited)"
       OTHER_SWIFT_FLAGS: "$(inherited) -Xfrontend -warn-long-function-bodies=200 -Xfrontend -warn-long-expression-type-checking=200"
+      # Required for `@testable import Echoelmusic` from the unit-test bundles: without
+      # testability the app emits no testable .swiftmodule, so under Xcode 26's explicit
+      # modules the test target's import is unsatisfiable → "Unable to find module
+      # dependency: 'Echoelmusic'" (the SOLE error the reveal-first full-tests run hit —
+      # NOT 294 broken files, a single wiring gap). Debug-only; Release stays untestable.
+      ENABLE_TESTABILITY: YES
     Release:
       DEBUG_INFORMATION_FORMAT: "dwarf-with-dsym"
       SWIFT_COMPILATION_MODE: "wholemodule"
@@ -340,6 +346,11 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
+        # Xcode 26 explicit-modules workaround: `@testable import` of an APPLICATION
+        # target (not a framework) can still fail the module-dependency scan even with
+        # testability on. Disabling explicit modules for the test bundle only restores
+        # the reliable implicit-module resolution of the host app's testable swiftmodule.
+        SWIFT_ENABLE_EXPLICIT_MODULES: NO
 
   # ===========================================================================
   # EchoelmusicFullTests — the REAL 294-file suite (Task #78 slice 2, REVEAL-FIRST).
@@ -367,6 +378,9 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
+        # Same Xcode 26 explicit-modules workaround as EchoelmusicTests (see above):
+        # `@testable import` of the app target needs implicit-module resolution here.
+        SWIFT_ENABLE_EXPLICIT_MODULES: NO
 
 # =============================================================================
 # SCHEMES
