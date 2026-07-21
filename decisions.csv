@@ -262,3 +262,4 @@ date,decision,reasoning,expected_outcome,review_date,status
 2026-07-20,genre-beat-and-harmony-differentiation-is-ear-gated,i-iv-V-shared-authentically-beat-skeleton-shared-founder-offered-ears,wait-for-founder-2-3-worst-genres-before-blind-tuning,2026-08-19,founder-gated
 2026-07-20,ultra-audit-heal-3-high-bugs,artnet-nan-trap+timeline-seconds-rejoin+videorecorder-name-collision,shipped-v325-reviewer-all-pass,2026-08-19,shipped
 2026-07-20,CRITICAL-294-tests-never-run-in-CI,project.yml-has-no-test-target+no-workflow-calls-swift-test,slice1-walking-skeleton-GREEN-ci-runs-a-real-test-now-slice2-reveal-first-for-294,2026-07-27,in-progress
+2026-07-20,CI-test-false-green-stale-destination+|| cat-mask,OS=18.2/iPhone-16-Pro-absent-on-macos-26-Xcode-26.2-runner-and-|| cat-hides-xcodebuild-failure,slice1-smoke-green-was-false-tests-never-ran-fix-destination-generic-iOS-sim+drop-mask-in-reveal-then-ci.yml,2026-07-27,in-progress

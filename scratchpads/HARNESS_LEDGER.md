@@ -235,3 +235,23 @@ at file:line" is a grep hit, not a type-resolution proof. When a member referenc
 grep for `static .* <name>` and read the ENCLOSING type, or just let the compile gate arbitrate —
 don't treat the reviewer's location claim as ground truth. (SwiftPM was green here too; only the
 stricter Xcode app-target gate caught it — always wait for BOTH gates on member-access changes.)
+
+## DEAD-END / TRAP (2026-07-20) — "CI test gate green" was a FALSE GREEN
+- **Symptom:** ci.yml + full-tests.yml showed test steps GREEN, but NO test actually ran.
+- **Cause 1 (stale destination):** the runner is `macos-26` + Xcode `26.2` → only **iOS 26.x**
+  simulators exist (iPhone 17, iPhone Air, …). The pinned destination
+  `platform=iOS Simulator,OS=18.2,name=iPhone 16 Pro` DOES NOT EXIST → xcodebuild fails at
+  destination resolution (build step ~72s = way too fast for a real build; look for
+  "Ineligible destinations" + a device list with only OS 26.x in the log).
+- **Cause 2 (masking):** the `… 2>&1 | tee x.log | xcpretty || cat x.log` pattern — the trailing
+  `|| cat` runs on failure and EXITS 0, so the step outcome is "success" no matter what. Masks
+  BOTH the destination failure and any real compile/test failure.
+- **DO THIS INSTEAD:** build with `-destination 'generic/platform=iOS Simulator'` (no device/OS
+  pin — robust to runner image drift); test on a device confirmed by an `xcrun simctl list devices
+  available` step (e.g. `platform=iOS Simulator,name=iPhone 17`, no OS pin). DROP the `|| cat`;
+  rely on step-level `continue-on-error` for non-blocking, and `set -o pipefail` so xcodebuild's
+  real exit sets `steps.*.outcome`. A green test step is only trustworthy once the destination
+  resolves AND the mask is gone.
+- **Consequence:** Task #78 "wire the 294 tests" is NOT done at slice-1 — the smoke never ran.
+  Real heal = fix the destination+mask in ci.yml (shared gate, reviewer-gated), then the tests
+  actually gate.
