@@ -26,9 +26,16 @@ until build-for-testing goes green.
 | 9825e44 | EchoelRenderLayout azimuth Double? · FaceExpression bag [String:Double]→[String:Float] | XCTUnwrap · type annotation |
 | 65dd32b | AudioEngineTests: 7 dead-API classes (Metronome*/CountInMode/TunerReading/MusicalNote-ext/TuningReference-ext removed/redesigned) | delete obsolete classes |
 | 57329c0 | AUv3HostTests split/categorize (@MainActor class) · AUParameterMapping registry method · AudioRegionPlayback filePos Double? | class/method @MainActor · XCTUnwrap |
-| **a5b18de** | CoreSystemTests: AudioConstantsTests (→AudioConfiguration) + MusicalNoteTests (redesigned) dead | delete classes |
+| a5b18de | CoreSystemTests: AudioConstantsTests (→AudioConfiguration) + MusicalNoteTests (redesigned) dead | delete classes |
+| 840ba8f | DSPTests: AnalogEmulationProcessTests + DSPCrossfadeCurve/RegionTests + 4 Crossfade methods dead · render(into:)→render(buffer:) · hrv:→hrvVariability: | delete classes + drift |
+| **5ebbff5** | DSPValidationTests: testBreathPhaseExcitation (private continuousExcitationLevel) · CARule.contains([UInt8] vs struct) · EchoelRealFFT.forward() now returns (magnitudes,phases) tuple · powerSpectrum(_:) is a method · AnalogEmulationValidationTests dead | delete/adapt |
 
-## NEXT — DSPTests + DSPValidationTests (removed analog-emulation subsystem)
+> Both DSPTests + DSPValidationTests (the removed analog-emulation + crossfade
+> cluster) healed 2026-07-21. These were the LAST two files in the a5b18de reveal's
+> ERROR_FILES list. Next reveal (head 5ebbff5) should show build-for-testing SUCCESS
+> or the next residual cluster.
+
+## HISTORICAL — DSPTests + DSPValidationTests (removed analog-emulation subsystem) [DONE 840ba8f/5ebbff5]
 CONFIRMED GONE from Sources: SSLBusCompressor/LA2ACompressor/AnalogConsole/CrossfadeRegion/
 CrossfadeCurve/UREI1176Limiter/PultecEQP1A/ManleyVariMu/FairchildLimiter/APIBusCompressor.
 - DSPTests.swift: DELETE `AnalogEmulationProcessTests` (380-489), `DSPCrossfadeCurveTests`
