@@ -1,27 +1,40 @@
-build: 2026-07-21 — WeatherKit Portal-Capability + AUv3-Provisioning-Refresh + Profi-Bereinigung
+build: 2026-07-21B — MIDI-Import-Fix + SpectralColor-Korrekturen + Test-Suite-Health (#78)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder-Befehl "Bau" nach WeatherKit-Portal-Fix (Capability angehakt) + IAA-Klärung
-  (Inter-App Audio war immer schon aktiviert — die IAA-Gate-Hypothese für AUv3 "0 third-party"
-  ist damit widerlegt).
+notes: Founder "Mach gerne erstmal alles fertig und dann TestFlight mit Checkliste" — sichere,
+  bereits reviewte Fixes seit dem letzten Build (0f1120c) gebündelt.
 
-  WARUM DIESER BUILD: WeatherKit-Capability war im Portal NICHT angehakt (nur MusicKit/ShazamKit),
-  obwohl `Echoelmusic.entitlements` `com.apple.developer.weatherkit` deklariert UND der Code das
-  Feature real nutzt (Core/WeatherProvider.swift → WeatherService.shared.weather(for:), live über
-  weatherEnabled). Founder hat die Capability jetzt im Portal angehakt. Ein neuer Archiv-Build mit
-  `-allowProvisioningUpdates` regeneriert dabei ALLE Profile frisch (App + Widget + AUv3-Appex) —
-  das behebt WeatherKit sicher UND ist der beste verbleibende Hebel für den offenen AUv3-„-3000"-
-  Befund (embed/sign/provisioning/Deklaration waren bereits einzeln bestätigt korrekt; ein
-  inkonsistentes/veraltetes Profil war die letzte plausible Restursache).
+  Seit dem letzten Deploy (0f1120c) auf dem Branch:
+  · MIDI-Import-Fix (5fbc498): `MIDIFileImporter` las das division-Feld am falschen Byte-Offset
+    (u16(8) statt u16(12) — SMF-Spec-Bug, gegen `MIDIFileExporter`s Schreib-Reihenfolge
+    verifiziert). Importierte MIDI-Dateien hatten dadurch die falsche Ticks-pro-Viertel-Auflösung.
+    Reviewer-PASS (Offset-Mathematik, Bounds-Sicherheit, kein Audio-Thread-Kontakt).
+  · 2 echte SpectralColor-Bugs behoben (d517cac), Swift UND der gespiegelte Metal-Shader
+    (MetalBioView) synchron gefixt (Design-Invariante: beide müssen übereinstimmen):
+    - Akkord-Farb-Mittelung deckelte bei 6 Partialtönen statt 12 (zu grobe Clusterfarbe bei
+      dichten Akkorden).
+    - Wellenlängen→RGB-Gamut-Mapping clippte negative Farbkanäle VOR der Normierung — das
+      kollabierte eine ganze Farbtonbande auf falsche Werte. Jetzt: entsättigen (den negativsten
+      Kanal abziehen), dann normieren — korrekte Farbtreue quer über das Spektrum.
+    - Beide von einer eigenen dsp-reviewer-Untersuchung numerisch verifiziert (Python-Portierung
+      beider Algorithmen, Fix bestätigt ohne Regression auf ~25 weiteren Tests).
+  · #78 Test-Suite-Health: der volle 294-Datei-Testlauf (`full-tests.yml`, non-blocking Reveal)
+    läuft jetzt bis auf EINEN bekannten, dokumentierten Rest sauber durch — 15+ echte
+    Test-/Sources-Bugs in dieser Zyklusreihe gefunden und behoben (u.a. BioSignalDeconvolver
+    Stateful-Doppel-Call, EchoelDDSP-Default-Drift, VideoInTracks-Zeitrechnung,
+    SpectralColor-Notenposition-Präzision). Offen bleibt NUR das Bundling der
+    Community-FX/Mood-Presets (kosmetisch — betrifft ausschließlich optionale
+    Community-Beispiel-Presets, kein Crash, kein Kernfeature; 4 Fixversuche dokumentiert in
+    memory/decisions.md, braucht echten Xcode-Zugriff zur Diagnose).
+  · Tracker-Bereinigung: mehrere veraltete Plan-/Status-Einträge (Leiste-Auflösung,
+    Modus-Wechsel-Türen, Convergence-Batch) gegen den tatsächlichen Code verifiziert und
+    korrigiert — keine Funktionsänderung, nur ehrliche Buchführung für künftige Zyklen.
 
-  Seit dem letzten Deploy (2433) auf dem Branch:
-  · #77 — 3 verschwundene Bio→Sound-Mappings restauriert (HRV→Brightness, Atemphase→Amplituden-
-    Swell, coherenceTrend→Spektral-Morph), alle 3 Pflicht-Reviewer PASS (Audio-Thread/DSP/Bio-Safety).
-  · AUv3-Diagnose geschärft: On-Device-Scan liest jetzt die WIRKLICH eingebettete .appex und meldet
-    im Report, ob die Ursache Build- oder Registrierungs-seitig ist.
-  · Profi-Bereinigung (Founder: "No AUM/rescan guidance … stay professional") — jede
-    Workaround-Anleitung (Fremd-App öffnen, Rescan, Neuinstallation, Geräte-Neustart) aus der
-    Nutzer-Fläche entfernt; Lade-Fehler zeigen keinen rohen OSStatus-Jargon mehr.
-  · #78 Test-Heal — mehrere Cluster gegen aktuelle Sources verifiziert und geheilt (A8-Harmonicity-
-    Drift, EchoelDelay-Echo-Timing, EchoelDDSP-Defaults).
+  Bekannte offene Punkte (bewusst NICHT in diesem Build angefasst, device-gated oder
+  founder-gated): Automation-Präzisions-Editor-Umstellung auf song-absolute Ticks (S2,
+  Canvas-Retarget ohne Simulator/Gerät nicht verifizierbar), Clip-Zittern-Restkandidaten C3/C6/C7
+  (warten auf eine echte Echoel-Bildschirmaufnahme), Genre-Klang-Verbesserung #77 (Root-Cause
+  bereits in 0f1120c enthalten — wartet auf dein Ohr-Feedback), AUv3 "-3000" (Portal/Registrierung,
+  nicht durch Code lösbar).
 
-  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf jedem Commit dieser Reihe.
+  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf jedem Commit dieser Reihe
+  (zuletzt verifiziert auf 7124471, dem letzten Sources-Commit vor diesem Deploy).
