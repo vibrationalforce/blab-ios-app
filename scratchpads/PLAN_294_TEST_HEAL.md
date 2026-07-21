@@ -119,6 +119,30 @@ timeout?) · DDSPInit frameSize-clamp(2) · SpectralColorCIE · LoopCutter.barLe
 CrossSynthBioCoherence · ModulationEngine(2) · ChannelInsertFX.drive · LogCategory.totalCount ·
 SynthPatchApply · TimelineStoreAutomationEdit(2).
 
+### Real-test-heal progress (triaged: 18 TEST-DRIFT · 5 REAL-BUG · 6 SIM-ENV)
+**Cycle 1 (1467587 + b9c0518) — healed 12:**
+- REAL-BUG #19/#20: EchoelDDSP init negative-size crash (self.frameSize + sibling
+  harmonicCount/noiseBandCount hardening) — dsp-reviewer CONFIRMED. This was a hard
+  trap aborting a runner clone → likely un-blocks collateral failures too.
+- TEST-DRIFT ×10: LogCategory 30 · LoopBarLength [1,2,4,8,16,32] · ChannelInsertFX
+  <=1.0 · abuts 0.5 (480 PPQ) · FXChain chorus-off · SessionNaming Drums4bar ·
+  Reverb 0.25/2.0 · Cellular.reset singleCenter · Morph via setMorphPosition (×2).
+
+**Remaining for next cycles:**
+- TEST-DRIFT: #6 BioEndToEnd + #23 CrossSynth (applyBioReactive redesigned → rewrite to
+  direction/range asserts, not exact linear formulas) · #12-16 PolySynthVoice (noteOn now
+  only ENQUEUES to the SPSC queue; activeVoiceCount stays 0 until a render drains it → pump
+  a render block before asserting, or add a test-only sync drain).
+- SIM-ENV: #2/#3/#4 Community/Mood bundled JSON (`.process("Resources")` flattens subdirs →
+  `urls(…subdirectory:"Community/fx")` nil; needs `.copy` of Resources/Community/** or a
+  flattened-root loader — build-config, care) · #29/#30 TimelineStore AppGroupStore temp-dir
+  fallback pollutes across tests (isolate/clear in setUp) · #18 SamplerVoice AVAudioSourceNode
+  outputFormat on headless sim (74 s; skip-on-CI or relax).
+- REAL-BUG (Sources + reviewer): #21 SpectralColorCIE — Kammerton grid tint is INERT near A4
+  (toneLinearRGB saturates deep-red plateau ~620-631 nm; 8 Hz shift → Δ0.0 colour). Real gap
+  vs a founder ask. #24/#25 ModulationEngine `guard value > 0` skips driving a destination to
+  0 (stuck-parameter) — has an intentional-looking comment → reviewer/founder call before fix.
+
 ## After the 294 COMPILE (build-for-testing: success)
 
 1. Read `test-without-building` real pass/fail count (until now it cascaded to
