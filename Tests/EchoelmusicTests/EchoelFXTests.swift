@@ -72,6 +72,7 @@ final class EchoelDelayTests: XCTestCase {
         let d = EchoelDelay(sampleRate: sr)
         d.mode = .digital; d.mix = 1.0; d.feedback = 0.0
         d.timeSeconds = 0.01 // 480 samples
+        d.reset() // snap the ~40ms time-glide to the set tap (fresh line starts at 0.375s)
 
         var peakIdx = -1
         var peakVal: Float = 0
@@ -88,6 +89,7 @@ final class EchoelDelayTests: XCTestCase {
         let d = EchoelDelay(sampleRate: sr)
         d.mode = .digital; d.mix = 1.0; d.feedback = 0.5; d.tone = 1.0
         d.timeSeconds = 0.01 // 480 samples
+        d.reset() // snap the ~40ms time-glide to the set tap (fresh line starts at 0.375s)
 
         var out = [Float](repeating: 0, count: 1600)
         for i in 0..<out.count {
@@ -145,6 +147,7 @@ final class EchoelDelayTests: XCTestCase {
         let d = EchoelDelay(sampleRate: sr)
         d.mode = .pingPong; d.mix = 1.0; d.feedback = 0.6; d.tone = 1.0
         d.timeSeconds = 0.01 // 480 samples
+        d.reset() // snap the ~40ms time-glide to the set tap (fresh line starts at 0.375s)
 
         var outL = [Float](repeating: 0, count: 1600)
         var outR = [Float](repeating: 0, count: 1600)
