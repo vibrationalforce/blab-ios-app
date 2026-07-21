@@ -2,6 +2,7 @@
 import XCTest
 @testable import Echoelmusic
 
+@MainActor
 final class ADMOSCSenderTests: XCTestCase {
 
     private func frame(

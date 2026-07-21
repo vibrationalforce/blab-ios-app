@@ -2,6 +2,7 @@
 import XCTest
 @testable import Echoelmusic
 
+@MainActor
 final class ArtNetSenderTests: XCTestCase {
 
     private func frame(
