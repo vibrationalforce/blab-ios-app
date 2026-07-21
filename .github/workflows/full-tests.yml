@@ -1,0 +1,102 @@
+# =============================================================================
+# ECHOEL — FULL UNIT-TEST SUITE (reveal-first, NON-BLOCKING)
+# =============================================================================
+# Task #78 slice 2. The 294-file suite (Tests/EchoelmusicTests) never ran in any
+# workflow — this runs it on the iOS simulator via the dedicated
+# `EchoelmusicFullTests` scheme, with EVERY xcodebuild step continue-on-error so
+# the true compile/pass state becomes VISIBLE without ever reddening a gate.
+# Once this reveals green, the main `Echoelmusic` scheme adopts the full target
+# and the smoke skeleton retires (then this becomes a real blocking gate).
+# =============================================================================
+
+name: Echoel Full Test Suite (non-blocking)
+
+on:
+  push:
+    branches: [ develop, main, 'feature/**', 'claude/**' ]
+    paths:
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Package.swift'
+      - 'project.yml'
+      - '.github/workflows/full-tests.yml'
+  workflow_dispatch:
+
+env:
+  XCODE_VERSION: '26.2'
+  XCODEGEN_VERSION: '2.42.0'
+
+jobs:
+  full-tests:
+    name: Full Suite (iOS sim, reveal-only)
+    runs-on: macos-26
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Setup XcodeGen
+        uses: ./.github/actions/setup-xcodegen
+        with:
+          version: ${{ env.XCODEGEN_VERSION }}
+
+      - name: Generate Xcode Project
+        run: |
+          set +e
+          sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
+          xcodegen generate --spec project.yml
+        # xcodegen breakage WOULD be a real problem — let it fail loudly here.
+
+      - name: Build the 294-file suite (reveal-only)
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -scheme EchoelmusicFullTests \
+            -destination 'platform=iOS Simulator,OS=18.2,name=iPhone 16 Pro' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee full-build.log | xcpretty || cat full-build.log
+
+      - name: Run the 294-file suite (reveal-only)
+        id: run
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -scheme EchoelmusicFullTests \
+            -destination 'platform=iOS Simulator,OS=18.2,name=iPhone 16 Pro' \
+            -configuration Debug \
+            -parallel-testing-enabled YES \
+            2>&1 | tee full-test.log | xcpretty || cat full-test.log
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Full suite reveal (non-blocking)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- build-for-testing: ${{ steps.build.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- test-without-building: ${{ steps.run.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "First compile errors (if any):" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "error:|warning: .*deprecated" full-build.log 2>/dev/null | head -40 >> "$GITHUB_STEP_SUMMARY" || echo "(no compile errors captured)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Failing tests (if any):" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "failed|error:" full-test.log 2>/dev/null | head -40 >> "$GITHUB_STEP_SUMMARY" || echo "(none captured)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-suite-logs
+          path: |
+            full-build.log
+            full-test.log
+          if-no-files-found: ignore

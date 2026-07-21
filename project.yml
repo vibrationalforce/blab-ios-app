@@ -341,6 +341,33 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
 
+  # ===========================================================================
+  # EchoelmusicFullTests — the REAL 294-file suite (Task #78 slice 2, REVEAL-FIRST).
+  # Same proven bundle.unit-test shape as EchoelmusicTests, but sources point at
+  # Tests/EchoelmusicTests. Run ONLY by the dedicated `EchoelmusicFullTests` scheme
+  # via the NON-BLOCKING full-tests.yml workflow — so the true pass/fail state of
+  # the 294 (never compiled on the iOS-sim test target before) becomes visible
+  # WITHOUT reddening the main gates. Once green, the main Echoelmusic scheme flips
+  # from the smoke target to this one and the smoke target retires.
+  # ===========================================================================
+  EchoelmusicFullTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/EchoelmusicTests
+    dependencies:
+      - target: Echoelmusic
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.echoelmusic.app.fulltests
+        GENERATE_INFOPLIST_FILE: YES
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        SDKROOT: iphoneos
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+
 # =============================================================================
 # SCHEMES
 # =============================================================================
@@ -365,6 +392,18 @@ schemes:
       config: Debug
     archive:
       config: Release
+
+  # Task #78 slice 2: dedicated scheme that BUILDS + TESTS the real 294-file suite.
+  # Run only by the non-blocking full-tests.yml — reveals the suite's true state
+  # without gating, until it is green and the main scheme adopts it.
+  EchoelmusicFullTests:
+    build:
+      targets:
+        EchoelmusicFullTests: all
+    test:
+      config: Debug
+      targets:
+        - EchoelmusicFullTests
 
   # Isolated compile-verification scheme for the AUv3 extension. The target
   # existed without a scheme, so compile_check (which builds by scheme name)
