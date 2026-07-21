@@ -2,7 +2,9 @@
 // DSPTests.swift
 // Echoelmusic — Phase 2 Test Coverage: DSP Engine Tests
 //
-// Tests for EchoelDDSP, CrossfadeCurve, and CrossfadeRegion.
+// Tests for EchoelDDSP + EchoelPolyDDSP render/bio-reactive paths and crash-hardening.
+// (Analog-emulation + CrossfadeCurve/CrossfadeRegion suites removed 2026-07-21 —
+//  those subsystems no longer exist in Sources.)
 
 import XCTest
 @testable import Echoelmusic
@@ -134,74 +136,6 @@ final class EchoelDDSPTests: XCTestCase {
         ddsp.reverbDecay = 2.5
         XCTAssertEqual(ddsp.reverbMix, 0.4, accuracy: 0.01)
         XCTAssertEqual(ddsp.reverbDecay, 2.5, accuracy: 0.01)
-    }
-}
-
-// MARK: - CrossfadeCurve Tests
-
-final class DSPCrossfadeCurveTests: XCTestCase {
-
-    func testAllCurvesAtBoundaries() {
-        for curve in CrossfadeCurve.allCases {
-            // At position 0: fadeIn = 0, fadeOut = 1
-            XCTAssertEqual(curve.fadeInGain(at: 0), 0.0, accuracy: 0.001, "\(curve) fadeIn at 0")
-            XCTAssertEqual(curve.fadeOutGain(at: 0), 1.0, accuracy: 0.001, "\(curve) fadeOut at 0")
-
-            // At position 1: fadeIn = 1, fadeOut = 0
-            XCTAssertEqual(curve.fadeInGain(at: 1), 1.0, accuracy: 0.001, "\(curve) fadeIn at 1")
-            XCTAssertEqual(curve.fadeOutGain(at: 1), 0.0, accuracy: 0.001, "\(curve) fadeOut at 1")
-        }
-    }
-
-    func testEqualPowerConstantEnergy() {
-        let curve = CrossfadeCurve.equalPower
-        // At midpoint, sum of squares should be ~1 (constant power)
-        let fadeIn = curve.fadeInGain(at: 0.5)
-        let fadeOut = curve.fadeOutGain(at: 0.5)
-        let sumOfSquares = fadeIn * fadeIn + fadeOut * fadeOut
-        XCTAssertEqual(sumOfSquares, 1.0, accuracy: 0.01)
-    }
-
-    func testLinearMidpoint() {
-        let curve = CrossfadeCurve.linear
-        XCTAssertEqual(curve.fadeInGain(at: 0.5), 0.5, accuracy: 0.001)
-        XCTAssertEqual(curve.fadeOutGain(at: 0.5), 0.5, accuracy: 0.001)
-    }
-
-    func testSCurveSmoothMidpoint() {
-        let curve = CrossfadeCurve.sCurve
-        let mid = curve.fadeInGain(at: 0.5)
-        XCTAssertEqual(mid, 0.5, accuracy: 0.001)
-    }
-
-    func testMonotonicity() {
-        // Fade in should be monotonically increasing
-        for curve in CrossfadeCurve.allCases {
-            var prev: Float = -1
-            for i in stride(from: 0.0, through: 1.0, by: 0.05) {
-                let val = curve.fadeInGain(at: Float(i))
-                XCTAssertGreaterThanOrEqual(val, prev - 0.001, "\(curve) fadeIn not monotonic at \(i)")
-                prev = val
-            }
-        }
-    }
-
-    func testClampsBeyondRange() {
-        let curve = CrossfadeCurve.linear
-        // Positions outside [0, 1] should clamp
-        XCTAssertEqual(curve.fadeInGain(at: -0.5), 0.0, accuracy: 0.001)
-        XCTAssertEqual(curve.fadeInGain(at: 1.5), 1.0, accuracy: 0.001)
-    }
-
-    func testAllCasesCount() {
-        XCTAssertEqual(CrossfadeCurve.allCases.count, 6)
-    }
-
-    func testCodable() throws {
-        let original = CrossfadeCurve.equalPower
-        let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(CrossfadeCurve.self, from: encoded)
-        XCTAssertEqual(original, decoded)
     }
 }
 
@@ -374,134 +308,6 @@ final class EchoelPolyDDSPRenderTests: XCTestCase {
         }
     }
 }
-
-// MARK: - ClassicAnalogEmulations Tests
-
-final class AnalogEmulationProcessTests: XCTestCase {
-
-    func testSSLBusCompressorSilence() {
-        let ssl = SSLBusCompressor(sampleRate: 48000)
-        let silence = [Float](repeating: 0, count: 256)
-        let output = ssl.process(silence)
-        XCTAssertEqual(output.count, 256)
-        for sample in output {
-            XCTAssertEqual(sample, 0, accuracy: 1e-6, "Silence in = silence out")
-        }
-    }
-
-    func testSSLBusCompressorNaNGuard() {
-        let ssl = SSLBusCompressor(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.5 }
-        let output = ssl.process(signal)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "SSL must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "SSL must not produce Inf")
-        }
-    }
-
-    func testAPIBusCompressorNaNGuard() {
-        let api = APIBusCompressor(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.8 }
-        let output = api.process(signal)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "API must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "API must not produce Inf")
-        }
-    }
-
-    func testPultecEQNaNGuard() {
-        let pultec = PultecEQP1A(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.5 }
-        let output = pultec.process(signal)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "Pultec must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "Pultec must not produce Inf")
-        }
-    }
-
-    func testFairchildLimiterNaNGuard() {
-        let fairchild = FairchildLimiter(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.5 }
-        let output = fairchild.process(signal)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "Fairchild must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "Fairchild must not produce Inf")
-        }
-    }
-
-    func testLA2ACompressorNaNGuard() {
-        let la2a = LA2ACompressor(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.5 }
-        let output = la2a.process(signal)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "LA2A must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "LA2A must not produce Inf")
-        }
-    }
-
-    func testUREI1176NaNGuard() {
-        let urei = UREI1176Limiter(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.5 }
-        let output = urei.process(signal)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "1176 must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "1176 must not produce Inf")
-        }
-    }
-
-    func testManleyVariMuNaNGuard() {
-        let manley = ManleyVariMu(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.5 }
-        let output = manley.process(signal)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "ManleyVariMu must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "ManleyVariMu must not produce Inf")
-        }
-    }
-
-    func testAnalogConsoleAllStyles() {
-        let console = AnalogConsole(sampleRate: 48000)
-        let signal = (0..<256).map { Float(sin(Double($0) * 0.1)) * 0.5 }
-        for style in AnalogConsole.HardwareStyle.allCases {
-            console.currentStyle = style
-            let output = console.process(signal)
-            XCTAssertEqual(output.count, 256)
-            for sample in output {
-                XCTAssertFalse(sample.isNaN, "NaN with style \(style)")
-                XCTAssertFalse(sample.isInfinite, "Inf with style \(style)")
-            }
-        }
-    }
-
-    func testClippingInputNaNGuard() {
-        let ssl = SSLBusCompressor(sampleRate: 48000)
-        // +6dB clipping signal
-        let clipping = [Float](repeating: 2.0, count: 256)
-        let output = ssl.process(clipping)
-        for sample in output {
-            XCTAssertFalse(sample.isNaN, "Clipping input must not produce NaN")
-            XCTAssertFalse(sample.isInfinite, "Clipping input must not produce Inf")
-        }
-    }
-}
-
-// MARK: - CrossfadeRegion Tests
-
-final class DSPCrossfadeRegionTests: XCTestCase {
-
-    func testDuration() {
-        let region = CrossfadeRegion(
-            id: UUID(),
-            startSample: 0,
-            lengthInSamples: 48000,
-            curve: .equalPower,
-            isSymmetric: true
-        )
-        XCTAssertEqual(region.duration(sampleRate: 48000.0), 1.0, accuracy: 0.001)
-        XCTAssertEqual(region.duration(sampleRate: 44100.0), 48000.0 / 44100.0, accuracy: 0.001)
-    }
-}
-
 // MARK: - DSP Crash Hardening Tests
 
 final class DSPCrashHardeningTests: XCTestCase {
@@ -513,7 +319,7 @@ final class DSPCrashHardeningTests: XCTestCase {
         ddsp.frequency = 0.0
         // Should not crash or produce NaN
         var buffer = [Float](repeating: 0, count: 256)
-        ddsp.render(into: &buffer, frameCount: 256)
+        ddsp.render(buffer: &buffer, frameCount: 256)
         for sample in buffer {
             XCTAssertFalse(sample.isNaN, "Zero frequency should not produce NaN")
             XCTAssertFalse(sample.isInfinite, "Zero frequency should not produce Inf")
@@ -524,7 +330,7 @@ final class DSPCrashHardeningTests: XCTestCase {
         let ddsp = EchoelDDSP()
         ddsp.frequency = 22050.0 // Nyquist
         var buffer = [Float](repeating: 0, count: 256)
-        ddsp.render(into: &buffer, frameCount: 256)
+        ddsp.render(buffer: &buffer, frameCount: 256)
         for sample in buffer {
             XCTAssertFalse(sample.isNaN, "Nyquist frequency should not produce NaN")
         }
@@ -534,7 +340,7 @@ final class DSPCrashHardeningTests: XCTestCase {
         let ddsp = EchoelDDSP()
         ddsp.amplitude = 0.0
         var buffer = [Float](repeating: 0, count: 256)
-        ddsp.render(into: &buffer, frameCount: 256)
+        ddsp.render(buffer: &buffer, frameCount: 256)
         // All samples should be zero or near-zero
         let maxAbs = buffer.map { abs($0) }.max() ?? 0
         XCTAssertLessThan(maxAbs, 0.001, "Zero amplitude should produce silence")
@@ -544,22 +350,22 @@ final class DSPCrashHardeningTests: XCTestCase {
         let ddsp = EchoelDDSP()
         var buffer = [Float](repeating: 0, count: 0)
         // Must not crash or grow the buffer with an empty render.
-        ddsp.render(into: &buffer, frameCount: 0)
+        ddsp.render(buffer: &buffer, frameCount: 0)
         XCTAssertEqual(buffer.count, 0, "empty render must leave the buffer empty")
     }
 
     func testDDSP_SingleFrame() {
         let ddsp = EchoelDDSP()
         var buffer = [Float](repeating: 0, count: 1)
-        ddsp.render(into: &buffer, frameCount: 1)
+        ddsp.render(buffer: &buffer, frameCount: 1)
         XCTAssertFalse(buffer[0].isNaN, "Single frame should not produce NaN")
     }
 
     func testDDSP_BioReactiveWithZeroCoherence() {
         let ddsp = EchoelDDSP()
-        ddsp.applyBioReactive(coherence: 0.0, hrv: 0.0, heartRate: 0.0, breathPhase: 0.0, breathDepth: 0.0)
+        ddsp.applyBioReactive(coherence: 0.0, hrvVariability: 0.0, heartRate: 0.0, breathPhase: 0.0, breathDepth: 0.0)
         var buffer = [Float](repeating: 0, count: 256)
-        ddsp.render(into: &buffer, frameCount: 256)
+        ddsp.render(buffer: &buffer, frameCount: 256)
         for sample in buffer {
             XCTAssertFalse(sample.isNaN, "Zero bio values should not produce NaN")
         }
@@ -567,61 +373,12 @@ final class DSPCrashHardeningTests: XCTestCase {
 
     func testDDSP_BioReactiveWithExtremeValues() {
         let ddsp = EchoelDDSP()
-        ddsp.applyBioReactive(coherence: 1.0, hrv: 1.0, heartRate: 200.0, breathPhase: 1.0, breathDepth: 1.0)
+        ddsp.applyBioReactive(coherence: 1.0, hrvVariability: 1.0, heartRate: 200.0, breathPhase: 1.0, breathDepth: 1.0)
         var buffer = [Float](repeating: 0, count: 256)
-        ddsp.render(into: &buffer, frameCount: 256)
+        ddsp.render(buffer: &buffer, frameCount: 256)
         for sample in buffer {
             XCTAssertFalse(sample.isNaN, "Extreme bio values should not produce NaN")
             XCTAssertFalse(sample.isInfinite, "Extreme bio values should not produce Inf")
-        }
-    }
-
-    // MARK: - CrossfadeRegion Edge Cases
-
-    func testCrossfadeRegion_ZeroLength() {
-        let region = CrossfadeRegion(
-            id: UUID(),
-            startSample: 0,
-            lengthInSamples: 0,
-            curve: .equalPower,
-            isSymmetric: true
-        )
-        XCTAssertEqual(region.lengthInSamples, 0)
-        XCTAssertEqual(region.duration(sampleRate: 48000.0), 0.0, accuracy: 0.001)
-    }
-
-    func testCrossfadeRegion_ZeroSampleRate() {
-        let region = CrossfadeRegion(
-            id: UUID(),
-            startSample: 0,
-            lengthInSamples: 48000,
-            curve: .equalPower,
-            isSymmetric: true
-        )
-        // Division by zero must be guarded — duration is defined (not NaN), never crashes.
-        let duration = region.duration(sampleRate: 0.0)
-        XCTAssertFalse(duration.isNaN, "zero sample rate must be guarded, not produce NaN")
-    }
-
-    // MARK: - CrossfadeCurve Edge Cases
-
-    func testCrossfadeCurve_AllCurvesAtBoundary() {
-        for curve in CrossfadeCurve.allCases {
-            let atZero = curve.value(at: 0.0)
-            let atOne = curve.value(at: 1.0)
-            XCTAssertFalse(atZero.isNaN, "\(curve) at 0 should not be NaN")
-            XCTAssertFalse(atOne.isNaN, "\(curve) at 1 should not be NaN")
-        }
-    }
-
-    func testCrossfadeCurve_OutOfRangePositions() {
-        for curve in CrossfadeCurve.allCases {
-            // Negative position
-            let neg = curve.value(at: -0.5)
-            XCTAssertFalse(neg.isNaN, "\(curve) at -0.5 should not be NaN")
-            // Position > 1
-            let over = curve.value(at: 1.5)
-            XCTAssertFalse(over.isNaN, "\(curve) at 1.5 should not be NaN")
         }
     }
 }
