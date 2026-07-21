@@ -52,7 +52,10 @@ final class LaneCompositionStoreTests: XCTestCase {
         store.setLaneMood(laneID, mood: mood)
         store.setLaneVariationSeed(laneID, seed: 0xDEAD_BEEF)
 
-        // A fresh store instance loads the persisted document.
+        // A fresh store instance loads the persisted document. persist()'s disk
+        // write is debounced (task #56 C6) — flush it so the reload sees this
+        // edit rather than racing a still-pending write.
+        store.flushPendingSave()
         let reloaded = TimelineStore()
         let lane = reloaded.document.lanes.first { $0.id == laneID }
         XCTAssertEqual(lane?.genreOverride, .trap)

@@ -828,8 +828,39 @@ public final class TimelineStore {
     /// cheap + idempotent (LaneAUInstrumentHost.syncAssignments is a dict diff).
     @ObservationIgnored public var onDocumentChanged: (() -> Void)?
 
+    /// Bumped by every `persist()`/`flushPendingSave()` call; a pending debounced
+    /// write checks its captured generation against this before touching disk, so
+    /// only the LAST scheduled write of a rapid burst (e.g. a clip drag) actually
+    /// hits the file system — every superseded one is a cheap no-op wakeup.
+    @ObservationIgnored private var saveGeneration = 0
+    /// How long a disk write waits behind the latest mutation before it commits
+    /// (task #56 C6 — a clip-drag release used to pay a synchronous JSON-encode +
+    /// file-write hitch on THE SAME frame the drag's snap/magnet visually jumped,
+    /// compounding the "Zittern" complaint). `var`, not `let`, so a test can shrink
+    /// it. `onDocumentChanged` fires synchronously and immediately below —
+    /// unaffected by the write's debounce, since every consumer
+    /// (LaneAUInstrumentHost.syncAssignments, WorkspaceView.syncRollMix) reads the
+    /// in-memory `document` property, never the on-disk file.
+    @ObservationIgnored var saveDebounceInterval: Duration = .milliseconds(250)
+
     private func persist() {
-        try? store.save(document, name: Self.fileName)
         onDocumentChanged?()
+        saveGeneration += 1
+        let generation = saveGeneration
+        let snapshot = document
+        let interval = saveDebounceInterval
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: interval)
+            guard let self, self.saveGeneration == generation else { return }
+            _ = self.store.save(snapshot, name: Self.fileName)
+        }
+    }
+
+    /// Cancels any pending debounced write and saves the current document to disk
+    /// immediately. Call before the app might be suspended/killed (background
+    /// transition) so a debounced-but-not-yet-fired edit is never lost.
+    public func flushPendingSave() {
+        saveGeneration += 1
+        _ = store.save(document, name: Self.fileName)
     }
 }

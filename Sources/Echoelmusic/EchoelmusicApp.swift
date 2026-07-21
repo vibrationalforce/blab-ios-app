@@ -1004,6 +1004,10 @@ struct EchoelmusicApp: App {
                     // `bioFeedback.stop()` here predated the AUv3 bridge (widget-
                     // only battery trim); restore that one line to revert.
                     auHost.persistState()   // save hosted-plugin settings across relaunch
+                    // Task #56 C6: a debounced timeline save (see TimelineStore.persist())
+                    // could still be sleeping when the app suspends — flush it now so a
+                    // backgrounded/terminated app never loses the last un-flushed edit.
+                    timelineStore.flushPendingSave()
                     // Guideline 2.5.4: the `audio` background mode may keep the session
                     // alive ONLY while something audible (or a recording) needs it. An
                     // idle engine would render silence forever — the classic "plays

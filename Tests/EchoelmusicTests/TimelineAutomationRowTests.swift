@@ -152,7 +152,10 @@ final class TimelineStoreAutomationTests: XCTestCase {
         XCTAssertEqual(lane?.points.map(\.tick), [0, 3840])
 
         // A fresh store instance loads the persisted document (song-absolute
-        // curves are document truth, not player state).
+        // curves are document truth, not player state). persist()'s disk write is
+        // debounced (task #56 C6) — flush it so the reload sees this edit rather
+        // than racing a still-pending write.
+        store.flushPendingSave()
         let reloaded = TimelineStore()
         XCTAssertEqual(reloaded.automationLane(forParameter: parameter)?.points.map(\.tick),
                        [0, 3840])
