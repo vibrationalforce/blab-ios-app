@@ -4,6 +4,31 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-21 AUv3 -3000: candidate #1 (App-Group removal) DISPROVEN by device log (v10.79.325/2433)
+- **Device log (founder, try 0-4):** iOS returns 101 AUs, ALL `[Apple]` — `3rd-party 0, ownAUv3 false`,
+  self-probe `NSOSStatusErrorDomain#-3000` (own component unresolved in-process). Persists across app
+  restarts + 5 rescans + rPPG healthy (bpm locks ~60).
+- **Verified in-repo:** AudioComponents declaration is CONSISTENT (committed plist == project.yml info
+  block == self-probe lookup: `Echo` / `augn` / `echl`). So `-3000` is NOT a description mismatch.
+- **KEY FINDING:** the App-Group-removal fix (7f8acbf, "AUv3 candidate #1", 2026-07-19 16:48) IS an
+  ancestor of build 2433 (d5fea4c, 2026-07-20 22:44) — `git merge-base --is-ancestor` = YES. So the
+  appex entitlements are already EMPTY in 2433 and `-3000` STILL fails. **Candidate #1 (portal
+  App-Group capability mismatch) is DISPROVEN — do not retry it.**
+- **Remaining causes (device/build/signing — NOT statically fixable from the sandbox, no .ipa/device):**
+  (a) iOS cold/Apple-only registry served to the process (the quirk the code already documents) →
+  discriminated by a DEVICE REBOOT (warms the system AU registry); (b) `com.echoelmusic.app.auv3`
+  provisioning-profile / App-ID capability in App Store Connect (portal action, founder-only); (c) appex
+  fails to register/embed. `-3000` = invalidComponentID = a registry FIND miss (component not in the
+  list served to the process) → points at registration/registry, NOT a launch crash (a missing symbol
+  would fail the CI build).
+- **Decisive next step (no build):** founder reboots iPhone → relaunch → rescan. Reboot fixes it ⇒ pure
+  iOS cold-registry quirk (no code bug, the retry/observer code is already correct). Still cold ⇒
+  build/signing/registration bug → then pursue #74 (CI build-artifact embedding+entitlement diagnostic)
+  and verify the appex App-ID provisioning in App Store Connect.
+- **Review-Datum:** nach dem Reboot-Test-Ergebnis des Founders.
+
+---
+
 ### 2026-07-21 #77-Canary: 3 Bio-Mappings aus `applyBioReactive` verschwunden (Test-Heal-Befund)
 - **Befund (beim #78 294-Test-Heal entdeckt):** der A8-Overhaul von `EchoelDDSP.applyBioReactive`
   (Sources L1263-1348) hat drei dokumentierte Bio→Sound-Mappings STILL fallengelassen:
