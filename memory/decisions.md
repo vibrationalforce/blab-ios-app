@@ -21,11 +21,22 @@ Architectural and strategic decisions with context and rationale.
   fails to register/embed. `-3000` = invalidComponentID = a registry FIND miss (component not in the
   list served to the process) → points at registration/registry, NOT a launch crash (a missing symbol
   would fail the CI build).
-- **Decisive next step (no build):** founder reboots iPhone → relaunch → rescan. Reboot fixes it ⇒ pure
-  iOS cold-registry quirk (no code bug, the retry/observer code is already correct). Still cold ⇒
-  build/signing/registration bug → then pursue #74 (CI build-artifact embedding+entitlement diagnostic)
-  and verify the appex App-ID provisioning in App Store Connect.
-- **Review-Datum:** nach dem Reboot-Test-Ergebnis des Founders.
+- **REBOOT HYPOTHESIS DISPROVEN (founder 2026-07-21):** "Es muss auch ohne reboot möglich sein die auv3
+  zu scannen ich hab bereits mehrere Male mein iPhone heruntergefahren in den letzten Tagen." The founder
+  has rebooted the iPhone MULTIPLE times over recent days and `-3000`/ownAUv3=false STILL persists. So the
+  "iOS cold-registry quirk cured by a warm-boot" reading (cause (a) above) is REFUTED — a reboot warms the
+  system AU registry and would have fixed a pure timing quirk. It is a real registration/build/signing
+  fault that must work WITHOUT a reboot. Remaining live causes: (b) `com.echoelmusic.app.auv3`
+  provisioning/App-ID capability in App Store Connect (portal, founder-only); (c) the appex not
+  embedded/registered.
+- **Next step SHIPPED (fbbde21, 2026-07-21):** the code cannot fix (b)/(c) blind, so added the ONE
+  discriminator it can — `AUv3Host.bundledAUv3Stamp` reads the app's OWN embedded PlugIns at scan time
+  (Bundle.main.builtInPlugInsURL → each .appex Info.plist → NSExtension→NSExtensionAttributes→AudioComponents)
+  and stamps it into the scan `report`/`guidance`. Next device paste is decisive: ".appex present +
+  Echo/augn/echl" ⇒ bundle correct, fault is iOS pluginkit/portal provisioning (NOT app-fixable, NOT
+  reboot-fixable) → founder verifies `com.echoelmusic.app.auv3` App-ID in App Store Connect; ".appex
+  absent" ⇒ build/embed miss → fix the archive.
+- **Review-Datum:** nach der nächsten Geräte-Scan-Zeile mit `Embedded: …` (build ≥ der fbbde21-Deploy).
 
 ---
 
