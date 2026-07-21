@@ -232,48 +232,9 @@ final class EchoelDDSPNoiseColorTests: XCTestCase {
         XCTAssertNil(color, "Invalid raw value should return nil")
     }
 
-    func testNoiseColor_codableRoundTrip_white() throws {
-        let original = EchoelDDSP.NoiseColor.white
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EchoelDDSP.NoiseColor.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
-
-    func testNoiseColor_codableRoundTrip_pink() throws {
-        let original = EchoelDDSP.NoiseColor.pink
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EchoelDDSP.NoiseColor.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
-
-    func testNoiseColor_codableRoundTrip_brown() throws {
-        let original = EchoelDDSP.NoiseColor.brown
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EchoelDDSP.NoiseColor.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
-
-    func testNoiseColor_codableRoundTrip_blue() throws {
-        let original = EchoelDDSP.NoiseColor.blue
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EchoelDDSP.NoiseColor.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
-
-    func testNoiseColor_codableRoundTrip_violet() throws {
-        let original = EchoelDDSP.NoiseColor.violet
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EchoelDDSP.NoiseColor.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
-
-    func testNoiseColor_codableRoundTrip_allCases() throws {
-        for color in EchoelDDSP.NoiseColor.allCases {
-            let data = try JSONEncoder().encode(color)
-            let decoded = try JSONDecoder().decode(EchoelDDSP.NoiseColor.self, from: data)
-            XCTAssertEqual(decoded, color, "Codable round-trip failed for \(color)")
-        }
-    }
+    // (testNoiseColor_codableRoundTrip_* removed 2026-07-21 — EchoelDDSP.NoiseColor
+    //  is a String/CaseIterable/Sendable enum and does NOT declare Codable; rawValue
+    //  + allCases coverage above already pins its serialization surface.)
 }
 
 // MARK: - SpectralShape Enum Tests
@@ -359,27 +320,9 @@ final class EchoelDDSPSpectralShapeTests: XCTestCase {
         XCTAssertNil(shape, "Invalid raw value should return nil")
     }
 
-    func testSpectralShape_codableRoundTrip_allCases() throws {
-        for shape in EchoelDDSP.SpectralShape.allCases {
-            let data = try JSONEncoder().encode(shape)
-            let decoded = try JSONDecoder().decode(EchoelDDSP.SpectralShape.self, from: data)
-            XCTAssertEqual(decoded, shape, "Codable round-trip failed for \(shape)")
-        }
-    }
-
-    func testSpectralShape_codableRoundTrip_natural() throws {
-        let original = EchoelDDSP.SpectralShape.natural
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EchoelDDSP.SpectralShape.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
-
-    func testSpectralShape_codableRoundTrip_metallic() throws {
-        let original = EchoelDDSP.SpectralShape.metallic
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(EchoelDDSP.SpectralShape.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
+    // (testSpectralShape_codableRoundTrip_* removed 2026-07-21 — EchoelDDSP.SpectralShape
+    //  is a String/CaseIterable/Sendable enum and does NOT declare Codable; rawValue
+    //  + allCases coverage above already pins its serialization surface.)
 }
 
 // MARK: - EnvelopeCurve Enum Tests

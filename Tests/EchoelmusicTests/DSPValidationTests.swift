@@ -304,9 +304,9 @@ final class CellularCoherenceValidationTests: XCTestCase {
         cell.coherence = 0.0
         // At coherence 0, we expect either the first harmonic rule or a chaotic one
         // The exact behavior depends on the mapping, so just verify it's deterministic
-        let rule1 = cell.rule
+        let rule1 = cell.rule.number
         cell.coherence = 0.0
-        XCTAssertEqual(cell.rule, rule1, "Same coherence should always select same rule")
+        XCTAssertEqual(cell.rule.number, rule1, "Same coherence should always select same rule")
     }
 
     /// Coherence sweep produces valid rules (no crash, no invalid state)
@@ -561,8 +561,7 @@ final class ConvolutionKernelValidationTests: XCTestCase {
 
     /// Lowpass kernel sum should approximate 1.0 (unity DC gain)
     func testLowpassKernelUnityDCGain() {
-        let conv = EchoelConvolution(tapCount: 31, sampleRate: 48000)
-        let kernel = conv.lowpassKernel(cutoff: 1000)
+        let kernel = EchoelConvolution.lowpassKernel(cutoffHz: 1000, sampleRate: 48000, taps: 31)
         let sum = kernel.reduce(0, +)
         XCTAssertEqual(sum, 1.0, accuracy: 0.15,
                        "Lowpass kernel DC gain should be ~1.0 (got \(sum))")
@@ -570,17 +569,15 @@ final class ConvolutionKernelValidationTests: XCTestCase {
 
     /// Kernel length must match tap count
     func testKernelLengthMatchesTapCount() {
-        let tapCount = 31
-        let conv = EchoelConvolution(tapCount: tapCount, sampleRate: 48000)
-        let kernel = conv.lowpassKernel(cutoff: 1000)
-        XCTAssertEqual(kernel.count, tapCount,
+        let taps = 31
+        let kernel = EchoelConvolution.lowpassKernel(cutoffHz: 1000, sampleRate: 48000, taps: taps)
+        XCTAssertEqual(kernel.count, taps,
                        "Kernel length must match tap count")
     }
 
     /// Highpass kernel: DC gain should be near 0
     func testHighpassKernelZeroDCGain() {
-        let conv = EchoelConvolution(tapCount: 31, sampleRate: 48000)
-        let kernel = conv.highpassKernel(cutoff: 1000)
+        let kernel = EchoelConvolution.highpassKernel(cutoffHz: 1000, sampleRate: 48000, taps: 31)
         let sum = kernel.reduce(0, +)
         XCTAssertEqual(sum, 0.0, accuracy: 0.2,
                        "Highpass kernel DC gain should be ~0 (got \(sum))")
