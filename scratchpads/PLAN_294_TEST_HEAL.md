@@ -97,6 +97,28 @@ non-blocking reveal harness (main gates + shipping app untouched):
 > install likely fails the same way today — dropping the masks (below) will expose it,
 > so the BUILD_NUMBER fix must also land in ci.yml when the gate flips.
 
+## ✅✅ 294 BUILD + INSTALL + RUN in CI (6306133 reveal, 2026-07-21) — real-test-heal phase
+
+The 6306133 reveal (run 29808005493): **`build-for-testing: success`** (linker gone —
+`dynamic_lookup` worked), the app **installed** and the suite **RAN** (appex bundleVersion
+gone — `BUILD_NUMBER=1` worked; the run step took ~20 min = real execution, tests visibly
+pass/fail). BUILD_ERRORS + ERROR_FILES both EMPTY. Main gates stayed GREEN on 6306133.
+
+`test-without-building: failure` is now **real red tests** (~30 shown, grep head-limited).
+The compile+harness phase is DONE; this is behavior triage: each red test is TEST-DRIFT
+(stale expectation → Tests-only fix), REAL-BUG (Sources defect → fix + reviewer), or
+SIM-ENV (bundled-resource/audio-engine/timeout under the app-hosted runner). A background
+triage agent is categorizing all ~30 against Sources; heal the clearest Tests-only cluster
+per cycle, flag real bugs for careful Sources fixes. Reveal cadence is now ~24 min (tests
+actually run) — batch a few clusters per reveal rather than the old 6-9 min loop.
+
+Known first red set: FXChainFilterStage · CommunityLibrary(2)+MoodPreset (bundled-resource,
+likely SIM-ENV) · SessionNaming · BioEndToEnd · EchoelDDSPReverb(2) · SpectralMorphing(2) ·
+Cellular.reset · PolySynthVoice(5) · TimelineRegionSplitMerge.abuts · SamplerVoice(74s,
+timeout?) · DDSPInit frameSize-clamp(2) · SpectralColorCIE · LoopCutter.barLengths ·
+CrossSynthBioCoherence · ModulationEngine(2) · ChannelInsertFX.drive · LogCategory.totalCount ·
+SynthPatchApply · TimelineStoreAutomationEdit(2).
+
 ## After the 294 COMPILE (build-for-testing: success)
 
 1. Read `test-without-building` real pass/fail count (until now it cascaded to
