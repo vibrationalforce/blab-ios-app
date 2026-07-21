@@ -1,26 +1,27 @@
-build: 2026-07-20 v10.79.325 (2433) — Ultra-Audit-Heilung: 3 echte HIGH-Bugs behoben
+build: 2026-07-21 — WeatherKit Portal-Capability + AUv3-Provisioning-Refresh + Profi-Bereinigung
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: HEAD (d5fea4c) — Fan-out-Ultra-Audit (15 Agenten, adversarial verifiziert) fand
-  4 echte Defekte; die 3 sicheren sind geheilt (Reviewer: alle PASS, compile-sicher).
+notes: Founder-Befehl "Bau" nach WeatherKit-Portal-Fix (Capability angehakt) + IAA-Klärung
+  (Inter-App Audio war immer schon aktiviert — die IAA-Gate-Hypothese für AUv3 "0 third-party"
+  ist damit widerlegt).
 
-  Founder-Befehl "geh davon aus dass noch nichts richtig funktioniert, ultra-audit,
-  heal alle schwachen Teile": ich habe ALLE Subsysteme rücksichtslos gescannt. Ergebnis
-  ehrlich — die Basis ist SOLIDER als "nichts geht" (nur 4 echte Defekte bei 10 Subsystemen),
-  aber die 3 gefixten sind real und wichtig:
+  WARUM DIESER BUILD: WeatherKit-Capability war im Portal NICHT angehakt (nur MusicKit/ShazamKit),
+  obwohl `Echoelmusic.entitlements` `com.apple.developer.weatherkit` deklariert UND der Code das
+  Feature real nutzt (Core/WeatherProvider.swift → WeatherService.shared.weather(for:), live über
+  weatherEnabled). Founder hat die Capability jetzt im Portal angehakt. Ein neuer Archiv-Build mit
+  `-allowProvisioningUpdates` regeneriert dabei ALLE Profile frisch (App + Widget + AUv3-Appex) —
+  das behebt WeatherKit sicher UND ist der beste verbleibende Hebel für den offenen AUv3-„-3000"-
+  Befund (embed/sign/provisioning/Deklaration waren bereits einzeln bestätigt korrekt; ein
+  inkonsistentes/veraltetes Profil war die letzte plausible Restursache).
 
-  1. ART-NET / DMX-Licht — App-ABSTURZ: ein nicht-finiter (NaN/Inf) Bio-/Musik-Kanal lief in
-     UInt8(_×255)/UInt16(_×65535) und ließ die App HART traps. Jetzt NaN-sicher (→0), für alle
-     endlichen Werte bit-identisch.
-  2. TIMELINE JOIN — nach Tempo-Wechsel nicht mehr fügbar: das Zusammenfügen prüfte Clip-
-     Kontinuität in SEKUNDEN, also ließ sich ein geschnittener Clip nach einer Tempo-Änderung
-     nicht mehr zusammenfügen (MIDI + jeder Clip, stille Ablehnung). Jetzt tempo-invariant über
-     Ticks + Cross-Tempo-Regressionstest.
-  3. VIDEO-RECORDER — kein Video gespeichert: Dateinamen kollidierten bei schnellem Re-Record
-     (1-Sekunden-Auflösung) → AVAssetWriter scheiterte still. Jetzt UUID-Suffix.
+  Seit dem letzten Deploy (2433) auf dem Branch:
+  · #77 — 3 verschwundene Bio→Sound-Mappings restauriert (HRV→Brightness, Atemphase→Amplituden-
+    Swell, coherenceTrend→Spektral-Morph), alle 3 Pflicht-Reviewer PASS (Audio-Thread/DSP/Bio-Safety).
+  · AUv3-Diagnose geschärft: On-Device-Scan liest jetzt die WIRKLICH eingebettete .appex und meldet
+    im Report, ob die Ursache Build- oder Registrierungs-seitig ist.
+  · Profi-Bereinigung (Founder: "No AUM/rescan guidance … stay professional") — jede
+    Workaround-Anleitung (Fremd-App öffnen, Rescan, Neuinstallation, Geräte-Neustart) aus der
+    Nutzer-Fläche entfernt; Lade-Fehler zeigen keinen rohen OSStatus-Jargon mehr.
+  · #78 Test-Heal — mehrere Cluster gegen aktuelle Sources verifiziert und geheilt (A8-Harmonicity-
+    Drift, EchoelDelay-Echo-Timing, EchoelDDSP-Defaults).
 
-  GRÖSSTER FUND (kritisch, nächster Zyklus): die 294 Testdateien laufen in KEINER CI —
-  project.yml hat kein Test-Target, kein Workflow ruft `swift test`. "Gates grün" hieß bisher
-  nur "App kompiliert", NICHT "Tests bestehen". Das heile ich als Nächstes sauber (project.yml-
-  Änderung, hohe Sprengweite → eigener Zyklus + Council), damit das Sicherheitsnetz echt wird.
-
-  Melodie (v324) läuft parallel — hör die Genres, nenn die 2-3 schwächsten für gezielte Arbeit.
+  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline grün auf jedem Commit dieser Reihe.
