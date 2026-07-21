@@ -28,7 +28,15 @@ until build-for-testing goes green.
 | 57329c0 | AUv3HostTests split/categorize (@MainActor class) · AUParameterMapping registry method · AudioRegionPlayback filePos Double? | class/method @MainActor · XCTUnwrap |
 | a5b18de | CoreSystemTests: AudioConstantsTests (→AudioConfiguration) + MusicalNoteTests (redesigned) dead | delete classes |
 | 840ba8f | DSPTests: AnalogEmulationProcessTests + DSPCrossfadeCurve/RegionTests + 4 Crossfade methods dead · render(into:)→render(buffer:) · hrv:→hrvVariability: | delete classes + drift |
-| **5ebbff5** | DSPValidationTests: testBreathPhaseExcitation (private continuousExcitationLevel) · CARule.contains([UInt8] vs struct) · EchoelRealFFT.forward() now returns (magnitudes,phases) tuple · powerSpectrum(_:) is a method · AnalogEmulationValidationTests dead | delete/adapt |
+| 5ebbff5 | DSPValidationTests: testBreathPhaseExcitation (private continuousExcitationLevel) · CARule.contains([UInt8] vs struct) · EchoelRealFFT.forward() now returns (magnitudes,phases) tuple · powerSpectrum(_:) is a method · AnalogEmulationValidationTests dead | delete/adapt |
+| **b9d6f0c** | Next layer: EchoelDDSPTests 9× NoiseColor/SpectralShape codableRoundTrip (enums NOT Codable, only String/CaseIterable/Sendable) → delete; DSPValidationTests ConvolutionKernel: lowpassKernel/highpassKernel now STATIC (cutoffHz:sampleRate:taps:), init is (kernel:_) → repair to static API; XCTAssertEqual(cell.rule, rule1) needs CARule:Equatable → compare .number | delete codable + repair static + .number |
+
+> LESSON reinforced: the reveal peels ONE diagnostic layer per run (serialized-
+> diagnostics quirk). a5b18de reveal named only DSPTests+DSPValidationTests; healing
+> those surfaced a NEW file (EchoelDDSPTests) + residual DSPValidationTests lines in
+> the 5ebbff5 reveal. Proactively grep ALL Tests for each fixed drift pattern
+> (EchoelConvolution(tapCount:), NoiseColor/SpectralShape codable, XCTAssertEqual …rule)
+> to heal siblings in one cycle — here all three were confined to the two files.
 
 > Both DSPTests + DSPValidationTests (the removed analog-emulation + crossfade
 > cluster) healed 2026-07-21. These were the LAST two files in the a5b18de reveal's
