@@ -20,24 +20,69 @@ public enum CommunityLibrary {
     /// Bundled community synth patches (`Resources/Community/patches/*.json`).
     public static let patches: [SynthPatch] = load("Community/patches", as: SynthPatch.self)
 
-    /// Resource bundle for the community JSON. `Bundle.module` exists only when
-    /// built via SwiftPM (`SWIFT_PACKAGE`); the XcodeGen target (testflight.yml)
-    /// bundles resources into the main app bundle. (Mirrors BeatPlayer.)
-    private static var resourceBundle: Bundle {
+    /// Anchor purely so `Bundle(for:)` can name "the bundle holding this module's
+    /// own compiled code" — a plain enum has no class identity to ask with.
+    private final class BundleAnchor {}
+
+    /// Candidate bundles to search, in order. `Bundle.module` exists only under
+    /// SwiftPM (`SWIFT_PACKAGE`). Outside that, neither `Bundle.main` nor
+    /// `Bundle(for: BundleAnchor.self)` is guaranteed to be "the bundle with
+    /// Resources/Community" in every hosted-unit-test configuration — two
+    /// project.yml bundling fixes had zero measurable effect on the CI failures
+    /// this exists to fix, and the CI log channels available couldn't confirm
+    /// which bundle Xcode actually resolves at runtime here, so try both rather
+    /// than assume one (2026-07-21).
+    private static var candidateBundles: [Bundle] {
         #if SWIFT_PACKAGE
-        return .module
+        return [.module]
         #else
-        return .main
+        // Dedup on bundleURL, not ObjectIdentifier/instance identity — Bundle has no
+        // real Equatable contract, only an internal path-based instance cache that
+        // usually (but isn't guaranteed to) collapse repeats; a missed collapse here
+        // would silently double-decode every preset (same URL scanned twice), not
+        // just waste a scan.
+        var seen = Set<URL>()
+        var candidates: [Bundle] = []
+        for b in [Bundle.main, Bundle(for: BundleAnchor.self)] where seen.insert(b.bundleURL).inserted {
+            candidates.append(b)
+        }
+        return candidates
         #endif
     }
 
-    /// Decode every `*.json` in a bundled subdirectory; skip anything that fails.
-    static func load<T: Decodable>(_ subdir: String, as type: T.Type) -> [T] {
-        guard let urls = resourceBundle.urls(forResourcesWithExtension: "json", subdirectory: subdir) else {
-            return []
+    /// Every `.json` URL found under any candidate bundle's `resourceURL`, walked
+    /// once and shared across all loaders (fx/patches/moods) rather than a
+    /// separate full tree scan per subdirectory.
+    private static let allJSONURLs: [URL] = {
+        var urls: [URL] = []
+        for bundle in candidateBundles {
+            guard let root = bundle.resourceURL,
+                  let enumerator = FileManager.default.enumerator(
+                    at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+            else { continue }
+            for case let url as URL in enumerator where url.pathExtension == "json" {
+                urls.append(url)
+            }
         }
-        let decoder = JSONDecoder()
         return urls
+    }()
+
+    /// Decode every `*.json` whose immediate parent-directory chain ends with
+    /// `subdir`'s path components, in order (e.g. ".../Community/fx/x.json"
+    /// matches subdir "Community/fx" regardless of what precedes "Community").
+    /// Matching by path SUFFIX (rather than `Bundle.urls(subdirectory:)`, which
+    /// depends on Xcode preserving an exact top-level bundle path) is robust to
+    /// wherever the `type: folder` resource reference actually resolves.
+    static func load<T: Decodable>(_ subdir: String, as type: T.Type) -> [T] {
+        let wanted = subdir.split(separator: "/").map(String.init)
+        guard !wanted.isEmpty else { return [] }
+        let decoder = JSONDecoder()
+        return allJSONURLs
+            .filter { url in
+                let parentComponents = url.deletingLastPathComponent().pathComponents
+                guard parentComponents.count >= wanted.count else { return false }
+                return Array(parentComponents.suffix(wanted.count)) == wanted
+            }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .compactMap { url in
                 guard let data = try? Data(contentsOf: url) else { return nil }
