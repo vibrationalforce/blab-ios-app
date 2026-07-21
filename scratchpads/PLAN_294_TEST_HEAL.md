@@ -80,6 +80,23 @@ This one file carries a whole REMOVED subsystem — investigate + delete/repair 
 - Then any residual `extra arguments` / `takes no arguments` in that file = signature
   drift → match the current Sources signature.
 
+## ✅ 294 SOURCES COMPILE (b9d6f0c reveal, 2026-07-21) — remaining = harness build/packaging
+
+The b9d6f0c full-tests reveal has an EMPTY ERROR_FILES list (zero `.swift:N: error:`
+in test sources) — the whole 20-cycle compile-heal is DONE. build-for-testing is still
+`failure`, but for TWO reasons that are NOT test-source drift, both isolated to the
+non-blocking reveal harness (main gates + shipping app untouched):
+
+| Blocker | Root | Fix (commit 6306133) |
+|---------|------|----------------------|
+| Test-bundle LINK fails: undefined `Echoelmusic.<Type>` property/nominal-type descriptors + key paths (Scale, NoteHit, ClipKind, LogLevel, …) | hosted-xctest Swift symbol resolution — ld doesn't resolve these from the host binary at link even with TEST_HOST/BUNDLE_LOADER (smoke target links only because it references fewer/simpler symbols) | `OTHER_LDFLAGS: -Xlinker -undefined -Xlinker dynamic_lookup` on the REVEAL-ONLY `EchoelmusicFullTests` target — host provides the public symbols at runtime injection |
+| App INSTALL fails: `EchoelmusicAUv3.appex` placeholder rejected, "bundleVersion must be set" | `CURRENT_PROJECT_VERSION = ${BUILD_NUMBER:=1}` but XcodeGen ignores the `:=` default → empty CFBundleVersion; ci.yml only stays green because its smoke install is mask-forced green | `BUILD_NUMBER: '1'` in `full-tests.yml` env (real TestFlight sets its own) |
+
+> Both are verified via the next reveal (6306133). If green → do the section below.
+> NOTE the appex-version finding CONFIRMS the ci.yml mask problem: the masked smoke
+> install likely fails the same way today — dropping the masks (below) will expose it,
+> so the BUILD_NUMBER fix must also land in ci.yml when the gate flips.
+
 ## After the 294 COMPILE (build-for-testing: success)
 
 1. Read `test-without-building` real pass/fail count (until now it cascaded to
