@@ -1192,7 +1192,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float3 c = float3( 3.2406 * X - 1.5372 * Y - 0.4986 * Z,
                           -0.9689 * X + 1.8758 * Y + 0.0415 * Z,
                            0.0557 * X - 0.2040 * Y + 1.0570 * Z);
-        c = max(c, 0.0);
+        // Desaturate toward neutral by the most-negative channel, not a per-channel
+        // clip-to-zero — clipping first always normalizes the single remaining
+        // positive channel by itself (==1), collapsing the deep-red/violet bands to
+        // one flat colour. Twin fix of SpectralColor.wavelengthToLinearRGB (Swift).
+        float w = min(0.0, min(c.r, min(c.g, c.b)));
+        c -= w;
         float m = max(c.r, max(c.g, c.b));
         if (m > 1.0) c /= m;
         return clamp(c, 0.0, 1.0);

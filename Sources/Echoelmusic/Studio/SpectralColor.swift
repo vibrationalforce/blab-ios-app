@@ -49,8 +49,12 @@ public enum SpectralColor {
     private static let lMin = 0.45, lMax = 0.82        // OKLab lightness range
     /// Max OKLab chroma at full amplitude — capped to stay (mostly) in sRGB gamut.
     private static let maxChroma = 0.13
-    /// Cap on how many chord partials are mixed (avoids mush + cost).
-    private static let maxPartials = 6
+    /// Cap on how many chord partials are mixed (avoids mush + cost). 12 = every
+    /// distinct pitch class — a lower cap combined with `sorted`'s stable-sort
+    /// tie-breaking silently picked only the first N pitch classes when amplitudes
+    /// tied (e.g. a full chromatic cluster), biasing the average toward one hue
+    /// region instead of cancelling toward neutral (dsp-reviewer, 2026-07-21).
+    private static let maxPartials = 12
     /// Neutral fallback (no/!valid input): mid-grey from L only.
     public static let neutral = SpectralColor.oklabToLinear(OKLab(L: 0.6, a: 0, b: 0))
 
@@ -146,9 +150,15 @@ public enum SpectralColor {
         var r =  3.2406 * x - 1.5372 * y - 0.4986 * z
         var g = -0.9689 * x + 1.8758 * y + 0.0415 * z
         var b =  0.0557 * x - 0.2040 * y + 1.0570 * z
-        // Clip out-of-gamut negatives, then normalize only if a channel exceeds 1 — this
-        // preserves the CMFs' natural relative luminance (green bright, ends dim).
-        r = Swift.max(0, r); g = Swift.max(0, g); b = Swift.max(0, b)
+        // Desaturate toward the neutral axis by the MOST-negative channel (not a
+        // per-channel clip-to-zero) so out-of-gamut colours keep their relative
+        // magnitude, then normalize only if a channel exceeds 1. Clipping negatives
+        // to 0 first and THEN normalizing by the (now single positive) max channel
+        // always yields exactly max/max == 1 in the deep-red (~605-644 nm) band,
+        // collapsing that whole band to one identical colour and erasing any
+        // wavelength-dependent shift there (dsp-reviewer, 2026-07-21).
+        let w = Swift.min(0, Swift.min(r, Swift.min(g, b)))
+        r -= w; g -= w; b -= w
         let m = Swift.max(r, Swift.max(g, b))
         if m > 1 { r /= m; g /= m; b /= m }
         return LinearRGB(r: clamp01(r), g: clamp01(g), b: clamp01(b))
