@@ -103,18 +103,20 @@ final class BioReactiveDDSPValidationTests: XCTestCase {
                           "Higher breath phase should produce louder amplitude")
     }
 
-    /// Deep breathing → lower noise level (open filter)
-    func testBreathDepthToNoiseLevel() {
+    /// Deep breathing → more filter LFO movement (breathing sweep). Since the A8
+    /// audit, breath drives `lfoToFilterDepth` (0.05 + breathDepth * 0.3), not noise
+    /// absolutely — noise now subtly tracks coherence so the chosen timbre survives.
+    func testBreathDepthToFilterMovement() {
         let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000, frameSize: 256)
 
         ddsp.applyBioReactive(coherence: 0.5, breathDepth: 0.0)
-        let shallowNoise = ddsp.noiseLevel
+        let shallowMovement = ddsp.lfoToFilterDepth
 
         ddsp.applyBioReactive(coherence: 0.5, breathDepth: 1.0)
-        let deepNoise = ddsp.noiseLevel
+        let deepMovement = ddsp.lfoToFilterDepth
 
-        XCTAssertGreaterThan(shallowNoise, deepNoise,
-                             "Deep breathing should produce less noise (open filter)")
+        XCTAssertGreaterThan(deepMovement, shallowMovement,
+                             "Deep breathing should open more filter movement (breathing sweep)")
     }
 
     // MARK: - Coherence Trend → Spectral Morphing

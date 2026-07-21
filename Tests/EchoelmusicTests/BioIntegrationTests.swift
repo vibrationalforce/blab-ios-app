@@ -184,17 +184,20 @@ final class BioDDSPMappingTests: XCTestCase {
                              "Higher breath phase should produce higher amplitude (swell)")
     }
 
-    func testBreathDepth_deep_reducesNoise() {
+    func testBreathDepth_deep_opensFilterMovement() {
+        // A8 audit (see EchoelDDSP.applyBioReactive): breath depth no longer sets
+        // noise absolutely (that plastered every patch toward one timbre) — noise now
+        // subtly tracks coherence, and BREATH drives the filter LFO depth so the
+        // chosen character survives. Formula: lfoToFilterDepth = 0.05 + breathDepth * 0.3.
         let ddsp = EchoelDDSP(harmonicCount: 32, sampleRate: 48000)
-        // Formula: noiseLevel = 0.1 + (1.0 - breathDepth) * 0.4
         ddsp.applyBioReactive(coherence: 0.5, breathDepth: 0.9)
-        let deepBreathNoise = ddsp.noiseLevel
+        let deepBreathMovement = ddsp.lfoToFilterDepth
 
         ddsp.applyBioReactive(coherence: 0.5, breathDepth: 0.1)
-        let shallowBreathNoise = ddsp.noiseLevel
+        let shallowBreathMovement = ddsp.lfoToFilterDepth
 
-        XCTAssertLessThan(deepBreathNoise, shallowBreathNoise,
-                          "Deep breath should reduce noise level (open filter)")
+        XCTAssertGreaterThan(deepBreathMovement, shallowBreathMovement,
+                             "Deeper breath should open more filter movement (breathing sweep)")
     }
 
     // MARK: - LF/HF Ratio → Spectral Tilt
