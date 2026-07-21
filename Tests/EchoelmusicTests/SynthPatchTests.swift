@@ -121,7 +121,10 @@ final class SynthPatchApplyTests: XCTestCase {
         patch.harmonicity = 0.5
         patch.filterCutoff = 1234
         patch.reverbMix = 0.4
-        patch.spectralShape = "bright"
+        // SynthPatch.match is deliberately case-INSENSITIVE (forward/backward compat
+        // with older saved patches), but EchoelDDSP.SpectralShape's rawValues are
+        // Title Case ("Bright", not "bright") — assert against the real rawValue.
+        patch.spectralShape = "Bright"
 
         patch.apply(to: synth)
         XCTAssertEqual(synth.brightness, 0.7, accuracy: 0.001)
@@ -129,12 +132,12 @@ final class SynthPatchApplyTests: XCTestCase {
         XCTAssertEqual(synth.harmonicity, 0.5, accuracy: 0.001)
         XCTAssertEqual(synth.filterCutoff, 1234, accuracy: 0.5)
         XCTAssertEqual(synth.reverbMix, 0.4, accuracy: 0.001)
-        XCTAssertEqual(synth.spectralShape.rawValue, "bright")
+        XCTAssertEqual(synth.spectralShape.rawValue, "Bright")
 
         let captured = SynthPatch(name: "Captured", from: synth)
         XCTAssertEqual(captured.brightness, 0.7, accuracy: 0.001)
         XCTAssertEqual(captured.attack, 0.1, accuracy: 0.001)
-        XCTAssertEqual(captured.spectralShape, "bright")
+        XCTAssertEqual(captured.spectralShape, "Bright")
     }
 }
 #endif
