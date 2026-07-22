@@ -8004,3 +8004,22 @@ Leisten-Auflösung (Sheet-Chain/Freeze-Law → UI-Team-Dependency-Map).
   the already-shipped `0f1120c` build first. Holding off on any deploy until that's resolved.
 - Next: pivot to REIHENFOLGE item 1 (Automation-in-Spur, needs "ERST PLAN + Council") or item 2
   (Bio-Modulation live sichtbar) as the next substantive #REIHENFOLGE work.
+
+## 2026-07-22 — v10.79.330: Hi-Hat energie-reaktiv ON TOP der Genre-Signatur (Task #82)
+Nachbesserung zu v329 (Slice 2). Zwei v329-Reviewer-Befunde behoben:
+- MEDIUM (Nord-Stern): closedHat war in v329 energie-invariant geworden. `applyHatRate`
+  bekommt jetzt `energy`/`spacious` + einen REIN ADDITIVEN Energie-Overlay
+  (gated energy>0.5 && !spacious): Genre-Ruhe-Basis bleibt, treibender Körper verdichtet
+  die Hats einen Schritt weiter INNERHALB des Genre-Charakters. Subset-Invariante
+  (Ruhe ⊆ Erregung) hält; RNG-frei, deterministisch pro Bio-Snapshot.
+- LOW (Hygiene): tote hatDensityBias-Kippblöcke in allen 4 Beat-Buildern entfernt
+  (byte-identisch für alle ausgelieferten Genres). hatDensityBias-Feld bleibt vestigial
+  (Doc als deprecated markiert). 4 stale "bio-independent"-Header korrigiert.
+- Neuer Test testGenreHatStaysEnergyReactiveOnTopOfSignature (Ruhe-Hats ⊆ Erregungs-Hats,
+  strikt dichter, deterministisch). Bestehende Distinktheits-/Calm-Tests bleiben grün
+  (perc-ghost garantiert Distinktheit; calm-Test bei coh 0.95 → spacious → Overlay skip).
+- Beide Pflicht-Reviewer (DSP: "clean, ship"; Code: "ships, 2 LOW doc-fixes") grün auf Diff.
+  Commit cdaa683, gepusht, TestFlight-Build läuft.
+- Abschluss der Genre-Distinktheits-Arbeit (v327/v328 Harmonie + v329 Beat + v330 Reaktivität).
+  OFFEN: Founder-Ohr-Verdikt — klingt der Beat pro Genre klar anders UND wird er hörbar
+  geschäftiger bei steigendem Puls? Slice 3 (Timbre-Floor) nur falls Ohr sagt "verschwimmt noch".
