@@ -7,9 +7,10 @@
 // every genre timbrally distinct instead of collapsing toward one shared sound.
 //
 // Why it matters: before v333/v334, applyBioReactive drove filterCutoff toward an ABSOLUTE
-// 200+coh·1600 (≤1800 Hz) and brightness toward an ABSOLUTE ~0.43, both patch-independent —
-// so with the body calm EVERY genre converged to the same cutoff + brightness. The killer
-// assertions here are the CROSS-GENRE SPREAD: under the old bug the spread would be ~0.
+// 200+coh·1600 and brightness toward an ABSOLUTE patch-independent value (both a single number
+// at a given coherence, e.g. ~1640 Hz / ~0.57 at coherence 0.9) — so with the body calm EVERY
+// genre converged to the same cutoff + brightness. The killer assertions here are the
+// CROSS-GENRE SPREAD: under the old bug the spread would be ~0 regardless of the exact number.
 
 import XCTest
 @testable import Echoelmusic
