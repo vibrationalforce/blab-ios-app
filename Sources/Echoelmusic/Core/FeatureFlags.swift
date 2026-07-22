@@ -84,6 +84,16 @@ public enum FeatureFlags {
         /// gates the CAPTURE wiring itself — the honest Record-button gate is a
         /// separate, still-device-gated follow-up flip, S3 in the plan).
         case audioLaneRecording = "feature.audioLaneRecording"
+        /// Vision Step 1 (founder 2026-07-22): the app HOME is the living
+        /// instrument — WorkspaceView opens directly into the existing
+        /// `FloatingVisualWindow` FULLSCREEN (MetalBioView + TouchInstrumentView),
+        /// and the DAW chrome stays mounted beneath, reachable via the visual's
+        /// contract button ("app open → it lives", no menu/setup). DEFAULT-ON via
+        /// registration (same rationale as multiRoll/voiceKindRouting: a
+        /// default-OFF flag with no UI to flip it is an un-verifiable deadlock).
+        /// The OFF path is bit-identical to the old chrome-first home;
+        /// `FeatureFlags.set(.instrumentHome, false)` is the one-line rollback lever.
+        case instrumentHome     = "feature.instrumentHome"
     }
 
     // MARK: - Reads (absent key = false = OFF; Release default)
@@ -108,6 +118,7 @@ public enum FeatureFlags {
     public static var voiceKindRouting: Bool { isOn(.voiceKindRouting) }
     public static var cameraExpression: Bool { isOn(.cameraExpression) }
     public static var audioLaneRecording: Bool { isOn(.audioLaneRecording) }
+    public static var instrumentHome: Bool { isOn(.instrumentHome) }
 
     // MARK: - Writes (developer/staging surfaces only — no shipped UI yet)
 

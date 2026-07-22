@@ -446,6 +446,15 @@ struct EchoelmusicApp: App {
                 // instrument to a track; `FeatureFlags.set(.voiceKindRouting, false)`
                 // stays the one-line rollback lever. NEVER delete the OFF branches.
                 UserDefaults.standard.register(defaults: [FeatureFlags.Key.voiceKindRouting.rawValue: true])
+                // Instrument-Home DEFAULT-ON (founder 2026-07-22 vision Step 1): the
+                // app opens directly into the living instrument (the existing
+                // FloatingVisualWindow fullscreen), the DAW chrome stays mounted
+                // beneath. Registration-ON for the SAME reason as multiRoll/
+                // voiceKindRouting — a default-OFF flag with no UI to flip it is an
+                // un-verifiable deadlock, and the founder must device-verify the new
+                // front door. `FeatureFlags.set(.instrumentHome, false)` restores the
+                // bit-identical chrome-first home (one-line rollback lever).
+                UserDefaults.standard.register(defaults: [FeatureFlags.Key.instrumentHome.rawValue: true])
                 // Breadcrumbs at every STARTUP milestone: this is the most crash-prone
                 // window (the build-1363 hot-attach + audio-engine start). They land in
                 // the shared diagnostic log, so a launch that dies here names the phase

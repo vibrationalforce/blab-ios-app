@@ -78,9 +78,30 @@ struct WorkspaceView: View {
     /// The immersive visual rides along as a FLOATING, resizable, show/hide window —
     /// toggled from the header monitor, persisted across launches. Default TRUE so
     /// the living visual greets the user immediately ("wow von Sekunde 1"); it's
-    /// flash-safe + reduce-motion-aware and one tap to hide, and @AppStorage
-    /// remembers a user who hides it (only fresh installs auto-show).
+    /// flash-safe + reduce-motion-aware and one tap to hide.
+    ///
+    /// INSTRUMENT-HOME (founder 2026-07-22 vision Step 1, flag `instrumentHome`
+    /// DEFAULT-ON): while the flag is on, the visual is not a rider — it is the app
+    /// HOME, so each COLD LAUNCH re-shows it FULLSCREEN (see the `.onAppear` seed on
+    /// the body). This deliberately supersedes the old "remember a user who hides it"
+    /// contract: home is the instrument, the DAW is the secondary behind the visual's
+    /// contract button. Turn the flag OFF (`FeatureFlags.set(.instrumentHome, false)`)
+    /// and the persisted visible/size prefs are honored untouched again (old home).
     @AppStorage("visual.floating.visible") private var floatingVisualVisible = true
+
+    #if canImport(MetalKit) && canImport(UIKit)
+    /// The floating visual's snap size (SHARED key + default with FloatingVisualWindow;
+    /// @AppStorage defaults are per-declaration, so the named `.small` constant keeps
+    /// this coupled to the enum instead of a bare literal that would drift on reorder).
+    /// Written ONLY by the instrument-home seed to open the visual fullscreen at launch;
+    /// a low-frequency (user-set) value, safe in this body per the freeze rule.
+    @AppStorage("visual.floating.size") private var floatingSizeRaw = FloatingVisualWindow.WindowSize.small.rawValue
+    /// One-shot guard so the instrument-home seed runs ONCE per launch. Persists for
+    /// the WorkspaceView instance lifetime (survives background/foreground), so a user
+    /// who contracts to the DAW mid-session is not re-fullscreened until the next cold
+    /// launch (founder vision Step 1).
+    @State private var didSeedInstrumentHome = false
+    #endif
 
     /// The VIDEO MONITOR floats the same way (founder 2026-07-15: the header film
     /// tile opens it, "Verschiedene größen einstellbar wie visualiser"). Default
@@ -145,6 +166,28 @@ struct WorkspaceView: View {
             #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
+        // INSTRUMENT-HOME seed (founder 2026-07-22 vision Step 1: "app open → it
+        // lives", no menu/setup). When the flag is on, open directly into the living
+        // instrument — the existing FloatingVisualWindow FULLSCREEN (the single Metal
+        // path + the playable TouchInstrumentView). The DAW chrome (the VStack above)
+        // stays MOUNTED beneath this overlay — never torn down — so EchoelStudioView's
+        // onDisappear/stopEverything never fires and the live session (bio + transport)
+        // survives; it is one tap (the visual's contract button) away. Runs ONCE per
+        // launch (didSeedInstrumentHome), so contracting to the DAW mid-session sticks
+        // until the next cold launch. Reversible: FeatureFlags.set(.instrumentHome,
+        // false) → the persisted "remember last floating size" home returns untouched.
+        // No bio/playhead value is read here (freeze rule); this adds no sheet to
+        // EchoelStudioView's chain (the fullscreen visual is this overlay, not a modal).
+        .onAppear {
+            #if canImport(MetalKit) && canImport(UIKit)
+            guard !didSeedInstrumentHome else { return }
+            didSeedInstrumentHome = true
+            if FeatureFlags.instrumentHome {
+                floatingVisualVisible = true
+                floatingSizeRaw = FloatingVisualWindow.WindowSize.fullscreen.rawValue
+            }
+            #endif
+        }
         // Bottom-edge protection (founder 2026-07-12: "das Fenster von
         // Echoelmusic will sich schließen, wenn man am unteren Bildschirmrand
         // ist"): the iOS home-indicator swipe and our bottom controls (bio
