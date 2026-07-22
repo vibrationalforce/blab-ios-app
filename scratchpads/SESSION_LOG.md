@@ -1,3 +1,15 @@
+## 2026-07-22 (cron) — Genre-Harmonie setzt sich früher durch (v328, Folge auf v327)
+
+- **Founder-Feedback:** "ich gehe durch die Genres und nach kurzer Zeit klingt alles wie classic."
+  Verifiziert: Genre-Wechsel propagiert sauber (`handleCompositionEdit("genre")` → scale=style.scale
+  + currentPatch + recomposeIfRunning; evolveTask liest current style) — KEIN stale-Classic-Bug.
+- **Wurzel:** die v327-Crossfade verankert Genre-Harmonie erst bei HOHER Kohärenz; beim Durchklicken
+  ist man auf MITTLERER Kohärenz, wo die genre-agnostische Journey noch dominierte → Konvergenz.
+- **Fix (v328, bd28c00):** `anchor = min(1, coh/0.7)` vor `k` — volle Genre-Verankerung ab Kohärenz 0.7
+  (Spacious-Schwelle) statt erst ~1.0. coh 0 bleibt byte-identisch (Determinismus + seed-stabiler Test
+  halten). code-reviewer CLEAN. **Offen/Hinweis:** Founder evtl. noch auf 2440 ohne Genre-Fix — um Update
+  auf 2441/244x gebeten. Falls Beat/Timbre zwischen Genres noch zu ähnlich → Slice 2/3 (Rhythmus-/Timbre-Boden).
+
 ## 2026-07-22 (ULTRACODE cron, 24h-Mandat) — Genre-Identität überlebt die Ruhe (Harmonie-Crossfade, v327)
 
 - **Founder-Ohr-Feedback (Video Build 2440 + "Alle Teams aktivieren"):** "Da springt wieder was zurück
