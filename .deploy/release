@@ -1,35 +1,35 @@
-build: 2026-07-21E — Rhythmus-Vielfalt Slice A (#79) + verifizierter Modellwechsel-Clean-Check
+build: 2026-07-21F — Rhythmus-Vielfalt KOMPLETT (#79 alle 18 melodischen Genres)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder "Ultracode no sleep mode" + "Überprüfe alles, vermeide Modellwechsel-Fehler".
+notes: Founder "rhythmische Vielfalt bei allen Genres" — jetzt vollständig ausgerollt.
 
-  Seit dem letzten Deploy (76b2d31) auf dem Branch:
-  · Task #79 Slice A (ab7f29b): "rhythmische Vielfalt bei allen Genres" — erster Schnitt.
-    Neuer deklarativer GenreFlavor-Overlay (hatDensityBias / percGhostStep / kickPushEnabled,
-    hart auf 3 Felder begrenzt) liegt ÜBER dem geteilten .fourOnFloor-Archetyp, sodass die
-    6 Vier-Viertel-Genres (Disco, Eighties, EarlySynth, Futuristic, Psytrance, Synthwave)
-    hörbar unterschiedliche Loops erzeugen, OHNE eine eigene Beat-Funktion pro Genre. Der
-    Overlay zieht KEIN RNG und liest KEIN Biofeedback — gleicher Seed+Genre bleibt also
-    byte-identisch/deterministisch. Archetyp-Kern (Kick auf jeder Zählzeit + Backbeat-Clap
-    auf 2&4) bleibt unangetastet. code-reviewer approved; testFourOnFloorKicksEveryBeat
-    bleibt grün, 2 neue Tests (Cross-Genre-Distinctness + Determinismus) grün.
-    Plan: scratchpads/PLAN_RHYTHMIC_DIVERSITY_2026-07-21.md (Slice A Pilot; nächster Schritt
-    nach Founder-Ohr-Check: Overlay auf backbeat/offbeat/halfTime ausrollen, dann Slice B
-    stärkere Bio-Kopplung).
+  Seit dem letzten Deploy (fd9b897, der #77 + #79 Slice A trug) auf dem Branch:
+  · Task #79 Slice B (c1d114c): GenreFlavor-Overlay auf den .backbeat-Archetyp
+    (rock/punk/rocknroll/heavyMetal/jazz/oriental). Geteilter RNG-freier
+    applyFlavorGhost-Helper extrahiert, fourOnFloorBeat darauf refactored
+    (verhaltensidentisch). dsp-reviewer: sauber.
+  · Task #79 Slice C (7893b49): Overlay auf die letzten 2 Archetypes —
+    .offbeat (ska/rocksteady/klezmer) und .halfTime (doom/vaporwave/sciFi).
+    Bei .offbeat liegt die Skank auf perc[2/6/10/14] → Ghosts nur auf freie
+    Slots (3/11/5), Signatur unangetastet. dsp-reviewer: sauber.
 
-  Verifikation (Founder-Ask "Überprüfe alles, Modellwechsel-Fehler"):
-  · Working-Tree sauber (kein halbfertiger Stand vom Sonnet→Opus-Wechsel).
-  · #77-Vollständigkeit: leadDensity=0.0 bei ALLEN 23 Genres bestätigt (keine Lücke).
-  · #79: beatFlavor-switch vollständig+default, Track-Symbole existieren, percGhostStep
-    bounds-checked, Test-Helper-Signaturen passen.
-  · Unabhängiger code-reviewer über den kombinierten Session-Diff (9dce29b+ab7f29b):
-    NULL Befunde, explizit sauber — keine unvollständigen Edits, keine gelöschte
-    Live-Coverage, keine Tautologie-Tests, Rausch-Triad unberührt.
-  · Ultracode-Sweep (11 Opus-Agenten) über alle offenen Backlog-Punkte
-    (#40/51/52/53/55/56/59/60/61/67/68): alle bestätigt korrekt blockiert (device-/
-    founder-/decision-gated), keine übersehene blind-baubare Arbeit.
+  ERGEBNIS: Alle 18 melodischen Genres (die 4 geteilten Beat-Archetypes) erzeugen
+  jetzt garantiert unterscheidbare Loops statt vier geteilter Grund-Patterns.
+  Mechanismus: pro Genre ein deklarativer GenreFlavor (hatDensityBias / eindeutiger
+  percGhostStep / optionaler kickPush), RNG-frei und bio-frei — gleicher
+  Genre+Seed+Bio bleibt byte-identisch/deterministisch, die Archetyp-Signaturen
+  (Kick-jede-Zählzeit / Snare-2&4 / Skank / Snare-auf-3) werden nie entfernt.
+  Jede der 4 Slices hatte einen Pflicht-Reviewer (code-reviewer ×1 für A,
+  dsp-reviewer ×3 für B/C), alle CI-Gates grün.
 
-  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline + Full Test Suite ALLE grün auf
-  ab7f29b (verifiziert vor diesem Deploy).
+  BEWUSST distinctness-first: die Genres klingen jetzt garantiert VERSCHIEDEN;
+  das Klang-FEINTUNING der Flavor-Werte (klingt jedes Genre auch GUT?) wartet
+  auf den Founder-Geräte-Ohr-Check — nicht blind getuned.
 
-  Bekannte offene Punkte (unverändert, bewusst nicht angefasst): siehe letzter Deploy —
-  device-/founder-gated (#40, #55, #56-Rest, #67/68) + Ideen-Parkplatz (#51, #59/60/61).
+  Plan: scratchpads/PLAN_RHYTHMIC_DIVERSITY_2026-07-21.md. Möglicher nächster
+  Schritt (nach Ohr-Check): Slice D — stärkere Bio-Kopplung (energy/coherence
+  bewegt die Flavor-Werte live statt statisch pro Genre).
+
+  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline + Full Test Suite ALLE
+  grün auf 7893b49 (verifiziert vor diesem Deploy).
+
+  Bekannte offene Punkte (unverändert, device-/founder-gated): siehe letzte Deploys.
