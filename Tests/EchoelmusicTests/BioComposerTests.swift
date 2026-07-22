@@ -456,6 +456,50 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    // MARK: - Rhythmic diversity (task #79 Slice C — offbeat & half-time archetypes)
+
+    /// Offbeat (skank) genres must each render a distinct loop while the skank perc
+    /// signature (stabs on 2/6/10/14) survives for every one.
+    func testOffbeatGenresAreRhythmicallyDistinct() {
+        let offbeat: [MusicStyle] = [.ska, .rocksteady, .klezmer]
+        var patterns: [[[Bool]]] = []
+        for style in offbeat {
+            let comp = BioComposer.compose(input(coherence: 0.4, hr: 100, seed: 0x1234, style: style))
+            // The skank signature is never removed by the overlay.
+            for s in [2, 6, 10, 14] {
+                XCTAssertTrue(comp.drumSteps[5][s], "\(style) keeps the skank perc stab on step \(s)")
+            }
+            patterns.append(comp.drumSteps)
+        }
+        let distinct = Set(patterns.map { "\($0)" })
+        XCTAssertEqual(distinct.count, offbeat.count,
+                       "the three offbeat genres must each render a distinct loop")
+    }
+
+    /// Half-time genres must each render a distinct loop while the snare-on-3 lean
+    /// (step 8) survives for every one.
+    func testHalfTimeGenresAreRhythmicallyDistinct() {
+        let halfTime: [MusicStyle] = [.doom, .vaporwave, .sciFi]
+        var patterns: [[[Bool]]] = []
+        for style in halfTime {
+            let comp = BioComposer.compose(input(coherence: 0.4, hr: 100, seed: 0x1234, style: style))
+            XCTAssertTrue(comp.drumSteps[1][8], "\(style) keeps the half-time snare on beat 3")
+            patterns.append(comp.drumSteps)
+        }
+        let distinct = Set(patterns.map { "\($0)" })
+        XCTAssertEqual(distinct.count, halfTime.count,
+                       "the three half-time genres must each render a distinct loop")
+    }
+
+    /// Determinism must hold for the offbeat & half-time overlays too.
+    func testOffbeatAndHalfTimeFlavorIsDeterministic() {
+        for style in [MusicStyle.ska, .rocksteady, .klezmer, .doom, .vaporwave, .sciFi] {
+            let a = BioComposer.compose(input(coherence: 0.35, hr: 108, seed: 0xABCD, style: style))
+            let b = BioComposer.compose(input(coherence: 0.35, hr: 108, seed: 0xABCD, style: style))
+            XCTAssertEqual(a, b, "\(style): the whole take must be deterministic")
+        }
+    }
+
     func testBackbeatSnareOnTwoAndFour() {
         let comp = BioComposer.compose(input(hr: 100, style: .rock))
         XCTAssertTrue(comp.drumSteps[1][4] && comp.drumSteps[1][12], "rock snare on 2 & 4")

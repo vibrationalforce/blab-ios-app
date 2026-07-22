@@ -630,9 +630,11 @@ public enum BioComposer {
                 (drumSteps, drumAccents) = backbeatBeat(energy: energy, calm: calm,
                                                         flavor: input.style.beatFlavor, rng: &rng)
             case .offbeat:
-                (drumSteps, drumAccents) = offbeatBeat(energy: energy, calm: calm, rng: &rng)
+                (drumSteps, drumAccents) = offbeatBeat(energy: energy, calm: calm,
+                                                       flavor: input.style.beatFlavor, rng: &rng)
             case .halfTime:
-                (drumSteps, drumAccents) = halfTimeBeat(energy: energy, calm: calm, rng: &rng)
+                (drumSteps, drumAccents) = halfTimeBeat(energy: energy, calm: calm,
+                                                        flavor: input.style.beatFlavor, rng: &rng)
             case .none, .signature:
                 (drumSteps, drumAccents) = (emptyGrid(), emptyGrid())
             }
@@ -819,7 +821,13 @@ public enum BioComposer {
     }
 
     /// Kick anchor on 1 & 3, skank stabs on every offbeat — ska/rocksteady/klezmer.
-    private static func offbeatBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+    /// `flavor` (task #79 Slice C) is the same RNG-free per-genre overlay: the skank
+    /// perc (2/6/10/14) is the archetype signature and stays; each genre's ghost is
+    /// placed on a FREE perc slot (see beatFlavor), so two offbeat genres diverge
+    /// without ever touching the skank. Determinism preserved (no rng draw here).
+    private static func offbeatBeat(energy: Float, calm: Float,
+                                    flavor: MusicStyle.GenreFlavor = .neutral,
+                                    rng: inout SeededRNG)
         -> (steps: [[Bool]], accents: [[Bool]]) {
         var steps = emptyGrid()
         var accents = emptyGrid()
@@ -846,11 +854,28 @@ public enum BioComposer {
         let pClap = rng.unit()
         if !spacious && pClap < 0.4 { steps[Track.clap][12] = true }
 
+        // --- Per-genre flavor overlay (task #79 Slice C) — bio-independent, RNG-free ---
+        // Hat texture over the quarter-note keep-time: dense doubles the skank offbeats
+        // (driving ska), sparse thins to the "1" & "3" only (laid-back one-drop).
+        if flavor.hatDensityBias >= 0.5 {
+            for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = true }
+        } else if flavor.hatDensityBias <= -0.5 {
+            steps[Track.closedHat][4] = false
+            steps[Track.closedHat][12] = false
+        }
+        applyFlavorGhost(&steps, flavor: flavor)
+
         return (steps, accents)
     }
 
     /// Sparse kick, big snare on 3, air between the hits — doom/vaporwave/sci-fi.
-    private static func halfTimeBeat(energy: Float, calm: Float, rng: inout SeededRNG)
+    /// `flavor` (task #79 Slice C) is the same RNG-free per-genre overlay: the perc
+    /// track is free in this archetype, so each genre's ghost step is collision-free
+    /// by construction and the three half-time genres diverge without touching the
+    /// snare-on-3 lean. Determinism preserved (the overlay draws no rng).
+    private static func halfTimeBeat(energy: Float, calm: Float,
+                                     flavor: MusicStyle.GenreFlavor = .neutral,
+                                     rng: inout SeededRNG)
         -> (steps: [[Bool]], accents: [[Bool]]) {
         var steps = emptyGrid()
         var accents = emptyGrid()
@@ -872,6 +897,17 @@ public enum BioComposer {
         }
         let pOpen = rng.unit()
         if !spacious && pOpen < 0.35 { steps[Track.openHat][15] = true } // tail lift
+
+        // --- Per-genre flavor overlay (task #79 Slice C) — bio-independent, RNG-free ---
+        // Hat texture over the quarter-note pulse: dense adds 8th motion (sci-fi),
+        // sparse thins to the "1" & "3" for maximum air (doom's heavy space).
+        if flavor.hatDensityBias >= 0.5 {
+            for s in stride(from: 2, to: stepCount, by: 4) { steps[Track.closedHat][s] = true }
+        } else if flavor.hatDensityBias <= -0.5 {
+            steps[Track.closedHat][4] = false
+            steps[Track.closedHat][12] = false
+        }
+        applyFlavorGhost(&steps, flavor: flavor)
 
         return (steps, accents)
     }

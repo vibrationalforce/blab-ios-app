@@ -293,6 +293,19 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .heavyMetal: return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 11, kickPushEnabled: true)
         case .jazz:       return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  5, kickPushEnabled: false)
         case .oriental:   return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  9, kickPushEnabled: false)
+        // The three offbeat (skank) genres: the archetype already occupies perc on
+        // the offbeats 2/6/10/14, so each ghost step is chosen from the FREE perc
+        // slots (3/11/5) — distinct and never colliding with the skank. Hat bias
+        // tilts the skank/quarter-hat texture.
+        case .ska:        return GenreFlavor(hatDensityBias:  0.7, percGhostStep:  3, kickPushEnabled: false)
+        case .rocksteady: return GenreFlavor(hatDensityBias: -0.7, percGhostStep: 11, kickPushEnabled: false)
+        case .klezmer:    return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  5, kickPushEnabled: true)
+        // The three half-time genres: the perc track is free in this archetype, so
+        // each ghost step (12/6/10) is collision-free by construction. Sparse bias
+        // opens even more air (doom), dense adds 8th motion (sci-fi).
+        case .doom:       return GenreFlavor(hatDensityBias: -0.7, percGhostStep: 12, kickPushEnabled: false)
+        case .vaporwave:  return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  6, kickPushEnabled: false)
+        case .sciFi:      return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 10, kickPushEnabled: true)
         default:          return .neutral
         }
     }
