@@ -232,6 +232,40 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// How the AUDIBLE pad chords are articulated in time — the genre's rhythmic
+    /// fingerprint on the layer you actually hear (drums are muted, auto-leads off).
+    /// This is the fix for "I go through the genres and after a while everything
+    /// sounds the same" (founder 2026-07-22): the 13 `sustained:true` genres all ran
+    /// through ONE genre-blind heartbeat onset pattern, so only harmony + timbre
+    /// differed — the weakest cues on a held pad. Rhythm is the strongest genre cue,
+    /// so it must live on the audible chords. Derived from the existing `beatArchetype`
+    /// (which already knows each genre's groove) — no new per-genre table. The bio
+    /// `energy` still scales density/intensity ON TOP; the signature is always present
+    /// (= "erst individuell"). `.sustained` is the meditative/ambient calm-is-still
+    /// core and delegates to the unchanged heartbeat Fläche.
+    public enum ChordArticulation: Sendable, Equatable {
+        /// Reggae/ska skank — short chord chops on the offbeat 8ths.
+        case skank
+        /// Disco/house stab — chord on the beats, driving pulse when the body is up.
+        case stab
+        /// Jazz/rock comp — emphasis on beats 2 & 4 with syncopation when aroused.
+        case comp
+        /// Meditative/ambient held Fläche — delegates to the heartbeat onsets (calm = still).
+        case sustained
+    }
+
+    /// The chord articulation for the audible pad, mapped from the genre's groove
+    /// archetype. Arpeggiated genres take their own arp path upstream and are
+    /// unaffected; only the `sustained:true` pad genres are routed here.
+    public var chordArticulation: ChordArticulation {
+        switch beatArchetype {
+        case .offbeat:                       return .skank
+        case .fourOnFloor:                   return .stab
+        case .backbeat:                      return .comp
+        case .halfTime, .none, .signature:   return .sustained
+        }
+    }
+
     /// A tiny per-genre rhythmic fingerprint layered ON TOP of a shared beat
     /// archetype (Slice A, task #79 — "rhythmische Vielfalt"). The 4 archetype
     /// builders in `BioComposer` stay the single source of the core groove

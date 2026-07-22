@@ -1018,4 +1018,105 @@ final class BioComposerTests: XCTestCase {
                           bassRootClasses(seed: 0xA1, coherence: 0.0),
             "the crossfade moves the calm harmony toward the genre progression")
     }
+
+    // MARK: - Genre chord articulation (2026-07-22 — audible genre rhythm)
+    //
+    // The 13 sustained genres shared ONE genre-blind heartbeat onset pattern, so going
+    // through the genres "everything sounded the same". chordOnsets gives each genre a
+    // distinct chord-articulation grid on the AUDIBLE pad (drums are muted). These lock
+    // the grids, the byte-identical `.sustained` delegation, and cross-genre distinctness.
+
+    private func starts(_ onsets: [(start: Int, len: Int)]) -> [Int] { onsets.map { $0.start } }
+
+    func testChordOnsets_skankHitsOnlyOffbeatEighths() {
+        let o = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: 0, syncopation: 0, articulation: .skank)
+        XCTAssertEqual(starts(o), [2, 6, 10, 14], "reggae/ska skank must land on the offbeat 8ths")
+    }
+
+    func testChordOnsets_stabHitsOnTheBeats_andFillsWhenAroused() {
+        let calm = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: 0, syncopation: 0, articulation: .stab)
+        XCTAssertEqual(starts(calm), [0, 4, 8, 12], "disco stab sits on the beats when calm")
+        let up = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: 0.9, syncopation: 0, articulation: .stab)
+        XCTAssertEqual(starts(up), [0, 2, 4, 6, 8, 10, 12, 14], "an aroused body drives a four-on-floor 8th pulse")
+    }
+
+    func testChordOnsets_compEmphasisesTwoAndFour() {
+        let o = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: 0, syncopation: 0, articulation: .comp)
+        XCTAssertEqual(starts(o), [4, 12], "jazz/rock comp lands on beats 2 & 4 when calm")
+    }
+
+    func testChordOnsets_sustainedDelegatesToHeartbeat_byteIdentical() {
+        for e: Float in [0.0, 0.5, 0.7, 0.9] {
+            let art = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: e, syncopation: 0.3, articulation: .sustained)
+            let beat = BioComposer.heartbeatOnsets(secStart: 0, secLen: 16, energy: e, syncopation: 0.3)
+            XCTAssertEqual(art.map { [$0.start, $0.len] }, beat.map { [$0.start, $0.len] },
+                           "the meditative/ambient calm-is-still core must be byte-identical (energy \(e))")
+        }
+    }
+
+    func testChordOnsets_barAlignedPhaseAcrossOffsetSection() {
+        // A section starting mid-bar keeps the absolute-step (bar-aligned) phase.
+        let o = BioComposer.chordOnsets(secStart: 4, secLen: 8, energy: 0, syncopation: 0, articulation: .skank)
+        XCTAssertEqual(starts(o), [6, 10], "skank stays on the absolute offbeat grid, not relative to secStart")
+    }
+
+    func testChordOnsets_neverOverlapAndStayInSection() {
+        for art in [MusicStyle.ChordArticulation.skank, .stab, .comp] {
+            for e: Float in [0.0, 0.9] {
+                let o = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: e, syncopation: 0, articulation: art)
+                for i in o.indices {
+                    XCTAssertGreaterThanOrEqual(o[i].start, 0)
+                    XCTAssertLessThanOrEqual(o[i].start + o[i].len, 16, "onset stays inside the section")
+                    if i + 1 < o.count {
+                        XCTAssertLessThanOrEqual(o[i].start + o[i].len, o[i + 1].start, "chops must not overlap")
+                    }
+                }
+            }
+        }
+    }
+
+    func testChordOnsets_deterministic() {
+        let a = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: 0.55, syncopation: 0.2, articulation: .comp)
+        let b = BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: 0.55, syncopation: 0.2, articulation: .comp)
+        XCTAssertEqual(a.map { [$0.start, $0.len] }, b.map { [$0.start, $0.len] })
+    }
+
+    func testCompose_rhythmicGenresChopChords_notInertThroughPipeline() {
+        // THE inert-code guard (a review caught the first cut wiring chordOnsets only into a
+        // branch no rhythmic genre reaches, making it a no-op). If the genre articulation does
+        // not reach the real pad branch, disco/jazz/rocksteady fall through to ONE held chord
+        // per section — same as classical — and this fails. Rhythmic articulation chops the
+        // chord (4× stab / 2× comp / 4× skank onsets per section) → strictly more note events.
+        func noteCount(_ style: MusicStyle) -> Int {
+            BioComposer.compose(input(coherence: 0.4, hr: 90, seed: 0x5EED, style: style)).notes.count
+        }
+        let held = noteCount(.classical)   // .sustained articulation on the non-arp path → held
+        for rhythmic in [MusicStyle.disco, .jazz, .rocksteady] {
+            XCTAssertGreaterThan(noteCount(rhythmic), held,
+                "\(rhythmic) must chop its chords in production (genre rhythm is not inert), not fall through to a held chord")
+        }
+    }
+
+    func testCompose_heldGenresStaySingleOnset_perChordSection() {
+        // classical/doom keep the legato held identity — the articulation fix must not
+        // accidentally turn the calm/held genres rhythmic.
+        let doom = BioComposer.compose(input(coherence: 0.4, hr: 90, seed: 0x5EED, style: .doom)).notes.count
+        let disco = BioComposer.compose(input(coherence: 0.4, hr: 90, seed: 0x5EED, style: .disco)).notes.count
+        XCTAssertLessThan(doom, disco, "a held genre (doom) must stay sparser than a chopped one (disco)")
+    }
+
+    func testChordArticulation_mappedFromArchetype_andGenresDiffer() {
+        XCTAssertEqual(MusicStyle.ska.chordArticulation, .skank)
+        XCTAssertEqual(MusicStyle.disco.chordArticulation, .stab)
+        XCTAssertEqual(MusicStyle.jazz.chordArticulation, .comp)
+        XCTAssertEqual(MusicStyle.esotericMeditation.chordArticulation, .sustained)
+        // Three genres → three measurably different chord grids at the SAME bio state.
+        let bio: Float = 0.3
+        let skank = starts(BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: bio, syncopation: 0, articulation: MusicStyle.ska.chordArticulation))
+        let stab  = starts(BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: bio, syncopation: 0, articulation: MusicStyle.disco.chordArticulation))
+        let comp  = starts(BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: bio, syncopation: 0, articulation: MusicStyle.jazz.chordArticulation))
+        XCTAssertNotEqual(skank, stab)
+        XCTAssertNotEqual(stab, comp)
+        XCTAssertNotEqual(skank, comp)
+    }
 }

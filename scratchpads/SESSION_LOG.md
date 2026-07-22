@@ -8058,3 +8058,12 @@ bei ruhigem Bio (coh 0.9) und prüft, dass der Cross-Genre-Spread (Cutoff >800 H
 einen Wert → Spread ~0 → Test failt. code-reviewer: DETERMINISTIC, nicht flaky, Margen exakt
 nachgerechnet, keine Änderung nötig (ein Kommentar-Wort präzisiert). Test-only, kein Versions-Bump
 (Regressionsschutz braucht keinen TestFlight); echte Gates führen ihn aus. Commits 75c6b00 + 84cb790.
+
+## 2026-07-22 — v335: Genre-Rhythmus auf den hörbaren Akkorden (der echte Hebel)
+Founder "Genre Problem nicht behoben" + "AUv3/DMMW slop" + "du entscheidest alles". Von Grund auf
+diagnostiziert: Genres klangen gleich, weil Drums stumm + Auto-Leads aus → nur Pad-Akkorde, und der
+Akkord-RHYTHMUS (stärkster Genre-Cue) war für alle identisch. Fix: genre-spezifische Akkord-
+Artikulation (skank/stab/comp/sustained) aus beatArchetype, im echten Pad-Zweig der rhythmischen
+Genres. WICHTIG: erster Wurf war wirkungslos (falscher Zweig) — dsp-reviewer fing es als HIGH,
+korrigiert + re-reviewed CLEAN. classical/doom byte-identisch. 10 Tests inkl. Inert-Guard. Commit +
+Deploy v335. Beide Reviewer grün. Founder-Ohr entscheidet Feintuning.

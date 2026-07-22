@@ -1,27 +1,35 @@
-build: v10.79.334 — Zweiter Konvergenz-Vektor: Bio-Brightness an den Patch verankert
+build: v10.79.335 — Genre-Rhythmus auf den hörbaren Akkorden (der echte Hebel)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Task #81 Folgezyklus. v333 hat den Filter-CUTOFF verankert; beim genaueren Audit fand
-  sich ein ZWEITER dynamischer Konvergenz-Vektor mit identischer Bug-Klasse: die BRIGHTNESS.
+notes: Founder: "Das Genre Problem nicht behoben." Diagnose von Grund auf — und diesmal der
+  RICHTIGE Hebel, nicht wieder ein Timbre-Parameter.
 
-  brightness ist der Spektral-Form-Exponent (computeShapeAmplitudes: amp[i]=1/pow(n, 1.5−bright)),
-  formt also hörbar das Timbre — und SynthPatch.apply setzt sie pro Genre distinkt (0.16 dunkle
-  Orgel … 0.48 heller Pad … 0.75 Glocke). Trotzdem hat applyBioReactive sie ABSOLUT überschrieben
-  (target ≈ 0.08+coh·0.35 + HR + LFO + HRV, ~0.43 bei neutral, egal welcher Patch). Also zog auch
-  die Brightness bei ruhigem Körper jedes Genre auf denselben Wert — genau wie der Cutoff. Der alte
-  Kommentar "brightness carries no patch character (A8)" war schlicht falsch und wurde korrigiert.
+  WARUM die Genres gleich klangen (Root-Cause): Drums sind stumm (silentBeat), Auto-Leads aus.
+  Übrig bleiben Pad-Akkorde. Und der Akkord-RHYTHMUS war für ALLE Genres identisch — die
+  rhythmischen Genres liefen alle durch denselben "einen gehaltenen Akkord pro Abschnitt"-Pfad
+  (bzw. genre-blinden Herzschlag-Onset). Rhythmus ist der STÄRKSTE Genre-Cue, war aber genre-blind.
+  Frühere "Genre-Rhythmus"-Arbeit (Beat-Signatur, hatRate) lag in der STUMMEN Drum-Reihe → nie
+  hörbar. Die v333/334-Filter drehten nur am Timbre der gehaltenen Fläche = schwächster Cue.
 
-  FIX (gleicher Anker-Idiom wie v333): bioBaseBrightness (default 0 = Sentinel → roher patchloser
-  Bio-Voice behält den alten absoluten Pfad byte-identisch). SynthPatch.apply setzt ihn = Patch-
-  Brightness. applyBioReactive moduliert jetzt als geklemmte, um die neutrale Ablesung zentrierte
-  Abweichung: bioBaseBrightness + (coh−0.5)·0.30 + (hr−0.5)·0.20 + (hrv−0.5)·0.20 + (lfo−0.5)·0.15,
-  clamped 0.05…0.95. Neutral (coh/hr/hrv 0.5) → exakt die Patch-Brightness (der LFO-Wobble mittelt
-  sich unter dem 0.92-Glätter heraus, bleibt als lebendige Bewegung). Der Körper bleibt SEHR hörbar
-  (bis ±0.5 Schwung), aber zentriert auf den Patch → zwei Genres (0.16 vs 0.48) behalten ihren
-  Abstand 0.32 und konvergieren nie.
+  FIX: genre-spezifische Akkord-Artikulation auf dem hörbaren Pad, abgeleitet aus dem vorhandenen
+  beatArchetype pro Genre:
+   • Reggae/Ska-Familie (rocksteady/klezmer) → SKANK: kurze Chops auf den Offbeat-8teln.
+   • Disco/House (disco/futuristic) → STAB: Akkord auf der Eins, 8tel-Puls wenn der Körper hochfährt.
+   • Jazz/Rock (jazz/oriental/rock/punk/rocknroll/heavyMetal) → COMP: Betonung 2 & 4 + Synkope.
+   • Klassik/Doom/Ambient/Meditation/Dub → GEHALTEN/legato, byte-identisch (calm=still-Kern bleibt).
+  Das Bio skaliert weiter die Dichte/Intensität; die Genre-Signatur ist IMMER präsent (= "erst
+  individuell"). Hörbar unmissverständlich: Skank vs. Comp vs. gehaltene Fläche — nicht ein
+  unsichtbarer Parameter.
 
-  4 neue Tests (Sentinel · keine Konvergenz bei ruhigem Körper · neutral = Patch-Brightness ·
-  patchloser Legacy-Pfad unverändert). Pflicht-Reviewer DSP + Audio-Thread beide CLEAN (reine
-  Skalar-Mathematik, alloc-/lock-frei, NaN-sicher via clamped, Rausch-Triade unberührt, pow-Exponent
-  bleibt > 0). Damit sind beide dynamischen Konvergenz-Vektoren (Cutoff v333 + Brightness v334) zu.
+  PROZESS-EHRLICHKEIT: Der erste Wurf war WIRKUNGSLOS — er verdrahtete die Artikulation in einen
+  Zweig, den kein rhythmisches Genre erreicht (nur 6 Genres sind sustained, alle bereits ruhig).
+  Der Pflicht-DSP-Reviewer hat das als HIGH gefangen, BEVOR es als "gefixt" gemeldet wurde — genau
+  der Gate gegen Slop. Korrigiert: der Fix sitzt jetzt im echten Pad-Zweig der rhythmischen Genres.
+  Re-Review CLEAN (Determinismus erhalten, classical/doom byte-identisch, keine Test-Breakage).
 
-  Änderung: EchoelDDSP.swift + SynthPatch.swift + Test + project.yml + diese Datei.
+  10 neue Tests (Grids · byte-identische Held-Delegation · Determinismus · UND ein Integrationstest,
+  der genau die Wirkungslosigkeit gefangen hätte: rhythmische Genres müssen mehr Onsets erzeugen als
+  ein gehaltenes). Pflicht-Reviewer Code + DSP beide grün.
+
+  Änderung: MusicStyle.swift + BioComposer.swift + BioComposerTests + project.yml + diese Datei.
+  Dein Ohr entscheidet jetzt das Feintuning pro Genre (Chop-Länge/Velocity) — sag mir, was zu busy
+  oder zu brav ist.

@@ -591,6 +591,7 @@ public enum BioComposer {
                                     progressionPhase: input.progressionPhase,
                                     densityScale: densityScale,
                                     quarterAnchor: input.style == .trap,
+                                    articulation: input.style.chordArticulation,
                                     voiceLead: voiceLead,
                                     suggest: suggest,
                                     rng: &rng, structureRNG: &structureRNG)
@@ -619,6 +620,7 @@ public enum BioComposer {
                                     breathDepth: input.breathDepth, mood: effMood,
                                     progressionPhase: input.progressionPhase,
                                     densityScale: densityScale,
+                                    articulation: input.style.chordArticulation,
                                     voiceLead: voiceLead,
                                     suggest: suggest,
                                     rng: &rng, structureRNG: &structureRNG)
@@ -1322,6 +1324,55 @@ public enum BioComposer {
         return onsets.isEmpty ? [(secStart, secLen)] : onsets
     }
 
+    /// Genre-aware chord articulation for ONE held chord section — the audible rhythmic
+    /// fingerprint per genre (2026-07-22: the 13 `sustained:true` genres all ran through
+    /// ONE genre-blind heartbeat pattern, so going through the genres "everything sounded
+    /// the same"; drums are muted and auto-leads off, so rhythm has to live on the chords).
+    /// `.sustained` (meditative/ambient/classical/doom/dub/trap) delegates to
+    /// `heartbeatOnsets` → BYTE-IDENTICAL calm-is-still Fläche, zero regression. The
+    /// rhythmic articulations place SHORT (8th-length) chord chops on the genre's
+    /// characteristic grid, ALWAYS present so the genre is recognisable even at rest
+    /// ("erst individuell"), with the body's `energy` filling in busier subdivisions.
+    /// Absolute-step phase → the pattern is bar-aligned regardless of section boundaries;
+    /// hits are ≥ 2 steps apart so the 2-step chops never overlap. Deterministic (no RNG
+    /// in placement; velocity uses the existing humaniser) → pure, unit-tested.
+    static func chordOnsets(secStart: Int, secLen: Int, energy: Float, syncopation: Float,
+                            articulation: MusicStyle.ChordArticulation) -> [(start: Int, len: Int)] {
+        guard secLen > 0 else { return [(secStart, Swift.max(0, secLen))] }
+        if articulation == .sustained {
+            return heartbeatOnsets(secStart: secStart, secLen: secLen,
+                                   energy: energy, syncopation: syncopation)
+        }
+        // Syncopation nudges the busier subdivisions in a touch sooner (same feel knob as
+        // heartbeatOnsets), so an edgy body fills the pattern earlier.
+        let e = clamp01(energy + clamp01(syncopation) * 0.15)
+        let secEnd = secStart + secLen
+        var onsets: [(start: Int, len: Int)] = []
+        for step in secStart..<secEnd {
+            let phase = ((step % 16) + 16) % 16   // bar-aligned 16-step phase
+            let hit: Bool
+            switch articulation {
+            case .skank:
+                // Reggae/ska skank: chord chops on the OFFBEAT 8ths (2,6,10,14). Pure and
+                // always on — the offbeat IS the genre, at rest or aroused.
+                hit = (phase % 4 == 2)
+            case .stab:
+                // Disco/house stab: chord ON the beats (0,4,8,12). Body up → also the
+                // offbeats → a driving 8th four-on-the-floor pulse.
+                hit = (phase % 4 == 0) || (e >= 0.6 && phase % 2 == 0)
+            case .comp:
+                // Jazz/rock comp: the backbeat 2 & 4 (steps 4,12). Body up → add the
+                // syncopated offbeat "and" for busier comping.
+                hit = (phase % 8 == 4) || (e >= 0.62 && phase % 4 == 2)
+            case .sustained:
+                hit = false   // handled above
+            }
+            if hit { onsets.append((step, Swift.min(2, secEnd - step))) }
+        }
+        // A section too short to catch a grid hit still sounds (one held onset).
+        return onsets.isEmpty ? [(secStart, secLen)] : onsets
+    }
+
     /// Fold a lead pitch that has climbed into the piercing top octaves DOWN by whole
     /// octaves until it sits at/under `ceiling` (keeps the pitch class → always in key).
     /// Tames the "piepsig künstlich" high synth leads (founder 2026-07-11: "unangenehm
@@ -1338,6 +1389,7 @@ public enum BioComposer {
                                         mood: MoodProfile, progressionPhase: Int,
                                         densityScale: Float = 1,
                                         quarterAnchor: Bool = false,
+                                        articulation: MusicStyle.ChordArticulation = .sustained,
                                         voiceLead: VoiceLeadControl? = nil,
                                         suggest: ChordSuggestControl? = nil,
                                         rng: inout SeededRNG,
@@ -1600,17 +1652,37 @@ public enum BioComposer {
                     t += 1
                 }
             } else if profile.sustained {
-                // HEARTBEAT-ORIENTED FLÄCHE (founder 2026-07-11: "nicht statisch im Takt
-                // … am Herzschlag orientierte Rhythmen, punktierte und Synkopen"). The
-                // held chord is re-articulated on a bio-scaled dotted/tresillo grid:
-                // calm body → one onset spanning the section (the still Fläche, unchanged);
-                // active body → the SAME chord voicing punched on a syncopated pulse. Same
-                // pitches (in-key), pad timbre (no lead), all inside the bar. Driven by the
-                // composer's own `busy` activity signal (arousal blended with inverse
-                // coherence, already computed upstream); the still→alive threshold lives in
-                // heartbeatOnsets so a settled body stays still.
-                let onsets = Self.heartbeatOnsets(secStart: secStart, secLen: len,
-                                                  energy: busy, syncopation: mood.syncopation)
+                // GENRE-ARTICULATED CHORDS (2026-07-22 fix for "going through the genres,
+                // everything sounds the same"): the audible pad chords now carry each genre's
+                // rhythmic fingerprint via `chordOnsets(articulation:)`. `.sustained` genres
+                // (meditative/ambient/classical/doom/dub/trap) delegate to the unchanged
+                // heartbeat Fläche — founder 2026-07-11 "nicht statisch im Takt … am Herzschlag
+                // orientierte Rhythmen, punktierte und Synkopen"; calm body → one held onset,
+                // active body → the SAME chord voicing on a dotted/tresillo pulse. The rhythmic
+                // genres (skank/stab/comp) instead chop the SAME chord voicing on their own
+                // characteristic grid, always present so the genre is recognisable even at rest
+                // (drums are muted, so this is where genre rhythm lives). Same pitches (in-key),
+                // pad timbre (no lead), all inside the bar; `busy` fills busier subdivisions.
+                let onsets = Self.chordOnsets(secStart: secStart, secLen: len,
+                                              energy: busy, syncopation: mood.syncopation,
+                                              articulation: articulation)
+                for pitch in voiced {
+                    for onset in onsets {
+                        notes.append(Note(id: nextUUID(&rng), pitch: pitch,
+                                          startStep: onset.start, lengthSteps: onset.len,
+                                          velocity: hVel(padVelocity, &rng)))
+                    }
+                }
+            } else if articulation != .sustained {
+                // GENRE-ARTICULATED CHORDS for the non-arp, non-drone genres — THIS is where
+                // the rhythmic genres actually live (disco/futuristic → stab; jazz/oriental/
+                // rock/punk/rocknroll/heavyMetal → comp; klezmer/rocksteady → skank). They used
+                // to fall through to the single held onset below, so going through them
+                // "everything sounded the same" (drums muted, no lead → only harmony/timbre
+                // differed). Now the SAME chord voicing is chopped on each genre's characteristic
+                // grid; `busy` fills busier subdivisions. Same pitches (in-key), pad timbre.
+                let onsets = Self.chordOnsets(secStart: secStart, secLen: len, energy: busy,
+                                              syncopation: mood.syncopation, articulation: articulation)
                 for pitch in voiced {
                     for onset in onsets {
                         notes.append(Note(id: nextUUID(&rng), pitch: pitch,
@@ -1619,6 +1691,8 @@ public enum BioComposer {
                     }
                 }
             } else {
+                // `.sustained` articulation on the non-arp path (classical, doom): keep the
+                // single held onset — legato/held is these genres' identity. Byte-identical.
                 for pitch in voiced {
                     notes.append(Note(id: nextUUID(&rng),
                                       pitch: pitch,

@@ -320,3 +320,17 @@ fast), it needs a flash-FREQUENCY counter (reject a direction reversal completin
 <1/3 s), NOT just a bigger rate cap. → Council item, out of scope for the v332 rate-limit fix.
 Wording rule (no-overclaim): say "slew-rate limited, full swings ≤~1.2 Hz", not an unconditional
 "≤3 Hz / WCAG-safe at every amplitude".
+
+## 2026-07-22 — PLAYBOOK: verify the code branch is REACHED, not just that the function is correct
+The genre-chord-articulation first cut wired `chordOnsets` into `composeHarmonic`'s
+`profile.sustained` branch — but only 6 genres are `sustained:true` and they all map to the
+`.sustained` articulation (which delegates to the old heartbeat path). The rhythmic genres are
+`arpeggiated` or fall to the plain `else` branch — NEITHER read the articulation. Result: the
+whole change was a NO-OP for all 23 genres, and would have been reported as "genre rhythm fixed."
+The mandatory dsp-reviewer caught it as HIGH before ship. PLAYBOOK: this is the twin of "verify the
+layer is AUDIBLE" (the muted-drum dead-end) — when adding behavior gated on a flag/branch, GREP the
+real flag values per case and confirm the target inputs actually reach the new branch. A grep to
+"confirm" flags earlier was BUGGY (awk across multiple switch statements reported all rhythmic
+genres as sustained:true — they are NOT); trust an authoritative `grep -c` + per-case read, and add
+an INTEGRATION test that proves the new path is exercised end-to-end (not just a unit test of the
+new function in isolation).
