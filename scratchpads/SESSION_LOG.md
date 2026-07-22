@@ -8073,3 +8073,21 @@ Die v335-Chops hatten nur Zufalls-Velocity → mechanisch. metricAccent(step) (D
 Offbeat 0.86, ~1.4 dB) nur auf die rhythmischen Chops → intentional statt roboterhaft. Determinismus
 byte-identisch (skaliert nur den Wert vor hVel, kein zusätzlicher RNG-Zug), keine Noten-Count-Änderung.
 DSP-Reviewer CLEAN. 4 Test-Assertions. Commit + Deploy v336.
+
+---
+
+## 2026-07-22 — Vision Step 1: the app HOME is the living instrument (721661f, on branch)
+
+**Founder mandate (creative-partner vision, law #1):** "app open → it lives, no menu/setup." Reconciled with the existing instrument per "Verbinde das so gut wie möglich mit der alten Version".
+
+**Key discovery:** the vision was ALREADY built + wired in `FloatingVisualWindow` — the single `MetalBioView` (living bio-reactive visual) + `TouchInstrumentView` overlay (playable multitouch, X=scale-degree/Y=octave, quantized into the key, voiced by `touchSynth`) + WAV/MP4 record→Share, with a `.fullscreen` size that already covers the whole chrome ("true Vollbild"). It just opened at `.small` docked bottom-trailing. So Step 1 = present the EXISTING fullscreen visual as the opening layer — NOT a new view (a new home view would create a 2nd MetalBioView, breaking the one-Metal-path rule).
+
+**Change (3 files, flag-gated, reversible, nothing deleted):**
+- `FeatureFlags.instrumentHome` (DEFAULT-ON via registration in EchoelmusicApp, same rationale as multiRoll/voiceKindRouting — a default-OFF flag with no UI is an un-verifiable deadlock). `set(.instrumentHome, false)` = one-line rollback to the bit-identical chrome-first home.
+- `WorkspaceView`: once-per-launch `.onAppear` seed opens the visual fullscreen+visible when the flag is on. DAW chrome stays MOUNTED beneath the overlay (no teardown → EchoelStudioView.onDisappear/stopEverything never fires → live bio+transport session survives); DAW is one tap (the visual's contract button) away.
+
+**Render safety (both ship-blocker laws) — ui-state-reviewer PASS:** no sheet added to EchoelStudioView's chain (the fullscreen visual is an overlay, not a modal); no ~10 Hz @Observable read added to WorkspaceView.body (seed reads only @AppStorage + @State bool + non-observable flag, inside .onAppear). code-reviewer: 1 MEDIUM (magic-`0` default) fixed by guarding the new props under `#if canImport(MetalKit)&&canImport(UIKit)` + using the named `WindowSize.small.rawValue`; the superseded "remember a user who hides it" contract comment was rewritten so a future session doesn't read it as a regression.
+
+**Gates:** prior commit ebcd582 green on both; 721661f in_progress at push — self-check scheduled (send_later 20:20 UTC). NO deploy (TestFlight-FREEZE bis Profi-Milestone; this is one slice of a multi-step vision).
+
+**Next (vision):** Step 2 cold-start choreography (camera prompt → pulse lock → first tone → first touch); Step 3 close the clip loop (record button exists; add "last 20s" ring); Step 4 sound/visual beauty. Plan: `scratchpads/PLAN_INSTRUMENT_HOME_2026-07-22.md`.
