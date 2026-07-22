@@ -8091,3 +8091,5 @@ DSP-Reviewer CLEAN. 4 Test-Assertions. Commit + Deploy v336.
 **Gates:** prior commit ebcd582 green on both; 721661f in_progress at push — self-check scheduled (send_later 20:20 UTC). NO deploy (TestFlight-FREEZE bis Profi-Milestone; this is one slice of a multi-step vision).
 
 **Next (vision):** Step 2 cold-start choreography (camera prompt → pulse lock → first tone → first touch); Step 3 close the clip loop (record button exists; add "last 20s" ring); Step 4 sound/visual beauty. Plan: `scratchpads/PLAN_INSTRUMENT_HOME_2026-07-22.md`.
+
+**Gate-Bestätigung (2026-07-22, 20:20 UTC):** `721661f` (Instrument-Home, vision Step 1) = **grün auf beiden Gates** (Xcode Compile Check ✅ + CI/CD ✅). `49a55aa` (Studio-Tür, Step 1b) = Xcode ✅, CI/CD lief noch. `d49be89` (PLAN Step 2 + OnboardingView-Kommentarfix) = beide bauten (docs/comment-only). Kein Rot. Kein Deploy (Freeze). Step 2 (Cold-Start-Choreografie) geplant + Council in `scratchpads/PLAN_COLD_START_CHOREOGRAPHY_2026-07-22.md`; 2a/2b sicher-autonom, 2c (Kopie) + Startmodus warten auf Founder-Wort.
