@@ -1366,7 +1366,16 @@ public enum BioComposer {
                 // MOTION is genre-anchored. Every substituted degree is a diatonic
                 // scale degree ([0,0,0] alterations) → always resolves in key.
                 let coh = sc.coherence.isFinite ? Swift.min(Swift.max(sc.coherence, 0), 1) : 0
-                let k = Swift.min(n, Int((Float(n) * coh).rounded()))
+                // Anchor the genre's harmony as the body SETTLES, not only when fully
+                // calm (founder 2026-07-22: "ich gehe durch die Genres und nach kurzer
+                // Zeit klingt alles wie classic" — while browsing at MODERATE coherence
+                // the shared journey still dominated, so genres converged). Reach the
+                // full genre progression by coherence 0.7 — the same threshold the beat
+                // turns "spacious" — so a settling body hears THIS genre's own harmony
+                // well before it is perfectly calm. coh 0 ⇒ anchor 0 ⇒ k 0 ⇒ the aroused
+                // journey stays BYTE-IDENTICAL (determinism law + the seed-stable test).
+                let anchor = Swift.min(1, coh / 0.7)
+                let k = Swift.min(n, Int((Float(n) * anchor).rounded()))
                 if k > 0 {
                     let rotBase = ((progressionPhase % baseProg.count) + baseProg.count) % baseProg.count
                     for i in 0..<k {
