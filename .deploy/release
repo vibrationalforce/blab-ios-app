@@ -1,18 +1,26 @@
-build: v10.79.338 — .formant-Spektralform: Audio-Thread-Allokation entfernt (Konstanten in static let gehoben)
-branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Direkter Folgezyklus zu v337. Beide Audio-Thread-Reviewer hatten denselben pre-existing LOW-Hinweis
-  markiert: der `.formant`-Zweig in EchoelDDSP.computeShapeAmplitudes allozierte pro Aufruf ein
-  3-Element-Array-Literal ([(freq,amp,bw)]). Da der Bio-Spektral-Pfad in v337 auf den Audio-Thread wanderte,
-  wäre das für ein Patch mit spectralShape==.formant eine Heap-Allokation auf dem Render-Thread — verletzt
-  das "audio-thread alloc-frei"-Gesetz. Kein ausgeliefertes Genre-Patch nutzt .formant (alle Natural/Dark),
-  also feuerte es heute nie — aber jede vom User gewählte Formant-Form hätte es getroffen.
+build: v10.79.339 — Instrument-Home + AUv3 wird spielbares Instrument (Founder: "arbeitest bis TestFlight erfolgreich")
+branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
+notes: |
+  Erster TestFlight-Ship des Vision-Umbaus + der AUv3-Neustart-Arbeit. Founder hob den
+  TestFlight-Freeze explizit auf ("Du arbeitest bis TestFlight Build erfolgreich").
 
-  FIX: die drei Formant-Bänder (730/1.0/90 · 1090/0.5/110 · 2440/0.3/170) in ein `private static let
-  formantBands` auf EchoelDDSP gehoben; der Zweig iteriert jetzt `Self.formantBands` statt ein Literal
-  pro Aufruf zu bauen. Bit-identisches Ergebnis (dieselben Werte, dieselbe Mathematik), nur die Allokation
-  fällt weg (Einmal-Init statt pro Aufruf). EchoelDDSP ist @unchecked Sendable (nicht @MainActor), also ist
-  das static let nonisolated und audio-thread-safe; nur Float-Tupel → AUv3-Isolations-Build (DSP/ solo)
-  bleibt grün.
+  ENTHALTEN:
+  - Vision Step 1 (Instrument-Home): die App öffnet direkt ins lebendige Instrument —
+    das bestehende FloatingVisualWindow FULLSCREEN (der eine MetalBioView + das
+    spielbare TouchInstrumentView). Die DAW-Chrome bleibt DARUNTER montiert (kein
+    Teardown, laufende Bio+Transport-Session überlebt), einen Tap entfernt. Hinter
+    FeatureFlags.instrumentHome (DEFAULT-AN; Rückschalter set(.instrumentHome,false)).
+    Gates grün (721661f: Xcode + CI).
+  - Step 1b: eine würdige "Studio"-Tür am Vollbild-Visual, die ins volle tight-loops-DAW
+    fällt (Timeline · Clips · Per-Track-Instrumente · Video-Spuren · WAV-Export) — die
+    Produzenten-Ebene bleibt erhalten und erreichbar. ui-state-reviewer: 0 Findings.
+  - B1 (AUv3): EchoelBodyVibe ist jetzt ein aumu-Musikinstrument (statt augn-Generator)
+    mit MIDI-Note-Input im Render-Block (realtimeEventListHead -> EchoelMIDIDecode ->
+    EchoelDDSP.noteOn/noteOff, audio-thread-safe, Reviewer CLEAN). Hosts routen jetzt
+    MIDI an das Plugin. embed-verify-Gate erwartet aumu. Component-Version 10001->10002
+    (erzwingt frische Registrierung).
 
-  Verhalten unverändert, kein Klang-Delta, kein RNG, keine Test-Änderung. Reviewer: VERDICT CLEAN.
-  Änderung: EchoelDDSP.swift (+ project.yml + diese Datei). Ein File im Sources-Kern.
+  Beide Ship-Blocker-Gesetze verifiziert (kein Sheet-Wachstum an EchoelStudioView, kein
+  10-Hz-@Observable-Read im Root/Ancestor). Kein Audio-Thread-alloc/lock, Rausch-Triad
+  unberührt, kein Heilungs-Claim. Nächste Scheiben (Cold-Start-Choreografie Step 2,
+  Startmodus) sind geplant + warten auf Founder-Wort.
