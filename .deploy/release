@@ -1,30 +1,31 @@
-build: v10.79.327 — Genre-Identität überlebt die Ruhe (kein "alles klingt gleich" mehr)
+build: v10.79.328 — Genre-Charakter setzt sich schon beim Ruhigerwerden durch (nicht erst ganz ruhig)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: FIX für dein Feedback (Build 2440): "bei den Genres kommt erst eine individuelle
-  Variation und dann klingt plötzlich alles gleich."
+notes: FIX für dein Feedback "ich gehe durch die Genres und nach kurzer Zeit klingt alles
+  wie classic."
 
-  URSACHE (belegt im Code): Wenn dein Körper ruhig/kohärent wird, beruhigt sich die
-  Musik — das ist gewollt. Aber "ruhig" hieß im Code bisher "generisch": die default-an
-  Akkord-"Journey" ist genre-AGNOSTISCH und wählte bei hoher Kohärenz für ALLE Genres
-  denselben erwarteten Funktionszyklus. Dazu teilen viele Genres dieselbe Scale
-  (doom/metal/psytrance/sciFi/oriental = phrygian) → im Ruhezustand fiel die Harmonie
-  überall auf dasselbe zusammen. #77 (keine Auto-Lead-Melodie mehr) + der Calm-Dichte-
-  Strip nahmen genau dann die rhythmus-/melodietragenden Schichten weg.
+  ANALYSE: Der Genre-Wechsel greift technisch sauber (Scale + Klangfarbe + Neu-Komposition,
+  kein hängengebliebenes Classic — im Code verifiziert). Der Punkt war: mein erster Fix
+  (v327) verankert die Genre-Harmonie erst, wenn du SCHON GANZ RUHIG bist. Beim
+  Durchklicken der Genres bist du aber auf MITTLERER Kohärenz — da dominierte die
+  gemeinsame Harmonie-Engine noch, also klangen die Genres ähnlich ("wie classic").
 
-  FIX (BioComposer, EINE Stelle, coherence-gewichtete Genre-Identitäts-Überblendung):
-  Je ruhiger du wirst (Kohärenz↑), desto mehr wird die Harmonie auf die EIGENE
-  Progression DIESES Genres verankert — ruhiges Disco bleibt Disco, ruhiges Doom bleibt
-  Doom. Im aufgeregten Zustand bleibt die explorative Journey BYTE-IDENTISCH erhalten
-  (kein Determinismusbruch, keine RNG-Änderung, kein Audio-Thread-Eingriff, immer in der
-  Tonart, Akkord-Qualität wie Jazz-Septimen unverändert). Beide Pflicht-Reviewer (DSP +
-  Code) sauber; ein Test sichert ab, dass die Ruhe-Harmonie seed-stabil = die
-  Genre-Signatur ist (nicht mehr eine generische Reise).
+  FIX (v328, EINE Stelle, Folge auf v327): die Genre-eigene Harmonie setzt sich jetzt
+  schon beim Ruhigerwerden durch — volle Genre-Verankerung ab Kohärenz 0.7 (dieselbe
+  Schwelle, ab der der Beat "luftig" wird), nicht erst kurz vor ganz ruhig. So hörst du
+  beim Durchgehen der Genres früher den EIGENEN Charakter jedes Genres. Der aufgeregte
+  Zustand (Kohärenz 0) bleibt byte-identisch (Determinismus + Test halten). code-reviewer
+  sauber.
 
-  BITTE: TestFlight öffnen → v10.79.327 (Build 244x) installieren → ein Genre wählen,
-  Biofeedback laufen lassen und ENTSPANNEN — hören, ob die Genres jetzt beim Ruhigwerden
-  ihren Charakter BEHALTEN (statt zusammenzufallen). Das ist Slice 1 von 3; Slice 2
-  (Rhythmus-Identitätsboden) + Slice 3 (Timbre-Boden) folgen nach deinem Ohr-Check.
+  WICHTIG — VERSION PRÜFEN: mein Genre-Fix startete mit v327 (Build 2441). Falls dein
+  Header noch v10.79.326 (2440) zeigt, hast du den Fix noch GAR NICHT gehört — bitte in
+  TestFlight auf die neueste Version (2441 → jetzt 244x/v328) updaten und dann nochmal
+  durch die Genres gehen.
 
-  Gates: DSP- + Code-Reviewer grün auf de55263; Xcode Compile Check + CI/CD Pipeline
-  liefen beim Deploy noch (testflight.yml kompiliert selbst voll — ein Compile-Fehler
-  würde NICHTS hochladen). Änderung: BioComposer.swift (+ Test) + diese Datei.
+  BITTE: v10.79.328 installieren → Biofeedback an → in Ruhe durch ein paar Genres gehen
+  (Disco → Doom → Jazz → Psytrance) → hören, ob jetzt JEDES Genre seinen eigenen
+  harmonischen Charakter behält, statt nach kurzer Zeit zusammenzufallen. Wenn der Beat/
+  die Klangfarbe zwischen Genres noch zu ähnlich ist, sag Bescheid — dann kommt als
+  Nächstes der Rhythmus-/Timbre-Identitätsboden (Slice 2/3).
+
+  Gates: dsp- + code-reviewer grün; testflight.yml kompiliert selbst voll. Änderung:
+  BioComposer.swift (Kurven-Pivot der v327-Überblendung) + project.yml + diese Datei.
