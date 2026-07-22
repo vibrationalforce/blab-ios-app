@@ -1,3 +1,38 @@
+## 2026-07-21/22 (ULTRACODE cron, 24h-Mandat) — #77 Melodie-Autopilot AUS + #79 Rhythmus-Vielfalt ALLE 18 Genres
+
+- **Founder-Ohr-Feedback #77 (2-teilig):** (a) "viele klingen am Anfang zu unruhig wegen lauter Melodie"
+  → `IntroAttenuation` (Bar-0 Lead 0.72×, in `PianoRollModel.loadArrangement`, nur einmaliger Stopped-Load
+  — code-reviewer fing eine erste Fehlverdrahtung, die JEDE Loop-Runde gedämpft hätte). (b) "Psytrance bis
+  Rocksteady stressig wegen Melodien — Melodien sollen die Leute selbst machen" → **`leadDensity: 0.0` bei
+  ALLEN 23 Genres** (`9dce29b`, Council erweiterte den 17-Genre-Bereich auf alle für eine einheitliche
+  Invariante). BioComposer generiert keine Auto-Lead-Noten mehr; `leadPatchName` (warmes Lead-Timbre)
+  bleibt für selbstgespielte Melodien. Kanonischer Guard `testNoGenreAutoGeneratesLeadNotes`.
+- **#79 Rhythmus-Vielfalt "bei ALLEN Genres" — KOMPLETT (4 Slices, alle 18 melodischen Genres):**
+  PLAN + Council zuerst (`PLAN_RHYTHMIC_DIVERSITY_2026-07-21.md`). Muster (→ HARNESS_LEDGER Playbook):
+  deklarativer `MusicStyle.GenreFlavor` (hatDensityBias / eindeutiger percGhostStep / kickPushEnabled) ÜBER
+  dem geteilten Beat-Archetyp via RNG-freiem `applyFlavorGhost`-Helper — NICHT ein Builder pro Genre.
+  Deterministisch, bio-frei, Archetyp-Signaturen nie entfernt. Slice A `.fourOnFloor` (ab7f29b, code-rev),
+  B `.backbeat` (c1d114c, dsp-rev), C `.offbeat`+`.halfTime` (7893b49, dsp-rev — Skank belegt perc
+  2/6/10/14, Ghosts nur auf freie Slots), + kanonischer `beatArchetype`-abgeleiteter Distinctness-Guard
+  (`0c816b3`, Rhythmus-Zwilling zu testEveryGenreHasADistinctMusicalIdentity). **Bewusst distinctness-first:
+  Unterscheidbarkeit garantiert, Klang-FEINTUNING der Werte wartet auf Founder-Geräte-Ohr-Check.**
+- **Ultracode-Backlog-Sweep (11 Opus-Agenten, read-only):** jeder offene Punkt (#40/51/52/53/55/56/59/60/
+  61/67/68) einzeln geprüft → ALLE bestätigt weiterhin korrekt gated (device-/founder-/decision-gated,
+  je mit decisions.csv/Board-Zitat). Kein neuer blind-baubarer Splitter. **Dead-End gefunden + geloggt:**
+  Workflow-`args`-Transport kommt als String statt Array an (`args.map is not a function`), auch bei
+  resumeFromRunId → Task-Liste fest ins Script (3 Fehlstarts gekostet, jetzt im Ledger).
+- **Modellwechsel-Verify (Founder "Überprüfe alles, Modellwechsel-Fehler"):** nach Sonnet→Opus-Wechsel
+  unabhängiger code-reviewer über den kombinierten Session-Diff → NULL Befunde; leadDensity=0 bei allen 23
+  vollständig, GenreFlavor-switch total, keine Phantom-Symbole. Alte Commits behalten den (historisch
+  korrekten) Sonnet-5-Trailer; ab Opus-Wechsel korrekter Opus-4.8-Trailer. KEINE History umgeschrieben.
+- **Deploys (tokenless):** Build 2436 (#77-Batch, `state=VALID`), fd9b897 (#77 komplett + #79 Slice A),
+  c856f4b (komplettes #79 alle 18 Genres) — alle TestFlight-Läufe `success`.
+- **Gates:** durchgehend grün auf jedem Sources-Commit; jeder Sources-Commit mit Pflicht-Reviewer
+  (code-reviewer ×2, dsp-reviewer ×3, audio-thread-reviewer/concurrency-reviewer aus dem #13/#56-Vorlauf).
+- **Wartepunkt erreicht:** #79 komplett + regressions-geschützt; Slice D (Rhythmus LIVE bio-moduliert) ist
+  bewusst ear-check-gated (erst hören, dann bewegen). Kein sicherer blind-baubarer Punkt mehr offen — der
+  Ball liegt beim Founder-Ohr-Feedback zum #79-Build.
+
 ## 2026-07-20 (ULTRACODE cron) — CI TESTET ENDLICH: Test-Gate scharfgeschaltet (Task #78 Slice 1, beide Gates grün)
 
 - **Kritischer Fund umgesetzt (b9b13ad):** die 294 Tests liefen in KEINER CI. Kein lokaler xcodegen →
