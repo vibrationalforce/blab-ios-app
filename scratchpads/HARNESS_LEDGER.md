@@ -286,3 +286,24 @@ converges toward the pulse (octave-folded into style.tempoRange, per-genre disti
 zurück" the founder sees = the 8-chord journey (`chordJourneyLoopLength`) resetting to its start at
 the loop wrap (progressionPhase % loop). The REAL product gap was genre-sameness at calm (see playbook
 above), not missing evolution.
+
+## DEAD-END (2026-07-22): the DRUM GRID is muted product-wide — genre-BEAT code never plays
+`EchoelStudioView.generate()` loads `BioComposer.silentBeat()` (empty grid) UNCONDITIONALLY
+(line ~3924), NOT `composition.drumSteps`. The beat was removed by founder verdict 2026-07-07
+("Schmeiß den Beat komplett raus" → pure meditative Flächen). Consequence: everything in
+`BioComposer.compose().drumSteps` — the 4 archetype builders, GenreFlavor.hatRate/kickCell,
+applyHatRate, applyFlavorGhost, v329/v330 — is COMPUTED BUT NEVER HEARD. Two full cycles
+(v329 hatRate, v330 energy overlay) shipped dead audio.
+DO THIS INSTEAD: genre distinctness must live in the AUDIBLE layers only — synth patch/FX
+character per genre (timbre), melodic rhythm/density in the notes, and harmony (v327/v328
+root-anchor crossfade, which IS audible). Founder confirmed 2026-07-22 (AskUserQuestion):
+"Flächen bleiben, Timbre/Harmonie schärfen" — beat stays OFF. Before ANY drum-grid work,
+re-read this: silentBeat() is CORRECT, not a bug. Do not wire composition.drumSteps through
+without a NEW founder ask reversing 07-07.
+
+## PLAYBOOK (2026-07-22): verify the layer is AUDIBLE before iterating on it
+The genre-convergence thread burned cycles on the drum layer while it was muted. Lesson: when
+a founder complains "X sounds wrong", trace X to the actual audio output (which .load/.play
+call feeds the engine) BEFORE building — don't assume compose() output reaches the speaker.
+For Echoel the audible generative layers are: pianoRoll notes (melody/Flächen), synth patch +
+fxCharacter (timbre/room), harmony/chords, tempo. The drum grid is NOT audible today.

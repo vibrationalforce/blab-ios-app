@@ -121,3 +121,36 @@ unverkennbarer Genre-Träger, der die Ruhe überlebt.** Panel-Design approaches[
 
 **Dead-End-Prävention:** NICHT einen dritten Harmonie-Tweak stapeln. Harmonie-Hebel
 ist ausgereizt (Log-belegt). Weiter geht es über Beat/Timbre — anderer Träger.
+
+---
+
+## UPDATE 2026-07-22 (v330 cycle): TWO findings reframe the whole thread
+
+### Finding A — the BEAT is muted; genre-BEAT work is inaudible (CONFIRMED + founder-decided)
+`EchoelStudioView.generate()` loads `BioComposer.silentBeat()` (empty grid), NOT
+`composition.drumSteps`. Beat removed by founder 2026-07-07 ("Schmeiß den Beat raus").
+So v329 (hatRate) + v330 (energy overlay) + the whole #79 archetype work is COMPUTED
+BUT NEVER PLAYED. Founder confirmed 2026-07-22 (AskUserQuestion): keep Flächen beatless,
+sharpen TIMBRE/HARMONY instead. → silentBeat() is correct; do NOT wire drums without a
+new founder ask. Genre-beat code stays compiling (reversible) but is dead audio.
+
+### Finding B — the REAL audible convergence is BROWSE-TIME (aroused) HARMONY
+Audible auto-content per genre today = Flächen (sustained chords) + genre patch/FX + NO
+auto lead (#77 leadDensity=0) + NO drums. Timbre pipeline is correct (generate() applies
+`synth.apply(currentPatch)` + `fxCharacter.apply(genre:)`; patches are well-differentiated).
+Harmony crossfade v327/v328 anchors the genre's baseProg roots via `anchor = min(1, coh/0.7)`
+— i.e. ONLY at HIGH coherence (calm). When the founder BROWSES genres they are aroused /
+just-started (LOW coherence) → k=0 → genre anchor OFF → `ChordSuggest.journey` (NO genre
+param, EchoelStudioView:3745 suggestJourney default true) runs free → all genres converge to
+the same functional cycle. THIS is "gehe durch die Genres → nach kurzer Zeit klingt alles
+wie classic" — it happens in the AROUSED state the v327/v328 anchor deliberately left free.
+
+### NEXT SLICE (needs PLAN + Council — touches core harmony + determinism invariant)
+Give the genre a harmony-identity FLOOR at ALL arousal levels (not only calm). Candidate:
+`anchor = max(floor, min(1, coh/0.7))` with a small floor (e.g. anchor ≥1 of n section roots
+to the genre baseProg even when fully aroused), OR pass `style` into `ChordSuggest.journey`
+so its free choices are genre-biased. Breaks the v328 "coh 0 → aroused journey byte-identical"
+invariant ON PURPOSE (that invariant is now known to CAUSE the convergence). Update
+`testGenreHarmonyIdentitySurvivesCalmConvergence` + add an aroused-distinctness test.
+CAVEAT: founder's "alles wie classic" complaint predates v328; no post-v328 ear-verdict yet —
+confirm the browse-time case still converges on v330 before shipping v331 harmony.
