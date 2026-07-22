@@ -465,6 +465,7 @@ extension SynthPatch {
         }
 
         synth.filterCutoff = filterCutoff
+        synth.bioBaseFilterCutoff = filterCutoff   // bio modulates AROUND this, never overwrites it (task #81)
         synth.filter.resonance = filterResonance
         synth.lfoToFilterDepth = lfoToFilterDepth
         synth.filterLFO.rate = filterLFORate

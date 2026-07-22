@@ -1764,4 +1764,56 @@ final class EchoelDDSPPitchDriftTests: XCTestCase {
     }
 }
 
+// MARK: - Bio filter-cutoff patch anchor (task #81 — genre identity survives calm)
+
+/// The bio-reactive filter cutoff must be a CLAMPED DEVIATION around each patch's own
+/// cutoff (the `bioBase*` law), NOT an absolute overwrite toward one shared value. Before
+/// this anchor, `applyBioReactive` dragged every voice's live cutoff toward `200+coh·1600`,
+/// so with biofeedback active and the body calming, all genres converged to the same timbre
+/// ("erst individuell → dann alles gleich"). These tests lock the deviation behaviour AND
+/// the byte-identical legacy sweep for the raw (patch-less) bio voice.
+final class EchoelDDSPBioCutoffAnchorTests: XCTestCase {
+
+    func testBioCutoff_defaultAnchorIsUnsetSentinel() {
+        // No patch applied ⇒ the anchor is the 0 sentinel ⇒ legacy absolute sweep.
+        XCTAssertEqual(EchoelDDSP().bioBaseFilterCutoff, 0,
+                       "bioBaseFilterCutoff must default to the unset (0) sentinel")
+    }
+
+    func testBioCutoff_patchAnchoredGenresDoNotConverge() {
+        // Two "genres" with distinct patch cutoffs (as v331 spread them).
+        let a = EchoelDDSP(); a.filterCutoff = 2100; a.bioBaseFilterCutoff = 2100
+        let b = EchoelDDSP(); b.filterCutoff = 3050; b.bioBaseFilterCutoff = 3050
+        // Calm body (high coherence) — the old absolute target collapsed both toward ≤1800.
+        for _ in 0..<600 {
+            a.applyBioReactive(coherence: 0.95)
+            b.applyBioReactive(coherence: 0.95)
+        }
+        XCTAssertGreaterThan(abs(a.filterCutoff - b.filterCutoff), 500,
+                             "Bio-active genre cutoffs converged — the deviation-around-patch law is broken")
+        // Each stays in the neighbourhood of its own patch (deviation, not overwrite).
+        XCTAssertGreaterThan(a.filterCutoff, 2100 * 0.6)
+        XCTAssertLessThan(a.filterCutoff, 2100 * 1.4)
+        XCTAssertGreaterThan(b.filterCutoff, 3050 * 0.6)
+        XCTAssertLessThan(b.filterCutoff, 3050 * 1.4)
+    }
+
+    func testBioCutoff_neutralCoherenceReturnsPatchCutoff() {
+        // Resting body (neutral coherence 0.5) ⇒ exactly the patch cutoff (no drift at rest).
+        let s = EchoelDDSP(); s.filterCutoff = 2600; s.bioBaseFilterCutoff = 2600
+        for _ in 0..<600 { s.applyBioReactive(coherence: 0.5) }
+        XCTAssertEqual(s.filterCutoff, 2600, accuracy: 40,
+                       "At neutral coherence a resting body must sound like exactly the patch")
+    }
+
+    func testBioCutoff_legacySweepUnchangedWithoutAnchor() {
+        // Raw bio voice (no patch anchor) keeps the legacy absolute coherence sweep,
+        // byte-identical: target at coh 1.0 = 200 + 1600 = 1800 Hz.
+        let s = EchoelDDSP()  // bioBaseFilterCutoff == 0
+        for _ in 0..<600 { s.applyBioReactive(coherence: 1.0) }
+        XCTAssertEqual(s.filterCutoff, 1800, accuracy: 60,
+                       "Patch-less bio voice must keep the legacy absolute cutoff sweep")
+    }
+}
+
 #endif

@@ -1265,6 +1265,14 @@ public final class EchoelDDSP: @unchecked Sendable {
     public var bioBaseHarmonicity: Float = 0.88
     public var bioBaseNoiseLevel: Float = 0.01
     public var bioBaseReverbMix: Float = 0.25
+    /// Patch-baseline FILTER CUTOFF (Hz) for bio modulation. 0 = "no patch anchor set" →
+    /// the raw bio voice keeps the legacy absolute coherence sweep (byte-identical).
+    /// When > 0 (set by `SynthPatch.apply(to:)` alongside `filterCutoff`), coherence opens
+    /// the filter as a CLAMPED DEVIATION AROUND this value — neutral coherence 0.5 settles at
+    /// exactly the patch cutoff (and `apply` seeds the smoother there) — so genres keep their
+    /// distinct cutoffs instead of all
+    /// collapsing toward one shared timbre when the body calms (task #81, the A8 law).
+    public var bioBaseFilterCutoff: Float = 0
 
     public func applyBioReactive(
         coherence: Float,
@@ -1315,10 +1323,22 @@ public final class EchoelDDSP: @unchecked Sendable {
         _smoothedBrightness = _smoothedBrightness * smoothCoeff + targetBrightness * (1.0 - smoothCoeff)
         brightness = _smoothedBrightness
 
-        // Filter opens with coherence — starts at 220 Hz (dark), blooms toward 1800 Hz (open)
-        // Higher coherence opens the filter (instrument-control mapping, no wellness valence)
-        // Very slow smoothing (α=0.97) for silky transitions
-        let targetCutoff: Float = 200 + coherence * 1600
+        // Coherence opens the filter. Higher coherence = more open (instrument-control
+        // mapping, no wellness valence). Very slow smoothing (α=0.97) for silky transitions.
+        // Anchored path (bioBaseFilterCutoff > 0, i.e. a patch was applied): the target is a
+        // CLAMPED DEVIATION AROUND the patch's own cutoff (the bioBase* law) — neutral
+        // coherence 0.5 → exactly the patch cutoff, calm opens (+), aroused darkens (−). This
+        // keeps each genre's distinct cutoff instead of collapsing every patch toward one
+        // shared value when the body calms ("erst individuell → dann alles gleich", task #81).
+        // Sentinel path (== 0, the raw patch-less bio voice): the legacy absolute sweep,
+        // byte-identical (200 Hz dark → 1800 Hz open).
+        let targetCutoff: Float
+        if bioBaseFilterCutoff > 0 {
+            let cutoffFactor: Float = (1.0 + (coherence - 0.5) * 0.5).clamped(to: 0.7...1.3)
+            targetCutoff = bioBaseFilterCutoff * cutoffFactor
+        } else {
+            targetCutoff = 200 + coherence * 1600
+        }
         filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03
 
         // Recalculate spectral envelope 10x/sec for snappier bio response

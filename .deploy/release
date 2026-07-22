@@ -1,24 +1,35 @@
-build: v10.79.332 — Licht-Ausgang (Art-Net/sACN) jetzt komplett blitz-sicher (Farbe auch)
+build: v10.79.333 — Genre-Identität überlebt die Calm-Konvergenz (Bio-Filter-Anker)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultrascan-Produktions-Pfad, Schritt 5 (Flash-Safety Licht). Reines Engineering,
-  keine sichtbare Änderung im Normalbetrieb — schließt eine echte WCAG-2.3.1/Gesetz-6-Lücke:
+notes: Task #81 — der ECHTE "erst individuell → dann alles gleich"-Grund, gefunden und behoben.
 
-  Bisher war beim physischen Licht-Ausgang (Art-Net + sACN) NUR der Dimmer rate-limitiert;
-  die FARB-Kanäle (R/G/B) gingen roh mit ~30 Hz raus. Ein schneller Farbsprung bei hohem
-  Dimmer (z.B. Rot→Cyan auf einem Akkordwechsel) konnte damit >3 Hz Helligkeits-Swing
-  erzeugen — eine Blitz-Lücke auf den Netzwerk-Scheinwerfern (das Bildschirm-Visual war
-  schon sauber gedeckelt).
+  Founder-Symptom: jedes Genre klingt zuerst eigen, dann konvergiert alles zum selben Sound,
+  sobald das Biofeedback läuft und der Körper ruhiger wird. v331 hatte die STATISCHEN
+  Genre-Timbres gespreizt (Patch-Cutoffs 2050–3050 Hz) — aber die DYNAMISCHE Konvergenz
+  über die Zeit blieb.
 
-  FIX: Die Farb-Kanäle reiten jetzt denselben 0.08/Tick-Slew wie der Dimmer (dieselbe
-  geteilte FlashGuard-Primitive) → max ~1.2 Hz Farbänderung, sicher unter 3 Hz. Gilt für
-  8-bit UND 16-bit, geteilt von beiden Protokollen (Art-Net + sACN = identische Garantie).
-  Damit hält die "flash-safe"-Aussage jetzt ehrlich für Bildschirm-Visual UND Netz-Licht.
+  Ursache (in applyBioReactive, EchoelDDSP): der Filter-Cutoff war die EINE Bio-Mapping, die
+  ihren Patch NICHT respektierte. Alle anderen (Harmonicity, Noise, Reverb) modulieren als
+  geklemmte ABWEICHUNG UM den Patch-Wert (die bioBase*-Regel: Ruhezustand = exakt der
+  gewählte Patch-Sound). Der Cutoff dagegen zog jede Stimme ABSOLUT Richtung 200+Kohärenz*1600
+  (≤1800 Hz) — also kollabierten bei ruhigem Körper ALLE Genres auf denselben dunklen Cutoff,
+  egal welchen Patch man gewählt hat. Das verletzte sogar das eigene A8-Gesetz derselben
+  Funktion ("niemals ein absolutes Überschreiben, das jeden Patch auf ein Timbre plättet").
 
-  Zwei neue Tests (erster Tick schnappt, dann pro-Schritt gedeckelt; ≥12 Ticks für vollen
-  Farb-Swing → <3 Hz). Pflicht-Reviewer (Code + Bio-Safety/Epilepsie) laufen auf dem Diff.
+  FIX: bioBaseFilterCutoff-Anker (analog zu bioBaseHarmonicity/NoiseLevel/ReverbMix).
+  SynthPatch.apply setzt ihn = Patch-Cutoff. applyBioReactive moduliert jetzt als geklemmte
+  Abweichung darum: cutoffFactor = (1 + (Kohärenz−0.5)·0.5).clamped(0.7…1.3). Neutrale
+  Kohärenz 0.5 → Faktor 1.0 → exakt der Patch-Cutoff (Ruhezustand driftet nicht). Ruhe öffnet
+  (+), Erregung dunkelt (−) — aber IMMER relativ zum eigenen Patch. Zwei Genres (2100 vs 3050)
+  behalten bei jeder Kohärenz ihr Verhältnis 1.45 → konvergieren nie.
 
-  Kontext: Aus dem Ultrascan (scratchpads/ULTRASCAN_PRODUCTION_PATH_2026-07-22.md) einer
-  der kleinen Produktions-Pfad-Schritte. Der Instrument-Kern bleibt im Fokus; das ist
-  Ehrlichkeit/Compliance am Rand (opt-in Licht-Fixtures), kein neues Feature.
+  Nicht-Regression: bioBaseFilterCutoff default 0 = Sentinel "kein Patch-Anker" → die rohe
+  (patchlose) Bio-Stimme BioReactiveSynthVoice behält den alten absoluten Sweep byte-identisch
+  (alle Golden-DSP-Tests unberührt). Nur die gepatchten Genre-Stimmen (PolySynthVoice) kriegen
+  den Anker.
 
-  Änderung: ArtNetSender.swift + SACNSender.swift + Test + project.yml + diese Datei.
+  4 neue Tests (Default-Sentinel · Genres konvergieren nicht bei ruhigem Körper · neutrale
+  Kohärenz = Patch-Cutoff · patchloser Legacy-Sweep unverändert). Pflicht-Reviewer DSP +
+  Audio-Thread beide CLEAN (reine Skalar-Mathematik, alloc-/lock-frei auf dem Audio-Thread,
+  NaN-sicher via clamped, Rausch-Triade unberührt).
+
+  Änderung: EchoelDDSP.swift + SynthPatch.swift + Test + project.yml + diese Datei.
