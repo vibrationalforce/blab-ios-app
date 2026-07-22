@@ -1,31 +1,32 @@
-build: v10.79.328 — Genre-Charakter setzt sich schon beim Ruhigerwerden durch (nicht erst ganz ruhig)
+build: v10.79.329 — Beat bleibt genre-typisch, auch wenn du ruhig wirst (Slice 2)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: FIX für dein Feedback "ich gehe durch die Genres und nach kurzer Zeit klingt alles
-  wie classic."
+notes: FIX für "ich gehe durch die Genres und nach kurzer Zeit klingt alles wie classic."
 
-  ANALYSE: Der Genre-Wechsel greift technisch sauber (Scale + Klangfarbe + Neu-Komposition,
-  kein hängengebliebenes Classic — im Code verifiziert). Der Punkt war: mein erster Fix
-  (v327) verankert die Genre-Harmonie erst, wenn du SCHON GANZ RUHIG bist. Beim
-  Durchklicken der Genres bist du aber auf MITTLERER Kohärenz — da dominierte die
-  gemeinsame Harmonie-Engine noch, also klangen die Genres ähnlich ("wie classic").
+  DEIN LOG (v327/2441) hat den Kern gezeigt: du warst voll gesettled (hohe Kohärenz)
+  und es konvergierte trotzdem. Analyse: Harmonie allein reicht nicht (viele Genres
+  teilen dieselbe Grund-Progression). Der stärkste Genre-Unterschied, den ein Ohr sofort
+  hört, ist der BEAT — und der fiel bei Ruhe auf ein fast gleiches Grundgerüst zusammen.
 
-  FIX (v328, EINE Stelle, Folge auf v327): die Genre-eigene Harmonie setzt sich jetzt
-  schon beim Ruhigerwerden durch — volle Genre-Verankerung ab Kohärenz 0.7 (dieselbe
-  Schwelle, ab der der Beat "luftig" wird), nicht erst kurz vor ganz ruhig. So hörst du
-  beim Durchgehen der Genres früher den EIGENEN Charakter jedes Genres. Der aufgeregte
-  Zustand (Kohärenz 0) bleibt byte-identisch (Determinismus + Test halten). code-reviewer
-  sauber.
+  FIX (Slice 2): Jedes der 18 Genres hat jetzt eine EIGENE, ruhe-überlebende Hi-Hat-
+  Textur (+ teils einen Signatur-Kick):
+  · Disco = Offbeat-"tss" · Eighties = treibende 8tel · Psytrance/SciFi = 16tel-Roll
+  · Doom = nur 1&3 (viel Luft) · Jazz/Vaporwave = ruhige Viertel · Synthwave/Oriental = sparse
+  So klingen selbst Genres desselben Beat-Typs (die sich bisher bei Ruhe nur um EINEN
+  Perc-Schlag unterschieden) jetzt klar verschieden — genau im ruhigen Zustand.
+  Additiv, RNG-frei, deterministisch; beide Pflicht-Reviewer (DSP + Code) grün; Test dabei.
 
-  WICHTIG — VERSION PRÜFEN: mein Genre-Fix startete mit v327 (Build 2441). Falls dein
-  Header noch v10.79.326 (2440) zeigt, hast du den Fix noch GAR NICHT gehört — bitte in
-  TestFlight auf die neueste Version (2441 → jetzt 244x/v328) updaten und dann nochmal
-  durch die Genres gehen.
+  BEWUSSTER TRADE-OFF (Reviewer-Befund): die Hi-Hat-Spur ist jetzt eine feste Genre-
+  Signatur und wird NICHT mehr geschäftiger, wenn du dich aufregst. Bio-Reaktivität bleibt
+  voll erhalten auf Kick, Perc, Open-Hat, Melodie, Tempo und Harmonie. Falls dir die Hats
+  zu statisch werden, sag Bescheid — dann lasse ich die Energie WIEDER oben drauf spielen
+  (Genre-Signatur als Basis + Energie als Verdichtung).
 
-  BITTE: v10.79.328 installieren → Biofeedback an → in Ruhe durch ein paar Genres gehen
-  (Disco → Doom → Jazz → Psytrance) → hören, ob jetzt JEDES Genre seinen eigenen
-  harmonischen Charakter behält, statt nach kurzer Zeit zusammenzufallen. Wenn der Beat/
-  die Klangfarbe zwischen Genres noch zu ähnlich ist, sag Bescheid — dann kommt als
-  Nächstes der Rhythmus-/Timbre-Identitätsboden (Slice 2/3).
+  BITTE: v10.79.329 (Build 244x) installieren → Biofeedback an → in Ruhe durch Disco →
+  Doom → Jazz → Psytrance gehen → hören, ob der BEAT jetzt pro Genre klar anders ist.
 
-  Gates: dsp- + code-reviewer grün; testflight.yml kompiliert selbst voll. Änderung:
-  BioComposer.swift (Kurven-Pivot der v327-Überblendung) + project.yml + diese Datei.
+  Zusammen mit v327/v328 (Harmonie setzt sich beim Ruhigerwerden aufs eigene Genre) sollte
+  "alles wie classic" jetzt deutlich zurückgehen. Offene Hygiene (nächster Zyklus): toten
+  hatDensityBias/Energy-Hat-Code entfernen; Energie-Response der Hats optional zurück.
+
+  Gates: DSP+Code-Reviewer grün auf 831e…(Slice-2-Commit). Änderung: MusicStyle.swift +
+  BioComposer.swift + Test + project.yml + diese Datei.
