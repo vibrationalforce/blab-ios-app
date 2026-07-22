@@ -1,32 +1,28 @@
-build: v10.79.329 — Beat bleibt genre-typisch, auch wenn du ruhig wirst (Slice 2)
+build: v10.79.330 — Hi-Hat bleibt genre-typisch UND reagiert wieder auf deinen Körper
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: FIX für "ich gehe durch die Genres und nach kurzer Zeit klingt alles wie classic."
+notes: Nachbesserung zu v329 (Slice 2). Zwei Reviewer-Befunde von v329 behoben.
 
-  DEIN LOG (v327/2441) hat den Kern gezeigt: du warst voll gesettled (hohe Kohärenz)
-  und es konvergierte trotzdem. Analyse: Harmonie allein reicht nicht (viele Genres
-  teilen dieselbe Grund-Progression). Der stärkste Genre-Unterschied, den ein Ohr sofort
-  hört, ist der BEAT — und der fiel bei Ruhe auf ein fast gleiches Grundgerüst zusammen.
+  BEFUND 1 (der wichtige, Nord-Stern): in v329 wurde die Hi-Hat-Spur eine feste
+  Genre-Signatur — sie wurde NICHT mehr geschäftiger, wenn du dich aufregtest. Das
+  widersprach dem Kern von Echoel ("die Musik verändert sich mit dem Körper").
+  FIX: Die Genre-Signatur bleibt die RUHE-Basis; wenn dein Körper treibt (hohe Energie,
+  nicht gesettled), verdichten sich die Hats jetzt EINEN Schritt weiter — aber immer
+  INNERHALB des Genre-Charakters (sparse→Viertel, Viertel→8tel, Offbeat→voller,
+  treibend→16tel). Rein additiv: die ruhigen Schläge bleiben eine Teilmenge der
+  aufgeregten (Ruhe ⊆ Erregung). So bleibt jedes Genre relativ zu seinen Nachbarn
+  leichter/dichter — bei Ruhe UND bei Anstrengung.
 
-  FIX (Slice 2): Jedes der 18 Genres hat jetzt eine EIGENE, ruhe-überlebende Hi-Hat-
-  Textur (+ teils einen Signatur-Kick):
-  · Disco = Offbeat-"tss" · Eighties = treibende 8tel · Psytrance/SciFi = 16tel-Roll
-  · Doom = nur 1&3 (viel Luft) · Jazz/Vaporwave = ruhige Viertel · Synthwave/Oriental = sparse
-  So klingen selbst Genres desselben Beat-Typs (die sich bisher bei Ruhe nur um EINEN
-  Perc-Schlag unterschieden) jetzt klar verschieden — genau im ruhigen Zustand.
-  Additiv, RNG-frei, deterministisch; beide Pflicht-Reviewer (DSP + Code) grün; Test dabei.
+  BEFUND 2 (Hygiene): der von v329 tot gewordene hatDensityBias-Kippcode in allen vier
+  Beat-Buildern ist entfernt (er wurde für jedes Genre eh von applyHatRate überschrieben).
+  Byte-identisch für alle ausgelieferten Genres — reine Aufräumung.
 
-  BEWUSSTER TRADE-OFF (Reviewer-Befund): die Hi-Hat-Spur ist jetzt eine feste Genre-
-  Signatur und wird NICHT mehr geschäftiger, wenn du dich aufregst. Bio-Reaktivität bleibt
-  voll erhalten auf Kick, Perc, Open-Hat, Melodie, Tempo und Harmonie. Falls dir die Hats
-  zu statisch werden, sag Bescheid — dann lasse ich die Energie WIEDER oben drauf spielen
-  (Genre-Signatur als Basis + Energie als Verdichtung).
+  Deterministisch (kein RNG in den Hats; Energie = feste Funktion des Bio-Snapshots),
+  Subset-Invariante gehalten, neuer Test dabei (Ruhe-Hats ⊆ Erregungs-Hats, strikt dichter).
+  Beide Pflicht-Reviewer (DSP + Code) laufen auf diesem Diff.
 
-  BITTE: v10.79.329 (Build 244x) installieren → Biofeedback an → in Ruhe durch Disco →
-  Doom → Jazz → Psytrance gehen → hören, ob der BEAT jetzt pro Genre klar anders ist.
+  Zusammen mit v327/v328 (Harmonie) + v329 (Beat-Signatur) ist das der Abschluss der
+  Genre-Distinktheits-Arbeit. BITTE beim Testen aufs OHR achten: klingt der Beat pro
+  Genre klar anders — und wird er hörbar geschäftiger, wenn dein Puls steigt? Wenn ja,
+  ist der "alles wie classic"-Effekt weg; wenn nein, sag welches Genre noch verschwimmt.
 
-  Zusammen mit v327/v328 (Harmonie setzt sich beim Ruhigerwerden aufs eigene Genre) sollte
-  "alles wie classic" jetzt deutlich zurückgehen. Offene Hygiene (nächster Zyklus): toten
-  hatDensityBias/Energy-Hat-Code entfernen; Energie-Response der Hats optional zurück.
-
-  Gates: DSP+Code-Reviewer grün auf 831e…(Slice-2-Commit). Änderung: MusicStyle.swift +
-  BioComposer.swift + Test + project.yml + diese Datei.
+  Änderung: BioComposer.swift + Test + project.yml + diese Datei.

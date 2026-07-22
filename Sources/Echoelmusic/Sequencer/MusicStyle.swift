@@ -245,10 +245,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// 2026-07-22 "ich gehe durch die Genres und nach kurzer Zeit klingt alles wie
     /// classic"). Unlike the energy-gated ornaments that strip when settled, a
     /// genre's `hatRate` is RNG-free and always applied, so two same-archetype
-    /// genres stay audibly distinct at full calm. `.inherit` (the default) keeps
-    /// the legacy `hatDensityBias` behaviour byte-identical.
+    /// genres stay audibly distinct at full calm. `.inherit` (the default) is a
+    /// no-op — the archetype's own hats stand (no shipping genre uses it; task #82).
     public enum HatRate: Sendable, Equatable {
-        /// Use the legacy `hatDensityBias` tilt (default — byte-identical to #79).
+        /// No genre override — the archetype's own base+energy hats stand (default;
+        /// no shipping genre uses it since task #82).
         case inherit
         /// Closed hats only on the offbeat 8ths (2/6/10/14) — the disco/house "tss".
         case offbeat
@@ -263,10 +264,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     }
 
     public struct GenreFlavor: Sendable, Equatable {
-        /// Tilts the closed-hat texture. `>= 0.5` fills the on-beats too (busy,
-        /// driving 8ths); `<= -0.5` thins the offbeat hats to a lighter, sparser
-        /// lift; the neutral band leaves the archetype's hats untouched. Consulted
-        /// ONLY when `hatRate == .inherit`.
+        /// DEPRECATED / vestigial (task #82): no code reads this any more. It used to
+        /// tilt the closed-hat texture, but `hatRate` now owns that row and every
+        /// shipping genre carries an explicit non-`.inherit` `hatRate`. Retained only
+        /// so the per-genre `GenreFlavor` initializers stay source-stable; safe to drop
+        /// in a future cleanup once the initializers are updated.
         public var hatDensityBias: Float
         /// The 16th step a single genre-signature perc ghost lands on. Choosing a
         /// distinct step per genre guarantees two same-archetype genres never
@@ -276,9 +278,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         /// Adds a syncopated kick push into the "1" (step 14) — an extra hit only,
         /// never touching the on-every-beat kicks that define the archetype.
         public var kickPushEnabled: Bool
-        /// The genre's calm-surviving closed-hat texture. `.inherit` (default) keeps
-        /// the `hatDensityBias` behaviour; any other value SETS the closed-hat row
-        /// deterministically so the genre reads distinctly even when settled.
+        /// The genre's calm-surviving closed-hat texture. `.inherit` (default) leaves
+        /// the archetype's own hats untouched; any other value SETS the closed-hat row
+        /// deterministically so the genre reads distinctly even when settled (and adds
+        /// an additive energy overlay on top — see `applyHatRate`).
         public var hatRate: HatRate
         /// A second genre-signature kick step (an EXTRA hit, like `percGhostStep` but
         /// on the kick track) that survives the calm strip. `-1` = none. Distinct per

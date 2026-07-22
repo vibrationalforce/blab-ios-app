@@ -745,19 +745,13 @@ public enum BioComposer {
         let pPerc = rng.unit()
         if !spacious && pPerc < 0.5 { steps[Track.perc][pPerc < 0.25 ? 7 : 15] = true }
 
-        // --- Per-genre flavor overlay (task #79) — bio-independent, RNG-free ---
-        // Hat texture: dense fills the on-beats too (driving), sparse thins the
-        // offbeat hats to a lighter lift; the neutral band leaves the hats as-is.
-        if flavor.hatDensityBias >= 0.5 {
-            for s in [0, 8] { steps[Track.closedHat][s] = true }
-        } else if flavor.hatDensityBias <= -0.5 {
-            steps[Track.closedHat][6] = false
-            steps[Track.closedHat][14] = false
-        }
+        // --- Per-genre flavor overlay (task #79) — RNG-free; perc ghost is bio-independent, closed hats are bio-reactive (applyHatRate) ---
         // Genre-signature perc ghost + optional kick push (shared, RNG-free — the
         // archetype-independent half of the flavor overlay, see applyFlavorGhost).
+        // NOTE: the closed-hat row is now owned entirely by applyHatRate (task #82);
+        // the base + energy hats above stand only for the `.inherit` fallback.
         applyFlavorGhost(&steps, flavor: flavor)
-        applyHatRate(&steps, rate: flavor.hatRate)
+        applyHatRate(&steps, rate: flavor.hatRate, energy: energy, spacious: spacious)
 
         return (steps, accents)
     }
@@ -782,16 +776,23 @@ public enum BioComposer {
     }
 
     /// Set the closed-hat row to the genre's calm-surviving signature texture
-    /// (task #79 follow-up, founder 2026-07-22). Called AFTER the archetype's own
-    /// hat placement and the legacy `hatDensityBias` block, so a non-`.inherit`
-    /// `hatRate` REPLACES the hats with a genre-defining pattern that reads distinctly
-    /// even when the body is calm and the seeded ornaments have stripped. RNG-free and
-    /// bio-independent (like the whole flavor overlay), so the seeded melody/perc draws
-    /// stay byte-identical and the take reproduces exactly. `.inherit` is a no-op.
-    private static func applyHatRate(_ steps: inout [[Bool]], rate: MusicStyle.HatRate) {
+    /// (task #79 follow-up, founder 2026-07-22; owns the closed-hat row entirely
+    /// since task #82). For a non-`.inherit` `hatRate` this REPLACES the hats with a
+    /// genre-defining CALM base pattern that reads distinctly even when the body is
+    /// calm and the seeded ornaments have stripped, then adds an ADDITIVE energy
+    /// overlay (bio-reactivity: a driving body densifies the hats one step further
+    /// WITHIN the genre's character). RNG-free — the seeded melody/perc draws stay
+    /// byte-identical — and energy is a deterministic function of the bio snapshot,
+    /// so the take reproduces exactly per seed. The overlay is purely additive, so the
+    /// settled hits are a subset of the aroused hits. `.inherit` is a no-op (the
+    /// archetype's own base + energy hats stand as the fallback).
+    private static func applyHatRate(_ steps: inout [[Bool]], rate: MusicStyle.HatRate,
+                                     energy: Float, spacious: Bool) {
         guard rate != .inherit else { return }
         let ch = Track.closedHat
         for s in steps[ch].indices { steps[ch][s] = false }   // clear, then set the signature
+        // The genre's CALM base texture — always present, so a settled body still reads
+        // as THIS genre (the founder-2026-07-22 fix).
         switch rate {
         case .inherit:  break                                             // unreachable (guarded)
         case .offbeat:  for s in [2, 6, 10, 14] where steps[ch].indices.contains(s) { steps[ch][s] = true }
@@ -799,6 +800,20 @@ public enum BioComposer {
         case .sixteenth: for s in 0..<stepCount { steps[ch][s] = true }
         case .quarter:  for s in stride(from: 0, to: stepCount, by: 4) { steps[ch][s] = true }
         case .sparse:   for s in [0, 8] where steps[ch].indices.contains(s) { steps[ch][s] = true }
+        }
+        // ENERGY overlay (bio-reactivity restored — north-star "the music changes with the
+        // body"; dsp-review follow-up to the calm-only Slice 2): as the body DRIVES (and is
+        // not settled), densify the hats ONE step further WITHIN the genre's character, so a
+        // genre stays relatively lighter/busier than its neighbours at BOTH calm and aroused.
+        // Purely ADDITIVE → settled hits ⊆ aroused hits (subset invariant holds). Energy is a
+        // deterministic function of the bio snapshot, so the take still reproduces per seed.
+        guard energy > 0.5 && !spacious else { return }
+        switch rate {
+        case .inherit, .sixteenth: break                                          // already maximal / n/a
+        case .sparse:   for s in [4, 12] where steps[ch].indices.contains(s) { steps[ch][s] = true }  // → quarter pulse
+        case .quarter:  for s in [2, 6, 10, 14] where steps[ch].indices.contains(s) { steps[ch][s] = true } // → 8ths
+        case .offbeat:  for s in [0, 8] where steps[ch].indices.contains(s) { steps[ch][s] = true }   // fuller offbeat
+        case .driving:  for s in 0..<stepCount { steps[ch][s] = true }            // → rolling 16ths
         }
     }
 
@@ -834,17 +849,11 @@ public enum BioComposer {
         let pOpen = rng.unit()
         if energy > 0.6 && !spacious && pOpen < 0.6 { steps[Track.openHat][14] = true }
 
-        // --- Per-genre flavor overlay (task #79 Slice B) — bio-independent, RNG-free ---
-        // Hat texture over the driving 8ths: dense fills the 16th offbeats (punk/metal
-        // drive), sparse thins to a quarter-note pulse (jazz/oriental breathe); the
-        // neutral band leaves the 8ths as-is.
-        if flavor.hatDensityBias >= 0.5 {
-            for s in stride(from: 1, to: stepCount, by: 2) { steps[Track.closedHat][s] = true }
-        } else if flavor.hatDensityBias <= -0.5 {
-            for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = false }
-        }
+        // --- Per-genre flavor overlay (task #79 Slice B) — RNG-free; perc ghost is bio-independent, closed hats are bio-reactive (applyHatRate) ---
+        // NOTE: the closed-hat row is now owned entirely by applyHatRate (task #82);
+        // the base + energy hats above stand only for the `.inherit` fallback.
         applyFlavorGhost(&steps, flavor: flavor)
-        applyHatRate(&steps, rate: flavor.hatRate)
+        applyHatRate(&steps, rate: flavor.hatRate, energy: energy, spacious: spacious)
 
         return (steps, accents)
     }
@@ -883,17 +892,11 @@ public enum BioComposer {
         let pClap = rng.unit()
         if !spacious && pClap < 0.4 { steps[Track.clap][12] = true }
 
-        // --- Per-genre flavor overlay (task #79 Slice C) — bio-independent, RNG-free ---
-        // Hat texture over the quarter-note keep-time: dense doubles the skank offbeats
-        // (driving ska), sparse thins to the "1" & "3" only (laid-back one-drop).
-        if flavor.hatDensityBias >= 0.5 {
-            for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = true }
-        } else if flavor.hatDensityBias <= -0.5 {
-            steps[Track.closedHat][4] = false
-            steps[Track.closedHat][12] = false
-        }
+        // --- Per-genre flavor overlay (task #79 Slice C) — RNG-free; perc ghost is bio-independent, closed hats are bio-reactive (applyHatRate) ---
+        // NOTE: the closed-hat row is now owned entirely by applyHatRate (task #82);
+        // the base + energy hats above stand only for the `.inherit` fallback.
         applyFlavorGhost(&steps, flavor: flavor)
-        applyHatRate(&steps, rate: flavor.hatRate)
+        applyHatRate(&steps, rate: flavor.hatRate, energy: energy, spacious: spacious)
 
         return (steps, accents)
     }
@@ -928,17 +931,11 @@ public enum BioComposer {
         let pOpen = rng.unit()
         if !spacious && pOpen < 0.35 { steps[Track.openHat][15] = true } // tail lift
 
-        // --- Per-genre flavor overlay (task #79 Slice C) — bio-independent, RNG-free ---
-        // Hat texture over the quarter-note pulse: dense adds 8th motion (sci-fi),
-        // sparse thins to the "1" & "3" for maximum air (doom's heavy space).
-        if flavor.hatDensityBias >= 0.5 {
-            for s in stride(from: 2, to: stepCount, by: 4) { steps[Track.closedHat][s] = true }
-        } else if flavor.hatDensityBias <= -0.5 {
-            steps[Track.closedHat][4] = false
-            steps[Track.closedHat][12] = false
-        }
+        // --- Per-genre flavor overlay (task #79 Slice C) — RNG-free; perc ghost is bio-independent, closed hats are bio-reactive (applyHatRate) ---
+        // NOTE: the closed-hat row is now owned entirely by applyHatRate (task #82);
+        // the base + energy hats above stand only for the `.inherit` fallback.
         applyFlavorGhost(&steps, flavor: flavor)
-        applyHatRate(&steps, rate: flavor.hatRate)
+        applyHatRate(&steps, rate: flavor.hatRate, energy: energy, spacious: spacious)
 
         return (steps, accents)
     }

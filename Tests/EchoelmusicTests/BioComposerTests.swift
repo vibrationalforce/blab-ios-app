@@ -584,6 +584,32 @@ final class BioComposerTests: XCTestCase {
         XCTAssertEqual(disco, drums(.disco), "genre hat signature is deterministic")
     }
 
+    func testGenreHatStaysEnergyReactiveOnTopOfSignature() {
+        // Task #82: the genre hat signature is the CALM base, but a driving body must
+        // still densify the hats (north-star "the music changes with the body"). The
+        // energy overlay is purely additive, so the calm hat row is a subset of the
+        // aroused hat row, and for a genre with room to grow it is STRICTLY busier.
+        // track 2 = closed hats; applyHatRate owns that row (no seed dependence).
+        func hats(_ style: MusicStyle, coherence: Float, hr: Float) -> [Bool] {
+            BioComposer.compose(input(coherence: coherence, hr: hr, seed: 0xBEA7,
+                                      style: style)).drumSteps[2]
+        }
+        // disco = .offbeat: calm hats on 2/6/10/14; aroused adds 0 & 8.
+        let calmHats    = hats(.disco, coherence: 0.95, hr: 55)   // spacious, low energy
+        let arousedHats = hats(.disco, coherence: 0.20, hr: 118)  // not spacious, high energy
+        for s in 0..<16 where calmHats[s] {
+            XCTAssertTrue(arousedHats[s],
+                          "calm hat step \(s) must survive into the aroused take (additive)")
+        }
+        let calmCount    = calmHats.filter { $0 }.count
+        let arousedCount = arousedHats.filter { $0 }.count
+        XCTAssertGreaterThan(arousedCount, calmCount,
+                             "a driving body must make the disco hats busier, not identical")
+        // Deterministic — same bio input reproduces the same hat row exactly.
+        XCTAssertEqual(arousedHats, hats(.disco, coherence: 0.20, hr: 118),
+                       "energy-reactive hat row is deterministic per input")
+    }
+
     func testHarmonicGenresProduceLayeredMaterial() {
         // A pad/chord genre yields several simultaneous notes (a chord), not a
         // single line — that's the production starting material.
