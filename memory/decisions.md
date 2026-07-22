@@ -4,6 +4,35 @@ Architectural and strategic decisions with context and rationale.
 
 ---
 
+### 2026-07-22 Vision-Umbau Step 1 + AUv3-Neustart B1 → erster TestFlight-Ship (v10.79.339, build 2453)
+- **Produkt-Vision (Founder als Kreativ-Partner):** "Ein lebendiges audiovisuelles Instrument,
+  das man mit Körper und Händen spielt … kein DAW, kein Plugin, kein Wellness-Abo." Gesetz #1:
+  "App auf, Finger auf die Kamera, in 3 s lebt und glüht es, kein Menü/Setup."
+- **Kern-Erkenntnis:** Die Vision war schon gebaut — `FloatingVisualWindow` = der EINE
+  `MetalBioView` (lebendiges Bio-Visual) + `TouchInstrumentView` (spielbares Multitouch, in die
+  Tonart quantisiert) + WAV/MP4-Aufnahme→Teilen, mit `.fullscreen`, das die Chrome überdeckt. Es
+  öffnete nur klein unten. Eine NEUE Home-View hätte einen 2. MetalBioView erzeugt → bricht die
+  Ein-Metal-Pfad-Regel. Also: das Bestehende fullscreen als Startebene wiederverwenden.
+- **Step 1 (instrumentHome, DEFAULT-AN):** `WorkspaceView` seedet per Kaltstart-`.onAppear` das
+  Visual fullscreen+sichtbar; die DAW-Chrome bleibt DARUNTER montiert (kein Teardown →
+  `stopEverything` feuert nie → laufende Bio+Transport-Session überlebt), einen Tap entfernt.
+  Rückschalter `set(.instrumentHome,false)` → bit-identisches altes Chrome-Home.
+- **Step 1b (Studio-Tür):** würdiger beschrifteter "Studio"-Knopf am Vollbild-Visual fällt in die
+  volle tight-loops-DAW — die Produzenten-Ebene (Video+WAV, Timeline, Clips, Spuren) bleibt
+  erhalten + erreichbar (Founder-Sorge direkt adressiert).
+- **B1 (AUv3):** EchoelBodyVibe augn→aumu (Musikgerät) mit MIDI-Note-Input im Render-Block
+  (realtimeEventListHead → EchoelMIDIDecode → EchoelDDSP, audio-thread-safe). Hosts routen jetzt
+  MIDI ans Plugin. Component-Version 10001→10002.
+- **Deploy:** Founder hob den TestFlight-Freeze auf ("arbeitest bis Build erfolgreich"). Tokenless
+  `.deploy/release`-Bump vom Feature-Branch → testflight.yml #2453 GRÜN auf allen Jobs (inkl.
+  AUv3-Embed+Registration-Verify), Build in App Store Connect gelandet.
+- **Offen (wartet auf Founder):** Geräte-Verify von v339; Vision Step 2 (Cold-Start-Choreografie —
+  PLAN+Council in `scratchpads/PLAN_COLD_START_CHOREOGRAPHY_2026-07-22.md`, Scheiben 2a Auto-Arm /
+  2b Finger-Einladung / 2c wonder-first-Kopie); wählbarer Startmodus. Disziplin: KEINE weiteren
+  UX-Änderungen auf die frisch ausgelieferte, noch nicht geräte-verifizierte Instrument-Home stapeln.
+
+---
+
 ### 2026-07-21 Task #77 done: no genre auto-generates a lead melody (leadDensity → 0 everywhere); rhythmic-diversity ask deferred to its own PLAN
 - **Founder ear-feedback:** "Die Genres Psytrance bis Rocksteady werden sehr stressig wegen den
   Melodien. Melodien sollen die Leute selbst machen." Council (inline) extended the named
