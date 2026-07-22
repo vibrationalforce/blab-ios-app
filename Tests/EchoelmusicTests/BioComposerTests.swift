@@ -920,4 +920,49 @@ final class BioComposerTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Genre identity survives the calm-convergence (founder 2026-07-22)
+
+    /// Founder (build 2440): "bei den Genres kommt erst eine individuelle Variation
+    /// und dann klingt plötzlich alles gleich." The default-on chord journey is
+    /// genre-agnostic and, once the body settles, picks the same expected functional
+    /// progression for every genre in the same key — so all genres collapsed to the
+    /// same harmony as the listener relaxed. The genre-identity crossfade in
+    /// `composeHarmonic` locks the CALM harmony to each genre's OWN authored
+    /// progression: calm == a calm version of THIS genre, not a generic cycle.
+    /// The journey stays untouched in the aroused regime.
+    func testGenreHarmonyIdentitySurvivesCalmConvergence() {
+        let key = MusicalKey(root: 0, scale: .dorian)
+        // .eighties is non-sustained with a NON-functional pop progression
+        // ([0,4,5,3] = I–V–vi–IV) that the pure functional journey would never pick.
+        func bassRootClasses(seed: UInt64, coherence: Float) -> [Int] {
+            let inp = BioComposer.Input(
+                heartRateBPM: 55, hrvNormalized: 0.5, coherence: coherence,
+                breathPhase: 0, breathDepth: 0.5, key: key, style: .eighties,
+                mode: .flowFree, lockedTempo: 100, seed: seed, structureSeed: seed,
+                progressionPhase: 0, suggestJourney: true)
+            return BioComposer.compose(inp).notes
+                .filter { $0.role == .bass }
+                .sorted { $0.startStep < $1.startStep }
+                .map { ((($0.pitch % 12) + 12) % 12) }
+        }
+        // At FULL calm the crossfade anchors harmony to the genre's authored
+        // progression, which is seed-INDEPENDENT → two different seeds trace the SAME
+        // root motion. Without the crossfade the seeded journey would vary here.
+        let calmA = bassRootClasses(seed: 0xA1, coherence: 1.0)
+        let calmB = bassRootClasses(seed: 0xB2, coherence: 1.0)
+        XCTAssertFalse(calmA.isEmpty, "calm harmony should sound")
+        XCTAssertEqual(calmA, calmB,
+            "at full coherence the harmony IS the genre's authored progression — a stable genre signature, not a generic journey")
+        // The AROUSED regime is byte-preserved: the exploratory journey is seeded, so
+        // two seeds explore DIFFERENTLY (the crossfade is inert at k=0).
+        XCTAssertNotEqual(bassRootClasses(seed: 0xA1, coherence: 0.0),
+                          bassRootClasses(seed: 0xB2, coherence: 0.0),
+            "at low coherence the seeded journey still explores per seed (crossfade inert)")
+        // Polarity: same seed, the calm harmony DIFFERS from the aroused harmony — the
+        // fix is coherence-active, converging to the genre home as the body settles.
+        XCTAssertNotEqual(bassRootClasses(seed: 0xA1, coherence: 1.0),
+                          bassRootClasses(seed: 0xA1, coherence: 0.0),
+            "the crossfade moves the calm harmony toward the genre progression")
+    }
 }

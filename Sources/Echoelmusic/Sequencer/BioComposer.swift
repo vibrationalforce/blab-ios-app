@@ -1348,6 +1348,32 @@ public enum BioComposer {
                 let chords = Array(full[start..<(start + n)])
                 prog = chords.map(\.rootDegree)
                 sectionAlterations = chords.map(\.alterations)
+                // GENRE-IDENTITY CROSSFADE (founder 2026-07-22: "bei den Genres kommt
+                // erst eine individuelle Variation und dann klingt plötzlich alles
+                // gleich"). The coherence-selected journey is the AROUSED explorer;
+                // as the body settles the harmony must converge to a CALM version of
+                // THIS genre, not a generic functional cycle (which is exactly what a
+                // high-coherence journey picks — the same expected T→S→D→T for every
+                // genre in the same key/scale). Lock the first `k` of the `n` section
+                // roots to the genre's OWN authored progression (phase-rotated,
+                // diatonic), where `k` grows with coherence: calm (coherence→1) ⇒
+                // k→n ⇒ the root motion IS the genre signature (Disco stays Disco,
+                // Doom stays Doom); aroused (coherence→0) ⇒ k→0 ⇒ the exploratory
+                // journey survives BYTE-IDENTICAL. Pure function of coherence + two
+                // in-key degree arrays — NO rng/structureRNG draw, so every
+                // downstream draw keeps its order (determinism law). Chord QUALITY
+                // (profile.chordTones, e.g. jazz 7ths) is untouched below; only ROOT
+                // MOTION is genre-anchored. Every substituted degree is a diatonic
+                // scale degree ([0,0,0] alterations) → always resolves in key.
+                let coh = sc.coherence.isFinite ? Swift.min(Swift.max(sc.coherence, 0), 1) : 0
+                let k = Swift.min(n, Int((Float(n) * coh).rounded()))
+                if k > 0 {
+                    let rotBase = ((progressionPhase % baseProg.count) + baseProg.count) % baseProg.count
+                    for i in 0..<k {
+                        prog[i] = baseProg[(rotBase + i) % baseProg.count]
+                        sectionAlterations?[i] = [0, 0, 0]
+                    }
+                }
             } else {
                 // Unreachable in practice (a non-empty scale always fills the
                 // journey); fail safe to the profile's plain progression.
