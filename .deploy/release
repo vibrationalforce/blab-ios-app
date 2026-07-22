@@ -1,26 +1,22 @@
-build: v10.79.339 — Instrument-Home + AUv3 wird spielbares Instrument (Founder: "arbeitest bis TestFlight erfolgreich")
+build: v10.79.340 — First-Run-Einladung (Finger auf die Kamera) auf der Instrument-Home (Vision Step 2b)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Erster TestFlight-Ship des Vision-Umbaus + der AUv3-Neustart-Arbeit. Founder hob den
-  TestFlight-Freeze explizit auf ("Du arbeitest bis TestFlight Build erfolgreich").
+  Superset von v339 (Instrument-Home + Studio-Tür + AUv3-aumu) + Vision Step 2b. Gibt dem
+  Founder EIN vollständiges Verify-Target des Vision-First-Runs statt eines veralteten v339.
 
-  ENTHALTEN:
-  - Vision Step 1 (Instrument-Home): die App öffnet direkt ins lebendige Instrument —
-    das bestehende FloatingVisualWindow FULLSCREEN (der eine MetalBioView + das
-    spielbare TouchInstrumentView). Die DAW-Chrome bleibt DARUNTER montiert (kein
-    Teardown, laufende Bio+Transport-Session überlebt), einen Tap entfernt. Hinter
-    FeatureFlags.instrumentHome (DEFAULT-AN; Rückschalter set(.instrumentHome,false)).
-    Gates grün (721661f: Xcode + CI).
-  - Step 1b: eine würdige "Studio"-Tür am Vollbild-Visual, die ins volle tight-loops-DAW
-    fällt (Timeline · Clips · Per-Track-Instrumente · Video-Spuren · WAV-Export) — die
-    Produzenten-Ebene bleibt erhalten und erreichbar. ui-state-reviewer: 0 Findings.
-  - B1 (AUv3): EchoelBodyVibe ist jetzt ein aumu-Musikinstrument (statt augn-Generator)
-    mit MIDI-Note-Input im Render-Block (realtimeEventListHead -> EchoelMIDIDecode ->
-    EchoelDDSP.noteOn/noteOff, audio-thread-safe, Reviewer CLEAN). Hosts routen jetzt
-    MIDI an das Plugin. embed-verify-Gate erwartet aumu. Component-Version 10001->10002
-    (erzwingt frische Registrierung).
+  NEU ggü. v339:
+  - Vision Step 2b (First-Run-Einladung): die eine Geste, die ein neuer Nutzer NICHT durch
+    Gefühl entdecken kann (die Kamera ist hinten, nichts auf dem Schirm deutet darauf), wird
+    jetzt gelehrt — eine einmalige, selbst-verblassende, nicht-blockierende Einladung auf der
+    Vollbild-Home: "Finger auf die Kamera bringt es zum Leben · Berühre das Bild zum Spielen".
+    Leaf-View (kein Bio-Read, kein Sheet), allowsHitTesting(false) (schluckt nie den ersten
+    Spiel-Touch), ein Opacity-Ramp (~0,05 Hz, weit unter dem 3-Hz-Flash-Gesetz), reduce-motion-
+    sicher, einmal-ewig persistiert (onboard.instrumentHintSeen). ui-state-reviewer: ship-clean,
+    beide Ship-Blocker-Gesetze PASS.
 
-  Beide Ship-Blocker-Gesetze verifiziert (kein Sheet-Wachstum an EchoelStudioView, kein
-  10-Hz-@Observable-Read im Root/Ancestor). Kein Audio-Thread-alloc/lock, Rausch-Triad
-  unberührt, kein Heilungs-Claim. Nächste Scheiben (Cold-Start-Choreografie Step 2,
-  Startmodus) sind geplant + warten auf Founder-Wort.
+  UNVERÄNDERT aus v339 (weiter zum Geräte-Verify): Instrument-Home (App öffnet ins lebendige
+  Vollbild-Instrument, DAW montiert darunter, FeatureFlags.instrumentHome DEFAULT-AN) · Studio-
+  Produzenten-Tür · AUv3 EchoelBodyVibe als spielbares aumu-Instrument mit MIDI.
+
+  Alle Gates grün (54934af: Xcode + CI). Kein Audio-Thread-alloc/lock, Rausch-Triad unberührt,
+  kein Heilungs-Claim. Offen (Founder-Wort): Step 2a Auto-Arm, wählbarer Startmodus, 2c Kopie.
