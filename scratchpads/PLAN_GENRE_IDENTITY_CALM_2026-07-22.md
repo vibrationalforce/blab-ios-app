@@ -94,3 +94,30 @@ identisch zum aktuellen Take (gleicher Seed).
 
 **Gate:** proceed-with-mitigation — Slice 1 nach Panel-Synthese festzurren, dann
 implementieren + dsp-reviewer + code-reviewer + Determinismus-/Distinctness-Test.
+
+## UPDATE 2026-07-22 (Log v327/2441) — Harmonie-Hebel als unzureichend belegt
+
+Founder-Log v10.79.327 (2441): bei 1784701943–949 **hohe Kohärenz** (bpm 64–66,
+conf 0.89–0.94) — der Zustand, in dem Slice 1 die Genre-Harmonie voll verankert —
+und es klang laut Founder trotzdem "wie classic". **Befund: Genre-Distinktheit über
+die Harmonie-Wurzel (baseProg) ist NICHT ausreichend**, weil viele Genres eine zu
+ähnliche Grund-Progression (I–IV–V) + teils geteilte Scale haben. v328 (früher
+greifende Verankerung) ist derselbe Hebel und wird das Grundproblem allein nicht
+lösen.
+
+**Nächster Hebel (Slice 2, jetzt PRIMÄR statt sekundär): Beat + Timbre als
+unverkennbarer Genre-Träger, der die Ruhe überlebt.** Panel-Design approaches[1]:
+- `GenreFlavor` erweitern: per-Genre `hatRate` (offbeat/eighths/sixteenths/quarter)
+  das die Closed-Hat-Reihe DETERMINISTISCH SETZT (statt nur nudgen) + `kickCell`
+  (zweite genre-eindeutige Kick-Verschiebung). RNG-frei, additiv, .neutral = no-op.
+- Ziel: zwei Genres desselben Archetyps (Disco vs Psytrance) divergieren hörbar auch
+  bei voller Ruhe, wenn die seeded Ornamente strippen.
+- Determinismus: alle Writes RNG-frei nach den bestehenden rng-Draws → Melodie/Pad
+  byte-identisch; nur Genres mit geänderter hatRate/kickCell ändern drumSteps (gewollt).
+  Golden-Drum-Tests re-baselinen (erwartet/additiv, keine Regression).
+- Reihenfolge: ERST Founder-Ohr-Check v328 (2442) — hilft die frühere Verankerung
+  überhaupt? — DANN Slice 2 bauen (kein Blind-Stack). Falls v328 nichts bringt,
+  wird Slice 2 der Haupt-Fix.
+
+**Dead-End-Prävention:** NICHT einen dritten Harmonie-Tweak stapeln. Harmonie-Hebel
+ist ausgereizt (Log-belegt). Weiter geht es über Beat/Timbre — anderer Träger.
