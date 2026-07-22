@@ -757,6 +757,7 @@ public enum BioComposer {
         // Genre-signature perc ghost + optional kick push (shared, RNG-free — the
         // archetype-independent half of the flavor overlay, see applyFlavorGhost).
         applyFlavorGhost(&steps, flavor: flavor)
+        applyHatRate(&steps, rate: flavor.hatRate)
 
         return (steps, accents)
     }
@@ -772,6 +773,33 @@ public enum BioComposer {
             steps[Track.perc][flavor.percGhostStep] = true
         }
         if flavor.kickPushEnabled { steps[Track.kick][14] = true }
+        // A second genre-signature kick step (task #79 follow-up): an EXTRA hit that
+        // survives the calm strip, distinct per genre so same-archetype genres diverge
+        // on the kick too. Bounds-guarded; -1 (default) is a no-op. RNG-free.
+        if steps[Track.kick].indices.contains(flavor.kickCell) {
+            steps[Track.kick][flavor.kickCell] = true
+        }
+    }
+
+    /// Set the closed-hat row to the genre's calm-surviving signature texture
+    /// (task #79 follow-up, founder 2026-07-22). Called AFTER the archetype's own
+    /// hat placement and the legacy `hatDensityBias` block, so a non-`.inherit`
+    /// `hatRate` REPLACES the hats with a genre-defining pattern that reads distinctly
+    /// even when the body is calm and the seeded ornaments have stripped. RNG-free and
+    /// bio-independent (like the whole flavor overlay), so the seeded melody/perc draws
+    /// stay byte-identical and the take reproduces exactly. `.inherit` is a no-op.
+    private static func applyHatRate(_ steps: inout [[Bool]], rate: MusicStyle.HatRate) {
+        guard rate != .inherit else { return }
+        let ch = Track.closedHat
+        for s in steps[ch].indices { steps[ch][s] = false }   // clear, then set the signature
+        switch rate {
+        case .inherit:  break                                             // unreachable (guarded)
+        case .offbeat:  for s in [2, 6, 10, 14] where steps[ch].indices.contains(s) { steps[ch][s] = true }
+        case .driving:  for s in stride(from: 0, to: stepCount, by: 2) { steps[ch][s] = true }
+        case .sixteenth: for s in 0..<stepCount { steps[ch][s] = true }
+        case .quarter:  for s in stride(from: 0, to: stepCount, by: 4) { steps[ch][s] = true }
+        case .sparse:   for s in [0, 8] where steps[ch].indices.contains(s) { steps[ch][s] = true }
+        }
     }
 
     /// Kick 1 (+3), snare 2 & 4, driving 8th hats — rock/punk/metal backbone.
@@ -816,6 +844,7 @@ public enum BioComposer {
             for s in [2, 6, 10, 14] { steps[Track.closedHat][s] = false }
         }
         applyFlavorGhost(&steps, flavor: flavor)
+        applyHatRate(&steps, rate: flavor.hatRate)
 
         return (steps, accents)
     }
@@ -864,6 +893,7 @@ public enum BioComposer {
             steps[Track.closedHat][12] = false
         }
         applyFlavorGhost(&steps, flavor: flavor)
+        applyHatRate(&steps, rate: flavor.hatRate)
 
         return (steps, accents)
     }
@@ -908,6 +938,7 @@ public enum BioComposer {
             steps[Track.closedHat][12] = false
         }
         applyFlavorGhost(&steps, flavor: flavor)
+        applyHatRate(&steps, rate: flavor.hatRate)
 
         return (steps, accents)
     }

@@ -240,10 +240,33 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// Hard-capped at three fields on purpose (Architect: no catch-all for
     /// arbitrary special cases). Purely declarative — no bio, no RNG — so it never
     /// perturbs the seeded melody/percussion draws and stays deterministic.
+    /// The closed-hat texture a genre keeps EVEN when the body is calm — the
+    /// single most audible rhythmic fingerprint (task #79 follow-up, founder
+    /// 2026-07-22 "ich gehe durch die Genres und nach kurzer Zeit klingt alles wie
+    /// classic"). Unlike the energy-gated ornaments that strip when settled, a
+    /// genre's `hatRate` is RNG-free and always applied, so two same-archetype
+    /// genres stay audibly distinct at full calm. `.inherit` (the default) keeps
+    /// the legacy `hatDensityBias` behaviour byte-identical.
+    public enum HatRate: Sendable, Equatable {
+        /// Use the legacy `hatDensityBias` tilt (default — byte-identical to #79).
+        case inherit
+        /// Closed hats only on the offbeat 8ths (2/6/10/14) — the disco/house "tss".
+        case offbeat
+        /// Closed hats on every 8th (0…14 by 2) — a driving, busy pulse.
+        case driving
+        /// Closed hats on every 16th — a rolling, energetic shimmer (psy/DnB).
+        case sixteenth
+        /// Closed hats on the quarter notes only (0/4/8/12) — laid-back keep-time.
+        case quarter
+        /// Closed hats only on 1 & 3 (0/8) — maximal air (doom's heavy space).
+        case sparse
+    }
+
     public struct GenreFlavor: Sendable, Equatable {
         /// Tilts the closed-hat texture. `>= 0.5` fills the on-beats too (busy,
         /// driving 8ths); `<= -0.5` thins the offbeat hats to a lighter, sparser
-        /// lift; the neutral band leaves the archetype's hats untouched.
+        /// lift; the neutral band leaves the archetype's hats untouched. Consulted
+        /// ONLY when `hatRate == .inherit`.
         public var hatDensityBias: Float
         /// The 16th step a single genre-signature perc ghost lands on. Choosing a
         /// distinct step per genre guarantees two same-archetype genres never
@@ -253,11 +276,22 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         /// Adds a syncopated kick push into the "1" (step 14) — an extra hit only,
         /// never touching the on-every-beat kicks that define the archetype.
         public var kickPushEnabled: Bool
+        /// The genre's calm-surviving closed-hat texture. `.inherit` (default) keeps
+        /// the `hatDensityBias` behaviour; any other value SETS the closed-hat row
+        /// deterministically so the genre reads distinctly even when settled.
+        public var hatRate: HatRate
+        /// A second genre-signature kick step (an EXTRA hit, like `percGhostStep` but
+        /// on the kick track) that survives the calm strip. `-1` = none. Distinct per
+        /// genre so same-archetype genres diverge on the kick as well as the perc.
+        public var kickCell: Int
 
-        public init(hatDensityBias: Float, percGhostStep: Int, kickPushEnabled: Bool) {
+        public init(hatDensityBias: Float, percGhostStep: Int, kickPushEnabled: Bool,
+                    hatRate: HatRate = .inherit, kickCell: Int = -1) {
             self.hatDensityBias = hatDensityBias
             self.percGhostStep = percGhostStep
             self.kickPushEnabled = kickPushEnabled
+            self.hatRate = hatRate
+            self.kickCell = kickCell
         }
 
         /// Neutral overlay — leaves an archetype builder exactly as it was.
@@ -275,37 +309,37 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // The six four-on-floor genres: each gets its own hat texture + a unique
         // perc-ghost step so they stop sharing one loop. Ghost steps are all off
         // the kick beats (0/4/8/12), the claps (4/12) and the seeded perc (7/15).
-        case .disco:      return GenreFlavor(hatDensityBias:  0.7, percGhostStep:  3, kickPushEnabled: false)
-        case .eighties:   return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  5, kickPushEnabled: false)
-        case .earlySynth: return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  9, kickPushEnabled: false)
-        case .futuristic: return GenreFlavor(hatDensityBias:  0.0, percGhostStep: 11, kickPushEnabled: true)
-        case .psytrance:  return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 13, kickPushEnabled: true)
-        case .synthwave:  return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  1, kickPushEnabled: false)
+        case .disco:      return GenreFlavor(hatDensityBias:  0.7, percGhostStep:  3, kickPushEnabled: false, hatRate: .offbeat)
+        case .eighties:   return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  5, kickPushEnabled: false, hatRate: .driving,   kickCell: 6)
+        case .earlySynth: return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  9, kickPushEnabled: false, hatRate: .quarter)
+        case .futuristic: return GenreFlavor(hatDensityBias:  0.0, percGhostStep: 11, kickPushEnabled: true,  hatRate: .sixteenth, kickCell: 10)
+        case .psytrance:  return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 13, kickPushEnabled: true,  hatRate: .sixteenth, kickCell: 6)
+        case .synthwave:  return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  1, kickPushEnabled: false, hatRate: .sparse)
         // The six backbeat genres (rock family): the perc track is free in this
         // archetype, so each genre's ghost step is collision-free by construction;
         // all six steps are distinct AND off the snare backbeat (4/12) and the
         // kick anchors (0/8/10/6). Hat bias tilts the driving 8th-hat texture:
         // punk/metal drive to 16ths, jazz/oriental breathe. kickPush adds an extra
         // syncopated kick into the "1" for the two most aggressive genres only.
-        case .rock:       return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  6, kickPushEnabled: false)
-        case .punk:       return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 15, kickPushEnabled: true)
-        case .rocknroll:  return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  3, kickPushEnabled: false)
-        case .heavyMetal: return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 11, kickPushEnabled: true)
-        case .jazz:       return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  5, kickPushEnabled: false)
-        case .oriental:   return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  9, kickPushEnabled: false)
+        case .rock:       return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  6, kickPushEnabled: false, hatRate: .driving)
+        case .punk:       return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 15, kickPushEnabled: true,  hatRate: .sixteenth, kickCell: 6)
+        case .rocknroll:  return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  3, kickPushEnabled: false, hatRate: .offbeat)
+        case .heavyMetal: return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 11, kickPushEnabled: true,  hatRate: .sixteenth, kickCell: 2)
+        case .jazz:       return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  5, kickPushEnabled: false, hatRate: .quarter)
+        case .oriental:   return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  9, kickPushEnabled: false, hatRate: .sparse)
         // The three offbeat (skank) genres: the archetype already occupies perc on
         // the offbeats 2/6/10/14, so each ghost step is chosen from the FREE perc
         // slots (3/11/5) — distinct and never colliding with the skank. Hat bias
         // tilts the skank/quarter-hat texture.
-        case .ska:        return GenreFlavor(hatDensityBias:  0.7, percGhostStep:  3, kickPushEnabled: false)
-        case .rocksteady: return GenreFlavor(hatDensityBias: -0.7, percGhostStep: 11, kickPushEnabled: false)
-        case .klezmer:    return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  5, kickPushEnabled: true)
+        case .ska:        return GenreFlavor(hatDensityBias:  0.7, percGhostStep:  3, kickPushEnabled: false, hatRate: .offbeat)
+        case .rocksteady: return GenreFlavor(hatDensityBias: -0.7, percGhostStep: 11, kickPushEnabled: false, hatRate: .quarter)
+        case .klezmer:    return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  5, kickPushEnabled: true,  hatRate: .driving)
         // The three half-time genres: the perc track is free in this archetype, so
         // each ghost step (12/6/10) is collision-free by construction. Sparse bias
         // opens even more air (doom), dense adds 8th motion (sci-fi).
-        case .doom:       return GenreFlavor(hatDensityBias: -0.7, percGhostStep: 12, kickPushEnabled: false)
-        case .vaporwave:  return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  6, kickPushEnabled: false)
-        case .sciFi:      return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 10, kickPushEnabled: true)
+        case .doom:       return GenreFlavor(hatDensityBias: -0.7, percGhostStep: 12, kickPushEnabled: false, hatRate: .sparse)
+        case .vaporwave:  return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  6, kickPushEnabled: false, hatRate: .quarter)
+        case .sciFi:      return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 10, kickPushEnabled: true,  hatRate: .sixteenth, kickCell: 10)
         default:          return .neutral
         }
     }

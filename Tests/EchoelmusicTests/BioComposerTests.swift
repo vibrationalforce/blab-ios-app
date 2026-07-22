@@ -562,6 +562,28 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    func testSameArchetypeGenresKeepDistinctBeatsWhenCalm() {
+        // Founder 2026-07-22: browsing genres, "nach kurzer Zeit klingt alles wie
+        // classic." Within a shared archetype the calm strip used to leave only a
+        // one-step perc-ghost difference between genres. The genre `hatRate` now gives
+        // each a distinct calm-surviving closed-hat texture, so two four-on-floor
+        // genres are audibly different EVEN at high coherence (calm 0.95 → spacious).
+        let calm: Float = 0.95
+        func drums(_ style: MusicStyle) -> [[Bool]] {
+            BioComposer.compose(input(coherence: calm, hr: 55, seed: 0x5EED, style: style)).drumSteps
+        }
+        let disco = drums(.disco)        // hatRate .offbeat → hats on 2/6/10/14
+        let psy   = drums(.psytrance)    // hatRate .sixteenth → hats on every 16th
+        // track 2 = closed hats. The two calm takes must NOT share a hat row…
+        XCTAssertNotEqual(disco[2], psy[2],
+            "same-archetype genres must keep distinct hat textures when calm (not converge)")
+        // …and the full drum grid differs too.
+        XCTAssertNotEqual(disco, psy,
+            "a calm disco and a calm psytrance must not render the same beat")
+        // The hat signature is deterministic — same input reproduces exactly.
+        XCTAssertEqual(disco, drums(.disco), "genre hat signature is deterministic")
+    }
+
     func testHarmonicGenresProduceLayeredMaterial() {
         // A pad/chord genre yields several simultaneous notes (a chord), not a
         // single line — that's the production starting material.
