@@ -1088,9 +1088,14 @@ public final class AUv3Host {
                     // did not resolve in THIS process) BEFORE any launch — with 0
                     // third-party this reads as host-process registry blindness or an
                     // unregistered component, NOT a launch-denied appex (grill
-                    // 2026-07-20). Prime another host + rescan discriminates.
+                    // 2026-07-20). Current lead (see `guidance`): the Inter-App Audio
+                    // capability on the com.echoelmusic.app App ID — a developer-portal
+                    // step + re-archive, NOT a reboot/rescan (the founder rebooted many
+                    // times and stayed cold, 2026-07-21). The stale "prime another host
+                    // then rescan" workaround is dropped here to match the professional
+                    // stance the founder set for every AUv3-diagnostic surface.
                     EchoelCrashLog.breadcrumb(
-                        "auv3 self-probe: FAILED \(e.domain)#\(e.code) — own component did not resolve in-process (host sees 0 out-of-process AUs); prime another AU host then rescan")
+                        "auv3 self-probe: FAILED \(e.domain)#\(e.code) — own component did not resolve in-process (host sees 0 out-of-process AUs)")
                     self?.diagnostic?.selfProbe = .failed(domain: e.domain, code: e.code)
                 }
             }
