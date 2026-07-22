@@ -1,35 +1,32 @@
-build: 2026-07-21F — Rhythmus-Vielfalt KOMPLETT (#79 alle 18 melodischen Genres)
+build: v10.79.326 — #77 Melodie-Autopilot AUS + #79 Rhythmus-Vielfalt ALLE 18 Genres
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder "rhythmische Vielfalt bei allen Genres" — jetzt vollständig ausgerollt.
+notes: FIX für "letzter Build ist noch 10.79.325 (2433)" — meine Session-Builds kamen
+  nicht oben an, WEIL ich den Versionsstring vergaß.
 
-  Seit dem letzten Deploy (fd9b897, der #77 + #79 Slice A trug) auf dem Branch:
-  · Task #79 Slice B (c1d114c): GenreFlavor-Overlay auf den .backbeat-Archetyp
-    (rock/punk/rocknroll/heavyMetal/jazz/oriental). Geteilter RNG-freier
-    applyFlavorGhost-Helper extrahiert, fourOnFloorBeat darauf refactored
-    (verhaltensidentisch). dsp-reviewer: sauber.
-  · Task #79 Slice C (7893b49): Overlay auf die letzten 2 Archetypes —
-    .offbeat (ska/rocksteady/klezmer) und .halfTime (doom/vaporwave/sciFi).
-    Bei .offbeat liegt die Skank auf perc[2/6/10/14] → Ghosts nur auf freie
-    Slots (3/11/5), Signatur unangetastet. dsp-reviewer: sauber.
+  URSACHE (jetzt behoben): testflight.yml parst `v[0-9]+\.[0-9]+\.[0-9]+` aus DIESER
+  Datei und setzt MARKETING_VERSION daraus. Meine bisherigen Session-Releases begannen mit
+  "build: 2026-07-21C…" — OHNE v10.79.xxx-String → DEPLOY_VER leer → MARKETING_VERSION
+  fiel auf den project.yml-Default 10.79.66 zurück. Die Builds 2436 (#77) und 2439 (#79)
+  wurden also als v10.79.66 hochgeladen — NIEDRIGER als der 10.79.325 auf dem Gerät des
+  Founders → TestFlight sortierte sie UNTER 2433, sie wirkten älter. (Beide sind in App
+  Store Connect state=VALID, nur unter der falschen, zu niedrigen Version einsortiert.)
 
-  ERGEBNIS: Alle 18 melodischen Genres (die 4 geteilten Beat-Archetypes) erzeugen
-  jetzt garantiert unterscheidbare Loops statt vier geteilter Grund-Patterns.
-  Mechanismus: pro Genre ein deklarativer GenreFlavor (hatDensityBias / eindeutiger
-  percGhostStep / optionaler kickPush), RNG-frei und bio-frei — gleicher
-  Genre+Seed+Bio bleibt byte-identisch/deterministisch, die Archetyp-Signaturen
-  (Kick-jede-Zählzeit / Snare-2&4 / Skank / Snare-auf-3) werden nie entfernt.
-  Jede der 4 Slices hatte einen Pflicht-Reviewer (code-reviewer ×1 für A,
-  dsp-reviewer ×3 für B/C), alle CI-Gates grün.
+  FIX: (1) diese Datei trägt jetzt `v10.79.326` (höher als 325) → der Build erscheint als
+  neueste Version oben. (2) project.yml-Default MARKETING_VERSION auf 10.79.326 gehoben,
+  damit ein künftig vergessener Versionsstring nie wieder auf ein zu niedriges 10.79.66
+  zurückfällt.
 
-  BEWUSST distinctness-first: die Genres klingen jetzt garantiert VERSCHIEDEN;
-  das Klang-FEINTUNING der Flavor-Werte (klingt jedes Genre auch GUT?) wartet
-  auf den Founder-Geräte-Ohr-Check — nicht blind getuned.
+  INHALT dieses Builds (der komplette Session-Stand, den der Founder testen soll):
+  · #77: keine Auto-Lead-Melodie mehr in irgendeinem Genre (leadDensity=0 überall) +
+    Bar-0-Intro-Dämpfung; Melodien spielt der Nutzer selbst auf dem warmen Genre-Timbre.
+  · #79: rhythmische Vielfalt über ALLE 18 melodischen Genres (GenreFlavor-Overlay auf
+    fourOnFloor/backbeat/offbeat/halfTime) — Genres desselben Archetyps klingen jetzt
+    unterscheidbar; deterministisch, Signaturen erhalten, Distinctness per Test abgesichert.
+    Bio-Orientierung des Rhythmus (energy/coherence → Beat-Dichte) existiert weiterhin.
 
-  Plan: scratchpads/PLAN_RHYTHMIC_DIVERSITY_2026-07-21.md. Möglicher nächster
-  Schritt (nach Ohr-Check): Slice D — stärkere Bio-Kopplung (energy/coherence
-  bewegt die Flavor-Werte live statt statisch pro Genre).
+  BITTE: TestFlight öffnen → v10.79.326 (Build 244x) installieren → hören ob die 18 Genres
+  angenehm rhythmisch verschieden klingen (Klang-Feintuning der Flavor-Werte ist bewusst
+  noch offen, wartet auf dieses Ohr-Feedback).
 
-  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline + Full Test Suite ALLE
-  grün auf 7893b49 (verifiziert vor diesem Deploy).
-
-  Bekannte offene Punkte (unverändert, device-/founder-gated): siehe letzte Deploys.
+  Gates: Xcode Compile Check + Echoelmusic CI/CD Pipeline zuletzt grün auf 0c816b3; dieser
+  Deploy ändert nur project.yml (Versions-Literal) + diese Datei.
