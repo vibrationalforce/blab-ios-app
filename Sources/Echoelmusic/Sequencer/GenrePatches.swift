@@ -81,10 +81,10 @@ public extension MusicStyle {
         case .disco:
             return patch("D6", "Velvet Strings",
                 a: 0.10, d: 0.8, s: 0.72, r: 2.0,
-                harm: 0.92, hl: 0.80, bright: 0.42, noise: 0.015, color: "Pink", shape: "Natural",
-                cutoff: 2800, res: 0.12, lfoAmt: 0.10, lfoRate: 0.24, lfoDepth: 0.22,
+                harm: 0.92, hl: 0.80, bright: 0.46, noise: 0.015, color: "Pink", shape: "Natural",
+                cutoff: 3050, res: 0.12, lfoAmt: 0.10, lfoRate: 0.24, lfoDepth: 0.26,
                 revMix: 0.46, revDecay: 3.0, vibRate: 5, vibDepth: 0.07,
-                uni: 3, det: 12)   // warm synth ensemble — no real-instrument spectrum (founder 2026-07-07)
+                uni: 3, det: 15)   // lush wide shimmer — the bright-warm ensemble pole (ultrascan step 1)
         case .synthwave:
             return patch("D7", "Neon Lead",
                 a: 0.02, d: 0.5, s: 0.72, r: 1.8,
@@ -129,31 +129,31 @@ public extension MusicStyle {
                 uni: 2, det: 8)
         case .classical:
             return patch("E1", "Chamber Strings",
-                a: 0.25, d: 1.0, s: 0.80, r: 3.0,
-                harm: 0.90, hl: 0.82, bright: 0.34, noise: 0.02, color: "Pink", shape: "Natural",
-                cutoff: 2600, res: 0.08, lfoAmt: 0.06, lfoRate: 0.10, lfoDepth: 0.15,
-                revMix: 0.50, revDecay: 3.8, vibRate: 5, vibDepth: 0.10,
-                uni: 3, det: 12)   // warm synth strings — no real-instrument spectrum
+                a: 0.35, d: 1.0, s: 0.80, r: 3.2,
+                harm: 0.90, hl: 0.82, bright: 0.31, noise: 0.02, color: "Pink", shape: "Natural",
+                cutoff: 2450, res: 0.08, lfoAmt: 0.06, lfoRate: 0.10, lfoDepth: 0.15,
+                revMix: 0.52, revDecay: 4.0, vibRate: 5, vibDepth: 0.10,
+                uni: 4, det: 16)   // slow orchestral bloom, widest section — the strings pole (ultrascan step 1)
         case .jazz:
             return patch("E2", "Warm Rhodes",
                 a: 0.02, d: 0.9, s: 0.60, r: 1.8,
-                harm: 0.90, hl: 0.78, bright: 0.40, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 3000, res: 0.10, lfoAmt: 0.08, lfoRate: 0.20, lfoDepth: 0.20,
+                harm: 0.90, hl: 0.78, bright: 0.33, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 2250, res: 0.10, lfoAmt: 0.08, lfoRate: 0.20, lfoDepth: 0.20,
                 revMix: 0.40, revDecay: 2.6, vibRate: 4, vibDepth: 0.06,
-                uni: 2, det: 7)                                  // subtle Rhodes ensemble
+                uni: 2, det: 6)   // dark, round Rhodes — the mellow-keys pole (ultrascan step 1)
         case .klezmer:
             return patch("E3", "Clarinet Reed",
                 a: 0.04, d: 0.5, s: 0.70, r: 1.4,
-                harm: 0.92, hl: 0.80, bright: 0.44, noise: 0.02, color: "Pink", shape: "Natural",  // warmth pass 2
-                cutoff: 3100, res: 0.12, lfoAmt: 0.10, lfoRate: 0.25, lfoDepth: 0.20,
-                revMix: 0.38, revDecay: 2.4, vibRate: 5.5, vibDepth: 0.12)   // warm synth reed — no real-instrument spectrum
+                harm: 0.92, hl: 0.80, bright: 0.38, noise: 0.02, color: "Pink", shape: "Natural",  // warmth pass 2
+                cutoff: 2600, res: 0.12, lfoAmt: 0.10, lfoRate: 0.25, lfoDepth: 0.20,
+                revMix: 0.38, revDecay: 2.4, vibRate: 6.2, vibDepth: 0.15)   // solo woody reed, most expressive vibrato, no unison (ultrascan step 1)
         case .oriental:
             return patch("E4", "Reed Strings",
                 a: 0.08, d: 0.8, s: 0.72, r: 2.2,
-                harm: 0.90, hl: 0.80, bright: 0.46, noise: 0.02, color: "Pink", shape: "Natural",
-                cutoff: 3000, res: 0.12, lfoAmt: 0.10, lfoRate: 0.20, lfoDepth: 0.25,
-                revMix: 0.46, revDecay: 3.2, vibRate: 5, vibDepth: 0.10,
-                uni: 2, det: 10)   // warm synth reed — no real-instrument spectrum
+                harm: 0.90, hl: 0.80, bright: 0.44, noise: 0.02, color: "Pink", shape: "Natural",
+                cutoff: 2650, res: 0.12, lfoAmt: 0.10, lfoRate: 0.30, lfoDepth: 0.25,
+                revMix: 0.46, revDecay: 3.2, vibRate: 6, vibDepth: 0.14,
+                uni: 2, det: 9)   // reedy waver — expressive vibrato + faster movement (ultrascan step 1)
         case .punk:
             return patch("E5", "Buzz Saw",
                 a: 0.010, d: 0.3, s: 0.60, r: 0.6,   // softer attack (was 0.005) — no cold stab
@@ -184,11 +184,11 @@ public extension MusicStyle {
                 uni: 2, det: 8)                                  // organ needs ensemble body
         case .rocksteady:
             return patch("E9", "Warm Organ",
-                a: 0.02, d: 0.5, s: 0.70, r: 1.4,
-                harm: 0.90, hl: 0.80, bright: 0.40, noise: 0.0, color: "Pink", shape: "Natural",
-                cutoff: 2600, res: 0.10, lfoAmt: 0.08, lfoRate: 0.18, lfoDepth: 0.18,
-                revMix: 0.36, revDecay: 2.2, vibRate: 4, vibDepth: 0.06,
-                uni: 2, det: 8)
+                a: 0.02, d: 0.5, s: 0.78, r: 1.4,
+                harm: 0.90, hl: 0.80, bright: 0.30, noise: 0.0, color: "Pink", shape: "Natural",
+                cutoff: 2050, res: 0.10, lfoAmt: 0.12, lfoRate: 0.30, lfoDepth: 0.22,
+                revMix: 0.36, revDecay: 2.2, vibRate: 0, vibDepth: 0,
+                uni: 2, det: 8)   // dark drawbar organ, flat sustain + rotary LFO, no vibrato (ultrascan step 1)
         case .heavyMetal:
             return patch("EA", "Metal Rig",
                 a: 0.010, d: 0.4, s: 0.55, r: 0.8,   // softer attack (was 0.004) — tame the stab

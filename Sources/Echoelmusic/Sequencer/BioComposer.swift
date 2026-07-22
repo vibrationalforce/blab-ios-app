@@ -1384,10 +1384,12 @@ public enum BioComposer {
                 // high-coherence journey picks — the same expected T→S→D→T for every
                 // genre in the same key/scale). Lock the first `k` of the `n` section
                 // roots to the genre's OWN authored progression (phase-rotated,
-                // diatonic), where `k` grows with coherence: calm (coherence→1) ⇒
-                // k→n ⇒ the root motion IS the genre signature (Disco stays Disco,
-                // Doom stays Doom); aroused (coherence→0) ⇒ k→0 ⇒ the exploratory
-                // journey survives BYTE-IDENTICAL. Pure function of coherence + two
+                // diatonic), where `k` grows with coherence off a FLOOR: calm
+                // (coherence→1) ⇒ k→n ⇒ the root motion IS the genre signature (Disco
+                // stays Disco, Doom stays Doom); aroused (coherence→0) ⇒ k→ the floor
+                // (≥1 for n≥2, see below) ⇒ at least the genre's first root stays
+                // anchored while the rest of the journey explores seeded/free. Pure
+                // function of coherence + two
                 // in-key degree arrays — NO rng/structureRNG draw, so every
                 // downstream draw keeps its order (determinism law). Chord QUALITY
                 // (profile.chordTones, e.g. jazz 7ths) is untouched below; only ROOT
@@ -1400,9 +1402,14 @@ public enum BioComposer {
                 // the shared journey still dominated, so genres converged). Reach the
                 // full genre progression by coherence 0.7 — the same threshold the beat
                 // turns "spacious" — so a settling body hears THIS genre's own harmony
-                // well before it is perfectly calm. coh 0 ⇒ anchor 0 ⇒ k 0 ⇒ the aroused
-                // journey stays BYTE-IDENTICAL (determinism law + the seed-stable test).
-                let anchor = Swift.min(1, coh / 0.7)
+                // well before it is perfectly calm. FLOOR 0.34 (ultrascan 2026-07-22 step 2):
+                // even fully aroused (coh 0) at least ONE section root stays anchored to
+                // THIS genre's baseProg (k≥1 for n≥2), so browsing genres in an aroused /
+                // finger-just-on state no longer collapses every genre onto the same free
+                // journey ("gehe durch die Genres → alles wie classic"). The non-anchored
+                // roots still journey freely for variation; the anchor only ever GROWS with
+                // coherence. Deterministic (pure function of coherence, no RNG).
+                let anchor = Swift.max(0.34, Swift.min(1, coh / 0.7))
                 let k = Swift.min(n, Int((Float(n) * anchor).rounded()))
                 if k > 0 {
                     let rotBase = ((progressionPhase % baseProg.count) + baseProg.count) % baseProg.count

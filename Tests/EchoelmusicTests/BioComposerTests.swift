@@ -1002,11 +1002,16 @@ final class BioComposerTests: XCTestCase {
         XCTAssertFalse(calmA.isEmpty, "calm harmony should sound")
         XCTAssertEqual(calmA, calmB,
             "at full coherence the harmony IS the genre's authored progression — a stable genre signature, not a generic journey")
-        // The AROUSED regime is byte-preserved: the exploratory journey is seeded, so
-        // two seeds explore DIFFERENTLY (the crossfade is inert at k=0).
-        XCTAssertNotEqual(bassRootClasses(seed: 0xA1, coherence: 0.0),
-                          bassRootClasses(seed: 0xB2, coherence: 0.0),
-            "at low coherence the seeded journey still explores per seed (crossfade inert)")
+        // AROUSED regime (ultrascan 2026-07-22 step 2 — anchor floor 0.34): even fully
+        // aroused, the FIRST section root is anchored to THIS genre's progression (k≥1),
+        // so browsing genres in an aroused state no longer collapses onto one free journey.
+        let arousedA = bassRootClasses(seed: 0xA1, coherence: 0.0)
+        let arousedB = bassRootClasses(seed: 0xB2, coherence: 0.0)
+        XCTAssertEqual(arousedA.first, arousedB.first,
+            "aroused, the genre-anchored FIRST root is seed-independent (floor keeps genre identity)")
+        // …but the NON-anchored tail still explores per seed, so variation survives.
+        XCTAssertNotEqual(arousedA, arousedB,
+            "aroused, the free tail beyond the anchor still varies per seed (variation preserved)")
         // Polarity: same seed, the calm harmony DIFFERS from the aroused harmony — the
         // fix is coherence-active, converging to the genre home as the body settles.
         XCTAssertNotEqual(bassRootClasses(seed: 0xA1, coherence: 1.0),

@@ -1,28 +1,35 @@
-build: v10.79.330 — Hi-Hat bleibt genre-typisch UND reagiert wieder auf deinen Körper
+build: v10.79.331 — Genres klingen jetzt hörbar verschieden (Ultrascan-Top-2-Fixes)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Nachbesserung zu v329 (Slice 2). Zwei Reviewer-Befunde von v329 behoben.
+notes: Nach deinem Ultrascan-Wunsch: ganzer DMMW-Scan gemacht (8 Bereiche, aktueller Code
+  verifiziert). Ergebnis: der INSTRUMENT-KERN ist ~90% produktionsreif — die Frustration
+  kam aus zwei konkreten Dingen, nicht aus 20 kaputten. Dieser Build fixt das WICHTIGSTE
+  (den Klang), die höchst-hebeligen zwei Schritte des Scans:
 
-  BEFUND 1 (der wichtige, Nord-Stern): in v329 wurde die Hi-Hat-Spur eine feste
-  Genre-Signatur — sie wurde NICHT mehr geschäftiger, wenn du dich aufregtest. Das
-  widersprach dem Kern von Echoel ("die Musik verändert sich mit dem Körper").
-  FIX: Die Genre-Signatur bleibt die RUHE-Basis; wenn dein Körper treibt (hohe Energie,
-  nicht gesettled), verdichten sich die Hats jetzt EINEN Schritt weiter — aber immer
-  INNERHALB des Genre-Charakters (sparse→Viertel, Viertel→8tel, Offbeat→voller,
-  treibend→16tel). Rein additiv: die ruhigen Schläge bleiben eine Teilmenge der
-  aufgeregten (Ruhe ⊆ Erregung). So bleibt jedes Genre relativ zu seinen Nachbarn
-  leichter/dichter — bei Ruhe UND bei Anstrengung.
+  1) TIMBRE-SPREAD: sechs "Warm-Cluster"-Genres (classical/jazz/disco/oriental/rocksteady/
+     klezmer) teilten fast identische Synth-Patches — DER Grund für "alles klingt wie classic",
+     weil ohne Beat/Lead das gehaltene Pad der EINZIGE Genre-Träger ist. Jetzt idiomatisch
+     gespreizt und HÖRBAR verschieden (alle bleiben warm, nichts schrill):
+     · Jazz = dunkles rundes Rhodes (Cutoff runter)  · Classical = langsame breite Streicher
+     · Disco = lush breites Schimmern  · Oriental = rohrblatt-artig mit Vibrato-Wobble
+     · Rocksteady = dunkle Drawbar-Orgel (Rotary-LFO, kein Vibrato)  · Klezmer = solo-Holzrohr
+  2) HARMONIE-BODEN: beim DURCHBLÄTTERN (aufgeregt, niedrige Kohärenz) verlor die Genre-
+     Harmonie ihren Anker und alle Genres fielen auf dieselbe Akkord-Reise → "alles wie classic".
+     Jetzt bleibt auch voll aufgeregt mindestens EIN Genre-Akkord verankert (Boden 0.34), der
+     Anker WÄCHST mit Ruhe. So bleibt jedes Genre beim Browsen erkennbar.
 
-  BEFUND 2 (Hygiene): der von v329 tot gewordene hatDensityBias-Kippcode in allen vier
-  Beat-Buildern ist entfernt (er wurde für jedes Genre eh von applyHatRate überschrieben).
-  Byte-identisch für alle ausgelieferten Genres — reine Aufräumung.
+  Beide deterministisch, zwei neue/aktualisierte Tests (Warm-Cluster mess-verschieden +
+  Harmonie-Anker aufgeregt), beide Pflicht-Reviewer laufen auf dem Diff.
 
-  Deterministisch (kein RNG in den Hats; Energie = feste Funktion des Bio-Snapshots),
-  Subset-Invariante gehalten, neuer Test dabei (Ruhe-Hats ⊆ Erregungs-Hats, strikt dichter).
-  Beide Pflicht-Reviewer (DSP + Code) laufen auf diesem Diff.
+  WICHTIG fürs Ohr: Timbre ist gerät-abstimmbar — ich kann es nicht hören. Bitte auf v331
+  durch classic → jazz → disco → doom → rocksteady gehen: klingt jedes jetzt klar wie ein
+  eigenes Instrument? Wenn eins noch verschwimmt, sag welches, dann stimme ich GEZIELT nach.
 
-  Zusammen mit v327/v328 (Harmonie) + v329 (Beat-Signatur) ist das der Abschluss der
-  Genre-Distinktheits-Arbeit. BITTE beim Testen aufs OHR achten: klingt der Beat pro
-  Genre klar anders — und wird er hörbar geschäftiger, wenn dein Puls steigt? Wenn ja,
-  ist der "alles wie classic"-Effekt weg; wenn nein, sag welches Genre noch verschwimmt.
+  DER SCAN (ganzes Bild) liegt in scratchpads/ULTRASCAN_PRODUCTION_PATH_2026-07-22.md:
+  produktionsreif heute = Bio-Pipeline (3 Quellen, freshness-gated), bio→Klang/FX/Visual live,
+  lock-freie Synth-Engine, DAW-Timeline (MIDI+Audio klingen, ehrliches Record-Modell),
+  Flash-Safety Bildschirm-Visual, Privacy/Egress sauber, ehrliche Shell. Größte offene
+  Baustelle = AUv3-Hosting (in Swift fertig, aber iOS liefert dem Host 0 Komponenten → PARKEN,
+  nicht weiter Swift-Aufwand). Kürzester Produktions-Pfad = auf den Instrument-Kern scope-locken,
+  Sound distinct (dieser Build), Rest hinter Flags parken, dann Geräte-Verify.
 
-  Änderung: BioComposer.swift + Test + project.yml + diese Datei.
+  Änderung: BioComposer.swift + GenrePatches.swift + 2 Tests + project.yml + diese Datei.
