@@ -411,6 +411,20 @@ struct FloatingVisualWindow: View {
                     if recorder.isRecording { RecordingBadge(start: recordStart) }
                 }
                 #endif
+                // FIRST-RUN INVITATION (vision Step 2b, founder law #1: "app open, finger
+                // on camera, in 3 seconds it lives"). The one gesture a new user can't
+                // discover by feel — the camera is on the BACK, nothing on screen implies
+                // it. A single, once-ever, self-fading whisper on the HOME (fullscreen) that
+                // teaches the two core gestures, then never returns. Non-blocking
+                // (allowsHitTesting false — never steals the first play-touch), flash-safe
+                // (one opacity ramp, far under 3 Hz), reduce-motion aware. Own leaf → reads
+                // only @AppStorage (freeze rule), no bio; no sheet added.
+                .overlay(alignment: .bottom) {
+                    if windowSize.isFullscreen {
+                        InstrumentHintOverlay(reduceMotion: reduceMotion)
+                            .padding(.bottom, 44)
+                    }
+                }
         }
         .background(Color.black)
         // No rounded corners / border in fullscreen — a true edge-to-edge picture.
@@ -711,6 +725,60 @@ struct FloatingVisualWindow: View {
         let maxY = bounds.height - card.height / 2 - margin
         return CGPoint(x: min(max(p.x, minX), max(minX, maxX)),
                        y: min(max(p.y, minY), max(minY, maxY)))
+    }
+}
+
+/// First-run invitation on the instrument home (vision Step 2b). Teaches the two
+/// core gestures — finger on the (back) camera to bring it to life, touch the image
+/// to play — then fades and NEVER returns (persisted `onboard.instrumentHintSeen`).
+/// A self-contained leaf: reads only @AppStorage (freeze rule), never a bio value;
+/// `allowsHitTesting(false)` so it can never swallow the first play-touch; one opacity
+/// ramp (far under the 3 Hz flash rule), reduce-motion aware. Whisper styling per
+/// Uncodixfy — a subtle dark chip, no glow, accent green stays reserved for live bio.
+@MainActor
+private struct InstrumentHintOverlay: View {
+    let reduceMotion: Bool
+    @AppStorage("onboard.instrumentHintSeen") private var seen = false
+    @State private var visible = false
+
+    var body: some View {
+        Group {
+            if !seen {
+                VStack(spacing: 7) {
+                    Label("Finger auf die Kamera bringt es zum Leben", systemImage: "camera")
+                    Label("Berühre das Bild zum Spielen", systemImage: "hand.point.up.left")
+                }
+                .font(EchoelTheme.font(13, .medium))
+                .foregroundStyle(.white.opacity(0.92))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 11)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.5)))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.12), lineWidth: 1))
+                .opacity(visible ? 1 : 0)
+                .allowsHitTesting(false)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Finger auf die Kamera bringt es zum Leben. Berühre das Bild zum Spielen.")
+                .task {
+                    // Show once, hold ~4.5 s, fade out, then mark seen so it never returns.
+                    // No animation under Reduce Motion (a hard cut, still flash-safe).
+                    // ONCE-EVER CONTRACT (do not weaken): `seen = true` MUST run even when the
+                    // task is cancelled early (user flicks out of fullscreen mid-hold). The
+                    // `try?` (not `try`) swallows the sleep's CancellationError and falls
+                    // through to the write, so the hint never re-shows on return to fullscreen.
+                    // Do NOT add `guard !Task.isCancelled` or move `seen = true` before the
+                    // sleeps — that would re-arm the hint on a fullscreen toggle. The only
+                    // path leaving seen=false is app termination before the write (correct:
+                    // an unseen hint re-shows next launch).
+                    if reduceMotion { visible = true }
+                    else { withAnimation(.easeIn(duration: 0.45)) { visible = true } }
+                    try? await Task.sleep(nanoseconds: 4_500_000_000)
+                    if reduceMotion { visible = false }
+                    else { withAnimation(.easeOut(duration: 0.6)) { visible = false } }
+                    try? await Task.sleep(nanoseconds: 700_000_000)
+                    seen = true
+                }
+            }
+        }
     }
 }
 #endif
