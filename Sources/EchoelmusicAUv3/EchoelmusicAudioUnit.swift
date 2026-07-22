@@ -403,7 +403,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
             // MIDI-1.0 protocol, where hosts translate to legacy events. A future host
             // negotiating MIDI-2.0 UMP would deliver .MIDIEventList instead (add a
             // branch here if that is ever adopted).
-            var event = renderEvent
+            var event: UnsafePointer<AURenderEvent>? = renderEvent
             while let e = event {
                 let header = e.pointee.head
                 if header.eventType == .MIDI {
@@ -422,7 +422,9 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
                         }
                     }
                 }
-                event = header.next
+                // `AURenderEventHeader.next` imports as an UnsafeMutablePointer while the
+                // list head is a const UnsafePointer — convert so the walk stays const.
+                event = header.next.map { UnsafePointer($0) }
             }
 
             // Use pre-allocated scratch (captured by value — COW safe since we own them)
