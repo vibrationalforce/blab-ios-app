@@ -8093,3 +8093,23 @@ DSP-Reviewer CLEAN. 4 Test-Assertions. Commit + Deploy v336.
 **Next (vision):** Step 2 cold-start choreography (camera prompt → pulse lock → first tone → first touch); Step 3 close the clip loop (record button exists; add "last 20s" ring); Step 4 sound/visual beauty. Plan: `scratchpads/PLAN_INSTRUMENT_HOME_2026-07-22.md`.
 
 **Gate-Bestätigung (2026-07-22, 20:20 UTC):** `721661f` (Instrument-Home, vision Step 1) = **grün auf beiden Gates** (Xcode Compile Check ✅ + CI/CD ✅). `49a55aa` (Studio-Tür, Step 1b) = Xcode ✅, CI/CD lief noch. `d49be89` (PLAN Step 2 + OnboardingView-Kommentarfix) = beide bauten (docs/comment-only). Kein Rot. Kein Deploy (Freeze). Step 2 (Cold-Start-Choreografie) geplant + Council in `scratchpads/PLAN_COLD_START_CHOREOGRAPHY_2026-07-22.md`; 2a/2b sicher-autonom, 2c (Kopie) + Startmodus warten auf Founder-Wort.
+
+---
+
+## 2026-07-22 — TestFlight v10.79.339 ERFOLGREICH (Founder: "arbeitest bis Build erfolgreich")
+
+Founder hob den TestFlight-Freeze auf. Tokenless Deploy vom Feature-Branch (`.deploy/release`
++ MARKETING_VERSION 10.79.338→339 Bump, commit `3125ac1`) → testflight.yml **Run #2453
+(29956193285) GRÜN auf allen Jobs**: Preflight (Secrets ✅) · iOS (Archive ✅ · **AUv3-Embed +
+Registration verifiziert** — das neue aumu-Instrument · Export & Upload ✅ · **Build in App Store
+Connect gelandet ✅**) · Compile Check ✅ · Summary ✅. watchOS/visionOS/tvOS/macOS skipped (iOS-Deploy).
+
+**Ausgeliefert (Build 2453, v10.79.339):** Vision Step 1 Instrument-Home (App öffnet ins lebendige
+Vollbild-Instrument, DAW montiert darunter, hinter FeatureFlags.instrumentHome DEFAULT-AN) · Step 1b
+Studio-Produzenten-Tür · B1 AUv3 = spielbares aumu-Instrument mit MIDI-Note-Input. Beide Ship-Blocker-
+Gesetze verifiziert, Reviewer clean.
+
+**Wartet auf Founder-Geräte-Verify:** öffnet die App ins Vollbild-Instrument? Finger spielt Noten?
+Studio-Tür fällt in die DAW? Session läuft über den Wechsel weiter? AUv3 erscheint als Instrument
+(nicht Generator) im Host + empfängt MIDI? Nächste Vision-Scheiben (Step 2a Auto-Arm, Startmodus,
+Step 2c Kopie) warten auf Founder-Wort.
