@@ -334,3 +334,23 @@ real flag values per case and confirm the target inputs actually reach the new b
 genres as sustained:true — they are NOT); trust an authoritative `grep -c` + per-case read, and add
 an INTEGRATION test that proves the new path is exercised end-to-end (not just a unit test of the
 new function in isolation).
+
+---
+
+### PLAYBOOK 2026-07-22 — the SPSC-drain idiom for ANY high-rate producer → audio-thread array rewrite
+**Cycle:** v337, PolySynthVoice bio-spectral COW race (ultrascan step 3).
+PolySynthVoice fanned bio into `poly.applyBioReactive` DIRECTLY from the @MainActor 10 Hz poll
+(`applyLatestIfFresh`), which rewrote each voice's `harmonicAmplitudes` `[Float]` on the main thread
+while the render block read it → cross-thread array COW/torn-read race. Notes/patch/fx were already
+SPSC-drained on the audio thread; the bio path was the last one that wasn't (BioReactiveSynthVoice
+had ALREADY been fixed this exact way — the twin was left behind).
+**PLAYBOOK:** when a control-plane poll mutates an ARRAY that the render reads, NEVER call the mutator
+from the poll — enqueue a trivial `Sendable` params struct on a lock-free `SPSCQueue`, drain
+coalesce-to-latest + apply INSIDE `renderOnAudioThread`. Place the bio/param drain AFTER the patch
+drain (anchors first) and before the render read. Resolve any control-plane-only inputs (e.g. a
+`bioMappingHarmonic` flag → `BioMapProfile`) on the main actor at enqueue and carry them in the value.
+Scalar/enum writes (word-aligned, e.g. `entrainment.band/.depth`) are the BENIGN class — leave them,
+don't over-scope. Mirror the already-shipped sibling exactly; two audio-thread reviewers = CLEAN.
+**Latent follow-up surfaced:** `computeShapeAmplitudes` `.formant` branch allocates a 3-elem array
+literal per call → now on the audio thread for `.formant` patches (no shipping genre uses `.formant`,
+so it never fires today). Logged as its own cycle (task #84) — hoist to a static let.
