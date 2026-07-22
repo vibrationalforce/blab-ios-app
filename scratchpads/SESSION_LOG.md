@@ -8067,3 +8067,9 @@ Artikulation (skank/stab/comp/sustained) aus beatArchetype, im echten Pad-Zweig 
 Genres. WICHTIG: erster Wurf war wirkungslos (falscher Zweig) — dsp-reviewer fing es als HIGH,
 korrigiert + re-reviewed CLEAN. classical/doom byte-identisch. 10 Tests inkl. Inert-Guard. Commit +
 Deploy v335. Beide Reviewer grün. Founder-Ohr entscheidet Feintuning.
+
+## 2026-07-22 — v336: Metrik-Akzent auf den Genre-Chops (musikalische Vollendung v335)
+Die v335-Chops hatten nur Zufalls-Velocity → mechanisch. metricAccent(step) (Downbeat 1.0 …
+Offbeat 0.86, ~1.4 dB) nur auf die rhythmischen Chops → intentional statt roboterhaft. Determinismus
+byte-identisch (skaliert nur den Wert vor hVel, kein zusätzlicher RNG-Zug), keine Noten-Count-Änderung.
+DSP-Reviewer CLEAN. 4 Test-Assertions. Commit + Deploy v336.

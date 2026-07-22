@@ -1081,6 +1081,32 @@ final class BioComposerTests: XCTestCase {
         XCTAssertEqual(a.map { [$0.start, $0.len] }, b.map { [$0.start, $0.len] })
     }
 
+    func testMetricAccent_hierarchyDownbeatStrongestOffbeatSoftest() {
+        // The metrical hierarchy that makes chops read as intentional, not robotic.
+        XCTAssertEqual(BioComposer.metricAccent(step: 0), 1.0, accuracy: 0.0001, "downbeat is strongest")
+        XCTAssertEqual(BioComposer.metricAccent(step: 8), 0.95, accuracy: 0.0001, "beat 3")
+        XCTAssertEqual(BioComposer.metricAccent(step: 4), 0.92, accuracy: 0.0001, "beat 2")
+        XCTAssertEqual(BioComposer.metricAccent(step: 12), 0.92, accuracy: 0.0001, "beat 4")
+        XCTAssertEqual(BioComposer.metricAccent(step: 2), 0.86, accuracy: 0.0001, "offbeat is softest")
+        // Strict ordering downbeat > beat3 > beats2/4 > offbeat.
+        XCTAssertGreaterThan(BioComposer.metricAccent(step: 0), BioComposer.metricAccent(step: 8))
+        XCTAssertGreaterThan(BioComposer.metricAccent(step: 8), BioComposer.metricAccent(step: 4))
+        XCTAssertGreaterThan(BioComposer.metricAccent(step: 4), BioComposer.metricAccent(step: 2))
+    }
+
+    func testMetricAccent_boundedAndBarAligned() {
+        for step in 0..<64 {
+            let a = BioComposer.metricAccent(step: step)
+            XCTAssertGreaterThanOrEqual(a, 0.86)
+            XCTAssertLessThanOrEqual(a, 1.0)
+            // Bar-aligned (period 16): step and step+16 accent identically.
+            XCTAssertEqual(a, BioComposer.metricAccent(step: step + 16), accuracy: 0.0001)
+        }
+        // Negative steps normalize into the bar (locks the ((step%16)+16)%16 path).
+        XCTAssertEqual(BioComposer.metricAccent(step: -14), BioComposer.metricAccent(step: 2), accuracy: 0.0001)
+        XCTAssertEqual(BioComposer.metricAccent(step: -16), BioComposer.metricAccent(step: 0), accuracy: 0.0001)
+    }
+
     func testCompose_rhythmicGenresChopChords_notInertThroughPipeline() {
         // THE inert-code guard (a review caught the first cut wiring chordOnsets only into a
         // branch no rhythmic genre reaches, making it a no-op). If the genre articulation does

@@ -1,35 +1,23 @@
-build: v10.79.335 — Genre-Rhythmus auf den hörbaren Akkorden (der echte Hebel)
+build: v10.79.336 — Metrik-Akzent auf den Genre-Chops (Rhythmus klingt intentional, nicht robotisch)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Founder: "Das Genre Problem nicht behoben." Diagnose von Grund auf — und diesmal der
-  RICHTIGE Hebel, nicht wieder ein Timbre-Parameter.
+notes: Musikalische Vollendung von v335 (Genre-Akkord-Artikulation). Die neuen Chops
+  (skank/stab/comp) hatten zwar humanisierte Zufalls-Velocity, aber keine METRISCHE Dynamik —
+  gleich laute Anschläge klingen mechanisch/roboterhaft, also „unprofessionell" (Founder-Wort).
 
-  WARUM die Genres gleich klangen (Root-Cause): Drums sind stumm (silentBeat), Auto-Leads aus.
-  Übrig bleiben Pad-Akkorde. Und der Akkord-RHYTHMUS war für ALLE Genres identisch — die
-  rhythmischen Genres liefen alle durch denselben "einen gehaltenen Akkord pro Abschnitt"-Pfad
-  (bzw. genre-blinden Herzschlag-Onset). Rhythmus ist der STÄRKSTE Genre-Cue, war aber genre-blind.
-  Frühere "Genre-Rhythmus"-Arbeit (Beat-Signatur, hatRate) lag in der STUMMEN Drum-Reihe → nie
-  hörbar. Die v333/334-Filter drehten nur am Timbre der gehaltenen Fläche = schwächster Cue.
+  FIX: metricAccent(step) — die grundlegende metrische Hierarchie (Downbeat 1.0 · Zählzeit 3
+  0.95 · Zählzeiten 2&4 0.92 · Offbeats/schwach 0.86), NUR auf die rhythmischen Chops
+  angewandt. ~1.4 dB Spreizung an der Velocity-Oberkante = subtiler Groove-Lean, der den
+  Rhythmus intentional macht ohne die schwachen Zählzeiten auszuhöhlen; die Zufalls-Humanisierung
+  reitet oben drauf. Universelles Musikprinzip, kein Genre-Geschmack.
 
-  FIX: genre-spezifische Akkord-Artikulation auf dem hörbaren Pad, abgeleitet aus dem vorhandenen
-  beatArchetype pro Genre:
-   • Reggae/Ska-Familie (rocksteady/klezmer) → SKANK: kurze Chops auf den Offbeat-8teln.
-   • Disco/House (disco/futuristic) → STAB: Akkord auf der Eins, 8tel-Puls wenn der Körper hochfährt.
-   • Jazz/Rock (jazz/oriental/rock/punk/rocknroll/heavyMetal) → COMP: Betonung 2 & 4 + Synkope.
-   • Klassik/Doom/Ambient/Meditation/Dub → GEHALTEN/legato, byte-identisch (calm=still-Kern bleibt).
-  Das Bio skaliert weiter die Dichte/Intensität; die Genre-Signatur ist IMMER präsent (= "erst
-  individuell"). Hörbar unmissverständlich: Skank vs. Comp vs. gehaltene Fläche — nicht ein
-  unsichtbarer Parameter.
+  Determinismus byte-identisch: der Akzent skaliert nur den Velocity-WERT vor hVel, kein
+  zusätzlicher RNG-Zug → RNG-Strom unverändert, nur die Chop-Velocities bewegen sich. Keine
+  Noten-Count-Änderung → alle v335-Integrationstests halten. Klassik/Doom/Arp/Ambient unberührt.
 
-  PROZESS-EHRLICHKEIT: Der erste Wurf war WIRKUNGSLOS — er verdrahtete die Artikulation in einen
-  Zweig, den kein rhythmisches Genre erreicht (nur 6 Genres sind sustained, alle bereits ruhig).
-  Der Pflicht-DSP-Reviewer hat das als HIGH gefangen, BEVOR es als "gefixt" gemeldet wurde — genau
-  der Gate gegen Slop. Korrigiert: der Fix sitzt jetzt im echten Pad-Zweig der rhythmischen Genres.
-  Re-Review CLEAN (Determinismus erhalten, classical/doom byte-identisch, keine Test-Breakage).
+  4 neue Test-Assertions (Akzent-Werte, Ordnung, Grenzen, Bar-Alignment inkl. negative Steps).
+  Pflicht-DSP-Reviewer CLEAN (Determinismus, Skopierung vollständig nur der Chop-Zweig,
+  musikalisch konservativ, Rausch-Triade unberührt).
 
-  10 neue Tests (Grids · byte-identische Held-Delegation · Determinismus · UND ein Integrationstest,
-  der genau die Wirkungslosigkeit gefangen hätte: rhythmische Genres müssen mehr Onsets erzeugen als
-  ein gehaltenes). Pflicht-Reviewer Code + DSP beide grün.
-
-  Änderung: MusicStyle.swift + BioComposer.swift + BioComposerTests + project.yml + diese Datei.
-  Dein Ohr entscheidet jetzt das Feintuning pro Genre (Chop-Länge/Velocity) — sag mir, was zu busy
-  oder zu brav ist.
+  Änderung: BioComposer.swift + BioComposerTests + project.yml + diese Datei.
+  Zusammen mit v335: geh durch Reggae→Disco→Jazz→Klassik — rhythmisch klar verschieden UND
+  dynamisch lebendig. Dein Ohr entscheidet, ob der Akzent stärker/schwächer soll.

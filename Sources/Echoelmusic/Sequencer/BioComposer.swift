@@ -1185,6 +1185,21 @@ public enum BioComposer {
         clamp01(v + (rng.unit() - 0.5) * 0.10)
     }
 
+    /// Metric-accent multiplier for a chord chop at a bar-aligned step — the basic metrical
+    /// hierarchy (downbeat strongest, then beat 3, then the other beats, weak positions
+    /// softest). It makes the genre-articulated chops (skank/stab/comp, task 2026-07-22) read
+    /// as INTENTIONAL rather than mechanical — uniform-volume chops sound robotic/amateur
+    /// ("unprofessionell"). Subtle range (0.86…1.0) so it shapes dynamics without gutting the
+    /// weak-beat chops; the random `hVel` humanisation rides on top. Pure/deterministic; a
+    /// universal music principle, not genre-specific taste.
+    static func metricAccent(step: Int) -> Float {
+        let phase = ((step % 16) + 16) % 16
+        if phase == 0 { return 1.0 }        // downbeat
+        if phase == 8 { return 0.95 }       // beat 3
+        if phase % 4 == 0 { return 0.92 }   // beats 2 & 4
+        return 0.86                          // offbeats / weak positions
+    }
+
     /// Build a MOVING bass line for one chord section instead of a single held
     /// root. The section downbeat is always the chord root (the foundation); on
     /// takes with drive it subdivides into root/fifth hits and walks a passing
@@ -1685,9 +1700,11 @@ public enum BioComposer {
                                               syncopation: mood.syncopation, articulation: articulation)
                 for pitch in voiced {
                     for onset in onsets {
+                        // Metric accent shapes the chops so the rhythm reads as intentional
+                        // (downbeat > backbeat > offbeat), not a robotic uniform stutter.
                         notes.append(Note(id: nextUUID(&rng), pitch: pitch,
                                           startStep: onset.start, lengthSteps: onset.len,
-                                          velocity: hVel(padVelocity, &rng)))
+                                          velocity: hVel(padVelocity * Self.metricAccent(step: onset.start), &rng)))
                     }
                 }
             } else {
