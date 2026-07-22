@@ -259,3 +259,30 @@ stricter Xcode app-target gate caught it — always wait for BOTH gates on membe
 - **Consequence:** Task #78 "wire the 294 tests" is NOT done at slice-1 — the smoke never ran.
   Real heal = fix the destination+mask in ci.yml (shared gate, reviewer-gated), then the tests
   actually gate.
+
+## PLAYBOOK (2026-07-22) — genre identity that survives the CALM convergence (coherence crossfade)
+Founder: "erst individuell, dann klingt alles gleich." Genre identity in this composer
+lives mostly in dimensions the bio-CALM path STRIPS: rhythm density (calm>0.7 spacious
+strips ornaments), and — the big one — HARMONY was 100% genre-agnostic: `ChordSuggest.journey`
+(default-on `suggestJourney`) has NO style param and OVERRIDES each genre's authored
+`harmonicProfile.progression` (BioComposer.swift ~L1343-1350), so at HIGH coherence it picks
+the same functional T→S→D→T for every genre in the same key (and many genres SHARE a scale —
+phrygian: doom/metal/psytrance/sciFi/oriental). #77 (leadDensity=0) removed the other carrier.
+**FIX PATTERN (shipped v327, de55263):** a coherence-weighted crossfade INSIDE composeHarmonic's
+`if let sc = suggest` branch — after the journey builds prog/sectionAlterations, lock the first
+`k = min(n, Int((Float(n)*coherence).rounded()))` of the n section roots to the genre's OWN
+`baseProg` (phase-rotated, [0,0,0] alterations). calm(coh→1)⇒k→n⇒genre signature; aroused(coh→0)
+⇒k=0⇒journey BYTE-IDENTICAL. ZERO rng/structureRNG draw (pure fn of coherence+baseProg+phase) →
+determinism law intact; chord QUALITY (profile.chordTones, jazz 7ths) untouched (only ROOT MOTION
+anchored); always in-key. This ALSO fixes the "springt zurück" monotony better than reverting to
+the genre's short loop, because the journey's travel survives in the aroused regime. RIGHT POLARITY:
+calm = maximally-genre-characteristic, NOT less-calm (north-star preserved).
+
+## DEAD-END-PREVENTION (2026-07-22) — the generative core is NOT a static loop; evolution EXISTS
+Do NOT re-diagnose "the music just loops the same 8 bars" as the bug. `generate()` builds `loopBars`
+(=8) DISTINCT bars (shared structureSeed + per-bar detail seed + advancing progressionPhase), an
+evolve-tick (~25-45s) re-seeds with fresh live bio and hot-swaps at the seamless boundary, and tempo
+converges toward the pulse (octave-folded into style.tempoRange, per-genre distinct). The "springt
+zurück" the founder sees = the 8-chord journey (`chordJourneyLoopLength`) resetting to its start at
+the loop wrap (progressionPhase % loop). The REAL product gap was genre-sameness at calm (see playbook
+above), not missing evolution.

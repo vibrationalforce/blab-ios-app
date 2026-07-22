@@ -1,3 +1,24 @@
+## 2026-07-22 (ULTRACODE cron, 24h-Mandat) — Genre-Identität überlebt die Ruhe (Harmonie-Crossfade, v327)
+
+- **Founder-Ohr-Feedback (Video Build 2440 + "Alle Teams aktivieren"):** "Da springt wieder was zurück
+  aber nicht richtig gut geworden … bei den Genres kommt erst eine individuelle Variation und dann klingt
+  plötzlich alles gleich." Video-Analyse (watch-clip): v10.79.326 (2440), Rock'n'Roll→Doom, 8-Takt-Loop
+  wrappt hart 8→1.
+- **Diagnose (belegt file:line, Design-Panel + eigener Code-Read):** Die generative Evolution EXISTIERT
+  (8 distinkte Takte, Evolve-Re-Seed mit Live-Bio, Tempo folgt Puls). Die "springt zurück" = die 8-Akkord-
+  Journey resettet am Loop-Wrap. Das "alles gleich" hat 3 sich verstärkende Ursachen: (1) `ChordSuggest.journey`
+  (default-on) ist GENRE-AGNOSTISCH und überschreibt die genre-eigene Progression → bei hoher Kohärenz überall
+  derselbe Funktionszyklus; (2) viele Genres teilen die Scale (phrygian: doom/metal/psytrance/sciFi/oriental);
+  (3) Calm-Dichte-Strip + #77 (keine Lead) nehmen die tragenden Schichten bei Ruhe weg.
+- **Fix (Slice 1/3, `de55263`, deploy `8833c0f` v10.79.327):** coherence-gewichtete Genre-Identitäts-Überblendung
+  in `BioComposer.composeHarmonic` — je ruhiger (Kohärenz↑), desto mehr wird die Harmonie auf die EIGENE
+  Progression dieses Genres verankert (k=min(n,round(n·coh)) Section-Roots ← baseProg). Ruhe = Genre-Signatur,
+  aufgeregt = Journey byte-identisch. ZERO rng-Draw (Determinismus), in-key, Akkord-Qualität unberührt, kein
+  Audio-Thread. Beide Pflicht-Reviewer (DSP+Code) CLEAN. Test `testGenreHarmonyIdentitySurvivesCalmConvergence`
+  (Ruhe-Harmonie seed-stabil = Genre-Signatur). Playbook + Dead-End-Prävention im HARNESS_LEDGER.
+- **Offen:** Founder-Ohr-Check v327; danach Slice 2 (Rhythmus-Identitätsboden: #79-Flavor überlebt den Calm-Strip)
+  + Slice 3 (Timbre-Boden pro Genre, kompensiert #77). PLAN: `PLAN_GENRE_IDENTITY_CALM_2026-07-22.md`.
+
 ## 2026-07-21/22 (ULTRACODE cron, 24h-Mandat) — #77 Melodie-Autopilot AUS + #79 Rhythmus-Vielfalt ALLE 18 Genres
 
 - **Founder-Ohr-Feedback #77 (2-teilig):** (a) "viele klingen am Anfang zu unruhig wegen lauter Melodie"
