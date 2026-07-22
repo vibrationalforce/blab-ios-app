@@ -466,6 +466,36 @@ struct FloatingVisualWindow: View {
                 )
                 .accessibilityLabel("Echoelmusic — drag to move the visual")
             Spacer(minLength: 0)
+            // PRODUCER DOOR (founder 2026-07-22: "die Ebene der tighten Loops — Video
+            // und wav — muss für mich als Produzent noch mit reindürfen"). In fullscreen
+            // the DAW chrome is hidden BENEATH this visual; this labeled "Studio" chip
+            // drops out of fullscreen to the docked PiP size, revealing the full
+            // tight-loops DAW (timeline · clips · per-track instruments · video lanes ·
+            // WAV export) with the visual kept as a small floating picture — exactly the
+            // producer view from just before the rebuild. The running session survives
+            // (the chrome stayed MOUNTED, no teardown). A FIRST-CLASS door, not the tiny
+            // resize glyph. Shown only in fullscreen; in the floating sizes the DAW is
+            // already on screen. Neutral tokens (accent green stays reserved for live bio).
+            if windowSize.isFullscreen {
+                Button { exitToStudio() } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "rectangle.split.3x1")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Studio")
+                            .font(EchoelTheme.font(12, .semibold))
+                    }
+                    .foregroundStyle(EchoelTheme.text)
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Studio — die Produzenten-Ebene öffnen")
+                .accessibilityHint("Verlässt das Vollbild und zeigt Timeline, Clips und Spuren")
+            }
             // Live LOOK slider, STUFENLOS (founder 2026-07-07: "langem slider, der durch
             // alle Modi stufenlos überblendet … während des Spielens"). Dragging morphs
             // continuously between the looks (crossfade in the renderer), no steps. The
@@ -554,6 +584,22 @@ struct FloatingVisualWindow: View {
     /// per-frame-changing aspect — the resize glitches. One snap = ONE drawable
     /// re-allocation; a brief content dip (see `resizeDip`) covers that single
     /// reconfiguration frame so the change reads soft, not raw.
+    /// PRODUCER DOOR action: leave fullscreen for the docked PiP (.small) so the full
+    /// DAW chrome — tight loops, video, WAV — is revealed, the visual kept as a small
+    /// floating picture. Uses the SAME stable dip as `cycleSize` (one drawable
+    /// re-allocation hidden behind a brief content dip, never the animated multi-frame
+    /// resize that glitched). The chrome stayed mounted beneath, so the running session
+    /// (bio + transport) is uninterrupted by the drop.
+    private func exitToStudio() {
+        resizeDip = true
+        DispatchQueue.main.async {
+            var tx = Transaction()
+            tx.disablesAnimations = true
+            withTransaction(tx) { sizeRaw = WindowSize.small.rawValue }
+            withAnimation(.easeOut(duration: 0.22)) { resizeDip = false }
+        }
+    }
+
     private func cycleSize() {
         resizeDip = true
         // Two frames later: apply the snap while the content is dimmed, then ease
