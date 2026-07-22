@@ -500,6 +500,34 @@ final class BioComposerTests: XCTestCase {
         }
     }
 
+    /// Canonical durable guard for the founder's "die Genres klingen gleich"
+    /// complaint at the RHYTHM level (task #79): NO two genres that share a beat
+    /// archetype may render identical drums for the same seed/bio. The rhythm-axis
+    /// twin of testEveryGenreHasADistinctMusicalIdentity (which guards the harmony
+    /// axis). Derived from `beatArchetype` — not a hardcoded genre list — so a genre
+    /// added to any archetype in future is automatically guarded: if it lacks its own
+    /// distinct GenreFlavor and collapses onto a sibling's loop, this fails. The two
+    /// signature-beat genres (dubTechno/trap, bespoke builders) and the drum-free
+    /// contemplative genres are correctly out of scope (they don't share a builder).
+    func testGenresSharingAnArchetypeRenderDistinctDrums() {
+        let sharedArchetypes: [MusicStyle.BeatArchetype] = [.fourOnFloor, .backbeat, .offbeat, .halfTime]
+        for archetype in sharedArchetypes {
+            let genres = MusicStyle.allCases.filter { $0.beatArchetype == archetype }
+            guard genres.count > 1 else { continue }
+            var seen: [String: MusicStyle] = [:]
+            for style in genres {
+                let comp = BioComposer.compose(input(coherence: 0.4, hr: 100, seed: 0x1234, style: style))
+                let fingerprint = "\(comp.drumSteps)"
+                if let other = seen[fingerprint] {
+                    XCTFail("\(style) and \(other) (both \(archetype)) render identical drums — add a distinct GenreFlavor")
+                }
+                seen[fingerprint] = style
+            }
+            XCTAssertEqual(seen.count, genres.count,
+                           "all \(genres.count) \(archetype) genres must render distinct drums")
+        }
+    }
+
     func testBackbeatSnareOnTwoAndFour() {
         let comp = BioComposer.compose(input(hr: 100, style: .rock))
         XCTAssertTrue(comp.drumSteps[1][4] && comp.drumSteps[1][12], "rock snare on 2 & 4")
