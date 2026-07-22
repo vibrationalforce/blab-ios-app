@@ -8113,3 +8113,8 @@ Gesetze verifiziert, Reviewer clean.
 Studio-Tür fällt in die DAW? Session läuft über den Wechsel weiter? AUv3 erscheint als Instrument
 (nicht Generator) im Host + empfängt MIDI? Nächste Vision-Scheiben (Step 2a Auto-Arm, Startmodus,
 Step 2c Kopie) warten auf Founder-Wort.
+
+**Gate/Deploy (2026-07-22, 23:22 UTC):** TestFlight v10.79.340 (Build 2454, commit cb9fb6b) =
+**GRÜN auf allen Jobs** (Preflight · Compile Check · iOS mit AUv3-Embed+Registration + Upload +
+"Build landed in App Store Connect" · Summary). v340 = v339 + Vision Step 2b (First-Run-Finger-auf-
+Kamera-Einladung). Vollständiges Vision-First-Run-Verify-Target für den Founder. Kein Rot.
