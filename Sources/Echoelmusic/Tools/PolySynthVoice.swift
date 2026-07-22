@@ -77,6 +77,19 @@ public final class PolySynthVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var insertActive = false
 
+    /// Lock-free bio-modulation queue, drained on the audio thread (same discipline
+    /// as `patchCommands`). The bio path formerly ran `poly.applyBioReactive(...)`
+    /// straight from the MainActor 10 Hz poll (`applyLatestIfFresh`), which — via
+    /// each voice's brightness/spectralShape → `updateSpectralEnvelope` → rewrote
+    /// `harmonicAmplitudes` (a Swift `[Float]`) while the audio thread read that same
+    /// array in `render` → a cross-thread array data race (COW heap-copy / torn read
+    /// / envelope glitch). Notes and patch recall were already moved onto the audio
+    /// thread to kill exactly this class of race; the bio path was the last one that
+    /// wasn't. Enqueue on the main poll, apply on the one audio thread.
+    /// SPSC: one producer (main), one consumer (audio).
+    @ObservationIgnored
+    nonisolated(unsafe) private let bioCommands = SPSCQueue<PolyBioParams>(capacity: 8)
+
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
 
@@ -560,16 +573,23 @@ public final class PolySynthVoice {
         framesApplied &+= 1
 
         let hrNormalized = clampUnit((frame.heartRateBPM - 40) / 160)
-        poly.applyBioReactive(
+        // Hand the parameters to the AUDIO thread instead of mutating the poly engine
+        // here. Applying `poly.applyBioReactive(...)` on this MainActor poll rewrote
+        // each voice's spectral-envelope array while the audio thread read it in
+        // render() — a cross-thread array race. The render block drains this queue and
+        // applies it on the one audio thread (after the patch drain, so `bioBase*` is
+        // already set). `profile` is resolved here on the main actor (reads the
+        // control-plane `bioMappingHarmonic`) and carried in the value.
+        _ = bioCommands.tryEnqueue(PolyBioParams(
             coherence: liveCoherence(frame.coherence),
-            hrvVariability: clampUnit(frame.hrvNormalized),
+            hrv: clampUnit(frame.hrvNormalized),
             heartRate: hrNormalized,
             breathPhase: clampUnit(frame.breathPhase),
             breathDepth: 0.5,
-            lfHfRatio: 0.5,
+            lfHf: 0.5,
             coherenceTrend: 0,
             profile: bioMappingHarmonic ? .harmonicSeries : .natural
-        )
+        ))
         applyEntrainment(coherence: frame.coherence,
                          heartRateBPM: frame.heartRateBPM,
                          motionEnergy: frame.motionEnergy)
@@ -636,6 +656,26 @@ public final class PolySynthVoice {
         // write happens on this thread, not racing the render.
         while let patch = patchCommands.dequeue() {
             poly.forEachVoice { patch.apply(to: $0) }
+        }
+        // Apply pending bio modulation HERE (audio thread), AFTER the patch drain so the
+        // patch's `bioBase*` anchors are set before the body modulates around them, and
+        // so each voice's spectral-envelope array rewrite happens on this one thread and
+        // never races the render's read below. Drain to the latest queued frame (bio
+        // updates at ~10 Hz, so the queue is empty in almost every block — a cheap check).
+        // Runs even while silent so the timbre is current the instant a note arrives.
+        var latestBio: PolyBioParams?
+        while let p = bioCommands.dequeue() { latestBio = p }
+        if let p = latestBio {
+            poly.applyBioReactive(
+                coherence: p.coherence,
+                hrvVariability: p.hrv,
+                heartRate: p.heartRate,
+                breathPhase: p.breathPhase,
+                breathDepth: p.breathDepth,
+                lfHfRatio: p.lfHf,
+                coherenceTrend: p.coherenceTrend,
+                profile: p.profile
+            )
         }
         // Drain per-bus insert-FX commands on the audio thread (params + coefficient
         // recompute here — pure arithmetic, no alloc). Both channels share the params but
@@ -814,4 +854,21 @@ private struct NoteCommand: Sendable {
     let velocity: Float
     /// Auxiliary pitch — only used by `.slide` (the note being slid FROM).
     var pitch2: Int32 = 0
+}
+
+/// One bio-modulation frame handed from the control thread (the 10 Hz poll) to the
+/// audio thread via a lock-free queue. Trivial value type (all `Float`/enum, no ARC)
+/// → safe to hand across threads. Applying it on the audio thread keeps the poly
+/// engine's spectral-envelope array rewrite off the main thread, so it never races
+/// render()'s read of that array. `profile` is resolved on the main actor at enqueue
+/// time (it reads the control-plane `bioMappingHarmonic` flag).
+private struct PolyBioParams: Sendable {
+    let coherence: Float
+    let hrv: Float
+    let heartRate: Float
+    let breathPhase: Float
+    let breathDepth: Float
+    let lfHf: Float
+    let coherenceTrend: Float
+    let profile: BioMapProfile
 }

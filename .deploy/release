@@ -1,23 +1,25 @@
-build: v10.79.336 — Metrik-Akzent auf den Genre-Chops (Rhythmus klingt intentional, nicht robotisch)
+build: v10.79.337 — Bio→Synth Cross-Thread-Race geschlossen (letzte Audio-Thread-Gesetz-Verletzung auf dem Bio-Pfad)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Musikalische Vollendung von v335 (Genre-Akkord-Artikulation). Die neuen Chops
-  (skank/stab/comp) hatten zwar humanisierte Zufalls-Velocity, aber keine METRISCHE Dynamik —
-  gleich laute Anschläge klingen mechanisch/roboterhaft, also „unprofessionell" (Founder-Wort).
+notes: Ultrascan-2026-07-22 Schritt 3 ("die eine reale verbleibende latente Gefahr"). PolySynthVoice
+  fuhr die Bio-Modulation bisher DIREKT vom @MainActor-10-Hz-Poll (applyLatestIfFresh) in poly.applyBioReactive
+  — das schrieb pro Stimme harmonicAmplitudes ([Float]) auf dem MAIN-Thread, WÄHREND der Audio-Render-Block
+  dasselbe Array las. Cross-Thread-Array-Race (COW-Heap-Copy / torn read / Envelope-Glitch), also ein
+  seltener Crash mitten in der Performance auf genau dem Kern-Loop (Körper verändert Klang).
 
-  FIX: metricAccent(step) — die grundlegende metrische Hierarchie (Downbeat 1.0 · Zählzeit 3
-  0.95 · Zählzeiten 2&4 0.92 · Offbeats/schwach 0.86), NUR auf die rhythmischen Chops
-  angewandt. ~1.4 dB Spreizung an der Velocity-Oberkante = subtiler Groove-Lean, der den
-  Rhythmus intentional macht ohne die schwachen Zählzeiten auszuhöhlen; die Zufalls-Humanisierung
-  reitet oben drauf. Universelles Musikprinzip, kein Genre-Geschmack.
+  FIX: Bio-Parameter laufen jetzt über eine lock-freie SPSC-Queue (bioCommands) — enqueue auf dem Main-Poll,
+  drain + apply IM Render-Block auf dem einen Audio-Thread. Exakt dieselbe Disziplin, die noteCommands/
+  patchCommands/fxCommands hier schon nutzen UND die in BioReactiveSynthVoice bereits ausgeliefert ist.
+  Der Bio-Drain sitzt NACH dem Patch-Drain (bioBase*-Anker stehen, bevor der Körper drum herum moduliert)
+  und vor dem Render-Read. Coalesce-to-latest (nur der neueste Frame greift). PolyBioParams = triviales
+  Sendable (nur Float + BioMapProfile-Enum), kein ARC/Heap über die Queue.
 
-  Determinismus byte-identisch: der Akzent skaliert nur den Velocity-WERT vor hVel, kein
-  zusätzlicher RNG-Zug → RNG-Strom unverändert, nur die Chop-Velocities bewegen sich. Keine
-  Noten-Count-Änderung → alle v335-Integrationstests halten. Klassik/Doom/Arp/Ambient unberührt.
+  Verhalten unverändert: Bio-Modulation ist per bioModulationEnabled (Default AUS) gegated — die meisten
+  User sehen null Änderung; einziger Delta ist ≤1 Audio-Block (~<3 ms) Latenz auf dem Bio-Pfad, unhörbar.
+  Kein RNG, keine Noten-Count-Änderung → alle Determinismus-Tests halten, Genre-Klang (v335/v336) identisch,
+  also stört das dein laufendes Genre-Ohr-Verdikt NICHT — es macht den Kern-Bio→Klang-Pfad nur crash-fest.
 
-  4 neue Test-Assertions (Akzent-Werte, Ordnung, Grenzen, Bar-Alignment inkl. negative Steps).
-  Pflicht-DSP-Reviewer CLEAN (Determinismus, Skopierung vollständig nur der Chop-Zweig,
-  musikalisch konservativ, Rausch-Triade unberührt).
+  ZWEI Audio-Thread-Reviewer (unabhängig): VERDICT CLEAN / GO. Ein pre-existing LOW-Hinweis (der .formant-
+  Spektralformzweig alloziert ein 3-Element-Array; kein ausgeliefertes Genre-Patch nutzt .formant -> feuert
+  nie) ist als eigener Folgezyklus notiert, nicht Teil dieses Commits.
 
-  Änderung: BioComposer.swift + BioComposerTests + project.yml + diese Datei.
-  Zusammen mit v335: geh durch Reggae→Disco→Jazz→Klassik — rhythmisch klar verschieden UND
-  dynamisch lebendig. Dein Ohr entscheidet, ob der Akzent stärker/schwächer soll.
+  Aenderung: PolySynthVoice.swift (+ project.yml + diese Datei). Ein File im Sources-Kern.
