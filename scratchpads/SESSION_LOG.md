@@ -8023,3 +8023,16 @@ Nachbesserung zu v329 (Slice 2). Zwei v329-Reviewer-Befunde behoben:
 - Abschluss der Genre-Distinktheits-Arbeit (v327/v328 Harmonie + v329 Beat + v330 Reaktivität).
   OFFEN: Founder-Ohr-Verdikt — klingt der Beat pro Genre klar anders UND wird er hörbar
   geschäftiger bei steigendem Puls? Slice 3 (Timbre-Floor) nur falls Ohr sagt "verschwimmt noch".
+
+## 2026-07-22 — v333: Bio-Filter-Cutoff an den Patch verankert (Task #81 gelöst)
+Der ECHTE dynamische Konvergenz-Grund gefunden: in `EchoelDDSP.applyBioReactive` war der
+Filter-Cutoff die EINE Bio-Mapping, die ihren Patch ignorierte — sie zog absolut Richtung
+`200+coh*1600` (≤1800 Hz), während alle Geschwister (harmonicity/noise/reverb) längst als
+geklemmte Abweichung UM ihre `bioBase*`-Anker modulieren. Ergebnis: bei ruhigem Körper
+kollabierten ALLE Genres auf denselben Cutoff → "erst individuell → dann alles gleich".
+Fix: `bioBaseFilterCutoff` (default 0 = Sentinel, roher Bio-Voice byte-identisch);
+`SynthPatch.apply` setzt ihn = Patch-Cutoff; Ziel = `bioBaseFilterCutoff * (1+(coh−0.5)*0.5)
+.clamped(0.7…1.3)` → Kohärenz 0.5 = exakt Patch. Genres behalten konstantes Cutoff-Verhältnis,
+konvergieren nie. v331 spreizte die STATISCHEN Timbres; v333 stoppt die DYNAMISCHE Konvergenz.
+Reviewer DSP + Audio-Thread beide CLEAN. Commit 0332fa9, gepusht. Gates werden nächsten Zyklus
+verifiziert. Braucht Founder-Ohr auf Gerät ≥10.79.333.
