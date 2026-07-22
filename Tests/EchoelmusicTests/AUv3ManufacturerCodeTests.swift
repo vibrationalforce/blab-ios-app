@@ -19,6 +19,10 @@ final class AUv3ManufacturerCodeTests: XCTestCase {
         // Sanity vs a known component TYPE code (matches AUParameterMapping.fourCC's
         // inverse), so the packing order is the one CoreAudio actually uses.
         XCTAssertEqual(AUv3Host.fourCC("aufx"), 0x6175_6678)
+        // Our own AUv3 declares type 'aumu' (music device / instrument) as of B1 —
+        // pin it, and note it equals kAudioUnitType_MusicDevice (0x61756D75), the
+        // type the host categorizer files under `.instrument`.
+        XCTAssertEqual(AUv3Host.fourCC("aumu"), 0x6175_6D75)
     }
 }
 #endif

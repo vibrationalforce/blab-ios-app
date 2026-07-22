@@ -456,7 +456,8 @@ jobs:
       # so pluginkit never registered it — invisible to every host. This step
       # makes the whole chain CI-provable forever: appex present, executable
       # present, AudioComponents at the REGISTRATION-EFFECTIVE path, identity
-      # augn/echl/Echo unchanged. Fails the build on any silent drift.
+      # aumu/echl/Echo unchanged (aumu = music-device/instrument so hosts list it
+      # in the instrument slot). Fails the build on any silent drift.
       - name: "Verify AUv3 extension embed + registration structure"
         run: |
           APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
@@ -472,8 +473,8 @@ jobs:
           TYPE=$(/usr/libexec/PlistBuddy -c "Print :$P:type" "$PLIST" 2>/dev/null || true)
           SUB=$(/usr/libexec/PlistBuddy -c "Print :$P:subtype" "$PLIST" 2>/dev/null || true)
           MFR=$(/usr/libexec/PlistBuddy -c "Print :$P:manufacturer" "$PLIST" 2>/dev/null || true)
-          [ "$TYPE" = "augn" ] && [ "$SUB" = "echl" ] && [ "$MFR" = "Echo" ] \
-            || fail "AudioComponents not at NSExtensionAttributes path or identity drifted (type='$TYPE' subtype='$SUB' mfr='$MFR' — expected augn/echl/Echo)"
+          [ "$TYPE" = "aumu" ] && [ "$SUB" = "echl" ] && [ "$MFR" = "Echo" ] \
+            || fail "AudioComponents not at NSExtensionAttributes path or identity drifted (type='$TYPE' subtype='$SUB' mfr='$MFR' — expected aumu/echl/Echo)"
           PRINCIPAL=$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPrincipalClass' "$PLIST" 2>/dev/null || true)
           [ -n "$PRINCIPAL" ] || fail "NSExtensionPrincipalClass missing"
           echo "AUv3 embed OK: $APPEX ($EXEC), component $TYPE/$SUB/$MFR, principal $PRINCIPAL"

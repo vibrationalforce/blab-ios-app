@@ -214,12 +214,12 @@ targets:
               - name: "Echoelmusic: EchoelBodyVibe"
                 description: "Bio-reactive performance synthesizer"
                 manufacturer: Echo
-                type: augn
+                type: aumu
                 subtype: echl
-                version: 10001
+                version: 10002
                 sandboxSafe: true
                 tags:
-                  - Generator
+                  - Synthesizer
                   - Ambient
     entitlements:
       path: EchoelmusicAUv3.entitlements

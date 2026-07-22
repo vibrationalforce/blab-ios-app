@@ -83,7 +83,7 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
         let d = AUv3ScanDiagnostic(rawComponentCount: 101, thirdPartyCount: 0,
                                    ownAUv3Present: false, scanAttempt: 4,
                                    selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000),
-                                   bundledAUv3: "EchoelmusicAUv3=Echo/augn/echl")
+                                   bundledAUv3: "EchoelmusicAUv3=Echo/aumu/echl")
         let g = d.guidance
         let lower = g.lowercased()
         XCTAssertTrue(lower.contains("embedded"), "states the appex IS embedded")
@@ -114,8 +114,8 @@ final class AUv3ScanDiagnosticTests: XCTestCase {
                                    ownAUv3Present: false, scanAttempt: 4,
                                    selfProbe: .failed(domain: "NSOSStatusErrorDomain", code: -3000),
                                    rawMakers: ["Apple"], buildVersion: "v10.79.330 (2440)",
-                                   bundledAUv3: "EchoelmusicAUv3=Echo/augn/echl")
-        XCTAssertTrue(d.report.contains("Embedded: EchoelmusicAUv3=Echo/augn/echl"),
+                                   bundledAUv3: "EchoelmusicAUv3=Echo/aumu/echl")
+        XCTAssertTrue(d.report.contains("Embedded: EchoelmusicAUv3=Echo/aumu/echl"),
                       "the embedded-appex fact rides in the report")
         let plain = AUv3ScanDiagnostic(rawComponentCount: 10, thirdPartyCount: 0,
                                        ownAUv3Present: false, scanAttempt: 1)

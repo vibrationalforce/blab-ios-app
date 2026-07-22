@@ -254,7 +254,7 @@
             <!-- AUv3 -->
             <section id="plugin">
                 <h2>AUv3 Plugin <span class="tag">LIVE</span></h2>
-                <p>Echoelmusic ships a working <strong>Audio Unit v3 generator</strong> (<code>augn / echl / Echo</code>) that runs inside Logic Pro, GarageBand and other AUv3 hosts. The render block uses pre-allocated scratch buffers — zero heap allocation on the audio thread — and state round-trips through <code>fullState</code>.</p>
+                <p>Echoelmusic ships a working <strong>Audio Unit v3 instrument</strong> (<code>aumu / echl / Echo</code>) that runs inside Logic Pro, GarageBand and other AUv3 hosts. The render block uses pre-allocated scratch buffers — zero heap allocation on the audio thread — and state round-trips through <code>fullState</code>.</p>
                 <div class="data-row"><div class="k">Parameters (8)</div><div class="v">Coherence → harmonicity, HRV → brightness, Heart Rate, Breath Phase → amplitude, Base Frequency (40–440&nbsp;Hz), Texture, Reverb Mix, Master Gain — all DAW-automatable via <code>AUParameterTree</code>.</div></div>
                 <div class="data-row"><div class="k">Presets</div><div class="v">Factory presets: Ambient Calm, Deep Sleep, Active Focus.</div></div>
                 <div class="data-row"><div class="k">UI</div><div class="v">SwiftUI plugin view (Bio-Reactive + Sound sections) via <code>UIHostingController</code>. AUv3 <em>host</em> support is <span class="tag">ROADMAP</span>.</div></div>

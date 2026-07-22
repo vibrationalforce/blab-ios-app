@@ -50,16 +50,16 @@
 					<key>manufacturer</key>
 					<string>Echo</string>
 					<key>type</key>
-					<string>augn</string>
+					<string>aumu</string>
 					<key>subtype</key>
 					<string>echl</string>
 					<key>version</key>
-					<integer>10001</integer>
+					<integer>10002</integer>
 					<key>sandboxSafe</key>
 					<true/>
 					<key>tags</key>
 					<array>
-						<string>Generator</string>
+						<string>Synthesizer</string>
 						<string>Ambient</string>
 					</array>
 				</dict>

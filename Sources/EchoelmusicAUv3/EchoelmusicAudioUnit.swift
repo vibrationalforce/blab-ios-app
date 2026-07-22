@@ -3,13 +3,17 @@ import Foundation
 import AVFoundation
 import os
 
-/// AUv3 Audio Unit — Bio-Reactive Instrument (Generator)
+/// AUv3 Audio Unit — Bio-Reactive Instrument (Music Device)
 ///
-/// Produces sound from DDSP synthesis driven by bio-reactive
-/// parameters (coherence, HRV, heart rate, breath).
-/// Parameters are automatable from Logic Pro, GarageBand, AUM, etc.
+/// A playable DAW instrument: host MIDI notes drive the pitch (walked from the
+/// render block's realtime event list) while bio-reactive parameters (coherence,
+/// HRV, heart rate, breath) shape the timbre. Before the first MIDI note a
+/// free-running bio tone plays as the idle default (armed once in
+/// `allocateRenderResources`); once the host plays notes, a note-off releases the
+/// voice like any instrument. Parameters are automatable from Logic Pro,
+/// GarageBand, AUM, etc.
 ///
-/// Component: augn/echl/Echo (generator — no audio input needed)
+/// Component: aumu/echl/Echo (instrument — MIDI in, no audio input needed)
 public final class EchoelmusicAudioUnit: AUAudioUnit {
 
     private static let auLog = OSLog(
@@ -99,7 +103,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         texture.evolutionRate = 8
 
         setupParameterTree()
-        os_log(.info, log: Self.auLog, "AUv3 Generator initialized")
+        os_log(.info, log: Self.auLog, "AUv3 Instrument initialized")
     }
 
     // MARK: - Parameter Tree
@@ -246,7 +250,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     // MARK: - AUAudioUnit Overrides
 
     public override var inputBusses: AUAudioUnitBusArray {
-        // Generator — no inputs
+        // Instrument — no audio input (MIDI drives pitch)
         AUAudioUnitBusArray(audioUnit: self, busType: .input, busses: [])
     }
 
@@ -323,7 +327,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         synth.noteOn(frequency: baseFreqParam.value)
         isNoteOn = true
         startVitalsPolling()
-        os_log(.info, log: Self.auLog, "Generator started: %.0f Hz", baseFreqParam.value)
+        os_log(.info, log: Self.auLog, "Instrument started: %.0f Hz", baseFreqParam.value)
     }
 
     public override func deallocateRenderResources() {
@@ -331,7 +335,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         vitalsTimer?.cancel()
         vitalsTimer = nil
         if isNoteOn { synth.noteOff(); isNoteOn = false }
-        os_log(.info, log: Self.auLog, "Generator stopped")
+        os_log(.info, log: Self.auLog, "Instrument stopped")
     }
 
     // MARK: - Shared vitals (App Group → bio params)
@@ -387,6 +391,39 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
                   outputData, renderEvent, pullInputBlock) in
 
             let count = min(Int(frameCount), 4096)
+
+            // MIDI note input (music-device / aumu). Walk the host's realtime event
+            // list and drive the mono voice's pitch. This is pure pointer + scalar
+            // work plus EchoelDDSP.noteOn/noteOff (both scalar-assignment only) — no
+            // allocation, no lock, no ObjC, no GCD: audio-thread safe. Block-granular
+            // (all events applied before the block renders); the last note in the
+            // block wins for a mono voice. With NO note event, nothing changes and the
+            // free-running bio tone armed in allocateRenderResources keeps playing.
+            // Only legacy AUMIDIEvent (.MIDI) is handled — correct for the default
+            // MIDI-1.0 protocol, where hosts translate to legacy events. A future host
+            // negotiating MIDI-2.0 UMP would deliver .MIDIEventList instead (add a
+            // branch here if that is ever adopted).
+            var event = renderEvent
+            while let e = event {
+                let header = e.pointee.head
+                if header.eventType == .MIDI {
+                    let midi = e.pointee.MIDI
+                    if midi.length >= 3 {
+                        switch EchoelMIDIDecode.action(status: midi.data.0,
+                                                       data1: midi.data.1,
+                                                       data2: midi.data.2) {
+                        case let .noteOn(frequency, velocity):
+                            synthRef.noteVelocity = velocity
+                            synthRef.noteOn(frequency: frequency)
+                        case .noteOff:
+                            synthRef.noteOff()
+                        case .ignore:
+                            break
+                        }
+                    }
+                }
+                event = header.next
+            }
 
             // Use pre-allocated scratch (captured by value — COW safe since we own them)
             var pad = padRef

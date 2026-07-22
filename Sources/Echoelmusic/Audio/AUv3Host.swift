@@ -103,7 +103,7 @@ public struct AUv3ScanDiagnostic: Equatable, Sendable {
     /// (see `AUv3Host.bundledAUv3Stamp`). This is the field that finally SPLITS a
     /// `-3000` registry miss into its two look-alike causes: `.appex` **absent**
     /// ⇒ the archive did not embed/install the extension (a BUILD fix); `.appex`
-    /// **present + declaring Echo/augn/echl** yet invisible to the registry ⇒ the
+    /// **present + declaring Echo/aumu/echl** yet invisible to the registry ⇒ the
     /// bundle is correct and the fault is iOS-side pluginkit registration
     /// (`com.echoelmusic.app.auv3` provisioning / an OS registration miss) — NOT
     /// fixable in app code, and NOT cured by a reboot (founder 2026-07-21: rebooted
@@ -296,7 +296,7 @@ public final class AUv3Host {
     /// two states that look identical from the registry side:
     ///   • `.appex` **absent** ⇒ the archive did not embed/install the extension → a
     ///     BUILD/embed fix (the appex must land under `PlugIns/`).
-    ///   • `.appex` **present + declares `Echo/augn/echl`** yet invisible to the
+    ///   • `.appex` **present + declares `Echo/aumu/echl`** yet invisible to the
     ///     registry ⇒ the bundle is correct and the fault is iOS-side pluginkit
     ///     registration (the `com.echoelmusic.app.auv3` App-ID/provisioning capability)
     ///     — NOT fixable in app code, and (founder 2026-07-21) NOT cured by a reboot.
