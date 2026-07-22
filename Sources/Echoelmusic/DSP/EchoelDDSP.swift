@@ -669,6 +669,16 @@ public final class EchoelDDSP: @unchecked Sendable {
         normalizeAmplitudes(&harmonicAmplitudes)
     }
 
+    /// Fixed formant band centres/amplitudes/bandwidths for the `.formant` spectral
+    /// shape (a vowel-like /a/ triple). Hoisted to a static constant so the `.formant`
+    /// branch below allocates NOTHING per call — `computeShapeAmplitudes` runs on the
+    /// audio render thread for a bio-reactive voice (the bio-spectral path was moved
+    /// onto that thread in v337), where the former per-call array literal would have
+    /// been a heap allocation. Read-only; iterating a stored array is alloc-free.
+    private static let formantBands: [(freq: Float, amp: Float, bw: Float)] = [
+        (730, 1.0, 90), (1090, 0.5, 110), (2440, 0.3, 170)
+    ]
+
     /// Compute spectral shape into target buffer
     private func computeShapeAmplitudes(shape: SpectralShape, into amps: inout [Float]) {
         let bright = brightness
@@ -690,13 +700,10 @@ public final class EchoelDDSP: @unchecked Sendable {
                 amps[i] = 1.0 / pow(n, 2.5 - bright)
             }
         case .formant:
-            let formants: [(freq: Float, amp: Float, bw: Float)] = [
-                (730, 1.0, 90), (1090, 0.5, 110), (2440, 0.3, 170)
-            ]
             for i in 0..<harmonicCount {
                 let freq = frequency * Float(i + 1)
                 var amp: Float = 0.01
-                for formant in formants {
+                for formant in Self.formantBands {
                     let diff = (freq - formant.freq) / formant.bw
                     amp += formant.amp * exp(-diff * diff * 0.5)
                 }

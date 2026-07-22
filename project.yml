@@ -26,7 +26,7 @@ settings:
     # Fallback only — every TestFlight run seds this to the version in
     # .deploy/release (testflight.yml "DEPLOY_VER"), so bump it when it drifts
     # far behind; a manual/local archive would otherwise ship the stale number.
-    MARKETING_VERSION: "10.79.337"
+    MARKETING_VERSION: "10.79.338"
     CURRENT_PROJECT_VERSION: "${BUILD_NUMBER:=1}"
     ENABLE_BITCODE: NO
     ALWAYS_SEARCH_USER_PATHS: NO

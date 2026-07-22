@@ -1,25 +1,18 @@
-build: v10.79.337 — Bio→Synth Cross-Thread-Race geschlossen (letzte Audio-Thread-Gesetz-Verletzung auf dem Bio-Pfad)
+build: v10.79.338 — .formant-Spektralform: Audio-Thread-Allokation entfernt (Konstanten in static let gehoben)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Ultrascan-2026-07-22 Schritt 3 ("die eine reale verbleibende latente Gefahr"). PolySynthVoice
-  fuhr die Bio-Modulation bisher DIREKT vom @MainActor-10-Hz-Poll (applyLatestIfFresh) in poly.applyBioReactive
-  — das schrieb pro Stimme harmonicAmplitudes ([Float]) auf dem MAIN-Thread, WÄHREND der Audio-Render-Block
-  dasselbe Array las. Cross-Thread-Array-Race (COW-Heap-Copy / torn read / Envelope-Glitch), also ein
-  seltener Crash mitten in der Performance auf genau dem Kern-Loop (Körper verändert Klang).
+notes: Direkter Folgezyklus zu v337. Beide Audio-Thread-Reviewer hatten denselben pre-existing LOW-Hinweis
+  markiert: der `.formant`-Zweig in EchoelDDSP.computeShapeAmplitudes allozierte pro Aufruf ein
+  3-Element-Array-Literal ([(freq,amp,bw)]). Da der Bio-Spektral-Pfad in v337 auf den Audio-Thread wanderte,
+  wäre das für ein Patch mit spectralShape==.formant eine Heap-Allokation auf dem Render-Thread — verletzt
+  das "audio-thread alloc-frei"-Gesetz. Kein ausgeliefertes Genre-Patch nutzt .formant (alle Natural/Dark),
+  also feuerte es heute nie — aber jede vom User gewählte Formant-Form hätte es getroffen.
 
-  FIX: Bio-Parameter laufen jetzt über eine lock-freie SPSC-Queue (bioCommands) — enqueue auf dem Main-Poll,
-  drain + apply IM Render-Block auf dem einen Audio-Thread. Exakt dieselbe Disziplin, die noteCommands/
-  patchCommands/fxCommands hier schon nutzen UND die in BioReactiveSynthVoice bereits ausgeliefert ist.
-  Der Bio-Drain sitzt NACH dem Patch-Drain (bioBase*-Anker stehen, bevor der Körper drum herum moduliert)
-  und vor dem Render-Read. Coalesce-to-latest (nur der neueste Frame greift). PolyBioParams = triviales
-  Sendable (nur Float + BioMapProfile-Enum), kein ARC/Heap über die Queue.
+  FIX: die drei Formant-Bänder (730/1.0/90 · 1090/0.5/110 · 2440/0.3/170) in ein `private static let
+  formantBands` auf EchoelDDSP gehoben; der Zweig iteriert jetzt `Self.formantBands` statt ein Literal
+  pro Aufruf zu bauen. Bit-identisches Ergebnis (dieselben Werte, dieselbe Mathematik), nur die Allokation
+  fällt weg (Einmal-Init statt pro Aufruf). EchoelDDSP ist @unchecked Sendable (nicht @MainActor), also ist
+  das static let nonisolated und audio-thread-safe; nur Float-Tupel → AUv3-Isolations-Build (DSP/ solo)
+  bleibt grün.
 
-  Verhalten unverändert: Bio-Modulation ist per bioModulationEnabled (Default AUS) gegated — die meisten
-  User sehen null Änderung; einziger Delta ist ≤1 Audio-Block (~<3 ms) Latenz auf dem Bio-Pfad, unhörbar.
-  Kein RNG, keine Noten-Count-Änderung → alle Determinismus-Tests halten, Genre-Klang (v335/v336) identisch,
-  also stört das dein laufendes Genre-Ohr-Verdikt NICHT — es macht den Kern-Bio→Klang-Pfad nur crash-fest.
-
-  ZWEI Audio-Thread-Reviewer (unabhängig): VERDICT CLEAN / GO. Ein pre-existing LOW-Hinweis (der .formant-
-  Spektralformzweig alloziert ein 3-Element-Array; kein ausgeliefertes Genre-Patch nutzt .formant -> feuert
-  nie) ist als eigener Folgezyklus notiert, nicht Teil dieses Commits.
-
-  Aenderung: PolySynthVoice.swift (+ project.yml + diese Datei). Ein File im Sources-Kern.
+  Verhalten unverändert, kein Klang-Delta, kein RNG, keine Test-Änderung. Reviewer: VERDICT CLEAN.
+  Änderung: EchoelDDSP.swift (+ project.yml + diese Datei). Ein File im Sources-Kern.
