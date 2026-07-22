@@ -8047,3 +8047,14 @@ zentriert (coh/hr/hrv/lfo je 0 bei neutraler Ablesung). Neutral = exakt Patch-Br
 bleibt bis ±0.5 hörbar, Abstand 0.32 bleibt. Falscher A8-Kommentar korrigiert. 4 Tests. Reviewer
 DSP + Audio-Thread CLEAN. Beide Konvergenz-Vektoren (Cutoff v333 + Brightness v334) sind zu.
 Commit folgt, gepusht. Gates nächsten Zyklus verifizieren. Braucht Founder-Ohr ≥10.79.334.
+
+## 2026-07-22 — Genre-Identität End-to-End Regressionsschutz (kein Deploy, CI-Gate-Test)
+Nach dem vollständigen Audit von applyBioReactive (Cutoff v333 + Brightness v334 = die letzten
+zwei absoluten Patch-Überschreibungen; harmonicity/reverb/noise waren längst verankert) das
+Genre-Thema mit einem Integrationstest gegen Regression gesichert statt weiter blind zu tunen:
+GenreIdentityBioIntegrationTests treibt JEDE echte MusicStyle.synthPatch durch apply→applyBioReactive
+bei ruhigem Bio (coh 0.9) und prüft, dass der Cross-Genre-Spread (Cutoff >800 Hz, Brightness >0.22)
+überlebt + Bright-vs-Dark-Ordnung (futuristic vs doom). Unter dem Alt-Bug kollabierte alles auf
+einen Wert → Spread ~0 → Test failt. code-reviewer: DETERMINISTIC, nicht flaky, Margen exakt
+nachgerechnet, keine Änderung nötig (ein Kommentar-Wort präzisiert). Test-only, kein Versions-Bump
+(Regressionsschutz braucht keinen TestFlight); echte Gates führen ihn aus. Commits 75c6b00 + 84cb790.
