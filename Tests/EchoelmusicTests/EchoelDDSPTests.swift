@@ -1816,4 +1816,48 @@ final class EchoelDDSPBioCutoffAnchorTests: XCTestCase {
     }
 }
 
+/// Second dynamic convergence vector (task #81 follow-on): `brightness` (spectral shape,
+/// read by computeShapeAmplitudes) was ALSO overwritten absolutely by applyBioReactive
+/// (target ≈ 0.08+coh·0.35+… regardless of patch), so distinct genre brightnesses collapsed
+/// toward one value when the body calmed — the same class of bug as the filter cutoff, and
+/// the old "brightness carries no patch character" comment was factually wrong (patches DO
+/// set distinct brightness via SynthPatch.apply). These lock the deviation-around-patch fix.
+final class EchoelDDSPBioBrightnessAnchorTests: XCTestCase {
+
+    func testBioBrightness_defaultAnchorIsUnsetSentinel() {
+        XCTAssertEqual(EchoelDDSP().bioBaseBrightness, 0,
+                       "bioBaseBrightness must default to the unset (0) sentinel")
+    }
+
+    func testBioBrightness_patchAnchoredGenresDoNotConverge() {
+        // Two "genres" with distinct patch brightness (a dark organ vs a bright pad).
+        let a = EchoelDDSP(); a.brightness = 0.16; a.bioBaseBrightness = 0.16
+        let b = EchoelDDSP(); b.brightness = 0.48; b.bioBaseBrightness = 0.48
+        for _ in 0..<800 {
+            a.applyBioReactive(coherence: 0.95)
+            b.applyBioReactive(coherence: 0.95)
+        }
+        XCTAssertGreaterThan(abs(a.brightness - b.brightness), 0.2,
+                             "Bio-active genre brightness converged — deviation-around-patch broken")
+    }
+
+    func testBioBrightness_neutralCoherenceReturnsPatchBrightness() {
+        // Resting body (neutral coherence/HR/HRV 0.5) settles at ~the patch brightness.
+        // The filter LFO wobble rides on top, so allow a small tolerance.
+        let s = EchoelDDSP(); s.brightness = 0.30; s.bioBaseBrightness = 0.30
+        for _ in 0..<800 { s.applyBioReactive(coherence: 0.5, hrvVariability: 0.5, heartRate: 0.5) }
+        XCTAssertEqual(s.brightness, 0.30, accuracy: 0.08,
+                       "At neutral readings a resting body must sound like ~the patch brightness")
+    }
+
+    func testBioBrightness_legacyPathUnchangedWithoutAnchor() {
+        // Raw bio voice (no anchor) keeps the legacy absolute brightness path (≥ baseFilter).
+        let s = EchoelDDSP()  // bioBaseBrightness == 0
+        for _ in 0..<800 { s.applyBioReactive(coherence: 1.0, heartRate: 0.5) }
+        XCTAssertGreaterThan(s.brightness, 0.4,
+                             "Patch-less bio voice must keep the legacy absolute brightness sweep")
+        XCTAssertLessThanOrEqual(s.brightness, 0.8, "legacy brightness stays within its 0.8 clamp")
+    }
+}
+
 #endif

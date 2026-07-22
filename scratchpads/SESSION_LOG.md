@@ -8036,3 +8036,14 @@ Fix: `bioBaseFilterCutoff` (default 0 = Sentinel, roher Bio-Voice byte-identisch
 konvergieren nie. v331 spreizte die STATISCHEN Timbres; v333 stoppt die DYNAMISCHE Konvergenz.
 Reviewer DSP + Audio-Thread beide CLEAN. Commit 0332fa9, gepusht. Gates werden nächsten Zyklus
 verifiziert. Braucht Founder-Ohr auf Gerät ≥10.79.333.
+
+## 2026-07-22 — v334: Zweiter Konvergenz-Vektor (Brightness) verankert
+Beim Cutoff-Fix-Audit (v333) fand sich ein zweiter dynamischer Konvergenz-Vektor derselben
+Bug-Klasse: `brightness` (Spektral-Form-Exponent, `pow(n, 1.5−bright)`) wird von SynthPatch pro
+Genre distinkt gesetzt (0.16…0.75), aber applyBioReactive überschrieb sie absolut
+(~0.43 neutral, patch-unabhängig) → Genres konvergierten bei ruhigem Körper. Fix = gleicher
+bioBase*-Anker: `bioBaseBrightness` (Sentinel 0 = Legacy byte-identisch), Abweichung um den Patch
+zentriert (coh/hr/hrv/lfo je 0 bei neutraler Ablesung). Neutral = exakt Patch-Brightness, Körper
+bleibt bis ±0.5 hörbar, Abstand 0.32 bleibt. Falscher A8-Kommentar korrigiert. 4 Tests. Reviewer
+DSP + Audio-Thread CLEAN. Beide Konvergenz-Vektoren (Cutoff v333 + Brightness v334) sind zu.
+Commit folgt, gepusht. Gates nächsten Zyklus verifizieren. Braucht Founder-Ohr ≥10.79.334.

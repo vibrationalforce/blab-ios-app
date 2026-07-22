@@ -1273,6 +1273,14 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// distinct cutoffs instead of all
     /// collapsing toward one shared timbre when the body calms (task #81, the A8 law).
     public var bioBaseFilterCutoff: Float = 0
+    /// Patch-baseline BRIGHTNESS (spectral-shape exponent, read by computeShapeAmplitudes) for
+    /// bio modulation. 0 = "no patch anchor set" → the raw bio voice keeps the legacy absolute
+    /// brightness path (byte-identical). When > 0 (set by `SynthPatch.apply(to:)` alongside
+    /// `brightness`), the body modulates as a CLAMPED DEVIATION AROUND this value — neutral
+    /// readings (coherence/HR/HRV 0.5) settle at ~the patch brightness — so genres keep their
+    /// distinct spectral character instead of all collapsing to one brightness when the body
+    /// calms. This is the second dynamic convergence vector after the cutoff (task #81).
+    public var bioBaseBrightness: Float = 0
 
     public func applyBioReactive(
         coherence: Float,
@@ -1309,17 +1317,28 @@ public final class EchoelDDSP: @unchecked Sendable {
         if _lfoPhase > 1.0 { _lfoPhase -= 1.0 }
         let lfoValue = (1.0 + sinf(_lfoPhase * .pi * 2)) * 0.5 // 0-1 sine LFO
 
-        // Filter brightness: 0.08 (very dark/warm) → 0.7 (bright/open)
-        // Coherence opens the filter, heart rate shifts the range, LFO sweeps
-        let baseFilter: Float = 0.08 + coherence * 0.35  // 0.08-0.43 base
-        let hrShift: Float = heartRate * 0.2               // +0.0-0.2 from HR
-        let lfoSweep: Float = lfoValue * 0.15              // ±0.15 LFO sweep
-        // HRV variability → brightness: ±0.10 deviation centered on neutral HRV 0.5 (more
-        // beat-to-beat variation right now = a notch more open overtones). Brightness carries
-        // no patch character (A8), so a bold-but-clamped term here is audible without
-        // threatening the chosen timbre. HRV also keeps colouring reverbMix at L1330.
-        let hrvBright: Float = (hrvVariability - 0.5) * 0.20
-        let targetBrightness = (baseFilter + hrShift + lfoSweep + hrvBright).clamped(to: 0.05...0.8)
+        // Brightness (spectral-shape exponent — read by computeShapeAmplitudes, so it DOES
+        // carry patch character; the old "no patch character (A8)" note here was wrong). Like
+        // the filter cutoff, the body must modulate AROUND the chosen patch, not overwrite it —
+        // otherwise every genre's brightness collapses toward one absolute value when the body
+        // calms (the second dynamic convergence vector, task #81). Coherence/HR/HRV/LFO stay
+        // audible as CENTERED deviations (0 at the neutral reading), so a resting body settles
+        // at ~the patch brightness and calm/arousal open/darken it around that.
+        let targetBrightness: Float
+        if bioBaseBrightness > 0 {
+            let cohDev: Float = (coherence - 0.5) * 0.30       // calm opens, aroused darkens
+            let hrDev: Float  = (heartRate - 0.5) * 0.20       // faster HR = a touch brighter
+            let hrvDev: Float = (hrvVariability - 0.5) * 0.20  // more beat-to-beat variation = more open
+            let lfoDev: Float = (lfoValue - 0.5) * 0.15        // living wobble, centered on 0
+            targetBrightness = (bioBaseBrightness + cohDev + hrDev + hrvDev + lfoDev).clamped(to: 0.05...0.95)
+        } else {
+            // Legacy raw-bio voice (no patch anchor): unchanged absolute brightness path.
+            let baseFilter: Float = 0.08 + coherence * 0.35  // 0.08-0.43 base
+            let hrShift: Float = heartRate * 0.2               // +0.0-0.2 from HR
+            let lfoSweep: Float = lfoValue * 0.15              // ±0.15 LFO sweep
+            let hrvBright: Float = (hrvVariability - 0.5) * 0.20
+            targetBrightness = (baseFilter + hrShift + lfoSweep + hrvBright).clamped(to: 0.05...0.8)
+        }
         _smoothedBrightness = _smoothedBrightness * smoothCoeff + targetBrightness * (1.0 - smoothCoeff)
         brightness = _smoothedBrightness
 

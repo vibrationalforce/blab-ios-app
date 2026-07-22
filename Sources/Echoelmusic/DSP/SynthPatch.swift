@@ -454,6 +454,7 @@ extension SynthPatch {
         synth.bioBaseHarmonicity = harmonicity
         synth.bioBaseNoiseLevel = noiseLevel
         synth.bioBaseReverbMix = reverbMix
+        synth.bioBaseBrightness = brightness  // bio modulates AROUND the patch brightness (task #81)
         if let color = SynthPatch.match(noiseColor, EchoelDDSP.NoiseColor.allCases) { synth.noiseColor = color }
         if let shape = SynthPatch.match(spectralShape, EchoelDDSP.SpectralShape.allCases) { synth.spectralShape = shape }
         // Acoustic instrument spectrum (timbre transfer). Case-insensitive name →
