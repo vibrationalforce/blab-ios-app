@@ -1,3 +1,19 @@
+## 2026-07-22 (cron) — Beat als ruhe-überlebender Genre-Träger (v329, Slice 2)
+
+- **Founder-Log v327/2441:** Konvergenz trat sogar bei HOHER Kohärenz auf → Harmonie-Hebel
+  (v327/v328) allein unzureichend belegt (viele Genres teilen I-IV-V + Scale). Stärkster
+  Genre-Unterschied fürs Ohr = der BEAT, der bei Ruhe auf ein fast gleiches Grundgerüst fiel.
+- **Fix (v329, feat 14a32b5 + deploy aa142f4):** `MusicStyle.HatRate` (offbeat/driving/sixteenth/
+  quarter/sparse) + `kickCell` in `GenreFlavor`; `applyHatRate` setzt je Genre eine distinkte,
+  ruhe-überlebende closedHat-Textur (RNG-frei, deterministisch, `.neutral` byte-identisch).
+  Alle 18 Archetyp-Genres bekamen eine eigene hatRate → same-Archetyp-Genres klingen bei Ruhe
+  klar verschieden. Test `testSameArchetypeGenresKeepDistinctBeatsWhenCalm`. Beide Reviewer CLEAN.
+- **Trade-off (Reviewer, Task #82):** closedHat jetzt energie-invariant (feste Genre-Signatur);
+  Bio-Reaktivität bleibt auf Kick/Perc/Open-Hat/Melodie/Tempo/Harmonie. Folge: toten hatDensityBias/
+  Energy-Hat-Code entfernen + Energie optional als Verdichtung oben drauf (nur auf Founder-Wunsch/Hygiene).
+- **Stand Genre-Distinktheit:** v327 (Harmonie ab hoher Kohärenz) + v328 (ab Kohärenz 0.7) + v329
+  (Beat-Signatur) — "alles wie classic" sollte deutlich zurückgehen. Wartet auf Founder-Ohr-Check v329.
+
 ## 2026-07-22 (cron) — Genre-Harmonie setzt sich früher durch (v328, Folge auf v327)
 
 - **Founder-Feedback:** "ich gehe durch die Genres und nach kurzer Zeit klingt alles wie classic."
