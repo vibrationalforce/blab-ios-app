@@ -1,11 +1,16 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
-/// Minimal onboarding for v10 Beat-MVP: welcome → preview → tap to start.
+/// First-run onboarding: welcome → wider-vision → ready + mandatory safety gate,
+/// then Start drops into the instrument home.
 ///
-/// HealthKit request removed — v10 Beat-MVP does not read biometrics on the
-/// audio path. (Bio integration returns as an opt-in feature in v1.1+ when
-/// the Record/Stream tabs ship.)
+/// NOTE (corrected 2026-07-22): the old comment here claimed "does not read
+/// biometrics on the audio path" — that is FALSE and long-stale. Reading the body
+/// (camera rPPG / HealthKit → the bio-generative voice) IS the core feature, as
+/// the on-screen copy itself says ("Your heartbeat makes music"). The HealthKit
+/// permission is asked at a real bio-use moment (studio `startBioSource`, UX-3),
+/// not here. Cold-start choreography (auto-arm after the Start gesture, wonder-first
+/// copy) is planned in `scratchpads/PLAN_COLD_START_CHOREOGRAPHY_2026-07-22.md`.
 struct OnboardingView: View {
 
     @Binding var isComplete: Bool
