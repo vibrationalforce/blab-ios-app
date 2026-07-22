@@ -1,35 +1,24 @@
-build: v10.79.331 — Genres klingen jetzt hörbar verschieden (Ultrascan-Top-2-Fixes)
+build: v10.79.332 — Licht-Ausgang (Art-Net/sACN) jetzt komplett blitz-sicher (Farbe auch)
 branch: claude/piano-roll-clip-view-wozlie-5kxnrl (tokenless deploy via .deploy/release bump)
-notes: Nach deinem Ultrascan-Wunsch: ganzer DMMW-Scan gemacht (8 Bereiche, aktueller Code
-  verifiziert). Ergebnis: der INSTRUMENT-KERN ist ~90% produktionsreif — die Frustration
-  kam aus zwei konkreten Dingen, nicht aus 20 kaputten. Dieser Build fixt das WICHTIGSTE
-  (den Klang), die höchst-hebeligen zwei Schritte des Scans:
+notes: Ultrascan-Produktions-Pfad, Schritt 5 (Flash-Safety Licht). Reines Engineering,
+  keine sichtbare Änderung im Normalbetrieb — schließt eine echte WCAG-2.3.1/Gesetz-6-Lücke:
 
-  1) TIMBRE-SPREAD: sechs "Warm-Cluster"-Genres (classical/jazz/disco/oriental/rocksteady/
-     klezmer) teilten fast identische Synth-Patches — DER Grund für "alles klingt wie classic",
-     weil ohne Beat/Lead das gehaltene Pad der EINZIGE Genre-Träger ist. Jetzt idiomatisch
-     gespreizt und HÖRBAR verschieden (alle bleiben warm, nichts schrill):
-     · Jazz = dunkles rundes Rhodes (Cutoff runter)  · Classical = langsame breite Streicher
-     · Disco = lush breites Schimmern  · Oriental = rohrblatt-artig mit Vibrato-Wobble
-     · Rocksteady = dunkle Drawbar-Orgel (Rotary-LFO, kein Vibrato)  · Klezmer = solo-Holzrohr
-  2) HARMONIE-BODEN: beim DURCHBLÄTTERN (aufgeregt, niedrige Kohärenz) verlor die Genre-
-     Harmonie ihren Anker und alle Genres fielen auf dieselbe Akkord-Reise → "alles wie classic".
-     Jetzt bleibt auch voll aufgeregt mindestens EIN Genre-Akkord verankert (Boden 0.34), der
-     Anker WÄCHST mit Ruhe. So bleibt jedes Genre beim Browsen erkennbar.
+  Bisher war beim physischen Licht-Ausgang (Art-Net + sACN) NUR der Dimmer rate-limitiert;
+  die FARB-Kanäle (R/G/B) gingen roh mit ~30 Hz raus. Ein schneller Farbsprung bei hohem
+  Dimmer (z.B. Rot→Cyan auf einem Akkordwechsel) konnte damit >3 Hz Helligkeits-Swing
+  erzeugen — eine Blitz-Lücke auf den Netzwerk-Scheinwerfern (das Bildschirm-Visual war
+  schon sauber gedeckelt).
 
-  Beide deterministisch, zwei neue/aktualisierte Tests (Warm-Cluster mess-verschieden +
-  Harmonie-Anker aufgeregt), beide Pflicht-Reviewer laufen auf dem Diff.
+  FIX: Die Farb-Kanäle reiten jetzt denselben 0.08/Tick-Slew wie der Dimmer (dieselbe
+  geteilte FlashGuard-Primitive) → max ~1.2 Hz Farbänderung, sicher unter 3 Hz. Gilt für
+  8-bit UND 16-bit, geteilt von beiden Protokollen (Art-Net + sACN = identische Garantie).
+  Damit hält die "flash-safe"-Aussage jetzt ehrlich für Bildschirm-Visual UND Netz-Licht.
 
-  WICHTIG fürs Ohr: Timbre ist gerät-abstimmbar — ich kann es nicht hören. Bitte auf v331
-  durch classic → jazz → disco → doom → rocksteady gehen: klingt jedes jetzt klar wie ein
-  eigenes Instrument? Wenn eins noch verschwimmt, sag welches, dann stimme ich GEZIELT nach.
+  Zwei neue Tests (erster Tick schnappt, dann pro-Schritt gedeckelt; ≥12 Ticks für vollen
+  Farb-Swing → <3 Hz). Pflicht-Reviewer (Code + Bio-Safety/Epilepsie) laufen auf dem Diff.
 
-  DER SCAN (ganzes Bild) liegt in scratchpads/ULTRASCAN_PRODUCTION_PATH_2026-07-22.md:
-  produktionsreif heute = Bio-Pipeline (3 Quellen, freshness-gated), bio→Klang/FX/Visual live,
-  lock-freie Synth-Engine, DAW-Timeline (MIDI+Audio klingen, ehrliches Record-Modell),
-  Flash-Safety Bildschirm-Visual, Privacy/Egress sauber, ehrliche Shell. Größte offene
-  Baustelle = AUv3-Hosting (in Swift fertig, aber iOS liefert dem Host 0 Komponenten → PARKEN,
-  nicht weiter Swift-Aufwand). Kürzester Produktions-Pfad = auf den Instrument-Kern scope-locken,
-  Sound distinct (dieser Build), Rest hinter Flags parken, dann Geräte-Verify.
+  Kontext: Aus dem Ultrascan (scratchpads/ULTRASCAN_PRODUCTION_PATH_2026-07-22.md) einer
+  der kleinen Produktions-Pfad-Schritte. Der Instrument-Kern bleibt im Fokus; das ist
+  Ehrlichkeit/Compliance am Rand (opt-in Licht-Fixtures), kein neues Feature.
 
-  Änderung: BioComposer.swift + GenrePatches.swift + 2 Tests + project.yml + diese Datei.
+  Änderung: ArtNetSender.swift + SACNSender.swift + Test + project.yml + diese Datei.

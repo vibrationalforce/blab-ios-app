@@ -78,6 +78,9 @@ public final class ArtNetSender {
     /// Last dimmer (luminance) value actually sent, for the flash slew-limiter.
     /// -1 = none yet. Reset on stop so a restart doesn't slew from a stale value.
     @ObservationIgnored private var lastDimmer: Float = -1
+    /// Per-channel colour slew anchor (R,G,B in 0…1; empty = no history yet).
+    /// Reset on stop so a restart doesn't ramp the hue from a stale value.
+    @ObservationIgnored private var lastColour: [Float] = []
     /// Master state as of the last packet — a Grand-Master/Blackout change must
     /// send even when the source timestamp is unchanged (a stale bio source
     /// must never block a blackout).
@@ -117,6 +120,7 @@ public final class ArtNetSender {
         connection = nil
         isActive = false
         lastDimmer = -1
+        lastColour = []
     }
 
     // MARK: - Target persistence + live reconnect
@@ -209,6 +213,9 @@ public final class ArtNetSender {
         let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout)
         lastDimmer = limited
         Self.applyDimmer(&channels, resolution: resolution, dimmer: limited)
+        // Slew the COLOUR channels too — a fast hue swing at high dimmer would
+        // otherwise strobe even though the dimmer is rate-limited (Law 6 gap).
+        Self.applySlewedColour(&channels, resolution: resolution, last: &lastColour)
         let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
         sequence = sequence == 255 ? 1 : sequence &+ 1   // 1...255, 0 = disabled
         send(packet)
@@ -309,6 +316,47 @@ public final class ArtNetSender {
             let w = word(dimmer)
             channels[0] = w[0]
             channels[1] = w[1]
+        }
+    }
+
+    /// Overwrites the COLOUR (R/G/B) channels of an already-built DMX array with
+    /// slew-RATE-limited values, closing the colour half of the flash gap. The
+    /// dimmer alone was slewed before, so at a high dimmer a hard colour jump (e.g.
+    /// red→cyan on a chord change, recomputed ~30 Hz) was an un-limited luminance
+    /// swing (W3C 2.3.1 / Law 6). Each colour channel now rides the SAME 0.08/tick
+    /// cap as the dimmer, which bounds a FULL swing to ~1.2 Hz (a large strobe is
+    /// impossible). Honest caveat (inherited from the shared slew primitive, not
+    /// new here): a rate cap bounds ≤3 Hz only for flashes of amplitude ≳0.4 — a
+    /// tiny-amplitude (0.1–0.2) reversal every 2–3 ticks could still exceed 3 Hz.
+    /// That is unreachable with our sources (bio is sub-Hz; music colour changes
+    /// per chord/beat, never at 6–12 Hz), so it is a documented residual, not a
+    /// live risk; a hard per-amplitude cap would need a flash-FREQUENCY counter
+    /// (Council note, out of scope). `last` is the per-channel anchor (R,G,B in
+    /// 0…1, -1 = no history yet — the first tick snaps, then ramps), updated in
+    /// place; reset it (to []) on stop so a restart doesn't ramp from a stale hue.
+    /// The dimmer channel is left untouched (applyDimmer owns it). Shared by both
+    /// ArtNet and sACN so both protocols get the identical flash-safe guarantee.
+    static func applySlewedColour(_ channels: inout [UInt8], resolution: DMXResolution,
+                                  last: inout [Float]) {
+        if last.count != 3 { last = [-1, -1, -1] }
+        let channelStride = resolution == .sixteenBit ? 2 : 1
+        for c in 0..<3 {
+            let idx = channelStride + c * channelStride   // ch0 = dimmer; R/G/B follow
+            switch resolution {
+            case .eightBit:
+                guard idx < channels.count else { return }
+                let target = Float(channels[idx]) / 255
+                let slewed = FlashGuard.slewedDimmer(from: last[c], to: target, blackout: false)
+                last[c] = slewed
+                channels[idx] = byte(slewed)
+            case .sixteenBit:
+                guard idx + 1 < channels.count else { return }
+                let target = Float(UInt16(channels[idx]) << 8 | UInt16(channels[idx + 1])) / 65535
+                let slewed = FlashGuard.slewedDimmer(from: last[c], to: target, blackout: false)
+                last[c] = slewed
+                let w = word(slewed)
+                channels[idx] = w[0]; channels[idx + 1] = w[1]
+            }
         }
     }
 

@@ -307,3 +307,16 @@ a founder complains "X sounds wrong", trace X to the actual audio output (which 
 call feeds the engine) BEFORE building — don't assume compose() output reaches the speaker.
 For Echoel the audible generative layers are: pianoRoll notes (melody/Flächen), synth patch +
 fxCharacter (timbre/room), harmony/chords, tempo. The drum grid is NOT audible today.
+
+## PLAYBOOK/CAVEAT (2026-07-22): slew-rate limiting ≠ per-amplitude flash-frequency bound
+FlashGuard.slewedDimmer (0.08/tick @30Hz) — used for the dimmer, the on-screen visual, and now
+(v332) the Art-Net/sACN colour channels — bounds the RATE of luminance change (2.4/s), so a FULL
+0↔1 swing is ≤~1.2 Hz (no large strobe). It does NOT hard-bound a THRESHOLD-amplitude flash
+(WCAG general flash = 0.10 amplitude, dark state <0.80): a tiny 0.1–0.2 reversal every 2–3 ticks
+could still hit 6–12 Hz under a pure rate cap. UNREACHABLE with Echoel's sources (bio sub-Hz;
+music colour per chord/beat), so it is a documented residual, not a live risk. If a hard ≤3 Hz
+at ALL amplitudes is ever required (e.g. an external/automation colour source that CAN oscillate
+fast), it needs a flash-FREQUENCY counter (reject a direction reversal completing a ≥0.10 cycle in
+<1/3 s), NOT just a bigger rate cap. → Council item, out of scope for the v332 rate-limit fix.
+Wording rule (no-overclaim): say "slew-rate limited, full swings ≤~1.2 Hz", not an unconditional
+"≤3 Hz / WCAG-safe at every amplitude".

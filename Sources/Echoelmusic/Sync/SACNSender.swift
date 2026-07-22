@@ -75,6 +75,8 @@ public final class SACNSender {
     /// a Blackout release (or a Grand-Master jump) can never strobe physical
     /// fixtures — the ≤3 Hz / W3C-WCAG flash hard law applies to sACN too.
     @ObservationIgnored private var lastDimmer: Float = -1
+    /// Per-channel colour slew anchor (R,G,B in 0…1; empty = no history yet).
+    @ObservationIgnored private var lastColour: [Float] = []
     /// Last RAW colour channels + dimmer target chosen (pre-master, pre-slew).
     /// Held so a tick with NO fresh/allowed source can still honor a Blackout /
     /// Grand-Master move from the last lit state (L1 — mirrors ArtNetSender).
@@ -115,6 +117,8 @@ public final class SACNSender {
         connection?.cancel()
         connection = nil
         isActive = false
+        lastDimmer = -1
+        lastColour = []
     }
 
     // MARK: - Target persistence + live reconnect
@@ -200,6 +204,9 @@ public final class SACNSender {
         let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout)
         lastDimmer = limited
         ArtNetSender.applyDimmer(&channels, resolution: resolution, dimmer: limited)
+        // Slew the COLOUR channels too (same shared guarantee as ArtNet — a fast
+        // hue swing at high dimmer would otherwise strobe past 3 Hz, Law 6 gap).
+        ArtNetSender.applySlewedColour(&channels, resolution: resolution, last: &lastColour)
         let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid, channels: channels)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)

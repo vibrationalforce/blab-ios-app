@@ -157,6 +157,37 @@ final class ArtNetSenderTests: XCTestCase {
         XCTAssertEqual(ch[1], 0xFF, "fine")
     }
 
+    func testApplySlewedColour_firstTickSnaps_thenCapsPerStep() {
+        // 8-bit: ch1..3 = R/G/B. First tick (empty anchor) snaps to the target hue
+        // (nothing to ramp from); a later hard jump is capped at 0.08/tick (~20/255).
+        var anchor: [Float] = []
+        var full: [UInt8] = [255, 255, 255, 255]     // dimmer + white
+        ArtNetSender.applySlewedColour(&full, resolution: .eightBit, last: &anchor)
+        XCTAssertEqual(Array(full[1...3]), [255, 255, 255], "first tick snaps colour to target")
+        XCTAssertEqual(Int(full[0]), 255, "dimmer channel left untouched by colour slew")
+        // Now a hard swing to black on the colour channels must be rate-limited.
+        var black: [UInt8] = [255, 0, 0, 0]
+        ArtNetSender.applySlewedColour(&black, resolution: .eightBit, last: &anchor)
+        for c in 1...3 {
+            XCTAssertGreaterThan(Int(black[c]), 255 - 30,
+                "colour step capped (~0.08·255≈20/tick), no strobe on a red→black jump")
+        }
+    }
+
+    func testApplySlewedColour_reachesTargetOnlyOverManyTicks() {
+        // A 0→full colour swing must take ≥12 ticks (≥0.4 s at 30 Hz → <3 Hz), the
+        // same guarantee the dimmer already had.
+        var anchor: [Float] = [0, 0, 0]
+        var ticks = 0
+        while ticks < 1000 {
+            var ch: [UInt8] = [255, 255, 255, 255]   // target = full colour every tick
+            ArtNetSender.applySlewedColour(&ch, resolution: .eightBit, last: &anchor)
+            ticks += 1
+            if anchor.allSatisfy({ $0 >= 1 - 1e-6 }) { break }
+        }
+        XCTAssertGreaterThanOrEqual(ticks, 12, "colour ramp is ≥12 ticks → <3 Hz")
+    }
+
     func testFlashGuard_slewCapsLuminanceStep() {
         // A 0→1 jump must be capped per step so physical lights can't strobe.
         let stepped = FlashGuard.limitedLuminance(from: 0.0, to: 1.0, maxDelta: 0.08)
