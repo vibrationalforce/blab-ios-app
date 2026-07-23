@@ -1858,6 +1858,58 @@ final class EchoelDDSPBioBrightnessAnchorTests: XCTestCase {
                              "Patch-less bio voice must keep the legacy absolute brightness sweep")
         XCTAssertLessThanOrEqual(s.brightness, 0.8, "legacy brightness stays within its 0.8 clamp")
     }
+
+    // MARK: - Non-finite bio input (render-side robustness — #22/#29 "alles ist still")
+
+    // applyBioReactive runs ON the audio render thread (AUv3 EchoelBodyVibe + the main app's
+    // BioReactiveSynthVoice). Its one-pole accumulators (_lfoPhase, _smoothedAmplitude) and the
+    // unclamped vibrato writes ingest the bio inputs BEFORE any clamp — so a single non-finite
+    // reading (a bad rPPG frame, a divide-by-zero in a coherence calc) would poison that state:
+    // vibratoDepth becomes NaN (→ NaN samples) and _smoothedAmplitude sticks at NaN so amplitude
+    // clamps to 0 and never recovers. That is exactly the founder-reported permanent-silence bug.
+
+    func testBioReactive_nonFiniteInput_keepsAllOutputsFinite() {
+        let s = EchoelDDSP()
+        s.applyBioReactive(coherence: .nan, hrvVariability: .infinity, heartRate: .nan,
+                           breathPhase: -.infinity, breathDepth: .nan, coherenceTrend: .nan)
+        XCTAssertTrue(s.vibratoDepth.isFinite, "vibratoDepth must stay finite on non-finite bio")
+        XCTAssertTrue(s.vibratoRate.isFinite, "vibratoRate must stay finite on non-finite bio")
+        XCTAssertTrue(s.brightness.isFinite, "brightness must stay finite on non-finite bio")
+        XCTAssertTrue(s.filterCutoff.isFinite, "filterCutoff must stay finite on non-finite bio")
+        XCTAssertTrue(s.amplitude.isFinite, "amplitude must stay finite on non-finite bio")
+    }
+
+    func testBioReactive_transientNaN_amplitudeRecovers_noPermanentSilence() {
+        // A ONE-frame NaN must not silence the voice forever: after healthy bio resumes the
+        // amplitude one-pole has to climb back above zero (the #22 "silent even after pulse").
+        let s = EchoelDDSP()
+        s.applyBioReactive(heartRate: .nan)                 // poison attempt (transient dropout)
+        for _ in 0..<40 { s.applyBioReactive(coherence: 0.6, hrvVariability: 0.5, heartRate: 0.5,
+                                             breathPhase: 0.5) }
+        XCTAssertGreaterThan(s.amplitude, 0,
+                             "amplitude must recover after a transient non-finite bio value")
+    }
+
+    func testBioReactive_nonFiniteInput_renderStaysFinite() {
+        let s = EchoelDDSP()
+        s.amplitude = 0.6
+        s.noteOn(frequency: 220)
+        s.applyBioReactive(coherence: .infinity, hrvVariability: .nan, heartRate: .nan,
+                           breathPhase: .nan)
+        var buffer = [Float](repeating: 0, count: 2048)
+        s.render(buffer: &buffer, frameCount: buffer.count)
+        XCTAssertTrue(buffer.allSatisfy { $0.isFinite },
+                      "render must emit only finite samples after adversarial bio input")
+    }
+
+    func testBioReactive_neutralPathUnchanged_afterSanitization() {
+        // Regression guard: sanitizing only rewrites NON-finite inputs, so a resting body (all
+        // finite, neutral) settles at ~the patch brightness exactly as before — no behaviour drift.
+        let s = EchoelDDSP(); s.brightness = 0.30; s.bioBaseBrightness = 0.30
+        for _ in 0..<800 { s.applyBioReactive(coherence: 0.5, hrvVariability: 0.5, heartRate: 0.5) }
+        XCTAssertEqual(s.brightness, 0.30, accuracy: 0.08,
+                       "finite neutral bio must be untouched by the non-finite sanitizer")
+    }
 }
 
 #endif

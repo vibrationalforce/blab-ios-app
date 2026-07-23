@@ -1314,6 +1314,24 @@ public final class EchoelDDSP: @unchecked Sendable {
         // buffers only — never add an Array/String/dictionary/lock/Task here.
         // =====================================================================
 
+        // DEFENSE-IN-DEPTH (audio thread): sanitize the bio inputs at the boundary. The
+        // one-pole accumulators below (_lfoPhase via lfoSpeed, _smoothedAmplitude via lfoValue)
+        // and the UNCLAMPED vibrato writes (vibratoDepth/Rate) ingest these BEFORE any clamp, so
+        // a single non-finite reading (a bad rPPG frame, a divide-by-zero coherence) would
+        // permanently poison that state → NaN vibrato samples and an amplitude one-pole that
+        // sticks at NaN and clamps to 0 forever (the #22/#29 "alles ist still" permanent-silence
+        // class). `isFinite` rejects NaN AND ±inf; the neutral fallbacks are the resting-body
+        // reading, so a dropout fails to "resting" — never to silence. Only NON-finite values are
+        // rewritten, so every finite (real) reading is byte-identical to before. Scalar-only,
+        // allocation-free, no lock/ObjC/GCD — audio-thread safe. (`lfHfRatio` is not read in this
+        // body, so it is deliberately not shadowed — an unused shadow would fail -Werror.)
+        let coherence = coherence.isFinite ? coherence : 0.5
+        let hrvVariability = hrvVariability.isFinite ? hrvVariability : 0.5
+        let heartRate = heartRate.isFinite ? heartRate : 0.5
+        let breathPhase = breathPhase.isFinite ? breathPhase : 0.5
+        let breathDepth = breathDepth.isFinite ? breathDepth : 0.5
+        let coherenceTrend = coherenceTrend.isFinite ? coherenceTrend : 0
+
         let smoothCoeff: Float = 0.92  // Slightly faster response than 0.95
 
         // 1. Heart rate → Filter LFO speed + filter cutoff range
