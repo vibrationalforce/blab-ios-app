@@ -241,22 +241,16 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         _parameterTree = AUParameterTree.createTree(withChildren: [bioGroup, soundGroup])
         self.parameterTree = _parameterTree
 
-        // Value provider — read from synth
-        let synthRef = synth
-        let textureRef = texture
-        _parameterTree.implementorValueProvider = { param in
-            guard let addr = ParameterAddress(rawValue: param.address) else { return param.value }
-            switch addr {
-            case .coherence:    return synthRef.harmonicity
-            case .hrv:          return synthRef.brightness
-            case .heartRate:    return param.value
-            case .breathPhase:  return synthRef.amplitude
-            case .baseFrequency: return synthRef.frequency
-            case .textureAmount: return textureRef.gain
-            case .reverbMix:    return synthRef.reverbMix
-            case .masterGain:   return param.value
-            }
-        }
+        // NO implementorValueProvider (deliberately). Every parameter here is a CONTROL
+        // input — host automation and the App-Group bio bridge write AUParameter.value
+        // directly — NOT a DSP-owned value. The old provider read the values back FROM
+        // the synth (coherence→harmonicity, hrv→brightness, breathPhase→amplitude), but
+        // applyBioReactive MODULATES exactly those render-side, so the host read back
+        // bio-modulated values and `fullState` captured a modulated snapshot that never
+        // round-tripped (broken preset save/restore). Falling back to AUParameter's own
+        // stored value fixes both host read-back AND state save-restore. The synth is
+        // driven purely by the write path (implementorValueObserver + the render-side
+        // bio mirrors) below, which is unchanged. Do NOT re-add a value provider.
 
         // Value observer — write to synth
         _parameterTree.implementorValueObserver = { [weak self] param, value in
