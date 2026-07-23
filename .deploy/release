@@ -20,3 +20,10 @@ notes: |
   Instrument · First-Run-Finger-auf-Kamera-Einladung · Studio-Tür in die DAW · AUv3 als
   spielbares aumu-Instrument mit MIDI (jetzt inkl. Panic-Release). Alle Gates grün
   (2f61112: Xcode + CI). Rausch-Triad unberührt, kein Heilungs-Claim.
+
+  Re-Trigger #1: der erste 341-Archive-Lauf (run 29973807672, build 2455) brach mit
+  "The network connection was lost" während -allowProvisioningUpdates ab — ein
+  transienter CI-Netzausfall (die "No profiles found"-Folgefehler sind die Konsequenz
+  des Netzabrisses, keine Signing-Regression; v339/v340 archivierten mit identischem
+  Provisioning). Alle Code-Gates auf 70d7e37 sind grün. Neuer Push = frischer
+  Archive-Versuch mit neuer Build-Nummer, Version 10.79.341 unverändert.
