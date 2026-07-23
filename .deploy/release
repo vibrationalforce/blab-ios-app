@@ -1,27 +1,34 @@
-build: v10.79.344 — Pro Interop (Ableton .mid Clip+Program · ADM-OSC Cartesian · DaVinci fps)
+build: v10.79.345 — Kammerton-Fix (Bio-Stimmen) + Konsistenz-Batch (Verify-Build)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Erste Profi-Interop-Milestone (Founder-Mandat "alles auf Pro-Tool-Level"). Vier
-  additive Slices aus dem Ultracode-Interop-Audit (3 Teams, adversarial gegen echten
-  Source), ALLE einzeln reviewer-CLEAN und beide echten Gates grün (Xcode Compile Check
-  + CI/CD Pipeline). KEINE neue Oberfläche, Release bit-identisch für bestehende Pfade —
-  die Kamera-Home-Instrument-Erfahrung ist unverändert.
+  Verify-Build für den Founder am Gerät ("Ist am Gerät"). Der HÖRBARE Fix zum Prüfen
+  ist der Kammerton: stell die Stimmung auf A=432 und spiel eine Spur mit Bio-Stimme —
+  sie klingt jetzt mit, statt bei 440 zu drohnen. Alle Slices reviewer-CLEAN, beide
+  echten Gates grün (Xcode Compile Check + CI/CD Pipeline). Keine neue Oberfläche.
 
-  NEU ggü. v343 (Open-Standard-Brücken zu den Profi-Tools der Founder-Liste):
-  - #107 Per-Clip MIDI-Export (Ableton): eine EINZELNE Clip → DAW-öffnbare .mid
-    (Melodie Kanal 1 + Drums GM-Perkussion Kanal 10), Länge aus Clip-Inhalt auf ganze
-    Takte gerundet (loop-sauber). Bisher ging nur das ganze Arrangement als ein Take.
-  - #109 Program Change (0xC0) im MIDI-Export (Ableton): der Take öffnet auf einem
-    DEFINIERTEN GM-Instrument statt auf einem beliebigen Sound der Zielspur. Optional,
-    default-omit → bestehende Ausgabe byte-identisch.
-  - #108 ADM-OSC Cartesian-Ausgabe (Adamson Fletcher · Grapes 3D · 4D/5D): der neue
-    .admOSCCartesian-Dialekt sendet /adm/obj/{n}/position/x|y|z — Cartesian-only-
-    Immersive-Konsolen bekamen bisher NICHTS (nur der polare Pfad existierte). Aus
-    derselben SpatialPosition abgeleitet, polarer Pfad unberührt.
-  - #110 Nominale Framerate im Video-Export (DaVinci Resolve): AVVideoExpectedSource-
-    FrameRateKey:30 stempelt die fps für Encoder-Rate-Control + NLE-Ingest.
+  HÖRBAR / prüfbar am Gerät (v345):
+  - Kammerton (A4) für die Bio-Stimmen: eine Lane-Bio-Einheit spielte JEDE MIDI-Note
+    fest bei 440 Hz, während der Rest des Instruments (Synth/Bass/Touch) auf z.B.
+    A=432 umstimmte. Jetzt folgen die Bio-Stimmen der Stimmung (soundingFrequency liest
+    synth.a4Hz, NaN-gehärtet; LaneVoiceRack.setTuning reicht A4 an die Bio-Einheiten
+    durch). Die globale Ein-Knopf-Bio-Stimme ist a4Hz-fähig gemacht; ihre UI-Verdrahtung
+    folgt (bleibt bis dahin 440, keine Regression). → BITTE prüfen: 432 einstellen, Spur
+    mit Bio-Stimme spielen, Tonhöhe vs. den anderen Stimmen.
 
-  Ehrliche Grenzen (kein Overclaim): ganzes Projekt→Ableton braucht noch Full-
-  Arrangement-MIDI-Export + Stem-Export (#105); Echoel-Instrument in Desktop-Ableton
-  braucht ein macOS-AU-Target (founder-gated); Ableton Link (#111) = erster externer
-  Dep, wartet auf Founder-OK. Rausch-Triad unberührt, kein Heilungs-Claim.
+  Korrektheits-Batch seit v344 (kein Overclaim — meist intern/unsichtbar):
+  - Bio-HealthKit: echter SDNN-ms-Wert wird jetzt on-device getragen (war 0); jede
+    HRV-Metrik hat im OSC-Egress ihr eigenes >0-Gate. HealthKit bleibt netzwerk-
+    egress-geblockt (App Store 5.1.3) — SDNN bleibt on-device.
+  - Tempo-Range hat EINEN Owner (Transport) statt dreifacher 30/300/120-Deklaration.
+  - BinauralPanner-Azimut folgt jetzt der Hauskonvention (positive = links) — latenter
+    Core, noch nicht im Render-Pfad, keine Live-Audio-Änderung.
+  - Video-Export deklariert die reale 60-fps-Quelle (Metal-Draw-Loop, nicht die 15-Hz-
+    rPPG-Kamera) für DaVinci-Ingest.
+  - Spur-Picker (Genre/Mood) nutzen denselben .text-Tint wie alle anderen Menü-Picker.
+  - Header-Chrome: eine flache Leiste (Divider entstapelt); immersive Puls-Kacheln
+    ≤2,5 Hz Flash + Reduce-Motion (WCAG).
+  - Projekt-Speicher (Project) übersteht fehlende Felder (decodeIfPresent) — kein
+    Datenverlust mehr beim Öffnen eines alt/neu gespeicherten Takes.
+
+  Grenzen: Rausch-Triad unberührt, kein Heilungs-Claim. Globale Bio-Stimme-UI-Tuning-
+  Verdrahtung + Metronom-Klick-bei-Tempo-Automation stehen als nächste Slices an.
