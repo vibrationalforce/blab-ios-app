@@ -92,6 +92,13 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     /// Touched ONLY by the render thread (single-owner), so the plain field is safe.
     private final class BioRenderState { nonisolated(unsafe) var frameAccum = 0 }
     private let bioRenderState = BioRenderState()
+    /// Render-owned last-note-priority tracker for the mono voice: the MIDI note number
+    /// currently sounding (-1 = none, or the free-running bio drone). A note-off silences
+    /// the voice ONLY when it releases THAT note, so releasing a still-held earlier note
+    /// no longer kills the current one. Touched ONLY by the render thread (single-owner),
+    /// so the plain field is safe. `Int32` holds a 7-bit MIDI note plus the -1 sentinel.
+    private final class RenderNoteState { nonisolated(unsafe) var current: Int32 = -1 }
+    private let renderNoteState = RenderNoteState()
 
     // MARK: - Buses
 
@@ -421,6 +428,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         let scratch = self.renderScratch
         let bioBox = self.bioMirror
         let bioState = self.bioRenderState
+        let noteState = self.renderNoteState
         // ~10 Hz throttle for the render-side bio application (sampleRate/10 frames).
         let bioInterval = max(1, Int(self.synth.sampleRate / 10))
 
@@ -433,9 +441,12 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
             // list and drive the mono voice's pitch. This is pure pointer + scalar
             // work plus EchoelDDSP.noteOn/noteOff (both scalar-assignment only) — no
             // allocation, no lock, no ObjC, no GCD: audio-thread safe. Block-granular
-            // (all events applied before the block renders); the last note in the
-            // block wins for a mono voice. With NO note event, nothing changes and the
-            // free-running bio tone armed in allocateRenderResources keeps playing.
+            // (all events applied before the block renders); the last note-on in the
+            // block wins for a mono voice, and last-note priority means a note-off only
+            // silences the voice when it releases the note that is actually sounding (so
+            // releasing a still-held earlier note no longer cuts the current one). With
+            // NO note event, nothing changes and the free-running bio tone armed in
+            // allocateRenderResources keeps playing.
             // Only legacy AUMIDIEvent (.MIDI) is handled — correct for the default
             // MIDI-1.0 protocol, where hosts translate to legacy events. A future host
             // negotiating MIDI-2.0 UMP would deliver .MIDIEventList instead (add a
@@ -452,8 +463,18 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
                         case let .noteOn(frequency, velocity):
                             synthRef.noteVelocity = velocity
                             synthRef.noteOn(frequency: frequency)
+                            noteState.current = Int32(midi.data.1)   // now the sounding note
                         case .noteOff:
+                            // Last-note priority: only release the voice if this note-off
+                            // is for the note that is actually sounding.
+                            if Int32(midi.data.1) == noteState.current {
+                                synthRef.noteOff()
+                                noteState.current = -1
+                            }
+                        case .panic:
+                            // Host All Sound/Notes Off — force-release regardless of note.
                             synthRef.noteOff()
+                            noteState.current = -1
                         case .ignore:
                             break
                         }

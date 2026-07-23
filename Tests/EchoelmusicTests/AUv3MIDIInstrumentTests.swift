@@ -50,15 +50,17 @@ final class AUv3MIDIInstrumentTests: XCTestCase {
         XCTAssertEqual(EchoelMIDIDecode.action(status: 0xE0, data1: 0, data2: 64), .ignore)
     }
 
-    func testAction_allNotesOff_isNoteOff() {
-        // MIDI panic: CC 123 (All Notes Off) must release the mono voice — otherwise a
-        // host's transport-stop / panic leaves the AUv3 drone stuck on.
-        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB0, data1: 123, data2: 0), .noteOff)
+    func testAction_allNotesOff_isPanic() {
+        // MIDI panic: CC 123 (All Notes Off) must FORCE-release the mono voice — otherwise
+        // a host's transport-stop / panic leaves the AUv3 drone stuck on. It decodes to
+        // `.panic`, NOT `.noteOff`, so last-note priority in the render block never gates
+        // it on a key match (its data1 is the controller number 123, not a note).
+        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB0, data1: 123, data2: 0), .panic)
     }
 
-    func testAction_allSoundOff_isNoteOff() {
-        // CC 120 (All Sound Off) likewise stops the voice.
-        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB0, data1: 120, data2: 0), .noteOff)
+    func testAction_allSoundOff_isPanic() {
+        // CC 120 (All Sound Off) likewise force-stops the voice.
+        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB0, data1: 120, data2: 0), .panic)
     }
 
     func testAction_ordinaryCC_stillIgnored() {

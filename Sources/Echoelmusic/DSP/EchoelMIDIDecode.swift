@@ -21,7 +21,15 @@ public enum EchoelMIDIDecode {
     /// What a decoded MIDI message asks the mono voice to do.
     public enum Action: Equatable {
         case noteOn(frequency: Float, velocity: Float)
+        /// A note-off for a specific key (0x80, or 0x90 velocity 0). The render block
+        /// applies LAST-NOTE priority: it only silences the mono voice if this key is
+        /// the one currently sounding (the note number is the message's data1).
         case noteOff
+        /// A host panic (All Sound Off / All Notes Off) — force-release the voice
+        /// UNCONDITIONALLY, regardless of which note is sounding. Distinct from
+        /// `.noteOff` because its data1 is a controller number (120/123), NOT a key, so
+        /// a note-number match must never gate it.
+        case panic
         case ignore
     }
 
@@ -45,9 +53,11 @@ public enum EchoelMIDIDecode {
                 : .noteOff
         case 0x80:  // Note Off
             return .noteOff
-        case 0xB0:  // Control Change — release the voice on a host panic (All Sound Off
-                    // = CC 120, All Notes Off = CC 123); every other CC keeps the drone.
-            return (data1 == 120 || data1 == 123) ? .noteOff : .ignore
+        case 0xB0:  // Control Change — force-release the voice on a host panic (All Sound
+                    // Off = CC 120, All Notes Off = CC 123); every other CC keeps the drone.
+                    // `.panic` (not `.noteOff`) so last-note priority never gates it — its
+                    // data1 is the controller number, not a key.
+            return (data1 == 120 || data1 == 123) ? .panic : .ignore
         default:
             return .ignore
         }
