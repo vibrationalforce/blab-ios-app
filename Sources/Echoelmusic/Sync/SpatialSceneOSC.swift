@@ -13,6 +13,16 @@
 //      /adm/obj/{n}/position/distance   float     0 … 1
 //      /adm/obj/{n}/gain                float     0 … 1     linear
 //
+//  · ADM-OSC Cartesian — same standard, the Cartesian branch of the namespace
+//    for renderers/consoles that accept x/y/z object input instead of polar
+//    (ITU-R BS.2076 room coordinates, unit-scaled by distance):
+//      /adm/obj/{n}/position/x  float   +right   (−left)
+//      /adm/obj/{n}/position/y  float   +front   (−back)
+//      /adm/obj/{n}/position/z  float   +up      (−down)
+//      /adm/obj/{n}/gain        float    0 … 1   linear
+//    Derived from the exact SAME SpatialPosition (via `.cartesian`), so an object
+//    placed once reaches a polar OR a Cartesian rig without re-authoring.
+//
 //  · IEM plug-in suite (plugins.iem.at/docs/osc/) — MultiEncoder-style:
 //    /<PluginName>/<param><index> with a 0-BASED source index, angles in
 //    degrees (same sign convention as ADM: positive azimuth = left/CCW):
@@ -34,8 +44,12 @@ import Foundation
 
 /// Which OSC vocabulary an external renderer speaks.
 public enum SpatialOSCDialect: Sendable, Equatable {
-    /// ADM-OSC v1.0 — FletcherMachine, L-ISA, d&b Soundscape, SPAT, Nuendo.
+    /// ADM-OSC v1.0 polar — FletcherMachine, L-ISA, d&b Soundscape, SPAT, Nuendo.
     case admOSC
+    /// ADM-OSC v1.0 Cartesian (x/y/z) — for Cartesian-only immersive consoles /
+    /// renderers that don't accept polar object input. Same namespace + 1-based
+    /// object index as `.admOSC`, position sent as x/y/z instead of az/el/dist.
+    case admOSCCartesian
     /// IEM plug-in suite MultiEncoder-style addressing; `plugin` is the OSC
     /// root the plugin instance listens on (default plugin name shown).
     case iemMultiEncoder(plugin: String)
@@ -54,6 +68,8 @@ public enum SpatialSceneOSCFormatter {
         switch dialect {
         case .admOSC:
             return admMessages(scene)
+        case .admOSCCartesian:
+            return admCartesianMessages(scene)
         case .iemMultiEncoder(let plugin):
             return iemMessages(scene, plugin: plugin)
         }
@@ -69,6 +85,25 @@ public enum SpatialSceneOSCFormatter {
             out.append(("\(prefix)/position/azimuth", obj.position.azimuth))
             out.append(("\(prefix)/position/elevation", obj.position.elevation))
             out.append(("\(prefix)/position/distance", obj.position.distance))
+            out.append(("\(prefix)/gain", obj.gain))
+        }
+        return out
+    }
+
+    // MARK: - ADM-OSC Cartesian (1-based objects, x/y/z instead of az/el/dist)
+
+    private static func admCartesianMessages(_ scene: SpatialScene) -> [(address: String, value: Float)] {
+        var out: [(String, Float)] = []
+        out.reserveCapacity(scene.objects.count * 4)
+        for (i, obj) in scene.objects.enumerated() {
+            let prefix = "/adm/obj/\(i + 1)"
+            // Reuse SpatialPosition's own ADM cartesian derivation (x right, y front,
+            // z up, distance-scaled) — one source of truth, so polar and Cartesian
+            // outputs can never disagree about where an object is.
+            let c = obj.position.cartesian
+            out.append(("\(prefix)/position/x", c.x))
+            out.append(("\(prefix)/position/y", c.y))
+            out.append(("\(prefix)/position/z", c.z))
             out.append(("\(prefix)/gain", obj.gain))
         }
         return out
