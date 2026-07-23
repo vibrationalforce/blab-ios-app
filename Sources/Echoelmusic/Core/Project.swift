@@ -44,6 +44,40 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         self.drumSteps = drumSteps; self.drumAccents = drumAccents
     }
 
+    // MARK: - Defensive decoding (forward/backward-compatible)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, savedAt, styleRaw, keyRoot, scaleRaw, bpm, modeRaw
+        case fxCharacterRaw, loopBars, a4Hz, artist, patch, notes, drumSteps, drumAccents
+    }
+
+    /// Custom decoder so a take saved by an OLDER (or FUTURE) build — one that predates
+    /// a field, or was written after one was added — still loads instead of throwing
+    /// `keyNotFound` and vaporizing the user's whole saved take. Every field tolerates
+    /// absence via `decodeIfPresent` + a sensible default (the house persistence law that
+    /// the ~15 other stored structs, incl. the embedded SynthPatch, already follow —
+    /// Project was the one top-level save format that skipped it). Encoding stays
+    /// synthesized, so JSON that DOES contain every field round-trips bit-identically.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id             = try c.decodeIfPresent(UUID.self,     forKey: .id)             ?? UUID()
+        name           = try c.decodeIfPresent(String.self,   forKey: .name)           ?? "Take"
+        savedAt        = try c.decodeIfPresent(Date.self,     forKey: .savedAt)        ?? Date()
+        styleRaw       = try c.decodeIfPresent(String.self,   forKey: .styleRaw)       ?? ""
+        keyRoot        = try c.decodeIfPresent(Int.self,      forKey: .keyRoot)        ?? 0
+        scaleRaw       = try c.decodeIfPresent(String.self,   forKey: .scaleRaw)       ?? ""
+        bpm            = try c.decodeIfPresent(Double.self,   forKey: .bpm)            ?? 120
+        modeRaw        = try c.decodeIfPresent(String.self,   forKey: .modeRaw)        ?? ""
+        fxCharacterRaw = try c.decodeIfPresent(String.self,   forKey: .fxCharacterRaw) ?? ""
+        loopBars       = try c.decodeIfPresent(Int.self,      forKey: .loopBars)       ?? 1
+        a4Hz           = try c.decodeIfPresent(Double.self,   forKey: .a4Hz)           ?? 440
+        artist         = try c.decodeIfPresent(String.self,   forKey: .artist)         ?? ""
+        patch          = try c.decodeIfPresent(SynthPatch.self, forKey: .patch)        ?? SynthPatch(name: "Default")
+        notes          = try c.decodeIfPresent([Note].self,  forKey: .notes)          ?? []
+        drumSteps      = try c.decodeIfPresent([[Bool]].self, forKey: .drumSteps)      ?? []
+        drumAccents    = try c.decodeIfPresent([[Bool]].self, forKey: .drumAccents)    ?? []
+    }
+
     // MARK: - Decoded accessors (raw → enum, with safe fallbacks)
 
     public var style: MusicStyle { MusicStyle(rawValue: styleRaw) ?? .dubTechno }

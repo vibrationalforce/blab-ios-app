@@ -60,6 +60,43 @@ final class ProjectCodableTests: XCTestCase {
         let back = try JSONDecoder().decode(Project.self, from: data)
         XCTAssertEqual(back, p, "unknown future keys ignored; every known field survives intact")
     }
+
+    // MARK: - Backward-compat: MISSING fields must not vaporize the take
+
+    func testMissingFields_loadWithDefaults_neverThrow() throws {
+        // An older save (or one field lost) must still LOAD with defaults — not throw
+        // keyNotFound and lose the user's whole take. This is why Project needs the
+        // defensive decoder the other stored structs already have.
+        let full = try JSONEncoder().encode(sample("Rescue"))
+        var dict = try XCTUnwrap(try JSONSerialization.jsonObject(with: full) as? [String: Any])
+        for key in ["a4Hz", "artist", "drumAccents", "loopBars", "bpm"] { dict.removeValue(forKey: key) }
+        let trimmed = try JSONSerialization.data(withJSONObject: dict)
+        let p = try JSONDecoder().decode(Project.self, from: trimmed)   // must NOT throw
+        XCTAssertEqual(p.a4Hz, 440);        XCTAssertEqual(p.artist, "")
+        XCTAssertEqual(p.drumAccents, []);  XCTAssertEqual(p.loopBars, 1)
+        XCTAssertEqual(p.bpm, 120)
+        // Fields that ARE present still survive intact.
+        XCTAssertEqual(p.name, "Rescue")
+        XCTAssertEqual(p.styleRaw, MusicStyle.dubTechno.rawValue)
+    }
+
+    func testMissingPatch_getsSafeDefault_neverThrow() throws {
+        let full = try JSONEncoder().encode(sample())
+        var dict = try XCTUnwrap(try JSONSerialization.jsonObject(with: full) as? [String: Any])
+        dict.removeValue(forKey: "patch")
+        let trimmed = try JSONSerialization.data(withJSONObject: dict)
+        let p = try JSONDecoder().decode(Project.self, from: trimmed)   // must NOT throw
+        XCTAssertEqual(p.patch.name, "Default")
+    }
+
+    func testNearlyEmptyObject_stillDecodesToAValidTake() throws {
+        // The extreme: almost nothing present. A valid Project, never a thrown error.
+        let p = try JSONDecoder().decode(Project.self, from: Data("{\"name\":\"Salvaged\"}".utf8))
+        XCTAssertEqual(p.name, "Salvaged")
+        XCTAssertEqual(p.bpm, 120)
+        XCTAssertTrue(p.notes.isEmpty)
+        XCTAssertEqual(p.style, .dubTechno, "empty styleRaw resolves to the safe default")
+    }
 }
 
 @MainActor
