@@ -4,9 +4,11 @@ import Foundation
 
 /// P3 · Video — combines a silent video file (from `VisualRecorder`) with an audio
 /// file (the last N seconds of the master mix, from RetroCapture's ring buffer via
-/// `AudioEngine.captureRecentMixAudio`) into one shareable `.mp4`. Both windows end
-/// at stop time, so laying each track at time 0 and trimming to the shorter keeps
-/// them in sync (best-effort).
+/// `AudioEngine.captureRecentMixAudio`) into one shareable `.mp4`. Both windows END
+/// at stop time but can differ in length (the video is the whole session, the audio
+/// is only the ring window), so the two tracks are END-aligned — the last
+/// `min(video, audio)` seconds of each — via `VideoMuxAlignment`. (Start-aligning at
+/// t=0 desynced any recording longer than the audio ring: video HEAD over audio TAIL.)
 ///
 /// Uses only high-level, robust APIs (`AVMutableComposition` + the iOS-18
 /// `AVAssetExportSession.export(to:as:)`), so there is no hand-rolled sample
@@ -33,14 +35,22 @@ enum VideoMuxer {
 
             let vDur = try await videoAsset.load(.duration)
             let aDur = try await audioAsset.load(.duration)
-            let duration = CMTimeMinimum(vDur, aDur)
-            guard duration.isValid, duration.seconds > 0 else {
+            // END-align: take the last min(v,a) seconds of EACH track (the tested rule
+            // in VideoMuxAlignment). Validate via the pure helper — `.seconds` is NaN
+            // for an indefinite/invalid CMTime, which its isFinite guard rejects, so
+            // this also subsumes the old `duration.isValid` check. The ranges below are
+            // then built with EXACT CMTime arithmetic (no Double round-trip), so neither
+            // start nor duration can round past a source track's real length.
+            guard VideoMuxAlignment.endAligned(videoDuration: vDur.seconds,
+                                               audioDuration: aDur.seconds) != nil else {
                 log.log(.error, category: .video, "VideoMuxer: zero/invalid duration")
                 return nil
             }
-            let range = CMTimeRange(start: .zero, duration: duration)
-            try vTrack.insertTimeRange(range, of: vSource, at: .zero)
-            try aTrack.insertTimeRange(range, of: aSource, at: .zero)
+            let duration = CMTimeMinimum(vDur, aDur)                 // exact shorter length
+            let vRange = CMTimeRange(start: CMTimeSubtract(vDur, duration), duration: duration)
+            let aRange = CMTimeRange(start: CMTimeSubtract(aDur, duration), duration: duration)
+            try vTrack.insertTimeRange(vRange, of: vSource, at: .zero)
+            try aTrack.insertTimeRange(aRange, of: aSource, at: .zero)
             // Preserve the source video orientation (identity for our raw-buffer capture).
             vTrack.preferredTransform = try await vSource.load(.preferredTransform)
         } catch {
