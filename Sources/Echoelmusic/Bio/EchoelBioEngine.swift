@@ -5,9 +5,10 @@
 //
 //  HealthKit integration for real physiological data:
 //  - Heart Rate (HR) from Apple Watch / chest strap
-//  - Heart Rate Variability (HRV) — self-calculated RMSSD
+//  - Heart Rate Variability (HRV) — HealthKit's own SDNN. Apple exposes averaged HR
+//    + SDNN, NOT beat-to-beat RR, so NO time-domain RMSSD is derived here (real RR
+//    HRV comes from the BLE strap via PolarH10BioPublisher).
 //  - Breathing Rate (iOS 17+)
-//  - Coherence score (derived from HRV spectral analysis)
 //
 //  Replaces the mic-audio-level proxy in EchoelCreativeWorkspace.
 //
@@ -30,10 +31,12 @@ public struct BioSnapshot: Sendable {
     /// Heart rate in BPM [40-200]
     public var heartRate: Double = 72.0
 
-    /// HRV as RMSSD in ms, normalized to [0-1]
+    /// HRV normalized to [0-1] — from HealthKit's SDNN (the BLE strap path provides
+    /// true beat-to-beat RMSSD; HealthKit does not, so no RMSSD is derived here).
     public var hrvNormalized: Double = 0.5
 
-    /// Raw RMSSD in milliseconds
+    /// Raw RMSSD in milliseconds (BLE-strap path only; NOT written on the HealthKit
+    /// path, which has no beat-to-beat RR — HealthKit HRV flows via `hrvNormalized`).
     public var hrvRMSSD: Double = 50.0
 
     /// Breathing rate in breaths/min [4-30]
@@ -103,10 +106,6 @@ public final class EchoelBioEngine {
 
     // MARK: - HRV Calculation
 
-    /// Recent RR intervals for RMSSD calculation
-    private var rrIntervals: [Double] = []
-    private let maxRRIntervals = 60 // ~1 minute of data
-
     /// Smoothing factor (higher = smoother, more latency)
     private let smoothingAlpha: Double = 0.15
 
@@ -115,7 +114,8 @@ public final class EchoelBioEngine {
     /// Apple Watch HR latency is ~4-5 seconds — don't use for beat-sync
     private let appleWatchHRLatency: TimeInterval = 4.5
 
-    /// RMSSD normalization: 100ms is "excellent", 20ms is "low"
+    /// HRV normalization ceiling in ms: ~100ms is "excellent", ~20ms is "low".
+    /// Applied to HealthKit's SDNN to map it into the [0,1] `hrvNormalized` range.
     private let rmssdNormalizationMax: Double = 100.0
 
     // MARK: - Init
@@ -330,8 +330,12 @@ public final class EchoelBioEngine {
         // Guard against invalid HR values
         guard bpm >= 30 && bpm <= 220 else { return }
 
-        // Calculate RR interval from HR: RR = 60000 / HR (in ms)
-        let rrInterval = 60000.0 / max(bpm, 40.0)
+        // NOTE: HealthKit heart-rate samples are AVERAGED BPM, not beat-to-beat RR
+        // intervals — so we do NOT derive RR = 60000/HR and run RMSSD over it. That is
+        // physiologically meaningless: a steady resting HR yields ~0 "RMSSD" = a false
+        // "dead HRV". Real time-domain HRV (RMSSD) comes from the BLE strap
+        // (PolarH10BioPublisher). This path tracks HR only; the honest HealthKit HRV
+        // signal is its own SDNN (see processHRVSamples).
         let sampleDate = latestSample.startDate
 
         // HealthKit callbacks fire on background thread — hop to MainActor safely
@@ -341,17 +345,6 @@ public final class EchoelBioEngine {
                 self.snapshot.heartRate = bpm
                 self.snapshot.timestamp = sampleDate
                 self.smoothHeartRate = self.smoothHeartRate * (1.0 - self.smoothingAlpha) + bpm * self.smoothingAlpha
-
-                // Accumulate RR intervals for RMSSD calculation
-                self.rrIntervals.append(rrInterval)
-                if self.rrIntervals.count > self.maxRRIntervals {
-                    self.rrIntervals.removeFirst()
-                }
-
-                // Calculate RMSSD from RR intervals
-                if self.rrIntervals.count >= 5 {
-                    self.calculateRMSSD()
-                }
             }
         }
     }
@@ -368,12 +361,13 @@ public final class EchoelBioEngine {
         DispatchQueue.main.async {
             MainActor.assumeIsolated { [weak self] in
                 guard let self else { return }
-                // Use SDNN as approximate coherence indicator if we don't have enough RR intervals
-                if self.rrIntervals.count < 5 {
-                    let normalized = min(sdnn / self.rmssdNormalizationMax, 1.0)
-                    self.snapshot.hrvNormalized = normalized
-                    self.smoothHRV = self.smoothHRV * (1.0 - self.smoothingAlpha) + normalized * self.smoothingAlpha
-                }
+                // HealthKit's real HRV is SDNN (it does not expose beat-to-beat RR),
+                // so SDNN drives the normalized HRV directly. (This used to be gated
+                // behind "not enough RR intervals" and then overridden by a fabricated
+                // RMSSD computed from averaged HR — that fabrication has been removed.)
+                let normalized = min(sdnn / self.rmssdNormalizationMax, 1.0)
+                self.snapshot.hrvNormalized = normalized
+                self.smoothHRV = self.smoothHRV * (1.0 - self.smoothingAlpha) + normalized * self.smoothingAlpha
             }
         }
     }
@@ -395,54 +389,14 @@ public final class EchoelBioEngine {
         }
     }
 
-    // MARK: - RMSSD Calculation (Rausch 2017)
-
-    /// Calculate RMSSD from successive RR interval differences
-    /// Apple only provides SDNN — we need RMSSD for coherence assessment
-    private func calculateRMSSD() {
-        guard rrIntervals.count >= 2 else { return }
-
-        var sumSquaredDiffs: Double = 0.0
-        var count = 0
-
-        for i in 1..<rrIntervals.count {
-            let diff = rrIntervals[i] - rrIntervals[i - 1]
-            sumSquaredDiffs += diff * diff
-            count += 1
-        }
-
-        guard count > 0 else { return }
-        let rmssd = (sumSquaredDiffs / Double(count)).squareRoot()
-
-        snapshot.hrvRMSSD = rmssd
-        let normalized = min(rmssd / rmssdNormalizationMax, 1.0)
-        snapshot.hrvNormalized = normalized
-        smoothHRV = smoothHRV * (1.0 - smoothingAlpha) + normalized * smoothingAlpha
-
-        // Calculate coherence from HRV regularity
-        // High coherence = regular, sinusoidal HRV pattern
-        // Low coherence = erratic HRV
-        calculateCoherence()
-    }
-
-    /// Coherence based on HRV regularity (simplified spectral analysis)
-    /// Full implementation would use BioSignalDeconvolver (Rausch 2017)
-    private func calculateCoherence() {
-        guard rrIntervals.count >= 10 else { return }
-
-        // Calculate variance of successive differences
-        let diffs = zip(rrIntervals.dropFirst(), rrIntervals).map { $0 - $1 }
-        guard !diffs.isEmpty else { return }
-        let mean = diffs.reduce(0, +) / Double(diffs.count)
-        let variance = diffs.reduce(0.0) { $0 + ($1 - mean) * ($1 - mean) } / Double(diffs.count)
-
-        // Low variance in diffs = high coherence (regular pattern)
-        // Normalize: variance < 100 = high coherence, > 2000 = low
-        let coherence = max(0.0, min(1.0, 1.0 - (variance / 2000.0)))
-
-        snapshot.coherence = coherence
-        smoothCoherence = smoothCoherence * (1.0 - smoothingAlpha) + coherence * smoothingAlpha
-    }
+    // NOTE: The former `calculateRMSSD()` / `calculateCoherence()` pair was removed
+    // (#98c1). Both ran over RR intervals fabricated from HealthKit's AVERAGED HR
+    // (RR = 60000/HR), which is not beat-to-beat data — so the resulting RMSSD and
+    // coherence were physiologically meaningless and, worse, overrode the real SDNN.
+    // HealthKit HRV now flows honestly as SDNN (processHRVSamples); real RMSSD/coherence
+    // come from the BLE strap path (PolarH10BioPublisher), consistent with
+    // `BioSource.providesTrustedHRV == false` for HealthKit. (The RMSSD/coherence math
+    // itself remains covered by the algorithm tests in BioEngineTests, fed real RR.)
 
     // MARK: - Fallback Mode (Mic Level Proxy)
 
