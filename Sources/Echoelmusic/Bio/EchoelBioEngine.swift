@@ -39,6 +39,12 @@ public struct BioSnapshot: Sendable {
     /// path, which has no beat-to-beat RR — HealthKit HRV flows via `hrvNormalized`).
     public var hrvRMSSD: Double = 50.0
 
+    /// Raw SDNN in milliseconds. HealthKit IS a native SDNN source (it exposes SDNN
+    /// directly), so this carries the real ms value out to `/echoelmusic/bio/heart/sdnn`
+    /// — the normalized [0,1] field clamps at the 100 ms ceiling and cannot recover it.
+    /// 0 = not provided by the source.
+    public var hrvSDNNms: Double = 0
+
     /// Breathing rate in breaths/min [4-30]
     public var breathRate: Double = 12.0
 
@@ -367,6 +373,12 @@ public final class EchoelBioEngine {
                 // RMSSD computed from averaged HR — that fabrication has been removed.)
                 let normalized = HRVNormalization.normalize(sdnn)
                 self.snapshot.hrvNormalized = normalized
+                // Carry the real SDNN ms too — HealthKit is a native SDNN source, so the
+                // raw value is available for ON-DEVICE display / self-observation (the
+                // normalized [0,1] field clamps at the 100 ms ceiling and loses it).
+                // NOTE: HealthKit-sourced frames are network-egress-blocked upstream by
+                // BioEgressPolicy (App Store 5.1.3), so this value stays on-device.
+                self.snapshot.hrvSDNNms = sdnn
                 self.smoothHRV = self.smoothHRV * (1.0 - self.smoothingAlpha) + normalized * self.smoothingAlpha
             }
         }
@@ -454,6 +466,7 @@ public struct BioSnapshot: Sendable {
     public var heartRate: Double = 72.0
     public var hrvNormalized: Double = 0.5
     public var hrvRMSSD: Double = 50.0
+    public var hrvSDNNms: Double = 0
     public var breathRate: Double = 12.0
     public var breathPhase: Double = 0.5
     public var coherence: Double = 0.5

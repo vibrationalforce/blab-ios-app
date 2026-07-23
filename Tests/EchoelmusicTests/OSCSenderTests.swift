@@ -91,6 +91,66 @@ final class OSCSenderTests: XCTestCase {
         XCTAssertEqual(Array(data.suffix(8)), [0x3F, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
     }
 
+    // MARK: - bioMessages(for:) — per-metric HRV gating
+
+    private func frame(rmssd: Float = 0, sdnn: Float = 0, pnn50: Float = 0) -> BioSampleFrame {
+        BioSampleFrame(
+            timestamp: 0, heartRateBPM: 72, hrvNormalized: 0.5,
+            breathRate: 12, breathPhase: 0.5, coherence: 0.5, motionEnergy: 0,
+            source: .healthKit, hrvRMSSDms: rmssd, hrvSDNNms: sdnn, hrvPNN50: pnn50)
+    }
+
+    private func addresses(_ f: BioSampleFrame) -> [String] {
+        OSCSender.bioMessages(for: f).map(\.address)
+    }
+
+    func testBioMessages_healthKitSDNNOnly_stillEmitsSDNN() {
+        // HealthKit has native SDNN but NO beat-to-beat RR → RMSSD/pNN50 absent.
+        // The SDNN must still be sent (the bug: it used to hide behind the RMSSD gate).
+        let addrs = addresses(frame(rmssd: 0, sdnn: 45, pnn50: 0))
+        XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/sdnn"), "native SDNN must emit")
+        XCTAssertFalse(addrs.contains("/echoelmusic/bio/heart/rmssd"), "no RR → no RMSSD")
+        XCTAssertFalse(addrs.contains("/echoelmusic/bio/heart/pnn50"), "no RR → no pNN50")
+    }
+
+    func testBioMessages_realRRSource_emitsAllThree() {
+        // Camera/Polar provide RR → RMSSD + pNN50 + SDNN all present.
+        let addrs = addresses(frame(rmssd: 50, sdnn: 60, pnn50: 0.3))
+        XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/rmssd"))
+        XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/pnn50"))
+        XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/sdnn"))
+    }
+
+    func testBioMessages_noHRV_emitsNoUnnormalizedMetrics() {
+        let addrs = addresses(frame(rmssd: 0, sdnn: 0, pnn50: 0))
+        for a in ["/echoelmusic/bio/heart/rmssd", "/echoelmusic/bio/heart/sdnn", "/echoelmusic/bio/heart/pnn50"] {
+            XCTAssertFalse(addrs.contains(a), "\(a) must not be sent with no source value")
+        }
+        // The always-on core frame is still fully present.
+        XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/bpm"))
+        XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/hrv"))
+        XCTAssertTrue(addrs.contains("/echoelmusic/bio/coherence"))
+    }
+
+    func testBioMessages_sdnnValueIsCarriedThrough() {
+        let msgs = OSCSender.bioMessages(for: frame(sdnn: 47.5))
+        let sdnn = msgs.first { $0.address == "/echoelmusic/bio/heart/sdnn" }
+        XCTAssertEqual(sdnn?.floats.first, 47.5)
+    }
+
+    // Compliance lock (App Store 5.1.3): a HealthKit-sourced frame — the only native
+    // SDNN source — must be dropped BEFORE any network send, so its SDNN never leaves
+    // the device even though `bioMessages` would build a /sdnn message for it. This is
+    // the invariant `sendIfFresh` enforces upstream; pin it so the SDNN-egress fix can
+    // never be misread as "HealthKit now streams over OSC".
+    func testEgressPolicy_healthKitBlocked_bleAndCameraAllowed() {
+        XCTAssertFalse(BioEgressPolicy.allowsEgress(.healthKit), "HealthKit data must not egress (5.1.3)")
+        XCTAssertFalse(BioEgressPolicy.allowsEgress(.watch), "Watch (HealthKit-store) must not egress")
+        XCTAssertFalse(BioEgressPolicy.allowsEgress(.oura), "Oura (HealthKit-store) must not egress")
+        XCTAssertTrue(BioEgressPolicy.allowsEgress(.ble), "the BLE strap is a direct sensor — egress OK")
+        XCTAssertTrue(BioEgressPolicy.allowsEgress(.cameraPPG), "camera rPPG is on-device sensing — egress OK")
+    }
+
     // MARK: - Lifecycle
 
     @MainActor

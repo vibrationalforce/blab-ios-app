@@ -111,6 +111,11 @@ public final class HealthKitBioPublisher {
             timestamp: CFAbsoluteTimeGetCurrent(),
             heartRateBPM: Float(snap.heartRate),
             hrvNormalized: Float(snap.hrvNormalized),
+            // HealthKit is a native SDNN source — carry the real ms so it is available
+            // for on-device display / self-observation (previously left at 0). It does
+            // NOT leave the device: BioEgressPolicy blocks HealthKit-sourced frames from
+            // every network sender (OSC/ADM/Art-Net/sACN) per App Store 5.1.3.
+            hrvSDNNms: Float(snap.hrvSDNNms),
             breathRate: Float(snap.breathRate),
             breathPhase: Float(snap.breathPhase),
             // HealthKit exposes averaged HR + SDNN, NOT beat-to-beat RR intervals,

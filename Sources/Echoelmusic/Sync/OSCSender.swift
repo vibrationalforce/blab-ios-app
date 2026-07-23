@@ -187,20 +187,42 @@ public final class OSCSender {
     }
 
     private func send(frame: BioSampleFrame) {
-        send(address: "/echoelmusic/bio/heart/bpm",    floats: [frame.heartRateBPM])
-        send(address: "/echoelmusic/bio/heart/hrv",    floats: [frame.hrvNormalized])
-        // Precise un-normalized RMSSD (ms) for instrument-grade external tools
-        // (TouchDesigner / Resolume / Max). Only sent when the source provides
-        // a real value (>0) so consumers never read a synthesized number.
-        if frame.hrvRMSSDms > 0 {
-            send(address: "/echoelmusic/bio/heart/rmssd", floats: [frame.hrvRMSSDms])
-            send(address: "/echoelmusic/bio/heart/sdnn",  floats: [frame.hrvSDNNms])
-            send(address: "/echoelmusic/bio/heart/pnn50", floats: [frame.hrvPNN50])
+        for m in Self.bioMessages(for: frame) {
+            send(address: m.address, floats: m.floats)
         }
-        send(address: "/echoelmusic/bio/breath/rate",  floats: [frame.breathRate])
-        send(address: "/echoelmusic/bio/breath/phase", floats: [frame.breathPhase])
-        send(address: "/echoelmusic/bio/coherence",    floats: [frame.coherence])
-        send(address: "/echoelmusic/bio/motion",       floats: [frame.motionEnergy])
+    }
+
+    /// The bio-frame → OSC message list. Pure + `nonisolated` so the gating is
+    /// unit-testable (like `ADMOSCSender.admMessages`) and shares one source of truth
+    /// with `send(frame:)`. Each un-normalized HRV metric is gated on ITS OWN source
+    /// value (>0) so consumers never read a synthesized number — and, crucially, so a
+    /// source that provides SDNN but no beat-to-beat RR (HealthKit's native SDNN) still
+    /// emits its SDNN even though it has no RMSSD/pNN50 (those are RR-derived).
+    nonisolated static func bioMessages(for frame: BioSampleFrame) -> [(address: String, floats: [Float])] {
+        var msgs: [(address: String, floats: [Float])] = [
+            ("/echoelmusic/bio/heart/bpm", [frame.heartRateBPM]),
+            ("/echoelmusic/bio/heart/hrv", [frame.hrvNormalized]),
+        ]
+        // Beat-to-beat (RR-derived) time-domain metrics — only from a real RR source
+        // (camera/Polar). Instrument-grade values for TouchDesigner / Resolume / Max.
+        if frame.hrvRMSSDms > 0 {
+            msgs.append(("/echoelmusic/bio/heart/rmssd", [frame.hrvRMSSDms]))
+            msgs.append(("/echoelmusic/bio/heart/pnn50", [frame.hrvPNN50]))
+        }
+        // SDNN needs no beat-to-beat RR, so it rides its OWN gate rather than the RMSSD
+        // one that used to hide it: an egress-allowed source supplying SDNN without RR
+        // now emits it. (HealthKit IS such a source but its frames are network-blocked
+        // upstream by BioEgressPolicy per App Store 5.1.3, so today the split only
+        // matters for a future SDNN-only egress-allowed source — it is the honest
+        // per-metric gating regardless.)
+        if frame.hrvSDNNms > 0 {
+            msgs.append(("/echoelmusic/bio/heart/sdnn", [frame.hrvSDNNms]))
+        }
+        msgs.append(("/echoelmusic/bio/breath/rate", [frame.breathRate]))
+        msgs.append(("/echoelmusic/bio/breath/phase", [frame.breathPhase]))
+        msgs.append(("/echoelmusic/bio/coherence", [frame.coherence]))
+        msgs.append(("/echoelmusic/bio/motion", [frame.motionEnergy]))
+        return msgs
     }
 
     private func send(address: String, floats: [Float]) {
