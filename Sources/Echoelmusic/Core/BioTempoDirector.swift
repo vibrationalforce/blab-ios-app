@@ -45,9 +45,10 @@ public struct BioTempoDirector: Sendable, Equatable, Codable {
     /// = smoother/slower (the beat won't chase every heartbeat wobble). ~4 s is musical.
     public var glideSeconds: Double
 
-    /// Musical tempo bounds (mirror Transport.min/maxTempo).
-    public static let minTempo: Double = 30
-    public static let maxTempo: Double = 300
+    /// Musical tempo bounds — reference Transport (the single owner of the range),
+    /// not a hand-copied literal, so the three tempo sites can never drift.
+    public static let minTempo: Double = Transport.minTempo
+    public static let maxTempo: Double = Transport.maxTempo
     /// The parasympathetic resonance target (6 breaths/min × 12) the pulse is pulled
     /// toward as coherence rises — the same band the composer entrains to.
     public static let resonanceBPM: Double = 72

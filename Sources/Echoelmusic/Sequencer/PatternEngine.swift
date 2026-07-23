@@ -30,9 +30,14 @@ public final class PatternEngine {
 
     public static let trackCount: Int = 8
     public static let stepCount: Int = 16
-    public static let minTempo: Double = 30.0
-    public static let maxTempo: Double = 300.0
-    public static let defaultTempo: Double = 120.0
+    // The musical-tempo RANGE is a control-plane concern owned by `Transport`
+    // (Core/), the declared single authoritative clock. PatternEngine still owns the
+    // real timer, but it reads the bounds from that one source so the range can never
+    // drift across Transport / PatternEngine / BioTempoDirector. Values are unchanged
+    // (30 / 300 / 120); Transport's constants are `nonisolated static let`.
+    public static let minTempo: Double = Transport.minTempo
+    public static let maxTempo: Double = Transport.maxTempo
+    public static let defaultTempo: Double = Transport.defaultTempo
 
     // MARK: - Observed state
 
