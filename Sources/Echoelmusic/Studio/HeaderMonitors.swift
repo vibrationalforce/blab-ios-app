@@ -246,6 +246,10 @@ struct PulseMonitorMiniLive: View {
 struct ImmersiveMonitorMini: View {
     let active: Bool
     @Environment(EngineBus.self) private var bus
+    /// Flash-safety + accessibility: freeze the per-beat brightness pulse when the
+    /// system Reduce Motion setting is on (the pulse rate is separately capped ≤2.5 Hz
+    /// for everyone in `tileColor`).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -256,7 +260,8 @@ struct ImmersiveMonitorMini: View {
                     // type-check in reasonable time" (Xcode gate, d41c13d).
                     RadialGradient(colors: [Self.tileColor(bio: bus.freshBio(),
                                                            mf: bus.freshMusical(maxAge: 1.0),
-                                                           date: tl.date),
+                                                           date: tl.date,
+                                                           reduceMotion: reduceMotion),
                                             .black],
                                    center: .center, startRadius: 1, endRadius: 28)
                 }
@@ -282,11 +287,21 @@ struct ImmersiveMonitorMini: View {
     /// breathing with the music level and pulsing at the heart rate. PURE with
     /// explicit Double types so the ViewBuilder above stays type-checker-cheap;
     /// silent input → SpectralColor's neutral grey (an honest "nothing sounds").
-    static func tileColor(bio: BioSampleFrame?, mf: MusicalFrame?, date: Date) -> Color {
-        let hr: Double = max(40.0, Double(bio?.heartRateBPM ?? 60))
-        let phase: Double = (date.timeIntervalSinceReferenceDate * hr / 60.0)
+    /// Flash-safety (WCAG epilepsy ≤3 Hz + the app's own ceiling): the tile's brightness-
+    /// pulse rate in Hz, CAPPED at 2.5 Hz so even a very fast heart rate can never drive
+    /// the tile past the epilepsy-safe flash rate. Matches MetalBioView's 2.5 Hz ceiling.
+    /// Pure + testable — the law lives in one place, not inlined in the render.
+    static func flashSafePulseRate(heartRateBPM: Double) -> Double {
+        min(max(40.0, heartRateBPM) / 60.0, 2.5)
+    }
+
+    static func tileColor(bio: BioSampleFrame?, mf: MusicalFrame?, date: Date,
+                          reduceMotion: Bool) -> Color {
+        let rate: Double = flashSafePulseRate(heartRateBPM: Double(bio?.heartRateBPM ?? 60))
+        let phase: Double = (date.timeIntervalSinceReferenceDate * rate)
             .truncatingRemainder(dividingBy: 1.0)
-        let pulse: Double = 0.5 - 0.5 * cos(phase * 2.0 * .pi)       // 0…1 per beat
+        // Reduce Motion → hold a steady mid-brightness instead of the per-beat pulse.
+        let pulse: Double = reduceMotion ? 0.5 : (0.5 - 0.5 * cos(phase * 2.0 * .pi))  // 0…1 per beat
         let chord: [(hz: Double, amplitude: Double)] =
             (mf?.notes ?? []).map { ($0.frequencyHz, $0.amplitude) }
         let rgb = SpectralColor.color(forChord: chord)
