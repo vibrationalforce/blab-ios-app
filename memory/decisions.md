@@ -1,3 +1,30 @@
+### 2026-07-23 v10.79.341 AUv3-Härtung geshippt + render-seitige Bio-NaN-Härtung
+- **v341 (geshippt, TestFlight grün auf 3. Versuch):** zwei AUv3-Korrektheits-Fixes zu EINEM
+  Verify-Target konsolidiert — (a) Bio-Pfad-COW-Race geschlossen (`applyBioReactive` läuft
+  render-seitig via atomarem `BioMirror` → `harmonicAmplitudes` single-owner, kein Race/keine
+  Audio-Thread-Alloc), (b) MIDI-Panic (CC 120/123 → Note-Release, kein steckengebliebener Ton).
+- **Provisioning-Transient-Playbook (neu, HARNESS-würdig):** der v341-Archive-Lauf scheiterte
+  ZWEIMAL mit VERSCHIEDENEN Fehlern („network connection was lost", dann „data couldn't be read
+  … correct format") beim `-allowProvisioningUpdates` → unabhängige Apple-seitige Transienten,
+  KEIN Config-Bug (der scheitert jedes Mal identisch). Diagnose-Regel: sind Xcode-Compile+CI grün
+  UND fasst der Commit kein Signing/Entitlement/Bundle-ID an? Dann tokenlos re-triggern
+  (`.deploy/release` bumpen+pushen; neue Build-Nr, Version unverändert = eindeutig), bis zu 3×.
+  Re-Run-APIs sind für den Integration-Token 403-gesperrt; CI-Retry-Härtung wäre founder-gated.
+- **Bio-NaN-Härtung (geshippt-in-Branch, alle Gates grün `f97bd45`, Deploy gehalten):**
+  `EchoelDDSP.applyBioReactive` (render-seitig für AUv3 + Haupt-App-`BioReactiveSynthVoice`)
+  verarbeitete Bio-Eingaben in seine Ein-Pol-Akkumulatoren (`_lfoPhase`, `_smoothedAmplitude`)
+  und die ungeklammerten Vibrato-Writes VOR jedem Clamp → ein einzelnes NaN/inf (schlechtes
+  rPPG-Frame) vergiftet den Zustand permanent (NaN-Samples + `amplitude` klemmt auf 0 = die
+  #22/#29-Dauerstille). Fix: die 6 im Body gelesenen Eingaben an der Grenze sanitisieren
+  (`isFinite ? x : neutral`). Endliche Eingaben byte-identisch → keine Drift, kann das
+  v341-Geräte-Verify nicht trüben. audio-thread-reviewer CLEAN; code-reviewer fing einen echten
+  Test-Compile-Bug (fehlendes `coherence`-Arg). `EchoelModalBank.applyBioReactive` als Dead-Code
+  verifiziert (nicht gehärtet); der Poly-Pfad leitet an den gefixten Per-Voice-Core weiter.
+- **Stand:** v341 wartet auf Founder-Geräte-Verify (Instrument-Vollbild-Home · First-Run-Finger-
+  Einladung · Studio-Tür · AUv3 aumu+MIDI+Panic). NaN-Thema erschöpft. Auditierte vision-kritische
+  Flächen (AUv3, Bio-Pfad, Clip-Export `VisualRecorder.stop`) solide. Nächste substanzielle
+  Feature-Pläne (EchoelPublish/Video/EEG) halte ich bewusst zurück bis Founder-Geräte-Signal.
+
 # Decisions Log
 
 Architectural and strategic decisions with context and rationale.
