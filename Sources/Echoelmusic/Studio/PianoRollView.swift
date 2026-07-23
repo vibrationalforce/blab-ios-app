@@ -1013,7 +1013,11 @@ public final class PianoRollModel {
     // MARK: - Labels
 
     public func name(forPitch pitch: Int) -> String {
-        let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        // Typographic sharp (U+266F ♯), matching the primary Key picker
+        // (WorkspaceView), TouchInstrumentView and TuningDetector — the piano-roll
+        // pitch labels are display-only (Text(…)), so no identifier/parse depends on
+        // an ASCII '#' here (unlike MusicalKey, whose name feeds a "#"→"s" transform).
+        let names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
         let octave = pitch / 12 - 1
         return "\(names[((pitch % 12) + 12) % 12])\(octave)"
     }
