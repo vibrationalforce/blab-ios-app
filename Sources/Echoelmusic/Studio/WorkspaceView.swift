@@ -127,10 +127,12 @@ struct WorkspaceView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
+                // The brand header, transport, and musical-identity strip form ONE calm
+                // chrome block on a shared background — no internal hairlines (three stacked
+                // full-width rules read as "banding"/venetian blinds, not front-tier). A
+                // SINGLE rule below separates the whole chrome from the timeline content.
                 topBar
-                Divider().overlay(EchoelTheme.border)
                 TransportBar()
-                Divider().overlay(EchoelTheme.border)
                 // Step 2b of the bottom-bar dissolve (founder 2026-07-14: "Unten die
                 // Leiste sollte längst aufgelöst sein und sich an anderer Stelle
                 // wieder finden"): the musical identity — Genre · Key · Scale ·
