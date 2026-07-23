@@ -1883,7 +1883,7 @@ final class EchoelDDSPBioBrightnessAnchorTests: XCTestCase {
         // A ONE-frame NaN must not silence the voice forever: after healthy bio resumes the
         // amplitude one-pole has to climb back above zero (the #22 "silent even after pulse").
         let s = EchoelDDSP()
-        s.applyBioReactive(heartRate: .nan)                 // poison attempt (transient dropout)
+        s.applyBioReactive(coherence: 0.5, heartRate: .nan) // poison attempt (transient dropout)
         for _ in 0..<40 { s.applyBioReactive(coherence: 0.6, hrvVariability: 0.5, heartRate: 0.5,
                                              breathPhase: 0.5) }
         XCTAssertGreaterThan(s.amplitude, 0,
