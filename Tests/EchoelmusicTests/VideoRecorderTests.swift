@@ -29,12 +29,14 @@ final class VideoRecorderTests: XCTestCase {
     }
 
     func testVideoSettings_declaresNominalFrameRateForNLEIngest() {
-        // A declared source frame rate anchors the encoder's rate-control and stamps the
-        // fps an NLE (DaVinci Resolve) reads on ingest — it must match the 30-frame GOP.
+        // The declared source rate must match the REAL producer: the Metal visual's
+        // draw loop (MetalBioView baseline 60 fps), which is what VisualRecorder feeds
+        // to VideoRecorder — NOT the 15 Hz rPPG camera. It anchors the encoder's
+        // rate-control and stamps the fps an NLE (DaVinci Resolve) reads on ingest.
         let s = R.videoSettings(width: 1920, height: 1080, bitRate: 8_000_000)
         let props = s[AVVideoCompressionPropertiesKey] as? [String: Any]
-        XCTAssertEqual(props?[AVVideoExpectedSourceFrameRateKey] as? Int, 30)
-        XCTAssertEqual(props?[AVVideoMaxKeyFrameIntervalKey] as? Int, 30)
+        XCTAssertEqual(props?[AVVideoExpectedSourceFrameRateKey] as? Int, 60)
+        XCTAssertEqual(props?[AVVideoMaxKeyFrameIntervalKey] as? Int, 60)
     }
 
     // MARK: - Bitrate heuristic

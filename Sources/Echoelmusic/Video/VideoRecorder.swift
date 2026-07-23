@@ -229,11 +229,16 @@ final class VideoRecorder {
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: bitRate,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
-                AVVideoMaxKeyFrameIntervalKey: 30,
-                // Declare the nominal source rate (matches the 30-frame GOP, = 1s at 30 fps):
-                // gives the encoder's rate-control an anchor and stamps the frame rate an NLE
-                // (DaVinci Resolve etc.) reads on ingest, instead of leaving it undeclared.
-                AVVideoExpectedSourceFrameRateKey: 30,
+                AVVideoMaxKeyFrameIntervalKey: 60,
+                // Declare the nominal source rate = the Metal visual's draw-loop baseline
+                // (MetalBioView.preferredFramesPerSecond = 60; AdaptiveQuality balanced/high
+                // tiers = 60, throttling to 30/24 only under thermal/battery load). This is
+                // the SOURCE for VideoRecorder — VisualRecorder feeds the recorded frames from
+                // that draw loop, NOT the 15 Hz rPPG camera path. The 60-frame GOP keeps a
+                // keyframe ≈ every second at that rate. Per-frame PTS stamps stay truthful if
+                // the loop throttles, so an NLE (DaVinci Resolve etc.) still reads real timing;
+                // this key just gives its rate-control + the ingest metadata the right anchor.
+                AVVideoExpectedSourceFrameRateKey: 60,
             ],
         ]
     }
