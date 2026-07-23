@@ -1,32 +1,43 @@
-build: v10.79.341 — AUv3-Härtung: Bio-Pfad-COW-Race geschlossen + MIDI-Panic (kein isolierter Feature-Build)
+build: v10.79.342 — Härtungs-/Datenrettungs-Batch (Bio-NaN + AUv3-COW-Malloc + SynthPatch-Datenverlust + HealthKit-Handgelenk)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Superset von v340 (Instrument-Home + Studio-Tür + First-Run-Einladung + AUv3-aumu).
-  KEINE sichtbare App-Änderung ggü. v340 — nur zwei AUv3-Korrektheits-Fixes (Founder-
-  Top-Priorität), konsolidiert zu EINEM Verify-Target statt getrennter Builds.
+  Superset von v341. KEINE neue sichtbare Oberfläche — ein kohärenter Batch aus
+  Korrektheits-, Stabilitäts- und Datenverlust-Fixes, alle Gates grün (Xcode Compile
+  Check + CI/CD Pipeline auf 73f8a3c), alle mit Pflicht-Reviewer (CLEAN).
 
-  NEU ggü. v340 (beide im AUv3 EchoelBodyVibe, beide Reviewer-CLEAN):
-  - Bio-Pfad-COW-Race geschlossen: der Parameter-Observer rief applyBioReactive auf
-    einem Control-Thread → updateSpectralEnvelope schrieb das harmonicAmplitudes-Array
-    neben dem Render-Read (COW-Race + potenzielle Audio-Thread-Alloc). Fix: atomarer
-    BioMirror (Observer schreibt), applyBioReactive läuft jetzt render-seitig
-    (~10-Hz-gedrosselt) → Array ist single-owner → In-Place, kein Race/keine Alloc.
+  NEU ggü. v341:
+  - HealthKit-Handgelenk wird wieder eine nutzbare Bio-Quelle (#98c2): der Publisher
+    stempelte jeden Frame mit der MESS-Zeit; EngineBus prüft Frische aber gegen die
+    EMPFANGS-Uhr (der Vertrag, den BLE/rPPG/Demo schon einhalten). Eine ruhende
+    Apple-Watch-Messung (latent + nur alle paar Minuten geschrieben) überschritt
+    routinemäßig das 90-s-Fenster → usableBio() verwarf das Handgelenk stillschweigend.
+    Fix: CFAbsoluteTimeGetCurrent() (Empfangs-Zeit). Dedup bleibt auf der Mess-Zeit,
+    Liefer-Staleness bleibt geschützt. Test-first. bio-safety + code-reviewer: CLEAN.
+  - SynthPatch-Datenverlust behoben (#95): timbreProfile/timbreBlend wurden 2026-07-11
+    als NICHT-optionale Felder hinzugefügt → alte Patch-JSONs warfen keyNotFound, und
+    PatchStores `?? []` löschte die GANZE User-Bibliothek. Fix: defensiver init(from:)
+    mit decodeIfPresent für alle 28 Felder (alte Sounds überleben). 4 neue Tests.
+  - AUv3 Render-Block COW-Malloc geschlossen (#94, Audit-CRITICAL): die
+    padScratch/texScratch-Arrays waren mehrfach referenziert (Stored-Prop + Closure-
+    Capture) → jede In-Place-Mutation im Render-Block löste per-Write-Heap-Malloc aus.
+    Fix: RenderScratch (final class, Single-Owner) → &scratch.pad mutiert in-place.
     audio-thread-reviewer: CLEAN.
-  - MIDI-Panic: CC 120 (All Sound Off) + CC 123 (All Notes Off) → Note-Release, sonst
-    hätte ein Host-„Stop"/Panic die Mono-Stimme stecken lassen. Alle anderen CCs bleiben
-    ignoriert (Bio-Drone spielt weiter). Test-first, code-reviewer: CLEAN.
+  - Render-seitiges applyBioReactive gegen nicht-endliche Bio-Eingaben gehärtet (#92):
+    ein einzelnes NaN/inf (schlechtes rPPG-Frame) vergiftete die Ein-Pol-Akkumulatoren
+    dauerhaft → Dauerstille. Fix: die 6 im Body gelesenen Eingaben an der Grenze
+    sanitisieren (isFinite ? x : neutral). Endliche Eingaben byte-identisch → keine
+    Drift. audio-thread-reviewer: CLEAN.
+  - ClipHighlightSelector (#93, EchoelPublish-Fundament): reiner, getesteter
+    Best-15-s-Fenster-Selektor (noch KEINE UI-Verdrahtung → keine sichtbare Änderung).
 
-  Weiter zum Geräte-Verify (unverändert aus v340): App öffnet ins lebendige Vollbild-
-  Instrument · First-Run-Finger-auf-Kamera-Einladung · Studio-Tür in die DAW · AUv3 als
-  spielbares aumu-Instrument mit MIDI (jetzt inkl. Panic-Release). Alle Gates grün
-  (2f61112: Xcode + CI). Rausch-Triad unberührt, kein Heilungs-Claim.
+  Weiter zum Geräte-Verify (unverändert aus v340/v341): App öffnet ins lebendige
+  Vollbild-Instrument · First-Run-Finger-auf-Kamera · Studio-Tür in die DAW · AUv3 als
+  spielbares aumu-Instrument mit MIDI-Panic-Release. Rausch-Triad unberührt, kein
+  Heilungs-Claim.
 
-  Re-Trigger #2: die ersten zwei 341-Archive-Läufe brachen beide beim
-  -allowProvisioningUpdates ab — aber mit ZWEI VERSCHIEDENEN Fehlern:
-  Lauf 1 (run 29973807672, build 2455) "The network connection was lost";
-  Lauf 2 (run 29974690355, build 2456) "The data couldn't be read because it isn't
-  in the correct format". Zwei verschiedene Fehler = zwei unabhängige Apple-seitige
-  Provisioning-API-Transienten (ein echter Config-Bug scheiterte jedes Mal IDENTISCH).
-  Keine Signing-Regression: v339/v340 archivierten mit identischem Provisioning, meine
-  Commits fassten nur .deploy/release + MARKETING_VERSION an. Alle Code-Gates grün.
-  Dritter Archive-Versuch; scheitert auch dieser transient → Founder informieren.
+  Provisioning-Playbook (aus v341 gelernt): brechen die ersten Archive-Läufe beim
+  -allowProvisioningUpdates mit VERSCHIEDENEN Fehlern ab (network-lost / malformed-data),
+  sind das unabhängige Apple-seitige Transienten, KEIN Config-Bug (der scheitert jedes
+  Mal identisch). Code-Gates grün + kein Signing/Entitlement/Bundle-ID angefasst →
+  tokenlos re-triggern (.deploy/release bumpen), bis zu 3×. Scheitert auch der dritte
+  transient → Founder informieren.
