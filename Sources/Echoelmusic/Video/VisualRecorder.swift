@@ -60,6 +60,11 @@ final class VisualRecorder {
         let duration = video.recordedSeconds()
         let audioURL = duration > 0.2 ? audioEngine?.captureRecentMixAudio(seconds: duration) : nil
         audioEngine = nil
+        // The captured mix audio is a temp intermediate. Once VideoMuxer has baked it
+        // into the final .mp4 (or if we bail before muxing), delete it so temp audio
+        // files don't accumulate in tmp. Runs at scope exit — AFTER the awaited mux
+        // completes below — so it never pulls the file out from under the export.
+        defer { if let audioURL { try? FileManager.default.removeItem(at: audioURL) } }
         guard let videoURL else { return nil }
         guard let audioURL else {
             Self.saveToPhotoLibrary(videoURL)
