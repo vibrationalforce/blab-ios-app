@@ -1,43 +1,28 @@
-build: v10.79.342 — Härtungs-/Datenrettungs-Batch (Bio-NaN + AUv3-COW-Malloc + SynthPatch-Datenverlust + HealthKit-Handgelenk)
+build: v10.79.343 — Korrektheits-Batch (VideoMuxer-Sync · HealthKit-SDNN · Temp-Leak · AUv3 fullState + note-priority)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Superset von v341. KEINE neue sichtbare Oberfläche — ein kohärenter Batch aus
-  Korrektheits-, Stabilitäts- und Datenverlust-Fixes, alle Gates grün (Xcode Compile
-  Check + CI/CD Pipeline auf 73f8a3c), alle mit Pflicht-Reviewer (CLEAN).
+  Superset von v342. Bündelt die fünf grünen Korrektheits-/Härtungs-Commits, die die
+  Audit-MEDIUMs (#94–#99) vollständig abschließen. KEINE neue Oberfläche — die
+  Kamera-Home-Instrument-Erfahrung ist unverändert. Alle Commits einzeln reviewer-CLEAN,
+  beide echten Gates grün (Xcode Compile Check + CI/CD Pipeline auf c58e82c).
 
-  NEU ggü. v341:
-  - HealthKit-Handgelenk wird wieder eine nutzbare Bio-Quelle (#98c2): der Publisher
-    stempelte jeden Frame mit der MESS-Zeit; EngineBus prüft Frische aber gegen die
-    EMPFANGS-Uhr (der Vertrag, den BLE/rPPG/Demo schon einhalten). Eine ruhende
-    Apple-Watch-Messung (latent + nur alle paar Minuten geschrieben) überschritt
-    routinemäßig das 90-s-Fenster → usableBio() verwarf das Handgelenk stillschweigend.
-    Fix: CFAbsoluteTimeGetCurrent() (Empfangs-Zeit). Dedup bleibt auf der Mess-Zeit,
-    Liefer-Staleness bleibt geschützt. Test-first. bio-safety + code-reviewer: CLEAN.
-  - SynthPatch-Datenverlust behoben (#95): timbreProfile/timbreBlend wurden 2026-07-11
-    als NICHT-optionale Felder hinzugefügt → alte Patch-JSONs warfen keyNotFound, und
-    PatchStores `?? []` löschte die GANZE User-Bibliothek. Fix: defensiver init(from:)
-    mit decodeIfPresent für alle 28 Felder (alte Sounds überleben). 4 neue Tests.
-  - AUv3 Render-Block COW-Malloc geschlossen (#94, Audit-CRITICAL): die
-    padScratch/texScratch-Arrays waren mehrfach referenziert (Stored-Prop + Closure-
-    Capture) → jede In-Place-Mutation im Render-Block löste per-Write-Heap-Malloc aus.
-    Fix: RenderScratch (final class, Single-Owner) → &scratch.pad mutiert in-place.
-    audio-thread-reviewer: CLEAN.
-  - Render-seitiges applyBioReactive gegen nicht-endliche Bio-Eingaben gehärtet (#92):
-    ein einzelnes NaN/inf (schlechtes rPPG-Frame) vergiftete die Ein-Pol-Akkumulatoren
-    dauerhaft → Dauerstille. Fix: die 6 im Body gelesenen Eingaben an der Grenze
-    sanitisieren (isFinite ? x : neutral). Endliche Eingaben byte-identisch → keine
-    Drift. audio-thread-reviewer: CLEAN.
-  - ClipHighlightSelector (#93, EchoelPublish-Fundament): reiner, getesteter
-    Best-15-s-Fenster-Selektor (noch KEINE UI-Verdrahtung → keine sichtbare Änderung).
+  NEU ggü. v342:
+  - #96 VideoMuxer END-Alignment: Video + Audio enden beide bei Stop, wurden aber ab t=0
+    gelegt → bei Aufnahmen länger als der Audio-Ring lief Video-KOPF über Audio-SCHWANZ
+    (Desync) + Material hinter dem Audio-Fenster verworfen. Fix: die letzten min(v,a) s
+    jedes Tracks (reiner VideoMuxAlignment-Helper, 6 Tests), exakte CMTime-Arithmetik.
+  - #98c1 HealthKit-HRV ehrlich via SDNN: die App fabrizierte „RMSSD" aus gemittelter
+    HR (physiologisch bedeutungslos, ruhige HR → falsche „tote HRV") und überschrieb das
+    echte SDNN. Fabrikation entfernt; SDNN treibt jetzt hrvNormalized. Nur Watch/HealthKit-
+    Pfad, nicht die Default-Kamera.
+  - VisualRecorder .caf-Leak: das Temp-Mix-Audio wurde nach dem Mux nie gelöscht (Video-
+    only + Mux-Fehler + Video-nil-Pfade). defer-Cleanup über alle Exit-Pfade.
+  - #99a AUv3 fullState-Roundtrip: der Value-Provider las Param-Werte aus dem (bio-
+    modulierten) Synth zurück → Preset/State roundtrippte nie. Provider gelöscht → Params
+    fallen auf ihren Control-Wert zurück; Host-Readback + Save/Restore korrekt.
+  - #99b AUv3 mono last-note-priority: Note-Off löste die Stimme unbedingt → Loslassen
+    einer gehaltenen früheren Taste killte die aktuelle Note. Jetzt note-gated; MIDI-Panic
+    (CC 120/123) über expliziten .panic-Case unbedingt force-release (kein #91-Regress).
 
-  Weiter zum Geräte-Verify (unverändert aus v340/v341): App öffnet ins lebendige
-  Vollbild-Instrument · First-Run-Finger-auf-Kamera · Studio-Tür in die DAW · AUv3 als
-  spielbares aumu-Instrument mit MIDI-Panic-Release. Rausch-Triad unberührt, kein
-  Heilungs-Claim.
-
-  Provisioning-Playbook (aus v341 gelernt): brechen die ersten Archive-Läufe beim
-  -allowProvisioningUpdates mit VERSCHIEDENEN Fehlern ab (network-lost / malformed-data),
-  sind das unabhängige Apple-seitige Transienten, KEIN Config-Bug (der scheitert jedes
-  Mal identisch). Code-Gates grün + kein Signing/Entitlement/Bundle-ID angefasst →
-  tokenlos re-triggern (.deploy/release bumpen), bis zu 3×. Scheitert auch der dritte
-  transient → Founder informieren.
+  Geräte-Verify offen (Watch als Bio-Quelle für #98c1; AUv3-Discovery weiter device-
+  gated per Reboot+Registrar-Warm-Test). Rausch-Triad unberührt, kein Heilungs-Claim.
