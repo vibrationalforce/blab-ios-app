@@ -230,6 +230,10 @@ final class VideoRecorder {
                 AVVideoAverageBitRateKey: bitRate,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
                 AVVideoMaxKeyFrameIntervalKey: 30,
+                // Declare the nominal source rate (matches the 30-frame GOP, = 1s at 30 fps):
+                // gives the encoder's rate-control an anchor and stamps the frame rate an NLE
+                // (DaVinci Resolve etc.) reads on ingest, instead of leaving it undeclared.
+                AVVideoExpectedSourceFrameRateKey: 30,
             ],
         ]
     }

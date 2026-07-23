@@ -28,6 +28,15 @@ final class VideoRecorderTests: XCTestCase {
         XCTAssertNotNil(props?[AVVideoProfileLevelKey])
     }
 
+    func testVideoSettings_declaresNominalFrameRateForNLEIngest() {
+        // A declared source frame rate anchors the encoder's rate-control and stamps the
+        // fps an NLE (DaVinci Resolve) reads on ingest — it must match the 30-frame GOP.
+        let s = R.videoSettings(width: 1920, height: 1080, bitRate: 8_000_000)
+        let props = s[AVVideoCompressionPropertiesKey] as? [String: Any]
+        XCTAssertEqual(props?[AVVideoExpectedSourceFrameRateKey] as? Int, 30)
+        XCTAssertEqual(props?[AVVideoMaxKeyFrameIntervalKey] as? Int, 30)
+    }
+
     // MARK: - Bitrate heuristic
 
     func testRecommendedBitRate_clampsFloorForTinyFrames() {
