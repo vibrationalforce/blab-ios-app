@@ -177,6 +177,41 @@ public enum MIDIFileExporter {
         return data
     }
 
+    /// Export ONE launchable `Clip` as a Type-1 Standard MIDI File — the founder's
+    /// "MIDI Clip Save": a saved drum pattern and/or melody → a DAW-openable `.mid`.
+    /// Maps straight onto the tested `exportCombined` engine (conductor + melody +
+    /// drums tracks), so a melody-only clip emits channel-1 note-ons, a drum-only clip
+    /// emits channel-10 percussion, and a combined clip emits both.
+    ///
+    /// The exported REGION length is DERIVED from the clip's own content — the melody's
+    /// last note-end and the drum grid width — each rounded UP to whole bars, so the
+    /// clip spans N whole bars and loops on the grid. `Clip` stays READ-ONLY (this only
+    /// reads it). MIDI is the only kind with an inline pattern; a media-carrier clip
+    /// (audio/video/visual) has no notes/grid, so it yields a well-formed 1-bar region
+    /// with no note events (honest, never a crash).
+    public static func export(clip: Clip, tempo: Double,
+                              keyRootPitchClass: Int = -1, keyIsMinor: Bool = false,
+                              velocity: UInt8 = 100,
+                              humanize: Humanizer = .tight, seed: UInt64 = 0) -> Data {
+        let notes = clip.melody?.notes ?? []
+        let steps = clip.drums?.steps ?? []
+        let accents = clip.drums?.accents ?? []
+
+        // Region length = whichever content reaches furthest, rounded UP to whole bars.
+        // Melody notes are clip-absolute Note-PPQ ticks (same space as ticksPerBar=1920);
+        // the drum grid is 16 steps per bar. Empty content → 0 bars → the max(1,…) floor.
+        let melodyEndTick = notes.map { $0.startTick + $0.lengthTicks }.max() ?? 0
+        let melodyBars = (Swift.max(0, melodyEndTick) + TimelineTime.ticksPerBar - 1) / TimelineTime.ticksPerBar
+        let gridWidth = steps.map { $0.count }.max() ?? 0
+        let drumBars = (gridWidth + 15) / 16
+        let bars = Swift.max(1, Swift.max(melodyBars, drumBars))
+
+        return exportCombined(notes: notes, steps: steps, accents: accents,
+                              tempo: tempo, bars: bars,
+                              keyRootPitchClass: keyRootPitchClass, keyIsMinor: keyIsMinor,
+                              velocity: velocity, humanize: humanize, seed: seed)
+    }
+
     // MARK: - Meta-event builders (each begins with a 0x00 delta-time)
 
     static func tempoMeta(_ tempo: Double) -> [UInt8] {

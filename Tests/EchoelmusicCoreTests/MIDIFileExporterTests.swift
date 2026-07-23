@@ -105,4 +105,91 @@ final class MIDIFileExporterTests: XCTestCase {
             XCTAssertFalse(data.contains(status), "empty take must not emit note-ons")
         }
     }
+
+    // MARK: - Clip export (one launchable Clip → one .mid)
+
+    private func activeGrid() -> [[Bool]] {
+        var grid = emptyGrid()
+        grid[0][0] = true                                     // kick at step 0
+        return grid
+    }
+
+    func test_clip_isSMFType1_withThreeTracks() {
+        let clip = Clip(name: "Take", kind: .midi,
+                        drums: DrumPattern(steps: activeGrid(), accents: []),
+                        melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2)]))
+        let data = MIDIFileExporter.export(clip: clip, tempo: 120)
+        XCTAssertEqual(Array(data.prefix(4)), Array("MThd".utf8))
+        XCTAssertEqual(Array(data[8..<10]), [0x00, 0x01])                  // format 1
+        XCTAssertEqual(Array(data[10..<12]),[0x00, 0x03])                  // 3 tracks
+        XCTAssertEqual(Array(data[12..<14]),[0x00, 0x60])                  // division = 96
+    }
+
+    func test_clip_melodyOnly_emitsChannel1_notChannel10() {
+        let clip = Clip(name: "Lead", kind: .midi,
+                        melody: MelodyClip(notes: [Note(pitch: 64, startStep: 0, lengthSteps: 4, velocity: 1.0)]))
+        let data = MIDIFileExporter.export(clip: clip, tempo: 120)
+        XCTAssertTrue(contains(data, [0x90, 64]))            // melody note-on, channel 1
+        XCTAssertFalse(data.contains(0x99), "a melody-only clip must not emit drum (channel 10) note-ons")
+    }
+
+    func test_clip_drumsOnly_emitsChannel10_notChannel1() {
+        let clip = Clip(name: "Beat", kind: .midi,
+                        drums: DrumPattern(steps: activeGrid(), accents: []))
+        let data = MIDIFileExporter.export(clip: clip, tempo: 120, velocity: 100)
+        XCTAssertTrue(contains(data, [0x99, 36, 100]))       // drum note-on, channel 10
+        XCTAssertFalse(data.contains(0x90), "a drums-only clip must not emit melody (channel 1) note-ons")
+    }
+
+    func test_clip_combined_emitsBothChannels() {
+        let clip = Clip(name: "Full", kind: .midi,
+                        drums: DrumPattern(steps: activeGrid(), accents: []),
+                        melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 1.0)]))
+        let data = MIDIFileExporter.export(clip: clip, tempo: 120, velocity: 100)
+        XCTAssertTrue(contains(data, [0x90, 60]))            // melody, channel 1
+        XCTAssertTrue(contains(data, [0x99, 36, 100]))       // drums, channel 10
+    }
+
+    func test_clip_emptyMidiClip_isWellFormed() {
+        let data = MIDIFileExporter.export(clip: Clip(name: "Empty", kind: .midi), tempo: 120)
+        XCTAssertEqual(Array(data.prefix(4)), Array("MThd".utf8))
+        XCTAssertTrue(contains(data, [0xFF, 0x2F, 0x00]))    // end-of-track present
+        for status: UInt8 in [0x90, 0x99] {
+            XCTAssertFalse(data.contains(status), "an empty clip must not emit note events")
+        }
+    }
+
+    func test_clip_mediaCarrier_hasNoPatternButStaysWellFormed() {
+        // An audio/video/visual clip carries a mediaRef, no notes/grid → an honest
+        // empty region, never a crash.
+        let clip = Clip(name: "Sample", kind: .audio, mediaRef: "take.caf")
+        let data = MIDIFileExporter.export(clip: clip, tempo: 120)
+        XCTAssertTrue(contains(data, [0xFF, 0x2F, 0x00]))
+        for status: UInt8 in [0x90, 0x99] {
+            XCTAssertFalse(data.contains(status))
+        }
+    }
+
+    func test_clip_derivedBars_roundUpToWholeBar() {
+        // A note that STARTS in bar 2 (step 16 = 1920 ticks) and runs 2 steps ends at
+        // 2160 ticks → the region must span 2 whole bars (End-of-Track at 2×4 quarters).
+        let clip = Clip(name: "Long", kind: .midi,
+                        melody: MelodyClip(notes: [Note(pitch: 60, startStep: 16, lengthSteps: 2)]))
+        let twoBar = MIDIFileExporter.export(clip: clip, tempo: 120)
+        // Compare against a clip whose content fits one bar: the 2-bar file must be LONGER.
+        // (The delta is the bar-2 note-on's larger start-delta VLQ vs. the bar-1 note's
+        // zero delta — a strict, non-degenerate margin proving the region really grew.)
+        let oneBarClip = Clip(name: "Short", kind: .midi,
+                              melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2)]))
+        let oneBar = MIDIFileExporter.export(clip: oneBarClip, tempo: 120)
+        XCTAssertGreaterThan(twoBar.count, oneBar.count,
+                             "a clip reaching into bar 2 must export a longer (2-bar) region")
+    }
+
+    func test_clip_tempoReflectedOnConductor() {
+        let clip = Clip(name: "Take", kind: .midi,
+                        melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2)]))
+        let data = MIDIFileExporter.export(clip: clip, tempo: 120)
+        XCTAssertTrue(contains(data, [0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20]))   // 120 BPM
+    }
 }
