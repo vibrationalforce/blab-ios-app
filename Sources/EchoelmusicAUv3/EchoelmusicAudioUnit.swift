@@ -44,9 +44,21 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     /// timer queue (CLAUDE.md static-let isolation gotcha).
     nonisolated private static let vitalsMaxAge: TimeInterval = 2
 
-    /// Pre-allocated scratch buffers for render block — NO heap allocation on audio thread
-    nonisolated(unsafe) private var padScratch = [Float](repeating: 0, count: 4096)
-    nonisolated(unsafe) private var texScratch = [Float](repeating: 0, count: 4096)
+    /// Pre-allocated render scratch — NO heap allocation on the audio thread. Held INSIDE a
+    /// class so the render block owns the SOLE reference to each array: `&scratch.pad` then
+    /// mutates in place (isKnownUniquelyReferenced == true), no copy-on-write. Two plain
+    /// `[Float]` stored props captured by value were referenced by BOTH self and the capture,
+    /// so the first write COW-copied ~16 KB each (~32 KB) on EVERY render callback — a malloc
+    /// on the audio thread. Same class-owns-the-buffer pattern as GainMirror below.
+    private final class RenderScratch {
+        nonisolated(unsafe) var pad: [Float]
+        nonisolated(unsafe) var tex: [Float]
+        init(capacity: Int) {
+            pad = [Float](repeating: 0, count: capacity)
+            tex = [Float](repeating: 0, count: capacity)
+        }
+    }
+    private let renderScratch = RenderScratch(capacity: 4096)
 
     /// Lock-free master-gain mirror for the render thread. The host sets gain via
     /// the ObjC/KVO-backed `AUParameter.value`, which must NOT be read on the audio
@@ -412,8 +424,7 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         let synthRef = self.synth
         let textureRef = self.texture
         let gainBox = self.gainMirror
-        let padRef = self.padScratch
-        let texRef = self.texScratch
+        let scratch = self.renderScratch
         let bioBox = self.bioMirror
         let bioState = self.bioRenderState
         // ~10 Hz throttle for the render-side bio application (sampleRate/10 frames).
@@ -472,21 +483,28 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
                                           breathPhase: bioBox.breathPhase)
             }
 
-            // Use pre-allocated scratch (captured by value — COW safe since we own them)
-            var pad = padRef
-            var tex = texRef
-            for i in 0..<count { pad[i] = 0; tex[i] = 0 }
+            // Render each voice into the block's SOLE-OWNED scratch. RenderScratch holds the
+            // ONLY reference to each array, so `&scratch.pad` mutates IN PLACE — no copy-on-write,
+            // no audio-thread allocation. (The old `var pad = padRef` aliased a buffer still held
+            // by both self and the capture, COW-copying ~32 KB per callback.) Both EchoelDDSP.render
+            // and EchoelCellular.render OVERWRITE [0..<count] — the exact region mixed below — so the
+            // previous defensive zero-fill was redundant and is dropped.
+            synthRef.render(buffer: &scratch.pad, frameCount: count)
+            textureRef.render(buffer: &scratch.tex, frameCount: count)
 
-            synthRef.render(buffer: &pad, frameCount: count)
-            textureRef.render(buffer: &tex, frameCount: count)
-
-            // Mix and apply master gain (lock-free mirror — never read AUParameter here)
+            // Mix and apply master gain (lock-free mirror — never read AUParameter here). Bind the
+            // scratch to unsafe buffer pointers so the per-sample loop takes no per-element ARC on
+            // the class-held arrays.
             let gain = gainBox.value
             let ablPointer = UnsafeMutableAudioBufferListPointer(outputData)
-            for buf in ablPointer {
-                guard let data = buf.mData?.assumingMemoryBound(to: Float.self) else { continue }
-                for i in 0..<count {
-                    data[i] = (pad[i] + tex[i]) * gain
+            scratch.pad.withUnsafeBufferPointer { padBuf in
+                scratch.tex.withUnsafeBufferPointer { texBuf in
+                    for buf in ablPointer {
+                        guard let data = buf.mData?.assumingMemoryBound(to: Float.self) else { continue }
+                        for i in 0..<count {
+                            data[i] = (padBuf[i] + texBuf[i]) * gain
+                        }
+                    }
                 }
             }
 
