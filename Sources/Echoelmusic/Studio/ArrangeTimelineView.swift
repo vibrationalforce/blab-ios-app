@@ -2199,7 +2199,7 @@ struct LaneCompositionSection: View {
                     }
                 }
             }
-            .pickerStyle(.menu).tint(EchoelTheme.accent)
+            .pickerStyle(.menu).tint(EchoelTheme.text)
             .accessibilityLabel("Genre for \(laneName)")
         }
     }
@@ -2220,7 +2220,7 @@ struct LaneCompositionSection: View {
                     Text("Custom").tag(Self.customTag)
                 }
             }
-            .pickerStyle(.menu).tint(EchoelTheme.accent)
+            .pickerStyle(.menu).tint(EchoelTheme.text)
             .accessibilityLabel("Mood for \(laneName)")
         }
     }
