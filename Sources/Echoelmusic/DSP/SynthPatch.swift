@@ -112,6 +112,52 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         self.warmthDrive = warmthDrive
     }
 
+    // MARK: - Defensive decoding (forward/backward-compatible)
+
+    /// Custom decoder so a patch saved by an OLDER build — one that predates a field — still
+    /// loads instead of throwing `keyNotFound`. Every field tolerates absence: non-optionals
+    /// fall back to the memberwise-init default, optionals stay `nil` (bit-identical to the
+    /// synthesized decoder for JSON that DOES contain them). Encoding stays synthesized.
+    ///
+    /// WHY (the bug this fixes): `timbreProfile`/`timbreBlend` were added 2026-07-11 as
+    /// NON-optional. The synthesized decoder then threw `keyNotFound` on any patch saved
+    /// before that date — and because `PatchStore` does `(try? …) ?? []` and a project loads
+    /// via `try? …`, one old patch silently NUKED the user's WHOLE patch library or collapsed
+    /// a whole project to an empty document. This is the `decodeIfPresent` law: every new
+    /// field must decode defensively. Kept exhaustive (not just the two culprits) so the NEXT
+    /// field addition can never reintroduce the same data-loss.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Untitled"
+        attack = try c.decodeIfPresent(Float.self, forKey: .attack) ?? 0.5
+        decay = try c.decodeIfPresent(Float.self, forKey: .decay) ?? 0.5
+        sustain = try c.decodeIfPresent(Float.self, forKey: .sustain) ?? 0.8
+        release = try c.decodeIfPresent(Float.self, forKey: .release) ?? 2.0
+        envelopeCurve = try c.decodeIfPresent(String.self, forKey: .envelopeCurve) ?? "exponential"
+        harmonicity = try c.decodeIfPresent(Float.self, forKey: .harmonicity) ?? 0.88
+        harmonicLevel = try c.decodeIfPresent(Float.self, forKey: .harmonicLevel) ?? 0.8
+        brightness = try c.decodeIfPresent(Float.self, forKey: .brightness) ?? 0.25
+        noiseLevel = try c.decodeIfPresent(Float.self, forKey: .noiseLevel) ?? 0.01
+        noiseColor = try c.decodeIfPresent(String.self, forKey: .noiseColor) ?? "pink"
+        spectralShape = try c.decodeIfPresent(String.self, forKey: .spectralShape) ?? "dark"
+        filterCutoff = try c.decodeIfPresent(Float.self, forKey: .filterCutoff) ?? 220
+        filterResonance = try c.decodeIfPresent(Float.self, forKey: .filterResonance) ?? 0.1
+        lfoToFilterDepth = try c.decodeIfPresent(Float.self, forKey: .lfoToFilterDepth) ?? 0.15
+        filterLFORate = try c.decodeIfPresent(Float.self, forKey: .filterLFORate) ?? 0.2
+        filterLFODepth = try c.decodeIfPresent(Float.self, forKey: .filterLFODepth) ?? 0.3
+        reverbMix = try c.decodeIfPresent(Float.self, forKey: .reverbMix) ?? 0.25
+        reverbDecay = try c.decodeIfPresent(Float.self, forKey: .reverbDecay) ?? 2.0
+        vibratoRate = try c.decodeIfPresent(Float.self, forKey: .vibratoRate) ?? 0
+        vibratoDepth = try c.decodeIfPresent(Float.self, forKey: .vibratoDepth) ?? 0
+        timbreProfile = try c.decodeIfPresent(String.self, forKey: .timbreProfile) ?? ""
+        timbreBlend = try c.decodeIfPresent(Float.self, forKey: .timbreBlend) ?? 0
+        unisonVoices = try c.decodeIfPresent(Int.self, forKey: .unisonVoices)
+        unisonDetuneCents = try c.decodeIfPresent(Float.self, forKey: .unisonDetuneCents)
+        outputLevel = try c.decodeIfPresent(Float.self, forKey: .outputLevel)
+        warmthDrive = try c.decodeIfPresent(Float.self, forKey: .warmthDrive)
+    }
+
     // MARK: - Loudness normalisation (founder 2026-07-11 "angleichen")
 
     /// A rough PERCEPTUAL-loudness estimate from the level-driving params — brighter,

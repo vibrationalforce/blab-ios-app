@@ -108,6 +108,58 @@ final class SynthPatchTests: XCTestCase {
         XCTAssertEqual(PatchStore.ranked(patches, favorites: [c.id], recents: [b.id]).map(\.id),
                        [c.id, b.id, a.id])
     }
+
+    // MARK: - Defensive decoding (the #95 data-loss fix)
+    // Pure Codable — kept in the UNGUARDED class (like testPreUnisonJSONStillDecodes) so this
+    // platform-independent data-loss regression guard runs even under a future Linux swift-test.
+
+    func testDecode_missingTimbreFields_usesDefaults_doesNotThrow() throws {
+        // A patch JSON saved BEFORE timbreProfile/timbreBlend existed (2026-07-11): those keys
+        // are absent. Before the custom decoder this threw keyNotFound and PatchStore's `?? []`
+        // wiped the whole user library. It must now decode with defaults.
+        let json = Data("""
+        {"id":"3B1F0C2E-0000-4000-8000-000000000001","name":"Old Patch",
+         "attack":0.5,"decay":0.5,"sustain":0.8,"release":2.0,"envelopeCurve":"exponential",
+         "harmonicity":0.88,"harmonicLevel":0.8,"brightness":0.25,"noiseLevel":0.01,
+         "noiseColor":"pink","spectralShape":"dark","filterCutoff":220,"filterResonance":0.1,
+         "lfoToFilterDepth":0.15,"filterLFORate":0.2,"filterLFODepth":0.3,"reverbMix":0.25,
+         "reverbDecay":2.0,"vibratoRate":0,"vibratoDepth":0}
+        """.utf8)
+        let p = try JSONDecoder().decode(SynthPatch.self, from: json)
+        XCTAssertEqual(p.name, "Old Patch")
+        XCTAssertEqual(p.timbreProfile, "", "absent timbreProfile must default, not throw")
+        XCTAssertEqual(p.timbreBlend, 0)
+    }
+
+    func testDecode_minimalJSON_fillsEveryDefault() throws {
+        // Even a near-empty object must decode (bulletproof against any future field add).
+        let p = try JSONDecoder().decode(SynthPatch.self, from: Data(#"{"name":"Minimal"}"#.utf8))
+        XCTAssertEqual(p.name, "Minimal")
+        XCTAssertEqual(p.attack, 0.5)            // memberwise default
+        XCTAssertEqual(p.spectralShape, "dark")
+        XCTAssertNil(p.unisonVoices)             // optionals stay nil
+        XCTAssertNil(p.warmthDrive)
+    }
+
+    func testDecode_patchArray_oneOldPatchDoesNotNukeTheWholeLibrary() throws {
+        // The real PatchStore failure mode: decoding [SynthPatch]; before the fix one old
+        // (pre-timbre) patch threw and the array load fell back to empty. Now all survive.
+        let old = #"{"name":"Old"}"#
+        let patches = try JSONDecoder().decode([SynthPatch].self,
+                                               from: Data("[\(old),\(old),\(old)]".utf8))
+        XCTAssertEqual(patches.count, 3, "one legacy patch must not drop the whole library")
+    }
+
+    func testDecode_fullPatch_roundTripsIdentically() throws {
+        // Regression guard: for JSON that HAS every field, the custom decoder is bit-identical
+        // to the synthesized one — a full round-trip is identity.
+        let original = SynthPatch(name: "RT", attack: 0.11, timbreProfile: "violin",
+                                  timbreBlend: 0.7, unisonVoices: 3, unisonDetuneCents: 12,
+                                  outputLevel: 0.8, warmthDrive: 0.3)
+        let decoded = try JSONDecoder().decode(SynthPatch.self,
+                                               from: try JSONEncoder().encode(original))
+        XCTAssertEqual(decoded, original)
+    }
 }
 
 #if canImport(Accelerate)
