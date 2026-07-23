@@ -56,6 +56,10 @@ struct EchoelStudioView: View {
     @Environment(MIDIOutput.self) private var midiOut
     @Environment(AUv3Host.self) private var auHost
     @Environment(PolySynthVoice.self) private var synth
+    /// The global one-button bio voice (owned by the app) — read here only to push the
+    /// concert pitch to it alongside the other voices, so an external-MIDI note into it
+    /// also honors Kammerton. Method calls in event handlers only; never read in body.
+    @Environment(BioReactiveSynthVoice.self) private var bioVoice
     /// The PLAY-SURFACE voice (fullscreen visual touch instrument) — its own instance,
     /// so its patch/morph never re-timbre the generative bed and vice versa.
     @Environment(\.touchSynth) private var touchSynth
@@ -2004,7 +2008,7 @@ struct EchoelStudioView: View {
         case "tuning":
             applyTuning()
         case "a4":
-            synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz)
+            synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz); bioVoice.setTuning(a4Hz: session.a4Hz)
             // Note grids recolour with the concert pitch (founder
             // 2026-07-12) — push the new A4 to the roll immediately,
             // not only on the next compose, so an open/soon-opened
@@ -3777,6 +3781,7 @@ struct EchoelStudioView: View {
         subBass.setTuning(a4Hz: session.a4Hz)
         laneVoiceRack.setTuning(a4Hz: session.a4Hz)   // S2-W2-5: lane subs in tune too
         touchSynth?.setTuning(a4Hz: session.a4Hz)
+        bioVoice.setTuning(a4Hz: session.a4Hz)        // the global bio voice tunes too
         synth.apply(currentPatch)
         syncTouchSound()
         // TEMPO — bio-reactive but never jumpy. The body seeds the tempo once the pulse is
@@ -4269,6 +4274,7 @@ struct EchoelStudioView: View {
         subBass.setTuning(a4Hz: p.a4Hz)
         laneVoiceRack.setTuning(a4Hz: p.a4Hz)   // S2-W2-5: lane subs in tune too
         touchSynth?.setTuning(a4Hz: p.a4Hz)
+        bioVoice.setTuning(a4Hz: p.a4Hz)        // the global bio voice tunes too
         synth.apply(p.patch)
         syncTouchSound()
         fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: p.style)
