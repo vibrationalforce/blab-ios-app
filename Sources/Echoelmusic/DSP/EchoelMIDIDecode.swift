@@ -35,7 +35,8 @@ public enum EchoelMIDIDecode {
     /// Decode the first bytes of a MIDI-1.0 message into a mono-voice action.
     /// Note-on with velocity 0 is the running-status convention for note-off.
     /// Every non-note message is ignored, so the free-running bio drone keeps
-    /// playing when the host sends CC/clock/etc.
+    /// playing when the host sends CC/clock/etc — EXCEPT the two "panic" channel-mode
+    /// controllers (All Sound Off / All Notes Off), which must stop the voice.
     public static func action(status: UInt8, data1: UInt8, data2: UInt8) -> Action {
         switch status & 0xF0 {
         case 0x90:  // Note On (velocity 0 ⇒ Note Off)
@@ -44,6 +45,9 @@ public enum EchoelMIDIDecode {
                 : .noteOff
         case 0x80:  // Note Off
             return .noteOff
+        case 0xB0:  // Control Change — release the voice on a host panic (All Sound Off
+                    // = CC 120, All Notes Off = CC 123); every other CC keeps the drone.
+            return (data1 == 120 || data1 == 123) ? .noteOff : .ignore
         default:
             return .ignore
         }

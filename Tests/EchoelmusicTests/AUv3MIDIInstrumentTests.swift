@@ -50,6 +50,25 @@ final class AUv3MIDIInstrumentTests: XCTestCase {
         XCTAssertEqual(EchoelMIDIDecode.action(status: 0xE0, data1: 0, data2: 64), .ignore)
     }
 
+    func testAction_allNotesOff_isNoteOff() {
+        // MIDI panic: CC 123 (All Notes Off) must release the mono voice — otherwise a
+        // host's transport-stop / panic leaves the AUv3 drone stuck on.
+        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB0, data1: 123, data2: 0), .noteOff)
+    }
+
+    func testAction_allSoundOff_isNoteOff() {
+        // CC 120 (All Sound Off) likewise stops the voice.
+        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB0, data1: 120, data2: 0), .noteOff)
+    }
+
+    func testAction_ordinaryCC_stillIgnored() {
+        // Regression guard: a normal CC must NOT stop the voice. Channel 5 (0xB5) also
+        // exercises the channel mask on the CC path.
+        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB5, data1: 7, data2: 100), .ignore)
+        // Sustain pedal (CC 64) is not a note-stop either.
+        XCTAssertEqual(EchoelMIDIDecode.action(status: 0xB0, data1: 64, data2: 127), .ignore)
+    }
+
     // MARK: - Decode → synth → audible output (the instrument contract)
 
     func testMIDINoteOn_drivesSynthToAudibleOutput() {
