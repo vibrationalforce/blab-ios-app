@@ -56,6 +56,31 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
     private final class GainMirror { nonisolated(unsafe) var value: Float = 0.7 }
     private let gainMirror = GainMirror()
 
+    /// Render-thread mirror of the four bio parameters (same pattern as GainMirror).
+    /// The parameter value observer can fire on ANY control thread (the vitals utility
+    /// queue via pullSharedVitals, host automation, the plugin UI), so it writes these
+    /// atomic-width Floats; the render block reads them and calls `applyBioReactive`
+    /// RENDER-SIDE (throttled ~10 Hz). That keeps the synth's `harmonicAmplitudes`
+    /// array single-owner (render-thread only): its every-6th-call in-place rewrite
+    /// (`updateSpectralEnvelope`, verified all-subscript, no realloc) can then never
+    /// race a concurrent render read AND never triggers a copy-on-write allocation
+    /// (COW copies only when a 2nd thread holds a reference). This closes the
+    /// KNOWN-SMELL bio-path COW hazard documented on EchoelDDSP. A MIRROR (not an SPSC
+    /// queue like PolySynthVoice v337) is required here because the producer side is
+    /// multi-threaded, which single-producer SPSC forbids.
+    private final class BioMirror {
+        nonisolated(unsafe) var coherence: Float = 0.5
+        nonisolated(unsafe) var hrv: Float = 0.5
+        nonisolated(unsafe) var heartRate: Float = 0.5
+        nonisolated(unsafe) var breathPhase: Float = 0.5
+    }
+    private let bioMirror = BioMirror()
+    /// Render-owned frame accumulator throttling the render-side bio application to
+    /// ~10 Hz (the vitals poll rate) — bounds the audio-thread cost to what it was.
+    /// Touched ONLY by the render thread (single-owner), so the plain field is safe.
+    private final class BioRenderState { nonisolated(unsafe) var frameAccum = 0 }
+    private let bioRenderState = BioRenderState()
+
     // MARK: - Buses
 
     private var _outputBusArray: AUAudioUnitBusArray!
@@ -227,12 +252,15 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
                   let addr = ParameterAddress(rawValue: param.address) else { return }
             switch addr {
             case .coherence, .hrv, .heartRate, .breathPhase:
-                self.synth.applyBioReactive(
-                    coherence: self.coherenceParam.value,
-                    hrvVariability: self.hrvParam.value,
-                    heartRate: self.heartRateParam.value,
-                    breathPhase: self.breathPhaseParam.value
-                )
+                // Mirror the four bio params for the render thread; applyBioReactive now
+                // runs RENDER-SIDE (see internalRenderBlock) so the synth's
+                // harmonicAmplitudes array stays single-owner — no cross-thread COW race
+                // and no audio-thread allocation. texture.coherence is a scalar
+                // (atomic-width Float) — safe to set directly here.
+                self.bioMirror.coherence = self.coherenceParam.value
+                self.bioMirror.hrv = self.hrvParam.value
+                self.bioMirror.heartRate = self.heartRateParam.value
+                self.bioMirror.breathPhase = self.breathPhaseParam.value
                 self.texture.coherence = self.coherenceParam.value
             case .baseFrequency:
                 self.synth.frequency = value
@@ -386,6 +414,10 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
         let gainBox = self.gainMirror
         let padRef = self.padScratch
         let texRef = self.texScratch
+        let bioBox = self.bioMirror
+        let bioState = self.bioRenderState
+        // ~10 Hz throttle for the render-side bio application (sampleRate/10 frames).
+        let bioInterval = max(1, Int(self.synth.sampleRate / 10))
 
         return { (actionFlags, timestamp, frameCount, outputBusNumber,
                   outputData, renderEvent, pullInputBlock) in
@@ -425,6 +457,19 @@ public final class EchoelmusicAudioUnit: AUAudioUnit {
                 // `AURenderEventHeader.next` imports as an UnsafeMutablePointer while the
                 // list head is a const UnsafePointer — convert so the walk stays const.
                 event = header.next.map { UnsafePointer($0) }
+            }
+
+            // Apply bio params RENDER-SIDE (throttled ~10 Hz) from the atomic mirrors —
+            // never read AUParameter here. Running applyBioReactive on the render thread
+            // keeps the synth's harmonicAmplitudes array single-owner: no cross-thread
+            // COW race, and its in-place rewrite triggers no allocation. See BioMirror.
+            bioState.frameAccum += count
+            if bioState.frameAccum >= bioInterval {
+                bioState.frameAccum = 0
+                synthRef.applyBioReactive(coherence: bioBox.coherence,
+                                          hrvVariability: bioBox.hrv,
+                                          heartRate: bioBox.heartRate,
+                                          breathPhase: bioBox.breathPhase)
             }
 
             // Use pre-allocated scratch (captured by value — COW safe since we own them)
