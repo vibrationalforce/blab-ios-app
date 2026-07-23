@@ -143,11 +143,14 @@ public enum MIDIFileExporter {
     /// - `keyRootPitchClass` (0=C…11=B, <0 = unknown/omit) + `keyIsMinor` write a real key-
     ///   signature meta so the DAW shows the Tonart.
     /// - `accents` (parallel to `steps`) map accented drum cells to a louder velocity.
+    /// - `program` (0…127 GM program, `nil` = omit) writes a Program Change (0xC0) at tick 0
+    ///   on the melody channel, so the take opens on a DEFINED instrument in Ableton/any DAW
+    ///   instead of whatever sound the target track happens to hold. `nil` → byte-identical.
     public static func exportCombined(notes: [Note], steps: [[Bool]],
                                       accents: [[Bool]] = [],
                                       tempo: Double, bars: Int = 1,
                                       keyRootPitchClass: Int = -1, keyIsMinor: Bool = false,
-                                      velocity: UInt8 = 100,
+                                      velocity: UInt8 = 100, program: UInt8? = nil,
                                       humanize: Humanizer = .tight, seed: UInt64 = 0) -> Data {
         let barCount = Swift.max(1, bars)
         // The region spans exactly N bars of 4/4 → N×4 quarters worth of ticks.
@@ -159,8 +162,11 @@ public enum MIDIFileExporter {
         conductorMeta += keySignatureMeta(rootPitchClass: keyRootPitchClass, minor: keyIsMinor)
         conductorMeta += trackNameMeta("Echoelmusic")
         let conductor = serializeTrack([], leadingMeta: conductorMeta, endTick: regionEndTick)
+        // Melody leading bytes: track name, then an optional Program Change (0xC0) at tick 0
+        // on channel 1 — so the exported take lands on a defined GM sound in the DAW.
         let melody = serializeTrack(melodyEvents(notes, humanize: humanize, seed: seed),
-                                    leadingMeta: trackNameMeta("Melody"), endTick: regionEndTick)
+                                    leadingMeta: trackNameMeta("Melody") + programChangeBytes(program),
+                                    endTick: regionEndTick)
         let drums = serializeTrack(drumEvents(steps, accents: accents, velocity: velocity,
                                               humanize: humanize, seed: seed),
                                    leadingMeta: trackNameMeta("Drums"), endTick: regionEndTick)
@@ -189,9 +195,10 @@ public enum MIDIFileExporter {
     /// reads it). MIDI is the only kind with an inline pattern; a media-carrier clip
     /// (audio/video/visual) has no notes/grid, so it yields a well-formed 1-bar region
     /// with no note events (honest, never a crash).
+    /// `program` (0…127 GM, `nil` = omit) selects the melody track's instrument in the DAW.
     public static func export(clip: Clip, tempo: Double,
                               keyRootPitchClass: Int = -1, keyIsMinor: Bool = false,
-                              velocity: UInt8 = 100,
+                              velocity: UInt8 = 100, program: UInt8? = nil,
                               humanize: Humanizer = .tight, seed: UInt64 = 0) -> Data {
         let notes = clip.melody?.notes ?? []
         let steps = clip.drums?.steps ?? []
@@ -209,7 +216,7 @@ public enum MIDIFileExporter {
         return exportCombined(notes: notes, steps: steps, accents: accents,
                               tempo: tempo, bars: bars,
                               keyRootPitchClass: keyRootPitchClass, keyIsMinor: keyIsMinor,
-                              velocity: velocity, humanize: humanize, seed: seed)
+                              velocity: velocity, program: program, humanize: humanize, seed: seed)
     }
 
     // MARK: - Meta-event builders (each begins with a 0x00 delta-time)
@@ -245,6 +252,14 @@ public enum MIDIFileExporter {
         let sf = majorSf[(refPc % 12 + 12) % 12]
         let sfByte = UInt8(bitPattern: Int8(sf))
         return [0x00, 0xFF, 0x59, 0x02, sfByte, minor ? 0x01 : 0x00]
+    }
+
+    /// Program Change on channel 1 (`C0 pp`) at delta-time 0, or empty when no program is
+    /// requested (so the melody track's leading bytes stay byte-identical). The program is
+    /// masked to a valid 0…127 GM number.
+    private static func programChangeBytes(_ program: UInt8?) -> [UInt8] {
+        guard let program else { return [] }
+        return [0x00, 0xC0, program & 0x7F]
     }
 
     /// FF 03 <len> <ascii> — a track name the DAW shows on the imported track.

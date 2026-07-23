@@ -192,4 +192,39 @@ final class MIDIFileExporterTests: XCTestCase {
         let data = MIDIFileExporter.export(clip: clip, tempo: 120)
         XCTAssertTrue(contains(data, [0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20]))   // 120 BPM
     }
+
+    // MARK: - Program Change (melody instrument select for the DAW)
+
+    private func melodyClip() -> Clip {
+        Clip(name: "Lead", kind: .midi,
+             melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 1.0)]))
+    }
+
+    func test_program_emitsProgramChangeOnMelodyChannel() {
+        let data = MIDIFileExporter.export(clip: melodyClip(), tempo: 120, program: 42)
+        XCTAssertTrue(contains(data, [0xC0, 42]), "a program request must emit a channel-1 Program Change")
+    }
+
+    func test_program_nil_isByteIdenticalBaseline_plusNothing() {
+        // The default (no program) path must stay byte-for-byte the old output; the PC
+        // path adds EXACTLY the 3 bytes (00 C0 pp), nothing else.
+        let none = MIDIFileExporter.export(clip: melodyClip(), tempo: 120)
+        let withPC = MIDIFileExporter.export(clip: melodyClip(), tempo: 120, program: 42)
+        XCTAssertEqual(withPC.count, none.count + 3, "Program Change must add exactly 00 C0 pp")
+        XCTAssertFalse(contains(none, [0xC0, 42]), "no program → no Program Change byte")
+    }
+
+    func test_program_isMaskedTo7Bit() {
+        // 200 & 0x7F = 72 — an out-of-range program can never emit an invalid data byte.
+        let data = MIDIFileExporter.export(clip: melodyClip(), tempo: 120, program: 200)
+        XCTAssertTrue(contains(data, [0xC0, 72]))
+        XCTAssertFalse(contains(data, [0xC0, 200]))
+    }
+
+    func test_program_combinedExporterHonorsIt() {
+        var grid = emptyGrid(); grid[0][0] = true
+        let notes = [Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 1.0)]
+        let data = MIDIFileExporter.exportCombined(notes: notes, steps: grid, tempo: 120, program: 5)
+        XCTAssertTrue(contains(data, [0xC0, 5]))
+    }
 }
