@@ -1,3 +1,23 @@
+## 2026-07-23 (cron, ULTRACODE 24h) — v10.79.341 ERFOLGREICH auf TestFlight (AUv3-Härtung)
+
+- **Ausgeliefert:** v10.79.341 archivierte + lud erfolgreich hoch — TestFlight-Lauf 29975639149 (commit 33f81f6) = **success**. Konsolidiert zwei AUv3-Korrektheits-Fixes:
+  - **Bio-Pfad-COW-Race** (af93f58): `applyBioReactive` läuft render-seitig (~10 Hz gedrosselt) via atomarem `BioMirror` → `harmonicAmplitudes` single-owner, kein Race/keine Audio-Thread-Alloc. audio-thread-reviewer CLEAN.
+  - **MIDI-Panic** (2f61112): CC 120 (All Sound Off) + CC 123 (All Notes Off) → Note-Release; alle anderen CCs bleiben ignoriert. Test-first, code-reviewer CLEAN.
+- **Deploy-Story = transiente Apple-Provisioning-Flakiness, KEIN Code-Bug:** drei Archive-Läufe nötig.
+  Lauf 1 (70d7e37, build 2455): "The network connection was lost" beim -allowProvisioningUpdates.
+  Lauf 2 (7e0db85, build 2456): "The data couldn't be read because it isn't in the correct format".
+  Lauf 3 (33f81f6): **success.** ZWEI verschiedene Fehler = unabhängige Apple-API-Transienten (ein echter
+  Config-Bug scheitert IDENTISCH jedes Mal). Code-Gates die ganze Zeit grün (Xcode + CI + Full Test Suite),
+  Commits fassten nur .deploy/release + MARKETING_VERSION an, v339/v340 archivierten mit identischem Provisioning.
+- **PLAYBOOK (HARNESS_LEDGER-würdig):** TestFlight-Archive-Fehler mit "network connection was lost" ODER
+  "data couldn't be read ... correct format" beim -allowProvisioningUpdates = Apple-seitige Provisioning-Transiente,
+  NICHT unser Code. Diagnose: (1) sind Xcode Compile Check + CI grün? (2) hat der Commit Signing/Entitlement/
+  Bundle-ID angefasst? Wenn nein+nein → tokenlos re-triggern (.deploy/release bumpen+pushen; neue Build-Nummer,
+  Version unverändert = eindeutig für TestFlight). Bis zu 3 Versuche. Re-Run-APIs sind für den Integration-Token
+  403-gesperrt; CI-Config-Retry-Härtung wäre founder-gated (CLAUDE.md DO-NOT: CI ohne Founder-OK ändern).
+- **Stand:** Founder-Direktive "arbeitest bis Build erfolgreich" erfüllt. Weiter zum Geräte-Verify (Instrument-Home
+  Vollbild · First-Run-Finger-Einladung · Studio-Tür · AUv3 aumu mit MIDI+Panic). Danach zurück zum stillen Cron.
+
 ## 2026-07-22 (cron) — Beat als ruhe-überlebender Genre-Träger (v329, Slice 2)
 
 - **Founder-Log v327/2441:** Konvergenz trat sogar bei HOHER Kohärenz auf → Harmonie-Hebel
