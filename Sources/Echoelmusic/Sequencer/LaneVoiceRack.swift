@@ -175,6 +175,10 @@ public final class LaneVoiceRack {
     /// while flag OFF (subs empty). Control-path (setTuning writes an atomic).
     public func setTuning(a4Hz: Double) {
         for s in subs { s.setTuning(a4Hz: a4Hz) }
+        // BodyVibe B1: the lane BIO voices must follow A4 too — without this a lane bio
+        // unit played every MIDI note at a hardcoded 440 and drifted off-pitch at e.g.
+        // A=432 while the rest of the instrument retuned. Same atomic control-path.
+        for b in bios { b.setTuning(a4Hz: a4Hz) }
     }
 
     // MARK: - S2-W2-3 kind-routing facade
@@ -275,7 +279,7 @@ public final class LaneVoiceRack {
             // the level control. playNote flips the voice's launch-silence
             // latch, so the unit first sounds when its TRACK actually plays.
             let midi = UInt8(Swift.max(0, Swift.min(127, pitch + (transposeBySlot[slot] ?? 0))))
-            bios[i].playNote(frequency: BioReactiveSynthVoice.frequency(forMIDINote: midi))
+            bios[i].playNote(frequency: bios[i].soundingFrequency(forMIDINote: midi))
             bioHeldPitchBySlot[slot] = pitch
         }
     }

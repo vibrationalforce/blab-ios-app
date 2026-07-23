@@ -197,9 +197,25 @@ public final class BioReactiveSynthVoice {
         releaseNote()
     }
 
-    /// Standard A440 equal temperament: midi 69 = 440 Hz.
-    public nonisolated static func frequency(forMIDINote note: UInt8) -> Float {
-        440 * powf(2, (Float(note) - 69) / 12)
+    /// This voice's SOUNDING frequency for a MIDI note, honoring the concert pitch
+    /// (Kammerton) set via `setTuning` — reads the same atomic `synth.a4Hz` the render
+    /// block uses, so external-MIDI and lane-gate notes stay in tune with the rest of
+    /// the instrument instead of pinning to 440. (Was a hardcoded-440 static that made
+    /// the bio voices ignore the user's Kammerton.) Defaults to 440 until `setTuning`.
+    public func soundingFrequency(forMIDINote note: UInt8) -> Float {
+        synth.a4Hz * powf(2, (Float(note) - 69) / 12)
+    }
+
+    /// Set the concert pitch (Kammerton) this voice tunes to — A4 in Hz, clamped to a
+    /// musical range so a stray value can't detune into inaudibility. Atomic write to
+    /// the synth's `a4Hz`, read at the next note (same discipline as
+    /// `PolySynthVoice.setTuning`); safe to call while a loop plays.
+    public func setTuning(a4Hz: Double) {
+        // Sanitize the tuning boundary: a NaN slips through min/max (NaN comparisons
+        // are false) and would poison synth.a4Hz → NaN sounding frequency → a stuck,
+        // silent oscillator (same failure class as the pitch-bend isFinite guard).
+        guard a4Hz.isFinite else { return }
+        synth.a4Hz = Float(Swift.min(Swift.max(a4Hz, 380), 500))
     }
 
     // MARK: - Lane mixer stage (BodyVibe B1 — rack-unit use)
@@ -266,13 +282,13 @@ public final class BioReactiveSynthVoice {
         switch event.kind {
         case .noteOn:
             heldByController = true
-            playNote(frequency: Self.frequency(forMIDINote: event.note))
+            playNote(frequency: soundingFrequency(forMIDINote: event.note))
         case .noteOff:
             heldByController = false
             releaseNote()
         case .pitchBend:
             let semis = event.value * 2.0
-            let base = Self.frequency(forMIDINote: event.note > 0 ? event.note : 69)
+            let base = soundingFrequency(forMIDINote: event.note > 0 ? event.note : 69)
             let bent = base * powf(2, semis / 12)
             // A NaN/inf controller value would set synth.frequency to NaN, which the
             // audio thread reads in render() → a permanently stuck/silent oscillator
