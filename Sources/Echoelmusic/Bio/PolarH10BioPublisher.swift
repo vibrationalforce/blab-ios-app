@@ -163,7 +163,7 @@ public final class PolarH10BioPublisher: NSObject {
                     bus.publish(bio: BioSampleFrame(
                         timestamp: CFAbsoluteTimeGetCurrent(),
                         heartRateBPM: Float(self.latestHR),
-                        hrvNormalized: Float(Swift.min(Swift.max(rmssd / 100.0, 0), 1)),
+                        hrvNormalized: Float(HRVNormalization.normalize(rmssd)),
                         breathRate: 0,
                         breathPhase: 0,
                         coherence: reading.valid ? reading.coherence : 0,

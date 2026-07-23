@@ -114,9 +114,9 @@ public final class EchoelBioEngine {
     /// Apple Watch HR latency is ~4-5 seconds — don't use for beat-sync
     private let appleWatchHRLatency: TimeInterval = 4.5
 
-    /// HRV normalization ceiling in ms: ~100ms is "excellent", ~20ms is "low".
-    /// Applied to HealthKit's SDNN to map it into the [0,1] `hrvNormalized` range.
-    private let rmssdNormalizationMax: Double = 100.0
+    // HRV normalization now lives in ONE shared source of truth (HRVNormalization) so the
+    // camera, BLE strap, and HealthKit all map onto the same [0,1] ceiling — the old
+    // per-source divisors (and this constant's RMSSD-vs-SDNN naming mix-up) are gone.
 
     // MARK: - Init
 
@@ -365,7 +365,7 @@ public final class EchoelBioEngine {
                 // so SDNN drives the normalized HRV directly. (This used to be gated
                 // behind "not enough RR intervals" and then overridden by a fabricated
                 // RMSSD computed from averaged HR — that fabrication has been removed.)
-                let normalized = min(sdnn / self.rmssdNormalizationMax, 1.0)
+                let normalized = HRVNormalization.normalize(sdnn)
                 self.snapshot.hrvNormalized = normalized
                 self.smoothHRV = self.smoothHRV * (1.0 - self.smoothingAlpha) + normalized * self.smoothingAlpha
             }

@@ -713,7 +713,9 @@ public final class CameraRPPGBioPublisher {
                     continue
                 }
                 let rmssdMs = Float(self.analyzer.rmssd)
-                let hrv = Float(min(max(self.analyzer.rmssd / 200.0, 0), 1))
+                // ONE shared normalization ceiling across all bio sources (was ÷200 here,
+                // the outlier — BLE + HealthKit already use the house 100 ms ceiling).
+                let hrv = Float(HRVNormalization.normalize(self.analyzer.rmssd))
                 // analyzer.rrIntervals are already in milliseconds.
                 let rrMs = self.analyzer.rrIntervals
                 // Real frequency-domain coherence from the camera RR series — the
