@@ -21,9 +21,12 @@ notes: |
   spielbares aumu-Instrument mit MIDI (jetzt inkl. Panic-Release). Alle Gates grün
   (2f61112: Xcode + CI). Rausch-Triad unberührt, kein Heilungs-Claim.
 
-  Re-Trigger #1: der erste 341-Archive-Lauf (run 29973807672, build 2455) brach mit
-  "The network connection was lost" während -allowProvisioningUpdates ab — ein
-  transienter CI-Netzausfall (die "No profiles found"-Folgefehler sind die Konsequenz
-  des Netzabrisses, keine Signing-Regression; v339/v340 archivierten mit identischem
-  Provisioning). Alle Code-Gates auf 70d7e37 sind grün. Neuer Push = frischer
-  Archive-Versuch mit neuer Build-Nummer, Version 10.79.341 unverändert.
+  Re-Trigger #2: die ersten zwei 341-Archive-Läufe brachen beide beim
+  -allowProvisioningUpdates ab — aber mit ZWEI VERSCHIEDENEN Fehlern:
+  Lauf 1 (run 29973807672, build 2455) "The network connection was lost";
+  Lauf 2 (run 29974690355, build 2456) "The data couldn't be read because it isn't
+  in the correct format". Zwei verschiedene Fehler = zwei unabhängige Apple-seitige
+  Provisioning-API-Transienten (ein echter Config-Bug scheiterte jedes Mal IDENTISCH).
+  Keine Signing-Regression: v339/v340 archivierten mit identischem Provisioning, meine
+  Commits fassten nur .deploy/release + MARKETING_VERSION an. Alle Code-Gates grün.
+  Dritter Archive-Versuch; scheitert auch dieser transient → Founder informieren.
