@@ -29,7 +29,12 @@ import Observation
 /// All values are normalized per master prompt §2 except where noted.
 public struct BioSampleFrame: Sendable, Equatable {
 
-    /// Mach absolute time when this frame was produced.
+    /// `CFAbsoluteTime` (seconds since the 2001 reference date, i.e.
+    /// `CFAbsoluteTimeGetCurrent()` / `Date.timeIntervalSinceReferenceDate`) at
+    /// which this frame was RECEIVED by its publisher — NOT mach_absolute_time, and
+    /// NOT the underlying measurement time. Every publisher stamps this same clock at
+    /// receipt (see the freshness contract at `freshBio`/`usableBio` below) so the
+    /// age comparison is valid across BLE / rPPG / HealthKit / Demo sources.
     public let timestamp: TimeInterval
 
     /// Heart rate in BPM. Range [40..200], unclamped here.

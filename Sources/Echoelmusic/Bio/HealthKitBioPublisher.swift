@@ -89,14 +89,26 @@ public final class HealthKitBioPublisher {
 
     // MARK: - Private
 
-    private func publishIfFresh(to bus: EngineBus) {
+    /// Internal (not `private`) so `@testable` can drive it directly with an
+    /// injected snapshot — the polling `start(publishing:)` path is timer-driven
+    /// and not deterministically testable.
+    func publishIfFresh(to bus: EngineBus) {
         guard engine.dataSource == .healthKit else { return }
         let snap = engine.snapshot
         guard snap.timestamp != lastTimestamp else { return }
         lastTimestamp = snap.timestamp
 
+        // Stamp RECEIPT time, not the measurement time. EngineBus's freshness
+        // windows (freshBio/usableBio) ask "how long ago did THIS app observe a
+        // live reading?" — the contract at EngineBus.swift:266 says every publisher
+        // (BLE, rPPG, Demo) stamps the CFAbsoluteTimeGetCurrent clock at receipt.
+        // HealthKit publishes measurement-time snapshots that are already 4–5 s old
+        // (Watch latency) and often minutes stale at rest; stamping THAT aged the
+        // frame past even the 90 s wrist window, so the Watch was silently dropped
+        // as a bio source. The :95 dedup stays on snap.timestamp (measurement time)
+        // so we still publish once per NEW reading — only the freshness clock moves.
         bus.publish(bio: BioSampleFrame(
-            timestamp: snap.timestamp.timeIntervalSinceReferenceDate,
+            timestamp: CFAbsoluteTimeGetCurrent(),
             heartRateBPM: Float(snap.heartRate),
             hrvNormalized: Float(snap.hrvNormalized),
             breathRate: Float(snap.breathRate),
