@@ -17,8 +17,10 @@
 // graph is a later, audio-thread-reviewed + device-verified slice. Building the
 // cue model first keeps the founder-approved live sound untouched while the
 // binaural placement is validated, and keeps Echoel's spatial output consistent
-// across formats (ADM-OSC objects, MPE, and on-device binaural all share one
-// azimuth/elevation/distance source of truth).
+// across formats: ADM-OSC objects and on-device binaural follow the SAME angle
+// convention — positive azimuth = LEFT (CCW). This file lives in DSP/ (compiled in
+// isolation for the AUv3), so it cannot import `SpatialPosition`; it mirrors that
+// convention by hand and a unit test pins the sign so the two never drift.
 
 import Foundation
 
@@ -52,8 +54,9 @@ public enum BinauralPanner {
 
     /// Map a source position to binaural cues.
     /// - Parameters:
-    ///   - azimuthDegrees: −180…+180, 0 = front, negative = left, positive = right
-    ///     (the ADM-OSC convention; breath drives it in `ADMOSCSender`).
+    ///   - azimuthDegrees: −180…+180, 0 = front, positive = left, negative = right
+    ///     (the ADM / house convention — the same one `SpatialPosition` documents and
+    ///     `ADMOSCSender` sends; breath drives it via the bio convenience below).
     ///   - elevationDegrees: −90…+90, 0 = ear level, positive = above.
     ///   - distanceNorm: 0…1, 0 = at the head, 1 = far (ADM-OSC distance).
     public static func cues(azimuthDegrees: Float,
@@ -63,10 +66,12 @@ public enum BinauralPanner {
         let el = clamp(elevationDegrees, -90, 90) * .pi / 180
         let dist = clamp(distanceNorm, 0, 1)
 
-        // ILD via equal-power pan. The horizontal component (cos elevation) shrinks
-        // the L/R imbalance as the source rises overhead, where both ears hear it
-        // about equally. pan −1 (full left) … +1 (full right).
-        let pan = sinf(az) * cosf(el)
+        // ILD via equal-power pan. `pan` is right-positive (−1 full left … +1 full
+        // right). The house/ADM convention is positive azimuth = LEFT (see
+        // SpatialPosition), so azimuth maps in with a SIGN FLIP: +az (left) → pan < 0
+        // (louder left ear). The horizontal component (cos elevation) shrinks the L/R
+        // imbalance as the source rises overhead, where both ears hear it about equally.
+        let pan = -sinf(az) * cosf(el)
         let theta = (pan + 1) * 0.5 * (.pi / 2)                      // 0…π/2
         var left = cosf(theta)
         var right = sinf(theta)
@@ -76,12 +81,14 @@ public enum BinauralPanner {
         left *= atten
         right *= atten
 
-        // ITD (Woodworth spherical-head): t = (a/c)(θ + sin θ) for the lateral
-        // angle. The far ear is delayed; the sign tracks the side (− = left side →
-        // left ear leads). Elevation folds the lateral angle toward 0.
+        // ITD (Woodworth spherical-head): t = (a/c)(θ + sin θ) for the lateral angle.
+        // `pan` is right-positive, so a LEFT source (pan < 0) makes the LEFT ear lead →
+        // POSITIVE `itdSeconds` per the struct contract; a RIGHT source (pan > 0) delays
+        // the left ear → negative. Elevation folds the lateral angle toward 0 (overhead
+        // → no ITD; itdMag is 0 at centre, so the sign branch is a no-op there).
         let lateral = asinf(clamp(pan, -1, 1))                       // −π/2…π/2
         let itdMag = (headRadius / speedOfSound) * (fabsf(lateral) + sinf(fabsf(lateral)))
-        let itd = (pan >= 0 ? 1 : -1) * itdMag
+        let itd = (pan < 0 ? 1 : -1) * itdMag
 
         // Air high-cut: full band when close, rolling down with distance. 18 kHz
         // near → ~3.5 kHz far (audible "behind glass" damping for far objects).

@@ -14,21 +14,30 @@ final class BinauralPannerTests: XCTestCase {
         XCTAssertEqual(c.leftGain, 0.7071, accuracy: 1e-3)
     }
 
-    func testHardRight_louderAndDelayedAtRightEar() {
+    func testHardLeft_louderAndLeadsAtLeftEar() {
+        // House/ADM convention: positive azimuth = LEFT. +90° is a hard-left source →
+        // louder in the left ear, and the left ear leads (positive ITD per the struct).
         let c = BinauralPanner.cues(azimuthDegrees: 90, elevationDegrees: 0, distanceNorm: 0)
-        XCTAssertGreaterThan(c.rightGain, c.leftGain, "source on the right is louder at the right ear")
-        XCTAssertGreaterThan(c.itdSeconds, 0, "positive ITD = right ear delayed (left leads)")
+        XCTAssertGreaterThan(c.leftGain, c.rightGain, "source on the left is louder at the left ear")
+        XCTAssertGreaterThan(c.itdSeconds, 0, "positive ITD = left ear leads (right ear delayed)")
         // Max ITD for the spherical-head model stays sub-millisecond and plausible.
         XCTAssertLessThan(c.itdSeconds, 0.001, "ITD is sub-millisecond")
         XCTAssertGreaterThan(c.itdSeconds, 0.0004, "near the ~0.66 ms max at 90°")
     }
 
-    func testHardLeft_isMirrorOfHardRight() {
-        let r = BinauralPanner.cues(azimuthDegrees: 90, elevationDegrees: 0, distanceNorm: 0)
-        let l = BinauralPanner.cues(azimuthDegrees: -90, elevationDegrees: 0, distanceNorm: 0)
-        XCTAssertEqual(l.leftGain, r.rightGain, accuracy: 1e-5, "left/right symmetry of gains")
-        XCTAssertEqual(l.rightGain, r.leftGain, accuracy: 1e-5)
-        XCTAssertEqual(l.itdSeconds, -r.itdSeconds, accuracy: 1e-7, "ITD sign mirrors")
+    func testHardRight_louderAndLeadsAtRightEar() {
+        // Negative azimuth = RIGHT → louder right ear, right ear leads (negative ITD).
+        let c = BinauralPanner.cues(azimuthDegrees: -90, elevationDegrees: 0, distanceNorm: 0)
+        XCTAssertGreaterThan(c.rightGain, c.leftGain, "source on the right is louder at the right ear")
+        XCTAssertLessThan(c.itdSeconds, 0, "negative ITD = right ear leads (left ear delayed)")
+    }
+
+    func testHardRight_isMirrorOfHardLeft() {
+        let left  = BinauralPanner.cues(azimuthDegrees: 90, elevationDegrees: 0, distanceNorm: 0)
+        let right = BinauralPanner.cues(azimuthDegrees: -90, elevationDegrees: 0, distanceNorm: 0)
+        XCTAssertEqual(right.leftGain, left.rightGain, accuracy: 1e-5, "left/right symmetry of gains")
+        XCTAssertEqual(right.rightGain, left.leftGain, accuracy: 1e-5)
+        XCTAssertEqual(right.itdSeconds, -left.itdSeconds, accuracy: 1e-7, "ITD sign mirrors")
     }
 
     func testOverhead_recentersTheImage() {
