@@ -315,8 +315,11 @@ LIVE at `Sources/EchoelmusicAUv3/EchoelmusicAudioUnit.swift:27`
 worker grepped only `Sources/Echoelmusic/` and missed the AUv3 target. Do NOT delete. ·
 ~~**E5** fix the stale `EchoelDDSP` COW-smell header~~ **DONE 2026-07-24** — header rewritten
 to reflect all three owners applying `applyBioReactive` render-side (SPSC drain / `BioMirror`);
-the "control thread" claim + "KNOWN SMELL" were closed by #83/#90/#94. · **E6** enforce single
-`MetalBioView` mount · ~~**E7** the two remaining raw `Slider`s → `EchoelValueField`~~
+the "control thread" claim + "KNOWN SMELL" were closed by #83/#90/#94. · ~~**E6** enforce single
+`MetalBioView` mount~~ **ALREADY ENFORCED (verified 2026-07-24)** — `.onChange(of: showVisual)`
+(EchoelStudioView.swift:675-688) hides the floating window while the fullscreen cover's
+MetalBioView is up ("only ONE MetalBioView may render at a time… GPU starvation / black
+immersive… double-capture") and restores it on dismiss. No action. · ~~**E7** the two remaining raw `Slider`s → `EchoelValueField`~~
 **SCOPE-MISCLASSIFICATION (verified 2026-07-24)** — the `EchoelValueField` law governs
 *numeric parameters*, not every `Slider`. The two app-target raw `Slider`s
 (`FloatingVisualWindow.swift:522`, `EchoelStudioView.swift:2374`) are the SAME `lookScrub`
