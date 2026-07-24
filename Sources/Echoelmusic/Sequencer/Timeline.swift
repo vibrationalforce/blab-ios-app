@@ -144,9 +144,14 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     /// carry no mix keys — they decode to unity/unmuted, not a decode failure.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
-        name = try c.decode(String.self, forKey: .name)
-        kind = try c.decode(ClipKind.self, forKey: .kind)
+        // Identity fields defended too (the decodeIfPresent LAW). A bare `try decode` on
+        // id/name/kind meant a renamed/removed identity field threw → the [TimelineLane]
+        // array decode threw → TimelineDocument.init rethrew → AppGroupStore.load nil →
+        // the user's WHOLE song was lost. Degrade one field instead: id→fresh UUID,
+        // name→"", kind→.midi (neutral). A well-formed doc is byte-unaffected (all present).
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        kind = try c.decodeIfPresent(ClipKind.self, forKey: .kind) ?? .midi
         isBio = try c.decodeIfPresent(Bool.self, forKey: .isBio) ?? false
         level = try c.decodeIfPresent(Float.self, forKey: .level) ?? 1
         isMuted = try c.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
@@ -240,11 +245,17 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
-        laneID = try c.decode(UUID.self, forKey: .laneID)
-        clipID = try c.decode(UUID.self, forKey: .clipID)
-        startTick = max(0, try c.decode(Int.self, forKey: .startTick))
-        lengthTicks = max(1, try c.decode(Int.self, forKey: .lengthTicks))
+        // Identity fields defended too (the decodeIfPresent LAW). A bare `try decode` on
+        // the identity fields meant a renamed/removed one threw → the [TimelineRegion]
+        // array decode threw → TimelineDocument.init rethrew → the whole song was lost.
+        // Degrade one field: UUID→fresh, startTick→0, lengthTicks→1 (min-clamped). A
+        // well-formed doc is unaffected. A fabricated laneID/clipID orphans this region —
+        // an acceptable worst case for an unlikely identity rename; the DOCUMENT survives.
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        laneID = try c.decodeIfPresent(UUID.self, forKey: .laneID) ?? UUID()
+        clipID = try c.decodeIfPresent(UUID.self, forKey: .clipID) ?? UUID()
+        startTick = max(0, try c.decodeIfPresent(Int.self, forKey: .startTick) ?? 0)
+        lengthTicks = max(1, try c.decodeIfPresent(Int.self, forKey: .lengthTicks) ?? 1)
         contentOffsetSeconds = max(0, (try? c.decode(Double.self, forKey: .contentOffsetSeconds)) ?? 0)
         // Legacy regions (pre-M1b) carry no tick offset — 0 signals "fall back to
         // the seconds conversion" to consumers.
