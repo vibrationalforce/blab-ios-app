@@ -56,7 +56,8 @@ Gehört zur Loop-Mode-Hälfte der Zwei-Modi-Ansage (Flow=Meditation / Loop=Produ
 - Existiert komplett. Falls Founder eine fehlende Länge vermisst: Picker offeriert 1/2/4/8/16/32.
 
 ## Status
-- ✅ V1 (Video-Loop-Cut-Core) geshippt `79fb850` — Gates werden geprüft.
+- ✅ V1 (Video-Loop-Cut-Core) geshippt `79fb850` — beide echten Gates grün (Xcode Compile
+  + CI/CD Pipeline inkl. der 10 neuen Tests).
 - Nächster Zyklus-Kandidat: V2-Wiring (device-gated) ODER Stems-PLAN ODER die schon geplanten
   G2 (Ambient-Genres) / M1 (Flow/Loop-Schalter). Founder-Priorität entscheidet.
 - Alles NEEDS-FOUNDER-VERIFY hinter TestFlight-Freeze.
