@@ -1,34 +1,34 @@
-build: v10.79.346 — Daten-Sicherheit: kein stiller Verlust mehr (Härtungs-Build)
+build: v10.79.347 — Stimmung in den Spuren + größere Tap-Ziele + ehrliche Licht-Copy
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Härtungs-Build auf v345 (Kammerton bleibt drin). EHRLICH: KEINE neue Oberfläche und
-  fast nichts sichtbar Neues — das ist ein reiner Daten-Sicherheits-/Stabilitäts-Build.
-  Wert = Versicherung: gespeicherte Songs, Patches und Bio→Parameter-Routings können bei
-  einem künftigen Update nicht mehr STILL verschwinden. Alle Slices reviewer-CLEAN, beide
-  echten Gates grün (Xcode Compile Check + CI/CD Pipeline).
+  Kleiner, ehrlicher Build auf v346. Drei reviewer-saubere, geräte-sichtbare Fixes —
+  einer davon HÖRBAR. Beide echten Gates grün (Xcode Compile Check + CI/CD Pipeline).
 
-  Warum das zählt (das Muster, das gefixt wurde): mehrere gespeicherte Dokumente decodierten
-  mit nacktem `try decode` — ein einziges umbenanntes/entferntes Feld in einem künftigen
-  Update warf das GANZE Dokument weg → der User verlor lautlos seine Arbeit, ohne Signal.
-  Jetzt degradiert jedes Feld einzeln (decodeIfPresent), und ein einzelnes kaputtes Element
-  wird gedroppt statt das ganze Dokument zu vernichten.
+  1) HÖRBAR — Stimmung (Kammerton) in den melodischen Spuren:
+     Der Lane-Kammerton-Fächer stimmte Sub- und Bio-Stimmen, übersprang aber den
+     melodischen Voice-Pool. Folge: jede melodische Spur spielte MIDI-Noten auf
+     hartkodierten 440 Hz, während Subs/Bios/Global-Synth auf deinen Kammerton
+     umstimmten — eine melodische Spur drohnte verstimmt bei z.B. A=432. Jetzt folgt
+     auch der melodische Pool dem Kammerton (gleicher atomarer Control-Path, Audio-
+     Thread unberührt, Release bit-identisch). Test-first, audio-thread-reviewer CLEAN.
+     → Geräte-Verify: Kammerton auf z.B. 432 stellen, eine melodische Spur gegen eine
+       Bass-Spur spielen — sie müssen jetzt zusammen stimmen.
 
-  Gehärtet seit v345 (intern/unsichtbar, jedes reviewer- + gate-verifiziert):
-  - Bio→Parameter-Routing-Tabelle (ModulationMatrix/ModRoute): war halb-migriert — die
-    ursprünglichen 7 Felder nackt; ein Feld-Umbenennen hätte die GANZE Modulations-Matrix
-    des Users gelöscht. Jetzt degradieren die Verhaltensfelder einzeln, source/destination
-    droppen nur die eine kaputte Route (nicht die Matrix).
-  - Noten (Note.pitch): das eine nackte Feld → jetzt Middle-C-Default; eine kaputte Note
-    droppt nicht mehr das ganze Projekt (alle Takes).
-  - Automation-Lanes + Timeline (Lanes/Regions): Felder degradieren, ein korruptes Element
-    droppt einzeln (Lossy-Decode) statt den Song zu vernichten.
-  - Store-Ladefehler wird jetzt als Datenverlust-Signal geloggt (war stiller nil).
-  - Bio-Modulations-OSC-Egress trägt jetzt dasselbe 5.1.3-Gate wie die Roh-Bio-Frames.
-  - Crash-Härtung: EchoelBiquadCascade-EQ-Setter gegen negativen Section-Index geschützt
-    (defensiv, noch ohne Aufrufer). Live-Pfade per 3-fachem Audit (Persistence/Crash/
-    Concurrency) als sauber bestätigt — Render-Pfade tragen konsistent SPSC/Atomic-Mirror.
+  2) SICHTBAR — Header-Monitor-Kacheln + Transport-•••-Menü ≥44 pt Tap-Ziele (HIG):
+     die sichtbaren Chips bleiben unverändert, nur die Trefferfläche wächst (Header
+     vertikal, Transport symmetrisch) — knappe Taps daneben sind Geschichte.
 
-  Grenzen: Rausch-Triad unberührt, kein Heilungs-Claim, keine neue Oberfläche. Die
-  Architektur-Konvergenz (ein Clock / ein Voice-Modell) ist geplant + Council-bewertet
-  (PLAN_C2_ONE_CLOCK), wartet aber bewusst auf Geräte-Verify — dieser Build öffnet den
-  Kanal dafür wieder.
+  3) MARKE — Licht-Wissen ehrlich (kein Heilungs-Thema):
+     der Rot/NIR-Lern-Eintrag lehrte Photobiomodulation/mitochondriale Cytochrom-c-
+     Oxidase/„ins Gewebe" — das Pre-Echoel-Heilungs-Thema, getarnt mit „kein Health-
+     Claim". Neu geschrieben zu reiner Optik + Echoels echtem Licht-Pfad (CIE 1931 →
+     Art-Net/sACN). Der Marken-Test bannt jetzt die Heilungs-Nomen, nicht nur die Verben.
+
+  Dazwischen (unsichtbar): #114/#116-Audit-Backlogs gegen echten Source verifiziert und
+  als weitgehend GEDRAINT bestätigt (8+ Kandidaten schon gefixt/fehl-geflaggt) — der
+  Rest ist geräte-verify-abhängig, kein Blind-Ship. Rausch-Triad unberührt, kein
+  Heilungs-Claim, keine neue Oberfläche.
+
+  Offen (hält bewusst auf Founder): die Positionierungs-Frage „Gesundheit-first vs
+  DMMW-Profi" (scratchpads/PLAN_POSITIONING_HEALTH_FORK_2026-07-24.md) — kein Brand-/
+  Sources-Positionierungs-Eingriff bis zur Richtungs-Entscheidung.
