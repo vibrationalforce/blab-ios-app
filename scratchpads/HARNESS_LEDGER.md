@@ -355,3 +355,32 @@ don't over-scope. Mirror the already-shipped sibling exactly; two audio-thread r
 **Latent follow-up surfaced:** `computeShapeAmplitudes` `.formant` branch allocates a 3-elem array
 literal per call → now on the audio thread for `.formant` patches (no shipping genre uses `.formant`,
 so it never fires today). Logged as its own cycle (task #84) — hoist to a static let.
+
+---
+
+### DEAD-END 2026-07-24 — mining a stale AUDIT backlog item-by-item after the real fixes already shipped
+**Cycle:** v346 building; picking the next slice from the #114 chrome UI audit (wf_a3768641)
+and #116 6-team consistency audit (wf_f96cccb1).
+Verified SIX candidate items in a row against real source — ALL already-resolved or mis-flagged:
+(1) accent-Slider retint (EchoelStudioView:2375) — its TWIN slider (FloatingVisualWindow:523) is
+    founder-blessed accent + "accent exclusive to bio" is a LOCAL chip-fill comment, not a global
+    slider-tint law (accent tints 40+ interactive controls app-wide). Retinting one twin = asymmetry.
+(2) dev build number `#if DEBUG` out of brand subtitle (WorkspaceView:217) — would REGRESS the
+    founder's device-verify loop: TestFlight is a RELEASE build and device-log-triage/watch-clip
+    BOTH depend on reading `vX.Y.Z (build)` from that header. #if DEBUG strips it from TestFlight too.
+(3) clip-name overflow (ArrangeTimelineView:1700) — `.lineLimit(1)` in a bounded `.overlay` already
+    truncates; non-reproducing without device evidence; dev:True anyway.
+(4) per-lane Genre/Mood pickers tint .accent (#116 b) — ALREADY `.text` at :2202/:2223; no accent
+    picker exists in the file. Fixed in a prior cycle.
+(5) triple-declared tempo constants (#116 d) — ALREADY single-owned: Transport:63-65 canonical,
+    PatternEngine:38-40 + BioTempoDirector:50-51 + BodyTempoField already delegate `= Transport.min`.
+(6) BinauralPanner azimuth OPPOSITE house convention (#116 f) — MATCHES: SpatialScene:17,33 documents
+    positive=LEFT(CCW); BinauralPanner does positive-az→pan<0→louder-left + same breath→az mapping as
+    ADMOSCSender:225. "shared source of truth" claim is TRUE, not false.
+**PLAYBOOK:** an audit's task-list entry is a SNAPSHOT that decays — prior Ralph cycles fix the real
+items but rarely edit the audit's backlog text. Before spending a cycle on an audit item, `grep`/read
+the cited file:line and confirm it STILL reproduces. When 2-3 consecutive items from the same audit
+prove already-done/false, treat the whole backlog as DRAINED (reconcile the task, don't keep mining).
+The genuinely-open remainder here is the dev:True set (Dynamic Type chrome-band heights + SF-Symbol
+scaling; automated-tempo→metronome; Kammerton in melodic/bio voices) — all need device-verify, so
+they wait for the v346 channel, not a blind ship.
