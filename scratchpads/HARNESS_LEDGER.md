@@ -384,3 +384,19 @@ prove already-done/false, treat the whole backlog as DRAINED (reconcile the task
 The genuinely-open remainder here is the dev:True set (Dynamic Type chrome-band heights + SF-Symbol
 scaling; automated-tempo→metronome; Kammerton in melodic/bio voices) — all need device-verify, so
 they wait for the v346 channel, not a blind ship.
+
+---
+
+### PLAYBOOK 2026-07-24 — bio/composition math cores are defensively guarded; stop re-hunting divisions
+**Cycle:** hunting a crash-guard slice (unguarded division / n-1 / empty-array mean) after the audits drained.
+Grepped every `/ Float(count)` · `/ (n-1)` · `reduce/count` mean in Sequencer/Bio/Core and READ each:
+ALL properly guarded — HRVMetrics rmssd/sdnn/pnn50 (`guard count>=2`, :25/37/49), BioNormalizer.std
+(`guard filled>=2`, :82), VoiceLeader mean (`guard !cand.isEmpty`, :132), BioComposer pad-center
+(`!basePitches.isEmpty` / `!voiced.isEmpty`, :1637/1646). No div-by-zero / NaN slip.
+**PLAYBOOK:** the pure cores here are mature + defensively written — a blind "find an unguarded division"
+sweep is now LOW-YIELD (this cycle: 5 candidates, 0 bugs). Don't re-run it as a default slice-finder.
+The remaining real robustness work is at BOUNDARIES (sensor ingest, decode, route changes), already
+largely hardened (#92 NaN, #97 HRV-scale, #95/#117 decode). When no unambiguous change is warranted,
+DO NOT manufacture a marginal/possibly-intentional edit to satisfy the loop — log the verified-clean
+state + any real-but-dev:True finding (e.g. #120 metronome tempo-sync) and say so honestly. A
+verification cycle with an honest "cores clean, nothing to force" is a valid Ralph outcome.
