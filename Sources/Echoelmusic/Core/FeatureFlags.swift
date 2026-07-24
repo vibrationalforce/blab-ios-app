@@ -48,14 +48,6 @@ public enum FeatureFlags {
         /// it remains the one-line rollback lever if device-verify (CPU/mem, two dense
         /// tracks sound simultaneously) ever fails. NEVER delete the OFF branches.
         case multiRoll         = "feature.multiRoll"
-        /// H5: third-party AUv3 INSTRUMENTS assigned per timeline lane actually
-        /// SOUND (LaneAUInstrumentHost + fan-out routing). DEFAULT-ON via
-        /// registration (like multiRoll): without a flag UI the founder could
-        /// never device-verify an OFF default, and the risk surface only
-        /// activates through the explicit user act of assigning a plugin to a
-        /// track — no assignment ⇒ bit-identical. `FeatureFlags.set(.laneAUInstruments,
-        /// false)` stays the one-line rollback lever; NEVER delete the OFF branches.
-        case laneAUInstruments = "feature.laneAUInstruments"
         /// S2-W2 ("Spur = Instrument"): heterogeneous rack voices — a drums lane
         /// plays a LaneDrumKitVoice, a sub-bass lane a dedicated SubBassVoice,
         /// bound at the rack boundary by the pure KindVoiceAllocator. DEFAULT-ON
@@ -114,7 +106,6 @@ public enum FeatureFlags {
     public static var echoelAI: Bool { isOn(.echoelAI) }
     public static var storeKit: Bool { isOn(.storeKit) }
     public static var multiRoll: Bool { isOn(.multiRoll) }
-    public static var laneAUInstruments: Bool { isOn(.laneAUInstruments) }
     public static var voiceKindRouting: Bool { isOn(.voiceKindRouting) }
     public static var cameraExpression: Bool { isOn(.cameraExpression) }
     public static var audioLaneRecording: Bool { isOn(.audioLaneRecording) }

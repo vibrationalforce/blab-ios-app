@@ -113,9 +113,6 @@ struct EchoelmusicApp: App {
     @State private var signalRouter = SignalRouter()
     /// AUv3 host: discovers installed plugins and loads an instrument into the graph.
     @State private var auHost = AUv3Host()
-    /// H5: per-LANE hosted AUv3 instruments (laneID-keyed; the global auHost above
-    /// stays the primary roll's channel). Assignments reconcile via the store hook.
-    @State private var laneAUHost = LaneAUInstrumentHost()
     /// The parameter-unification spine (U2c): one registry (queryable inventory)
     /// + one router (keyPath → live setter). Shared by the AUv3 host (hosted-plugin
     /// params register/bind on load) and the AutomationPlayer (extra registry lanes
@@ -432,16 +429,12 @@ struct EchoelmusicApp: App {
                 // the OFF-by-default contract of every OTHER feature flag. Must precede the
                 // first `FeatureFlags.multiRoll` read below (rack attach).
                 UserDefaults.standard.register(defaults: [FeatureFlags.Key.multiRoll.rawValue: true])
-                // H5 lane-AU default-ON, same registration pattern + rationale as
-                // multiRoll (risk activates only through the explicit assign act;
-                // dev-OFF override stays the one-line rollback lever).
-                UserDefaults.standard.register(defaults: [FeatureFlags.Key.laneAUInstruments.rawValue: true])
                 // S2-W2 kind routing DEFAULT-ON (founder verdict 2026-07-17: "Es
                 // funktioniert noch nichts … lockere zu dogmatische Grenzen"): a
                 // drums/sub-bass track now actually SOUNDS like its instrument. The
                 // old "OFF until device verify" gate was a deadlock — the founder
                 // cannot verify a path he has no way to switch on (same rationale
-                // that made multiRoll/laneAUInstruments registration-ON). Risk
+                // that made multiRoll registration-ON). Risk
                 // activates only through the explicit act of assigning a drums/sub
                 // instrument to a track; `FeatureFlags.set(.voiceKindRouting, false)`
                 // stays the one-line rollback lever. NEVER delete the OFF branches.
@@ -599,25 +592,15 @@ struct EchoelmusicApp: App {
                     // gets (patchStore.patches.first, applied at line ~527), so an
                     // unset lane matches the primary timbre — never the bare DDSP default.
                     let fallbackPatch = patchStore.patches.first
-                    timelinePlayer.enableMultiRoll(capacity: laneVoiceRack.capacity) { [weak laneVoiceRack, weak laneAUHost] slot, events in
-                        // H5b: a lane with a hosted AU instrument plays THAT —
-                        // the built-in rack voice stays the fallback. Note-ONs go to
-                        // exactly one target; note-OFFs go to BOTH (review HIGH: the
-                        // hosting can flip MID-TAKE — user assigns a plugin while the
-                        // lane sounds — and offs routed only to the new target strand
-                        // gate-held notes on the old one, surviving even transport
-                        // stop; an off for a never-started pitch is harmless on both).
-                        let au = FeatureFlags.laneAUInstruments ? laneAUHost?.voice(slot: slot) : nil
-                        // S2-W2-4: the built-in path now goes through the rack FACADE,
+                    timelinePlayer.enableMultiRoll(capacity: laneVoiceRack.capacity) { [weak laneVoiceRack] slot, events in
+                        // S2-W2-4: the built-in path goes through the rack FACADE,
                         // which routes the slot to its bound KIND (poly/drums/sub). With
                         // voiceKindRouting OFF every slot binds .poly ⇒ the facade calls
                         // voice(slot:) — bit-identical to the pre-S2-W2 rack path.
                         for event in events {
                             if event.isOn {
-                                if let au { au.noteOn(pitch: event.pitch, velocity: event.velocity) }
-                                else { laneVoiceRack?.noteOn(slot: slot, pitch: event.pitch, velocity: event.velocity) }
+                                laneVoiceRack?.noteOn(slot: slot, pitch: event.pitch, velocity: event.velocity)
                             } else {
-                                au?.noteOff(pitch: event.pitch)
                                 laneVoiceRack?.noteOff(slot: slot, pitch: event.pitch)
                             }
                         }
@@ -640,24 +623,16 @@ struct EchoelmusicApp: App {
                     timelinePlayer.slotSampleSink = { [weak laneVoiceRack] slot, path in
                         laneVoiceRack?.setSample(slot: slot, url: BeatPlayer.resolveSampleRef(path))
                     }
-                    // H5b: the player publishes which lane a slot plays (from the
-                    // playback snapshot); the AU host resolves slot → hosted voice.
-                    timelinePlayer.slotLaneSink = { [weak laneAUHost] slot, laneID in
-                        laneAUHost?.bindSlot(slot, laneID: laneID)
-                    }
                     // Per-instrument Transpose (founder 2026-07-14): pitch each SECONDARY
                     // lane's rack voice by its own semitone shift when the lane loads.
-                    timelinePlayer.slotTransposeSink = { [weak laneVoiceRack, weak laneAUHost] slot, semitones in
+                    timelinePlayer.slotTransposeSink = { [weak laneVoiceRack] slot, semitones in
                         // Facade: poly shifts render-side; a sub-bound slot pitches its
                         // mono note at enqueue (and releases a held note on a change);
                         // a kit is unpitched (documented ignore).
                         laneVoiceRack?.setTranspose(slot: slot, semitones: semitones)
-                        laneAUHost?.voice(slot: slot)?.transposeSemitones = semitones
                     }
                     // Per-instrument Detune (founder 2026-07-14 "transpose detune"): fine
                     // cents offset per SECONDARY lane's rack voice, alongside transpose.
-                    // AU lanes deliberately get NO detune (not expressible as plain MIDI —
-                    // the honest limit documented on AUNoteVoice).
                     timelinePlayer.slotDetuneSink = { [weak laneVoiceRack] slot, cents in
                         laneVoiceRack?.setDetune(slot: slot, cents: cents)   // poly-only (documented)
                     }
@@ -671,15 +646,12 @@ struct EchoelmusicApp: App {
                     // H4 (healing wave 1, "Pan silently inert"): each SECONDARY lane's
                     // pan + continuous gain reach its rack voice — at region load AND
                     // live on a mid-play mixer edit (the player merges the store's
-                    // mixer state each step via `liveDocument` below). H5b: mirrored
-                    // to a hosted AU voice's lane-mixer stage when the slot has one.
-                    timelinePlayer.slotPanSink = { [weak laneVoiceRack, weak laneAUHost] slot, pan in
+                    // mixer state each step via `liveDocument` below).
+                    timelinePlayer.slotPanSink = { [weak laneVoiceRack] slot, pan in
                         laneVoiceRack?.setPan(slot: slot, pan)   // sub un-panned (documented no-op)
-                        laneAUHost?.voice(slot: slot)?.setPan(pan)
                     }
-                    timelinePlayer.slotGainSink = { [weak laneVoiceRack, weak laneAUHost] slot, gain in
+                    timelinePlayer.slotGainSink = { [weak laneVoiceRack] slot, gain in
                         laneVoiceRack?.setGain(slot: slot, gain)   // 0…2 per bound kind
-                        laneAUHost?.voice(slot: slot)?.setGain(gain)
                     }
                     // The roll-slot GAIN mirror (K2a), relocated here (heal-review
                     // HIGH): the old owner was ArrangeTimelineView.onChange, which
@@ -696,26 +668,13 @@ struct EchoelmusicApp: App {
                         if gain <= 0.001 { roll.allNotesOff() }   // mute cuts sounding notes now
                     }
                     syncRollMix()   // initial sync (launch-with-folded-timeline staleness)
-                    // H5b: host per-lane AU instruments — wire the engine, restore
-                    // persisted assignments, reconcile on every document change
-                    // (assign/clear/lane-delete/undo — all funnel through persist),
-                    // and belt-and-braces silence on any transport stop. The ONE
-                    // onDocumentChanged closure carries BOTH consumers; only the
-                    // lane-AU half is flag-gated (H9b lesson: never trap an
-                    // unconditional consumer's wiring inside a foreign flag block).
-                    timelineStore.onDocumentChanged = { [weak laneAUHost, weak timelineStore] in
+                    // The roll-mix sync runs on every document change (assign/clear/
+                    // lane-delete/undo — all funnel through persist), keeping the
+                    // primary roll's gain live. (Per-lane AUv3 hosting removed
+                    // 2026-07-24, pure-instrument verdict — the built-in rack voices
+                    // are the lane instruments now.)
+                    timelineStore.onDocumentChanged = {
                         syncRollMix()
-                        guard FeatureFlags.laneAUInstruments,
-                              let doc = timelineStore?.document else { return }
-                        laneAUHost?.syncAssignments(lanes: doc.lanes, rollLane: doc.rollLaneID)
-                    }
-                    if FeatureFlags.laneAUInstruments {
-                        laneAUHost.use(engine: audioEngine)
-                        laneAUHost.syncAssignments(lanes: timelineStore.document.lanes,
-                                                   rollLane: timelineStore.document.rollLaneID)
-                        transport.addStopSubscriber("laneAU") { [weak laneAUHost] in
-                            laneAUHost?.allNotesOff()
-                        }
                     }
                 }
                 // H4: let the region player pull LIVE mixer values (mute/solo/level/

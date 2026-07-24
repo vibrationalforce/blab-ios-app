@@ -941,8 +941,8 @@ public final class AudioEngine {
     /// EFFECTS with channel restrictions (mono-only, fixed layouts) are
     /// common — so setting the bus formats up front and skipping refusing
     /// stages is the only safe gate ("a failing stage is skipped, never
-    /// fatal"). No graph mutation happens here; call BEFORE
-    /// `attachLaneInstrument` and wire/carry ONLY the returned units.
+    /// fatal"). No graph mutation happens here; call BEFORE attaching a
+    /// hosted chain and wire/carry ONLY the returned units.
     func effectsAcceptingChainFormat(_ units: [AVAudioUnit]) -> [AVAudioUnit] {
         effectsAccepting(format: auChainFormat, units: units)
     }
@@ -995,45 +995,6 @@ public final class AudioEngine {
                 return false
             }
         }
-    }
-
-    /// H5/H9a: attach a PER-LANE hosted chain — AU → [fx…] → laneMixer →
-    /// master — so the lane's own mixer stage carries its live gain/pan and
-    /// its insert effects sit before it, all on one canonical format. Pass
-    /// ONLY effects that passed `effectsAcceptingChainFormat` (connect raises,
-    /// it does not throw). Call inside `withGraphPaused` (assignment/restore
-    /// time only, never mid-song). Returns false (attaching nothing) when no
-    /// valid format exists yet.
-    @discardableResult
-    func attachLaneInstrument(_ unit: AVAudioUnit, effects: [AVAudioUnit] = [],
-                              laneMixer: AVAudioMixerNode) -> Bool {
-        guard let format = auChainFormat else {
-            log.audio("Cannot attach lane AU — no valid format", level: .error)
-            return false
-        }
-        masterEngine.attach(unit)
-        for e in effects { masterEngine.attach(e) }
-        masterEngine.attach(laneMixer)
-        var prev: AVAudioNode = unit
-        for e in effects {
-            masterEngine.connect(prev, to: e, format: format)
-            prev = e
-        }
-        masterEngine.connect(prev, to: laneMixer, format: format)
-        masterEngine.connect(laneMixer, to: masterMixer, format: format)
-        return true
-    }
-
-    /// H5/H9a: release a per-lane chain (lane unassigned/removed). Pass the
-    /// SAME effects attach wired. Call inside `withGraphPaused`.
-    func detachLaneInstrument(_ unit: AVAudioUnit, effects: [AVAudioUnit] = [],
-                              laneMixer: AVAudioMixerNode) {
-        masterEngine.disconnectNodeOutput(unit)
-        for e in effects { masterEngine.disconnectNodeOutput(e) }
-        masterEngine.disconnectNodeOutput(laneMixer)
-        masterEngine.detach(unit)
-        for e in effects { masterEngine.detach(e) }
-        masterEngine.detach(laneMixer)
     }
 
     // MARK: - Video audio capture (mux the mix into a visual recording)

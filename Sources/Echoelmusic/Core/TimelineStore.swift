@@ -822,10 +822,10 @@ public final class TimelineStore {
 
     // MARK: - Persistence
 
-    /// H5b: fires after EVERY persisted document change (assignment edits, lane
-    /// removal, undo/redo — all mutation paths funnel through persist), so the
-    /// app can reconcile per-lane hosted AU instruments. The consumer must be
-    /// cheap + idempotent (LaneAUInstrumentHost.syncAssignments is a dict diff).
+    /// Fires after EVERY persisted document change (mixer edits, lane removal,
+    /// undo/redo — all mutation paths funnel through persist), so the app can
+    /// re-sync the primary roll's live mix. The consumer must be cheap +
+    /// idempotent (WorkspaceView.syncRollMix is a single gain read).
     @ObservationIgnored public var onDocumentChanged: (() -> Void)?
 
     /// Bumped by every `persist()`/`flushPendingSave()` call; a pending debounced
@@ -838,9 +838,9 @@ public final class TimelineStore {
     /// file-write hitch on THE SAME frame the drag's snap/magnet visually jumped,
     /// compounding the "Zittern" complaint). `var`, not `let`, so a test can shrink
     /// it. `onDocumentChanged` fires synchronously and immediately below —
-    /// unaffected by the write's debounce, since every consumer
-    /// (LaneAUInstrumentHost.syncAssignments, WorkspaceView.syncRollMix) reads the
-    /// in-memory `document` property, never the on-disk file.
+    /// unaffected by the write's debounce, since the consumer
+    /// (WorkspaceView.syncRollMix) reads the in-memory `document` property,
+    /// never the on-disk file.
     @ObservationIgnored var saveDebounceInterval: Duration = .milliseconds(250)
 
     private func persist() {
