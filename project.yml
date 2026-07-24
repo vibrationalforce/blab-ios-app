@@ -157,98 +157,19 @@ targets:
       # in the "Watch" folder via an Embed-Watch-Content phase (not PlugIns/
       # Frameworks); or try XcodeGen dependency `embed: true`/`copy` overrides.
       # - target: EchoelmusicWatch   # re-enable once the embed phase is correct
-      # AUv3 generator plugin — now compile-verified for iOS via compile_check
-      # (run 26765481421, after the SDKROOT fix). It is an app-extension, the
-      # SAME class as the widget that embeds + ships cleanly (unlike the watchOS
-      # app). Embedded so the app hosts its own AU plugin (usable in Logic /
-      # GarageBand / AUM). com.echoelmusic.app.auv3 signing/provisioning is
-      # created by xcodebuild -allowProvisioningUpdates + the ASC API key on the
-      # next full archive (same mechanism that provisioned the widget).
-      - target: EchoelmusicAUv3
+      # AUv3 REMOVED 2026-07-24 (founder verdict: Echoelmusic = pure instrument, no
+      # AUv3). The EchoelmusicAUv3 app-extension target + its embed are gone; the app
+      # no longer ships its own AU plugin. (DSP/ stays Foundation-only by hygiene even
+      # though the isolated-AUv3-compile that mandated it is retired.)
     entitlements:
       path: Echoelmusic.entitlements
-
-  # ===========================================================================
-  # EchoelmusicAUv3 — Audio Effect Plugin Extension
-  # ===========================================================================
-  EchoelmusicAUv3:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: Sources/EchoelmusicAUv3
-        type: group
-        excludes:
-          - "**/*.md"
-      # Shared DSP (self-contained: Foundation+Accelerate only) compiled into
-      # the extension module so the AU can synthesize without a framework.
-      - path: Sources/Echoelmusic/DSP
-        type: group
-      # Foundation-only App-Group bridge for live vitals from the main app.
-      - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
-      # Shared numeric helpers (clamped/mapped/lerp) the DSP uses.
-      - path: Sources/Echoelmusic/Core/NumericExtensions.swift
-      # NaN-safe FloatingPoint.clamped — DSP/EchoelDDSP's .clamped(to:) sites bind
-      # to it (more-refined than the Comparable one), so the plugin's shared DDSP
-      # gets the same NaN→lowerBound safety as the app. Foundation-only; no Core types.
-      - path: Sources/Echoelmusic/Core/FloatingPointClamp.swift
-    resources:
-      # Privacy manifest: the extension uses a required-reason API (App-Group
-      # UserDefaults via BioFeedbackManager) — each shipped .appex bundles the
-      # shared manifest (App Store audit 2026-07-16; same pattern as the app).
-      - path: Resources/PrivacyInfo.xcprivacy
-        type: file
-    info:
-      path: Resources/EchoelmusicAUv3/Info.plist
-      properties:
-        CFBundleDisplayName: EchoelmusicAUv3
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        # REGISTRATION LAW (device log 2026-07-16: "ownAUv3 false"): AudioComponents
-        # MUST sit under NSExtensionAttributes — pluginkit only registers audio
-        # components found there. Keep byte-identical with the committed Info.plist.
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.AudioUnit-UI
-          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).AudioUnitViewController
-          NSExtensionAttributes:
-            AudioComponents:
-              - name: "Echoelmusic: EchoelBodyVibe"
-                description: "Bio-reactive performance synthesizer"
-                manufacturer: Echo
-                type: aumu
-                subtype: echl
-                version: 10002
-                sandboxSafe: true
-                tags:
-                  - Synthesizer
-                  - Ambient
-    entitlements:
-      path: EchoelmusicAUv3.entitlements
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.echoelmusic.app.auv3
-        INFOPLIST_FILE: Resources/EchoelmusicAUv3/Info.plist
-        GENERATE_INFOPLIST_FILE: NO
-        TARGETED_DEVICE_FAMILY: "1,2"
-        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
-        # Explicit SDKROOT/SUPPORTED_PLATFORMS — without these XcodeGen's
-        # `platform: iOS` left AUv3 defaulting to macOS-only destinations
-        # (compile_check caught it). Same fix as the app/widget targets.
-        SDKROOT: iphoneos
-        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
-        SKIP_INSTALL: YES
-        CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: ""
-        # iOS-only v10: the app target has no Catalyst, so neither should the
-        # plugin. (Was YES — stale; produced Mac Catalyst destinations.)
-        SUPPORTS_MACCATALYST: NO
-    dependencies: []
 
   # ===========================================================================
   # EchoelmusicWidgets — WidgetKit Extension (glanceable live vitals)
   # ===========================================================================
   # SHIPPED (cycle C3 done): the widget IS embedded — the Echoelmusic target
   # lists `- target: EchoelmusicWidgets` above, com.echoelmusic.app.widgets is
-  # provisioned by the archive (build 1543+ ships app + widget + AUv3). The
+  # provisioned by the archive (build 1543+ ships app + widget). The
   # isolated EchoelmusicWidgets scheme below remains for CI compile checks.
   # (This block previously still described the pre-C3 "dependency OFF" state —
   # corrected 2026-07-04, build-setup hygiene pass.)
@@ -260,8 +181,8 @@ targets:
         type: group
         excludes:
           - "**/*.md"
-      # Foundation-only App-Group bridge for live vitals (shared with the app +
-      # AUv3). Compiled into the widget module — no app-framework import.
+      # Foundation-only App-Group bridge for live vitals (shared with the app).
+      # Compiled into the widget module — no app-framework import.
       - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
     resources:
       # Privacy manifest: the widget reads App-Group UserDefaults (required-reason
@@ -313,7 +234,7 @@ targets:
         type: group
         excludes:
           - "**/*.md"
-      # Foundation-only App-Group bridge (shared with app + AUv3 + Widgets).
+      # Foundation-only App-Group bridge (shared with app + Widgets).
       - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
     info:
       path: Resources/EchoelmusicWatch/Info.plist
@@ -449,19 +370,6 @@ schemes:
       config: Debug
       targets:
         - EchoelmusicFullTests
-
-  # Isolated compile-verification scheme for the AUv3 extension. The target
-  # existed without a scheme, so compile_check (which builds by scheme name)
-  # could not verify it — only an ad-hoc probe could. This makes AUv3
-  # first-class for CI compile verification.
-  EchoelmusicAUv3:
-    build:
-      targets:
-        EchoelmusicAUv3: all
-    run:
-      config: Debug
-    analyze:
-      config: Debug
 
   # Isolated compile-verification scheme for the Widget extension (cycle C2).
   # Lets CI `build_only` prove the widget compiles WITHOUT embedding it in the

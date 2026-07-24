@@ -1,11 +1,12 @@
 // EchoelMIDIDecode.swift
-// Pure MIDI-1.0 channel-voice decode for the AUv3 instrument's render block.
+// Pure MIDI-1.0 channel-voice decode for the synth render path.
 //
-// LOCATION: this lives in DSP/ on purpose. The EchoelmusicAUv3 extension globs
-// Sources/Echoelmusic/DSP and compiles it in ISOLATION (no Core/Sequencer types
-// are visible there), so this file must stay Foundation-only — no Core/Sequencer
-// imports. Keeping the decode here (rather than inline in the audio unit) also
-// makes it unit-testable WITHOUT instantiating a live AUAudioUnit: a test can
+// LOCATION: this lives in DSP/ on purpose. DSP/ stays Foundation-only by hygiene
+// (no Core/Sequencer imports) — this was originally mandated by the EchoelmusicAUv3
+// extension, which globbed Sources/Echoelmusic/DSP and compiled it in isolation;
+// that target was removed 2026-07-24 (pure-instrument verdict), but the Foundation-
+// only discipline is kept as a portability boundary. Keeping the decode here
+// (rather than inline in a render block) also makes it unit-testable: a test can
 // decode a MIDI byte triple, feed the frequency into EchoelDDSP.noteOn, render,
 // and assert amplitude > 0 — all Foundation/Accelerate only.
 //

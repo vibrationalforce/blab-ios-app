@@ -280,7 +280,7 @@ jobs:
           # main Echoelmusic compile proves works on this runner.
           compile_scheme EchoelmusicWidgets "generic/platform=iOS"
           compile_scheme EchoelmusicWatch "generic/platform=watchOS"
-          compile_scheme EchoelmusicAUv3 "generic/platform=iOS"
+          # AUv3 scheme REMOVED 2026-07-24 (pure-instrument verdict — no AUv3 target).
           set -eo pipefail
           [ $FAILED -eq 0 ]
 
@@ -451,33 +451,9 @@ jobs:
           fi
           echo "=== ARCHIVE SUCCESSFUL ==="
 
-      # AUv3-EMBED-BEWEIS (device log 2026-07-16 "ownAUv3 false"): the extension
-      # was embedded but its AudioComponents sat outside NSExtensionAttributes,
-      # so pluginkit never registered it — invisible to every host. This step
-      # makes the whole chain CI-provable forever: appex present, executable
-      # present, AudioComponents at the REGISTRATION-EFFECTIVE path, identity
-      # aumu/echl/Echo unchanged (aumu = music-device/instrument so hosts list it
-      # in the instrument slot). Fails the build on any silent drift.
-      - name: "Verify AUv3 extension embed + registration structure"
-        run: |
-          APP="./build/Echoelmusic.xcarchive/Products/Applications/Echoelmusic.app"
-          APPEX="$APP/PlugIns/EchoelmusicAUv3.appex"
-          PLIST="$APPEX/Info.plist"
-          fail() { echo "::error title=AUv3 embed check::$1"; exit 1; }
-          [ -d "$APP" ]   || fail "App bundle missing at $APP"
-          [ -d "$APPEX" ] || fail "EchoelmusicAUv3.appex NOT embedded in the app (PlugIns/ missing it)"
-          [ -f "$PLIST" ] || fail "appex Info.plist missing"
-          EXEC=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$PLIST" 2>/dev/null || true)
-          [ -n "$EXEC" ] && [ -f "$APPEX/$EXEC" ] || fail "appex executable missing ($EXEC)"
-          P='NSExtension:NSExtensionAttributes:AudioComponents:0'
-          TYPE=$(/usr/libexec/PlistBuddy -c "Print :$P:type" "$PLIST" 2>/dev/null || true)
-          SUB=$(/usr/libexec/PlistBuddy -c "Print :$P:subtype" "$PLIST" 2>/dev/null || true)
-          MFR=$(/usr/libexec/PlistBuddy -c "Print :$P:manufacturer" "$PLIST" 2>/dev/null || true)
-          [ "$TYPE" = "aumu" ] && [ "$SUB" = "echl" ] && [ "$MFR" = "Echo" ] \
-            || fail "AudioComponents not at NSExtensionAttributes path or identity drifted (type='$TYPE' subtype='$SUB' mfr='$MFR' — expected aumu/echl/Echo)"
-          PRINCIPAL=$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPrincipalClass' "$PLIST" 2>/dev/null || true)
-          [ -n "$PRINCIPAL" ] || fail "NSExtensionPrincipalClass missing"
-          echo "AUv3 embed OK: $APPEX ($EXEC), component $TYPE/$SUB/$MFR, principal $PRINCIPAL"
+      # AUv3-EMBED-VERIFY step REMOVED 2026-07-24 (pure-instrument verdict): Echoelmusic
+      # no longer ships its own AU extension, so there is no PlugIns/EchoelmusicAUv3.appex
+      # to verify. (Third-party AUv3-hosting diagnostics below are retired in Slice 2.)
 
       # AUv3-HOST-ENTITLEMENT-SICHTBARKEIT (device 2026-07-19; re-corrected 2026-07-20).
       # v300 (fail-on-stripped) PROVED inter-app-audio is STRIPPED from the signed app:

@@ -1,11 +1,11 @@
 // FXCuratedLibrary.swift
 // Echoel — the bundled, founder-curated FX preset library + per-character tags.
 //
-// Lives OUTSIDE Sources/Echoelmusic/DSP on purpose: the AUv3 extension compiles
-// DSP/ only and must stay "self-contained (Foundation+Accelerate)". This code
-// depends on FXCharacter (Sequencer/) and MusicStyle, which are main-app-only —
-// so keeping it here keeps DSP/FXPreset.swift portable to the plugin target.
-// (See project.yml → EchoelmusicAUv3 sources.)
+// Lives OUTSIDE Sources/Echoelmusic/DSP on purpose: DSP/ stays Foundation-only
+// (self-contained Foundation+Accelerate) by hygiene. This code depends on
+// FXCharacter (Sequencer/) and MusicStyle, which are main-app-only — so keeping
+// it here keeps DSP/FXPreset.swift portable. (The rule was originally enforced by
+// the EchoelmusicAUv3 target, removed 2026-07-24 in the pure-instrument verdict.)
 
 import Foundation
 
