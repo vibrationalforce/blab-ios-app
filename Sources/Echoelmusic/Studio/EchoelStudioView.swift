@@ -552,6 +552,17 @@ struct EchoelStudioView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .echoelCompositionEdited)) { note in
                     handleCompositionEdit(note.object as? String)
                 })
+            // H1 (founder 2026-07-24: "nur das alte Interface mit create from within"):
+            // the signature generate control returns as the instrument-home centrepiece —
+            // tap it and the body composes and plays. A plain Button: NO new .sheet
+            // (metadata/black-screen law — the modal chain is untouched), and it reads only
+            // `running` (discrete @State, line 130) — NOT a live/10 Hz bio observable, so
+            // the menu-freeze law holds. AnyView keeps its generics out of the root body
+            // type, same discipline as menuBar. Pairs with the timeline-folded default
+            // (SurfaceHost) so the instrument — not the timeline — is the home.
+            AnyView(startButton
+                .padding(.horizontal, 16)
+                .padding(.top, 12))
             // ADAPTIVE HOME (founder 2026-07-14: "integriere alles im adaptiven Design,
             // keine Duplikate, alles greift ineinander"): the instrument zone below the
             // chip bar RENDERS ONLY when there is something to show — an open dropdown or

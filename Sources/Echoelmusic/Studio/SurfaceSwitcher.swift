@@ -124,7 +124,12 @@ struct SurfaceHost: View {
     /// glance away (and scrollable). This SUPERSEDES the 07-11 PLAY-ENTRY default —
     /// do not revert to `false` without a fresh founder ask. Persisted, so anyone who
     /// folds it keeps it folded.
-    @AppStorage("workspace.timelineExpanded") private var timelineExpanded = true
+    /// REVERTED to `false` 2026-07-24 on the founder's fresh ask ("keine Timeline etc
+    /// nur das alte Interface mit create from within"): the pure-instrument verdict (#121)
+    /// removes the per-track features whose folded-away invisibility made tracks the home,
+    /// so that objection is gone — the instrument ("create from within") is the front door
+    /// again; the timeline is one tap away via the bar until the DAW-UI slice removes it.
+    @AppStorage("workspace.timelineExpanded") private var timelineExpanded = false
 
     private static let collapsedBarHeight: CGFloat = 34
 
