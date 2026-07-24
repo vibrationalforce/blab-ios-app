@@ -382,6 +382,10 @@ private struct TransportBar: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
+            // 44 pt HIG tap target (#113): the visible chip stays 30×32; the transport
+            // bar's 12 pt spacing lets the hit area grow symmetrically (−6 → 42×44)
+            // without overlapping the tempo field, matching the Play button's idiom.
+            .contentShape(Rectangle().inset(by: -6))
             .accessibilityLabel("More — Master, Export, Tempo, Session, Live, Learn")
 
             Spacer(minLength: 0)

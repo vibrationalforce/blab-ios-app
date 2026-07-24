@@ -275,6 +275,11 @@ struct ImmersiveMonitorMini: View {
         .frame(width: 54, height: 32)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        // 44 pt HIG tap height (#113): the visible chip stays 32, the hit area grows
+        // vertically only — the header row is 8 pt-spaced, so NO horizontal expansion
+        // (that would overlap the neighbour tiles). Chip stays centred = no visible change.
+        .frame(height: 44)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Immersive visual monitor")
         .accessibilityValue(active ? "Live" : "Idle")
@@ -363,6 +368,10 @@ struct EchoelLuxMonitorMini: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
+            // horizontal growth); the 38×32 chip stays centred, no visible change.
+            .frame(height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("EchoelLux light monitor")
@@ -429,6 +438,10 @@ struct EchoelVideoMonitorMini: View {
                     ? Color(red: 0.86, green: 0.22, blue: 0.20).opacity(0.7)
                     : (monitorVisible ? EchoelTheme.accent.opacity(0.6) : EchoelTheme.border),
                     lineWidth: 1))
+            // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
+            // horizontal growth); the 38×32 chip stays centred, no visible change.
+            .frame(height: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // Built only when opened — no extra body-time reads (freeze rule intact).
