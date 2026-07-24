@@ -262,6 +262,19 @@ file references a Core/Sequencer type. *(CI only.)*
 
 ### Tier C — one-owner convergence (PLAN + Council each; multi-cycle, higher risk)
 
+> **VERIFIED 2026-07-24 (audit + Council) — see `PLAN_C2_ONE_CLOCK_2026-07-24.md`.**
+> Unlike Tier E, C1/C2/C3/C4 are GENUINELY-OPEN (accurately mapped). Corrections:
+> **C5 is ~75% DONE** (`ParameterApplyRouter` already the apply table; holdout =
+> `ModulationEngine`'s direct `glideTempo` closure at `EchoelmusicApp.swift:826-830`).
+> **D2 is OVER-FLAGGED** — bio→tempo is ALREADY live via that same `glideTempo` closure;
+> `BioTempoDirector` is a redundant unwired duplicate (keep as tested foundation, do NOT
+> delete). **D1 cost understated** — needs a raw-waveform bus first (`BioEventPublisher.swift:84`
+> feeds `cleanedHeart: 0`, so graph heartbeats never fire). **D4 ~partial** (BioVisualParams
+> computes but only `pulseHz` is consumed; MetalBioView re-derives hue/complexity).
+> **Best next = C2 (one clock), but HELD** until the TestFlight freeze lifts: every open
+> Tier-C/D item is device-facing convergence whose flip needs device-verify, and the
+> freeze-safe first-slices are inert scaffolding with no realizable value until then.
+
 **C1 [HIGH] One song-timeline model.** Finish the `ArrangementStore`→`TimelineStore`
 migration; retire the legacy playback path. *ERST PLAN + Council* (touches persistence +
 playback + a live founder surface). *First slice after plan:* stop feeding `ArrangementPlayer`
