@@ -70,4 +70,14 @@ Oberfläche. Plus: nur kuratierte gut-klingende Genres, Konvergenz-Bug bleibt we
   — ODER Autorisierung, auf die dokumentierte „six-calm"-Kuration zurückzugehen. Ohne Liste NICHT
   raten (reversibel als `Category.genres`-Edit, keine Enum-Löschung).
 
-## Status: PLAN gelockt. H1 nächster Zyklus (render-safety-Skill + inkrementell + Gerät-Verify).
+## Status
+- ✅ **H1+H2 GESHIPPT** — Commit `040b84b`, beide echten Gates grün (Xcode Compile + CI/CD),
+  ui-state-reviewer PASS auf alle 5 Render-Checks (Sheet-Kette byte-identisch 12+2, kein 10-Hz-
+  Read, valide Struktur, kein Doppel-Modal, @AppStorage-Flip in bereits-unterstütztem Zustand).
+  H1: `startButton` („Create from Within") zurück in `EchoelStudioView.body` (AnyView, kein
+  Sheet, nur `running`-@State). H2: `timelineExpanded` default `true→false` (Founder-Ask erfüllt).
+  **NEEDS-FOUNDER-VERIFY**: Launch-UX + Metadata-Runtime nur am Gerät verifizierbar (Compile-Gate
+  beweist Build, nicht das Metadata-Budget). Nächster TestFlight nach Freeze-Lift → Founder-Pass.
+- ▶ **H3 — Timeline ganz raus aus `SurfaceHost`** (nächster Zyklus, = Epic #121 Slice 4):
+  `ArrangeTimelineView()`-Mount + die Fold-Leiste entfernen, Home = `EchoelStudioView` allein.
+- **H4 — Chrome reconcilen** (danach). **Genre-Kuration** bleibt Founder-gated (Keep-Liste).
