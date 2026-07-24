@@ -108,10 +108,17 @@ beim Founder für die großen Slices).
     kein Sheet-Wachstum). `ArrangeTimelineView` only: `.plugins`-Case aus dem geteilten Single-
     Sheet + Lane-Menü-Plugin-Section + `@Environment(AUv3Host)` raus; Automation-Button + a11y-
     `pluginAssignmentSummary` bleiben. Datei jetzt AUv3-symbolfrei. Kein Audio-Verhalten geändert.
-  - ▶ **2b — Per-Spur-Hosting ab** (nächster Zyklus): `LaneAUInstrumentHost`/`AUNoteVoice`/
-    `laneAUHost`-Wiring + `FeatureFlags.laneAUInstruments` + Engine-`attach/detachLaneInstrument`
-    + `MultiRollFanout`-Hosting-Branch + `TimelineStore.syncAssignments`. Built-in `laneVoiceRack`
-    bleibt. Audio-thread-reviewer Pflicht (Audio-Graph).
+  - ✅ **2b — Per-Spur-Hosting ab GESHIPPT** — Commits `126172a` + `f372960` (Orphan-Test-Fix),
+    beide echten Gates grün. Gelöscht: `LaneAUInstrumentHost.swift`, `AUNoteVoice.swift`,
+    `LaneAUAssignmentTests.swift`, `AUNoteMIDITests.swift` (−665 Zeilen). Chirurgie:
+    `EchoelmusicApp` (`laneAUHost`-State + ganzes Wiring raus; MultiRoll-Note-Closure + Slot-
+    Sinks routen NUR noch `laneVoiceRack`), `AudioEngine` (`attach/detachLaneInstrument` raus;
+    `effectsAcceptingChainFormat` BLEIBT — global-host-shared, 2c), `FeatureFlags`
+    (`laneAUInstruments` raus), `TimelineStore` (Doc-Kommentar). audio-thread-reviewer: Note-Pfad
+    intakt (built-in ist klingender Fallback), keine Audio-Thread-Verletzung, keine Hänge-Noten
+    bei Stop, `HostMusicalState`/`effectsAcceptingChainFormat` unberührt. LEHRE (HARNESS_LEDGER):
+    beim Löschen einer Datei JEDES darin definierte Symbol greppen (nicht nur den Klassennamen) —
+    `AUNoteVoice.swift` beherbergte auch `AUNoteMIDI`, dessen Test blieb sonst verwaist.
   - **2c — Global-Host + Browser + Discovery weg:** `AUv3Host`/`AUHostContext`/`AUv3BrowserView`/
     `AUv3PluginUIView` löschen + `auHost`-Reads aus `EchoelmusicApp`/`EchoelStudioView`/
     `MIDIBusPublisher`(built-in-Zweig behalten)/`PianoRollView`.
