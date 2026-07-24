@@ -214,11 +214,16 @@ decoder (`id`→`UUID()` fold, enums→default), mirroring `SynthPatch`/`Project
 missing field degrades one field, not the document. Then a second slice for
 `TimelineLane`/`TimelineRegion` identity fields. *(3 files, tdd-first, ships like #95/#117.)*
 
-**A2 [HIGH] `bioEvents` SPSC has two producers → head/tail corruption when camera+BLE both
-run.** → *First slice:* route the BLE `.heartbeat` publish through the same single
-producer path as `BioEventPublisher` (one enqueue thread), or add a tiny lock-free
-multi-producer guard; concurrency-reviewer gate. *(2 files; audit the real enqueue sites
-first — this is a genuine race, verify before "fixing".)*
+**A2 ~~[HIGH] `bioEvents` SPSC has two producers~~ — VERIFIED FALSE POSITIVE (2026-07-24,
+concurrency-reviewer CONFIRMED).** Both "producers" publish from `@MainActor`
+(`BioEventPublisher.tick` on its @MainActor poll; `PolarH10BioPublisher.didUpdateValueFor`
+hops to `Task { @MainActor }` before publishing) and the sole consumer
+(`OSCSender.drainAndSendEvents`) drains on @MainActor — one physical producer thread, one
+consumer, SPSC satisfied by construction. NO fix needed; a lock would be a regression.
+The one genuine finding (the by-@MainActor invariant was documented only at a call site,
+not at the `nonisolated` definition) was hardened with a definition-site doc-contract on
+`EngineBus.publish(bioEvent:)`. *(Lesson: the map is a secondary source — two logical
+call-sites are not two threads; always audit the real actor context before "fixing".)*
 
 **A3 [MED] `sendModulation` egress ungated (5.1.3).** A bio-derived `/mod/<key>` scalar can
 leave the device though its HealthKit source is blocked. → *First slice:* carry the driving

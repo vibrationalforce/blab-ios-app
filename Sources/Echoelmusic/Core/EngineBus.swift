@@ -370,6 +370,18 @@ public final class EngineBus {
     }
 
     /// Publish a discrete bio event.
+    ///
+    /// SPSC CONTRACT (audited 2026-07-24). `bioEvents` is a single-producer /
+    /// single-consumer lock-free queue. This method is `nonisolated` for call-site
+    /// convenience, but the enqueue is race-free ONLY because every current caller
+    /// publishes from `@MainActor` — `BioEventPublisher.tick` runs on its @MainActor
+    /// poll, and `PolarH10BioPublisher.didUpdateValueFor` (a nonisolated BLE callback)
+    /// hops to `Task { @MainActor }` before publishing — so all enqueues serialize on
+    /// the main thread, and the SOLE consumer (`OSCSender.drainAndSendEvents`) also
+    /// drains on @MainActor. A NEW caller MUST publish bio events from @MainActor too;
+    /// enqueuing from a second thread would corrupt the lock-free head/tail. (The
+    /// "two-producer SPSC race" audit flag was a FALSE POSITIVE: both producers are
+    /// already @MainActor-serialized by construction — do not add a lock here.)
     nonisolated public func publish(bioEvent event: BioEvent) {
         bioEvents.enqueue(event)
         Task { @MainActor [weak self] in
