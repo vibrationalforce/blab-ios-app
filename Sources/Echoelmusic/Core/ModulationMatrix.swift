@@ -210,13 +210,22 @@ public struct ModRoute: Codable, Sendable, Identifiable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
+        // `id` and the behaviour/shaping fields have NEUTRAL defaults, so a renamed
+        // or removed key degrades that ONE field (never throws the route away). But
+        // `source`/`destination` are the route's IDENTITY with no neutral default —
+        // a route with no source, or one whose ModSource/ModDestination case was
+        // retired, is meaningless. They stay REQUIRED so an undecodable one throws
+        // and `ModulationMatrix`'s lossy array drops JUST that route (keeping every
+        // other route) instead of fabricating a ghost route onto a default source.
+        // (Previously the first 7 fields were all naked `try decode` — a rename of
+        // any one silently vaporized the user's whole modulation matrix.)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         source = try c.decode(ModSource.self, forKey: .source)
         destination = try c.decode(ModDestination.self, forKey: .destination)
-        mode = try c.decode(ModMode.self, forKey: .mode)
-        depth = try c.decode(Float.self, forKey: .depth)
-        invert = try c.decode(Bool.self, forKey: .invert)
-        enabled = try c.decode(Bool.self, forKey: .enabled)
+        mode = try c.decodeIfPresent(ModMode.self, forKey: .mode) ?? .live
+        depth = try c.decodeIfPresent(Float.self, forKey: .depth) ?? 1.0
+        invert = try c.decodeIfPresent(Bool.self, forKey: .invert) ?? false
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         curve = try c.decodeIfPresent(ResponseCurve.self, forKey: .curve) ?? .linear
         requiresTrustedSource = try c.decodeIfPresent(Bool.self, forKey: .requiresTrustedSource) ?? false
         smoothingTau = try c.decodeIfPresent(Float.self, forKey: .smoothingTau) ?? 0
@@ -246,6 +255,23 @@ public struct ModulationMatrix: Codable, Sendable, Equatable {
 
     public init(routes: [ModRoute] = []) {
         self.routes = routes
+    }
+
+    // Custom decode so a SINGLE corrupt route — a retired ModSource/ModDestination
+    // enum case, on-disk corruption, or a source/destination key rename — drops
+    // only THAT route instead of throwing, which would make `ModulationEngine.load`
+    // (a guarded `try?`) discard the user's ENTIRE bio→parameter routing table.
+    // `encode(to:)` stays synthesized; the single key matches the property name so
+    // existing persisted matrices round-trip byte-for-byte.
+    private enum CodingKeys: String, CodingKey { case routes }
+    private struct LossyRoute: Decodable {
+        let route: ModRoute?
+        init(from decoder: Decoder) throws { route = try? ModRoute(from: decoder) }
+    }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let wrapped = try? c.decodeIfPresent([LossyRoute].self, forKey: .routes)
+        routes = (wrapped ?? []).compactMap { $0.route }
     }
 
     // MARK: Evaluation (pure)

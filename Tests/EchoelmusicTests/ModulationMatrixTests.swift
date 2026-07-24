@@ -292,4 +292,79 @@ final class ModulationMatrixTests: XCTestCase {
         let back = try JSONDecoder().decode(ModulationMatrix.self, from: data)
         XCTAssertEqual(m, back)
     }
+
+    // MARK: - Data-loss hardening (decodeIfPresent LAW + lossy route array)
+
+    /// Mutate one encoded route's JSON dict, return the re-serialized route data.
+    private func route(_ r: ModRoute, mutate: (inout [String: Any]) -> Void) throws -> Data {
+        let data = try JSONEncoder().encode(r)
+        guard var obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw NSError(domain: "test", code: 1)
+        }
+        mutate(&obj)
+        return try JSONSerialization.data(withJSONObject: obj)
+    }
+
+    func testRoute_decodesWithoutIdKey_getsFreshUUID() throws {
+        // `id` was one of the 7 naked `try decode` fields — a renamed/removed key
+        // must now degrade to a fresh UUID, not throw the route away.
+        let r = ModRoute(source: .coherence, destination: dest("x"))
+        let stripped = try route(r) { $0.removeValue(forKey: "id") }
+        let back = try JSONDecoder().decode(ModRoute.self, from: stripped)
+        XCTAssertEqual(back.source, .coherence)          // route survived
+        XCTAssertEqual(back.destination, dest("x"))
+    }
+
+    func testRoute_decodesWithoutBehaviourKeys_usesNeutralDefaults() throws {
+        // mode/depth/invert/enabled all have neutral defaults → dropping every one
+        // of them still yields a live, full-depth, non-inverted, enabled route.
+        let r = ModRoute(source: .hrv, destination: dest("y"),
+                         mode: .hold(value: 0.3, drift: 0.2), depth: 0.4, invert: true, enabled: false)
+        let stripped = try route(r) {
+            $0.removeValue(forKey: "mode"); $0.removeValue(forKey: "depth")
+            $0.removeValue(forKey: "invert"); $0.removeValue(forKey: "enabled")
+        }
+        let back = try JSONDecoder().decode(ModRoute.self, from: stripped)
+        if case .live = back.mode {} else { XCTFail("mode should default to .live") }
+        XCTAssertEqual(back.depth, 1.0, accuracy: 1e-6)
+        XCTAssertFalse(back.invert)
+        XCTAssertTrue(back.enabled)
+    }
+
+    func testRoute_missingSource_throws() throws {
+        // source/destination are the route's IDENTITY — deliberately kept required
+        // so an undecodable one throws and the matrix drops JUST that route.
+        let r = ModRoute(source: .coherence, destination: dest("x"))
+        let noSource = try route(r) { $0.removeValue(forKey: "source") }
+        XCTAssertThrowsError(try JSONDecoder().decode(ModRoute.self, from: noSource))
+        let noDest = try route(r) { $0.removeValue(forKey: "destination") }
+        XCTAssertThrowsError(try JSONDecoder().decode(ModRoute.self, from: noDest))
+    }
+
+    func testMatrix_dropsOneCorruptRoute_keepsTheRest() throws {
+        // THE blast-radius test: a retired ModSource case (unknown raw value) on ONE
+        // route must drop only that route, not vaporize the whole matrix.
+        let m = ModulationMatrix(routes: [
+            ModRoute(source: .coherence, destination: dest("a")),
+            ModRoute(source: .hrv, destination: dest("b")),
+            ModRoute(source: .motion, destination: dest("c"))
+        ])
+        let data = try JSONEncoder().encode(m)
+        guard var obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              var routes = obj["routes"] as? [[String: Any]], routes.count == 3 else {
+            return XCTFail("matrix did not encode to a 3-route JSON object")
+        }
+        routes[1]["source"] = "someRetiredSourceCase"   // unknown ModSource raw value
+        obj["routes"] = routes
+        let corrupted = try JSONSerialization.data(withJSONObject: obj)
+        let back = try JSONDecoder().decode(ModulationMatrix.self, from: corrupted)
+        XCTAssertEqual(back.routes.count, 2, "the two intact routes must survive")
+        XCTAssertEqual(Set(back.routes.map(\.destination)), [dest("a"), dest("c")])
+    }
+
+    func testMatrix_decodesWithoutRoutesKey_isEmptyNotThrow() throws {
+        let empty = try JSONSerialization.data(withJSONObject: [String: Any]())
+        let back = try JSONDecoder().decode(ModulationMatrix.self, from: empty)
+        XCTAssertTrue(back.routes.isEmpty)
+    }
 }
