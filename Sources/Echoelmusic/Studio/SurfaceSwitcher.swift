@@ -2,17 +2,16 @@
 import SwiftUI
 
 // SurfaceSwitcher.swift
-// Echoel — SurfaceHost is THE one main view (founder 2026-07-10: "Musik und
-// Video Composing Ansicht als einzige Hauptansicht wie in Ableton die
-// Arrangement View… Wo bist du falsch abgebogen?"): the Arrange timeline over
-// the instrument zone, one screen, portrait AND landscape. The former 4-chip
-// surface switching (Stage 0) is REMOVED from navigation — the founder's
-// "kein View-Springen" was the plan all along; SurfaceSwitcherBar and the
-// WorkspaceSurface enum stay in code (the @AppStorage raw values are still
-// written by ArrangementView's legacy navigation), unmounted, reversible.
+// Echoel — SurfaceHost is THE one main view. It hosted the Ableton-style Arrange
+// timeline over the instrument zone until the pure-instrument verdict (#121,
+// founder 2026-07-24: "keine Timeline etc nur das alte Interface mit create from
+// within") removed the timeline — SurfaceHost now mounts only EchoelStudioView.
+// The former 4-chip surface switching (SurfaceSwitcherBar) and the WorkspaceSurface
+// enum stay in code (the @AppStorage raw values are still written by
+// ArrangementView's legacy navigation), unmounted, reversible.
 //
-// Render safety: SurfaceHost reads no @Observable models — only the
-// @AppStorage fold toggle (user-tap frequency, freeze-rule safe).
+// Render safety: SurfaceHost reads NO @Observable models and no @AppStorage — it
+// is a static wrapper, so it never rebuilds (freeze-rule trivially safe).
 
 /// The workspace surfaces. Raw values are PERSISTED via @AppStorage and must
 /// stay stable — `compose` and `clips` are the values `ArrangementView`'s
@@ -100,116 +99,37 @@ struct SurfaceSwitcherBar: View {
     }
 }
 
-/// THE one main view (founder 2026-07-10: "Musik und Video Composing Ansicht
-/// als einzige Hauptansicht wie in Ableton die Arrangement View, quer und
-/// hochkant") — the Ableton arrangement layout: timeline on top, the instrument
-/// / detail zone (EchoelStudioView) below it, one screen, no surface switching.
-/// Clips and Mix are no longer separate destinations — their functions dissolve
-/// into the track heads (convergence plan K2); ClipView/ChannelRackView stay in
-/// code, unpresented (reversible). SurfaceSwitcherBar stays in code, unmounted.
-///
-/// Orientation: the split adapts — portrait gives the timeline ~1/3 (controls
-/// need room), landscape ~1/2 (the arrangement is the star). Both columns keep
-/// the v136 size contract (fill + clipped) so nothing inflates past the screen.
+/// THE one main view. Once (founder 2026-07-10) this hosted the Ableton-style
+/// arrangement (timeline on top, instrument below); the pure-instrument verdict
+/// (#121, founder 2026-07-24 "keine Timeline etc nur das alte Interface mit create
+/// from within") removed the timeline entirely — SurfaceHost is now a thin wrapper
+/// that mounts `EchoelStudioView` (the "create from within" instrument) as the
+/// whole screen. `ArrangeTimelineView`, `SurfaceSwitcherBar`, ClipView and
+/// ChannelRackView all stay in code, unmounted (reversible); no file deletions.
+/// The v136 size contract (fill + clipped) is preserved so nothing inflates past
+/// the screen.
 @MainActor
 struct SurfaceHost: View {
-    /// TRACKS ARE HOME (founder 2026-07-13, verbatim "Ich wollte alles über die
-    /// Spuren machen" + AskUserQuestion → "Spuren/Timeline als Zuhause"): the
-    /// arrangement/tracks surface is the DEFAULT front door, not the second room.
-    /// The founder tested the 2026-07-11 "instrument first, timeline folded" default
-    /// and found the per-track features (Piano Roll, Sound & FX, AUv3 assign,
-    /// Automation, audio clips) effectively INVISIBLE — "die Sachen sind nicht da"
-    /// was really "the tracks are folded away." So the timeline now opens by default
-    /// and takes the dominant share; the calm instrument lives BELOW it, still one
-    /// glance away (and scrollable). This SUPERSEDES the 07-11 PLAY-ENTRY default —
-    /// do not revert to `false` without a fresh founder ask. Persisted, so anyone who
-    /// folds it keeps it folded.
-    /// REVERTED to `false` 2026-07-24 on the founder's fresh ask ("keine Timeline etc
-    /// nur das alte Interface mit create from within"): the pure-instrument verdict (#121)
-    /// removes the per-track features whose folded-away invisibility made tracks the home,
-    /// so that objection is gone — the instrument ("create from within") is the front door
-    /// again; the timeline is one tap away via the bar until the DAW-UI slice removes it.
-    @AppStorage("workspace.timelineExpanded") private var timelineExpanded = false
-
-    private static let collapsedBarHeight: CGFloat = 34
-
+    /// PURE INSTRUMENT (founder 2026-07-24, verbatim "keine Timeline etc nur das
+    /// alte Interface mit create from within"): the Arrange timeline is GONE from
+    /// the home — `EchoelStudioView` (the "create from within" generative
+    /// instrument) IS the whole main view. This is Slice H3 of the instrument-home
+    /// revert and converges with the pure-instrument verdict (#121, Slice 4
+    /// "DAW-UI-Removal"): the per-track DAW features are being removed, so the
+    /// timeline that used to be the front door (the 2026-07-13 "tracks are home"
+    /// default, H2 already folded) has no reason to mount. `ArrangeTimelineView` +
+    /// the former fold bar stay in code, unmounted and reversible — no file
+    /// deletion here (that is later cleanup).
+    ///
+    /// Render safety: dropping the timeline branch + the fold bar SHRINKS the
+    /// composed tree, so it can only EASE the SwiftUI metadata budget, never grow
+    /// it (black-screen law). H7 invariant holds trivially — `EchoelStudioView` is
+    /// now the SOLE child at ONE structural position, so its identity (and any live
+    /// bio / camera / transport session) is stable across every rebuild.
     var body: some View {
-        VStack(spacing: 0) {
-            // The collapse/expand bar — a leaf (no observable reads), always on
-            // top so the timeline is one glanceable tap away in both states.
-            timelineBar
-            Divider().overlay(EchoelTheme.border)
-            // AnyView-ERASED children (v10.79.144 launch-crash fix): erasing here cuts
-            // the composed ROOT tree's generic depth back below the metadata limit;
-            // effective because the overweight is in the COMPOSITION, not the bodies.
-            //
-            // ADAPTIVE SPLIT (founder 2026-07-14: "integriere alles im adaptiven Design …
-            // alles greift ineinander"): when the timeline is shown it is the LIVING
-            // canvas that FILLS the height (tracks are home), and the instrument shrinks
-            // to its slim chip bar below — no black void. EchoelStudioView's zone is
-            // itself conditional (it renders only with an open dropdown), so its "natural
-            // height" here is just the chip bar when idle. Collapse the timeline and the
-            // instrument takes the full height instead. Same surfaces, no duplicate
-            // controls — the space just meshes.
-            if timelineExpanded {
-                AnyView(
-                    ArrangeTimelineView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                )
-                Divider().overlay(EchoelTheme.border)
-            }
-            // ONE EchoelStudioView at ONE structural position (H7, audit
-            // CRITICAL): both branches used to create their own copy, so the
-            // fold/unfold toggle changed the view's IDENTITY — SwiftUI tore the
-            // whole instrument zone down and its `.onDisappear` ran
-            // stopEverything(), killing a LIVE session (bio, camera, transport)
-            // on a pure layout toggle, and dropping every open dropdown/@State.
-            // The conditional timeline above is one structural slot; the studio
-            // stays the LAST slot in both states, so identity — and the running
-            // session — survives the fold. Only the frame flexes (value change,
-            // not structure): timeline shown ⇒ natural height (chip bar when
-            // idle); timeline folded ⇒ the instrument takes the full height.
-            AnyView(
-                EchoelStudioView()
-                    .frame(maxWidth: .infinity,
-                           maxHeight: timelineExpanded ? nil : .infinity)
-                    .clipped()
-            )
-        }
-    }
-
-    /// The one control that folds the arrangement in/out. Collapsed: an inviting
-    /// "Timeline · arrangieren" row; expanded: a "Timeline" header with a chevron
-    /// to fold it away again. Accent green stays reserved for live bio, so this
-    /// uses the neutral text/dim tokens.
-    private var timelineBar: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.18)) { timelineExpanded.toggle() }
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: timelineExpanded ? "chevron.down" : "rectangle.split.3x1")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(EchoelTheme.dim)
-                Text(timelineExpanded ? "Timeline" : "Timeline · arrangieren")
-                    .font(EchoelTheme.font(12, timelineExpanded ? .regular : .medium))
-                    .foregroundStyle(timelineExpanded ? EchoelTheme.dim : EchoelTheme.text)
-                Spacer(minLength: 0)
-                if !timelineExpanded {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(EchoelTheme.dim)
-                }
-            }
-            .padding(.horizontal, 14)
-            .frame(height: Self.collapsedBarHeight)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .background(EchoelTheme.bg)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(timelineExpanded ? "Hide timeline" : "Show timeline to arrange")
-        .accessibilityAddTraits(.isButton)
+        EchoelStudioView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
     }
 }
 
