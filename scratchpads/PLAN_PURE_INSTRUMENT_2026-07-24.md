@@ -100,6 +100,25 @@ beim Founder für die großen Slices).
   AUv3-Signing/Scan-Diagnose-Steps (exit 0 bei fehlendem appex), `Echoelmusic.entitlements`
   `inter-app-audio` (verwaist, kein Signing-Bruch), `Tests/…/AUv3ScanDiagnosticTests.swift`
   (String-Test, kompiliert weiter). App-Group `group.com.echoelmusic` BLEIBT (Widget braucht sie).
-- ▶ **Nächster Zyklus: Slice 2 (AUv3-Hosting-Removal)** — Dritt-Plugin-Türen/Registry aus dem
-  App-UI (AUv3BrowserView, AVAudioUnit-Lane-Hosting, ~59 Refs) + die o.g. testflight.yml-Diagnose-
-  Steps + `inter-app-audio`-Entitlement + der stale Scan-Test.
+- ▶ **Slice 2 (AUv3-Hosting-Removal) — consumer-first, 4 Sub-Slices** (Karte: read-only Explore-
+  Agent 2026-07-24 → ~9 reine Lösch-Dateien + ~10 Chirurgie-Dateien; kein Ein-Commit möglich,
+  jeder Commit muss gate-grün sein → Verbraucher zuerst, Host-Dateien zuletzt):
+  - ✅ **2a — Tür zu (UI) GESHIPPT** — Commit `ddb1cfb`, beide Gates grün (Xcode Compile #1088 +
+    CI/CD #4553), ui-state-reviewer PASS (Switch-Exhaustiveness + Klammern + keine dangling Ref +
+    kein Sheet-Wachstum). `ArrangeTimelineView` only: `.plugins`-Case aus dem geteilten Single-
+    Sheet + Lane-Menü-Plugin-Section + `@Environment(AUv3Host)` raus; Automation-Button + a11y-
+    `pluginAssignmentSummary` bleiben. Datei jetzt AUv3-symbolfrei. Kein Audio-Verhalten geändert.
+  - ▶ **2b — Per-Spur-Hosting ab** (nächster Zyklus): `LaneAUInstrumentHost`/`AUNoteVoice`/
+    `laneAUHost`-Wiring + `FeatureFlags.laneAUInstruments` + Engine-`attach/detachLaneInstrument`
+    + `MultiRollFanout`-Hosting-Branch + `TimelineStore.syncAssignments`. Built-in `laneVoiceRack`
+    bleibt. Audio-thread-reviewer Pflicht (Audio-Graph).
+  - **2c — Global-Host + Browser + Discovery weg:** `AUv3Host`/`AUHostContext`/`AUv3BrowserView`/
+    `AUv3PluginUIView` löschen + `auHost`-Reads aus `EchoelmusicApp`/`EchoelStudioView`/
+    `MIDIBusPublisher`(built-in-Zweig behalten)/`PianoRollView`.
+  - **2d — Model + Persistenz + Entitlement + Tests + CI:** `TimelineLane.instrument/effects`
+    (decodeIfPresent-sicher: Keys droppen, nie hart decode), `AUPluginRef` löschen,
+    `LaneInstrumentLabel`+`pluginAssignmentSummary` Chirurgie, `AUParameterMapping`/`Bridge`
+    löschen (Registry BLEIBT), `inter-app-audio`-Entitlement, 8 Hosting-Tests, tote
+    testflight.yml-Diagnose-Steps. Persistence-&-Schema-Steward + security-agent (Signing).
+  - Schutz: `attachInstrument(_:AVAudioUnit)` (AudioEngine:777) + `HostMusicalState` sind die
+    ZWEI Stellen, wo ein Hosting-Schnitt in Eigen-Sound bluten könnte — Restnutzer erst prüfen.
