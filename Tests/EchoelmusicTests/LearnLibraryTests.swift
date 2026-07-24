@@ -57,7 +57,14 @@ final class LearnLibraryTests: XCTestCase {
 
     func testLightScienceMakesNoMedicalClaim() {
         // Brand red line: light science is FACTS + self-observation, never therapy.
-        let banned = ["cure", "treat ", "therapy", "heals", "diagnos", "remedy"]
+        // The medical VERBS below are not enough on their own — the pre-Echoel healing
+        // theme (red-light therapy) slips past them as NOUNS ("photobiomodulation",
+        // "mitochondrial cytochrome-c-oxidase", light "into tissue") while appending a
+        // "no health claim" disclaimer. Those nouns have no creative-light reason to
+        // appear, so they are banned outright — the framing is the violation, not just
+        // the claim.
+        let banned = ["cure", "treat ", "therapy", "heals", "diagnos", "remedy",
+                      "photobiomod", "mitochond", "cytochrome", "tissue"]
         for e in LearnLibrary.lightEntries where e.id != "light.scope" {
             let text = (e.title + " " + e.summary + " " + e.detail).lowercased()
             for term in banned {

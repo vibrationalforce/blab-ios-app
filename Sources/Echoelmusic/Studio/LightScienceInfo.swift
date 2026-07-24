@@ -33,7 +33,7 @@ public enum LightScienceTopic: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .circadianBlue:    return "The wavelength your inner clock reads most."
         case .greenLight:       return "Where daytime vision is most sensitive."
-        case .redNearInfrared:  return "Long waves that reach deeper into tissue."
+        case .redNearInfrared:  return "The long-wave red end — and the band just past sight."
         case .colourEmotion:    return "Shared, learned colour associations."
         case .scope:            return "Science for self-observation, not therapy."
         }
@@ -58,7 +58,7 @@ public enum LightScienceTopic: String, CaseIterable, Identifiable, Sendable {
         case .greenLight:
             return "Green light around 525 nm sits near the peak of daytime (cone) vision, so it reads as very bright while only weakly driving the melanopsin clock signal compared with blue. That distinct response is why green is studied separately from blue in light science. Echoelmusic represents it accurately as a wavelength; it makes no health claim. (Source: peer-reviewed light-physiology reviews.)"
         case .redNearInfrared:
-            return "Long-wavelength red (~620–700 nm) and near-infrared (~700–850 nm) light penetrate tissue more deeply because skin absorbs them weakly; in photobiomodulation research they are absorbed by mitochondrial cytochrome-c-oxidase. Echoelmusic only displays and explains these wavelengths as light — it is not a medical device and makes no health claim. (Source: peer-reviewed photobiomodulation reviews, PMC/NIH.)"
+            return "Red light (~620–700 nm) is the longest wavelength the human eye still sees; near-infrared (~700–850 nm) lies just beyond it — invisible to us, though many camera sensors still register it. As the low-frequency end of the visible spectrum, these long waves scatter less in air than short blue waves, which is part of why low sun and distant lamps read as red. Echoelmusic renders this warm end from your actual tuning through the CIE 1931 colour-matching functions and can drive it to Art-Net / sACN fixtures; where a tone transposes past ~700 nm it simply leaves visible colour behind. Honest colour for creative expression and self-observation — not a medical device, and it makes no health claim. (Source: standard optics and CIE 1931 colour science.)"
         case .colourEmotion:
             return "Across 130+ studies from 60+ countries, people share systematic colour–emotion associations: red with high arousal and energy, blue and green with calm and low arousal, bright colours with positive feeling. These are learned, perceptual associations after the brain processes the image — not direct effects on cells. Echoelmusic uses them as an honest aesthetic mapping for its visuals and light. (Source: global colour–emotion meta-analysis, 1895–2022.)"
         case .scope:
