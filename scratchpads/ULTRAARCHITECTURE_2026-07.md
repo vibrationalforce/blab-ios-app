@@ -303,7 +303,14 @@ worker grepped only `Sources/Echoelmusic/` and missed the AUv3 target. Do NOT de
 ~~**E5** fix the stale `EchoelDDSP` COW-smell header~~ **DONE 2026-07-24** — header rewritten
 to reflect all three owners applying `applyBioReactive` render-side (SPSC drain / `BioMirror`);
 the "control thread" claim + "KNOWN SMELL" were closed by #83/#90/#94. · **E6** enforce single
-`MetalBioView` mount · **E7** the two remaining raw `Slider`s → `EchoelValueField`.
+`MetalBioView` mount · ~~**E7** the two remaining raw `Slider`s → `EchoelValueField`~~
+**SCOPE-MISCLASSIFICATION (verified 2026-07-24)** — the `EchoelValueField` law governs
+*numeric parameters*, not every `Slider`. The two app-target raw `Slider`s
+(`FloatingVisualWindow.swift:522`, `EchoelStudioView.swift:2374`) are the SAME `lookScrub`
+control — a continuous **visual-look crossfader** ("morphs STUFENLOS between the looks"),
+`accessibilityValue` = a look NAME not a number; a value+unit+type-a-number field would be a
+regression, not compliance. The third (`AudioUnitViewController.swift:222`) is the AUv3 target,
+exempt by CLAUDE.md. Zero genuinely-non-compliant parameter `Slider`s exist. Do NOT convert.
 
 ### Tier F — frontiers (founder-roadmap, unchanged by this map)
 
