@@ -119,9 +119,21 @@ beim Founder für die großen Slices).
     bei Stop, `HostMusicalState`/`effectsAcceptingChainFormat` unberührt. LEHRE (HARNESS_LEDGER):
     beim Löschen einer Datei JEDES darin definierte Symbol greppen (nicht nur den Klassennamen) —
     `AUNoteVoice.swift` beherbergte auch `AUNoteMIDI`, dessen Test blieb sonst verwaist.
-  - **2c — Global-Host + Browser + Discovery weg:** `AUv3Host`/`AUHostContext`/`AUv3BrowserView`/
-    `AUv3PluginUIView` löschen + `auHost`-Reads aus `EchoelmusicApp`/`EchoelStudioView`/
-    `MIDIBusPublisher`(built-in-Zweig behalten)/`PianoRollView`.
+  - **2c — Global-Host + Browser + Discovery weg** (in 2 Schritten, weil der Host-Engine-Schnitt
+    Note-Routing-Chirurgie in 3 View-Dateien ist):
+    - ✅ **2c-i — Browser-UI weg GESHIPPT** — Commit `7ebaa42`. `AUv3BrowserView.swift` +
+      `AUv3PluginUIView.swift` gelöscht (seit 2a TOTER Code — kein Sheet präsentiert sie mehr,
+      grep-bestätigt null Refs). Null Verhaltensänderung. De-riskt 2c-ii.
+    - ▶ **2c-ii — Global-Host-Engine + auHost-Reads weg** (nächster Zyklus): `AUv3Host.swift`
+      (+ `HostedAUInfo`) + `AUHostContext.swift` löschen; `auHost`-Chirurgie in `EchoelmusicApp`
+      (@State + .environment + use/scan/restore/persist + pianoRoll/midiPub-Args),
+      `EchoelStudioView` (@Environment + allNotesOff), `MIDIBusPublisher` (auHost-Param +
+      noteOn/off; **built-in-Zweig unbedingt behalten** — `suppressesBuiltInVoice` wird `false`),
+      `PianoRollView` (auHost-Param + noteOn/off/suppress). INTERDEP: `AUPluginRef(_ info:
+      HostedAUInfo)`-Init + `testHostedAUInfo_mapsToPluginRef` müssen mit (HostedAUInfo stirbt).
+      Tote Engine-AU-Methoden (attachAU/connectAU/rewireMasterFX/effectsAcceptingChainFormat…)
+      werden nach 2c-ii unbenutzt → 2d-Cleanup. Tests `AUv3HostTests`/`AUv3ManufacturerCodeTests`
+      löschen. Audio-thread-reviewer Pflicht (Note-Routing).
   - **2d — Model + Persistenz + Entitlement + Tests + CI:** `TimelineLane.instrument/effects`
     (decodeIfPresent-sicher: Keys droppen, nie hart decode), `AUPluginRef` löschen,
     `LaneInstrumentLabel`+`pluginAssignmentSummary` Chirurgie, `AUParameterMapping`/`Bridge`
