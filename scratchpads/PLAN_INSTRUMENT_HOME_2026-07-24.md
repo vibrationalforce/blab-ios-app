@@ -78,7 +78,8 @@ Oberfläche. Plus: nur kuratierte gut-klingende Genres, Konvergenz-Bug bleibt we
   Sheet, nur `running`-@State). H2: `timelineExpanded` default `true→false` (Founder-Ask erfüllt).
   **NEEDS-FOUNDER-VERIFY**: Launch-UX + Metadata-Runtime nur am Gerät verifizierbar (Compile-Gate
   beweist Build, nicht das Metadata-Budget). Nächster TestFlight nach Freeze-Lift → Founder-Pass.
-- ✅ **H3 GESHIPPT** — Commit `2f8dba1` „refactor: remove Arrange timeline from home". Der
+- ✅ **H3 GESHIPPT** — Commit `2f8dba1`, beide echten Gates grün (Xcode Compile + CI/CD).
+  „refactor: remove Arrange timeline from home". Der
   `ArrangeTimelineView()`-Mount + die Fold-Leiste + `workspace.timelineExpanded`-@AppStorage +
   der `timelineBar`-Builder sind alle raus; `SurfaceHost` ist jetzt ein statischer Wrapper, der
   NUR `EchoelStudioView` mountet. Konvergiert mit #121 Slice 4 („DAW-UI-Removal"). Rein
