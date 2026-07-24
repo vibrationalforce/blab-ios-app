@@ -207,7 +207,13 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        self.pitch = min(max(try c.decode(Int.self, forKey: .pitch), 0), 127)
+        // Every other field here degrades to a default rather than throwing; `pitch`
+        // was the ONE naked `try decode` left. A note lives inside `MelodyClip.notes`
+        // → `Clip`/`Project`, and `Project.notes` decodes the array in one throw — so a
+        // renamed/removed `pitch` key threw the whole note → the ENTIRE project (all
+        // saved takes) was lost on load. Degrade to middle C (60): a note with a missing
+        // pitch stays a valid, visible, fixable note instead of vaporizing the document.
+        self.pitch = min(max(try c.decodeIfPresent(Int.self, forKey: .pitch) ?? 60, 0), 127)
         self.velocity = min(max(try c.decodeIfPresent(Float.self, forKey: .velocity) ?? 0.8, 0), 1)
         if let t = try c.decodeIfPresent(Int.self, forKey: .startTick) {
             self.startTick = max(0, t)

@@ -90,6 +90,29 @@ final class NoteTests: XCTestCase {
         XCTAssertEqual(decoded.lengthTicks, 70)
         XCTAssertEqual(decoded, note)
     }
+
+    func testCodable_missingPitchDegradesToMiddleC_notThrow() throws {
+        // `pitch` was the one naked `try decode` in the Note decoder — a renamed/
+        // removed key threw the whole note → the array decode in Project threw → the
+        // ENTIRE project (all takes) was lost. It must now degrade, never throw.
+        let noPitch = #"{"id":"\#(UUID().uuidString)","startTick":480,"lengthTicks":240,"velocity":0.6}"#
+        let decoded = try JSONDecoder().decode(Note.self, from: Data(noPitch.utf8))
+        XCTAssertEqual(decoded.pitch, 60, "missing pitch degrades to middle C")
+        XCTAssertEqual(decoded.startTick, 480, "the rest of the note still decodes")
+        XCTAssertEqual(decoded.velocity, 0.6, accuracy: 1e-6)
+    }
+
+    func testCodable_arrayOfNotesSurvivesOneMissingPitch() throws {
+        // The blast-radius case: one pitch-less note in a persisted [Note] must not
+        // throw the whole array (which in Project == every saved take).
+        let good = #"{"id":"\#(UUID().uuidString)","pitch":72,"startTick":0,"lengthTicks":240,"velocity":0.8}"#
+        let broken = #"{"id":"\#(UUID().uuidString)","startTick":240,"lengthTicks":240,"velocity":0.8}"#
+        let json = "[\(good),\(broken)]"
+        let notes = try JSONDecoder().decode([Note].self, from: Data(json.utf8))
+        XCTAssertEqual(notes.count, 2, "both notes decode; the broken one degrades")
+        XCTAssertEqual(notes[0].pitch, 72)
+        XCTAssertEqual(notes[1].pitch, 60)
+    }
 }
 
 #if canImport(SwiftUI)
