@@ -294,9 +294,22 @@ body→look owner MetalBioView reads (remove the in-renderer re-derivation).
 
 ### Tier E — dead-code retirement & honesty (small, reduces audit noise)
 
-**E1** remove/relabel the undrained `bioFrames` queue · **E2** delete or wire
-`ChromaKey.metal` · **E3** retire the `toolsSection`/`openTool` island + its dead modal
-slots · ~~**E4** delete `EchoelCellular`~~ **FALSE POSITIVE (verified 2026-07-24)** — it is
+**E1** remove/relabel the undrained `bioFrames` queue · ~~**E2** delete or wire
+`ChromaKey.metal`~~ **KEEP — deferred video-FX scaffold (verified 2026-07-24)** — 9 real
+green-screen kernels (`chromaKeyColorExtraction`…`chromaKeyComposite`), but NO runtime
+consumer: the only Metal library loaded is `MetalBioView`'s inline
+`echoel_bio_vertex/fragment` (MetalBioView.swift:554-556); nothing calls
+`makeDefaultLibrary`/`makeFunction("chromaKey…")`. It is on-vision (Cinema/Theater/Content)
+scaffolding for #40 (Video FX, in progress) — same "designed + deferred" policy as
+BroadcastPublisher/EchoelStore. Do NOT delete. · ~~**E3** retire the `toolsSection`/`openTool`
+island~~ **DEFER — low-value hygiene, headroom rationale FALSE (verified 2026-07-24)** —
+`toolsSection` (EchoelStudioView.swift:916) is never mounted, so as an UNMOUNTED computed
+`var` it contributes ZERO to `body`'s aggregate generic type → removing it buys NO
+metadata-chain headroom (the actual sheet SLOTS were already removed at v10.79.207, see the
+:362-367 comment — that is what bought headroom). Leftover = dead source only; its helpers
+(`openTool`/`gridChip`/`toolItems`) are plausibly shared ("called by HUD menu rows too",
+:886-887) and with no local compiler a wrong exclusivity call = a red CI cycle for zero user
+value. Pure cleanup, deferred. · ~~**E4** delete `EchoelCellular`~~ **FALSE POSITIVE (verified 2026-07-24)** — it is
 LIVE at `Sources/EchoelmusicAUv3/EchoelmusicAudioUnit.swift:27`
 (`private let texture = EchoelCellular(cellCount: 128, sampleRate: 48000)`); the AUDIO map
 worker grepped only `Sources/Echoelmusic/` and missed the AUv3 target. Do NOT delete. ·
