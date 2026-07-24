@@ -130,9 +130,9 @@ highest-value first, each a gated reversible Ralph slice.
 **AUDIO/DSP** — one master bus (`AudioEngine`), voices + FX chains per voice.
 Target: retire the app-singleton voices in favor of per-lane `LaneVoiceRack`; a master FX
 bus so FX/bio-modulation reaches every voice, not only `polyVoice`.
-Gaps: [HIGH] two voice-ownership models coexist · [MED] `EchoelCellular` dead code ·
-[MED] stale `EchoelDDSP` header (COW smell already closed by #83/#90/#94) · [MED] FX panel
-+ FXBioModulator pinned to `polyVoice.fxChain` only.
+Gaps: [HIGH] two voice-ownership models coexist · ~~[MED] `EchoelCellular` dead code~~
+FALSE POSITIVE (live in AUv3, see Tier E) · ~~[MED] stale `EchoelDDSP` header~~ FIXED
+2026-07-24 · [MED] FX panel + FXBioModulator pinned to `polyVoice.fxChain` only.
 
 **BIO** — clean bus contract; three live publishers through one `HRVNormalization`.
 Target: fully consume the protected triad (`BioSignalDeconvolver`→cleaned samples→
@@ -296,9 +296,14 @@ body→look owner MetalBioView reads (remove the in-renderer re-derivation).
 
 **E1** remove/relabel the undrained `bioFrames` queue · **E2** delete or wire
 `ChromaKey.metal` · **E3** retire the `toolsSection`/`openTool` island + its dead modal
-slots · **E4** delete `EchoelCellular` or wire it · **E5** fix the stale `EchoelDDSP`
-COW-smell header · **E6** enforce single `MetalBioView` mount · **E7** the two remaining raw
-`Slider`s → `EchoelValueField`.
+slots · ~~**E4** delete `EchoelCellular`~~ **FALSE POSITIVE (verified 2026-07-24)** — it is
+LIVE at `Sources/EchoelmusicAUv3/EchoelmusicAudioUnit.swift:27`
+(`private let texture = EchoelCellular(cellCount: 128, sampleRate: 48000)`); the AUDIO map
+worker grepped only `Sources/Echoelmusic/` and missed the AUv3 target. Do NOT delete. ·
+~~**E5** fix the stale `EchoelDDSP` COW-smell header~~ **DONE 2026-07-24** — header rewritten
+to reflect all three owners applying `applyBioReactive` render-side (SPSC drain / `BioMirror`);
+the "control thread" claim + "KNOWN SMELL" were closed by #83/#90/#94. · **E6** enforce single
+`MetalBioView` mount · **E7** the two remaining raw `Slider`s → `EchoelValueField`.
 
 ### Tier F — frontiers (founder-roadmap, unchanged by this map)
 
@@ -328,7 +333,10 @@ Broadcast/RTMP (HaishinKit link + egress design) · EEG modulation (#61) · Echo
   `SurfaceHost` (wraps ArrangeTimelineView + EchoelStudioView) + CompositionHeaderStrip.
 - **"Art-Net + sACN (unicast) are live"** — sACN default IS unicast; Art-Net default is
   **broadcast** `255.255.255.255`. Both live; the transport nuance is the fix.
-- **`EchoelCellular` "reused as FX texture / synth voices"** — STALE: zero consumers (dead).
+- ~~**`EchoelCellular` "reused as FX texture / synth voices"** — STALE: zero consumers (dead).~~
+  **This map entry was itself WRONG (corrected 2026-07-24):** `EchoelCellular` IS a live FX
+  texture in the AUv3 target (`EchoelmusicAudioUnit.swift:27`). The CLAUDE.md claim stands; the
+  map's "dead" verdict was a grep-scope error (missed `Sources/EchoelmusicAUv3/`).
 
 ---
 

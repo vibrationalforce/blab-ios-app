@@ -51,22 +51,23 @@ import Accelerate
 ///   `AVAudioSourceNode` render block). Audio-thread-safe by construction —
 ///   pre-allocated buffers, vDSP only, zero runtime allocation, no lock/malloc/
 ///   ObjC/GCD.
-/// • `applyBioReactive()` runs on the audio thread ONLY in `BioReactiveSynthVoice`
-///   (enqueued to an SPSC command queue on the 10 Hz control poll, drained inside
-///   the render). In `PolySynthVoice` and the AUv3 `EchoelmusicAudioUnit` it is
-///   instead called from a CONTROL thread (the 10 Hz MainActor poll / the vitals
-///   utility queue) and the write crosses to the render thread — safe because the
-///   bio params are Float-width (atomic on Apple); worst case the render reads
-///   slightly-stale params (see `PolySynthVoice` header).
-/// • Note / patch / master-gain updates use the lock-free handoff (SPSC queue /
-///   `nonisolated(unsafe)` mirror). The bio-param path on the direct-call owners
-///   does NOT — it is a direct cross-thread `var` write.
+/// • `applyBioReactive()` now runs on the audio RENDER thread in ALL three owners
+///   (corrected 2026-07-24 — the old note here still described a control-thread
+///   caller and an open "KNOWN SMELL"; both were closed by tasks #83/#90/#94):
+///     - `BioReactiveSynthVoice` — enqueues on the 10 Hz control poll to an SPSC
+///       command queue, drains + applies inside its render block.
+///     - `PolySynthVoice` — same discipline: the main 10 Hz poll enqueues to
+///       `bioCommands` (SPSC), the render block drains to the latest frame and
+///       applies it there, AFTER the patch drain (see PolySynthVoice.swift).
+///     - AUv3 `EchoelmusicAudioUnit` — the 10 Hz KVO poll writes atomic-width
+///       Float mirrors (`BioMirror`); the render block reads those and applies
+///       render-side (throttled ~10 Hz). It never reads an AUParameter in render.
+/// • Note / patch / master-gain updates use the same lock-free handoff (SPSC queue
+///   / `nonisolated(unsafe)` mirror).
 ///
-/// KNOWN SMELL (separate ticket, not fixed here): `applyBioReactive` calls
-/// `updateSpectralEnvelope()` every 6th invocation, which rewrites the
-/// `harmonicAmplitudes` Swift array — a non-atomic cross-thread mutation on the
-/// PolySynthVoice/AUv3 direct-call path (the COW hazard the SPSC pattern removes
-/// for notes). Only `BioReactiveSynthVoice`'s SPSC drain is fully clear of it.
+/// Consequence: `updateSpectralEnvelope()`'s in-place rewrite of `harmonicAmplitudes`
+/// (every 6th `applyBioReactive`) happens on the ONE render thread that also reads it,
+/// so there is no longer a cross-thread array race / COW hazard on any path.
 public final class EchoelDDSP: @unchecked Sendable {
 
     // MARK: - Configuration
