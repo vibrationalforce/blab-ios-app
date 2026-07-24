@@ -10,7 +10,7 @@ import UIKit
 // MIDIInput's `.msgSetupChanged` → `connectAllSources()` path auto-connects — so the
 // controller's notes drive the synth with ZERO extra wiring here (no MIDIInput change).
 // The VC is a self-managing UITableView of nearby BLE-MIDI peripherals; it owns its own
-// scan/pair lifecycle. Mirrors AUv3PluginUIView.swift's VC-bridge shape. iOS-only:
+// scan/pair lifecycle (a UIViewControllerRepresentable VC-bridge). iOS-only:
 // CoreAudioKit's BLE-MIDI central does not exist on macOS.
 
 /// Bridges `CABTMIDICentralViewController` into SwiftUI. Holds no state of its own —
