@@ -5,8 +5,10 @@
 // app's Application Support directory when the App Group is unavailable (e.g.
 // SwiftPM unit tests, Linux CI), so callers never have to special-case it.
 //
-// Pure Foundation, cross-platform. No logger dependency — read/write failures
-// surface as thrown errors / nil so callers decide how loud to be.
+// Pure Foundation, cross-platform. Absence/write failures surface as nil/false so
+// callers decide how loud to be; the ONE exception is a present-but-undecodable read,
+// which is logged as a data-loss signal via the `#if canImport(os)`-guarded EchoelLogger
+// (cross-platform-safe — Linux degrades to a no-op).
 
 import Foundation
 
@@ -54,9 +56,23 @@ public struct AppGroupStore: Sendable {
     // MARK: - Read / write
 
     /// Decode the value stored under `name`, or `nil` if absent/unreadable.
+    ///
+    /// An ABSENT file is the normal "nothing saved yet" case → silent `nil`. But a file
+    /// that EXISTS and fails to decode is a data-loss SIGNAL — a schema change the
+    /// defensive decoders couldn't absorb, or on-disk corruption — and is logged, never
+    /// silent: the caller falls back to an empty document, so without telemetry a user
+    /// losing their whole song produces zero signal. (`log`/EchoelLogger is
+    /// `#if canImport(os)`-guarded, so this stays cross-platform.)
     public func load<T: Decodable>(_ type: T.Type, name: String) -> T? {
-        guard let url = fileURL(name), let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(type, from: data)
+        guard let url = fileURL(name) else { return nil }
+        guard let data = try? Data(contentsOf: url) else { return nil } // absent = normal
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            log.log(.error, category: .system,
+                    "AppGroupStore: \(name).json present but failed to decode as \(T.self) — \(error)")
+            return nil
+        }
     }
 
     /// Encode and atomically write `value` under `name`. Returns success.
