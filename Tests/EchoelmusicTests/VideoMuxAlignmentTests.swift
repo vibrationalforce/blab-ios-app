@@ -56,4 +56,75 @@ final class VideoMuxAlignmentTests: XCTestCase {
             XCTAssertEqual(al.audioStartSeconds + al.durationSeconds, a, accuracy: 1e-9)
         }
     }
+
+    // MARK: - Loop-mode cut (founder 2026-07-24: video cut exactly to the loop bars)
+
+    func testLoopAligned_cutsExactLoopLengthFromBothEnds() {
+        // 20 s video + 20 s audio, want an 8 s loop (e.g. 4 bars @ 120 bpm). Each track
+        // keeps its LAST 8 s → both start at 12, duration is exactly the loop length.
+        let a = A.loopAligned(videoDuration: 20, audioDuration: 20, loopSeconds: 8)
+        XCTAssertEqual(a, A(videoStartSeconds: 12, audioStartSeconds: 12, durationSeconds: 8))
+    }
+
+    func testLoopAligned_durationIsAlwaysExactlyLoopSeconds_notMinOfTracks() {
+        // Unlike endAligned, the kept length is the LOOP, never min(v,a): a long capture
+        // still yields exactly one loop.
+        let a = A.loopAligned(videoDuration: 63, audioDuration: 63, loopSeconds: 16)
+        XCTAssertNotNil(a)
+        XCTAssertEqual(a?.durationSeconds, 16, accuracy: 1e-9)
+        XCTAssertEqual(a?.videoStartSeconds, 47, accuracy: 1e-9)
+    }
+
+    func testLoopAligned_unequalDurations_eachCutFromItsOwnEnd() {
+        // Video 30 s, audio 20 s, 8 s loop. Both end at stop, so the SAME wall-clock
+        // window is the last 8 s of each — but from different track lengths that means
+        // different offsets: video starts at 22, audio at 12. This is the whole reason
+        // the struct carries two separate start fields.
+        let a = A.loopAligned(videoDuration: 30, audioDuration: 20, loopSeconds: 8)
+        XCTAssertEqual(a, A(videoStartSeconds: 22, audioStartSeconds: 12, durationSeconds: 8))
+    }
+
+    func testLoopAligned_secondsSinceBarStart_phaseAlignsToDownbeat() {
+        // The last downbeat was 1.5 s ago → the loop window ends at that downbeat, so the
+        // cut is the loopSeconds BEFORE it: start = dur − 1.5 − loopSeconds (same law as
+        // StudioCalculator.loopTrimWindow, so the video matches the audio bounce phase).
+        let a = A.loopAligned(videoDuration: 20, audioDuration: 20,
+                              loopSeconds: 8, secondsSinceBarStart: 1.5)
+        XCTAssertEqual(a, A(videoStartSeconds: 10.5, audioStartSeconds: 10.5, durationSeconds: 8))
+    }
+
+    func testLoopAligned_tooShortForOneLoop_returnsNil() {
+        // Capture shorter than one loop (+ phase offset) can't hold an aligned loop →
+        // nil, so the caller falls back to endAligned.
+        XCTAssertNil(A.loopAligned(videoDuration: 5, audioDuration: 20, loopSeconds: 8))
+        XCTAssertNil(A.loopAligned(videoDuration: 20, audioDuration: 5, loopSeconds: 8))
+        XCTAssertNil(A.loopAligned(videoDuration: 8, audioDuration: 8,
+                                   loopSeconds: 8, secondsSinceBarStart: 0.5))
+    }
+
+    func testLoopAligned_nonFiniteOrNonPositive_returnsNil() {
+        XCTAssertNil(A.loopAligned(videoDuration: .nan, audioDuration: 20, loopSeconds: 8))
+        XCTAssertNil(A.loopAligned(videoDuration: 20, audioDuration: 20, loopSeconds: 0))
+        XCTAssertNil(A.loopAligned(videoDuration: 20, audioDuration: 20, loopSeconds: .infinity))
+        // A non-finite phase offset is treated as 0, not a failure (defensive, like the
+        // audio path): the exact-length cut still succeeds.
+        XCTAssertEqual(A.loopAligned(videoDuration: 20, audioDuration: 20,
+                                     loopSeconds: 8, secondsSinceBarStart: .nan),
+                       A(videoStartSeconds: 12, audioStartSeconds: 12, durationSeconds: 8))
+    }
+
+    func testLoopAligned_bothStartsShareTheSamePhase() {
+        // Property: video & audio keep the SAME window length and the SAME offset from
+        // their own ends, so the muxed clip stays in sync while being an exact loop.
+        for (v, a, loop, ago) in [(30.0, 30.0, 4.0, 0.0), (55.0, 55.0, 32.0, 2.0),
+                                  (18.0, 18.0, 2.0, 0.25)] {
+            guard let al = A.loopAligned(videoDuration: v, audioDuration: a,
+                                         loopSeconds: loop, secondsSinceBarStart: ago) else {
+                return XCTFail("expected an alignment for \(v),\(a),\(loop),\(ago)")
+            }
+            XCTAssertEqual(al.durationSeconds, loop, accuracy: 1e-9)
+            XCTAssertEqual(v - al.videoStartSeconds, a - al.audioStartSeconds, accuracy: 1e-9)
+            XCTAssertEqual(v - al.videoStartSeconds, ago + loop, accuracy: 1e-9)
+        }
+    }
 }

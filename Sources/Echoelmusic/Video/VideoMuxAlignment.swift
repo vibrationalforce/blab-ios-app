@@ -32,4 +32,28 @@ struct VideoMuxAlignment: Equatable {
                                  audioStartSeconds: a - duration,
                                  durationSeconds: duration)
     }
+
+    /// LOOP-mode cut (founder 2026-07-24: "Video Mitschnitt ebenfalls im Loop Takt
+    /// genau geschnitten?"). Carves an EXACT loop — a whole number of bars,
+    /// `loopSeconds` = bars × `StudioCalculator.barSeconds` — out of BOTH tracks so the
+    /// exported clip is the same length as the rendered audio loop and loops seamlessly.
+    /// Both recordings END at stop time, so the window is the `loopSeconds` immediately
+    /// before the last downbeat; `secondsSinceBarStart` (the same value the audio bounce
+    /// feeds `StudioCalculator.loopTrimWindow`) phase-aligns the cut to that downbeat, so
+    /// the muxed clip starts on beat 1. Returns `nil` when either track is too short to
+    /// hold one aligned loop (caller falls back to `endAligned`) or on non-finite /
+    /// non-positive input. Same law as `loopTrimWindow`, applied to each track's own end.
+    static func loopAligned(videoDuration v: Double, audioDuration a: Double,
+                            loopSeconds: Double,
+                            secondsSinceBarStart: Double = 0) -> VideoMuxAlignment? {
+        guard v.isFinite, a.isFinite, v > 0, a > 0,
+              loopSeconds.isFinite, loopSeconds > 0 else { return nil }
+        let ago = secondsSinceBarStart.isFinite ? Swift.max(0, secondsSinceBarStart) : 0
+        let vStart = v - ago - loopSeconds
+        let aStart = a - ago - loopSeconds
+        guard vStart >= 0, aStart >= 0 else { return nil }
+        return VideoMuxAlignment(videoStartSeconds: vStart,
+                                 audioStartSeconds: aStart,
+                                 durationSeconds: loopSeconds)
+    }
 }
