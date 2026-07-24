@@ -8,15 +8,17 @@ import XCTest
 
 final class MusicStyleTests: XCTestCase {
 
-    func testEveryGenreIsOfferedInExactlyOneCategory() {
-        // Founder 2026-07-11 "Alles rein. Logisch sortiert. Gehe tief rein": every
-        // genre is now offered, grouped into exactly one logical category — the picker
-        // shows the full roster, sorted by sound-world.
+    func testEveryGenreIsCategorizedExactlyOnce() {
+        // The `Category` grouping is the FULL taxonomy: every genre is categorised
+        // exactly once (so every exhaustive switch + stored @AppStorage value stays
+        // valid). NOTE: since the 2026-07-24 curation the picker shows only
+        // `MusicStyle.offered`, NOT this full roster — this test guards the taxonomy,
+        // `testOfferedPaletteIsCuratedAndContemplative` guards what's offered.
         let grouped = MusicStyle.Category.allCases.flatMap { $0.genres }
         XCTAssertEqual(Set(grouped), Set(MusicStyle.allCases),
                        "every genre must appear in some category")
         XCTAssertEqual(grouped.count, MusicStyle.allCases.count,
-                       "no genre appears in two categories (each offered exactly once)")
+                       "no genre appears in two categories (each categorised exactly once)")
         // The `category` property agrees with the category's own genre list.
         for cat in MusicStyle.Category.allCases {
             for s in cat.genres {
@@ -26,6 +28,35 @@ final class MusicStyleTests: XCTestCase {
         // The calm meditative set stays FIRST so the relaxation identity leads.
         XCTAssertEqual(MusicStyle.Category.allCases.first, .meditative,
                        "meditative genres are listed first")
+    }
+
+    func testOfferedPaletteIsCuratedAndContemplative() {
+        // Founder 2026-07-24 "Genre is better you decide and curate something that
+        // really fits the brand … Die 6 ruhigen Genres": the picker offers only a
+        // curated, brand-fitting contemplative palette — decoupled from the full
+        // taxonomy (which stays complete, see testEveryGenreIsCategorizedExactlyOnce).
+        let offered = MusicStyle.offered
+        XCTAssertFalse(offered.isEmpty, "the picker must offer at least one genre")
+        XCTAssertEqual(Set(offered).count, offered.count, "offered must have no duplicates")
+        XCTAssertTrue(Set(offered).isSubset(of: Set(MusicStyle.allCases)),
+                      "every offered genre must be a real MusicStyle case")
+        // The default genre MUST be offered, else a fresh install shows an unselected
+        // picker (the stored value would be a genre the user can't see).
+        XCTAssertTrue(offered.contains(StudioDefaultKeys.genre.value),
+                      "the default genre must be in the offered palette")
+        // Brand: the curated base is contemplative — every offered genre is drum-free
+        // OR a sustained-Flächen genre (calm identity). Relaxes automatically as the
+        // G2 ambient-family genres (which are .none-beat by design) are added.
+        for s in offered {
+            XCTAssertTrue(!s.isBeatDriven || MusicStyle.sustainedFlächen.contains(s),
+                          "\(s) is offered but is neither drum-free nor a sustained-Flächen genre")
+        }
+        // Each category's offeredGenres is a subset of its full genres (the filter is
+        // honest — it never surfaces a genre outside its own taxonomy bucket).
+        for cat in MusicStyle.Category.allCases {
+            XCTAssertTrue(Set(cat.offeredGenres).isSubset(of: Set(cat.genres)),
+                          "\(cat).offeredGenres must be a subset of its genres")
+        }
     }
 
     func testSustainedFlächenAreExactlyTheSixCalmGenres() {

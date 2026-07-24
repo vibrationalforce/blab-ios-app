@@ -564,12 +564,18 @@ struct CompositionHeaderStrip: View {
             HStack(spacing: 12) {
                 labeled("Genre") {
                     Picker("Genre", selection: edited($style, posts: "genre")) {
-                        // Every genre, grouped by sound-world (founder 2026-07-11
-                        // "Alles rein. Logisch sortiert.") — moved verbatim from the
-                        // Composition dropdown's genrePicker.
+                        // Curated palette (founder 2026-07-24 "Genre is better you
+                        // decide and curate something that really fits the brand …
+                        // Die 6 ruhigen Genres"): the picker offers only
+                        // `MusicStyle.offered`, still grouped by sound-world. The full
+                        // taxonomy stays intact (`cat.genres`) — only what's OFFERED is
+                        // curated. Categories with no offered genre are skipped so no
+                        // empty section header shows.
                         ForEach(MusicStyle.Category.allCases) { cat in
-                            Section(cat.title) {
-                                ForEach(cat.genres) { s in Text(s.displayName).tag(s) }
+                            if !cat.offeredGenres.isEmpty {
+                                Section(cat.title) {
+                                    ForEach(cat.offeredGenres) { s in Text(s.displayName).tag(s) }
+                                }
                             }
                         }
                     }

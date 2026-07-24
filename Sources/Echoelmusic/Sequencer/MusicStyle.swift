@@ -71,6 +71,21 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         .selfObservation, .esotericMeditation, .vaporwave, .dubTechno, .trap, .sciFi
     ]
 
+    /// The genres OFFERED in the picker — a curated, brand-fitting palette (founder
+    /// 2026-07-24: "Genre is better you decide and curate something that really fits
+    /// the brand … Die 6 ruhigen Genres. Aber erfinde noch passende dazu.
+    /// Ambient-Meditation-drift-contemplation"). DECOUPLED from the full taxonomy
+    /// below: every genre stays categorised (`Category.genres` is complete, so the
+    /// enum + every exhaustive switch + stored @AppStorage values are untouched and
+    /// reversible) — the picker simply shows only these. Echoel's identity is
+    /// immersive · bio-reactive · contemplative (NOT wellness), so the base leans
+    /// ambient/drift/cinematic. New ambient-family genres (plan G2) are appended here
+    /// as they are built. Reversible: widen or narrow this list, no enum change.
+    /// Guarded in MusicStyleTests (subset of allCases, default is offered, calm).
+    public static let offered: [MusicStyle] = [
+        .selfObservation, .esotericMeditation, .vaporwave, .sciFi, .classical, .dubTechno
+    ]
+
     /// Logical genre groups the Genre picker sorts into (founder 2026-07-11: "Alles
     /// rein. Logisch sortiert. Gehe tief rein" — SUPERSEDES the 2026-07-08 six-calm
     /// curation). Every genre is now offered, organised by sound-world so the calm
@@ -93,7 +108,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             }
         }
 
-        /// The genres in this group, in display order.
+        /// The genres in this group, in display order. This is the FULL taxonomy
+        /// (every genre categorised) — the picker shows `offeredGenres`, not this.
         public var genres: [MusicStyle] {
             switch self {
             case .meditative: return [.selfObservation, .esotericMeditation, .vaporwave, .sciFi]
@@ -102,6 +118,13 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
             case .acoustic:   return [.classical, .jazz, .klezmer, .oriental, .ska, .rocksteady]
             }
+        }
+
+        /// The subset of this group's genres that are actually OFFERED in the picker
+        /// (founder 2026-07-24 curation — see `MusicStyle.offered`). A category with
+        /// no offered genres is skipped in the picker (no empty section header).
+        public var offeredGenres: [MusicStyle] {
+            genres.filter(MusicStyle.offered.contains)
         }
     }
 
