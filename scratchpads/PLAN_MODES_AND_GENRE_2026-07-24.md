@@ -79,4 +79,13 @@ Zwei Arbeitsstränge auf dem reinen Instrument (#124-Home, keine Timeline):
   beachten). Wiederverwendet die vorhandenen Flags, kein neues DSP.
 
 ## Status
-- ▶ **G1 in Arbeit** (dieser Zyklus).
+- ✅ **G1 GESHIPPT** — Commit `cdc0fff`, beide echten Gates grün (Xcode Compile + CI/CD,
+  inkl. der zwei neuen Tests). Picker zeigt nur noch die 6 kontemplativen: Self-Observation ·
+  Deep Ambient · Vaporwave · Sci-Fi · Classical · Dub Techno. Vollständige Taxonomie + Enum
+  unangetastet (reversibel via `offered`-Liste). ui-state-reviewer PASS auf alle 6 Checks.
+  **NEEDS-FOUNDER-VERIFY** (Picker am Gerät; TestFlight-Freeze). Rand-Fall: wer vorher eine
+  jetzt-nicht-angebotene Genre gespeichert hatte, sieht erst keine Picker-Markierung (nicht
+  kritisch; Komposition läuft weiter) — Union-mit-Alt-Wert nur falls Founder es will.
+- ▶ **G2 (nächster Zyklus) — Ambient-Familie erfinden:** je neue `MusicStyle`-Case (Ambient ·
+  Drift · Contemplation) mit voller Signatur, je Genre eine Slice. Danach **M1 — Flow/Loop-
+  Modus-Schalter** (eigener PLAN + Council).
