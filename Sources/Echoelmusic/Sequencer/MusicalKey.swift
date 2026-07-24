@@ -266,9 +266,12 @@ public struct MusicalKey: Codable, Equatable, Sendable {
 
     private static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
-    /// e.g. "C Minor", "A Pentatonic Minor".
+    /// e.g. "C Minor", "C♯ Minor", "A Pentatonic Minor". Uses the typographic sharp
+    /// (♯) so the spelled-out Tonart matches the key picker + piano roll, which already
+    /// render ♯ — the canonical `noteNames` array stays ASCII "#" for `shortName`'s
+    /// filename-safe id path (sharps fold to "s").
     public var name: String {
-        "\(Self.noteNames[root]) \(scale.displayName)"
+        "\(Self.noteNames[root].replacingOccurrences(of: "#", with: "♯")) \(scale.displayName)"
     }
 
     /// Compact, filename-safe key tag, e.g. "Cm", "Csm" (C# minor), "Amaj",

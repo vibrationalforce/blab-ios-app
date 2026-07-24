@@ -69,6 +69,17 @@ final class MusicalKeyTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(MusicalKey.self, from: data), key)
     }
 
+    func testDisplayName_usesTypographicSharp_notAscii() {
+        // The spelled-out Tonart (WorkspaceView) sat next to the key picker, which
+        // already renders the ♯ glyph — but `name` used ASCII "#", so the same screen
+        // showed "C♯" and "C# Minor". `name` now uses the proper ♯; the filename-safe
+        // `shortName` id path is untouched (sharps still fold to "s").
+        let cSharpMinor = MusicalKey(root: 1, scale: .minor)   // C#
+        XCTAssertEqual(cSharpMinor.name, "C♯ Minor")
+        XCTAssertFalse(cSharpMinor.name.contains("#"), "display name must use ♯, not ASCII #")
+        XCTAssertEqual(cSharpMinor.shortName, "Csm", "filename id path stays ASCII-safe")
+    }
+
     func testAllScalesNonEmptyAndInRange() {
         for scale in Scale.allCases {
             XCTAssertFalse(scale.intervals.isEmpty)
