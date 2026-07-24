@@ -396,13 +396,34 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
 
     private enum CodingKeys: String, CodingKey { case lanes, regions, automation }
 
-    /// Backward-compatible decode: documents saved before the automation field
-    /// (or before any given key) load with empty defaults, never a decode failure.
+    /// Wrapper that decodes an element or yields nil on a malformed one, always
+    /// consuming exactly one array slot so the unkeyed decode can't stall.
+    private struct Lossy<T: Decodable>: Decodable {
+        let value: T?
+        init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+    }
+
+    /// Decode `key`'s array ELEMENT-tolerantly: a corrupt element (wrong type / not an
+    /// object) is dropped, never thrown. Well-formed docs are unchanged (every element
+    /// decodes, order preserved). Absent/renamed/wrong-typed array → [].
+    private static func lossyArray<T: Decodable>(
+        _ type: T.Type, in c: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys
+    ) -> [T] {
+        let wrapped = try? c.decodeIfPresent([Lossy<T>].self, forKey: key)
+        return (wrapped ?? []).compactMap { $0.value }
+    }
+
+    /// Backward-compatible + element-isolated decode (Ultraarchitecture A1.3). Documents
+    /// saved before a key load with empty defaults, and — crucially — a single corrupt
+    /// lane/region/automation element is DROPPED, not rethrown. Previously the array
+    /// decode rethrew any surviving element error (e.g. a wrong-typed element the field-
+    /// level decodeIfPresent can't absorb), which made AppGroupStore.load nil and
+    /// vaporized the user's whole song. Now only the bad element is lost.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        lanes = try c.decodeIfPresent([TimelineLane].self, forKey: .lanes) ?? []
-        regions = try c.decodeIfPresent([TimelineRegion].self, forKey: .regions) ?? []
-        automation = try c.decodeIfPresent([AutomationLane].self, forKey: .automation) ?? []
+        lanes = Self.lossyArray(TimelineLane.self, in: c, forKey: .lanes)
+        regions = Self.lossyArray(TimelineRegion.self, in: c, forKey: .regions)
+        automation = Self.lossyArray(AutomationLane.self, in: c, forKey: .automation)
     }
 
     public func regions(in laneID: UUID) -> [TimelineRegion] {

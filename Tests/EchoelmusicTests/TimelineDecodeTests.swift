@@ -112,4 +112,56 @@ final class TimelineDecodeTests: XCTestCase {
                                              from: try JSONEncoder().encode(r))
         XCTAssertEqual(round, r)
     }
+
+    // MARK: Document array element-isolation (A1.3) — a non-decodable element is dropped
+
+    func testDocument_corruptLaneElement_isDropped_restSurvive() throws {
+        // Middle element is a non-object (a string) — even the field-level defensive
+        // decoder can't absorb it, so it must be DROPPED, not vaporize the document.
+        let doc = try decode(TimelineDocument.self, #"""
+        {"lanes":[
+            {"id":"00000000-0000-0000-0000-000000000030","name":"A","kind":"midi"},
+            "not-a-lane",
+            {"id":"00000000-0000-0000-0000-000000000031","name":"B","kind":"audio"}
+         ],"regions":[],"automation":[]}
+        """#)
+        XCTAssertEqual(doc.lanes.count, 2, "corrupt lane dropped, valid ones kept")
+        XCTAssertEqual(doc.lanes.map { $0.name }, ["A", "B"], "order preserved")
+    }
+
+    func testDocument_corruptRegionElement_isDropped_restSurvive() throws {
+        let doc = try decode(TimelineDocument.self, #"""
+        {"lanes":[],"regions":[
+            {"id":"00000000-0000-0000-0000-000000000040","laneID":"00000000-0000-0000-0000-000000000041","clipID":"00000000-0000-0000-0000-000000000042","startTick":0,"lengthTicks":96},
+            42
+         ],"automation":[]}
+        """#)
+        XCTAssertEqual(doc.regions.count, 1, "corrupt region element dropped")
+        XCTAssertEqual(doc.regions.first?.lengthTicks, 96)
+    }
+
+    func testDocument_corruptAutomationElement_isDropped_restSurvive() throws {
+        let doc = try decode(TimelineDocument.self, #"""
+        {"lanes":[],"regions":[],"automation":[
+            {"id":"00000000-0000-0000-0000-000000000050","parameter":"filter.cutoff","points":[]},
+            "garbage"
+         ]}
+        """#)
+        XCTAssertEqual(doc.automation.count, 1, "corrupt automation lane dropped")
+        XCTAssertEqual(doc.automation.first?.parameter, "filter.cutoff")
+    }
+
+    func testDocument_allValid_roundTripPreservesOrderAndContent() throws {
+        var a = AutomationLane(parameter: "mix.level")
+        a.addPoint(tick: 0, value: 0.3)
+        let doc = TimelineDocument(
+            lanes: [TimelineLane(name: "One", kind: .midi),
+                    TimelineLane(name: "Two", kind: .audio)],
+            regions: [TimelineRegion(laneID: UUID(), clipID: UUID(),
+                                     startTick: 0, lengthTicks: 480)],
+            automation: [a])
+        let round = try JSONDecoder().decode(TimelineDocument.self,
+                                             from: try JSONEncoder().encode(doc))
+        XCTAssertEqual(round, doc, "well-formed document round-trips losslessly, order kept")
+    }
 }
