@@ -61,10 +61,15 @@ public struct AutomationPoint: Codable, Sendable, Equatable, Identifiable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(UUID.self, forKey: .id)
-        tick = max(0, try c.decode(Int.self, forKey: .tick))
-        value = AutomationPoint.clamp(try c.decode(Double.self, forKey: .value))
-        curve = try c.decode(AutomationCurve.self, forKey: .curve)
+        // The decodeIfPresent LAW (SynthPatch/Project): every field tolerates absence
+        // via a sensible default, so a renamed/removed field degrades THIS field, never
+        // throws — an AutomationPoint decode error otherwise cascades up through
+        // TimelineDocument and vaporizes the user's whole song. `id` folds to a fresh
+        // UUID (identity is per-keyframe, not user-meaningful); the rest default neutral.
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        tick = max(0, try c.decodeIfPresent(Int.self, forKey: .tick) ?? 0)
+        value = AutomationPoint.clamp(try c.decodeIfPresent(Double.self, forKey: .value) ?? 0)
+        curve = try c.decodeIfPresent(AutomationCurve.self, forKey: .curve) ?? .linear
         curvature = AutomationPoint.clampCurvature(
             try c.decodeIfPresent(Double.self, forKey: .curvature) ?? 0)
     }
@@ -83,6 +88,31 @@ public struct AutomationLane: Codable, Sendable, Equatable, Identifiable {
         self.id = id
         self.parameter = parameter
         self.points = points.sorted { $0.tick < $1.tick }
+    }
+
+    // Defensive decode (the decodeIfPresent LAW). AutomationLane decodes inside
+    // TimelineDocument; a synthesized decoder makes id/parameter/points REQUIRED, so a
+    // single renamed field threw → TimelineDocument rethrew → AppGroupStore.load nil →
+    // the user's whole song was lost. Now: identity fields fall back (id→fresh UUID,
+    // parameter→""), and points decode ELEMENT-tolerantly so one corrupt keyframe is
+    // dropped, not the lane. Encoding stays synthesized/bit-identical (same keys).
+    private enum CodingKeys: String, CodingKey { case id, parameter, points }
+
+    /// Wrapper that decodes an AutomationPoint or yields nil on a malformed element,
+    /// always consuming exactly one array slot (so the unkeyed decode can't stall).
+    private struct LossyPoint: Decodable {
+        let point: AutomationPoint?
+        init(from decoder: Decoder) throws { point = try? AutomationPoint(from: decoder) }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        parameter = try c.decodeIfPresent(String.self, forKey: .parameter) ?? ""
+        // `points` absent/renamed → []; present-but-wrong-type → []; a valid array with
+        // some corrupt elements → the good keyframes only (LossyPoint drops the bad).
+        let decoded: [LossyPoint]? = try? c.decodeIfPresent([LossyPoint].self, forKey: .points)
+        points = (decoded ?? []).compactMap { $0.point }.sorted { $0.tick < $1.tick }
     }
 
     public var isEmpty: Bool { points.isEmpty }
