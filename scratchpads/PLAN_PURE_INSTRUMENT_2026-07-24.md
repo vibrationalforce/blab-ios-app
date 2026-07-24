@@ -90,4 +90,16 @@ beim Founder für die großen Slices).
 - #120 Metronom, #104/105/106 Roadmap (Loop/Master-Stem/Video-Export): OBSOLET durch den Cut.
 - EchoelStore/Push/CloudKit: unberührt (dormant), separat.
 
-## Status: PLAN gelockt. Demontage startet nächster Zyklus mit Slice 1 (AUv3-Target).
+## Status: PLAN gelockt.
+- ✅ **Slice 1 (AUv3-Target-Removal) GESHIPPT** — Commit `5ef8856`, beide echten Gates grün
+  (Xcode Compile Check #1087 + CI/CD Pipeline #4552). EchoelmusicAUv3-Target + Embed +
+  Entitlements + Info + Sources/EchoelmusicAUv3 + Scheme raus; testflight.yml AUv3-compile_scheme
+  + Hard-Fail-Embed-Verify raus. build-error-resolver-Reviewer: ZERO real breakers. Kein
+  App-Verhalten geändert (nur der Plugin-Build), kein Deploy (TestFlight-Freeze).
+  Offene Slice-2-Reste (nicht blockierend, degradieren graceful): testflight.yml 3 non-blocking
+  AUv3-Signing/Scan-Diagnose-Steps (exit 0 bei fehlendem appex), `Echoelmusic.entitlements`
+  `inter-app-audio` (verwaist, kein Signing-Bruch), `Tests/…/AUv3ScanDiagnosticTests.swift`
+  (String-Test, kompiliert weiter). App-Group `group.com.echoelmusic` BLEIBT (Widget braucht sie).
+- ▶ **Nächster Zyklus: Slice 2 (AUv3-Hosting-Removal)** — Dritt-Plugin-Türen/Registry aus dem
+  App-UI (AUv3BrowserView, AVAudioUnit-Lane-Hosting, ~59 Refs) + die o.g. testflight.yml-Diagnose-
+  Steps + `inter-app-audio`-Entitlement + der stale Scan-Test.
