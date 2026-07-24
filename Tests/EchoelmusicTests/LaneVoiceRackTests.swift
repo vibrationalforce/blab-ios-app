@@ -185,6 +185,21 @@ final class LaneVoiceRackTests: XCTestCase {
                        "concert pitch must reach the lane sub (in tune at A=432)")
     }
 
+    func testSetTuning_fansToEveryLaneMelodicVoice() {
+        // The lane MELODIC voices (the PolySynthVoice pool) must follow the concert
+        // pitch too — before this they were skipped by setTuning and droned at the
+        // hardcoded 440 while subs/bios/global synth retuned to e.g. A=432 (out of tune).
+        let rack = LaneVoiceRack(capacity: 2)
+        let v0 = PolySynthVoice(maxVoices: 2)
+        let v1 = PolySynthVoice(maxVoices: 2)
+        rack.installVoicesForTests([v0, v1])
+        rack.setTuning(a4Hz: 432)
+        XCTAssertEqual(v0.lastTuningForTests ?? -1, 432, accuracy: 1e-6,
+                       "concert pitch must reach lane melodic voice 0 (was droning at 440)")
+        XCTAssertEqual(v1.lastTuningForTests ?? -1, 432, accuracy: 1e-6,
+                       "concert pitch must reach lane melodic voice 1")
+    }
+
     // MARK: - S2-W3 sampler unit (EchoelSampler lane audible)
 
     func testSetKind_sampler_bindsTheSamplerUnit_andNoteOnFiresIt() {

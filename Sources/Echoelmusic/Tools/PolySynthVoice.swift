@@ -370,11 +370,21 @@ public final class PolySynthVoice {
         440 * powf(2, (Float(note) - 69) / 12)
     }
 
+    #if DEBUG
+    /// TEST SEAM (Debug-only): last concert pitch fanned in, so the lane-rack
+    /// setTuning fan can be pinned to the poly voices without an engine (mirrors
+    /// SubBassVoice.lastTuningForTests).
+    @ObservationIgnored internal private(set) var lastTuningForTests: Double?
+    #endif
+
     /// Set the concert pitch (Kammerton) the voices tune to. A4 in Hz, clamped to
     /// a musical range so a stray value can't detune into inaudibility. Takes effect
     /// on the next note (and is safe to call while a loop plays).
     public func setTuning(a4Hz: Double) {
         poly.a4Hz = Float(min(max(a4Hz, 380), 500))
+        #if DEBUG
+        lastTuningForTests = a4Hz
+        #endif
     }
 
     /// Per-instrument TRANSPOSE (founder 2026-07-14): shift this voice's pitch by whole

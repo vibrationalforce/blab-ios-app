@@ -174,6 +174,11 @@ public final class LaneVoiceRack {
     /// gets this; without it a lane sub droned off-pitch at e.g. A=432). No-op
     /// while flag OFF (subs empty). Control-path (setTuning writes an atomic).
     public func setTuning(a4Hz: Double) {
+        // The lane MELODIC voices (the PolySynthVoice pool) must follow A4 too — they
+        // were skipped here and every lane MIDI note played at the hardcoded 440 while
+        // subs/bios/global synth retuned, so a melodic lane droned off-pitch at e.g.
+        // A=432. Same atomic control-path (setTuning writes poly.a4Hz, read at next note).
+        for v in voices { v.setTuning(a4Hz: a4Hz) }
         for s in subs { s.setTuning(a4Hz: a4Hz) }
         // BodyVibe B1: the lane BIO voices must follow A4 too — without this a lane bio
         // unit played every MIDI note at a hardcoded 440 and drifted off-pitch at e.g.
