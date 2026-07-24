@@ -400,3 +400,13 @@ largely hardened (#92 NaN, #97 HRV-scale, #95/#117 decode). When no unambiguous 
 DO NOT manufacture a marginal/possibly-intentional edit to satisfy the loop — log the verified-clean
 state + any real-but-dev:True finding (e.g. #120 metronome tempo-sync) and say so honestly. A
 verification cycle with an honest "cores clean, nothing to force" is a valid Ralph outcome.
+
+## 2026-07-24 — DEAD-END: deleting a Source file, grep only the class name
+When deleting a whole Source file, a `grep <ClassName>` MISSES sibling tests named
+after a SECONDARY type the file also defined. `Audio/AUNoteVoice.swift` also housed the
+`AUNoteMIDI` enum; grepping `AUNoteVoice` came back clean but `AUNoteMIDITests.swift`
+(testing `AUNoteMIDI`) broke the test-target compile. The app library compiled fine — only
+`swift test`/CI-Pipeline caught it. PLAYBOOK: before deleting a file, `grep` EVERY top-level
+type/enum/struct it declares (read the file's decls), then grep each across Tests/ too. The
+audio-thread-reviewer's compile-gate pass caught this; a pre-push symbol-by-symbol grep would
+have caught it earlier.
