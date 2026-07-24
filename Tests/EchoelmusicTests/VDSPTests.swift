@@ -198,6 +198,24 @@ final class EchoelBiquadCascadeTests: XCTestCase {
         XCTAssertEqual(output.count, 128)
     }
 
+    func testOutOfRangeSection_isNoOp_neverTraps() {
+        // The setters guard `section < sectionCount` AND (now) `section >= 0`. A
+        // negative section would make `idx = section * 5` a negative subscript into
+        // `coefficients` → out-of-bounds trap. Reaching the end of this test IS the
+        // assertion (a trap would crash the run). A valid band must still apply after.
+        let cascade = EchoelBiquadCascade(sectionCount: 2)
+        for bad in [-1, -100, 2, 5, Int.min / 5] {
+            cascade.setParametricEQ(section: bad, frequency: 1000, gain: 3, q: 1, sampleRate: 48000)
+            cascade.setLowpass(section: bad, frequency: 1000, q: 0.707, sampleRate: 48000)
+            cascade.setHighpass(section: bad, frequency: 200, q: 0.707, sampleRate: 48000)
+        }
+        // A valid section still works and produces finite output.
+        cascade.setLowpass(section: 0, frequency: 1000, q: 0.707, sampleRate: 48000)
+        let output = cascade.process(Array(repeating: 0.4, count: 128))
+        XCTAssertEqual(output.count, 128)
+        for s in output { XCTAssertFalse(s.isNaN); XCTAssertFalse(s.isInfinite) }
+    }
+
     func testReset() {
         let cascade = EchoelBiquadCascade()
         cascade.setLowpass(section: 0, frequency: 500, q: 0.7, sampleRate: 48000)
