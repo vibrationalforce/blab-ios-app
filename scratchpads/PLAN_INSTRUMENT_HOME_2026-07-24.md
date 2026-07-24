@@ -78,6 +78,17 @@ Oberfläche. Plus: nur kuratierte gut-klingende Genres, Konvergenz-Bug bleibt we
   Sheet, nur `running`-@State). H2: `timelineExpanded` default `true→false` (Founder-Ask erfüllt).
   **NEEDS-FOUNDER-VERIFY**: Launch-UX + Metadata-Runtime nur am Gerät verifizierbar (Compile-Gate
   beweist Build, nicht das Metadata-Budget). Nächster TestFlight nach Freeze-Lift → Founder-Pass.
-- ▶ **H3 — Timeline ganz raus aus `SurfaceHost`** (nächster Zyklus, = Epic #121 Slice 4):
-  `ArrangeTimelineView()`-Mount + die Fold-Leiste entfernen, Home = `EchoelStudioView` allein.
-- **H4 — Chrome reconcilen** (danach). **Genre-Kuration** bleibt Founder-gated (Keep-Liste).
+- ✅ **H3 GESHIPPT** — Commit `2f8dba1` „refactor: remove Arrange timeline from home". Der
+  `ArrangeTimelineView()`-Mount + die Fold-Leiste + `workspace.timelineExpanded`-@AppStorage +
+  der `timelineBar`-Builder sind alle raus; `SurfaceHost` ist jetzt ein statischer Wrapper, der
+  NUR `EchoelStudioView` mountet. Konvergiert mit #121 Slice 4 („DAW-UI-Removal"). Rein
+  SUBTRAKTIV → schrumpft den composed tree (kann das Metadata-Budget nur entlasten, nie
+  vergrößern — Black-Screen-Gesetz); `SurfaceHost` liest kein @Observable/@AppStorage mehr →
+  rebuildet nie (Freeze-Gesetz trivial safe); H7-Invariante trivial gehalten (`EchoelStudioView`
+  = einziges Kind). `ArrangeTimelineView`/`SurfaceSwitcherBar` bleiben im Code, unmounted,
+  reversibel — KEINE Datei-Löschung. ui-state-reviewer PASS auf alle 5 Render-Checks; stale
+  WorkspaceView-Kommentar mitgezogen. **NEEDS-FOUNDER-VERIFY** (Launch-UX nur am Gerät,
+  TestFlight-Freeze).
+- ▶ **H4 — Chrome reconcilen** (nächster Zyklus): klären, ob das alte Interface Genre/Tempo
+  wieder selbst zeigt oder `CompositionHeaderStrip`/`TransportBar` sie behalten — Founder-Gerät
+  entscheidet. **Genre-Kuration** (#125) bleibt Founder-gated (Keep-Liste).
