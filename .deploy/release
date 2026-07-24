@@ -1,34 +1,28 @@
-build: v10.79.347 — Stimmung in den Spuren + größere Tap-Ziele + ehrliche Licht-Copy
+build: v10.79.348 — Notennamen-♯ konsistent (kleiner Politur-Build)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Kleiner, ehrlicher Build auf v346. Drei reviewer-saubere, geräte-sichtbare Fixes —
-  einer davon HÖRBAR. Beide echten Gates grün (Xcode Compile Check + CI/CD Pipeline).
+  Ehrlich klein: EIN sichtbarer Politur-Fix, beide echten Gates grün.
 
-  1) HÖRBAR — Stimmung (Kammerton) in den melodischen Spuren:
-     Der Lane-Kammerton-Fächer stimmte Sub- und Bio-Stimmen, übersprang aber den
-     melodischen Voice-Pool. Folge: jede melodische Spur spielte MIDI-Noten auf
-     hartkodierten 440 Hz, während Subs/Bios/Global-Synth auf deinen Kammerton
-     umstimmten — eine melodische Spur drohnte verstimmt bei z.B. A=432. Jetzt folgt
-     auch der melodische Pool dem Kammerton (gleicher atomarer Control-Path, Audio-
-     Thread unberührt, Release bit-identisch). Test-first, audio-thread-reviewer CLEAN.
-     → Geräte-Verify: Kammerton auf z.B. 432 stellen, eine melodische Spur gegen eine
-       Bass-Spur spielen — sie müssen jetzt zusammen stimmen.
+  Notennamen — typografisches ♯ überall: die ausgeschriebene Tonart nutzt jetzt das
+  echte ♯-Zeichen (statt ASCII „#"), passend zum Tonart-Picker, Piano-Roll, Touch-
+  Keyboard und Tuning-Detector, die ♯ schon rendern. Vorher stand „C♯" (Picker) direkt
+  neben „C# Minor" (ausgeschriebene Tonart) auf demselben Bildschirm. Der Filename-Id-
+  Pfad (shortName, ♯→„s") bleibt unangetastet. Test-first, code-reviewer CLEAN.
 
-  2) SICHTBAR — Header-Monitor-Kacheln + Transport-•••-Menü ≥44 pt Tap-Ziele (HIG):
-     die sichtbaren Chips bleiben unverändert, nur die Trefferfläche wächst (Header
-     vertikal, Transport symmetrisch) — knappe Taps daneben sind Geschichte.
+  Warum sonst nichts Größeres in diesem Build: die reversibel/reviewer-verifizierbare
+  Arbeit ist im Kern abgearbeitet — die Konsistenz-Audits sind gedraint (verifiziert),
+  die reinen Bio-/Kompositions-Math-Cores sind defensiv geschützt (kein Div-by-Zero),
+  und die persistierten Dokumente tragen die decodeIfPresent-Härtung (v346). Die
+  verbleibenden Wertstufen hängen bewusst an DIR:
 
-  3) MARKE — Licht-Wissen ehrlich (kein Heilungs-Thema):
-     der Rot/NIR-Lern-Eintrag lehrte Photobiomodulation/mitochondriale Cytochrom-c-
-     Oxidase/„ins Gewebe" — das Pre-Echoel-Heilungs-Thema, getarnt mit „kein Health-
-     Claim". Neu geschrieben zu reiner Optik + Echoels echtem Licht-Pfad (CIE 1931 →
-     Art-Net/sACN). Der Marken-Test bannt jetzt die Heilungs-Nomen, nicht nur die Verben.
+  1) Positionierung „Gesundheit-first vs. DMMW-Profi" (scratchpads/PLAN_POSITIONING_
+     HEALTH_FORK_2026-07-24.md) — ein Wort genügt (Mitte / volle Reposition / nur Sprawl
+     stoppen). Bis dahin kein Brand-/ASO-Eingriff.
+  2) Geräte-Verify von v347 (Kammerton-Tuning HÖRBAR: A4=432, melodische Spur gegen Bass
+     — stimmen sie jetzt zusammen?).
+  3) Das Metronom folgt noch nicht dem bio-/automatisierten Tempo (Task #120) — der
+     saubere Fix (Metronom folgt dem live-geglätteten Tempo aus EINER Quelle) braucht
+     einen kleinen Plan + Gerät-Ohr, kein blinder Call-Site-Fix (der würde den Klick
+     ruckeln lassen). Bewusst aufgeschoben statt verschlimmbessert.
 
-  Dazwischen (unsichtbar): #114/#116-Audit-Backlogs gegen echten Source verifiziert und
-  als weitgehend GEDRAINT bestätigt (8+ Kandidaten schon gefixt/fehl-geflaggt) — der
-  Rest ist geräte-verify-abhängig, kein Blind-Ship. Rausch-Triad unberührt, kein
-  Heilungs-Claim, keine neue Oberfläche.
-
-  Offen (hält bewusst auf Founder): die Positionierungs-Frage „Gesundheit-first vs
-  DMMW-Profi" (scratchpads/PLAN_POSITIONING_HEALTH_FORK_2026-07-24.md) — kein Brand-/
-  Sources-Positionierungs-Eingriff bis zur Richtungs-Entscheidung.
+  Rausch-Triad unberührt, kein Heilungs-Claim, keine neue Oberfläche.
