@@ -34,10 +34,11 @@ struct ArrangeTimelineView: View {
     // toolbar body — the menu-freeze rule stays honored (like the playhead leaf).
     @Environment(Transport.self) private var transport
     // Per-lane sound distribution (founder 2026-07-12: "Teile das sinnvoll in
-    // die Spuren auf. Externe AUv3 inbegriffen") — the lane door now opens the
-    // lane's OWN sound: the melodic-bus insert (live-applied to the roll's
-    // voices) and the AUv3 host. Same stores/voices the Studio menus use — one
-    // source of truth, just reachable where the work happens.
+    // die Spuren auf") — the lane door opens the lane's OWN sound: the melodic-
+    // bus insert (live-applied to the roll's voices) and the built-in synth
+    // patch. Same stores/voices the Studio menus use — one source of truth, just
+    // reachable where the work happens. (Third-party AUv3 hosting removed
+    // 2026-07-24, pure-instrument verdict.)
     @Environment(TrackFXStore.self) private var trackFX
     @Environment(PolySynthVoice.self) private var synth
     // Adaptive head column: fits the narrowest supported iPhone (360 pt) and lets iPad
@@ -56,11 +57,6 @@ struct ArrangeTimelineView: View {
     /// registers no 10 Hz churn (freeze law).
     @Environment(LaneVoiceRack.self) private var laneVoiceRack
     @Environment(\.leadSynth) private var leadSynth
-    // U3b: the AUv3 host, so a track head can SHOW its plugin assignment and
-    // record the currently-loaded plugin onto the lane. `loaded`/`loadedEffects`
-    // are low-frequency (change only on load/unload) — safe to read in the menu.
-    @Environment(AUv3Host.self) private var auHost
-
     /// The ONE editor sheet this surface owns (U1). A single `.sheet(item:)` over
     /// an enum — a lane head opens `.lane`, a long-pressed region opens `.region`.
     /// Never a second `.sheet` (metadata-SIGSEGV law); EchoelValueField's own keypad
@@ -269,11 +265,6 @@ struct ArrangeTimelineView: View {
         case region(TimelineRegion)
         /// Per-lane sound: the melodic-bus insert editor (roll voices).
         case laneFX(TimelineLane)
-        /// The AUv3 host browser — external instruments/effects, ON the track
-        /// (founder: "Externe AUv3 inbegriffen"). Carries the invoking lane so a
-        /// tap in the browser assigns DIRECTLY to that track (founder 2026-07-20:
-        /// "einfache Lösung … direkt auf die Spur"); nil = the global browser.
-        case plugins(TimelineLane?)
         /// E2a (founder: "alles vertikal auf die Spuren"): the synth patch
         /// editor, on the MIDI lane. Re-doors PatchEditorView (its studio
         /// sheet trigger died with the Tools grid — deep audit 2026-07-12).
@@ -298,7 +289,6 @@ struct ArrangeTimelineView: View {
             case .lane(let l):   return "lane-\(l.id)"
             case .region(let r): return "region-\(r.id)"
             case .laneFX(let l): return "lanefx-\(l.id)"
-            case .plugins(let l): return "plugins-\(l?.id.uuidString ?? "global")"
             case .patch(let l):  return "patch-\(l.id)"
             case .automation:    return "automation"
             case .clipAutomation(let r): return "clipautomation-\(r.id)"
@@ -475,25 +465,6 @@ struct ArrangeTimelineView: View {
                 editor(forKind: clips.clip(id: region.clipID)?.kind ?? .midi)
             }
         case .laneFX(let lane):   LaneFXEditor(laneName: lane.name, laneID: lane.id)
-        case .plugins(let lane):
-            if let lane {
-                // Direct-to-track: tapping an instrument sets the lane's sound; an
-                // effect appends to its chain (capped). LaneAUInstrumentHost.
-                // syncAssignments instantiates from the persisted refs. Read the
-                // LIVE lane each time (a prior assign in the same sheet may have
-                // grown the chain) — never the captured snapshot.
-                AUv3BrowserView(laneTarget: .init(
-                    name: lane.name,
-                    assignInstrument: { timeline.setLaneInstrument(id: lane.id, AUPluginRef($0)) },
-                    assignEffect: { au in
-                        let current = timeline.document.lanes.first { $0.id == lane.id }?.effects ?? []
-                        guard current.count < LaneAUAssignment.maxEffectsPerLane else { return false }
-                        timeline.setLaneEffects(id: lane.id, current + [AUPluginRef(au)])
-                        return true
-                    }))
-            } else {
-                AUv3BrowserView()
-            }
         case .patch(let lane):
             // #23 S2 — the patch editor, seeded from THIS lane's own timbre.
             // Secondary lane: nil ⇒ a fresh Init (persisted on change, heard on
@@ -1044,7 +1015,7 @@ struct ArrangeTimelineView: View {
                 }
             }
             // The lane's SOUND, on the lane (founder 2026-07-12): the melodic
-            // bus insert for MIDI lanes + the AUv3 host for both media kinds.
+            // bus insert + built-in synth patch for MIDI lanes.
             if !lane.isBio, lane.kind == .midi {
                 Button { activeModal = .laneFX(lane) } label: {
                     Label("Sound & FX (this track)", systemImage: "slider.horizontal.3")
@@ -1054,33 +1025,6 @@ struct ArrangeTimelineView: View {
                 }
             }
             if !lane.isBio {
-                // U3b: the plugin this track carries — visible + settable per track.
-                // The header shows the current assignment; Browse opens the shared
-                // AUv3 host; Assign records what's loaded onto THIS lane (persisted
-                // intent — per-lane routing waits for multi-roll).
-                Section {
-                    Button { activeModal = .plugins(lane) } label: {
-                        Label("Add instrument or effect…", systemImage: "puzzlepiece.extension")
-                    }
-                    if let loaded = auHost.loaded, loaded.isInstrument {
-                        Button {
-                            timeline.setLaneInstrument(id: lane.id, AUPluginRef(loaded))
-                            timeline.setLaneEffects(id: lane.id, auHost.loadedEffects.map { AUPluginRef($0) })
-                        } label: {
-                            Label("Assign “\(loaded.name)” to this track", systemImage: "arrow.down.circle")
-                        }
-                    }
-                    if lane.instrument != nil || !lane.effects.isEmpty {
-                        Button(role: .destructive) {
-                            timeline.setLaneInstrument(id: lane.id, nil)
-                            timeline.setLaneEffects(id: lane.id, [])
-                        } label: {
-                            Label("Clear plugin assignment", systemImage: "xmark.circle")
-                        }
-                    }
-                } header: {
-                    Text(pluginAssignmentSummary(lane))
-                }
                 Button { activeModal = .automation } label: {
                     Label("Automation", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                 }
