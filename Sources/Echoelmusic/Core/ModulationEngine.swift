@@ -217,9 +217,16 @@ public final class ModulationEngine {
         // observers every tick. Set before the empty-guard so the meter clears.
         if lastOutputs != result { lastOutputs = result }
         guard !result.isEmpty else { return }
+        // 5.1.3 egress parity. The on-device apply (`destinations[]`) ALWAYS runs — a
+        // HealthKit/.watch/.oura reading may drive the LOCAL tempo/params, which never
+        // leaves the device. But the NETWORK tap (`outputTap` → OSC /echoelmusic/mod/*)
+        // must honor the SAME `BioEgressPolicy` as every frame sender: the raw frame from
+        // a blocked source is withheld in `OSCSender.sendIfFresh`, so a modulation value
+        // DERIVED from it must not egress either. Gate ONLY the tap on the frame's source.
+        let allowsEgress = BioEgressPolicy.allowsEgress(frame.source)
         for (destination, value) in result {
             destinations[destination.key]?(value)
-            outputTap?(destination, value)
+            if allowsEgress { outputTap?(destination, value) }
         }
         lastAppliedTimestamp = CFAbsoluteTimeGetCurrent()
     }

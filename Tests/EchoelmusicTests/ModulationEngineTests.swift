@@ -4,11 +4,12 @@ import XCTest
 @MainActor
 final class ModulationEngineTests: XCTestCase {
 
-    private func frame(coh: Float = 0.5, hr: Float = 120, ts: TimeInterval = 0) -> BioSampleFrame {
+    private func frame(coh: Float = 0.5, hr: Float = 120, ts: TimeInterval = 0,
+                       source: BioSource = .fallback) -> BioSampleFrame {
         BioSampleFrame(
             timestamp: ts, heartRateBPM: hr, hrvNormalized: 0.5,
             breathRate: 12, breathPhase: 0.5, coherence: coh,
-            motionEnergy: 0.5, source: .fallback
+            motionEnergy: 0.5, source: source
         )
     }
 
@@ -265,6 +266,33 @@ final class ModulationEngineTests: XCTestCase {
         engine.outputTap = { _, _ in calls += 1 }
         engine.apply(frame(coh: 1.0))
         XCTAssertEqual(calls, 0)
+    }
+
+    // MARK: - output-tap egress gate (App Store 5.1.3)
+
+    func testOutputTap_blockedForHealthKitSource_butOnDeviceApplyStillRuns() {
+        // A modulation DERIVED from a HealthKit frame must not leave the device over OSC
+        // (the raw frame is blocked in OSCSender.sendIfFresh, so its derivative must be
+        // too) — yet the ON-DEVICE apply must still drive local params.
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "a")]))
+        var tapped = false
+        var appliedLocally = false
+        engine.register("a") { _ in appliedLocally = true }
+        engine.outputTap = { _, _ in tapped = true }
+        engine.apply(frame(coh: 0.8, source: .healthKit))
+        XCTAssertTrue(appliedLocally, "on-device apply always runs (HealthKit may drive local params)")
+        XCTAssertFalse(tapped, "HealthKit-derived modulation must NOT egress over OSC (5.1.3)")
+    }
+
+    func testOutputTap_allowedForOwnMeasuredSource() {
+        // Own-measured sources (camera rPPG / BLE strap / demo) may egress.
+        for src in [BioSource.cameraPPG, .ble, .fallback] {
+            let engine = ModulationEngine(matrix: ModulationMatrix(routes: [route(.coherence, "a")]))
+            var tapped = false
+            engine.outputTap = { _, _ in tapped = true }
+            engine.apply(frame(coh: 0.8, source: src))
+            XCTAssertTrue(tapped, "own-measured (\(src)) modulation may egress")
+        }
     }
 
     // MARK: - persistence
