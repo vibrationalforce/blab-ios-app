@@ -29,18 +29,6 @@
 	<key>com.apple.developer.weatherkit</key>
 	<true/>
 
-	<!-- Inter-App Audio — the gate that lets this app HOST third-party AUv3
-	     (device log v296/2403: our process saw 101 Apple in-process units,
-	     0 out-of-process — while AUM on the same device saw them; research +
-	     Apple DevForums 127481/89762 + universal host practice: without this
-	     entitlement AVAudioUnitComponentManager returns ONLY Apple built-ins).
-	     The IAA streaming *feature* is deprecated, but the entitlement remains
-	     what the component manager checks for third-party AU discovery, and
-	     every AU host (AUM/Loopy/AudioKit) declares it. Provisioned on the next
-	     archive by automatic signing + -allowProvisioningUpdates. -->
-	<key>inter-app-audio</key>
-	<true/>
-
 	<!-- App Groups (shared data with extensions — the REAL sharing channel:
 	     BioFeedbackManager App-Group UserDefaults). keychain-access-groups was
 	     REMOVED 2026-07-16 (audit): zero keychain API usage anywhere in Sources,
