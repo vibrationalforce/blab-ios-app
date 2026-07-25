@@ -80,10 +80,19 @@ public enum HRVMetrics {
         return (sumSq / Double(pairs)).squareRoot()
     }
 
-    /// SDNN in milliseconds over every accepted interval, gaps closed — a spread has no
+    /// SDNN in milliseconds over the accepted intervals, gaps closed — a spread has no
     /// adjacency requirement, so pooling across segments is the standard definition.
+    ///
+    /// ISOLATED beats are excluded. A length-1 segment is by construction "an interval
+    /// with a rejection on both sides", which in practice is the compensatory pause after
+    /// an ectopic: the premature beat is rejected, the pause is accepted as a fresh
+    /// anchor, and the return to baseline is rejected against it. Pooling that pause is
+    /// not negligible — one 1100 ms interval among 59 beats of flat 800 ms fabricates
+    /// **38.7 ms of SDNN out of a true ~0**, and on a realistic 40 ms baseline it reads
+    /// 55 ms (+38 %). Clean data produces no length-1 segments at all, so this costs
+    /// nothing while the strap is good.
     public static func sdnn(segments: [[Double]]) -> Double {
-        sdnn(rrMs: segments.flatMap { $0 })
+        sdnn(rrMs: segments.filter { $0.count >= 2 }.flatMap { $0 })
     }
 
     /// pNN50 [0…100] over all WITHIN-segment successive differences.

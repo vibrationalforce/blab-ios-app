@@ -46,21 +46,58 @@ final class RRIntervalHygieneTests: XCTestCase {
         //
         // The long one is NOT dropped, and that is deliberate rather than a miss: the
         // rejection cleared the anchor, so the pause starts a fresh run. It is a beat the
-        // heart really made — the flash it fires is honest, just late — and because it
-        // lands alone between two gaps it forms a length-1 segment that contributes NO
-        // successive difference. So RMSSD and pNN50 never see it; only SDNN pools it,
-        // where one interval in a ~60-beat window is negligible. Rejecting it instead
-        // would mean judging post-gap beats against a stale pre-gap anchor, which is
-        // exactly what locks the filter out during a real rate change.
+        // heart really made — the flash it fires is honest, just late. Rejecting it
+        // instead would mean judging post-gap beats against a stale pre-gap anchor, which
+        // is exactly what locks the filter out during a real rate change.
+        //
+        // ⚠ In THIS record the pause lands alone between two gaps, so it forms a length-1
+        // segment and contributes no successive difference. Do NOT generalise that to
+        // "RMSSD never sees a compensatory pause" — an earlier version of this comment
+        // did, and it is false. It only holds when the beat AFTER the pause is also >20 %
+        // from it (1100→800 = 27 %, so it is here). With a shallower return — 1000 ·
+        // premature 600 · pause 1200 · return 1000 — the return is only 16.7 % from the
+        // pause and is ACCEPTED, so the segment [1200, 1000] feeds a fabricated 200 ms
+        // difference straight into RMSSD.
+        //
+        // Note also the collateral: the 5th interval is a perfectly genuine 800 ms beat,
+        // and it is discarded because it is measured against the pause.
         let raw = [800.0, 800.0, 500.0, 1100.0, 800.0, 800.0]
         let segments = H.acceptedSegments(rrMs: raw)
         XCTAssertFalse(H.accepted(rrMs: raw).contains(500.0))
         XCTAssertEqual(segments, [[800.0, 800.0], [1100.0], [800.0]])
         // True RMSSD of this record is 0: every genuine consecutive pair is 800→800.
         XCTAssertEqual(HRVMetrics.rmssd(segments: segments), 0, accuracy: 1e-9)
-        // Unfiltered, the ectopic pair alone reports ~380 ms — the inflation this exists
-        // to stop, and the number the app used to print as a real measurement.
-        XCTAssertGreaterThan(HRVMetrics.rmssd(rrMs: raw), 300)
+        // Unfiltered it reports √(540000/5) ≈ 328.6 ms — the inflation this exists to
+        // stop, and the number the app used to print as a real measurement.
+        XCTAssertEqual(HRVMetrics.rmssd(rrMs: raw), 328.63, accuracy: 0.01)
+    }
+
+    func testTheShallowReturnCaseThatSlipsThrough() {
+        // The counter-example named above, pinned so the limitation is documented in code
+        // rather than in a comment nobody re-derives. A single ectopic CAN still leave one
+        // fabricated successive difference when the return to baseline is within 20 % of
+        // the compensatory pause.
+        let raw = [1000.0, 1000.0, 600.0, 1200.0, 1000.0, 1000.0]
+        let segments = H.acceptedSegments(rrMs: raw)
+        XCTAssertEqual(segments, [[1000.0, 1000.0], [1200.0, 1000.0, 1000.0]],
+                       "the shallow return is accepted against the pause — known limitation "
+                       + "of the previous-beat Malik variant")
+        // √(40000/3) ≈ 115.5 ms, all of it from the single 1200→1000 step.
+        XCTAssertGreaterThan(HRVMetrics.rmssd(segments: segments), 100)
+    }
+
+    func testIsolatedBeatsAreExcludedFromSDNN() {
+        // A length-1 segment is by construction "an interval with a rejection on both
+        // sides" — in practice the compensatory pause. Pooling it into SDNN is NOT
+        // negligible: one 1100 ms pause among flat 800 ms beats fabricates ~39 ms of
+        // spread out of a true ~0. (An earlier comment of mine called that negligible;
+        // it is wrong by an order of magnitude.)
+        var raw = [Double](repeating: 800.0, count: 8)
+        raw.insert(contentsOf: [400.0, 1100.0], at: 4)   // ectopic + isolated pause
+        let segments = H.acceptedSegments(rrMs: raw)
+        XCTAssertTrue(segments.contains([1100.0]), "precondition: the pause is isolated")
+        XCTAssertEqual(HRVMetrics.sdnn(segments: segments), 0, accuracy: 1e-9,
+                       "the isolated pause must not manufacture spread out of flat beats")
     }
 
     func testRespiratorySinusArrhythmiaSurvives() {
@@ -76,7 +113,11 @@ final class RRIntervalHygieneTests: XCTestCase {
         // the anchor follows the body instead of freezing at the old resting value.
         var raw: [Double] = []
         var rr = 1000.0
-        for _ in 0..<12 { raw.append(rr); rr *= 0.90 }   // 10 % per beat, ~1000 → ~310 ms
+        for _ in 0..<12 { raw.append(rr); rr *= 0.90 }   // 10 % per beat, ~1000 → ~314 ms
+        // 12 is deliberate, not arbitrary: a 13th interval would be 282 ms, under
+        // `minPlausibleMs`, and the test would then fail on the BAND rather than on the
+        // Malik rule it is here to exercise. Keep the last value above 300 ms.
+        XCTAssertGreaterThan(raw.last ?? 0, H.minPlausibleMs)
         XCTAssertEqual(H.accepted(rrMs: raw).count, raw.count,
                        "a genuine rate ramp must not be filtered away as artifact")
     }
@@ -154,6 +195,29 @@ final class RRIntervalHygieneTests: XCTestCase {
         XCTAssertEqual(H.acceptedFraction(rrMs: []), 1, accuracy: 1e-9)
         XCTAssertEqual(H.acceptedFraction(rrMs: [800.0, 800.0, 800.0, 800.0]), 1, accuracy: 1e-9)
         XCTAssertLessThan(H.acceptedFraction(rrMs: [800.0, 2500.0, 250.0, 800.0]), 0.75)
+    }
+
+    func testHRVIsWithheldWhenTooMuchOfTheRecordWasRejected() {
+        // Filtering is not free: what survives had its LARGEST differences preferentially
+        // removed, and the coherence spectrum is built from a spliced record. Past a
+        // rejection rate the numbers stop meaning what they look like, and the publisher
+        // must show "—" rather than a confident figure. The sharpest case is atrial
+        // fibrillation: RR steps there routinely exceed the Malik threshold, so most beats
+        // are discarded and a LOW variability would be displayed where the physiological
+        // truth is extremely high.
+        let good = [Double](repeating: 800.0, count: 40)
+        XCTAssertTrue(H.canStateHRV(rrMs: good))
+
+        // One stray ectopic in a full window must NOT withhold — that is normal life.
+        var oneEctopic = good
+        oneEctopic.insert(400.0, at: 20)
+        XCTAssertTrue(H.canStateHRV(rrMs: oneEctopic),
+                      "a single artifact in ~40 beats must not blank the readout")
+
+        // A wildly irregular record must.
+        let irregular = (0..<40).map { $0 % 2 == 0 ? 500.0 : 1200.0 }
+        XCTAssertLessThan(H.acceptedFraction(rrMs: irregular), H.minAcceptedFractionForHRV)
+        XCTAssertFalse(H.canStateHRV(rrMs: irregular))
     }
 
     func testImplausibleHeartRateFieldIsRejected() {

@@ -169,20 +169,35 @@ public final class PolarH10BioPublisher: NSObject {
                     // Segments, not a flat array: RMSSD and pNN50 read successive pairs,
                     // so closing the gap left by a rejected beat would manufacture the
                     // exact artifact the rejection removed (see RRIntervalHygiene).
-                    let segments = RRIntervalHygiene.acceptedSegments(
-                        rrMs: self.rrIntervals.map { $0 * 1000.0 })   // s → ms
+                    let rawMs = self.rrIntervals.map { $0 * 1000.0 }   // s → ms
+                    let segments = RRIntervalHygiene.acceptedSegments(rrMs: rawMs)
                     let cleanMs = segments.flatMap { $0 }
-                    let rmssd = HRVMetrics.rmssd(segments: segments)
+                    // HONESTY GATE. Filtering is not free: what survives had its LARGEST
+                    // differences preferentially removed, and the spectrum below is built
+                    // from a spliced record. Past a certain rejection rate the numbers stop
+                    // meaning what they appear to mean — the sharpest case being atrial
+                    // fibrillation, where RR steps routinely exceed the Malik threshold, so
+                    // most beats are discarded and a LOW variability would be shown where
+                    // the truth is extremely high. Publishing 0 makes the strip read "—".
+                    let trustworthy = RRIntervalHygiene.canStateHRV(rrMs: rawMs)
+                    let rmssd = trustworthy ? HRVMetrics.rmssd(segments: segments) : 0
                     // Real frequency-domain coherence from the trusted beat-to-beat
                     // RR series (BLE is the only source for which this is valid).
                     // 0 until enough beats / power for a spectrum.
                     //
-                    // Honest limit: the spectrum is built from the CLEANED series, whose
-                    // time base is a cumulative sum — so a rejected beat slightly
-                    // compresses elapsed time across the gap. That small distortion is
-                    // far preferable to feeding the artifact itself, which puts broadband
-                    // power across the whole spectrum and corrupts LF/HF outright.
-                    let reading = HRVCoherence.compute(rrMs: cleanMs, blend: self.coherenceBlend)
+                    // Honest limit, corrected: `HRVCoherence` rebuilds its time base by
+                    // cumulative-summing the intervals, so a rejected beat does compress
+                    // elapsed time — but that shift is negligible (one beat ≈ 1.6 % of a
+                    // ~55 s record moves a 0.1 Hz peak by 0.0016 Hz against a 0.015 Hz
+                    // half-width). The distortion that actually matters is the PHASE
+                    // DISCONTINUITY: splicing two non-adjacent stretches of the RSA
+                    // oscillation inserts a step, and a step is broadband, which inflates
+                    // the denominator of peak/total and biases coherence DOWN. Still the
+                    // better trade — an unremoved outlier is a near-delta impulse, i.e.
+                    // FLAT broadband power, strictly worse for the same denominator.
+                    let reading = trustworthy
+                        ? HRVCoherence.compute(rrMs: cleanMs, blend: self.coherenceBlend)
+                        : CoherenceReading.invalid
                     bus.publish(bio: BioSampleFrame(
                         timestamp: CFAbsoluteTimeGetCurrent(),
                         heartRateBPM: Float(self.latestHR),
@@ -192,9 +207,12 @@ public final class PolarH10BioPublisher: NSObject {
                         coherence: reading.valid ? reading.coherence : 0,
                         motionEnergy: 0,
                         source: .ble,
+                        // Same honesty gate — these two leave the app over OSC to a
+                        // lighting/AV rig, so a confident wrong number travels further
+                        // here than on screen.
                         hrvRMSSDms: Float(rmssd),
-                        hrvSDNNms: Float(HRVMetrics.sdnn(segments: segments)),
-                        hrvPNN50: Float(HRVMetrics.pnn50(segments: segments))
+                        hrvSDNNms: Float(trustworthy ? HRVMetrics.sdnn(segments: segments) : 0),
+                        hrvPNN50: Float(trustworthy ? HRVMetrics.pnn50(segments: segments) : 0)
                     ))
                 }
                 try? await Task.sleep(for: .seconds(1))

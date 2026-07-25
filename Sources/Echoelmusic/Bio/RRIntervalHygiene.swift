@@ -10,8 +10,12 @@
 //  the only path allowed to drive frequency-domain coherence. It was also the only
 //  path with ZERO artifact rejection: `PolarH10BioPublisher` appended every RR the
 //  strap sent, straight into RMSSD/SDNN/pNN50. The UNTRUSTED camera path, meanwhile,
-//  has done IQR outlier rejection on its intervals all along. The most-trusted source
-//  was the least filtered.
+//  at least rejected outliers. The most-trusted source was the least filtered.
+//
+//  (Do NOT read the camera path as the good example — `CameraAnalyzer` IQR-filters into
+//  a COMPACTED array and then computes RMSSD across it, committing exactly the
+//  gap-closing error this file exists to avoid. Two contradictory disciplines currently
+//  live in the repo; the untrusted one has the wrong half. Its own slice.)
 //
 //  That asymmetry matters because RMSSD is built from SUCCESSIVE DIFFERENCES: a single
 //  missed beat (one RR that is the sum of two) or one extra beat inflates it by tens of
@@ -31,6 +35,19 @@
 //  WITHIN a segment. Nothing is interpolated or synthesised: a rejected beat leaves a
 //  gap, it is never replaced by a made-up value.
 //
+//  HONEST LIMIT, and it is the uncomfortable one (bio-safety review 2026-07-25). For
+//  sinusoidal RSA the largest per-beat fractional step is A·π/T (A = peak-to-peak swing,
+//  T = breath period) — heart rate cancels out. At 6 breaths/min a 600 ms swing steps
+//  18.8 % and just passes; beyond ~640 ms it is REJECTED. Strong RSA during slow
+//  resonance breathing routinely reaches that. Worse, the rejection is phase-locked: it
+//  fires only at the steepest slope of the RSA sinusoid, twice per breath, removing
+//  precisely the largest successive differences — an estimated ~18 % RMSSD understatement
+//  in that regime. So the deeper and slower someone breathes — the BETTER they do the
+//  thing the product supports — the more this clips their number. It is still far better
+//  than no filter, but it is a real inversion at the top end and a local-median Malik
+//  variant would suffer it much less. Do not "fix" it by widening the threshold without
+//  re-deriving what that lets through.
+//
 //  Pure Foundation, no device needed to test.
 //
 
@@ -41,7 +58,10 @@ public enum RRIntervalHygiene {
     /// Shortest plausible beat interval (≈ 200 bpm).
     public static let minPlausibleMs = 300.0
 
-    /// Longest plausible beat interval (≈ 30 bpm — covers a resting endurance athlete).
+    /// Longest plausible beat interval. 2000 ms IS 30 bpm — the conventional toolkit
+    /// bound, not a generous one: elite endurance athletes reach 28–35 bpm at rest, and
+    /// with RSA the troughs go past 2000 ms. Those beats are discarded. Defensible, but
+    /// do not describe this band as covering every real body.
     public static let maxPlausibleMs = 2000.0
 
     /// Malik ectopic threshold: a beat may differ from its predecessor by at most this
@@ -55,9 +75,16 @@ public enum RRIntervalHygiene {
     public static let maxPlausibleBPM = 250
 
     /// The accept/reject decision as a STREAMING gate, so the live beat path and the
-    /// windowed metrics path share one implementation instead of drifting apart. The
-    /// publisher runs a gate per arriving beat (to decide whether it may fire a discrete
-    /// heartbeat event); `acceptedSegments` runs one over a whole window.
+    /// windowed metrics path share one implementation. The publisher runs a gate per
+    /// arriving beat (to decide whether it may fire a discrete heartbeat event);
+    /// `acceptedSegments` runs one over a whole window.
+    ///
+    /// ⚠ Sharing the implementation does NOT make the two verdicts identical, and an
+    /// earlier version of this comment wrongly claimed it did. The streaming gate carries
+    /// unbroken history; the windowed pass restarts with `anchorMs == nil` at whatever
+    /// beat is currently oldest in the sliding window, so **the head interval of each
+    /// window is band-checked but never Malik-checked**. An artifact that lands exactly
+    /// at the head therefore reaches SDNN for about one publish tick.
     /// `Sendable` is declared, not inferred: public types get no implicit conformance
     /// (SE-0302). Nothing sends a `Gate` across an isolation boundary today, so this
     /// costs nothing now — it just means a future caller gating on a background queue
@@ -121,6 +148,23 @@ public enum RRIntervalHygiene {
     public static func acceptedFraction(rrMs: [Double]) -> Double {
         guard !rrMs.isEmpty else { return 1 }
         return Double(accepted(rrMs: rrMs).count) / Double(rrMs.count)
+    }
+
+    /// Below this surviving fraction we refuse to state an HRV or coherence figure at all.
+    ///
+    /// Rejection is not neutral: the spectrum is built from a spliced record and the
+    /// time-domain metrics from a record whose largest differences were preferentially
+    /// removed. Between roughly 20 % and 70 % rejection the old code would still emit a
+    /// confident-looking number — and the clearest case is atrial fibrillation, where RR
+    /// steps routinely exceed the Malik threshold, so the filter discards most beats and
+    /// the app would show a LOW variability where the physiological truth is extremely
+    /// high. Showing "—" is the honest answer there. A good strap sits at ~1.0, and a
+    /// stray ectopic in a 64-beat window costs ~0.05, so this does not fire in normal use.
+    public static let minAcceptedFractionForHRV = 0.8
+
+    /// Is the surviving fraction enough to state an HRV/coherence number?
+    public static func canStateHRV(rrMs: [Double]) -> Bool {
+        acceptedFraction(rrMs: rrMs) >= minAcceptedFractionForHRV
     }
 
     /// Is this a beat rate a human body can plausibly be at?
