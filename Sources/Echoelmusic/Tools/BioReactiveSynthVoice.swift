@@ -436,7 +436,9 @@ public final class BioReactiveSynthVoice {
         let dst = raw.assumingMemoryBound(to: Float.self)
         scratchBuffer.withUnsafeBufferPointer { src in
             guard let base = src.baseAddress else { return }
-            dst.update(from: base, count: count)
+            // Same source-node-output sweep as `PolySynthVoice.copy`; this voice runs
+            // the same FX chain and the same bio path. See `AudioOutputGuard`.
+            AudioOutputGuard.copySilencingNonFinite(from: base, to: dst, count: count)
         }
         if frameCount > count {
             // Defensive: zero-fill anything past our scratch window.

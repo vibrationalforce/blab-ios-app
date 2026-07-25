@@ -837,7 +837,12 @@ public final class PolySynthVoice {
         let dst = raw.assumingMemoryBound(to: Float.self)
         src.withUnsafeBufferPointer { ptr in
             guard let base = ptr.baseAddress else { return }
-            dst.update(from: base, count: count)
+            // Sweep non-finite samples here rather than trusting every DSP stage: the
+            // FX chain upstream is a growing list of them, and everything downstream
+            // (masterMixer → AutoMixChain EQ → mainMixer) is recursive and would be
+            // poisoned by one NaN. See `AudioOutputGuard` — this is the source-node
+            // boundary, NOT the last word before the hardware.
+            AudioOutputGuard.copySilencingNonFinite(from: base, to: dst, count: count)
         }
         if total > count {
             (dst + count).update(repeating: 0, count: total - count)
