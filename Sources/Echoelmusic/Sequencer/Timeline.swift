@@ -29,13 +29,6 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
     public var isSoloed: Bool
     /// B2 stereo position: −1 (hard left) … +1 (hard right), 0 = center.
     public var pan: Float
-    /// U3 AUv3-structure: the plugin this track plays through. `instrument` is the
-    /// MIDI voice (nil = internal/unset); `effects` is the ordered insert chain.
-    /// Pure persisted DATA — the engine routing to per-lane voices arrives with
-    /// multi-roll; this is the honest model + the display foundation for the
-    /// founder's "sichtbare Instrument/FX-Belegung pro Spur".
-    public var instrument: AUPluginRef?
-    public var effects: [AUPluginRef]
     /// The built-in Echoel instrument this track plays (founder 2026-07-13:
     /// "EchoelDrums, Echoelbreak, EchoelSampler etc"). `nil` = a plain MIDI/audio
     /// lane with no assigned voice. Drives the track name/icon + its record source.
@@ -98,7 +91,7 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
 
     public init(id: UUID = UUID(), name: String, kind: ClipKind, isBio: Bool = false,
                 level: Float = 1, isMuted: Bool = false, isSoloed: Bool = false,
-                pan: Float = 0, instrument: AUPluginRef? = nil, effects: [AUPluginRef] = [],
+                pan: Float = 0,
                 builtinInstrument: TrackInstrument? = nil, isArmed: Bool = false,
                 patch: SynthPatch? = nil, genreOverride: MusicStyle? = nil,
                 mood: MoodProfile? = nil, variationSeed: UInt64? = nil,
@@ -112,8 +105,6 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         self.isMuted = isMuted
         self.isSoloed = isSoloed
         self.pan = pan
-        self.instrument = instrument
-        self.effects = effects
         self.builtinInstrument = builtinInstrument
         self.isArmed = isArmed
         self.patch = patch
@@ -157,9 +148,9 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         isMuted = try c.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
         isSoloed = try c.decodeIfPresent(Bool.self, forKey: .isSoloed) ?? false
         pan = try c.decodeIfPresent(Float.self, forKey: .pan) ?? 0   // pre-B2 docs: center
-        instrument = try c.decodeIfPresent(AUPluginRef.self, forKey: .instrument)
-        effects = try c.decodeIfPresent([AUPluginRef].self, forKey: .effects) ?? []
-        // Pre-2026-07-13 docs carry no instrument/arm keys — decode to unset/disarmed.
+        // Pre-2026-07-13 docs carry no built-in-instrument/arm keys — decode to unset/
+        // disarmed. A legacy doc's old AUv3 `instrument`/`effects` keys (removed in the
+        // pure-instrument cut) are ignored — Swift skips unknown keys (TimelineDecodeTests).
         builtinInstrument = try c.decodeIfPresent(TrackInstrument.self, forKey: .builtinInstrument)
         isArmed = try c.decodeIfPresent(Bool.self, forKey: .isArmed) ?? false
         // Pre-2026-07-14 docs carry no per-track patch — decode to nil (global sound).

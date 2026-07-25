@@ -164,4 +164,39 @@ final class TimelineDecodeTests: XCTestCase {
                                              from: try JSONEncoder().encode(doc))
         XCTAssertEqual(round, doc, "well-formed document round-trips losslessly, order kept")
     }
+
+    // MARK: Legacy AUv3 keys (instrument/effects) — REMOVED in the pure-instrument cut,
+    // must decode losslessly. Swift keyed decoding IGNORES unknown keys, so an old
+    // document that still carries `instrument`/`effects` (from the AUv3-hosting era)
+    // decodes unchanged — the removal must never become a hard `try decode` that would
+    // vaporize the whole song. The JSON blobs under those keys are arbitrary on purpose:
+    // once the keys are undeclared the decoder never looks inside them.
+
+    func testLane_legacyAUv3Keys_areIgnored_siblingFieldsSurvive() throws {
+        let lane = try decode(TimelineLane.self, #"""
+        {"id":"00000000-0000-0000-0000-0000000000f1","name":"Lead","kind":"midi",
+         "level":0.8,"pan":-0.3,
+         "instrument":{"name":"Zebra2","manufacturerName":"u-he","componentType":1635085685,
+                       "componentSubType":1650552946,"componentManufacturer":1969841441,
+                       "isInstrument":true},
+         "effects":[{"name":"Pro-Q","manufacturerName":"FabFilter","componentType":1635083896,
+                     "componentSubType":1,"componentManufacturer":2,"isInstrument":false}]}
+        """#)
+        XCTAssertEqual(lane.name, "Lead")
+        XCTAssertEqual(lane.kind, .midi)
+        XCTAssertEqual(lane.level, 0.8, accuracy: 1e-6, "sibling numeric field survives the ignored AUv3 keys")
+        XCTAssertEqual(lane.pan, -0.3, accuracy: 1e-6)
+    }
+
+    func testDocument_legacyLaneWithAUv3Keys_documentSurvives() throws {
+        let doc = try decode(TimelineDocument.self, #"""
+        {"lanes":[{"id":"00000000-0000-0000-0000-0000000000f2","name":"Bass","kind":"midi",
+                   "instrument":{"name":"Diva","manufacturerName":"u-he","componentType":1,
+                                 "componentSubType":2,"componentManufacturer":3,"isInstrument":true},
+                   "effects":[]}],
+         "regions":[],"automation":[]}
+        """#)
+        XCTAssertEqual(doc.lanes.count, 1, "legacy AUv3-carrying lane kept, document not vaporized")
+        XCTAssertEqual(doc.lanes.first?.name, "Bass")
+    }
 }

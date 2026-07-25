@@ -676,25 +676,6 @@ public final class TimelineStore {
         persist()
     }
 
-    // MARK: - AUv3 track assignment (U3) — persisted plugin DATA, no engine routing
-
-    /// Assign (or clear, with nil) the track's instrument plugin. Pure persisted
-    /// intent — the track head shows it; per-lane engine routing waits for
-    /// multi-roll (today all MIDI lanes share one melodic voice).
-    public func setLaneInstrument(id: UUID, _ instrument: AUPluginRef?) {
-        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
-        document.lanes[i].instrument = instrument
-        persist()
-    }
-
-    /// Set the track's ordered insert-FX chain (signal order). Persisted display
-    /// foundation; empty clears it.
-    public func setLaneEffects(id: UUID, _ effects: [AUPluginRef]) {
-        guard let i = document.lanes.firstIndex(where: { $0.id == id }) else { return }
-        document.lanes[i].effects = effects
-        persist()
-    }
-
     /// #22 follow-up: restore the shared roll slot's audibility for an explicit
     /// user Start (see TimelineDocument.healRollSlotAudibility). Persists (and
     /// thereby notifies every mixer mirror) only when something changed.
