@@ -316,27 +316,30 @@ Foundation.log(value)
 
 ### API Gotchas
 
-| Type | Correct API |
-|------|-------------|
-| `SpatialAudioEngine` | `init()`, `setMode()`, `currentMode`, `setPan()`, `setReverbBlend()` |
-| `UnifiedHealthKitEngine` | `coherence`, `startStreaming()`, `stopStreaming()` |
-| `NormalizedCoherence` | NOT BinaryFloatingPoint — use `.value` for arithmetic |
-| `Swift.max/min` | Qualify when struct has static `.max` property |
+> **DELETED 2026-07-25 — every type this section named is GONE.** It listed
+> `SpatialAudioEngine`, `UnifiedHealthKitEngine` and `NormalizedCoherence` with
+> their "correct API". A grep of `Sources/` and `Tests/` returns **zero** matches
+> for all three (`NormalizedCoherence` survives only as the name of a test METHOD,
+> `CoreSystemTests.swift:61` — not a type). A session reading this would write code
+> against APIs that do not exist and only find out at the CI gate.
+> The same applied to the old **Type Conflict Resolution** section: `ProSessionEngine`,
+> `ProStreamEngine`, `ProCueSystem`, `ProColorGrading`, `ChannelStrip`,
+> `ArticulationType`, `SubsystemID` — all zero files. And to
+> `CXProviderConfiguration` (CallKit is not used here).
+> Do not restore any of it from an older revision; it documents a codebase that no
+> longer exists.
 
-### Type Conflict Resolution
+Language-level notes that ARE still true and worth keeping:
 
-Always prefix types to avoid conflicts:
-- ProSessionEngine: `SessionMonitorMode`, `SessionTrackSend`, `SessionTrackType`
-- ProStreamEngine: `StreamMonitorMode`, `StreamTransitionType`, `ProStreamScene`
-- ProCueSystem: `CueTransitionType`, `CueSceneTransition`, `CueSourceFilter`
-- ProColorGrading: `GradeTransitionType`
-- `ChannelStrip`, `ArticulationType`, `SubsystemID` → top-level types, NOT nested
-
-### Other Patterns
-
-- `@escaping` required for `TaskGroup.addTask` closures
-- Result builder: `buildBlock(_ components: [T]...)` when using `buildExpression`
-- `CXProviderConfiguration.localizedName` is read-only in iOS 14+ (set via Info.plist)
+- `Swift.max`/`Swift.min` must be qualified when a struct in scope has a static
+  `.max` property.
+- **Argument order in `max`/`min` decides NaN behaviour.** `max(x, y)` is
+  `y >= x ? y : x`, so `max(0, NaN)` returns `0` (NaN-safe) while `max(NaN, 0)`
+  returns `NaN`. `min(max(v, lo), hi)` therefore passes NaN straight through — use
+  the NaN-safe `clamped(to:)` (`Core/FloatingPointClamp.swift`) for anything that
+  reaches the audio thread. This has caused shipped permanent-silence bugs.
+- `@escaping` required for `TaskGroup.addTask` closures.
+- Result builder: `buildBlock(_ components: [T]...)` when using `buildExpression`.
 
 ---
 
