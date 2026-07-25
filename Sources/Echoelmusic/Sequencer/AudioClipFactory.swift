@@ -4,7 +4,7 @@
 // PURE landing helper: turns an imported audio file (file reference + measured
 // duration) into a Clip(kind:.audio) + a TimelineRegion sized to a musical bar
 // grid, so the audio-import path drops a clip onto a lane through ONE tested seam.
-// Mirrors VideoClipFactory. No AVFoundation, no file I/O here — the caller measures
+// No AVFoundation, no file I/O here — the caller measures
 // the duration on device (AVAsset) and passes it in. All logic is deterministic:
 // no Date()/random/UUID() inside the math (callers pass fixed IDs in tests).
 
@@ -61,7 +61,7 @@ public enum AudioClipFactory {
     /// bar, ≥ 1), so `lengthTicks == bars * TimelineTime.ticksPerBar` — the clip
     /// occupies an honest musical span on the grid. `contentOffsetSeconds` trims
     /// into the media (default 0 = from the top). `bpm` is accepted for signature
-    /// parity with the caller/VideoClipFactory but does not affect the tick length
+    /// parity with the caller but does not affect the tick length
     /// (bars are a musical count, not a wall-clock one).
     public static func region(forDurationSeconds durationSeconds: Double,
                               bpm: Double,

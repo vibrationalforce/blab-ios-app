@@ -19,7 +19,9 @@ final class ClipNativeDurationTests: XCTestCase {
     }
 
     func testNil_whenNotMeasured() throws {
-        let clip = VideoClipFactory.clip(name: "take", mediaRef: "/v/take.mov")
+        // An unmeasured clip carries no duration (via the audio factory's nil default —
+        // the video factory was removed in the pure-instrument cut).
+        let clip = AudioClipFactory.clip(name: "take", mediaRef: "/a/take.wav")
         let decoded = try JSONDecoder().decode(Clip.self, from: try JSONEncoder().encode(clip))
         XCTAssertNil(decoded.nativeDurationSeconds, "unmeasured clips carry no duration")
     }
