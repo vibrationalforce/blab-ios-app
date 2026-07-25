@@ -50,7 +50,24 @@ reversible, gate-grüne Ralph-Slices gerankt. Ranking = Vision/Brand-Impact × D
 - Sheet-Count-Kommentar „~18"→„11": nur Kommentar, nicht selbst enumeriert → Doc-Hygiene später.
 - StudioZoom-auf-Chrome + Header-Glyph-Skalierung: niedriger Wert / bewusster Layout-Schutz-Tradeoff.
 
-## Status
-- ✅ Slice 1 geshippt (dieser Zyklus) — Reviewer + Gates laufen.
-- ▶ Nächste No-Sleep-Zyklen: 2→3→4→5→6→7→8→9 der Reihe nach, je Reviewer + Gates.
-- Alles NEEDS-FOUNDER-VERIFY hinter TestFlight-Freeze.
+## Status — No-Sleep-Lauf (2026-07-24/25)
+- ✅ **Slice 1** `689dc5c` — EchoelLux Flash-Policy-Parität (Reduce Motion + 10→2.5 Hz), ehrliches
+  Framing (kein harter Content-Cap — Content-Slew ist #127-Follow-up). ui-state-reviewer PASS.
+- ✅ **Slices 2/4/7** `54a19d9` — Copy/a11y: „Live pulse"→„Heart rate", toter „Well"-Verweis raus,
+  Visual-Fenster-a11y DE→EN. Pure Strings, audit-lead-verifiziert.
+- ✅ **Slices 3/5** `8cd175c` — Bio-Grün-Akzent raus aus Studio-Chrome (Chip-Fills + Session-Karte
+  → neutrale Tokens). Reine Color-Token-Swaps, Diff exakt 5 Zeilen.
+- ✅ **Slice 6** `3f73435` — Variations-Karte DE→EN (inkl. densityWord). „your body curates, you pick".
+- ✅ **Slice 8** `d8392b4` — Dynamic-Type-Clamp auf die fix-hohen Chrome-Bars (Group→xxLarge),
+  Instrument behält volle a11y-Skalierung (enger gescoped als der Audit-Vorschlag). ui-state PASS.
+- ⏸ **Slice 9 (BioDriveReadout) — HELD-FOR-FOUNDER**, NICHT geshippt. Konflikt mit **B3-Entscheid
+  (2026-07-12)**: der Founder ENTFERNTE die always-on `BioStripView` vom Home („Header-Puls-Monitor
+  ist der at-a-glance-Ersatz"). Ein neues always-on Bio→Musik-Element unter dem Transport würde ein
+  bewusst entferntes Muster wieder einführen. Die Bio→Musik-Kausalität existiert bereits LESBAR als
+  reine statische `BioSoundMapping.all` (Bio/BioSoundMapping.swift, „Coherence → heller · harmonischer"
+  usw.) im erreichbaren Bio-Guide + Bio-Dropdown. **Founder-Frage:** soll der Home eine always-on
+  Bio→Musik-Zeile tragen (gegen B3) — oder reicht die Kausalität im Bio-Dropdown/Guide (B3-konform)?
+  Sichere Alternative ohne B3-Bruch: `BioSoundMapping` IM Bio-Dropdown zeigen (kein neues always-on).
+
+Alles NEEDS-FOUNDER-VERIFY hinter dem TestFlight-Freeze (Render/Launch/Pixel-Fit nur am Gerät).
+8/9 Slices geshippt + gate-grün; #9 bewusst gehalten (Founder-Entscheid-Konflikt).
