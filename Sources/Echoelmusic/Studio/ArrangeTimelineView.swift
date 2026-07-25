@@ -445,7 +445,7 @@ struct ArrangeTimelineView: View {
     private func modalEditor(_ modal: ArrangeModal) -> some View {
         switch modal {
         case .lane(let lane):     editor(forKind: lane.kind,
-                                         landingLane: (lane.kind == .audio || lane.kind == .video) ? lane.id : nil)
+                                         landingLane: lane.kind == .audio ? lane.id : nil)
         case .region(let region):
             // H11: a MIDI region edits ITS CLIP's notes in a throwaway roll —
             // never the shared live-take roll (which the region player clobbers
@@ -983,11 +983,8 @@ struct ArrangeTimelineView: View {
                     Label("Open audio editor", systemImage: ClipKind.audio.systemImage)
                 }
             }
-            if !lane.isBio, lane.kind == .video {
-                Button { activeModal = .lane(lane) } label: {
-                    Label("Import video…", systemImage: ClipKind.video.systemImage)
-                }
-            }
+            // (Video-lane import door removed with the DAW video editing — pure-instrument
+            // cut; a legacy .video lane offers no editor. The .video ClipKind stays for Slice 5.)
             // The built-in Echoel instrument this track plays (founder 2026-07-13:
             // "EchoelDrums, Echoelbreak, EchoelSampler etc") — settable/changeable
             // per track; the current one is checkmarked.
@@ -1352,12 +1349,16 @@ struct ArrangeTimelineView: View {
         // added — it just sets the existing `.sheet(item:)` binding).
         .contentShape(Rectangle())
         .contextMenu {
-            Button {
-                // H12: same kind-routed door as the lane head — a secondary
-                // MIDI lane lands in its own clip's editor, not the shared roll.
-                openLaneEditor(lane)
-            } label: {
-                Label(Self.laneImportLabel(lane.kind), systemImage: Self.laneImportIcon(lane.kind))
+            // A legacy .video lane has no editor after the pure-instrument video cut —
+            // offer the import gesture only for kinds that route to a real door.
+            if lane.kind != .video {
+                Button {
+                    // H12: same kind-routed door as the lane head — a secondary
+                    // MIDI lane lands in its own clip's editor, not the shared roll.
+                    openLaneEditor(lane)
+                } label: {
+                    Label(Self.laneImportLabel(lane.kind), systemImage: Self.laneImportIcon(lane.kind))
+                }
             }
         }
         .overlay(alignment: .bottom) { Divider().overlay(EchoelTheme.border) }
