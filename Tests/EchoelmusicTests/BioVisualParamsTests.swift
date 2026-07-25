@@ -36,15 +36,17 @@ final class BioVisualParamsTests: XCTestCase {
     // MARK: Bio mapping
 
     func testCoherence_drivesHueAndIntensity() {
-        let calm = BioVisualParams.from(frame(coherence: 0))
+        // 0.1, not 0: exactly-0 now means "not measured" and maps to the neutral 0.5,
+        // so a 0-vs-1 pair no longer exercises the LOW end of the mapping at all.
+        let low = BioVisualParams.from(frame(coherence: 0.1))
         let coherent = BioVisualParams.from(frame(coherence: 1))
-        XCTAssertGreaterThan(coherent.hue, calm.hue)            // red → cyan
-        XCTAssertGreaterThan(coherent.intensity, calm.intensity)
+        XCTAssertGreaterThan(coherent.hue, low.hue)             // red → cyan
+        XCTAssertGreaterThan(coherent.intensity, low.intensity)
         XCTAssertLessThanOrEqual(coherent.hue, 0.45 + 1e-9)
     }
 
     func testHRV_drivesComplexity_inRange() {
-        let low = BioVisualParams.from(frame(hrv: 0))
+        let low = BioVisualParams.from(frame(hrv: 0.1))   // not 0 — see the coherence test
         let high = BioVisualParams.from(frame(hrv: 1))
         XCTAssertGreaterThan(high.complexity, low.complexity)
         XCTAssertGreaterThanOrEqual(low.complexity, 0)

@@ -608,7 +608,7 @@ public final class PolySynthVoice {
             coherenceTrend: 0,
             profile: bioMappingHarmonic ? .harmonicSeries : .natural
         ))
-        applyEntrainment(coherence: frame.coherenceForSound,
+        applyEntrainment(neutralCoherence: frame.coherenceForSound,
                          heartRateBPM: frame.heartRateBPM,
                          motionEnergy: frame.motionEnergy)
     }
@@ -618,11 +618,16 @@ public final class PolySynthVoice {
     /// gates on its lock threshold), and motion degrades it — so a noisy/absent signal
     /// can never push a strong stimulus. Writes band/depth to every voice's existing
     /// `EchoelEntrainment` (same main-poll→audio-read path as `applyBioReactive`).
-    private func applyEntrainment(coherence: Float, heartRateBPM: Float, motionEnergy: Float) {
+    /// `neutralCoherence` names a precondition, not a preference: pass
+    /// `BioSampleFrame.coherenceForSound`, never the raw field. An unmeasured 0 reaching
+    /// `BioEntrainmentDirector` reads as "maximally incoherent" and reinstates the muffle
+    /// this whole rule exists to prevent — and a `private func` taking a parameter called
+    /// `coherence` is exactly how a second caller would reintroduce it silently.
+    private func applyEntrainment(neutralCoherence: Float, heartRateBPM: Float, motionEnergy: Float) {
         guard entrainmentEnabled else { return }
         let quality: Float = heartRateBPM > 0 ? clampUnit(1 - motionEnergy) : 0
         let target = BioEntrainmentDirector(manualBand: entrainmentManualBand)
-            .target(coherence: clampUnit(coherence), quality: quality)
+            .target(coherence: clampUnit(neutralCoherence), quality: quality)
         entrainmentTarget = target
         audioEntrainmentActive = target.depth > 0   // idle gate must stay open
         poly.forEachVoice { voice in

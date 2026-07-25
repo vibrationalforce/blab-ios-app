@@ -808,7 +808,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // so it glides. Flash rate stays capped inside update() regardless.
             let touchE = TouchVisualEnergy.shared.value(now: nowGov)
             update(hr: bio?.heartRateBPM ?? 60,
-                   coherence: bio?.coherence ?? (idle ? idleCoh : 0.5),
+                   // `coherenceForSound`: the `??` only covers a MISSING frame, so a
+                   // present frame that has measured no coherence (HealthKit never
+                   // does; the camera not until enough beats accrue) reached the
+                   // shader as 0 — this mapping's extreme, the reddest and dimmest
+                   // picture it can draw, shown precisely when nothing is known.
+                   coherence: bio?.coherenceForSound ?? (idle ? idleCoh : 0.5),
                    // breathPhase is a WRAPPING 0→1 phase; the shader uses breath as
                    // a MAGNITUDE (spread/restGlow), so feeding it raw made the whole
                    // figure saw-collapse ~30 % at every cycle wrap (audit #4). Shape

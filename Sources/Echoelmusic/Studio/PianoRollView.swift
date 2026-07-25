@@ -371,17 +371,19 @@ public final class PianoRollModel {
     /// Echoel twist (R1): the body's CURRENT HRV loosens the selected notes'
     /// velocities via the H3 core (`BioComposer.hrvHumanize` — reused, not
     /// duplicated). ONE-SHOT read of the control-plane bio snapshot at tap
-    /// time — never a 10 Hz read in a view body (freeze law). No usable body
-    /// (or a bus-less clip editor) falls back to a neutral hrv 0.5. Seed =
-    /// stable hash of the affected notes, so the op is deterministic per
-    /// (selection state, hrv); hrv 0 → zero jitter → no-op, no undo step.
+    /// time — never a 10 Hz read in a view body (freeze law). Seed = stable hash
+    /// of the affected notes, so the op is deterministic per (selection state,
+    /// hrv); hrv 0 → zero jitter → no-op, no undo step.
     public func bioHumanize(ids: Set<UUID>) {
-        // Deliberately RAW, not `hrvForSound`. This is a discrete operation the user
-        // invoked BY NAME, not a continuous mapping that has to keep sounding — so the
-        // honest form is available here: no HRV, no jitter, nothing touched. Feeding a
-        // neutral 0.5 would apply seeded velocity jitter and present it to the user as
-        // their heart-rate variability. `hrvHumanize` already guards `span > 0`.
-        let hrv = bus?.usableBio()?.hrvNormalized ?? 0.5
+        // Deliberately RAW and falling back to 0, not `hrvForSound` and not 0.5. This
+        // is a discrete operation the user invoked BY NAME, not a continuous mapping
+        // that has to keep sounding, so the honest form is available: no HRV measured
+        // — or no body at all, including the bus-less clip editor — means nothing is
+        // touched. A neutral 0.5 here would apply seeded velocity jitter and present
+        // it to the user AS their heart-rate variability. `hrvHumanize` guards
+        // `span > 0` and `applyOp` guards `replaced != affected`, so 0 is a true
+        // no-op that also pushes no undo step.
+        let hrv = bus?.usableBio()?.hrvNormalized ?? 0
         applyOp(ids: ids) { affected in
             BioComposer.hrvHumanize(affected, hrvNormalized: hrv,
                                     seed: RollNoteOps.stableSeed(for: affected))
@@ -885,7 +887,14 @@ public final class PianoRollModel {
         // coherence (only on notes whose chance the user set below 1) — the
         // player's settling literally fills the pattern out. No bio → nil →
         // the gate stays fully deterministic.
-        let operatorCoherence = bus?.usableBio().map { Double($0.coherence) }
+        // Deliberately NOT `coherenceForSound`. This carrier is an Optional, so the
+        // honest depth-to-zero form is available here and the neutral-value form is
+        // not needed: an unmeasured coherence collapses to nil exactly like no body
+        // at all, and the gate stays deterministic. Mapping it to 0 instead would
+        // bend every chance threshold to one extreme on a body we have not read.
+        let operatorCoherence = bus?.usableBio().flatMap {
+            $0.coherence > 0 ? Double($0.coherence) : nil
+        }
         // A5 bio-per-note: breath rides the same control-plane snapshot as coherence and
         // shapes each note's velocity (see the `starting` attack loop). nil body → identity.
         let operatorBreath = bus?.usableBio().map { Double($0.breathPhase) }
@@ -930,9 +939,11 @@ public final class PianoRollModel {
             let breathSwell = Float(sin(Double(bio.breathPhase) * .pi))
             // Both fields neutral-for-sound: `MPEExpression` declares its own no-body
             // state as slide 64 / bend 0 (`.neutral`), and the raw 0s contradict it in
-            // opposite directions — coherence 0 sends CC74 0 (darkest timbre), and
-            // `drift = (hrv·2−1)·bendCents/range` makes hrv 0 the FULL negative bend,
-            // i.e. every note leaves 50 cents flat for the whole pre-measurement window.
+            // opposite directions. Coherence 0 sends CC74 0 (darkest timbre). And
+            // `drift = (hrv·2−1)·(bendCents/100)/range` puts hrv 0 at the negative end
+            // of the drift's own range — not a pinned −1 bend, but −0.0104 normalized,
+            // which the receiver expands over ±48 semitones to exactly −50 cents. So
+            // every note left a quarter-tone flat for the whole pre-measurement window.
             return MPEExpression.from(coherence: bio.coherenceForSound,
                                       breathDepth: breathSwell,
                                       hrvNormalized: bio.hrvForSound)

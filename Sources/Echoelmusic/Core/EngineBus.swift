@@ -57,12 +57,22 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// synth voices and drifted immediately — a review sweep found it missing at every
     /// other value-mapping consumer. Keeping it in one place is what stops that again.
     ///
-    /// **Applies to VALUE mappings only.** Where 0 already means "no contribution" —
-    /// the modulation matrix (`FXModulation.offset`: unipolar is `signal·depth·span`,
-    /// and `contributions` deliberately feeds signal 0 for a missing frame), or an
-    /// explicitly depth-to-zero operation like `BioComposer.hrvHumanize` — the raw
-    /// value is the CORRECT one, and substituting 0.5 would inject a permanent
-    /// half-depth offset out of nothing. Do not route those through this property.
+    /// **Applies to VALUE mappings only.** Where 0 already means "no contribution",
+    /// the raw value is the CORRECT one and substituting 0.5 would invent a permanent
+    /// half-depth offset out of nothing. Two such places:
+    /// - `BioComposer.hrvHumanize` — guards `span > 0`, so no HRV means it touches
+    ///   nothing. Verified: it is a discrete op the user invokes by name, and a
+    ///   neutral 0.5 there would present seeded jitter AS their variability.
+    /// - `FXModulation.offset` / `VisualModulation`, but **only on the unipolar
+    ///   branch** (`signal·depth·span`), which is also why `contributions` feeds
+    ///   signal 0 for a missing frame.
+    ///
+    /// The bipolar branch is `(signal·2−1)·depth·span·0.5`, where signal 0 is the FULL
+    /// NEGATIVE excursion — so a user-toggled bipolar bio route (`EchoelFXView`'s
+    /// "Bipolar") slams its target to the bottom of range until the first measurement
+    /// lands. That is a real open defect, NOT a reason to route `ModSource.rawValue`
+    /// through this property: doing so would break the unipolar contract for every
+    /// route to fix one polarity. It needs its own fix at the bipolar formula.
     ///
     /// This is deliberately NOT the fully honest form. The honest form is "do not apply
     /// the HRV mapping at all when there is no HRV" — depth to zero rather than value to
@@ -106,8 +116,12 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// The twin of `hrvForSound`, and it exists for the same reason: this rule had
     /// been written inline three times over — a private helper in one synth voice, a
     /// bare ternary in the other, a held-body variant in the studio view — and was
-    /// missing everywhere else. That is the exact drift `hrvForSound` was created to
-    /// stop, left half-finished. Coherence bites harder than HRV because more mappings
+    /// missing at the sound and visual consumers. That is the exact drift `hrvForSound`
+    /// was created to stop, left half-finished. (The sweep is NOT complete: the light
+    /// and space egress — `ArtNetSender`'s dimmer, `ADMOSCSender`'s distance — still
+    /// read raw. Those are output renders for a console the operator also drives, so
+    /// they need a deliberate EchoelLux/spatial decision, not this mechanical swap.)
+    /// Coherence bites harder than HRV because more mappings
     /// read it as "calmness": a literal 0 muffles the filter to 200 Hz, picks the
     /// least-consonant chord voicing, and pins the composer to a sparse frozen take.
     /// The first two copies are now deleted; the studio one deliberately stays (it can

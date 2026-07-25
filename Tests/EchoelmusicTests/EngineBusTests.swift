@@ -190,11 +190,18 @@ final class EngineBusTests: XCTestCase {
         XCTAssertEqual(Self.makeBioFrame(coherence: 0).coherence, 0, "the raw field stays honest")
     }
 
-    // MARK: - The rule is BOUND to its consumers, not just defined
+    // MARK: - The rule at the consumer boundaries
 
     // Testing the property alone is what let the first version of this rule drift: every
-    // call site could be reverted to the raw field and the suite stayed green. These pin
-    // the rule at a pure boundary a consumer actually goes through.
+    // call site could be reverted to the raw field and the suite stayed green.
+    //
+    // Only the FIRST test below actually closes that hole — `BioVisualParams.from` is a
+    // pure function, so reverting its source line turns the test red. The MPE one does
+    // NOT: it calls `MPEExpression.from` itself, so reverting `PianoRollModel.trigger`
+    // to the raw fields leaves it green. It is kept for what it does prove — that
+    // neutral input lands exactly on the MPE-declared centre — and the live call site
+    // stays unguarded because it sits inside a `@MainActor` model that needs a bus and
+    // a running clock to reach. Say so rather than let the section title imply cover.
 
     func testBioVisualParams_unmeasuredBodyLooksLikeAMidBody_notAnAlarmedOne() {
         let unmeasured = BioVisualParams.from(Self.makeBioFrame(hrvNormalized: 0, coherence: 0))
