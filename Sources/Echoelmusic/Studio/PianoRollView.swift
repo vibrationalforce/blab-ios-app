@@ -977,7 +977,6 @@ public final class PianoRollModel {
             beatPhase: Double(step % 4) / 4.0))
     }
 
-
     /// Build the live musical snapshot from the notes sounding now. Pure (testable):
     /// pitch → Hz at the given concert pitch, velocity → amplitude, master = the
     /// summed velocities (clamped) so "how much is sounding" tracks the chord density.
