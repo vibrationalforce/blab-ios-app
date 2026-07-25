@@ -22,6 +22,16 @@ import Foundation
 public enum ComposerMode: String, Codable, Sendable {
     case studioLocked   // fixed BPM (e.g. 124 dub, 140 trap) for DAW handoff
     case flowFree       // tempo follows the heart, for meditation
+
+    /// The user-facing Flow/Loop switch (M1). The two modes are a presentation of
+    /// ONE truth — the tempo lock: **Loop** = a fixed BPM for production/DAW handoff
+    /// (`studioLocked`), **Flow** = the tempo follows the body, for meditation
+    /// (`flowFree`). Deriving the mode from the lock keeps the composer's transport
+    /// intent, the saved project mode and the tempo-lock UI from ever disagreeing
+    /// (before M1 the live path was hardcoded `.flowFree` regardless of the lock).
+    public init(locked: Bool) {
+        self = locked ? .studioLocked : .flowFree
+    }
 }
 
 /// How the groove layer behaves (founder 2026-07-06C: "Beat soll ausschaltbar

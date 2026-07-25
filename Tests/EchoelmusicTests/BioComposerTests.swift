@@ -782,6 +782,18 @@ final class BioComposerTests: XCTestCase {
                        "Flow tempo is clamped to a musical ceiling")
     }
 
+    func testComposerModeDerivesFromTempoLock() {
+        // M1 Flow/Loop switch: the two modes are ONE truth — the tempo lock. Loop
+        // (locked) = studioLocked (fixed BPM for production); Flow (unlocked) =
+        // flowFree (tempo follows the body). This mapping is what the live compose
+        // path + the project save now use instead of a hardcoded .flowFree, so the
+        // composer intent, the saved mode and the lock UI can never disagree.
+        XCTAssertEqual(ComposerMode(locked: true), .studioLocked,
+                       "Loop (tempo locked) = studioLocked, a fixed BPM for production")
+        XCTAssertEqual(ComposerMode(locked: false), .flowFree,
+                       "Flow (tempo free) = flowFree, tempo follows the body")
+    }
+
     func testFlowTempoPulledTowardResonanceByCoherence() {
         // Two-clock entrainment: as coherence rises, a fast heart's pulse is drawn
         // DOWN toward the ~72 BPM resonance band (groove settles with the body).

@@ -3737,8 +3737,14 @@ struct EchoelStudioView: View {
             breathDepth: dynamicDepth,
             key: key,
             style: style,
-            mode: .flowFree,          // tempo always follows the body
-            lockedTempo: 90,
+            // M1 Flow/Loop: the transport intent follows the tempo lock — Loop
+            // (lockBPM) = studioLocked for production, Flow = flowFree (follows the
+            // body). Was hardcoded .flowFree (the split-brain: locking the BPM left
+            // the composer intent + saved project permanently flowFree). Audio-neutral
+            // — when locked, `composition.suggestedTempo` is ignored downstream and
+            // `lockedBPM` drives the transport (see the tempo block below).
+            mode: ComposerMode(locked: lockBPM),
+            lockedTempo: lockBPM ? lockedBPM : 90,
             mood: moodForInput,
             seed: evolvingSeed,
             structureSeed: structureSeed,
@@ -4256,7 +4262,7 @@ struct EchoelStudioView: View {
         return Project(
             name: n,
             styleRaw: style.rawValue, keyRoot: rootIndex, scaleRaw: scale.rawValue,
-            bpm: beatPlayer.pattern.tempo, modeRaw: ComposerMode.flowFree.rawValue,
+            bpm: beatPlayer.pattern.tempo, modeRaw: ComposerMode(locked: lockBPM).rawValue,
             fxCharacterRaw: fxCharacter.rawValue, loopBars: loopBars.rawValue,
             a4Hz: session.a4Hz, artist: session.artistName,
             patch: currentPatch, notes: pianoRoll.notes,
