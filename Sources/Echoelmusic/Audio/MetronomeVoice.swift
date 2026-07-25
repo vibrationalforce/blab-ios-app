@@ -55,7 +55,11 @@ public final class MetronomeVoice {
 
     /// Click level [0...1]. The accent beat is rendered a little louder/brighter.
     public var level: Float = 0.6 {
-        didSet { audioLevel = min(max(level, 0), 1) }
+        // NaN-safe `clamped(to:)` — `min(max(level, 0), 1)` passes NaN straight
+        // through (every comparison against NaN is false). A NaN here would make
+        // every click sample non-finite; the output guard would then zero them, so
+        // the metronome would vanish silently with nothing to diagnose.
+        didSet { audioLevel = level.clamped(to: 0...1) }
     }
 
     /// Accent the first beat of the bar (higher pitch + louder). Default on.
@@ -101,8 +105,14 @@ public final class MetronomeVoice {
 
     /// Frames between beats for a tempo. Pure + clamped (20…400 BPM) so it's unit
     /// testable without the audio graph. Exposed for tests.
+    ///
+    /// The clamp is NaN-safe, and that is not cosmetic: `min(max(bpm, 20), 400)`
+    /// passes NaN through, and a NaN `audioSamplesPerBeat` makes the render's
+    /// `sampleCounter >= perBeat` test false FOREVER — the click never fires again
+    /// and the counter grows unbounded. The output guard cannot catch that one: the
+    /// samples stay a perfectly finite 0. It is silence, not a bad sample.
     public nonisolated static func samplesPerBeat(bpm: Double, sampleRate: Double = 48_000) -> Double {
-        let safeBPM = min(max(bpm, 20), 400)
+        let safeBPM = bpm.clamped(to: 20...400)
         return sampleRate * 60 / safeBPM
     }
 

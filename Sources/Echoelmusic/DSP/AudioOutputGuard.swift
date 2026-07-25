@@ -41,17 +41,27 @@ import Foundation
 ///   fold into.
 ///
 /// THE INVARIANT IS EXACTLY THIS AND NO WIDER: every SOUNDING path of every
-/// render block of ours passes its samples through this guard, so none of them can
-/// put a non-finite value into the buffer list. The non-sounding paths — the
+/// render block of ours passes the samples IT WRITES through this guard. It says
+/// nothing about bytes a block never touches — most blocks write channel 0 only
+/// (`PolySynthVoice` writes 0 and 1), so a buffer list presenting more channels
+/// than that would leave the surplus holding whatever it already held. That is
+/// unreachable today: it needs the nil-format fallback at each node's
+/// construction, and `AVAudioFormat(standardFormatWithSampleRate:channels:)` does
+/// not fail. The non-sounding paths — the
 /// `silence(...)` helpers and the launch-silence / not-playing early-outs — bypass
 /// the guard, which is correct: they write literal zeros, and a zero is finite by
 /// construction.
 ///
-/// It is NOT graph-wide. "Render blocks of ours" is narrower than "inputs to
-/// `masterMixer`" — `masterPlayerNode`, the clip player and the warp `timePitch`
-/// path also feed that mixer, and they are Apple nodes replaying decoded PCM,
-/// outside this guard's shape. Nor does it say anything about what leaves
-/// `AutoMixChain`.
+/// It is NOT graph-wide, and the gap is not where it looks. "Render blocks of
+/// ours" is narrower than "inputs to `masterMixer`": `masterPlayerNode`, the clip
+/// player and the warp `timePitch` path also feed that mixer. Those are
+/// `AVAudioPlayerNode`s, but do NOT dismiss them as Apple nodes replaying decoded
+/// PCM — they replay buffers WE wrote (baked fade envelopes, `WSOLAStretcher`
+/// renders in `AudioClipPlayer`/`TimelineAudioSink`), carrying user-imported audio
+/// that no finiteness check has touched. That is the same threat model this file
+/// uses to justify `SamplerVoice`'s sweep, arriving by a different door, and it is
+/// the most likely place the next non-finite sample enters. Uncovered, deliberately
+/// named. Nor does any of this say anything about what leaves `AutoMixChain`.
 ///
 /// A NEW render block does not inherit this. Wire it, and add it to the list above.
 ///

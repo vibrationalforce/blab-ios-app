@@ -29,6 +29,25 @@ final class MetronomeVoiceTests: XCTestCase {
         XCTAssertEqual(at1000, at400, accuracy: 0.001)
     }
 
+    func testSamplesPerBeat_honoursItsClampContractForNaN() {
+        // The doc says "clamped (20…400 BPM)". `min(max(bpm, 20), 400)` did NOT honour
+        // that for NaN — every comparison against NaN is false, so both clamps passed
+        // it through. A NaN result makes the render's `sampleCounter >= perBeat` test
+        // false forever: the click never fires again and the counter grows unbounded.
+        //
+        // Note the output guard cannot catch this one. The samples stay a perfectly
+        // finite 0 — the failure is silence, not a bad sample.
+        let fromNaN = MetronomeVoice.samplesPerBeat(bpm: .nan, sampleRate: 48_000)
+        XCTAssertTrue(fromNaN.isFinite, "a NaN tempo escaped the clamp")
+        XCTAssertEqual(fromNaN, MetronomeVoice.samplesPerBeat(bpm: 20, sampleRate: 48_000),
+                       accuracy: 0.001, "NaN must resolve to the slow end, like any out-of-range tempo")
+        // ±inf went through the old form correctly; pin that it still does.
+        XCTAssertEqual(MetronomeVoice.samplesPerBeat(bpm: .infinity, sampleRate: 48_000),
+                       MetronomeVoice.samplesPerBeat(bpm: 400, sampleRate: 48_000), accuracy: 0.001)
+        XCTAssertEqual(MetronomeVoice.samplesPerBeat(bpm: -.infinity, sampleRate: 48_000),
+                       MetronomeVoice.samplesPerBeat(bpm: 20, sampleRate: 48_000), accuracy: 0.001)
+    }
+
     // MARK: - Control surface
 
     func testDefault_isLaunchSilent() {
