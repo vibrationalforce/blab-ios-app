@@ -248,7 +248,14 @@ beim Founder für die großen Slices).
       `ClipLaunchGlyph` + `FileWaveformView` + `TimelineAutomationRow` (→ Slice 6 Cleanup) · **`PianoRollView` + `PatchEditorView` = KEEPER
       OHNE TÜR → Task #131** (ihre eigenen EchoelStudioView-Sheets fielen v10.79.207; CLAUDE.md-Behauptung „reachable from EchoelStudioView"
       war stale, 2026-07-25 korrigiert). Ebenfalls türlos: `ImmersiveStageView` (Spatial-Stage; Header dokumentiert es jetzt).
-    - **4c — `AudioClipView.swift` (471 Z, +WaveformTrimEditor) löschen** (Orphan nach 4b). **Trägt den Founder-Confirm-Flag aus (A).** code-reviewer.
+    - ✅ **4c — `AudioClipView.swift` (471 Z, +`WaveformTrimEditor`) GELÖSCHT (1af527f):** Orphan seit 4b, 0 Refs (nicht mal Kommentare).
+      Boundary-A ist seit 2026-07-25 nicht mehr founder-offen — `docs/dev/PRODUCT_DEFINITION.md` (Founder-Delegation, Grand Council) setzt
+      **Editor ≠ Workstation**: Audio-Datei-Import/Trim = Workstation = CUT. code-reviewer CLEAN.
+      **⚠ SLICE-6-SCOPE WÄCHST (Reviewer-Fund, Kaskade eine Ebene tiefer als kartiert):** `Studio/WaveformView.swift` (beide Typen —
+      `WaveformView` + `FileWaveformView`) UND `Audio/WaveformCache.swift` (`WaveformCache` + `WaveformData`, einziger Consumer war
+      `WaveformView.swift:80`) sind jetzt verwaist. Kein Keeper hängt dran (`SampleBrowserView` zeichnet KEINE Waveforms).
+      **`DSP/WaveformReducer.swift` BLEIBT** — reiner, testgedeckter Core (`WaveformReducerTests`), wie die anderen gehaltenen puren Cores.
+      Doc-Drift für den Epic-Doc-Sync: `docs/dev/VISION_REALITY_2026-07.md:50` nennt `WaveformView` noch als geshippte Timeline-Komponente.
     - **4d — `AutomationView.swift` (412 Z) + `ClipAutomationView.swift` (299 Z) löschen** (Orphans nach 4b; `AutomationCanvasMath` UNBERÜHRT). code-reviewer.
   - Delete-Rule je Slice: jeden deklarierten Top-Level-Typ greppen (0 Live-Consumer) VOR rm. Keine Test-Löschung (die toten Views haben keine eigenen Tests;
     `ClipTests`/`TimelineAutomationRowTests`/`TimelineStoreAutomationEditTests` müssen weiter kompilieren — testen KEEP-Modell/Math).
