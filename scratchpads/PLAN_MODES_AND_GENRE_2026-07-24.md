@@ -99,5 +99,14 @@ Zwei Arbeitsstränge auf dem reinen Instrument (#124-Home, keine Timeline):
   drum-frei-Set von 3→4 geweitet). BioComposer unverändert — Drift läuft durch den `default:`-
   Flächen-Pfad wie die Geschwister. **Alle exhaustiven MusicStyle-Switches erweitert**
   (MusicStyle/GenrePatches/GenreFX), BioComposer nutzt `default:`.
-- **G2 Slice 2/3 — „Ambient" + „Contemplation"** (Folge-Zyklen): je eigene distinkte Signatur.
-  Danach **M1 — Flow/Loop-Modus-Schalter** (eigener PLAN + Council).
+- ✅ **G2 Slice 1 — „Drift" GESHIPPT** `8ecb58c` — code-reviewer PASS (0 Defekte), alle echten Gates
+  grün auf Job-Ebene (Xcode Compile iOS + CI/CD Build&Test alle Plattformen; die „failure"-Run-
+  Conclusion kam NUR vom „Send Notifications"-Infra-Job — siehe HARNESS_LEDGER).
+- ▶ **G2 Slice 2 — „Contemplation" (dieser Zyklus, Reviewer läuft)** `3d8e581` — die geerdete/tiefe
+  Gegen-Pol zu Drift. **mixolydian** (bei keiner drum-freien Fläche belegt) · `[0,6]` i→♭VII ·
+  offene Triade · **padOctave 3** (tief/geerdet, Kontrast zu Drifts Oktave 4) · 44–66 BPM, langsamste
+  Fläche · `.flowFree`. Timbre „Still Pad" (dunkelste Spektralform, tiefster Cutoff, längster Hall) +
+  eigener FX (langes dotted-half Tape-Echo, gedämpfter Hall). Picker jetzt 8 kontemplative Genres.
+  3 Sources + 1 Test (neuer Identitäts-Test, drum-frei-Set 4→5). BioComposer unverändert.
+- **G2 Slice 3 — optional „Ambient"** (Folge-Zyklus, falls Founder mehr will; „Deep Ambient" belegt
+  schon den Namen → ggf. anders benennen). Danach **M1 — Flow/Loop-Modus-Schalter** (eigener PLAN + Council).
