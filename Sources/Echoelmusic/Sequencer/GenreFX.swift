@@ -394,6 +394,19 @@ public extension MusicStyle {
                 delayMix: 0.36, delayFeedback: 0.42, delayTone: 0.42, delaySpread: 0.55,
                 chorusEnabled: true, chorusRate: 0.10, chorusDepth: 0.45, chorusMix: 0.30,
                 reverbEnabled: true, reverbMix: 0.46, reverbRoom: 0.95, reverbDamping: 0.35)
+        case .contemplation:
+            // G2 grounded Fläche: the darkest, longest space of the family — a very
+            // long dotted-half TAPE echo with a dark tone and gentle wow, into the
+            // biggest hall but more DAMPED than drift (0.55 vs 0.35) so it reads warm
+            // and grounded, not airy. Feedback < 0.5 so the long tail washes, never
+            // builds. Distinct mode/sync/tone from the three sibling ambient presets.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.half, .dotted),
+                delayMix: 0.32, delayFeedback: 0.40, delayTone: 0.24, delaySpread: 0.40,
+                delayWow: 0.20, delayDrive: 0.12,
+                chorusEnabled: true, chorusRate: 0.08, chorusDepth: 0.40, chorusMix: 0.28,
+                reverbEnabled: true, reverbMix: 0.48, reverbRoom: 0.96, reverbDamping: 0.55)
         }
     }
 }

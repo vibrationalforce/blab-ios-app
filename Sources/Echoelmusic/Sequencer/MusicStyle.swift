@@ -12,7 +12,7 @@
 //     • Rock · Punk · Rock'n'Roll · Heavy Metal · Jazz · Oriental (backbeat)
 //     • Ska · Rocksteady · Klezmer (offbeat skank)  ·  Doom · Vaporwave · Sci-Fi (half-time)
 //   Drum-free by design:
-//     • Classical · Meditation · Self-Observation · Drift (breath-paced, sync-free)
+//     • Classical · Meditation · Self-Observation · Drift · Contemplation (breath-paced, sync-free)
 //
 // Genre subtitles are descriptive sound characters only — no artist, label, or
 // film names anywhere user-facing (App Store-safe, no implied endorsement).
@@ -68,7 +68,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// `sustained` profile flag; this list must equal `allCases.filter { sustained }`
     /// (guarded in MusicStyleTests).
     public static let sustainedFlächen: [MusicStyle] = [
-        .selfObservation, .esotericMeditation, .vaporwave, .dubTechno, .trap, .sciFi, .drift
+        .selfObservation, .esotericMeditation, .vaporwave, .dubTechno, .trap, .sciFi, .drift,
+        .contemplation
     ]
 
     /// The genres OFFERED in the picker — a curated, brand-fitting palette (founder
@@ -83,7 +84,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// as they are built. Reversible: widen or narrow this list, no enum change.
     /// Guarded in MusicStyleTests (subset of allCases, default is offered, calm).
     public static let offered: [MusicStyle] = [
-        .selfObservation, .esotericMeditation, .drift, .vaporwave, .sciFi, .classical, .dubTechno
+        .selfObservation, .esotericMeditation, .drift, .contemplation,
+        .vaporwave, .sciFi, .classical, .dubTechno
     ]
 
     /// Logical genre groups the Genre picker sorts into (founder 2026-07-11: "Alles
@@ -112,7 +114,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         /// (every genre categorised) — the picker shows `offeredGenres`, not this.
         public var genres: [MusicStyle] {
             switch self {
-            case .meditative: return [.selfObservation, .esotericMeditation, .drift, .vaporwave, .sciFi]
+            case .meditative: return [.selfObservation, .esotericMeditation, .drift, .contemplation,
+                                      .vaporwave, .sciFi]
             case .electronic: return [.dubTechno, .trap, .psytrance, .synthwave,
                                       .earlySynth, .eighties, .disco, .futuristic]
             case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
@@ -132,7 +135,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// once; guarded in MusicStyleTests).
     public var category: Category {
         switch self {
-        case .selfObservation, .esotericMeditation, .drift, .vaporwave, .sciFi:
+        case .selfObservation, .esotericMeditation, .drift, .contemplation, .vaporwave, .sciFi:
             return .meditative
         case .dubTechno, .trap, .psytrance, .synthwave, .earlySynth, .eighties, .disco, .futuristic:
             return .electronic
@@ -172,6 +175,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// and weightless. Distinct scale·progression·register from the other two
     /// drum-free Flächen (guarded by the distinctness tests).
     case drift
+    /// G2 (founder 2026-07-24, same ask): a deep, grounded contemplative Fläche —
+    /// low mixolydian i→♭VII, held in a LOW register (the opposite pole to drift's
+    /// airy float), darkest and slowest of the ambient family. Distinct
+    /// scale·progression·register from every other drum-free Fläche.
+    case contemplation
 
     public var id: String { rawValue }
 
@@ -202,6 +210,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .doom:               return "Doom"
         case .selfObservation:    return "Self-Observation"
         case .drift:              return "Drift"
+        case .contemplation:      return "Contemplation"
         }
     }
 
@@ -233,6 +242,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .doom:               return "Crushing slow · downtuned drone"
         case .selfObservation:    return "Ambient · breath-paced · sync-free"
         case .drift:              return "Weightless drift · wide dorian pads · airy"
+        case .contemplation:      return "Grounded stillness · low mixolydian pad · unhurried"
         }
     }
 
@@ -259,7 +269,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              .jazz, .oriental:                                  return .backbeat
         case .ska, .rocksteady, .klezmer:                       return .offbeat
         case .doom, .vaporwave, .sciFi:                         return .halfTime
-        case .classical, .esotericMeditation, .selfObservation, .drift: return .none
+        case .classical, .esotericMeditation, .selfObservation, .drift, .contemplation: return .none
         }
     }
 
@@ -444,6 +454,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // Drift sits in the same calm band — a shade slower-centred than meditation
         // so the pad floats; the ceiling stays low so an elevated pulse folds DOWN.
         case .drift:              return 48...74
+        // Contemplation is the slowest, deepest ambient window — a still, grounded
+        // pad; the low ceiling folds an elevated pulse down so it never hurries.
+        case .contemplation:      return 44...66
         }
     }
 
@@ -474,6 +487,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .doom:               return 62
         case .selfObservation:    return 58
         case .drift:              return 60
+        case .contemplation:      return 52
         }
     }
 
@@ -499,7 +513,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .eighties:           return 0.06
         case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
              .esotericMeditation, .classical, .punk, .rock, .heavyMetal,
-             .doom, .selfObservation, .drift:
+             .doom, .selfObservation, .drift, .contemplation:
             return 0.0                          // straight / free — grid swing would hurt these
         }
     }
@@ -562,6 +576,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .doom:               return "Deep Sub"
         case .selfObservation:    return "Choir Vox"     // sustained — unused
         case .drift:              return "Warm Strings"  // sustained — unused
+        case .contemplation:      return "Choir Vox"     // sustained — unused
         }
     }
 
@@ -583,7 +598,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .classical, .jazz, .klezmer, .oriental:  return (1.00, 1.00, 0.90)
         case .punk, .rock, .rocknroll, .heavyMetal, .doom:
                                                       return (1.10, 0.92, 0.90)
-        case .esotericMeditation, .selfObservation, .drift:
+        case .esotericMeditation, .selfObservation, .drift, .contemplation:
                                                       return (0.95, 1.05, 0.85)
         }
     }
@@ -615,6 +630,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .doom:               return .phrygian
         case .selfObservation:    return .minor
         case .drift:              return .dorian
+        case .contemplation:      return .mixolydian
         }
     }
 
@@ -772,6 +788,18 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0, 4], chordTones: [0, 2, 4, 6],
                                    padOctave: 4, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0, sustained: true)
+        case .contemplation:
+            // G2 grounded Fläche (founder 2026-07-24, same ask). A low mixolydian
+            // i → ♭VII rock (the flat-7 gives an open, unresolved, contemplative
+            // suspension — distinct from drift's dorian and the siblings' minor/
+            // lydian), a plain open triad (purer/simpler than drift's lush 7th) held
+            // LOW (padOctave 3) so it sits grounded rather than airy. One chord HELD
+            // per bar (stillness) + NO lead — the held chord advances with the
+            // bio-cadenced evolve like every sibling Fläche. Its scale·progression·
+            // register fingerprint is unique among the drum-free Flächen.
+            return HarmonicProfile(progression: [0, 6], chordTones: [0, 2, 4],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
         }
     }
 
@@ -779,7 +807,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// the heart (sync-free); everything else locks to a BPM for DAW handoff.
     public var defaultMode: ComposerMode {
         switch self {
-        case .selfObservation, .esotericMeditation, .drift: return .flowFree
+        case .selfObservation, .esotericMeditation, .drift, .contemplation: return .flowFree
         default:                                     return .studioLocked
         }
     }

@@ -222,6 +222,17 @@ public extension MusicStyle {
                 cutoff: 1650, res: 0.06, lfoAmt: 0.14, lfoRate: 0.06, lfoDepth: 0.42,
                 revMix: 0.64, revDecay: 7.5, vibRate: 0, vibDepth: 0,
                 uni: 3, det: 12)
+        case .contemplation:
+            // G2 grounded Fläche: the DARK, LOW pole of the ambient family — the
+            // slowest bloom, lowest cutoff and darkest spectral shape of the three,
+            // with the longest reverb tail. Sits under Deep Drone / Calm Pad / Drift
+            // so the family spans airy→grounded. Distinct timbre (name + id unique).
+            return patch("DE", "Still Pad",
+                a: 1.8, d: 2.0, s: 0.92, r: 7.0,
+                harm: 0.90, hl: 0.83, bright: 0.16, noise: 0.01, color: "Pink", shape: "Dark",
+                cutoff: 1050, res: 0.05, lfoAmt: 0.10, lfoRate: 0.05, lfoDepth: 0.32,
+                revMix: 0.62, revDecay: 8.0, vibRate: 0, vibDepth: 0,
+                uni: 2, det: 7)
         }
     }
 

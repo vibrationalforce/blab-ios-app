@@ -124,8 +124,8 @@ final class MusicStyleTests: XCTestCase {
         // this set grows as they're added (see the offered-palette test comment).
         let drumFree = MusicStyle.allCases.filter { !$0.isBeatDriven }
         XCTAssertEqual(Set(drumFree),
-                       [.classical, .esotericMeditation, .selfObservation, .drift],
-                       "drum-free = classical + meditation + self-observation + drift, nothing else")
+                       [.classical, .esotericMeditation, .selfObservation, .drift, .contemplation],
+                       "drum-free = classical + meditation + self-observation + drift + contemplation, nothing else")
         // The two signature beats keep their hand-built builders.
         XCTAssertEqual(MusicStyle.dubTechno.beatArchetype, .signature)
         XCTAssertEqual(MusicStyle.trap.beatArchetype, .signature)
@@ -156,6 +156,30 @@ final class MusicStyleTests: XCTestCase {
         XCTAssertNotEqual(drift.scale, MusicStyle.esotericMeditation.scale)
         // Calm at the source: the tempo window tops out slow, like the other Flächen.
         XCTAssertLessThanOrEqual(drift.tempoRange.upperBound, 78)
+    }
+
+    func testContemplationIsADistinctGroundedFläche() {
+        // G2 (founder 2026-07-24): "Contemplation" is the grounded/low pole of the
+        // ambient family — it must be a real contemplative Fläche AND stay distinct
+        // from BOTH the darker siblings and its airy sibling Drift, so no convergence.
+        let c = MusicStyle.contemplation
+        let p = c.harmonicProfile
+        XCTAssertEqual(c.category, .meditative)
+        XCTAssertFalse(c.isBeatDriven, "contemplation is a drum-free Fläche")
+        XCTAssertTrue(p.sustained)
+        XCTAssertEqual(p.leadDensity, 0, "pure Fläche — no auto lead")
+        XCTAssertFalse(p.arpeggiated)
+        XCTAssertEqual(c.defaultMode, .flowFree, "an ambient genre follows the heart (Flow)")
+        XCTAssertTrue(MusicStyle.offered.contains(c), "contemplation is offered in the curated palette")
+        // Grounded, not airy: it sits a register BELOW Drift (the opposite pole).
+        XCTAssertLessThan(p.padOctave, MusicStyle.drift.harmonicProfile.padOctave,
+                          "contemplation sits below drift (grounded vs airy)")
+        // Distinct modal colour from drift and both darker siblings.
+        for other in [MusicStyle.drift, .selfObservation, .esotericMeditation] {
+            XCTAssertNotEqual(c.scale, other.scale, "contemplation must not share \(other)'s scale")
+        }
+        // Slowest, calmest window of the family.
+        XCTAssertLessThanOrEqual(c.tempoRange.upperBound, 78)
     }
 
     func testNoGenreAutoGeneratesLeadNotes() {
