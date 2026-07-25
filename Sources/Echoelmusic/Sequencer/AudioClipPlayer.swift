@@ -183,9 +183,10 @@ public final class AudioClipPlayer {
             return
         }
         // Fill-time sweep for the direct path: this buffer was decoded from the
-        // user's file and had the fade envelope multiplied into its edges, and
-        // `NaN * g` is still NaN. It is freshly read per play(), so nothing else
-        // holds it. See `AudioOutputGuard.sweepNonFinite(_ buffer:)`.
+        // user's file, and where the fade envelope was applied above (only for a
+        // non-looping region with a non-zero fade) `NaN * g` is still NaN. It is
+        // freshly read per play(), so nothing else holds it.
+        // See `AudioOutputGuard.sweepNonFinite(_ buffer:)`.
         AudioOutputGuard.sweepNonFinite(buffer)
         node.stop()
         let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]

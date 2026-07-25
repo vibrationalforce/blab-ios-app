@@ -88,6 +88,31 @@ final class AudioOutputGuardPCMBufferTests: XCTestCase {
         XCTAssertTrue(tail.allSatisfy { $0.isNaN }, "the sweep ran past frameLength")
     }
 
+    func testInterleavedLayoutSweepsEveryChannel_notOneInN() throws {
+        // The `stride != 1` branch. Without this the branch had ZERO coverage, and
+        // it is exactly the one that can go wrong silently: treating an interleaved
+        // buffer as deinterleaved sweeps `frames` samples instead of
+        // `frames * channels`, so most of the audio is never looked at — and the
+        // deinterleaved tests would all still pass.
+        let format = try XCTUnwrap(
+            AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 48_000,
+                          channels: 2, interleaved: true))
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4))
+        buffer.frameLength = 4
+        XCTAssertEqual(buffer.stride, 2, "fixture check: this format must be interleaved")
+
+        // L0 R0 L1 R1 L2 R2 L3 R3 — the faults sit in the SECOND half, which a
+        // frames-only sweep would never reach.
+        let interleaved: [Float] = [0.1, 0.2, 0.3, 0.4, 0.5, .nan, 0.7, .infinity]
+        let data = try XCTUnwrap(buffer.floatChannelData)
+        for (i, s) in interleaved.enumerated() { data[0][i] = s }
+
+        AudioOutputGuard.sweepNonFinite(buffer)
+
+        let out = (0..<8).map { data[0][$0] }
+        XCTAssertEqual(out, [0.1, 0.2, 0.3, 0.4, 0.5, 0, 0.7, 0])
+    }
+
     func testEmptyBufferIsSafe() throws {
         let buffer = try makeBuffer(channels: 1, frames: 0, capacity: 4)
         AudioOutputGuard.sweepNonFinite(buffer)   // must not trap

@@ -60,12 +60,15 @@ import Foundation
 /// Those sweep at FILL time; see that file for why not at schedule time.
 ///
 /// ── THE REMAINING GAP, NAMED ────────────────────────────────────────────────
-/// `TimelineAudioSink`'s Clean path uses `scheduleSegment(file:startingFrame:
-/// frameCount:)`, which streams straight from the `AVAudioFile`. There is no
-/// buffer of ours in that path to sweep, so a float32 file carrying NaN/inf bit
-/// patterns still reaches `masterMixer` through it. Closing that would mean
-/// decoding the file ourselves purely to sanitise it — a real cost on the main
-/// playback path for a fault nobody has reported. Deliberately open.
+/// `TimelineAudioSink` schedules ALL non-Beats playback with
+/// `scheduleSegment(_:startingFrame:frameCount:at:)`, which streams straight from
+/// the `AVAudioFile`. Not just the Clean path — the plain node and the warp chain
+/// both land on that one call, as does `BeatPlayer`'s region audition. There is no
+/// buffer of ours in it to sweep, so a float32 file carrying NaN/inf bit patterns
+/// still reaches `masterMixer` that way. Closing it would mean decoding the file
+/// ourselves purely to sanitise it — a real cost on the main playback path for a
+/// fault nobody has reported. Deliberately open, and wider than the Beats path
+/// that IS covered.
 ///
 /// Nor does any of this say anything about what leaves `AutoMixChain`.
 ///

@@ -17,15 +17,19 @@ import AVFoundation
 ///
 /// ── SWEEP AT FILL TIME, NOT AT SCHEDULE TIME ────────────────────────────────
 /// Callers must sweep where a buffer's contents are FINALISED, not before each
-/// `scheduleBuffer`. Two reasons, and the first is the load-bearing one:
+/// `scheduleBuffer`. Two reasons, and ALIASING is the load-bearing one:
 ///
-/// 1. **Cost.** `TimelineAudioSink` caches its stretched buffer per `BeatsKey` and
-///    reschedules it on every qualifying region onset. A five-minute stereo clip is
-///    ~28.8 M samples; re-sweeping that per schedule would burn a full pass on the
-///    main actor for a buffer that cannot have changed since the last one.
-/// 2. **Aliasing.** At fill time the buffer is still local to its builder and no
+/// 1. **Aliasing.** At fill time the buffer is still local to its builder and no
 ///    node can hold it. Sweeping a cached buffer in place at schedule time would
 ///    mutate memory a previously-scheduled node may still be reading.
+/// 2. **Cost — real, but smaller than it first looks.** `TimelineAudioSink` caches
+///    its stretched buffer per `BeatsKey` and reschedules it on every qualifying
+///    region onset, so a schedule-time sweep would re-walk a buffer that cannot
+///    have changed. That buffer is capped at `beatsMaxOutputFrames` (1.5 M frames,
+///    ~31 s), i.e. ~3 M samples in stereo — a wasted pass, not a stall. The
+///    multi-minute case people picture is `AudioClipPlayer.play()`'s direct path,
+///    which is a fresh buffer swept once per play and was never a candidate for
+///    schedule-time sweeping anyway.
 ///
 /// Fill time also means the sweep only ever touches a buffer its own builder still
 /// owns exclusively. That rules out mutating memory some other component handed us
@@ -50,12 +54,17 @@ extension AudioOutputGuard {
         let frames = Int(buffer.frameLength)
         guard frames > 0 else { return }
 
-        // `stride` is 1 for the deinterleaved layout (one pointer per channel) and
-        // `channelCount` for the interleaved one (a single pointer over all
-        // channels). Reading it rather than assuming deinterleaved is what keeps
-        // this correct if a file's processing format ever arrives interleaved —
-        // assuming the wrong layout would sweep 1/N of the samples and silently
-        // miss the rest.
+        // `stride` is 1 for the deinterleaved layout and `channelCount` for the
+        // interleaved one. Reading it rather than assuming deinterleaved is what
+        // keeps this correct if a file's processing format ever arrives
+        // interleaved — assuming the wrong layout would sweep 1/N of the samples
+        // and silently miss the rest.
+        //
+        // NB `floatChannelData` hands back `channelCount` pointers in BOTH layouts;
+        // interleaved simply points them into the same chunk, each offset by one
+        // sample. So `channels[0]` is the base of the whole interleaved block and
+        // `frames * stride` is its true length — there is no "one pointer when
+        // interleaved" rule to lean on.
         let stride = buffer.stride
         if stride == 1 {
             for channel in 0..<Int(buffer.format.channelCount) {
