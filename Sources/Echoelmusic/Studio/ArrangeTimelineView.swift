@@ -530,7 +530,7 @@ struct ArrangeTimelineView: View {
         switch kind {
         case .midi:  PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)
         case .audio: AudioClipView(landingLaneID: landingLane)
-        case .video: VideoClipView(landingLaneID: landingLane)   // import + preview (transport-sync later)
+        case .video: EmptyView()    // video editing removed (pure-instrument cut); legacy .video lanes keep no door
         case .visual: EmptyView()   // no engine yet — no door offered
         }
     }
@@ -768,9 +768,8 @@ struct ArrangeTimelineView: View {
                     Button { timeline.addLane(kind: .audio) } label: {
                         Label("Audio track", systemImage: ClipKind.audio.systemImage)
                     }
-                    Button { timeline.addLane(kind: .video) } label: {
-                        Label("Video track", systemImage: ClipKind.video.systemImage)
-                    }
+                    // Video-track creation removed with the DAW video editing (pure-instrument
+                    // cut); the .video ClipKind + addLane(kind:) stay for the DAW-model slice.
                     Button { timeline.addLane(kind: .midi) } label: {
                         Label("Empty MIDI track", systemImage: ClipKind.midi.systemImage)
                     }
