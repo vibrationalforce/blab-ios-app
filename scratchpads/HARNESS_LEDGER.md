@@ -441,3 +441,26 @@ types (AUv3Host, HostedAUInfo, AUv3ScanDiagnostic+SelfProbe, an `extension AUPlu
 Tests-grep covered 4 and missed `AUv3ScanDiagnostic` → `AUv3ScanDiagnosticTests` would have broken
 (the old plan's "kompiliert weiter" was stale). ALWAYS grep EVERY top-level decl of a to-be-deleted
 file across Sources/ AND Tests/ — read the file's decls first, don't trust a summary.
+
+## 2026-07-25 — PLAYBOOK: the delete-rule has an INVERSE half — grep what the file CONSTRUCTS, not only what references it
+Slice 4/4b deleted `ArrangeTimelineView.swift` (2432 Z). The established delete-rule (grep every
+top-level decl of the doomed file across Sources/ AND Tests/) ran clean — all 10 external refs were
+comments, so the deletion was COMPILE-safe. But that rule only protects the build; it is blind to the
+opposite direction. A second sweep — "which views is this file the SOLE construction site OF?" —
+found EIGHT orphans, two of them KEEP-list items: `PianoRollView` and `PatchEditorView` (plus
+`ImmersiveStageView`). Their own `EchoelStudioView` sheets had been removed in v10.79.207, so the
+deleted timeline was their last door: the pure instrument silently lost melody-editing and
+patch-editing. Compile-green, product-broken — and `CLAUDE.md` still claimed the patch editor was
+"reachable from EchoelStudioView" (stale, corrected 0191e47; task #131 opened).
+**PLAYBOOK: before deleting any VIEW (not just any file), run BOTH halves —
+(a) inbound: `grep <everyDeclaredType>` → protects the build;
+(b) outbound: extract `[A-Z][A-Za-z]*View(` from the doomed file and, for each, check whether ANY
+other file constructs it → protects the PRODUCT. Anything left with zero constructors is now
+doorless: either it is a known cut target (say so in the commit) or it is a keeper that must be
+re-doored (open a task + fix the docs). Never let a door die silently.**
+Reachability corollary used to keep the call honest: a view whose only presenter was already
+UNMOUNTED was already unreachable → deleting it is not a NEW regression, but it does make a
+pre-existing gap permanent, which is exactly the thing worth surfacing to the founder.
+Bonus (same cycle): the ui-state-reviewer caught a false claim in my OWN comment rewrite
+(`ChannelRackView` called unmounted; it is live in EchoelStudioView's Mix panel) — when a deletion
+forces you to rewrite a doc block listing what "still stands", re-verify EACH name in that list.
