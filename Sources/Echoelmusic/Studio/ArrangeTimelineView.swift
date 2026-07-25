@@ -1054,14 +1054,10 @@ struct ArrangeTimelineView: View {
                         .foregroundStyle(EchoelTheme.text)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)   // scales "MIDI 1" down, never "MID…"
-                    // Item 3 (founder: "sichtbare Instrument/FX-Belegung pro Spur"):
-                    // the track's instrument + FX AT A GLANCE — it was menu-only until
-                    // now (the head only carried a binary puzzle icon, never WHICH
-                    // instrument, and never the BUILT-IN voice name at all). Uses the
-                    // tested LaneInstrumentLabel formatter; a dim single-line caption
-                    // that scales down so the 140-pt head never overflows. nil for a
-                    // bare/bio lane → the row stays exactly as before.
-                    if let belegung = LaneInstrumentLabel.summary(for: lane) {
+                    // The track's built-in voice name AT A GLANCE — a dim single-line
+                    // caption that scales down so the 140-pt head never overflows. nil
+                    // for a lane with no built-in voice → the row stays as before.
+                    if let belegung = lane.builtinInstrument?.displayName {
                         Text(belegung)
                             .font(EchoelTheme.font(8))
                             .foregroundStyle(EchoelTheme.dim)
@@ -1070,13 +1066,6 @@ struct ArrangeTimelineView: View {
                     }
                 }
                 Spacer(minLength: 0)
-                // U3b at-a-glance cue: this track carries a plugin assignment.
-                if lane.instrument != nil || !lane.effects.isEmpty {
-                    Image(systemName: "puzzlepiece.extension.fill")
-                        .font(.system(size: 7))
-                        .foregroundStyle(EchoelTheme.accent)
-                        .accessibilityHidden(true)
-                }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(EchoelTheme.text)
@@ -1086,24 +1075,7 @@ struct ArrangeTimelineView: View {
             .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
             .contentShape(Rectangle())
         }
-        .accessibilityLabel("\(lane.name), \(lane.kind.displayName) track. \(pluginAssignmentSummary(lane))")
-    }
-
-    /// U3b: the human-readable plugin assignment shown as the menu-section header
-    /// (and spoken in the head's a11y label). Honest — reflects the persisted
-    /// `TimelineLane.instrument`/`effects`, nothing loaded-but-unassigned.
-    private func pluginAssignmentSummary(_ lane: TimelineLane) -> String {
-        var parts: [String] = []
-        if let inst = lane.instrument {
-            // A persisted Apple file-player record is kept (user document data) but
-            // never hosted — say so, or the head claims an instrument that the
-            // built-in voice is actually playing (silence-trap review LOW).
-            parts.append(inst.isAppleGeneratorTrap
-                ? "Instrument: \(inst.name) (not playable — built-in voice plays)"
-                : "Instrument: \(inst.name)")
-        }
-        if !lane.effects.isEmpty { parts.append("FX: \(lane.effects.map(\.name).joined(separator: ", "))") }
-        return parts.isEmpty ? "No plugin assigned" : parts.joined(separator: " · ")
+        .accessibilityLabel("\(lane.name), \(lane.kind.displayName) track.")
     }
 
     /// K2a strip: Mute / Solo toggles + the lane level (EchoelValueField — the

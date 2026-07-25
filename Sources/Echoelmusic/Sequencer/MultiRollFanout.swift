@@ -126,15 +126,6 @@ public enum MultiRollFanout {
         document.effectiveGain(for: laneID) > 0.001
     }
 
-    /// The AU INSTRUMENT ref slot `slot`'s lane carries (nil ⇒ built-in voice —
-    /// the fallback is always the internal PolySynthVoice, never silence). H5:
-    /// mirrors `patch(forSlot:)`; the app resolves the ref to a per-LANE hosted
-    /// AVAudioUnit (laneID-keyed — slots are rank-unstable between plays).
-    public static func instrument(forSlot slot: Int, in document: TimelineDocument, rollLane: UUID?) -> AUPluginRef? {
-        guard let id = laneID(forSlot: slot, in: document, rollLane: rollLane) else { return nil }
-        return document.lanes.first(where: { $0.id == id })?.instrument
-    }
-
     /// The voice KIND slot `slot`'s lane plays through (S2-W2: "Spur = Instrument").
     /// Reads the lane's `builtinInstrument?.voiceKind`; a lane without an instrument
     /// — and an out-of-range slot — resolves to `.poly` (today's voice, never a

@@ -140,10 +140,31 @@ beim Founder für die großen Slices).
       Consumer war). −1852/+21 Zeilen. Commit `b26c800` (+ cosmetic `73bb223`). audio-thread + code-reviewer
       BEIDE CLEAN. Xcode Compile Check GREEN auf 73bb223, CI/CD Pipeline GREEN auf b26c800 (b26c800s Compile
       = „cancelled", weil 73bb223 ihn ablöste — normal). NEEDS-FOUNDER-VERIFY (Geräte-Ton, TestFlight-Freeze).
-  - **2d — Model + Persistenz + Entitlement + Tests + CI:** `TimelineLane.instrument/effects`
-    (decodeIfPresent-sicher: Keys droppen, nie hart decode), `AUPluginRef` löschen,
-    `LaneInstrumentLabel`+`pluginAssignmentSummary` Chirurgie, `AUParameterMapping`/`Bridge`
-    löschen (Registry BLEIBT), `inter-app-audio`-Entitlement, 8 Hosting-Tests, tote
-    testflight.yml-Diagnose-Steps. Persistence-&-Schema-Steward + security-agent (Signing).
+  - **2d — Model + Persistenz + Entitlement + Tests + CI (in 4 Sub-Slices, Map 2026-07-25).**
+    **PERSISTENZ-KORREKTUR (kritisch):** ein persistiertes Feld zu ENTFERNEN ist inhärent sicher —
+    Swift-Keyed-Decoding IGNORIERT unbekannte Keys. Ein alt-gespeichertes `TimelineDocument` mit noch
+    vorhandenen `instrument`/`effects`-Keys decodet fehlerlos gegen ein Struct ohne diese Felder. Das
+    decodeIfPresent-GESETZ schützt nur die GEGENrichtung (hartes decode eines ABWESENDEN Keys). Also:
+    Props + Init-Params + die 2 decodeIfPresent-Zeilen droppen, KEIN CodingKey-Retain nötig, NIE in ein
+    hartes `try decode` verwandeln. Reihenfolge hart 2d-1 → 2d-2 (Consumer VOR dem gekoppelten Trio).
+    - ▶ **2d-1 — Consumer der persistierten Felder weg (dieser Zyklus):** `ArrangeTimelineView`
+      (pluginAssignmentSummary + Puzzle-Icon + a11y-Klausel raus; Spurkopf-Caption jetzt
+      `lane.builtinInstrument?.displayName`), `LaneInstrumentLabel.swift` + Test gelöscht (Zweck war
+      AUv3-Belegungs-Legibilität), `MultiRollFanout.instrument(forSlot:)` + Test raus (kein Live-Caller).
+      Modell (`AUPluginRef`, `TimelineLane.instrument/effects`, `TimelineStore.setLaneX`) BLEIBT → grün,
+      Null-Persistenz-Risiko. code + ui-state-reviewer.
+    - **2d-2 — das gekoppelte Trio (DATA-LOSS-kritisch, einzelner Commit):** `TimelineLane.instrument/effects`
+      Props/Init/decode raus (Legacy-JSON-Roundtrip-Test ZUERST), `TimelineStore.setLaneInstrument/setLaneEffects`
+      raus, `AUPluginRef.swift` + `AUParameterMapping.swift` + `AUParameterBridge.swift` löschen (Registry/
+      `EchoelParameterRegistry`/`ParameterApplyRouter` BLEIBEN — sauberer Split verifiziert), Tests
+      AUParameterMapping/Bridge + TimelineLaneAUAssignment (3 Klassen). Persistence-Steward.
+    - **2d-3 — toter Engine-Code + write-only Mirror + App-@State:** 10 tote AudioEngine-AU-Methoden
+      (+ auChainFormat/masterFXFormat/withGraphPaused) raus; `HostMusicalState` ist NUR-SCHREIB tot
+      (AUHostContext war einziger Leser) → Chirurgie: `Transport.hostStateMirror`/`syncHostMirror`/6
+      advance-reset-Sites + AudioEngine:358 + EchoelmusicApp:500-Wire + HostMusicalState.swift + Test raus;
+      totes `parameterRegistry`-@State (EchoelmusicApp:119/214) + Stale-Kommentare. audio-thread-reviewer.
+    - **2d-4 — Entitlement + CI:** `inter-app-audio` aus Echoelmusic.entitlements (verwaist, kein
+      Signing-Bruch; project.yml unberührt), tote testflight.yml-AUv3-Diagnose-Steps (458-509, 634-692).
+      security-agent (Signing).
   - Schutz: `attachInstrument(_:AVAudioUnit)` (AudioEngine:777) + `HostMusicalState` sind die
     ZWEI Stellen, wo ein Hosting-Schnitt in Eigen-Sound bluten könnte — Restnutzer erst prüfen.
