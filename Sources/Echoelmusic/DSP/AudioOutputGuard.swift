@@ -52,16 +52,22 @@ import Foundation
 /// the guard, which is correct: they write literal zeros, and a zero is finite by
 /// construction.
 ///
-/// It is NOT graph-wide, and the gap is not where it looks. "Render blocks of
-/// ours" is narrower than "inputs to `masterMixer`": `masterPlayerNode`, the clip
-/// player and the warp `timePitch` path also feed that mixer. Those are
-/// `AVAudioPlayerNode`s, but do NOT dismiss them as Apple nodes replaying decoded
-/// PCM — they replay buffers WE wrote (baked fade envelopes, `WSOLAStretcher`
-/// renders in `AudioClipPlayer`/`TimelineAudioSink`), carrying user-imported audio
-/// that no finiteness check has touched. That is the same threat model this file
-/// uses to justify `SamplerVoice`'s sweep, arriving by a different door, and it is
-/// the most likely place the next non-finite sample enters. Uncovered, deliberately
-/// named. Nor does any of this say anything about what leaves `AutoMixChain`.
+/// The `AVAudioPlayerNode`s that feed the same mixer are covered SEPARATELY, by
+/// `AudioOutputGuard.sweepNonFinite(_ buffer: AVAudioPCMBuffer)` in `Audio/`. Do
+/// not dismiss them as Apple nodes replaying decoded PCM — they replay buffers WE
+/// build (baked fade envelopes, `WSOLAStretcher` renders in `AudioClipPlayer` /
+/// `TimelineAudioSink`) carrying user-imported audio no finiteness check touches.
+/// Those sweep at FILL time; see that file for why not at schedule time.
+///
+/// ── THE REMAINING GAP, NAMED ────────────────────────────────────────────────
+/// `TimelineAudioSink`'s Clean path uses `scheduleSegment(file:startingFrame:
+/// frameCount:)`, which streams straight from the `AVAudioFile`. There is no
+/// buffer of ours in that path to sweep, so a float32 file carrying NaN/inf bit
+/// patterns still reaches `masterMixer` through it. Closing that would mean
+/// decoding the file ourselves purely to sanitise it — a real cost on the main
+/// playback path for a fault nobody has reported. Deliberately open.
+///
+/// Nor does any of this say anything about what leaves `AutoMixChain`.
 ///
 /// A NEW render block does not inherit this. Wire it, and add it to the list above.
 ///

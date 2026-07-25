@@ -210,6 +210,11 @@ final class TimelineAudioSink: AudioRegionSink {
             }
         }
         out.frameLength = AVAudioFrameCount(first.count)
+        // Fill-time sweep: `out` is still local here — it reaches `beatsBuffers`
+        // only on the line below, so no node can be reading it. Doing this at
+        // schedule time instead would re-walk the whole clip on every region onset
+        // AND mutate a buffer a previously-scheduled node may still hold.
+        AudioOutputGuard.sweepNonFinite(out)
         // Audio-review V4: a tempo edit changes the rate — evict this URL's
         // other-rate entries (only one rate can be current), bounding the cache.
         for k in beatsBuffers.keys where k.url == key.url && k.rateMilli != key.rateMilli {

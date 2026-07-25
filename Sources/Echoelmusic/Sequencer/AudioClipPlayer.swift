@@ -182,6 +182,11 @@ public final class AudioClipPlayer {
             }
             return
         }
+        // Fill-time sweep for the direct path: this buffer was decoded from the
+        // user's file and had the fade envelope multiplied into its edges, and
+        // `NaN * g` is still NaN. It is freshly read per play(), so nothing else
+        // holds it. See `AudioOutputGuard.sweepNonFinite(_ buffer:)`.
+        AudioOutputGuard.sweepNonFinite(buffer)
         node.stop()
         let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]
         // Generation-guarded (code-review LOW): a stopped/replaced buffer's
@@ -226,6 +231,10 @@ public final class AudioClipPlayer {
                 }
             }
         }
+        // Fill-time sweep, after the channel copy above: this buffer carries the
+        // WSOLA render of user-imported audio, and nothing on the import path checks
+        // finiteness. See `AudioOutputGuard.sweepNonFinite(_ buffer:)`.
+        AudioOutputGuard.sweepNonFinite(buffer)
         node.stop()
         let options: AVAudioPlayerNodeBufferOptions = region.loop ? [.loops, .interrupts] : [.interrupts]
         // Same generation guard as the direct path (see play()).
