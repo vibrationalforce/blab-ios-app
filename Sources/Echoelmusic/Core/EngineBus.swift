@@ -54,8 +54,15 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// as maximum sympathetic load and composes a busier, more agitated take precisely
     /// when the app knows nothing about the body. That is a worse fabrication than the
     /// placeholder this convention replaced. The rule was first written inline at two
-    /// synth voices and immediately drifted: two other consumers kept passing the raw 0.
-    /// Keeping it in one place is what stops that happening again.
+    /// synth voices and drifted immediately — a review sweep found it missing at every
+    /// other value-mapping consumer. Keeping it in one place is what stops that again.
+    ///
+    /// **Applies to VALUE mappings only.** Where 0 already means "no contribution" —
+    /// the modulation matrix (`FXModulation.offset`: unipolar is `signal·depth·span`,
+    /// and `contributions` deliberately feeds signal 0 for a missing frame), or an
+    /// explicitly depth-to-zero operation like `BioComposer.hrvHumanize` — the raw
+    /// value is the CORRECT one, and substituting 0.5 would inject a permanent
+    /// half-depth offset out of nothing. Do not route those through this property.
     ///
     /// This is deliberately NOT the fully honest form. The honest form is "do not apply
     /// the HRV mapping at all when there is no HRV" — depth to zero rather than value to
@@ -93,6 +100,21 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// only). The demo/`.fallback` source carries a simulated value. Treat `0`
     /// as "not available", not as "incoherent".
     public let coherence: Float
+
+    /// `coherence` for MODULATION targets: unmeasured (0) becomes a neutral 0.5.
+    ///
+    /// The twin of `hrvForSound`, and it exists for the same reason: this rule had
+    /// been written inline three times over — a private helper in one synth voice, a
+    /// bare ternary in the other, a held-body variant in the studio view — and was
+    /// missing everywhere else. That is the exact drift `hrvForSound` was created to
+    /// stop, left half-finished. Coherence bites harder than HRV because more mappings
+    /// read it as "calmness": a literal 0 muffles the filter to 200 Hz, picks the
+    /// least-consonant chord voicing, and pins the composer to a sparse frozen take.
+    /// The first two copies are now deleted; the studio one deliberately stays (it can
+    /// fall back to a held body's real coherence, which is better than this 0.5).
+    ///
+    /// The VALUE-mappings-only caveat on `hrvForSound` applies here unchanged.
+    public var coherenceForSound: Float { coherence > 0 ? Swift.min(coherence, 1) : 0.5 }
 
     /// Motion energy, [0..1]. Aggregate from CoreMotion.
     public let motionEnergy: Float

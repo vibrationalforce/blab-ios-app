@@ -96,7 +96,7 @@ struct SpectralDonutView: View {
         let bio = bus.usableBio()
         let breath = Double(bio?.breathPhase ?? 0.5)             // 0…1
         let hrv = Double(bio?.hrvForSound ?? 0.5)                // 0 = unmeasured → neutral
-        let coh = Double(bio?.coherence ?? 0.5)                  // 0…1
+        let coh = Double(bio?.coherenceForSound ?? 0.5)          // ditto — coh drives depth
         // DEPTH cues (slow, bounded — not flashing, so applied even under Reduce
         // Motion): coherence pulls the whole field CLOSE (larger) — the spatial
         // "distance" dimension — and HRV LIFTS it into a taller ellipse (elevation).

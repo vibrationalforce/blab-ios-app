@@ -376,10 +376,12 @@ public final class PianoRollModel {
     /// stable hash of the affected notes, so the op is deterministic per
     /// (selection state, hrv); hrv 0 → zero jitter → no-op, no undo step.
     public func bioHumanize(ids: Set<UUID>) {
-        // `hrvForSound`: the `??` covers only a missing frame, so a live frame carrying a
-        // real 0 (not measured yet) reached `hrvHumanize` as "zero jitter" and silently
-        // turned the whole operation into a no-op.
-        let hrv = bus?.usableBio()?.hrvForSound ?? 0.5
+        // Deliberately RAW, not `hrvForSound`. This is a discrete operation the user
+        // invoked BY NAME, not a continuous mapping that has to keep sounding — so the
+        // honest form is available here: no HRV, no jitter, nothing touched. Feeding a
+        // neutral 0.5 would apply seeded velocity jitter and present it to the user as
+        // their heart-rate variability. `hrvHumanize` already guards `span > 0`.
+        let hrv = bus?.usableBio()?.hrvNormalized ?? 0.5
         applyOp(ids: ids) { affected in
             BioComposer.hrvHumanize(affected, hrvNormalized: hrv,
                                     seed: RollNoteOps.stableSeed(for: affected))
@@ -405,7 +407,9 @@ public final class PianoRollModel {
         guard let key = musicalKey else {
             return [add(pitch: anchor, startStep: startStep, lengthSteps: lengthSteps)]
         }
-        let coherence = Float(bus?.usableBio()?.coherence ?? 0.5)
+        // `coherenceForSound`: the `??` catches only a MISSING frame, so a live frame
+        // with unmeasured coherence still reached the stamp as 0 = least consonant.
+        let coherence = bus?.usableBio()?.coherenceForSound ?? 0.5
         let span = max(1, min(12, Self.highPitch - anchor))
         // Stable per-cell seed so the same body-state stamps the same chord there.
         let seed = UInt64(truncatingIfNeeded: startTick) &* 2_654_435_761
@@ -435,7 +439,7 @@ public final class PianoRollModel {
             return [add(pitch: anchor, startStep: startStep)]
         }
         let bio = bus?.usableBio()
-        let coherence = Float(bio?.coherence ?? 0.5)
+        let coherence = bio?.coherenceForSound ?? 0.5   // see `stampChord`
         let span = max(1, min(12, Self.highPitch - anchor))
         let seed = UInt64(truncatingIfNeeded: startTick) &* 2_654_435_761
                  &+ UInt64(truncatingIfNeeded: anchor)
@@ -924,9 +928,14 @@ public final class PianoRollModel {
             // Press should SWELL through the breath, not saw-reset at the cycle wrap:
             // shape the 0…1 phase into a smooth hump (0 at the cycle ends, 1 mid-breath).
             let breathSwell = Float(sin(Double(bio.breathPhase) * .pi))
-            return MPEExpression.from(coherence: bio.coherence,
+            // Both fields neutral-for-sound: `MPEExpression` declares its own no-body
+            // state as slide 64 / bend 0 (`.neutral`), and the raw 0s contradict it in
+            // opposite directions — coherence 0 sends CC74 0 (darkest timbre), and
+            // `drift = (hrv·2−1)·bendCents/range` makes hrv 0 the FULL negative bend,
+            // i.e. every note leaves 50 cents flat for the whole pre-measurement window.
+            return MPEExpression.from(coherence: bio.coherenceForSound,
                                       breathDepth: breathSwell,
-                                      hrvNormalized: bio.hrvNormalized)
+                                      hrvNormalized: bio.hrvForSound)
         }()
         // Tied notes are already carried in `active` and their sound keeps ringing —
         // only genuinely new notes fire an attack. The lane mix scales every attack;

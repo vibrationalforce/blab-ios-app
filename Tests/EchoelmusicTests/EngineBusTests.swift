@@ -179,6 +179,42 @@ final class EngineBusTests: XCTestCase {
         XCTAssertEqual(Self.makeBioFrame(hrvNormalized: -0.3).hrvForSound, 0.5, accuracy: 1e-6)
     }
 
+    // MARK: - coherenceForSound (the twin rule)
+
+    func testCoherenceForSound_matchesTheHrvRule() {
+        XCTAssertEqual(Self.makeBioFrame(coherence: 0).coherenceForSound, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(Self.makeBioFrame(coherence: 0.8).coherenceForSound, 0.8, accuracy: 1e-6)
+        XCTAssertEqual(Self.makeBioFrame(coherence: 2).coherenceForSound, 1.0, accuracy: 1e-6)
+        XCTAssertEqual(Self.makeBioFrame(coherence: .nan).coherenceForSound, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(Self.makeBioFrame(coherence: -1).coherenceForSound, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(Self.makeBioFrame(coherence: 0).coherence, 0, "the raw field stays honest")
+    }
+
+    // MARK: - The rule is BOUND to its consumers, not just defined
+
+    // Testing the property alone is what let the first version of this rule drift: every
+    // call site could be reverted to the raw field and the suite stayed green. These pin
+    // the rule at a pure boundary a consumer actually goes through.
+
+    func testBioVisualParams_unmeasuredBodyLooksLikeAMidBody_notAnAlarmedOne() {
+        let unmeasured = BioVisualParams.from(Self.makeBioFrame(hrvNormalized: 0, coherence: 0))
+        let mid = BioVisualParams.from(Self.makeBioFrame(hrvNormalized: 0.5, coherence: 0.5))
+        XCTAssertEqual(unmeasured, mid,
+                       "an unmeasured frame must render as the neutral look, not full red at floor intensity")
+    }
+
+    func testMPEExpression_unmeasuredBodySendsNoBend_andCentredSlide() {
+        // The failure this pins: drift = (hrv*2-1) * bendCents/range, so a raw 0 leaves
+        // every note 50 cents flat, and coherence 0 sends CC74 0 instead of the MPE
+        // centre of 64 that MPEExpression.neutral declares.
+        let f = Self.makeBioFrame(hrvNormalized: 0, coherence: 0)
+        let e = MPEExpression.from(coherence: f.coherenceForSound,
+                                   breathDepth: 0,
+                                   hrvNormalized: f.hrvForSound)
+        XCTAssertEqual(e.bend, 0, accuracy: 1e-6)
+        XCTAssertEqual(e.slideCC74, MPEExpression.neutral.slideCC74)
+    }
+
     // MARK: - Freshness window (Bio-Acceptance v1)
 
     func testFreshBio_nilWhenNoFrame() {
@@ -272,14 +308,15 @@ final class EngineBusTests: XCTestCase {
     // MARK: - Helpers
 
     private static func makeBioFrame(timestamp: TimeInterval = 0,
-                                     hrvNormalized: Float = 0.5) -> BioSampleFrame {
+                                     hrvNormalized: Float = 0.5,
+                                     coherence: Float = 0.6) -> BioSampleFrame {
         BioSampleFrame(
             timestamp: timestamp,
             heartRateBPM: 72,
             hrvNormalized: hrvNormalized,
             breathRate: 12,
             breathPhase: 0.25,
-            coherence: 0.6,
+            coherence: coherence,
             motionEnergy: 0.1,
             source: .oura
         )

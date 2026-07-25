@@ -3800,8 +3800,12 @@ struct EchoelStudioView: View {
         // measures it, and the camera path reports 0 until enough beats accrue. The
         // composer reads coherence as calmness, so a literal 0 would be misread as
         // "maximally incoherent" and pin the arrangement to a sparse, frozen take
-        // (the 8-min "stuck at 6 notes" after a pulse episode). Treat 0 as neutral —
-        // preferring the held body's coherence over the hardcoded 0.5 when we have one.
+        // (the 8-min "stuck at 6 notes" after a pulse episode).
+        //
+        // Deliberately NOT `frame.coherenceForSound`, which is the same rule with a
+        // hardcoded 0.5: here a HELD body's last real coherence is available and is a
+        // strictly better neutral than the generic one, so it must win the fallback.
+        // Routing this through the shared property would throw that away.
         let heldCoh: Float? = heldBody.flatMap { $0.coherence > 0 ? Float($0.coherence) : nil }
         let rawCoh = fin(frame?.coherence, heldCoh ?? 0.5)
         let liveCoh = rawCoh > 0 ? rawCoh : (heldCoh ?? 0.5)

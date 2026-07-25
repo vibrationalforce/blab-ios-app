@@ -76,8 +76,15 @@ public struct BioVisualParams: Sendable, Equatable {
         let bounded = Swift.min(Swift.max(hr / 60.0, 0.5), 2.0)
         let pulse = FlashGuard.safeFrequency(bounded, reduceMotion: reduceMotion)
 
-        let coherence = clamp01(Double(frame?.coherence ?? 0))
-        let hrv = clamp01(Double(frame?.hrvForSound ?? 0.5))   // 0 = unmeasured → neutral
+        // Coherence now falls back mid-scale like its two neighbours instead of to 0.
+        // It was the odd one out, and 0 is this mapping's extreme: full red at floor
+        // intensity, i.e. the most alarmed-looking frame the renderer can draw, shown
+        // precisely when nothing is known. `coherenceForSound` extends the same rule
+        // to a frame that EXISTS but has not measured coherence (HealthKit never does).
+        // This moves `from(nil)` toward `.neutral` without making them equal — that
+        // constant also stills the pulse, which a live mapping cannot do.
+        let coherence = clamp01(Double(frame?.coherenceForSound ?? 0.5))
+        let hrv = clamp01(Double(frame?.hrvForSound ?? 0.5))
         let breath = clamp01(Double(frame?.breathPhase ?? 0.5))
 
         return BioVisualParams(

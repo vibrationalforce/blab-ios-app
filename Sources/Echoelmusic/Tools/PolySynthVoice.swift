@@ -599,7 +599,7 @@ public final class PolySynthVoice {
         // already set). `profile` is resolved here on the main actor (reads the
         // control-plane `bioMappingHarmonic`) and carried in the value.
         _ = bioCommands.tryEnqueue(PolyBioParams(
-            coherence: liveCoherence(frame.coherence),
+            coherence: frame.coherenceForSound,
             hrv: frame.hrvForSound,   // 0 = unmeasured → neutral; see BioSampleFrame
             heartRate: hrNormalized,
             breathPhase: clampUnit(frame.breathPhase),
@@ -608,7 +608,7 @@ public final class PolySynthVoice {
             coherenceTrend: 0,
             profile: bioMappingHarmonic ? .harmonicSeries : .natural
         ))
-        applyEntrainment(coherence: frame.coherence,
+        applyEntrainment(coherence: frame.coherenceForSound,
                          heartRateBPM: frame.heartRateBPM,
                          motionEnergy: frame.motionEnergy)
     }
@@ -622,7 +622,7 @@ public final class PolySynthVoice {
         guard entrainmentEnabled else { return }
         let quality: Float = heartRateBPM > 0 ? clampUnit(1 - motionEnergy) : 0
         let target = BioEntrainmentDirector(manualBand: entrainmentManualBand)
-            .target(coherence: liveCoherence(coherence), quality: quality)
+            .target(coherence: clampUnit(coherence), quality: quality)
         entrainmentTarget = target
         audioEntrainmentActive = target.depth > 0   // idle gate must stay open
         poly.forEachVoice { voice in
@@ -639,11 +639,6 @@ public final class PolySynthVoice {
     }
 
     private func clampUnit(_ x: Float) -> Float { min(max(x, 0), 1) }
-    /// Coherence of exactly 0 means "no coherence data" (camera until enough beats;
-    /// HealthKit never measures it) — NOT "maximally incoherent". The synth maps
-    /// coherence→filter cutoff (200 Hz at 0 → muffled), so a literal 0 muffled every
-    /// resting/unmeasured take. Treat 0 as neutral so the baseline tone is open.
-    private func liveCoherence(_ c: Float) -> Float { c > 0 ? clampUnit(c) : 0.5 }
 
     // MARK: - Source node (audio thread)
 
