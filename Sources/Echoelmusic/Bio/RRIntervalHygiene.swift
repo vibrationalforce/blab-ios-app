@@ -58,7 +58,11 @@ public enum RRIntervalHygiene {
     /// windowed metrics path share one implementation instead of drifting apart. The
     /// publisher runs a gate per arriving beat (to decide whether it may fire a discrete
     /// heartbeat event); `acceptedSegments` runs one over a whole window.
-    public struct Gate {
+    /// `Sendable` is declared, not inferred: public types get no implicit conformance
+    /// (SE-0302). Nothing sends a `Gate` across an isolation boundary today, so this
+    /// costs nothing now — it just means a future caller gating on a background queue
+    /// meets the value semantics it expects instead of a confusing conformance error.
+    public struct Gate: Sendable {
         /// The last accepted interval — the Malik comparison anchor. `nil` means the next
         /// plausible beat starts a fresh run and cannot be judged against anything.
         public private(set) var anchorMs: Double?

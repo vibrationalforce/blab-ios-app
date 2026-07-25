@@ -119,8 +119,16 @@ Ordered by harm × cheapness, not by domain. Each line ≤3 files.
 2. **Audio-thread patch drain** — remove the allocation (C4) and the ObjC
    `caseInsensitiveCompare` (C5) from the render block. Straight hard-rule
    violation; goes first among the sound work regardless of audibility.
-3. **BLE signal hygiene** — RR physiological range + ectopic-difference filter, HR
-   range guard. Closes the "most accurate source is the least filtered" irony.
+3. ✅ **BLE signal hygiene** — RR physiological range + Malik ectopic filter + HR range
+   guard, with segment-aware HRV metrics so a closed gap cannot fabricate a successive
+   difference. *Shipped.* Follow-up the concurrency review surfaced, its own slice:
+   `PolarH10BioPublisher` creates one `Task { @MainActor }` PER BLE notification, and
+   Swift does not guarantee submission order for separately-created tasks. Pre-existing
+   (the `rrIntervals.append` hop has always ridden it) and bounded — a reorder costs at
+   most one suppressed heartbeat event, self-healing because a rejection nils the
+   anchor — but the root fix is the `RGBSampleQueue` pattern already used in
+   `CameraRPPGBioPublisher`: one lock-protected queue drained by the existing 1 Hz poll,
+   zero actor hops per packet.
 4. **Kill the invented 0.5 HRV** — honest 0 (or optional) when no sample has arrived;
    drop the two `?? 0.5` fallbacks.
 5. **TPT SVF rewrite** — lifts the 8 kHz cutoff lid (C1) and takes denormals (H7) +
