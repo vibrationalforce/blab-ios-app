@@ -12,7 +12,7 @@ final class LearnLibraryTests: XCTestCase {
         XCTAssertEqual(LearnLibrary.bodyScienceEntries.count, BioScienceTopic.allCases.count)
         XCTAssertEqual(LearnLibrary.musicEntries.count, MusicTheoryTopic.allCases.count)
         XCTAssertEqual(LearnLibrary.lightEntries.count, LightScienceTopic.allCases.count)
-        XCTAssertEqual(LearnLibrary.safetyEntries.count, 1)
+        XCTAssertEqual(LearnLibrary.safetyEntries.count, 2)
     }
 
     func testAllIsSectionOrderedAndComplete() {
@@ -20,7 +20,7 @@ final class LearnLibraryTests: XCTestCase {
         XCTAssertEqual(all.count,
                        BioMetric.allCases.count + BioScienceTopic.allCases.count
                        + MusicTheoryTopic.allCases.count
-                       + LightScienceTopic.allCases.count + 1)
+                       + LightScienceTopic.allCases.count + 2)
         // Body entries come first; safety stays last.
         let sections = all.map { $0.section }
         XCTAssertEqual(sections.first, .body)
@@ -91,9 +91,42 @@ final class LearnLibraryTests: XCTestCase {
     }
 
     func testSafetyEntryStatesScope() {
-        let d = LearnLibrary.safetyEntries[0].detail.lowercased()
-        XCTAssertTrue(d.contains("diagnos"))
-        XCTAssertTrue(d.contains("not"))
+        // Looked up by ID, not by index: the contraindications entry now sits first,
+        // and an index-based assertion would silently test the wrong entry.
+        let d = LearnLibrary.safetyEntries
+            .first { $0.id == "safety.scope" }?.detail.lowercased()
+        XCTAssertNotNil(d)
+        XCTAssertTrue(d?.contains("diagnos") ?? false)
+        XCTAssertTrue(d?.contains("not") ?? false)
+    }
+
+    /// CLAUDE.md mandates five in-app safety warnings. Four of them were reachable
+    /// ONLY through one-time onboarding (no reset path), so a returning user or an App
+    /// Review pass on a second launch could not see them at all. They now have a
+    /// permanent home in the Learn library — this test is what keeps them there.
+    func testContraindicationsEntryCarriesEveryMandatedWarning() {
+        let e = LearnLibrary.safetyEntries.first { $0.id == "safety.contraindications" }
+        XCTAssertNotNil(e, "the persistent safety entry must exist")
+        let text = ((e?.title ?? "") + " " + (e?.summary ?? "") + " " + (e?.detail ?? ""))
+            .lowercased()
+        for required in ["driving", "machinery", "alcohol", "drugs",
+                         "provider", "reduce motion"] {
+            XCTAssertTrue(text.contains(required),
+                          "mandated safety warning missing the word '\(required)'")
+        }
+        // The 3 Hz cap must be stated as a number, not paraphrased away.
+        XCTAssertTrue(text.contains("3 flashes per second") || text.contains("3 hz"),
+                      "the WCAG flash cap must be stated explicitly")
+        // It is a LIMIT, never a treatment claim.
+        XCTAssertTrue(text.contains("not part of a treatment"))
+    }
+
+    /// The warnings must be reachable without onboarding — i.e. they must be part of
+    /// the `.safety` section the Learn surface renders, not a detached constant.
+    func testContraindicationsAreInTheRenderedSafetySection() {
+        let ids = LearnLibrary.entries(for: .safety).map(\.id)
+        XCTAssertTrue(ids.contains("safety.contraindications"))
+        XCTAssertTrue(LearnLibrary.all.map(\.id).contains("safety.contraindications"))
     }
 
     func testNoEsotericClaimsAnywhere() {

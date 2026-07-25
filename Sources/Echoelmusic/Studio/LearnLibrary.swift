@@ -78,16 +78,42 @@ public enum LearnLibrary {
         }
     }
 
-    /// The single safety/scope entry — reuses the shared disclaimer.
+    /// Safety & scope. TWO entries, and the first one exists for a reachability
+    /// reason worth keeping in mind: `CLAUDE.md` mandates five safety warnings in the
+    /// app, and four of them lived ONLY in `OnboardingView` — which renders while
+    /// `hasCompletedOnboarding == false` and has no reset path. So every existing
+    /// tester, every device restore and any reviewer on a second launch had NO way to
+    /// reach "not while driving" or "not under the influence". The two strings written
+    /// to solve that (`BioSourceView`, `SessionView`) are both in unreachable views.
+    /// Putting them here gives them a permanent home: `LearnView` renders every
+    /// section from `entries(for:)`, so this needs no new view and — importantly — no
+    /// new `.sheet` (the modifier chain is at its metadata ceiling).
+    /// Contraindications come FIRST; the scope note follows.
     public static var safetyEntries: [LearnEntry] {
-        [LearnEntry(
-            id: "safety.scope", section: .safety,
-            title: "Self-observation, not diagnosis",
-            summary: "What Echoelmusic’s biofeedback is — and is not.",
-            detail: BioMetric.disclaimer
-                + " Bio readings are most accurate from a chest strap; wrist and "
-                + "camera are estimates. Breathing guides are optional and never forced."
-        )]
+        [
+            LearnEntry(
+                id: "safety.contraindications", section: .safety,
+                title: "When not to use Echoelmusic",
+                summary: "Four limits — read them once, they matter.",
+                detail: "Do not use rhythmic audio-visual pacing while driving or "
+                    + "operating machinery. Do not use it under the influence of "
+                    + "alcohol or drugs. If you are using Echoelmusic alongside any "
+                    + "therapeutic programme, coordinate it — and any medication "
+                    + "timing — with your own provider; Echoelmusic is not part of a "
+                    + "treatment and replaces nothing. Visuals are capped at 3 flashes "
+                    + "per second (W3C WCAG) and freeze entirely with Reduce Motion on; "
+                    + "if you are photosensitive, turn Reduce Motion on before you "
+                    + "start. Stop if you feel unwell."
+            ),
+            LearnEntry(
+                id: "safety.scope", section: .safety,
+                title: "Self-observation, not diagnosis",
+                summary: "What Echoelmusic’s biofeedback is — and is not.",
+                detail: BioMetric.disclaimer
+                    + " Bio readings are most accurate from a chest strap; wrist and "
+                    + "camera are estimates. Breathing guides are optional and never forced."
+            )
+        ]
     }
 
     public static func entries(for section: LearnSection) -> [LearnEntry] {
