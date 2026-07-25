@@ -194,13 +194,19 @@ beim Founder für die großen Slices).
   - **(#126 „Video im Loop Takt genau geschnitten") = superseded von #121** — same-day Founder-Detail INNERHALB des Video-
     Editing, das #121 entfernt; moot, sobald Video-Schnitt weg ist. Kein Founder-Question (Supersession, keine Ambiguität).
   - **Sub-Slices (je 1 Ralph-Commit, consumer-first, Gate grün + Reviewer):**
-    - **3a-i — Video-Monitor-Tür zu (UI):** `WorkspaceView` `@AppStorage("video.monitor.visible")`:110 + `FloatingVideoMonitor`-
-      Präsentation:178-179 + `EchoelVideoMonitorMini`-Toggle:264-265 raus; `HeaderMonitors` `EchoelVideoMonitorMini`-Struct:429 raus
-      (VisualRecorder-Indicator:430 BLEIBT). ui-state-reviewer. (UserDefaults-Key, keine Codable-Persistenz.)
-    - **3a-ii — `FloatingVideoMonitor.swift` löschen** (`MonitorVideoSink` = einziger `VideoRegionSink`-Impl + `FloatingVideoMonitor`). code-reviewer.
-    - **3b — Video-Lane-PLAYBACK-Engine löschen:** `VideoLanePlayer.swift` (+`VideoRegionSink`/`VideoMonitorSelect`), `VideoRegionSync.swift`,
-      `VideoResyncPolicy.swift` + Tests (`VideoLanePlayerTests`/`VideoResyncPolicyTests`/`VideoMonitorSelectTests`/`VideoInTracksTests`).
-      Bereits app-tot (keine Instanziierung in Sources). code-reviewer (kein Audio-Thread — AVPlayer-Sink ging mit 3a-ii).
+    - ✅ **3a-i — Video-Monitor-Tür zu GESHIPPT (2a235d0, Gates grün):** `WorkspaceView` `@AppStorage("video.monitor.visible")` +
+      `FloatingVideoMonitor`-Präsentation raus. **KORREKTUR zur Planzeile:** die Kachel NICHT gelöscht — sie war ein Hybrid, dessen
+      Kontextmenü die EINZIGE Tür zur Recorded-Clips-Library (`showVideoLibrary` → `VideoLibraryPanelContent`, Decision-A/#51-KEEP) war.
+      Ground-truth (`.echoelChromeDoor "video"` → EchoelStudioView:532) zeigte das → **umgewidmet:** `EchoelVideoMonitorMini` →
+      `EchoelClipsMonitorMini`, Tap öffnet jetzt die Clips-Library (vorher Long-Press), REC-Indicator bleibt. ui-state-reviewer CLEAN.
+    - ✅ **3a-ii — `FloatingVideoMonitor.swift` GELÖSCHT (e9db7a2, Gates grün):** 386 Zeilen, alle 4 Typen (`FloatingVideoMonitor`,
+      `MonitorVideoSink`, `MonitorPlayerView`, `VideoMonitorContent`) auf 0 Refs gegreppt. `MonitorVideoSink` (einziger Sink-Impl) nirgends
+      instanziiert → compile-safe. code-reviewer CLEAN.
+    - ✅ **3b — Video-Lane-PLAYBACK-Engine GELÖSCHT (2f86a6b, Compile-Gate grün, CI/CD lief noch):** `VideoLanePlayer.swift`
+      (+`VideoRegionSink`/`VideoMonitorSelect`), `VideoRegionSync.swift`, `VideoResyncPolicy.swift` + 4 Tests (954 Zeilen). Alle 7 Symbole
+      auf 0 Code-Refs (Rest = Doc-Kommentar in VideoClipView, stirbt in 3c). App-tot. `TimelineScheduling`-Doc-Kommentare entstaubt
+      (`videoLaneEvents`/`videoLaneIDs` BLEIBEN → Slice 5). Data-Loss gewahrt (`ClipKind.video`/`RecordSource.videoCapture` intakt).
+      code-reviewer CLEAN (kein Audio-Thread).
     - **3c — Video-Import-Tür zu:** `ArrangeTimelineView:533` `case .video: VideoClipView(...)` → `EmptyView()` (spiegelt `.visual`:534);
       `VideoClipView.swift` löschen. ui-state-reviewer. ⚠ `ClipKind.video`-Case BLEIBT (Data-Loss).
     - **3d — Video-Import/Export-Modell löschen:** `VideoClipFactory.swift`, `VideoRegionTrim.swift`, `VideoExportPlan.swift`,
