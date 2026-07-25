@@ -464,3 +464,24 @@ pre-existing gap permanent, which is exactly the thing worth surfacing to the fo
 Bonus (same cycle): the ui-state-reviewer caught a false claim in my OWN comment rewrite
 (`ChannelRackView` called unmounted; it is live in EchoelStudioView's Mix panel) — when a deletion
 forces you to rewrite a doc block listing what "still stands", re-verify EACH name in that list.
+
+## 2026-07-25 — CORRECTION to the inverse delete-rule: the OUTBOUND sweep must cover EVERY declared type, not just `XView(`
+The playbook added earlier today (inbound grep protects the build; outbound grep protects the product)
+was RIGHT in shape but I implemented the outbound half too narrowly. For Slice 4/4d I extracted only
+`\b[A-Z][A-Za-z0-9]*View\(` from the doomed files and concluded "nothing new is orphaned". The
+code-reviewer refuted it: `Sequencer/ClipAutomationEdit.swift` — a pure, tested `public enum`, NOT a
+View — lost its last production consumer when `ClipAutomationView` was deleted. A View-shaped regex
+cannot see a non-View orphan.
+**PLAYBOOK (supersedes the narrow version): for the outbound half, enumerate every CAPITALISED
+IDENTIFIER the doomed file references (types, enums, factories, math cores — not just `…View(`), then
+for each ask "does any OTHER file still reference it?". Anything left at zero is newly orphaned and
+must be classified out loud: known cut target (name it in the commit) / keeper needing a new door
+(open a task) / residue for the cleanup slice (add it to the list).**
+Corollary that made the 4d call safe anyway: deleting a CALLER can never break the CALLEE's
+compilation, so an outbound miss is never a build break — it is a *bookkeeping* failure that leaves
+dead code unrecorded, or worse, a keeper silently doorless. That is exactly why the sweep exists;
+budget for it rather than trusting a one-line regex.
+Second, smaller lesson from the same cycle: when a deletion forces you to REWRITE a doc block that
+lists "what still stands", re-verify EACH name in that list. My rewrite of `SurfaceSwitcher.swift`
+called `ChannelRackView` unmounted; it is live in `EchoelStudioView`'s Mix panel (`:1510`). The
+ui-state-reviewer caught it. Inherited-but-restated falsehoods are still falsehoods.
