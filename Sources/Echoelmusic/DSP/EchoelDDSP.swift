@@ -326,6 +326,14 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// The getter hands back a fresh copy on purpose — returning the buffer itself
     /// would leave a second reference alive and turn the next in-place write into a
     /// COW heap copy ON the audio thread (the exact `RenderScratch` bug class).
+    ///
+    /// ⚠ That mitigation is narrower than it looks: the copy stops a caller RETAINING
+    /// the buffer, but the getter still holds a transient +1 while it runs. Reading
+    /// `timbreProfile` from the control thread WHILE the render thread is inside
+    /// `applyTimbre` would make the uniqueness check see 2 and malloc anyway. No code
+    /// in `Sources/` reads this property today (it is test-only), so this is a trap
+    /// for a future UI, not a live bug — but if a view ever wants to show the profile,
+    /// give it a render-free snapshot instead of reaching in here.
     public var timbreProfile: [Float]? {
         get { hasTimbreProfile ? timbreBuffer.map { $0 } : nil }
         set {

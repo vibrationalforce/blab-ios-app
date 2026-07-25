@@ -22,12 +22,30 @@ final class ResolvedPatchTests: XCTestCase {
     /// element is dequeued on the render thread, so it must contain no String, Array,
     /// or any other reference. Adding one would put ARC traffic — and eventually a
     /// `free()` — back on the audio thread, silently. This stops compiling if it does.
-    #if compiler(>=6.0)
-    func testResolvedPatchIsBitwiseCopyable() {
-        func requireBitwiseCopyable<T: BitwiseCopyable>(_: T.Type) {}
-        requireBitwiseCopyable(ResolvedPatch.self)
+    /// The queue element is dequeued ON the render thread, so it must be plain old
+    /// data. A `String` or `Array` field would put ARC traffic — and eventually a
+    /// `free()` — back on the audio thread, silently, with no other test failing.
+    ///
+    /// The obvious spelling of this guard, a `BitwiseCopyable` constraint, does NOT
+    /// work here: SE-0426 explicitly does not infer that conformance for exported
+    /// (`public`) types, and neither `ResolvedPatch` nor the four `EchoelDDSP` enums it
+    /// holds declares it — so the constraint is a hard compile error, not a check.
+    /// Declaring it on all five would also freeze those enums against ever gaining an
+    /// associated value, which is a bigger API promise than a test guard should buy. A
+    /// Mirror walk needs no conformance and still catches the actual mistake.
+    func testResolvedPatchCarriesNothingHeapAllocated() {
+        let sample = SynthPatch(name: "POD", timbreProfile: "violin", timbreBlend: 0.5).resolved()
+        for child in Mirror(reflecting: sample).children {
+            let typeName = String(describing: type(of: child.value))
+            let field = child.label ?? "?"
+            XCTAssertFalse(typeName.contains("String"),
+                           "ResolvedPatch.\(field) is \(typeName) — heap-backed, so dequeuing "
+                           + "it does ARC work on the audio thread")
+            XCTAssertFalse(typeName.contains("Array") || typeName.hasPrefix("["),
+                           "ResolvedPatch.\(field) is \(typeName) — heap-backed, so dequeuing "
+                           + "it does ARC work on the audio thread")
+        }
     }
-    #endif
 
     // MARK: - Resolution happens once, on the control thread
 
@@ -135,10 +153,15 @@ final class ResolvedPatchTests: XCTestCase {
         XCTAssertFalse(synth.hasTimbreProfile)
     }
 
-    func testFacadeGetterHandsBackACopy_soInPlaceWritesCannotTriggerCOW() {
-        // If the getter returned the backing buffer itself, holding the result would
-        // make the next `applyTimbre` a copy-on-write heap allocation — on the audio
-        // thread. That is the RenderScratch bug class; this pins the mitigation.
+    func testFacadeGetterReturnsASnapshotNotALiveView() {
+        // HONEST SCOPE: this does NOT prove the getter avoids copy-on-write. If it DID
+        // alias the buffer, COW would preserve the earlier read's contents and this
+        // assertion would still pass — it cannot fail in either world. What actually
+        // keeps the in-place write on the audio thread allocation-free is that
+        // `timbreBuffer` is `private` and no code in `Sources/` retains it, so its
+        // refcount is 1 when `applyTimbre` takes a mutable pointer. What this test DOES
+        // pin is the visible semantics: a read is a snapshot of that moment, so a later
+        // recall is observable through a fresh read rather than mutating an old one.
         let synth = EchoelDDSP()
         synth.applyTimbre(.trumpet, blend: 1.0)
         guard let held = synth.timbreProfile else { return XCTFail("expected a profile") }
