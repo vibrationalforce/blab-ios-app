@@ -88,8 +88,9 @@ public enum TimelineScheduling {
     }
 
     /// The scheduling event for every VIDEO lane moving `fromTick`→`toTick`, in lane
-    /// order — the video analog of `laneEvents`. Drives one VideoLanePlayer per lane.
-    /// Pure — the device-side player applies the `.load`/`.clear` onsets.
+    /// order — the video analog of `laneEvents`. Pure/additive; no live consumer
+    /// today (the video-lane playback engine was removed in the pure-instrument cut;
+    /// the residual video-lane model retires with the DAW model in a later slice).
     public static func videoLaneEvents(in document: TimelineDocument,
                                        fromTick: Int, toTick: Int) -> [LaneScheduleEvent] {
         document.videoLaneIDs.map { id in
@@ -132,8 +133,9 @@ public extension TimelineDocument {
         }
     }
 
-    /// The video lanes (in order) — each drives its own VideoLanePlayer (AVPlayer),
-    /// mirroring `audioLaneIDs`. Read by the device-side player; pure/additive.
+    /// The video lanes (in order), mirroring `audioLaneIDs`. Pure/additive; the
+    /// video-lane playback engine that read this was removed in the pure-instrument
+    /// cut — the residual accessor retires with the DAW model in a later slice.
     var videoLaneIDs: [UUID] {
         lanes.filter { $0.kind == .video && !$0.isBio }.map(\.id)
     }
