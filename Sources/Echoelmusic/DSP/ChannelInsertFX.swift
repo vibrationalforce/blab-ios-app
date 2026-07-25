@@ -114,9 +114,37 @@ public struct ChannelInsertFX: Sendable, Equatable {
             y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
             x2 = x1; x1 = x
             y2 = y1; y1 = y
-            // Flush denormals in the recursive state.
-            if y1 > -1e-20 && y1 < 1e-20 { y1 = 0 }
-            if y2 > -1e-20 && y2 < 1e-20 { y2 = 0 }
+            if y.isFinite {
+                // Flush denormals in the recursive state.
+                if y1 > -1e-20 && y1 < 1e-20 { y1 = 0 }
+                if y2 > -1e-20 && y2 < 1e-20 { y2 = 0 }
+            } else {
+                // SELF-HEAL. A biquad is a recursive accumulator, so one NaN or ±inf
+                // otherwise latches this filter forever. The denormal test above
+                // cannot clear it: every comparison against NaN is false, and ±inf
+                // fails both bounds too.
+                //
+                // Defence-in-depth, not a fix for a known live bug. Of the four
+                // owners — `PolySynthVoice`, `SubBassVoice`, `DrumSynthVoice`,
+                // `SamplerVoice` — only `SamplerVoice` has an input that can
+                // actually arrive non-finite (user-imported audio, unchecked on the
+                // import path), and it already resets per trigger, so it would have
+                // recovered at the next hit. `DrumSynthVoice` cannot: its modal bank
+                // skips a poisoned mode rather than summing it, so the bank goes
+                // silent instead of emitting NaN. What this DOES change is
+                // `PolySynthVoice` and `SubBassVoice`, which reset only on an
+                // off→on FX transition — there a latched filter would have survived
+                // until the user toggled the effect off and back on.
+                //
+                // Zeroing the INPUT history as well is the point: `x` itself may be
+                // the non-finite value, and leaving it in `x1`/`x2` would re-poison
+                // the next two samples through the feed-forward path. Note that
+                // half-fixing this (clearing only `y1`/`y2`) does NOT show up as a
+                // non-finite output — the branch simply re-fires and emits 0 — so
+                // the test for it asserts sample VALUES against a fresh filter.
+                x1 = 0; x2 = 0; y1 = 0; y2 = 0
+                y = 0
+            }
         }
         if drive > 0 {
             // Soft saturation: blend dry→tanh by drive; pre-gain adds harmonics.

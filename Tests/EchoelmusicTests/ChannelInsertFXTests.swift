@@ -31,6 +31,55 @@ final class ChannelInsertFXTests: XCTestCase {
         }
     }
 
+    func testANonFiniteInputCannotLatchTheFilterIntoPermanentSilence() {
+        // A biquad is a recursive accumulator, so one bad sample stays in the state
+        // forever unless it is cleared. The old denormal test could not clear it:
+        // every comparison against NaN is false, and ±inf fails both bounds. This
+        // is the permanent-silence class this repo has shipped twice — and it bites
+        // hardest on DrumSynthVoice, which never calls reset() and has no idle
+        // detector, so a poisoned pad would stay dead until the app was relaunched.
+        for poison: Float in [.nan, .infinity, -.infinity] {
+            var fx = ChannelInsertFX(type: .lowPass, cutoffHz: 800, resonance: 0.707, drive: 0)
+            // Warm up on real audio, then poison it.
+            for i in 0..<64 { _ = fx.process(sinf(Float(i) * 0.1)) }
+            let poisoned = fx.process(poison)
+            XCTAssertEqual(poisoned, 0, "a non-finite input must leave silence, not \(poisoned)")
+
+            // It must then come back on its own — the whole point.
+            var out = [Float](repeating: 0, count: 4096)
+            for i in 0..<out.count { out[i] = fx.process(sinf(2 * .pi * 100 * Float(i) / 48_000)) }
+            for v in out { XCTAssertTrue(v.isFinite, "state stayed poisoned after \(poison)") }
+            XCTAssertGreaterThan(rms(Array(out[2048...])), 0.3,
+                                 "filter never recovered after \(poison) — still silent")
+        }
+    }
+
+    func testTheInputHistoryIsClearedToo_notJustTheOutputState() {
+        // Zeroing only y1/y2 would leave the poison in x1/x2 and re-infect the next
+        // two samples through the feed-forward path (`b1*x1 + b2*x2`).
+        //
+        // Asserting `isFinite` here does NOT catch that, which is the trap: under a
+        // y-only fix, sample n+1 computes b1·NaN, re-enters the fault branch, and
+        // comes out as 0 — finite, and silently wrong. So this asserts the VALUE.
+        //
+        // A correctly healed filter is state-identical to a fresh one, so a virgin
+        // instance is the exact expectation. Under a y-only fix the first two
+        // samples would be 0.0, 0.0 instead of the real impulse response, and this
+        // fails.
+        var fx = ChannelInsertFX(type: .lowPass, cutoffHz: 800, resonance: 0.707, drive: 0)
+        for i in 0..<64 { _ = fx.process(sinf(Float(i) * 0.1)) }
+        _ = fx.process(.nan)
+        let next = (0..<3).map { _ in fx.process(0.5) }
+
+        var fresh = ChannelInsertFX(type: .lowPass, cutoffHz: 800, resonance: 0.707, drive: 0)
+        let expected = (0..<3).map { _ in fresh.process(0.5) }
+
+        XCTAssertEqual(next, expected,
+                       "the filter must resume from a fully cleared state, not replay "
+                       + "zeroed samples out of a poisoned input history")
+        XCTAssertGreaterThan(expected[0], 0, "fixture check: a fresh filter's first sample is non-zero")
+    }
+
     func testLowPass_attenuatesHighsMoreThanLows() {
         let fx = ChannelInsertFX(type: .lowPass, cutoffHz: 500, resonance: 0.707, drive: 0)
         let low = runSine(fx, hz: 100)

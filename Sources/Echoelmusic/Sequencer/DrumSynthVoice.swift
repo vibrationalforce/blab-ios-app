@@ -128,7 +128,11 @@ private final class DrumRenderState: @unchecked Sendable {
 
     /// Main thread. Record a strike; the audio thread excites the bank on its next block.
     func requestStrike(gain: Float) {
-        strikeGain = min(max(gain, 0), 1)
+        // NaN-safe `clamped(to:)`, not `min(max(...))` — the free min/max are
+        // comparison-based and every comparison against NaN is false, so a NaN
+        // passes both and reaches `modalBank.noteOn(velocity:)`. Same fix as
+        // SubBassVoice.subGain (759c071).
+        strikeGain = gain.clamped(to: 0...1)
         strikeCount &+= 1
     }
 
@@ -142,6 +146,11 @@ private final class DrumRenderState: @unchecked Sendable {
         cfgBrightness = params.brightness
         cfgStrikePosition = params.strikePosition
         cfgSize = params.size
+        // ARGUMENT ORDER IS LOAD-BEARING — do not "normalise" this to `max(params.level, 0)`.
+        // `max(x, y)` is `y >= x ? y : x`, so `max(0, NaN)` compares `NaN >= 0` → false
+        // → returns 0, which is NaN-SAFE. The mirrored `max(NaN, 0)` returns NaN, which
+        // is exactly the bug fixed in `requestStrike` above. Same two calls, opposite
+        // behaviour, decided only by which side the NaN is on.
         level = max(0, params.level)
         cfgVersion &+= 1
     }
