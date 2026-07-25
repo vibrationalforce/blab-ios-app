@@ -59,7 +59,7 @@ final class MusicStyleTests: XCTestCase {
         }
     }
 
-    func testSustainedFlächenAreExactlyTheSixCalmGenres() {
+    func testSustainedFlächenMatchTheSustainedProfileFlag() {
         // The sustained Flächen (calm, one chord per bar, NO lead) are an invariant
         // decoupled from the offered roster since 2026-07-11. Source of truth = the
         // `sustained` profile flag.
@@ -116,15 +116,46 @@ final class MusicStyleTests: XCTestCase {
         }
     }
 
-    func testDrumFreeStylesAreExactlyTheContemplativeThree() {
+    func testDrumFreeStylesAreExactlyTheContemplativeSet() {
         // Audit B5: every beat-driven genre carries its groove; only the
-        // contemplative genres stay drum-free by design.
+        // contemplative genres stay drum-free by design. Widened by G2 (founder
+        // 2026-07-24 "erfinde noch passende dazu. Ambient-Meditation-drift-
+        // contemplation") — new ambient-family genres are `.none`-beat Flächen, so
+        // this set grows as they're added (see the offered-palette test comment).
         let drumFree = MusicStyle.allCases.filter { !$0.isBeatDriven }
-        XCTAssertEqual(Set(drumFree), [.classical, .esotericMeditation, .selfObservation],
-                       "drum-free = classical + meditation + self-observation, nothing else")
+        XCTAssertEqual(Set(drumFree),
+                       [.classical, .esotericMeditation, .selfObservation, .drift],
+                       "drum-free = classical + meditation + self-observation + drift, nothing else")
         // The two signature beats keep their hand-built builders.
         XCTAssertEqual(MusicStyle.dubTechno.beatArchetype, .signature)
         XCTAssertEqual(MusicStyle.trap.beatArchetype, .signature)
+    }
+
+    func testDriftIsADistinctContemplativeFläche() {
+        // G2 (founder 2026-07-24): "Drift" must be a real contemplative Fläche that
+        // does NOT collide with the two existing drum-free Flächen — the whole point
+        // is to add variety without re-triggering the "everything sounds the same"
+        // convergence. Assert its identity + that it differs on scale/register from
+        // the sibling ambient genres.
+        let drift = MusicStyle.drift
+        let p = drift.harmonicProfile
+        XCTAssertEqual(drift.category, .meditative, "drift belongs to the calm meditative world")
+        XCTAssertFalse(drift.isBeatDriven, "drift is a drum-free Fläche")
+        XCTAssertTrue(p.sustained, "drift holds — it's a Fläche, not a pulse")
+        XCTAssertEqual(p.leadDensity, 0, "pure Fläche — no auto lead")
+        XCTAssertFalse(p.arpeggiated, "held pad, not an arpeggio")
+        XCTAssertEqual(drift.defaultMode, .flowFree, "an ambient genre follows the heart (Flow)")
+        XCTAssertTrue(MusicStyle.offered.contains(drift), "drift is offered in the curated palette")
+        // Airier than the darker siblings: it floats a register above them.
+        XCTAssertGreaterThan(p.padOctave, MusicStyle.selfObservation.harmonicProfile.padOctave,
+                             "drift floats above self-observation")
+        XCTAssertGreaterThan(p.padOctave, MusicStyle.esotericMeditation.harmonicProfile.padOctave,
+                             "drift floats above deep-ambient")
+        // Distinct modal colour from both siblings (no shared scale collision).
+        XCTAssertNotEqual(drift.scale, MusicStyle.selfObservation.scale)
+        XCTAssertNotEqual(drift.scale, MusicStyle.esotericMeditation.scale)
+        // Calm at the source: the tempo window tops out slow, like the other Flächen.
+        XCTAssertLessThanOrEqual(drift.tempoRange.upperBound, 78)
     }
 
     func testNoGenreAutoGeneratesLeadNotes() {

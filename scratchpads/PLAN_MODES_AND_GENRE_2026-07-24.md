@@ -86,6 +86,18 @@ Zwei Arbeitsstränge auf dem reinen Instrument (#124-Home, keine Timeline):
   **NEEDS-FOUNDER-VERIFY** (Picker am Gerät; TestFlight-Freeze). Rand-Fall: wer vorher eine
   jetzt-nicht-angebotene Genre gespeichert hatte, sieht erst keine Picker-Markierung (nicht
   kritisch; Komposition läuft weiter) — Union-mit-Alt-Wert nur falls Founder es will.
-- ▶ **G2 (nächster Zyklus) — Ambient-Familie erfinden:** je neue `MusicStyle`-Case (Ambient ·
-  Drift · Contemplation) mit voller Signatur, je Genre eine Slice. Danach **M1 — Flow/Loop-
-  Modus-Schalter** (eigener PLAN + Council).
+- ▶ **G2 Slice 1 — „Drift" erfunden (dieser Zyklus, Reviewer läuft):** erste neue Ambient-
+  Familien-Genre als voller `MusicStyle`-Case. Signatur bewusst DISTINKT von den zwei
+  bestehenden drum-freien Flächen (Anti-Konvergenz): **dorian** (nicht das dunkle Moll von
+  Self-Observation, nicht das helle Lydian von Deep Ambient) · Progression `[0,4]` i→v ·
+  **padOctave 4** (eine Oktave ÜBER den beiden = luftiger/schwebender) · tempoRange 48…74,
+  default 60 · beatArchetype `.none` · sustained · leadDensity 0 · category `.meditative` ·
+  defaultMode `.flowFree` (Ambient folgt dem Herz = Flow). Eigenes Timbre („Drift Pad", DD):
+  weiterer Unison-Shimmer (3/12), sehr langsamer tiefer Filter-Drift, größter Raum. Eigener
+  FX-Preset: weiter dotted-quarter Digital-Shimmer, hellster/undämpfter Big-Hall. In `offered`
+  aufgenommen (jetzt 7 kontemplative). 3 Sources + 1 Test-Datei (neuer Distinktheits-Test +
+  drum-frei-Set von 3→4 geweitet). BioComposer unverändert — Drift läuft durch den `default:`-
+  Flächen-Pfad wie die Geschwister. **Alle exhaustiven MusicStyle-Switches erweitert**
+  (MusicStyle/GenrePatches/GenreFX), BioComposer nutzt `default:`.
+- **G2 Slice 2/3 — „Ambient" + „Contemplation"** (Folge-Zyklen): je eigene distinkte Signatur.
+  Danach **M1 — Flow/Loop-Modus-Schalter** (eigener PLAN + Council).

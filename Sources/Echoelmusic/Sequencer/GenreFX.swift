@@ -382,6 +382,18 @@ public extension MusicStyle {
                 delayWow: 0.25, delayDrive: 0.15,
                 chorusEnabled: true, chorusRate: 0.12, chorusDepth: 0.35, chorusMix: 0.25,
                 reverbEnabled: true, reverbMix: 0.44, reverbRoom: 0.94, reverbDamping: 0.42)
+        case .drift:
+            // G2 airy Fläche: distinct from the two darker ambient presets — a WIDE
+            // dotted-quarter digital shimmer (not the darker two's straight half),
+            // brighter tone (0.42) + the widest spread, a very slow lush chorus, and
+            // the brightest, least-damped big hall so the space reads weightless
+            // rather than dark. Feedback stays < 0.5 so the tail washes, never builds.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.quarter, .dotted),
+                delayMix: 0.36, delayFeedback: 0.42, delayTone: 0.42, delaySpread: 0.55,
+                chorusEnabled: true, chorusRate: 0.10, chorusDepth: 0.45, chorusMix: 0.30,
+                reverbEnabled: true, reverbMix: 0.46, reverbRoom: 0.95, reverbDamping: 0.35)
         }
     }
 }

@@ -210,6 +210,18 @@ public extension MusicStyle {
                 cutoff: 1300, res: 0.07, lfoAmt: 0.12, lfoRate: 0.08, lfoDepth: 0.30,
                 revMix: 0.58, revDecay: 5.5, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 8)
+        case .drift:
+            // G2 airy Fläche: floats a register above Deep Drone / Calm Pad — a touch
+            // brighter top (0.30) + a wider unison shimmer (3/12) + a very slow, deep
+            // filter drift (rate 0.06, depth 0.42) and the biggest space of the three,
+            // so it reads weightless rather than dark. Distinct timbre from both
+            // sibling Flächen (guarded by GenrePatchesTests uniqueness).
+            return patch("DD", "Drift Pad",
+                a: 1.6, d: 1.8, s: 0.90, r: 6.5,
+                harm: 0.91, hl: 0.82, bright: 0.30, noise: 0.012, color: "Pink", shape: "Natural",
+                cutoff: 1650, res: 0.06, lfoAmt: 0.14, lfoRate: 0.06, lfoDepth: 0.42,
+                revMix: 0.64, revDecay: 7.5, vibRate: 0, vibDepth: 0,
+                uni: 3, det: 12)
         }
     }
 
