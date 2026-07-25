@@ -425,3 +425,18 @@ BEHAUPTET, erst am zitierten `file:line` gegen die REALE Rate/Formel prüfen, be
 wird — sonst manufacturt man einen Slew auf einen bereits-gekappten Wert (Bewegung vortäuschen).
 Verifiziert-nicht-reproduzierbar → Item schließen, nicht bauen.** (Deckt sich mit dem drainierten-Audit-
 Playbook 2026-07-24.)
+
+## 2026-07-25 — PLAYBOOK: a symbol-removal map is a HYPOTHESIS — grep the removed name yourself before committing
+Slice 2c-ii (AUv3-host removal) used a thorough read-only Explore map of every `auHost`/`AUv3Host`
+edit site. It STILL missed one: `suppressBuiltIn` (the local derived from `auHost?.suppressesBuiltInVoice`)
+was read a SECOND time far below its definition, in the `desiredSub` felt-sub line — deleting the
+definition would have compile-broken had I trusted the map. Caught by grepping `suppressBuiltIn` in the
+file AFTER the edits (not in the map). PLAYBOOK: after removing a variable/symbol, run one final
+`grep <removedName>` over each touched file — an edit-site map lists where a symbol is ASSIGNED/obvious,
+not every DERIVED read. The reviewer (audio-thread) independently re-confirmed the fix; a pre-commit
+self-grep caught it first.
+Reinforces the 2026-07-24 delete-rule with a 3rd instance: `AUv3Host.swift` declared FIVE top-level
+types (AUv3Host, HostedAUInfo, AUv3ScanDiagnostic+SelfProbe, an `extension AUPluginRef`); the map's
+Tests-grep covered 4 and missed `AUv3ScanDiagnostic` → `AUv3ScanDiagnosticTests` would have broken
+(the old plan's "kompiliert weiter" was stale). ALWAYS grep EVERY top-level decl of a to-be-deleted
+file across Sources/ AND Tests/ — read the file's decls first, don't trust a summary.

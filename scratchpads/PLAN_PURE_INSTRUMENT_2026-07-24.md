@@ -136,7 +136,10 @@ beim Founder für die großen Slices).
       raus (AUPluginRef + Rest-Tests bleiben). Gefangener Compile-Breaker: `suppressBuiltIn` wurde noch in
       `desiredSub` (PianoRollView) gelesen → mitgefixt. Reste für 2d: unbenutztes `parameterRegistry`-@State,
       tote AudioEngine-AU-Methoden, Kommentar-Referenzen (EchoelmusicApp:211/497, AudioEngine:959,
-      HostMusicalState:16, AUPluginRef:12/46). −1852/+21 Zeilen. Reviewer laufen; NEEDS-FOUNDER-VERIFY (Geräte-Ton).
+      HostMusicalState:16, AUPluginRef:12/46), unbenutztes `HostMusicalState` (falls AUHostContext einziger
+      Consumer war). −1852/+21 Zeilen. Commit `b26c800` (+ cosmetic `73bb223`). audio-thread + code-reviewer
+      BEIDE CLEAN. Xcode Compile Check GREEN auf 73bb223, CI/CD Pipeline GREEN auf b26c800 (b26c800s Compile
+      = „cancelled", weil 73bb223 ihn ablöste — normal). NEEDS-FOUNDER-VERIFY (Geräte-Ton, TestFlight-Freeze).
   - **2d — Model + Persistenz + Entitlement + Tests + CI:** `TimelineLane.instrument/effects`
     (decodeIfPresent-sicher: Keys droppen, nie hart decode), `AUPluginRef` löschen,
     `LaneInstrumentLabel`+`pluginAssignmentSummary` Chirurgie, `AUParameterMapping`/`Bridge`
