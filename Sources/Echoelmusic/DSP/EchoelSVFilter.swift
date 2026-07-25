@@ -37,12 +37,17 @@ public final class EchoelSVFilter: @unchecked Sendable {
 
     /// Filter cutoff frequency in Hz. Musically unbounded — the only limit is Nyquist.
     public var cutoff: Float = 2000.0 {
-        didSet { updateCoefficients() }
+        // The equality guard is not micro-optimization. `EchoelDDSP` assigns this INSIDE
+        // its per-sample render loop, and `didSet` fires on every assignment regardless
+        // of value — so without it the `tanf` below runs 48 000×/s per voice. The
+        // smoothed cutoff converges to a fixed Float on a held note, so in steady state
+        // this elides the recompute entirely.
+        didSet { if cutoff != oldValue { updateCoefficients() } }
     }
 
     /// Resonance [0-1] (0.7 = musical, 0.95 = near self-oscillation)
     public var resonance: Float = 0.3 {      // Gentle — no harsh peaking
-        didSet { updateCoefficients() }
+        didSet { if resonance != oldValue { updateCoefficients() } }
     }
 
     /// Active filter mode
@@ -50,12 +55,29 @@ public final class EchoelSVFilter: @unchecked Sendable {
 
     // MARK: - Internal State
 
+    /// ── WHY ONLY `g` AND `k` ARE STORED ──────────────────────────────────────────
+    /// These two are written from the control thread (`SynthPatch.apply`,
+    /// `EchoelFXChain.setFilter`, `FXBioModulator` at ~30 Hz) and read on the audio
+    /// thread, with no synchronisation. That race is old, but the TPT rewrite made it
+    /// DANGEROUS in a way the Chamberlin form was not, so the storage layout is now
+    /// load-bearing.
+    ///
+    /// The old `(f, q)` were INDEPENDENT: every torn combination of an old and a new
+    /// value was still a valid, stable filter, because stability depended only on each
+    /// value's own range. The solved coefficients `a1 = 1/(1 + g(g+k))`, `a2 = g·a1`,
+    /// `a3 = g·a2` are mutually DERIVED, so a torn set — new `a1` beside stale `a2`,
+    /// which a preemption between two stores makes reachable — is not a filter at all.
+    /// Its state matrix can reach a spectral radius near 1.4, i.e. +3 dB per sample:
+    /// milliseconds to full scale, and the FX path has no non-finite sweep before the
+    /// hardware buffer.
+    ///
+    /// So the solve moved INTO `process`. `g` and `k` are independent again, each an
+    /// aligned 32-bit store (atomic on ARM64), and any torn pair is a consistent filter
+    /// — tear-tolerance by construction rather than by a narrower window. The cost is
+    /// one divide per sample, which is far below what the removed per-sample `tanf` was.
     private var sampleRate: Float
     private var g: Float = 0      // tan(π·fc/SR) — prewarped integrator gain
     private var k: Float = 1      // Damping (2ζ = 1/Q); same role the Chamberlin `q` had
-    private var a1: Float = 0     // Solved feedback coefficients (see updateCoefficients)
-    private var a2: Float = 0
-    private var a3: Float = 0
     private var ic1eq: Float = 0  // Integrator 1 state (bandpass path)
     private var ic2eq: Float = 0  // Integrator 2 state (lowpass path)
 
@@ -75,11 +97,18 @@ public final class EchoelSVFilter: @unchecked Sendable {
         // without touching any frequency a user or the bio path can ask for (the
         // parameter registry tops out at 18 kHz, i.e. 0.375 of a 48 kHz rate).
         // A NaN request falls back to a benign 1 kHz rather than propagating into the
-        // coefficients. Zero and negatives are NOT a fallback case: `g = 0` starves both
-        // integrators, i.e. a fully-closed filter, which is what a 0 Hz cutoff meant
-        // before this rewrite and what any preset carrying one still expects.
+        // coefficients. The LOW end gets a floor rather than reaching 0: at g = 0 the
+        // integrator state updates collapse to `ic = ic`, so the state does not close —
+        // it FREEZES at whatever charge it last held, and at normal magnitude, so the
+        // denormal flush never clears it. Lowpass then emits that stuck DC forever, and
+        // highpass/notch pass the input plus a stuck offset (a 0 Hz highpass SHOULD be
+        // unity — it is the frozen offset riding on it that is wrong). The old
+        // Chamberlin form had the same defect. A floor of
+        // 1e-5 normalized is ~0.5 Hz at 48 kHz — two decades below the 20 Hz the
+        // parameter registry allows, so no musical setting is affected, but the state
+        // now decays with a ~0.3 s time constant instead of hanging.
         let requested = cutoff.isFinite ? max(0, cutoff) : 1000
-        let normalized = min(requested / sampleRate, 0.49)
+        let normalized = min(max(requested / sampleRate, 1e-5), 0.49)
         g = tanf(Float.pi * normalized)
 
         // Damping. Kept as `1 - resonance` so the control feel is unchanged from the
@@ -88,13 +117,6 @@ public final class EchoelSVFilter: @unchecked Sendable {
         // away into ringing; 0.95 stays expressive without screaming.
         let clampedRes = max(0.01, min(resonance.isFinite ? resonance : 0.3, 0.95))
         k = 1.0 - clampedRes
-
-        // Solve the zero-delay feedback loop once per parameter change rather than
-        // per sample. `1 + g·(g + k)` is strictly positive for g, k > 0, so this
-        // division cannot blow up — that is the unconditional-stability guarantee.
-        a1 = 1.0 / (1.0 + g * (g + k))
-        a2 = g * a1
-        a3 = g * a2
     }
 
     // MARK: - Process
@@ -102,6 +124,20 @@ public final class EchoelSVFilter: @unchecked Sendable {
     /// Process a single sample through the filter. Audio-thread safe.
     @inline(__always)
     public func process(_ input: Float) -> Float {
+        // Read each shared field ONCE into a local, then solve. Re-reading `g` or `k`
+        // mid-sample could mix two generations within a single sample's arithmetic;
+        // one read each keeps the sample internally consistent.
+        let g = self.g
+        let k = self.k
+
+        // Solve the zero-delay feedback loop. `1 + g·(g + k)` is strictly positive for
+        // g, k > 0, so this division cannot blow up — that is the unconditional-
+        // stability guarantee, and it holds for ANY (g, k) pair, which is exactly why
+        // solving here rather than caching three derived fields is race-safe.
+        let a1 = 1.0 / (1.0 + g * (g + k))
+        let a2 = g * a1
+        let a3 = g * a2
+
         let v0 = input
         let v3 = v0 - ic2eq
         let v1 = a1 * ic1eq + a2 * v3
@@ -120,21 +156,34 @@ public final class EchoelSVFilter: @unchecked Sendable {
 
     /// Keep the recursive state numerically healthy. Two failure modes, one guard:
     ///
-    /// 1. **Denormals.** A decaying IIR tail approaches zero asymptotically and can
-    ///    spend thousands of samples in the denormal range, where every operation
-    ///    traps into microcode. On a per-voice filter that is a CPU cliff exactly
-    ///    during release tails, when the most voices are alive. Flushing to true zero
-    ///    ~500 dB below full scale costs nothing audible.
-    /// 2. **Non-finite poisoning.** A single NaN reaching a recursive accumulator
-    ///    stays there forever — this codebase has shipped permanent-silence bugs from
-    ///    that twice. Resetting the state lets the filter recover on its own instead
-    ///    of needing the voice torn down.
+    /// 1. **Non-finite poisoning — the real reason this exists.** A single NaN reaching
+    ///    a recursive accumulator stays there forever; this codebase has shipped
+    ///    permanent-silence bugs from exactly that twice. Resetting lets the filter heal
+    ///    on the next sample instead of needing the voice torn down. Note ONE poisoned
+    ///    sample still escapes to the output before the state resets — deliberate, since
+    ///    checking the input first would cost a branch on every sample to fix a case
+    ///    that should not occur.
+    /// 2. **Denormals** — a secondary benefit, not the justification. A decaying tail
+    ///    approaches zero asymptotically and can linger in the denormal range for
+    ///    thousands of samples. That is a genuine CPU cliff on x86/SSE; on the ARM64
+    ///    ship target NEON flushes denormals and Apple cores handle scalar subnormals
+    ///    in hardware, so the win here is small. `1e-25` matches `EchoelDDSP`'s
+    ///    existing threshold.
+    ///
+    /// The two conditions are not redundant: `abs(x) > 1e-25` is already false for NaN
+    /// (every comparison against NaN is), so `isFinite` is load-bearing ONLY for ±∞.
+    /// Do not "simplify" it away.
     @inline(__always)
     private func flush(_ x: Float) -> Float {
         (x.isFinite && abs(x) > 1e-25) ? x : 0
     }
 
-    /// Process a buffer of samples in-place
+    /// Process a buffer of samples in-place.
+    ///
+    /// The caller must own `buffer` UNIQUELY: a second live reference turns the
+    /// in-place write into a copy-on-write heap allocation on the audio thread (the
+    /// failure class task #94 closed for `RenderScratch`). Every current caller passes
+    /// a solely-owned scratch buffer.
     public func processBuffer(_ buffer: inout [Float], frameCount: Int) {
         let n = min(frameCount, buffer.count)
         for i in 0..<n {
