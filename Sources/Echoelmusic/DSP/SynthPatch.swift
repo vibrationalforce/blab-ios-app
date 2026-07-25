@@ -482,14 +482,82 @@ extension SynthPatch {
         )
     }
 
+    /// Resolve every String→enum lookup ONCE, on the calling (control) thread.
+    ///
+    /// This is the only place `match` runs, and `match` is the reason the split
+    /// exists: it evaluates `allCases` (a fresh array) and `caseInsensitiveCompare`
+    /// (ObjC messaging on a bridged String) — both forbidden on the audio thread,
+    /// and `apply(to:)` is drained inside `PolySynthVoice`'s render block.
+    public func resolved() -> ResolvedPatch {
+        ResolvedPatch(
+            attack: attack, decay: decay, sustain: sustain, release: release,
+            envelopeCurve: SynthPatch.match(envelopeCurve, EchoelDDSP.EnvelopeCurve.allCases),
+            harmonicity: harmonicity, harmonicLevel: harmonicLevel,
+            brightness: brightness, noiseLevel: noiseLevel,
+            noiseColor: SynthPatch.match(noiseColor, EchoelDDSP.NoiseColor.allCases),
+            spectralShape: SynthPatch.match(spectralShape, EchoelDDSP.SpectralShape.allCases),
+            timbre: SynthPatch.match(timbreProfile, EchoelDDSP.InstrumentTimbre.allCases),
+            timbreBlend: timbreBlend,
+            filterCutoff: filterCutoff, filterResonance: filterResonance,
+            lfoToFilterDepth: lfoToFilterDepth,
+            filterLFORate: filterLFORate, filterLFODepth: filterLFODepth,
+            reverbMix: reverbMix, reverbDecay: reverbDecay,
+            vibratoRate: vibratoRate, vibratoDepth: vibratoDepth,
+            outputLevel: level, warmthDrive: warmth
+        )
+    }
+
     /// Recall this patch onto a synth voice. Unknown enum rawValues fall back to
     /// the voice's current setting (forward/backward compatible).
+    ///
+    /// Control-thread convenience — it resolves and then applies. The audio-thread
+    /// drain must NOT call this; it carries a pre-`resolved()` value instead.
+    public func apply(to synth: EchoelDDSP) { resolved().apply(to: synth) }
+}
+
+/// A `SynthPatch` with every String→enum lookup already done: recalling it costs
+/// nothing but scalar stores.
+///
+/// WHY this type exists. `PolySynthVoice` drains its patch queue INSIDE the render
+/// block — deliberately, because applying a patch rewrites each voice's
+/// `harmonicAmplitudes`, and doing that from the main actor raced the render (the
+/// bug fixed in v337). But the queue used to carry a `SynthPatch`, and that put the
+/// race's cure on top of three fresh audio-thread violations:
+///   · `allCases` — a heap-allocated array, built four times per voice per recall;
+///   · `caseInsensitiveCompare` — ObjC messaging on a bridged `String`, once per case;
+///   · `instrumentProfile(_:)` — a fresh 64-tap `[Float]` per voice, plus the `free()`
+///     that `clearTimbreProfile()` performed on the other branch.
+/// Dequeuing the patch itself was a fourth: its `String`s and `UUID` meant ARC traffic
+/// on the render thread.
+///
+/// So this is deliberately PLAIN OLD DATA — Floats and simple enums only. No String,
+/// no Array, no optional-boxing of a reference type. If you are tempted to add one,
+/// that is the moment the violation comes back.
+public struct ResolvedPatch: Sendable, Equatable {
+    public var attack, decay, sustain, release: Float
+    /// `nil` = the rawValue did not name a known case → leave the voice's current
+    /// setting alone (the forward/backward-compatible fallback `apply(to:)` always had).
+    public var envelopeCurve: EchoelDDSP.EnvelopeCurve?
+    public var harmonicity, harmonicLevel, brightness, noiseLevel: Float
+    public var noiseColor: EchoelDDSP.NoiseColor?
+    public var spectralShape: EchoelDDSP.SpectralShape?
+    public var timbre: EchoelDDSP.InstrumentTimbre?
+    public var timbreBlend: Float
+    public var filterCutoff, filterResonance, lfoToFilterDepth: Float
+    public var filterLFORate, filterLFODepth: Float
+    public var reverbMix, reverbDecay: Float
+    public var vibratoRate, vibratoDepth: Float
+    /// Already un-optionalised by `SynthPatch.level` / `.warmth` (nil → unity / clean).
+    public var outputLevel, warmthDrive: Float
+
+    /// AUDIO-THREAD SAFE. Scalar stores plus `applyTimbre`, which fills a
+    /// preallocated buffer. No allocation, no ObjC, no lock, no file I/O.
     public func apply(to synth: EchoelDDSP) {
         synth.attack = attack
         synth.decay = decay
         synth.sustain = sustain
         synth.release = release
-        if let curve = SynthPatch.match(envelopeCurve, EchoelDDSP.EnvelopeCurve.allCases) { synth.envelopeCurve = curve }
+        if let envelopeCurve { synth.envelopeCurve = envelopeCurve }
 
         synth.harmonicity = harmonicity
         synth.harmonicLevel = harmonicLevel
@@ -501,15 +569,12 @@ extension SynthPatch {
         synth.bioBaseNoiseLevel = noiseLevel
         synth.bioBaseReverbMix = reverbMix
         synth.bioBaseBrightness = brightness  // bio modulates AROUND the patch brightness (task #81)
-        if let color = SynthPatch.match(noiseColor, EchoelDDSP.NoiseColor.allCases) { synth.noiseColor = color }
-        if let shape = SynthPatch.match(spectralShape, EchoelDDSP.SpectralShape.allCases) { synth.spectralShape = shape }
-        // Acoustic instrument spectrum (timbre transfer). Case-insensitive name →
-        // built-in profile; empty/unknown clears it so switching characters resets.
-        if let timbre = SynthPatch.match(timbreProfile, EchoelDDSP.InstrumentTimbre.allCases), timbreBlend > 0 {
-            synth.loadTimbreProfile(EchoelDDSP.instrumentProfile(timbre), blend: timbreBlend)
-        } else {
-            synth.clearTimbreProfile()
-        }
+        if let noiseColor { synth.noiseColor = noiseColor }
+        if let spectralShape { synth.spectralShape = spectralShape }
+        // Acoustic instrument spectrum (timbre transfer). An unresolved name or a zero
+        // blend clears it, so switching characters resets — same behaviour as before,
+        // now without building or freeing the 64-tap profile array.
+        synth.applyTimbre(timbre, blend: timbreBlend)
 
         synth.filterCutoff = filterCutoff
         synth.bioBaseFilterCutoff = filterCutoff   // bio modulates AROUND this, never overwrites it (task #81)
@@ -519,8 +584,8 @@ extension SynthPatch {
         synth.filterLFO.depth = filterLFODepth
 
         synth.reverbMix = reverbMix
-        // Convolution reverb is gated off (EchoelDDSP.useConvolutionReverb). apply(to:)
-        // runs in the audio render drain, and updateReverbDecay rebuilds a 4096-tap IR
+        // Convolution reverb is gated off (EchoelDDSP.useConvolutionReverb). This runs in
+        // the audio render drain, and updateReverbDecay rebuilds a 4096-tap IR
         // (array alloc + RNG) — a forbidden audio-thread allocation on every patch /
         // character change, for a reverb that never renders. Only rebuild when it's live.
         if EchoelDDSP.useConvolutionReverb { synth.updateReverbDecay(reverbDecay) }
@@ -528,14 +593,14 @@ extension SynthPatch {
         synth.vibratoRate = vibratoRate
         synth.vibratoDepth = vibratoDepth
 
-        // Per-instrument loudness trim (founder 2026-07-11 "Level pro Instrument"). nil
+        // Per-instrument loudness trim (founder 2026-07-11 "Level pro Instrument"). 1.0
         // = unity (bit-identical). Folded into the voice's master-gain smoother, so it
         // glides in without a click.
-        synth.patchOutputLevel = level
+        synth.patchOutputLevel = outputLevel
 
-        // Analog warmth (founder 2026-07-11 "kein kaltes Plastik synthie gedudel"). nil
+        // Analog warmth (founder 2026-07-11 "kein kaltes Plastik synthie gedudel"). 0
         // = clean. A plain Float store — safe on the audio-thread apply path.
-        synth.warmthDrive = warmth
+        synth.warmthDrive = warmthDrive
     }
 }
 #endif

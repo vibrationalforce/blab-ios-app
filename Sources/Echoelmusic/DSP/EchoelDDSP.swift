@@ -314,8 +314,36 @@ public final class EchoelDDSP: @unchecked Sendable {
     // MARK: - Timbre Transfer
 
     /// Timbre profile — per-harmonic amplitude template from target instrument
-    /// When set, harmonicAmplitudes are interpolated toward this profile
-    public var timbreProfile: [Float]? = nil
+    /// When set, harmonicAmplitudes are interpolated toward this profile.
+    ///
+    /// Backed by a PREALLOCATED buffer that is never resized and never released,
+    /// because the patch drain that writes it runs on the AUDIO THREAD
+    /// (`PolySynthVoice.renderOnAudioThread` → `ResolvedPatch.apply(to:)`): the old
+    /// `[Float]?` store meant a heap allocation on every character change and a
+    /// `free()` on every clear, both forbidden there. The optional façade is kept
+    /// for control-thread callers; `applyTimbre(_:blend:)` is the render-safe path.
+    ///
+    /// The getter hands back a fresh copy on purpose — returning the buffer itself
+    /// would leave a second reference alive and turn the next in-place write into a
+    /// COW heap copy ON the audio thread (the exact `RenderScratch` bug class).
+    public var timbreProfile: [Float]? {
+        get { hasTimbreProfile ? timbreBuffer.map { $0 } : nil }
+        set {
+            guard let v = newValue, v.count >= harmonicCount else {
+                hasTimbreProfile = false
+                return
+            }
+            for i in 0..<harmonicCount { timbreBuffer[i] = v[i] }
+            hasTimbreProfile = true
+        }
+    }
+
+    /// The preallocated backing store for `timbreProfile` — always `harmonicCount` long.
+    private var timbreBuffer: [Float]
+
+    /// Whether `timbreBuffer` currently holds a profile that should be blended in.
+    /// (Replaces the old `timbreProfile != nil` test, which needed an optional box.)
+    public private(set) var hasTimbreProfile = false
 
     /// Timbre blend (0 = original spectral shape, 1 = full timbre profile)
     public var timbreBlend: Float = 0
@@ -523,6 +551,7 @@ public final class EchoelDDSP: @unchecked Sendable {
         // fatally trap [Float](repeating:count:) before init finishes. Byte-identical for
         // every valid input (self.x == x when x >= 1).
         self.harmonicAmplitudes = [Float](repeating: 0, count: self.harmonicCount)
+        self.timbreBuffer = [Float](repeating: 0, count: self.harmonicCount)
         self.partialStretch = [Float](repeating: 1, count: self.harmonicCount)   // filled by rebuildPartialStretch() below
         self.noiseMagnitudes = [Float](repeating: 0, count: self.noiseBandCount)
         self.phases = [Float](repeating: 0, count: self.harmonicCount)
@@ -660,10 +689,12 @@ public final class EchoelDDSP: @unchecked Sendable {
         }
 
         // Apply timbre profile if set
-        if let profile = timbreProfile, timbreBlend > 0, profile.count >= harmonicCount {
+        // Reads the backing buffer directly — going through the `timbreProfile`
+        // façade here would build a throwaway copy on every envelope update.
+        if hasTimbreProfile, timbreBlend > 0 {
             for i in 0..<harmonicCount {
                 harmonicAmplitudes[i] = harmonicAmplitudes[i] * (1.0 - timbreBlend)
-                    + profile[i] * timbreBlend
+                    + timbreBuffer[i] * timbreBlend
             }
         }
 
@@ -1472,15 +1503,37 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// characteristic spectral envelope at a reference pitch.
     public func loadTimbreProfile(_ profile: [Float], blend: Float = 1.0) {
         guard profile.count >= harmonicCount else { return }
-        timbreProfile = Array(profile.prefix(harmonicCount))
+        for i in 0..<harmonicCount { timbreBuffer[i] = profile[i] }
+        hasTimbreProfile = true
         timbreBlend = blend
         updateSpectralEnvelope()
     }
 
-    /// Clear timbre profile (return to pure spectral shape)
+    /// Clear timbre profile (return to pure spectral shape). Flag-only — the buffer
+    /// is kept so this costs no `free()` on the audio-thread patch drain.
     public func clearTimbreProfile() {
-        timbreProfile = nil
+        hasTimbreProfile = false
         timbreBlend = 0
+        updateSpectralEnvelope()
+    }
+
+    /// RENDER-SAFE timbre recall: writes the built-in instrument's spectral profile
+    /// straight into the preallocated buffer, so no array is created or destroyed.
+    /// `nil` — or a non-positive blend — clears back to the pure spectral shape.
+    ///
+    /// This is the entry point the audio-thread patch drain uses. The allocating
+    /// pair (`instrumentProfile(_:)` + `loadTimbreProfile(_:blend:)`) stays for
+    /// control-thread callers and for custom, non-built-in profiles.
+    public func applyTimbre(_ instrument: InstrumentTimbre?, blend: Float) {
+        guard let instrument, blend > 0 else {
+            clearTimbreProfile()
+            return
+        }
+        timbreBuffer.withUnsafeMutableBufferPointer {
+            EchoelDDSP.writeInstrumentProfile(instrument, into: $0)
+        }
+        hasTimbreProfile = true
+        timbreBlend = blend
         updateSpectralEnvelope()
     }
 
@@ -1488,6 +1541,21 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// These are pre-computed spectral envelopes based on acoustic analysis
     public static func instrumentProfile(_ instrument: InstrumentTimbre, harmonics: Int = 64) -> [Float] {
         var profile = [Float](repeating: 0, count: harmonics)
+        profile.withUnsafeMutableBufferPointer { writeInstrumentProfile(instrument, into: $0) }
+        return profile
+    }
+
+    /// The same spectral profiles, written into a buffer the CALLER owns.
+    ///
+    /// Split out of `instrumentProfile(_:harmonics:)` because the patch drain runs on
+    /// the audio thread: allocating a fresh 64-tap `[Float]` per voice per character
+    /// change was a heap allocation in the render block. Everything here is scalar
+    /// arithmetic, C math (`exp`/`pow`, both audio-thread-safe) and two vDSP calls
+    /// over the caller's memory — no allocation, no ARC, no ObjC.
+    public static func writeInstrumentProfile(_ instrument: InstrumentTimbre,
+                                              into out: UnsafeMutableBufferPointer<Float>) {
+        guard let profile = out.baseAddress, !out.isEmpty else { return }
+        let harmonics = out.count
         switch instrument {
         case .violin:
             // Strong fundamental, peak at 3rd-5th harmonic, slow rolloff
@@ -1539,12 +1607,8 @@ public final class EchoelDDSP: @unchecked Sendable {
         vDSP_maxv(profile, 1, &maxVal, vDSP_Length(harmonics))
         if maxVal > 0 {
             var div = maxVal
-            profile.withUnsafeMutableBufferPointer { buf in
-                guard let ptr = buf.baseAddress else { return }
-                vDSP_vsdiv(ptr, 1, &div, ptr, 1, vDSP_Length(harmonics))
-            }
+            vDSP_vsdiv(profile, 1, &div, profile, 1, vDSP_Length(harmonics))
         }
-        return profile
     }
 
     /// Known instrument timbre profiles for timbre transfer

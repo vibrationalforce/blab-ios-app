@@ -60,8 +60,14 @@ public final class PolySynthVoice {
     /// rewrote each voice's `harmonicAmplitudes` array while the audio thread read
     /// it → the same cross-thread array race as the note bug. Applying on the audio
     /// thread removes it. SPSC: one producer (main), one consumer (audio).
+    ///
+    /// Carries `ResolvedPatch`, NOT `SynthPatch`: the queue element is dequeued ON the
+    /// render thread, so it must be plain old data. A `SynthPatch` brought its Strings
+    /// and UUID (ARC traffic) and its `apply(to:)` brought `allCases` allocations,
+    /// `caseInsensitiveCompare` ObjC messaging and a fresh 64-tap timbre array — all
+    /// forbidden here. `ResolvedPatch` does that work on the control thread instead.
     @ObservationIgnored
-    nonisolated(unsafe) private let patchCommands = SPSCQueue<SynthPatch>(capacity: 8)
+    nonisolated(unsafe) private let patchCommands = SPSCQueue<ResolvedPatch>(capacity: 8)
 
     /// Per-bus insert FX for the MELODIC bus (Module 2) — SEPARATE from the genre-owned
     /// master `fxChain` above, placed AFTER it, so a user filter/drive on the melody never
@@ -447,7 +453,9 @@ public final class PolySynthVoice {
         // detune/unison is the thin→rich lever). Explicit patch values — including an
         // explicit mono `1` — are always honoured, so this never overrides intent.
         poly.setUnison(count: patch.unisonVoices ?? 2, detuneCents: patch.unisonDetuneCents ?? 7)
-        _ = patchCommands.tryEnqueue(patch)
+        // Resolve HERE (control thread) — see `patchCommands`. `resolved()` is the
+        // only place the String→enum lookups run.
+        _ = patchCommands.tryEnqueue(patch.resolved())
         appliedPatch = patch
     }
 
