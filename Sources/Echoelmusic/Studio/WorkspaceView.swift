@@ -685,7 +685,8 @@ struct CompositionHeaderStrip: View {
     /// Switching to Loop seeds `lockedBPM` from the current transport tempo (exactly
     /// like the lock button) so production starts at a sensible fixed BPM; it then
     /// posts the shared `"tempoLock"` hook, so the studio recomposes and `generate()`
-    /// applies the tempo (glideTempo + metronome) and the derived `ComposerMode` (S1).
+    /// applies the tempo (glideTempo; the click follows the clock) and the derived
+    /// `ComposerMode` (S1).
     /// `transport.tempo` is read HERE, in the set closure — never in `body` — so the
     /// ~10 Hz tempo churn never tears down this Picker host (freeze rule).
     private var modeBinding: Binding<Bool> {

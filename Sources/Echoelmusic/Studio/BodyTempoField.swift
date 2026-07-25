@@ -124,12 +124,20 @@ struct BodyTempoField: View {
         if lockBPM {
             lockBPM = false
         } else {
-            let v = min(max(followingValue, Transport.minTempo), Transport.maxTempo)
+            // NaN-safe: `min(max(v, lo), hi)` would pass NaN through both clamps, and
+            // `lockedBPM` is PERSISTED — a NaN written here survives the next launch and
+            // is the one live path that can hand a NaN to the sequencer's tempo.
+            let v = followingValue.clamped(to: Transport.minTempo...Transport.maxTempo)
             lockedBPM = (v * 10_000).rounded() / 10_000
-            // No click push here: `glideTempo` EASES (over ~2 s while playing), so setting
+            // No click push here. While PLAYING, `glideTempo` eases over ~2 s, so setting
             // the click to the target would run it ahead of the sequencer until the next
-            // relay yanked it back — an audible blip on every lock. The click subscribes
-            // to the transport and eases with it.
+            // relay yanked it back — an audible blip on every lock. While STOPPED the glide
+            // eases too (deliberately — the founder asked that the number never jump), so
+            // the click now slides to the locked tempo over ~2.5 s instead of snapping to
+            // it. That is the coherent behaviour (click and displayed tempo finally agree
+            // throughout the ease) but it IS a change to what the stopped click does, and
+            // the stopped click is the only thing audible on that path.
+            // NEEDS-FOUNDER-VERIFY on device: lock while stopped, listen to the ease.
             player.pattern.glideTempo(to: lockedBPM)
             lockBPM = true
         }
@@ -140,7 +148,7 @@ struct BodyTempoField: View {
     private var lockedBinding: Binding<Double> {
         Binding(get: { lockedBPM },
                 set: { v in
-                    lockedBPM = min(max(v, Transport.minTempo), Transport.maxTempo)
+                    lockedBPM = v.clamped(to: Transport.minTempo...Transport.maxTempo)
                     player.pattern.setTempo(lockedBPM)
                 })
     }

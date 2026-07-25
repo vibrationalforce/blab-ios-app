@@ -107,6 +107,11 @@ public final class Transport {
         // subscribers fire only on a real move: the stopped-glide timer relays at
         // ~20 Hz and settles on one value, and re-notifying would make every
         // subscriber recompute for nothing.
+        // Note the deliberate asymmetry: a same-value write re-syncs MIRRORS of this
+        // property but does NOT re-heal a subscriber that drifted out of band. That is
+        // sound only because nothing else writes what a subscriber owns — the click's
+        // BPM has exactly one writer, this list. Any future subscriber must keep that
+        // property, or this gate has to go.
         if moved {
             for cb in tempoSubs.values { cb(clamped) }
         }

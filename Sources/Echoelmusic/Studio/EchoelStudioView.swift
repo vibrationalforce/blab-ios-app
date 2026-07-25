@@ -2157,9 +2157,9 @@ struct EchoelStudioView: View {
                 if let bpm = tapTempo.tap(at: ProcessInfo.processInfo.systemUptime) {
                     lastTappedBPM = bpm
                     lockedBPM = (bpm * 10).rounded() / 10
-                    // ALWAYS push the clock (not only while running): the lockBPM onChange
-                    // below freezes at the CLOCK's current tempo, so the clock must already
-                    // carry the tapped value when that fires — otherwise tapping while
+                    // ALWAYS push the clock (not only while running): the mode/lock binding
+                    // (`WorkspaceView.modeBinding`) freezes at the CLOCK's current tempo,
+                    // so the clock must already carry the tapped value when that fires — otherwise tapping while
                     // stopped would freeze a stale tempo instead of the tap. setTempo while
                     // stopped just stores the value (no tick scheduling), safe.
                     beatPlayer.pattern.setTempo(lockedBPM)

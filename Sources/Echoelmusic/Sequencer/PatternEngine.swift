@@ -272,10 +272,13 @@ public final class PatternEngine {
     /// If the engine is playing, the timer restarts at the new interval.
     public func setTempo(_ bpm: Double) {
         // NaN-safe: THIS is the type that computes the step interval
-        // (`60.0 / tempo / 4.0` in `scheduleNextTick`), so a NaN landing here does
-        // not mis-time the sequencer — it stops it, permanently, because no tick is
-        // ever scheduled again. `Swift.min(Swift.max(bpm, lo), hi)` passes NaN
-        // through both clamps. Reachable from automation and the tempo field.
+        // (`60.0 / tempo / 4.0` in `scheduleNextTick`), so a NaN landing here does not
+        // mis-time the sequencer — it silences it. (`DispatchTime + NaN` saturates to
+        // `Int64.max`, so a tick is technically scheduled and then never fires.)
+        // `Swift.min(Swift.max(bpm, lo), hi)` passes NaN through both clamps.
+        // The live entry is the persisted `studio.lockedBPM` (an AppStorage Double);
+        // parameter automation cannot deliver NaN — `AutomationTarget.value(forNormalized:)`
+        // opens with `Swift.max(0, n)`, whose argument order makes it NaN-safe already.
         let clamped = bpm.clamped(to: PatternEngine.minTempo...PatternEngine.maxTempo)
         tempoGlideTarget = 0   // an explicit edit is precise + instant → cancel any in-flight glide
         stopStoppedGlide()     // …including a stopped-glide timer, so the edit lands exactly
@@ -308,8 +311,11 @@ public final class PatternEngine {
     /// take). Either way the number always slides, never jumps. User/transport edits keep using
     /// `setTempo` (instant + precise). Values are clamped to [minTempo, maxTempo].
     public func glideTempo(to bpm: Double) {
-        // NaN-safe for the same reason as `setTempo` — and this is the likelier entry:
-        // the value comes from the body (rPPG-derived), not from a typed field.
+        // NaN-safe for the same reason as `setTempo`. The body-derived callers are
+        // already NaN-proof by argument order (`StudioCalculator.seedTempo`'s
+        // `Swift.min(160, x)` inside a `Swift.max(50, …)`, and the `displayBPM > 0`
+        // gate in BodyTempoField); the reachable entry is again the persisted
+        // `studio.lockedBPM`, via the compose path.
         let clamped = bpm.clamped(to: PatternEngine.minTempo...PatternEngine.maxTempo)
         if isPlaying {
             tempoGlideTarget = clamped

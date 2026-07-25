@@ -43,6 +43,7 @@ final class TransportTests: XCTestCase {
         let t = Transport()
         var seen: [Double] = []
         t.onTempoChange(id: "test") { seen.append($0) }
+        seen.removeAll()                // the immediate seed has its own test below
         t.setTempo(100)
         t.setTempo(140)
         XCTAssertEqual(seen, [100, 140])
