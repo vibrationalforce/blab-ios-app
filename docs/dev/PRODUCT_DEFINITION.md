@@ -111,6 +111,26 @@ the founder test on device:
 
 Deliberately finite and checkable. It does not move when the roadmap moves.
 
+## The four quality axes (founder 2026-07-25)
+
+Verbatim: *"Du entscheidest alles. Creative, Immersive, accessible, health (no
+claims)."* This is not a feature list — it is the standing frame for **how quality
+is judged**, and it sits one level below the Editor ≠ Workstation boundary. That
+boundary decides *whether something belongs to the product*; these four decide
+*whether what belongs is any good*, and therefore what gets a cycle next.
+
+| Axis | What it means here | How it is checked |
+|---|---|---|
+| **Creative** | The player can make something and then *shape* it — generate, correct the notes, shape the timbre, keep it, export it. A capability the user cannot reach does not count. | Every capability has a reachable door. Doorless = broken. |
+| **Immersive** | The output stage is the experience, not a readout: the visual is live and contemplative; light and space are real outputs, not demos. | On device: does it produce the "wow"? Founder's eye judges. |
+| **Accessible** | Legible numbers, VoiceOver labels, Dynamic Type, ≥44 pt tap targets, reduce-motion honoured, flash ≤ 3 Hz. Accessibility is a first-class axis, **not** a polish pass at the end. | HIG/WCAG are hard numbers — check them, don't estimate. |
+| **Health — no claims** | Physiology is a first-class, science-based *modulation source*. Cited research and self-observation are allowed; healing, therapy, diagnosis and wellness framing are never. | Any bio-adjacent copy passes the brand guardrails below. |
+
+**Practical rule:** a slice that serves none of the four axes goes to the back of
+the queue, however tidy it looks. (Applied immediately on 2026-07-25: the DAW-model
+hygiene slice #132 lost its place at the front to an accessibility fix with a
+measurable defect behind it.)
+
 ## Brand guardrails (unchanged, restated)
 
 Biofeedback is a first-class, science-based modulation source — **not** wellness,

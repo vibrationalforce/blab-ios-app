@@ -132,3 +132,22 @@ MATRIX, Deep-Audits, "Absent"-Sektion in CLAUDE.md), selbst priorisieren, Ralph-
 mit Pflicht-Reviewern beibehalten, jede Runde deployen + deutsches Status-Delta.
 "Heilung" meint hier FERTIGBAUEN unfertiger Features — NICHT das rote-Linie-Thema
 Heilfrequenzen (bleibt hard REJECT).
+
+## 2026-07-25 — Vier Qualitätsachsen (Founder, wörtlich)
+"Du entscheidest alles. Creative, Immersive, accessible, health (no claims)."
+→ Kein Feature-Auftrag, sondern der **stehende Bewertungsrahmen**. Er sitzt EINE
+Ebene unter der Editor≠Workstation-Grenze: die Grenze entscheidet, WAS zum Produkt
+gehört; die vier Achsen entscheiden, WORAN Qualität gemessen wird — und damit, was
+den nächsten Zyklus bekommt.
+- **Creative** — jede Fähigkeit braucht eine erreichbare Tür. Türlos = kaputt.
+- **Immersive** — die Ausgabe IST die Erfahrung, kein Readout.
+- **Accessible** — ≥44 pt Tap-Targets, VoiceOver, Dynamic Type, Reduce Motion,
+  Flash ≤3 Hz. Erstklassige Achse, KEIN Polish-Nachgedanke am Ende.
+- **health (no claims)** — Physiologie als wissenschaftliche Modulationsquelle;
+  Heilung/Therapie/Diagnose/Wellness bleiben hard REJECT (bestätigt die rote Linie).
+**Praxisregel:** ein Slice, der keine der vier Achsen bedient, wandert nach hinten —
+egal wie aufgeräumt er wirkt. Sofort angewandt: #132 (DAW-Model-Hygiene, null
+Nutzerwert) verlor die Spitze der Reihenfolge an einen Accessibility-Fix mit
+messbarem Defekt (Navigations-Chips 26 pt statt 44 pt HIG).
+Kanonisch dokumentiert in `docs/dev/PRODUCT_DEFINITION.md` ("Die vier Qualitätsachsen")
++ `decisions.csv` 2026-07-25.
