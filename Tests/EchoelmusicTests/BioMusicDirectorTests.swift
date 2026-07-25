@@ -59,13 +59,13 @@ final class BioMusicDirectorTests: XCTestCase {
 
     func testExplanation_withNoBodyAtAll_makesNoClaimAboutThePerson() {
         let t = BioExplanation.text(for: frame(hr: 0, coherence: 0, breath: 0), tempo: 120)
-        XCTAssertTrue(t.contains("until a pulse is measured"))
+        XCTAssertTrue(t.contains("no pulse measured yet"))
         for fabricated in ["unsteady signal", "breathing", "coherence"] {
             XCTAssertFalse(t.contains(fabricated), "leaked '\(fabricated)' with nothing measured")
         }
         // The tail must not claim a signal it just said does not exist.
         XCTAssertFalse(t.contains("from your live signal"),
-                       "promised music 'from your live signal' one sentence after 'until a pulse is measured'")
+                       "promised music 'from your live signal' one sentence after 'no pulse measured yet'")
     }
 
     func testExplanation_withAMeasuredBody_stillCreditsTheLiveSignal() {
@@ -74,6 +74,27 @@ final class BioMusicDirectorTests: XCTestCase {
         let t = BioExplanation.text(for: frame(hr: 62, coherence: 0.8, breath: 6), tempo: 90)
         XCTAssertTrue(t.contains("from your live signal"))
         XCTAssertTrue(t.contains("slow breathing"))
+    }
+
+    func testExplanation_breathWithoutAPulse_isStillCredited() {
+        // The mixed path, and the only exerciser of the breath clause without arousal.
+        // Without this, narrowing `measuredAnything` to just `arousal != nil` passes the
+        // two tests above (their frames measure everything or nothing) while silently
+        // dropping the live-signal credit from a body that IS being read.
+        let t = BioExplanation.text(for: frame(hr: 0, coherence: 0, breath: 12), tempo: 100)
+        XCTAssertTrue(t.contains("relaxed breathing shapes the swell"))
+        XCTAssertTrue(t.contains("from your live signal"))
+        XCTAssertTrue(t.contains("no pulse measured yet"))
+        // Reverb is HRV-driven (`reverbMix` in EchoelDDSP.applyBioReactive), never breath.
+        XCTAssertFalse(t.contains("reverb"), "credited breathing for a space it does not set")
+    }
+
+    func testExplanation_neverPromisesATempoTheLockWillNotDeliver() {
+        // "…until a pulse is measured" was a prediction the tempo lock falsifies: with
+        // lockBPM on, tempo resolves from lockedBPM and never moves to the pulse.
+        let t = BioExplanation.text(for: frame(hr: 0, coherence: 0, breath: 0), tempo: 120)
+        XCTAssertFalse(t.contains("until a pulse"))
+        XCTAssertTrue(t.contains("no pulse measured yet"))
     }
 
     func testFallback_unmeasuredCoherenceCannotSelectTheTenseExtreme() {

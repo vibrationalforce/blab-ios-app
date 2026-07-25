@@ -29,9 +29,11 @@ public struct BioStateSummary: Sendable, Equatable {
     public let breath: String?       // "slow" | "relaxed" | "fast"
 
     public init(from f: BioSampleFrame) {
-        // `> 0` is the established "measured" gate for all three: heart rate is only
-        // non-zero on a confident lock (see PolySynthVoice's entrainment quality gate),
-        // and coherence/breathRate default to 0 for sources that never provide them.
+        // Heart rate and coherence gate on `> 0` — heart rate is non-zero only on a
+        // confident lock (see PolySynthVoice's entrainment quality gate), and coherence
+        // is 0 on any source that computes no beat-to-beat RR. Breath does NOT: it uses
+        // the shared plausibility window, because `breathRate: 1` is as impossible as 0
+        // and would otherwise pass a bare `> 0` test.
         let hr = f.heartRateBPM
         arousal = hr > 0 ? (hr < 65 ? "low" : (hr < 95 ? "medium" : "high")) : nil
         let c = f.coherence
@@ -73,7 +75,11 @@ public enum BioExplanation {
             let pace = arousal == "low" ? "calm" : (arousal == "high" ? "driving" : "flowing")
             clauses.append("heart rate \(hr) BPM sets a \(pace) \(bpm) BPM tempo")
         } else {
-            clauses.append("tempo holds at \(bpm) BPM until a pulse is measured")
+            // DESCRIPTIVE, not predictive. "…until a pulse is measured" would be a promise
+            // the tempo lock falsifies: with `lockBPM` on, the tempo resolves from
+            // `lockedBPM` unconditionally and will never move to the pulse, so the user
+            // would be waiting for something that cannot happen.
+            clauses.append("tempo holds at \(bpm) BPM; no pulse measured yet")
         }
 
         switch s.steadiness {
@@ -87,25 +93,28 @@ public enum BioExplanation {
             break   // no coherence measured — say nothing about steadiness
         }
 
-        // The SPACE half follows arousal, so it is stated only when arousal was measured
-        // too — but a measured breath still gets named on its own rather than dropped.
+        // Breath is credited ONLY for the swell, which is what it actually drives:
+        // `EchoelDDSP.applyBioReactive` shapes `amplitude` by a raised cosine on
+        // breathPhase. The old clause said breathing "places it in a wide hall reverb" /
+        // "a tighter room space" — that was false twice over. Reverb mix is driven by
+        // HRV (`reverbMix = bioBaseReverbMix + (hrvVariability - 0.5) * 0.12`), never by
+        // breath; and the arousal→space mapping it was copying lives in
+        // `BioDirectionFallback`, which nothing in the app consumes. A clause naming a
+        // causal chain that does not exist is the same defect as a fabricated number.
         if let breath = s.breath {
-            if let arousal = s.arousal {
-                let space = arousal == "low" ? "a wide hall reverb" : "a tighter room space"
-                clauses.append("\(breath) breathing places it in \(space)")
-            } else {
-                clauses.append("\(breath) breathing shapes the swell")
-            }
+            clauses.append("\(breath) breathing shapes the swell")
         }
 
         // The tail describes the ENGINE, so it is safe to always append — except for the
         // phrase "from your live signal", which is a claim about the body and directly
         // contradicts the "no pulse measured" opening when nothing was read.
         let measuredAnything = s.arousal != nil || s.steadiness != nil || s.breath != nil
-        let source = measuredAnything ? " from your live signal" : ""
+        // The connector rides INSIDE the conditional — leaving a bare " and" behind made
+        // the no-body tail read "…opening pitch and dynamics and morphs in at the bar line".
+        let source = measuredAnything ? " from your live signal," : ""
         return "EchoelAI — " + clauses.joined(separator: "; ")
             + ". Each phrase re-seeds the chords, opening pitch and dynamics\(source)"
-            + " and morphs in at the bar line, so it never repeats and never cuts."
+            + " then morphs in at the bar line, so it never repeats and never cuts."
     }
 }
 
@@ -130,9 +139,12 @@ public enum BioDirectionFallback {
         let s = BioStateSummary(from: frame)
         // Unmeasured fields fall through to the same branch a MEDIUM body takes — the
         // instrument must still pick something. Genre lands on the middle choice
-        // (vaporwave) and space on "room"; mood is binary, so nil arousal yields
-        // "lively", which is NOT a middle and is a real behaviour change from the old
-        // code (nil used to read as "low" ⇒ deep ambient / calm / hall). Deliberate:
+        // (vaporwave) and space on "room"; the mood ternary has no middle, so nil arousal
+        // yields "lively". That IS a behaviour change: a fully unmeasured frame used to
+        // read as arousal "low" AND coherence 0 as "restless", giving
+        // deep ambient / TENSE / hall — the extreme this rule exists to block, which is
+        // exactly what `testFallback_unmeasuredCoherenceCannotSelectTheTenseExtreme`
+        // now pins. Deliberate:
         // the guarantee here is narrower than "neutral" — it is only that an UNMEASURED
         // signal cannot select an EXTREME. "restless" is the sole path to "tense", and
         // it is now unreachable without a real coherence reading.

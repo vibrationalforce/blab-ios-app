@@ -78,7 +78,8 @@ public enum BioModulationMap {
     /// answer for itself — and the HealthKit path leaves it at a 0.5 placeholder that
     /// would otherwise render as a confident half-scale reading). The other three encode
     /// "unavailable" as 0 directly — heart rate is non-zero only on a confident lock, and
-    /// coherence/HRV are 0 on any source that does not compute them (HealthKit).
+    /// coherence is 0 on any source without beat-to-beat RR (HealthKit, which does
+    /// provide a real HRV from SDNN — it is coherence alone that it cannot compute).
     public static func isMeasured(_ driver: Driver, in frame: BioSampleFrame) -> Bool {
         switch driver {
         case .breath:    return frame.hasMeasuredBreath

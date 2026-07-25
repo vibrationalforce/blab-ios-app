@@ -399,9 +399,11 @@ struct BioStripView: View {
     /// does not derive respiration, so it publishes 0 — and "0.0 /min" is impossible (you
     /// can't breathe zero times a minute). Show a real number only inside the plausible
     /// window, otherwise "—" (honest: not measured), matching how coherence/HRV behave.
-    /// The window itself now lives on `BioSampleFrame` so this view, the modulation
-    /// readout and the EchoelAI narration cannot drift into three different answers to
-    /// "is there a breath reading" — they had started to.
+    /// The window itself now lives on `BioSampleFrame`, so this view, the modulation
+    /// readout and the EchoelAI narration share one answer to "is there a breath
+    /// reading" — they had started to drift apart. `BreathGuideView` still owns a
+    /// FOURTH, narrower test (`source == .cameraPPG && breathRate > 0`); it agrees today
+    /// only because `RespirationEstimator` clamps to 4…30, which sits inside this window.
     private var breathString: String {
         guard let bio = bus.latestBio, bio.hasMeasuredBreath else { return "—" }
         return String(format: "%.1f", bio.breathRate)
