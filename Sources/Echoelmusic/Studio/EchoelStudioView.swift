@@ -1251,12 +1251,28 @@ struct EchoelStudioView: View {
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            // No vertical padding any more: each chip now carries its own 44 pt HIG
+            // tap frame (see `chipTapTarget`), whose transparent margin IS the
+            // breathing room the 6 pt padding used to provide. Net bar height
+            // 38 → 44 (+6), and the visible pills are unchanged.
         }
         .background(EchoelTheme.bg)
         .overlay(alignment: .bottom) {
             Rectangle().fill(EchoelTheme.border).frame(height: 1)
         }
+    }
+
+    /// Accessibility (founder axis "accessible", 2026-07-25): give a small chip the
+    /// 44 × 44 pt tap target Apple's HIG requires, WITHOUT changing how it looks.
+    /// The 26 pt pill stays exactly as designed (Uncodixfy); this only wraps it in a
+    /// transparent 44 pt frame and moves hit-testing to that frame via
+    /// `contentShape`. Same fix #113 applied to the header monitor tiles — the chip
+    /// bar is the app's primary navigation and was 26 pt, i.e. 40 % under the
+    /// minimum, which is the single most-touched control in the instrument.
+    private func chipTapTarget<Content: View>(@ViewBuilder _ pill: () -> Content) -> some View {
+        pill()
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
     }
 
     /// One settings chip: tap toggles its dropdown (tap again = close).
@@ -1265,15 +1281,17 @@ struct EchoelStudioView: View {
         return Button {
             activeMenu = isActive ? nil : menu
         } label: {
-            Text(menu.label)
-                .font(EchoelTheme.font(12, .semibold))
-                .foregroundStyle(isActive ? EchoelTheme.onPrimary : EchoelTheme.text)
-                .padding(.horizontal, 10)
-                .frame(height: 26)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .fill(isActive ? EchoelTheme.text : EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            chipTapTarget {
+                Text(menu.label)
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(isActive ? EchoelTheme.onPrimary : EchoelTheme.text)
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                        .fill(isActive ? EchoelTheme.text : EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(menu.fullName)
@@ -1284,17 +1302,19 @@ struct EchoelStudioView: View {
     private func directChip(_ title: String, icon: String, a11y: String,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: icon).font(.system(size: 11))
-                Text(title).font(EchoelTheme.font(12, .semibold))
+            chipTapTarget {
+                HStack(spacing: 5) {
+                    Image(systemName: icon).font(.system(size: 11))
+                    Text(title).font(EchoelTheme.font(12, .semibold))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
-            .foregroundStyle(EchoelTheme.text)
-            .padding(.horizontal, 10)
-            .frame(height: 26)
-            .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                .fill(EchoelTheme.fill))
-            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                .strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(a11y)
