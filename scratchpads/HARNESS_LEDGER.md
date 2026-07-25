@@ -63,6 +63,7 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 
 | Version | What shipped | Gates |
 |---|---|---|
+| (branch, freeze) 2026-07-25 | Founder-Direktiven B+C KOMPLETT (TestFlight-Freeze bis Profi-Milestone → keine TF-Version). **C — kuratierte calm genres:** "Drift" (8ecb58c) + "Contemplation" (3d8e581) erfunden → 8 drum-freie contemplative genres, jedes eigene Anti-Konvergenz-Signatur, Distinct-Tests grün. **B — Flow/Loop:** ComposerMode aus lockBPM abgeleitet (1dfcd90/d5ea5aa, Split-Brain zu) + sichtbarer "Flow \| Loop"-Picker im Freeze-safen CompositionHeaderStrip (866022c, EINE Wahrheitsquelle mit Lock-Button). Reviewer clean. NEEDS-FOUNDER-VERIFY (Klang/Density/Pixel am Gerät) | green |
 | v10.79.293 | #23 per-lane SynthPatch KOMPLETT — jede MIDI-Spur eigene Klangfarbe. S1 `TimelineStore.setLanePatch` (+4 Tests) → S2 `.patch(lane)` Editor-Tür (seed+persist die Spur, onApply captured/onDismiss persistiert, dismiss-race-gehärtet) → S2b Primär-Lane `rollPatchSink` bei Region-Load. code+ui-state+audio-thread-reviewer alle CLEAN | green |
 | v10.79.292 | Per-note Chance paint-lane — the roll's bottom lane taps Vel⇄Cha; Chance mode paints each note's play probability 0…1 (Ableton note-chance, body bends the threshold live via A4). Model+playback were already built/tested; this added the missing UI (`setChance` mirrors `setMPE`). ui-state-reviewer 0 defects | green |
 | v10.79.291 | A7 Audio-Clip-Launch KOMPLETT — Play-Glyph auf Audio-Clips (Performance-Mode), Clip übernimmt Spur + loopt, MIDI+Audio synchron. S3a Override-Lifecycle + Wrap-Re-Trigger (kein stiller Takt am Song-Wrap, Audio im Lockstep mit MIDI) + S3b Glyph-Gate. 3 Reviews sauber, Golden Gate durchgängig | green |
@@ -411,3 +412,16 @@ after a SECONDARY type the file also defined. `Audio/AUNoteVoice.swift` also hou
 type/enum/struct it declares (read the file's decls), then grep each across Tests/ too. The
 audio-thread-reviewer's compile-gate pass caught this; a pre-push symbol-by-symbol grep would
 have caught it earlier.
+
+## 2026-07-25 — DEAD-END-VERMEIDUNG: kein "content-flash slew" für die Header-Tiles erfinden (#127)
+Board-Item #127 wollte einen „true content-flash slew" für die Header-Monitor-Tiles (Immersive + Lux).
+BEVOR gebaut: `HeaderMonitors.swift:300-317` gelesen. Befund = KEIN Flash-Hazard, nichts zu bauen:
+(a) der Immersive-Tile-Puls ist bereits auf 2.5 Hz gekappt (`flashSafePulseRate =
+min(max(40.0, heartRateBPM)/60.0, 2.5)`) < 3 Hz WCAG; (b) `energy = 0.35 + 0.30*pulse + 0.35*level`
+driftet stetig (kein Rechteck/Blitz); (c) der Lux-Tile hat gar keinen synthetischen Oszillator;
+(d) die HEUTE angebotenen Genres sind alle drum-frei → `masterLevel` hat keine Beat-Transienten, die
+die Helligkeit springen ließen. **PLAYBOOK: ein Board-Item, das eine Sicherheits-/Polish-Lücke
+BEHAUPTET, erst am zitierten `file:line` gegen die REALE Rate/Formel prüfen, bevor ein „Fix" gebaut
+wird — sonst manufacturt man einen Slew auf einen bereits-gekappten Wert (Bewegung vortäuschen).
+Verifiziert-nicht-reproduzierbar → Item schließen, nicht bauen.** (Deckt sich mit dem drainierten-Audit-
+Playbook 2026-07-24.)
