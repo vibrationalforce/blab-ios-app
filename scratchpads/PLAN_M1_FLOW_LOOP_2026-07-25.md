@@ -94,5 +94,17 @@ bündelt die schon vorhandenen Flags. Ground-Truth: Explore a0b7fcc (alle `file:
 
 ## Status
 - ✅ Ground-Truth (Explore a0b7fcc) + Council. PLAN steht.
-- ▶ **M1-S1 (dieser Zyklus):** pure `ComposerMode(locked:)` + 2 Hardcode-Sites + Test + Reviewer.
-- ⏳ M1-S2 (sichtbarer Schalter), M1-S3 (Loop-Seed) = Folge-Zyklen.
+- ✅ **M1-S1 GESHIPPT** `1dfcd90` (+ Ehrlichkeits-Fix `d5ea5aa`), beide echten Gates grün. pure
+  `ComposerMode(locked:)` + 2 Hardcode-Sites verdrahtet. Reviewer-Korrektur: NICHT audio-neutral —
+  bei Lock skaliert die Notendichte jetzt für `lockedBPM` (gewollte „auf 132 zu hektisch"-Korrektur),
+  NEEDS-FOUNDER-VERIFY.
+- ▶ **M1-S2 (dieser Zyklus):** sichtbarer „Flow | Loop"-`.menu`-Picker in `CompositionHeaderStrip`
+  (Freeze-safe Leaf, horizontaler Scroll = kein Layout-Risiko wie die kompakte Transport-Leiste).
+  An `studio.lockBPM` gebunden (EINE Wahrheitsquelle, deckungsgleich mit dem TransportBar-Lock-Button).
+  Bei →Loop seedet `lockedBPM` aus `transport.tempo` (nur im set-Closure gelesen, nie im body →
+  Freeze-sicher), postet den bestehenden `"tempoLock"`-Recompose-Hook → `generate()` wendet Tempo
+  (glideTempo + metronome) + den abgeleiteten Mode (S1) an. `+40` Zeilen, 1 Datei. Reviewer =
+  ui-state (Freeze/@Environment/Binding). Founder-benannte Modi jetzt sichtbar+wählbar.
+- **M1-S3 (optional):** die Loop-Seed-Logik ist bereits in S2 gefaltet; ein separater S3 nur, falls
+  das Metronom/Glide bei GESTOPPTEM Umschalten am Gerät nicht sauber greift (dann Parität zum
+  Lock-Button herstellen). Sonst entfällt S3.

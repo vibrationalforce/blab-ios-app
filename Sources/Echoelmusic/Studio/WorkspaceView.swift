@@ -569,6 +569,13 @@ struct CompositionHeaderStrip: View {
     @AppStorage(StudioDefaultKeys.rootIndex.key) private var rootIndex = StudioDefaultKeys.rootIndex.value
     @AppStorage(StudioDefaultKeys.scale.key) private var scale: Scale = StudioDefaultKeys.scale.value
     @AppStorage("toneSystemID") private var tuningID = "edo12"
+    // M1 Flow/Loop: the mode IS the tempo lock (same shared keys as the transport-bar
+    // BodyTempoField lock button, so the two controls never disagree).
+    @AppStorage("studio.lockBPM") private var lockBPM = false
+    @AppStorage(StudioDefaultKeys.lockedBPM.key) private var lockedBPM: Double = StudioDefaultKeys.lockedBPM.value
+    // Read ONLY in the mode binding's set closure (to seed the locked tempo) — never
+    // in `body`, so the ~10 Hz `transport.tempo` churn never subscribes this Picker host.
+    @Environment(Transport.self) private var transport
 
     private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
 
@@ -631,6 +638,17 @@ struct CompositionHeaderStrip: View {
                                      boxWidth: 104, boxHeight: 30)
                         .accessibilityLabel("Concert pitch A4")
                 }
+                labeled("Mode") {
+                    // M1 Flow/Loop (founder: "flow mode for just meditation. But also
+                    // loop mode with proper timing for production"). The two modes are
+                    // ONE truth — the tempo lock — surfaced as a named choice.
+                    Picker("Mode", selection: modeBinding) {
+                        Text("Flow").tag(false)   // tempo follows the body — meditation
+                        Text("Loop").tag(true)    // fixed BPM — production / DAW handoff
+                    }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .accessibilityLabel("Composition mode: Flow follows your body, Loop locks a fixed tempo")
+                }
                 // Step 2c (bottom-bar dissolve): the live stamped session name —
                 // the head of the old Session card — rides at the end of the
                 // strip, always visible in the chrome. ITS OWN leaf (it reads
@@ -675,6 +693,28 @@ struct CompositionHeaderStrip: View {
                     base.wrappedValue = newValue
                     NotificationCenter.default.post(name: .echoelCompositionEdited,
                                                     object: field)
+                })
+    }
+
+    /// The Flow | Loop mode = ONE truth, the tempo lock (M1). Flow = tempo follows
+    /// the body (meditation); Loop = a fixed BPM for production. Bound to the SAME
+    /// `studio.lockBPM` as the transport-bar lock button, so the two never disagree.
+    /// Switching to Loop seeds `lockedBPM` from the current transport tempo (exactly
+    /// like the lock button) so production starts at a sensible fixed BPM; it then
+    /// posts the shared `"tempoLock"` hook, so the studio recomposes and `generate()`
+    /// applies the tempo (glideTempo + metronome) and the derived `ComposerMode` (S1).
+    /// `transport.tempo` is read HERE, in the set closure — never in `body` — so the
+    /// ~10 Hz tempo churn never tears down this Picker host (freeze rule).
+    private var modeBinding: Binding<Bool> {
+        Binding(get: { lockBPM },
+                set: { newLocked in
+                    guard newLocked != lockBPM else { return }
+                    if newLocked {
+                        let v = min(max(transport.tempo, Transport.minTempo), Transport.maxTempo)
+                        lockedBPM = (v * 10_000).rounded() / 10_000
+                    }
+                    lockBPM = newLocked
+                    NotificationCenter.default.post(name: .echoelCompositionEdited, object: "tempoLock")
                 })
     }
 }
