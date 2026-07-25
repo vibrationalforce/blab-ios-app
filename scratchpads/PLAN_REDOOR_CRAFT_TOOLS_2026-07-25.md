@@ -189,7 +189,32 @@ slot is cheaper and honest.
   gate (gate item 4 says light/space are "demonstrable, not required for v1"). May
   be deferred; if deferred, remove `.stage` from the enum rather than leaving a
   dead case (the enum ships with `case roll` only for exactly this reason).
-- **131d — docs + invariant.** Update `CLAUDE.md`: the DOORLESS KEEPERS block drops
+- **131d — docs + invariant.** ⚠ The "delete the trio" half is NOT a doc tweak —
+  audited 2026-07-25 and it has three real dependencies. `openTool` (`:930`) is
+  called ONLY from `toolsSection` (`:985/995/1000/1025`), which is not composed into
+  the body, so the whole trio is already unreachable — deleting it therefore cannot
+  reduce reachability. BUT three bindings have their **only** `= true` write site
+  inside it:
+  · `showMeditation` (`:933`) — consistent with the founder's "MeditationView bleibt
+    bewusst türlos". Deleting is correct; the `.fullScreenCover` at `:833` and the
+    binding go with it (or the whole MeditationView door is a founder ask).
+  · `midiImportPresented` (`:937`) — so **MIDI file IMPORT is currently doorless**
+    (the `.fileImporter` at `:745` can never open). Export works. This is a real
+    capability gap, not cleanup: decide re-door vs. retire.
+  · `showVisual` (`:943`) — so the `.fullScreenCover` immersive visual at `:757` is
+    **doorless too**. It is however a DUPLICATE: `FloatingVisualWindow` carries its
+    own `.fullscreen` size case (`FloatingVisualWindow.swift:210/219/230`) and IS
+    reachable (header toggle `WorkspaceView.swift:258`, Synth panel `:2250`). So
+    ship-gate item 4 is not blocked — the wow visual is reachable edge-to-edge via
+    the floating window.
+    **Prize for Slice 6:** removing the doorless cover takes the body chain from
+    **12 → 11** AND deletes the two-MetalBioView coordination dance
+    (`floatingWasVisible`, `:718-725`) that exists only to stop the cover and the
+    floating window rendering at once. That is a modifier slot bought back plus a
+    GPU hazard removed — the best-value item on the Slice 6 list.
+  Each of the three needs its own decision, so the trio deletion is a Slice 6 slice
+  with reviewers, NOT part of 131d.
+  131d itself: update `CLAUDE.md`: the DOORLESS KEEPERS block drops
   `PatchEditorView` (never was doorless in substance — `soundPanel` is the live
   editor) and marks `PianoRollView` re-doored via the `craftEditor` slot. Then
   either restore or delete the `toolItems`/`openTool` invariant so no future
