@@ -87,7 +87,13 @@ struct SpectralDonutView: View {
         // under the 3 Hz flash ceiling. Sway amplitude follows loudness (silent →
         // still, centred) so it breathes with the sound. Reduce Motion → no sway.
         var center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let bio = bus.freshBio(maxAge: 2)
+        // `usableBio()`, NOT a hand-rolled maxAge: the camera publisher republishes the
+        // last good frame for up to 4 s while it recovers from a stall, so any window
+        // SHORTER than that hold expires mid-grace and snaps these rings back to the
+        // `?? 0.5` defaults — the exact bio↔idle jump the hold exists to prevent. The
+        // per-source window (`BioSource.freshnessWindow`) is the one place that stays
+        // in step with the publishers.
+        let bio = bus.usableBio()
         let breath = Double(bio?.breathPhase ?? 0.5)             // 0…1
         let hrv = Double(bio?.hrvNormalized ?? 0.5)              // 0…1
         let coh = Double(bio?.coherence ?? 0.5)                  // 0…1

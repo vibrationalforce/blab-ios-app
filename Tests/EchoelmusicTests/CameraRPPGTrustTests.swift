@@ -61,5 +61,23 @@ final class CameraRPPGTrustTests: XCTestCase {
         // strongAutoFloor sits safely above the junk ceiling (~0.29).
         XCTAssertGreaterThan(P.strongAutoFloor, 0.4)
     }
+
+    // MARK: - Dropout hold vs. consumer freshness (the regression this pins)
+
+    /// During a brief dropout the publisher re-emits the last good frame carrying its
+    /// ORIGINAL timestamp (re-stamping it would make a held frame indistinguishable
+    /// from a live one and defeat every `freshBio`/`usableBio` gate). That only holds
+    /// the picture steady while the hold is SHORTER than the consumer's freshness
+    /// window — otherwise the frame expires mid-grace and the consumer snaps to its
+    /// idle defaults, which is the bio↔idle flicker the hold was written to remove.
+    /// `SpectralDonutView` shipped with `freshBio(maxAge: 2)` against a 4 s hold and
+    /// did exactly that; it now calls `usableBio()`, i.e. this window.
+    @MainActor
+    func testDropoutHoldFitsInsideTheCameraFreshnessWindow() {
+        let holdSeconds = Double(P.bioHoldTicks) / 10.0     // the publish loop ticks at 10 Hz
+        XCTAssertLessThan(holdSeconds, BioSource.cameraPPG.freshnessWindow,
+                          "the hold outlives the frame it re-emits — consumers will fall "
+                          + "to idle mid-grace")
+    }
 }
 #endif

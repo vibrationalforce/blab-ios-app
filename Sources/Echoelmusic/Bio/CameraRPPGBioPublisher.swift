@@ -208,7 +208,13 @@ public final class CameraRPPGBioPublisher {
     private var lastGoodBioFrame: BioSampleFrame?
     private var lastGoodPublishTick = Int.min
     private var lastValidCoherence: Float = 0
-    private static let bioHoldTicks = 40   // ~4 s at the 10 Hz tick
+    /// ~4 s at the 10 Hz tick. Deliberately non-private so a test can pin the
+    /// invariant this hold depends on: a held frame carries its ORIGINAL timestamp,
+    /// so the hold only works while it is SHORTER than every consumer's freshness
+    /// gate. A consumer with a shorter window expires the frame mid-grace and snaps
+    /// to its idle defaults — the exact bio↔idle jump this exists to prevent (it
+    /// happened: `SpectralDonutView` passed `maxAge: 2`).
+    static let bioHoldTicks = 40
 
     /// Live, specific placement guidance — turns the internal amplitude/exposure
     /// diagnostics into user coaching so the lens reaches a lockable signal, instead
@@ -686,6 +692,23 @@ public final class CameraRPPGBioPublisher {
                         self.analyzer.lastActualRate, self.inboundRateEMA,
                         self.analyzer.lastWindowSize, self.detectedBPM, self.confidence))
                 }
+                // TRUTH GATE (2026-07-25). The stall ladder above detects a dead RGB pipe
+                // and drives recovery, but it did NOT stop this publish path — and the
+                // analyzer keeps returning its LAST estimate when nothing new is fed. So a
+                // stalled camera published a FROZEN pulse with a FRESH timestamp on every
+                // tick, which defeats `freshBio`/`usableBio` by construction: the music and
+                // the visual ran off a dead body for the whole 6 s detect window plus the
+                // recovery ladder (up to an 18 s cold-restart backoff), while the UI said
+                // "recovering". Publishing nothing is the honest state — consumers then
+                // expire the last real frame after `maxAge` and ease to idle ONCE.
+                // Gated on the smoothed inbound rate, not on a single empty drain: at the
+                // 15 fps capture cap (`CameraCapture.swift:137`) a 100 ms tick carries only
+                // ~1.5 samples, so a single empty tick is normal jitter. From a healthy
+                // ~15 Hz the EMA needs ln(0.4)/ln(0.9) ≈ 8.7 ticks ≈ 0.9 s to fall through
+                // this threshold — that lag IS the intended hysteresis.
+                // Startup is safe: `inboundRateEMA` is seeded at 15 (≥ the threshold), so
+                // the first ticks publish normally and a frameless warm-up self-clears.
+                guard self.inboundRateEMA >= Self.minMeasurableInboundHz else { continue }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
                 guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else {
@@ -698,7 +721,22 @@ public final class CameraRPPGBioPublisher {
                        tick - self.lastGoodPublishTick <= Self.bioHoldTicks {
                         self.lastValidCoherence *= 0.9
                         bus.publish(bio: BioSampleFrame(
-                            timestamp: CFAbsoluteTimeGetCurrent(),
+                            // Carry the last good frame's OWN timestamp — do not re-stamp.
+                            // (To be precise: that is the time the good frame was PUBLISHED,
+                            // not the RGB capture instant — the sample's capture `t` is
+                            // consumed inside the analyzer and never reaches here. Still the
+                            // right value: it is the age of the newest real measurement.)
+                            // Re-stamping made a held frame indistinguishable from a live
+                            // one, so no consumer could apply its own staleness policy.
+                            // Carrying it is safe for the warm-visual intent because the
+                            // hold window (`bioHoldTicks`, ~4 s) is SHORTER than `freshBio`'s
+                            // default 5 s maxAge: the frame stays "fresh" for the whole grace
+                            // period and expires by itself the moment the grace ends.
+                            // ⚠ Consumers that dedupe on `timestamp` now treat a held
+                            // republish as a no-op, so the decaying `lastValidCoherence`
+                            // below no longer reaches them. That is deliberate: holding the
+                            // last REAL value beats following a synthesized decay.
+                            timestamp: held.timestamp,
                             heartRateBPM: held.heartRateBPM,
                             hrvNormalized: held.hrvNormalized,
                             breathRate: 0,
