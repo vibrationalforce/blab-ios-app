@@ -1254,7 +1254,11 @@ struct EchoelStudioView: View {
             // No vertical padding any more: each chip now carries its own 44 pt HIG
             // tap frame (see `chipTapTarget`), whose transparent margin IS the
             // breathing room the 6 pt padding used to provide. Net bar height
-            // 38 → 44 (+6), and the visible pills are unchanged.
+            // 38 → 44 (+6); clearance above the 1 px bottom border goes 6 → 9 pt.
+            // The PILLS are pixel-identical, but a narrow one ("FX") now sits in a
+            // 44 pt-wide frame instead of ~38, so the visible GAP between pills grows
+            // by up to ~6 pt and the scroll content is slightly wider. Deliberate —
+            // don't "fix" it back.
         }
         .background(EchoelTheme.bg)
         .overlay(alignment: .bottom) {
@@ -1269,6 +1273,14 @@ struct EchoelStudioView: View {
     /// `contentShape`. Same fix #113 applied to the header monitor tiles — the chip
     /// bar is the app's primary navigation and was 26 pt, i.e. 40 % under the
     /// minimum, which is the single most-touched control in the instrument.
+    ///
+    /// ONE DELIBERATE DIVERGENCE from #113: that fix is vertical-only, because the
+    /// header's 8 pt tile spacing forbids horizontal growth (`HeaderMonitors.swift:391`).
+    /// Here `minWidth: 44` is added too — HIG is 44 × 44, not 44 tall — and it is safe
+    /// because these chips are `HStack` SIBLINGS, so a wider frame spreads them apart
+    /// instead of overlapping. Note `contentShape` is NOT outset here (no
+    /// `Rectangle().inset(by: -6)` as in `WorkspaceView.swift:328`), so the targets
+    /// stay strictly disjoint with a 6 pt dead gap.
     private func chipTapTarget<Content: View>(@ViewBuilder _ pill: () -> Content) -> some View {
         pill()
             .frame(minWidth: 44, minHeight: 44)
