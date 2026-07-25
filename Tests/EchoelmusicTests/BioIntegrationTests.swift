@@ -37,19 +37,27 @@ final class BioSnapshotValidityTests: XCTestCase {
         // Coherence: 0-1
         XCTAssertGreaterThanOrEqual(snap.coherence, 0.0)
         XCTAssertLessThanOrEqual(snap.coherence, 1.0)
-        // Breathing rate: 4-30 breaths/min
-        XCTAssertGreaterThanOrEqual(snap.breathRate, 4.0)
-        XCTAssertLessThanOrEqual(snap.breathRate, 30.0)
+        // Breathing rate: 0 (= not measured) or a physiological 4-30 breaths/min.
+        // The default is now 0, deliberately: HealthKit only has a respiratory rate when
+        // the user tracks sleep, so the old 12.0 default published a textbook average as
+        // if it were an observation. This assertion accepts either, so a REAL rate is
+        // still range-checked.
+        XCTAssertTrue(snap.breathRate == 0 || (snap.breathRate >= 4.0 && snap.breathRate <= 30.0),
+                      "breath rate must be 0 (unmeasured) or physiological, got \(snap.breathRate)")
         // Breath phase: 0-1
         XCTAssertGreaterThanOrEqual(snap.breathPhase, 0.0)
         XCTAssertLessThanOrEqual(snap.breathPhase, 1.0)
     }
 
-    func testBioSnapshot_hrvRMSSD_defaultIsReasonable() {
-        // RMSSD of 50ms is typical for a healthy resting adult
+    func testBioSnapshot_hrvRMSSD_defaultIsUnmeasured() {
+        // This test used to assert 50 ms, on the reasoning that "50 ms is typical for a
+        // healthy resting adult". That is true of a POPULATION and false of the user in
+        // front of us — the default is what the app reports before it has measured
+        // anything, and reporting a population average as an observation is the exact
+        // defect this slice removes. 0 = not measured, the convention `HRVNormalization`
+        // and the bio strip's "—" already use.
         let snap = BioSnapshot()
-        XCTAssertEqual(snap.hrvRMSSD, 50.0, accuracy: 0.01)
-        XCTAssertGreaterThan(snap.hrvRMSSD, 0.0, "RMSSD must be positive")
+        XCTAssertEqual(snap.hrvRMSSD, 0.0, accuracy: 0.01)
     }
 
     func testBioSnapshot_lfHfRatio_defaultIsBalanced() {

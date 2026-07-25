@@ -352,7 +352,10 @@ public final class BioReactiveSynthVoice {
             // coherence 0 = "no data" (camera until enough beats; HealthKit never),
             // not "maximally dark filter" — treat as neutral so resting tone stays open.
             coherence: frame.coherence > 0 ? clampUnit(frame.coherence) : 0.5,
-            hrv: clampUnit(frame.hrvNormalized),
+            // Same rule for HRV: 0 = "not measured yet" (a Watch before its first SDNN
+            // sample), not "minimum variability". Neutral for the sound so missing data
+            // never darkens the timbre; the DISPLAY is what has to say "—".
+            hrv: frame.hrvNormalized > 0 ? clampUnit(frame.hrvNormalized) : 0.5,
             heartRate: hrNormalized,
             breathPhase: clampUnit(frame.breathPhase),
             breathDepth: 0.5,

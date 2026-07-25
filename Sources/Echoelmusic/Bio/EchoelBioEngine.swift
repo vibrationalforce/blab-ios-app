@@ -33,11 +33,20 @@ public struct BioSnapshot: Sendable {
 
     /// HRV normalized to [0-1] — from HealthKit's SDNN (the BLE strap path provides
     /// true beat-to-beat RMSSD; HealthKit does not, so no RMSSD is derived here).
-    public var hrvNormalized: Double = 0.5
+    ///
+    /// DEFAULT 0 = "no HRV has been measured yet", the same convention
+    /// `HRVNormalization.normalize` already uses for unusable input and that the strip
+    /// renders as "—". It used to default to 0.5, and that was not a harmless
+    /// placeholder: `publishIfFresh` fires as soon as a HEART-RATE sample arrives (the
+    /// snapshot's timestamp is only written on that path), so a Watch with no SDNN
+    /// sample yet published an invented "medium HRV" as a real reading — driving
+    /// brightness, humanisation and the displayed figure off a number nobody measured.
+    public var hrvNormalized: Double = 0
 
     /// Raw RMSSD in milliseconds (BLE-strap path only; NOT written on the HealthKit
     /// path, which has no beat-to-beat RR — HealthKit HRV flows via `hrvNormalized`).
-    public var hrvRMSSD: Double = 50.0
+    /// 0 = not measured, as everywhere else.
+    public var hrvRMSSD: Double = 0
 
     /// Raw SDNN in milliseconds. HealthKit IS a native SDNN source (it exposes SDNN
     /// directly), so this carries the real ms value out to `/echoelmusic/bio/heart/sdnn`
@@ -45,14 +54,26 @@ public struct BioSnapshot: Sendable {
     /// 0 = not provided by the source.
     public var hrvSDNNms: Double = 0
 
-    /// Breathing rate in breaths/min [4-30]
-    public var breathRate: Double = 12.0
+    /// Breathing rate in breaths/min [4-30]. 0 = not measured — HealthKit only has a
+    /// respiratory rate when the user tracks sleep, so the old 12.0 default published a
+    /// textbook average as an observation for most people. `PolarH10BioPublisher` already
+    /// sends 0 for the same "this source has no breath" case.
+    public var breathRate: Double = 0
 
-    /// Breath phase [0-1] (0=exhale start, 0.5=inhale start, 1=exhale start)
+    /// Breath phase [0-1] (0=exhale start, 0.5=inhale start, 1=exhale start).
+    ///
+    /// ⚠ Stays 0.5, and that IS still a placeholder: HealthKit measures no phase at all,
+    /// and unlike the fields above `breathPhase` has no "unknown" sentinel — 0 is a
+    /// meaningful value (exhale start), so an honest default cannot be expressed in this
+    /// type. It only feeds slow visual position (donut sway, `BioVisualParams`), never a
+    /// number shown as a measurement. Giving `BioSampleFrame.breathPhase` a real optional
+    /// is a cross-cutting change and belongs in its own slice.
     public var breathPhase: Double = 0.5
 
-    /// Coherence score [0-1] (derived from LF/HF ratio of HRV)
-    public var coherence: Double = 0.5
+    /// Coherence score [0-1]. 0 = not measured. `HealthKitBioPublisher` already
+    /// hard-codes 0 on the wire (HealthKit has no beat-to-beat RR, so no real spectral
+    /// coherence exists there); this makes the in-engine default agree with it.
+    public var coherence: Double = 0
 
     /// LF/HF ratio of HRV spectrum
     public var lfHfRatio: Double = 1.0
@@ -114,6 +135,13 @@ public final class EchoelBioEngine {
 
     /// Smoothing factor (higher = smoother, more latency)
     private let smoothingAlpha: Double = 0.15
+
+    /// Has a REAL sample of each kind arrived yet? The smoothers start at nominal
+    /// placeholders, so the first genuine reading must replace the seed rather than be
+    /// averaged with it — otherwise ~85 % of an invented value survives into what the
+    /// user is told is a measurement.
+    private var hasHRSample = false
+    private var hasHRVSample = false
 
     // MARK: - Constants
 
@@ -350,6 +378,13 @@ public final class EchoelBioEngine {
                 guard let self else { return }
                 self.snapshot.heartRate = bpm
                 self.snapshot.timestamp = sampleDate
+                // Same seed-don't-blend rule as HRV below: `smoothHeartRate` starts at
+                // a nominal 72, and blending from it would report a first reading that
+                // is mostly that nominal value.
+                if !self.hasHRSample {
+                    self.smoothHeartRate = bpm
+                    self.hasHRSample = true
+                }
                 self.smoothHeartRate = self.smoothHeartRate * (1.0 - self.smoothingAlpha) + bpm * self.smoothingAlpha
             }
         }
@@ -379,7 +414,16 @@ public final class EchoelBioEngine {
                 // NOTE: HealthKit-sourced frames are network-egress-blocked upstream by
                 // BioEgressPolicy (App Store 5.1.3), so this value stays on-device.
                 self.snapshot.hrvSDNNms = sdnn
-                self.smoothHRV = self.smoothHRV * (1.0 - self.smoothingAlpha) + normalized * self.smoothingAlpha
+                // SEED, don't blend, on the first real sample. `smoothHRV` starts at a
+                // placeholder, and an EMA from a placeholder means the first genuine
+                // reading is reported as mostly-placeholder (α = 0.15, so ~85 % of the
+                // invented value survives the first sample and it takes ~15 samples to
+                // wash out). Jumping to the first measurement makes the smoother a
+                // smoother of REAL data instead of a slow leak of a made-up one.
+                self.smoothHRV = self.hasHRVSample
+                    ? self.smoothHRV * (1.0 - self.smoothingAlpha) + normalized * self.smoothingAlpha
+                    : normalized
+                self.hasHRVSample = true
             }
         }
     }
@@ -462,14 +506,16 @@ import Foundation
 import Observation
 #endif
 
+// Keep these defaults in step with the HealthKit-platform `BioSnapshot` above —
+// 0 means "not measured" for every field that has an unknown state.
 public struct BioSnapshot: Sendable {
     public var heartRate: Double = 72.0
-    public var hrvNormalized: Double = 0.5
-    public var hrvRMSSD: Double = 50.0
+    public var hrvNormalized: Double = 0
+    public var hrvRMSSD: Double = 0
     public var hrvSDNNms: Double = 0
-    public var breathRate: Double = 12.0
-    public var breathPhase: Double = 0.5
-    public var coherence: Double = 0.5
+    public var breathRate: Double = 0
+    public var breathPhase: Double = 0.5   // no unknown sentinel exists — see above
+    public var coherence: Double = 0
     public var lfHfRatio: Double = 1.0
     public var source: BioDataSource = .fallback
     public var timestamp: Date = Date()

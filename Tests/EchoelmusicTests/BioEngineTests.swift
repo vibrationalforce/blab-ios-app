@@ -11,14 +11,30 @@ import XCTest
 
 final class BioSnapshotTests: XCTestCase {
 
-    func testDefaults() {
+    /// 0 means "not measured" for every field that HAS an unknown state — the same
+    /// convention `HRVNormalization.normalize` uses and that the bio strip renders as "—".
+    ///
+    /// These used to be plausible-looking placeholders (0.5 HRV, 50 ms RMSSD, 12 breaths
+    /// /min), and that was not harmless: `HealthKitBioPublisher.publishIfFresh` fires as
+    /// soon as a HEART-RATE sample arrives, because the snapshot's timestamp is only
+    /// written on that path. So a Watch with no SDNN sample yet published an invented
+    /// "medium HRV" onto the bus as a real reading.
+    func testDefaultsAreHonestlyUnmeasured() {
         let snapshot = BioSnapshot()
-        XCTAssertEqual(snapshot.heartRate, 72.0)
-        XCTAssertEqual(snapshot.hrvNormalized, 0.5)
-        XCTAssertEqual(snapshot.hrvRMSSD, 50.0)
-        XCTAssertEqual(snapshot.breathRate, 12.0)
+        XCTAssertEqual(snapshot.hrvNormalized, 0)
+        XCTAssertEqual(snapshot.hrvRMSSD, 0)
+        XCTAssertEqual(snapshot.hrvSDNNms, 0)
+        XCTAssertEqual(snapshot.breathRate, 0)
+        XCTAssertEqual(snapshot.coherence, 0)
+        // `breathPhase` deliberately stays 0.5: unlike the fields above it has NO unknown
+        // sentinel — 0 is a meaningful phase (exhale start) — so an honest default cannot
+        // be expressed in this type. It only drives slow visual position, never a number
+        // shown as a measurement. Making it a real optional is its own slice.
         XCTAssertEqual(snapshot.breathPhase, 0.5)
-        XCTAssertEqual(snapshot.coherence, 0.5)
+        // Heart rate keeps its nominal 72: the publish path is gated on a real HR sample
+        // arriving, so this value never reaches the bus, and several consumers divide by
+        // it. Changing it is a separate, riskier question.
+        XCTAssertEqual(snapshot.heartRate, 72.0)
         XCTAssertEqual(snapshot.lfHfRatio, 1.0)
     }
 
@@ -144,7 +160,7 @@ final class EchoelBioEngineTests: XCTestCase {
     func testSnapshot_defaultValues() {
         let snapshot = EchoelBioEngine.shared.snapshot
         XCTAssertEqual(snapshot.heartRate, 72.0)
-        XCTAssertEqual(snapshot.coherence, 0.5)
+        XCTAssertEqual(snapshot.coherence, 0, "unmeasured coherence must read 0, not a plausible 0.5")
         XCTAssertEqual(snapshot.source, .fallback)
     }
 }
