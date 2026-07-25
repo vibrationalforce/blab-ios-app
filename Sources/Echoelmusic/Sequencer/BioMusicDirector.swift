@@ -12,23 +12,44 @@ import FoundationModels
 
 /// A coarse, non-identifying description of the body state — adjectives only.
 /// This is the ONLY thing ever handed to the language model.
+///
+/// Every field is OPTIONAL, and `nil` means **not measured** — never a value.
+/// This is not defensive style, it is the whole point: each field is derived from
+/// a signal whose "unavailable" encoding is 0, and the earlier non-optional form
+/// mapped that 0 straight onto the *low* end of each scale. A HealthKit session
+/// (which never yields coherence) was described as "restless"; a body with no
+/// respiratory rate (HealthKit only has one if the user tracks sleep) was described
+/// as "slow breathing". `BioExplanation` then narrated both back to the user in
+/// plain English as observations. A wrong number is a rendering defect; a wrong
+/// adjective about someone's body, stated as fact, is not — so the unmeasured case
+/// has to be representable, and every consumer has to omit rather than guess.
 public struct BioStateSummary: Sendable, Equatable {
-    public let arousal: String      // "low" | "medium" | "high"
-    public let steadiness: String   // "steady and coherent" | "moderately steady" | "restless"
-    public let breath: String       // "slow" | "relaxed" | "fast"
+    public let arousal: String?      // "low" | "medium" | "high"
+    public let steadiness: String?   // "steady and coherent" | "moderately steady" | "restless"
+    public let breath: String?       // "slow" | "relaxed" | "fast"
 
     public init(from f: BioSampleFrame) {
+        // `> 0` is the established "measured" gate for all three: heart rate is only
+        // non-zero on a confident lock (see PolySynthVoice's entrainment quality gate),
+        // and coherence/breathRate default to 0 for sources that never provide them.
         let hr = f.heartRateBPM
-        arousal = hr < 65 ? "low" : (hr < 95 ? "medium" : "high")
+        arousal = hr > 0 ? (hr < 65 ? "low" : (hr < 95 ? "medium" : "high")) : nil
         let c = f.coherence
-        steadiness = c > 0.6 ? "steady and coherent" : (c > 0.3 ? "moderately steady" : "restless")
+        steadiness = c > 0 ? (c > 0.6 ? "steady and coherent" : (c > 0.3 ? "moderately steady" : "restless")) : nil
         let br = f.breathRate
-        breath = br < 8 ? "slow" : (br < 16 ? "relaxed" : "fast")
+        breath = f.hasMeasuredBreath ? (br < 8 ? "slow" : (br < 16 ? "relaxed" : "fast")) : nil
     }
 
-    /// The text-only prompt fragment handed to the model.
+    /// The text-only prompt fragment handed to the model. Unmeasured fields are
+    /// OMITTED, never defaulted — handing the model "restless" for a body it has no
+    /// coherence for would launder a fabrication into a musical decision.
     public var prompt: String {
-        "Body state: \(arousal) arousal, \(steadiness), breathing \(breath)."
+        var parts: [String] = []
+        if let arousal { parts.append("\(arousal) arousal") }
+        if let steadiness { parts.append(steadiness) }
+        if let breath { parts.append("breathing \(breath)") }
+        guard !parts.isEmpty else { return "Body state: not measured yet." }
+        return "Body state: \(parts.joined(separator: ", "))."
     }
 }
 
@@ -39,17 +60,52 @@ public struct BioStateSummary: Sendable, Equatable {
 public enum BioExplanation {
     public static func text(for f: BioSampleFrame, tempo: Double) -> String {
         let s = BioStateSummary(from: f)
-        let hr = Int(f.heartRateBPM.rounded())
         let bpm = Int(tempo.rounded())
-        let pace = s.arousal == "low" ? "calm" : (s.arousal == "high" ? "driving" : "flowing")
-        let tone: String
-        switch s.steadiness {
-        case "steady and coherent": tone = "high coherence opens the filter for a brighter, fuller tone"
-        case "restless":            tone = "an unsteady signal keeps the filter lower for a darker, softer tone"
-        default:                    tone = "moderate coherence holds a balanced tone"
+
+        // Each clause is built ONLY from a measured field. An unmeasured one drops the
+        // clause entirely rather than narrating a default — this text is presented as
+        // EchoelAI telling the user what their body is doing, so a filled-in adjective
+        // reads as an observation.
+        var clauses: [String] = []
+
+        if let arousal = s.arousal {
+            let hr = Int(f.heartRateBPM.rounded())
+            let pace = arousal == "low" ? "calm" : (arousal == "high" ? "driving" : "flowing")
+            clauses.append("heart rate \(hr) BPM sets a \(pace) \(bpm) BPM tempo")
+        } else {
+            clauses.append("tempo holds at \(bpm) BPM until a pulse is measured")
         }
-        let space = s.arousal == "low" ? "a wide hall reverb" : "a tighter room space"
-        return "EchoelAI — heart rate \(hr) BPM sets a \(pace) \(bpm) BPM tempo; \(tone); \(s.breath) breathing places it in \(space). Each phrase re-seeds the chords, opening pitch and dynamics from your live signal and morphs in at the bar line, so it never repeats and never cuts."
+
+        switch s.steadiness {
+        case "steady and coherent":
+            clauses.append("high coherence opens the filter for a brighter, fuller tone")
+        case "moderately steady":
+            clauses.append("moderate coherence holds a balanced tone")
+        case "restless":
+            clauses.append("an unsteady signal keeps the filter lower for a darker, softer tone")
+        default:
+            break   // no coherence measured — say nothing about steadiness
+        }
+
+        // The SPACE half follows arousal, so it is stated only when arousal was measured
+        // too — but a measured breath still gets named on its own rather than dropped.
+        if let breath = s.breath {
+            if let arousal = s.arousal {
+                let space = arousal == "low" ? "a wide hall reverb" : "a tighter room space"
+                clauses.append("\(breath) breathing places it in \(space)")
+            } else {
+                clauses.append("\(breath) breathing shapes the swell")
+            }
+        }
+
+        // The tail describes the ENGINE, so it is safe to always append — except for the
+        // phrase "from your live signal", which is a claim about the body and directly
+        // contradicts the "no pulse measured" opening when nothing was read.
+        let measuredAnything = s.arousal != nil || s.steadiness != nil || s.breath != nil
+        let source = measuredAnything ? " from your live signal" : ""
+        return "EchoelAI — " + clauses.joined(separator: "; ")
+            + ". Each phrase re-seeds the chords, opening pitch and dynamics\(source)"
+            + " and morphs in at the bar line, so it never repeats and never cuts."
     }
 }
 
@@ -72,11 +128,19 @@ public struct MusicDirectionResult: Sendable, Equatable {
 public enum BioDirectionFallback {
     public static func direction(for frame: BioSampleFrame) -> MusicDirectionResult {
         let s = BioStateSummary(from: frame)
+        // Unmeasured fields fall through to the same branch a MEDIUM body takes — the
+        // instrument must still pick something. Genre lands on the middle choice
+        // (vaporwave) and space on "room"; mood is binary, so nil arousal yields
+        // "lively", which is NOT a middle and is a real behaviour change from the old
+        // code (nil used to read as "low" ⇒ deep ambient / calm / hall). Deliberate:
+        // the guarantee here is narrower than "neutral" — it is only that an UNMEASURED
+        // signal cannot select an EXTREME. "restless" is the sole path to "tense", and
+        // it is now unreachable without a real coherence reading.
         let genre: String
         switch s.arousal {
         case "low":  genre = "deep ambient"
         case "high": genre = "psytrance"
-        default:     genre = "vaporwave"
+        default:     genre = "vaporwave"       // includes nil = not measured
         }
         let mood = s.steadiness == "restless"
             ? "tense"
@@ -115,6 +179,13 @@ public final class BioMusicDirector {
     public func suggest(for frame: BioSampleFrame) async -> MusicDirectionResult? {
         guard OnDeviceModelGate.isOnDeviceLLMAvailable else { return nil }
         let summary = BioStateSummary(from: frame)
+        // Nothing measured ⇒ don't ask. The prompt would degrade honestly to "Body state:
+        // not measured yet.", but the model would still return a genre/mood/space and the
+        // engine would apply it AS a bio-derived direction. Falling through to
+        // `BioDirectionFallback` is at least honestly deterministic.
+        guard summary.arousal != nil || summary.steadiness != nil || summary.breath != nil else {
+            return nil
+        }
         let session = LanguageModelSession(
             instructions: "You arrange a bio-reactive musical instrument. Given a body state, pick a genre, mood and reverb space that fit. Reply only with the structured fields. Never give health or medical advice.")
         do {

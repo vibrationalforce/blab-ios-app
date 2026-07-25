@@ -399,10 +399,12 @@ struct BioStripView: View {
     /// does not derive respiration, so it publishes 0 — and "0.0 /min" is impossible (you
     /// can't breathe zero times a minute). Show a real number only inside the plausible
     /// window, otherwise "—" (honest: not measured), matching how coherence/HRV behave.
-    private static let plausibleBreath: ClosedRange<Float> = 3...40
+    /// The window itself now lives on `BioSampleFrame` so this view, the modulation
+    /// readout and the EchoelAI narration cannot drift into three different answers to
+    /// "is there a breath reading" — they had started to.
     private var breathString: String {
-        guard let v = bus.latestBio?.breathRate, Self.plausibleBreath.contains(v) else { return "—" }
-        return String(format: "%.1f", v)
+        guard let bio = bus.latestBio, bio.hasMeasuredBreath else { return "—" }
+        return String(format: "%.1f", bio.breathRate)
     }
 
     /// Coherence is real only on sources with beat-to-beat RR (BLE / camera);

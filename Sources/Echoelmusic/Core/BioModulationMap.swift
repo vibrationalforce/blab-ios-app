@@ -65,4 +65,34 @@ public enum BioModulationMap {
         guard let driver = Driver(rawValue: id) else { return 0 }
         return amount(driver, in: frame)
     }
+
+    /// Whether `driver`'s underlying field was actually MEASURED in this frame.
+    ///
+    /// `amount` cannot express this: it returns a clamped [0..1] number, and 0 is both
+    /// "the bottom of the scale" and "no reading". For a display that distinguishes the
+    /// two — which any display of a body signal must — this is the gate.
+    ///
+    /// Note `breath` is the one driver whose gate reads a DIFFERENT field than `amount`:
+    /// the amount comes from `breathPhase`, but only `breathRate` can say whether any
+    /// respiration was measured at all (0 is a meaningful phase, so `breathPhase` cannot
+    /// answer for itself — and the HealthKit path leaves it at a 0.5 placeholder that
+    /// would otherwise render as a confident half-scale reading). The other three encode
+    /// "unavailable" as 0 directly — heart rate is non-zero only on a confident lock, and
+    /// coherence/HRV are 0 on any source that does not compute them (HealthKit).
+    public static func isMeasured(_ driver: Driver, in frame: BioSampleFrame) -> Bool {
+        switch driver {
+        case .breath:    return frame.hasMeasuredBreath
+        case .coherence: return frame.coherence > 0
+        case .hrv:       return frame.hrvNormalized > 0
+        case .heartRate: return frame.heartRateBPM > 0
+        }
+    }
+
+    /// `amount(forMappingID:in:)` for DISPLAY: `nil` where the field was not measured,
+    /// so the row can render "—" instead of a specific "0.00" the body never produced.
+    /// An unknown id is also nil (it has no driver, so nothing measured it).
+    public static func measuredAmount(forMappingID id: String, in frame: BioSampleFrame) -> Float? {
+        guard let driver = Driver(rawValue: id), isMeasured(driver, in: frame) else { return nil }
+        return amount(driver, in: frame)
+    }
 }

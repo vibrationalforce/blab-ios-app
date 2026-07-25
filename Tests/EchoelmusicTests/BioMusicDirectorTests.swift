@@ -27,6 +27,65 @@ final class BioMusicDirectorTests: XCTestCase {
         XCTAssertEqual(amped.breath, "fast")
     }
 
+    // MARK: - Unmeasured fields are never described
+
+    func testSummary_unmeasuredFieldsAreNil_notTheLowEndOfTheScale() {
+        // A HealthKit session: real heart rate, but that source never computes coherence
+        // and only has a respiratory rate if the user tracks sleep. Both arrive as 0.
+        let healthKit = BioStateSummary(from: frame(hr: 62, coherence: 0, breath: 0))
+        XCTAssertEqual(healthKit.arousal, "low", "a real heart rate is still described")
+        XCTAssertNil(healthKit.steadiness, "coherence 0 must not become 'restless'")
+        XCTAssertNil(healthKit.breath, "breath rate 0 must not become 'slow'")
+
+        // No pulse lock at all.
+        let noBody = BioStateSummary(from: frame(hr: 0, coherence: 0, breath: 0))
+        XCTAssertNil(noBody.arousal)
+        XCTAssertEqual(noBody.prompt, "Body state: not measured yet.")
+    }
+
+    func testExplanation_saysNothingAboutWhatItDidNotMeasure() {
+        let t = BioExplanation.text(for: frame(hr: 62, coherence: 0, breath: 0), tempo: 90)
+        // Assert against the strings the code ACTUALLY emits. The bucket label is
+        // "restless", but `text()` renders it as "an unsteady signal…" — screening for
+        // "restless" here would be unfalsifiable and would have missed the shipped bug.
+        XCTAssertFalse(t.contains("unsteady signal"),
+                       "narrated an unsteady body from a coherence that was never measured")
+        XCTAssertFalse(t.contains("breathing"),
+                       "narrated breathing from a rate that was never measured")
+        // What IS measured still gets said, so the caption stays useful rather than empty.
+        XCTAssertTrue(t.contains("62 BPM"))
+        XCTAssertTrue(t.contains("90 BPM"))
+    }
+
+    func testExplanation_withNoBodyAtAll_makesNoClaimAboutThePerson() {
+        let t = BioExplanation.text(for: frame(hr: 0, coherence: 0, breath: 0), tempo: 120)
+        XCTAssertTrue(t.contains("until a pulse is measured"))
+        for fabricated in ["unsteady signal", "breathing", "coherence"] {
+            XCTAssertFalse(t.contains(fabricated), "leaked '\(fabricated)' with nothing measured")
+        }
+        // The tail must not claim a signal it just said does not exist.
+        XCTAssertFalse(t.contains("from your live signal"),
+                       "promised music 'from your live signal' one sentence after 'until a pulse is measured'")
+    }
+
+    func testExplanation_withAMeasuredBody_stillCreditsTheLiveSignal() {
+        // The counterpart to the test above: dropping that phrase unconditionally would
+        // also pass there, so pin that a real body DOES get told its signal is driving.
+        let t = BioExplanation.text(for: frame(hr: 62, coherence: 0.8, breath: 6), tempo: 90)
+        XCTAssertTrue(t.contains("from your live signal"))
+        XCTAssertTrue(t.contains("slow breathing"))
+    }
+
+    func testFallback_unmeasuredCoherenceCannotSelectTheTenseExtreme() {
+        // "tense" is reachable only from "restless", which is now unreachable without a
+        // real reading. The direction must still be a complete, playable choice.
+        let d = BioDirectionFallback.direction(for: frame(hr: 100, coherence: 0, breath: 0))
+        XCTAssertNotEqual(d.mood, "tense")
+        // A REAL low coherence still reaches it — the gate is "measured", not "high".
+        XCTAssertEqual(BioDirectionFallback.direction(for: frame(hr: 100, coherence: 0.05, breath: 12)).mood,
+                       "tense")
+    }
+
     func testSummaryPromptIsAdjectivesOnly_noBiometrics() {
         // The prompt handed to the model must not leak raw numbers/identifiers.
         let p = BioStateSummary(from: frame(hr: 123, coherence: 0.42, breath: 17)).prompt

@@ -13,12 +13,64 @@ import XCTest
 final class BioModulationMapTests: XCTestCase {
 
     private func frame(
-        hr: Float = 72, hrv: Float = 0.5, breath: Float = 0.5, coherence: Float = 0.5
+        hr: Float = 72, hrv: Float = 0.5, breath: Float = 0.5, coherence: Float = 0.5,
+        breathRate: Float = 12
     ) -> BioSampleFrame {
         BioSampleFrame(
-            timestamp: 0, heartRateBPM: hr, hrvNormalized: hrv, breathRate: 12,
+            timestamp: 0, heartRateBPM: hr, hrvNormalized: hrv, breathRate: breathRate,
             breathPhase: breath, coherence: coherence, motionEnergy: 0, source: .ble
         )
+    }
+
+    // MARK: - measured vs. zero (the display gate)
+
+    func testMeasuredAmount_isNilForUnmeasuredFields_notZero() {
+        // The panel this feeds explains the bio→sound mapping, so "0.00" there is a
+        // claim about the body. `amount` cannot express the difference — it returns a
+        // clamped number where 0 is both "bottom of scale" and "never measured".
+        let unmeasured = frame(hr: 0, hrv: 0, coherence: 0)
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "coherence", in: unmeasured))
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "hrv", in: unmeasured))
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "heartRate", in: unmeasured))
+        // …while `amount` still answers 0 for the same frame, unchanged.
+        XCTAssertEqual(BioModulationMap.amount(forMappingID: "coherence", in: unmeasured), 0)
+    }
+
+    func testMeasuredAmount_passesRealReadingsThroughUnchanged() {
+        let f = frame(hr: 120, hrv: 0.31, coherence: 0.73)
+        XCTAssertEqual(BioModulationMap.measuredAmount(forMappingID: "coherence", in: f) ?? -1,
+                       0.73, accuracy: 1e-5)
+        XCTAssertEqual(BioModulationMap.measuredAmount(forMappingID: "hrv", in: f) ?? -1,
+                       0.31, accuracy: 1e-5)
+    }
+
+    func testMeasuredAmount_breathIsGatedOnTheRATE_notOnThePhase() {
+        // The breath row is the trap in this whole rule. Its VALUE is `breathPhase`,
+        // where 0 is a genuine position (exhale start) — so the phase cannot say whether
+        // anything was measured. Only `breathRate` can: the strap and the face-cam
+        // publish 0, and the HealthKit path leaves the phase at a 0.5 PLACEHOLDER that
+        // would otherwise render as the most confident number on a panel of honest "—"s.
+
+        // Phase 0 with a real rate: a measured reading of 0, correctly shown.
+        XCTAssertEqual(BioModulationMap.measuredAmount(forMappingID: "breath",
+                                                       in: frame(breath: 0, breathRate: 12)) ?? -1,
+                       0, accuracy: 1e-6)
+        // No rate: nil, whatever the phase says.
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "breath",
+                                                     in: frame(breath: 0, breathRate: 0)))
+        // The exact HealthKit shape — a 0.5 phase placeholder and no rate.
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "breath",
+                                                     in: frame(breath: 0.5, breathRate: 0)),
+                     "the HealthKit 0.5 phase placeholder must never render as a reading")
+        // Implausible rates are absences too — you cannot breathe once a minute.
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "breath",
+                                                     in: frame(breathRate: 1)))
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "breath",
+                                                     in: frame(breathRate: 200)))
+    }
+
+    func testMeasuredAmount_unknownID_isNil() {
+        XCTAssertNil(BioModulationMap.measuredAmount(forMappingID: "nope", in: frame()))
     }
 
     // MARK: - id ↔ driver contract (single source of truth = BioSoundMapping)

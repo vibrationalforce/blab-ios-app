@@ -211,7 +211,12 @@ struct BioMetricsGuideView: View {
                         }
                     }
                     ForEach(BioSoundMapping.all) { m in
-                        let amount = liveBio.map { BioModulationMap.amount(forMappingID: m.id, in: $0) }
+                        // `measuredAmount`, not `amount`: this panel exists to explain the
+                        // bio→sound mapping, so "HRV → brightness 0.00" on a body whose HRV
+                        // was never measured is the one number it must not print. The "—"
+                        // and dimmed-bar affordance below already existed for "no body";
+                        // it now also covers "body present, this field not measured".
+                        let amount = liveBio.flatMap { BioModulationMap.measuredAmount(forMappingID: m.id, in: $0) }
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Text(m.source)

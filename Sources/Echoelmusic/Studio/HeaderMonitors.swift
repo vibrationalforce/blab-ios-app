@@ -177,7 +177,13 @@ struct PulseMonitorMiniLive: View {
         PulseMonitorMini(waveform: cameraRPPG.waveform,
                          bpm: cameraLive ? cameraRPPG.displayBPM : Double(fresh?.heartRateBPM ?? 0),
                          locked: cameraLive ? cameraRPPG.isLocked : (fresh != nil),
-                         coherence: fresh.map { Double($0.coherence) },
+                         // `flatMap`, not `map`: a fresh frame whose coherence was never
+                         // measured (HealthKit never provides it; the camera not until
+                         // enough beats accrue) maps to Optional(0.0), and the pill then
+                         // prints "0.00" — which reads as "incoherent", not "not yet".
+                         // nil drops the number and leaves the pulse, the same law
+                         // `BioStripView.coherenceString` already follows one row away.
+                         coherence: fresh.flatMap { $0.coherence > 0 ? Double($0.coherence) : nil },
                          // Only the camera has an acquisition cue ("cover the lens"); a
                          // strap/sim monitor stays plain. Denied access must surface even
                          // though the camera is NOT running (it can never run — UX-1) —

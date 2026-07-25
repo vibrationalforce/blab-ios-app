@@ -97,8 +97,24 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// to know a real sensor is present.
     public let hrvPNN50: Float
 
-    /// Breathing rate in breaths/min. Range [4..30].
+    /// Breathing rate in breaths/min. `0` = the source derives no respiration.
     public let breathRate: Float
+
+    /// Physiologically plausible respiration window (breaths/min). You cannot breathe
+    /// zero times a minute, so a value outside this band is an absence, not a reading.
+    public static let plausibleBreathRate: ClosedRange<Float> = 3...40
+
+    /// Whether this frame carries a REAL respiration measurement.
+    ///
+    /// The gate is `breathRate`, deliberately, even for consumers that read `breathPhase`:
+    /// `breathPhase` has NO unknown sentinel — 0 is a meaningful position (exhale start)
+    /// — so it cannot answer this question about itself. Publishers encode "no breath" by
+    /// leaving `breathRate` at 0 (`PolarH10BioPublisher`, `FaceExpressionBioPublisher`,
+    /// and `CameraRPPGBioPublisher` below its confidence threshold), and the HealthKit
+    /// path leaves `breathPhase` at the engine's 0.5 placeholder. Anything DISPLAYING a
+    /// breath value must gate on this; a 0.50 rendered next to honest "—" neighbours
+    /// reads as the most confident number on the panel.
+    public var hasMeasuredBreath: Bool { Self.plausibleBreathRate.contains(breathRate) }
 
     /// Breath phase, [0..1]. 0 = exhale start, 0.5 = inhale start.
     public let breathPhase: Float
