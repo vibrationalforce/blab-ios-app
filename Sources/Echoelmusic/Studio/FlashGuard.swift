@@ -35,31 +35,64 @@ public enum FlashGuard {
         return Swift.max(0, Swift.min(hz, maxFlashHz))
     }
 
+    /// Phase damping the Rings look applies before squaring its field. Interpolated
+    /// INTO the Metal shader source (`MetalBioView.shaderSource`) rather than
+    /// duplicated there, so this constant and the shader cannot drift apart — the
+    /// first version of this fix mirrored the number in a comment and a test, which
+    /// is a guard that passes while the shader says something else.
+    /// 0.5 × 2 (the fold) = 1.0, i.e. the squared field lands exactly on the cap.
+    public static let ringsPhaseDamping: Double = 0.5
+
+    /// The SAME value as a string, because it is interpolated into Metal source that
+    /// is compiled at RUNTIME. Interpolating the `Double` directly would emit
+    /// whatever Swift's description produces; a hand-written literal is exact and
+    /// cannot become locale-dependent, and a bad literal here would fail as a shader
+    /// COMPILE error on device (a black visual), not at build time — so
+    /// `FlashGuardTests` asserts the two agree.
+    public static let ringsPhaseDampingLiteral = "0.5"
+
     /// The rate a visual FIELD actually flashes at — which is NOT always the rate
-    /// its phase is integrated at, and that gap shipped a violation.
+    /// its phase is integrated at, and that gap shipped a WCAG violation.
     ///
-    /// A style whose visible field is the SQUARED amplitude (energy ∝ amplitude²,
-    /// the physically correct quantity for interference fringes) oscillates at
-    /// TWICE its phase rate, because `sin²(x) = ½(1 − cos 2x)`. `MetalBioView`'s
-    /// Rings look fed the full 2.5 Hz capped phase into a squared field and so
-    /// reached 5 Hz, while every frequency clamp in the codebase correctly read
-    /// "2.5 ≤ 3, safe". Clamping the input is necessary and not sufficient — the
-    /// NONLINEARITY has to be counted too.
+    /// THE LAW, stated precisely (the loose version cost a re-review): only a
+    /// **non-monotone** operation on a phase-bearing quantity adds flashes, because
+    /// only a non-monotone map can create new extrema. Those are:
+    ///   • squaring a BIPOLAR signal — `sin²x = ½(1 − cos 2x)`, rate ×2
+    ///   • `abs()` of a bipolar signal — folds identically, rate ×2
+    ///   • a PRODUCT of two phase-bearing factors — adds a sum sideband at f₁+f₂
+    /// Monotone maps do NOT add flashes, however nonlinear they look: `pow` on a
+    /// non-negative field, `clamp`, `smoothstep`, an S-curve. They change the SHAPE
+    /// of each flash (and can make it harsher), never the count per second.
+    ///
+    /// This is what `MetalBioView`'s Rings look got wrong: it fed the full 2.5 Hz
+    /// capped phase into a squared bipolar field and so reached 5 Hz, while every
+    /// frequency clamp in the codebase correctly read "2.5 ≤ 3, safe". Clamping the
+    /// input is necessary and not sufficient once a fold follows it.
     ///
     /// - Parameters:
     ///   - phaseRateHz: the rate the phase is advanced at (already clamped).
-    ///   - phaseMultiplier: what the style multiplies the shared phase by.
-    ///   - squared: true when the rendered field is amplitude², not amplitude.
-    /// - Returns: the dominant temporal frequency of the rendered field, in Hz.
-    ///            Non-finite input yields 0 (a still frame is always safe).
+    ///   - phaseMultiplier: the multiplier on the shared phase of the style's
+    ///     FASTEST term — for a product of two phase-bearing factors that is the
+    ///     SUM of their multipliers, not either one alone.
+    ///   - folds: true when a non-monotone map (bipolar square, `abs`) is applied.
+    /// - Returns: an UPPER BOUND on the field's flash rate in Hz — the fastest
+    ///   component, not the highest-energy one. Non-finite input returns
+    ///   `.infinity` so a caller asserting `<= maxFlashHz` FAILS CLOSED; this is a
+    ///   value to check, not a frequency to use (contrast `safeFrequency`, which
+    ///   returns 0 because its result is rendered).
     ///
     /// Use it when adding or retuning a style: the result must be `<= maxFlashHz`.
+    ///
+    /// KNOWN LIMIT — do not mistake this for a complete model: it describes ONE
+    /// oscillator. It cannot express two ADDITIVE oscillators at different phases
+    /// (e.g. a field plus a separate heartbeat bloom), where a pixel sees the UNION
+    /// of both flash counts. Check those by hand.
     public static func effectiveFieldHz(phaseRateHz: Double,
                                        phaseMultiplier: Double,
-                                       squared: Bool) -> Double {
-        guard phaseRateHz.isFinite, phaseMultiplier.isFinite else { return 0 }
+                                       folds: Bool) -> Double {
+        guard phaseRateHz.isFinite, phaseMultiplier.isFinite else { return .infinity }
         let base = Swift.abs(phaseRateHz) * Swift.abs(phaseMultiplier)
-        return squared ? base * 2 : base
+        return folds ? base * 2 : base
     }
 
     /// Whether a transition between two relative luminances [0,1] counts as a

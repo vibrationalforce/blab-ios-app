@@ -1317,19 +1317,23 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // Coherence does double duty, physically: it both detunes the second train (high = nearly
     // aligned → wide ordered fringes; low = turbulent moiré beat) AND sharpens the fringes
     // (coherent light interferes into thin crisp maxima; incoherent washes out).
-    // ⚠ FLASH LAW (fixed 2026-07-25 — this look was shipping at up to 5 Hz):
-    // the visible field here is amplitude SQUARED, and squaring a sinusoid DOUBLES its
-    // temporal rate (sin²x = ½(1 − cos 2x)). The CPU caps the phase rate at 2.5 Hz, so
-    // feeding the FULL phase into a squared field flashed at 2 × 2.5 = 5 Hz — over the
-    // WCAG 3 Hz limit — even though every frequency clamp in the codebase correctly read
-    // "2.5 ≤ 3, safe". Clamping the input is necessary but NOT sufficient once a
-    // nonlinearity follows it. So this style takes HALF the phase: 0.5 × 2 = 1.0, i.e.
-    // the squared field lands back exactly at the capped rate. Rings breathes at half
-    // the previous speed and stays heartbeat-locked. Budget asserted in
-    // `FlashGuardTests.testEveryReachableLookObeysTheThreeHzLaw` — if you retune this,
-    // update that row via `FlashGuard.effectiveFieldHz`.
+    // ⚠ FLASH LAW (fixed 2026-07-25). The visible field here is amplitude SQUARED, and
+    // squaring a BIPOLAR signal DOUBLES its temporal rate (sin²x = ½(1 − cos 2x)). The
+    // CPU caps the phase rate at 2.5 Hz, so feeding the FULL phase into the squared
+    // field flashed at 2 × 2.5 = 5 Hz. It was over the 3 Hz WCAG limit for any
+    // flashHz > 1.5 — i.e. from about 90 bpm at the default Motion 1.0, or 60 bpm at
+    // Motion 1.5 — so ordinary use, not a corner case. Introduced 2026-07-12 when the
+    // field became `interf * interf` (before that it was the non-squared 0.5+0.5·sin
+    // form described above), fixed 2026-07-25.
+    // Clamping the input is necessary but NOT sufficient once a FOLD follows it. So the
+    // damping factor below halves the phase: 0.5 × 2 = 1.0, i.e. the squared field lands
+    // back exactly on the cap. It is INTERPOLATED from `FlashGuard.ringsPhaseDamping`
+    // rather than written here, so the Swift constant and this shader cannot drift apart.
+    // Bonus the halving buys: post-fix the centre field is (1 − cos φ)/2, the SAME form
+    // as the heartbeat bloom below, so the rings now peak ONCE per beat in phase with it
+    // instead of twice per beat interleaved with it.
     float fieldRings(float d, float density, float phase, float coh) {
-        float p = phase * 0.5;                              // squared field ⇒ half the phase
+        float p = phase * \(FlashGuard.ringsPhaseDampingLiteral);   // squared field ⇒ damped phase
         float w1 = sin(d * density - p);
         float detune = mix(1.6, 1.02, coh);                 // high coh → near-unison, ordered
         float w2 = sin(d * density * detune - p * 0.5);
@@ -1540,12 +1544,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // The temporal motion is the ACCUMULATED phase (integrated on the CPU from the
         // flash-safe frequency), NOT time × frequency — so an HR change alters the rate,
         // never snaps the pattern (kills the "ruckeln"). The phase is integrated at
-        // ≤2.5 Hz (< WCAG 3 Hz) — but that clamp alone does NOT make a style safe: any
-        // NONLINEARITY a style applies afterwards changes the rate it actually flashes
-        // at. Squaring doubles it (see `fieldRings`, which shipped at 5 Hz until
-        // 2026-07-25 because this comment said "pure read" and stopped the audit here).
-        // Every style must damp `phase` by its own multiplier so that
-        // `FlashGuard.effectiveFieldHz(phaseRateHz: 2.5, …) <= 3`.
+        // ≤2.5 Hz (< WCAG 3 Hz) — but that clamp alone does NOT make a style safe. Only
+        // a NON-MONOTONE operation on a phase-bearing quantity adds flashes, because only
+        // a non-monotone map creates new extrema: squaring a bipolar signal (×2), `abs()`
+        // of one (×2), or a PRODUCT of two phase-bearing factors (adds a sum sideband at
+        // f₁+f₂). Monotone maps — `pow` on a non-negative field, `clamp`, `smoothstep`,
+        // the S-curve near the end — change each flash's SHAPE, never the count, so do
+        // not "fix" those. `fieldRings` broke the law by squaring (fixed 2026-07-25);
+        // `fieldAurora` sits at exactly 3.0 Hz via an `abs()` fold times `breathe`.
+        // Budgets: `FlashGuardTests.testEveryReachableLookObeysTheThreeHzLaw`.
         float coh = clamp(u.coherence, 0.0, 1.0);
         float density = clamp(u.ringDensity, 4.0, 120.0);
         float phase = u.pulsePhase * 6.2831853;
