@@ -237,12 +237,17 @@ beim Founder für die großen Slices).
     (`WorkspaceView:472`, Always-on-Transport), `TimelineAutomationRow.swift` (dessen `TimelineAutomationRowMath` LIVE in `TimelineStore:718`;
     Orphan-View-Structs → Slice 6), `SampleBrowserView`, `PatchbayView` (Routing, kein DAW-Timeline). ArrangementView existiert nicht mehr (Plan-§C-Phantom).
   - **Sub-Slices (consumer-first: der Top-Consumer `ArrangeTimelineView` zuerst, dann sind die Leaf-Editoren Orphans):**
-    - **4a — `ClipView.swift` löschen** (219 Z, unabhängige tote Surface, 0 Mount-Sites; `ClipTests` refs nur Kommentar). code-reviewer.
-    - **4b — `ArrangeTimelineView.swift` (2432 Z) + `BodyVibeSurfaceView.swift` (126 Z) löschen (EINE kohärente Löschung** — BodyVibe:74 nutzt
-      `LaneCompositionSection`, das IN ArrangeTimelineView lebt). Typen: ArrangeTimelineView/RegionBlockView/LaneFXEditor/LaneCompositionSection/
-      TimelinePlayhead/PlayheadMarker + BodyVibeSurfaceView; `ArrangeModal`-Sheet-Enum stirbt mit. Leaf-Editoren haben KEINE Code-Ref zurück
-      (nur Kommentare) → kompilieren als Orphans. `.environment(TimelineStore/ClipStore/…)`-Injektionen BLEIBEN (noch von `TransportBar.toggle()`
-      genutzt). ui-state-reviewer + code-reviewer.
+    - ✅ **4a — `ClipView.swift` GELÖSCHT (807dc0d, beide Gates grün):** 219 Z, ein Top-Level-Typ, 0 Live-Refs (alle Erwähnungen Kommentare;
+      `AudioClipView` ist ein ANDERER, lebender Typ — unberührt). Zwei stale Kommentare entstaubt. ui-state-reviewer + code-reviewer CLEAN.
+    - ✅ **4b — `ArrangeTimelineView.swift` (2432 Z) + `BodyVibeSurfaceView.swift` (126 Z) GELÖSCHT (eb58e7a):** EINE kohärente Löschung
+      (BodyVibe konsumierte `LaneCompositionSection`, das IN ArrangeTimelineView lebte — einzeln gelöscht hätte es den Build gebrochen).
+      Alle 10 externen ArrangeTimelineView-Refs = Kommentare; `LaneCompositionSection`/`BodyVibeSurfaceView` 0 externe Refs. BodyVibe-ENGINE
+      (Sequencer/BreathArp, TrackInstrument, LaneVoiceKind, LaneVoiceRack) unberührt. ui-state-reviewer + code-reviewer CLEAN.
+      **⚠ FOLGE — 8 Views verlieren ihre EINZIGE Tür** (Views selbst NICHT gelöscht; waren vor dem Commit schon unerreichbar, da ihr Presenter
+      unmounted war → keine neue Regression, aber jetzt dauerhaft): `AudioClipView` (→4c) · `AutomationView` + `ClipAutomationView` (→4d) ·
+      `ClipLaunchGlyph` + `FileWaveformView` + `TimelineAutomationRow` (→ Slice 6 Cleanup) · **`PianoRollView` + `PatchEditorView` = KEEPER
+      OHNE TÜR → Task #131** (ihre eigenen EchoelStudioView-Sheets fielen v10.79.207; CLAUDE.md-Behauptung „reachable from EchoelStudioView"
+      war stale, 2026-07-25 korrigiert). Ebenfalls türlos: `ImmersiveStageView` (Spatial-Stage; Header dokumentiert es jetzt).
     - **4c — `AudioClipView.swift` (471 Z, +WaveformTrimEditor) löschen** (Orphan nach 4b). **Trägt den Founder-Confirm-Flag aus (A).** code-reviewer.
     - **4d — `AutomationView.swift` (412 Z) + `ClipAutomationView.swift` (299 Z) löschen** (Orphans nach 4b; `AutomationCanvasMath` UNBERÜHRT). code-reviewer.
   - Delete-Rule je Slice: jeden deklarierten Top-Level-Typ greppen (0 Live-Consumer) VOR rm. Keine Test-Löschung (die toten Views haben keine eigenen Tests;
