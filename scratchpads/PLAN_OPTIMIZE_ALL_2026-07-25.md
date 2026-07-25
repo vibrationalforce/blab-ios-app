@@ -129,8 +129,25 @@ Ordered by harm × cheapness, not by domain. Each line ≤3 files.
    anchor — but the root fix is the `RGBSampleQueue` pattern already used in
    `CameraRPPGBioPublisher`: one lock-protected queue drained by the existing 1 Hz poll,
    zero actor hops per packet.
-4. **Kill the invented 0.5 HRV** — honest 0 (or optional) when no sample has arrived;
-   drop the two `?? 0.5` fallbacks.
+4. ✅ **Kill the invented 0.5 HRV** — honest 0 when no sample has arrived. *Shipped over
+   four commits (`2442848`, `810474c`, `53efc7b`, `b025c46`); it took four because the
+   first three were incomplete in the same shape each time.* The lesson worth keeping:
+   **making 0 honest at the SOURCE creates a defect at every consumer that read 0 as a
+   value**, and inlining the "0 → neutral" rule per call site does not survive one
+   commit. It now lives once, as `BioSampleFrame.hrvForSound` / `.coherenceForSound`,
+   with the caveat written down — the rule applies to VALUE mappings only, never where
+   0 already means "no contribution" (unipolar `FXModulation.offset`, `hrvHumanize`,
+   an Optional carrier like the bio-operators).
+   **Open, carried forward:** (a) the DISPLAY half — the header pill still prints
+   "0.00" coherence continuously, `BioMetricInfo` prints "HRV → brightness 0.00", and
+   `BioMusicDirector` narrates "restless" / "slow breathing" from unmeasured values;
+   that narration leads the next slice because it is a statement about the person, not
+   a rendering defect. (b) `SessionRecorder` averages unmeasured zeros into a displayed
+   session statistic. (c) a **bipolar** FX/visual mod route reads signal 0 as the full
+   negative deflection — pre-existing, needs a fix at the formula, not at the carrier.
+   (d) light/space egress (`ArtNetSender` dimmer, `ADMOSCSender` distance) and
+   `LiveColaboView`'s peer broadcast still send raw — one deliberate EchoelLux/spatial
+   decision, deferred together.
 5. **TPT SVF rewrite** — lifts the 8 kHz cutoff lid (C1) and takes denormals (H7) +
    cutoff zipper (H8) with it. The single biggest "sounds lidded" fix.
 6. **One BPM, not two** — publish the octave-folded value; keep the slew display-only.
