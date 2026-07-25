@@ -176,7 +176,7 @@ beim Founder für die großen Slices).
     waren die zwei Stellen, wo ein Hosting-Schnitt in Eigen-Sound hätte bluten können — beide sauber
     entfernt, Rest-Nutzer per Grep + audio-thread-reviewer als null bestätigt. Kein Eigen-Sound-Pfad berührt.
 
-- ▶ **Slice 3 (Video-Schnitt-Removal) — GEPLANT 2026-07-25 (planning-agent + Council), consumer-first, 6 Sub-Slices.**
+- ✅ **Slice 3 (Video-Schnitt-Removal) — KOMPLETT GESHIPPT 2026-07-25 (3a-i…3e, alle Gates grün).** consumer-first, 6 Sub-Slices.
   Boundary-Entscheidungen (gegen echte Call-Sites, `file:line`-belegt):
   - **(A) VisualRecorder BLEIBT (Council: proceed, non-destruktiver Default).** Nimmt das GENERATIVE Visual auf
     (MetalBioView/FloatingVisual-Drawable-Blit, `VisualRecorder.swift:14-17` „does NOT touch the rPPG camera path") =
@@ -207,14 +207,16 @@ beim Founder für die großen Slices).
       auf 0 Code-Refs (Rest = Doc-Kommentar in VideoClipView, stirbt in 3c). App-tot. `TimelineScheduling`-Doc-Kommentare entstaubt
       (`videoLaneEvents`/`videoLaneIDs` BLEIBEN → Slice 5). Data-Loss gewahrt (`ClipKind.video`/`RecordSource.videoCapture` intakt).
       code-reviewer CLEAN (kein Audio-Thread).
-    - **3c — Video-Import-Tür zu:** `ArrangeTimelineView:533` `case .video: VideoClipView(...)` → `EmptyView()` (spiegelt `.visual`:534);
-      `VideoClipView.swift` löschen. ui-state-reviewer. ⚠ `ClipKind.video`-Case BLEIBT (Data-Loss).
-    - **3d — Video-Import/Export-Modell löschen:** `VideoClipFactory.swift`, `VideoRegionTrim.swift`, `VideoExportPlan.swift`,
-      `VideoAudioPairing.swift`, `Video/VideoAudioExtractor.swift` + Tests (`VideoExportPlanTests`/`VideoAudioPairingTests`/
-      `VideoImportLandingTests`); `ClipNativeDurationTests` chirurgisch (nur die Video-Methoden, Audio-Coverage behalten).
-      code-reviewer **+ persistence-steward** (`VideoRegionTrim: Codable` — verifiziert transient, kein Doc-Feld).
-    - **3e — `Video/Shaders/ChromaKey.metal` löschen** (loses File, nicht in project.yml/Package.swift; MetalBioView kompiliert eigene
-      Shader inline). `BioColorGradeParams` BLEIBT (nur Kommentar-Ref). code-reviewer + Xcode Compile Check.
+    - ✅ **3c — Video-Import-Tür zu GESHIPPT (6b271a5, Gates grün):** `ArrangeTimelineView` `case .video: VideoClipView(...)` → `EmptyView()`;
+      „Video track"-Erzeugungs-Button raus; `VideoClipView.swift` gelöscht (411 Zeilen). ⚠ `ClipKind.video`-Case BLEIBT (Data-Loss). ui-state-reviewer CLEAN.
+    - ✅ **3d — Video-Import/Export-Modell GELÖSCHT (78233c0, Gates grün):** `VideoClipFactory.swift`, `VideoRegionTrim.swift`, `VideoExportPlan.swift`,
+      `VideoAudioPairing.swift`, `Video/VideoAudioExtractor.swift` + 3 Tests (707 Zeilen). `ClipNativeDurationTests.testNil_whenNotMeasured`
+      chirurgisch auf `AudioClipFactory` umgestellt (Audio-Coverage behalten). persistence-steward CLEAN (`VideoRegionTrim` transient, kein Doc-Feld).
+    - ✅ **3c-2 — Gestrandete Legacy-Video-Lane-Türen GELÖSCHT (7c20ef2, Gates grün):** Lane-Head „Import video…"-Button + Leer-Lane-Import-Gesture für
+      `.video`-Lanes entfernt (waren tote Türen nach 3c). modalEditor `.lane`-Ternary auf `.audio` vereinfacht. code-reviewer CLEAN.
+    - ✅ **3e — `Video/Shaders/ChromaKey.metal` GELÖSCHT (251433e):** 487 Zeilen loses File (nicht in project.yml/Package.swift; MetalBioView kompiliert eigene
+      Shader inline via `makeLibrary(source:)`). `BioColorGradeParams` BLEIBT, nur der stale ChromaKey/BioGrade.metal-Kommentar entstaubt. code-reviewer CLEAN.
+      **→ SLICE 3 KOMPLETT: Video-Schnitt entfernt; rPPG-Bio-Input + generatives Visual (inkl. VisualRecorder) behalten.**
   - Protection-Gate je Slice: rPPG-Bio-Input (CameraAnalyzer/CameraCapture/PulsePeriodEstimator/RPPGConditioning) +
     Visuals (MetalBioView/FloatingVisual/BioVisualParams) + Rausch-Triad + (rec A) VisualRecorder/VideoRecorder/VideoMuxer UNBERÜHRT.
 
