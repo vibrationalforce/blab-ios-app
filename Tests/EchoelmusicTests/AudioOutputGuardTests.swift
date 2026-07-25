@@ -62,6 +62,44 @@ final class AudioOutputGuardTests: XCTestCase {
                        "the guard wrote past the requested count")
     }
 
+    // MARK: - In-place form (buffer already written, then post-processed)
+
+    /// Run an array through the in-place sweep and return it.
+    private func swept(_ source: [Float], count: Int? = nil) -> [Float] {
+        var buffer = source
+        let n = count ?? source.count
+        buffer.withUnsafeMutableBufferPointer { out in
+            guard let o = out.baseAddress else { return }
+            AudioOutputGuard.sweepNonFinite(o, count: n)
+        }
+        return buffer
+    }
+
+    func testInPlaceSweepSilencesNonFiniteAndLeavesTheRestBitExact() {
+        // The in-place form cannot use the `-999` sentinel the copy form relies on
+        // (source and destination are the same array), so the FIXTURE has to pin the
+        // loop's lower bound instead: index 0 is non-finite, which a `1..<count`
+        // off-by-one would leave untouched and this assertion would catch.
+        let source: [Float] = [.nan, 0.25, -0.5, .infinity, -0.0, 3.7, -.infinity]
+        let expected: [Float] = [0, 0.25, -0.5, 0, -0.0, 3.7, 0]
+        XCTAssertEqual(swept(source).map(\.bitPattern), expected.map(\.bitPattern))
+    }
+
+    func testInPlaceSweepRespectsCount_andToleratesNonPositive() {
+        // `frameCount` is what the render block was asked for; the sweep must not
+        // touch the buffer beyond it. The NaN sits at exactly index `count` — the
+        // FIRST out-of-range slot — so a `0...count` off-by-one would silence it and
+        // fail here. Parking it further out would let that bug through.
+        var source = [Float](repeating: 0.4, count: 8)
+        source[4] = .nan
+        let out = swept(source, count: 4)
+        XCTAssertTrue(out[4].isNaN, "the sweep ran one past the requested count")
+        XCTAssertEqual(Array(out[0..<4]), [0.4, 0.4, 0.4, 0.4])
+        // Non-positive counts must return, not trap on the audio thread.
+        XCTAssertEqual(swept([1, 2, 3], count: 0), [1, 2, 3])
+        XCTAssertEqual(swept([1, 2, 3], count: -1), [1, 2, 3])
+    }
+
     // MARK: - Scalar form (per-sample writers)
 
     func testScalarFormMatchesTheBufferFormSampleForSample() {

@@ -500,6 +500,15 @@ private final class RenderState: @unchecked Sendable {
         // Per-channel insert FX (filter + drive) on the channel's output. Runs over
         // the whole block so a resonant filter rings out across the silent tail.
         applyInsertFX(buf: buf, frameCount: frameCount)
+        // Source-node output boundary — last, because `applyInsertFX` writes the
+        // hardware buffer in place. Unconditional, since that call returns early on
+        // a clean channel, and this voice plays USER-IMPORTED audio: the sample slab
+        // is a non-finite source no internal hardening can reach. Nothing on the
+        // import path checks finiteness, and the flush at the interpolation
+        // (`v > -1e-15 && v < 1e-15`) is false for both NaN and +inf, so a float32
+        // file carrying those bit patterns reaches here intact. Finite audio is
+        // bit-identical. See `AudioOutputGuard`.
+        AudioOutputGuard.sweepNonFinite(buf, count: frameCount)
 
         if posF < startF || posF >= endF { isPlaying = false }
     }

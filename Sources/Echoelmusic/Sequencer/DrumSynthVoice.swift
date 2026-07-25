@@ -200,6 +200,10 @@ private final class DrumRenderState: @unchecked Sendable {
         }
         // Per-channel insert FX over the whole block (resonance rings into the tail).
         applyInsertFX(dst, frameCount)
+        // Source-node output boundary — last, because `applyInsertFX` writes the
+        // hardware buffer in place. Unconditional, since that call returns early on
+        // a clean channel. Finite audio is bit-identical. See `AudioOutputGuard`.
+        AudioOutputGuard.sweepNonFinite(dst, count: frameCount)
     }
 }
 

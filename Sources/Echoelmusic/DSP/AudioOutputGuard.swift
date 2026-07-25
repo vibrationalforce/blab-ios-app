@@ -12,9 +12,9 @@ import Foundation
 /// guard stops a voice POISONING that chain; it does not certify what leaves it.
 ///
 /// ── WHY IT EXISTS ────────────────────────────────────────────────────────────
-/// Both wired voices end their render block by `memcpy`-ing a solely-owned scratch
-/// array into the buffer list unconditionally — whatever the last DSP stage
-/// produced goes downstream verbatim. Individual stages ARE hardened
+/// A render block's last act is to put its samples in the buffer list, and it does
+/// so unconditionally — whatever the final DSP stage produced goes downstream
+/// verbatim. Individual stages ARE hardened
 /// (`EchoelDDSP.applyBioReactive` sanitizes its bio inputs, `EchoelSVFilter`
 /// flushes non-finite state), but that is per-stage defence over a mutable,
 /// growing list of stages, and it demonstrably has holes: `EchoelDDSP` sweeps its
@@ -28,15 +28,18 @@ import Foundation
 /// remaining branches untouched and poisons each recursive node it reaches.
 ///
 /// ── COVERAGE IS DELIBERATELY PARTIAL ────────────────────────────────────────
-/// Wired today: `PolySynthVoice` and `BioReactiveSynthVoice` — the two voices that
-/// carry both the user-editable FX chain and the live bio path, i.e. the two whose
-/// upstream stage list actually changes, and the only two shaped as scratch-then-
-/// copy — plus `SubBassVoice` via the scalar form, since it too runs a per-bus
-/// insert FX.
+/// Wired today, and WHICH ENTRY POINT each needs is decided by where the last
+/// write happens, not by whether the voice uses a scratch array:
+/// * `PolySynthVoice`, `BioReactiveSynthVoice` — buffer form. The copy out of
+///   scratch IS the last write, so the sweep folds into it.
+/// * `SubBassVoice` — scalar form. It has no scratch; it computes and writes one
+///   sample at a time.
+/// * `DrumSynthVoice`, `SamplerVoice` — in-place form. Both DO use a scratch
+///   array, but they then run a per-channel insert FX over the hardware buffer
+///   afterwards, so the copy is not the last write and there is nothing left to
+///   fold into.
 ///
-/// Of the seven render-block writers in the app, four are still unguarded:
-/// `DrumSynthVoice` and `SamplerVoice` (both run an insert FX AFTER writing the
-/// buffer list, so their sweep has to go after that call, not at the write),
+/// Of the seven render-block writers in the app, two are still unguarded:
 /// `MetronomeVoice` and `SessionEngine`. Separate slice with its own audio review.
 /// Note "render-block writers" is narrower than "inputs to `masterMixer`" —
 /// `masterPlayerNode`, the clip player and the warp path also feed that mixer and
@@ -53,8 +56,8 @@ import Foundation
 ///   guard offers no recovery — it cleans the OUTPUT, never the recursive state
 ///   behind it. (In `PolySynthVoice` that shows up as the idle detector, which
 ///   measures block peak before this guard and scores an all-NaN block as silent
-///   since `NaN > peak` is false, sleeping the voice after ~2.5 s. The other two
-///   wired voices have no idle detector, so that particular bound is not general.)
+///   since `NaN > peak` is false, sleeping the voice after ~2.5 s. None of the four
+///   other wired voices has an idle detector, so that bound is not general.)
 ///
 /// Audio-thread safe: no allocation, no locks, no ObjC, no I/O, and branch-free per
 /// sample by construction — the ternary has no data-dependent control flow.
@@ -82,9 +85,28 @@ public enum AudioOutputGuard {
         }
     }
 
+    /// In-place form, for the render blocks that have already written the buffer
+    /// list and then process it further (a per-channel insert FX applied over the
+    /// hardware buffer). The sweep has to come after that stage, so there is no
+    /// copy left to fold it into.
+    ///
+    /// Must be called unconditionally, NOT inside the insert-FX loop: that loop is
+    /// skipped entirely on a clean channel, which is exactly the path where nothing
+    /// else would catch a bad sample from the voice itself.
+    @inline(__always)
+    public static func sweepNonFinite(
+        _ buffer: UnsafeMutablePointer<Float>,
+        count: Int
+    ) {
+        guard count > 0 else { return }
+        for i in 0..<count {
+            buffer[i] = silencingNonFinite(buffer[i])
+        }
+    }
+
     /// Scalar form, for the render blocks that write per-sample straight into the
     /// buffer list instead of rendering to a scratch array first. Same rule, same
-    /// result — kept as one definition so the two shapes cannot drift.
+    /// result — the buffer forms delegate here so the shapes cannot drift.
     @inline(__always)
     public static func silencingNonFinite(_ sample: Float) -> Float {
         sample.isFinite ? sample : 0
