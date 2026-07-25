@@ -33,9 +33,16 @@ or save a sound patch". **Only the melody half was true.** Ground truth:
 **Consequences:**
 1. **131a is re-scoped to the piano roll** (the genuinely doorless capability).
 2. `PatchEditorView.swift` is reclassified: not a doorless keeper but a
-   **redundant duplicate** → hand it to Slice 6 (delete, or keep only if a future
-   founder ask wants a full-screen patch editor). Ship-gate item 2 "Kontrolle" is
-   satisfied for the patch half **today**, by `soundPanel`.
+   **near-redundant duplicate** → hand it to Slice 6. Ship-gate item 2 "Kontrolle"
+   is satisfied for the patch half **today**, by `soundPanel`.
+   ⚠ **But not a strict superset** (found by code-reviewer on 131a, verified): three
+   `SynthPatch` fields have NO editor anywhere outside `PatchEditorView` —
+   `outputLevel` (`PatchEditorView.swift:218`), `unisonVoices`, `unisonDetuneCents` —
+   plus its `previewKeys` audition keyboard. So Slice 6 must **port those rows into
+   `soundPanel` BEFORE deleting the file**, otherwise "cleanup" silently removes
+   three real parameters. Deleting first and porting later is not acceptable: the
+   parameters stay in the persisted `SynthPatch`, so they would become invisible
+   state the user cannot reach.
 3. 131b folds into 131a — there is only one editor left to door, so doing it in
    two commits would be ceremony. The `CraftEditor` enum still exists so the NEXT
    editor costs a case, not a modifier.
@@ -153,6 +160,29 @@ slot is cheaper and honest.
   lying mechanism this plan warns about. No `.patch`/`.stage` case for the same
   reason: a case is added only together with its door.
   **Reviewers: ui-state-reviewer + code-reviewer.**
+  **SHIPPED `f2cbf34`** (Xcode Compile Check green). ui-state-reviewer: 0 defects —
+  chain 11→12 confirmed by independent count, one `craftEditor` write site with
+  `activeMenu = nil` first, and the freeze law holds *structurally* because
+  `BeatPlayer.pattern` is a `let` (`Sequencer/BeatPlayer.swift:44`) and the
+  `@Observable` macro instruments only `var`s, so the read registers no observation in
+  any scope. It also verified `PianoRollView` already keeps `pattern.currentStep` in
+  the `RollPlayheadView` leaf (`:1864`), so the new door brings no fresh freeze source.
+  Follow-up `<this commit>` fixed three code-review findings: my own `craftEditorSheet`
+  doc wrongly claimed presenting the roll is the `MusicalFrame` publish path (it is
+  `PianoRollModel` on the shared tick, presentation-independent); the comment cited
+  PRODUCT_DEFINITION for "automation", a word that doc never uses; and
+  `AnyView(craftEditorSheet($0))` double-boxed an already-`AnyView` return.
+  **Known + accepted:** the roll's Stop cascades the ONE-Stop law
+  (`PianoRollView.swift:1206` → `stopEverything`), so Stop inside the roll ends the
+  bio session, not just playback — intentional but newly reachable from a surface where
+  a local transport is plausible → NEEDS-FOUNDER-VERIFY. The chip is 26 pt tall
+  (matches `menuChip`), i.e. consistent with the bar but below the 44 pt HIG minimum
+  that #113 enforced for header tiles → a candidate for the chrome-pro pass (#114),
+  not a regression of this slice.
+  **Trap grew a second head:** `toolItems` still advertises a dead `pianoroll` id
+  (`:893`) while `openTool` has no case for it, so the roll now has one real door and
+  one lying one. A future session "fixing" the list would create a duplicate door.
+  Slice 6 must delete the trio, not repair it.
 - **131c — spatial stage (decide, then wire).** `.stage` → `ImmersiveStageView()`.
   This is the output stage (ADM-OSC scene placement), so it belongs to the product
   per PRODUCT_DEFINITION — but it is the least urgent of the three for the ship

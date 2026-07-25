@@ -367,10 +367,16 @@ struct EchoelStudioView: View {
     // ⚠ CORRECTED 2026-07-25 (#131): the timeline itself is GONE (pure-instrument epic
     // #121, Slice 4), so "opened from the lane-head doors" no longer describes anything.
     // The piano roll is doored again below — through the ONE consolidated
-    // `craftEditor` slot, never by re-adding a per-editor sheet. Automation / AudioClip
-    // / AUv3 / Broadcast are deliberately NOT coming back (they are workstation, not
-    // instrument — see docs/dev/PRODUCT_DEFINITION.md), and the patch editor is not
-    // needed as a sheet: the LIVE timbre editor is `soundPanel` (Sound chip).
+    // `craftEditor` slot, never by re-adding a per-editor sheet. AudioClip / AUv3 /
+    // Broadcast are deliberately NOT coming back (docs/dev/PRODUCT_DEFINITION.md CUT
+    // column names all three); the automation editors are gone because Slice 4d
+    // (36a8468) deleted them as unreachable, which that doc does not itself discuss.
+    // The patch editor the product definition KEEPS is `soundPanel` (Sound chip) —
+    // that panel IS the live timbre editor, so it needs no sheet. Caveat for whoever
+    // retires PatchEditorView.swift: three SynthPatch fields (`outputLevel`,
+    // `unisonVoices`, `unisonDetuneCents`) and its preview keyboard have NO editor
+    // anywhere else — port those rows into `soundPanel` first, or the deletion is a
+    // silent capability loss, not a cleanup.
     /// Presents a file picker to import a Standard MIDI File onto the piano roll.
     @State private var midiImportPresented = false
     /// Drives the project-import file picker in the Open-project sheet.
@@ -746,7 +752,7 @@ struct EchoelStudioView: View {
         // #131 "Kontrolle": ONE slot for ALL craft editors. The content switch lives
         // in `craftEditorSheet(_:)`, not inline, so the body's aggregate generic type
         // stays flat and the NEXT editor costs zero modifiers.
-        .sheet(item: $craftEditor) { AnyView(craftEditorSheet($0)) }
+        .sheet(item: $craftEditor) { craftEditorSheet($0) }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             // NOT AnyView-wrapped: this cover builds lazily on present (it never
@@ -3222,12 +3228,18 @@ struct EchoelStudioView: View {
     /// returning `AnyView` per case: the root body must never carry an editor's
     /// generics (metadata/black-screen law), and a new editor is then a case here.
     ///
-    /// The roll is presented with its DEFAULT `onDone` (nil) — i.e. NOT clip-scoped —
-    /// so it is the LIVE take: clocked by the shared `PatternEngine`, voiced through
-    /// the wired synth, with its Play button and playhead. That is also the path on
-    /// which it publishes `MusicalFrame` to the bus, which is what colours the visual
-    /// and light output stage (`docs/dev/PRODUCT_DEFINITION.md`, Layer 2). A
-    /// clip-scoped roll would be silent and would publish nothing.
+    /// The roll is presented with its DEFAULT `onDone` (nil) — i.e. NOT clip-scoped
+    /// (`PianoRollView.isClipScoped`) — so it edits the LIVE take through the SAME
+    /// `PianoRollModel` the app wired at startup, and it gets its Play button and
+    /// playhead. A clip-scoped roll would instead be handed a throwaway model: silent,
+    /// no playhead, and edits that only exist until Done.
+    ///
+    /// NOT true (corrected — the first version of this comment said it): presenting
+    /// the roll is not what publishes `MusicalFrame`. That publish lives in
+    /// `PianoRollModel` (`PianoRollView.swift:971`) and fires on every sequencer tick
+    /// whether or not any view is on screen, because the app installs the model once
+    /// (`EchoelmusicApp.swift:732`). So this door is load-bearing for EDITING; the
+    /// visual/light output stage stays lit without it.
     private func craftEditorSheet(_ editor: CraftEditor) -> AnyView {
         switch editor {
         case .roll:
