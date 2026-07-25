@@ -65,10 +65,6 @@ public final class PianoRollModel {
     /// virtual "Echoelmusic" source so a DAW records the body's take in real time.
     /// nil or disabled = silent (no-op); never affects the audio path.
     @ObservationIgnored private weak var midiOut: MIDIOutput?
-    /// Optional hosted AUv3 instrument — when the user has loaded one (Tools ▸
-    /// Plugins), the live composition plays it too (host-MIDI), so the plugin is
-    /// driven by the song, not just the preview keyboard. nil/none = no-op.
-    @ObservationIgnored private weak var auHost: AUv3Host?
     /// Optional song player — when an Arrangement is playing it advances on each
     /// bar boundary and loads the next section's clip BEFORE that bar's notes
     /// trigger. Fed from the same shared `onTick` so the song stays on one clock.
@@ -634,7 +630,7 @@ public final class PianoRollModel {
                       lead: PolySynthVoice? = nil,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
                       arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil,
-                      auHost: AUv3Host? = nil, automation: AutomationPlayer? = nil,
+                      automation: AutomationPlayer? = nil,
                       timeline: TimelineRegionPlayer? = nil) {
         self.voice = voice
         self.lead = lead
@@ -644,7 +640,6 @@ public final class PianoRollModel {
         self.timeline = timeline
         self.automation = automation
         self.bus = bus
-        self.auHost = auHost
         // Advance the song first (loads the next section's clip on a bar wrap), apply
         // automation for this step, THEN trigger this step's notes — so a new section
         // plays from step 0 cleanly and params are set before the notes sound.
@@ -689,7 +684,6 @@ public final class PianoRollModel {
         subVoice?.allNotesOff()
         kindVoice?.allNotesOff()   // S2-W2-6: release the kind voice too
         midiOut?.allNotesOff()
-        auHost?.allNotesOff()
     }
 
     /// The instrument voice a note plays through, by role (multitimbral routing):
@@ -869,10 +863,6 @@ public final class PianoRollModel {
         // voice of that pitch, so when two notes share a pitch (voice-leading can
         // produce this) we must only release a pitch once no surviving note still
         // holds it — otherwise a short note would cut off a sustained same-pitch one.
-        // When a hosted plugin is set to REPLACE Echoel's voice, the song drives only
-        // the plugin (no doubling). Note-offs always fire (harmless if it wasn't
-        // playing) so toggling mid-play never leaves the built-in voice stuck.
-        let suppressBuiltIn = auHost?.suppressesBuiltInVoice ?? false
         let ending = active.filter { $0.value.endStep % Self.stepCount == step }
         // TIE AT THE WRAP ("Vermeide stolpern"): only at step 0 — the loop is a
         // circle, so a pitch ending on the bar line while the same pitch starts the
@@ -918,10 +908,9 @@ public final class PianoRollModel {
             if !active.values.contains(where: { $0.pitch == note.pitch && sameVoice($0.role, note.role) }) {
                 outputVoice(for: note.role)?.noteOff(pitch: note.pitch)
             }
-            // MIDI/AU mirror the whole song regardless of the internal voice split.
+            // MIDI mirrors the whole song regardless of the internal voice split.
             if !active.values.contains(where: { $0.pitch == note.pitch }) {
                 midiOut?.noteOff(pitch: note.pitch)
-                auHost?.noteOff(midiByte(note.pitch))
             }
         }
         // The body's live 5D expression for this note (only when MIDI-out 5D mode is
@@ -950,7 +939,7 @@ public final class PianoRollModel {
             let exp = Self.noteExpression(note, loopPass: operatorLoopPass, seed: Self.operatorSeed,
                                           coherence: operatorCoherence, breath: operatorBreath)
             let v = min(1, note.velocity * laneGain * exp.velocityScale)
-            if !suppressBuiltIn, laneAudible { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: v) }
+            if laneAudible { outputVoice(for: note.role)?.noteOn(pitch: note.pitch, velocity: v) }
             if laneAudible {
                 // #58 S6: a note's fixed MPE overrides win per dimension over the
                 // body's live 5D; unset dimensions fall through. Same 5D-armed gate
@@ -959,7 +948,6 @@ public final class PianoRollModel {
                     ? MPEExpression.merging(bio: expression, override: note.mpe)
                     : nil
                 midiOut?.noteOn(pitch: note.pitch, velocity: v, expression: noteExpr)
-                auHost?.noteOn(midiByte(note.pitch), velocity: velocityByte(v))
             }
             active[note.id] = note
         }
@@ -972,7 +960,7 @@ public final class PianoRollModel {
         // S2-W2-6: skip the poly DOUBLING sub when a kind voice is the instrument —
         // a drum kit must not also drive the felt sub, and a sub-bass lane already
         // IS the sub (its notes play through kindVoice at pitch, not octave-doubled).
-        let desiredSub = (suppressBuiltIn || !laneAudible || kindVoice != nil)
+        let desiredSub = (!laneAudible || kindVoice != nil)
             ? nil : active.values.map(\.pitch).min().map { $0 - 12 }
         if desiredSub != currentSubPitch {
             if let p = desiredSub { subVoice?.noteOn(pitch: p) }   // monophonic → retunes
@@ -989,10 +977,6 @@ public final class PianoRollModel {
             beatPhase: Double(step % 4) / 4.0))
     }
 
-    /// Clamp a roll pitch into the valid MIDI range for host-MIDI to the AU.
-    private func midiByte(_ pitch: Int) -> UInt8 { UInt8(min(127, max(0, pitch))) }
-    /// Map a 0…1 velocity to a 1…127 MIDI velocity (0 would read as note-off).
-    private func velocityByte(_ v: Float) -> UInt8 { UInt8(min(127, max(1, Int(v * 127)))) }
 
     /// Build the live musical snapshot from the notes sounding now. Pure (testable):
     /// pitch → Hz at the given concert pitch, velocity → amplitude, master = the

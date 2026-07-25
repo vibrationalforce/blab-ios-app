@@ -54,7 +54,6 @@ struct EchoelStudioView: View {
     @Environment(BeatPlayer.self) private var beatPlayer
     @Environment(PianoRollModel.self) private var pianoRoll
     @Environment(MIDIOutput.self) private var midiOut
-    @Environment(AUv3Host.self) private var auHost
     @Environment(PolySynthVoice.self) private var synth
     /// The global one-button bio voice (owned by the app) — read here only to push the
     /// concert pitch to it alongside the other voices, so an external-MIDI note into it
@@ -2193,11 +2192,10 @@ struct EchoelStudioView: View {
     }
 
     /// Performance panic — release every sounding note on every voice at once (built-in
-    /// poly + sub, any hosted AUv3 instrument, and MIDI out). Kills stuck notes live.
+    /// poly + sub, and MIDI out). Kills stuck notes live.
     private func panicAllNotesOff() {
         synth.allNotesOff()
         subBass.allNotesOff()
-        auHost.allNotesOff()
         midiOut.allNotesOff()
     }
 

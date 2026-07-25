@@ -104,23 +104,6 @@ final class TimelineStoreAUAssignmentTests: XCTestCase {
         return r
     }
 
-    func testHostedAUInfo_mapsToPluginRef_lossless() {
-        let info = HostedAUInfo(id: "x", name: "Zebra", manufacturer: "u-he",
-                                isInstrument: true,
-                                componentType: osType("aumu"),
-                                componentSubType: osType("zeb2"),
-                                componentManufacturer: osType("uHe1"))
-        let ref = AUPluginRef(info)
-        XCTAssertEqual(ref.name, "Zebra")
-        XCTAssertEqual(ref.manufacturerName, "u-he")
-        XCTAssertEqual(ref.componentType, osType("aumu"))
-        XCTAssertEqual(ref.componentSubType, osType("zeb2"))
-        XCTAssertEqual(ref.componentManufacturer, osType("uHe1"))
-        XCTAssertTrue(ref.isInstrument)
-        XCTAssertEqual(ref.id, AUParameterMapping.pluginPrefix(
-            manufacturer: osType("uHe1"), subType: osType("zeb2")))
-    }
-
     @MainActor
     func testStore_assignInstrumentAndEffects_persistsAndClears() {
         let store = TimelineStore()

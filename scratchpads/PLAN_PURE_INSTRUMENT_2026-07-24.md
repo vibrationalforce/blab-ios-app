@@ -124,16 +124,19 @@ beim Founder für die großen Slices).
     - ✅ **2c-i — Browser-UI weg GESHIPPT** — Commit `7ebaa42`. `AUv3BrowserView.swift` +
       `AUv3PluginUIView.swift` gelöscht (seit 2a TOTER Code — kein Sheet präsentiert sie mehr,
       grep-bestätigt null Refs). Null Verhaltensänderung. De-riskt 2c-ii.
-    - ▶ **2c-ii — Global-Host-Engine + auHost-Reads weg** (nächster Zyklus): `AUv3Host.swift`
-      (+ `HostedAUInfo`) + `AUHostContext.swift` löschen; `auHost`-Chirurgie in `EchoelmusicApp`
-      (@State + .environment + use/scan/restore/persist + pianoRoll/midiPub-Args),
-      `EchoelStudioView` (@Environment + allNotesOff), `MIDIBusPublisher` (auHost-Param +
-      noteOn/off; **built-in-Zweig unbedingt behalten** — `suppressesBuiltInVoice` wird `false`),
-      `PianoRollView` (auHost-Param + noteOn/off/suppress). INTERDEP: `AUPluginRef(_ info:
-      HostedAUInfo)`-Init + `testHostedAUInfo_mapsToPluginRef` müssen mit (HostedAUInfo stirbt).
-      Tote Engine-AU-Methoden (attachAU/connectAU/rewireMasterFX/effectsAcceptingChainFormat…)
-      werden nach 2c-ii unbenutzt → 2d-Cleanup. Tests `AUv3HostTests`/`AUv3ManufacturerCodeTests`
-      löschen. Audio-thread-reviewer Pflicht (Note-Routing).
+    - ✅ **2c-ii — Global-Host-Engine + auHost-Reads weg GESHIPPT** — `AUv3Host.swift` (+`HostedAUInfo`
+      +`AUv3ScanDiagnostic`) + `AUHostContext.swift` gelöscht; `auHost`-Chirurgie in `EchoelmusicApp`
+      (@State + .environment + use/useParameters/scan/restoreChains/persistState + pianoRoll/midiPub-Args),
+      `EchoelStudioView` (@Environment + panic-allNotesOff), `MIDIBusPublisher` (auHost-Param + noteOn/off;
+      built-in-Bus-Publish jetzt UNBEDINGT — Ext-Keyboard spielt Echoels Stimme), `PianoRollView`
+      (auHost-Param + allNotesOff + noteOn/off + `suppressBuiltIn`→immer built-in + tote midiByte/velocityByte).
+      Tests gelöscht: AUv3HostTests, AUv3ManufacturerCodeTests, AUv3ScanDiagnosticTests (letzterer NICHT
+      „kompiliert weiter" wie der alte Plan-Text sagte — `AUv3ScanDiagnostic` lebte IN AUv3Host.swift,
+      stirbt mit ihm); `testHostedAUInfo_mapsToPluginRef_lossless` aus TimelineLaneAUAssignmentTests chirurgisch
+      raus (AUPluginRef + Rest-Tests bleiben). Gefangener Compile-Breaker: `suppressBuiltIn` wurde noch in
+      `desiredSub` (PianoRollView) gelesen → mitgefixt. Reste für 2d: unbenutztes `parameterRegistry`-@State,
+      tote AudioEngine-AU-Methoden, Kommentar-Referenzen (EchoelmusicApp:211/497, AudioEngine:959,
+      HostMusicalState:16, AUPluginRef:12/46). −1852/+21 Zeilen. Reviewer laufen; NEEDS-FOUNDER-VERIFY (Geräte-Ton).
   - **2d — Model + Persistenz + Entitlement + Tests + CI:** `TimelineLane.instrument/effects`
     (decodeIfPresent-sicher: Keys droppen, nie hart decode), `AUPluginRef` löschen,
     `LaneInstrumentLabel`+`pluginAssignmentSummary` Chirurgie, `AUParameterMapping`/`Bridge`

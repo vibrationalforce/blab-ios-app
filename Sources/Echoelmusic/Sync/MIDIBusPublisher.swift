@@ -40,12 +40,6 @@ public final class MIDIBusPublisher {
     @ObservationIgnored
     private weak var bus: EngineBus?
 
-    /// Optional hosted AUv3 instrument — external MIDI notes play it too (host-MIDI),
-    /// so a connected keyboard drives the plugin, not just the built-in voice. When
-    /// "use plugin instead" is on, the built-in voice is gated off (no bus publish).
-    @ObservationIgnored
-    private weak var auHost: AUv3Host?
-
     /// Optional MIDI-out for thru: when `thruEnabled` (a midi.in → midi.out patchbay
     /// route), incoming external notes are echoed straight to MIDI out (router mode).
     @ObservationIgnored
@@ -63,10 +57,9 @@ public final class MIDIBusPublisher {
         self.midi = midi
     }
 
-    public func start(publishing bus: EngineBus, auHost: AUv3Host? = nil, midiOut: MIDIOutput? = nil) {
+    public func start(publishing bus: EngineBus, midiOut: MIDIOutput? = nil) {
         guard !isPublishing else { return }
         self.bus = bus
-        self.auHost = auHost
         self.midiOut = midiOut
         wireCallbacks()
         isPublishing = true
@@ -85,29 +78,22 @@ public final class MIDIBusPublisher {
     private func wireCallbacks() {
         midi.onNoteOn = { [weak self] note, velocity, channel in
             guard let self else { return }
-            // Play the hosted plugin (if any) from the external keyboard.
-            self.auHost?.noteOn(UInt8(clamping: note),
-                                velocity: UInt8(clamping: max(1, min(127, Int(velocity * 127)))),
-                                channel: UInt8(clamping: channel))
             // Thru: echo external notes straight to MIDI out (router mode).
             if self.thruEnabled { self.midiOut?.noteOn(pitch: note, velocity: velocity) }
             // Record tee: capture into the armed lane's take (no-op unless recording).
             self.onRecordNoteOn?(note, velocity)
-            // Built-in voice via the bus — gated off when "use plugin instead" is on.
-            if !(self.auHost?.suppressesBuiltInVoice ?? false) {
-                self.publish(ControllerEvent(
-                    timestamp: CFAbsoluteTimeGetCurrent(),
-                    kind: .noteOn,
-                    channel: UInt8(clamping: channel),
-                    note: UInt8(clamping: note),
-                    value: velocity,
-                    auxCC: 0
-                ))
-            }
+            // Built-in voice via the bus — the external keyboard plays Echoel's voice.
+            self.publish(ControllerEvent(
+                timestamp: CFAbsoluteTimeGetCurrent(),
+                kind: .noteOn,
+                channel: UInt8(clamping: channel),
+                note: UInt8(clamping: note),
+                value: velocity,
+                auxCC: 0
+            ))
         }
         midi.onNoteOff = { [weak self] note, channel in
             guard let self else { return }
-            self.auHost?.noteOff(UInt8(clamping: note), channel: UInt8(clamping: channel))
             if self.thruEnabled { self.midiOut?.noteOff(pitch: note) }
             self.onRecordNoteOff?(note)   // record tee (no-op unless recording)
             // Note-off always reaches the bus so the built-in voice can't stick.

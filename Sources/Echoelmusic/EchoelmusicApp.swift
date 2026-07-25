@@ -111,8 +111,6 @@ struct EchoelmusicApp: App {
     @State private var audioInputs = AudioInputManager()
     /// Universal signal router (patchbay): typed routes across all channels, persisted.
     @State private var signalRouter = SignalRouter()
-    /// AUv3 host: discovers installed plugins and loads an instrument into the graph.
-    @State private var auHost = AUv3Host()
     /// The parameter-unification spine (U2c): one registry (queryable inventory)
     /// + one router (keyPath → live setter). Shared by the AUv3 host (hosted-plugin
     /// params register/bind on load) and the AutomationPlayer (extra registry lanes
@@ -378,7 +376,6 @@ struct EchoelmusicApp: App {
             .environment(automationPlayer)
             .environment(audioInputs)
             .environment(signalRouter)
-            .environment(auHost)
             .environment(broadcast)
             .environment(midiOut)
             #if canImport(CoreHaptics)
@@ -742,7 +739,7 @@ struct EchoelmusicApp: App {
                 fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
                 fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, auHost: auHost, automation: automationPlayer, timeline: timelinePlayer)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, automation: automationPlayer, timeline: timelinePlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
                 // Touch voice pre-generate default: the RESPONSIVE "Echoel Synth" pad
                 // (quick attack + unison width) so the play surface answers a finger
@@ -805,17 +802,9 @@ struct EchoelmusicApp: App {
                 signalRouter.onChange = { applyRouting() }
                 applyRouting()   // honor any persisted routes from a previous session
 
-                // AUv3 host: wire to the live graph so a user-chosen instrument can
-                // be loaded into it. Discovery + load are user-driven; AU-2 restores
-                // the chains the USER had loaded last run (their choice persists,
-                // like lane assignments) — see the restoreChains Task below.
-                auHost.use(engine: audioEngine)
-                // Parameter-unification spine (U2c): the host registers + binds a
-                // loaded plugin's parameters into this registry/router, and the
-                // AutomationPlayer dispatches its extra registry lanes through the
-                // SAME router — so a hosted plugin's knobs are automatable in the
-                // track exactly like Echoel's own.
-                auHost.useParameters(registry: parameterRegistry, router: parameterRouter)
+                // Parameter-unification spine (U2c): the AutomationPlayer dispatches
+                // its registry lanes through the shared router, so the built-in voice's
+                // DDSP params are automatable in the track.
                 automationPlayer.wire(router: parameterRouter)
                 // Automation "all parameters" (founder 2026-07-14): bind the built-in
                 // voice's bio-independent DDSP params into the SAME router, so drawn /
@@ -843,28 +832,11 @@ struct EchoelmusicApp: App {
                     setter: { [weak laneVoiceRack] slot, base, real in
                         laneVoiceRack?.voice(slot: slot)?.applyAutomatable(base: base, real: real) ?? false
                     })
-                // AU-2: bring back the hosted chains (instrument · channel FX ·
-                // master FX) the user had loaded — pre-AU-2 a relaunch showed the
-                // lane badge "Instrument: X" but played the built-in voice, and
-                // the master chain was silently empty. Runs the normal load paths
-                // (AU-1 pre-flight, settings recall, param bridge); an uninstalled
-                // plugin degrades to a load error + built-in voice. Launch silence
-                // holds — nothing sounds until notes flow.
-                // Night audit 2026-07-16: scan() FIRST — before this, no scan and no
-                // kAudioComponentRegistrationsChanged observer existed until the user
-                // found the hidden AUv3 browser, so restoreChains() always ran against
-                // the cold registry and failures were never retried. scan() installs
-                // the observer + warms the registry; late registrations then retry the
-                // failed restores once (AUv3Host.retryFailedRestores).
-                auHost.scan()
-                Task { await auHost.restoreChains() }
-
                 // External MIDI input: passive (the CoreMIDI client is created in
                 // MIDIInput.init, no permission prompt), so start it at launch — a
-                // connected keyboard plays the built-in voice AND any hosted AUv3
-                // instrument (host-MIDI). Idempotent.
+                // connected keyboard plays the built-in voice. Idempotent.
                 #if canImport(CoreMIDI)
-                midiPub.start(publishing: bus, auHost: auHost, midiOut: midiOut)
+                midiPub.start(publishing: bus, midiOut: midiOut)
                 #endif
 
                 // Record system (B): wire the take coordinator to the live clock + stores
@@ -971,7 +943,6 @@ struct EchoelmusicApp: App {
                     // — a suspended app or dropped sensor writes nothing. The old
                     // `bioFeedback.stop()` here predated the AUv3 bridge (widget-
                     // only battery trim); restore that one line to revert.
-                    auHost.persistState()   // save hosted-plugin settings across relaunch
                     // Task #56 C6: a debounced timeline save (see TimelineStore.persist())
                     // could still be sleeping when the app suspends — flush it now so a
                     // backgrounded/terminated app never loses the last un-flushed edit.
