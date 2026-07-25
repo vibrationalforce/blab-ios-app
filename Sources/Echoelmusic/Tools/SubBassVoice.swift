@@ -45,7 +45,13 @@ public final class SubBassVoice {
     /// mirror `audioSubGain` instead (a MainActor property can't be read from the
     /// nonisolated render block — same bridge as PolySynthVoice's params).
     public var subGain: Float = SubBassVoice.defaultSubGain {
-        didSet { audioSubGain = min(max(subGain, 0), 1) }
+        // NaN-safe `clamped(to:)`, not `min(max(...))`: Swift's free min/max are
+        // comparison-based, and every comparison against NaN is false, so a NaN
+        // passes BOTH unchanged. It would then land in `smoothedGain`'s one-pole on
+        // the audio thread and stay there — the denormal flush at
+        // `smoothedGain < 1e-15` is also false for NaN — leaving the sub silent for
+        // the rest of the session. Same failure class as #29/#92.
+        didSet { audioSubGain = subGain.clamped(to: 0...1) }
     }
 
     /// Audio-thread-readable mirror of `subGain`. Written on MainActor (didSet),
@@ -292,7 +298,13 @@ public final class SubBassVoice {
             currentFreq += freqGlide * (targetFreq - currentFreq)
             env += envCoeff * (gateTarget - env)
             smoothedGain += gainCoeff * (audioSubGain - smoothedGain)
-            // Flush the decaying one-poles' denormal tails (matches reverb/delay).
+            // Truncate the decaying one-poles' inaudible tails (~-300 dBFS — well
+            // above the denormal region proper, so they never reach it).
+            // ONE-SIDED ON PURPOSE, and only safe because both are UNIPOLAR BY
+            // CONSTRUCTION: each is a convex blend of values in [0, 1] seeded at 0,
+            // so neither can go negative. Do not copy this form onto a bipolar
+            // signal — it would half-wave-rectify it (see `ChannelInsertFX`, which
+            // correctly uses a symmetric window for its bipolar filter state).
             if env < 1e-15 { env = 0 }
             if smoothedGain < 1e-15 { smoothedGain = 0 }
 
@@ -309,6 +321,12 @@ public final class SubBassVoice {
             var out = shaped * env * smoothedGain
             // Per-bus insert (dub filter / drive). Off = untouched (bit-identical).
             if insertActive { out = insertFX.process(out) }
+            // Source-node output boundary, after the insert so it covers the whole
+            // chain. Defence-in-depth, not a live bug: the one NaN route into this
+            // voice was `subGain`'s clamp, closed above, and `ChannelInsertFX`
+            // sanitizes its own coefficients. Finite audio is bit-identical, so this
+            // cannot colour the sub. See `AudioOutputGuard`.
+            out = AudioOutputGuard.silencingNonFinite(out)
 
             for buffer in abl {
                 guard let raw = buffer.mData else { continue }

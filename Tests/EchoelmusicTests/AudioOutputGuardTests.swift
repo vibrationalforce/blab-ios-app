@@ -62,6 +62,30 @@ final class AudioOutputGuardTests: XCTestCase {
                        "the guard wrote past the requested count")
     }
 
+    // MARK: - Scalar form (per-sample writers)
+
+    func testScalarFormMatchesTheBufferFormSampleForSample() {
+        // Honest about its own strength: the buffer form currently DELEGATES to the
+        // scalar one, so this cannot fail as written — it is a tripwire against a
+        // future re-split into two independent implementations, not a check on the
+        // present code. Kept because that split is the realistic way the two forms
+        // would drift, and a voice's behaviour must not depend on which entry point
+        // its render block happens to use.
+        let source: [Float] = [0, 1, -1, 0.5, -0.0, 3.7, .nan, .infinity, -.infinity, 1e-30]
+        let viaBuffer = guarded(source)
+        let viaScalar = source.map { AudioOutputGuard.silencingNonFinite($0) }
+        XCTAssertEqual(viaScalar.map(\.bitPattern), viaBuffer.map(\.bitPattern))
+    }
+
+    func testScalarFormSilencesOnlyNonFinite() {
+        XCTAssertEqual(AudioOutputGuard.silencingNonFinite(.nan), 0)
+        XCTAssertEqual(AudioOutputGuard.silencingNonFinite(.infinity), 0)
+        XCTAssertEqual(AudioOutputGuard.silencingNonFinite(-.infinity), 0)
+        // Loud is not the same as broken — a limiter's job, not this one's.
+        XCTAssertEqual(AudioOutputGuard.silencingNonFinite(-12.25), -12.25)
+        XCTAssertEqual(AudioOutputGuard.silencingNonFinite(1e-30), 1e-30)
+    }
+
     func testNonPositiveCountWritesNothingInsteadOfTrapping() {
         // Zero is the ordinary case (a render block can legitimately be asked for
         // no frames). NEGATIVE is why the `count > 0` guard is not dead code: this

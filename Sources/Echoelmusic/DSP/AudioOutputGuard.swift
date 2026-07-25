@@ -31,13 +31,16 @@ import Foundation
 /// Wired today: `PolySynthVoice` and `BioReactiveSynthVoice` — the two voices that
 /// carry both the user-editable FX chain and the live bio path, i.e. the two whose
 /// upstream stage list actually changes, and the only two shaped as scratch-then-
-/// copy. Still unguarded and mixing into the same `masterMixer`: `SubBassVoice`
-/// (its own per-bus insert FX plus a bio-driven gain — the next one to wire),
-/// `DrumSynthVoice`, `SamplerVoice`, `MetronomeVoice`, `SessionEngine`. Those write
-/// per-sample straight into the buffer list (and two of them run an insert FX
-/// AFTER the write), so wiring them needs a scalar entry point, not this one —
-/// a separate slice with its own audio review. Do not read this file as a
-/// graph-wide invariant.
+/// copy — plus `SubBassVoice` via the scalar form, since it too runs a per-bus
+/// insert FX.
+///
+/// Of the seven render-block writers in the app, four are still unguarded:
+/// `DrumSynthVoice` and `SamplerVoice` (both run an insert FX AFTER writing the
+/// buffer list, so their sweep has to go after that call, not at the write),
+/// `MetronomeVoice` and `SessionEngine`. Separate slice with its own audio review.
+/// Note "render-block writers" is narrower than "inputs to `masterMixer`" —
+/// `masterPlayerNode`, the clip player and the warp path also feed that mixer and
+/// are outside this guard's shape. Do not read this file as a graph-wide invariant.
 ///
 /// ── WHAT IT DELIBERATELY DOES NOT DO ────────────────────────────────────────
 /// * **No clamping to [-1, 1].** That is a limiter's job and belongs where it can
@@ -45,12 +48,13 @@ import Foundation
 ///   and hide a real gain-staging bug behind a safety net.
 /// * **No muting the block on a bad sample.** An isolated poisoned sample replaced
 ///   by zero is a single-sample click; muting the whole block would turn it into an
-///   audible dropout, the worse failure. Note this bounds the damage of an ISOLATED
-///   fault only — under a SUSTAINED one in `PolySynthVoice`, the idle detector
-///   (which measures block peak before this guard, and `NaN > peak` is false)
-///   scores the block as silent and puts the voice to sleep after ~2.5 s. That
-///   pre-dates this guard; the guard only makes the interim samples silent instead
-///   of full-scale.
+///   audible dropout, the worse failure. This bounds the damage of an ISOLATED
+///   fault only. Under a SUSTAINED one the voice goes quiet either way, and the
+///   guard offers no recovery — it cleans the OUTPUT, never the recursive state
+///   behind it. (In `PolySynthVoice` that shows up as the idle detector, which
+///   measures block peak before this guard and scores an all-NaN block as silent
+///   since `NaN > peak` is false, sleeping the voice after ~2.5 s. The other two
+///   wired voices have no idle detector, so that particular bound is not general.)
 ///
 /// Audio-thread safe: no allocation, no locks, no ObjC, no I/O, and branch-free per
 /// sample by construction — the ternary has no data-dependent control flow.
@@ -74,8 +78,15 @@ public enum AudioOutputGuard {
     ) {
         guard count > 0 else { return }
         for i in 0..<count {
-            let s = src[i]
-            dst[i] = s.isFinite ? s : 0
+            dst[i] = silencingNonFinite(src[i])
         }
+    }
+
+    /// Scalar form, for the render blocks that write per-sample straight into the
+    /// buffer list instead of rendering to a scratch array first. Same rule, same
+    /// result — kept as one definition so the two shapes cannot drift.
+    @inline(__always)
+    public static func silencingNonFinite(_ sample: Float) -> Float {
+        sample.isFinite ? sample : 0
     }
 }
