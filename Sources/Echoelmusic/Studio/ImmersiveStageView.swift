@@ -17,7 +17,10 @@
 //
 //  Render safety: reads only user-frequency state (the scene changes on drag / lane
 //  edits, never at bio rate), so it is safe to read `SpatialSceneStore` in this body.
-//  It owns NO `.sheet` — it is presented in ArrangeTimelineView's single sheet slot.
+//  It owns NO `.sheet` — it was presented from the arrange timeline's sheet slot,
+//  which the pure-instrument cut removed (#121, Slice 4 / 4b). The view is intact
+//  but currently DOORLESS: re-door it from the instrument home when the spatial
+//  stage returns, rather than assuming it is still reachable.
 //
 
 #if canImport(SwiftUI)

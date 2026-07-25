@@ -104,11 +104,12 @@ struct SurfaceSwitcherBar: View {
 /// (#121, founder 2026-07-24 "keine Timeline etc nur das alte Interface mit create
 /// from within") removed the timeline entirely — SurfaceHost is now a thin wrapper
 /// that mounts `EchoelStudioView` (the "create from within" instrument) as the
-/// whole screen. `ArrangeTimelineView`, `SurfaceSwitcherBar` and
-/// `ChannelRackView` stay in code, unmounted (reversible); the pure-instrument
-/// epic (#121, Slice 4) is deleting the now-unreachable DAW surfaces one by one
-/// (ClipView already removed). The v136 size contract (fill + clipped) is
-/// preserved so nothing inflates past the screen.
+/// whole screen. The pure-instrument epic (#121, Slice 4) is deleting the
+/// now-unreachable DAW surfaces one by one (`ClipView` and
+/// `ArrangeTimelineView` already removed); `SurfaceSwitcherBar` still stands,
+/// unmounted, while `ChannelRackView` remains LIVE — embedded in
+/// `EchoelStudioView`'s Mix panel, not a timeline surface. The v136 size
+/// contract (fill + clipped) is preserved so nothing inflates past the screen.
 @MainActor
 struct SurfaceHost: View {
     /// PURE INSTRUMENT (founder 2026-07-24, verbatim "keine Timeline etc nur das
@@ -118,9 +119,9 @@ struct SurfaceHost: View {
     /// revert and converges with the pure-instrument verdict (#121, Slice 4
     /// "DAW-UI-Removal"): the per-track DAW features are being removed, so the
     /// timeline that used to be the front door (the 2026-07-13 "tracks are home"
-    /// default, H2 already folded) has no reason to mount. `ArrangeTimelineView` +
-    /// the former fold bar stay in code, unmounted and reversible — no file
-    /// deletion here (that is later cleanup).
+    /// default, H2 already folded) has no reason to mount — `ArrangeTimelineView`
+    /// itself was deleted in Slice 4 (4b); the former fold bar still stands,
+    /// unmounted.
     ///
     /// Render safety: dropping the timeline branch + the fold bar SHRINKS the
     /// composed tree, so it can only EASE the SwiftUI metadata budget, never grow
