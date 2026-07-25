@@ -2,10 +2,10 @@
 // Echoelmusic — Studio
 //
 // PURE bio→colour-grade uniform mapping (science-first, flash-safe). Maps a bio
-// snapshot to a small set of grade uniforms consumed by the device-side BioGrade.metal
-// pass (ChromaKey.metal is the first/adjacent pass). All Foundation math — no Metal,
-// no AVFoundation — so the mapping + its flash-rate clamp are unit-tested on every
-// platform. Layout mirrors the ChromaKeyParams "must match Swift struct" contract.
+// snapshot to a small set of grade uniforms consumed by the generative-visual grade
+// pass (MetalBioView compiles its shader inline at runtime). All Foundation math — no
+// Metal, no AVFoundation — so the mapping + its flash-rate clamp are unit-tested on
+// every platform. The struct layout must match the shader's uniform struct byte-for-byte.
 
 import Foundation
 
