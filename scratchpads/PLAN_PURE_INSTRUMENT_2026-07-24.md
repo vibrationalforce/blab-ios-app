@@ -272,7 +272,11 @@ wie geplant.
   - Protection-Gate je Slice: rPPG-Bio-Input (CameraAnalyzer/CameraCapture/PulsePeriodEstimator/RPPGConditioning) +
     Visuals (MetalBioView/FloatingVisual/BioVisualParams) + Rausch-Triad + (rec A) VisualRecorder/VideoRecorder/VideoMuxer UNBERÜHRT.
 
-- ▶ **Slice 4 (DAW-UI-Removal) — GEPLANT 2026-07-25 (planning-agent + Council), REINER DEAD-CODE-SWEEP, 4 Sub-Slices.**
+- ✅ **Slice 4 (DAW-UI-Removal) — KOMPLETT GESHIPPT 2026-07-25, alle vier Sub-Slices, beide echten Gates grün je Commit:**
+  4a `807dc0d` (ClipView, 219 Z) · 4b `eb58e7a` (ArrangeTimelineView + BodyVibeSurfaceView, 2567 Z) ·
+  4c `1af527f` (AudioClipView, 471 Z) · 4d `36a8468` (AutomationView + ClipAutomationView, 711 Z).
+  Summe ≈ 3968 gelöschte Zeilen, KEIN Rewire, KEINE Persistenz-Änderung, KEINE Test-Löschung.
+  REINER DEAD-CODE-SWEEP, 4 Sub-Slices.
   **Ground-Truth-Verdikt: #124 IST fertig** — `WorkspaceView.body`:156 → `SurfaceHost`:129-133 mountet NUR `EchoelStudioView()`; die
   Arrange-Timeline + `SurfaceSwitcherBar` + alle DAW-Surfaces sind bereits UNMOUNTED. **Kein Navigations-/Rewire-Edit in Slice 4** —
   nur Löschung der jetzt-unerreichbaren Surface-Dateien. Kein `Codable`/Persistenz-Key berührt → **kein persistence-steward nötig** (das
