@@ -359,11 +359,18 @@ struct EchoelStudioView: View {
     @State private var showRouting = false
     @State private var showLearn = false
     // Dead-duplicate sheets removed (v10.79.207): PianoRoll / PatchEditor / Automation
-    // / AudioClip / AUv3 plugins are opened from the timeline lane-head doors
+    // / AudioClip / AUv3 plugins were opened from the timeline lane-head doors
     // (ArrangeTimelineView's ArrangeModal), and Broadcast is a non-functional RTMP
     // scaffold. Their EchoelStudioView-level slots were fed only by the unmounted
     // toolsSection grid — pure dead weight on the 21-modal metadata chain. Removed to
     // buy headroom for the bottom-bar dissolve (PLAN_DISSOLVE_BOTTOM_BAR_2026-07-14).
+    // ⚠ CORRECTED 2026-07-25 (#131): the timeline itself is GONE (pure-instrument epic
+    // #121, Slice 4), so "opened from the lane-head doors" no longer describes anything.
+    // The piano roll is doored again below — through the ONE consolidated
+    // `craftEditor` slot, never by re-adding a per-editor sheet. Automation / AudioClip
+    // / AUv3 / Broadcast are deliberately NOT coming back (they are workstation, not
+    // instrument — see docs/dev/PRODUCT_DEFINITION.md), and the patch editor is not
+    // needed as a sheet: the LIVE timbre editor is `soundPanel` (Sound chip).
     /// Presents a file picker to import a Standard MIDI File onto the piano roll.
     @State private var midiImportPresented = false
     /// Drives the project-import file picker in the Open-project sheet.
@@ -379,6 +386,21 @@ struct EchoelStudioView: View {
     /// Which drum track's sample browser is open (nil = closed). Identifiable
     /// wrapper so `.sheet(item:)` can carry the track index.
     @State private var sampleBrowserTrack: TrackRef?
+
+    /// The craft editors — instrument CONTROLS, not DAW surfaces (Editor ≠
+    /// Workstation, `docs/dev/PRODUCT_DEFINITION.md`). ONE `.sheet(item:)` slot
+    /// serves all of them, so adding the next editor costs a case here and a
+    /// switch arm in `craftEditorSheet(_:)` — never another body modifier
+    /// (black-screen metadata law). Cases are added only WITH their door: an
+    /// undoored case would be exactly the lying `toolItems` trap (#131).
+    private enum CraftEditor: String, Identifiable {
+        /// The piano roll — correct/shape the notes of the current loop. Also the
+        /// `MusicalFrame` publisher that feeds the visual/light output stage.
+        case roll
+        var id: String { rawValue }
+    }
+    @State private var craftEditor: CraftEditor?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// DMMW production shell (founder 2026-07-12): which menu-bar dropdown is
@@ -721,6 +743,10 @@ struct EchoelStudioView: View {
         }
         #endif
         .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
+        // #131 "Kontrolle": ONE slot for ALL craft editors. The content switch lives
+        // in `craftEditorSheet(_:)`, not inline, so the body's aggregate generic type
+        // stays flat and the NEXT editor costs zero modifiers.
+        .sheet(item: $craftEditor) { AnyView(craftEditorSheet($0)) }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             // NOT AnyView-wrapped: this cover builds lazily on present (it never
@@ -1203,6 +1229,17 @@ struct EchoelStudioView: View {
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                // #131 "Kontrolle" (ship gate item 2): the ONE door to the piano
+                // roll — correct/shape the notes of the take you just generated.
+                // A direct chip, not a dropdown: the roll is a full editor, and it
+                // rides the ONE consolidated craft-editor sheet slot (no new body
+                // modifier). Closing the dropdown first so two modals are never
+                // driven at once (invisible tap-blocking layer).
+                directChip("Notes", icon: "pianokeys",
+                           a11y: "Edit the notes of the current loop") {
+                    activeMenu = nil
+                    craftEditor = .roll
+                }
                 ForEach(Self.studioChips) { m in
                     menuChip(m)
                 }
@@ -3177,6 +3214,25 @@ struct EchoelStudioView: View {
             .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
         }
         }   // panel("Export")
+    }
+
+    // MARK: - Craft editors (#131)
+
+    /// Content for the ONE craft-editor slot. Deliberately a separate builder
+    /// returning `AnyView` per case: the root body must never carry an editor's
+    /// generics (metadata/black-screen law), and a new editor is then a case here.
+    ///
+    /// The roll is presented with its DEFAULT `onDone` (nil) — i.e. NOT clip-scoped —
+    /// so it is the LIVE take: clocked by the shared `PatternEngine`, voiced through
+    /// the wired synth, with its Play button and playhead. That is also the path on
+    /// which it publishes `MusicalFrame` to the bus, which is what colours the visual
+    /// and light output stage (`docs/dev/PRODUCT_DEFINITION.md`, Layer 2). A
+    /// clip-scoped roll would be silent and would publish nothing.
+    private func craftEditorSheet(_ editor: CraftEditor) -> AnyView {
+        switch editor {
+        case .roll:
+            return AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll))
+        }
     }
 
     // MARK: - Diagnostics

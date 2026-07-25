@@ -13,6 +13,40 @@ Editor ≠ Workstation. The piano roll is additionally load-bearing: `PianoRollV
 
 ---
 
+## ⚠ CORRECTION 2026-07-25 (before building 131a): the patch half of #131 was WRONG
+
+I told the founder the instrument "can neither edit a generated melody nor shape
+or save a sound patch". **Only the melody half was true.** Ground truth:
+
+- `EchoelStudioView.soundPanel` (`:2748`, "Sound & texture — Shape the timbre —
+  exact to 0.0001") is **mounted** (`dropdownContent` `:1308`) and **reachable**
+  through the LIVE `StudioMenu.sound` chip. It carries `presetRow`, a randomize
+  button, and tone / filter / envelope / space+vibrato / sub rows bound to
+  `$currentPatch` — the single source of truth for the live timbre (`:152`, `:274`).
+- Patch **library load** (`:2920`) and **save-as** (`patchStore.saveAs`, `:840`)
+  are both live from that panel.
+- v10.79.207 removed the `PatchEditorView` sheet as a **"Dead-*duplicate*"** —
+  duplicate of exactly this panel. Re-dooring it would rebuild something that was
+  deliberately deleted, and would spend sheet-chain headroom on a second UI for a
+  capability the instrument already has.
+
+**Consequences:**
+1. **131a is re-scoped to the piano roll** (the genuinely doorless capability).
+2. `PatchEditorView.swift` is reclassified: not a doorless keeper but a
+   **redundant duplicate** → hand it to Slice 6 (delete, or keep only if a future
+   founder ask wants a full-screen patch editor). Ship-gate item 2 "Kontrolle" is
+   satisfied for the patch half **today**, by `soundPanel`.
+3. 131b folds into 131a — there is only one editor left to door, so doing it in
+   two commits would be ceremony. The `CraftEditor` enum still exists so the NEXT
+   editor costs a case, not a modifier.
+4. `CLAUDE.md`'s DOORLESS KEEPERS block must drop `PatchEditorView` (131d).
+5. This also settles the Slice 5 open question: the door presents the **LIVE**
+   roll (`onDone: nil` ⇒ not clip-scoped), so nothing here needs
+   `syncPrimaryRollClip`'s ClipStore/TimelineStore mirror — it stays dead weight
+   and Slice 5 may remove it.
+
+---
+
 ## Audit — the sheet chain as it stands (2026-07-25, after Slice 4)
 
 `EchoelStudioView.swift` body carries **11** presentation modifiers:
@@ -103,29 +137,33 @@ slot is cheaper and honest.
 
 ## Sub-slices (one Ralph commit each, gates green + reviewer each)
 
-- **131a — the slot.** Add `CraftEditor` enum + `@State` + ONE `.sheet(item:)` +
-  the `craftEditorSheet(_:)` builder returning `PatchEditorView` for `.patch` and
-  `EmptyView()` for the other two (wired next). Chain 11→12, verified by count.
-  Extend the chrome-door handler with `case "patch"`. Add the visible entry point
-  (Sound/patch row in the existing Composition or Master panel — no new surface).
-  **Reviewer: ui-state-reviewer** (chain count + no double-modal + no 10 Hz read
-  in the host body).
-- **131b — piano roll.** `.roll` → `PianoRollView(...)`. Must pass the same
-  environment the deleted timeline supplied (`pattern:`, `model:`) — ground-truth
-  the exact init args from git history (`git show eb58e7a^:...ArrangeTimelineView.swift`
-  lines 456/531) rather than guessing. Door: chrome-door `case "roll"` + an entry
-  point next to the generated-melody controls. **Reviewer: ui-state-reviewer.**
-  ⚠ `PianoRollView` publishes `MusicalFrame` — verify the publish path still fires
-  when it is presented from here, otherwise the visual/light spine stays dark.
+- **131a — the slot + the piano roll (ONE commit, per the correction above).**
+  `private enum CraftEditor: String, Identifiable { case roll }` + `@State
+  craftEditor` + ONE `.sheet(item: $craftEditor) { AnyView(craftEditorSheet($0)) }`
+  (chain 11→12, verified by grep) + a `craftEditorSheet(_:) -> AnyView` builder
+  returning `PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll)` — the
+  exact init from the deleted timeline (`git show eb58e7a^:…ArrangeTimelineView.swift:531`),
+  whose DEFAULT `onDone: nil` gives the LIVE clocked+voiced roll, i.e. the normal
+  `MusicalFrame` publish path. Door: a `directChip("Notes", "pianokeys")` in the
+  live `menuBar` — reviving an existing-but-unused helper, inside an `AnyView`-erased
+  inner row, so the root body's generic type is untouched. It sets `activeMenu = nil`
+  first (never two modals at once).
+  **Deliberately NOT done:** no `.echoelChromeDoor` `case "roll"` — nothing in the
+  chrome posts it, and a receiver for an unposted notification is exactly the dead,
+  lying mechanism this plan warns about. No `.patch`/`.stage` case for the same
+  reason: a case is added only together with its door.
+  **Reviewers: ui-state-reviewer + code-reviewer.**
 - **131c — spatial stage (decide, then wire).** `.stage` → `ImmersiveStageView()`.
   This is the output stage (ADM-OSC scene placement), so it belongs to the product
   per PRODUCT_DEFINITION — but it is the least urgent of the three for the ship
   gate (gate item 4 says light/space are "demonstrable, not required for v1"). May
   be deferred; if deferred, remove `.stage` from the enum rather than leaving a
-  dead case.
-- **131d — docs + invariant.** Update `CLAUDE.md` (the doorless-keeper warning
-  becomes "re-doored"), and either restore or delete the
-  `toolItems`/`openTool` invariant so no future session trusts a lying list.
+  dead case (the enum ships with `case roll` only for exactly this reason).
+- **131d — docs + invariant.** Update `CLAUDE.md`: the DOORLESS KEEPERS block drops
+  `PatchEditorView` (never was doorless in substance — `soundPanel` is the live
+  editor) and marks `PianoRollView` re-doored via the `craftEditor` slot. Then
+  either restore or delete the `toolItems`/`openTool` invariant so no future
+  session trusts a lying list.
 
 ## Protection gates (must not break)
 
