@@ -1,3 +1,19 @@
+> ## ⚠️ SUPERSEDED — 2026-07-25
+>
+> This document describes the **"Digital Multidimensional Multimedia Workstation"**
+> goal set on 2026-06-21. It is **no longer the product target.**
+>
+> The workstation half (arrangement/clips timeline as home, channel rack, AUv3
+> hosting, video-as-clip) was dismantled by founder verdict #121 (2026-07-24,
+> "REINES INSTRUMENT"). The multidimensional-output half survives — as the
+> instrument's **output stage**, not as a product of its own. The term "DMMW" is
+> retired: it was unrepeatable, it put a solo developer on DAW turf, and it made
+> the maintenance surface infinite.
+>
+> **Canonical replacement: [`PRODUCT_DEFINITION.md`](PRODUCT_DEFINITION.md).**
+>
+> Kept below as history only — do not plan from this file.
+
 # Echoel DMMW — Digital Multidimensional Multimedia Workstation
 
 **Goal (founder):** the first and long-term best **biofeedback-driven, multi-touch

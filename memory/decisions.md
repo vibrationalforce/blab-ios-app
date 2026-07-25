@@ -1195,3 +1195,37 @@ Architectural and strategic decisions with context and rationale.
   Models Availability override in `project.yml`/`full-tests.yml` for the first, or an engine-attached
   variant of the SamplerVoice format assertion for the second — that is new work, not a re-open of these
   skips.
+
+### 2026-07-25 — "DMMW" retired; ONE product: the bio-reactive instrument with a multidimensional output stage
+- **Founder delegated the call in full:** "Was für mich als Produzent und Künstler das passende
+  Instrument plus DMMW ist… Du entscheidest — ich möchte etwas verkaufen das einfach zu begreifen,
+  zu vermarkten und zu pflegen ist mit Updates. Strukturiere alles so um wie du es brauchst."
+- **Decision (Grand Council 2026-07-25):** there is no "instrument PLUS DMMW" — that framing kept two
+  products alive. **One sentence: Echoel is a bio-reactive instrument; your body plays it, and its
+  output is multidimensional (sound, image, light, space).** The term DMMW is retired permanently;
+  `docs/dev/DMMW_ARCHITECTURE.md` is superseded (history only), `docs/dev/PRODUCT_DEFINITION.md` is
+  canonical.
+- **Why:** DMMW failed all three founder criteria simultaneously — unrepeatable five-word acronym
+  (grasp), "workstation" competes with FL/Cubasis/Ableton on feature parity where a solo dev always
+  loses (market), and a workstation is an infinite support surface (maintain). The 2026-07-19 Council
+  had already recorded "Fokusverlust seit DMMW" (343 files, +62 % cruft) — this is the second
+  independent finding against the same term.
+- **THE BOUNDARY (use this for every future keep/cut): Editor ≠ Workstation.** Is it about the sound
+  being made *now* → instrument (KEEP). Is it about arranging material *over time* → workstation
+  (CUT). Craft tools are instrument controls, not DAW surfaces — a synth you cannot tune is not an
+  instrument.
+- **Panel dissent, named + how it resolved:** Taleb/Jobs argued to cut the piano roll too (radical
+  subtraction, pure generative). Christensen/Naval: a producer who cannot shape will not buy.
+  Resolved by EVIDENCE, not taste — `PianoRollView` **publishes `MusicalFrame`**, the signal that
+  tells visuals and light what is sounding. Cutting it would sever the differentiator's spine, not
+  merely remove convenience. → task #131 decided: **re-door** patch editor + piano roll (+ the spatial
+  stage, which belongs to the output stage). Slot-reuse only; must NOT grow the sheet chain.
+- **Premortem that shaped the ship gate:** "we shipped a beautiful generative toy that producers tried
+  once and could do nothing with, because they could not shape or keep what it made."
+- **Ship gate "Instrument-Complete v1"** replaces the DEAD criterion "bis die gesamte DMMW auf
+  Profi-Level ist" (permanently unreachable once the workstation half was dismantled by #121). Five
+  binary checks: Klang · Kontrolle · Modi · Ausgabe · Stabilität. Finite and checkable; does not move
+  when the roadmap moves.
+- **Unchanged:** epic #121 Slices 4–6 continue exactly as planned (they remove workstation surfaces,
+  which this decision confirms). Brand guardrails unchanged — biofeedback is science-based modulation,
+  never wellness/therapy/healing.
