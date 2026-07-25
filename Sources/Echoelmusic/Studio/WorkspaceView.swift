@@ -103,12 +103,6 @@ struct WorkspaceView: View {
     @State private var didSeedInstrumentHome = false
     #endif
 
-    /// The VIDEO MONITOR floats the same way (founder 2026-07-15: the header film
-    /// tile opens it, "Verschiedene größen einstellbar wie visualiser"). Default
-    /// hidden — it earns its screen space once video clips exist on the timeline;
-    /// @AppStorage remembers a user who keeps it open.
-    @AppStorage("video.monitor.visible") private var videoMonitorVisible = false
-
     /// Tapping the brand (mark + name) opens the website in the system default
     /// browser (founder 2026-07-07) — where the current version + TestFlight
     /// signup live.
@@ -170,15 +164,6 @@ struct WorkspaceView: View {
             if floatingVisualVisible {
                 FloatingVisualWindow(isPresented: $floatingVisualVisible)
             }
-            // The floating VIDEO MONITOR — the timeline's video lanes rendered at the
-            // playhead (stills + video), toggled from the header film tile. Docks
-            // bottom-leading so it coexists with the visual window. Its ~10 Hz
-            // transport follow is confined to its own content leaf (freeze rule).
-            #if canImport(AVFoundation)
-            if videoMonitorVisible {
-                FloatingVideoMonitor(isPresented: $videoMonitorVisible)
-            }
-            #endif
             #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
@@ -254,16 +239,14 @@ struct WorkspaceView: View {
                 PulseMonitorMiniLive()
                 #endif
                 Spacer(minLength: 0)
-                // RIGHT: the three output monitors — Video · Lux · BioSynth visual
-                // (founder 2026-07-12, red sketch: "oben neben dem EchoelBioSynth
-                // Monitor noch 2 Fenster … eins für EchoelVideo und eins für
-                // EchoelLux"). Klang · Bild · Licht in one header row. Each is a
-                // LEAF that reads its own live state (freeze rule); taps go through
-                // the chrome-door notification, never into studio state directly.
+                // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
+                // (The former video-lane monitor tile was retired with the DAW video
+                // editing — pure-instrument cut; the tile now surfaces the recorded
+                // performance clips + REC state.) Each is a LEAF that reads its own
+                // live state (freeze rule); taps go through the chrome-door
+                // notification, never into studio state directly.
                 #if canImport(AVFoundation) && canImport(Metal)
-                EchoelVideoMonitorMini(monitorVisible: videoMonitorVisible) {
-                    withAnimation(.easeInOut(duration: 0.15)) { videoMonitorVisible.toggle() }
-                }
+                EchoelClipsMonitorMini()
                 #endif
                 EchoelLuxMonitorMini()
                 // The immersive-visual monitor. (No purchase chip in v1.0 —

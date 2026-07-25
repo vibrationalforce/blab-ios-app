@@ -412,31 +412,23 @@ struct EchoelLuxMonitorMini: View {
     }
 }
 
-// MARK: - EchoelVideo monitor (header)
+// MARK: - Recorded-clips monitor (header)
 
 #if canImport(AVFoundation) && canImport(Metal)
-/// Compact header monitor of the VIDEO pillar (founder 2026-07-12, red sketch:
-/// "… und eins für EchoelVideo"). TAP shows/hides the floating VIDEO MONITOR —
-/// the resizable window rendering the timeline's video lanes at the playhead
-/// (founder 2026-07-15, red circle on this tile: "Dort soll der Video Monitor zum
-/// anklicken. Verschiedene größen einstellbar wie visualiser"). LONG-PRESS keeps
-/// the recorded-clips library reachable (the tile's former tap action — nothing
-/// is stranded). While the visual recorder captures a clip it shows a steady REC
+/// Compact header tile for the recorded PERFORMANCE clips (visual + master mix).
+/// The former video-lane monitor was retired with the DAW video editing
+/// (pure-instrument cut); this tile keeps the two things that survive that cut —
+/// TAP opens the recorded-clips library (the VisualRecorder output / EchoelPublish
+/// surface), and while the visual recorder captures a clip it shows a steady REC
 /// state (steady, not blinking — flash law). Deliberately NOT a live thumbnail:
-/// that would be a second video pipeline in the header; the floating monitor IS
-/// the one live picture.
+/// the floating visual window is the one live picture.
 @MainActor
-struct EchoelVideoMonitorMini: View {
+struct EchoelClipsMonitorMini: View {
     @Environment(VisualRecorder.self) private var recorder
-    /// True while the floating video monitor is shown — the tile tints so the
-    /// toggle state is visible (same idea as the visual monitor's active state).
-    let monitorVisible: Bool
-    /// Show/hide the floating video monitor (owned by WorkspaceView).
-    let onToggleMonitor: () -> Void
 
     var body: some View {
         Button {
-            onToggleMonitor()
+            NotificationCenter.default.post(name: .echoelChromeDoor, object: "video")
         } label: {
             ZStack {
                 EchoelTheme.fill
@@ -447,8 +439,7 @@ struct EchoelVideoMonitorMini: View {
                     }
                     Image(systemName: recorder.isRecording ? "record.circle" : "film")
                         .font(.system(size: 11))
-                        .foregroundStyle(recorder.isRecording || monitorVisible
-                                         ? EchoelTheme.text : EchoelTheme.dim)
+                        .foregroundStyle(recorder.isRecording ? EchoelTheme.text : EchoelTheme.dim)
                 }
             }
             .frame(width: 38, height: 32)
@@ -456,7 +447,7 @@ struct EchoelVideoMonitorMini: View {
             .overlay(RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(recorder.isRecording
                     ? Color(red: 0.86, green: 0.22, blue: 0.20).opacity(0.7)
-                    : (monitorVisible ? EchoelTheme.accent.opacity(0.6) : EchoelTheme.border),
+                    : EchoelTheme.border,
                     lineWidth: 1))
             // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
             // horizontal growth); the 38×32 chip stays centred, no visible change.
@@ -464,16 +455,9 @@ struct EchoelVideoMonitorMini: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Built only when opened — no extra body-time reads (freeze rule intact).
-        .contextMenu {
-            Button {
-                NotificationCenter.default.post(name: .echoelChromeDoor, object: "video")
-            } label: { Label("Clips library…", systemImage: "folder") }
-        }
-        .accessibilityLabel("Video monitor")
-        .accessibilityValue(recorder.isRecording ? "Recording"
-                            : monitorVisible ? "Monitor shown" : "Monitor hidden")
-        .accessibilityHint("Shows or hides the floating video monitor. Touch and hold for the clips library.")
+        .accessibilityLabel("Recorded clips")
+        .accessibilityValue(recorder.isRecording ? "Recording" : "")
+        .accessibilityHint("Opens the recorded clips library.")
     }
 }
 #endif
