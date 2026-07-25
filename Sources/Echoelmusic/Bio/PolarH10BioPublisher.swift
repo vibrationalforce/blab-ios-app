@@ -87,6 +87,12 @@ public final class PolarH10BioPublisher: NSObject {
     @ObservationIgnored
     private var rrIntervals: [Double] = []
 
+    /// Streaming artifact gate for the LIVE beat-event path. Kept separate from the
+    /// windowed pass in the publish loop only because it must decide per arriving beat;
+    /// both run the same `RRIntervalHygiene.Gate`, so they cannot drift apart.
+    @ObservationIgnored
+    private var beatGate = RRIntervalHygiene.Gate()
+
     // ~1 min of beats: long enough for a 0.04 Hz (LF) spectral resolution so
     // HRVCoherence can resolve the ~0.1 Hz resonance peak, the HRV-standard
     // short-term window. Also bounds the RMSSD/SDNN window.
@@ -141,6 +147,7 @@ public final class PolarH10BioPublisher: NSObject {
         peripheral = nil          // else a restart's rediscovery is blocked by the guard
         latestHR = 0
         rrIntervals.removeAll()
+        beatGate = RRIntervalHygiene.Gate()   // a restart is a fresh anchor
         state = .idle
         isPublishing = false
         connectedDeviceName = ""
@@ -153,13 +160,29 @@ public final class PolarH10BioPublisher: NSObject {
         publishTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 guard let self, let bus = self.bus else { break }
-                if self.latestHR > 0 {
-                    let rrMs = self.rrIntervals.map { $0 * 1000.0 }   // s → ms
-                    let rmssd = HRVMetrics.rmssd(rrMs: rrMs)
+                // Plausibility gate on the strap's own HR field, which is transmitted
+                // separately from the RR intervals and can arrive corrupted on its own.
+                // The old `> 0` test let a garbage packet through as a real pulse.
+                if RRIntervalHygiene.isPlausibleBPM(self.latestHR) {
+                    // ARTIFACT REJECTION before any HRV number is derived. The strap is
+                    // the source we call most accurate — it was the only one with none.
+                    // Segments, not a flat array: RMSSD and pNN50 read successive pairs,
+                    // so closing the gap left by a rejected beat would manufacture the
+                    // exact artifact the rejection removed (see RRIntervalHygiene).
+                    let segments = RRIntervalHygiene.acceptedSegments(
+                        rrMs: self.rrIntervals.map { $0 * 1000.0 })   // s → ms
+                    let cleanMs = segments.flatMap { $0 }
+                    let rmssd = HRVMetrics.rmssd(segments: segments)
                     // Real frequency-domain coherence from the trusted beat-to-beat
                     // RR series (BLE is the only source for which this is valid).
                     // 0 until enough beats / power for a spectrum.
-                    let reading = HRVCoherence.compute(rrMs: rrMs, blend: self.coherenceBlend)
+                    //
+                    // Honest limit: the spectrum is built from the CLEANED series, whose
+                    // time base is a cumulative sum — so a rejected beat slightly
+                    // compresses elapsed time across the gap. That small distortion is
+                    // far preferable to feeding the artifact itself, which puts broadband
+                    // power across the whole spectrum and corrupts LF/HF outright.
+                    let reading = HRVCoherence.compute(rrMs: cleanMs, blend: self.coherenceBlend)
                     bus.publish(bio: BioSampleFrame(
                         timestamp: CFAbsoluteTimeGetCurrent(),
                         heartRateBPM: Float(self.latestHR),
@@ -170,8 +193,8 @@ public final class PolarH10BioPublisher: NSObject {
                         motionEnergy: 0,
                         source: .ble,
                         hrvRMSSDms: Float(rmssd),
-                        hrvSDNNms: Float(HRVMetrics.sdnn(rrMs: rrMs)),
-                        hrvPNN50: Float(HRVMetrics.pnn50(rrMs: rrMs))
+                        hrvSDNNms: Float(HRVMetrics.sdnn(segments: segments)),
+                        hrvPNN50: Float(HRVMetrics.pnn50(segments: segments))
                     ))
                 }
                 try? await Task.sleep(for: .seconds(1))
@@ -364,6 +387,7 @@ extension PolarH10BioPublisher: CBCentralManagerDelegate {
             self.publishTask?.cancel()
             self.latestHR = 0
             self.rrIntervals.removeAll()
+            self.beatGate = RRIntervalHygiene.Gate()   // a reconnect is a fresh anchor
             // Auto-reconnect while the user still wants a signal: connect(_:) waits
             // indefinitely and fires didConnect when the strap powers on / returns
             // to range. Keep `peripheral` set so the discover guard blocks duplicates.
@@ -420,6 +444,13 @@ extension PolarH10BioPublisher: CBPeripheralDelegate {
                 if self.rrIntervals.count > self.maxRRIntervals {
                     self.rrIntervals.removeFirst()
                 }
+                // Only a beat that survives artifact rejection may fire the discrete
+                // event: it drives the visual/light pulse and the beat-sync path, so a
+                // dropped or doubled packet would show up as a phantom flash on stage.
+                // The window kept above stays RAW — `acceptedSegments` re-runs the same
+                // gate over it at publish time, which is what keeps the two paths from
+                // drifting apart.
+                guard self.beatGate.accept(intervalMs: rr * 1000.0) else { continue }
                 // Each RR interval marks one completed beat. Emit a
                 // discrete heartbeat event with real, low-latency
                 // timing — unlike deriving beats from the averaged HR

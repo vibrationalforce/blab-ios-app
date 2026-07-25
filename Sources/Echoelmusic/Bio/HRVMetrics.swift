@@ -53,4 +53,50 @@ public enum HRVMetrics {
         }
         return Double(nn50) / Double(rrMs.count - 1) * 100.0
     }
+
+    // MARK: - Segment-aware forms (after artifact rejection)
+
+    // RMSSD and pNN50 read CONSECUTIVE pairs, so they cannot be fed a series that has
+    // had bad beats deleted from the middle: the two survivors either side of a removed
+    // interval are not adjacent in time, and treating them as adjacent manufactures the
+    // very artifact the rejection removed. `RRIntervalHygiene.acceptedSegments` returns
+    // runs of genuinely consecutive intervals; these overloads pool differences only
+    // WITHIN a run. SDNN has no such constraint — it is a spread over the accepted NN
+    // intervals — so it simply flattens.
+
+    /// RMSSD in milliseconds over all WITHIN-segment successive differences.
+    /// Returns 0 when no segment holds a pair (the "unknown" convention above).
+    public static func rmssd(segments: [[Double]]) -> Double {
+        var sumSq = 0.0
+        var pairs = 0
+        for segment in segments where segment.count >= 2 {
+            for i in 1..<segment.count {
+                let d = segment[i] - segment[i - 1]
+                sumSq += d * d
+                pairs += 1
+            }
+        }
+        guard pairs > 0 else { return 0 }
+        return (sumSq / Double(pairs)).squareRoot()
+    }
+
+    /// SDNN in milliseconds over every accepted interval, gaps closed — a spread has no
+    /// adjacency requirement, so pooling across segments is the standard definition.
+    public static func sdnn(segments: [[Double]]) -> Double {
+        sdnn(rrMs: segments.flatMap { $0 })
+    }
+
+    /// pNN50 [0…100] over all WITHIN-segment successive differences.
+    public static func pnn50(segments: [[Double]]) -> Double {
+        var nn50 = 0
+        var pairs = 0
+        for segment in segments where segment.count >= 2 {
+            for i in 1..<segment.count {
+                if abs(segment[i] - segment[i - 1]) > 50.0 { nn50 += 1 }
+                pairs += 1
+            }
+        }
+        guard pairs > 0 else { return 0 }
+        return Double(nn50) / Double(pairs) * 100.0
+    }
 }
