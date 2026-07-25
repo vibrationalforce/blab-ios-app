@@ -84,39 +84,12 @@ public final class Transport {
     @ObservationIgnored private var stopSubs: [String: () -> Void] = [:]
     @ObservationIgnored private var lastStep = 0
 
-    /// H9b: the lock-free mirror hosted AUv3 plugins read their musical
-    /// context from (render-thread readers — see HostMusicalState). nil by
-    /// default so Transport stays pure in unit tests; the app wires `.shared`.
-    /// Written on every state change below — Transport is the ONE clock, so
-    /// this is the one write point. Wiring pushes the CURRENT state at once
-    /// (review MEDIUM: without it, plugins sat at tempo 120 until the next
-    /// user tempo edit if anything set tempo before the wire).
-    @ObservationIgnored public var hostStateMirror: HostMusicalState? {
-        didSet {
-            syncHostMirror()
-            hostStateMirror?.resetSamplePosition(
-                toBeat: HostBeatMath.beats(fromAbsoluteStep: position.absoluteStep,
-                                           stepsPerBeat: Self.stepsPerBeat))
-        }
-    }
-
     public init() {}
-
-    /// Push the current control-plane state into the host mirror (call after
-    /// every mutation — cheap plain stores).
-    private func syncHostMirror() {
-        guard let m = hostStateMirror else { return }
-        m.tempo = tempo
-        m.isPlaying = isPlaying
-        m.beatPosition = HostBeatMath.beats(fromAbsoluteStep: position.absoluteStep,
-                                            stepsPerBeat: Self.stepsPerBeat)
-    }
 
     // MARK: - Tempo / swing (clamped exactly like PatternEngine)
 
     public func setTempo(_ bpm: Double) {
         tempo = Swift.min(Swift.max(bpm, Self.minTempo), Self.maxTempo)
-        syncHostMirror()
     }
 
     public func setSwing(_ amount: Double) {
@@ -129,29 +102,20 @@ public final class Transport {
         position = .zero
         lastStep = 0
         isPlaying = true
-        syncHostMirror()
-        hostStateMirror?.resetSamplePosition(toBeat: 0)
     }
 
     public func stop() {
         isPlaying = false
         position = .zero
         lastStep = 0
-        syncHostMirror()
-        hostStateMirror?.resetSamplePosition(toBeat: 0)
         for cb in stopSubs.values { cb() }
     }
 
     /// Jump to a position without changing play state (arrangement / loop seek).
-    /// A seek IS a relocation — the mirror's sample position jumps honestly.
     public func seek(toBar bar: Int, step: Int = 0) {
         let s = Swift.min(Swift.max(step, 0), Self.stepsPerBar - 1)
         position = TransportPosition(bar: bar, step: s)
         lastStep = s
-        syncHostMirror()
-        hostStateMirror?.resetSamplePosition(
-            toBeat: HostBeatMath.beats(fromAbsoluteStep: position.absoluteStep,
-                                       stepsPerBeat: Self.stepsPerBeat))
     }
 
     // MARK: - Tick
@@ -161,25 +125,11 @@ public final class Transport {
     /// sequencer + ArrangementPlayer already use. Notifies step subscribers in
     /// priority order. Driven externally today (PatternEngine will relay here).
     public func tick(step: Int) {
-        let oldAbsoluteStep = position.absoluteStep
         let s = ((step % Self.stepsPerBar) + Self.stepsPerBar) % Self.stepsPerBar
         var bar = position.bar
         if s == 0 && lastStep != 0 { bar += 1 }
         position = TransportPosition(bar: bar, step: s)
         lastStep = s
-        syncHostMirror()
-        // H9b sample position: ACCUMULATE one step at the tempo it actually
-        // played (monotone under tempo glides — review HIGH); a non-sequential
-        // tick is a relocation and jumps honestly instead.
-        if let m = hostStateMirror {
-            if position.absoluteStep == oldAbsoluteStep + 1 {
-                m.advanceSamplePosition(bySteps: 1, stepsPerBeat: Double(Self.stepsPerBeat))
-            } else {
-                m.resetSamplePosition(
-                    toBeat: HostBeatMath.beats(fromAbsoluteStep: position.absoluteStep,
-                                               stepsPerBeat: Self.stepsPerBeat))
-            }
-        }
         for sub in stepSubs { sub.cb(position) }
     }
 

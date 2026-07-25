@@ -111,12 +111,9 @@ struct EchoelmusicApp: App {
     @State private var audioInputs = AudioInputManager()
     /// Universal signal router (patchbay): typed routes across all channels, persisted.
     @State private var signalRouter = SignalRouter()
-    /// The parameter-unification spine (U2c): one registry (queryable inventory)
-    /// + one router (keyPath → live setter). Shared by the AUv3 host (hosted-plugin
-    /// params register/bind on load) and the AutomationPlayer (extra registry lanes
-    /// dispatch through it) — so per-track automation is identical for internal and
-    /// hosted parameters. Constructed in init (router depends on registry).
-    @State private var parameterRegistry: EchoelParameterRegistry
+    /// The parameter-apply spine (U2c): a router (keyPath → live setter) the
+    /// AutomationPlayer dispatches through, so per-track automation reaches every
+    /// internal DDSP parameter through one path. Constructed in init.
     @State private var parameterRouter: ParameterApplyRouter
     /// Broadcast (RTMP/SRT) publisher — the phone-native stream-out pillar.
     @State private var broadcast = BroadcastPublisher()
@@ -206,12 +203,11 @@ struct EchoelmusicApp: App {
         _store = State(wrappedValue: EchoelStore())
         _beatPlayer = State(wrappedValue: BeatPlayer())
         _bus = State(wrappedValue: EngineBus())
-        // Parameter-unification spine (U2c): tiny control-plane objects, no I/O.
-        // The registry seeds with the internal DDSP inventory; hosted-plugin params
-        // join on load via AUv3Host's bridge. The router binds keyPath → live setter.
+        // Parameter-apply spine (U2c): tiny control-plane objects, no I/O.
+        // The registry seeds with the internal DDSP inventory; the router binds
+        // keyPath → live setter so automation reaches each parameter.
         let paramRegistry = EchoelParameterRegistry()
         paramRegistry.register(DDSPParameterCatalog.descriptors)
-        _parameterRegistry = State(wrappedValue: paramRegistry)
         _parameterRouter = State(wrappedValue: ParameterApplyRouter(registry: paramRegistry))
         EchoelCrashLog.breadcrumb("init c: bio publishers")
         #if canImport(HealthKit)
@@ -492,12 +488,6 @@ struct EchoelmusicApp: App {
                 // PatternEngine relays each pulse into the authoritative Transport
                 // (additive mirror; existing onStep/onTick stay the live path).
                 beatPlayer.pattern.transport = transport
-                // H9b (review HIGH): Transport feeds the lock-free mirror hosted
-                // plugins read tempo/beat/play-state from. Wired HERE, flag-free:
-                // AUHostContext.install is unconditional on every hosted AU, so a
-                // gated wire would freeze plugins at tempo-120/stopped whenever
-                // that flag is off — worse than no context at all.
-                transport.hostStateMirror = .shared
                 #if canImport(CoreHaptics)
                 // Eyes-free transport: every quarter-note pulses the body (no-op
                 // until the user arms haptics). Lowest-priority subscriber so it

@@ -348,15 +348,6 @@ public final class AudioEngine {
             return
         }
 
-        // H9b: hosted plugins' transportStateBlock estimates sample positions
-        // from the mirror — give it the real graph rate (main-actor write).
-        // Lifetime = the GRAPH's connection format: valid until the engine is
-        // rebuilt, and every rebuild re-runs this setup (recoverEngine → start
-        // → setup). A keep-running config change doesn't alter the connection
-        // format, so no re-stamp is needed there (review LOW) — if a future
-        // route-resilience edit ever reformats a LIVE graph, re-stamp with it.
-        HostMusicalState.shared.sampleRate = processingFormat.sampleRate
-
         masterEngine.connect(masterPlayerNode, to: masterMixer, format: processingFormat)
         // Insert AutoMixChain: masterMixer → EQ → gainNode → mainMixerNode
         autoMixChain.insert(
