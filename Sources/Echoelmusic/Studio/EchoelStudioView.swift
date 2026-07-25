@@ -1678,15 +1678,15 @@ struct EchoelStudioView: View {
     /// colours tempo/dynamics. Honest score: closeness of realized density to the
     /// body's requested busy-ness (a number, not a health claim).
     private var variationsCard: some View {
-        mixStripCard("Variationen") {
+        mixStripCard("Variations") {
             HStack(spacing: 8) {
                 Text(mazeBoard == nil
-                     ? "Varianten desselben Grooves — dein Körper kuratiert, du wählst."
-                     : "Ideen aus deinem Puls — tippen zum Übernehmen. Dein Körper will \(densityWord(mazeBoard?.targetDensity ?? 0)).")
+                     ? "Variations of the same groove — your body curates, you pick."
+                     : "Ideas from your pulse — tap to keep. Your body wants \(densityWord(mazeBoard?.targetDensity ?? 0)).")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Button(mazeBoard == nil ? "Erkunden" : "Neu") { exploreVariations() }
+                Button(mazeBoard == nil ? "Explore" : "New") { exploreVariations() }
                     .buttonStyle(.plain)
                     .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
                     .padding(.horizontal, 12).frame(height: 30)
@@ -1743,10 +1743,10 @@ struct EchoelStudioView: View {
     /// meaning, not a bare number.
     private func densityWord(_ d: Double) -> String {
         switch d {
-        case ..<0.25: return "etwas Sparsames"
-        case ..<0.5:  return "einen ruhigen Groove"
-        case ..<0.75: return "einen vollen Groove"
-        default:      return "etwas Dichtes"
+        case ..<0.25: return "something sparse"
+        case ..<0.5:  return "a calm groove"
+        case ..<0.75: return "a full groove"
+        default:      return "something dense"
         }
     }
 
