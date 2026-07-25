@@ -147,24 +147,31 @@ beim Founder für die großen Slices).
     decodeIfPresent-GESETZ schützt nur die GEGENrichtung (hartes decode eines ABWESENDEN Keys). Also:
     Props + Init-Params + die 2 decodeIfPresent-Zeilen droppen, KEIN CodingKey-Retain nötig, NIE in ein
     hartes `try decode` verwandeln. Reihenfolge hart 2d-1 → 2d-2 (Consumer VOR dem gekoppelten Trio).
-    - ▶ **2d-1 — Consumer der persistierten Felder weg (dieser Zyklus):** `ArrangeTimelineView`
+    - ✅ **2d-1 — Consumer der persistierten Felder weg GESHIPPT (e280a1f, Gates grün):** `ArrangeTimelineView`
       (pluginAssignmentSummary + Puzzle-Icon + a11y-Klausel raus; Spurkopf-Caption jetzt
       `lane.builtinInstrument?.displayName`), `LaneInstrumentLabel.swift` + Test gelöscht (Zweck war
       AUv3-Belegungs-Legibilität), `MultiRollFanout.instrument(forSlot:)` + Test raus (kein Live-Caller).
-      Modell (`AUPluginRef`, `TimelineLane.instrument/effects`, `TimelineStore.setLaneX`) BLEIBT → grün,
+      Modell (`AUPluginRef`, `TimelineLane.instrument/effects`, `TimelineStore.setLaneX`) BLIEB → grün,
       Null-Persistenz-Risiko. code + ui-state-reviewer.
-    - **2d-2 — das gekoppelte Trio (DATA-LOSS-kritisch, einzelner Commit):** `TimelineLane.instrument/effects`
-      Props/Init/decode raus (Legacy-JSON-Roundtrip-Test ZUERST), `TimelineStore.setLaneInstrument/setLaneEffects`
-      raus, `AUPluginRef.swift` + `AUParameterMapping.swift` + `AUParameterBridge.swift` löschen (Registry/
-      `EchoelParameterRegistry`/`ParameterApplyRouter` BLEIBEN — sauberer Split verifiziert), Tests
+    - ✅ **2d-2 — das gekoppelte Trio GESHIPPT (304f750, DATA-LOSS-kritisch, CI/CD grün = der echte Beweis):**
+      `TimelineLane.instrument/effects` Props/Init/decode raus (Legacy-JSON-Roundtrip-Test ZUERST in
+      TimelineDecodeTests — decode ignoriert unbekannte Keys, nie hartes `try decode`), `TimelineStore.setLaneInstrument/
+      setLaneEffects` raus, `AUPluginRef.swift` + `AUParameterMapping.swift` + `AUParameterBridge.swift` gelöscht
+      (`EchoelParameterRegistry`/`ParameterApplyRouter` BLIEBEN — sauberer Split verifiziert), Tests
       AUParameterMapping/Bridge + TimelineLaneAUAssignment (3 Klassen). Persistence-Steward.
-    - **2d-3 — toter Engine-Code + write-only Mirror + App-@State:** 10 tote AudioEngine-AU-Methoden
-      (+ auChainFormat/masterFXFormat/withGraphPaused) raus; `HostMusicalState` ist NUR-SCHREIB tot
-      (AUHostContext war einziger Leser) → Chirurgie: `Transport.hostStateMirror`/`syncHostMirror`/6
-      advance-reset-Sites + AudioEngine:358 + EchoelmusicApp:500-Wire + HostMusicalState.swift + Test raus;
-      totes `parameterRegistry`-@State (EchoelmusicApp:119/214) + Stale-Kommentare. audio-thread-reviewer.
-    - **2d-4 — Entitlement + CI:** `inter-app-audio` aus Echoelmusic.entitlements (verwaist, kein
-      Signing-Bruch; project.yml unberührt), tote testflight.yml-AUv3-Diagnose-Steps (458-509, 634-692).
-      security-agent (Signing).
-  - Schutz: `attachInstrument(_:AVAudioUnit)` (AudioEngine:777) + `HostMusicalState` sind die
-    ZWEI Stellen, wo ein Hosting-Schnitt in Eigen-Sound bluten könnte — Restnutzer erst prüfen.
+    - ✅ **2d-3a — toter AudioEngine-AU-Code GESHIPPT (0315f9a, beide Gates grün):** 10 tote AU-Graph-Methoden
+      (attachInstrument-Graph-Pfad, attach/detachAU, connect/disconnect-Varianten, effects-Format-Prüfer,
+      auChainFormat/masterFXFormat/rewireMasterFX) via Python-Range-Delete raus (183 del/0 add). KEEP:
+      attach/detachSourceNode, beide attach/detachPlayerNode-Overloads, captureRecentMixAudio, prepareGraph.
+    - ✅ **2d-3b — write-only HostMusicalState-Mirror + App-@State GESHIPPT (c3b3666, Gates laufen):**
+      `HostMusicalState.swift` (+`HostBeatMath`) + Test gelöscht (AUHostContext war einziger Leser, in 2c-ii weg);
+      `Transport.hostStateMirror`/didSet/`syncHostMirror`/alle Mirror-Writes aus setTempo/play/stop/seek/tick
+      (inkl. `oldAbsoluteStep` + Sample-Position-Akkumulation) raus — `tick()` byte-verhaltensgleich minus Mirror,
+      `stepSubs`/`stopSubs` unangetastet; `AudioEngine`-`sampleRate`-Write + `EchoelmusicApp`-`.shared`-Wire +
+      totes `parameterRegistry`-@State raus. audio-thread-reviewer CLEAN (0 Nicht-Mirror-Leser der Sample-Position).
+    - **2d-4 — Entitlement + CI (LETZTE Sub-Slice, geplant 07:27Z-Trigger):** `inter-app-audio` aus
+      Echoelmusic.entitlements (verwaist, kein Signing-Bruch; project.yml unberührt), tote
+      testflight.yml-AUv3-Diagnose-Steps (~458-509, 634-692). security-agent (Signing). → schließt Slice 2.
+  - Schutz (ERLEDIGT): `attachInstrument(_:AVAudioUnit)` (in 2d-3a raus) + `HostMusicalState` (in 2d-3b raus)
+    waren die zwei Stellen, wo ein Hosting-Schnitt in Eigen-Sound hätte bluten können — beide sauber
+    entfernt, Rest-Nutzer per Grep + audio-thread-reviewer als null bestätigt. Kein Eigen-Sound-Pfad berührt.
