@@ -1575,11 +1575,29 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // HEARTBEAT (V3, deepened): the body must VISIBLY drive the picture ("dein Herzschlag
         // treibt es an", not a faint flicker). Breath sets the resting glow; each heartbeat
         // both BRIGHTENS the central bloom AND EXPANDS its radius, so the pulse reads as a
-        // clear expanding bloom. Flash-safe: `phase` is integrated from a ≤2.5 Hz clock
-        // (< WCAG 3 Hz), so even the larger swing can never strobe.
+        // clear expanding bloom.
+        //
+        // ⚠ FLASH LAW (2026-07-25, founder-approved trade-off). The old comment here said
+        // "`phase` is integrated from a ≤2.5 Hz clock (< WCAG 3 Hz), so even the larger
+        // swing can never strobe" — that reasoning is WRONG and it is the same mistake
+        // that let `fieldRings` ship at 5 Hz. This bloom runs at the FULL phase rate while
+        // the field runs at its own damped rate, and the two are ADDED into `energy`. At
+        // radii where their peaks do not coincide a pixel sees TWO maxima per cycle — the
+        // union of both flash counts, up to ~5/s — over a region that can cover the
+        // screen. A clamped input does not protect an additive superposition.
+        //
+        // Fix chosen over slowing the heartbeat (which would read as a pulse every SECOND
+        // beat): hold the bloom's own brightness swing BELOW the WCAG general-flash
+        // threshold, so its transitions do not qualify and only the field's rate counts.
+        // The RADIUS pulse below is deliberately left at full strength — the beat still
+        // visibly expands, which is what reads as "dein Herzschlag treibt es an".
+        // Swing comes from `FlashGuard.bloomBeatGainSwing` (interpolated, not copied) and
+        // must satisfy swing × restGlowMax × (1−ambient) × sCurveGain < 0.10; see that
+        // constant's doc for why 0.50 was NOT enough (the filmic S-curve lifts contrast
+        // by 1.06 and has to be counted).
         float beat = 0.5 - 0.5 * cos(phase);            // 0…1 once per heartbeat
         float restGlow = 0.07 + 0.14 * u.breath;        // breath = resting swell
-        float beatGain = 0.55 + 0.80 * beat;            // ~0.55…1.35 (was 0.80…1.00 — 4× swing)
+        float beatGain = 0.80 + \(FlashGuard.bloomBeatGainSwingLiteral) * beat;  // 0.80…1.22
         float bloomEdge = (0.44 + 0.24 * beat) * spread; // radius pulses with the beat
         float bloom = restGlow * beatGain * smoothstep(bloomEdge, 0.0, d);
 

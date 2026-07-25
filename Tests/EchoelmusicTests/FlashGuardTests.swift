@@ -97,6 +97,36 @@ final class FlashGuardTests: XCTestCase {
         XCTAssertLessThanOrEqual(hz, FlashGuard.maxFlashHz)
     }
 
+    /// The heartbeat bloom is an ADDITIVE second oscillator at the FULL phase rate, so
+    /// `effectiveFieldHz` cannot bound it (its model is one oscillator). Instead its own
+    /// luminance swing is held under the WCAG general-flash threshold, which makes its
+    /// transitions not qualify as flashes. This asserts that product from the shader's
+    /// documented constants — and it is the guard that catches the mistake actually made
+    /// while implementing it: 0.50 looked fine until the filmic S-curve's 1.06 contrast
+    /// lift was counted, which pushed it back over the gate.
+    func testBloomBeatSwingStaysUnderTheGeneralFlashThreshold() {
+        let restGlowMax = 0.21          // MetalBioView: 0.07 + 0.14 · breath, breath ≤ 1
+        let oneMinusAmbient = 0.94      // outCol = col · (0.06 + 0.94 · energy)
+        let sCurveGain = 1.06           // filmic S-contrast at the end of the shader
+        let delta = FlashGuard.bloomBeatGainSwing * restGlowMax * oneMinusAmbient * sCurveGain
+        XCTAssertLessThan(delta, FlashGuard.luminanceDeltaThreshold,
+                          "bloom swings \(delta) relative luminance per beat — at or over "
+                          + "the WCAG general-flash gate, so it becomes a second "
+                          + "qualifying flash on top of the field")
+        // Guard the guard: the previously-attempted 0.50 must still be shown as failing,
+        // so nobody "restores" it thinking the threshold has room.
+        XCTAssertGreaterThan(0.50 * restGlowMax * oneMinusAmbient * sCurveGain,
+                             FlashGuard.luminanceDeltaThreshold)
+    }
+
+    func testBloomSwingLiteralMatchesTheConstant() {
+        XCTAssertEqual(Double(FlashGuard.bloomBeatGainSwingLiteral),
+                       FlashGuard.bloomBeatGainSwing)
+        XCTAssertTrue(FlashGuard.bloomBeatGainSwingLiteral.allSatisfy {
+            $0.isNumber || $0 == "." || $0 == "-"
+        })
+    }
+
     /// THE LAW, as a table: every user-selectable look must stay at or under 3 Hz at
     /// the maximum phase rate the renderer can integrate (2.5 Hz).
     ///

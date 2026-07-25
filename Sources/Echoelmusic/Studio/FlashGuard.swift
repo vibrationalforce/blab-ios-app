@@ -51,6 +51,29 @@ public enum FlashGuard {
     /// `FlashGuardTests` asserts the two agree.
     public static let ringsPhaseDampingLiteral = "0.5"
 
+    /// How much the heartbeat may swing the central bloom's BRIGHTNESS
+    /// (`MetalBioView`'s `beatGain = base + swing·beat`). Founder-approved 2026-07-25.
+    ///
+    /// Why it is bounded at all: the bloom runs at the FULL phase rate while the field
+    /// runs at its own damped rate, and the two are ADDED. At radii where their peaks
+    /// do not coincide a pixel sees two maxima per cycle — the union of both flash
+    /// counts, up to ~5/s. Rather than slow the heartbeat (which would read as a pulse
+    /// every second beat) the bloom's own swing is held BELOW the WCAG general-flash
+    /// threshold, so its transitions do not qualify as flashes and only the field's
+    /// rate counts. The bloom's RADIUS pulse is deliberately untouched: the beat still
+    /// visibly expands, which is the part that reads as "your heartbeat drives it".
+    ///
+    /// The number: worst-case luminance delta =
+    /// `swing × restGlowMax(0.21) × (1 − ambient)(0.94) × sCurveGain(1.06)`.
+    /// At 0.42 → 0.088, i.e. 12 % under the 0.10 gate. NOTE the S-curve factor — the
+    /// first attempt used 0.50 and landed at 0.105, still OVER, because the filmic
+    /// contrast lift at the end of the shader was not counted. Any change here must
+    /// re-run that product; `FlashGuardTests` asserts it.
+    public static let bloomBeatGainSwing: Double = 0.42
+
+    /// The same value as an exact Metal token (see `ringsPhaseDampingLiteral`).
+    public static let bloomBeatGainSwingLiteral = "0.42"
+
     /// The rate a visual FIELD actually flashes at — which is NOT always the rate
     /// its phase is integrated at, and that gap shipped a WCAG violation.
     ///
