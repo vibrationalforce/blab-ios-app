@@ -90,6 +90,21 @@ beim Founder für die großen Slices).
 - #120 Metronom, #104/105/106 Roadmap (Loop/Master-Stem/Video-Export): OBSOLET durch den Cut.
 - EchoelStore/Push/CloudKit: unberührt (dormant), separat.
 
+## SLICE-6-ZUSATZ (Fund aus dem #131-Sheet-Audit 2026-07-25) — die LÜGENDE Tool-Liste
+
+`EchoelStudioView` trägt noch einen TOTEN Tür-Mechanismus, der aktiv in die Irre führt:
+- `toolsSection` (`:926`) existiert als View-Builder (`gridChip { openTool(t.id) }`), ist aber NICHT
+  im Body komponiert (Kommentar `:365`: „pure dead weight on the 21-modal metadata chain").
+- `toolItems` (`:866`) bewirbt weiter **`pianoroll`**, **`sound`** (= Patch-Editor), `automation`,
+  `audioclip`, `plugins`, `broadcast`.
+- `openTool` (`:898`) hat für KEINEN dieser sechs einen Case → `default: break`.
+- Der selbst dokumentierte Invariant `:865` („guards their action in `openTool`, so a tool never
+  appears without a live action") ist damit **VERLETZT**. Ein Re-Mount der Grid würde sechs Chips
+  zeigen, die stumm nichts tun.
+→ Slice 6: entweder löschen (toolItems/openTool/toolsSection/ToolItem/ToolCat/gridChip) ODER den
+Invariant wiederherstellen. **NICHT** die Grid re-mounten, um #131 zu lösen — #131 nutzt den LEBENDEN
+`.echoelChromeDoor`-Router (Plan: `scratchpads/PLAN_REDOOR_CRAFT_TOOLS_2026-07-25.md`).
+
 ## SLICE-6-LISTE (kumuliert aus den 4b/4c/4d-Reviews — nichts still verwaisen lassen)
 
 Von den Slice-4-Löschungen verwaist, alle Workstation-Rest (kein Keeper):
