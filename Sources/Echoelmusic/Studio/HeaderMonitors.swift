@@ -337,6 +337,10 @@ struct ImmersiveMonitorMini: View {
 struct EchoelLuxMonitorMini: View {
     @Environment(SignalRouter.self) private var router
     @Environment(EngineBus.self) private var bus
+    /// Flash-safety + accessibility (WCAG epilepsy ≤3 Hz): freeze the music-driven
+    /// hue animation when the system Reduce Motion setting is on. Mirrors the sibling
+    /// `ImmersiveMonitorMini` (#112) — the always-on chrome must obey the same law.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var luxActive: Bool {
         #if canImport(Network)
@@ -353,8 +357,24 @@ struct EchoelLuxMonitorMini: View {
         } label: {
             Group {
                 if luxActive {
-                    TimelineView(.animation(minimumInterval: 1.0 / 10.0)) { _ in
+                    if reduceMotion {
+                        // Reduce Motion → drop the animation timer entirely; the colour
+                        // then changes only when a new musical frame is published (via the
+                        // observed `latestMusical`), never on a synthetic clock.
                         Self.lightColor(mf: bus.freshMusical(maxAge: 1.5))
+                    } else {
+                        // Reduce the synthetic redraw timer from 10 Hz to 2.5 Hz (the app's
+                        // MetalBioView/ImmersiveMonitorMini ceiling) + honour Reduce Motion
+                        // above — bringing this tile to the SAME flash policy as its sibling
+                        // (#112). HONEST CAVEAT: like the sibling, the music-driven hue is a
+                        // content signal (chord × dimmer), not a synthetic oscillator — the
+                        // observed `latestMusical` read still re-renders at the musical-frame
+                        // rate, so this timer bounds the synthetic redraws, not a hard ≤3 Hz
+                        // content-flash cap. A true content slew (applied to BOTH tiles) is a
+                        // separate follow-up; this slice reaches sibling parity.
+                        TimelineView(.animation(minimumInterval: 1.0 / 2.5)) { _ in
+                            Self.lightColor(mf: bus.freshMusical(maxAge: 1.5))
+                        }
                     }
                 } else {
                     ZStack {
