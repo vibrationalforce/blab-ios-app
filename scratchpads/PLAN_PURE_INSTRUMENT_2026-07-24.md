@@ -217,3 +217,31 @@ beim Founder für die großen Slices).
       Shader inline). `BioColorGradeParams` BLEIBT (nur Kommentar-Ref). code-reviewer + Xcode Compile Check.
   - Protection-Gate je Slice: rPPG-Bio-Input (CameraAnalyzer/CameraCapture/PulsePeriodEstimator/RPPGConditioning) +
     Visuals (MetalBioView/FloatingVisual/BioVisualParams) + Rausch-Triad + (rec A) VisualRecorder/VideoRecorder/VideoMuxer UNBERÜHRT.
+
+- ▶ **Slice 4 (DAW-UI-Removal) — GEPLANT 2026-07-25 (planning-agent + Council), REINER DEAD-CODE-SWEEP, 4 Sub-Slices.**
+  **Ground-Truth-Verdikt: #124 IST fertig** — `WorkspaceView.body`:156 → `SurfaceHost`:129-133 mountet NUR `EchoelStudioView()`; die
+  Arrange-Timeline + `SurfaceSwitcherBar` + alle DAW-Surfaces sind bereits UNMOUNTED. **Kein Navigations-/Rewire-Edit in Slice 4** —
+  nur Löschung der jetzt-unerreichbaren Surface-Dateien. Kein `Codable`/Persistenz-Key berührt → **kein persistence-steward nötig** (das
+  Modell ist Slice 5).
+  - Boundary-Entscheidungen (evidenzbelegt):
+    - **(A) Instrument behält KEINE Timeline/Clip/Arrangement-Fläche.** `AudioClipView` (Audio-Datei-Import) → **CUT** (erzeugt Timeline-
+      Audio-Regions, die der Slice-5-`TimelineRegionPlayer` spielt — ohne Timeline kein Zuhause; DAW, nicht Instrument). **1-Zeilen-Founder-
+      Confirm beim Freeze-Lift** (wie VisualRecorder). „Eigenen Sound importieren" überlebt via `SampleBrowserView` (per-Drum-Pad, BLEIBT).
+      `PianoRollView` (Instrument-Noten-Editor) NICHT im Cut. `AutomationView`/`ClipAutomationView` (manuelle Automations-Editoren) → CUT;
+      generative Bio-Operatoren/Variation-Maze BLEIBEN, `AutomationCanvasMath` (pure) BLEIBT. `BodyVibeSurfaceView` (per-Lane) → CUT der VIEW,
+      die EchoelBodyVibe-Voice/Engine UNBERÜHRT.
+    - **(B) Kein Rewire** — reiner Sweep. `SurfaceSwitcherBar` + `WorkspaceSurface`-Enum (unmounted Nav-Gerüst, `@AppStorage("workspace.surface")`) → **Slice 6**.
+  - **KEEP (nicht in Slice 4 anfassen):** `ChannelRackView` (live Drum-Mix, `EchoelStudioView:1510`), `PianoRollView`, `TransportPositionView`
+    (`WorkspaceView:472`, Always-on-Transport), `TimelineAutomationRow.swift` (dessen `TimelineAutomationRowMath` LIVE in `TimelineStore:718`;
+    Orphan-View-Structs → Slice 6), `SampleBrowserView`, `PatchbayView` (Routing, kein DAW-Timeline). ArrangementView existiert nicht mehr (Plan-§C-Phantom).
+  - **Sub-Slices (consumer-first: der Top-Consumer `ArrangeTimelineView` zuerst, dann sind die Leaf-Editoren Orphans):**
+    - **4a — `ClipView.swift` löschen** (219 Z, unabhängige tote Surface, 0 Mount-Sites; `ClipTests` refs nur Kommentar). code-reviewer.
+    - **4b — `ArrangeTimelineView.swift` (2432 Z) + `BodyVibeSurfaceView.swift` (126 Z) löschen (EINE kohärente Löschung** — BodyVibe:74 nutzt
+      `LaneCompositionSection`, das IN ArrangeTimelineView lebt). Typen: ArrangeTimelineView/RegionBlockView/LaneFXEditor/LaneCompositionSection/
+      TimelinePlayhead/PlayheadMarker + BodyVibeSurfaceView; `ArrangeModal`-Sheet-Enum stirbt mit. Leaf-Editoren haben KEINE Code-Ref zurück
+      (nur Kommentare) → kompilieren als Orphans. `.environment(TimelineStore/ClipStore/…)`-Injektionen BLEIBEN (noch von `TransportBar.toggle()`
+      genutzt). ui-state-reviewer + code-reviewer.
+    - **4c — `AudioClipView.swift` (471 Z, +WaveformTrimEditor) löschen** (Orphan nach 4b). **Trägt den Founder-Confirm-Flag aus (A).** code-reviewer.
+    - **4d — `AutomationView.swift` (412 Z) + `ClipAutomationView.swift` (299 Z) löschen** (Orphans nach 4b; `AutomationCanvasMath` UNBERÜHRT). code-reviewer.
+  - Delete-Rule je Slice: jeden deklarierten Top-Level-Typ greppen (0 Live-Consumer) VOR rm. Keine Test-Löschung (die toten Views haben keine eigenen Tests;
+    `ClipTests`/`TimelineAutomationRowTests`/`TimelineStoreAutomationEditTests` müssen weiter kompilieren — testen KEEP-Modell/Math).
