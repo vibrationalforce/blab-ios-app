@@ -141,21 +141,140 @@ mehr)" war RICHTIG im Alarm, aber ZU PAUSCHAL. Die zwei Decode-Stellen verhalten
   `kind = (try? c.decode(ClipKind.self, forKey: .kind)) ?? .midi` — `try?` schluckt den Fehlschlag.
   Fällt `ClipKind.video` weg, decodiert ein persistierter `"video"`-Clip als `.midi` weiter.
   **Kein Crash, kein Dokumentverlust** (der verwaiste `mediaRef` ist harmlos, es spielt nichts mehr Video).
-- ⛔ **`TimelineLane.kind` (`Sequencer/Timeline.swift:145`) ist die ECHTE Falle:**
-  `kind = try c.decodeIfPresent(ClipKind.self, forKey: .kind) ?? .midi` — **`decodeIfPresent` liefert nur
-  bei FEHLENDEM Key `nil`; bei VORHANDENEM, aber unbekanntem Wert WIRFT es** (`dataCorrupted`), und hier
-  fängt kein `try?` → der Throw propagiert → **das GANZE `TimelineDocument` decodiert nicht mehr = Verlust
-  des Projekts.** Das ist genau das CLAUDE.md-Gesetz („NIEMALS einen entfernten persistierten Key in ein
-  hartes `try decode` verwandeln") — hier in der Variante `decodeIfPresent` + `try`.
-  **Fix VOR jeder Enum-Entfernung:** auf `(try? c.decode(...)) ?? .midi` angleichen (identisch zu `Clip`),
-  mit einem Test, der ein Dokument mit `"kind":"video"` einliest und `.midi` erwartet.
-- `RecordSource.videoCapture` (`Sequencer/TrackInstrument.swift:108/112`): `recordSource` ist eine
-  BERECHNETE `var` (:71) — Persistenz-Pfad noch zu verifizieren im Slice-5-Plan (vermutlich abgeleitet,
-  also unkritisch). NICHT ungeprüft anfassen.
+- ⚠ **`TimelineLane.kind` (`Sequencer/Timeline.swift:145`) ist die Falle — Mechanismus bestätigt,
+  SCHADENSRADIUS von mir zu hoch angesetzt (Persistence-Steward-Audit 2026-07-25 korrigiert mich):**
+  `kind = try c.decodeIfPresent(ClipKind.self, forKey: .kind) ?? .midi` — `decodeIfPresent` liefert nur
+  bei FEHLENDEM/`null` Key `nil`; bei VORHANDENEM, aber unbekanntem Wert **wirft** es (`dataCorrupted`).
+  **ABER es GIBT ein umschließendes `try?`:** `TimelineDocument` decodiert seine Arrays über den
+  `Lossy<T>`-Wrapper (`Timeline.swift:392-395`, `lossyArray` :400-405, angewandt :413-418), der pro
+  ELEMENT fängt — belegt durch den existierenden Test `TimelineDecodeTests.swift:118`
+  („corruptLaneElement_isDropped_restSurvive"). `TimelineStore.swift:32` ist die einzige Decode-Stelle,
+  es gibt keinen ungeschützten Pfad.
+  **Korrigierte Folge: KEIN Projektverlust (nicht CRITICAL), sondern HIGH —** die `"video"`-Spur
+  **verschwindet still**, ihre `TimelineRegion`s überleben aber (Regionen decodieren eigenständig :416 und
+  tragen kein `kind`) → **verwaiste, unsichtbare, unspielbare Regionen bleiben in der Datei.** Symptom für
+  den Nutzer: eine Spur ist ohne Fehlermeldung aus dem Song verschwunden.
+  **Der Fix bleibt trotzdem Pflicht** — eine still gelöschte Spur verletzt das Gesetz genauso, und der
+  Kommentar `Timeline.swift:138-142` behauptet ausdrücklich, `kind` sei „nach dem decodeIfPresent-LAW"
+  verteidigt, was für Wert-Änderungen falsch ist. Die Herabstufung darf den Fix NICHT abbestellen.
+- ⛔ **Slice 5a muss DREI Zeilen fixen, nicht eine** (Steward-Fund, alle in `TimelineLane.init(from:)`,
+  alle nach Haus-Idiom A `(try? c.decode(...)) ?? default`, Fallback unverändert → Round-trip bit-identisch):
+  - `:145` `kind` (`ClipKind`) · `:154` `builtinInstrument` (`TrackInstrument`, Fallback ist schon `nil`)
+  - `:160` `genreOverride` (`MusicStyle`) — **relevant, weil die Genre-Kuration (#125) Genres streichen
+    könnte**; degradiert zu `nil` = „folge der globalen Auswahl", exakt der dokumentierte Default.
+  - optional `:161` `mood` (`MoodProfile`, `BioComposer.swift:78-99`) — **synthetisiertes** `Codable`, alle
+    acht `Float` sind PFLICHT-Keys → ein partielles Mood-Objekt wirft und die Spur fällt weg. Nicht von der
+    Enum-Entfernung getriggert, aber die letzte ungeschützte Stelle und der billigste Begleit-Fix.
+  - Plus: Kommentar `:138-142` korrigieren + Decode-Tests in `TimelineDecodeTests.swift`. Der Test muss
+    prüfen, dass die Spur **erhalten** bleibt (`lanes.count == 1`, `kind == .midi`) — nicht bloß, dass das
+    Dokument überlebt, denn das tut es heute schon durch Wegwerfen der Spur.
+- ✅ **`RecordSource.videoCapture` GEKLÄRT: NUR ABGELEITET, nie persistiert** — `recordSource` ist überall
+  eine berechnete `var` (`TrackInstrument.swift:71`, `Timeline.swift:123-132`), steht in keinem `CodingKeys`,
+  kein Stored Property dieses Typs existiert. Entfernen ist persistenz-sicher. **Kopplung:**
+  `Timeline.swift:129` (`case .video: return .videoCapture`) → `ClipKind.video` und `.videoCapture` müssen
+  im GLEICHEN Commit fallen, sonst kompiliert der Switch nicht.
+- ✅ **KEIN `schemaVersion` einführen** (Steward-Empfehlung, gut begründet): das `SpatialScene`-„Vorbild" ist
+  eine Warnung, kein Muster — es hat NULL Migrations-Branch, wird laut Grep in `Sources/` überhaupt nie
+  persistiert (`SpatialSceneStore.swift:33` baut es zur Laufzeit neu), und sein Decoder ist der
+  undefensivste im Repo (voll synthetisiert = Pflicht-Keys). Ein als Pflichtfeld hinzugefügtes
+  `schemaVersion` wäre **selbst eine neue Falle** (jedes ältere Dokument hat den Key nicht → der
+  Versions-Check wirft, bevor irgendeine Migration läuft). Feldweise Defensive ist ZUSTANDSLOS und scheitert
+  sichtbar im Test; eine Versionsnummer ist Disziplin über Sessions hinweg — bei Ralph-Takt + Kontext-
+  Kompaktierung ist eine nicht-gebumpte Version schlimmer als keine. Falls je gewünscht: nur als
+  `decodeIfPresent ?? 0` für Diagnose, NIE den Decode daran hängen.
 
-→ Slice 5 braucht daher: (1) diesen Decode-Angleich + Test ZUERST als eigene Slice (5a, rein defensiv,
-kein Enum-Wegfall), (2) erst danach die Enum-Entfernung. Persistence-Steward + planning-agent + Council
-wie geplant.
+→ Slice 5 daher: **5a = rein defensiv** (die 3–4 Zeilen + Kommentar + Tests, KEIN Enum-Wegfall, reines
+Foundation → läuft auf Linux-CI), **5b = Enum-Entfernung** (`ClipKind.video` + `RecordSource.videoCapture`
+zusammen), danach die Modell-Retirement-Slices. Keep/Cut je Typ: siehe Abschnitt darunter.
+
+## SLICE-5-PLAN (DAW-Model-Removal) — GEPLANT 2026-07-25 (planning-agent + Persistence-Steward + Council)
+
+**Reihenfolge-Entscheidung: Slice 5 kommt NACH Task #131** (Re-Dooring). #131 ist Ship-Gate-Punkt 2
+„Kontrolle" — ohne es hebt der Freeze nicht; Slice 5 ist Hygiene ohne sichtbaren Nutzen. Zusätzlich
+gibt es eine **echte Abhängigkeit** in dieser Richtung (siehe „Offene Produktfrage" unten).
+
+### Widerlegte Annahme (wichtig — nicht aus dem Gedächtnis weiterschleppen)
+**Die Launch-Kette treibt NICHT den Loop-Modus.** Ich hatte `LaunchQuantizer`/`ClipLaunchEngine`/
+`LaneLaunchLatch` als mögliche Keeper vermutet — **falsch.** `LaunchQuantizer` (`:18`) hat NULL Consumer
+in `Sources/` (nur Tests); `LaneLaunchLatch.swift:13` nennt es selbst „legacy"; und die Nachfolge-Kette
+ist ebenso tot: `launchRegion`/`stopLaunched`/`launchState` (`TimelineRegionPlayer.swift:202/218/226`)
+haben genau EINEN Aufrufer — `ClipLaunchGlyph.swift:49/52/54` — und `ClipLaunchGlyph` hat null Mount-Sites.
+**Der Loop-Modus ist die bio-generative Schleife** (`player.pattern`-Pfad, `WorkspaceView.swift:418`),
+nicht Clip-Launching. → alle drei CUT.
+
+### KEEP — instrument-seitig, per Call-Site belegt
+| Typ | entscheidender Consumer |
+|---|---|
+| `MIDIFileExporter` | `EchoelStudioView.swift:4244` (`exportMIDI()`) — Export ist Keeper-Feature |
+| `MIDIFileImporter` | `EchoelStudioView.swift:4331/4339` |
+| `LoopCutter` | `EchoelStudioView.swift:4241/4242` |
+| `AutomationPlayer` + `AutomationTarget` | `EchoelmusicApp.swift:731/798`, `PianoRollView.swift:649` |
+| `AutomationLane` | `PianoRollView.swift:500/508` — gezeichnete Automation, die spielt |
+| `TimelineTime` | 480-PPQ-Namespace, überall (`EchoelStudioView:4024/4090`, `WorkspaceView:436/442`, `RecordController`) |
+| `SpatialSceneStore` | `ADMOSCSender.swift:78/115` — **die Ausgabe-Stufe** |
+| `LaneVoiceRack` (+`Pool`/`SlotMap`/`Kind`/`RackPlan`) | `EchoelStudioView` 8 Stellen — FX-Inserts + Tuning |
+| `MediaLibrary` | `BeatPlayer.swift:597` `resolveRef` (Drum-Samples) + SampleBrowser |
+| `TimelineStore` · `ClipStore` · `TimelineDocument`/`Lane`/`Region` | `TransportBar.toggle()` = `WorkspaceView.swift:410` liest `timelineStore`/`clipStore`/`timelinePlayer`; `EchoelStudioView:3339/4045/4084/4094` |
+
+### KEEP/DEFER — NICHT in Slice 5 anfassen
+`TimelineRegionPlayer` (`:53`) ist ein **Hybrid**: Workstation-Hälfte (`play(document:clips:)` ←
+`WorkspaceView:437`) UND Instrument-Hälfte (~15 Timbre-Sinks, `EchoelmusicApp.swift:582-717` —
+`slotKindSink`/`rollPatchSink`/`rollTransposeSink`/`slotPanSink` → `laneVoiceRack`/`polyVoice`), getickt
+via `PianoRollView.swift:647`; `FeatureFlags.swift:50` `multiRoll` ist **default-ON**. `MultiRollFanout`
++ `TimelineScheduling` sind seine Innereien. **Naiv geschnitten bricht Per-Spur-Timbre.** Braucht eine
+EIGENE Slice, die zuerst das Timbre-Routing heraustrennt. Ebenso NICHT anfassen: das Trio
+`TimelineStore`/`ClipStore`/`TimelineDocument`.
+
+### CUT — null lebende Instrument-Consumer
+`LaunchQuantizer` · `ClipLaunchEngine` · `LaneLaunchLatch` · `ClipLaunchGlyph` ·
+`ArrangementStore` · `Arrangement` · `ArrangementPlayer` (getickt bei `PianoRollView:646`, aber No-Op
+ohne `Arrangement` — nichts kann eine starten) · der Audio-Datei-Region-Cluster (`AudioClipRegion`,
+`AudioClipPlayer`, `AudioLanePlayer`, `AudioClipFactory`, `AudioRegionPlayback`, `StretchPlan`,
+`StretchMode`, `TempoMatch`; einziger lebender Eintritt `EchoelmusicApp.swift:717`) ·
+`MIDINoteRecorder` · `BioAutomationRecorder` · `AutomationGestureRecorder` · `TakeRecorder` ·
+`RecordController` · `RecordAnchor` · `SpatialAutomationMapping` (hat selbst null Consumer).
+
+**Tote `.environment`-Injektionen nach dem Cut:** `EchoelmusicApp.swift:366` `arrangementStore`,
+`:368` `arrangementPlayer`, `:370` `recordController` (+ `@State` :95/:100/:104 + `recordController.wire(...)`
+:840-849 + die `midiPub.onRecordNoteOn/Off`-Tees). **Bleiben müssen** `:363` clipStore, `:367`
+timelineStore, `:369` timelinePlayer (TransportBar).
+
+### Grep-Fallen (nicht darauf reinfallen)
+`AudioEngine.swift:781/788/795` „Clip player node" sind **Log-Strings**, `:765` ein Doc-Kommentar —
+`AudioEngine` hängt NICHT an `Clip`/`AudioClipPlayer`. `BeatPlayer.swift:461/468/588/592` sind **alle
+Doc-Kommentare**; echte Nutzung nur `MediaLibrary.resolveRef` `:597`. `PianoRollModel.loadArrangement` /
+`arrangementForExport()` / `arrangementBars` sind **eigene Member des Modells** und hängen NICHT am
+`Arrangement`-Typ — beide load-bearing (`EchoelStudioView:3901/4239`). `LaneVoicePlan` existiert nicht
+(gemeint: `LaneVoiceRackPlan.swift:44` + `SlotCommand:31`, beide KEEP).
+`Clip` ist ein **Teil-Cut**: `MIDIFileExporter.swift:199` hat eine `export(clip:)`-Overload, die
+`EchoelStudioView` nicht nutzt (nur `exportCombined`) → diese eine Overload löschen entkoppelt den Keeper.
+
+### Sub-Slices (je 1 Ralph-Commit, Gates grün + Reviewer, leaf-first)
+- **5a — REIN DEFENSIV, kein Enum-Wegfall:** die 3(+1) Decode-Zeilen in `TimelineLane.init(from:)`
+  (`:145`/`:154`/`:160`, optional `:161`) auf `(try? c.decode(...)) ?? default` + Kommentar `:138-142`
+  korrigieren + Decode-Tests (Spur muss ERHALTEN bleiben, nicht nur das Dokument). Pure Foundation →
+  Linux-CI. **Reviewer: code-reviewer als Persistence-Steward.** MUSS vor 5b liegen.
+- **5b — Enum-Entfernung:** `ClipKind.video` + `RecordSource.videoCapture` im GLEICHEN Commit
+  (`Timeline.swift:129`-Kopplung) + `Clip.swift:86/190`, `TakeRecorder.swift:76`,
+  `TrackInstrument.swift:120/130`. Persistence-Steward.
+- **5c** `LaunchQuantizer` (+Tests) — voll isoliert, null Risiko.
+- **5d** `ClipLaunchEngine` + `LaneLaunchLatch` + `ClipLaunchGlyph` (+Tests) — eine geschlossene Kette.
+- **5e** `SpatialAutomationMapping` → `AutomationGestureRecorder` → `BioAutomationRecorder`/
+  `MIDINoteRecorder` → `TakeRecorder` → `RecordController` (leaf-first) + die `.environment`/`wire`-Reste.
+- **5f** `ArrangementPlayer` → `Arrangement` → `ArrangementStore` + `.environment`-Reste.
+- **5g** der Audio-Datei-Region-Cluster (8 Typen + `WarpedClipPlan`/`TimelineAudioSink`-Nutzung, ~8 Testdateien).
+- **5h (eigene, später)** `TimelineRegionPlayer`-Split: Timbre-Sinks heraustrennen, DANN entscheiden.
+- Schutz-Gate je Slice: `swift build` grün + Kern-Tests (EchoelDDSP/BioEventGraph/Sequencer/Genre/rPPG)
+  + bio-generatives Spielen bleibt hörbar (Geräte-Verify beim Founder für 5e/5g/5h).
+
+### ⚠ Offene Produktfrage, die #131 beantworten MUSS (deshalb #131 zuerst)
+`syncPrimaryRollClip` (`EchoelStudioView.swift:4082`, gerufen aus dem Generate-Pfad `:3922`) schreibt die
+komponierte Fassung in `ClipStore` + `TimelineStore`. Sein eigener Doc-Kommentar (`:4056-4060`) nennt den
+Zweck: „so a tile shows on the Arrange timeline" — **diese Timeline ist seit Slice 4 weg.** Der Code läuft,
+sein Zweck ist fort. Explizit NICHT klang-tragend („Purely ADDITIVE — the live-loop path … still drives
+the sound"). **Ob dieser Spiegel stirbt, entscheidet #131b:** editiert die re-getürte `PianoRollView`
+den GESPEICHERTEN Clip oder die LEBENDE Rolle? Bei „lebende Rolle" ist der Spiegel toter Ballast — und
+damit fällt der Hauptgrund, dass das Instrument `ClipStore`/`TimelineStore` überhaupt anfasst.
 
 ## Status: PLAN gelockt.
 - ✅ **Slice 1 (AUv3-Target-Removal) GESHIPPT** — Commit `5ef8856`, beide echten Gates grün
