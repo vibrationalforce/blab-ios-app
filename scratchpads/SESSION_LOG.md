@@ -8138,3 +8138,28 @@ Step 2c Kopie) warten auf Founder-Wort.
 **GRÜN auf allen Jobs** (Preflight · Compile Check · iOS mit AUv3-Embed+Registration + Upload +
 "Build landed in App Store Connect" · Summary). v340 = v339 + Vision Step 2b (First-Run-Finger-auf-
 Kamera-Einladung). Vollständiges Vision-First-Run-Verify-Target für den Founder. Kein Rot.
+
+## 2026-07-25 — Ein BPM: der Transport ist der einzige Schreiber des Klick-Tempos
+
+`f644a83` + `01f7135`, beide **5/5 Gates grün**. Branch `claude/echoelmusic-neustart-auv3-6ri2ek`.
+
+Das Metronom bekam sein Tempo aus **sechs verstreuten UI-Stellen** gepusht — falsch in BEIDE
+Richtungen: Pfade ohne Push-Stelle (Parameter-Automation, Body→Tempo-Route) ließen den Klick
+ZURÜCK; zwei der sechs Stellen saßen direkt hinter `PatternEngine.glideTempo` und schickten ihn
+VORAUS aufs Glide-Ziel, während der Sequencer noch ~2 s unterwegs war. `Transport` hat jetzt eine
+Tempo-Abo-Liste (sofort geseedet, nur bei echter Änderung benachrichtigt); `EchoelmusicApp`
+registriert das Metronom einmal; alle sechs Direkt-Writes sind gelöscht.
+
+**Reviewer-Ausbeute (die eigentliche Lehre dieses Zyklus):** vier meiner Begründungen waren falsch,
+und zwar in der gefährlichen Richtung — ein Kommentar behauptete Schutz, den es nicht gab.
+Automation KANN kein NaN liefern (`AutomationTarget.value(forNormalized:)` beginnt mit
+`Swift.max(0, n)` — durch Argument-Reihenfolge schon NaN-sicher), der Body auch nicht. Der einzige
+lebende NaN-Pfad war das **persistierte** `studio.lockedBPM`, dessen zwei Schreiber noch die
+NaN-durchlässige `min(max(...))`-Form hatten — die sind jetzt `clamped(to:)`. Außerdem: ein neuer
+Test widersprach seinem eigenen Nachbar-Test (Seed übersehen), und alle neuen Tests hätten eine
+fehlende Verdrahtung NICHT gefangen — die falsifizierenden Tests sitzen jetzt an der echten Naht
+(`PatternEngineTransportRelayTests`, ungegated, wird von CI wirklich ausgeführt).
+
+**NEEDS-FOUNDER-VERIFY:** Lock im GESTOPPTEN Zustand — der Klick gleitet jetzt über ~2,5 s ins
+gelockte Tempo statt zu springen (Klick und angezeigtes Tempo stimmen erstmals durchgehend
+überein, aber der gestoppte Klick ist auf diesem Pfad das einzig Hörbare).
