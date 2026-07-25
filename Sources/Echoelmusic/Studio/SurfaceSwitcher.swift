@@ -104,10 +104,11 @@ struct SurfaceSwitcherBar: View {
 /// (#121, founder 2026-07-24 "keine Timeline etc nur das alte Interface mit create
 /// from within") removed the timeline entirely — SurfaceHost is now a thin wrapper
 /// that mounts `EchoelStudioView` (the "create from within" instrument) as the
-/// whole screen. `ArrangeTimelineView`, `SurfaceSwitcherBar`, ClipView and
-/// ChannelRackView all stay in code, unmounted (reversible); no file deletions.
-/// The v136 size contract (fill + clipped) is preserved so nothing inflates past
-/// the screen.
+/// whole screen. `ArrangeTimelineView`, `SurfaceSwitcherBar` and
+/// `ChannelRackView` stay in code, unmounted (reversible); the pure-instrument
+/// epic (#121, Slice 4) is deleting the now-unreachable DAW surfaces one by one
+/// (ClipView already removed). The v136 size contract (fill + clipped) is
+/// preserved so nothing inflates past the screen.
 @MainActor
 struct SurfaceHost: View {
     /// PURE INSTRUMENT (founder 2026-07-24, verbatim "keine Timeline etc nur das

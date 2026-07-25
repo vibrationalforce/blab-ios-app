@@ -11,7 +11,7 @@
 // boundary lands exactly on a sampled transport step → deterministic, never missed.
 //
 // NOTE: the older single-slot `LaunchQuantizer` class (global, also loaded drums)
-// stays until its ClipView reconciliation; this is its lane-scoped successor. The
+// stays as legacy; this is its lane-scoped successor. The
 // timing namespace here is `LaunchTiming` to avoid colliding with that class name.
 
 import Foundation
