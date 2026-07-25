@@ -1317,10 +1317,22 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // Coherence does double duty, physically: it both detunes the second train (high = nearly
     // aligned → wide ordered fringes; low = turbulent moiré beat) AND sharpens the fringes
     // (coherent light interferes into thin crisp maxima; incoherent washes out).
+    // ⚠ FLASH LAW (fixed 2026-07-25 — this look was shipping at up to 5 Hz):
+    // the visible field here is amplitude SQUARED, and squaring a sinusoid DOUBLES its
+    // temporal rate (sin²x = ½(1 − cos 2x)). The CPU caps the phase rate at 2.5 Hz, so
+    // feeding the FULL phase into a squared field flashed at 2 × 2.5 = 5 Hz — over the
+    // WCAG 3 Hz limit — even though every frequency clamp in the codebase correctly read
+    // "2.5 ≤ 3, safe". Clamping the input is necessary but NOT sufficient once a
+    // nonlinearity follows it. So this style takes HALF the phase: 0.5 × 2 = 1.0, i.e.
+    // the squared field lands back exactly at the capped rate. Rings breathes at half
+    // the previous speed and stays heartbeat-locked. Budget asserted in
+    // `FlashGuardTests.testEveryReachableLookObeysTheThreeHzLaw` — if you retune this,
+    // update that row via `FlashGuard.effectiveFieldHz`.
     float fieldRings(float d, float density, float phase, float coh) {
-        float w1 = sin(d * density - phase);
+        float p = phase * 0.5;                              // squared field ⇒ half the phase
+        float w1 = sin(d * density - p);
         float detune = mix(1.6, 1.02, coh);                 // high coh → near-unison, ordered
-        float w2 = sin(d * density * detune - phase * 0.5);
+        float w2 = sin(d * density * detune - p * 0.5);
         float interf = (w1 + w2) * 0.5;                     // superposition, [-1,1]
         float intensity = interf * interf;                  // energy = amplitude² → crisp fringes
         return pow(intensity, mix(1.0, 2.6, coh));          // coherence sharpens the maxima
@@ -1527,8 +1539,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
 
         // The temporal motion is the ACCUMULATED phase (integrated on the CPU from the
         // flash-safe frequency), NOT time × frequency — so an HR change alters the rate,
-        // never snaps the pattern (kills the "ruckeln"). Flash-safety is enforced where
-        // the phase is integrated (≤2.5 Hz, < WCAG 3 Hz); this is a pure read.
+        // never snaps the pattern (kills the "ruckeln"). The phase is integrated at
+        // ≤2.5 Hz (< WCAG 3 Hz) — but that clamp alone does NOT make a style safe: any
+        // NONLINEARITY a style applies afterwards changes the rate it actually flashes
+        // at. Squaring doubles it (see `fieldRings`, which shipped at 5 Hz until
+        // 2026-07-25 because this comment said "pure read" and stopped the audit here).
+        // Every style must damp `phase` by its own multiplier so that
+        // `FlashGuard.effectiveFieldHz(phaseRateHz: 2.5, …) <= 3`.
         float coh = clamp(u.coherence, 0.0, 1.0);
         float density = clamp(u.ringDensity, 4.0, 120.0);
         float phase = u.pulsePhase * 6.2831853;

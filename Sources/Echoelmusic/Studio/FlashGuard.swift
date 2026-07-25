@@ -35,6 +35,33 @@ public enum FlashGuard {
         return Swift.max(0, Swift.min(hz, maxFlashHz))
     }
 
+    /// The rate a visual FIELD actually flashes at — which is NOT always the rate
+    /// its phase is integrated at, and that gap shipped a violation.
+    ///
+    /// A style whose visible field is the SQUARED amplitude (energy ∝ amplitude²,
+    /// the physically correct quantity for interference fringes) oscillates at
+    /// TWICE its phase rate, because `sin²(x) = ½(1 − cos 2x)`. `MetalBioView`'s
+    /// Rings look fed the full 2.5 Hz capped phase into a squared field and so
+    /// reached 5 Hz, while every frequency clamp in the codebase correctly read
+    /// "2.5 ≤ 3, safe". Clamping the input is necessary and not sufficient — the
+    /// NONLINEARITY has to be counted too.
+    ///
+    /// - Parameters:
+    ///   - phaseRateHz: the rate the phase is advanced at (already clamped).
+    ///   - phaseMultiplier: what the style multiplies the shared phase by.
+    ///   - squared: true when the rendered field is amplitude², not amplitude.
+    /// - Returns: the dominant temporal frequency of the rendered field, in Hz.
+    ///            Non-finite input yields 0 (a still frame is always safe).
+    ///
+    /// Use it when adding or retuning a style: the result must be `<= maxFlashHz`.
+    public static func effectiveFieldHz(phaseRateHz: Double,
+                                       phaseMultiplier: Double,
+                                       squared: Bool) -> Double {
+        guard phaseRateHz.isFinite, phaseMultiplier.isFinite else { return 0 }
+        let base = Swift.abs(phaseRateHz) * Swift.abs(phaseMultiplier)
+        return squared ? base * 2 : base
+    }
+
     /// Whether a transition between two relative luminances [0,1] counts as a
     /// WCAG "general flash" (such a pair repeating >3×/s is the seizure risk).
     public static func isFlash(from a: Double, to b: Double) -> Bool {
