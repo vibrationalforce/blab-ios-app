@@ -71,8 +71,12 @@ bündelt die schon vorhandenen Flags. Ground-Truth: Explore a0b7fcc (alle `file:
   (gespeicherter Projekt-Mode wird korrekt statt immer-flowFree — echter DAW-Handoff-Fix).
 - **Test:** `ComposerMode(locked:)` Mapping (true→studioLocked, false→flowFree). Optional
   Project-Roundtrip, dass ein gelockter Save studioLocked schreibt.
-- **Audio-neutral** (suggestedTempo bei Lock ignoriert). Reviewer = code-reviewer (Logik/Korrektheit,
-  kein Body/Sheet/10-Hz-Read berührt → Freeze-Gesetz n/a).
+- **NICHT rein audio-neutral (Reviewer-Korrektur 2026-07-25):** `input.mode` speist auch
+  `tempo(for:)` INNERHALB `compose()` → `tempoDensityScale`. Bei Lock skaliert die Notendichte
+  jetzt für `lockedBPM` statt für den Ruhe-Puls — das ist die GEWOLLTE Korrektur (ein 124-BPM-Loop
+  soll für 124 skaliert werden, nicht für ~66; alter „auf 132 zu hektisch"-Mismatch), kein Regress.
+  Der Transport-Tempo-Wert kommt weiter aus `lockedBPM`. **NEEDS-FOUNDER-VERIFY am Gerät.**
+  Reviewer = code-reviewer (kein Body/Sheet/10-Hz-Read → Freeze-Gesetz n/a).
 
 ### M1-S2 — Sichtbarer „Flow | Loop"-Schalter (Folge-Zyklus)
 - Segmented `Picker` (2 Segmente „Flow"/„Loop") in `CompositionHeaderStrip`

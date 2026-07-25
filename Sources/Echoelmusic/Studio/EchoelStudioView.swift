@@ -3740,9 +3740,14 @@ struct EchoelStudioView: View {
             // M1 Flow/Loop: the transport intent follows the tempo lock — Loop
             // (lockBPM) = studioLocked for production, Flow = flowFree (follows the
             // body). Was hardcoded .flowFree (the split-brain: locking the BPM left
-            // the composer intent + saved project permanently flowFree). Audio-neutral
-            // — when locked, `composition.suggestedTempo` is ignored downstream and
-            // `lockedBPM` drives the transport (see the tempo block below).
+            // the composer intent + saved project permanently flowFree).
+            // NOT purely a label change (reviewer 2026-07-25): `input.mode` also feeds
+            // `tempo(for:)` INSIDE compose(), which drives `tempoDensityScale` — so a
+            // locked take now scales its note density for `lockedBPM` instead of the
+            // resting-heart tempo. That is the INTENDED fix (a 124 BPM loop should be
+            // scaled for 124, not for ~66 — the old "auf 132 zu hektisch" mismatch),
+            // not a regression; the downstream transport tempo still comes from
+            // `lockedBPM` (see the tempo block below). NEEDS-FOUNDER-VERIFY on device.
             mode: ComposerMode(locked: lockBPM),
             lockedTempo: lockBPM ? lockedBPM : 90,
             mood: moodForInput,
