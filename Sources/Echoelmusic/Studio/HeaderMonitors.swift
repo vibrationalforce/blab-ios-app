@@ -118,7 +118,7 @@ struct PulseMonitorMini: View {
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,
         // per the freeze rule).
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Live pulse")
+        .accessibilityLabel("Heart rate")
         .accessibilityValue(accessibilityText)
     }
 

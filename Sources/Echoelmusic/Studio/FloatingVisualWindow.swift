@@ -757,7 +757,7 @@ private struct InstrumentHintOverlay: View {
                 .opacity(visible ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Finger auf die Kamera bringt es zum Leben. Berühre das Bild zum Spielen.")
+                .accessibilityLabel("Put a finger on the camera to bring it to life. Touch the image to play.")
                 .task {
                     // Show once, hold ~4.5 s, fade out, then mark seen so it never returns.
                     // No animation under Reduce Motion (a hard cut, still flash-safe).

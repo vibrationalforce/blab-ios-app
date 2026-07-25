@@ -188,7 +188,7 @@ struct BreathGuideView: View {
             }
             .tint(EchoelTheme.accent)
             if followMyBreath && measuredBreath == nil {
-                Text("Start the camera in Well to measure your breath.")
+                Text("Start the camera to measure your breath.")
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.dim)
                     .multilineTextAlignment(.center)
