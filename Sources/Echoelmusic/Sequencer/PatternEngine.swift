@@ -271,7 +271,12 @@ public final class PatternEngine {
     /// Set tempo in BPM. Values outside [minTempo, maxTempo] are clamped.
     /// If the engine is playing, the timer restarts at the new interval.
     public func setTempo(_ bpm: Double) {
-        let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
+        // NaN-safe: THIS is the type that computes the step interval
+        // (`60.0 / tempo / 4.0` in `scheduleNextTick`), so a NaN landing here does
+        // not mis-time the sequencer — it stops it, permanently, because no tick is
+        // ever scheduled again. `Swift.min(Swift.max(bpm, lo), hi)` passes NaN
+        // through both clamps. Reachable from automation and the tempo field.
+        let clamped = bpm.clamped(to: PatternEngine.minTempo...PatternEngine.maxTempo)
         tempoGlideTarget = 0   // an explicit edit is precise + instant → cancel any in-flight glide
         stopStoppedGlide()     // …including a stopped-glide timer, so the edit lands exactly
         // Relay to the authoritative Transport FIRST, before the no-op early return below.
@@ -303,7 +308,9 @@ public final class PatternEngine {
     /// take). Either way the number always slides, never jumps. User/transport edits keep using
     /// `setTempo` (instant + precise). Values are clamped to [minTempo, maxTempo].
     public func glideTempo(to bpm: Double) {
-        let clamped = Swift.min(Swift.max(bpm, PatternEngine.minTempo), PatternEngine.maxTempo)
+        // NaN-safe for the same reason as `setTempo` — and this is the likelier entry:
+        // the value comes from the body (rPPG-derived), not from a typed field.
+        let clamped = bpm.clamped(to: PatternEngine.minTempo...PatternEngine.maxTempo)
         if isPlaying {
             tempoGlideTarget = clamped
             stopStoppedGlide()   // ticks are running → advance() eases it

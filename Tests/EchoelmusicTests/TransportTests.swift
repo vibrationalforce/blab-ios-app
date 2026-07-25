@@ -17,6 +17,73 @@ final class TransportTests: XCTestCase {
         t.setTempo(128); XCTAssertEqual(t.tempo, 128, accuracy: 1e-9)
     }
 
+    func testTempo_aNaNCannotBecomeTheClock() {
+        // `Swift.min(Swift.max(bpm, lo), hi)` passes NaN through BOTH clamps, because
+        // every comparison against NaN is false. This type owns no timer, but it is the
+        // value every subscriber and readout mirrors — a NaN here spreads to all of them
+        // at once. (`PatternEngine`, which divides by the tempo, is clamped the same way.)
+        let t = Transport()
+        t.setTempo(128)
+        t.setTempo(.nan)
+        XCTAssertTrue(t.tempo.isFinite, "a NaN tempo reached the authoritative clock")
+        XCTAssertEqual(t.tempo, Transport.minTempo, accuracy: 1e-9,
+                       "NaN must resolve to the low end, like any out-of-range tempo")
+        // ±inf already clamped correctly; pin that it still does.
+        t.setTempo(.infinity);  XCTAssertEqual(t.tempo, Transport.maxTempo, accuracy: 1e-9)
+        t.setTempo(-.infinity); XCTAssertEqual(t.tempo, Transport.minTempo, accuracy: 1e-9)
+    }
+
+    // MARK: - One BPM: everything that shows or sounds the tempo follows the clock
+
+    func testTempoSubscriber_isNotifiedOnEveryChange() {
+        // The metronome used to be PUSHED the tempo from ~6 scattered UI call sites: the
+        // paths that touched none of them (automation, the Body→Tempo route) left the
+        // click behind, and the two sites sitting after `glideTempo` ran it ahead to the
+        // ease's target. Subscribers make the clock the single source instead.
+        let t = Transport()
+        var seen: [Double] = []
+        t.onTempoChange(id: "test") { seen.append($0) }
+        t.setTempo(100)
+        t.setTempo(140)
+        XCTAssertEqual(seen, [100, 140])
+    }
+
+    func testTempoSubscriber_isSeededImmediately_notLeftStaleUntilTheNextChange() {
+        // A subscriber registering mid-session must adopt the CURRENT tempo at once.
+        // Without the seed the click would keep its own stale value until someone
+        // happened to move the tempo — which is the original bug in a new place.
+        let t = Transport()
+        t.setTempo(93)
+        var seen: [Double] = []
+        t.onTempoChange(id: "late") { seen.append($0) }
+        XCTAssertEqual(seen, [93])
+    }
+
+    func testTempoSubscriber_notNotifiedWhenTheValueDidNotChange() {
+        // The stopped-glide timer relays ~20 Hz and lands on the same value once it
+        // arrives; re-notifying would make every subscriber recompute for nothing.
+        let t = Transport()
+        t.setTempo(120)
+        var count = 0
+        t.onTempoChange(id: "test") { _ in count += 1 }
+        count = 0                       // ignore the seed
+        t.setTempo(120)
+        t.setTempo(120)
+        XCTAssertEqual(count, 0)
+        t.setTempo(121)
+        XCTAssertEqual(count, 1)
+    }
+
+    func testTempoSubscriber_canBeRemoved() {
+        let t = Transport()
+        var count = 0
+        t.onTempoChange(id: "test") { _ in count += 1 }
+        t.removeTempoSubscriber(id: "test")
+        count = 0
+        t.setTempo(150)
+        XCTAssertEqual(count, 0)
+    }
+
     func testSwing_clampsToHalf() {
         let t = Transport()
         t.setSwing(-1); XCTAssertEqual(t.swing, 0, accuracy: 1e-9)

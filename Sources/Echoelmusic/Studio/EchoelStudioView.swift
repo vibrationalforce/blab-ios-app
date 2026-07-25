@@ -2101,7 +2101,8 @@ struct EchoelStudioView: View {
             pianoRoll.musicalA4Hz = session.a4Hz
             recomposeIfRunning()
         case "tempoLock":
-            // Lock adoption happens INSIDE BodyTempoField (clock glide + metronome);
+            // Lock adoption happens INSIDE BodyTempoField (it glides the clock, and
+            // everything that sounds or shows the tempo follows the clock);
             // this is the recompose hook the panel's full field used to pass.
             recomposeIfRunning()
         default:
@@ -2119,7 +2120,6 @@ struct EchoelStudioView: View {
                 Text("Metronome (click)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
-            .onChange(of: metronome.enabled) { _, on in if on { metronome.bpm = currentTempo } }
             .accessibilityHint("A steady click at the current tempo to play in time")
 
             if metronome.enabled {
@@ -2157,7 +2157,6 @@ struct EchoelStudioView: View {
                 if let bpm = tapTempo.tap(at: ProcessInfo.processInfo.systemUptime) {
                     lastTappedBPM = bpm
                     lockedBPM = (bpm * 10).rounded() / 10
-                    metronome.bpm = lockedBPM
                     // ALWAYS push the clock (not only while running): the lockBPM onChange
                     // below freezes at the CLOCK's current tempo, so the clock must already
                     // carry the tapped value when that fires — otherwise tapping while
@@ -4080,7 +4079,6 @@ struct EchoelStudioView: View {
         let leadPatch = SynthPatch.factory.first { $0.name == style.leadPatchName }
             ?? SynthPatch.factory.first { $0.name == "Bright Lead" }
         if let leadPatch { pianoRoll.applyLeadPatch(leadPatch) }
-        metronome.bpm = tempo   // keep the click on the live transport tempo
         session.adopt(key: key)
         hasComposed = true
         // Capture the body baseline for the evolve HOLD (founder "halten wenn
@@ -4410,11 +4408,11 @@ struct EchoelStudioView: View {
         pianoRoll.load(p.notes)
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
-        // Everything that mirrors tempo must follow a loaded take, or the click and the
-        // visual/OSC frame keep the OLD project's BPM (Finding F). Route through the
-        // authoritative clock value (clamped) so all readers show one number.
+        // Everything that mirrors tempo must follow a loaded take, or the visual/OSC
+        // frame keeps the OLD project's BPM (Finding F). Route through the authoritative
+        // clock value (clamped) so all readers show one number. The click is NOT pushed
+        // here — it subscribes to the transport and has already followed the setTempo above.
         let loadedTempo = beatPlayer.pattern.tempo
-        metronome.bpm = loadedTempo
         pianoRoll.musicalTempoBPM = loadedTempo
         lockedBPM = loadedTempo
         hasComposed = true

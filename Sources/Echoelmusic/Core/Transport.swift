@@ -82,14 +82,60 @@ public final class Transport {
     private struct StepSub { let id: String; let priority: Int; let cb: (TransportPosition) -> Void }
     @ObservationIgnored private var stepSubs: [StepSub] = []
     @ObservationIgnored private var stopSubs: [String: () -> Void] = [:]
+    @ObservationIgnored private var tempoSubs: [String: (Double) -> Void] = [:]
     @ObservationIgnored private var lastStep = 0
 
     public init() {}
 
     // MARK: - Tempo / swing (clamped exactly like PatternEngine)
 
+    /// Set the musical tempo. Clamped to [minTempo, maxTempo] and relayed to every
+    /// tempo subscriber when the value actually moves.
+    ///
+    /// The clamp is NaN-safe: `Swift.min(Swift.max(bpm, lo), hi)` — the form this used
+    /// to have — passes NaN through BOTH clamps, because every comparison against NaN
+    /// is false. This type owns no timer, so a NaN here does not stop anything by
+    /// itself; it poisons the value every subscriber and readout mirrors. (The timer
+    /// lives in `PatternEngine`, which computes `60.0 / tempo / 4.0` and is clamped
+    /// the same way for that harder reason.)
     public func setTempo(_ bpm: Double) {
-        tempo = Swift.min(Swift.max(bpm, Self.minTempo), Self.maxTempo)
+        let clamped = bpm.clamped(to: Self.minTempo...Self.maxTempo)
+        let moved = clamped != tempo
+        tempo = clamped
+        // Assigned unconditionally (an @Observable write is how a same-value re-sync
+        // reaches the UI — PatternEngine.setTempo relies on exactly that), but
+        // subscribers fire only on a real move: the stopped-glide timer relays at
+        // ~20 Hz and settles on one value, and re-notifying would make every
+        // subscriber recompute for nothing.
+        if moved {
+            for cb in tempoSubs.values { cb(clamped) }
+        }
+    }
+
+    /// Subscribe to tempo changes. The callback fires IMMEDIATELY with the current
+    /// tempo, then on every subsequent change.
+    ///
+    /// The immediate seed is not a convenience — without it a subscriber registering
+    /// mid-session keeps its own stale tempo until someone happens to move the
+    /// clock, which is the very bug this exists to fix. Re-registering the same `id`
+    /// replaces the previous callback.
+    ///
+    /// WHY THIS EXISTS: the metronome used to be PUSHED its tempo from ~6 scattered UI
+    /// call sites, which failed in BOTH directions. Paths that touched no call site left
+    /// the click BEHIND — parameter automation (`AutomationPlayer` `.tempo`) and the
+    /// Body→Tempo modulation route moved the sequencer with the click still at the old
+    /// rate. And two of the call sites ran the click AHEAD: both sat right after
+    /// `PatternEngine.glideTempo`, which eases over ~2 s, so the click jumped to the
+    /// glide TARGET while the sequencer was still on its way — every intermediate value
+    /// of the ease was a click/sequencer mismatch. Anything that shows or sounds the
+    /// tempo should subscribe here rather than keep a copy.
+    public func onTempoChange(id: String, _ callback: @escaping (Double) -> Void) {
+        tempoSubs[id] = callback
+        callback(tempo)
+    }
+
+    public func removeTempoSubscriber(id: String) {
+        tempoSubs[id] = nil
     }
 
     public func setSwing(_ amount: Double) {
@@ -148,8 +194,12 @@ public final class Transport {
         stopSubs[id] = cb
     }
 
+    /// Remove every subscription registered under `id` — step, stop AND tempo.
+    /// Tempo is included deliberately: a caller doing the obvious teardown would
+    /// otherwise leak its tempo callback, since that one has its own remover.
     public func removeSubscriber(_ id: String) {
         stepSubs.removeAll { $0.id == id }
         stopSubs[id] = nil
+        tempoSubs[id] = nil
     }
 }

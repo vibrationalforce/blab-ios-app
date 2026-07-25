@@ -488,6 +488,19 @@ struct EchoelmusicApp: App {
                 // PatternEngine relays each pulse into the authoritative Transport
                 // (additive mirror; existing onStep/onTick stay the live path).
                 beatPlayer.pattern.transport = transport
+                // ONE BPM: the click FOLLOWS the authoritative clock instead of being
+                // pushed from the UI. The ~6 scattered `metronome.bpm` writes are gone,
+                // so this is now the ONLY writer — automation and the Body→Tempo route
+                // no longer leave the click behind, and the two writes that sat after
+                // `glideTempo` no longer run it ahead to the glide target.
+                // Registered once here; the callback seeds itself with the current tempo.
+                // The menu-freeze law is about view READS: this callback WRITES an
+                // @Observable at up to ~20 Hz (the stopped-glide relay), which is only
+                // harmless because no view body reads `metronome.bpm`. If one ever does,
+                // it must be a leaf — never the root or a Picker host.
+                transport.onTempoChange(id: "metronome") { [weak metronome] bpm in
+                    metronome?.bpm = bpm
+                }
                 #if canImport(CoreHaptics)
                 // Eyes-free transport: every quarter-note pulses the body (no-op
                 // until the user arms haptics). Lowest-priority subscriber so it

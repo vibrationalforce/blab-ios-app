@@ -30,7 +30,6 @@ struct BodyTempoField: View {
     #endif
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
-    @Environment(MetronomeVoice.self) private var metronome
 
     // Shared with the transport-bar lock button + tap tempo (same keys + defaults).
     @AppStorage("studio.lockBPM") private var lockBPM = false
@@ -127,8 +126,11 @@ struct BodyTempoField: View {
         } else {
             let v = min(max(followingValue, Transport.minTempo), Transport.maxTempo)
             lockedBPM = (v * 10_000).rounded() / 10_000
+            // No click push here: `glideTempo` EASES (over ~2 s while playing), so setting
+            // the click to the target would run it ahead of the sequencer until the next
+            // relay yanked it back — an audible blip on every lock. The click subscribes
+            // to the transport and eases with it.
             player.pattern.glideTempo(to: lockedBPM)
-            metronome.bpm = lockedBPM
             lockBPM = true
         }
         onLockChanged()
@@ -140,7 +142,6 @@ struct BodyTempoField: View {
                 set: { v in
                     lockedBPM = min(max(v, Transport.minTempo), Transport.maxTempo)
                     player.pattern.setTempo(lockedBPM)
-                    metronome.bpm = transport.tempo
                 })
     }
 }
