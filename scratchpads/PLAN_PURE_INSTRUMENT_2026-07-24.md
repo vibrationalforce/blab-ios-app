@@ -175,3 +175,39 @@ beim Founder für die großen Slices).
   - Schutz (ERLEDIGT): `attachInstrument(_:AVAudioUnit)` (in 2d-3a raus) + `HostMusicalState` (in 2d-3b raus)
     waren die zwei Stellen, wo ein Hosting-Schnitt in Eigen-Sound hätte bluten können — beide sauber
     entfernt, Rest-Nutzer per Grep + audio-thread-reviewer als null bestätigt. Kein Eigen-Sound-Pfad berührt.
+
+- ▶ **Slice 3 (Video-Schnitt-Removal) — GEPLANT 2026-07-25 (planning-agent + Council), consumer-first, 6 Sub-Slices.**
+  Boundary-Entscheidungen (gegen echte Call-Sites, `file:line`-belegt):
+  - **(A) VisualRecorder BLEIBT (Council: proceed, non-destruktiver Default).** Nimmt das GENERATIVE Visual auf
+    (MetalBioView/FloatingVisual-Drawable-Blit, `VisualRecorder.swift:14-17` „does NOT touch the rPPG camera path") =
+    Instrument-Performance-Output, NICHT Kamera-Schnitt. Nur 5 funktionale Consumer (alle auf dem Bio-Visual:
+    `EchoelmusicApp:164/342`, `MetalBioView:317/416/1067`, `EchoelStudioView:778-792`, `FloatingVisualWindow:634-643`,
+    `HeaderMonitors:430-474`); die 3 in `MediaLibrary`/`ClipHighlightSelector`/`VideoClipFactory` sind NUR Kommentare.
+    Fundament der pending Founder-Feature **#51 EchoelPublish** (#93 ClipHighlightSelector geshippt). → damit bleiben
+    auch `VideoRecorder`/`VideoMuxer`/`VideoMuxAlignment` (die File-Sink-Kette) + `AudioEngine.captureRecentMixAudio`.
+    **Beim Freeze-Lift 1 Zeile Founder-Bestätigung** (Plan-§B-Default war „konservativ mit-schneiden"; Evidenz kippt auf
+    keep). Contingency 3f-3h (cut VisualRecorder) liegt bereit, falls Founder „alles weg" sagt.
+  - **(B) Sequencer/-Video-Lane-Dateien → alle Slice 3** (consumer-first; das generische DAW-Modell hängt NICHT an ihnen).
+    **NICHT anfassen:** `ClipKind.video` (`Clip.swift:52`), `TrackInstrumentKind.videoCapture` (`TrackInstrument.swift:112`),
+    `Timeline.swift:129`-Mapping, `TimelineDocument.videoLaneIDs` — Enum-Case-Entfernung = Data-Loss (persistierter `.video`-
+    Clip decodiert nicht mehr) + DAW-Modell → **Slice 5** mit Migrations-Entscheidung.
+  - **(#126 „Video im Loop Takt genau geschnitten") = superseded von #121** — same-day Founder-Detail INNERHALB des Video-
+    Editing, das #121 entfernt; moot, sobald Video-Schnitt weg ist. Kein Founder-Question (Supersession, keine Ambiguität).
+  - **Sub-Slices (je 1 Ralph-Commit, consumer-first, Gate grün + Reviewer):**
+    - **3a-i — Video-Monitor-Tür zu (UI):** `WorkspaceView` `@AppStorage("video.monitor.visible")`:110 + `FloatingVideoMonitor`-
+      Präsentation:178-179 + `EchoelVideoMonitorMini`-Toggle:264-265 raus; `HeaderMonitors` `EchoelVideoMonitorMini`-Struct:429 raus
+      (VisualRecorder-Indicator:430 BLEIBT). ui-state-reviewer. (UserDefaults-Key, keine Codable-Persistenz.)
+    - **3a-ii — `FloatingVideoMonitor.swift` löschen** (`MonitorVideoSink` = einziger `VideoRegionSink`-Impl + `FloatingVideoMonitor`). code-reviewer.
+    - **3b — Video-Lane-PLAYBACK-Engine löschen:** `VideoLanePlayer.swift` (+`VideoRegionSink`/`VideoMonitorSelect`), `VideoRegionSync.swift`,
+      `VideoResyncPolicy.swift` + Tests (`VideoLanePlayerTests`/`VideoResyncPolicyTests`/`VideoMonitorSelectTests`/`VideoInTracksTests`).
+      Bereits app-tot (keine Instanziierung in Sources). code-reviewer (kein Audio-Thread — AVPlayer-Sink ging mit 3a-ii).
+    - **3c — Video-Import-Tür zu:** `ArrangeTimelineView:533` `case .video: VideoClipView(...)` → `EmptyView()` (spiegelt `.visual`:534);
+      `VideoClipView.swift` löschen. ui-state-reviewer. ⚠ `ClipKind.video`-Case BLEIBT (Data-Loss).
+    - **3d — Video-Import/Export-Modell löschen:** `VideoClipFactory.swift`, `VideoRegionTrim.swift`, `VideoExportPlan.swift`,
+      `VideoAudioPairing.swift`, `Video/VideoAudioExtractor.swift` + Tests (`VideoExportPlanTests`/`VideoAudioPairingTests`/
+      `VideoImportLandingTests`); `ClipNativeDurationTests` chirurgisch (nur die Video-Methoden, Audio-Coverage behalten).
+      code-reviewer **+ persistence-steward** (`VideoRegionTrim: Codable` — verifiziert transient, kein Doc-Feld).
+    - **3e — `Video/Shaders/ChromaKey.metal` löschen** (loses File, nicht in project.yml/Package.swift; MetalBioView kompiliert eigene
+      Shader inline). `BioColorGradeParams` BLEIBT (nur Kommentar-Ref). code-reviewer + Xcode Compile Check.
+  - Protection-Gate je Slice: rPPG-Bio-Input (CameraAnalyzer/CameraCapture/PulsePeriodEstimator/RPPGConditioning) +
+    Visuals (MetalBioView/FloatingVisual/BioVisualParams) + Rausch-Triad + (rec A) VisualRecorder/VideoRecorder/VideoMuxer UNBERÜHRT.
