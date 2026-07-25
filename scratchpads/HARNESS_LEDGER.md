@@ -485,3 +485,33 @@ Second, smaller lesson from the same cycle: when a deletion forces you to REWRIT
 lists "what still stands", re-verify EACH name in that list. My rewrite of `SurfaceSwitcher.swift`
 called `ChannelRackView` unmounted; it is live in `EchoelStudioView`'s Mix panel (`:1510`). The
 ui-state-reviewer caught it. Inherited-but-restated falsehoods are still falsehoods.
+
+## 2026-07-25 — PATTERN (now 4-for-4): the reviewer's real yield is my COMMENTS, not my code
+Four consecutive reviewed slices this cycle. In every one the code was clean and every accepted
+finding was in prose I wrote:
+- 131a (`f2cbf34`): ui-state-reviewer 0 defects, code-reviewer no CRITICAL/HIGH. Three accepted
+  findings, all comment drift — (a) I claimed presenting `PianoRollView` is the `MusicalFrame`
+  publish path; it is `PianoRollModel` on the shared tick (`PianoRollView.swift:971`), installed once
+  at app start, so presentation is irrelevant to it; (b) I cited `PRODUCT_DEFINITION.md` for
+  "automation", a word that document never contains (the automation editors died in Slice 4d
+  `36a8468`); (c) a redundant `AnyView(...)` around an already-`AnyView` return.
+- chip tap targets (`ae81a5d`): clean on all 7 checks. One accepted finding — I wrote "the visible
+  pills are unchanged"; true of the pills, but `minWidth: 44` widens narrow chips' FRAMES so the
+  inter-pill GAP grows ~6 pt, and I had silently widened #113's deliberately vertical-only rule.
+- Slice 4b/4d earlier: `ChannelRackView` called unmounted (it is live), and the too-narrow outbound
+  regex — again both in prose/bookkeeping.
+**PLAYBOOK: before asking for review, re-read your own added comments as if they were assertions
+under oath, and grep-verify each one — every file:line, every "X is the only Y", every citation of a
+doc (open the doc and search for the word), every "unchanged". A false comment is worse than no
+comment: it survives compaction, reads as verified history, and the next session plans from it.**
+Specifically: never cite a doc for a claim without grepping the doc for the term; never write
+"unchanged" about geometry you altered in ANY dimension; and when you copy a working call from git
+history, copy its SEMANTICS too (the `onDone: nil` default is what makes the roll live, not decoration).
+
+## 2026-07-25 — GATE-PARSE: `cancelled` on the previous SHA is supersede, not failure
+Pushing a second commit quickly cancels the earlier SHA's in-flight runs (workflow concurrency,
+cancel-in-progress). Seen as `completed cancelled | Xcode Compile Check` on `ae81a5d` seconds after
+`8286f4e` landed. Do NOT treat that as red and do NOT "fix" anything — but equally, do NOT count the
+earlier commit as compile-verified: its proof was thrown away. **Only the HEAD SHA's gates count;
+if you superseded a commit before its gates finished, that commit has no verification at all, so
+don't stack further code on the same file until the new head is green.**
