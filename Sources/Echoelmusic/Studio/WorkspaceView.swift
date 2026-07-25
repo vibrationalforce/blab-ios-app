@@ -131,14 +131,26 @@ struct WorkspaceView: View {
                 // chrome block on a shared background — no internal hairlines (three stacked
                 // full-width rules read as "banding"/venetian blinds, not front-tier). A
                 // SINGLE rule below separates the whole chrome from the timeline content.
-                topBar
-                TransportBar()
-                // Step 2b of the bottom-bar dissolve (founder 2026-07-14: "Unten die
-                // Leiste sollte längst aufgelöst sein und sich an anderer Stelle
-                // wieder finden"): the musical identity — Genre · Key · Scale ·
-                // Tone system · Concert pitch A4 — lives HERE in the chrome, always
-                // visible, one thin row. A LEAF (low-frequency reads only).
-                CompositionHeaderStrip()
+                //
+                // Dynamic Type (a11y): the chrome bars are FIXED-height (topBar 50 /
+                // TransportBar 44 / CompositionHeaderStrip 40 pt), so at Accessibility
+                // sizes their text overruns/clips. Clamp JUST this chrome Group to
+                // xxLarge (the largest non-accessibility size) — the instrument below
+                // (SurfaceHost) is deliberately NOT clamped and keeps FULL Dynamic Type
+                // for its EchoelValueField controls. Same fit-vs-unbounded tradeoff
+                // ArrangeTimelineView already accepted. Group is layout-transparent in a
+                // VStack (no spacing/structure change), adds no sheet, reads nothing.
+                Group {
+                    topBar
+                    TransportBar()
+                    // Step 2b of the bottom-bar dissolve (founder 2026-07-14: "Unten die
+                    // Leiste sollte längst aufgelöst sein und sich an anderer Stelle
+                    // wieder finden"): the musical identity — Genre · Key · Scale ·
+                    // Tone system · Concert pitch A4 — lives HERE in the chrome, always
+                    // visible, one thin row. A LEAF (low-frequency reads only).
+                    CompositionHeaderStrip()
+                }
+                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
                 Divider().overlay(EchoelTheme.border)
                 // (The standalone Tempo row is gone — the tempo control moved UP into
                 //  the transport bar next to Play, founder 2026-07-15 "Das soll da oben
@@ -216,9 +228,11 @@ struct WorkspaceView: View {
                     Text("Echoelmusic")
                         .font(EchoelTheme.font(14, .semibold))
                         .foregroundStyle(EchoelTheme.text)
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     Text(Self.versionString)
                         .font(EchoelTheme.font(9))
                         .foregroundStyle(EchoelTheme.dim)
+                        .lineLimit(1).minimumScaleFactor(0.7)
                 }
             }
             .buttonStyle(.plain)
