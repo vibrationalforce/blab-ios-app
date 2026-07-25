@@ -152,6 +152,33 @@ final class EngineBusTests: XCTestCase {
         XCTAssertEqual(f.hrvRMSSDms, 42.7, accuracy: 1e-4)
     }
 
+    // MARK: - hrvForSound (the one place the "0 = unmeasured" rule turns neutral)
+
+    func testHrvForSound_unmeasuredBecomesNeutral_notMinimumVariability() {
+        // This is the whole point of the property. 0 is not a low reading, it is the
+        // absence of a reading — and every HRV mapping treats a literal 0 as an EXTREME
+        // (darkest timbre; in BioComposer, maximum sympathetic load ⇒ a busier take).
+        // Neutral for sound; the DISPLAY is what has to say "—".
+        let unmeasured = Self.makeBioFrame(hrvNormalized: 0)
+        XCTAssertEqual(unmeasured.hrvForSound, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(unmeasured.hrvNormalized, 0, "the raw field stays honest")
+    }
+
+    func testHrvForSound_realReadingPassesThroughUnchanged() {
+        XCTAssertEqual(Self.makeBioFrame(hrvNormalized: 0.42).hrvForSound, 0.42, accuracy: 1e-6)
+        // The smallest representable real reading must NOT be rounded up to neutral —
+        // a genuinely low HRV is data, and the rule only catches exactly-zero.
+        XCTAssertEqual(Self.makeBioFrame(hrvNormalized: 1e-5).hrvForSound, 1e-5, accuracy: 1e-9)
+    }
+
+    func testHrvForSound_clampsAboveOneAndAbsorbsGarbage() {
+        XCTAssertEqual(Self.makeBioFrame(hrvNormalized: 1.7).hrvForSound, 1.0, accuracy: 1e-6)
+        // NaN/negative fail the `> 0` test and land on neutral rather than propagating
+        // into the synth — a NaN in a DDSP accumulator is permanent silence.
+        XCTAssertEqual(Self.makeBioFrame(hrvNormalized: .nan).hrvForSound, 0.5, accuracy: 1e-6)
+        XCTAssertEqual(Self.makeBioFrame(hrvNormalized: -0.3).hrvForSound, 0.5, accuracy: 1e-6)
+    }
+
     // MARK: - Freshness window (Bio-Acceptance v1)
 
     func testFreshBio_nilWhenNoFrame() {
@@ -244,11 +271,12 @@ final class EngineBusTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private static func makeBioFrame(timestamp: TimeInterval = 0) -> BioSampleFrame {
+    private static func makeBioFrame(timestamp: TimeInterval = 0,
+                                     hrvNormalized: Float = 0.5) -> BioSampleFrame {
         BioSampleFrame(
             timestamp: timestamp,
             heartRateBPM: 72,
-            hrvNormalized: 0.5,
+            hrvNormalized: hrvNormalized,
             breathRate: 12,
             breathPhase: 0.25,
             coherence: 0.6,

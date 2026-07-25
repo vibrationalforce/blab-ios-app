@@ -39,8 +39,17 @@ struct WatchBioView: View {
     @State private var hasData = false
 
     private var bpm: Int { Int(vitals.heartRateBPM.rounded()) }
-    private var hrvPercent: Int { Int((vitals.hrvNormalized * 100).rounded()) }
-    private var coherencePercent: Int { Int((vitals.coherence * 100).rounded()) }
+
+    /// 0 means "not measured" for both of these (the wrist before its first SDNN sample,
+    /// any source with no beat-to-beat RR), so they render "—" — the same rule the in-app
+    /// bio strip and the Widget follow. Printing "HRV 0%" on a glanceable surface would
+    /// state a specific and alarming observation about the body that nothing measured.
+    private var hrvText: String {
+        vitals.hrvNormalized > 0 ? "\(Int((vitals.hrvNormalized * 100).rounded()))%" : "—"
+    }
+    private var coherenceText: String {
+        vitals.coherence > 0 ? "\(Int((vitals.coherence * 100).rounded()))%" : "—"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -53,8 +62,8 @@ struct WatchBioView: View {
                     Text("bpm").font(.caption2).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 14) {
-                    metric("HRV", "\(hrvPercent)%")
-                    metric("Coh", "\(coherencePercent)%")
+                    metric("HRV", hrvText)
+                    metric("Coh", coherenceText)
                 }
             } else {
                 Text("Echoelmusic").font(.headline)

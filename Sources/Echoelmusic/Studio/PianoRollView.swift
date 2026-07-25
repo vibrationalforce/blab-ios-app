@@ -376,7 +376,10 @@ public final class PianoRollModel {
     /// stable hash of the affected notes, so the op is deterministic per
     /// (selection state, hrv); hrv 0 → zero jitter → no-op, no undo step.
     public func bioHumanize(ids: Set<UUID>) {
-        let hrv = bus?.usableBio()?.hrvNormalized ?? 0.5
+        // `hrvForSound`: the `??` covers only a missing frame, so a live frame carrying a
+        // real 0 (not measured yet) reached `hrvHumanize` as "zero jitter" and silently
+        // turned the whole operation into a no-op.
+        let hrv = bus?.usableBio()?.hrvForSound ?? 0.5
         applyOp(ids: ids) { affected in
             BioComposer.hrvHumanize(affected, hrvNormalized: hrv,
                                     seed: RollNoteOps.stableSeed(for: affected))

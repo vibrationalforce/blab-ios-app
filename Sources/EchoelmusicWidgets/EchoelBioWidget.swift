@@ -64,9 +64,18 @@ struct EchoelBioWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: BioEntry
 
-    private var coherencePercent: Int { Int((entry.vitals.coherence * 100).rounded()) }
-    private var hrvPercent: Int { Int((entry.vitals.hrvNormalized * 100).rounded()) }
     private var bpm: Int { Int(entry.vitals.heartRateBPM.rounded()) }
+
+    /// 0 means "not measured" for both of these (a Watch before its first SDNN sample,
+    /// any source with no beat-to-beat RR), so they render "—" — the same rule the in-app
+    /// bio strip already follows. Printing "HRV 0%" on a glanceable surface would state a
+    /// specific and alarming observation about the user's body that nothing measured.
+    private var hrvText: String {
+        entry.vitals.hrvNormalized > 0 ? "\(Int((entry.vitals.hrvNormalized * 100).rounded()))%" : "—"
+    }
+    private var coherenceText: String {
+        entry.vitals.coherence > 0 ? "\(Int((entry.vitals.coherence * 100).rounded()))%" : "—"
+    }
 
     var body: some View {
         Group {
@@ -104,8 +113,8 @@ struct EchoelBioWidgetView: View {
             }
             Spacer(minLength: 0)
             HStack(spacing: 10) {
-                metric("HRV", "\(hrvPercent)%")
-                metric("Coh", "\(coherencePercent)%")
+                metric("HRV", hrvText)
+                metric("Coh", coherenceText)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -124,8 +133,8 @@ struct EchoelBioWidgetView: View {
             }
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 10) {
-                metric("HRV", "\(hrvPercent)%")
-                metric("Coherence", "\(coherencePercent)%")
+                metric("HRV", hrvText)
+                metric("Coherence", coherenceText)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

@@ -77,7 +77,7 @@ public struct BioVisualParams: Sendable, Equatable {
         let pulse = FlashGuard.safeFrequency(bounded, reduceMotion: reduceMotion)
 
         let coherence = clamp01(Double(frame?.coherence ?? 0))
-        let hrv = clamp01(Double(frame?.hrvNormalized ?? 0.5))
+        let hrv = clamp01(Double(frame?.hrvForSound ?? 0.5))   // 0 = unmeasured → neutral
         let breath = clamp01(Double(frame?.breathPhase ?? 0.5))
 
         return BioVisualParams(

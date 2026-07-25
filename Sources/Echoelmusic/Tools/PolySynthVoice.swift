@@ -600,13 +600,7 @@ public final class PolySynthVoice {
         // control-plane `bioMappingHarmonic`) and carried in the value.
         _ = bioCommands.tryEnqueue(PolyBioParams(
             coherence: liveCoherence(frame.coherence),
-            // Same split as coherence, and it is the point of the whole "no invented 0.5"
-            // slice: 0 now honestly means "no HRV measured yet" (a Watch before its first
-            // SDNN sample), so the DISPLAY must show "—" — but the INSTRUMENT must still
-            // play. Feeding a literal 0 would read as "minimum variability" and darken the
-            // timbre on missing data, which is just a different arbitrary claim. Neutral
-            // for the sound, honest on the screen.
-            hrv: frame.hrvNormalized > 0 ? clampUnit(frame.hrvNormalized) : 0.5,
+            hrv: frame.hrvForSound,   // 0 = unmeasured → neutral; see BioSampleFrame
             heartRate: hrNormalized,
             breathPhase: clampUnit(frame.breathPhase),
             breathDepth: 0.5,

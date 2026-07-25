@@ -3829,7 +3829,11 @@ struct EchoelStudioView: View {
         #endif
         let input = BioComposer.Input(
             heartRateBPM: fin(frame?.heartRateBPM, heldBody.map { Float($0.bpm) } ?? 70),
-            hrvNormalized: fin(frame?.hrvNormalized, 0.5),
+            // `hrvForSound`, not the raw value: `fin`'s fallback only fires for nil or
+            // non-finite, so a REAL 0 (= not measured yet) went straight through — and in
+            // BioComposer low HRV means high sympathetic load, so the composer answered
+            // "I know nothing about this body" with maximum arousal and a busier take.
+            hrvNormalized: fin(frame?.hrvForSound, 0.5),
             coherence: liveCoh,
             breathPhase: fin(frame?.breathPhase, 0),
             breathDepth: dynamicDepth,

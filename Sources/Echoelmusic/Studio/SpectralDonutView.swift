@@ -95,7 +95,7 @@ struct SpectralDonutView: View {
         // in step with the publishers.
         let bio = bus.usableBio()
         let breath = Double(bio?.breathPhase ?? 0.5)             // 0…1
-        let hrv = Double(bio?.hrvNormalized ?? 0.5)              // 0…1
+        let hrv = Double(bio?.hrvForSound ?? 0.5)                // 0 = unmeasured → neutral
         let coh = Double(bio?.coherence ?? 0.5)                  // 0…1
         // DEPTH cues (slow, bounded — not flashing, so applied even under Reduce
         // Motion): coherence pulls the whole field CLOSE (larger) — the spatial

@@ -30,8 +30,12 @@ import Foundation
 /// One snapshot of the vitals shared across processes.
 public struct BioVitals: Codable, Sendable, Equatable {
     public var heartRateBPM: Float
+    /// Normalized HRV [0…1]. `0` means **not measured** — same convention as
+    /// `BioSampleFrame.hrvNormalized`, which this mirrors across processes.
     public var hrvNormalized: Float
     public var breathPhase: Float
+    /// Coherence [0…1]. `0` means **not measured** (too few beats to run the
+    /// spectral estimate), not "maximally incoherent".
     public var coherence: Float
     /// `timeIntervalSinceReferenceDate` (== CFAbsoluteTimeGetCurrent) of the
     /// source frame — the SAME wall clock in every process, so the AUv3
@@ -50,11 +54,17 @@ public struct BioVitals: Codable, Sendable, Equatable {
     /// may have written HealthKit-sourced vitals unmarked).
     public var egressAllowed: Bool
 
+    /// Defaults describe an UNMEASURED body, not an average one: `hrvNormalized`
+    /// and `coherence` default to 0 ("not measured") rather than the old 0.5, which
+    /// was a fabricated mid-scale reading that the Widget and the Watch printed as
+    /// "50%". `heartRateBPM` keeps a positive placeholder because 0 BPM is not a
+    /// readable state for the surfaces that divide by it; those surfaces gate on
+    /// their own has-data flag before showing any number at all.
     public init(
         heartRateBPM: Float = 60,
-        hrvNormalized: Float = 0.5,
+        hrvNormalized: Float = 0,
         breathPhase: Float = 0,
-        coherence: Float = 0.5,
+        coherence: Float = 0,
         timestamp: TimeInterval = 0,
         breathRate: Float = 0,
         egressAllowed: Bool = false

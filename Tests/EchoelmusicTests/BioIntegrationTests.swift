@@ -37,13 +37,12 @@ final class BioSnapshotValidityTests: XCTestCase {
         // Coherence: 0-1
         XCTAssertGreaterThanOrEqual(snap.coherence, 0.0)
         XCTAssertLessThanOrEqual(snap.coherence, 1.0)
-        // Breathing rate: 0 (= not measured) or a physiological 4-30 breaths/min.
-        // The default is now 0, deliberately: HealthKit only has a respiratory rate when
-        // the user tracks sleep, so the old 12.0 default published a textbook average as
-        // if it were an observation. This assertion accepts either, so a REAL rate is
-        // still range-checked.
-        XCTAssertTrue(snap.breathRate == 0 || (snap.breathRate >= 4.0 && snap.breathRate <= 30.0),
-                      "breath rate must be 0 (unmeasured) or physiological, got \(snap.breathRate)")
+        // Breathing rate: the DEFAULT is 0 (= not measured), deliberately. HealthKit only
+        // has a respiratory rate when the user tracks sleep, so the old 12.0 default
+        // published a textbook average as if it were an observation. Pinned exactly —
+        // the earlier "0 or 4…30" form also passed if the default drifted back to 12.
+        XCTAssertEqual(snap.breathRate, 0,
+                       "default breath rate must be 0 (unmeasured), got \(snap.breathRate)")
         // Breath phase: 0-1
         XCTAssertGreaterThanOrEqual(snap.breathPhase, 0.0)
         XCTAssertLessThanOrEqual(snap.breathPhase, 1.0)

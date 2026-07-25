@@ -40,8 +40,29 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// Heart rate in BPM. Range [40..200], unclamped here.
     public let heartRateBPM: Float
 
-    /// HRV (rMSSD) normalized to [0..1].
+    /// HRV (rMSSD) normalized to [0..1]. `0` means **not measured**, not "minimum
+    /// variability" — a Watch before its first SDNN sample, a camera before it locks.
+    /// Anything that DISPLAYS this must render 0 as "—" (see `BioStripView`); anything
+    /// that MODULATES with it should read `hrvForSound` instead.
     public let hrvNormalized: Float
+
+    /// `hrvNormalized` for MODULATION targets: unmeasured (0) becomes a neutral 0.5.
+    ///
+    /// Why this exists as one property instead of a ternary at each call site: 0 is not
+    /// a neutral value in any of the HRV mappings, it is an EXTREME. Feeding a literal 0
+    /// asserts "minimum variability" — it darkens timbre, and in `BioComposer` it reads
+    /// as maximum sympathetic load and composes a busier, more agitated take precisely
+    /// when the app knows nothing about the body. That is a worse fabrication than the
+    /// placeholder this convention replaced. The rule was first written inline at two
+    /// synth voices and immediately drifted: two other consumers kept passing the raw 0.
+    /// Keeping it in one place is what stops that happening again.
+    ///
+    /// This is deliberately NOT the fully honest form. The honest form is "do not apply
+    /// the HRV mapping at all when there is no HRV" — depth to zero rather than value to
+    /// the middle — which needs an optional or a `hasHRV` flag threaded through every
+    /// mapping. Until then: the DISPLAY must never state an unmeasured value, and the
+    /// instrument must still play.
+    public var hrvForSound: Float { hrvNormalized > 0 ? Swift.min(hrvNormalized, 1) : 0.5 }
 
     /// Raw HRV as RMSSD in **milliseconds** — the un-normalized, instrument-grade
     /// value for display, logging, and OSC. `0` means the source does not provide
