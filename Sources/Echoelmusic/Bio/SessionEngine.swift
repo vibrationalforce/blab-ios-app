@@ -307,7 +307,8 @@ public final class SessionEngine {
             // Latency-compensated breath swell in [0,1] (raised cosine at hz).
             let gate = EntrainmentEngine.gate(atSeconds: t + lat, hz: hz, phaseOffset: phaseOff)
             let amp = Double(Self.baseGain) * ((1 - depth) + depth * gate)
-            dst[i] = Float(sin(phase) * amp)
+            // Source-node output boundary. See `AudioOutputGuard`.
+            dst[i] = AudioOutputGuard.silencingNonFinite(Float(sin(phase) * amp))
             phase += carrierInc
             if phase > 2 * Double.pi { phase -= 2 * Double.pi }
             clock &+= 1

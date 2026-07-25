@@ -27,23 +27,33 @@ import Foundation
 /// infinity into a NaN. NaN then fails every comparison, so it survives the
 /// remaining branches untouched and poisons each recursive node it reaches.
 ///
-/// ── COVERAGE IS DELIBERATELY PARTIAL ────────────────────────────────────────
-/// Wired today, and WHICH ENTRY POINT each needs is decided by where the last
-/// write happens, not by whether the voice uses a scratch array:
+/// ── COVERAGE ────────────────────────────────────────────────────────────────
+/// All seven of the app's `AVAudioSourceNode` render blocks are wired. WHICH ENTRY
+/// POINT each needs is decided by where the last write happens, not by whether the
+/// voice uses a scratch array:
 /// * `PolySynthVoice`, `BioReactiveSynthVoice` — buffer form. The copy out of
 ///   scratch IS the last write, so the sweep folds into it.
-/// * `SubBassVoice` — scalar form. It has no scratch; it computes and writes one
-///   sample at a time.
+/// * `SubBassVoice`, `MetronomeVoice`, `SessionEngine` — scalar form. No scratch;
+///   they compute and write one sample at a time.
 /// * `DrumSynthVoice`, `SamplerVoice` — in-place form. Both DO use a scratch
 ///   array, but they then run a per-channel insert FX over the hardware buffer
 ///   afterwards, so the copy is not the last write and there is nothing left to
 ///   fold into.
 ///
-/// Of the seven render-block writers in the app, two are still unguarded:
-/// `MetronomeVoice` and `SessionEngine`. Separate slice with its own audio review.
-/// Note "render-block writers" is narrower than "inputs to `masterMixer`" —
-/// `masterPlayerNode`, the clip player and the warp path also feed that mixer and
-/// are outside this guard's shape. Do not read this file as a graph-wide invariant.
+/// THE INVARIANT IS EXACTLY THIS AND NO WIDER: every SOUNDING path of every
+/// render block of ours passes its samples through this guard, so none of them can
+/// put a non-finite value into the buffer list. The non-sounding paths — the
+/// `silence(...)` helpers and the launch-silence / not-playing early-outs — bypass
+/// the guard, which is correct: they write literal zeros, and a zero is finite by
+/// construction.
+///
+/// It is NOT graph-wide. "Render blocks of ours" is narrower than "inputs to
+/// `masterMixer`" — `masterPlayerNode`, the clip player and the warp `timePitch`
+/// path also feed that mixer, and they are Apple nodes replaying decoded PCM,
+/// outside this guard's shape. Nor does it say anything about what leaves
+/// `AutoMixChain`.
+///
+/// A NEW render block does not inherit this. Wire it, and add it to the list above.
 ///
 /// ── WHAT IT DELIBERATELY DOES NOT DO ────────────────────────────────────────
 /// * **No clamping to [-1, 1].** That is a limiter's job and belongs where it can

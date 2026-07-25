@@ -182,6 +182,10 @@ public final class MetronomeVoice {
                 clickEnv = 0
             }
 
+            // Source-node output boundary. Swept once here rather than per buffer,
+            // since the same `out` goes to every channel. See `AudioOutputGuard`.
+            out = AudioOutputGuard.silencingNonFinite(out)
+
             for buffer in abl {
                 guard let raw = buffer.mData else { continue }
                 raw.assumingMemoryBound(to: Float.self)[frame] = out
