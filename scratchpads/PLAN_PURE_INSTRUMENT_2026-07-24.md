@@ -90,6 +90,58 @@ beim Founder für die großen Slices).
 - #120 Metronom, #104/105/106 Roadmap (Loop/Master-Stem/Video-Export): OBSOLET durch den Cut.
 - EchoelStore/Push/CloudKit: unberührt (dormant), separat.
 
+## SLICE-6-LISTE (kumuliert aus den 4b/4c/4d-Reviews — nichts still verwaisen lassen)
+
+Von den Slice-4-Löschungen verwaist, alle Workstation-Rest (kein Keeper):
+- `Studio/SurfaceSwitcherBar` + `WorkspaceSurface`-Enum (Chips ohne Fläche)
+- `Studio/ClipLaunchGlyph.swift`
+- `Studio/WaveformView.swift` (BEIDE Typen) **+ `Audio/WaveformCache.swift`** (`WaveformCache`/`WaveformData`,
+  Consumer war nur `WaveformView.swift:80`) — 4c-Review-Fund
+- `Sequencer/ClipAutomationEdit.swift` **+ `Tests/…/ClipAutomationEditTests.swift`** — 4d-Review-Fund
+  (reines, getestetes Enum; einziger Prod-Consumer war `ClipAutomationView`)
+- die VIEW-Structs in `Studio/TimelineAutomationRow.swift` (`TimelineAutomationRow`,
+  `TimelineAutomationHeadCell`, `TimelineAutomationTargetOption`)
+
+⚠ **GUARDS für Slice 6 (sonst bricht der Build oder es stirbt ein Keeper):**
+- **`TimelineAutomationRowMath` MUSS bleiben** — `Core/TimelineStore.swift:718` ruft `sameParameter`.
+  Also die View-Structs aus der Datei entfernen, NICHT die Datei löschen.
+- **`AutomationTarget` (`Core/AutomationPlayer.swift`) NICHT mitnehmen:** sein einziger Consumer außerhalb
+  der eigenen Datei ist `TimelineAutomationRow.swift` — Zeilen 116/117 liegen INNERHALB des Keepers
+  `TimelineAutomationRowMath.sameParameter`, nur Zeile 146 im doomed `catalog`. Nimmt man `AutomationTarget`
+  mit, bricht `TimelineStore.swift:718`.
+- **`AutomationCanvasMath` BLEIBT** (KEEP, getestet) — behält nach dem `ClipAutomationEdit`-Wegfall noch
+  6 lebende Consumer über `TimelineAutomationRowMath`.
+- **`DSP/WaveformReducer.swift` BLEIBT** — reiner, testgedeckter Core.
+- Kommentar-Sweep: `Studio/EchoelStudioView.swift:361-366` behauptet noch, Piano-Roll/PatchEditor würden
+  „von den Timeline-Spur-Türen (ArrangeTimelineView's ArrangeModal)" geöffnet — die Timeline ist seit 4b weg.
+  Genau die Sorte Kommentar, die eine künftige Session auf eine nicht existierende Tür jagt; zusammen mit
+  Task #131 (Re-Dooring) korrigieren.
+
+## ⚠ SLICE-5-VORBEFUND (2026-07-25, exakt lokalisiert — korrigiert die pauschale Data-Loss-Warnung)
+
+Die bisherige Plan-Zeile „Enum-Case-Entfernung = Data-Loss (persistierter `.video`-Clip decodiert nicht
+mehr)" war RICHTIG im Alarm, aber ZU PAUSCHAL. Die zwei Decode-Stellen verhalten sich UNTERSCHIEDLICH:
+
+- ✅ **`Clip.kind` (`Sequencer/Clip.swift:172`) ist SCHON SICHER:**
+  `kind = (try? c.decode(ClipKind.self, forKey: .kind)) ?? .midi` — `try?` schluckt den Fehlschlag.
+  Fällt `ClipKind.video` weg, decodiert ein persistierter `"video"`-Clip als `.midi` weiter.
+  **Kein Crash, kein Dokumentverlust** (der verwaiste `mediaRef` ist harmlos, es spielt nichts mehr Video).
+- ⛔ **`TimelineLane.kind` (`Sequencer/Timeline.swift:145`) ist die ECHTE Falle:**
+  `kind = try c.decodeIfPresent(ClipKind.self, forKey: .kind) ?? .midi` — **`decodeIfPresent` liefert nur
+  bei FEHLENDEM Key `nil`; bei VORHANDENEM, aber unbekanntem Wert WIRFT es** (`dataCorrupted`), und hier
+  fängt kein `try?` → der Throw propagiert → **das GANZE `TimelineDocument` decodiert nicht mehr = Verlust
+  des Projekts.** Das ist genau das CLAUDE.md-Gesetz („NIEMALS einen entfernten persistierten Key in ein
+  hartes `try decode` verwandeln") — hier in der Variante `decodeIfPresent` + `try`.
+  **Fix VOR jeder Enum-Entfernung:** auf `(try? c.decode(...)) ?? .midi` angleichen (identisch zu `Clip`),
+  mit einem Test, der ein Dokument mit `"kind":"video"` einliest und `.midi` erwartet.
+- `RecordSource.videoCapture` (`Sequencer/TrackInstrument.swift:108/112`): `recordSource` ist eine
+  BERECHNETE `var` (:71) — Persistenz-Pfad noch zu verifizieren im Slice-5-Plan (vermutlich abgeleitet,
+  also unkritisch). NICHT ungeprüft anfassen.
+
+→ Slice 5 braucht daher: (1) diesen Decode-Angleich + Test ZUERST als eigene Slice (5a, rein defensiv,
+kein Enum-Wegfall), (2) erst danach die Enum-Entfernung. Persistence-Steward + planning-agent + Council
+wie geplant.
+
 ## Status: PLAN gelockt.
 - ✅ **Slice 1 (AUv3-Target-Removal) GESHIPPT** — Commit `5ef8856`, beide echten Gates grün
   (Xcode Compile Check #1087 + CI/CD Pipeline #4552). EchoelmusicAUv3-Target + Embed +

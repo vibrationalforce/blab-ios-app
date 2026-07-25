@@ -799,8 +799,8 @@ struct EchoelmusicApp: App {
                 // Automation "all parameters" (founder 2026-07-14): bind the built-in
                 // voice's bio-independent DDSP params into the SAME router, so drawn /
                 // recorded automation lanes move them live — exactly how the AUv3 host
-                // above binds a hosted plugin's knobs. AutomationView then auto-lists
-                // them (the picker widens past the 3 enum targets). Bio-contested params
+                // above binds a hosted plugin's knobs. Anything bound into
+                // `parameterRouter` becomes automatable by name. Bio-contested params
                 // are excluded in bindAutomatable (they need automation×bio composition).
                 polyVoice.bindAutomatable(into: parameterRouter)
                 // L2/L4 S2b: per-track automation DISPATCH. A namespaced

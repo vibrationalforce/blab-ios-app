@@ -4,9 +4,11 @@
 // Tracks automatisieren kann."): the fold-out automation ROW under a track,
 // drawing the song-absolute curve on the SAME tick→x scale as the clip row
 // (x = tick · pxPerTick, pxPerTick = ppb / 480), with the A3 canvas gesture law
-// (tap adds, drag moves, double-tap deletes). The AutomationView sheet stays the
-// precision editor (typed values, curve/hold, segment bend); this row is the
-// DAW-shaped fast path.
+// (tap adds, drag moves, double-tap deletes). The precision-editor sheet that
+// once complemented this row (typed values, curve/hold, segment bend) was deleted
+// with the DAW UI (#121, Slice 4 / 4d); this row itself is now unmounted too and
+// retires in the Slice 6 cleanup — only `TimelineAutomationRowMath` stays (live,
+// read by `Core/TimelineStore.swift`).
 //
 // DATA MODEL (honest): timeline automation lives in `TimelineDocument.automation`
 // — parameter-keyed, DOCUMENT-wide, song-absolute. GLOBAL targets (master level,
@@ -119,10 +121,10 @@ public enum TimelineAutomationRowMath {
 #if canImport(SwiftUI)
 import SwiftUI
 
-/// One selectable automation target for the row's compact picker — the SAME
-/// catalog the AutomationView sheet offers: the three legacy enum targets plus
-/// every router-BOUND registry descriptor (placebo law — only parameters that
-/// actually move audio are listed; `extraAutomatableDescriptors` enforces it).
+/// One selectable automation target for the row's compact picker: the three
+/// legacy enum targets plus every router-BOUND registry descriptor (placebo law —
+/// only parameters that actually move audio are listed;
+/// `extraAutomatableDescriptors` enforces it).
 struct TimelineAutomationTargetOption: Identifiable {
     let parameter: String
     let displayName: String
@@ -172,7 +174,8 @@ struct TimelineAutomationHeadCell: View {
     /// When non-nil, the picker also offers this lane's per-track targets (L2/L4).
     /// Pass ONLY for a secondary lane that owns a rack slot (never the roll lane).
     var perTrackLaneID: UUID? = nil
-    /// Opens the existing AutomationView sheet slot (precision editor).
+    /// Opened the precision-editor sheet (deleted in #121 Slice 4/4d); no
+    /// caller remains — this cell retires in the Slice 6 cleanup.
     let onOpenEditor: () -> Void
     /// Folds the row back up.
     let onClose: () -> Void
