@@ -1047,7 +1047,7 @@ struct EchoelStudioView: View {
             HStack(spacing: 14) {
                 Image(systemName: "circle.circle")
                     .font(.system(size: 26, weight: .regular))
-                    .foregroundStyle(EchoelTheme.accent)
+                    .foregroundStyle(EchoelTheme.text)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Breathing Session")
                         .font(EchoelTheme.font(17, .semibold))
@@ -1066,7 +1066,7 @@ struct EchoelStudioView: View {
             .frame(maxWidth: .infinity)
             .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge).fill(EchoelTheme.surface))
             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
-                .strokeBorder(EchoelTheme.accent.opacity(0.35), lineWidth: 1))
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Back to the breathing session")
@@ -2217,7 +2217,7 @@ struct EchoelStudioView: View {
                 .foregroundStyle(floatingVisualVisible ? EchoelTheme.onPrimary : EchoelTheme.text)
                 .padding(.horizontal, 12).frame(height: 36)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .fill(floatingVisualVisible ? EchoelTheme.accent : EchoelTheme.fill))
+                    .fill(floatingVisualVisible ? EchoelTheme.text : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
@@ -2294,7 +2294,7 @@ struct EchoelStudioView: View {
                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
                 .padding(.horizontal, 11).frame(height: 30)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                    .fill(selected ? EchoelTheme.text : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
@@ -2338,7 +2338,7 @@ struct EchoelStudioView: View {
                                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
                                 .padding(.horizontal, 12).frame(height: 32)
                                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                                    .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
+                                    .fill(selected ? EchoelTheme.text : EchoelTheme.fill))
                                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
                         }
