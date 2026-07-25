@@ -85,27 +85,36 @@ final class ResolvedPatchTests: XCTestCase {
                 EchoelDDSP.writeInstrumentProfile(instrument, into: $0)
             }
             XCTAssertEqual(actual.count, expected.count)
-            for i in 0..<expected.count {
-                XCTAssertEqual(actual[i], expected[i], accuracy: 1e-6,
-                               "\(instrument) harmonic \(i) diverged")
-            }
+            // EXACT, not approximate: same code over the same buffer, so any drift at
+            // all is a real divergence and a tolerance would hide it.
+            XCTAssertEqual(actual, expected, "\(instrument) diverged from the allocating generator")
         }
     }
 
     func testApplyTimbreProducesTheSameSpectrumAsTheOldLoadPath() {
-        // The old drain did `loadTimbreProfile(instrumentProfile(t), blend:)`. The new
-        // one calls `applyTimbre(t, blend:)`. The resulting harmonic amplitudes must be
-        // identical — this is the actual audible contract.
-        let old = EchoelDDSP()
-        let new = EchoelDDSP()
-        old.spectralShape = .natural
-        new.spectralShape = .natural
-        old.loadTimbreProfile(EchoelDDSP.instrumentProfile(.cello), blend: 0.6)
-        new.applyTimbre(.cello, blend: 0.6)
-        XCTAssertEqual(old.harmonicAmplitudes.count, new.harmonicAmplitudes.count)
-        for i in 0..<old.harmonicAmplitudes.count {
-            XCTAssertEqual(new.harmonicAmplitudes[i], old.harmonicAmplitudes[i], accuracy: 1e-6,
-                           "harmonic \(i) diverged from the pre-refactor path")
+        // The old drain did `loadTimbreProfile(instrumentProfile(t), blend:)` — which
+        // ALWAYS generated 64 taps, normalised over 64, then took `prefix(harmonicCount)`.
+        // `applyTimbre` normalises over `harmonicCount` instead. Those agree only while
+        // each profile's peak harmonic lies inside the first `harmonicCount` taps (it
+        // does: the latest peak is the oboe's, at n = 6). Both SHIPPING voice widths are
+        // covered here — PolySynthVoice builds 32, BioReactiveSynthVoice 64 — because 32
+        // is exactly the configuration where the two normalisation windows could differ.
+        for harmonics in [32, 64] {
+            for instrument in EchoelDDSP.InstrumentTimbre.allCases {
+                let old = EchoelDDSP(harmonicCount: harmonics)
+                let new = EchoelDDSP(harmonicCount: harmonics)
+                old.spectralShape = .natural
+                new.spectralShape = .natural
+                old.loadTimbreProfile(EchoelDDSP.instrumentProfile(instrument), blend: 0.6)
+                new.applyTimbre(instrument, blend: 0.6)
+                XCTAssertEqual(old.harmonicAmplitudes.count, new.harmonicAmplitudes.count)
+                for i in 0..<old.harmonicAmplitudes.count {
+                    XCTAssertEqual(new.harmonicAmplitudes[i], old.harmonicAmplitudes[i],
+                                   accuracy: 1e-6,
+                                   "\(instrument) @\(harmonics): harmonic \(i) diverged "
+                                   + "from the pre-refactor path")
+                }
+            }
         }
     }
 

@@ -48,6 +48,19 @@ Convening on trivia is the failure mode — stay cheap.
 | **Shipper (Ralph)** | minimal change, one feature/cycle, green build, TestFlight | "Smallest change that ships? Does build/test stay green? One thing only?" |
 | **Skeptic** | risk, scope creep, what breaks | "What's the failure mode? What are we NOT seeing? Cheapest way to be wrong?" |
 | **User-Advocate** | founder's real intent, UX clarity, accessibility-first | "Is this what was actually asked? Is it legible and reversible for the user?" |
+| **Aesthetic Maximalist** | expressive RANGE — does the artist have enough to play with? | "Is this expressive enough to be worth performing? What can the body/hand actually shape here that it can't today?" |
+
+**Why the Aesthetic Maximalist exists** (added 2026-07-25, founder asked whether such a
+voice was in the room — it was not). Every other seat pulls toward *less*: Shipper wants
+the smallest change, Skeptic wants the risk gone, Architect wants no new coupling,
+Vision-Keeper enforces "adding a medium = adding a subscriber, never a new surface". With
+nobody arguing the other way, an instrument converges on safe and thin — and "thin" was
+already a real founder complaint about the sound. This seat is the counterweight.
+**Its constraint, non-negotiable:** it argues for expressive DEPTH on what exists — wiring
+a dead modulation channel, widening a range, making a mapping legible — never for a new
+screen, a new surface, or a new modal. It loses to Vision-Keeper on brand and to the
+flash/accessibility laws every time. When it and Vision-Keeper disagree, name the
+disagreement rather than averaging it.
 
 ## Procedure (fast)
 
