@@ -72,10 +72,10 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// to apply a permanent maximal offset. Both halves of that are now CLOSED, and
     /// neither was fixed here, deliberately:
     ///
-    /// - A missing frame never reached the audio: `FXBioModulator` skips a bio route
-    ///   with no frame (`guard let frame else { continue }`), so the base value stood.
-    ///   It DID reach the ~10 Hz `contributions` readout, which showed that excursion
-    ///   for a route contributing nothing; fixed by forcing the offset to 0.
+    /// - A missing frame never reached the audio: `FXBioModulator` treated a bio route
+    ///   with no frame as contributing nothing, so the base value stood. It DID reach
+    ///   the ~10 Hz `contributions` readout, which showed that excursion for a route
+    ///   contributing nothing; fixed by forcing the offset to 0.
     /// - A frame present but carrying a STRUCTURAL zero DID reach the audio, because
     ///   `ModSource.rawValue` reads the RAW fields and `FXModRoute` defaults to
     ///   `bipolar: true`. It was not a corner case: the FX view's "add route" button
@@ -92,13 +92,14 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// exactly "no contribution", and on every channel whose sentinel normalizes to 0 it
     /// already equals the unipolar result.
     ///
-    /// One boundary is NOT closed and is worth knowing before blaming a future report:
-    /// the gate has no slew, so a channel that stops being measured drops its offset in
-    /// one 30 Hz tick. The camera's ~4 s dropout grace is the live case — it republishes
-    /// `breathRate: 0` while still holding a continuous `breathPhase`, so a bipolar
-    /// breath→cutoff route can step by up to ~4.5 kHz in 33 ms where it used to glide.
-    /// That trade is deliberate (a brief edge beats a permanent maximal offset), but a
-    /// per-target offset slew in `FXBioModulator` is the real answer.
+    /// The gate's own boundary is FADED, not stepped: `FXRouteFade` holds a route's last
+    /// real offset and eases it out over ~0.25 s when its channel stops being measured
+    /// (the camera's ~4 s dropout grace is the live case — it republishes
+    /// `breathRate: 0` while still holding a continuous `breathPhase`). What remains is
+    /// NOT this gate's doing and is not closed: no `EchoelFXChain` stage smooths its own
+    /// parameters, so every control-rate write is a staircase — a 10 Hz bio carrier
+    /// steps cutoff 10× a second regardless of any boundary. That needs chain-side
+    /// parameter smoothing, the way `EchoelDelay` already smooths its read tap.
     ///
     /// This is deliberately NOT the fully honest form. The honest form is "do not apply
     /// the HRV mapping at all when there is no HRV" — depth to zero rather than value to

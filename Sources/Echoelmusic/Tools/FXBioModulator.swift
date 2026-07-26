@@ -46,18 +46,36 @@ public final class FXBioModulator {
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private let startTime = CFAbsoluteTimeGetCurrent()
 
+    /// Per-route fade state (`FXRouteFade` — pure, tested). Keyed by route id so
+    /// reordering routes, or editing an unrelated one, does not disturb a fade in
+    /// progress; the fade invalidates its own held offset when the route it belongs to
+    /// is retargeted or retuned.
+    @ObservationIgnored private var routeFades: [UUID: FXRouteFade] = [:]
+    /// MONOTONIC, deliberately. `CFAbsoluteTimeGetCurrent` is wall clock: an NTP or
+    /// timezone step backwards yields a negative delta, which the envelope reads as a
+    /// bad clock — and the app already carries the wall clock for LFO phase, where a
+    /// jump is harmless. A difference is not. `systemUptime` cannot go backwards.
+    @ObservationIgnored private var lastTickUptime = ProcessInfo.processInfo.systemUptime
+
     public init() {}
 
     /// Bind to the chain a voice owns + the bio bus. Safe to call again to rebind.
     public func attach(chain: EchoelFXChain, bus: EngineBus) {
         self.chain = chain
         self.bus = bus
+        // A rebind is a different chain: carrying half-finished fades onto it would
+        // apply offsets to parameters this driver never captured a base for.
+        routeFades.removeAll()
+        lastTickUptime = ProcessInfo.processInfo.systemUptime
         reconcileBases()
     }
 
     public func start() {
         guard !isRunning, chain != nil else { return }
         isRunning = true
+        // Anchor the clock here, or the first tick's dt would be the whole idle gap
+        // since the last session and the envelope would snap instead of fading in.
+        lastTickUptime = ProcessInfo.processInfo.systemUptime
         task?.cancel()
         task = Task { @MainActor [weak self] in
             while !Task.isCancelled {
@@ -72,6 +90,11 @@ public final class FXBioModulator {
         isRunning = false
         task?.cancel(); task = nil
         liveContributions = []   // display empties when no session is live
+        // Drop the fades too, so a later `start()` eases in from silence rather than
+        // resuming a half-faded route. (Today the app never calls `stop()` — the driver
+        // runs from launch to termination — so this is the correctness of the API, not
+        // a path the shipping app exercises.)
+        routeFades.removeAll()
         // Restore every captured base so the chain returns to the user's settings.
         if let c = chain {
             for (target, base) in baseValues { write(target, base, to: c) }
@@ -88,6 +111,7 @@ public final class FXBioModulator {
     /// Capture a base for every newly-active target; restore + drop bases for targets
     /// that are no longer modulated. Called on attach and whenever routes change.
     private func reconcileBases() {
+        pruneRouteFades()   // before the chain guard: route edits land whether or not one is bound
         guard let c = chain else { return }
         let active = activeTargets
         // Capture bases for new targets.
@@ -104,6 +128,11 @@ public final class FXBioModulator {
     // MARK: - Tick
 
     private func tick() {
+        // Advance the fade clock BEFORE any early return, or a tick that bails would
+        // hand the next one an inflated gap.
+        let uptime = ProcessInfo.processInfo.systemUptime
+        let dt = Float(uptime - lastTickUptime)
+        lastTickUptime = uptime
         guard let c = chain else { return }
         // Gate on `usableBio()` — the SAME per-source window the mod-brain uses
         // (ModulationEngine.tick). The fixed-5 s `freshBio()` here meant FX
@@ -111,8 +140,8 @@ public final class FXBioModulator {
         // (90 s window) while the main modulation kept steering — inconsistent
         // sound shaping off the same body. Now every sound-shaping bio gate is
         // the one authority: a frame usable to the engine is usable to the FX,
-        // and a frame the engine drops (`nil`) drops the FX bio offset too (the
-        // `guard let frame else { continue }` below leaves the base value).
+        // and a frame the engine drops (`nil`) disengages the FX bio routes too, fading
+        // them back to the base value rather than cutting them.
         let frame = bus?.usableBio()
         let now = Float(CFAbsoluteTimeGetCurrent() - startTime)
         let active = activeTargets
@@ -121,29 +150,43 @@ public final class FXBioModulator {
             var sum: Float = 0
             var contributed = false
             for route in routes where route.enabled && route.target == target {
-                let signal: Float
+                let signal: Float?
                 switch route.carrier {
                 case .bio(let source):
-                    guard let frame else { continue }   // no body → no bio offset
-                    // …and a frame that carries nothing ON THIS CHANNEL is the same
-                    // absence: HealthKit publishes no coherence, and coherence is what
-                    // the FX view's "add route" button always creates. Without this, a
-                    // BIPOLAR route on such a channel reads signal 0 and applies a
-                    // permanent full-negative offset (see `ModSource.isMeasured`, which
-                    // also documents the one unipolar channel this changes: breath).
-                    guard source.isMeasured(in: frame) else { continue }
-                    signal = source.normalizedValue(from: frame)
+                    // A missing frame, or a frame that carries nothing ON THIS CHANNEL,
+                    // is an absence: HealthKit publishes no coherence, and coherence is
+                    // what the FX view's "add route" button always creates. A BIPOLAR
+                    // route would otherwise read signal 0 and apply a permanent
+                    // full-negative offset (see `ModSource.isMeasured`, which also
+                    // documents the one unipolar channel this changes: breath).
+                    if let frame, source.isMeasured(in: frame) {
+                        signal = source.normalizedValue(from: frame)
+                    } else {
+                        signal = nil
+                    }
                 case .lfo:
                     let phase = (now * route.lfoRateHz).truncatingRemainder(dividingBy: 1)
                     signal = FXModulation.lfoUnipolar(phase: phase)
                 }
-                sum += FXModulation.offset(target: target, signal: route.curve.apply(signal),
-                                           depth: route.depth, bipolar: route.bipolar)
-                contributed = true
+
+                // Hold the last real offset and fade it, rather than snapping to zero
+                // the tick a sensor drops out. The camera's ~4 s dropout grace is the
+                // live case: it republishes `breathRate: 0` while still holding a
+                // continuous `breathPhase`, so an ungated boundary stepped a bipolar
+                // breath→cutoff route by up to ~4.5 kHz in one 33 ms tick.
+                var fade = routeFades[route.id] ?? FXRouteFade()
+                fade.step(route: route, signal: signal, dt: dt)
+                routeFades[route.id] = fade
+
+                sum += fade.contribution
+                // Still contributing while fading OUT, so the stage stays enabled for the
+                // whole tail instead of cutting it.
+                if fade.isEngaged { contributed = true }
             }
-            // The write ALWAYS runs, deliberately: `sum` is 0 when nothing contributed,
-            // so a channel that stops being measured returns its parameter to base
-            // instead of freezing at the last modulated value.
+            // The write ALWAYS runs, deliberately: `sum` reaches 0 once every route has
+            // faded out (the fade snaps to zero at its epsilon rather than decaying
+            // asymptotically), so a channel that stops being measured returns its
+            // parameter to base instead of freezing at the last modulated value.
             write(target, FXModulation.combine(base: base, target: target, offset: sum), to: c)
             // Enabling the stage does NOT: switching a filter or reverb on for a target
             // nothing is modulating changes the sound off nothing — the same complaint
@@ -160,6 +203,22 @@ public final class FXBioModulator {
             let next = FXModulation.contributions(routes: routes, frame: frame, now: now)
             if next != liveContributions { liveContributions = next }
         }
+    }
+
+    /// Forget fade state for routes that no longer exist or were disabled, so the
+    /// dictionary cannot grow across a long session of route edits — and so a route that
+    /// is disabled and re-enabled eases back in rather than reappearing at its old
+    /// engagement.
+    ///
+    /// Called from `reconcileBases` (the `routes` `didSet`), NOT from the tick: the set
+    /// of live routes can only change when `routes` changes, and doing it per tick built
+    /// an array, a map, a `Set` and a fresh dictionary 30× a second on the main actor —
+    /// pure garbage for a per-edit fact, on the actor this app has a documented
+    /// starvation law about.
+    private func pruneRouteFades() {
+        guard !routeFades.isEmpty else { return }
+        let live = Set(routes.filter { $0.enabled }.map(\.id))
+        routeFades = routeFades.filter { live.contains($0.key) }
     }
 
     // MARK: - Chain parameter mapping

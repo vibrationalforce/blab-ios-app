@@ -180,14 +180,22 @@ public enum FXModulation {
     /// carriers use `now` (seconds) for their phase and ignore the frame; they are always
     /// measured. Order preserved. Deterministic → Linux-testable.
     ///
+    /// This reports AVAILABILITY, not the driver's fade: `FXBioModulator` eases a route
+    /// in and out over ~0.25 s (`presence`), so for that quarter second the row can read
+    /// "—" while a tail is still audible, or show a full offset while the route is still
+    /// easing in. Deliberate — the row's job is "is your body driving this", which is a
+    /// yes/no about the sensor, and threading the envelope in would make the readout
+    /// stateful and no longer a pure function of the routes and the frame.
+    ///
     /// "Not reporting" is two cases, and both must be caught: no frame at all, and a
     /// frame that carries nothing ON THIS CHANNEL (`ModSource.isMeasured` — a `.faceCam`
     /// frame has no pulse, a source without beat-to-beat RR has no coherence). The offset
     /// is forced to 0 in both rather than computed from signal 0, and that is not
     /// cosmetic: this readout exists to answer "what is my body moving right now", so it
-    /// must agree with what the driver applies — and `FXBioModulator` skips exactly these
-    /// routes, leaving the base value alone. Running signal 0 through the BIPOLAR formula
-    /// instead gives `(0·2−1)·depth·span·0.5`, a FULL NEGATIVE excursion, so such a route
+    /// must agree with where the driver ENDS UP — and `FXBioModulator` disengages exactly
+    /// these routes, settling on the base value (via `FXRouteFade`, over ~0.25 s, which
+    /// is the transient the paragraph above owns). Running signal 0 through the BIPOLAR
+    /// formula instead gives `(0·2−1)·depth·span·0.5`, a FULL NEGATIVE excursion, so a route
     /// displayed a large negative contribution it was not making.
     public static func contributions(routes: [FXModRoute], frame: BioSampleFrame?,
                                      now: Float) -> [BioModContribution] {
@@ -217,6 +225,59 @@ public enum FXModulation {
                                       measured: contributing)
         }
     }
+
+    /// How fast a route engages and disengages when its carrier starts or stops being
+    /// measured, as a one-pole time constant in seconds. ~0.08 s reaches 95 % in about
+    /// a quarter second: fast enough that the body still feels connected to the sound,
+    /// slow enough that a sensor dropout is a fade rather than a click.
+    public static let presenceTau: Float = 0.08
+
+    /// Rate-based [0..1] engagement for ONE route, stepped by `dt` seconds toward 1
+    /// while its carrier is measured and toward 0 while it is not.
+    ///
+    /// This is deliberately an envelope on the route's PRESENCE, not a smoother on its
+    /// offset. Smoothing the offset would also blunt every intentional fast move — a
+    /// 5 Hz LFO on tremolo, a sharp breath transient — to fix a boundary those moves
+    /// have nothing to do with. Multiplying a held offset by this envelope leaves the
+    /// modulation itself as sharp as the user asked for, and only fades the route in
+    /// and out at the edges of the body's actual availability.
+    ///
+    /// Rate-based per the project law: `1 − e^(−dt/τ)` depends on elapsed time, so the
+    /// fade takes the same wall-clock time whether the driver ticks at 30 Hz or faster.
+    /// A non-advancing or non-finite clock snaps to the target rather than freezing the
+    /// envelope mid-fade or poisoning it with NaN.
+    public static func presence(current: Float, measured: Bool,
+                                dt: Float, tauSeconds: Float = presenceTau) -> Float {
+        let target: Float = measured ? 1 : 0
+        let c = current.isFinite ? clamp01(current) : target
+        // A zero/invalid time CONSTANT means "instant" — snap is the right reading.
+        guard tauSeconds.isFinite, tauSeconds > 0 else { return target }
+        // A zero/negative/invalid time STEP means no time passed — hold, do not snap.
+        // These two cases pull opposite ways, which is why they are separate guards:
+        // folding them together made a stalled clock produce a complete transition.
+        guard dt.isFinite, dt > 0 else { return c }
+        let alpha = clamp01(1 - expf(-dt / tauSeconds))
+        let next = c + (target - c) * alpha
+        return clamp01(next.isFinite ? next : target)
+    }
+
+    /// Below this a route counts as fully disengaged, and its fade SNAPS to zero.
+    /// A one-pole only reaches zero by denormal underflow (~8 s here), and a route
+    /// lingering at an inaudible amount is not free — it keeps its FX stage enabled, so
+    /// a reverb tank goes on running eight comb filters at a mix nobody can hear.
+    public static let presenceEpsilon: Float = 0.0005
+
+    /// The longest gap treated as real elapsed time when advancing a fade.
+    ///
+    /// Without a ceiling the envelope defeats itself: `alpha` saturates fast, so a
+    /// 200 ms main-actor stall (this app documents plenty) collapses a route by 92 % in
+    /// one tick, and a return from background — where the whole 30 Hz loop was suspended
+    /// — snaps it outright. That is the full-magnitude step the fade exists to remove,
+    /// re-entering through the clock. Clamping means a hitch resumes the fade at its
+    /// normal rate instead: the fade takes longer in wall-clock time, which is a
+    /// graceful degradation rather than a click. 0.05 s is ~1.5 nominal ticks, so
+    /// ordinary jitter stays exactly rate-independent.
+    public static let maxFadeStepSeconds: Float = 0.05
 
     /// A free LFO's unipolar [0..1] value at a phase in turns (1.0 = one cycle).
     public static func lfoUnipolar(phase: Float) -> Float {
@@ -252,4 +313,70 @@ public enum FXModulation {
         combine(base: base, target: target,
                 offset: offset(target: target, signal: signal, depth: depth, bipolar: bipolar))
     }
+}
+
+/// One route's fade state — the last offset it actually produced, and how engaged it
+/// currently is. Pure and `Equatable`, so the whole engage/hold/disengage state machine
+/// is testable without the 30 Hz driver, an audio chain or a device.
+///
+/// The design point: this envelopes the route's PRESENCE, never its offset. Smoothing
+/// the offset would also blunt every intentional fast move — an 8 Hz LFO on tremolo, a
+/// sharp breath transient — to fix a boundary those moves have nothing to do with.
+public struct FXRouteFade: Sendable, Equatable {
+
+    /// What a held offset MEANS. The offset is only refreshed on a measured tick, so
+    /// without this a route sitting on an unmeasured carrier keeps a number in the units
+    /// of whatever it used to point at — and the FX view's target picker repoints a route
+    /// IN PLACE, keeping its id. A held `+4480` from Filter Cutoff applied to Reverb Mix
+    /// (range 0…1) would clamp the reverb to fully wet. Depth, polarity and curve are in
+    /// here for the milder version of the same thing: editing them while the carrier is
+    /// unmeasured would otherwise do nothing until the body came back, so the control
+    /// reads as dead.
+    public struct Shape: Sendable, Equatable {
+        public var target: FXModTarget
+        public var depth: Float
+        public var bipolar: Bool
+        public var curve: ResponseCurve
+        public init(_ r: FXModRoute) {
+            target = r.target; depth = r.depth; bipolar = r.bipolar; curve = r.curve
+        }
+    }
+
+    public private(set) var offset: Float = 0
+    public private(set) var presence: Float = 0
+    public private(set) var shape: Shape?
+
+    public init() {}
+
+    /// Advance one control tick. `signal` is the route's normalized [0..1] carrier value,
+    /// or `nil` when the body is not reporting that channel at all (no frame, or a frame
+    /// with nothing on this channel — see `ModSource.isMeasured`).
+    public mutating func step(route: FXModRoute, signal: Float?, dt: Float,
+                              tauSeconds: Float = FXModulation.presenceTau) {
+        let current = Shape(route)
+        if shape != current {
+            shape = current
+            offset = 0          // the held number no longer means anything
+        }
+        if let signal {
+            offset = FXModulation.offset(target: route.target,
+                                         signal: route.curve.apply(signal),
+                                         depth: route.depth, bipolar: route.bipolar)
+        }
+        let stepSeconds = Swift.min(dt.isFinite ? Swift.max(dt, 0) : 0,
+                                    FXModulation.maxFadeStepSeconds)
+        presence = FXModulation.presence(current: presence, measured: signal != nil,
+                                         dt: stepSeconds, tauSeconds: tauSeconds)
+        if signal == nil, presence < FXModulation.presenceEpsilon {
+            presence = 0
+            offset = 0
+        }
+    }
+
+    /// The signed amount this route contributes to its target right now.
+    public var contribution: Float { offset * presence }
+
+    /// Whether the route is still doing anything audible — including a tail that is
+    /// fading out, so the driver keeps its FX stage enabled for the whole tail.
+    public var isEngaged: Bool { presence > FXModulation.presenceEpsilon }
 }
