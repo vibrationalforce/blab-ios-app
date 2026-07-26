@@ -9,8 +9,11 @@
 // request (an atomic-width counter + scalar fields, the SamplerVoice pattern) and
 // the AUDIO thread applies it inside render() before generating the block. This
 // keeps every read-modify-write of the modal-bank mode arrays (excite / material
-// reconfigure — both in-place, allocation-free) on the audio thread, so the main
-// thread never mutates render state concurrently (audit 2026-07-02 P0.2 race fix).
+// reconfigure) on the audio thread, so the main thread never mutates render state
+// concurrently (audit 2026-07-02 P0.2 race fix). Those writes are in-place, and
+// allocation-free only under the conditions spelled out at `applyPendingRequests`
+// below — this header used to assert it flatly, which is how a real malloc in the
+// render block survived several audits (audit 2026-07-26).
 
 #if canImport(AVFoundation) && canImport(Accelerate)
 import AVFoundation
@@ -95,7 +98,7 @@ private final class DrumRenderState: @unchecked Sendable {
     // Config request (main thread → audio thread). A version counter + scalar fields
     // (the MaterialPreset is a simple String-raw enum → an atomic-width tag). On a
     // version change the audio thread applies them, so the modal-bank array reconfigure
-    // (in-place, allocation-free) never races the render read.
+    // never races the render read. (In-place; on allocation see `applyPendingRequests`.)
     private var cfgVersion: UInt32 = 0
     private var lastSeenCfg: UInt32 = 0
     private var cfgMaterial: EchoelModalBank.MaterialPreset = .drum
@@ -161,11 +164,22 @@ private final class DrumRenderState: @unchecked Sendable {
         let cfg = cfgVersion
         if cfg != lastSeenCfg {
             lastSeenCfg = cfg
-            // Allocation-free ONLY because `EchoelModalBank.material`'s didSet skips
-            // `applyMaterial` when the preset is unchanged, and because the `.drum` branch's
-            // mode-ratio table is a `static let` rather than a per-call array literal. Both
-            // were added for this call site — it is the audio thread, and a pad reconfigures
-            // per note when a pitch maps to different drum params (`LaneDrumKitVoice.noteOn`).
+            // THIS path is allocation-free because `EchoelModalBank.material`'s didSet skips
+            // `applyMaterial` when the preset is unchanged — and here it never changes: a pad's
+            // material is fixed by `DrumNoteMap.params` (`.drum` for kick/snare/perc, `.plate`
+            // for hat) and the pad is chosen by pitch, while `DrumRenderState.init` already
+            // established it on the MAIN thread. What varies per note is frequency/damping/
+            // size, which is why the version bumps at all (`LaneDrumKitVoice.noteOn`).
+            // Before the guard, every one of those bumps re-ran the full mode loop here, and
+            // the `.drum` branch's per-call array literal made it a malloc in the render block.
+            //
+            // The companion `static let` mode-ratio table protects a DIFFERENT path — a genuine
+            // material change arriving via `BeatPlayer.setSynthParams` → `applySynth` →
+            // `configure` — which has no caller today. Do not credit it with fixing this one.
+            // Residual, stated rather than hidden: a `static let` is a lazy global, so its
+            // FIRST-EVER touch runs an initializer that allocates. Here it is warm before any
+            // render block exists (see `DrumRenderState.init`), which is fortunate rather than
+            // designed; a new material path must not rely on that.
             modalBank.material = cfgMaterial
             modalBank.frequency = cfgFrequency
             modalBank.damping = cfgDamping

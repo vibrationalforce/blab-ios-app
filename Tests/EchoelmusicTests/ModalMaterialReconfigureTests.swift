@@ -8,13 +8,25 @@
 // the didSet skips `applyMaterial` when the preset is unchanged, and the `.drum` mode-ratio
 // table is a `static let` instead of a per-call array literal.
 //
-// A unit test cannot observe a malloc. What it CAN pin is the claim the skip rests on — that
-// re-applying the same preset is audibly a no-op — and its converse, that a real material
-// change still takes effect. Without the second half, "optimising" by skipping more would
-// pass. The tests deliberately compare RENDERED SAMPLES, not internal state, because the
-// samples are what the claim is about.
+// A unit test cannot observe a malloc. Be precise about what each of these does instead —
+// review caught the first version of this header claiming coverage it does not have:
+//
+//  · `testReassigningTheSameMaterial_isSampleIdentical` passes WITH the guard (the assignment
+//    does nothing) and WITHOUT it (the re-apply writes bit-identical values). It documents the
+//    intended contract; it CANNOT detect the guard's removal. Kept because a reader needs the
+//    contract written down somewhere executable, not because it is a regression guard.
+//  · `testReturningToAMaterial_leavesTheDecayUntouched` is the one that pins the guard's
+//    PREMISE, by using only real transitions (X → Y → X) so `applyMaterial` genuinely runs.
+//    It goes red the moment `applyMaterial` touches per-note state — phases, amplitudes,
+//    envelope — which is exactly when skipping it would stop being inaudible.
+//  · `testSwitchingMaterialMidNote_changesTheTail` is the teeth: it fails if a real material
+//    change stops taking effect, so the guard can never be "improved" into swallowing one.
+//
+// All three compare RENDERED SAMPLES rather than internal state, because the samples are what
+// the audibility claim is about.
 
 import XCTest
+#if canImport(Accelerate)
 @testable import Echoelmusic
 
 final class ModalMaterialReconfigureTests: XCTestCase {
@@ -23,10 +35,14 @@ final class ModalMaterialReconfigureTests: XCTestCase {
     private let sr: Float = 48000
     private let frames = 512
 
-    /// Excite a bank, render one block, reassign `material` `extraAssignments` times, render a
-    /// second block, and return both blocks concatenated.
+    /// Excite a bank, render one block, perturb `material` between the blocks, render a second
+    /// block, return both concatenated. The perturbation is one of three shapes:
+    ///   - `times: n`         — assign the SAME preset n more times (skipped by the guard)
+    ///   - `roundTripVia: y`  — x → y → x, two REAL changes that leave the preset where it began
+    ///   - `thenSwitchingTo:` — x → y and stay there
     private func render(reassigning material: EchoelModalBank.MaterialPreset,
-                        times extraAssignments: Int,
+                        times extraAssignments: Int = 0,
+                        roundTripVia detour: EchoelModalBank.MaterialPreset? = nil,
                         thenSwitchingTo switched: EchoelModalBank.MaterialPreset? = nil) -> [Float] {
         let bank = EchoelModalBank(modeCount: modes, sampleRate: sr)
         bank.material = material          // the one real change (default is `.bell`)
@@ -37,6 +53,10 @@ final class ModalMaterialReconfigureTests: XCTestCase {
         bank.render(buffer: &out, frameCount: frames)
 
         for _ in 0..<extraAssignments { bank.material = material }
+        if let detour {
+            bank.material = detour        // real change → applyMaterial runs
+            bank.material = material      // real change back → applyMaterial runs again
+        }
         if let switched { bank.material = switched }
 
         var tail = [Float](repeating: 0, count: frames)
@@ -44,9 +64,10 @@ final class ModalMaterialReconfigureTests: XCTestCase {
         return out + tail
     }
 
-    /// The skip's premise: assigning the SAME preset again changes nothing you can hear.
-    /// If this ever fails, `applyMaterial` has grown a side effect on per-note state and the
-    /// equality guard in the didSet is no longer safe to keep.
+    /// Documents the contract, and CANNOT fail either way — see the header. With the guard the
+    /// re-assignments are skipped; without it they write bit-identical values. Do not read a
+    /// green run here as evidence that the guard is present or that it is safe; the test below
+    /// is the one that checks the safety premise.
     func testReassigningTheSameMaterial_isSampleIdentical() {
         for preset in [EchoelModalBank.MaterialPreset.drum, .bell, .plate] {
             let untouched = render(reassigning: preset, times: 0)
@@ -55,6 +76,27 @@ final class ModalMaterialReconfigureTests: XCTestCase {
             for i in 0..<untouched.count {
                 XCTAssertEqual(untouched[i], hammered[i], accuracy: 0,
                                "\(preset): re-assigning the same material moved sample \(i)")
+            }
+        }
+    }
+
+    /// THE PREMISE, tested where it can actually fail. Every assignment here is a real change
+    /// (drum → plate → drum), so `applyMaterial` runs twice mid-note, past the guard. Because it
+    /// ends on the preset it began with, the rendered tail must be untouched — which is only
+    /// true if `applyMaterial` writes preset-derived config and nothing else. The moment it
+    /// touches a phase, a current amplitude or the envelope, this goes red, and that is exactly
+    /// the moment skipping the re-apply would stop being inaudible.
+    func testReturningToAMaterial_leavesTheDecayUntouched() {
+        for (preset, detour) in [(EchoelModalBank.MaterialPreset.drum, EchoelModalBank.MaterialPreset.plate),
+                                 (.bell, .drum),
+                                 (.plate, .bell)] {
+            let untouched = render(reassigning: preset)
+            let roundTripped = render(reassigning: preset, roundTripVia: detour)
+            for i in 0..<untouched.count {
+                XCTAssertEqual(untouched[i], roundTripped[i], accuracy: 0,
+                               "\(preset) → \(detour) → \(preset) moved sample \(i): "
+                               + "applyMaterial now carries per-note state, so the didSet's "
+                               + "equality guard is no longer safe")
             }
         }
     }
@@ -90,3 +132,4 @@ final class ModalMaterialReconfigureTests: XCTestCase {
         XCTAssertTrue(out.allSatisfy { $0.isFinite }, "non-finite sample in the drum render")
     }
 }
+#endif

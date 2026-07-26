@@ -86,9 +86,16 @@ public final class EchoelModalBank: @unchecked Sendable {
     /// bumps that version whenever a pitch maps to different drum params — so a melodic
     /// tom/perc line reconfigured on nearly every note. Without the guard, each of those
     /// assignments ran the full `applyMaterial` (mode loop + normalisation) in the render
-    /// block for a material that had not changed. Re-applying the same preset is a no-op by
-    /// construction (`configureModes` writes ratios/amplitudes/decays derived only from the
-    /// preset, and touches no per-note state), so skipping it changes nothing audible.
+    /// block for a material that had not changed.
+    ///
+    /// Skipping the re-apply is inaudible under ONE PRECONDITION, which is not automatic:
+    /// the mode arrays must still hold this preset's values. `configureModes` derives them
+    /// purely from the preset and touches no per-note state (phases, amplitudes, envelope),
+    /// so a re-apply would write bit-identical values — but anything that mutates the arrays
+    /// BEHIND the marker breaks that. `morphMaterials` is exactly such a routine: it exits
+    /// with `material == to` while the arrays hold interpolated values. It therefore calls
+    /// `applyMaterial` directly instead of assigning `material`; see the note there. Any new
+    /// code that writes the mode arrays must do the same, or restore the marker honestly.
     public var material: MaterialPreset = .bell {
         didSet { if material != oldValue { applyMaterial(material) } }
     }
@@ -321,9 +328,13 @@ public final class EchoelModalBank: @unchecked Sendable {
             )
 
         case .drum:
+            // Read the static ONCE per call, not once per mode. `configureModes` invokes the
+            // generator `modeCount` times (64 by default), and each `Self.drumRatios` touch is
+            // a `swift_once` token check plus a retain/release on the array buffer. Matches how
+            // `EchoelDDSP.formantBands` is read (once, in the `for` header).
+            let drumRatios = Self.drumRatios
             configureModes(
                 ratioGenerator: { n in
-                    let drumRatios = Self.drumRatios
                     if n < drumRatios.count {
                         return drumRatios[n]
                     }
@@ -743,16 +754,31 @@ public final class EchoelModalBank: @unchecked Sendable {
         let prevAmps = modeInitialAmplitudes
         let prevDecays = modeDecayRates
 
-        // Apply "from" material
-        material = from
+        // Apply "from" material.
+        //
+        // Calls `applyMaterial` DIRECTLY rather than assigning `material`. This routine uses
+        // the setter as a command ("fill the mode arrays with this preset, so I can read them
+        // back"), which the setter's equality guard would silently swallow whenever
+        // `material` already equalled `from` — the morph would then blend whatever the arrays
+        // happened to hold. Worse, this routine deliberately EXITS with `material == to` while
+        // the arrays hold interpolated values, so before the guard existed the next
+        // `material = to` from any caller healed the state back to a pure preset; with the
+        // guard, that heal is skipped and the blend would be permanent. Going straight at
+        // `applyMaterial` keeps the morph independent of the marker's current value.
+        applyMaterial(from)
         for i in 0..<modeCount {
             fromRatios[i] = modeRatios[i]
             fromAmps[i] = modeInitialAmplitudes[i]
             fromDecays[i] = modeDecayRates[i]
         }
 
-        // Apply "to" material
+        // Apply "to" material. The marker moves first (its didSet may or may not fire,
+        // depending on the guard), then the explicit call guarantees the arrays hold the pure
+        // `to` preset regardless — which the interpolation below reads as its second endpoint.
+        // The marker CANNOT be moved after the interpolation: its didSet would overwrite the
+        // blend it is meant to label.
         material = to
+        applyMaterial(to)
 
         // Interpolate between from and to
         let oneMinusBlend = 1.0 - clampedBlend

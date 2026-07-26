@@ -109,6 +109,17 @@ Fix: Gleichheits-Guard im didSet + Ratio-Tabelle als `static let` (Präzedenz
 `EchoelDDSP.formantBands`, #84) + der Kommentar sagt jetzt, was die Allokationsfreiheit
 tatsächlich trägt. Neuer Test `ModalMaterialReconfigureTests`.
 
+**Zwei offene Punkte, die der DSP-Review beim Prüfen dieses Slices aufwarf — NICHT angefasst:**
+- **Physik-Frage an der Ratio-Tabelle:** Einträge 13 und 16 (`4.480`, `5.132`) passen nicht in
+  die Standard-Reihe der idealen Kreismembran, deren Nachbarn `4.154, 4.230, 4.601` bzw.
+  `4.903, 5.412` lauten. Das ändert den KLANG, wenn man es korrigiert — also nicht nebenbei,
+  sondern gegen die Quelle prüfen, aus der die Tabelle stammt.
+- **`EchoelDDSP.formantBands` hat den gleichen Erst-Zugriff-Rest wie die neue Tabelle** und ist
+  dort NICHT abgefedert: der erste Zugriff liegt im `.formant`-Zweig von
+  `computeShapeAmplitudes` (`EchoelDDSP.swift:742-746`), das render-seitig läuft. Wird
+  `.formant` zum ersten Mal bei laufendem Audio gewählt, mallociert die `swift_once`-Init auf
+  dem Audio-Thread. Sauber wäre ein `_ = Self.formantBands` beim Engine-Start.
+
 ### C-3 bis C-7 (aus dem Audio-Team, noch nicht gebaut — nach Schwere)
 
 - **HIGH** File-I/O + String + `os_log` **im installTap-Callback**: `RetroCapture.swift:127-128`
