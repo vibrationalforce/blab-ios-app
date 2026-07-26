@@ -186,7 +186,10 @@ public struct SignalRoute: Codable, Sendable, Identifiable, Equatable {
     public var sourcePortID: String
     public var sinkPortID: String
     public var enabled: Bool
-    /// Transform depth / gain, [0..1].
+    /// Intended transform depth / gain, [0..1] — but NO CONSUMER TODAY. It is persisted and
+    /// clamped and nothing reads it, so changing it has no audible or visible effect (#171:
+    /// wire it into the converters or drop it from the schema). Do not document it as if it
+    /// already scales anything.
     public var amount: Float
     /// Named converter id when source/sink kinds differ; nil for same-kind edges.
     public var converterID: String?
@@ -199,6 +202,10 @@ public struct SignalRoute: Codable, Sendable, Identifiable, Equatable {
         self.enabled = enabled
         self.amount = Swift.min(1, Swift.max(0, amount.isNaN ? 1 : amount))
         self.converterID = converterID
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, sourcePortID, sinkPortID, enabled, amount, converterID
     }
 
     /// DEFENSIVE DECODE — the half that element-tolerance cannot cover.
@@ -214,17 +221,25 @@ public struct SignalRoute: Codable, Sendable, Identifiable, Equatable {
     /// route — that one still throws, and the tolerant array turns it into a single hole.
     ///
     /// This is the pattern already used for `SynthPatch`, `Project` and `ArrangementSection`
-    /// (law 9). `encode(to:)` stays synthesized and the keys below match the property names,
-    /// so already-persisted routes round-trip byte-for-byte.
+    /// (law 9). `encode(to:)` stays synthesized and the CodingKeys above match the property
+    /// names in declaration order, so the KEY SET is unchanged and a well-formed in-range
+    /// route round-trips byte-for-byte. Two values are deliberately NOT byte-preserved, and
+    /// the next `save()` re-encodes them: an out-of-range `amount` is clamped, and an
+    /// unreadable/absent `id` is regenerated.
     ///
-    /// Side effect worth naming: the synthesized decoder BYPASSED the `amount` clamp in the
-    /// memberwise `init`, so a persisted NaN or out-of-range amount came back raw and reached
-    /// the transform depth. Delegating to that `init` rather than assigning fields directly
-    /// closes it, and keeps the clamp in exactly one place.
-    private enum CodingKeys: String, CodingKey {
-        case id, sourcePortID, sinkPortID, enabled, amount, converterID
-    }
-
+    /// `amount` — PRE-EMPTIVE, not a closed live bug. The synthesized decoder did assign it
+    /// raw, bypassing the clamp in the memberwise `init`; delegating to that `init` keeps the
+    /// clamp in one place. But nothing anywhere READS `route.amount` today — it is a stored
+    /// promise with no consumer (task #171) — and `JSONDecoder` throws on non-conforming
+    /// floats by default, so a persisted NaN was never representable in the first place. An
+    /// earlier version of this comment claimed a NaN "reached the transform depth"; there is
+    /// no transform depth to reach.
+    ///
+    /// `enabled` defaults to TRUE when absent or non-boolean. Safe only because nothing can
+    /// produce a disabled route today: `routes` is `private(set)`, there is no setter, and
+    /// `SignalRouter.toggle` disconnects rather than disabling. THE DAY a mute/bypass control
+    /// lands in the Patchbay, revisit this — the default would silently re-arm a route the
+    /// user muted, and a re-armed Art-Net/OSC edge is output the user did not ask for.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(

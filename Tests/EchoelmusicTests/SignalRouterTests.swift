@@ -161,15 +161,27 @@ final class SignalRouterTests: XCTestCase {
         XCTAssertNil(route?.converterID)
     }
 
-    /// The clamp in the memberwise `init` used to be BYPASSED on load, because the synthesized
-    /// decoder assigned fields directly — so a persisted NaN reached the transform depth. The
-    /// forgiving decoder delegates to that `init`, which is what closes it.
-    func testLoad_outOfRangeAmount_isClampedOnLoad() {
-        let d = freshDefaults()
+    /// The clamp in the memberwise `init` was BYPASSED on load, because the synthesized decoder
+    /// assigned fields directly; the forgiving decoder delegates to that `init` instead.
+    /// PRE-EMPTIVE, not a closed live bug — nothing reads `route.amount` today (#171), and
+    /// `JSONDecoder` throws on non-conforming floats, so a stored NaN was never representable.
+    ///
+    /// BOTH arms are needed: `1.0` is ALSO the missing-key fallback, so the out-of-range case
+    /// alone would pass against a decoder that ignored `amount` entirely. The in-range arm is
+    /// what proves the value is actually read.
+    func testLoad_amount_isReadAndClampedOnLoad() {
+        let inRange = freshDefaults()
+        plantRoutes("""
+        [{"sourcePortID":"bus.musical","sinkPortID":"artnet.out","amount":0.4}]
+        """, into: inRange)
+        XCTAssertEqual(SignalRouter(defaults: inRange).graph.routes.first?.amount, 0.4,
+                       "an in-range amount must survive — not silently become the default")
+
+        let tooHigh = freshDefaults()
         plantRoutes("""
         [{"sourcePortID":"bus.musical","sinkPortID":"artnet.out","amount":7.5}]
-        """, into: d)
-        XCTAssertEqual(SignalRouter(defaults: d).graph.routes.first?.amount, 1.0)
+        """, into: tooHigh)
+        XCTAssertEqual(SignalRouter(defaults: tooHigh).graph.routes.first?.amount, 1.0)
     }
 
     /// Bounded loss must stay bounded: what survived the tolerant load must still be
