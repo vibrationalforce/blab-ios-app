@@ -78,9 +78,19 @@ public final class EchoelModalBank: @unchecked Sendable {
 
     // MARK: - Material
 
-    /// Active material preset
+    /// Active material preset.
+    ///
+    /// The equality guard is an AUDIO-THREAD requirement, not an optimisation.
+    /// `DrumRenderState.applyPendingRequests` (`Sequencer/DrumSynthVoice.swift`) assigns this
+    /// from the render block on every config-version bump, and `LaneDrumKitVoice.noteOn`
+    /// bumps that version whenever a pitch maps to different drum params — so a melodic
+    /// tom/perc line reconfigured on nearly every note. Without the guard, each of those
+    /// assignments ran the full `applyMaterial` (mode loop + normalisation) in the render
+    /// block for a material that had not changed. Re-applying the same preset is a no-op by
+    /// construction (`configureModes` writes ratios/amplitudes/decays derived only from the
+    /// preset, and touches no per-note state), so skipping it changes nothing audible.
     public var material: MaterialPreset = .bell {
-        didSet { applyMaterial(material) }
+        didSet { if material != oldValue { applyMaterial(material) } }
     }
 
     // MARK: - Types
@@ -202,6 +212,18 @@ public final class EchoelModalBank: @unchecked Sendable {
 
     // MARK: - Material Presets
 
+    /// Membrane mode ratios for `.drum` (Bessel-function zeros): 1.00, 1.59, 2.14, 2.30,
+    /// 2.65, 2.92, 3.16, 3.50, …
+    ///
+    /// Hoisted out of `applyMaterial`'s `.drum` branch because that branch can run on the
+    /// AUDIO THREAD (`DrumRenderState.applyPendingRequests` → `material` didSet), where an
+    /// array literal is a heap allocation. Same fix, same reason as `EchoelDDSP.formantBands`.
+    /// Read-only; indexing a stored array allocates nothing.
+    private static let drumRatios: [Float] = [
+        1.000, 1.593, 2.136, 2.296, 2.653, 2.917, 3.156, 3.500,
+        3.600, 3.652, 4.060, 4.154, 4.480, 4.600, 4.903, 5.132
+    ]
+
     /// Apply a material preset, setting mode ratios, amplitudes, and decay rates
     private func applyMaterial(_ preset: MaterialPreset) {
         guard preset != .custom else { return }
@@ -299,14 +321,9 @@ public final class EchoelModalBank: @unchecked Sendable {
             )
 
         case .drum:
-            // Drum — membrane modes (Bessel function zeros)
-            // Ratios: 1.00, 1.59, 2.14, 2.30, 2.65, 2.92, 3.16, 3.50, ...
-            let drumRatios: [Float] = [
-                1.000, 1.593, 2.136, 2.296, 2.653, 2.917, 3.156, 3.500,
-                3.600, 3.652, 4.060, 4.154, 4.480, 4.600, 4.903, 5.132
-            ]
             configureModes(
                 ratioGenerator: { n in
+                    let drumRatios = Self.drumRatios
                     if n < drumRatios.count {
                         return drumRatios[n]
                     }

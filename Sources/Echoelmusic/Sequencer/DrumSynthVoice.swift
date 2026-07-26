@@ -161,7 +161,12 @@ private final class DrumRenderState: @unchecked Sendable {
         let cfg = cfgVersion
         if cfg != lastSeenCfg {
             lastSeenCfg = cfg
-            modalBank.material = cfgMaterial     // in-place reconfigure (allocation-free)
+            // Allocation-free ONLY because `EchoelModalBank.material`'s didSet skips
+            // `applyMaterial` when the preset is unchanged, and because the `.drum` branch's
+            // mode-ratio table is a `static let` rather than a per-call array literal. Both
+            // were added for this call site — it is the audio thread, and a pad reconfigures
+            // per note when a pitch maps to different drum params (`LaneDrumKitVoice.noteOn`).
+            modalBank.material = cfgMaterial
             modalBank.frequency = cfgFrequency
             modalBank.damping = cfgDamping
             modalBank.stiffness = cfgStiffness
