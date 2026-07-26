@@ -142,11 +142,13 @@ struct EchoelStudioView: View {
     /// app becomes active after an intent opens it.
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
-    #if canImport(HealthKit)
-    @Environment(HealthKitWriter.self) private var healthWriter
+    // HealthKitWriter is read by `HealthWriteOptInRow`, its own leaf — not here. The
+    // root struct's @Environment for it had no use left once the Tools grid went.
+    // Note: the removed HealthKit guard NESTED this one, so haptics was conditioned on
+    // HealthKit being importable — accidental, and moot on iOS where both always are.
+    // It now stands on its own condition, which is what it always meant.
     #if canImport(CoreHaptics)
     @Environment(HapticController.self) private var haptics
-    #endif
     #endif
 
     // The live, fully-editable timbre is `currentPatch` (single source of truth).
@@ -232,14 +234,9 @@ struct EchoelStudioView: View {
     /// (e.g. 98 from an elevated launch pulse) converges to the settled pulse within ~2 min.
     private static let tempoConvergeStep: Double = 8
 
-    /// "10.24.0 (1920)" — marketing version + build, read from the bundle so the
-    /// running app reports exactly which TestFlight build it is.
-    static var appVersionString: String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
-        let build = info?["CFBundleVersion"] as? String ?? "—"
-        return "\(version) (\(build))"
-    }
+    // `appVersionString` lived here only for the deleted Tools footer. The version the
+    // founder reads off a screenshot still renders: WorkspaceView.versionString computes
+    // it independently from the same two bundle keys, so nothing was lost.
 
     // Derived / persisted musical state. Genre, key and scale survive relaunch so
     // the studio reopens on the setup you left it in (MusicStyle / Scale are
@@ -351,10 +348,10 @@ struct EchoelStudioView: View {
     @State private var visualShare: ExportedFile?
     @State private var diagnostics: DiagReport?
 
-    // Tools — open the (previously unreachable) editors as sheets.
-    /// Whether the categorized Tools panel is unfolded. Persisted so it reopens the
-    /// way you left it. Default expanded so every editor is visible at a glance.
-    @AppStorage("compose.toolsExpanded") private var toolsExpanded = true
+    // Modal slots. `compose.toolsExpanded` went with the Tools grid it folded — zero
+    // readers, zero writers. Its persisted UserDefaults key is deliberately NOT migrated
+    // or cleared: a stale bool costs nothing, a delete-on-launch is a destructive write
+    // for no gain.
     @State private var showInput = false
     @State private var showRouting = false
     @State private var showLearn = false
@@ -1299,6 +1296,16 @@ struct EchoelStudioView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open Routing to connect a BLE heart-rate strap")
+            // The Apple Health WRITE opt-in belongs here, with the bio data it writes.
+            // Its only switch used to live in the Tools grid, which stopped rendering on
+            // 2026-07-02 and was deleted 2026-07-26 — but the flag is PERSISTED
+            // (`health.write.enabled`) and `start(reading:)` runs unconditionally, so
+            // anyone who enabled it in an older build kept writing heart and respiratory
+            // samples to Health with no way to stop. A persisted health-data opt-in must
+            // always have a reachable off-switch; that is not a nice-to-have.
+            #if canImport(HealthKit)
+            HealthWriteOptInRow()
+            #endif
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 8)
@@ -4501,5 +4508,50 @@ private struct MusicColourRowView: View {
         return Color(.sRGBLinear, red: rgb.r, green: rgb.g, blue: rgb.b)
     }
 }
+
+// MARK: - Apple Health write opt-in (leaf)
+
+/// The reachable off-switch for writing bio samples to Apple Health.
+///
+/// A LEAF `View`: it owns the `HealthKitWriter` read itself, so `bioPanel` — which is the
+/// one panel evaluated directly in `EchoelStudioView.body` rather than through
+/// `EchoelPanel`'s deferred builder — never registers the root body as an observer of the
+/// writer. Cheap here (the flag changes only on a tap), but the front plate is permanent
+/// now, so the leaf discipline is the rule rather than a judgement call.
+///
+/// Why this exists at all: `HealthKitWriter.enabled` persists to `health.write.enabled`
+/// and `start(reading:)` is called unconditionally at launch, while the switch that used to
+/// set it lived in the Tools grid — unmounted since 2026-07-02, deleted 2026-07-26. Anyone
+/// who turned it on in an older build kept writing heart-rate and respiratory samples with
+/// no way to revoke it inside the app. Restoring the switch is the fix; removing the
+/// persisted flag instead would silently discard a consent the user did give.
+///
+/// Copy stays factual — this writes measurements, it does not diagnose anything.
+#if canImport(HealthKit)
+private struct HealthWriteOptInRow: View {
+    @Environment(HealthKitWriter.self) private var healthWriter
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: Binding(get: { healthWriter.enabled },
+                                 set: { healthWriter.enabled = $0 })) {
+                Text("Save to Apple Health")
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+            }
+            .toggleStyle(.switch)
+            .tint(EchoelTheme.accent)
+            .frame(minHeight: 44)
+            .accessibilityHint("Writes measured heart rate and breathing rate to Apple Health")
+            Text(healthWriter.enabled && !healthWriter.isAuthorized
+                 ? "Waiting for permission in Health."
+                 : "Off by default. Heart and breathing measurements only.")
+                .font(EchoelTheme.font(10))
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+#endif
 
 #endif
