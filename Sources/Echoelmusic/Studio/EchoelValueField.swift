@@ -157,7 +157,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         let thumb: CGFloat = 13
         return ZStack(alignment: .bottom) {
             Capsule().fill(EchoelTheme.fill.opacity(0.85))
-                .overlay(Capsule().strokeBorder(EchoelTheme.border, lineWidth: 1))
+                .overlay(Capsule().strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
                 .frame(width: 6, height: h)
             Capsule().fill(EchoelTheme.accent.opacity(0.35))
                 .frame(width: 6, height: max(thumb, h * frac))

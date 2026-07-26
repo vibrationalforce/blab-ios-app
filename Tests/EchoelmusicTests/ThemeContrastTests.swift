@@ -55,19 +55,44 @@ final class ThemeContrastTests: XCTestCase {
 
     // MARK: - The floor that was missing
 
-    func testInteractiveOutline_clears3to1_againstPageAndAgainstItsOwnFill() {
+    func testInteractiveOutline_clears3to1_asRendered_throughEveryRealNesting() {
         // WCAG 2.1 SC 1.4.11 Non-text Contrast: 3:1 for the visual boundary of a control.
+        //
+        // AS RENDERED: `.background(fill)` then `.overlay(strokeBorder)`, so the stroke lies
+        // OVER the control's own fill — that composite is the pixel a colour-picker reads,
+        // and the fill is what it must be distinguishable FROM. Checked on every ground a
+        // control actually sits on, because each nesting lifts the ground and shrinks the
+        // ratio: the page, one `EchoelPanel` fill, and `surface`.
+        for (name, ground) in [("page", 0.0),
+                               ("panel fill", EchoelTheme.textComponent * EchoelTheme.fillOpacity),
+                               ("surface", EchoelTheme.surfaceComponent),
+                               ("fill on surface",
+                                EchoelTheme.textComponent * EchoelTheme.fillOpacity
+                                + EchoelTheme.surfaceComponent * (1 - EchoelTheme.fillOpacity))] {
+            let fill = EchoelTheme.textComponent * EchoelTheme.fillOpacity
+                     + ground * (1 - EchoelTheme.fillOpacity)
+            let outline = EchoelTheme.textComponent * EchoelTheme.borderStrongOpacity
+                        + fill * (1 - EchoelTheme.borderStrongOpacity)
+            let vsFill = contrast(luminance(grey: outline), luminance(grey: fill))
+            XCTAssertGreaterThanOrEqual(vsFill, 3.0,
+                "on \(name): outline vs the fill it lies on is \(ratio(vsFill)) — needs 3:1")
+        }
+    }
+
+    func testInteractiveOutline_clearsTheFloorEvenOnTheMostPessimisticModel() {
+        // A deliberately WORSE model than the one above: the stroke composited over black
+        // while the fill is judged separately, i.e. as if the outline got no help from the
+        // fill beneath it. Kept as a lower bound so the token has margin under whichever
+        // way the compositor actually blends — linear blending would give 7.70:1, so sRGB
+        // is already the conservative choice and this is more conservative still.
         let outline = luminance(grey: EchoelTheme.textComponent,
                                 opacity: EchoelTheme.borderStrongOpacity, over: 0)
         let vsPage = contrast(outline, pageLuminance)
         let vsFill = contrast(outline, fillLuminance)
         XCTAssertGreaterThanOrEqual(vsPage, 3.0,
-                                    "outline vs page is \(ratio(vsPage)) — SC 1.4.11 needs 3:1")
-        // The harder of the two: the fill lifts the ground and shrinks the ratio. A token
-        // tuned only against black would pass the easy case and still be invisible on the
-        // control it is supposed to outline.
+                                    "pessimistic outline vs page is \(ratio(vsPage))")
         XCTAssertGreaterThanOrEqual(vsFill, 3.0,
-                                    "outline vs its own fill is \(ratio(vsFill)) — SC 1.4.11 needs 3:1")
+                                    "pessimistic outline vs fill is \(ratio(vsFill))")
     }
 
     func testDecorativeBorder_isDeliberatelyBelowTheFloor_notAnOversight() {
@@ -89,9 +114,15 @@ final class ThemeContrastTests: XCTestCase {
         // Regression guard on the two text tokens: `dim` was lifted 0.55 → 0.65 for AA and
         // nothing has stopped it drifting back. Judged over `surface` (the panel fill it
         // actually sits on), the stricter ground for light-on-dark text.
-        let surface = 0.055                        // EchoelTheme.surface, near-neutral
+        // Read from the tokens, NOT re-typed: the first version of this test hardcoded 0.65
+        // and 0.055, so it could not detect the very drift its own comment claimed to guard
+        // — the hand-copied-literal hole this file's header condemns, reintroduced inside
+        // the file condemning it. (Even now the guard is coarse: 0.65 → 0.55 still measures
+        // 4.99:1 and passes. It catches a slide to 0.50 or below.)
+        let surface = EchoelTheme.surfaceComponent
         let body = luminance(grey: EchoelTheme.textComponent)
-        let secondary = luminance(grey: EchoelTheme.textComponent, opacity: 0.65, over: surface)
+        let secondary = luminance(grey: EchoelTheme.textComponent,
+                                  opacity: EchoelTheme.dimOpacity, over: surface)
         let bodyRatio = contrast(body, luminance(grey: surface))
         let secondaryRatio = contrast(secondary, luminance(grey: surface))
         XCTAssertGreaterThanOrEqual(bodyRatio, 4.5, "body text on a panel: \(ratio(bodyRatio))")
@@ -102,6 +133,11 @@ final class ThemeContrastTests: XCTestCase {
     func testWCAGMaths_matchesKnownReferenceValues() {
         // Anchor the formula itself, so a wrong transfer function cannot make the floors
         // above pass vacuously. White-on-black is exactly 21:1 by definition.
+        // NOTE: these first two are weak on their own — 21:1 holds for ANY monotonic f with
+        // f(0)=0, f(1)=1 (the identity included), and black-vs-black is a tautology of
+        // (x+0.05)/(x+0.05). The third assertion is the one that actually pins the transfer
+        // function: the identity would yield 2.76 and a naive gamma-2.2 would yield 1.10,
+        // both far outside the window. Do not delete it as "redundant".
         XCTAssertEqual(contrast(luminance(grey: 1.0), luminance(grey: 0.0)), 21.0, accuracy: 0.001)
         XCTAssertEqual(contrast(luminance(grey: 0.0), luminance(grey: 0.0)), 1.0, accuracy: 0.001)
         // The documented starting point of this fix: 0.878 grey at 10 % over black.

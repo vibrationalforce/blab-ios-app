@@ -114,7 +114,7 @@ struct PulseMonitorMini: View {
         }
         .padding(.horizontal, 6).frame(height: 30)
         .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.fill))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,
         // per the freeze rule).
         .accessibilityElement(children: .ignore)
@@ -280,7 +280,7 @@ struct ImmersiveMonitorMini: View {
         }
         .frame(width: 54, height: 32)
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // 44 pt HIG tap height (#113): the visible chip stays 32, the hit area grows
         // vertically only — the header row is 8 pt-spaced, so NO horizontal expansion
         // (that would overlap the neighbour tiles). Chip stays centred = no visible change.
@@ -393,7 +393,7 @@ struct EchoelLuxMonitorMini: View {
             .frame(width: 38, height: 32)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
             // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
             // horizontal growth); the 38×32 chip stays centred, no visible change.
             .frame(height: 44)

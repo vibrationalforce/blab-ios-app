@@ -158,7 +158,7 @@ struct EchoelNumberPad: View {
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .fill(tint ?? EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: tint == nil ? 1 : 0))
+                    .strokeBorder(EchoelTheme.borderStrong, lineWidth: tint == nil ? 1 : 0))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)

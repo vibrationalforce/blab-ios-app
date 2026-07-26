@@ -379,7 +379,7 @@ private struct TransportBar: View {
                     .frame(width: 30, height: 32)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
             }
             // 44 pt HIG tap target (#113): the visible chip stays 30×32; the transport
             // bar's 12 pt spacing lets the hit area grow symmetrically (−6 → 42×44)

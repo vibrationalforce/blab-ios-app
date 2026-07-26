@@ -2155,7 +2155,7 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
                 .frame(maxWidth: .infinity).frame(height: 34)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityHint(hint)
