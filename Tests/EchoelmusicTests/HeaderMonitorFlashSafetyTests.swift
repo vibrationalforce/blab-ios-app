@@ -8,6 +8,13 @@
 import XCTest
 @testable import Echoelmusic
 
+// `@MainActor`: `ImmersiveMonitorMini` is declared `@MainActor` (HeaderMonitors.swift:251),
+// so even this pure static is main-actor-isolated and a nonisolated test body cannot call
+// it — a hard Swift 6 error. Isolating the test is the smaller of the two fixes; the
+// alternative would be `nonisolated static func` in Sources, which is arguably the truer
+// statement about a function this pure, but it edits a shipping WCAG-safety law to satisfy
+// a test, and the behaviour is identical either way.
+@MainActor
 final class HeaderMonitorFlashSafetyTests: XCTestCase {
 
     func testPulseRate_belowCap_isHeartRateInHz() {

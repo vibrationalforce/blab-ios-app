@@ -538,6 +538,22 @@ Two traps inside that text, both hit on `58ae64e`:
   compile FIRST, then re-measure the install. Do not touch `project.yml` (founder-gated) on the
   strength of that error line.
 
+**PLAYBOOK — the local defect-class sweep that replaces waiting for the next 15-minute CI
+round.** Each reveal round surfaces ONE wave, so sweeping the class locally after every fix is
+what breaks the one-file-per-round crawl. Two heuristics produce false positives every time
+until fixed, and I hit both twice:
+- **Strip line comments first.** `FlashGuardTests.swift:135` "references" `MetalBioView` only
+  inside a doc comment; a `@MainActor`-in-prose match flagged 36 Sources types that are plain
+  `struct`s whose doc block happens to mention the attribute. Require the annotation to be the
+  IMMEDIATELY preceding non-blank, non-comment line.
+- **Only a TOP-LEVEL `class` declaration changes isolation state.** A nested helper (`class
+  Factory` inside an `@MainActor final class …Tests`) is already isolated; resetting on it
+  wrongly flagged `AudioLanePlayerTests`, `ParameterApplyRouterPerTrackTests`,
+  `PianoRollKindVoiceTests`. Same bug also mis-flagged a file whose SECOND top-level class is
+  the isolated one.
+- For `accuracy:`-on-optional, parse **whole calls with balanced parens**, not lines — a
+  multi-line assertion hides the optional from a line-based regex.
+
 **And the part that matters beyond CI: a test file that has NEVER compiled has also never
 RUN, so making it compile is only half the work.** `RecordControllerAudioHookTests` compiled
 clean after the isolation fix and would then have failed three assertions deterministically —
