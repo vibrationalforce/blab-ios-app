@@ -7,11 +7,15 @@
 // drift. Transport is that clock's CONTROL PLANE: a pure, observable, fully
 // unit-testable position + tempo model that anything can subscribe to.
 //
-// It does NOT own a hardware timer yet — PatternEngine keeps driving real time and
-// will relay into Transport in a later cycle. This type is introduced ADDITIVELY
-// first (nothing wires it; zero behaviour change) so it is proven in isolation
-// before the sequencer/arrangement/video/clock consumers migrate onto it, one
-// CI-green cycle at a time. See scratchpads/PLAN_TRANSPORT_CLOCK.md.
+// It does NOT own a hardware timer — PatternEngine keeps driving real time and RELAYS
+// into Transport on every tempo, swing, step, play and stop. The "nothing wires it;
+// zero behaviour change" note that stood here was true only for the first cycle: this
+// type is now the single source that the metronome (EchoelmusicApp: onTempoChange),
+// the haptic pulse and the stop-subscribers ride on.
+//
+// CONSEQUENCE for anyone adding a tempo path: it MUST relay here. A tempo that moves
+// the sequencer without reaching Transport leaves the click behind — that was the
+// actual bug behind "Metronom folgt nicht dem bio/automatisierten Tempo".
 
 import Foundation
 import Observation

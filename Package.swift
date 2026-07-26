@@ -29,25 +29,11 @@ let package = Package(
                 // Strict concurrency checking for Sendable/actor isolation
                 .enableExperimentalFeature("StrictConcurrency=targeted")
             ],
-            exclude: [
-                // Platform-specific directories (handled separately)
-                "Platforms/visionOS",
-                "Platforms/watchOS",
-                "Platforms/tvOS",
-                "Platforms/iOS",
-                "Platforms/macOS",
-                // Files requiring platform-specific frameworks
-                "VisionOS",
-                "WatchOS",
-                "tvOS",
-                "Widgets",
-                "LiveActivity",
-                "AppClips",
-                // Extension targets (separate Xcode targets, not part of main SPM build)
-                "Targets"
-                // NOTE: Sources/_Deferred/ is automatically excluded (sibling folder)
-                // See DEFERRED_FEATURES.md for deferred features roadmap
-            ],
+            // No `exclude:` — every path this used to list (Platforms/, VisionOS/,
+            // WatchOS/, tvOS/, Widgets/, LiveActivity/, AppClips/, Targets/) is gone from
+            // disk, so the list only told SwiftPM to skip directories that do not exist.
+            // Nothing else needs excluding: Sources/ holds only Echoelmusic,
+            // EchoelmusicWatch and EchoelmusicWidgets.
             resources: [
                 .process("Resources")
             ]),

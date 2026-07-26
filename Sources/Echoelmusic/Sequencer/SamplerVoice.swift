@@ -497,8 +497,18 @@ private final class RenderState: @unchecked Sendable {
             memset(buf.advanced(by: produced), 0, (frameCount - produced) * MemoryLayout<Float>.size)
         }
 
-        // Per-channel insert FX (filter + drive) on the channel's output. Runs over
-        // the whole block so a resonant filter rings out across the silent tail.
+        // Per-channel insert FX (filter + drive) on the channel's output, over the whole
+        // block including the zero-padded tail after `produced`.
+        // NOT across silent blocks, though: the `!isPlaying` early return above bails
+        // before reaching here, so once the cursor leaves the region the biquad stops
+        // being clocked until the next trigger resets it. A high-resonance tail is
+        // therefore truncated at the block edge rather than ringing out. That is the
+        // deliberate trade — clocking an idle voice's filter forever is exactly what the
+        // idle-voice skip exists to avoid — and the region-edge release ramp already
+        // tapers the filter INPUT toward zero before the region ends — that bounds the
+        // filter's INPUT, not its stored state, so at high resonance the cut is not
+        // provably small. Not device-verified. (The earlier wording claimed ring-out
+        // "across the silent tail"; true of the intra-block tail, never across blocks.)
         applyInsertFX(buf: buf, frameCount: frameCount)
         // Source-node output boundary — last, because `applyInsertFX` writes the
         // hardware buffer in place. Unconditional, since that call returns early on

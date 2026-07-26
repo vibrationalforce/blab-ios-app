@@ -49,7 +49,7 @@ end
 # =============================================================================
 # Bundle-ID reference (identity map lives in docs/dev/APP_STORE_CONNECT.md):
 #   com.echoelmusic.app                       main app (universal purchase)
-#   com.echoelmusic.app.auv3                  AUv3 extension (embedded, ships)
+#   com.echoelmusic.app.auv3                  RETIRED 2026-07-24 — no target, not embedded
 #   com.echoelmusic.app.widgets               WidgetKit extension (embedded, ships)
 #   com.echoelmusic.app.watchkitapp           watchOS companion (NOT embedded yet)
 #   com.echoelmusic.app.clip                  App Clip (deferred, no target)

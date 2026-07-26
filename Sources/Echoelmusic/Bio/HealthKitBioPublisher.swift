@@ -94,18 +94,34 @@ public final class HealthKitBioPublisher {
     /// and not deterministically testable.
     func publishIfFresh(to bus: EngineBus) {
         guard engine.dataSource == .healthKit else { return }
+        // `dataSource` flips to .healthKit when the QUERIES are installed, not when a
+        // reading arrives, and `BioSnapshot.heartRate` is seeded at a nominal 72 with a
+        // construction-time `timestamp`. Without this second guard the very first poll
+        // publishes that seed as a measured frame: the bio strip shows a confident "72"
+        // and reports a live signal before the Watch has said anything. It is the
+        // headline number and the one this guard exists for. It is NOT the only seeded
+        // placeholder, though — `breathPhase` seeds at 0.5 (see its doc on BioSnapshot:
+        // the type has no "unknown" sentinel for it) and is published in the frame below;
+        // only `lfHfRatio`'s 1.0 stays off the wire. Dropping the whole frame therefore
+        // suppresses both at once.
+        //
+        // The gate is HR-specific but suppresses the WHOLE frame, so HRV/SDNN/breath
+        // ride on it: with a valid SDNN but no valid HR inside its window, nothing
+        // publishes where one frame used to. That is the better trade — a frame whose
+        // headline number is invented should not be shown as a measurement.
+        guard engine.hasHRSample else { return }
         let snap = engine.snapshot
         guard snap.timestamp != lastTimestamp else { return }
         lastTimestamp = snap.timestamp
 
         // Stamp RECEIPT time, not the measurement time. EngineBus's freshness
         // windows (freshBio/usableBio) ask "how long ago did THIS app observe a
-        // live reading?" — the contract at EngineBus.swift:266 says every publisher
+        // live reading?" — the contract on `EngineBus.publish(bio:)` says every publisher
         // (BLE, rPPG, Demo) stamps the CFAbsoluteTimeGetCurrent clock at receipt.
         // HealthKit publishes measurement-time snapshots that are already 4–5 s old
         // (Watch latency) and often minutes stale at rest; stamping THAT aged the
         // frame past even the 90 s wrist window, so the Watch was silently dropped
-        // as a bio source. The :95 dedup stays on snap.timestamp (measurement time)
+        // as a bio source. The dedup above stays on snap.timestamp (measurement time)
         // so we still publish once per NEW reading — only the freshness clock moves.
         bus.publish(bio: BioSampleFrame(
             timestamp: CFAbsoluteTimeGetCurrent(),

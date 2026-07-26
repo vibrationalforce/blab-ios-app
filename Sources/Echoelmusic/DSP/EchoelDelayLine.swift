@@ -53,7 +53,10 @@ public final class EchoelDelayLine: @unchecked Sendable {
     /// `delaySamples` is clamped to `[1, maxDelaySamples]`. Audio-thread safe.
     @inline(__always)
     public func read(delaySamples: Float) -> Float {
-        let d = Swift.min(Swift.max(delaySamples, 1.0), Float(maxDelaySamples))
+        // NaN-safe. `Swift.min(Swift.max(x, 1), max)` is a no-op for NaN (every
+        // comparison against NaN is false), and the very next line is `Int(d)`, which
+        // TRAPS on NaN — a crash on the audio thread, not a degradation.
+        let d = delaySamples.clamped(to: 1.0...Float(maxDelaySamples))
         let i0 = Int(d)
         let frac = d - Float(i0)
         let idx0 = (writeIndex &- i0) & mask
@@ -68,7 +71,10 @@ public final class EchoelDelayLine: @unchecked Sendable {
     /// Assumes a single modulated read tap (keeps one filter state).
     @inline(__always)
     public func readAllpass(delaySamples: Float) -> Float {
-        let d = Swift.min(Swift.max(delaySamples, 1.0), Float(maxDelaySamples))
+        // NaN-safe. `Swift.min(Swift.max(x, 1), max)` is a no-op for NaN (every
+        // comparison against NaN is false), and the very next line is `Int(d)`, which
+        // TRAPS on NaN — a crash on the audio thread, not a degradation.
+        let d = delaySamples.clamped(to: 1.0...Float(maxDelaySamples))
         let i0 = Int(d)
         let frac = d - Float(i0)
         let idx0 = (writeIndex &- i0) & mask

@@ -485,8 +485,9 @@ struct EchoelmusicApp: App {
 
                 // The melodic instrument + shared transport — the core sound path.
                 // Melody plays via pattern.onTick → polyVoice; drums via onStep.
-                // PatternEngine relays each pulse into the authoritative Transport
-                // (additive mirror; existing onStep/onTick stay the live path).
+                // PatternEngine relays each pulse into the authoritative Transport.
+                // Not a passive mirror: the click/haptics subscribe to Transport below,
+                // so this assignment is what makes them follow the tempo at all.
                 beatPlayer.pattern.transport = transport
                 // ONE BPM: the click FOLLOWS the authoritative clock instead of being
                 // pushed from the UI. The ~6 scattered `metronome.bpm` writes are gone,

@@ -108,15 +108,17 @@ public final class PatternEngine {
     /// to silence notes on stop and leave a drone ringing.
     public var onStop: (() -> Void)?
 
-    // MARK: - Transport relay (Cycle 1 — zero behaviour change)
+    // MARK: - Transport relay
 
     /// The single authoritative musical clock. PatternEngine remains the source of
     /// real-time pulses (it owns the timer); it RELAYS each pulse into `Transport`
     /// so position/tempo/play-state live in one observable place that future
-    /// consumers (timeline playhead, MIDI clock, Ableton Link) can all ride. Today
-    /// nothing subscribes to Transport — this mirror is additive and audible-no-op;
-    /// existing `onStep`/`onTick`/`onStop` stay wired and firing. See
-    /// scratchpads/PLAN_TRANSPORT_CLOCK.md. Weak so the app owns Transport's lifetime.
+    /// consumers (timeline playhead, MIDI clock, Ableton Link) can all ride.
+    /// NOT a no-op mirror any more (that was true for one cycle only): the metronome,
+    /// the haptic pulse and the stop-subscribers ride on Transport, so a tempo that
+    /// moves the sequencer WITHOUT relaying here leaves the click behind. Existing
+    /// `onStep`/`onTick`/`onStop` also stay wired and firing.
+    /// Weak so the app owns Transport's lifetime.
     @ObservationIgnored public weak var transport: Transport?
 
     // MARK: - Internal

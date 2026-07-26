@@ -1,1 +1,1 @@
-Biofeedback,HRV,bio-reaktiv,Herzfrequenz,Synthesizer,Beatmaker,Musik,MPE,OSC,AUv3
+Biofeedback,HRV,bio-reaktiv,Herzfrequenz,Synthesizer,Beatmaker,Musik,MPE,OSC,Visuals

@@ -1,1 +1,1 @@
-biofeedback,HRV,generative,synth,sequencer,beats,AUv3,MIDI,MPE,OSC,artnet,DMX,immersive,visuals
+biofeedback,HRV,generative,synth,sequencer,beats,MIDI,MPE,OSC,artnet,DMX,immersive,visuals

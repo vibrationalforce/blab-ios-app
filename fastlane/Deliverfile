@@ -4,9 +4,12 @@
 # App Store Connect metadata configuration. Used only by the
 # `upload_screenshots` lane (upload_to_app_store) — the screenshots pipeline
 # is currently broken upstream (see fastlane/Pluginfile note), so this file is
-# effectively dormant until that repair. CAUTION when reviving: with
-# skip_metadata false and an EMPTY fastlane/metadata/ directory, verify deliver
-# does not clobber live App Store Connect metadata before running for real.
+# effectively dormant until that repair. CAUTION when reviving: the real hazard
+# is the OPPOSITE of what this note used to warn about — fastlane/metadata/ is
+# NOT empty, so with skip_metadata false `deliver` OVERWRITES live App Store
+# Connect copy with whatever is checked in. Read those files first and confirm
+# they describe what actually ships (they claimed an AUv3 plugin for a month
+# after the target was deleted).
 # =============================================================================
 
 # App Store Connect App Identifier
@@ -79,6 +82,5 @@ run_precheck_before_submit false
 # Extensions:
 #   - iOS Widgets:    com.echoelmusic.app.widgets
 #   - iOS App Clip:   com.echoelmusic.app.clip
-#   - macOS AUv3:     com.echoelmusic.app.auv3
 #
 # =============================================================================

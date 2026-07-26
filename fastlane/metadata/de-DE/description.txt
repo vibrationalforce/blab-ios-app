@@ -1,6 +1,6 @@
 Echoel ist ein bio-reaktives Performance-Instrument. Dein Herzschlag, Deine Herzratenvariabilität und Dein Atem steuern Klang, Bild und Licht in Echtzeit — der Körper wird zum Controller.
 
-Gebaut für Performance, Installation, Content und Studioarbeit — auf dem iPhone und als AUv3-Plugin in Deiner DAW.
+Gebaut für Performance, Installation, Content und Studioarbeit — auf dem iPhone.
 
 
 DER KÖRPER ALS CONTROLLER
@@ -29,7 +29,6 @@ ERSCHAFFEN
 
 VERBINDEN
 
-- AUv3-Plugin für Logic, AUM und andere Hosts
 - MIDI / MPE Ein- und Ausgang
 - OSC-Ausgabe für Live-Rigs und Visuals
 - ADM-OSC immersive Objekt-Ausgabe

@@ -638,6 +638,22 @@ struct EchoelStudioView: View {
         .modifier(StudioZoom(step: $zoomStep))
         .background(EchoelTheme.bg)
         .onAppear {
+            // FIRST, before anything reads `style`. The genre roster was re-curated
+            // (#125): `MusicStyle.offered` is a hand-picked subset, not every case. A
+            // style persisted before that is still a valid enum case — nothing crashes —
+            // but it is not in the picker: no row is selected, the user cannot see or
+            // change what they are hearing, and it keeps composing every take.
+            // Ordering is load-bearing: `currentPatch` two lines down falls back to
+            // `style.synthPatch`, so clamping afterwards would leave the TIMBRE on the
+            // de-curated genre while the picker showed the default — the same mismatch,
+            // moved into the sound.
+            // MIGRATION IS DESTRUCTIVE: this overwrites the persisted `studio.genre`.
+            // Re-widening `MusicStyle.offered` later restores the CHOICE for new users
+            // but cannot give this user their old pick back. Accepted deliberately —
+            // an unreachable selection is worse than a reset one.
+            if !MusicStyle.offered.contains(style) {
+                style = StudioDefaultKeys.genre.value
+            }
             // Controls reflect a real sound from the start — honor a restored timbre
             // preset, else the genre's own patch.
             currentPatch = (presetIndex >= 0 && presetIndex < SynthPatch.factory.count)
@@ -671,10 +687,8 @@ struct EchoelStudioView: View {
                 visualStyleB = 0
                 visualBlend = 0
             }
-            // (Founder 2026-07-11 "Alles rein. Logisch sortiert.": every genre is now
-            // offered, grouped by category in the picker — the old curation migration
-            // that snapped retired styles to Self-Observation is removed. A persisted
-            // style is always a valid case now.)
+            // (The genre-roster clamp that belongs next to this visual-look snap runs at
+            // the TOP of this closure instead — `currentPatch` reads `style` before here.)
             surfacePriorCrashIfAny()
             handlePendingIntent()
             // Apply the persisted Mixer "Drums" level to the beat engine at launch.
@@ -2084,6 +2098,12 @@ struct EchoelStudioView: View {
             scale = style.scale
             presetIndex = -1
             currentPatch = style.synthPatch   // load the genre's timbre as a starting point
+            // …then re-impose the persisted Pluck↔Pad macro, exactly like the "Genre
+            // default" menu button, the post-delete path and launch. Without it the
+            // picker was the ONE character-load path that skipped the macro, so the same
+            // genre had a different envelope depending on how you reached it — and
+            // relaunching swapped it again.
+            applyArticulation()
             recomposeIfRunning()
         case "key":
             applyTuning()
@@ -3267,7 +3287,7 @@ struct EchoelStudioView: View {
     ///
     /// NOT true (corrected — the first version of this comment said it): presenting
     /// the roll is not what publishes `MusicalFrame`. That publish lives in
-    /// `PianoRollModel` (`PianoRollView.swift:971`) and fires on every sequencer tick
+    /// `PianoRollModel`'s tick handler (PianoRollView.swift) and fires on every tick
     /// whether or not any view is on screen, because the app installs the model once
     /// (`EchoelmusicApp.swift:732`). So this door is load-bearing for EDITING; the
     /// visual/light output stage stays lit without it.
@@ -4384,7 +4404,15 @@ struct EchoelStudioView: View {
     }
 
     private func open(_ p: Project) {
-        style = p.style
+        // Same clamp as launch: a project saved before the genre re-curation (#125) can
+        // carry a style that is no longer offered, which would leave the picker showing
+        // nothing selected while that genre composed every take. Bound ONCE and reused
+        // below — the FX room must be built from the same genre the picker and the
+        // composer use, or opening such a project produces a split that exists nowhere
+        // else. (Unlike launch this does not rewrite the stored project; only an
+        // explicit save does.)
+        let openStyle = MusicStyle.offered.contains(p.style) ? p.style : StudioDefaultKeys.genre.value
+        style = openStyle
         rootIndex = p.keyRoot
         scale = p.scale
         fxCharacter = p.fxCharacter
@@ -4403,8 +4431,8 @@ struct EchoelStudioView: View {
         bioVoice.setTuning(a4Hz: p.a4Hz)        // the global bio voice tunes too
         synth.apply(p.patch)
         syncTouchSound()
-        fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: p.style)
-        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: p.bpm, genre: p.style) }   // same room for played notes
+        fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: openStyle)
+        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: p.bpm, genre: openStyle) }   // same room for played notes
         pianoRoll.load(p.notes)
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)

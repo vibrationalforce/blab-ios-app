@@ -79,7 +79,7 @@ end
 # requested every run; without cleanup these accumulate and hit Apple's dev-cert
 # limit, after which `xcodebuild -allowProvisioningUpdates` can no longer create
 # the per-target dev profiles (archive fails: "couldn't find iOS App Development
-# provisioning profiles matching com.echoelmusic.app.{widgets,auv3}").
+# provisioning profiles matching com.echoelmusic.app.widgets").
 # So we revoke stale dev certs first, then create a fresh one.
 #
 # RACE NOTE: revoking ALL dev certs is only safe when ONE archive job runs at a

@@ -7,8 +7,8 @@ import SwiftUI
 // founder 2026-07-24: "keine Timeline etc nur das alte Interface mit create from
 // within") removed the timeline — SurfaceHost now mounts only EchoelStudioView.
 // The former 4-chip surface switching (SurfaceSwitcherBar) and the WorkspaceSurface
-// enum stay in code (the @AppStorage raw values are still written by
-// ArrangementView's legacy navigation), unmounted, reversible.
+// enum stay in code, unmounted and reversible. Nothing WRITES the raw values any
+// more — ArrangementView, which used to, was deleted with the timeline.
 //
 // Render safety: SurfaceHost reads NO @Observable models and no @AppStorage — it
 // is a static wrapper, so it never rebuilds (freeze-rule trivially safe).

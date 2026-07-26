@@ -83,6 +83,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// ambient/drift/cinematic. New ambient-family genres (plan G2) are appended here
     /// as they are built. Reversible: widen or narrow this list, no enum change.
     /// Guarded in MusicStyleTests (subset of allCases, default is offered, calm).
+    ///
+    /// "Reversible" is true for the CODE, not for a user's stored pick: `EchoelStudioView`'s
+    /// onAppear snaps a persisted style that is no longer offered back to the default, and
+    /// that write is destructive. Widening this list again restores the choice for everyone
+    /// going forward, but cannot give an already-migrated user their old genre back.
     public static let offered: [MusicStyle] = [
         .selfObservation, .esotericMeditation, .drift, .contemplation,
         .vaporwave, .sciFi, .classical, .dubTechno

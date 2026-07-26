@@ -140,7 +140,10 @@ public final class EchoelBioEngine {
     /// placeholders, so the first genuine reading must replace the seed rather than be
     /// averaged with it — otherwise ~85 % of an invented value survives into what the
     /// user is told is a measurement.
-    private var hasHRSample = false
+    /// `internal(set)` so `HealthKitBioPublisher` can refuse to publish before the
+    /// first real sample lands — otherwise the 72 BPM seed below is broadcast as a
+    /// measurement. Only this file writes it.
+    public internal(set) var hasHRSample = false
     private var hasHRVSample = false
 
     // MARK: - Constants

@@ -82,11 +82,12 @@ final class VisualRecorder {
         return videoURL   // mux failed → return at least the silent video
     }
 
-    /// Founder 2026-07-17 ("Videos werden direkt in die Mediathek gespeichert und
-    /// von der Video-Spur aus wieder importiert"): every finished recording is
-    /// ALSO added to the user's photo library, so the video LANE's PhotosPicker
-    /// import finds it — the app-private Documents/Videos copy stays the durable
-    /// fallback either way. Best-effort and add-only (`.addOnly` — the narrowest
+    /// Every finished recording is ALSO added to the user's photo library, so it lands
+    /// where they keep and share video; the app-private Documents/Videos copy stays the
+    /// durable fallback either way. (The original 2026-07-17 reason was re-import onto a
+    /// video LANE — those lanes were deleted with the video-cut surface, so only the
+    /// keep-and-share half survives. The permission string says exactly that now.)
+    /// Best-effort and add-only (`.addOnly` — the narrowest
     /// permission; denial just logs, nothing else changes, and the Documents copy
     /// is never deleted before Photos has copied the file, because stop() never
     /// deletes the FINAL url at all).
