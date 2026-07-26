@@ -1017,7 +1017,6 @@ public final class CameraRPPGBioPublisher {
         fingerLostTicks = 0
         fingerPresentTicks = 0
         weakAcfTicks = 0
-        strongLockTicks = 0
         weakRelocksUsed = 0   // fresh capture session = fresh re-lock budget
         lockAgeTicks = 0
         quickFailLocks = 0    // fresh session = fresh phantom-backoff state
