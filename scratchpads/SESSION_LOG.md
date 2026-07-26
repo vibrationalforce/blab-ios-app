@@ -8244,3 +8244,41 @@ reparieren.
 3. `.motion` gibt jetzt hart `false` zurück, mit dem Grund im Code: alle sechs
    Frame-Konstruktionsstellen schreiben `motionEnergy: 0`. Ein Wert-Gate (`> 0`) wäre dort
    FALSCH, sobald eine CoreMotion-Quelle kommt — 0 ist da eine echte Messung ("still").
+
+## 2026-07-26 — #137: die Kante wird geblendet, nicht geschnitten (54a2dd5, alle Gates grün)
+
+**Anlass.** Das `isMeasured`-Gate aus 189a71b stoppte den Dauer-Offset, sprang aber:
+volle Wirkung → null in einem 33-ms-Tick. Live-Fall ist die ~4-s-Kamera-Kulanz, die
+`breathRate: 0` sendet und die Atemphase weiterhält — eine bipolare Atem→Cutoff-Route
+sprang dort bis ~4,5 kHz, wo sie vorher glitt.
+
+**Fix.** `FXRouteFade` hält den letzten echten Offset und blendet ihn über ~0,25 s aus.
+Die Hüllkurve skaliert die PRÄSENZ der Route, nie ihren Offset — den Offset zu glätten
+würde jede absichtliche schnelle Bewegung (8-Hz-LFO auf Tremolo, Atem-Transiente) mit
+abstumpfen, um eine Kante zu reparieren, mit der sie nichts zu tun haben.
+
+**Die eigentliche Lehre: der reine Wertetyp war die Antwort auf beide Reviews.**
+Ich hatte drei Felder auf den Treiber gelegt und nur die Kurve getestet — und JEDER
+ernsthafte Befund saß danach im Zustandsautomaten, nicht in der Kurve:
+1. **`dt` ungeklammert** — `alpha` sättigt schnell, also machte ein 200-ms-Main-Actor-
+   Stall (davon dokumentiert diese App reichlich) 92 % Einbruch in einem Tick, und die
+   Rückkehr aus dem Hintergrund (30-Hz-Schleife suspendiert) einen glatten Sprung. Der
+   volle Schritt kam durch die UHR zurück. Jetzt auf 0,05 s geklammert.
+2. **Wanduhr statt monoton** — `CFAbsoluteTimeGetCurrent` rückwärts (NTP/Zeitzone) →
+   negatives Delta → Snap. `systemUptime` kann nicht rückwärts.
+3. **Gehaltener Offset überlebte einen Ziel-Wechsel** — der Target-Picker zeigt eine
+   Route AN ORT UND STELLE um, die id bleibt; ein gehaltenes `+4480` in Hz auf Reverb Mix
+   (0…1) hätte den Hall voll aufgerissen. Jetzt invalidiert ein Shape-Fingerabdruck
+   (Ziel/Tiefe/Polarität/Kurve) die Zahl.
+4. **`dt == 0` snappte** — null vergangene Zeit für einen VOLLSTÄNDIGEN Übergang ist
+   verkehrt herum und genau die Form des Bugs, den die Hüllkurve verhindern soll.
+
+**Regel fürs Ledger:** wenn ein Zustandsautomat in einem Treiber entsteht, ihn SOFORT als
+reinen Wertetyp herausziehen. Nicht wegen Eleganz — sondern weil er sonst die einzige
+ungetestete Hälfte ist, und dort sitzen die Fehler.
+
+**Ehrlich offen (#138):** keine EchoelFXChain-Stufe glättet ihre eigenen Parameter. Jeder
+Steuerraten-Write ist eine Treppe — ein 10-Hz-Bio-Träger stuft Cutoff zehnmal pro Sekunde,
+unabhängig von jeder Kante. `EchoelDelay` glättet seinen Lesekopf bereits im Render-Loop
+("ein Sprung ist ein Klick"); `mix`/`feedback` zwei Zeilen darüber nicht. Das ist der
+größere Klang-Punkt und braucht Audio-Thread-Review plus Gerätelauf.
