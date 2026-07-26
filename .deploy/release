@@ -1,28 +1,64 @@
-build: v10.79.348 — Notennamen-♯ konsistent (kleiner Politur-Build)
+build: v10.79.349 — Aufräum-Build: vier echte Defekte zu, Repo beschreibt wieder die App, die es ist
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Ehrlich klein: EIN sichtbarer Politur-Fix, beide echten Gates grün.
+  Founder-Auftrag „Bringe alles in Ordnung. Du entscheidest!" — ein 13-Agenten-Sweep über
+  Audio/DSP, UI, Plattform und Doku-Ehrlichkeit, jedes Team mit eigenem Lead, der die
+  Befunde seiner Worker gegen echten Quellcode gegenprüfen musste. 20 verifizierte
+  Befunde. Einen habe ich beim Nachlesen selbst verworfen (der „Donuts-Renderer ist
+  unerreichbar"-Befund war falsch — der Vollbild-Cover wird sehr wohl geöffnet).
 
-  Notennamen — typografisches ♯ überall: die ausgeschriebene Tonart nutzt jetzt das
-  echte ♯-Zeichen (statt ASCII „#"), passend zum Tonart-Picker, Piano-Roll, Touch-
-  Keyboard und Tuning-Detector, die ♯ schon rendern. Vorher stand „C♯" (Picker) direkt
-  neben „C# Minor" (ausgeschriebene Tonart) auf demselben Bildschirm. Der Filename-Id-
-  Pfad (shortName, ♯→„s") bleibt unangetastet. Test-first, code-reviewer CLEAN.
+  VIER ECHTE DEFEKTE, die auf dem Gerät zu sehen waren:
 
-  Warum sonst nichts Größeres in diesem Build: die reversibel/reviewer-verifizierbare
-  Arbeit ist im Kern abgearbeitet — die Konsistenz-Audits sind gedraint (verifiziert),
-  die reinen Bio-/Kompositions-Math-Cores sind defensiv geschützt (kein Div-by-Zero),
-  und die persistierten Dokumente tragen die decodeIfPresent-Härtung (v346). Die
-  verbleibenden Wertstufen hängen bewusst an DIR:
+  1) HealthKit hat eine ERFUNDENE Herzfrequenz gesendet. `dataSource` springt auf
+     `.healthKit`, sobald die Queries INSTALLIERT sind — nicht wenn eine Messung kommt.
+     `BioSnapshot` startet mit nominellen 72 BPM und einem Konstruktions-Zeitstempel,
+     also hat der allererste Poll diesen Startwert als Messung auf den Bus gelegt: der
+     Bio-Streifen zeigte eine selbstbewusste „72" und meldete ein Live-Signal, bevor die
+     Watch überhaupt etwas gesagt hatte. Jetzt hängt die Veröffentlichung am ersten
+     echten Sample.
 
-  1) Positionierung „Gesundheit-first vs. DMMW-Profi" (scratchpads/PLAN_POSITIONING_
-     HEALTH_FORK_2026-07-24.md) — ein Wort genügt (Mitte / volle Reposition / nur Sprawl
-     stoppen). Bis dahin kein Brand-/ASO-Eingriff.
-  2) Geräte-Verify von v347 (Kammerton-Tuning HÖRBAR: A4=432, melodische Spur gegen Bass
-     — stimmen sie jetzt zusammen?).
-  3) Das Metronom folgt noch nicht dem bio-/automatisierten Tempo (Task #120) — der
-     saubere Fix (Metronom folgt dem live-geglätteten Tempo aus EINER Quelle) braucht
-     einen kleinen Plan + Gerät-Ohr, kein blinder Call-Site-Fix (der würde den Klick
-     ruckeln lassen). Bewusst aufgeschoben statt verschlimmbessert.
+  2) Ein aussortiertes Genre komponierte unsichtbar weiter. Die Kuration (#125) hat
+     `MusicStyle.offered` auf eine Teilmenge verengt; ein vorher gespeichertes Genre ist
+     weiter ein gültiger Enum-Fall — nichts stürzte ab — es stand nur nicht mehr im
+     Picker. Keine Zeile ausgewählt, kein Weg zu sehen oder zu ändern, was man hört, und
+     es trieb trotzdem jede Take. Wird jetzt zurückgeschnappt, und zwar GANZ OBEN im
+     onAppear: später hätte der Clamp die KLANGFARBE auf dem aussortierten Genre gelassen
+     (`currentPatch` fällt auf `style.synthPatch` zurück) — derselbe Fehler, nur in den
+     Klang verschoben.
 
-  Rausch-Triad unberührt, kein Heilungs-Claim, keine neue Oberfläche.
+  3) Zwei App-Store-Berechtigungstexte beschrieben gelöschte Funktionen. Die Foto-
+     Mediathek-Texte versprachen Import „auf die Video-Spuren der Timeline". Der Lese-
+     Schlüssel hatte überhaupt keinen Codepfad (nur `.addOnly` wird benutzt) und ist weg.
+
+  4) Der Genre-Picker war der EINE Lade-Pfad ohne Artikulations-Makro — dasselbe Genre
+     klang je nach Weg anders, und ein Neustart tauschte es wieder.
+
+  Dazu: `EchoelDelayLine` konnte NaN in ein trappendes `Int()` auf dem Audio-Thread
+  lassen (`Swift.min(Swift.max(...))` ist für NaN wirkungslos); `Package.swift` schloss
+  zwölf Pfade aus, die es nicht mehr gibt.
+
+  EHRLICHKEIT — der Teil, der die nächsten Zyklen schneller macht:
+
+  CLAUDE.md ist die Datei, aus der jede nächste Session plant, und sie beschrieb eine
+  andere App: sie drehte um, wo die Tempo-Steuerung sitzt, behauptete die Piano-Roll sei
+  türlos und der Bio-Streifen immer sichtbar (beides falsch), führte das gelöschte
+  AUv3-Target weiter und zählte die Modifier-Kette des Body als 12. Gezählt sind es 16
+  (10 sheet + 2 cover + 3 alert + 1 fileImporter) — der Unterschied liest sich als vier
+  freie Plätze, die es vor dem Black-Screen-Absturz nicht gibt. Zeilennummern sind
+  durchgängig durch Symbolnamen ersetzt; sechs waren bereits falsch.
+
+  Und: Beschreibung, Werbetext und Keywords im App Store verkauften weiterhin „als
+  AUv3-Plugin in Deiner DAW" — in beiden Sprachen. TestFlight schiebt keine Metadaten
+  hoch, es war also noch nicht live; die `upload_screenshots`-Lane hätte es als
+  2.3.1-Behauptung veröffentlicht. Bereinigt.
+
+  ZU PRÜFEN AUF DEM GERÄT (bitte kurz gegenhören/-sehen):
+  - Startet die App sauber? (Der Genre-Clamp ist NEUES Verhalten und schreibt eine
+    gespeicherte Auswahl einmalig um — bewusst so, aber ungetestet auf Gerät.)
+  - Zeigt der Bio-Streifen jetzt NICHTS statt „72", bis eine echte Messung da ist?
+  - Klingt dasselbe Genre gleich, egal ob über Picker oder „Genre default" geladen?
+  - Lock im GESTOPPTEN Zustand: der Klick gleitet jetzt über ~2,5 s ins gelockte Tempo,
+    statt zu springen (aus dem „ein BPM"-Zyklus davor).
+
+  Beide echten Gates grün auf 5b0f06f. Rausch-Triad unberührt, kein Heilungs-Claim,
+  keine neue Oberfläche, Sheet-Kette unverändert bei 16.
