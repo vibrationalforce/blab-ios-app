@@ -8206,3 +8206,41 @@ Gefahr (leeres Metadaten-Verzeichnis).
 überschreibt eine gespeicherte Auswahl einmalig) · Bio-Streifen zeigt NICHTS statt „72" bis
 echte Messung · gleiches Genre klingt gleich über Picker wie über „Genre default" · Lock im
 gestoppten Zustand gleitet über ~2,5 s statt zu springen.
+
+## 2026-07-26 — #134: bipolar route slams a parameter off an unmeasured channel (189a71b, alle Gates grün)
+
+**Der Defekt.** `bipolar: true` bildet über `(signal·2−1)·depth·span·0.5` ab — Signal 0
+ist damit NICHT "kein Beitrag", sondern der VOLLE NEGATIVE Ausschlag. Mehrere Bio-Kanäle
+kodieren "nicht verfügbar" als literale 0 in einem ansonsten frischen, brauchbaren Frame
+(`coherence` = 0 auf jeder Quelle ohne Schlag-zu-Schlag-RR, `hrvNormalized` = 0 bis eine
+Quelle echte HRV liefert), und `ModSource.rawValue` liest genau diese Rohfelder.
+Kein Randfall: der "Route hinzufügen"-Knopf im FX-View erzeugt IMMER `.bio(.coherence)`,
+`FXModRoute` defaultet auf `bipolar: true` → jede aus der UI erreichbare Bio-Route hat auf
+einer Quelle ohne Kohärenz ihr Ziel die ganze Session an den Bereichsboden genagelt.
+
+**Fix.** `ModSource.isMeasured(in:)`; FX-Treiber, FX-Readout und der Visual-Kern
+überspringen eine Route, die er verneint. Überspringen statt neutrale 0.5: 0.5 würde für
+JEDE unipolare Route einen permanenten Halbtiefen-Offset erfinden, um eine Polarität zu
+reparieren.
+
+**Zwei Reviewer-Befunde mit repariert statt notiert:**
+- Das Readout zeigte für eine unmessbare Route ein selbstbewusstes "+0.00" und meldete
+  VoiceOver "0 percent" — genau die Fabrikation, die `BioStripView` für den Bio-Streifen
+  verbietet ("—", nie "0.000"). `BioModContribution` trägt jetzt `measured`.
+- Der Treiber schaltete die FX-Stufe eines Ziels auch dann ein, wenn alle seine Routen
+  übersprungen hatten — ein Filter an, für nichts. Der Write läuft weiter immer, damit ein
+  Kanal, der aufhört gemessen zu werden, auf Base zurückkehrt statt einzufrieren.
+
+**Lehren fürs Ledger:**
+1. Ein zweiter Reviewer mit ANDERER Linse fand, was der erste nicht sah, und umgekehrt —
+   der Bio-Reviewer fand die Display-Fabrikation, der Code-Reviewer fand, dass
+   `FaceExpressionBioPublisher` überhaupt keine Aufrufstelle hat. Beide Befunde hätten
+   in meinem Kommentar eine Unwahrheit stehen lassen.
+2. Mein wiederkehrendster Fehler bleibt der ÜBERGRIFFIGE Doc-Kommentar: ich schrieb
+   "unipolare Routen sind unberührt" (falsch für Atmung — deren Gate liest ein anderes
+   Feld als ihr Wert, HealthKit liefert `breathRate: 0` bei `breathPhase: 0.5`), und ich
+   beschrieb eine UI-Zeichenkette ("waiting for body"), die es nicht gab. Regel: jeden
+   Satz, der behauptet was der Code TUT, gegen die Quelle prüfen — nicht gegen die Absicht.
+3. `.motion` gibt jetzt hart `false` zurück, mit dem Grund im Code: alle sechs
+   Frame-Konstruktionsstellen schreiben `motionEnergy: 0`. Ein Wert-Gate (`> 0`) wäre dort
+   FALSCH, sobald eine CoreMotion-Quelle kommt — 0 ist da eine echte Messung ("still").
