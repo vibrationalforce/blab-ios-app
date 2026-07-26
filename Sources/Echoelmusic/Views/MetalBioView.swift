@@ -498,6 +498,22 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// a jumpy target. We hold the chosen note and only hand off when a challenger is clearly
     /// louder (see the margin in `draw`), so the colour glides between notes instead of flicking.
     private var colorToneHz: Double = 0
+
+    /// The amplitude at which a published note starts counting as sounding — shared by the
+    /// cloud-slot gate and by the colour tone's ADOPT threshold, so the picture does not hold a
+    /// tone it refuses to give any colour. (It does not make the two fully consistent: the tone
+    /// branch reads the bus at `maxAge: 1.5` and the cloud at `0.5`, so for a frame aged in
+    /// between, the tone still holds while no slot fills. Unifying the windows is a separate
+    /// question — this constant only removes the duplicated NUMBER.)
+    private static let audibleAmplitude: Double = 0.02
+
+    /// The amplitude at which an already-adopted colour tone is RELEASED — deliberately half
+    /// the adopt threshold. A single threshold would let a take hovering around it flip
+    /// adopt↔release every frame, and the colour retarget at the prism crossfade reads the
+    /// UN-eased tone with only a ~0.165 s gate, so that alternation reaches ~3 Hz — above the
+    /// house 2.5 Hz ceiling, and on a path `FlashGuard` does not cover (it guards `flashHz`
+    /// only). Asymmetric hysteresis collapses the chatter band to zero width with no new state.
+    private static let releaseAmplitude: Double = 0.01
     /// Colour-crossfade state (see BioUniforms.colorToneA/B): the discrete note pair
     /// whose colour fields the shader mixes, and the eased 0→1 fade between them.
     private var colorNoteFrom: Float = 261.63
@@ -738,7 +754,27 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             if let played = playedNotes.first {
                 colorToneHz = played
                 musicTone = played
-            } else if let frame = bus?.freshMusical(maxAge: 1.5), let loudest = frame.notes.max(by: { $0.amplitude < $1.amplitude }) {
+            } else if let frame = bus?.freshMusical(maxAge: 1.5),
+                      let loudest = frame.notes.max(by: { $0.amplitude < $1.amplitude }),
+                      loudest.amplitude > (colorToneHz == 0 ? Self.audibleAmplitude
+                                                            : Self.releaseAmplitude) {
+                // The amplitude floor is NOT cosmetic — without it the hysteresis LATCHES.
+                // Device log 2466 (v10.79.350): `mfNotes=5 level=0.00 tone=432 ccw=0.00`
+                // repeated unchanged for 25 s while the roll kept publishing. A frame whose
+                // notes are all silent still satisfies `notes.max(by:)`, so this branch ran;
+                // `currentAmp` was 0 and `loudest.amplitude > 0 * 1.3` is `0 > 0` = false, so
+                // `colorToneHz` could never be replaced — and the release branch below, which
+                // is the ONLY writer that clears it, cannot be reached while a fresh NON-EMPTY
+                // frame exists (an empty one falls through `max(by:)`, so a genuine rest always
+                // could heal it — a silent CHORD could not). The picture therefore held one
+                // frozen tone and a dead colour indefinitely, with no way back short of closing
+                // the visual. An all-silent frame now goes to the release branch instead.
+                //
+                // The threshold is ASYMMETRIC on purpose — adopt above `audibleAmplitude`, hold
+                // until below half of it. See `releaseAmplitude`: a single threshold makes a
+                // take that hovers on it flip every frame, and that alternation drives the
+                // colour retarget faster than the 2.5 Hz house ceiling on a path FlashGuard
+                // does not cover.
                 let currentAmp = frame.notes.first(where: { abs($0.frequencyHz - colorToneHz) < 0.5 })?.amplitude ?? 0
                 if colorToneHz == 0 || loudest.amplitude > currentAmp * 1.3 {
                     colorToneHz = loudest.frequencyHz
@@ -774,9 +810,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                 // which that log never contains (solved 2026-07-12).
                 // ccw = summed live cloud weights (colour reach), c0 = slot-0 eased RGB —
                 // the COLOUR truth in every pastable log (B9b: "grau" is measurable now).
+                // mfAmp = the LOUDEST published note. Added after log 2466, where
+                // `mfNotes=5 level=0.00` could not distinguish two very different faults:
+                // notes arriving with (near-)zero velocity from upstream, versus the level
+                // arithmetic here being wrong while the notes are fine. One number splits it —
+                // mfAmp ≈ 0 with notes present means the roll is publishing silence.
+                let mfAmp = mf?.notes.map(\.amplitude).max() ?? 0
                 EchoelCrashLog.breadcrumb(String(format:
-                    "visual: bio=%d mfNotes=%d level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f ccw=%.2f c0=%.2f/%.2f/%.2f",
-                    bio != nil ? 1 : 0, mf?.notes.count ?? -1, musicLevel,
+                    "visual: bio=%d mfNotes=%d mfAmp=%.3f level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f ccw=%.2f c0=%.2f/%.2f/%.2f",
+                    bio != nil ? 1 : 0, mf?.notes.count ?? -1, mfAmp, musicLevel,
                     musicTone ?? 0, playedNotes.count,
                     effectiveReduceMotion ? 1 : 0, detailScale,
                     cloudW.reduce(0, +), uniforms.cc0r, uniforms.cc0g, uniforms.cc0b))
@@ -784,7 +826,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             if soundingNotes.count < 5, let mf {
                 for n in mf.notes.sorted(by: { $0.amplitude > $1.amplitude }) {
                     guard soundingNotes.count < 5 else { break }
-                    guard n.amplitude > 0.02 else { continue }
+                    guard n.amplitude > Self.audibleAmplitude else { continue }
                     let id = Self.noteID(n.frequencyHz)
                     guard id != Int.min else { continue }
                     if !soundingNotes.contains(where: { $0.id == id }) {
