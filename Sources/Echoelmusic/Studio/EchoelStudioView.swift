@@ -2115,22 +2115,35 @@ struct EchoelStudioView: View {
     /// Performance panic — release every sounding note on EVERY voice this view can reach,
     /// plus MIDI out. Kills stuck notes live.
     ///
-    /// The list used to be `synth`, `subBass`, `midiOut` — three of seven. `leadSynth`,
-    /// `touchSynth` (both `PolySynthVoice`, the play surfaces), `bioVoice` (monophonic, driven
-    /// by incoming MIDI note-on/off via `drainControllerEvents`) and every voice in
-    /// `laneVoiceRack` all produce notes and all survived the panic, while the button's own
-    /// accessibility hint promised "every sounding note on every voice". A stuck note on the
-    /// lead or the play surface is a *more* likely reason to reach for this than one on the
-    /// composer's synth, so the button failed precisely in the case it exists for.
+    /// The list used to be `synth`, `subBass`, `midiOut` — three of the eight releases below.
+    /// (Three of eight CALL SITES, not of eight voices: `laneVoiceRack` is a whole rack and
+    /// `midiOut` is not a voice at all. The earlier "three of seven" counted the same way but
+    /// read as a voice count.) `leadSynth`, `touchSynth` (both `PolySynthVoice`, the play
+    /// surfaces), `bioVoice` (monophonic, driven by incoming MIDI note-on/off via
+    /// `drainControllerEvents`), every voice in `laneVoiceRack`, and the piano roll's own
+    /// active-note table all produce or hold notes and all survived the panic, while the
+    /// button's accessibility hint promised "every sounding note on every voice". A stuck note
+    /// on the lead or the play surface is a *more* likely reason to reach for this than one on
+    /// the composer's synth, so the button failed precisely in the case it exists for.
+    ///
+    /// `pianoRoll.allNotesOff()` comes FIRST and is not redundant with the direct releases
+    /// below: it also CLEARS the roll's `active` note table. Without it the roll still
+    /// believes those notes are held, and its next tick issues a pitch-matched
+    /// `noteOff(pitch:)` — which on the monophonic `SubBassVoice` releases whatever is
+    /// sounding at that pitch, i.e. it can cut a note the user has just retriggered AFTER
+    /// the panic. `stopEverything(reason:)` already calls both, in this order, for exactly
+    /// this reason; the panic button must match it or it is a weaker Stop wearing an
+    /// "every voice" label.
     ///
     /// If a new note-producing voice is added to this view, it belongs here in the same edit.
     /// Nothing in the type system enforces that — this comment is the enforcement.
     private func panicAllNotesOff() {
+        pianoRoll.allNotesOff()     // releases poly/lead/sub/kind/MIDI AND clears `active`
         synth.allNotesOff()
         subBass.allNotesOff()
         leadSynth?.allNotesOff()
         touchSynth?.allNotesOff()
-        bioVoice.releaseNote()      // monophonic: one held note, released
+        bioVoice.panic()            // mono release + clears a stuck controller-held latch
         laneVoiceRack.allNotesOff()
         midiOut.allNotesOff()
     }
@@ -3400,10 +3413,11 @@ struct EchoelStudioView: View {
         lockSnapTask?.cancel(); lockSnapTask = nil
         beatPlayer.pattern.stop()       // stops the transport (→ onStop flush)
         // Force-silence EVERY voice explicitly — never rely on the onStop callback
-        // wiring alone. pianoRoll.allNotesOff() clears its active-note tracking and
-        // releases poly/sub/MIDI/AUv3; panicAllNotesOff() is the belt-and-suspenders
-        // direct release in case a voice ref ever falls out of sync. Idempotent, so
-        // doubling up can never leave a note ringing ("Sound bleibt hängen" fix).
+        // wiring alone. `panicAllNotesOff()` now leads with `pianoRoll.allNotesOff()`
+        // itself, so the explicit call below is redundant — kept deliberately: it is the
+        // one line that makes Stop's silencing independent of what the panic helper
+        // happens to contain today. Both are idempotent, so doubling up can never leave a
+        // note ringing ("Sound bleibt hängen" fix).
         pianoRoll.allNotesOff()
         panicAllNotesOff()
         synth.bioModulationEnabled = false   // stop the 10 Hz timbre drive too

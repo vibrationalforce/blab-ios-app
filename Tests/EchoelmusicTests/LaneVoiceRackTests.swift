@@ -61,12 +61,17 @@ final class LaneVoiceRackTests: XCTestCase {
                        "rack panic did not reach the .bio arm — a stuck bio note survives it")
     }
 
-    /// The other four arms enqueue a command the AUDIO thread drains, so nothing observable
-    /// changes here without a render. What this pins is narrower and still worth having: the
-    /// sweep is bounds-safe over every kind array, and panicking must not attach, vend or
-    /// create voices as a side effect. It does NOT prove those four voices went silent — say
-    /// so rather than reading a green run as proof.
-    func testAllNotesOff_isBoundsSafeAndHasNoSideEffects() {
+    /// The four non-bio arms differ from each other, so state the strength of each rather
+    /// than one blanket disclaimer (the earlier "nothing observable changes without a render"
+    /// was wrong for `.subBass`, which records its enqueue on a Debug seam):
+    ///   · `.subBass` — PROVEN below via `lastNoteCommandForTests`: the panic really reaches it.
+    ///   · `.poly` / `.sampler` — enqueue a command the AUDIO thread drains, with no control-
+    ///     plane seam, so a green run here does NOT prove they went silent.
+    ///   · `.drums` — a provable no-op: `LaneDrumKitVoice.allNotesOff()` is an empty body by
+    ///     design (self-decaying strikes, no gate). Nothing to observe, by construction.
+    /// What the rest of this test pins: the sweep is bounds-safe over every kind array, and
+    /// panicking must not attach, vend or create voices as a side effect.
+    func testAllNotesOff_isBoundsSafeAndReachesTheSub() {
         let empty = LaneVoiceRack(capacity: 2)
         empty.allNotesOff()                       // unattached: must be a no-op, not a crash
         XCTAssertFalse(empty.isActive, "panic must not fake an attach")
@@ -78,12 +83,49 @@ final class LaneVoiceRackTests: XCTestCase {
                                       subs: [SubBassVoice()],
                                       samplers: [SamplerVoice()],
                                       bios: [BioReactiveSynthVoice()])
+        rack.subs[0].noteOn(pitch: 33)            // give the sub something to be released
         rack.allNotesOff()
+
+        // The one arm with a control-plane seam: prove the sweep actually hit it.
+        XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.kind, "allOff",
+                       "rack panic did not reach the .subBass arm")
+
         XCTAssertEqual(rack.voices.count, 3, "panic changed the voice roster")
         XCTAssertEqual(rack.kits.count, 1)
         XCTAssertEqual(rack.subs.count, 1)
         XCTAssertEqual(rack.samplers.count, 1)
         XCTAssertEqual(rack.bios.count, 1)
+    }
+
+    // MARK: - Bio voice panic (the controller-held latch)
+
+    /// A lost external note-off leaves `heldByController` true forever, and
+    /// `consumeBioEventsIfFresh` then refuses EVERY breath onset — breath play is dead for
+    /// the rest of the session with nothing in the app able to clear it. `panic()` exists to
+    /// break that latch. The second arm is what gives this teeth: it pins that the old
+    /// `releaseNote()`-only panic did NOT clear it, so this test fails if someone reverts the
+    /// panic button to `releaseNote()`.
+    func testBioPanic_clearsAStuckControllerHeldLatch() {
+        let noteOn = ControllerEvent(timestamp: 1, kind: .noteOn, channel: 1,
+                                     note: 60, value: 0.8, auxCC: 0)
+
+        let voice = BioReactiveSynthVoice()
+        voice.applyControllerForTests(noteOn)     // external note-on…
+        // …and NO matching note-off ever arrives (cable pulled mid-note).
+        XCTAssertTrue(voice.isPlayingNote, "precondition: the controller note must be sounding")
+        XCTAssertTrue(voice.heldByControllerForTests, "precondition: the latch must be set")
+
+        voice.panic()
+
+        XCTAssertFalse(voice.isPlayingNote, "panic must release the sounding note")
+        XCTAssertFalse(voice.heldByControllerForTests,
+                       "panic left the controller latch set — breath play stays dead")
+
+        let releaseOnly = BioReactiveSynthVoice()
+        releaseOnly.applyControllerForTests(noteOn)
+        releaseOnly.releaseNote()
+        XCTAssertTrue(releaseOnly.heldByControllerForTests,
+                      "releaseNote() alone still leaves the latch set — that is WHY panic() exists")
     }
 
     // MARK: - S2-W2-3 kind-routing facade (pure allocation + routing laws)

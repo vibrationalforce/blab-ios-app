@@ -184,6 +184,25 @@ public final class BioReactiveSynthVoice {
         isPlayingNote = false
     }
 
+    /// PERFORMANCE PANIC — release the note AND clear the controller-held latch.
+    ///
+    /// `releaseNote()` alone is not enough for a panic. `heldByController` is set on an
+    /// external `.noteOn` and cleared only by the matching `.noteOff`; if that note-off is
+    /// ever lost (cable pulled, controller unplugged mid-note, a dropped event), the latch
+    /// stays true forever and `consumeBioEventsIfFresh` then refuses every breath onset —
+    /// breath play is dead for the rest of the session, and nothing else in the app can
+    /// clear it (`disarm()` does not touch it either). Panic is the natural place to break
+    /// that latch, so this exists and is what the panic button calls.
+    ///
+    /// `isArmed` is deliberately NOT cleared: panic means "silence what is sounding now",
+    /// not "switch the instrument off". The bio voice therefore re-opens on the next inhale,
+    /// which is the intended behaviour for a body-driven instrument — `disarm()` and Stop are
+    /// the controls that end bio sound.
+    public func panic() {
+        heldByController = false
+        releaseNote()
+    }
+
     /// Arm the bio-reactive voice and give immediate audible feedback. Once
     /// armed, breath onsets (if `breathPlayEnabled`) drive the envelope.
     public func arm() {
@@ -282,6 +301,14 @@ public final class BioReactiveSynthVoice {
             apply(controller: event)
         }
     }
+
+    #if DEBUG
+    /// TEST SEAM (Debug-only): apply ONE controller event and read the held latch, so the
+    /// panic's latch-clearing can be pinned without an `EngineBus` poll task or an engine.
+    /// The production path is `drainControllerEvents(from:)` above; this is the same call.
+    internal func applyControllerForTests(_ event: ControllerEvent) { apply(controller: event) }
+    internal var heldByControllerForTests: Bool { heldByController }
+    #endif
 
     private func apply(controller event: ControllerEvent) {
         switch event.kind {

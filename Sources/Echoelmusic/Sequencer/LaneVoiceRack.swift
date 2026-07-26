@@ -249,9 +249,18 @@ public final class LaneVoiceRack {
 
     /// PERFORMANCE PANIC — release every sounding note on every physical voice in the rack.
     ///
-    /// Deliberately sweeps ALL voices, not only the ones currently bound to a slot: a stuck
-    /// note is exactly what survives a re-binding, and someone hitting panic wants silence,
-    /// not silence-on-the-slots-we-still-track.
+    /// Deliberately sweeps ALL voices, not only the ones currently bound to a slot. The
+    /// original wording here — "a stuck note is exactly what survives a re-binding" — was
+    /// FALSE: `rebindAll` releases the OLD ref whenever a slot's binding changes (see the
+    /// `old != new` branch), so a re-binding is precisely the case that does NOT leak. The
+    /// real reason to sweep everything is drift between `bindings` and the physical arrays:
+    /// panic is the last resort, and it must not depend on the bookkeeping it exists to
+    /// recover from being correct.
+    ///
+    /// One arm is a known no-op: `.drums` reaches `LaneDrumKitVoice.allNotesOff()`, an empty
+    /// body by design (modal strikes self-decay, there is no gate). Since the drum removal
+    /// (founder 2026-07-26) `kits` is also always empty in Release, so that loop never even
+    /// iterates. Both facts are deliberate — do not "fix" the empty arm.
     ///
     /// It routes each voice through the private per-ref `allNotesOff(on:)` below rather than
     /// duplicating that switch, so the two can never disagree about how a kind is silenced.
