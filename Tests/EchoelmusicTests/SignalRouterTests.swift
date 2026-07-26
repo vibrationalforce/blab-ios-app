@@ -82,6 +82,84 @@ final class SignalRouterTests: XCTestCase {
         XCTAssertTrue(r2.isConnected("bus.musical", "adm.out"))
     }
 
+    // MARK: - Persistence tolerance (#170)
+
+    /// Plants RAW bytes under the router's storage key. `save()` can only ever write
+    /// well-formed JSON for the CURRENT schema, so the failure this guards against —
+    /// a stored route the decoder cannot read — is unreachable through the public API.
+    /// Without this seam a test could only assert that valid data stays valid, which is
+    /// exactly the unfalsifiable shape to avoid.
+    private func plantRoutes(_ json: String, into d: UserDefaults) {
+        d.set(Data(json.utf8), forKey: "signalGraph.routes.v1")
+    }
+
+    /// THE REGRESSION TEST. One unreadable route used to fail the whole array decode:
+    /// `load` returned early, the graph kept its empty defaults, and the FIRST subsequent
+    /// edit called `save()` — writing those defaults back over the file. The user's entire
+    /// patchbay, gone for good. Now the bad edge alone is dropped.
+    func testLoad_oneCorruptRoute_keepsTheOthers() {
+        let d = freshDefaults()
+        // Middle element is missing the required `sinkPortID` → it alone must fail.
+        plantRoutes("""
+        [{"id":"\(UUID().uuidString)","sourcePortID":"bus.musical","sinkPortID":"adm.out",
+          "enabled":true,"amount":1,"converterID":"music→spatial"},
+         {"id":"\(UUID().uuidString)","sourcePortID":"bus.bio","enabled":true,"amount":1},
+         {"id":"\(UUID().uuidString)","sourcePortID":"blehrs.in","sinkPortID":"osc.out",
+          "enabled":true,"amount":1}]
+        """, into: d)
+
+        let r = SignalRouter(defaults: d)
+        XCTAssertEqual(r.graph.routes.count, 2, "the two readable routes must survive the one bad one")
+        XCTAssertTrue(r.isConnected("bus.musical", "adm.out"))
+        // The strap route is the one with teeth: `blehrs.in` is the heart-strap's ONLY
+        // start hook (applyRouting reads hasEnabledRoute(fromSource:)), so losing it
+        // silently disconnects the user's sensor with no visible cause.
+        XCTAssertTrue(r.graph.hasEnabledRoute(fromSource: "blehrs.in"))
+    }
+
+    /// The precondition that makes the test above falsifiable: this file really is
+    /// undecodable strictly. If it weren't, the assertions would pass against the old
+    /// all-or-nothing decoder too and would prove nothing.
+    func testLoad_thePlantedFile_failsAStrictDecode() {
+        let d = freshDefaults()
+        plantRoutes("""
+        [{"id":"\(UUID().uuidString)","sourcePortID":"bus.bio","enabled":true,"amount":1}]
+        """, into: d)
+        let data = d.data(forKey: "signalGraph.routes.v1")
+        XCTAssertNotNil(data)
+        XCTAssertNil(try? JSONDecoder().decode([SignalRoute].self, from: data ?? Data()),
+                     "precondition: the strict decode must fail on this file")
+    }
+
+    /// Bounded loss must stay bounded: what survived the tolerant load must still be
+    /// there after the next edit persists. This is the half that actually prevents the
+    /// wipe — tolerating the read is useless if the write then flattens it.
+    func testLoad_survivorsArePersistedByTheNextEdit() {
+        let d = freshDefaults()
+        plantRoutes("""
+        [{"id":"\(UUID().uuidString)","sourcePortID":"bus.musical","sinkPortID":"adm.out",
+          "enabled":true,"amount":1,"converterID":"music→spatial"},
+         {"id":"\(UUID().uuidString)","sourcePortID":"bus.bio"}]
+        """, into: d)
+
+        let r1 = SignalRouter(defaults: d)
+        r1.connect("midi.in", "midi.out")          // any edit → save()
+        let r2 = SignalRouter(defaults: d)         // reload from what was just written
+        XCTAssertTrue(r2.isConnected("bus.musical", "adm.out"),
+                      "the survivor must not be lost by the save that follows the tolerant load")
+        XCTAssertTrue(r2.isConnected("midi.in", "midi.out"))
+    }
+
+    /// A stored blob that is not an array at all stays "nothing usable": the router keeps
+    /// its (empty) defaults rather than crashing or inventing routes.
+    func testLoad_notAnArray_keepsDefaults() {
+        let d = freshDefaults()
+        plantRoutes(#"{"routes":[]}"#, into: d)
+        let r = SignalRouter(defaults: d)
+        XCTAssertTrue(r.graph.routes.isEmpty)
+        XCTAssertFalse(r.graph.ports.isEmpty, "the code-defined inventory is unaffected")
+    }
+
     func testClearAll() {
         let r = SignalRouter(defaults: freshDefaults())
         r.applyAllSuggestions()

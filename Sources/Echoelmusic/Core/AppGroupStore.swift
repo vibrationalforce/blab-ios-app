@@ -75,14 +75,6 @@ public struct AppGroupStore: Sendable {
         }
     }
 
-    /// Wrapper that decodes an element or yields nil on a malformed one, always consuming
-    /// exactly one array slot so the decode can't stall. Mirrors `TimelineDocument.Lossy`,
-    /// which fixed the same class of bug for the song document.
-    private struct Lossy<T: Decodable>: Decodable {
-        let value: T?
-        init(from decoder: Decoder) throws { value = try? T(from: decoder) }
-    }
-
     /// Decode a TOP-LEVEL JSON array ELEMENT-tolerantly: one malformed element becomes `nil`
     /// instead of failing the whole file.
     ///
@@ -96,12 +88,12 @@ public struct AppGroupStore: Sendable {
     /// lanes/regions/automation.
     ///
     /// THE CLASS IS NOT CLOSED. This defends the five stores that go through `AppGroupStore`
-    /// with a top-level array. Still open, same shape, tracked as task #170: `AutomationState`
-    /// (`AutomationPlayer`) — a corrupt lane wipes every drawn curve AND flips `enabled` off;
-    /// `Arrangement.sections` — a bare `try?` that turns a throw into total silent loss before
-    /// persisting it back; `[BioSessionSummary]` (`SessionRecorder`) and `[SignalRoute]`
-    /// (`SignalRouter`), both `UserDefaults`-backed, the latter holding the patchbay including
-    /// the BLE-strap source port. Do not read this doc as "persistence is handled".
+    /// with a top-level array; `SignalRouter` (the patchbay, `UserDefaults`-backed) now calls
+    /// the shared `decodeLossyArray` directly. Still open, same shape, tracked as task #170:
+    /// `AutomationState` (`AutomationPlayer`) — a corrupt lane wipes every drawn curve AND
+    /// flips `enabled` off; `Arrangement.sections` — a bare `try?` that turns a throw into
+    /// total silent loss before persisting it back; and `[BioSessionSummary]`
+    /// (`SessionRecorder`). Do not read this doc as "persistence is handled".
     ///
     /// Returns `nil` only when the file is absent, unreadable, or is not a JSON array at all —
     /// i.e. exactly the cases where "nothing usable is saved" is the truth. A present-but-
@@ -115,24 +107,9 @@ public struct AppGroupStore: Sendable {
     public func loadLossyArray<T: Decodable>(_ type: T.Type, name: String) -> [T?]? {
         guard let url = fileURL(name) else { return nil }
         guard let data = try? Data(contentsOf: url) else { return nil } // absent = normal
-        do {
-            let values = try JSONDecoder().decode([Lossy<T>].self, from: data).map(\.value)
-            // TELEMETRY — do not remove. Dropping elements is still permanent data loss (the
-            // next save re-encodes the survivors and the bad bytes are gone), it is just
-            // BOUNDED loss. Without this line the partly-corrupt case would be the one truly
-            // silent failure in the store, which is worse than what it replaced: `load` at
-            // least logged when it lost everything. Logged once per read, not per element.
-            let dropped = values.filter { $0 == nil }.count
-            if dropped > 0 {
-                log.log(.error, category: .system,
-                        "AppGroupStore: \(name).json — dropped \(dropped)/\(values.count) undecodable \(T.self) element(s)")
-            }
-            return values
-        } catch {
-            log.log(.error, category: .system,
-                    "AppGroupStore: \(name).json present but is not a decodable [\(T.self)] array — \(error)")
-            return nil
-        }
+        // Both failure modes (partly-corrupt, not-an-array) are logged inside
+        // `decodeLossyArray` under this label — no second log line here.
+        return decodeLossyArray(type, from: data, label: "AppGroupStore: \(name).json")
     }
 
     /// Encode and atomically write `value` under `name`. Returns success.

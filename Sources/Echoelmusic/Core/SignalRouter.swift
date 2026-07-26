@@ -92,9 +92,22 @@ public final class SignalRouter {
     }
 
     private func load() {
-        guard let data = defaults.data(forKey: storageKey),
-              let routes = try? JSONDecoder().decode([SignalRoute].self, from: data) else { return }
-        graph.restore(routes)
+        guard let data = defaults.data(forKey: storageKey) else { return }   // nothing saved = normal
+        // Element-tolerant (see `decodeLossyArray`). The strict `try? decode([SignalRoute].self)`
+        // this replaces was all-or-nothing: ONE unreadable route threw, `load` returned early,
+        // and the FIRST subsequent edit called `save()` — writing the surviving defaults back
+        // over the file. The user's whole patchbay, including the `blehrs.in` route that is the
+        // heart-strap's only start hook, would silently disappear and stay gone.
+        //
+        // `SignalRoute` has NO custom decoder: every field is required and synthesized, so
+        // adding one non-optional field in a future version makes EVERY persisted route throw.
+        // That is not a hypothetical — it is one careless property away.
+        //
+        // Routes are an unordered set ⇒ compact. This matches what `restore` already does with
+        // routes whose ports vanished: drop the unusable edge, keep the rest of the patchbay.
+        guard let loaded = decodeLossyArray(SignalRoute.self, from: data,
+                                            label: "SignalRouter: \(storageKey)") else { return }
+        graph.restore(loaded.compactMap { $0 })
     }
 
     // MARK: - The real endpoint inventory
