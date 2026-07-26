@@ -3363,24 +3363,28 @@ struct EchoelStudioView: View {
             // worth the reorder rather than a caveat.
             //
             // Nothing below depends on the bio source being up: `generate` composes from
-            // whatever bio is on the bus, falling back to neutral defaults, and the real
-            // heartbeat arrives later via `snapToLockWhenReady()`. Enabling bio modulation
-            // early is inert until frames flow.
+            // whatever bio is on the bus (`EngineBus.usableBio()` returns nil until a frame
+            // arrives) and falls back to real neutral values — HR 70, coherence 0.5, the
+            // take's own random structure seed, a genre-clamped tempo — so the first sound is
+            // musical, not degenerate. The real heartbeat arrives later via
+            // `snapToLockWhenReady()`, which is also what latches the body tempo.
+            //
+            // `bioModulationEnabled` is armed here and is NOT inert: with no frames on the
+            // bus, `EchoelDDSP` note-on applies its NEUTRAL reading (0.5 across the board),
+            // which centres the timbre on the patch but does overwrite the velocity-derived
+            // per-note amplitude — see the guard at `EchoelDDSP.applyBioToVoice`'s call site.
+            // Unchanged by this reorder (the flag was already set on this side of `generate`),
+            // but do not "simplify" it on the belief that it does nothing.
             synth.bioModulationEnabled = true
             generate(reason: "start")
             startEvolving()
 
-            // Now bring the body in. Anything that must wait for the permission dialog to be
-            // DISMISSED stays below this await, so no system sheet is ever stacked on another.
+            // Now bring the body in. Anything that must wait for the camera dialog — when
+            // there IS one — stays below this await. Note this only holds for the camera
+            // branch: the BLE branch's `start` is synchronous, so CoreBluetooth's own prompt
+            // can still coincide with the HealthKit ask below (pre-existing).
             await startBioSource()
-            guard running, !Task.isCancelled else {
-                // Stop can land while the dialog is open. `stopEverything` already called
-                // `stopBioSource()` back then — but `startBioSource()` was still suspended and
-                // has just brought the camera (and torch) UP again, after the stop. Put it back
-                // down; `stopBioSource` is idempotent.
-                stopBioSource()
-                return
-            }
+            guard running, !Task.isCancelled else { return }
             // The user just STARTED a bio take and any camera permission dialog is
             // answered (startBioSource awaited it) — this is the honest moment for
             // the app layer to run its deferred HealthKit ask (UX-3), sequentially,

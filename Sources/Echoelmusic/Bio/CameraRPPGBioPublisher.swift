@@ -513,9 +513,27 @@ public final class CameraRPPGBioPublisher {
 
         // A stop() or a newer start() ran DURING the await above. stop() and every start()
         // bump `startGeneration`, so if ours is stale we are no longer the owner: the latest
-        // start() (or stop's teardown) is authoritative — return without touching the shared
-        // camera/torch/publishTask. This closes both "stop undone" and the orphan-loop leak.
-        guard gen == startGeneration else { return }
+        // start() (or stop's teardown) is authoritative — do not touch the shared
+        // torch/analyzer/publishTask. This closes both "stop undone" and the orphan-loop leak.
+        guard gen == startGeneration else {
+            // One thing a stale task MUST still clean up: its own `capture.start()` above
+            // already brought the AVCaptureSession up, and it did so AFTER whatever
+            // superseded us. `stop()` cannot have torn that down — it ran while we were
+            // parked in `requestAccess`, which is not cancellation-aware — so a bare return
+            // leaves the session running forever: privacy indicator lit, watchdog live,
+            // battery burning, with nobody consuming frames.
+            //
+            // `isRunning` decides WHICH kind of supersession this was, and it is the right
+            // discriminator because it is claimed synchronously on the main actor before any
+            // await: false ⇒ a stop() won, so tear the session down; true ⇒ a NEWER start()
+            // won and is the rightful owner, so leave its session alone. Tearing down in that
+            // second case is the bug this guard exists to prevent — a cancelled predecessor
+            // killing a live successor. (`sessionQueue` is FIFO, so a `stop()` enqueued after
+            // a main-actor read of `isRunning == false` can never overtake a later start's
+            // `startRunning()`.)
+            if !isRunning { capture.stop() }
+            return
+        }
 
         // Finger-on-lens PPG needs the back-camera torch to illuminate the
         // fingertip — without it there is no red-channel pulse signal. Driven on
