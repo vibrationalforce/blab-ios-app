@@ -869,193 +869,36 @@ struct EchoelStudioView: View {
         }
     }
 
-    // MARK: - Tools (deep editors)
-
-    // MARK: - Tools catalog (ONE source of truth for the grid + the HUD)
-
-    /// Which group a tool belongs to. Both the Tools grid and the bottom HUD menu are
-    /// rendered from `toolItems` filtered by this — so adding a tool ONCE surfaces it in
-    /// BOTH places (fixes the old drift where the HUD silently lacked several tools).
-    private enum ToolCat: CaseIterable { case editors, audioBio, connect, visualLearn }
-
-    /// One simple, single-action tool destination. (The two menu-based tools — Drum
-    /// Samples and MIDI/Health — are inherently sub-menus, so they stay inline in both
-    /// surfaces; everything else flows from this list.)
-    private struct ToolItem: Identifiable { let id: String; let title: String; let icon: String; let cat: ToolCat }
-
-    /// The single catalog. Platform-gated tools are appended under the same `#if` that
-    /// guards their action in `openTool`, so a tool never appears without a live action.
-    private var toolItems: [ToolItem] {
-        var items: [ToolItem] = [
-            ToolItem(id: "pianoroll", title: "Piano Roll", icon: "pianokeys", cat: .editors),
-            ToolItem(id: "sound", title: "Sound", icon: "dial.medium", cat: .editors),
-            // "Channels" is now the first-class Mix workspace surface — not duplicated here.
-            ToolItem(id: "automation", title: "Automation",
-                     icon: "point.topleft.down.curvedto.point.bottomright.up", cat: .editors),
-            ToolItem(id: "audioin", title: "Audio In", icon: "mic", cat: .audioBio),
-            ToolItem(id: "audioclip", title: "Audio Clip", icon: "waveform", cat: .audioBio),
-            // "Breathing" lives on the Bio surface (the one body/breath home) — not duplicated here.
-            ToolItem(id: "meditation", title: "Coherence", icon: "waveform.path.ecg", cat: .audioBio),
-            ToolItem(id: "routing", title: "Routing",
-                     icon: "point.3.connected.trianglepath.dotted", cat: .connect),
-            ToolItem(id: "plugins", title: "Plugins", icon: "puzzlepiece.extension", cat: .connect),
-            ToolItem(id: "broadcast", title: "Broadcast",
-                     icon: "dot.radiowaves.left.and.right", cat: .connect),
-        ]
-        #if canImport(UniformTypeIdentifiers)
-        items.append(ToolItem(id: "importmidi", title: "Import MIDI", icon: "square.and.arrow.down", cat: .editors))
-        #endif
-        #if canImport(MultipeerConnectivity)
-        items.append(ToolItem(id: "livecolabo", title: "Live Colabo", icon: "person.2.wave.2", cat: .connect))
-        #endif
-        #if canImport(MetalKit) && canImport(UIKit)
-        items.append(ToolItem(id: "visual", title: "Visual", icon: "sparkles", cat: .visualLearn))
-        #endif
-        items.append(ToolItem(id: "learn", title: "Learn", icon: "book", cat: .visualLearn))
-        return items
-    }
-
-    /// Central action mapping — the one place a tool id opens its editor. Called by both
-    /// the grid chips and the HUD menu rows.
-    private func openTool(_ id: String) {
-        switch id {
-        case "audioin": showInput = true
-        case "meditation": showMeditation = true
-        case "routing": showRouting = true
-        case "learn": showLearn = true
-        #if canImport(UniformTypeIdentifiers)
-        case "importmidi": midiImportPresented = true
-        #endif
-        #if canImport(MultipeerConnectivity)
-        case "livecolabo": showLiveColabo = true
-        #endif
-        #if canImport(MetalKit) && canImport(UIKit)
-        case "visual": showVisual = true
-        #endif
-        default: break
-        }
-    }
-
-    private func toolItems(_ cat: ToolCat) -> [ToolItem] { toolItems.filter { $0.cat == cat } }
-
-    /// The deeper editors, grouped into a CLEAR, collapsible panel (founder: "besser
-    /// strukturiert, übersichtlicher … sich aufklappen lässt"). A header with a
-    /// chevron unfolds/folds the whole set; inside, tools are grouped by purpose
-    /// (Editors · Audio & Bio · Connect · Visual & Learn) in wrapping grids so every
-    /// tool is visible at a glance instead of hidden off the side of a scroll row.
-    /// Clips + Arrangement live on the workspace's bottom surface bar, so they are
-    /// not duplicated here — a name means ONE thing.
-    private var toolsSection: some View {
-        @Bindable var midiOut = midiOut
-        #if canImport(HealthKit)
-        @Bindable var healthWriter = healthWriter
-        #endif
-        return VStack(alignment: .leading, spacing: 12) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { toolsExpanded.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "wrench.and.screwdriver").font(.system(size: 13))
-                    Text("Tools").font(EchoelTheme.font(13, .semibold))
-                    Spacer(minLength: 0)
-                    Image(systemName: toolsExpanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(EchoelTheme.dim)
-                }
-                .foregroundStyle(EchoelTheme.text)
-                .frame(height: 40)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(toolsExpanded ? "Collapse tools" : "Expand tools")
-            .accessibilityAddTraits(.isButton)
-
-            if toolsExpanded {
-                toolGroup("Editors") {
-                    ForEach(toolItems(.editors)) { t in
-                        gridChip(t.title, t.icon) { openTool(t.id) }
-                    }
-                    Menu {
-                        ForEach(Array(BeatPlayer.trackNames.enumerated()), id: \.offset) { idx, name in
-                            Button(name) { sampleBrowserTrack = TrackRef(id: idx) }
-                        }
-                    } label: { gridChipLabel("Drum Samples", "waveform") }
-                }
-                toolGroup("Audio & Bio") {
-                    ForEach(toolItems(.audioBio)) { t in
-                        gridChip(t.title, t.icon) { openTool(t.id) }
-                    }
-                }
-                toolGroup("Connect") {
-                    ForEach(toolItems(.connect)) { t in
-                        gridChip(t.title, t.icon) { openTool(t.id) }
-                    }
-                    Menu {
-                        // Live MIDI / MPE OUT — the body's take streams to a virtual
-                        // "Echoelmusic" source any DAW can record. Off by default.
-                        Toggle(isOn: $midiOut.enabled) { Label("MIDI Out (live)", systemImage: "pianokeys.inverse") }
-                        Toggle(isOn: $midiOut.mpeEnabled) { Label("MPE (per-note channels)", systemImage: "waveform.path") }
-                            .disabled(!midiOut.enabled)
-                        // Stream the body's live 5D expression (Glide/Slide/Press) per
-                        // note — the ROLI-Seaboard-style multidimensional take out to any
-                        // MPE rig. Needs MPE on; off by default.
-                        Toggle(isOn: $midiOut.expressionEnabled) { Label("5D Expression (body)", systemImage: "hand.draw") }
-                            .disabled(!midiOut.enabled || !midiOut.mpeEnabled)
-                        #if canImport(HealthKit)
-                        // Opt-in: write the HR / respiratory rate Echoel measures (camera rPPG /
-                        // BLE) into Apple Health. Off by default; never writes HRV. The hint is
-                        // honest that camera readings are ESTIMATES (5.1.3(ii)/1.4.1 — audit
-                        // 2026-07-16): straps measure, the camera estimates after lock.
-                        Toggle(isOn: $healthWriter.enabled) { Label("Save to Apple Health", systemImage: "heart.text.square") }
-                            .accessibilityHint("Saves the heart rate and breathing rate Echoelmusic measures to Apple Health. Chest-strap readings are measurements; camera readings are estimates, saved only after the pulse locks.")
-                        #endif
-                    } label: { gridChipLabel("MIDI / Health", "pianokeys.inverse") }
-                }
-                toolGroup("Visual & Learn") {
-                    ForEach(toolItems(.visualLearn)) { t in
-                        gridChip(t.title, t.icon) { openTool(t.id) }
-                    }
-                }
-                Text("Echoelmusic \(Self.appVersionString)")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            }
-        }
-    }
-
-    /// A titled group of tool chips in a wrapping 2-column grid (everything visible,
-    /// no horizontal hiding). Plain title (no eyebrow/uppercase per Uncodixfy).
-    private func toolGroup<Content: View>(_ title: String,
-                                          @ViewBuilder _ chips: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
-                                GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                chips()
-            }
-        }
-    }
-
-    /// A full-width tool chip (fills its grid cell, left-aligned) opening an editor.
-    private func gridChip(_ title: String, _ systemImage: String,
-                          _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { gridChipLabel(title, systemImage) }
-            .buttonStyle(.plain)
-            .accessibilityLabel(title)
-    }
-
-    /// The chip label content — shared by plain-button and Menu-label chips.
-    private func gridChipLabel(_ title: String, _ systemImage: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: systemImage).font(.system(size: 13))
-            Text(title).font(EchoelTheme.font(12, .semibold)).lineLimit(1)
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(EchoelTheme.text)
-        .padding(.horizontal, 12).frame(height: 40)
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-            .strokeBorder(EchoelTheme.border, lineWidth: 1))
-    }
+    // MARK: - Tools (deep editors) — REMOVED 2026-07-26
+    //
+    // The whole Tools catalog lived here: `ToolCat`, `ToolItem`, `toolItems`, `openTool`,
+    // `toolsSection`, `toolGroup`, `gridChip`, `gridChipLabel` — 187 lines with ZERO mounts.
+    // `toolsSection` was the only caller of `openTool`, and nothing has rendered
+    // `toolsSection` since the 2026-07-02 grid removal.
+    //
+    // It was not inert, which is why it went rather than staying as harmless dead weight:
+    //
+    // 1. It CAMOUFLAGED three unreachable modals. `openTool` assigned `showVisual`,
+    //    `midiImportPresented` and `showMeditation`, so a grep for each flag found a
+    //    writer and every audit concluded the slot was live. It was not: with the only
+    //    caller unmounted, `.fullScreenCover($showVisual)`, `.fileImporter($midiImportPresented)`
+    //    and `.fullScreenCover($showMeditation)` can never open. That is how CLAUDE.md came
+    //    to certify `SpectralDonutView` as reachable (it renders ONLY inside the first of
+    //    those covers) and MIDI import as wired. Three of the body's 16 presentation
+    //    modifiers are therefore free headroom at the metadata ceiling the black-screen law
+    //    is fighting over — reuse those slots, never append a 17th.
+    // 2. It was the LYING-`toolItems` TRAP in the flesh: the catalog declared 13 tools,
+    //    `openTool` handled 7. `pianoroll`, `sound`, `automation`, `audioclip`, `plugins`
+    //    and `broadcast` fell through `default: break` — six chips that would have rendered
+    //    and done nothing the moment anyone re-mounted the grid, which is exactly the
+    //    failure mode CLAUDE.md warns about and this block's own comment denied
+    //    ("a tool never appears without a live action").
+    //
+    // Nothing referenced these symbols from outside the block, in Sources/ or Tests/.
+    // The capabilities the dead slots pointed at are NOT deleted with it: `SpectralDonutView`,
+    // the MIDI `fileImporter` + `importMIDI()`, and `exportMIDI()` (which separately has no
+    // caller at all) all still exist and need a real door or a deliberate cut — a founder
+    // call, not a side effect of tidying.
 
     // MARK: - The one button
 
