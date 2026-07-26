@@ -68,24 +68,37 @@ public struct BioSampleFrame: Sendable, Equatable {
     ///   signal 0 for a missing frame.
     ///
     /// The bipolar branch is `(signal·2−1)·depth·span·0.5`, where signal 0 is the FULL
-    /// NEGATIVE excursion. **This defect is real and still OPEN — but its trigger is not
-    /// the one originally written here.**
+    /// NEGATIVE excursion — so a bipolar route on a channel the body never reported used
+    /// to apply a permanent maximal offset. Both halves of that are now CLOSED, and
+    /// neither was fixed here, deliberately:
     ///
-    /// - NOT a missing frame. `FXBioModulator`'s apply loop skips a bio route with no
-    ///   frame outright (`guard let frame else { continue }`), so the base value stands.
-    ///   Where the missing-frame signal 0 DID land was the ~10 Hz `contributions`
-    ///   readout, which reported that full negative excursion for a route contributing
-    ///   nothing; fixed there by forcing the offset to 0, so the panel now agrees with
-    ///   the driver.
-    /// - STILL BROKEN: a frame that is present and perfectly usable but carries a
-    ///   STRUCTURAL zero. `hrvNormalized` is 0 until a source produces real HRV, and
-    ///   `coherence` is 0 on HealthKit by construction — and `ModSource.rawValue` reads
-    ///   those RAW fields, not `hrvForSound`. `FXModRoute` defaults to `bipolar: true`,
-    ///   so a default HRV or Coherence route applies a permanent full-negative offset to
-    ///   the AUDIO for as long as such a source is active. That needs its own slice; the
-    ///   fix is to give the bipolar branch an "unmeasured → no contribution" path, NOT
-    ///   to route `ModSource.rawValue` through this property (which would break the
-    ///   unipolar contract for every route to fix one polarity).
+    /// - A missing frame never reached the audio: `FXBioModulator` skips a bio route
+    ///   with no frame (`guard let frame else { continue }`), so the base value stood.
+    ///   It DID reach the ~10 Hz `contributions` readout, which showed that excursion
+    ///   for a route contributing nothing; fixed by forcing the offset to 0.
+    /// - A frame present but carrying a STRUCTURAL zero DID reach the audio, because
+    ///   `ModSource.rawValue` reads the RAW fields and `FXModRoute` defaults to
+    ///   `bipolar: true`. It was not a corner case: the FX view's "add route" button
+    ///   always creates a `.bio(.coherence)` route, and `coherence` is 0 on every source
+    ///   without beat-to-beat RR — so every bio route reachable from the UI hit this on
+    ///   HealthKit. Fixed by `ModSource.isMeasured(in:)`, which the FX driver and the FX
+    ///   readout gate on. (`VisualModulation` gates on it too, but that core has no
+    ///   caller yet — it is a guard for when the visual path is wired, not a fix anyone
+    ///   has seen.)
+    ///
+    /// Neither fix routes `ModSource.rawValue` through this property, and that is the
+    /// point: a neutral 0.5 substitution would invent a permanent half-depth offset for
+    /// every UNIPOLAR route to fix one polarity. Skipping is the honest form — it is
+    /// exactly "no contribution", and on every channel whose sentinel normalizes to 0 it
+    /// already equals the unipolar result.
+    ///
+    /// One boundary is NOT closed and is worth knowing before blaming a future report:
+    /// the gate has no slew, so a channel that stops being measured drops its offset in
+    /// one 30 Hz tick. The camera's ~4 s dropout grace is the live case — it republishes
+    /// `breathRate: 0` while still holding a continuous `breathPhase`, so a bipolar
+    /// breath→cutoff route can step by up to ~4.5 kHz in 33 ms where it used to glide.
+    /// That trade is deliberate (a brief edge beats a permanent maximal offset), but a
+    /// per-target offset slew in `FXBioModulator` is the real answer.
     ///
     /// This is deliberately NOT the fully honest form. The honest form is "do not apply
     /// the HRV mapping at all when there is no HRV" — depth to zero rather than value to

@@ -119,11 +119,19 @@ public final class FXBioModulator {
         for target in active {
             guard let base = baseValues[target] else { continue }
             var sum: Float = 0
+            var contributed = false
             for route in routes where route.enabled && route.target == target {
                 let signal: Float
                 switch route.carrier {
                 case .bio(let source):
                     guard let frame else { continue }   // no body → no bio offset
+                    // …and a frame that carries nothing ON THIS CHANNEL is the same
+                    // absence: HealthKit publishes no coherence, and coherence is what
+                    // the FX view's "add route" button always creates. Without this, a
+                    // BIPOLAR route on such a channel reads signal 0 and applies a
+                    // permanent full-negative offset (see `ModSource.isMeasured`, which
+                    // also documents the one unipolar channel this changes: breath).
+                    guard source.isMeasured(in: frame) else { continue }
                     signal = source.normalizedValue(from: frame)
                 case .lfo:
                     let phase = (now * route.lfoRateHz).truncatingRemainder(dividingBy: 1)
@@ -131,9 +139,19 @@ public final class FXBioModulator {
                 }
                 sum += FXModulation.offset(target: target, signal: route.curve.apply(signal),
                                            depth: route.depth, bipolar: route.bipolar)
+                contributed = true
             }
+            // The write ALWAYS runs, deliberately: `sum` is 0 when nothing contributed,
+            // so a channel that stops being measured returns its parameter to base
+            // instead of freezing at the last modulated value.
             write(target, FXModulation.combine(base: base, target: target, offset: sum), to: c)
-            enableStage(for: target, on: c)   // make the modulation audible
+            // Enabling the stage does NOT: switching a filter or reverb on for a target
+            // nothing is modulating changes the sound off nothing — the same complaint
+            // this gate exists to answer, one level up. With the default coherence route
+            // on a source that reports no coherence, that would have run every tick for
+            // the whole session. (There is no matching disable, so a stage already on
+            // stays on and no click is introduced.)
+            if contributed { enableStage(for: target, on: c) }
         }
         // Publish the live snapshot at ~10 Hz (throttled) for the visibility leaf.
         // Only write on a real change so an idle/stable state fires no observation.

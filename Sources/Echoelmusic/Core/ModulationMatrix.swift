@@ -91,6 +91,72 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     public func normalizedValue(from frame: BioSampleFrame) -> Float {
         ModulationMatrix.normalize(rawValue(from: frame), in: range)
     }
+
+    /// Whether this channel was actually MEASURED in `frame`.
+    ///
+    /// `normalizedValue` cannot express this — it returns a clamped [0..1] number in
+    /// which 0 means both "the bottom of the scale" and "nobody read this". A frame
+    /// can be present, fresh and perfectly usable and still carry nothing on a given
+    /// channel. The live case is `coherence`, which every source without beat-to-beat RR
+    /// publishes as 0 — `HealthKitBioPublisher` does so explicitly — and `hrvNormalized`,
+    /// 0 until a source produces real HRV. `FaceExpressionBioPublisher` is the mirror
+    /// image (a `.faceCam` frame carries no pulse at all), but it is not yet reachable:
+    /// the class compiles and nothing starts it, so that half is a guard for when it is
+    /// wired, not a defect anyone has heard.
+    ///
+    /// It matters most for BIPOLAR routes, which map signal 0 to a FULL NEGATIVE
+    /// excursion (`(0·2−1)·depth·span·0.5`): without this gate, a bipolar route on a
+    /// channel the body never reported applies a permanent maximal offset — a
+    /// coherence→cutoff route on HealthKit muffles the instrument for the whole
+    /// session, off nothing.
+    ///
+    /// UNIPOLAR routes are unaffected on every channel whose sentinel normalizes to 0
+    /// (heart rate, HRV, coherence, motion, face) — there `signal·depth·span` is already
+    /// 0, so skipping is identical. BREATH is the exception, because its gate reads a
+    /// different field than its value: HealthKit with no respiration publishes
+    /// `breathRate: 0` but `breathPhase: 0.5` (the engine placeholder), so a unipolar
+    /// breath-phase route WAS contributing half-depth off a placeholder and now
+    /// contributes nothing. That is a real behaviour change, and the intended one.
+    ///
+    /// Agrees with `BioModulationMap.isMeasured` (the display-side gate) on the four
+    /// channels they share — heart rate, HRV, coherence, breath. It is a SECOND,
+    /// independent switch, not a shared implementation, and nothing tests that the two
+    /// stay aligned: if you change either, change both, or hoist them onto
+    /// `BioSampleFrame`. Motion and the three face channels exist only here.
+    ///
+    /// Breath is the channel whose gate reads a DIFFERENT field than its value:
+    /// `breathPhase` has no unknown sentinel (0 is a real position, exhale start), so
+    /// both breath sources ride `BioSampleFrame.hasMeasuredBreath`, which gates on
+    /// `breathRate`. Note that band (3…40) is WIDER than `ModSource.breathRate.range`
+    /// (4…30), so a 3.5/min resonance breather passes the gate and still normalizes to
+    /// exactly 0 — the same excursion, surviving inside the gate. Narrow, pre-existing,
+    /// and not worth changing the mapping curve for every route to close blind.
+    ///
+    /// The face channels gate on PROVENANCE rather than a sentinel, because a tracked,
+    /// genuinely neutral face reads 0 and must stay a reading — widen this if a future
+    /// publisher ever carries pulse and expression in one frame (coexistence is
+    /// deferred today).
+    public func isMeasured(in frame: BioSampleFrame) -> Bool {
+        switch self {
+        case .heartRate:   return frame.heartRateBPM > 0
+        case .hrv:         return frame.hrvNormalized > 0
+        case .coherence:   return frame.coherence > 0
+        case .breathRate, .breathPhase: return frame.hasMeasuredBreath
+        case .faceSmile, .faceBrow, .faceJaw: return frame.source == .faceCam
+        // Motion has NO producer: all six `BioSampleFrame` construction sites in
+        // `Sources/` hardcode `motionEnergy: 0`, and the last CoreMotion provider was
+        // removed in the 2026-06-19 cleanup. So nothing measures it, and `false` is the
+        // literal truth rather than a policy.
+        //
+        // When a CoreMotion source returns, gate this on THAT source's provenance (as
+        // the face channels do) — do NOT write `motionEnergy > 0`. Unlike HRV and
+        // coherence, motion has no documented sentinel: 0 is a real reading ("perfectly
+        // still"). A value gate would drop a motionless performer's routes and make a
+        // bipolar route discontinuous at the origin — 1e-7 gives −½·depth·span while
+        // 0.0 gives nothing, a full-depth jump between adjacent samples.
+        case .motion:      return false
+        }
+    }
 }
 
 // MARK: - Destination
@@ -278,6 +344,16 @@ public struct ModulationMatrix: Codable, Sendable, Equatable {
 
     /// Normalized [0..1] output for one route given a bio frame.
     /// Disabled routes return 0. Deterministic and side-effect free.
+    ///
+    /// KNOWN, DEFERRED: this evaluator is NOT gated on `ModSource.isMeasured` the way the
+    /// FX and visual paths are, and two of its branches carry the same defect. With an
+    /// unmeasured channel (`live == 0`), `invert: true` yields `depth` — the destination
+    /// pinned at MAXIMUM, permanently, the mirror of the bipolar slam. `.hold` computes
+    /// `held + drift·(live−0.5)·2`, i.e. `held − drift`, which is the bipolar form
+    /// outright. Left alone on purpose: `ModRoute` has no construction site in `Sources/`
+    /// and nothing in the UI sets `invert`, so both are reachable only from persisted
+    /// data, and gating here would change the semantics of the general matrix for every
+    /// consumer at once. Gate it in the same slice that gives `ModRoute` a real UI.
     public static func output(for route: ModRoute, frame: BioSampleFrame) -> Float {
         guard route.enabled else { return 0 }
         // HRV-trust gate: a strap-only route stays silent on weak sources.

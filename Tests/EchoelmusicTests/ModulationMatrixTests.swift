@@ -49,6 +49,83 @@ final class ModulationMatrixTests: XCTestCase {
         XCTAssertEqual(ModSource.coherence.normalizedValue(from: frame(coh: 0.8)), 0.8, accuracy: 1e-6)
     }
 
+    // MARK: - "is this channel actually measured in this frame"
+
+    func testSource_isMeasured_hrvAndCoherenceHaveAnUnmeasuredSentinel() {
+        // A frame can be present, fresh and perfectly usable and STILL carry no value
+        // on a given channel: hrvNormalized stays 0 until a source produces real HRV,
+        // and coherence is 0 on HealthKit by construction (no beat-to-beat RR). Both
+        // are documented on BioSampleFrame as "not available", NOT as "minimum".
+        XCTAssertFalse(ModSource.hrv.isMeasured(in: frame(hrv: 0)))
+        XCTAssertTrue(ModSource.hrv.isMeasured(in: frame(hrv: 0.01)))
+        XCTAssertFalse(ModSource.coherence.isMeasured(in: frame(coh: 0)))
+        XCTAssertTrue(ModSource.coherence.isMeasured(in: frame(coh: 0.01)))
+    }
+
+    func testSource_isMeasured_breathRidesTheExistingFrameGate() {
+        // breathPhase has NO unknown sentinel (0 is a real position, exhale start), so
+        // it cannot answer this about itself — BioSampleFrame.hasMeasuredBreath gates on
+        // breathRate for exactly that reason. Both breath sources must ride that gate.
+        XCTAssertFalse(ModSource.breathRate.isMeasured(in: frame(br: 0)))
+        XCTAssertFalse(ModSource.breathPhase.isMeasured(in: frame(br: 0, phase: 0.5)))
+        XCTAssertTrue(ModSource.breathRate.isMeasured(in: frame(br: 12)))
+        XCTAssertTrue(ModSource.breathPhase.isMeasured(in: frame(br: 12, phase: 0)))
+    }
+
+    func testSource_isMeasured_pulseChannelsAreZeroOnAFaceCamFrame() {
+        // FaceExpressionBioPublisher builds a .faceCam frame with heartRateBPM /
+        // hrvNormalized / breathRate / coherence all literally 0 ("faceCam carries NO
+        // pulse"). Nothing STARTS that publisher yet, so this half is a guard for when
+        // it is wired, not a defect on a device today — the live case is coherence.
+        let faceOnly = frame(hr: 0, hrv: 0, br: 0, phase: 0, coh: 0, motion: 0, src: .faceCam)
+        XCTAssertFalse(ModSource.heartRate.isMeasured(in: faceOnly))
+        XCTAssertFalse(ModSource.hrv.isMeasured(in: faceOnly))
+        XCTAssertFalse(ModSource.coherence.isMeasured(in: faceOnly))
+        XCTAssertFalse(ModSource.breathPhase.isMeasured(in: faceOnly))
+        XCTAssertTrue(ModSource.heartRate.isMeasured(in: frame(hr: 60)))
+    }
+
+    func testSource_isMeasured_faceChannelsGateOnProvenanceNotOnZero() {
+        // The mirror image: every PULSE publisher writes the three face channels as 0,
+        // so a face route on a camera-rPPG frame is reading nothing. But a tracked and
+        // genuinely neutral face also reads 0 — no sentinel can separate those, so the
+        // gate is the source, not the value.
+        XCTAssertFalse(ModSource.faceSmile.isMeasured(in: frame(src: .cameraPPG)))
+        XCTAssertTrue(ModSource.faceSmile.isMeasured(in: frame(src: .faceCam)))
+    }
+
+    func testSource_isMeasured_motionHasNoProducerAtAll() {
+        // Every BioSampleFrame construction site in Sources/ hardcodes motionEnergy: 0
+        // and the last CoreMotion provider was removed, so nothing measures motion —
+        // false is the literal truth, not a policy. Pinning it here so that when a
+        // CoreMotion source lands, this test fails and forces the provenance gate the
+        // doc asks for (0 is a REAL motion reading: perfectly still).
+        XCTAssertFalse(ModSource.motion.isMeasured(in: frame(motion: 0)))
+        XCTAssertFalse(ModSource.motion.isMeasured(in: frame(motion: 0.7)))
+    }
+
+    func testSource_isMeasured_unipolarUnchangedExceptWhereTheSentinelIsNotZero() {
+        // Most of the blast radius: an unmeasured channel normalizes to 0, and at signal
+        // 0 a UNIPOLAR route already contributes exactly nothing, so skipping it is
+        // byte-identical. Only the bipolar formula differs — it replaces a full-negative
+        // excursion with no excursion at all.
+        XCTAssertEqual(FXModulation.offset(target: .filterCutoff, signal: 0,
+                                           depth: 1, bipolar: false),
+                       0, accuracy: 1e-6, "skipping a unipolar route changes nothing here")
+        XCTAssertLessThan(FXModulation.offset(target: .filterCutoff, signal: 0,
+                                              depth: 1, bipolar: true),
+                          -8000, "this is the excursion the gate removes")
+
+        // BREATH is the documented exception, and unipolar DOES change there: its gate
+        // reads breathRate while its value comes from breathPhase, which sits at the
+        // engine's 0.5 placeholder when no respiration was measured. So a unipolar
+        // breath-phase route was contributing half-depth off a placeholder.
+        let noBreath = frame(br: 0, phase: 0.5)
+        XCTAssertFalse(ModSource.breathPhase.isMeasured(in: noBreath))
+        XCTAssertEqual(ModSource.breathPhase.normalizedValue(from: noBreath), 0.5,
+                       accuracy: 1e-6, "not 0 — which is why skipping is a real change")
+    }
+
     func testSource_allCasesHaveValidRange() {
         for s in ModSource.allCases {
             XCTAssertLessThan(s.range.lowerBound, s.range.upperBound, "\(s) range must be non-degenerate")

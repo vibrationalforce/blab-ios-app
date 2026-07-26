@@ -176,6 +176,17 @@ public enum VisualModulation {
                 switch route.carrier {
                 case .bio(let source):
                     guard let bio else { continue }
+                    // Same gate as the FX driver: a channel the frame never measured
+                    // (no coherence on a source without beat-to-beat RR) is an absence,
+                    // not a zero, and a bipolar route would otherwise pin its target to
+                    // the bottom of range forever. See `ModSource.isMeasured`.
+                    //
+                    // Note skipping is not QUITE identity here even for a unipolar
+                    // route, unlike the FX path: `touched` stays false, so `combine` no
+                    // longer runs, and `combine` is not a no-op at offset 0 — `.hue`
+                    // wraps (base 1.0 used to become 0.0) and the others clamp into
+                    // range. Correct either way, but do not call it byte-identical.
+                    guard source.isMeasured(in: bio) else { continue }
                     raw = source.normalizedValue(from: bio)
                 case .lfo:
                     let phase = (lfoTime * route.lfoRateHz).truncatingRemainder(dividingBy: 1)

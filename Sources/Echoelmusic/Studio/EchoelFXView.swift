@@ -732,14 +732,29 @@ private struct BioModContributionRow: View {
                 Text(contribution.targetName)
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
                 Spacer(minLength: 0)
-                Text(signed(contribution.offset))
+                // "—", never "+0.00", when the body did not report this carrier: the
+                // same rule the bio strip applies, and for the same reason — a confident
+                // zero reads as "you are at the bottom of the scale" rather than "this
+                // was not measured". The route contributes nothing in that state, so a
+                // number here would also contradict the engine.
+                Text(contribution.measured ? signed(contribution.offset) : "—")
                     .font(EchoelTheme.font(11).monospacedDigit()).foregroundStyle(EchoelTheme.dim)
             }
             signalBar
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(contribution.carrierName) moving \(contribution.targetName), \(Int((contribution.signal01 * 100).rounded())) percent")
+        .accessibilityLabel(accessibilityText)
+    }
+
+    /// VoiceOver must not state a percentage the body never produced either — that was
+    /// the more misleading half, since "0 percent" sounds like a reading.
+    private var accessibilityText: String {
+        guard contribution.measured else {
+            return "\(contribution.carrierName) to \(contribution.targetName), not measured"
+        }
+        return "\(contribution.carrierName) moving \(contribution.targetName), "
+            + "\(Int((contribution.signal01 * 100).rounded())) percent"
     }
 
     /// Adaptive precision so a filter-cutoff offset in Hz (+4200) and a dimensionless
@@ -754,8 +769,12 @@ private struct BioModContributionRow: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(EchoelTheme.border.opacity(0.4))
-                Capsule().fill(EchoelTheme.accent)
-                    .frame(width: Swift.max(2, geo.size.width * CGFloat(Swift.min(1, Swift.max(0, contribution.signal01)))))
+                // No fill at all when unmeasured — the `max(2, …)` floor would otherwise
+                // draw a small but real bar, which is the same fabricated zero as "+0.00".
+                if contribution.measured {
+                    Capsule().fill(EchoelTheme.accent)
+                        .frame(width: Swift.max(2, geo.size.width * CGFloat(Swift.min(1, Swift.max(0, contribution.signal01)))))
+                }
             }
         }
         .frame(height: 5)

@@ -139,14 +139,23 @@ public struct BioModContribution: Sendable, Equatable, Identifiable {
     public var targetName: String
     public var signal01: Float
     public var offset: Float
+    /// Whether the body actually REPORTED this carrier for this snapshot. `false` when
+    /// there is no frame at all, or a frame that carries nothing on this channel
+    /// (`ModSource.isMeasured`). The row must then render "—", never the "0.00" that
+    /// `signal01`/`offset` hold — the same law `BioStripView` applies to the bio strip,
+    /// because a confident zero reads as "your body is at the bottom of the scale"
+    /// rather than "nobody measured this". Always `true` for an LFO carrier, which
+    /// needs no body.
+    public var measured: Bool
 
     public init(id: UUID, carrierName: String, targetName: String,
-                signal01: Float, offset: Float) {
+                signal01: Float, offset: Float, measured: Bool = true) {
         self.id = id
         self.carrierName = carrierName
         self.targetName = targetName
         self.signal01 = signal01
         self.offset = offset
+        self.measured = measured
     }
 }
 
@@ -164,19 +173,22 @@ public enum FXModulation {
         everyN > 0 && tick % everyN == 0
     }
 
-    /// Build the per-route live contributions for the ENABLED routes. Bio carriers with
-    /// no frame still appear, reporting signal 0 AND offset 0 — the row reads "waiting
-    /// for body"; LFO carriers use `now` (seconds) for their phase and ignore the frame.
-    /// Order preserved. Deterministic → Linux-testable without the driver.
+    /// Build the per-route live contributions for the ENABLED routes. A bio carrier the
+    /// body is not currently reporting still appears — the row stays visible so the user
+    /// can see the route exists — but is marked `measured: false` with signal 0 and
+    /// offset 0, and `BioModContributionRow` renders that as "—", not a number. LFO
+    /// carriers use `now` (seconds) for their phase and ignore the frame; they are always
+    /// measured. Order preserved. Deterministic → Linux-testable.
     ///
-    /// The missing-frame offset is forced to 0 rather than computed from signal 0, and
-    /// that is not cosmetic: this readout exists to answer "what is my body moving right
-    /// now", so it must agree with what the driver actually applies — and the driver
-    /// SKIPS a bio route with no frame (`guard let frame else { continue }` in
-    /// `FXBioModulator`), leaving the base value alone. Running signal 0 through the
-    /// BIPOLAR formula instead gives `(0·2−1)·depth·span·0.5`, a FULL NEGATIVE
-    /// excursion, so every bipolar route displayed a large negative contribution it was
-    /// not making, until the first measurement landed.
+    /// "Not reporting" is two cases, and both must be caught: no frame at all, and a
+    /// frame that carries nothing ON THIS CHANNEL (`ModSource.isMeasured` — a `.faceCam`
+    /// frame has no pulse, a source without beat-to-beat RR has no coherence). The offset
+    /// is forced to 0 in both rather than computed from signal 0, and that is not
+    /// cosmetic: this readout exists to answer "what is my body moving right now", so it
+    /// must agree with what the driver applies — and `FXBioModulator` skips exactly these
+    /// routes, leaving the base value alone. Running signal 0 through the BIPOLAR formula
+    /// instead gives `(0·2−1)·depth·span·0.5`, a FULL NEGATIVE excursion, so such a route
+    /// displayed a large negative contribution it was not making.
     public static func contributions(routes: [FXModRoute], frame: BioSampleFrame?,
                                      now: Float) -> [BioModContribution] {
         routes.filter { $0.enabled }.map { route in
@@ -184,7 +196,7 @@ public enum FXModulation {
             var contributing = true
             switch route.carrier {
             case .bio(let source):
-                if let frame {
+                if let frame, source.isMeasured(in: frame) {
                     signal = source.normalizedValue(from: frame)
                 } else {
                     signal = 0
@@ -201,7 +213,8 @@ public enum FXModulation {
             return BioModContribution(id: route.id,
                                       carrierName: route.carrier.displayName,
                                       targetName: route.target.displayName,
-                                      signal01: clamp01(signal), offset: off)
+                                      signal01: clamp01(signal), offset: off,
+                                      measured: contributing)
         }
     }
 

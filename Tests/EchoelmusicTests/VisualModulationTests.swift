@@ -65,6 +65,18 @@ final class VisualModulationTests: XCTestCase {
         XCTAssertEqual(out.blend, 0.2, accuracy: 1e-5)   // unchanged
     }
 
+    func testApply_UnmeasuredChannelContributesNothing_evenBipolar() {
+        // The frame is present and usable but carries no coherence (0 = "not available",
+        // e.g. any source without beat-to-beat RR). A bipolar route would otherwise read
+        // signal 0 and drive spread to the very bottom of its range for the whole
+        // session, off a channel the body never reported. Same gate as the FX driver.
+        let r = VisualModRoute(carrier: .bio(.coherence), target: .spread, depth: 1.0, bipolar: true)
+        let out = VisualModulation.apply(routes: [r], base: base(spread: 0.8),
+                                         bio: bio(coherence: 0), lfoTime: 0)
+        // Falsifier: ungated, this is 0.8 − 0.5 = 0.3, clamped to the 0.5 floor.
+        XCTAssertEqual(out.spread, 0.8, accuracy: 1e-5, "base survives an unmeasured channel")
+    }
+
     func testApply_DisabledRouteIgnored() {
         var r = VisualModRoute(carrier: .bio(.coherence), target: .blend, depth: 1.0, bipolar: false)
         r.enabled = false

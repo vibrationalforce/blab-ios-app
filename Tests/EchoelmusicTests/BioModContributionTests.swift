@@ -43,7 +43,8 @@ final class BioModContributionTests: XCTestCase {
     }
 
     func testContribution_bioRoute_noFrame_presentButZero() {
-        // No body yet: the route still appears (so the row reads "waiting"), at zero.
+        // No body yet: the route still appears, so the user can see it exists, but at
+        // zero and flagged unmeasured (the row renders "—" — see the flag test below).
         let route = FXModRoute(carrier: .bio(.coherence), target: .reverbMix,
                                depth: 0.5, bipolar: false)
         let out = FXModulation.contributions(routes: [route], frame: nil, now: 0)
@@ -71,17 +72,53 @@ final class BioModContributionTests: XCTestCase {
     }
 
     func testContribution_bipolarWithAFrame_isNotFlattened() {
-        // Guard against over-correcting: with a frame present the bipolar formula must
-        // still run, so a below-midpoint signal reads negative. (This one passes both
-        // before and after the fix — it is a regression fence, not a falsifier.)
-        let route = FXModRoute(carrier: .bio(.coherence), target: .reverbMix,
+        // Guard against over-correcting: on a channel the frame really MEASURED, the
+        // bipolar formula must still run, so a below-midpoint signal reads negative.
+        // Breath is the channel used here precisely because its gate is a different
+        // field (`breathRate`, 12 in the helper), so phase 0 stays a real reading —
+        // coherence 0 cannot serve as the low end any more, since 0 is its "not
+        // available" sentinel and the row is now correctly reported as contributing
+        // nothing (see the test below).
+        let route = FXModRoute(carrier: .bio(.breathPhase), target: .reverbMix,
                                depth: 1, bipolar: true)
         XCTAssertEqual(FXModulation.contributions(routes: [route],
-                                                  frame: frame(coherence: 0), now: 0)[0].offset,
+                                                  frame: frame(breathPhase: 0), now: 0)[0].offset,
                        -0.5, accuracy: 1e-5)
         XCTAssertEqual(FXModulation.contributions(routes: [route],
-                                                  frame: frame(coherence: 1), now: 0)[0].offset,
+                                                  frame: frame(breathPhase: 1), now: 0)[0].offset,
                        0.5, accuracy: 1e-5)
+    }
+
+    func testContribution_frameWithoutThisChannel_reportsZero() {
+        // The surviving half of the same defect: the frame is PRESENT and usable, but
+        // carries nothing on this channel — coherence is 0 on HealthKit by construction
+        // (no beat-to-beat RR), and the helper's frame has hrvNormalized 0. The driver
+        // now skips those routes, so the readout must too, whatever the polarity.
+        let coh = FXModRoute(carrier: .bio(.coherence), target: .filterCutoff,
+                             depth: 1, bipolar: true)
+        let hrv = FXModRoute(carrier: .bio(.hrv), target: .reverbMix, depth: 1, bipolar: true)
+        let out = FXModulation.contributions(routes: [coh, hrv], frame: frame(coherence: 0), now: 0)
+        XCTAssertEqual(out.map(\.offset), [0, 0],
+                       "an unmeasured channel contributes nothing, it does not swing fully negative")
+        XCTAssertEqual(out.map(\.signal01), [0, 0])
+        XCTAssertEqual(out.map(\.measured), [false, false])
+    }
+
+    func testContribution_measuredFlag_separatesAbsenceFromARealZero() {
+        // The flag exists so the row can render "—" instead of "+0.00". Without it the
+        // panel states a reading the body never produced — the same fabrication
+        // `BioStripView` refuses for the bio strip. A genuine bottom-of-scale reading
+        // must stay measured, so the two cases have to be distinguishable here.
+        let route = FXModRoute(carrier: .bio(.coherence), target: .reverbMix, depth: 0.5)
+        XCTAssertFalse(FXModulation.contributions(routes: [route], frame: nil, now: 0)[0].measured)
+        XCTAssertFalse(FXModulation.contributions(routes: [route],
+                                                  frame: frame(coherence: 0), now: 0)[0].measured)
+        // A hair above the sentinel is a real measurement at the bottom of the scale.
+        XCTAssertTrue(FXModulation.contributions(routes: [route],
+                                                 frame: frame(coherence: 0.001), now: 0)[0].measured)
+        // An LFO needs no body at all.
+        let lfo = FXModRoute(carrier: .lfo, target: .reverbMix, lfoRateHz: 1)
+        XCTAssertTrue(FXModulation.contributions(routes: [lfo], frame: nil, now: 0)[0].measured)
     }
 
     func testContribution_lfoRoute_usesPhaseNotFrame() {
