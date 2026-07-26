@@ -32,7 +32,8 @@ public enum CommunityLibrary {
     /// this exists to fix, and the CI log channels available couldn't confirm
     /// which bundle Xcode actually resolves at runtime here, so try both rather
     /// than assume one (2026-07-21).
-    private static var candidateBundles: [Bundle] {
+    /// `internal` (not `private`) purely as a TEST SEAM — see `allJSONURLs`.
+    static var candidateBundles: [Bundle] {
         #if SWIFT_PACKAGE
         return [.module]
         #else
@@ -53,7 +54,17 @@ public enum CommunityLibrary {
     /// Every `.json` URL found under any candidate bundle's `resourceURL`, walked
     /// once and shared across all loaders (fx/patches/moods) rather than a
     /// separate full tree scan per subdirectory.
-    private static let allJSONURLs: [URL] = {
+    ///
+    /// `internal`, not `private`, as a deliberate TEST SEAM. `CommunityLibraryTests`
+    /// has been red in CI since the suite was first wired, and TWO project.yml
+    /// bundling guesses had zero measurable effect because nothing could observe
+    /// which link of the chain actually breaks — the summary step surfaces only the
+    /// `Test case '<name>' failed` line, never the assertion message that carries the
+    /// diagnosis. `CommunityBundleDiagnosisTests` therefore asserts each link in its
+    /// OWN test method, so the failing NAMES alone say where the chain breaks. Those
+    /// tests must measure THIS array, not a re-implementation of the walk: a replica
+    /// can diverge from the real loader and answer a question nobody asked.
+    static let allJSONURLs: [URL] = {
         var urls: [URL] = []
         for bundle in candidateBundles {
             guard let root = bundle.resourceURL,
