@@ -32,7 +32,13 @@ final class TimelineStoreDebounceTests: XCTestCase {
 
         // onDocumentChanged/document mutation are synchronous — no wait needed to
         // observe the FINAL in-memory value immediately.
-        XCTAssertEqual(store.document.lanes.first { $0.id == laneID }?.level, 0.9,
+        // `?? Float.nan`, not a bare optional: the `accuracy:` overload of
+        // XCTAssertEqual takes a non-optional FloatingPoint, so passing `Float?`
+        // makes the compiler try to land on the Double overload and fail with
+        // "cannot convert value of type 'Float?' to expected argument type 'Double'".
+        // Coalescing to NaN keeps the assertion honest — a missing lane compares
+        // unequal to everything and still fails.
+        XCTAssertEqual(store.document.lanes.first { $0.id == laneID }?.level ?? Float.nan, 0.9,
                        accuracy: 1e-6, "in-memory document must update synchronously")
 
         // The debounced disk write needs time to land.
@@ -40,7 +46,7 @@ final class TimelineStoreDebounceTests: XCTestCase {
 
         let onDisk = AppGroupStore(subdirectory: "Timeline").load(TimelineDocument.self, name: "timeline")
         let persistedLane = onDisk?.lanes.first { $0.id == laneID }
-        XCTAssertEqual(persistedLane?.level, 0.9, accuracy: 1e-6,
+        XCTAssertEqual(persistedLane?.level ?? Float.nan, 0.9, accuracy: 1e-6,
                        "only the LAST value of the burst should ever reach disk")
     }
 
@@ -59,7 +65,7 @@ final class TimelineStoreDebounceTests: XCTestCase {
 
         let onDisk = AppGroupStore(subdirectory: "Timeline").load(TimelineDocument.self, name: "timeline")
         let persistedLane = onDisk?.lanes.first { $0.id == laneID }
-        XCTAssertEqual(persistedLane?.level, 1.4, accuracy: 1e-6,
+        XCTAssertEqual(persistedLane?.level ?? Float.nan, 1.4, accuracy: 1e-6,
                        "flushPendingSave must write the current document immediately")
     }
 
@@ -85,7 +91,7 @@ final class TimelineStoreDebounceTests: XCTestCase {
 
         let onDisk = AppGroupStore(subdirectory: "Timeline").load(TimelineDocument.self, name: "timeline")
         let persistedLane = onDisk?.lanes.first { $0.id == laneID }
-        XCTAssertEqual(persistedLane?.level, 1.1, accuracy: 1e-6,
+        XCTAssertEqual(persistedLane?.level ?? Float.nan, 1.1, accuracy: 1e-6,
                        "a stale, superseded debounced write must never land after a flush")
     }
 }
