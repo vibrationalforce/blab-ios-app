@@ -20,7 +20,7 @@ final class LaneVoiceKindTests: XCTestCase {
         XCTAssertEqual(TrackInstrument.bioVoice.voiceKind, .bioVoice)
     }
 
-    func testNoInstrumentResolvesToDrums() {
+    func testFormerDrumAliasesResolveToPoly() {
         // NO DRUMS (founder 2026-07-26: "es soll keine Drums geben. Auch nicht im Mixer.").
         // Both former drum aliases resolve to `.poly`, so a project persisted BEFORE this
         // build comes back audible as a melodic voice instead of binding to a kit that no

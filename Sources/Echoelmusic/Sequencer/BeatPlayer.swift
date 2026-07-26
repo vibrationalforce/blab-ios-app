@@ -391,7 +391,8 @@ public final class BeatPlayer {
         sampleLabels[track] = name
     }
 
-    /// Attaches the preview source node to the engine.
+    /// Attaches the preview source node to the engine. Idempotent — safe to call
+    /// multiple times.
     ///
     /// **NO DRUMS** (founder 2026-07-26: *"es soll keine Drums geben. Auch nicht im
     /// Mixer."*). This method used to attach all 8 pad voices plus their synth twins and
@@ -406,8 +407,10 @@ public final class BeatPlayer {
     ///
     /// The pad voices are therefore no longer attached to the audio graph — they cannot be
     /// heard even if something calls `trigger`/`playPad` — and the whole voice apparatus is
-    /// dead code awaiting its own removal slice. It is left in place for exactly one cycle so
-    /// this change stays small and reversible; do not build anything new on it.
+    /// dead code awaiting its own removal slice. Its SOUND path is dead, not its INIT path:
+    /// `loadDefaultSamples()` still runs at launch and reads 8 WAVs into those voices, which
+    /// is now pure waste and goes with the removal slice. Left in place for exactly one cycle
+    /// so this change stays small and reversible; do not build anything new on it.
     public func attach(to engine: AudioEngine) {
         guard attachedSourceNodes.isEmpty else { return }
         audioEngine = engine

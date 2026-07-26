@@ -390,8 +390,13 @@ struct EchoelStudioView: View {
     /// (founder 2026-07-26) — its only setter was the per-drum-channel strip's sample door.
     /// Kept deliberately as a reusable `.sheet(item:)` slot rather than deleted, because the
     /// body's modifier chain is at the SwiftUI metadata ceiling and a free slot is worth more
-    /// than three saved lines. It must stay unset until something legitimately claims it; a
-    /// flag with a presenter and no setter is the trap this repo has documented three times.
+    /// than three saved lines. It must stay unset until something legitimately claims it.
+    ///
+    /// Be honest about the cost of that trade: this is the FOURTH un-settable presentation
+    /// flag on the same 16-modifier chain (`showVisual`, `midiImportPresented` and the
+    /// visual-REC path are already recorded in CLAUDE.md as flags nobody can set). Four dead
+    /// slots is headroom only if a future session actually reuses them instead of appending
+    /// a 17th modifier — which is the crash this chain is one step away from.
     @State private var sampleBrowserTrack: TrackRef?
 
     /// The craft editors — instrument CONTROLS, not DAW surfaces (Editor ≠
@@ -1419,8 +1424,10 @@ struct EchoelStudioView: View {
             // Mixer."): the third "Drums" strip and the 8-channel `ChannelRackView`
             // Hackbrett below the reset button are gone with the drum sound itself, along
             // with their bindings and the `setDrumsFX` fan-out. `mixer.drums` /
-            // `trackFX.drums` stay in their stores so an older project still decodes; they
-            // are simply never read for sound again.
+            // `trackFX.drums` stay in their stores so a user's dialed value is not silently
+            // dropped — both are plain UserDefaults keys read with a fallback, so there was
+            // never a decode to break. Neither is read for sound again (`mixer.drums` is
+            // still WRITTEN by `resetToUnity()`, which is harmless and has no reader).
             // Both strips reflow to 2 columns in landscape / iPad (leaf reads the size
             // class, not the root body → render-safe).
             AdaptiveCardGrid {
@@ -1458,7 +1465,6 @@ struct EchoelStudioView: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Sets every part back to the genre's own balance")
-
         }
     }
 
@@ -1538,9 +1544,12 @@ struct EchoelStudioView: View {
     }
 
     // NO DRUMS (founder 2026-07-26): `drumsBinding`, `drumsCutoffBinding`,
-    // `drumsDriveBinding` and `setDrumsFX(_:)` lived here. They were the only writers of
-    // `trackFX.drums`, `BeatPlayer.masterLevel`/`setFX` and `laneVoiceRack.setDrumsInsert`
-    // — all of which are therefore now unwritten, on purpose.
+    // `drumsDriveBinding` and `setDrumsFX(_:)` lived here. They were the only REACHABLE
+    // writers of `trackFX.drums`, `BeatPlayer.masterLevel`/`setFX` and
+    // `laneVoiceRack.setDrumsInsert`. Two of those four still have a writer in compiling
+    // code — `BeatPlayer.setFX` in the now-unmounted `ChannelRackView`, and `trackFX.drums`
+    // in `TrackFXStore.reset()`, itself callerless — so do not read this as "the symbol has
+    // no writers"; grep will find them.
 
     /// A binding to one mixer level that re-balances the running take when changed.
     private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {
