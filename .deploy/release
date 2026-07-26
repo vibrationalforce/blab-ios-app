@@ -1,89 +1,65 @@
-build: v10.79.350 — Ultracheck-Build: der erste Start klingt, der Render-Block mallociert nicht mehr, jedes Control hat einen 3:1-Rand
+build: v10.79.351 — keine Drums mehr, die Genres klingen wieder verschieden, und der Panic-Knopf hält, was er verspricht
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Der Founder-Auftrag war „ultracodecheck ultradesigncheck ultrabrandcheck", danach
-  „get ready for TestFlight". Vier Teams, jeder Befund von seinem eigenen Worker auf
-  Datei+Zeile zurückverfolgt und nur behalten, wo die Kette hielt. Die vollständigen
-  Befunde stehen in `scratchpads/ULTRACHECK_2026-07-26.md`; hier ist nur, was in DIESEM
-  Build steckt.
+  Dein Build war 2466 (v10.79.350). Seither liegen 14 fix/feat-Commits im Branch, die du
+  noch nie auf dem Gerät hattest. Deine erste Ansage — „Im Mix Fenster stimmt was nicht.
+  Sind noch Drums drin." — ist im Repo seit `c9af52b` erledigt; sie war nur nicht bei dir.
+  Deshalb zuerst dieser Deploy, bevor ich irgendwas Neues baue.
 
-  ZWEI DEFEKTE, DIE MAN AUF DEM GERÄT MERKT:
+  DAS, WORAUF DU GEWARTET HAST:
 
-  1) Der allererste Tap auf „Create from Within" war STUMM. `startBiofeedback` wartete
-     auf `AVCaptureDevice.requestAccess` — auf einer frischen Installation also auf den
-     Kamera-Dialog — BEVOR es komponierte. Der Knopf sprang auf „Stop", und dann kam
-     nichts: kein Audio, kein Transport, keine visuelle Reaktion, unbegrenzt lange, wenn
-     man den Dialog ignoriert oder die App wegwischt. Der Kommentar direkt daneben
-     behauptete das Gegenteil („immediate first sound") — das war für den PULS-Lock wahr
-     und für die Berechtigung falsch. Jetzt: Klang zuerst, Körper danach. Nichts am Klang
-     hängt daran, dass die Kamera schon läuft (ohne Frames komponiert es aus echten
-     neutralen Werten — HR 70, Kohärenz 0.5, eigener Struktur-Seed, genre-geklemmtes
-     Tempo), und der echte Herzschlag rastet später über den Lock-Snap ein.
+  1) DRUMS SIND RAUS — aus dem Instrument UND aus dem Mix-Fenster. Nicht ausgeblendet,
+     sondern entfernt: das Mix-Fenster hat keine Drum-Regler mehr, und der Generator
+     erzeugt keine Drum-Spur. Was du im Mixer siehst, ist ab jetzt genau das, was klingt.
 
-     Dabei fiel ein zweites, älteres Leck auf: ein in `requestAccess` geparktes `start()`
-     ist nicht abbruchfähig. Ein Stop während des Dialogs riss die Kamera ab, und die
-     aufwachende Aufgabe fuhr die Capture-Session danach wieder hoch — Privacy-Anzeige an,
-     Watchdog lebt, Akku brennt, niemand liest Frames. Der Abbau sitzt jetzt in der
-     Generations-Prüfung des rPPG-Publishers, wo das Eigentums-Token lebt.
+  2) DIE GENRES KLINGEN WIEDER VERSCHIEDEN. Ein Comp-Genre (Jazz, Rock) hat den Akkord in
+     Wahrheit GEHALTEN statt ihn zu zerhacken — Ton für Ton identisch mit dem ruhigen
+     Klassik-Modus. Ursache: die Akkord-Sektionen werden aus 16 Steps geschnitten, und
+     eine Sektion, die keinen der Chop-Punkte enthielt, fiel auf „einmal halten" zurück.
+     Bei Jazz und Rock traf das zwei von vier Sektionen — damit war der Unterschied weg.
+     Jetzt zerhackt es auch dort, versetzt vom Sektions-Downbeat und auf das Achtel-Raster
+     gerastet. Da Drums stumm sind und Auto-Leads aus, ist die Fläche der Ort, wo Genre-
+     Rhythmus überhaupt noch lebt — deshalb war das hörbar tödlich.
 
-  2) Der Drum-Reconfigure MALLOCIERTE IM RENDER-BLOCK — pro Note. `EchoelModalBank.material`
-     hatte keinen Gleichheits-Guard, und der `.drum`-Zweig baute jedes Mal ein
-     16-elementiges Array. Diese Zuweisung passiert im Audio-Render-Block bei jedem
-     Config-Bump, und der Bump kommt pro Note, sobald ein Pitch auf andere Drum-Params
-     abbildet (melodische Tom-/Perc-Linien). Der Kommentar dort behauptete
-     „allocation-free" — an DREI Stellen in derselben Datei, von denen ich zuerst nur eine
-     korrigiert hatte. Genau so überlebt ein Malloc im Render-Block mehrere Audits.
+  3) DER PANIC-KNOPF („Silence — all notes off") erreicht jetzt JEDE klingende Stimme.
+     Er ließ vier von sieben weiterklingen, während sein Hinweistext das Gegenteil
+     behauptete.
 
-  ERREICHBARKEIT UND LESBARKEIT (das, was der Founder als „mehr wie ein Instrument"
-  angefragt hatte):
+  4) DAS STOP IM NOTES-EDITOR PAUSIERT, statt die ganze Bio-Session zu beenden. Vorher
+     ging mit einem Tap Taschenlampe, Kamera und Puls-Lock mit aus.
 
-  - Das HAUPTFENSTER ist eine Frontplatte. Die Panel-Zone ist jetzt DAUERHAFT sichtbar und
-    inline: kein Scrim, kein Vorhang, kein „nichts"-Zustand. Die Chip-Leiste ist damit eine
-    Reiterleiste. Vorher war im Ruhezustand Leerraum, seit die Timeline weg ist.
-  - Jedes Control hat einen SICHTBAREN Rand. Die Umrisse der Bedienelemente lagen bei
-    1.16:1 — Beschriftungen bei 15.9:1, also sahen drei Accessibility-Durchgänge einen
-    sauberen Befund, während die Ränder unsichtbar waren. WCAG verlangt 3:1 für die Grenze
-    eines Controls; sie messen jetzt 3.50–4.01:1 durch jede echte Verschachtelung. Das Repo
-    hatte 296 Testdateien und keinen einzigen Kontrast-Test — jetzt rechnet einer die
-    WCAG-Formel aus DENSELBEN Konstanten, aus denen die Farben gebaut sind.
-  - Der Apple-Health-Schalter ist zurück. Das Löschen des toten Tools-Katalogs hatte die
-    EINZIGE Oberfläche für ein PERSISTIERTES Gesundheits-Einverständnis mitgenommen: die
-    App schrieb weiter Herz-/Atemdaten in Apple Health, ohne dass man es widerrufen konnte.
-  - Die Flash-Obergrenze ist EINE Konstante statt vier Kopien. Beim Zusammenführen kam
-    heraus, dass der Aurora-Look bei genau 3.00 Hz landet — die 2.5 Hz sind also kein
-    freier Parameter, sondern das, was den Look legal hält.
+  5) EINE KAPUTTE DATEI NIMMT KEINE BIBLIOTHEK MEHR MIT. Vier Persistenz-Pfade (Presets,
+     Patchbay-Routen u. a.) haben beim Laden alles verworfen, sobald EIN Element nicht
+     lesbar war — und der nächste Speichervorgang schrieb den geleerten Stand fest. Jetzt
+     wird das eine kaputte Element übersprungen, der Rest überlebt.
 
-  ZU PRÜFEN AUF DEM GERÄT (in dieser Reihenfolge, die ersten zwei sind neu und
-  unbewiesen):
-  - FRISCHE INSTALLATION, erster Tap auf Start: kommt sofort Klang, BEVOR man den
-    Kamera-Dialog beantwortet? (Das ist der Kernfix, und `.notDetermined` gibt es genau
-    einmal pro Installation — danach ist er nicht mehr prüfbar.)
-  - Start → sofort Stop während der Dialog offen steht → Erlauben tippen → nochmal Start:
-    läuft das Biofeedback? (Der Eigentums-Tanz zwischen zwei Starts.)
-  - Startet die App überhaupt sauber? Die Frontplatte hat den Root-Body um ein Kind
-    wachsen lassen — kein neuer Präsentations-Modifier, die Kette steht unverändert bei 16,
-    aber die Black-Screen-Grenze verzeiht nichts und das ist ungetestet.
-  - Reiter wechseln, WÄHREND Biofeedback läuft: friert ein Menü ein? (Die Panels laufen
-    jetzt dauerhaft im Body; das hält nur, weil `EchoelPanel` seinen Inhalt als Closure
-    hält und im EIGENEN Body auswertet.)
-  - Drums mit wechselnden Tonhöhen spielen (Tom/Perc): knackt oder stockt es?
-  - Sind die Ränder der Bedienelemente jetzt sichtbar, ohne dass die Oberfläche laut wirkt?
+  6) DIE RESSOURCEN LANDEN ÜBERHAUPT IM BUILD. XcodeGen kennt keinen `resources:`-Schlüssel
+     auf Target-Ebene — der ganze Block wurde still ignoriert. Das betraf Privacy-Manifest,
+     die Marken-Schrift und die Community-Presets. Bitte im Build 2467 daraufhin ansehen,
+     ob die Kopfzeile jetzt in der richtigen Schrift steht.
 
-  WAS DIESER BUILD NICHT REPARIERT, obwohl es gefunden wurde — bewusst, weil ein Zyklus
-  ein Punkt ist:
-  - Der Panic-Knopf („Silence — all notes off") schweigt VIER klingende Voices nicht,
-    während sein Hinweis „every sounding note on every voice" behauptet.
-  - Das Stop im Notes-Editor beendet die ganze Bio-Session (Taschenlampe aus, Kamera aus).
-  - Vier Persistenz-Pfade, bei denen ein einziges kaputtes Element eine ganze Bibliothek
-    nimmt — permanent, weil der nächste Speichervorgang den geleerten Stand zurückschreibt.
-  - Die WEBSITE verkauft weiter das AUv3-Plugin, das am 24.07. gelöscht wurde (8 Dateien,
-    inkl. als LIVE getaggter Prosa und zwei schema.org-Blöcken). Die Store-Metadaten sind
-    bereits bereinigt, TestFlight schiebt keine Metadaten hoch — es ist also nichts live,
-    aber es ist der schwerste Marken-Befund.
+  7) DIE VISUAL-FARBE KANN NICHT MEHR EWIG HÄNGEN. Sie rastete auf dem letzten Ton ein und
+     kam nie zurück auf neutral, wenn danach nur noch stille Noten kamen. Der Ausstieg hat
+     jetzt eine Hysterese (rein bei 0.02, raus erst unter 0.01), damit die Farbe nicht mit
+     ~3 Hz hin- und herspringt — die Flash-Obergrenze gilt auch hier.
 
-  Beide echten Gates grün auf f15a119 (Xcode Compile Check + CI/CD Pipeline). Rausch-Triad
+  WAS DIESER BUILD NICHT REPARIERT — ehrlich, damit du nicht danach suchst:
+
+  - DAS VISUAL BLEIBT WAHRSCHEINLICH GRAU. Ich habe nur den Latch repariert, nicht die
+    Ursache. Dein Log zeigt `mfNotes=5 level=0.00`: es kommen fünf Noten an, alle mit
+    Lautstärke null. Der Grund steht fest — die Mix-Regler werden BEIM ERZEUGEN in die
+    Note eingebrannt (`velocity * fader`), und ein Regler auf 0 erzeugt dauerhaft stille
+    Noten, die persistent gespeichert bleiben. Bis das gefixt ist: zieh im Mix-Fenster
+    Bass/Pad/Lead hoch, dann sollte Farbe kommen. Das ist der nächste Punkt.
+  - LOOP RENDERING fehlt weiter — noch nicht angefasst, kommt als eigener Zyklus.
+  - DIE PIANOROLL IST NOCH DRIN. Ich nehme die Tür raus, aber nicht das Modell darunter:
+    genau dieses Modell veröffentlicht die Noten, aus denen das Visual seine Farbe zieht.
+    Beides in einem Zug zu löschen, während du im selben Satz bessere Visuals bestellst,
+    wäre der falsche Schnitt. Erst Tür weg, Modell bleibt kopflos.
+
+  KORREKTUR ZU MEINER LETZTEN ANTWORT: ich hatte gesagt, im ersten Log spielten Noten vor
+  dem Start-Tap. Dein zweites Log zeigt direkt nach dem `noteOn` ein `touch=1` — das war
+  fast sicher das Touch-Instrument, also du selbst, nicht der Sequencer.
+
+  Beide echten Gates grün auf c29f8af (Xcode Compile Check + CI/CD Pipeline). Rausch-Triad
   unberührt, kein Heilungs-Claim, keine neue Oberfläche, Sheet-Kette unverändert bei 16.
-  Ehrlich zur CI: auf einem Branch-Push ist `xcode-compile-check.yml` der EINZIGE
-  blockierende Gate, der iOS-only-Code kompiliert — `ci.yml` baut für den Simulator,
-  schluckt aber den Exit-Code, und `pr-check.yml` läuft nur bei Pull Requests. „Pipeline
-  grün" beweist hier also nicht, dass Tests gelaufen sind.
