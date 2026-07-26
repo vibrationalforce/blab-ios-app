@@ -700,26 +700,29 @@ struct EchoelStudioView: View {
         // the camera/evolve armed behind a stopped clock (founder: one accessible solution,
         // no duplicate paths). Guarded by `running` so stopEverything()'s own pattern.stop()
         // (which flips transport.isPlaying false after already setting running=false) can't
-        // recurse. To only WATCH the pulse without music, arm the body on the Bio page.
+        // recurse. (The old closing line, "to only WATCH the pulse without music, arm the body
+        // on the Bio page", was FALSE: every reachable arm goes through startBiofeedback(), i.e.
+        // a full take. The camera-only arms live in the doorless BioSourceView/SessionView.)
         .onChange(of: transport.isPlaying) { _, playing in
-            guard running else { return }
-            if playing {
-                // Resuming after a roll PAUSE must re-arm what the pause cancelled, or the
-                // take silently stops evolving with the body until the next full Start — a
-                // capability lost without a trace. `startEvolving()` cancels first, so the
-                // normal Start path (which calls it itself moments later) cannot end up with
-                // two loops.
-                if evolveTask == nil { startEvolving() }
-                return
-            }
-            // #161: the Notes editor's own transport button is a PAUSE, not the end of the
-            // session. It raises a one-shot flag before stopping the clock; consuming it here
-            // is what keeps the camera and the pulse lock alive, so re-starting does not cost
-            // another finger-on-lens re-lock. Consumed unconditionally (see the model's doc):
-            // an unread flag can only ever cost one pause instead of one stop.
-            if pianoRoll.consumePlaybackOnlyStopRequest() {
+            // CONSUME FIRST, before any guard. This line order is the whole correctness of
+            // #161: the first version read the flag *after* `guard running`, so a pause
+            // requested while no take was live stayed outstanding and downgraded the next REAL
+            // Stop to a pause — music off, camera and torch still on, `running` still true, and
+            // the ■ already flipped back to ▶ so the user had no obvious way out. Reachable in
+            // four taps from a cold launch (Notes → ▶ → ⏸ → close → Start → ■), because the
+            // Notes chip does not require a running take. `TransportTransition` exists to keep
+            // that guard downstream of this read, where it cannot swallow the request.
+            let pauseRequested = pianoRoll.consumePlaybackOnlyStopRequest()
+            switch TransportTransition.decide(isPlaying: playing,
+                                              running: running,
+                                              pauseRequested: pauseRequested) {
+            case .ignore:
+                break
+            case .resume:
+                resumeAfterPause()
+            case .pausePlayback:
                 pausePlaybackKeepingSession()
-            } else {
+            case .endSession:
                 stopEverything(reason: "transport-stopped")
             }
         }
@@ -3423,20 +3426,50 @@ struct EchoelStudioView: View {
         #endif
     }
 
+    /// Re-arm what a roll PAUSE cancelled (#161). Anything the pause stopped and this does not
+    /// restart is a capability the take loses silently for the rest of its life.
+    ///
+    /// Both calls cancel their own predecessor, so this is safe on the NORMAL Start path too
+    /// (which runs `startEvolving()` and `snapToLockWhenReady()` itself, synchronously, in the
+    /// same turn as the transport flip — it can never end up with two loops or two watchers).
+    private func resumeAfterPause() {
+        if evolveTask == nil { startEvolving() }
+        // The lock-snap watcher is the one-shot that waits for the pulse to SETTLE and then
+        // re-seeds the take from the real heartbeat. Pausing inside its window — which is
+        // exactly the ~20 s finger-on-lens window this whole fix exists to protect — used to
+        // drop it for good: the body tempo was then only recovered if some later evolve tick
+        // happened to catch a trustworthy frame. Re-arm while the take has never latched a body
+        // tempo; once `tempoSeededFromBody` is true there is nothing left to snap to.
+        if !tempoSeededFromBody { snapToLockWhenReady() }
+    }
+
     /// PAUSE (#161) — stop the clock and every sounding note, but KEEP the body session.
     ///
     /// The ONE-Stop law exists so nothing is left ARMED behind a stopped clock. This honours
-    /// that where it matters and departs from it where it hurt: the generative drivers that
-    /// would keep working against a stopped transport are cancelled (evolve, regen, the
+    /// that where it matters and departs from it where it hurt: every generative DRIVER that
+    /// would keep working against a stopped transport is cancelled (evolve, regen, the
     /// lock-snap re-seed — the last one also protects the user's roll edits, which a mid-pause
-    /// regenerate would silently overwrite), while the SENSOR keeps running. A camera that
-    /// reads the pulse with no music playing is not an anomaly: it is the state the Bio panel's
-    /// own arm already puts the app in, and it is what makes the Notes editor usable during a
-    /// take — `stopBioSource()` costs another finger-on-lens re-lock, ~20 s, to undo.
+    /// regenerate would silently overwrite, since `regenTask`'s own guard is `running` and that
+    /// stays true here), while the SENSOR keeps running. `stopBioSource()` costs another
+    /// finger-on-lens re-lock, ~20 s, to undo — that cost is what made the Notes editor
+    /// unusable during a take.
+    ///
+    /// BE HONEST ABOUT WHAT THIS IS: "camera live, no music" is a NEW state, introduced here.
+    /// An earlier version of this comment called it "the state the Bio panel's own arm already
+    /// puts the app in" — false. Every reachable arm (`BioStripView`'s pulse start, the source
+    /// picker when idle) goes through `startBiofeedback()`, i.e. a full take; the camera-only
+    /// arms live in `BioSourceView`/`SessionView`, both doorless. So this is a product decision,
+    /// not a precedent — worth a founder look, not a citation.
     ///
     /// `running` deliberately stays TRUE: the take is paused, not ended. The chrome's ■ is
-    /// still the one full Stop, so this is not a second stop path — it is a pause path that
-    /// only the roll's own button can reach, by consuming a one-shot flag.
+    /// still the one full Stop.
+    ///
+    /// KNOWN, ACCEPTED LIMITS of calling this a "pause": `keepAwake` keys on `running`, so the
+    /// screen will not sleep during an indefinitely long pause (defensible — the camera is up
+    /// anyway); the transport's own stop subscribers still fire and are not resumable
+    /// (`RecordController` commits an in-flight recording, `TimelineRegionPlayer` drops
+    /// follow-state); and a cancelled `regenTask` silently drops a pending user-edit recompose.
+    /// None of these leaves a driver armed behind a stopped clock, which is what the law is for.
     private func pausePlaybackKeepingSession() {
         evolveTask?.cancel(); evolveTask = nil
         regenTask?.cancel(); regenTask = nil

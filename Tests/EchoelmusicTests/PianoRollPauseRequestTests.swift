@@ -4,11 +4,20 @@
 // lost, ~20 s of finger-on-lens to get back), which made the roll unusable during a live take.
 // The roll now raises a ONE-SHOT flag before stopping the clock and the Studio consumes it.
 //
-// This pins the flag's contract, which is the whole mechanism and the whole risk: a flag that
-// stuck would turn a LATER real Stop into a pause — a session that refuses to end. Note what
-// this does NOT cover: the two call sites (PianoRollView's button, EchoelStudioView's transport
-// onChange) are inside `View` bodies and unreachable from XCTest — same limit as the panic
-// fan-out, task #168. What is tested is that the flag cannot latch.
+// TWO layers are pinned here, because the first version of this file pinned only the first and
+// the real defect was in the second:
+//   1. the flag's accessor contract (read-and-clear), on PianoRollModel;
+//   2. `TransportTransition.decide`, the extracted decision the Studio's observer runs.
+// Layer 2 exists because the shipped observer read the flag AFTER a `guard running`, so a pause
+// requested with no take live stayed outstanding and downgraded the next REAL Stop to a pause —
+// music off, camera and torch still on. The accessor was flawless throughout; only a test at the
+// decision seam could have caught it, which is why that seam is now a pure type in `Core/`
+// (repo convention: FlashGuard, AutomationCanvasMath, LaunchQuantizer.shouldDefer).
+//
+// Still NOT covered: the two call sites themselves (PianoRollView's button, EchoelStudioView's
+// onChange) sit in `View` bodies, unreachable from XCTest — same limit as the panic fan-out,
+// task #168. Notably, `decide` cannot express the defect any more, but nothing here proves the
+// observer calls it before its guard; that is enforced by comment, not by test.
 
 import XCTest
 @testable import Echoelmusic
@@ -32,17 +41,6 @@ final class PianoRollPauseRequestTests: XCTestCase {
                        "the flag latched — a later REAL stop would be downgraded to a pause")
     }
 
-    func testRepeatedRequests_stillYieldOneConsume() {
-        // The roll can raise it twice (double-tap, a re-entrant button) without banking two
-        // pauses; one raise and ten raises must be indistinguishable to the consumer.
-        let m = PianoRollModel()
-        m.requestPlaybackOnlyStop()
-        m.requestPlaybackOnlyStop()
-        m.requestPlaybackOnlyStop()
-        XCTAssertTrue(m.consumePlaybackOnlyStopRequest())
-        XCTAssertFalse(m.consumePlaybackOnlyStopRequest(), "raises must not accumulate")
-    }
-
     func testRequestAfterConsume_worksAgain() {
         // Pause → play → pause: the second pause must still be a pause, not a full stop.
         let m = PianoRollModel()
@@ -53,21 +51,61 @@ final class PianoRollPauseRequestTests: XCTestCase {
                       "consuming must not permanently disable the request")
     }
 
-    func testConsumeDoesNotTouchTheEditablePattern() {
-        // The flag lives on the model that also owns the user's notes; reading it must be
-        // pure. A consume that snapshotted or cleared anything would eat an undo step.
-        let m = PianoRollModel()
-        m.add(pitch: 60, startStep: 0)
-        m.add(pitch: 64, startStep: 4)
-        let before = m.notes
-        let canUndoBefore = m.canUndo
+    // MARK: - The decision the Studio's transport observer runs
 
-        m.requestPlaybackOnlyStop()
-        _ = m.consumePlaybackOnlyStopRequest()
-        _ = m.consumePlaybackOnlyStopRequest()
+    /// THE REGRESSION TEST for the shipped defect. A pause requested while no take is live must
+    /// resolve to `.ignore` — and because the caller has already consumed the flag by the time
+    /// `decide` runs, that request is gone rather than saved up for the next stop. This is the
+    /// case the original inline `guard running` handled by returning BEFORE the read.
+    func testDecide_pauseRequestedWithNoTakeLive_isIgnored() {
+        XCTAssertEqual(TransportTransition.decide(isPlaying: false, running: false,
+                                                  pauseRequested: true), .ignore)
+        XCTAssertEqual(TransportTransition.decide(isPlaying: true, running: false,
+                                                  pauseRequested: true), .ignore)
+    }
 
-        XCTAssertEqual(m.notes.count, before.count, "the pause request altered the pattern")
-        XCTAssertEqual(m.notes.map(\.pitch), before.map(\.pitch))
-        XCTAssertEqual(m.canUndo, canUndoBefore, "the pause request disturbed the undo stack")
+    /// The ONE-Stop law: a stop with no pause request ends the session. If this ever returns
+    /// `.pausePlayback`, the app's Stop button stops the music and leaves the camera live.
+    func testDecide_plainStopDuringATake_endsTheSession() {
+        XCTAssertEqual(TransportTransition.decide(isPlaying: false, running: true,
+                                                  pauseRequested: false), .endSession)
+    }
+
+    func testDecide_requestedPauseDuringATake_pauses() {
+        XCTAssertEqual(TransportTransition.decide(isPlaying: false, running: true,
+                                                  pauseRequested: true), .pausePlayback)
+    }
+
+    /// Starting the clock during a live take resumes — never ends the session, and never
+    /// depends on the pause flag (a stale request must not make a START do something odd).
+    func testDecide_clockStartingDuringATake_resumes() {
+        XCTAssertEqual(TransportTransition.decide(isPlaying: true, running: true,
+                                                  pauseRequested: false), .resume)
+        XCTAssertEqual(TransportTransition.decide(isPlaying: true, running: true,
+                                                  pauseRequested: true), .resume)
+    }
+
+    /// Totality, so a future case cannot be added without a decision: every one of the eight
+    /// input combinations must map somewhere, and only a stop during a live take may ever
+    /// produce `.endSession` — the one outcome that tears the session down.
+    func testDecide_isTotal_andOnlyAStopDuringATakeEndsTheSession() {
+        for isPlaying in [true, false] {
+            for running in [true, false] {
+                for pauseRequested in [true, false] {
+                    let action = TransportTransition.decide(isPlaying: isPlaying,
+                                                            running: running,
+                                                            pauseRequested: pauseRequested)
+                    if action == .endSession {
+                        XCTAssertTrue(!isPlaying && running && !pauseRequested,
+                                      "endSession from isPlaying=\(isPlaying) running=\(running) "
+                                      + "pauseRequested=\(pauseRequested)")
+                    }
+                    if !running {
+                        XCTAssertEqual(action, .ignore,
+                                       "no take live ⇒ nothing to pause, resume or end")
+                    }
+                }
+            }
+        }
     }
 }

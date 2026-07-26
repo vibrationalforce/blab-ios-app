@@ -147,11 +147,16 @@ public final class PianoRollModel {
     /// lock, so re-starting cost another finger-on-lens re-lock; the Notes editor was
     /// effectively unusable during a live take (ship gate 2 "Kontrolle").
     ///
-    /// The roll therefore RAISES this flag immediately before it stops the transport, and the
-    /// Studio's stop cascade CONSUMES it: flag up ⇒ pause playback and keep the body session;
-    /// flag down ⇒ the full stop, unchanged. It is deliberately one-shot and consumed
-    /// unconditionally, so a flag that is somehow never read cannot swallow a later real stop
-    /// — the worst case is one pause instead of one stop, never a session that refuses to end.
+    /// The roll therefore RAISES this flag before it stops the transport, and the Studio's stop
+    /// cascade CONSUMES it: flag up ⇒ pause playback and keep the body session; flag down ⇒ the
+    /// full stop, unchanged.
+    ///
+    /// THE ONE INVARIANT THAT MATTERS: the consumer must read this UNCONDITIONALLY, ahead of
+    /// every guard. The first version of #161 read it after a `guard running`, so a pause
+    /// requested with no take live stayed outstanding and turned the next REAL Stop into a
+    /// pause — music off but camera and torch still on. `TransportTransition.decide` exists so
+    /// that guard sits downstream of the read; `stopEverything` clears the flag as well, for the
+    /// stop paths that never pass the observer. Do not reintroduce a condition around the read.
     @ObservationIgnored private var playbackOnlyStopRequested = false
 
     /// Mark the NEXT transport stop as playback-only (see `playbackOnlyStopRequested`).
@@ -1249,13 +1254,15 @@ struct PianoRollView: View {
             if !isClipScoped {
                 Button {
                     if pattern.isPlaying {
-                        // PAUSE, not the end of the session (#161). Raising the flag first is
-                        // load-bearing: `pattern.stop()` synchronously flips the shared
-                        // transport, and the Studio's cascade reads the flag in that same
-                        // turn. Set it after, and the full stop has already torn down the
-                        // camera. See PianoRollModel.playbackOnlyStopRequested.
+                        // PAUSE, not the end of the session (#161). Order WITHIN this closure is
+                        // irrelevant — `.onChange` runs on the next view-update pass, not inside
+                        // `pattern.stop()`; the flag only has to be up before that pass. (An
+                        // earlier comment here claimed the cascade reads it "in the same turn",
+                        // which is not how SwiftUI delivers onChange.) See
+                        // PianoRollModel.playbackOnlyStopRequested for the invariant that IS
+                        // load-bearing: the consumer must read the flag unconditionally.
                         model.requestPlaybackOnlyStop()
-                        EchoelCrashLog.breadcrumb("stop source: roll-pause (session kept)")
+                        EchoelCrashLog.breadcrumb("stop source: roll-pause")
                         pattern.stop(); model.allNotesOff()
                     } else {
                         // Any unconsumed flag is stale the moment we play again — drop it so
@@ -1273,8 +1280,11 @@ struct PianoRollView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(pattern.isPlaying ? "Pause" : "Play")
+                // "without ending" rather than "keeps running": if the user is auditioning the
+                // pattern with no take live, there is no session to keep, and the hint must not
+                // claim one. Either way this button never ends a body session.
                 .accessibilityHint(pattern.isPlaying
-                                   ? "Stops the clock and keeps the body session running"
+                                   ? "Stops the clock without ending the body session"
                                    : "Plays the pattern")
             }
 
