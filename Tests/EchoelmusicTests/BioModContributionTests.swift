@@ -52,6 +52,38 @@ final class BioModContributionTests: XCTestCase {
         XCTAssertEqual(out[0].offset, 0, accuracy: 1e-6)
     }
 
+    func testContribution_bioRoute_noFrame_BIPOLAR_alsoReportsZero() {
+        // The unipolar case above passed even when the frameless offset was computed
+        // from signal 0 (0·depth·span == 0), which is why this went unnoticed. BIPOLAR
+        // is the one that broke: (0·2−1)·depth·span·0.5 is a FULL NEGATIVE excursion,
+        // so the panel showed a large negative contribution — e.g. −4480 Hz on a
+        // coherence→filterCutoff route — for a route contributing nothing at all.
+        // The driver SKIPS a bio route with no frame (`guard let frame else { continue }`
+        // in FXBioModulator), leaving the base value, so the readout was contradicting
+        // the very engine it exists to report on.
+        let route = FXModRoute(carrier: .bio(.coherence), target: .filterCutoff,
+                               depth: 0.5, bipolar: true)
+        let out = FXModulation.contributions(routes: [route], frame: nil, now: 0)
+        XCTAssertEqual(out.count, 1)
+        XCTAssertEqual(out[0].signal01, 0, accuracy: 1e-6)
+        XCTAssertEqual(out[0].offset, 0, accuracy: 1e-6,
+                       "a route the driver skips must report zero, whatever its polarity")
+    }
+
+    func testContribution_bipolarWithAFrame_isNotFlattened() {
+        // Guard against over-correcting: with a frame present the bipolar formula must
+        // still run, so a below-midpoint signal reads negative. (This one passes both
+        // before and after the fix — it is a regression fence, not a falsifier.)
+        let route = FXModRoute(carrier: .bio(.coherence), target: .reverbMix,
+                               depth: 1, bipolar: true)
+        XCTAssertEqual(FXModulation.contributions(routes: [route],
+                                                  frame: frame(coherence: 0), now: 0)[0].offset,
+                       -0.5, accuracy: 1e-5)
+        XCTAssertEqual(FXModulation.contributions(routes: [route],
+                                                  frame: frame(coherence: 1), now: 0)[0].offset,
+                       0.5, accuracy: 1e-5)
+    }
+
     func testContribution_lfoRoute_usesPhaseNotFrame() {
         // LFO at 1 Hz, now = 0 → phase 0 → unipolar 0.5. Independent of the (nil) frame.
         let route = FXModRoute(carrier: .lfo, target: .tremoloDepth,

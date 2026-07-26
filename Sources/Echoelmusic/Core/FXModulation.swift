@@ -164,23 +164,40 @@ public enum FXModulation {
         everyN > 0 && tick % everyN == 0
     }
 
-    /// Build the per-route live contributions for the ENABLED routes. Bio carriers
-    /// with no frame still appear (signal 0 / offset 0 — the row reads "waiting for
-    /// body"); LFO carriers use `now` (seconds) for their phase and ignore the
-    /// frame. Order preserved. Deterministic → Linux-testable without the driver.
+    /// Build the per-route live contributions for the ENABLED routes. Bio carriers with
+    /// no frame still appear, reporting signal 0 AND offset 0 — the row reads "waiting
+    /// for body"; LFO carriers use `now` (seconds) for their phase and ignore the frame.
+    /// Order preserved. Deterministic → Linux-testable without the driver.
+    ///
+    /// The missing-frame offset is forced to 0 rather than computed from signal 0, and
+    /// that is not cosmetic: this readout exists to answer "what is my body moving right
+    /// now", so it must agree with what the driver actually applies — and the driver
+    /// SKIPS a bio route with no frame (`guard let frame else { continue }` in
+    /// `FXBioModulator`), leaving the base value alone. Running signal 0 through the
+    /// BIPOLAR formula instead gives `(0·2−1)·depth·span·0.5`, a FULL NEGATIVE
+    /// excursion, so every bipolar route displayed a large negative contribution it was
+    /// not making, until the first measurement landed.
     public static func contributions(routes: [FXModRoute], frame: BioSampleFrame?,
                                      now: Float) -> [BioModContribution] {
         routes.filter { $0.enabled }.map { route in
             let signal: Float
+            var contributing = true
             switch route.carrier {
             case .bio(let source):
-                signal = frame.map { source.normalizedValue(from: $0) } ?? 0
+                if let frame {
+                    signal = source.normalizedValue(from: frame)
+                } else {
+                    signal = 0
+                    contributing = false
+                }
             case .lfo:
                 let phase = (now * route.lfoRateHz).truncatingRemainder(dividingBy: 1)
                 signal = lfoUnipolar(phase: phase)
             }
-            let off = offset(target: route.target, signal: route.curve.apply(signal),
-                             depth: route.depth, bipolar: route.bipolar)
+            let off = contributing
+                ? offset(target: route.target, signal: route.curve.apply(signal),
+                         depth: route.depth, bipolar: route.bipolar)
+                : 0
             return BioModContribution(id: route.id,
                                       carrierName: route.carrier.displayName,
                                       targetName: route.target.displayName,

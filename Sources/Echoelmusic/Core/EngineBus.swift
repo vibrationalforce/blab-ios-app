@@ -68,11 +68,24 @@ public struct BioSampleFrame: Sendable, Equatable {
     ///   signal 0 for a missing frame.
     ///
     /// The bipolar branch is `(signal·2−1)·depth·span·0.5`, where signal 0 is the FULL
-    /// NEGATIVE excursion — so a user-toggled bipolar bio route (`EchoelFXView`'s
-    /// "Bipolar") slams its target to the bottom of range until the first measurement
-    /// lands. That is a real open defect, NOT a reason to route `ModSource.rawValue`
-    /// through this property: doing so would break the unipolar contract for every
-    /// route to fix one polarity. It needs its own fix at the bipolar formula.
+    /// NEGATIVE excursion. **This defect is real and still OPEN — but its trigger is not
+    /// the one originally written here.**
+    ///
+    /// - NOT a missing frame. `FXBioModulator`'s apply loop skips a bio route with no
+    ///   frame outright (`guard let frame else { continue }`), so the base value stands.
+    ///   Where the missing-frame signal 0 DID land was the ~10 Hz `contributions`
+    ///   readout, which reported that full negative excursion for a route contributing
+    ///   nothing; fixed there by forcing the offset to 0, so the panel now agrees with
+    ///   the driver.
+    /// - STILL BROKEN: a frame that is present and perfectly usable but carries a
+    ///   STRUCTURAL zero. `hrvNormalized` is 0 until a source produces real HRV, and
+    ///   `coherence` is 0 on HealthKit by construction — and `ModSource.rawValue` reads
+    ///   those RAW fields, not `hrvForSound`. `FXModRoute` defaults to `bipolar: true`,
+    ///   so a default HRV or Coherence route applies a permanent full-negative offset to
+    ///   the AUDIO for as long as such a source is active. That needs its own slice; the
+    ///   fix is to give the bipolar branch an "unmeasured → no contribution" path, NOT
+    ///   to route `ModSource.rawValue` through this property (which would break the
+    ///   unipolar contract for every route to fix one polarity).
     ///
     /// This is deliberately NOT the fully honest form. The honest form is "do not apply
     /// the HRV mapping at all when there is no HRV" — depth to zero rather than value to
