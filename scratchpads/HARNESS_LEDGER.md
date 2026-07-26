@@ -579,3 +579,20 @@ cancel-in-progress). Seen as `completed cancelled | Xcode Compile Check` on `ae8
 earlier commit as compile-verified: its proof was thrown away. **Only the HEAD SHA's gates count;
 if you superseded a commit before its gates finished, that commit has no verification at all, so
 don't stack further code on the same file until the new head is green.**
+
+## 2026-07-26 — PLAYBOOK: a "fallback so it still sounds" guard is a genre-identity leak
+`BioComposer.chordOnsets` had the ordinary-looking guard `onsets.isEmpty ? [(secStart, secLen)]`.
+It reads as defensive hygiene (never return nothing) and was in fact the exact bug the function
+was written to fix: one onset spanning the section IS a held chord, so every section whose grid
+it missed silently rejoined the `.sustained` branch. Jazz and rock came out byte-identical to
+held classical — the 2026-07-22 "everything sounds the same" fix never reached them.
+**RULE: when a function's whole purpose is to make X differ from Y, its empty/degenerate
+fallback must be checked against Y.** A fallback that returns the neutral case re-creates the
+bug for exactly the inputs nobody tested. Two smaller lessons from the same slice:
+- **Displace on the function's OWN grid, not by a constant.** A fixed `+2` is only 8th-aligned
+  when the section start is even; `prog.count == 3` gives 5-step sections, so punk's fallback
+  would have landed on absolute step 7 — a 16th no articulation in the file ever plays.
+- **A per-family claim needs the per-genre arithmetic.** I wrote "the comp family degenerates"
+  and the reviewer found it true for 2 of 6, wrong-shaped for 3, and false for oriental (its
+  2-chord progression gives 8-step sections that always contain a hit). `prog.count` decides
+  section length, so the defect is per-progression, never per-articulation.
