@@ -707,13 +707,18 @@ struct EchoelmusicApp: App {
                     polyVoice?.apply(patch)
                 }
                 // S2-W2-6: route the PRIMARY roll through its lane's kind voice when
-                // that lane is a drums kit / sub-bass. The rack's single kit/sub back
-                // it; nil (poly, OR the units are absent because voiceKindRouting is
-                // OFF ⇒ kits/subs empty) restores today's polyVoice path — bit-identical.
+                // that lane is a sub-bass. The rack's single sub backs it; nil (poly, OR
+                // the unit is absent because voiceKindRouting is OFF ⇒ subs empty)
+                // restores today's polyVoice path — bit-identical.
+                //
+                // NO DRUMS (founder 2026-07-26): a `case .drums` arm stood here, reading
+                // `laneVoiceRack?.kits.first`. `LaneVoiceRack` no longer creates a kit, so
+                // it could only ever have resolved to nil — exactly what `default` does —
+                // and `TrackInstrument.voiceKind` no longer returns `.drums` at all, so the
+                // arm was unreachable twice over. Removing it changes no behaviour.
                 timelinePlayer.rollKindSink = { [weak pianoRoll, weak laneVoiceRack] kind in
                     guard let pianoRoll else { return }
                     switch kind {
-                    case .drums:   pianoRoll.setKindVoice(laneVoiceRack?.kits.first)
                     case .subBass: pianoRoll.setKindVoice(laneVoiceRack?.subs.first)
                     // .sampler deliberately falls through to poly here (S2-W3):
                     // SamplerVoice is a nonisolated one-shot (fire/silence), not a

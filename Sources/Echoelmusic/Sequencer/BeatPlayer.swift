@@ -391,25 +391,28 @@ public final class BeatPlayer {
         sampleLabels[track] = name
     }
 
-    /// Attaches all 8 source nodes to the engine and wires the pattern
-    /// callback. Idempotent — safe to call multiple times.
+    /// Attaches the preview source node to the engine.
+    ///
+    /// **NO DRUMS** (founder 2026-07-26: *"es soll keine Drums geben. Auch nicht im
+    /// Mixer."*). This method used to attach all 8 pad voices plus their synth twins and
+    /// install `pattern.onStep`, which is what turned every sequencer step into a drum hit.
+    /// Both are gone, so the instrument produces no percussion at all.
+    ///
+    /// What deliberately REMAINS is `pattern` itself — `PatternEngine` is not the drum
+    /// machine, it is the app's TRANSPORT: it owns tempo, play/stop, the bar/step position the
+    /// chrome reads, and the tick on which `PianoRollModel` publishes `MusicalFrame` (the spine
+    /// that drives visuals, light and space). Deleting it to remove drums would sever that.
+    /// The step grid survives as a clock; nothing listens to it for sound any more.
+    ///
+    /// The pad voices are therefore no longer attached to the audio graph — they cannot be
+    /// heard even if something calls `trigger`/`playPad` — and the whole voice apparatus is
+    /// dead code awaiting its own removal slice. It is left in place for exactly one cycle so
+    /// this change stays small and reversible; do not build anything new on it.
     public func attach(to engine: AudioEngine) {
         guard attachedSourceNodes.isEmpty else { return }
         audioEngine = engine
-        for voice in voices {
-            engine.attachSourceNode(voice.sourceNode)
-            attachedSourceNodes.append(voice.sourceNode)
-        }
-        for synth in synthVoices {
-            engine.attachSourceNode(synth.sourceNode)
-            attachedSourceNodes.append(synth.sourceNode)
-        }
         engine.attachSourceNode(previewVoice.sourceNode)
         attachedSourceNodes.append(previewVoice.sourceNode)
-        pattern.onStep = { [weak self] track, step in
-            guard let self else { return }
-            self.trigger(track: track, gain: self.pattern.velocity(track: track, step: step))
-        }
     }
 
     /// Detaches every source node and clears the pattern callback.

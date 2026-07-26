@@ -132,13 +132,21 @@ final class KindVoiceAllocatorTests: XCTestCase {
         let drums = TimelineLane(name: "EchoelDrums", kind: .midi, builtinInstrument: .drums)
         let plain = TimelineLane(name: "MIDI 3", kind: .midi)
         let brk = TimelineLane(name: "EchoelBreak", kind: .midi, builtinInstrument: .breakLoop)
-        let doc = TimelineDocument(lanes: [bio, roll, drums, plain, brk], regions: [])
+        let sub = TimelineLane(name: "EchoelSub", kind: .midi, builtinInstrument: .subBass)
+        let doc = TimelineDocument(lanes: [bio, roll, drums, plain, brk, sub], regions: [])
 
-        XCTAssertEqual(MultiRollFanout.voiceKind(forSlot: 0, in: doc, rollLane: roll.id), .drums)
+        // NO DRUMS (founder 2026-07-26) — a persisted `.drums`/`.breakLoop` lane now
+        // resolves to `.poly`, so slots 0 and 2 are melodic. On their own those two
+        // assertions could not tell "read the lane, got poly" from "read nothing"; the
+        // `.subBass` lane at slot 3 is what keeps the slot-read claim provable.
+        XCTAssertEqual(MultiRollFanout.voiceKind(forSlot: 0, in: doc, rollLane: roll.id), .poly,
+                       "a pre-existing drums lane comes back melodic, not silent")
         XCTAssertEqual(MultiRollFanout.voiceKind(forSlot: 1, in: doc, rollLane: roll.id), .poly,
                        "no instrument ⇒ poly (today's voice)")
-        XCTAssertEqual(MultiRollFanout.voiceKind(forSlot: 2, in: doc, rollLane: roll.id), .drums,
-                       "breakLoop resolves to the drums kind (LaneVoiceKind contract)")
+        XCTAssertEqual(MultiRollFanout.voiceKind(forSlot: 2, in: doc, rollLane: roll.id), .poly,
+                       "breakLoop was the other drums alias — also melodic now")
+        XCTAssertEqual(MultiRollFanout.voiceKind(forSlot: 3, in: doc, rollLane: roll.id), .subBass,
+                       "the slot→lane read itself still works (non-poly kind survives)")
         XCTAssertEqual(MultiRollFanout.voiceKind(forSlot: 9, in: doc, rollLane: roll.id), .poly,
                        "out-of-range slot ⇒ poly, never a crash")
     }

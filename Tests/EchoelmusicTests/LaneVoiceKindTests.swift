@@ -15,15 +15,23 @@ final class LaneVoiceKindTests: XCTestCase {
 
     func testDirectMappings() {
         XCTAssertEqual(TrackInstrument.polySynth.voiceKind, .poly)
-        XCTAssertEqual(TrackInstrument.drums.voiceKind, .drums)
         XCTAssertEqual(TrackInstrument.sampler.voiceKind, .sampler)
         XCTAssertEqual(TrackInstrument.subBass.voiceKind, .subBass)
         XCTAssertEqual(TrackInstrument.bioVoice.voiceKind, .bioVoice)
     }
 
-    func testBreakLoopResolvesToDrums() {
-        // Break has no dedicated voice class — it rides the drum kit (documented default).
-        XCTAssertEqual(TrackInstrument.breakLoop.voiceKind, .drums)
+    func testNoInstrumentResolvesToDrums() {
+        // NO DRUMS (founder 2026-07-26: "es soll keine Drums geben. Auch nicht im Mixer.").
+        // Both former drum aliases resolve to `.poly`, so a project persisted BEFORE this
+        // build comes back audible as a melodic voice instead of binding to a kit that no
+        // longer exists in the graph. This is the DATA half of the removal — the UI half
+        // cannot create either instrument any more, but old documents can still contain one.
+        XCTAssertEqual(TrackInstrument.drums.voiceKind, .poly)
+        XCTAssertEqual(TrackInstrument.breakLoop.voiceKind, .poly)
+        for inst in TrackInstrument.allCases {
+            XCTAssertNotEqual(inst.voiceKind, .drums,
+                              "\(inst) still resolves to a drum kit — no instrument may")
+        }
     }
 
     func testRawValuesStableForPersistence() {

@@ -102,9 +102,14 @@ public final class LaneVoiceRack {
         // audioEngine.start() (attach-before-start law). Flag OFF ⇒ none exist
         // ⇒ the allocator maps every slot to poly ⇒ bit-identical graph.
         if FeatureFlags.voiceKindRouting {
-            let kit = LaneDrumKitVoice()
-            kit.attach(to: audioEngine)
-            kits = [kit]
+            // NO DRUMS (founder 2026-07-26: "es soll keine Drums geben."). The lane drum kit
+            // was created here and attached to the graph. It is not any more, so `kits` stays
+            // empty and the allocator can never bind a slot to `.drums` — including for a
+            // project persisted BEFORE this build, which is the only way a drums lane could
+            // still exist (`TrackInstrument.voiceKind` now maps `.drums`/`.breakLoop` to
+            // `.poly`, so such a lane comes back as a melodic voice rather than silence).
+            // This flag is default-ON, so leaving the kit here would have kept a live drum
+            // path open behind the removed UI.
             let sub = SubBassVoice()
             sub.attach(to: audioEngine)
             subs = [sub]

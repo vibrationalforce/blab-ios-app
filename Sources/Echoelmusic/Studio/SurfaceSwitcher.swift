@@ -107,9 +107,11 @@ struct SurfaceSwitcherBar: View {
 /// whole screen. The pure-instrument epic (#121, Slice 4) is deleting the
 /// now-unreachable DAW surfaces one by one (`ClipView` and
 /// `ArrangeTimelineView` already removed); `SurfaceSwitcherBar` still stands,
-/// unmounted, while `ChannelRackView` remains LIVE — embedded in
-/// `EchoelStudioView`'s Mix panel, not a timeline surface. The v136 size
-/// contract (fill + clipped) is preserved so nothing inflates past the screen.
+/// unmounted. `ChannelRackView` used to be the one exception — LIVE, embedded in
+/// `EchoelStudioView`'s Mix panel — but the drum removal (founder 2026-07-26,
+/// "es soll keine Drums geben. Auch nicht im Mixer.") unmounted it too: it mixed
+/// the 8 drum channels, and there are none. The v136 size contract (fill +
+/// clipped) is preserved so nothing inflates past the screen.
 @MainActor
 struct SurfaceHost: View {
     /// PURE INSTRUMENT (founder 2026-07-24, verbatim "keine Timeline etc nur das

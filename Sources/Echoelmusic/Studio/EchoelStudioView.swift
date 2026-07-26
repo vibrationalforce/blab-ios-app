@@ -386,8 +386,12 @@ struct EchoelStudioView: View {
     @State private var showLiveColabo = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
     @State private var showAllFX = false
-    /// Which drum track's sample browser is open (nil = closed). Identifiable
-    /// wrapper so `.sheet(item:)` can carry the track index.
+    /// Sample-browser sheet slot. NOTHING SETS THIS since the drums were removed
+    /// (founder 2026-07-26) — its only setter was the per-drum-channel strip's sample door.
+    /// Kept deliberately as a reusable `.sheet(item:)` slot rather than deleted, because the
+    /// body's modifier chain is at the SwiftUI metadata ceiling and a free slot is worth more
+    /// than three saved lines. It must stay unset until something legitimately claims it; a
+    /// flag with a presenter and no setter is the trap this repo has documented three times.
     @State private var sampleBrowserTrack: TrackRef?
 
     /// The craft editors — instrument CONTROLS, not DAW surfaces (Editor ≠
@@ -664,17 +668,15 @@ struct EchoelStudioView: View {
             // the TOP of this closure instead — `currentPatch` reads `style` before here.)
             surfacePriorCrashIfAny()
             handlePendingIntent()
-            // Apply the persisted Mixer "Drums" level to the beat engine at launch.
-            beatPlayer.masterLevel = mixer.drums
             // Apply the persisted per-track inserts at launch (bass → sub; melodic → both
-            // the pad/harmony and lead voices).
+            // the pad/harmony and lead voices). The two drum restores that stood here — the
+            // persisted Mixer "Drums" level into `BeatPlayer.masterLevel`, and the persisted
+            // drums insert fanned across all 8 channels — are gone with the drums themselves.
             subBass.setInsert(trackFX.bass)
             laneVoiceRack.setBassInsert(trackFX.bass)  // S2-W2-5: lane subs too
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
             laneVoiceRack.setInsert(trackFX.melodic)   // S2-W1: rack lanes too
-            // Drums bus master → fan the persisted insert across all 8 channels.
-            setDrumsFX(trackFX.drums)
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
@@ -1409,15 +1411,18 @@ struct EchoelStudioView: View {
     /// the next generate/evolve. A menu-free leaf reading only low-frequency stores.
     private var mixerPanel: some View {
         panel("Mix", "Level per part", isExpanded: $showMix) {
-            // The master mix as per-part STRIPS — the same visual language as the drum
-            // channel strips below, so the whole Mix panel reads as ONE board (founder:
-            // "Mix Level sollten auf dem Hackbrett landen … alles an Ort und Stelle").
-            // Each strip co-locates a part's LEVEL with its own bus FX (filter + drive);
-            // grouping follows the three real FX buses (bass / melodic / drums). Every
-            // binding is the existing one — no new audio wiring. FX default full-open /
-            // drive 0 = bit-identical until moved.
-            // The three master strips reflow to 2 columns in landscape / iPad (leaf
-            // reads the size class, not the root body → render-safe).
+            // The mix as per-part STRIPS, so the whole Mix panel reads as ONE board
+            // (founder: "Mix Level sollten auf dem Hackbrett landen … alles an Ort und
+            // Stelle"). Each strip co-locates a part's LEVEL with its own bus FX (filter +
+            // drive); grouping follows the TWO remaining FX buses, bass and melodic.
+            // NO DRUMS (founder 2026-07-26, "es soll keine Drums geben. Auch nicht im
+            // Mixer."): the third "Drums" strip and the 8-channel `ChannelRackView`
+            // Hackbrett below the reset button are gone with the drum sound itself, along
+            // with their bindings and the `setDrumsFX` fan-out. `mixer.drums` /
+            // `trackFX.drums` stay in their stores so an older project still decodes; they
+            // are simply never read for sound again.
+            // Both strips reflow to 2 columns in landscape / iPad (leaf reads the size
+            // class, not the root body → render-safe).
             AdaptiveCardGrid {
                 mixStripCard("Bass") {
                     EchoelValueField(label: "Level", value: mixBinding(\.bass),
@@ -1439,22 +1444,12 @@ struct EchoelStudioView: View {
                     EchoelValueField(label: "Drive", value: melodicDriveBinding,
                                      range: TrackFXStore.driveRange, unit: "", decimals: 2)
                 }
-                mixStripCard("Drums") {
-                    EchoelValueField(label: "Level", value: drumsBinding,
-                                     range: MixerStore.range, unit: "", decimals: 2)
-                    EchoelValueField(label: "Filter", value: drumsCutoffBinding,
-                                     range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
-                    EchoelValueField(label: "Drive", value: drumsDriveBinding,
-                                     range: TrackFXStore.driveRange, unit: "", decimals: 2)
-                }
             }
 
             Button {
                 mixer.resetToUnity()
-                beatPlayer.masterLevel = mixer.drums
                 setBassFX(.off)
                 setMelodicFX(.off)
-                setDrumsFX(.off)
                 recomposeIfRunning()
             } label: {
                 Text("Reset to genre balance")
@@ -1464,24 +1459,12 @@ struct EchoelStudioView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Sets every part back to the genre's own balance")
 
-            // The Hackbrett — per-drum-channel strips (level · mute/solo · insert FX),
-            // co-located here so every mixable channel lives in ONE place (founder:
-            // "Mix Level sollten auf dem Hackbrett landen"). Reuses the tested
-            // ChannelRackView against BeatPlayer; embedded = no nested scroll, flows in
-            // the studio's own ScrollView. No new modal — render-safe.
-            Divider().overlay(EchoelTheme.border).padding(.vertical, 2)
-            // B5: each channel strip carries its sample door; the browser opens
-            // through the EXISTING sampleBrowserTrack sheet slot (slot-reuse law —
-            // the modal chain does not grow). Nothing to close first: the plate is not
-            // an overlay, so a sheet cannot stack on it (two-layers law is satisfied).
-            ChannelRackView(embedded: true, onSampleBrowse: { idx in
-                sampleBrowserTrack = TrackRef(id: idx)
-            })
         }
     }
 
-    /// A per-part mix STRIP — a titled group (Level + its bus FX) styled like the drum
-    /// channel strips, so the master voices and the drum channels read as one Hackbrett.
+    /// A per-part mix STRIP — a titled group (Level + its bus FX). The styling was inherited
+    /// from the per-drum-channel strips it used to sit beside; those are gone (no drums), so
+    /// this is now simply the mixer's one strip style.
     /// Pure layout over existing bindings; reads only low-frequency stores → render-safe.
     @ViewBuilder
     private func mixStripCard<Content: View>(_ title: String,
@@ -1554,56 +1537,15 @@ struct EchoelStudioView: View {
         laneVoiceRack.setInsert(fx)
     }
 
-    /// Drums-bus filter cutoff. Full-open (max) disengages; lower engages a low-pass
-    /// fanned across all 8 drum channels (a low-pass this way == a true bus filter).
-    private var drumsCutoffBinding: Binding<Float> {
-        Binding(get: { trackFX.drums.cutoffHz },
-                set: { v in
-                    let open = v >= TrackFXStore.cutoffRange.upperBound
-                    setDrumsFX(TrackFX(filter: open ? .off : .lowPass, cutoffHz: v,
-                                       resonance: trackFX.drums.resonance, drive: trackFX.drums.drive))
-                })
-    }
-
-    /// Drums-bus saturation drive (0 = clean). Applied per drum channel — each hit
-    /// saturates independently, preserving transients.
-    private var drumsDriveBinding: Binding<Float> {
-        Binding(get: { trackFX.drums.drive },
-                set: { v in
-                    setDrumsFX(TrackFX(filter: trackFX.drums.filter, cutoffHz: trackFX.drums.cutoffHz,
-                                       resonance: trackFX.drums.resonance, drive: v))
-                })
-    }
-
-    /// Persist the drums insert AND fan it across all 8 `BeatPlayer` channels. There is no
-    /// single drums-bus node (the 8 voices attach individually), so the whole-kit control
-    /// writes every channel's insert via the existing tested `setFX` path — no new audio
-    /// code. `trackFX.drums` is the bus master; the (currently unpresented) Channel Rack is
-    /// the per-channel override. Off (`.off`) = full-open + drive 0 = bit-identical to before.
-    private func setDrumsFX(_ fx: TrackFX) {
-        trackFX.set(fx, for: .drums)
-        var ch = BeatPlayer.ChannelFX()
-        ch.type = fx.filter.rawValue
-        ch.cutoff = fx.cutoffHz
-        ch.resonance = fx.resonance
-        ch.drive = fx.drive
-        for i in BeatPlayer.trackNames.indices {
-            beatPlayer.setFX(track: i, ch)
-        }
-        laneVoiceRack.setDrumsInsert(fx)   // S2-W2-5: bus insert → lane drum kits too
-    }
+    // NO DRUMS (founder 2026-07-26): `drumsBinding`, `drumsCutoffBinding`,
+    // `drumsDriveBinding` and `setDrumsFX(_:)` lived here. They were the only writers of
+    // `trackFX.drums`, `BeatPlayer.masterLevel`/`setFX` and `laneVoiceRack.setDrumsInsert`
+    // — all of which are therefore now unwritten, on purpose.
 
     /// A binding to one mixer level that re-balances the running take when changed.
     private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {
         Binding(get: { mixer[keyPath: keyPath] },
                 set: { mixer[keyPath: keyPath] = $0; recomposeIfRunning() })
-    }
-
-    /// The Drums fader drives BeatPlayer's master level LIVE — it multiplies each hit as
-    /// it fires, so no recompose is needed (the change is heard on the next beat).
-    private var drumsBinding: Binding<Float> {
-        Binding(get: { mixer.drums },
-                set: { mixer.drums = $0; beatPlayer.masterLevel = $0 })
     }
 
     /// Step 2b (2026-07-17, PLAN_DISSOLVE_BOTTOM_BAR): the Composition panel's
