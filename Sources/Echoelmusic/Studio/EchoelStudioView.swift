@@ -590,48 +590,21 @@ struct EchoelStudioView: View {
             AnyView(startButton
                 .padding(.horizontal, 16)
                 .padding(.top, 12))
-            // ADAPTIVE HOME (founder 2026-07-14: "integriere alles im adaptiven Design,
-            // keine Duplikate, alles greift ineinander"): the instrument zone below the
-            // chip bar RENDERS ONLY when there is something to show — an open dropdown or
-            // the (rare) session card. Idle → this view is just the slim chip bar, so the
-            // arrange TIMELINE fills the screen (tracks are home) instead of a black void.
-            // Same chips + same dropdowns — zero duplicate controls. No new .sheet: the
-            // zone became CONDITIONAL (the body does not grow), and AnyView keeps its
-            // generics out of the root body type (metadata law).
-            if activeMenu != nil || presentSession != nil {
-              AnyView(ZStack(alignment: .top) {
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 20) {
-                            // Session first (founder: "wow in den ersten 10 Sekunden ·
-                            // meditativ") — a static card, no live bio read (freeze rule).
-                            if let presentSession { AnyView(sessionEntryCard(presentSession)) }
-                            // Everything else moved into the menu bar's dropdowns
-                            // (2026-07-12). Historical removals (all builders stay in
-                            // code, unpresented, reversible): startButton (2026-07-12,
-                            // → TransportBar pulse button) · Mood pads (2026-07-07) ·
-                            // nonStandardTuningBanner (2026-07-09) · PulseMeasurementView
-                            // (2026-07-12, → header monitor) · liveNarrationBanner
-                            // (2026-07-12, waits for the real EchoelAI) · tools grid
-                            // (2026-07-02) · the settings card pile (2026-07-12, → menu
-                            // dropdowns: Comp/Session/Transp/Sound/Mix/FX/Master/Mood/
-                            // Export/Synth + direct doors Live/Learn).
-                        }
-                        .padding(16)
-                    }
-                    // Bound the (near-empty) content scroll so the zone HUGS its content
-                    // instead of staying vertically greedy — otherwise it splits ~50/50
-                    // with the .infinity timeline and clips tall dropdowns (Comp/Sound/FX).
-                    // The dropdown host caps at the same 480, so it now always fits and the
-                    // timeline stays the dominant canvas (review #1).
-                    .frame(maxHeight: 480)
-                }
-                // ONE anchored dropdown over the zone — tap the scrim (or the active
-                // chip) to close. AnyView boundary keeps the panels' generics out of
-                // the root body type, same discipline as the old scroll rows.
-                if activeMenu != nil { AnyView(menuDropdownHost) }
-              })
+            // The rare session card, above the plate. Static content — no live bio read
+            // (freeze rule). Bounded so it can never push the front plate off-screen.
+            if let presentSession {
+                AnyView(ScrollView { sessionEntryCard(presentSession).padding(16) }
+                            .frame(maxHeight: 260))
             }
+            // THE FRONT PLATE — always visible, fills the window (founder 2026-07-26:
+            // "Alles soll mehr so aussehen wie früher also im hauptfenster sinnvoll
+            // angeordnet"). This replaces the CONDITIONAL zone that had rendered only
+            // while a dropdown was open: since the timeline went away (#130) the idle
+            // main window was a chip bar, one button and a black void, and every control
+            // sat behind a menu and a scrim — the opposite of an instrument.
+            // AnyView keeps the panels' generics out of the root body type, same
+            // discipline as menuBar/startButton (metadata law).
+            AnyView(menuPanelHost)
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
         // text size until the user explicitly zooms. For users who need larger text.
@@ -1301,11 +1274,14 @@ struct EchoelStudioView: View {
             .contentShape(Rectangle())
     }
 
-    /// One settings chip: tap toggles its dropdown (tap again = close).
+    /// One front-plate tab: tap SELECTS its panel. Deliberately not a toggle any more —
+    /// tapping the active chip used to close the dropdown and leave the main window
+    /// empty, which is the "everything is hidden behind a menu" feel the founder asked
+    /// to be rid of. There is always a panel on the plate (see `displayedMenu`).
     private func menuChip(_ menu: StudioMenu) -> some View {
-        let isActive = activeMenu == menu
+        let isActive = displayedMenu == menu
         return Button {
-            activeMenu = isActive ? nil : menu
+            activeMenu = menu
         } label: {
             chipTapTarget {
                 Text(menu.label)
@@ -1346,40 +1322,46 @@ struct EchoelStudioView: View {
         .accessibilityLabel(a11y)
     }
 
-    /// The ONE anchored dropdown: scrim (tap = close) + a scrollable panel card
-    /// whose content switches on `activeMenu`. Panels render ALWAYS-OPEN inside
-    /// (`echoelPanelForceOpen`) — the dropdown IS the open state. NOT a sheet:
-    /// this is a plain overlay in the main window ("Alles bleibt im Hauptfenster
-    /// es gehen nur dropdown Menüs auf"), so the ~18-modal chain is untouched.
-    private var menuDropdownHost: some View {
-        ZStack(alignment: .top) {
-            Color.black.opacity(0.45)
-                .ignoresSafeArea(edges: .bottom)
-                .onTapGesture { activeMenu = nil }
-                .accessibilityLabel("Close menu")
-                .accessibilityAddTraits(.isButton)
-            ScrollView {
-                dropdownContent
-                    .padding(2)
-            }
-            .environment(\.echoelPanelForceOpen, true)
-            // ORDER MATTERS (review L3): fixedSize OUTSIDE the flex frame —
-            // fixedSize proposes nil → ScrollView reports its content's ideal
-            // height → the frame clamps to ≤480. Small panels render compact,
-            // tall ones cap + scroll. Swapping these two lines makes tall
-            // content OVERFLOW the card instead of scrolling.
-            .frame(maxHeight: 480)
-            .fixedSize(horizontal: false, vertical: true)
-            // VoiceOver: contain focus in the dropdown while it is open
-            // (review L2) — the scrim blocks touches but not the a11y tree.
-            .accessibilityAddTraits(.isModal)
-            .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
-                .fill(EchoelTheme.bg))
-            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
-                .strokeBorder(EchoelTheme.border, lineWidth: 1))
-            .padding(.horizontal, 8)
-            .padding(.top, 4)
+    /// THE FRONT PLATE — the instrument's controls, in the main window, always visible.
+    ///
+    /// Was an anchored dropdown over a 45 % black scrim, capped at 480 pt, marked
+    /// `.isModal`. That is what made the app read as a settings sheet rather than an
+    /// instrument (founder 2026-07-26: "mehr wie ein Instrument wahrgenommen"): a control
+    /// you must first summon, behind a curtain, that then hides everything behind it.
+    /// Now the same panel builders sit IN the flow and FILL the space the removed timeline
+    /// left (#130) — the chip row above became a tab strip, not a menu.
+    ///
+    /// What went away and why it is safe:
+    /// · the scrim + its `ZStack` branch — nothing to dismiss any more, so the tap-to-close
+    ///   target it existed for is meaningless (and a permanent scrim would dim the app).
+    /// · `.accessibilityAddTraits(.isModal)` — MUST go with the scrim. Trapping VoiceOver
+    ///   focus in a panel that can never be closed would strand the user away from the
+    ///   header, transport and chip row.
+    /// · the 480 cap + `fixedSize` pair — a front plate should use the window, not hug its
+    ///   content and leave a void below it.
+    ///
+    /// METADATA (black-screen law): this REMOVES a branch and adds no modifier to the root
+    /// body, so the aggregate generic type shrinks. Panels still render always-open inside
+    /// via `echoelPanelForceOpen`.
+    ///
+    /// FREEZE LAW, now permanent: panel content is evaluated in the root body ALWAYS, not
+    /// only while a dropdown is open. The existing rule (`dropdownContent` note) already
+    /// requires every live readout inside a panel to live in its own leaf `View`; this
+    /// turns "while open" into "always", so that rule is now load-bearing. Verified for the
+    /// 10 Hz case: `bioPanel` reads the camera only through `BioStripView`, its own leaf.
+    private var menuPanelHost: some View {
+        ScrollView {
+            dropdownContent
+                .padding(2)
         }
+        .environment(\.echoelPanelForceOpen, true)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
+            .fill(EchoelTheme.bg))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
+            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
     }
 
     /// Dropdown content = the EXISTING panel builders, one per menu entry.
@@ -1390,7 +1372,7 @@ struct EchoelStudioView: View {
     /// live-updating readout inside a panel MUST stay in its own leaf view
     /// (freeze rule 10.76.41/50).
     private var dropdownContent: AnyView {
-        switch activeMenu {
+        switch displayedMenu {
         case .bio:         return AnyView(bioPanel)
         case .composition: return AnyView(tempoToolsPanel)
         case .session:     return AnyView(sessionPanel)
@@ -1402,9 +1384,17 @@ struct EchoelStudioView: View {
         case .export:      return AnyView(utilityRow)
         case .synth:       return AnyView(visualPanel)
         case .video:       return AnyView(videoPanel)
-        case nil:          return AnyView(EmptyView())
         }
     }
+
+    /// The panel the front plate shows. A front plate has no "nothing" state — the
+    /// instrument's controls are always ON it (founder 2026-07-26: "Alles soll mehr so
+    /// aussehen wie früher also im hauptfenster sinnvoll angeordnet"). `activeMenu` stays
+    /// OPTIONAL on purpose: every existing `activeMenu = nil` site (the two-modals-at-once
+    /// law, chrome doors closing a menu before opening a sheet) keeps working unchanged and
+    /// simply falls back to Sound — the timbre panel, i.e. the instrument itself — instead
+    /// of leaving the main window empty the way the old conditional zone did.
+    private var displayedMenu: StudioMenu { activeMenu ?? .sound }
 
     /// B3: the bio strip's new home. The live numbers (HR/HRV/Br/Coh),
     /// tap-to-learn and the source control render UNCHANGED inside the
