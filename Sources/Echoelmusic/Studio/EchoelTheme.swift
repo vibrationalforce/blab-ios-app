@@ -23,8 +23,36 @@ enum EchoelTheme {
     // clearing the 4.5:1 AA floor with margin. Deliberately a touch more opaque than the
     // site's --dim (accessibility-first in the app; still reads muted, not bright).
     static let dim     = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.65) // --dim (AA-lifted)
-    static let border  = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.10) // subtle
-    static let fill    = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(0.06) // --glass-ish
+
+    /// The grey every neutral token is a translucent slice of (#e0e0e0), and the opacities
+    /// of the two boundary tokens + the control fill — named so `ThemeContrastTests` can do
+    /// the WCAG maths on THE SAME numbers the colours below are built from. Not a
+    /// convenience: this repo already has a safety ceiling (2.5 Hz flash) whose test
+    /// validates a hand-COPIED literal, so the renderer can drift while the suite stays
+    /// green. Contrast does not get that hole.
+    nonisolated static let textComponent: Double      = 0.878
+    nonisolated static let borderOpacity: Double      = 0.10
+    nonisolated static let borderStrongOpacity: Double = 0.45
+    nonisolated static let fillOpacity: Double        = 0.06
+
+    /// DECORATIVE boundary — hairlines, dividers, the outline of a panel card. 1.16:1
+    /// against black, which is fine: WCAG 1.4.11 covers the boundary of a CONTROL, not
+    /// ornament. Do not use it on anything tappable.
+    static let border  = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(borderOpacity)
+
+    /// INTERACTIVE boundary — the outline that says "this is a control": tab chips, every
+    /// `EchoelValueField`, panel door buttons. 3.59:1 against the page and 3.31:1 against
+    /// the control's own `fill`, so it clears SC 1.4.11 on the harder of the two grounds.
+    ///
+    /// Why it exists: every control in the app declared itself with the 0.10 `border`, i.e.
+    /// **1.16:1** — labels read at 15.9:1 while the boundaries were invisible. Worse, the
+    /// ACTIVE state uses `accent` at 11.6:1, so a control only became visible once you had
+    /// already found it. Three accessibility passes each fixed something real and none
+    /// caught this, because they read text contrast.
+    static let borderStrong = Color(red: 0.878, green: 0.878, blue: 0.878)
+        .opacity(borderStrongOpacity)
+
+    static let fill    = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(fillOpacity) // --glass-ish
     // CI rule (mirrors echoelmusic.com): the site is MONOCHROME — every primary
     // action is off-white fill + black label (`.btn-primary { background: var(--text) }`).
     // So in-app PRIMARY buttons fill with `.text`, NOT `.accent`. The bio-green

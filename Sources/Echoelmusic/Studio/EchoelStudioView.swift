@@ -1149,8 +1149,11 @@ struct EchoelStudioView: View {
                     .frame(height: 26)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                         .fill(isActive ? EchoelTheme.text : EchoelTheme.fill))
+                    // The INACTIVE tab is the case that matters: the active one is a solid
+                    // `text` fill and unmissable, so at 1.16:1 the other tabs were invisible
+                    // until you found them. borderStrong makes the whole strip readable.
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
             }
         }
         .buttonStyle(.plain)
@@ -1173,7 +1176,7 @@ struct EchoelStudioView: View {
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                     .fill(EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
             }
         }
         .buttonStyle(.plain)

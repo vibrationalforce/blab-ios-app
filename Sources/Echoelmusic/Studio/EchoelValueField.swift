@@ -129,7 +129,11 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         .frame(height: boxHeight)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-            .strokeBorder(active ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+            // borderStrong, not border: this box IS the app's one parameter control, so
+            // its boundary is a control boundary (WCAG 1.4.11, 3:1). The 0.10 `border`
+            // measured 1.07:1 against this box's own `fill` — the value read fine and the
+            // box it sits in did not.
+            .strokeBorder(active ? EchoelTheme.accent : EchoelTheme.borderStrong, lineWidth: 1))
         // The transparent orientation slider floats just left of the box while dragging.
         .overlay(alignment: .leading) {
             if scrubbing { faderOverlay.offset(x: -22) }
