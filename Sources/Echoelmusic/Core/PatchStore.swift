@@ -26,7 +26,12 @@ public final class PatchStore {
     private struct Meta: Codable { var favorites: [UUID]; var recents: [UUID] }
 
     public init() {
-        let user = store.load([SynthPatch].self, name: Self.fileName) ?? []
+        // Element-tolerant: one unreadable patch is dropped, the rest of the library
+        // survives. The all-or-nothing array decode used to return nil for the whole file,
+        // and the next `saveUser()` wrote that empty array back — a single bad patch
+        // permanently destroyed every sound the user had saved. Order is irrelevant here
+        // (this is a library, not a grid), so compacting the holes away is correct.
+        let user = (store.loadLossyArray(SynthPatch.self, name: Self.fileName) ?? []).compactMap { $0 }
         // Drop any accidental factory duplicates from the user file.
         let cleanedUser = user.filter { !Self.factoryIDs.contains($0.id) }
         self.patches = SynthPatch.factory + cleanedUser

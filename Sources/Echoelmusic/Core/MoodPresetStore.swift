@@ -28,7 +28,9 @@ public final class MoodPresetStore {
     private struct Meta: Codable { var favorites: [UUID]; var recents: [UUID] }
 
     public init() {
-        let user = store.load([MoodPreset].self, name: Self.fileName) ?? []
+        // Element-tolerant (see AppGroupStore.loadLossyArray) — one unreadable mood must not
+        // empty the user's whole library on the next save. Unordered list ⇒ compact.
+        let user = (store.loadLossyArray(MoodPreset.self, name: Self.fileName) ?? []).compactMap { $0 }
         // Drop any accidental factory duplicates from the user file.
         let cleanedUser = user.filter { !Self.factoryIDs.contains($0.id) }
         self.moods = MoodPreset.factory + cleanedUser

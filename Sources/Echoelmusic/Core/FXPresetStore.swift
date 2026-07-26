@@ -27,7 +27,9 @@ public final class FXPresetStore {
     private struct Meta: Codable { var favorites: [UUID]; var recents: [UUID] }
 
     public init() {
-        self.presets = store.load([FXPreset].self, name: Self.fileName) ?? []
+        // Element-tolerant (see AppGroupStore.loadLossyArray) — one unreadable preset must
+        // not empty the user's whole FX library on the next save. Unordered list ⇒ compact.
+        self.presets = (store.loadLossyArray(FXPreset.self, name: Self.fileName) ?? []).compactMap { $0 }
         let meta = store.load(Meta.self, name: Self.metaName)
         self.favorites = Set(meta?.favorites ?? [])
         self.recents = meta?.recents ?? []

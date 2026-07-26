@@ -75,6 +75,47 @@ public struct AppGroupStore: Sendable {
         }
     }
 
+    /// Wrapper that decodes an element or yields nil on a malformed one, always consuming
+    /// exactly one array slot so the decode can't stall. Mirrors `TimelineDocument.Lossy`,
+    /// which fixed the same class of bug for the song document.
+    private struct Lossy<T: Decodable>: Decodable {
+        let value: T?
+        init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+    }
+
+    /// Decode a TOP-LEVEL JSON array ELEMENT-tolerantly: one malformed element becomes `nil`
+    /// instead of failing the whole file.
+    ///
+    /// WHY THIS EXISTS — the library-wipe. Every store that persists a top-level array did
+    /// `load([X].self, name:) ?? []`, and `Codable`'s array decode is all-or-nothing: ONE
+    /// element the field-level `decodeIfPresent` guards cannot absorb (a renamed enum case, a
+    /// wrong-typed value, a half-written file) threw, `load` returned nil, and the store fell
+    /// back to EMPTY. The next save then wrote that empty array back over the file — so a
+    /// single bad patch silently destroyed the user's entire sound library, permanently, with
+    /// the only trace being one log line. `TimelineDocument` already got this treatment for
+    /// lanes/regions/automation; these stores did not.
+    ///
+    /// Returns `nil` only when the file is absent, unreadable, or is not a JSON array at all —
+    /// i.e. exactly the cases where "nothing usable is saved" is the truth. A present-but-
+    /// partly-corrupt array returns the array with holes.
+    ///
+    /// CALLERS MUST DECIDE WHAT A HOLE MEANS, and the two answers are not interchangeable:
+    /// for an unordered LIBRARY (patches, projects, presets) drop it with `.compactMap { $0 }`;
+    /// for a POSITIONAL grid (`ClipStore`'s 8 slots, where index IS the slot) keep the `nil`
+    /// in place — compacting there would shift every later clip into the wrong slot and break
+    /// the count check, turning one corrupt clip into all eight lost.
+    public func loadLossyArray<T: Decodable>(_ type: T.Type, name: String) -> [T?]? {
+        guard let url = fileURL(name) else { return nil }
+        guard let data = try? Data(contentsOf: url) else { return nil } // absent = normal
+        do {
+            return try JSONDecoder().decode([Lossy<T>].self, from: data).map(\.value)
+        } catch {
+            log.log(.error, category: .system,
+                    "AppGroupStore: \(name).json present but is not a decodable [\(T.self)] array — \(error)")
+            return nil
+        }
+    }
+
     /// Encode and atomically write `value` under `name`. Returns success.
     @discardableResult
     public func save<T: Encodable>(_ value: T, name: String) -> Bool {
@@ -92,6 +133,20 @@ public struct AppGroupStore: Sendable {
             return false
         }
     }
+
+    #if DEBUG
+    /// TEST SEAM (Debug-only): write RAW bytes under `name`, bypassing `Encodable`.
+    ///
+    /// Needed because the failure this store now defends against — a file whose elements do
+    /// not all decode — cannot be produced by `save`, which can only ever write well-formed
+    /// JSON for the current schema. Without this, a test could only assert that valid data
+    /// stays valid, which is precisely the unfalsifiable shape to avoid.
+    @discardableResult
+    internal func saveRawForTests(_ data: Data, name: String) -> Bool {
+        guard let url = fileURL(name) else { return false }
+        return (try? data.write(to: url, options: [.atomic])) != nil
+    }
+    #endif
 
     /// Delete the file stored under `name` (no-op if absent).
     public func delete(name: String) {

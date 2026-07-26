@@ -16,7 +16,13 @@ public final class ProjectStore {
 
     public init(store: AppGroupStore = AppGroupStore()) {
         self.store = store
-        projects = store.load([Project].self, name: fileName)?.sorted { $0.savedAt > $1.savedAt } ?? []
+        // Element-tolerant (see AppGroupStore.loadLossyArray): one unreadable project is
+        // dropped instead of taking the whole library down with it — the previous decode
+        // returned nil for the entire file and the next save wrote the emptied list back.
+        // These are re-sorted anyway, so a hole cannot mean anything positional.
+        projects = (store.loadLossyArray(Project.self, name: fileName) ?? [])
+            .compactMap { $0 }
+            .sorted { $0.savedAt > $1.savedAt }
     }
 
     /// Insert or update a project (matched by id), then persist. Returns the saved

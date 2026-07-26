@@ -39,6 +39,90 @@ final class AppGroupStoreTests: XCTestCase {
         s.delete(name: "mismatch")
     }
 
+    // MARK: - loadLossyArray (the library-wipe fix)
+
+    /// A small stand-in for a persisted library element: strict enough that a wrong-typed
+    /// element really does fail to decode, which is what every arm below depends on.
+    private struct Item: Codable, Equatable { let id: Int; let name: String }
+
+    /// THE REGRESSION TEST. One corrupt element used to fail the WHOLE array decode, so
+    /// `load` returned nil, the store fell back to empty, and the next save wrote that empty
+    /// array back over the file — the user's entire library, gone for good.
+    func testLoadLossyArray_oneCorruptElement_keepsTheRest() {
+        let s = store()
+        // Hand-written JSON: three elements, the middle one missing a required field.
+        let json = """
+        [{"id":1,"name":"one"},{"id":2},{"id":3,"name":"three"}]
+        """.data(using: .utf8)!
+        XCTAssertTrue(s.saveRawForTests(json, name: "library"))
+
+        // The old path: all-or-nothing. This assertion is what makes the fix falsifiable —
+        // if `loadLossyArray` were just an alias for `load`, the next one would return nil.
+        XCTAssertNil(s.load([Item].self, name: "library"),
+                     "precondition: the strict decode must fail on this file")
+
+        let lossy = s.loadLossyArray(Item.self, name: "library")
+        XCTAssertEqual(lossy?.count, 3, "every slot must be accounted for, holes included")
+        XCTAssertEqual(lossy?.compactMap { $0 },
+                       [Item(id: 1, name: "one"), Item(id: 3, name: "three")],
+                       "the two good elements must survive the one bad one")
+        XCTAssertNil(lossy?[1], "the corrupt element must be the hole, in its own position")
+        s.delete(name: "library")
+    }
+
+    func testLoadLossyArray_wellFormedFile_isUnchangedAndOrdered() {
+        // The common case must be untouched: same elements, same order, no holes.
+        let s = store()
+        let items = [Item(id: 1, name: "a"), Item(id: 2, name: "b"), Item(id: 3, name: "c")]
+        XCTAssertTrue(s.save(items, name: "clean"))
+        XCTAssertEqual(s.loadLossyArray(Item.self, name: "clean")?.compactMap { $0 }, items)
+        s.delete(name: "clean")
+    }
+
+    func testLoadLossyArray_absentOrNotAnArray_returnsNil() {
+        // nil must still mean "nothing usable is saved" — otherwise a caller cannot tell an
+        // empty library from an unreadable one, and `?? []` would mask a real failure.
+        let s = store()
+        XCTAssertNil(s.loadLossyArray(Item.self, name: "never-saved"))
+        XCTAssertTrue(s.save(Item(id: 1, name: "not-an-array"), name: "object"))
+        XCTAssertNil(s.loadLossyArray(Item.self, name: "object"),
+                     "a JSON object is not a partly-corrupt array — it is unreadable")
+        s.delete(name: "object")
+    }
+
+    func testLoadLossyArray_everyElementCorrupt_isEmptyNotNil() {
+        // The boundary between the two meanings: the file IS an array, so it is readable —
+        // it just has nothing left in it. A caller must be able to tell this from "no file".
+        let s = store()
+        let json = "[{\"id\":1},{\"id\":2}]".data(using: .utf8)!
+        XCTAssertTrue(s.saveRawForTests(json, name: "all-bad"))
+        let lossy = s.loadLossyArray(Item.self, name: "all-bad")
+        XCTAssertEqual(lossy?.count, 2)
+        XCTAssertTrue(lossy?.compactMap { $0 }.isEmpty ?? false)
+        s.delete(name: "all-bad")
+    }
+
+    /// `ClipStore` is the one caller that must NOT compact its holes — the index is the slot.
+    /// This pins that an optional element type survives the wrapper with its positions intact,
+    /// which is what makes "one corrupt clip empties its own cell" true instead of "one
+    /// corrupt clip shifts the grid and fails the count check, losing all eight".
+    func testLoadLossyArray_optionalElements_keepPositions() {
+        let s = store()
+        let json = """
+        [{"id":1,"name":"one"},null,{"id":9},{"id":4,"name":"four"}]
+        """.data(using: .utf8)!
+        XCTAssertTrue(s.saveRawForTests(json, name: "grid"))
+
+        let slots = s.loadLossyArray(Item?.self, name: "grid")?.map { $0 ?? nil }
+        XCTAssertEqual(slots?.count, 4, "the grid must keep its length")
+        XCTAssertEqual(slots?[0], Item(id: 1, name: "one"))
+        XCTAssertNil(slots?[1], "an explicit null stays an empty cell")
+        XCTAssertNil(slots?[2], "a corrupt element empties ITS cell")
+        XCTAssertEqual(slots?[3], Item(id: 4, name: "four"),
+                       "the element AFTER the corrupt one must not shift into its place")
+        s.delete(name: "grid")
+    }
+
     func testDelete_removesFile() {
         let s = store()
         XCTAssertTrue(s.save(42, name: "answer"))

@@ -20,7 +20,13 @@ public final class ClipStore {
     @ObservationIgnored private static let fileName = "clips"
 
     public init() {
-        let saved = store.load([Clip?].self, name: Self.fileName)
+        // Element-tolerant, POSITIONALLY (see AppGroupStore.loadLossyArray). This grid is the
+        // one store where a hole must be KEPT, not compacted: the index IS the slot, so
+        // dropping a corrupt clip would shift every later one into the wrong cell AND fail the
+        // count check below — turning one bad clip into all eight lost. `[Clip?]` already means
+        // "nil = empty cell", so an unreadable clip degrades to exactly that: its own cell
+        // empties, the other seven survive.
+        let saved = store.loadLossyArray(Clip?.self, name: Self.fileName)?.map { $0 ?? nil }
         if let saved, saved.count == Self.slotCount {
             self.slots = saved
         } else {
