@@ -38,7 +38,10 @@ struct ClipLaunchGlyph: View {
     /// This region's role in its lane's single launch state.
     private enum Phase { case idle, queuedStart, playing, queuedStop }
 
-    private static let blinkPeriod: Double = 0.4   // 2.5 transitions/s ≤ 3 Hz (flash law)
+    /// One full blink per `1 / FlashGuard.maxPulseRateHz` — derived, not the 0.4 literal it
+    /// used to be. This view has no door today, so the copy was harmless; it would have
+    /// shipped as a third divergent flash rate the moment one was added.
+    private static let blinkPeriod: Double = 1.0 / FlashGuard.maxPulseRateHz
     private static let size: CGFloat = 28          // HIG touch target
 
     var body: some View {

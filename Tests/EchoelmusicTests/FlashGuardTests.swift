@@ -143,7 +143,10 @@ final class FlashGuardTests: XCTestCase {
     /// 3. It does NOT cover additive superposition (the heartbeat bloom on top of the
     ///    field) or the A↔B blend union. Those need per-pixel photometry.
     func testEveryReachableLookObeysTheThreeHzLaw() {
-        let maxPhaseRate = 2.5   // MetalBioView: min(pulseHz × motion, 2.5)
+        // READ the ceiling, never re-type it: this line used to be `let maxPhaseRate = 2.5`
+        // with a comment pointing at MetalBioView, so raising the renderer's cap left the
+        // whole proof below green while Aurora (0 margin, see below) went to 3.6 Hz.
+        let maxPhaseRate = FlashGuard.maxPulseRateHz
         // (multiplier, folds) of the FASTEST temporal term in each shader function.
         let looks: [(name: String, phaseMultiplier: Double, folds: Bool)] = [
             // fieldRings: p = 0.5·phase, then interference INTENSITY (bipolar square).
@@ -168,6 +171,44 @@ final class FlashGuardTests: XCTestCase {
             XCTAssertLessThanOrEqual(hz, FlashGuard.maxFlashHz,
                                      "\(look.name) flashes at \(hz) Hz — over the WCAG 3 Hz law")
         }
+    }
+
+    /// The app ceiling is what makes the table above pass, so pin the RELATIONSHIP rather
+    /// than trusting a future tuning pass to re-derive four look budgets by hand.
+    ///
+    /// Aurora is the binding constraint: 1.20 × the phase rate, no fold. At 2.5 Hz that is
+    /// exactly 3.00 Hz — dead on `maxFlashHz` with zero margin. So the app ceiling is not a
+    /// free parameter: any increase is an immediate WCAG 2.3.1 violation on a look that is
+    /// reachable today, and this test is what says so instead of a comment nobody reads.
+    func testAppPulseCeiling_isWhatKeepsTheWorstLookLegal() {
+        XCTAssertLessThanOrEqual(FlashGuard.maxPulseRateHz, FlashGuard.maxFlashHz,
+                                 "the app ceiling can never exceed the WCAG law it serves")
+        let auroraMultiplier = 1.20   // fieldAurora: 0.70 curtain + 0.50 breathe sideband
+        let aurora = FlashGuard.effectiveFieldHz(phaseRateHz: FlashGuard.maxPulseRateHz,
+                                                 phaseMultiplier: auroraMultiplier,
+                                                 folds: false)
+        XCTAssertLessThanOrEqual(aurora, FlashGuard.maxFlashHz,
+                                 "Aurora at the app ceiling flashes at \(aurora) Hz")
+        // And the margin really is zero — assert it, so raising `maxPulseRateHz` fails HERE
+        // with an explanation rather than shipping a violation that only a device shows.
+        XCTAssertEqual(aurora, FlashGuard.maxFlashHz, accuracy: 0.001,
+                       "Aurora is expected to sit exactly ON the 3 Hz limit at the app "
+                       + "ceiling. If this moved, either a look budget or the ceiling "
+                       + "changed — re-derive the table in "
+                       + "testEveryReachableLookObeysTheThreeHzLaw before touching this.")
+    }
+
+    /// Every consumer of the pulse ceiling reads the constant. `flashSafePulseRate` is the
+    /// always-on header tile — the one flashing surface a user cannot navigate away from —
+    /// so it gets its own assertion rather than being covered by inspection.
+    @MainActor
+    func testHeaderTileHonoursTheSharedCeiling_notItsOwnCopy() {
+        // 240 bpm = 4 Hz raw; the cap must bring it down to the shared ceiling exactly.
+        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 240),
+                       FlashGuard.maxPulseRateHz, accuracy: 0.0001)
+        // A resting rate stays untouched (the cap must not flatten normal pulses).
+        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 60),
+                       1.0, accuracy: 0.0001)
     }
 
     /// Retired-but-compiled styles are NOT in `LookBlendMap.library`, and one of them

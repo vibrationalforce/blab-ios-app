@@ -19,6 +19,22 @@ public enum FlashGuard {
     /// WCAG 2.3.1 hard limit: at most three flashes per second.
     public static let maxFlashHz: Double = 3.0
 
+    /// The app's OWN, stricter ceiling on the rate at which the bio pulse phase advances.
+    ///
+    /// This is not belt-and-braces caution, it is the number the look budgets are computed
+    /// FROM. `FlashGuardTests.testEveryReachableLookObeysTheThreeHzLaw` derives each look's
+    /// flash rate as (phase rate × its own multiplier, doubled if the field folds), and
+    /// Aurora lands on **exactly 3.00 Hz** — zero margin against `maxFlashHz`. So raising
+    /// this to WCAG's 3.0 would put Aurora at 3.6 Hz: a real epilepsy-law violation, not a
+    /// rounding question.
+    ///
+    /// It lives here, and every consumer reads it, because the value used to be a bare
+    /// `2.5` literal in `MetalBioView`, in `HeaderMonitors`, in `ClipLaunchGlyph`'s blink
+    /// period AND in the test that proves the law — so the test validated a COPY and would
+    /// have stayed green while the renderer flashed faster. That is the same failure mode
+    /// `ringsPhaseDampingLiteral` below was written to end; the ceiling itself had escaped it.
+    public static let maxPulseRateHz: Double = 2.5
+
     /// A general flash needs a relative-luminance change of at least this
     /// fraction of the maximum (W3C: 10%).
     public static let luminanceDeltaThreshold: Double = 0.10

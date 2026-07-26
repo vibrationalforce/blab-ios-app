@@ -1036,10 +1036,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         }
 
         // Integrate the flash-safe pulse phase from the SMOOTHED frequency. flashHz =
-        // pulseHz × motion, hard-capped at 2.5 Hz (< WCAG 3 Hz) as on the shader side.
+        // pulseHz × motion, hard-capped at `FlashGuard.maxPulseRateHz` (2.5 Hz, stricter
+        // than WCAG's 3 Hz because Aurora's budget lands exactly on 3.00 Hz at this rate).
+        // THIS is the authoritative cap — the phase every look's field is driven by.
         // Reduce Motion → freeze (no advance).
         if !reduceMotion {
-            let flashHz = min(uniforms.pulseHz * uniforms.motion, 2.5)
+            let flashHz = min(uniforms.pulseHz * uniforms.motion, FlashGuard.maxPulseRateHz)
             uniforms.pulsePhase += dt * flashHz
             if uniforms.pulsePhase > 1e6 { uniforms.pulsePhase -= 1e6 }   // keep it bounded
         }

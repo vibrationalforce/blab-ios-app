@@ -299,11 +299,12 @@ struct ImmersiveMonitorMini: View {
     /// explicit Double types so the ViewBuilder above stays type-checker-cheap;
     /// silent input → SpectralColor's neutral grey (an honest "nothing sounds").
     /// Flash-safety (WCAG epilepsy ≤3 Hz + the app's own ceiling): the tile's brightness-
-    /// pulse rate in Hz, CAPPED at 2.5 Hz so even a very fast heart rate can never drive
-    /// the tile past the epilepsy-safe flash rate. Matches MetalBioView's 2.5 Hz ceiling.
-    /// Pure + testable — the law lives in one place, not inlined in the render.
+    /// pulse rate in Hz, capped at `FlashGuard.maxPulseRateHz` so even a very fast heart
+    /// rate can never drive the tile past the epilepsy-safe flash rate. Reads the shared
+    /// constant rather than repeating 2.5 — the claim "the law lives in one place" was not
+    /// true while this function, MetalBioView and the test each carried their own copy.
     static func flashSafePulseRate(heartRateBPM: Double) -> Double {
-        min(max(40.0, heartRateBPM) / 60.0, 2.5)
+        min(max(40.0, heartRateBPM) / 60.0, FlashGuard.maxPulseRateHz)
     }
 
     static func tileColor(bio: BioSampleFrame?, mf: MusicalFrame?, date: Date,
@@ -378,7 +379,7 @@ struct EchoelLuxMonitorMini: View {
                         // rate, so this timer bounds the synthetic redraws, not a hard ≤3 Hz
                         // content-flash cap. A true content slew (applied to BOTH tiles) is a
                         // separate follow-up; this slice reaches sibling parity.
-                        TimelineView(.animation(minimumInterval: 1.0 / 2.5)) { _ in
+                        TimelineView(.animation(minimumInterval: 1.0 / FlashGuard.maxPulseRateHz)) { _ in
                             Self.lightColor(mf: bus.freshMusical(maxAge: 1.5))
                         }
                     }
