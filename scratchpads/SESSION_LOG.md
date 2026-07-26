@@ -8282,3 +8282,40 @@ Steuerraten-Write ist eine Treppe — ein 10-Hz-Bio-Träger stuft Cutoff zehnmal
 unabhängig von jeder Kante. `EchoelDelay` glättet seinen Lesekopf bereits im Render-Loop
 ("ein Sprung ist ein Klick"); `mix`/`feedback` zwei Zeilen darüber nicht. Das ist der
 größere Klang-Punkt und braucht Audio-Thread-Review plus Gerätelauf.
+
+## 2026-07-26 — DER FUND: die Tests laufen gar nicht (3ff0bd4, 58ae64e)
+
+**Wie er auffiel.** Der DSP-Reviewer sagte, ein Test, den ich gerade committet hatte,
+MUSS fehlschlagen (67,3 Hz gegen Toleranz 30). Meine eigene Nachrechnung gab ihm recht.
+CI wurde trotzdem grün. Grün UND rechnerisch-rot zugleich = der Test lief nicht.
+
+**Drei unabhängige Löcher, alle belegt aus dem Job-Log von 54a2dd5 (Job 89746380932),
+das `conclusion: success` meldet, während seine eigene Zusammenfassung sagt:**
+```
+- build-for-testing: failure
+- test-without-building: failure
+```
+1. **Die Suite kompilierte nicht.** 5 Fehler, alle derselben Klasse: ein `Optional` an
+   die `accuracy:`-Überladung von `XCTAssertEqual`, die einen nicht-optionalen
+   FloatingPoint nimmt. → behoben (3ff0bd4: 4 Stellen, 58ae64e: die letzte).
+2. **Selbst gebaut ließ sie sich nicht installieren:** „Simulator device failed to
+   install the application. Missing bundle ID." Der Kommentar im Workflow schiebt das
+   auf den AUv3-Appex-Platzhalter — aber das AUv3-Target wurde in #122 ENTFERNT, die
+   Begründung ist also stale und die echte Ursache unbekannt. NICHT behoben (#139).
+3. **Die echten Gates führen diese Dateien überhaupt nicht aus.** Das Test-Target des
+   `Echoelmusic`-Schemas kompiliert `Tests/CISmoke` — EINE Smoke-Datei — nicht
+   `Tests/EchoelmusicTests`. Und `ci.yml`s Test-Schritt endet auf `|| cat test.log`,
+   was den Exit-Status schluckt — direkt unter dem Kommentar „Test failures MUST fail
+   the build - do not add continue-on-error". NICHT behoben (CI-Config = founder-gated).
+
+**Was das über meine eigene Berichterstattung sagt.** Ich habe jeden Zyklus „beide Gates
+grün" gemeldet. Das war wahr und irreführend zugleich: die Gates prüfen Kompilieren +
+Lint, nie „Tests bestehen". Jeder Test dieser Session — isMeasured-Gate, Route-Fade,
+ParamGlide — wurde test-first geschrieben und dann nie ausgeführt. Sie sind UNGEPRÜFT,
+nicht geprüft. Ab jetzt: „Gates grün (= kompiliert + Lint; Tests laufen erst wieder,
+wenn #139 zu ist)".
+
+**Regel fürs Ledger:** Wenn ein Reviewer sagt „dieser Test schlägt fehl" und CI grün
+meldet, ist das kein Reviewer-Irrtum, sondern ein Signal über die Messung. Erst die
+Messung prüfen, dann den Befund verwerfen. Ein grünes Häkchen ist eine Behauptung über
+das, was der Job GETAN hat — nicht darüber, was er GEPRÜFT hat.
