@@ -617,3 +617,27 @@ false — the interfering layer's stride is COMPUTED (8 at that operating point,
 assumed), and the count I kept for that genre was green even for the regression it named. **When
 you exempt a case from a rule, trace the exemption as hard as the rule; an exemption is where the
 old defect goes to hide.**
+
+## 2026-07-26 — PLAYBOOK: when is flipping a red assertion legitimate?
+`ChordSuggestTests.testSuggestJourneyOn_changesTheProgression` required the chord journey to
+CHANGE the progression at full coherence, and had been red for months. It was not finding a bug:
+its premise was true when written (`bf1ee63`) and was deliberately reversed by a later founder
+decision (`de55263`, the genre-identity anchor — a calm body must hear THIS genre, so the journey
+is overridden entirely at high coherence). The test was asserting that the founder's own ask must
+not happen. **THE TEST: a red assertion may be flipped only when GIT ARCHAEOLOGY shows a specific
+later commit made it false ON PURPOSE. "The code does X now" is never sufficient — that is what a
+regression also looks like.** Ask the reviewer for the archaeology explicitly; mine found the two
+commits and the ancestry between them, which is what turned a guess into a verdict.
+
+Two corollaries from the same review:
+- **Assert the new law on the side you are claiming about.** My first replacement compared the
+  ON take to the LEGACY take. The reviewer showed that equality rests on four independent
+  conditions (the anchor, a rotation-invariant progression, a seeded draw missing its threshold
+  by 0.0147, and `leadDensity 0` hiding a three-draw RNG skew) — only the first is the law. A
+  structural assertion on the ON side alone (its pitch classes are the genre's own I chord)
+  states the law without borrowing three coincidences.
+- **When a claim cannot be established statically, assert it existentially and SAY SO.** There is
+  no local Swift toolchain, so "which coherence makes the journey diverge" was unknowable without
+  guessing — and a guessed pin that happened to match is the arithmetic-tie trap again. A sweep
+  with "at least one case differs" is provable-by-running and still fails exactly when the
+  feature goes dead.
