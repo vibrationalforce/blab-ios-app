@@ -66,10 +66,16 @@ public func decodeLossyArray<T: Decodable>(
     return values
 }
 
-// HONEST SCOPE — four private copies of this wrapper predate this file and are still in
-// place: `Timeline.Lossy`, `ModulationMatrix.LossyRoute`, `AutomationLane.LossyPoint`, and
-// (until it delegated here) `AppGroupStore.Lossy`. They are behaviourally identical; each
+// HONEST SCOPE — THREE private copies of this wrapper remain: `Timeline.Lossy`,
+// `ModulationMatrix.LossyRoute`, `AutomationLane.LossyPoint`. (A fourth, `AppGroupStore.Lossy`,
+// was deleted when that store started delegating here.) They are behaviourally identical; each
 // sits inside a custom `init(from:)` that decodes a KEYED container, not a top-level array,
 // so they cannot call the function above without restructuring their decoders. Collapsing
-// them is cosmetic, touches four persisted-decode paths at once, and buys the user nothing
+// them is cosmetic, touches three persisted-decode paths at once, and buys the user nothing
 // — deliberately not done here. Do not read this file as "every array decode is tolerant".
+//
+// AND IT IS ONLY HALF A DEFENCE. Element-tolerance saves the readable elements; it does
+// nothing when EVERY element fails at once (a new required field on the element type), which
+// yields all-holes → `[]` → the same total wipe. The other half is a forgiving element
+// decoder (`SignalRoute.init(from:)`, `ArrangementSection`, `SynthPatch`, `Project`). Both
+// halves, or neither works.

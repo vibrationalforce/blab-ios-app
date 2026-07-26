@@ -94,14 +94,16 @@ public final class SignalRouter {
     private func load() {
         guard let data = defaults.data(forKey: storageKey) else { return }   // nothing saved = normal
         // Element-tolerant (see `decodeLossyArray`). The strict `try? decode([SignalRoute].self)`
-        // this replaces was all-or-nothing: ONE unreadable route threw, `load` returned early,
-        // and the FIRST subsequent edit called `save()` — writing the surviving defaults back
-        // over the file. The user's whole patchbay, including the `blehrs.in` route that is the
-        // heart-strap's only start hook, would silently disappear and stay gone.
+        // this replaces was all-or-nothing: ONE unreadable route threw, `load` returned early
+        // leaving the graph at its empty default, and the FIRST subsequent edit called `save()` —
+        // writing that empty default back over the blob. Every route the user had patched,
+        // gone silently and permanently, because of one bad edge.
         //
-        // `SignalRoute` has NO custom decoder: every field is required and synthesized, so
-        // adding one non-optional field in a future version makes EVERY persisted route throw.
-        // That is not a hypothetical — it is one careless property away.
+        // SCOPE, precisely: this fixes PARTIAL corruption — some elements readable, some not.
+        // It does NOT fix the case where EVERY element fails (e.g. a new required field added to
+        // `SignalRoute`): they all become holes, `compactMap` yields `[]`, and the wipe happens
+        // exactly as before, just with a log line. That case is the DECODER's job, which is why
+        // `SignalRoute` has a defensive `init(from:)` — the two halves only work together.
         //
         // Routes are an unordered set ⇒ compact. This matches what `restore` already does with
         // routes whose ports vanished: drop the unusable edge, keep the rest of the patchbay.
@@ -135,10 +137,14 @@ public final class SignalRouter {
             // External input
             SignalPort(id: "midi.in",     name: "MIDI / MPE In", kind: .note,          direction: .source, transport: .coreMIDI),
             // Universal BLE heart-rate strap (0x180D — Polar/Garmin/Wahoo/…).
-            // The receiver has shipped since build 1543 but had NO start hook
-            // (Deep Audit 2026-07-12: "GEBAUT, NIE GESTARTET") — this port is
-            // its door: wiring the strap to any destination starts the scan
-            // (applyRouting), unwiring stops it. B4 in the Profi-Level batch.
+            // DATA-FLOW PORT ONLY — it does NOT drive the strap's lifecycle. B4
+            // (2026-07-12) briefly made `applyRouting` start/stop the scan from
+            // this port; BLE-3 (2026-07-15) removed that again because it made
+            // routing a SECOND owner that killed a pill-started strap on every
+            // unrelated Patchbay edit. The strap has ONE owner: the pulse-pill
+            // source dropdown (`startBioSource`). See EchoelmusicApp.applyRouting.
+            // `hasEnabledRoute(fromSource:)` consequently has NO production
+            // caller today — do not re-derive a start hook from its existence.
             SignalPort(id: "blehrs.in",   name: "Herzgurt (BLE)", kind: .controlBio,   direction: .source, transport: .bleHRS),
             // External outputs
             SignalPort(id: "midi.out",    name: "MIDI / MPE Out", kind: .note,         direction: .sink,   transport: .coreMIDI),

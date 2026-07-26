@@ -200,6 +200,44 @@ public struct SignalRoute: Codable, Sendable, Identifiable, Equatable {
         self.amount = Swift.min(1, Swift.max(0, amount.isNaN ? 1 : amount))
         self.converterID = converterID
     }
+
+    /// DEFENSIVE DECODE — the half that element-tolerance cannot cover.
+    ///
+    /// `SignalRouter` decodes its stored routes element-tolerantly, so ONE unreadable route
+    /// no longer wipes the patchbay. But that only helps when SOME elements still decode: if
+    /// a future version adds one non-optional property, the synthesized decoder makes EVERY
+    /// persisted route throw at once — every element becomes a hole, the compact yields `[]`,
+    /// and the first edit persists that emptiness. Tolerance without a forgiving decoder just
+    /// relabels the same total loss. So only the two fields that IDENTIFY a route are
+    /// required; everything else falls back to the value the memberwise `init` would give a
+    /// freshly-made route. A route missing its ports is not a degraded route, it is not a
+    /// route — that one still throws, and the tolerant array turns it into a single hole.
+    ///
+    /// This is the pattern already used for `SynthPatch`, `Project` and `ArrangementSection`
+    /// (law 9). `encode(to:)` stays synthesized and the keys below match the property names,
+    /// so already-persisted routes round-trip byte-for-byte.
+    ///
+    /// Side effect worth naming: the synthesized decoder BYPASSED the `amount` clamp in the
+    /// memberwise `init`, so a persisted NaN or out-of-range amount came back raw and reached
+    /// the transform depth. Delegating to that `init` rather than assigning fields directly
+    /// closes it, and keeps the clamp in exactly one place.
+    private enum CodingKeys: String, CodingKey {
+        case id, sourcePortID, sinkPortID, enabled, amount, converterID
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            // A missing id costs nothing to replace: it only addresses the route for
+            // `disconnect`, and is never matched against anything else that was persisted.
+            id: (try? c.decode(UUID.self, forKey: .id)) ?? UUID(),
+            sourcePortID: try c.decode(String.self, forKey: .sourcePortID),
+            sinkPortID: try c.decode(String.self, forKey: .sinkPortID),
+            enabled: (try? c.decode(Bool.self, forKey: .enabled)) ?? true,
+            amount: (try? c.decode(Float.self, forKey: .amount)) ?? 1.0,
+            converterID: try? c.decode(String.self, forKey: .converterID)
+        )
+    }
 }
 
 // MARK: - Graph

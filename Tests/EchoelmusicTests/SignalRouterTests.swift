@@ -25,10 +25,15 @@ final class SignalRouterTests: XCTestCase {
         XCTAssertNotNil(r.graph.port("midi.out"))
     }
 
-    func testBLEStrapPort_isLiveSourceAndActsAsTheDoor() {
-        // B4/#21: the universal BLE HR strap's ONLY door is this port — wiring
-        // it must read as an enabled from-source route (applyRouting's start
-        // condition), and the transport must be honest about being live.
+    func testBLEStrapPort_isARoutableLiveSource() {
+        // NAME CORRECTED 2026-07-26: this was `…ActsAsTheDoor`, and its comment said the
+        // port is the strap's ONLY start hook (B4, 2026-07-12). That stopped being true on
+        // 2026-07-15 — BLE-3 removed the coupling because `applyRouting` became a SECOND
+        // lifecycle owner that killed a pill-started strap on every unrelated Patchbay edit
+        // (see EchoelmusicApp.applyRouting). `hasEnabledRoute(fromSource:)` has NO production
+        // caller today; the assertions below therefore pin ROUTABILITY (the port is live, is
+        // a source, and accepts a bio-compatible sink) — not a lifecycle door. The strap's one
+        // owner is the pulse-pill source dropdown.
         let r = SignalRouter(defaults: freshDefaults())
         let port = r.graph.port("blehrs.in")
         XCTAssertNotNil(port)
@@ -93,42 +98,78 @@ final class SignalRouterTests: XCTestCase {
         d.set(Data(json.utf8), forKey: "signalGraph.routes.v1")
     }
 
-    /// THE REGRESSION TEST. One unreadable route used to fail the whole array decode:
-    /// `load` returned early, the graph kept its empty defaults, and the FIRST subsequent
-    /// edit called `save()` — writing those defaults back over the file. The user's entire
-    /// patchbay, gone for good. Now the bad edge alone is dropped.
-    func testLoad_oneCorruptRoute_keepsTheOthers() {
-        let d = freshDefaults()
-        // Middle element is missing the required `sinkPortID` → it alone must fail.
-        plantRoutes("""
+    /// ONE payload, shared by the regression test and its precondition, so that editing the
+    /// literal cannot leave the precondition guarding a file nobody loads any more. The
+    /// middle element is missing the required `sinkPortID`: a route without its two ports is
+    /// not a degraded route, it is not a route, so it must fail even the forgiving decoder.
+    private func corruptedRouteFile() -> String {
+        """
         [{"id":"\(UUID().uuidString)","sourcePortID":"bus.musical","sinkPortID":"adm.out",
           "enabled":true,"amount":1,"converterID":"music→spatial"},
          {"id":"\(UUID().uuidString)","sourcePortID":"bus.bio","enabled":true,"amount":1},
          {"id":"\(UUID().uuidString)","sourcePortID":"blehrs.in","sinkPortID":"osc.out",
           "enabled":true,"amount":1}]
-        """, into: d)
+        """
+    }
+
+    /// THE REGRESSION TEST. One unreadable route used to fail the whole array decode:
+    /// `load` returned early, the graph kept its empty defaults, and the FIRST subsequent
+    /// edit called `save()` — writing those defaults back over the file. Every route the
+    /// user had patched, gone for good. Now the bad edge alone is dropped.
+    func testLoad_oneCorruptRoute_keepsTheOthers() {
+        let d = freshDefaults()
+        plantRoutes(corruptedRouteFile(), into: d)
 
         let r = SignalRouter(defaults: d)
         XCTAssertEqual(r.graph.routes.count, 2, "the two readable routes must survive the one bad one")
         XCTAssertTrue(r.isConnected("bus.musical", "adm.out"))
-        // The strap route is the one with teeth: `blehrs.in` is the heart-strap's ONLY
-        // start hook (applyRouting reads hasEnabledRoute(fromSource:)), so losing it
-        // silently disconnects the user's sensor with no visible cause.
-        XCTAssertTrue(r.graph.hasEnabledRoute(fromSource: "blehrs.in"))
+        XCTAssertTrue(r.isConnected("blehrs.in", "osc.out"),
+                      "the element AFTER the bad one must not be lost with it")
     }
 
-    /// The precondition that makes the test above falsifiable: this file really is
-    /// undecodable strictly. If it weren't, the assertions would pass against the old
+    /// The precondition that makes the test above falsifiable — it plants the SAME payload.
+    /// If that file decoded strictly, the assertions there would pass against the old
     /// all-or-nothing decoder too and would prove nothing.
     func testLoad_thePlantedFile_failsAStrictDecode() {
         let d = freshDefaults()
-        plantRoutes("""
-        [{"id":"\(UUID().uuidString)","sourcePortID":"bus.bio","enabled":true,"amount":1}]
-        """, into: d)
-        let data = d.data(forKey: "signalGraph.routes.v1")
-        XCTAssertNotNil(data)
-        XCTAssertNil(try? JSONDecoder().decode([SignalRoute].self, from: data ?? Data()),
+        plantRoutes(corruptedRouteFile(), into: d)
+        guard let data = d.data(forKey: "signalGraph.routes.v1") else {
+            return XCTFail("the seam planted nothing — the precondition proves nothing")
+        }
+        XCTAssertNil(try? JSONDecoder().decode([SignalRoute].self, from: data),
                      "precondition: the strict decode must fail on this file")
+    }
+
+    /// THE OTHER HALF (`SignalRoute.init(from:)`). Element-tolerance alone does NOT survive a
+    /// schema change: if a future required field made EVERY stored route throw, all of them
+    /// would become holes, the compact would yield `[]`, and the first edit would persist that
+    /// emptiness — the same total wipe, one log line richer. So the element decoder must treat
+    /// everything except the two port ids as optional. This file is what a route written by an
+    /// OLDER version looks like against a NEWER one: only the ports, plus a field this build
+    /// has never heard of.
+    func testLoad_routeMissingEveryOptionalField_stillLoadsWithDefaults() {
+        let d = freshDefaults()
+        plantRoutes("""
+        [{"sourcePortID":"bus.musical","sinkPortID":"artnet.out","futureField":42}]
+        """, into: d)
+
+        let r = SignalRouter(defaults: d)
+        XCTAssertEqual(r.graph.routes.count, 1, "a route is identified by its ports, nothing else")
+        let route = r.graph.routes.first
+        XCTAssertEqual(route?.enabled, true, "a stored route defaults to enabled, not silently muted")
+        XCTAssertEqual(route?.amount, 1.0)
+        XCTAssertNil(route?.converterID)
+    }
+
+    /// The clamp in the memberwise `init` used to be BYPASSED on load, because the synthesized
+    /// decoder assigned fields directly — so a persisted NaN reached the transform depth. The
+    /// forgiving decoder delegates to that `init`, which is what closes it.
+    func testLoad_outOfRangeAmount_isClampedOnLoad() {
+        let d = freshDefaults()
+        plantRoutes("""
+        [{"sourcePortID":"bus.musical","sinkPortID":"artnet.out","amount":7.5}]
+        """, into: d)
+        XCTAssertEqual(SignalRouter(defaults: d).graph.routes.first?.amount, 1.0)
     }
 
     /// Bounded loss must stay bounded: what survived the tolerant load must still be
@@ -151,7 +192,9 @@ final class SignalRouterTests: XCTestCase {
     }
 
     /// A stored blob that is not an array at all stays "nothing usable": the router keeps
-    /// its (empty) defaults rather than crashing or inventing routes.
+    /// its (empty) defaults rather than crashing or inventing routes. HONEST LABEL: this one
+    /// behaves identically before and after the change, so it is a non-regression guard on
+    /// the boundary between "unreadable" and "readable but empty" — not a regression test.
     func testLoad_notAnArray_keepsDefaults() {
         let d = freshDefaults()
         plantRoutes(#"{"routes":[]}"#, into: d)
