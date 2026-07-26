@@ -8163,3 +8163,46 @@ fehlende Verdrahtung NICHT gefangen — die falsifizierenden Tests sitzen jetzt 
 **NEEDS-FOUNDER-VERIFY:** Lock im GESTOPPTEN Zustand — der Klick gleitet jetzt über ~2,5 s ins
 gelockte Tempo statt zu springen (Klick und angezeigtes Tempo stimmen erstmals durchgehend
 überein, aber der gestoppte Klick ist auf diesem Pfad das einzig Hörbare).
+
+## 2026-07-26 — v10.79.349 GESHIPPT: Aufräum-Build (Founder „Bringe alles in Ordnung")
+
+`5b0f06f` (Fixes) + `1f10488` (Deploy). **TestFlight-Run 30180682119 GRÜN auf allen Jobs**,
+inklusive „Export & Upload to TestFlight" UND „Verify build landed in App Store Connect" —
+also ein echter Build, nicht nur grüne CI.
+
+**Methode:** 13-Agenten-Ultracode-Sweep (4 Teams: Audio/DSP, UI/Studio, Platform/Release,
+Honesty), jedes Team mit Lead, der die Worker-Befunde adversarial gegen echten Quellcode
+prüfen musste. 20 verifizierte Befunde, 4 als Ship-Blocker markiert. **Einen habe ich beim
+Nachlesen selbst verworfen** („Donuts-Renderer unerreichbar" — `showVisual = true` bei
+`:943`, Cover rendert `SpectralDonutView`; der Fix hätte einen funktionierenden Regler
+gelöscht). Das ist der Grund, warum der PM jeden Blocker selbst gegenliest.
+
+**Vier echte Defekte zu:** HealthKit-Seed (72 BPM als Messung vor der ersten Watch-Lesung) ·
+de-kuratiertes Genre komponierte unsichtbar weiter (Clamp muss GANZ OBEN im onAppear stehen,
+sonst wandert der Fehler in `currentPatch`) · zwei App-Store-Berechtigungstexte beschrieben
+gelöschte Video-Spuren · Genre-Picker als einziger Lade-Pfad ohne Artikulations-Makro.
+Dazu NaN-Trap in `EchoelDelayLine` (`Int(NaN)` = SIGTRAP auf dem Audio-Thread) und zwölf
+tote `exclude:`-Pfade in Package.swift.
+
+**Die Zahl, die zählt:** CLAUDE.md nannte die Modifier-Kette „12". Reviewer und ich haben
+unabhängig **16** gezählt (10 sheet + 2 cover + 3 alert + 1 fileImporter) — alerts und
+fileImporter hängen an derselben Kette und kosten dieselben Metadaten. „12" las sich als
+vier freie Plätze vor dem Black-Screen-SIGSEGV, die es nicht gibt.
+
+**Reviewer-Lehre dieses Zyklus (HARNESS-würdig):** in einem Durchlauf ÜBER Kommentar-Wahrheit
+war meine Trefferquote bei `file:line`-Zitaten das eigentliche Finding — zwei veraltete
+entfernt, dabei eine neue falsche gesetzt, sechs weitere standen noch in CLAUDE.md. Regel
+ab jetzt: **Symbolnamen zitieren, nie Zeilennummern.** Zweitens: der Reviewer fand eine
+falsche Behauptung in MEINER Begründung (Herzfrequenz sei die einzige erfundene Zahl im
+Seed — `breathPhase` 0.5 ist auch eine und wird mitgesendet).
+
+**Nebenbei entschärft:** App-Store-Beschreibung/Werbetext/Keywords verkauften in beiden
+Sprachen noch „als AUv3-Plugin in Deiner DAW" (Target seit 24.07. gelöscht). TestFlight
+schiebt keine Metadaten, war also nicht live — die `upload_screenshots`-Lane hätte es als
+2.3.1-Behauptung veröffentlicht. Die Deliverfile-Warnung warnte vor der GEGENTEILIGEN
+Gefahr (leeres Metadaten-Verzeichnis).
+
+**NEEDS-FOUNDER-VERIFY auf v349:** sauberer Start (Genre-Clamp ist neues Verhalten und
+überschreibt eine gespeicherte Auswahl einmalig) · Bio-Streifen zeigt NICHTS statt „72" bis
+echte Messung · gleiches Genre klingt gleich über Picker wie über „Genre default" · Lock im
+gestoppten Zustand gleitet über ~2,5 s statt zu springen.
