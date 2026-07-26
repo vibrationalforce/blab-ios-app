@@ -25,11 +25,17 @@ private final class SpyAudioRecorder: AudioTakeRecording {
 
 final class RecordControllerAudioHookTests: XCTestCase {
 
+    // `@MainActor` on the rig and on every test: Transport, TimelineStore, ClipStore,
+    // EngineBus and RecordController are ALL `@MainActor @Observable` (they are the
+    // control plane), so constructing or touching them from a nonisolated test body is
+    // a hard Swift 6 error — not a warning. Same idiom as TimelineStoreDebounceTests.
+    @MainActor
     private func makeRig() -> (transport: Transport, timeline: TimelineStore,
                                clips: ClipStore, bus: EngineBus, controller: RecordController) {
         (Transport(), TimelineStore(), ClipStore(), EngineBus(), RecordController())
     }
 
+    @MainActor
     func testArmedAudioLanePlusMidi_withAudioRecorderWired_capturesBothOnStop() async {
         let (transport, timeline, clips, bus, controller) = makeRig()
 
@@ -81,6 +87,7 @@ final class RecordControllerAudioHookTests: XCTestCase {
         XCTAssertNotNil(midiRegion, "the armed MIDI lane must still capture its note, unaffected by the audio hook")
     }
 
+    @MainActor
     func testAudioRecorderReturnsNil_noRegionAddedForThatLane_midiStillCommits() async {
         let (transport, timeline, clips, bus, controller) = makeRig()
 
@@ -116,6 +123,7 @@ final class RecordControllerAudioHookTests: XCTestCase {
                         "the MIDI take must still commit even when the audio leg produced nothing")
     }
 
+    @MainActor
     func testOverlappingStop_whileAudioFinishPending_doesNotDropTheTake() async {
         // Transport.stop() has no "already stopped" guard, and a second, unrelated
         // stop subscriber (e.g. the app's route-loss handler) can re-invoke it
@@ -159,6 +167,7 @@ final class RecordControllerAudioHookTests: XCTestCase {
                         "the audio take must still land — an overlapping stop must not drop it")
     }
 
+    @MainActor
     func testNoAudioRecorderWired_behavesExactlyAsBeforeTheHook() async {
         // The default `audioRecorder: nil` path — proves the feature is inert
         // (Release-shipped behavior) when the app doesn't inject a recorder,

@@ -508,6 +508,29 @@ Specifically: never cite a doc for a claim without grepping the doc for the term
 "unchanged" about geometry you altered in ANY dimension; and when you copy a working call from git
 history, copy its SEMANTICS too (the `onDone: nil` default is what makes the roll live, not decoration).
 
+## 2026-07-26 — DEAD-END: reading a `continue-on-error` job's step conclusions
+The `Echoel Full Test Suite (non-blocking)` job reports EVERY step `conclusion: success`,
+including steps that failed — because each is `continue-on-error: true`. `actions_list ->
+list_workflow_jobs` on it therefore tells you nothing at all. **The only honest reading of that
+job is the Summary step's PRINTED TEXT** (`get_job_logs`, `return_content: true`, ~260 tail
+lines): `build-for-testing: <outcome>` / `test-without-building: <outcome>` plus the
+`===ECHOEL_BUILD_ERRORS===` / `===ECHOEL_ERROR_FILES===` blocks, which come from
+`steps.<id>.outcome` and survive the mask.
+Two traps inside that text, both hit on `58ae64e`:
+- `===ECHOEL_ERROR_FILES===` is `sort -u | head -50`. The block came back with exactly 50 lines,
+  all from ONE file — which looks like "one file is broken" but is indistinguishable from
+  truncation. Do NOT conclude "only this file"; verify locally (a per-class-isolation-aware scan
+  of `Tests/`, not a per-file grep — a file whose FIRST class is nonisolated can carry a second,
+  correctly `@MainActor` class, and a naive scan reports 36 false positives).
+- The `test-without-building` failure ("Missing bundle ID … Failed to get bundle ID from
+  Echoelmusic.app") reads like an independent `project.yml` defect, and the workflow's own env
+  comment blames an `EchoelmusicAUv3.appex` placeholder that #122 DELETED. Both are wrong: the
+  step runs unconditionally after a FAILED `build-for-testing`, so it installs a half-built
+  product. **Proof it is a symptom, not a bug: the SAME app target's "Run Tests" step in
+  `Echoelmusic CI/CD Pipeline` installs and runs for 62 s, green, on the same SHA.** So: fix the
+  compile FIRST, then re-measure the install. Do not touch `project.yml` (founder-gated) on the
+  strength of that error line.
+
 ## 2026-07-25 — GATE-PARSE: `cancelled` on the previous SHA is supersede, not failure
 Pushing a second commit quickly cancels the earlier SHA's in-flight runs (workflow concurrency,
 cancel-in-progress). Seen as `completed cancelled | Xcode Compile Check` on `ae81a5d` seconds after
