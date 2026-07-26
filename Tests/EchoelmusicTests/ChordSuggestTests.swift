@@ -290,36 +290,112 @@ final class ChordSuggestTests: XCTestCase {
         }
     }
 
-    func testSuggestJourneyOn_changesTheProgression() {
-        // Provable without pinning draws: earlySynth's legacy progression can
-        // only ever be [0,0] or [0,4] (a rotation of [0,0]; the neutral default
-        // mood never splices — weird 0; the turnaround can only set the last
-        // chord to V). At full coherence the journey's second chord is a
-        // SUBDOMINANT-function degree (ii or IV — the functional-cycle law),
-        // which is neither 0 nor 4, so the second pad section must change.
+    /// Whole-take signature, carried into failure messages: "not equal failed" says nothing
+    /// about WHAT stayed the same, and the CI reveal never prints the message anyway, so this
+    /// is for the artifact log and for anyone running the suite locally.
+    private func signature(_ r: BioComposition) -> String {
+        r.notes.sorted { ($0.startStep, $0.pitch) < ($1.startStep, $1.pitch) }
+            .prefix(24).map { "\($0.startStep):\($0.pitch)" }.joined(separator: ",")
+    }
+
+    // WHY THE NEXT TWO TESTS EXIST, and why one of them asserts the OPPOSITE of what stood here.
+    //
+    // `testSuggestJourneyOn_changesTheProgression` composed earlySynth at coherence 1 with the
+    // journey off vs on and required them to DIFFER. It had been red in the full suite for
+    // months. Its premise was TRUE WHEN WRITTEN (`bf1ee63`, 2026-07-17) and was made false by a
+    // later DELIBERATE DECISION (`de55263`, 2026-07-22), not by a regression — which is the only
+    // thing that makes flipping a red assertion legitimate rather than a blessed defect.
+    //
+    // The old premise: "at full coherence the journey's second chord is a subdominant degree,
+    // which earlySynth's legacy [0,0] progression can never produce". The GENRE-IDENTITY
+    // CROSSFADE (founder 2026-07-22, "bei den Genres kommt erst eine individuelle Variation und
+    // dann klingt plötzlich alles gleich" — task #81) then added, inside the journey branch of
+    // `composeHarmonic`, an anchor that locks the first `k` section roots back to the genre's OWN
+    // authored progression: `k = round(n · max(0.34, min(1, coherence / 0.7)))`. earlySynth has
+    // `progression: [0, 0]` so `n = 2`, and at coherence 1 the anchor is 1, so `k = n` — every
+    // root replaced, every alteration zeroed. When the body is calm the journey is deliberately
+    // and totally overridden, so a settled listener hears THIS genre rather than the generic
+    // functional cycle every genre's high-coherence journey converges on.
+
+    func testSuggestJourneyOn_atFullCoherence_playsTheGenresOwnChords() {
+        // The law itself, asserted on the ON side ALONE so it does not depend on the legacy
+        // path (which is a moving target — see the byte-for-byte test below). earlySynth's
+        // progression is [0, 0] and its chordTones are [0, 2, 4], so with every root anchored
+        // and every alteration zeroed the whole take can only contain pitch classes from the
+        // key's degree-0 triad. A journey chord would introduce a degree the genre never
+        // authored, and a borrowing would introduce an altered pitch class — either shows up.
+        let key = MusicalKey(root: 0, scale: .major)
+        let allowed = Set([0, 2, 4].map { key.degree($0, octave: 4) % 12 })
+        let on = BioComposer.compose(composerInput(style: .earlySynth, coherence: 1,
+                                                   suggestJourney: true))
+        XCTAssertFalse(on.notes.isEmpty, "the journey path must still compose")
+        let stray = on.notes.map { $0.pitch % 12 }.filter { !allowed.contains($0) }
+        XCTAssertEqual(stray, [], "a calm body must hear earlySynth's own I chord, not a journey "
+                       + "chord — allowed=\(allowed.sorted()) stray=\(Set(stray).sorted())")
+    }
+
+    func testSuggestJourneyOn_atFullCoherence_earlySynthAlsoMatchesLegacyByteForByte() {
+        // The stronger observation, kept SEPARATE and named for what it is, because — unlike
+        // the test above — it is NOT a general law and a review caught me implying it was.
+        // Four independent conditions have to hold for these two takes to be byte-identical,
+        // and only the first is the genre-identity anchor:
+        //   1. k == n at coherence 1, so the ON roots are the authored ones.
+        //   2. [0,0] is rotation-invariant — the OFF path rotates by a seeded draw while the
+        //      ON path rotates by phase, so a genre like disco ([0,3,4]) would differ here
+        //      with no regression present.
+        //   3. the OFF path's turnaround draw (0.3647) misses its 0.35 threshold — by 0.0147.
+        //   4. earlySynth has leadDensity 0, which hides the three structureRNG draws the OFF
+        //      path consumes and the ON path skips; give it a lead and the streams desync.
+        // So a red here is NOT automatically a genre-identity regression: check those four
+        // before believing the failure message. It is kept because it pins the exact case the
+        // deleted test got wrong, which is what makes the flip auditable later.
         let off = BioComposer.compose(composerInput(style: .earlySynth, coherence: 1))
         let on = BioComposer.compose(composerInput(style: .earlySynth, coherence: 1,
                                                    suggestJourney: true))
-        // Comparing whole compose results is the right assertion but a useless failure
-        // message: "not equal failed" says nothing about WHAT stayed the same. Carry the
-        // pad pitch/step signature of both sides so the log shows whether the journey was
-        // ignored entirely (identical signatures) or changed something the equality also
-        // covers but the ear would not (e.g. only note count).
-        func signature(_ r: BioComposition) -> String {
-            r.notes.sorted { ($0.startStep, $0.pitch) < ($1.startStep, $1.pitch) }
-                .prefix(24).map { "\($0.startStep):\($0.pitch)" }.joined(separator: ",")
+        XCTAssertEqual(off, on, "off[\(off.notes.count)]=\(signature(off)) | "
+                       + "on[\(on.notes.count)]=\(signature(on))")
+    }
+
+    func testSuggestJourneyOn_whenAroused_changesTheTake() {
+        // The other half of the same law, and the one that keeps the journey from becoming dead
+        // code: the anchor GROWS with coherence off a floor of 0.34, so an aroused body leaves
+        // roots free to explore. If the anchor ever reached `n` at every coherence the whole
+        // ChordSuggest path would stop affecting output — this test and
+        // `BioComposerTests.testGenreHarmonyIdentitySurvivesCalmConvergence` would both fail.
+        //
+        // Deliberately a SWEEP with an existential claim rather than one pinned case, and the
+        // weakening is stated rather than hidden: there is no local Swift toolchain here, so
+        // which individual pair diverges cannot be established without guessing, and a guessed
+        // pin that coincidentally matched would be the same arithmetic-tie trap that kept the
+        // genre-chop test red for months. Note also that these 12 pairs are only ~8 distinct
+        // harmonic configurations: `ChordSuggest.selectionWindow` yields the same window for
+        // 0 and 0.1 and again for 0.2 and 0.3, and `k` moves only once across the range.
+        // "At least one aroused case differs" fails exactly when the journey stops mattering.
+        var differing: [String] = []
+        var identical: [String] = []
+        for style in [MusicStyle.earlySynth, .jazz, .synthwave] {
+            for coherence in [Float(0), 0.1, 0.2, 0.3] {
+                let off = BioComposer.compose(composerInput(style: style, coherence: coherence))
+                let on = BioComposer.compose(composerInput(style: style, coherence: coherence,
+                                                           suggestJourney: true))
+                if off == on { identical.append("\(style)@\(coherence)") }
+                else { differing.append("\(style)@\(coherence)") }
+            }
         }
-        XCTAssertNotEqual(off, on, "ON must actually re-choose the progression — "
-                          + "off[\(off.notes.count)]=\(signature(off)) | "
-                          + "on[\(on.notes.count)]=\(signature(on))")
+        XCTAssertFalse(differing.isEmpty,
+                       "an aroused body must let the chord journey explore — it changed nothing "
+                       + "anywhere: identical=\(identical)")
     }
 
     func testSuggestJourneyOn_journeyAdvancesWithPhase() {
-        // The sustained many-chord Fläche holds ONE chord per bar; the phase
-        // cursor picks WHICH journey chord. At full coherence phase 0 is a
-        // tonic-function chord and phase 2 a dominant-function chord (the
-        // functional cycle) — disjoint degree families in a major key, so the
-        // pad must differ between the bars.
+        // The sustained many-chord Fläche holds ONE chord per bar and the phase cursor picks
+        // WHICH chord. CORRECTED 2026-07-26 (a review found the stated mechanism wrong while
+        // the conclusion held): at full coherence this is NOT the journey cursor picking a
+        // tonic then a dominant. esotericMeditation's progression is [0,1,4] and it IS
+        // sustained, so `n = 1` and the anchor at coherence 1 gives `k = 1` — the single root
+        // is taken from the GENRE's own progression, indexed by phase. Phase 0 reads degree 0
+        // and phase 2 degree 4. Different chords either way, but by the genre anchor, not by
+        // the journey. The journey cursor's own travel is covered by the aroused sweep above.
         let a = BioComposer.compose(composerInput(style: .esotericMeditation, coherence: 1,
                                                   progressionPhase: 0, suggestJourney: true))
         let b = BioComposer.compose(composerInput(style: .esotericMeditation, coherence: 1,
