@@ -549,16 +549,16 @@ struct EchoelStudioView: View {
                     switch note.object as? String {
                     case "master": activeMenu = .master
                     case "export": activeMenu = .export
-                    case "learn":  activeMenu = nil; showLearn = true
+                    case "learn":  showLearn = true
                     #if canImport(MultipeerConnectivity)
-                    case "live":   activeMenu = nil; showLiveColabo = true
+                    case "live":   showLiveColabo = true
                     #endif
                     // Header output monitors (founder 2026-07-12): the
                     // EchoelVideo tile opens the clips library panel, the
                     // EchoelLux tile the routing sheet (existing slot —
                     // slot reuse, no new modal).
                     case "video":   activeMenu = .video; showVideoLibrary = true
-                    case "routing": activeMenu = nil; showRouting = true
+                    case "routing": showRouting = true
                     // The header pulse monitor opens the Bio dropdown (B3).
                     case "bio":     activeMenu = .bio
                     // Step 2b: the Comp chip fell — the residual tempo tools +
@@ -602,8 +602,11 @@ struct EchoelStudioView: View {
             // while a dropdown was open: since the timeline went away (#130) the idle
             // main window was a chip bar, one button and a black void, and every control
             // sat behind a menu and a scrim — the opposite of an instrument.
-            // AnyView keeps the panels' generics out of the root body type, same
-            // discipline as menuBar/startButton (metadata law).
+            // METADATA: this is a FOURTH child of the root VStack, so the body's generic
+            // type grows by one TupleView element — cheaply (a type-erased sibling, not a
+            // ModifiedContent re-wrapping the whole body like a .sheet would), and with no
+            // presentation modifier added, but it GROWS. Do not read this block as licence
+            // to append a fifth; see menuPanelHost's METADATA note.
             AnyView(menuPanelHost)
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
@@ -1219,6 +1222,21 @@ struct EchoelStudioView: View {
                                      && $0 != .composition && $0 != .session
                                      && $0 != .video }
 
+    /// The tab strip: the five instrument tabs, PLUS whatever the plate currently shows if
+    /// a chrome door selected one of the menus the strip normally hides (Master · Export ·
+    /// Bio · Tempo · Session · Video reach the plate through the header/transport, not
+    /// through a chip). Without this, `displayedMenu` matches no chip, so all five render
+    /// inactive: a tab strip that claims to be the selector while showing no selection, and
+    /// a VoiceOver tab list with no selected tab — with nothing on screen naming the panel
+    /// the user is looking at. Harmless while the panel was a transient dropdown over a
+    /// scrim; a lying control now that the strip is permanent. Appended rather than always
+    /// present, so the strip stays short.
+    private var visibleChips: [StudioMenu] {
+        Self.studioChips.contains(displayedMenu)
+            ? Self.studioChips
+            : Self.studioChips + [displayedMenu]
+    }
+
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
@@ -1226,14 +1244,14 @@ struct EchoelStudioView: View {
                 // roll — correct/shape the notes of the take you just generated.
                 // A direct chip, not a dropdown: the roll is a full editor, and it
                 // rides the ONE consolidated craft-editor sheet slot (no new body
-                // modifier). Closing the dropdown first so two modals are never
-                // driven at once (invisible tap-blocking layer).
+                // modifier). It no longer closes the plate first: the plate is not an
+                // overlay, so there is no second layer to avoid — and resetting the tab
+                // on the way to the roll was a side effect nobody asked for.
                 directChip("Notes", icon: "pianokeys",
                            a11y: "Edit the notes of the current loop") {
-                    activeMenu = nil
                     craftEditor = .roll
                 }
-                ForEach(Self.studioChips) { m in
+                ForEach(visibleChips) { m in
                     menuChip(m)
                 }
             }
@@ -1340,37 +1358,52 @@ struct EchoelStudioView: View {
     /// · the 480 cap + `fixedSize` pair — a front plate should use the window, not hug its
     ///   content and leave a void below it.
     ///
-    /// METADATA (black-screen law): this REMOVES a branch and adds no modifier to the root
-    /// body, so the aggregate generic type shrinks. Panels still render always-open inside
+    /// METADATA (black-screen law): NO presentation modifier is added, removed or moved —
+    /// the body's count stays at 16 (10 sheet + 2 cover + 3 alert + 1 fileImporter). But
+    /// the root `VStack` goes from 3 children to 4, so the aggregate generic type GROWS by
+    /// one `TupleView` element. An earlier version of this comment claimed it shrinks; that
+    /// was wrong, and wrong in the dangerous direction — CLAUDE.md's black-screen history is
+    /// a body that sat "just under" the limit and was tipped over by additions made on the
+    /// strength of a comment. It grows cheaply (a type-erased sibling slot, not a
+    /// `ModifiedContent` re-wrapping the whole prior body the way `.sheet` does), which is
+    /// why it is acceptable — not because it is free. Panels still render always-open inside
     /// via `echoelPanelForceOpen`.
     ///
     /// FREEZE LAW, now permanent: panel content is evaluated in the root body ALWAYS, not
-    /// only while a dropdown is open. The existing rule (`dropdownContent` note) already
-    /// requires every live readout inside a panel to live in its own leaf `View`; this
-    /// turns "while open" into "always", so that rule is now load-bearing. Verified for the
-    /// 10 Hz case: `bioPanel` reads the camera only through `BioStripView`, its own leaf.
+    /// only while a dropdown is open, so the "live readouts live in a leaf" rule is now
+    /// load-bearing rather than a convention.
+    /// WHAT ACTUALLY ENFORCES IT (do not mistake this for panel-author discipline): the
+    /// `panel(...)` helper wraps content in `EchoelPanel`, which stores the body as an
+    /// `@escaping @ViewBuilder` closure and invokes it in ITS OWN `body` — a real
+    /// observation boundary, unlike `AnyView`. Ten of the eleven panels go through it, so
+    /// this view only evaluates their `init`. `bioPanel` is the ONE raw `VStack` evaluated
+    /// directly here; its only live readout is the `BioStripView` leaf, so it is clean —
+    /// but it is also the template a future panel could copy. RULE for the next panel:
+    /// build it through `panel(...)`, or keep every live read inside a leaf `View` struct.
     private var menuPanelHost: some View {
+        // No card of its own: the plate's fill would be `EchoelTheme.bg`, the same black as
+        // the root body's background, so it contributed zero contrast — a rounded outline
+        // around an `EchoelPanel` card, i.e. the banned panel-in-panel with a purely
+        // decorative outer container. It was justified while the card floated over a 45 %
+        // scrim; with the scrim gone the panel card is the only container that earns its
+        // keep (Uncodixfy: no nested panel types).
         ScrollView {
             dropdownContent
                 .padding(2)
         }
         .environment(\.echoelPanelForceOpen, true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
-            .fill(EchoelTheme.bg))
-        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)
-            .strokeBorder(EchoelTheme.border, lineWidth: 1))
         .padding(.horizontal, 8)
         .padding(.vertical, 8)
     }
 
-    /// Dropdown content = the EXISTING panel builders, one per menu entry.
+    /// Front-plate content = the EXISTING panel builders, one per tab.
     /// Returns AnyView per case so this switch never grows the host's generic
     /// type (type-checker + metadata discipline).
-    /// NOTE (review): panel content here evaluates in the ROOT body while the
-    /// dropdown is open (no collapsed-DisclosureGroup backstop any more) — any
-    /// live-updating readout inside a panel MUST stay in its own leaf view
-    /// (freeze rule 10.76.41/50).
+    /// FREEZE RULE (10.76.41/50): this is now evaluated in the ROOT body PERMANENTLY, not
+    /// only while a dropdown is open — see `menuPanelHost` for what enforces safety here
+    /// (`EchoelPanel`'s deferred `@ViewBuilder`, not author discipline) and for the rule any
+    /// new panel must follow.
     private var dropdownContent: AnyView {
         switch displayedMenu {
         case .bio:         return AnyView(bioPanel)
@@ -1389,11 +1422,15 @@ struct EchoelStudioView: View {
 
     /// The panel the front plate shows. A front plate has no "nothing" state — the
     /// instrument's controls are always ON it (founder 2026-07-26: "Alles soll mehr so
-    /// aussehen wie früher also im hauptfenster sinnvoll angeordnet"). `activeMenu` stays
-    /// OPTIONAL on purpose: every existing `activeMenu = nil` site (the two-modals-at-once
-    /// law, chrome doors closing a menu before opening a sheet) keeps working unchanged and
-    /// simply falls back to Sound — the timbre panel, i.e. the instrument itself — instead
-    /// of leaving the main window empty the way the old conditional zone did.
+    /// aussehen wie früher also im hauptfenster sinnvoll angeordnet"). Sound — the timbre
+    /// panel, i.e. the instrument itself — is what an untouched launch shows.
+    ///
+    /// `activeMenu` stays OPTIONAL only to carry that initial state. NOTHING sets it back to
+    /// nil any more: the nine `activeMenu = nil` calls that used to close the dropdown
+    /// before opening a sheet are GONE, because the plate is no longer an overlay and cannot
+    /// install the invisible tap-blocking layer the two-modals law guards against — so
+    /// closing it achieved nothing, while the tab reset was a real side effect. It made
+    /// "Master → Routing → dismiss" land the user on Sound with Master gone.
     private var displayedMenu: StudioMenu { activeMenu ?? .sound }
 
     /// B3: the bio strip's new home. The live numbers (HR/HRV/Br/Coh),
@@ -1409,7 +1446,6 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
-                activeMenu = nil
                 showRouting = true
             } label: {
                 Label("Open Routing", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
@@ -1434,7 +1470,6 @@ struct EchoelStudioView: View {
             VideoLibraryPanelContent(
                 onShare: { url in share = ExportedFile(url: url) },
                 onOpenVisual: {
-                    activeMenu = nil            // leaving the dropdown for the window
                     floatingVisualVisible = true
                 })
             #else
@@ -1584,10 +1619,9 @@ struct EchoelStudioView: View {
             Divider().overlay(EchoelTheme.border).padding(.vertical, 2)
             // B5: each channel strip carries its sample door; the browser opens
             // through the EXISTING sampleBrowserTrack sheet slot (slot-reuse law —
-            // the modal chain does not grow). Close the dropdown first so a sheet
-            // never stacks on the open menu overlay (two-layers law).
+            // the modal chain does not grow). Nothing to close first: the plate is not
+            // an overlay, so a sheet cannot stack on it (two-layers law is satisfied).
             ChannelRackView(embedded: true, onSampleBrowse: { idx in
-                activeMenu = nil
                 sampleBrowserTrack = TrackRef(id: idx)
             })
         }
@@ -2244,16 +2278,15 @@ struct EchoelStudioView: View {
             // sACN routes — both lost their only trigger when the Tools grid left
             // the body (2026-07-02). SLOT-REUSE: these set the EXISTING dead
             // sheet slots (showInput/showRouting) — no new modal in the chain.
-            // Close the dropdown first so only ONE layer is ever presented.
+            // No close-first needed: the plate is not an overlay, so only the sheet is
+            // ever a presented layer.
             HStack(spacing: 8) {
                 masterDoorButton("Audio input", icon: "mic",
                                  hint: "Microphone monitoring with feedback protection") {
-                    activeMenu = nil
                     showInput = true
                 }
                 masterDoorButton("Routing", icon: "app.connected.to.app.below.fill",
                                  hint: "OSC, immersive object, and lighting outputs") {
-                    activeMenu = nil
                     showRouting = true
                 }
             }
