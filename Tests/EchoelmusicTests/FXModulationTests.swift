@@ -83,14 +83,21 @@ final class FXModulationTests: XCTestCase {
 
     // MARK: - Presence envelope (the isMeasured boundary is no longer a step)
 
-    /// Step a fixed number of times so two tick rates cover IDENTICAL elapsed time.
-    /// A `while t < seconds` loop does not: at 30 Hz it overshoots to 0.2667 s while
-    /// 120 Hz lands on 0.2500 s, and the resulting gap is a harness artifact big enough
-    /// to swamp the property under test.
-    private func settle(measured: Bool, from start: Float, seconds: Float,
+    /// Step an EXACT number of times, so two tick rates cover IDENTICAL elapsed time.
+    ///
+    /// This comment previously CLAIMED that property while the code below computed its
+    /// count as `Int((seconds / dt).rounded())`, which destroys it: 0.25 s at 30 Hz is
+    /// 7.5 steps → rounds to 8 → covers 0.2667 s, while 0.25 s at 120 Hz is exactly 30
+    /// steps → 0.2500 s. The arms then settled for different durations and differed by
+    /// 0.0083 — 83× the 1e-4 tolerance — so the test measured the harness, not the
+    /// property, and failed the moment the suite first actually ran. Identical trap and
+    /// identical fix as `ParamGlideTests.glide`; that one was caught, this one was not,
+    /// because a correct-sounding comment sat on top of it.
+    /// Pass the step count explicitly. Never derive it.
+    private func settle(measured: Bool, from start: Float, steps: Int,
                         dt: Float, tau: Float) -> Float {
         var p = start
-        for _ in 0..<Int((seconds / dt).rounded()) {
+        for _ in 0..<steps {
             p = FXModulation.presence(current: p, measured: measured, dt: dt, tauSeconds: tau)
         }
         return p
@@ -106,15 +113,20 @@ final class FXModulationTests: XCTestCase {
         // separates the two. A naive Euler step (`alpha = dt/tau`) is genuinely
         // rate-dependent and misses by ~0.023 — which a loose 0.02 tolerance would let
         // through by a hair.
-        let slow = settle(measured: true, from: 0, seconds: 0.25, dt: 1.0 / 30, tau: 0.08)
-        let fast = settle(measured: true, from: 0, seconds: 0.25, dt: 1.0 / 120, tau: 0.08)
+        // Both arms cover exactly 0.3 s: 9 steps at 30 Hz, 36 steps at 120 Hz.
+        let slow = settle(measured: true, from: 0, steps: 9, dt: 1.0 / 30, tau: 0.08)
+        let fast = settle(measured: true, from: 0, steps: 36, dt: 1.0 / 120, tau: 0.08)
         XCTAssertEqual(slow, fast, accuracy: 1e-4)
+
+        // And both must match the ANALYTIC answer, not merely each other — two loops
+        // sharing one wrong coefficient would agree perfectly.
+        XCTAssertEqual(slow, 1 - expf(-0.3 / 0.08), accuracy: 1e-4)
     }
 
     func testPresence_engagesAndDisengagesWithoutOvershoot() {
-        XCTAssertGreaterThan(settle(measured: true, from: 0, seconds: 0.3,
+        XCTAssertGreaterThan(settle(measured: true, from: 0, steps: 9,
                                     dt: 1.0 / 30, tau: 0.08), 0.95)
-        XCTAssertLessThan(settle(measured: false, from: 1, seconds: 0.3,
+        XCTAssertLessThan(settle(measured: false, from: 1, steps: 9,
                                  dt: 1.0 / 30, tau: 0.08), 0.05)
         // One step never crosses its target — no ringing on a fast tick.
         let up = FXModulation.presence(current: 0.9, measured: true, dt: 1, tauSeconds: 0.001)
