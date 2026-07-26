@@ -187,17 +187,26 @@ public final class BioReactiveSynthVoice {
     /// PERFORMANCE PANIC — release the note AND clear the controller-held latch.
     ///
     /// `releaseNote()` alone is not enough for a panic. `heldByController` is set on an
-    /// external `.noteOn` and cleared only by the matching `.noteOff`; if that note-off is
-    /// ever lost (cable pulled, controller unplugged mid-note, a dropped event), the latch
-    /// stays true forever and `consumeBioEventsIfFresh` then refuses every breath onset —
-    /// breath play is dead for the rest of the session, and nothing else in the app can
-    /// clear it (`disarm()` does not touch it either). Panic is the natural place to break
-    /// that latch, so this exists and is what the panic button calls.
+    /// external `.noteOn` and cleared by any later `.noteOff` (unmatched — the first key
+    /// release of a chord already clears it). But if that note-off never arrives at all —
+    /// controller unplugged mid-note, or an event dropped because `bus.controllerEvents` is a
+    /// bounded SPSC queue under flood — the latch stays true and `consumeBioEventsIfFresh`
+    /// refuses every breath onset. Breath play is then dead for the rest of the session and
+    /// no UI control can clear it (`disarm()` does not touch it); only a later controller
+    /// `.noteOff`, which by construction is exactly what is missing. Panic is the natural
+    /// place to break the latch, so this exists and is what the panic button calls.
     ///
-    /// `isArmed` is deliberately NOT cleared: panic means "silence what is sounding now",
-    /// not "switch the instrument off". The bio voice therefore re-opens on the next inhale,
-    /// which is the intended behaviour for a body-driven instrument — `disarm()` and Stop are
-    /// the controls that end bio sound.
+    /// `isArmed` is deliberately NOT cleared: this is a RELEASE, not a mute. The bio arm
+    /// re-opens on the next inhale — just as every sequenced voice re-attacks on its next
+    /// step, since the panic does not stop the transport either. Clearing `isArmed` would
+    /// make this one voice behave unlike the other seven and would silently switch the
+    /// instrument's bio arm off from a button reached for a stuck note. `disarm()` ends bio
+    /// sound by mechanism; Stop ends it in effect, by starving the source.
+    ///
+    /// One accepted delta: a performer physically holding a MIDI key across a Stop loses
+    /// performer priority, so breath can open the voice while the key is down and the
+    /// eventual real `.noteOff` then cuts that breath note mid-phrase. Narrow enough to live
+    /// with — recorded here so it is not rediscovered as a bug.
     public func panic() {
         heldByController = false
         releaseNote()

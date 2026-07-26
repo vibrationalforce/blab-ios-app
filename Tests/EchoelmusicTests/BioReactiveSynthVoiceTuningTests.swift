@@ -49,4 +49,39 @@ final class BioReactiveSynthVoiceTuningTests: XCTestCase {
         v.setTuning(a4Hz: 9999)                                 // absurdly high
         XCTAssertEqual(v.soundingFrequency(forMIDINote: 69), 500, accuracy: 1e-3, "clamped down to ceiling")
     }
+
+    // MARK: - Performance panic (the controller-held latch)
+
+    /// A lost external note-off leaves `heldByController` true, and `consumeBioEventsIfFresh`
+    /// then refuses EVERY breath onset — breath play is dead for the rest of the session with
+    /// no UI control able to clear it. `panic()` exists to break that latch.
+    ///
+    /// SCOPE, stated plainly: this pins that `panic()` clears the latch and that
+    /// `releaseNote()` does not — i.e. that `panic()` is not a trivial alias. It does NOT pin
+    /// the CALL SITE. `EchoelStudioView.panicAllNotesOff()` is private on a `View` struct and
+    /// unreachable from XCTest, so nothing here fails if someone reverts that line to
+    /// `bioVoice.releaseNote()`. (An earlier version of this comment claimed it would — it
+    /// could not. See task #168 for making the panic fan-out itself testable.)
+    func testBioPanic_clearsAStuckControllerHeldLatch() {
+        let noteOn = ControllerEvent(timestamp: 1, kind: .noteOn, channel: 1,
+                                     note: 60, value: 0.8, auxCC: 0)
+
+        let voice = BioReactiveSynthVoice()
+        voice.applyControllerForTests(noteOn)     // external note-on…
+        // …and NO matching note-off ever arrives (cable pulled mid-note).
+        XCTAssertTrue(voice.isPlayingNote, "precondition: the controller note must be sounding")
+        XCTAssertTrue(voice.heldByControllerForTests, "precondition: the latch must be set")
+
+        voice.panic()
+
+        XCTAssertFalse(voice.isPlayingNote, "panic must release the sounding note")
+        XCTAssertFalse(voice.heldByControllerForTests,
+                       "panic left the controller latch set — breath play stays dead")
+
+        let releaseOnly = BioReactiveSynthVoice()
+        releaseOnly.applyControllerForTests(noteOn)
+        releaseOnly.releaseNote()
+        XCTAssertTrue(releaseOnly.heldByControllerForTests,
+                      "releaseNote() alone still leaves the latch set — that is WHY panic() exists")
+    }
 }

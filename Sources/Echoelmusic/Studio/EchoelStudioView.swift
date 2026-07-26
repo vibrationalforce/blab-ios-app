@@ -2067,8 +2067,12 @@ struct EchoelStudioView: View {
                     .accessibilityHint("Clear the integrated loudness and peak hold")
             }
 
+            // LABEL IS A RELEASE, NOT A MUTE (review 2026-07-26). "Silence" over-promised:
+            // this button releases every held note, but it does not stop the transport, so the
+            // roll re-attacks on its next step and the bio arm re-opens on the next inhale.
+            // The accessibility hint below always said "release"; the label now agrees.
             Button { panicAllNotesOff() } label: {
-                Label("Silence — all notes off", systemImage: "speaker.slash")
+                Label("Release all notes", systemImage: "speaker.slash")
                     .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
                     .frame(maxWidth: .infinity).frame(height: 40)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -2116,24 +2120,26 @@ struct EchoelStudioView: View {
     /// plus MIDI out. Kills stuck notes live.
     ///
     /// The list used to be `synth`, `subBass`, `midiOut` — three of the eight releases below.
-    /// (Three of eight CALL SITES, not of eight voices: `laneVoiceRack` is a whole rack and
-    /// `midiOut` is not a voice at all. The earlier "three of seven" counted the same way but
-    /// read as a voice count.) `leadSynth`, `touchSynth` (both `PolySynthVoice`, the play
-    /// surfaces), `bioVoice` (monophonic, driven by incoming MIDI note-on/off via
-    /// `drainControllerEvents`), every voice in `laneVoiceRack`, and the piano roll's own
-    /// active-note table all produce or hold notes and all survived the panic, while the
-    /// button's accessibility hint promised "every sounding note on every voice". A stuck note
-    /// on the lead or the play surface is a *more* likely reason to reach for this than one on
-    /// the composer's synth, so the button failed precisely in the case it exists for.
+    /// `leadSynth`, `touchSynth` (both `PolySynthVoice`, the play surfaces), `bioVoice`
+    /// (monophonic, driven by incoming MIDI note-on/off via `drainControllerEvents`), every
+    /// voice in `laneVoiceRack`, and the piano roll's own active-note table all produce or hold
+    /// notes and all survived the panic, while the button's accessibility hint promised "every
+    /// sounding note on every voice". A stuck note on the lead or the play surface is a *more*
+    /// likely reason to reach for this than one on the composer's synth, so the button failed
+    /// precisely in the case it exists for.
+    ///
+    /// NOT COVERED BY A TEST: this method is `private` on a `View` struct, so XCTest cannot
+    /// reach it — nothing fails if a release is dropped from this list. Task #168 is the seam.
     ///
     /// `pianoRoll.allNotesOff()` comes FIRST and is not redundant with the direct releases
     /// below: it also CLEARS the roll's `active` note table. Without it the roll still
     /// believes those notes are held, and its next tick issues a pitch-matched
     /// `noteOff(pitch:)` — which on the monophonic `SubBassVoice` releases whatever is
     /// sounding at that pitch, i.e. it can cut a note the user has just retriggered AFTER
-    /// the panic. `stopEverything(reason:)` already calls both, in this order, for exactly
-    /// this reason; the panic button must match it or it is a weaker Stop wearing an
-    /// "every voice" label.
+    /// the panic. `stopEverything(reason:)` has always called both in this order, though its
+    /// own comment gave a different reason ("in case a voice ref falls out of sync") — the
+    /// stale-`active` hazard above is the one that actually bites, and either way the panic
+    /// button must match Stop or it is a weaker Stop wearing an "every voice" label.
     ///
     /// If a new note-producing voice is added to this view, it belongs here in the same edit.
     /// Nothing in the type system enforces that — this comment is the enforcement.
@@ -3413,11 +3419,12 @@ struct EchoelStudioView: View {
         lockSnapTask?.cancel(); lockSnapTask = nil
         beatPlayer.pattern.stop()       // stops the transport (→ onStop flush)
         // Force-silence EVERY voice explicitly — never rely on the onStop callback
-        // wiring alone. `panicAllNotesOff()` now leads with `pianoRoll.allNotesOff()`
-        // itself, so the explicit call below is redundant — kept deliberately: it is the
-        // one line that makes Stop's silencing independent of what the panic helper
-        // happens to contain today. Both are idempotent, so doubling up can never leave a
-        // note ringing ("Sound bleibt hängen" fix).
+        // wiring alone. `panicAllNotesOff()` now leads with `pianoRoll.allNotesOff()` itself,
+        // so the explicit call below is redundant — kept as a cheap explicit guarantee for the
+        // ROLL specifically. It buys nothing for the other seven releases: Stop is still
+        // wholly dependent on the helper for synth / subBass / lead / touch / bio / rack /
+        // MIDI. Both calls are idempotent, so doubling up can never leave a note ringing
+        // ("Sound bleibt hängen" fix).
         pianoRoll.allNotesOff()
         panicAllNotesOff()
         synth.bioModulationEnabled = false   // stop the 10 Hz timbre drive too

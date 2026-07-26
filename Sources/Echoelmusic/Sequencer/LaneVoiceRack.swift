@@ -259,8 +259,10 @@ public final class LaneVoiceRack {
     ///
     /// One arm is a known no-op: `.drums` reaches `LaneDrumKitVoice.allNotesOff()`, an empty
     /// body by design (modal strikes self-decay, there is no gate). Since the drum removal
-    /// (founder 2026-07-26) `kits` is also always empty in Release, so that loop never even
-    /// iterates. Both facts are deliberate — do not "fix" the empty arm.
+    /// (founder 2026-07-26) `kits` is also empty in Release — `attachAll` no longer creates a
+    /// kit; only the `#if DEBUG` install seam still can, which is what the tests below use.
+    /// Both facts are deliberate, so do not "fix" the empty arm — task #167 DELETES this arm
+    /// together with the rest of the drum apparatus.
     ///
     /// It routes each voice through the private per-ref `allNotesOff(on:)` below rather than
     /// duplicating that switch, so the two can never disagree about how a kind is silenced.
