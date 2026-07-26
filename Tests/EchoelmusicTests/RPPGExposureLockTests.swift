@@ -109,6 +109,52 @@ final class RPPGExposureLockTests: XCTestCase {
                        "the budget is hard — an inherently weak placement can never thrash the lock")
     }
 
+    // MARK: - Dead-window flush once the re-settle budget is exhausted (device log 2465)
+
+    func testDeadWindowFlush_onlyAfterTheBudgetIsExhausted_andSustained() {
+        XCTAssertFalse(P.deadWindowNeedsFlush(weakTicks: 10_000, relocksUsed: 0),
+                       "budget still available → the re-settle owns the recovery, not the flush")
+        XCTAssertFalse(P.deadWindowNeedsFlush(weakTicks: 10_000,
+                                              relocksUsed: P.maxWeakRelocks - 1),
+                       "one re-settle left is still not exhausted")
+        XCTAssertFalse(P.deadWindowNeedsFlush(weakTicks: P.deadWindowFlushAfterTicks - 1,
+                                              relocksUsed: P.maxWeakRelocks),
+                       "one tick short of the sustained-dead threshold flushes nothing")
+        XCTAssertTrue(P.deadWindowNeedsFlush(weakTicks: P.deadWindowFlushAfterTicks,
+                                             relocksUsed: P.maxWeakRelocks),
+                      "exhausted budget + sustained dead window = device log 2465's four "
+                      + "minutes of conf=0.00; this is the only recovery left")
+    }
+
+    // This is the test the previous attempt at this fix did NOT have, and its absence is
+    // exactly why that attempt was wrong: all three of its pure helpers were individually
+    // correct while their COMPOSITION in the tick path re-spent the recovery it had just
+    // granted, in the same tick. Drive the two predicates against a SHARED counter in the
+    // real tick order instead of asserting each in isolation.
+    func testTwoRecoveries_areMutuallyExclusive_soNoTickCanDoBoth() {
+        for used in 0...P.maxWeakRelocks {
+            for weak in [0, P.weakRelockAfterTicks, P.deadWindowFlushAfterTicks, 5_000] {
+                let flush = P.deadWindowNeedsFlush(weakTicks: weak, relocksUsed: used)
+                let resettle = P.weakLockNeedsResettle(weakTicks: weak, relocksUsed: used)
+                XCTAssertFalse(flush && resettle,
+                               "weak=\(weak) used=\(used): a single tick must never both flush "
+                               + "the window AND spend an exposure re-settle")
+            }
+        }
+    }
+
+    func testExhaustedBudget_isNoLongerADeadEnd() {
+        // The defect in device log 2465, stated as a property: with the budget spent and
+        // the window dead, SOMETHING must still be able to recover. Before this fix both
+        // predicates were false here and the take stayed dead until the finger lifted.
+        let used = P.maxWeakRelocks
+        let weak = P.deadWindowFlushAfterTicks
+        XCTAssertFalse(P.weakLockNeedsResettle(weakTicks: weak, relocksUsed: used),
+                       "the exposure re-settle budget stays hard-bounded per placement")
+        XCTAssertTrue(P.deadWindowNeedsFlush(weakTicks: weak, relocksUsed: used),
+                      "…but the analyzer window can still be flushed, so the take is recoverable")
+    }
+
     func testPhantomBackoff_stretchesRequiredStableTime_andIsCapped() {
         // Device log 2026-07-07 (~890 s on): with NO finger, ambient light re-armed the
         // lock every ~9 s. Each quick-fail must stretch the next lock's stable window.

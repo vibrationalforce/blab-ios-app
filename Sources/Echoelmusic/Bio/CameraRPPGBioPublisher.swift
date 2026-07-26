@@ -390,6 +390,43 @@ public final class CameraRPPGBioPublisher {
         weakTicks >= weakRelockAfterTicks && relocksUsed < maxWeakRelocks
     }
 
+    /// LAST-RESORT RECOVERY once the re-settle budget is EXHAUSTED.
+    ///
+    /// Device log 2465 (v10.79.349, founder ~10 min session): the budget was spent at
+    /// relock 1/2 (t≈145 s) and 2/2 (t≈162 s), and because the finger never left the
+    /// lens neither reset path — a new placement (`relockOnLossTicks`, ~3 s off) nor a
+    /// fresh capture session — ever fired. The remaining four minutes read `conf=0.00`
+    /// with `amp` swollen to 0.15–0.54, `pk=0` and `acf`→0 while `bright`/`R` drifted
+    /// upward: a rolling window full of drift, with NO recovery mechanism left at all.
+    /// `bio=0` in the visual line for nearly the whole take is that same fact from the
+    /// other end — the instrument's premise (the body drives the sound) was dead while
+    /// the user held perfectly still.
+    ///
+    /// The fix deliberately does NOT hand out more exposure re-settles. A re-settle is
+    /// expensive and gambles the lock (`unlockExposure` + `setTorch` reconfigure, and it
+    /// injects the exposure brightness STEP into the window — this file's history is a
+    /// list of regressions from exactly that churn: the phantom-lock oscillation above,
+    /// and relock 2/2 collapsing a WORKING signal to conf 0.03). Instead it flushes the
+    /// ANALYZER window, which is what the symptom actually points at, costs nothing but
+    /// the refill, and cannot destabilise the exposure state machine because it never
+    /// touches it. `displayBPM` is held by the publish loop across the refill (it never
+    /// advances on bpm=0), so the SHOWN pulse holds instead of snapping to 0 — the same
+    /// contract the two existing `resetForRecovery()` call sites rely on.
+    ///
+    /// 30 s of CONTINUED weakness *after* the budget ran out, self-rate-limited: the
+    /// flush zeroes the counter and empties the window, so `weakTicksStep`'s
+    /// `windowFull` guard holds it at 0 for the whole refill. At most one flush per
+    /// ~30 s + refill while dead, and none at all while the signal is usable.
+    nonisolated static let deadWindowFlushAfterTicks = 300   // ~30 s at 10 Hz
+
+    /// Whether an exhausted-budget lock has been dead long enough to flush the analyzer
+    /// window. Mutually exclusive with `weakLockNeedsResettle` BY CONSTRUCTION — that one
+    /// requires `relocksUsed < maxWeakRelocks`, this one requires the opposite — so the
+    /// two recoveries can never fire in the same tick or compete for the counter. Pure.
+    nonisolated static func deadWindowNeedsFlush(weakTicks: Int, relocksUsed: Int) -> Bool {
+        relocksUsed >= maxWeakRelocks && weakTicks >= deadWindowFlushAfterTicks
+    }
+
     /// A locked scene is washed out (AC pulse swamped) once it drifts too bright or
     /// the red channel clips — trigger a re-settle so it recovers instead of sitting dead.
     nonisolated static func isWashedOut(brightness: Float, red: Float) -> Bool {
@@ -891,6 +928,26 @@ public final class CameraRPPGBioPublisher {
                                           acf: Float(analyzer.lastAutoStrength),
                                           confidence: Float(confidence),
                                           settled: isSettled)
+
+        // Budget EXHAUSTED and still dead → flush the analyzer window instead of asking
+        // for an exposure re-settle nobody is allowed to have (device log 2465: four
+        // minutes of conf=0.00 with the finger on the lens and no recovery left). See the
+        // doc block on deadWindowFlushAfterTicks for why this is a window problem, not an
+        // exposure problem. Checked BEFORE the re-settle branch purely for readability —
+        // the two conditions are mutually exclusive on relocksUsed, so order is moot.
+        if Self.deadWindowNeedsFlush(weakTicks: weakAcfTicks, relocksUsed: weakRelocksUsed) {
+            // Breadcrumb the state we are flushing BECAUSE of, not the zeroes the flush
+            // leaves behind — resetForRecovery() clears lastAutoStrength and the analyzer
+            // confidence, so reading them afterwards would log "acf=0.00 conf=0.00" every
+            // time and the log could never show WHICH dead state triggered it.
+            let note = String(format:
+                "rPPG: flushing a dead analysis window — budget spent, still no pulse (bright=%.2f acf=%.2f conf=%.2f)",
+                bright, Float(analyzer.lastAutoStrength), Float(confidence))
+            weakAcfTicks = 0
+            analyzer.resetForRecovery()
+            EchoelCrashLog.breadcrumb(note)
+        }
+
         if Self.weakLockNeedsResettle(weakTicks: weakAcfTicks, relocksUsed: weakRelocksUsed) {
             weakRelocksUsed += 1
             capture.unlockExposure()
@@ -960,6 +1017,7 @@ public final class CameraRPPGBioPublisher {
         fingerLostTicks = 0
         fingerPresentTicks = 0
         weakAcfTicks = 0
+        strongLockTicks = 0
         weakRelocksUsed = 0   // fresh capture session = fresh re-lock budget
         lockAgeTicks = 0
         quickFailLocks = 0    // fresh session = fresh phantom-backoff state
@@ -1007,6 +1065,15 @@ public final class CameraRPPGBioPublisher {
         fingerStableTicks = 0
         saturatedTicks = 0
         fingerLostTicks = 0
+        // A NEW TAKE EARNS A FRESH RE-LOCK BUDGET. These four were missing here, and that
+        // is what closed the founder's own escape hatch in device log 2465: after the two
+        // re-settles were spent, tapping stop and starting again came back with the budget
+        // still at 2/2 and the weakness counter still loaded, so the fresh take had no
+        // recovery either. `start()` resets none of them, and the "fresh capture session"
+        // path (handleCameraSessionReset) only runs on a STALL — never on a user stop.
+        fingerPresentTicks = 0
+        weakAcfTicks = 0
+        weakRelocksUsed = 0
         lockAgeTicks = 0
         quickFailLocks = 0
         stallTicks = 0
