@@ -140,6 +140,12 @@ public final class PianoRollModel {
 
     /// ONE-SHOT: "the stop that is about to happen is a PAUSE, not the end of the session."
     ///
+    /// ⚠ DORMANT since 2026-07-26. The only producer is `PianoRollView.transport`, and the
+    /// founder had the roll's door removed ("Pianoroll soll raus"), so no view mounts it and
+    /// this flag can no longer be raised. The mechanism is kept, not deleted, because the
+    /// invariant below is the expensive part and would have to be re-derived the moment any
+    /// surface can request a playback-only stop again. Retiring it is its own slice (#180).
+    ///
     /// The app has ONE Stop by law: whenever the shared transport stops from anywhere, the
     /// Studio ends the bio session too, so nothing is left armed behind a stopped clock. That
     /// is right for the chrome's ■ — and punishing for the roll's own transport button, which

@@ -363,8 +363,10 @@ struct EchoelStudioView: View {
     // buy headroom for the bottom-bar dissolve (PLAN_DISSOLVE_BOTTOM_BAR_2026-07-14).
     // ⚠ CORRECTED 2026-07-25 (#131): the timeline itself is GONE (pure-instrument epic
     // #121, Slice 4), so "opened from the lane-head doors" no longer describes anything.
-    // The piano roll is doored again below — through the ONE consolidated
-    // `craftEditor` slot, never by re-adding a per-editor sheet. AudioClip / AUv3 /
+    // ⚠ CORRECTED AGAIN 2026-07-26: the piano roll's door is gone for good (founder:
+    // "Pianoroll soll raus"), and the one-slot `craftEditor` sheet went with it — the
+    // chain is 15 modifiers, not 16. `PianoRollModel` is NOT part of that removal; it
+    // is the note engine behind every generated take. AudioClip / AUv3 /
     // Broadcast are deliberately NOT coming back (docs/dev/PRODUCT_DEFINITION.md CUT
     // column names all three); the automation editors are gone because Slice 4d
     // (36a8468) deleted them as unreachable, which that doc does not itself discuss.
@@ -374,7 +376,11 @@ struct EchoelStudioView: View {
     // `unisonVoices`, `unisonDetuneCents`) and its preview keyboard have NO editor
     // anywhere else — port those rows into `soundPanel` first, or the deletion is a
     // silent capability loss, not a cleanup.
-    /// Presents a file picker to import a Standard MIDI File onto the piano roll.
+    /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
+    /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
+    /// roll it imported into has no door any more either. Kept as a reusable slot, like
+    /// `sampleBrowserTrack` below, on the same "a free slot beats three saved lines at the
+    /// metadata ceiling" trade. Do not read the declaration as evidence MIDI import ships.
     @State private var midiImportPresented = false
     /// Drives the project-import file picker in the Open-project sheet.
     @State private var projectImportPresented = false
@@ -393,25 +399,19 @@ struct EchoelStudioView: View {
     /// than three saved lines. It must stay unset until something legitimately claims it.
     ///
     /// Be honest about the cost of that trade: this is the FOURTH un-settable presentation
-    /// flag on the same 16-modifier chain (`showVisual`, `midiImportPresented` and the
-    /// visual-REC path are already recorded in CLAUDE.md as flags nobody can set). Four dead
-    /// slots is headroom only if a future session actually reuses them instead of appending
-    /// a 17th modifier — which is the crash this chain is one step away from.
+    /// flag on the same chain (`showVisual`, `showMeditation`, `midiImportPresented` — all
+    /// verified setter-less by grep, 2026-07-26). The chain is 15 modifiers since the piano
+    /// roll's door went; four dead slots is headroom only if a future session actually reuses
+    /// them instead of appending a 16th — which is the crash this chain is one step away from.
     @State private var sampleBrowserTrack: TrackRef?
 
-    /// The craft editors — instrument CONTROLS, not DAW surfaces (Editor ≠
-    /// Workstation, `docs/dev/PRODUCT_DEFINITION.md`). ONE `.sheet(item:)` slot
-    /// serves all of them, so adding the next editor costs a case here and a
-    /// switch arm in `craftEditorSheet(_:)` — never another body modifier
-    /// (black-screen metadata law). Cases are added only WITH their door: an
-    /// undoored case would be exactly the lying `toolItems` trap (#131).
-    private enum CraftEditor: String, Identifiable {
-        /// The piano roll — correct/shape the notes of the current loop. Also the
-        /// `MusicalFrame` publisher that feeds the visual/light output stage.
-        case roll
-        var id: String { rawValue }
-    }
-    @State private var craftEditor: CraftEditor?
+    // The craft-editor sheet slot is GONE with the piano roll (founder 2026-07-26,
+    // "Pianoroll soll raus"). It held exactly one case, so removing the roll's door
+    // left an undoored enum — the lying-`toolItems` trap the slot's own comment
+    // warned about — and the honest move was to take the slot with it. The body's
+    // presentation chain therefore SHRINKS 16 → 15, which is the safe direction.
+    // Whoever adds the next craft editor re-introduces this slot as a
+    // `.sheet(item:)` + enum + out-of-body content builder, never a bare `.sheet`.
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -708,10 +708,16 @@ struct EchoelStudioView: View {
             // #161: the first version read the flag *after* `guard running`, so a pause
             // requested while no take was live stayed outstanding and downgraded the next REAL
             // Stop to a pause — music off, camera and torch still on, `running` still true, and
-            // the ■ already flipped back to ▶ so the user had no obvious way out. Reachable in
-            // four taps from a cold launch (Notes → ▶ → ⏸ → close → Start → ■), because the
-            // Notes chip does not require a running take. `TransportTransition` exists to keep
-            // that guard downstream of this read, where it cannot swallow the request.
+            // the ■ already flipped back to ▶ so the user had no obvious way out. It used to be
+            // reachable in four taps from a cold launch (Notes → ▶ → ⏸ → close → Start → ■).
+            // ⚠ THAT REPRO IS GONE, and the mechanism with it: the piano roll's door was removed
+            // 2026-07-26 ("Pianoroll soll raus"), and `requestPlaybackOnlyStop()` has exactly one
+            // producer — `PianoRollView.transport` — which nothing mounts any more. So this read
+            // now always returns false, `.pausePlayback` is unreachable, and behaviour is exactly
+            // pre-#161. DO NOT read that as "the ordering was over-engineering" and inline it:
+            // the ordering IS the fix, and it becomes load-bearing again the instant anything
+            // re-acquires the ability to request a playback-only stop. Retiring the mechanism
+            // outright is a separate slice (#180), not a comment-cleanup side effect.
             let pauseRequested = pianoRoll.consumePlaybackOnlyStopRequest()
             switch TransportTransition.decide(isPlaying: playing,
                                               running: running,
@@ -765,10 +771,6 @@ struct EchoelStudioView: View {
         }
         #endif
         .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
-        // #131 "Kontrolle": ONE slot for ALL craft editors. The content switch lives
-        // in `craftEditorSheet(_:)`, not inline, so the body's aggregate generic type
-        // stays flat and the NEXT editor costs zero modifiers.
-        .sheet(item: $craftEditor) { craftEditorSheet($0) }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             // NOT AnyView-wrapped: this cover builds lazily on present (it never
@@ -910,9 +912,10 @@ struct EchoelStudioView: View {
     //    caller unmounted, `.fullScreenCover($showVisual)`, `.fileImporter($midiImportPresented)`
     //    and `.fullScreenCover($showMeditation)` can never open. That is how CLAUDE.md came
     //    to certify `SpectralDonutView` as reachable (it renders ONLY inside the first of
-    //    those covers) and MIDI import as wired. Three of the body's 16 presentation
+    //    those covers) and MIDI import as wired. Three of the body's 15 presentation
     //    modifiers are therefore free headroom at the metadata ceiling the black-screen law
-    //    is fighting over — reuse those slots, never append a 17th.
+    //    is fighting over — reuse those slots, never append a 16th. (Count corrected
+    //    2026-07-26: the piano roll's door took the 16th modifier with it.)
     // 2. It was the LYING-`toolItems` TRAP in the flesh: the catalog declared 13 tools,
     //    `openTool` handled 7. `pianoroll`, `sound`, `automation`, `audioclip`, `plugins`
     //    and `broadcast` fell through `default: break` — six chips that would have rendered
@@ -1109,17 +1112,13 @@ struct EchoelStudioView: View {
     private var menuBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                // #131 "Kontrolle" (ship gate item 2): the ONE door to the piano
-                // roll — correct/shape the notes of the take you just generated.
-                // A direct chip, not a dropdown: the roll is a full editor, and it
-                // rides the ONE consolidated craft-editor sheet slot (no new body
-                // modifier). It no longer closes the plate first: the plate is not an
-                // overlay, so there is no second layer to avoid — and resetting the tab
-                // on the way to the roll was a side effect nobody asked for.
-                directChip("Notes", icon: "pianokeys",
-                           a11y: "Edit the notes of the current loop") {
-                    craftEditor = .roll
-                }
+                // The "Notes" chip (the piano roll's door) is GONE — founder
+                // 2026-07-26, "Pianoroll soll raus". `PianoRollModel` deliberately
+                // stays: it is not the editor, it is the note ENGINE that plays the
+                // generated take and publishes `MusicalFrame` to the visual/light
+                // output stage. Removing the model with the door would have silenced
+                // the instrument and greyed out the very visuals the same message
+                // asked to improve.
                 ForEach(visibleChips) { m in
                     menuChip(m)
                 }
@@ -1190,27 +1189,9 @@ struct EchoelStudioView: View {
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    /// A direct-action chip (no dropdown): icon + label, opens an existing sheet.
-    private func directChip(_ title: String, icon: String, a11y: String,
-                            action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            chipTapTarget {
-                HStack(spacing: 5) {
-                    Image(systemName: icon).font(.system(size: 11))
-                    Text(title).font(EchoelTheme.font(12, .semibold))
-                }
-                .foregroundStyle(EchoelTheme.text)
-                .padding(.horizontal, 10)
-                .frame(height: 26)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
-                    .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(a11y)
-    }
+    // `directChip` went with the piano roll's door — it had exactly one caller and
+    // Swift does not warn about an unused private method, so leaving it would have
+    // been invisible dead code in the file that is hardest to keep honest.
 
     /// THE FRONT PLATE — the instrument's controls, in the main window, always visible.
     ///
@@ -3156,31 +3137,6 @@ struct EchoelStudioView: View {
         }   // panel("Export")
     }
 
-    // MARK: - Craft editors (#131)
-
-    /// Content for the ONE craft-editor slot. Deliberately a separate builder
-    /// returning `AnyView` per case: the root body must never carry an editor's
-    /// generics (metadata/black-screen law), and a new editor is then a case here.
-    ///
-    /// The roll is presented with its DEFAULT `onDone` (nil) — i.e. NOT clip-scoped
-    /// (`PianoRollView.isClipScoped`) — so it edits the LIVE take through the SAME
-    /// `PianoRollModel` the app wired at startup, and it gets its Play button and
-    /// playhead. A clip-scoped roll would instead be handed a throwaway model: silent,
-    /// no playhead, and edits that only exist until Done.
-    ///
-    /// NOT true (corrected — the first version of this comment said it): presenting
-    /// the roll is not what publishes `MusicalFrame`. That publish lives in
-    /// `PianoRollModel`'s tick handler (PianoRollView.swift) and fires on every tick
-    /// whether or not any view is on screen, because the app installs the model once
-    /// (`EchoelmusicApp.swift:732`). So this door is load-bearing for EDITING; the
-    /// visual/light output stage stays lit without it.
-    private func craftEditorSheet(_ editor: CraftEditor) -> AnyView {
-        switch editor {
-        case .roll:
-            return AnyView(PianoRollView(pattern: beatPlayer.pattern, model: pianoRoll))
-        }
-    }
-
     // MARK: - Diagnostics
 
     /// On launch, if the previous run reached biofeedback start (or recorded a
@@ -3429,6 +3385,10 @@ struct EchoelStudioView: View {
     /// Re-arm what a roll PAUSE cancelled (#161). Anything the pause stopped and this does not
     /// restart is a capability the take loses silently for the rest of its life.
     ///
+    /// NOTE 2026-07-26: no roll pause can occur any more (the roll's door is gone, so nothing
+    /// mounts the only view that requests one). This function is NOT dead, though — it also runs
+    /// on `.resume`, i.e. every ordinary Start. Only the "roll" in its name is now historical.
+    ///
     /// Both calls cancel their own predecessor, so this is safe on the NORMAL Start path too
     /// (which runs `startEvolving()` and `snapToLockWhenReady()` itself, synchronously, in the
     /// same turn as the transport flip — it can never end up with two loops or two watchers).
@@ -3452,7 +3412,9 @@ struct EchoelStudioView: View {
     /// regenerate would silently overwrite, since `regenTask`'s own guard is `running` and that
     /// stays true here), while the SENSOR keeps running. `stopBioSource()` costs another
     /// finger-on-lens re-lock, ~20 s, to undo — that cost is what made the Notes editor
-    /// unusable during a take.
+    /// unusable during a take. (That editor has no door since 2026-07-26, so this whole
+    /// function is currently unreachable; it is kept because the reasoning is the design of
+    /// the pause state, and deleting it is a deliberate slice, not a comment cleanup.)
     ///
     /// BE HONEST ABOUT WHAT THIS IS: "camera live, no music" is a NEW state, introduced here.
     /// An earlier version of this comment called it "the state the Bio panel's own arm already
