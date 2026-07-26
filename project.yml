@@ -72,48 +72,71 @@ targets:
         type: group
         excludes:
           - "**/*.md"
-          # Drums/Samples/Community are declared ONLY via the explicit
-          # `resources: type: folder` entries below (they need the real
-          # subdirectory structure preserved for `subdirectory:`-based bundle
-          # lookups). Without these excludes the generic group walk ALSO
-          # registers every file under them individually (flattened), so each
-          # file was double-declared — resources: type: folder + Community's
-          # own explicit entry (added to fix CommunityLibraryTests/
-          # MoodPresetTests, project.yml commit 95f0602) did not actually
-          # resolve the CI failures, because the flattened duplicate from this
-          # group walk was what the build kept. Excluding them here removes
-          # the ambiguity at its root instead of guessing at Xcode's
-          # duplicate-resolution order.
+          # Drums/Samples/Community are declared ONLY via the explicit folder
+          # entries below, which preserve the real subdirectory structure that
+          # `subdirectory:`-based bundle lookups need. Without these excludes the
+          # generic group walk ALSO registers every file under them individually
+          # (flattened), so each file would be double-declared.
           - "Resources/Drums/**"
           - "Resources/Samples/**"
           - "Resources/Community/**"
-    resources:
-      - path: Sources/Echoelmusic/Resources/Assets.xcassets
-      # (Removed 2026-07-07: the GeneralUser GS soundfont bundle entry — the
-      # sampled-instrument voice is gone entirely, founder "Real Instruments
-      # komplett raus", so the 31 MB .sf2 no longer ships.)
-      # Drum + sample WAVs — folder references preserve the Drums/ · Samples/
-      # subdirectories BeatPlayer looks them up by (subdirectory:"Drums") and
+
+      # === RESOURCES ===
+      # THESE LIVE UNDER `sources:` ON PURPOSE. XcodeGen has NO target-level
+      # `resources:` key — verified 2026-07-26 against the pinned 2.42.0:
+      # `Docs/ProjectSpec.md`'s Target key list does not contain it, and
+      # `Target.init(name:jsonDictionary:)` never reads it. There is also no
+      # unknown-key validation, so `xcodegen generate` accepted the block and
+      # dropped it in silence. Resources are declared as sources with
+      # `type: folder` / `buildPhase: resources` (ProjectSpec "TargetSource").
+      #
+      # WHAT THAT COST, and why the comment this replaces was confident and wrong:
+      # it claimed the entries below were the surviving declaration and that the
+      # group walk was "what the build kept". Both halves were inverted. Until the
+      # excludes were added (8f362ea, 2026-07-21) the group walk was the ONLY thing
+      # shipping these files — flattened, which is exactly why the
+      # subdirectory/path-suffix lookups in `CommunityLibrary.load` never matched
+      # and CommunityLibraryTests/MoodPresetTests went red. Adding the excludes then
+      # removed the last real declaration, so Drums/Samples/Community were in NO
+      # build phase at all. The tests stayed red either way, which read as "the
+      # change had no effect" — the instrument simply could not see the difference.
+      # PrivacyInfo.xcprivacy and the brand font were declared ONLY in the dropped
+      # block, so they had never shipped: the App Store privacy manifest was absent
+      # and Info.plist's UIAppFonts registered .ttf files that were not in the
+      # bundle. DO NOT reintroduce a `resources:` key here.
+      #
+      # Assets.xcassets is deliberately NOT listed: it is not excluded above, so
+      # the group walk already carries it (which is why the app icon never broke,
+      # and the clue that the block was inert). Listing it here would double-declare it.
+      #
+      # (Removed 2026-07-07: the GeneralUser GS soundfont entry — the sampled-
+      # instrument voice is gone entirely, founder "Real Instruments komplett raus",
+      # so the 31 MB .sf2 no longer ships.)
+      #
+      # Drum + sample WAVs — folder references keep the Drums/ · Samples/
+      # subdirectories `BeatPlayer` looks them up by (`subdirectory: "Drums"`) and
       # avoid filename collisions between the two libraries.
       - path: Sources/Echoelmusic/Resources/Drums
         type: folder
+        buildPhase: resources
       - path: Sources/Echoelmusic/Resources/Samples
         type: folder
-      # Community JSON (fx/moods/patches) — same folder-reference need as Drums/
-      # Samples above: CommunityLibrary.load(_:as:) looks these up by
-      # `subdirectory:"Community/fx"` etc. The generic `sources:` group entry for
-      # Sources/Echoelmusic flattens non-source files to the bundle root, which
-      # made the subdirectory lookup return nil (CommunityLibraryTests/
-      # MoodPresetTests failing in CI — the app never actually lost these files,
-      # the test target just couldn't find them at the expected path).
+        buildPhase: resources
+      # Community JSON (fx/moods/patches) — same folder-reference need:
+      # `CommunityLibrary.load(_:as:)` matches on the parent-path suffix
+      # ("Community/fx"), which only a structure-preserving folder reference can
+      # satisfy.
       - path: Sources/Echoelmusic/Resources/Community
         type: folder
+        buildPhase: resources
       - path: Resources/PrivacyInfo.xcprivacy
         type: file
+        buildPhase: resources
       # Brand font Atkinson Hyperlegible (mirrors echoelmusic.com). The .ttf files
       # are converted from the website's .woff2; registered via UIAppFonts below.
       - path: Resources/Fonts
         type: group
+        buildPhase: resources
     # NOTE: No `info:` block here on purpose. A generated `info.properties` block
     # WRITES Resources/iOS/Info.plist at `xcodegen generate` time, clobbering the
     # hand-maintained, complete, truthful committed plist — the old block silently
@@ -184,11 +207,14 @@ targets:
       # Foundation-only App-Group bridge for live vitals (shared with the app).
       # Compiled into the widget module — no app-framework import.
       - path: Sources/Echoelmusic/Core/BioFeedbackManager.swift
-    resources:
       # Privacy manifest: the widget reads App-Group UserDefaults (required-reason
-      # API) — bundle the shared manifest (App Store audit 2026-07-16).
+      # API) — bundle the shared manifest (App Store audit 2026-07-16). Under
+      # `sources:`, NOT a `resources:` key — XcodeGen has no such target key and
+      # silently drops it, so this manifest had never actually shipped with the
+      # widget either. See the long note on the app target.
       - path: Resources/PrivacyInfo.xcprivacy
         type: file
+        buildPhase: resources
     info:
       path: Resources/EchoelmusicWidgets/Info.plist
       properties:
