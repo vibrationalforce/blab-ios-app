@@ -522,6 +522,13 @@ Two traps inside that text, both hit on `58ae64e`:
   truncation. Do NOT conclude "only this file"; verify locally (a per-class-isolation-aware scan
   of `Tests/`, not a per-file grep — a file whose FIRST class is nonisolated can carry a second,
   correctly `@MainActor` class, and a naive scan reports 36 false positives).
+  **CONFIRMED truncated on the next round:** after the one file was fixed, the block came back
+  with two errors in `VideoMuxAlignmentTests.swift` — alphabetically after the `R…` file, i.e.
+  exactly where `head -50` had cut. Treat the block as a LOWER BOUND, always.
+  Second reporting artifact from the same round: `NoteTests.swift:255-262` carried three
+  instances of the identical `accuracy:`-on-`Float?` defect and appeared in NO reveal list at
+  all — batch-mode error reporting does not surface every file's errors in one pass. So a clean
+  block does not mean a clean suite; sweep the defect CLASS locally after every fix.
 - The `test-without-building` failure ("Missing bundle ID … Failed to get bundle ID from
   Echoelmusic.app") reads like an independent `project.yml` defect, and the workflow's own env
   comment blames an `EchoelmusicAUv3.appex` placeholder that #122 DELETED. Both are wrong: the

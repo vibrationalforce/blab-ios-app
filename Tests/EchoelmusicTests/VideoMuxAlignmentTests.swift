@@ -71,8 +71,11 @@ final class VideoMuxAlignmentTests: XCTestCase {
         // still yields exactly one loop.
         let a = A.loopAligned(videoDuration: 63, audioDuration: 63, loopSeconds: 16)
         XCTAssertNotNil(a)
-        XCTAssertEqual(a?.durationSeconds, 16, accuracy: 1e-9)
-        XCTAssertEqual(a?.videoStartSeconds, 47, accuracy: 1e-9)
+        // `?? Double.nan`, not a bare optional: the `accuracy:` overload of XCTAssertEqual
+        // takes a NON-optional FloatingPoint, so a `Double?` fails to type-check. NaN keeps
+        // the assertion honest — a missing alignment compares equal to nothing.
+        XCTAssertEqual(a?.durationSeconds ?? Double.nan, 16, accuracy: 1e-9)
+        XCTAssertEqual(a?.videoStartSeconds ?? Double.nan, 47, accuracy: 1e-9)
     }
 
     func testLoopAligned_unequalDurations_eachCutFromItsOwnEnd() {

@@ -252,14 +252,20 @@ final class PianoRollModelTests: XCTestCase {
         let sounding = model.notes
         let soundingLead = sounding.first { $0.role == .lead }
         let soundingBass = sounding.first { $0.role == .bass }
-        XCTAssertEqual(soundingLead?.velocity, 0.9 * IntroAttenuation.leadFactor, accuracy: 1e-6,
+        // `?? Float.nan`, not a bare optional: `Note.velocity` is Float, and the
+        // `accuracy:` overload of XCTAssertEqual takes a NON-optional FloatingPoint, so
+        // `Float?` fails to type-check. NaN keeps the assertion honest — a missing note
+        // compares equal to nothing and still fails.
+        XCTAssertEqual(soundingLead?.velocity ?? Float.nan, 0.9 * IntroAttenuation.leadFactor,
+                       accuracy: 1e-6,
                        "the note array about to sound must carry the softened lead")
-        XCTAssertEqual(soundingBass?.velocity, 0.8, accuracy: 1e-6, "bass is never touched")
+        XCTAssertEqual(soundingBass?.velocity ?? Float.nan, 0.8, accuracy: 1e-6,
+                       "bass is never touched")
 
         // Export/cycling reads `arrangementBars`, which must stay the TRUE, unsoftened bars.
         let exported = model.arrangementForExport().notes
         let exportedLead = exported.first { $0.pitch == 60 && $0.role == .lead }
-        XCTAssertEqual(exportedLead?.velocity, 0.9, accuracy: 1e-6,
+        XCTAssertEqual(exportedLead?.velocity ?? Float.nan, 0.9, accuracy: 1e-6,
                        "the cycling/export array must never carry the one-shot softening")
     }
 
