@@ -51,8 +51,14 @@
 //      downbeat and snapped to the 8th grid, so jazz's pad starts become {2, 4, 10, 12} and
 //      punk's missed section lands on 6 rather than the 16th at 7 a fixed +2 would give.
 //
-// Finding 1 is still open: `testPipeline_rocksteady_…` below is expected RED, and the fix is to
-// reshape the RED TEST'S assertion (count → distinct positions), not to touch the music.
+// BOTH findings are now closed, so this file is expected fully GREEN and any red name in it is a
+// regression, not a diagnosis. Finding 2 was fixed in the source (`chordOnsets`' fallback);
+// finding 1 was fixed in the ASSERTION of the long-red test, which now measures chord onsets that
+// do NOT coincide with a bass onset: the bass walks from every section start, so a held pad's
+// starts are all covered and the set is empty, while a chop lands between them. That cannot tie
+// on progression length and cannot be satisfied by simply having more chord tones — which is what
+// let both the rocksteady false alarm and the jazz blind spot through. Kept rather than deleted
+// because the layered structure is what makes a future failure here readable at all.
 //
 // Cannot redden a gate: Tests/EchoelmusicTests is compiled only by the EchoelmusicFullTests
 // scheme, which only the non-blocking full-tests.yml runs.
@@ -195,20 +201,29 @@ final class BioComposerChopDiagnosisTests: XCTestCase {
 
     // MARK: - Layer 3: the pipeline, ONE genre per name
 
+    // NEITHER of these two is evidence of articulation, and they are kept only because a layered
+    // diagnosis wants a "the pipeline produced material at all" rung. Note count is decided by
+    // chord SIZE and bass density, not by rhythm: disco reaches 21 > classical's 20 even when
+    // held (4 chord tones and 6 bass notes against 3 and 4), and jazz reached 24 > 20 throughout
+    // the months its pad WAS a held chord — that is exactly how #172 hid. The articulation claim
+    // lives in layer 3b below and in `BioComposerTests`' off-the-bass-grid measure.
+
     func testPipeline_disco_producesMoreNotesThanHeldClassical() {
         XCTAssertGreaterThan(noteCount(.disco), noteCount(.classical))
     }
 
     func testPipeline_jazz_producesMoreNotesThanHeldClassical() {
-        // Passes on chord SIZE (4 tones vs 3), not on articulation — see testChop_jazz.
         XCTAssertGreaterThan(noteCount(.jazz), noteCount(.classical))
     }
 
-    func testPipeline_rocksteady_producesMoreNotesThanHeldClassical() {
-        // EXPECTED RED, and expected to stay red until the red test's assertion is reshaped:
-        // rocksteady ties classical exactly. Kept as the pin for finding 1.
-        XCTAssertGreaterThan(noteCount(.rocksteady), noteCount(.classical))
-    }
+    // There is deliberately NO `testPipeline_rocksteady_producesMoreNotesThanHeldClassical`.
+    // It existed here as the pin for finding 1 and was permanently red: rocksteady shares
+    // classical's prog.count, sectionLen and chordTones.count, so every layer's count matches
+    // and the totals TIE — while its chops land on 2/6/10/14, the complete offbeat grid. Note
+    // count cannot measure a chop, so a test built on it could only ever be red-for-no-reason.
+    // Finding 1 is now fixed where it belonged, in the assertion of the long-red
+    // `BioComposerTests.testCompose_rhythmicGenresChopChords_notInertThroughPipeline`, and
+    // rocksteady's real property is carried by `testChop_rocksteady_…` below.
 
     // MARK: - Layer 3b: does the chord actually get CHOPPED, at equal progression length?
 

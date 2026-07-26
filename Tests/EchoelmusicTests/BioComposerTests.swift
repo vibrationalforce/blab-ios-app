@@ -1119,31 +1119,76 @@ final class BioComposerTests: XCTestCase {
         XCTAssertEqual(BioComposer.metricAccent(step: -16), BioComposer.metricAccent(step: 0), accuracy: 0.0001)
     }
 
+    private func chopInput(_ style: MusicStyle) -> BioComposer.Input {
+        input(coherence: 0.4, hr: 90, seed: 0x5EED, style: style)
+    }
+
+    /// The distinct steps where a chord voice starts and NO bass note does.
+    ///
+    /// Why it separates chopped from held. `appendBass` walks from each section start, so every
+    /// section start carries a bass note; a HELD pad starts ONLY at section starts, so its whole
+    /// start set is covered and this difference is EMPTY. A chop puts onsets between the bass
+    /// notes, so it is not. Progression-length independent — unlike a note count it cannot tie,
+    /// and unlike a note count it cannot be satisfied by simply having more chord tones.
+    ///
+    /// The other `role: .harmony` layer, the inner pulse, drops out rather than contaminating:
+    /// its stride is `pulseGap` (`BioComposer.swift`, computed from `busy` and `densityScale` —
+    /// it is 8 at this bio state, not a fixed 4), which exceeds every section length here, so it
+    /// emits one note per section at `secStart` — exactly where the walking bass already is.
+    ///
+    /// Honest about what it does NOT see: a chop that happens to land on a bass step is
+    /// invisible. That is why jazz's evidence below is `{2, 10}`, the two sections its comp grid
+    /// misses, and not its real comp hits on 4 and 12 — those coincide with bass notes. The
+    /// measure is a lower bound on the chopping, which is the safe direction for a
+    /// must-be-non-empty assertion.
+    private func chordStartsOffTheBassGrid(_ style: MusicStyle) -> Set<Int> {
+        let notes = BioComposer.compose(chopInput(style)).notes
+        let bass = Set(notes.filter { $0.role == .bass }.map(\.startStep))
+        let chord = Set(notes.filter { $0.role == .harmony }.map(\.startStep))
+        return chord.subtracting(bass)
+    }
+
     func testCompose_rhythmicGenresChopChords_notInertThroughPipeline() {
         // THE inert-code guard (a review caught the first cut wiring chordOnsets only into a
-        // branch no rhythmic genre reaches, making it a no-op). If the genre articulation does
-        // not reach the real pad branch, disco/jazz/rocksteady fall through to ONE held chord
-        // per section — same as classical — and this fails. Rhythmic articulation chops the
-        // chord (4× stab / 2× comp / 4× skank onsets per section) → strictly more note events.
-        func noteCount(_ style: MusicStyle) -> Int {
-            BioComposer.compose(input(coherence: 0.4, hr: 90, seed: 0x5EED, style: style)).notes.count
-        }
-        let held = noteCount(.classical)   // .sustained articulation on the non-arp path → held
-        // Carry the MEASUREMENT into the failure text, not just the verdict. The CI
-        // reveal prints only a test's NAME (it greps `failed|error:` out of the run log),
-        // so a bare XCTAssertGreaterThan says "this failed" and nothing about WHICH genre
-        // or by how much — and the honest answer then has to be guessed from static
-        // reading. The counts are the diagnosis: classical's progression is 4 chords ×
-        // 3 chord tones while disco's is 3 × 4, so a rhythmic genre with too few onsets
-        // per section can land EQUAL to held rather than above it, which reads as
-        // "articulation is inert" while actually being an arithmetic tie.
-        let counts = [MusicStyle.disco, .jazz, .rocksteady].map { ($0, noteCount($0)) }
-        let census = counts.map { "\($0.0)=\($0.1)" }.joined(separator: " ")
-        for (rhythmic, count) in counts {
-            XCTAssertGreaterThan(count, held,
+        // branch no rhythmic genre reaches, making it a no-op).
+        //
+        // THIS TEST USED TO COUNT NOTES FOR ALL THREE GENRES, and that measure was broken — it
+        // was red for months against working music. rocksteady shares classical's prog.count,
+        // sectionLen AND chordTones.count, so bass, pulse and pad counts all match and the
+        // totals TIE; the assertion read "articulation is inert" while rocksteady's chops were
+        // landing on 2/6/10/14, the complete offbeat grid. Its own comment had already warned
+        // that an arithmetic tie was possible. Worse, the count was blind in the OTHER direction
+        // too: jazz PASSED it throughout the period when its pad was a held chord byte-identical
+        // to classical's, because 4 chord tones outnumber 3. That real defect (#172) had to be
+        // found by a separate diagnosis file; the rhythm measure below would have caught it.
+        //
+        // All three genres now use the rhythm measure — see `chordStartsOffTheBassGrid`. A first
+        // draft of this fix kept the note count for disco, on the theory that the pulse layer
+        // would contaminate the rhythm measure there; a review showed that backwards on both
+        // halves. Disco's pulse sits on {0,5,10}, a subset of its bass, so it contaminates
+        // nothing — and the count it would have kept is GREEN for a held disco (21 > 20, on 4
+        // chord tones and 6 bass notes against classical's 3 and 4), i.e. blind to exactly the
+        // regression it names. The same arithmetic accident as the jazz blindness above.
+        let census = [MusicStyle.disco, .jazz, .rocksteady]
+            .map { "\($0)=\(chordStartsOffTheBassGrid($0).sorted())" }.joined(separator: " ")
+        for rhythmic in [MusicStyle.disco, .jazz, .rocksteady] {
+            // Carry the MEASUREMENT into the failure text, not just the verdict — the CI reveal
+            // prints only a test's NAME, so a bare assertion says nothing about WHICH genre.
+            XCTAssertFalse(chordStartsOffTheBassGrid(rhythmic).isEmpty,
                 "\(rhythmic) must chop its chords in production (genre rhythm is not inert), "
-                + "not fall through to a held chord — classical(held)=\(held) \(census)")
+                + "not fall through to a chord that only restates the bass — \(census)")
         }
+    }
+
+    func testCompose_heldGenreHasNoChordOnsetsOffTheBassGrid() {
+        // The negative control for the test above, deliberately its OWN name so a surprise here
+        // is diagnosable instead of masking the positives: if this goes red, "off the bass grid"
+        // has stopped discriminating and the two assertions above are no longer evidence of
+        // anything. classical is `.sustained` on the non-arp path — one held chord per section,
+        // starting exactly where that section's walking bass begins, and its pulse stride
+        // exceeds the 4-step sections so that lands on the same steps — difference set empty.
+        XCTAssertEqual(chordStartsOffTheBassGrid(.classical), [],
+                       "classical is the held baseline: its chords may not start off the bass grid")
     }
 
     func testCompose_heldGenresStaySingleOnset_perChordSection() {
