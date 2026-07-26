@@ -242,6 +242,25 @@ public final class LaneVoiceRack {
         }
     }
 
+    /// PERFORMANCE PANIC — release every sounding note on every physical voice in the rack.
+    ///
+    /// Deliberately sweeps ALL voices, not only the ones currently bound to a slot: a stuck
+    /// note is exactly what survives a re-binding, and someone hitting panic wants silence,
+    /// not silence-on-the-slots-we-still-track.
+    ///
+    /// It routes each voice through the private per-ref `allNotesOff(on:)` below rather than
+    /// duplicating that switch, so the two can never disagree about how a kind is silenced.
+    /// The residual risk is honest and worth naming: adding a new `PhysicalVoiceRef` case
+    /// forces a new arm in that switch (it is exhaustive) but does NOT force a new loop here.
+    /// If you add a case, add its array to this sweep in the same edit.
+    public func allNotesOff() {
+        for i in voices.indices    { allNotesOff(on: .poly(i)) }
+        for i in kits.indices      { allNotesOff(on: .drums(i)) }
+        for i in subs.indices      { allNotesOff(on: .subBass(i)) }
+        for i in samplers.indices  { allNotesOff(on: .sampler(i)) }
+        for i in bios.indices      { allNotesOff(on: .bio(i)) }
+    }
+
     private func allNotesOff(on ref: PhysicalVoiceRef) {
         switch ref {
         case .poly(let i):    if voices.indices.contains(i) { voices[i].allNotesOff() }

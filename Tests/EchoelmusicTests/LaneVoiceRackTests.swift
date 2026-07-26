@@ -41,6 +41,51 @@ final class LaneVoiceRackTests: XCTestCase {
         XCTAssertNil(rack.voice(slot: -1))
     }
 
+    // MARK: - Performance panic (audit 2026-07-26: the panic button reached 3 of 7 voices)
+
+    /// The bio voice is the ONE rack voice whose note state flips synchronously
+    /// (`isPlayingNote`, no render needed), so it is the only arm of the sweep a unit test can
+    /// observe end-to-end. Use it as the proof that `allNotesOff()` really walks the kind
+    /// arrays and is not, say, iterating `voices` alone.
+    func testAllNotesOff_releasesAHeldBioNote() {
+        let rack = LaneVoiceRack(capacity: 2)
+        rack.installVoicesForTests([PolySynthVoice(maxVoices: 2), PolySynthVoice(maxVoices: 2)])
+        let bio = BioReactiveSynthVoice()
+        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [], bios: [bio])
+        bio.playNote(frequency: 220)
+        XCTAssertTrue(bio.isPlayingNote, "precondition: the bio voice must be holding a note")
+
+        rack.allNotesOff()
+
+        XCTAssertFalse(bio.isPlayingNote,
+                       "rack panic did not reach the .bio arm — a stuck bio note survives it")
+    }
+
+    /// The other four arms enqueue a command the AUDIO thread drains, so nothing observable
+    /// changes here without a render. What this pins is narrower and still worth having: the
+    /// sweep is bounds-safe over every kind array, and panicking must not attach, vend or
+    /// create voices as a side effect. It does NOT prove those four voices went silent — say
+    /// so rather than reading a green run as proof.
+    func testAllNotesOff_isBoundsSafeAndHasNoSideEffects() {
+        let empty = LaneVoiceRack(capacity: 2)
+        empty.allNotesOff()                       // unattached: must be a no-op, not a crash
+        XCTAssertFalse(empty.isActive, "panic must not fake an attach")
+        XCTAssertTrue(empty.voices.isEmpty, "panic must not create a voice")
+
+        let rack = LaneVoiceRack(capacity: 3)
+        rack.installVoicesForTests((0..<3).map { _ in PolySynthVoice(maxVoices: 2) })
+        rack.installKindUnitsForTests(kits: [LaneDrumKitVoice()],
+                                      subs: [SubBassVoice()],
+                                      samplers: [SamplerVoice()],
+                                      bios: [BioReactiveSynthVoice()])
+        rack.allNotesOff()
+        XCTAssertEqual(rack.voices.count, 3, "panic changed the voice roster")
+        XCTAssertEqual(rack.kits.count, 1)
+        XCTAssertEqual(rack.subs.count, 1)
+        XCTAssertEqual(rack.samplers.count, 1)
+        XCTAssertEqual(rack.bios.count, 1)
+    }
+
     // MARK: - S2-W2-3 kind-routing facade (pure allocation + routing laws)
 
     func testSetKind_zeroUnits_isTheFlagOffShape_allPoly() {

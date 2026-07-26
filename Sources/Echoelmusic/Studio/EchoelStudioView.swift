@@ -2161,11 +2161,26 @@ struct EchoelStudioView: View {
         .accessibilityHint(hint)
     }
 
-    /// Performance panic — release every sounding note on every voice at once (built-in
-    /// poly + sub, and MIDI out). Kills stuck notes live.
+    /// Performance panic — release every sounding note on EVERY voice this view can reach,
+    /// plus MIDI out. Kills stuck notes live.
+    ///
+    /// The list used to be `synth`, `subBass`, `midiOut` — three of seven. `leadSynth`,
+    /// `touchSynth` (both `PolySynthVoice`, the play surfaces), `bioVoice` (monophonic, driven
+    /// by incoming MIDI note-on/off via `drainControllerEvents`) and every voice in
+    /// `laneVoiceRack` all produce notes and all survived the panic, while the button's own
+    /// accessibility hint promised "every sounding note on every voice". A stuck note on the
+    /// lead or the play surface is a *more* likely reason to reach for this than one on the
+    /// composer's synth, so the button failed precisely in the case it exists for.
+    ///
+    /// If a new note-producing voice is added to this view, it belongs here in the same edit.
+    /// Nothing in the type system enforces that — this comment is the enforcement.
     private func panicAllNotesOff() {
         synth.allNotesOff()
         subBass.allNotesOff()
+        leadSynth?.allNotesOff()
+        touchSynth?.allNotesOff()
+        bioVoice.releaseNote()      // monophonic: one held note, released
+        laneVoiceRack.allNotesOff()
         midiOut.allNotesOff()
     }
 
