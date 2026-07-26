@@ -23,19 +23,36 @@ private final class SpyAudioRecorder: AudioTakeRecording {
     }
 }
 
+// `@MainActor` on the CLASS, not per method: Transport, TimelineStore, ClipStore,
+// EngineBus and RecordController are ALL `@MainActor @Observable` (they are the control
+// plane), so touching them from a nonisolated test body is a hard Swift 6 error, not a
+// warning — that was the entire ~50-site compile failure that kept this suite from ever
+// building. Class-level because `tearDown()` below also needs it, and an isolated
+// override of a nonisolated `XCTestCase` method is only legal when the class carries the
+// isolation (proven by ClipStoreFreeSlotTests in AudioImportLandingTests.swift, which
+// overrides tearDown the same way).
+@MainActor
 final class RecordControllerAudioHookTests: XCTestCase {
 
-    // `@MainActor` on the rig and on every test: Transport, TimelineStore, ClipStore,
-    // EngineBus and RecordController are ALL `@MainActor @Observable` (they are the
-    // control plane), so constructing or touching them from a nonisolated test body is
-    // a hard Swift 6 error — not a warning. Same idiom as TimelineStoreDebounceTests.
-    @MainActor
     private func makeRig() -> (transport: Transport, timeline: TimelineStore,
                                clips: ClipStore, bus: EngineBus, controller: RecordController) {
-        (Transport(), TimelineStore(), ClipStore(), EngineBus(), RecordController())
+        // ClipStore.setClip/clear PERSIST immediately to the shared AppGroupStore
+        // file, and ClipStore.init reloads it — so a leftover full 8-slot grid makes
+        // `RecordController.commit` skip every take silently (it `continue`s when no
+        // slot is free) and the region assertions below fail for a reason that has
+        // nothing to do with this feature. Same hermetic-grid idiom as
+        // ClipStoreFreeSlotTests in AudioImportLandingTests.swift.
+        let clips = ClipStore()
+        for i in clips.slots.indices { clips.clear(at: i) }
+        return (Transport(), TimelineStore(), clips, EngineBus(), RecordController())
     }
 
-    @MainActor
+    override func tearDown() {
+        let store = ClipStore()
+        for i in store.slots.indices { store.clear(at: i) }
+        super.tearDown()
+    }
+
     func testArmedAudioLanePlusMidi_withAudioRecorderWired_capturesBothOnStop() async {
         let (transport, timeline, clips, bus, controller) = makeRig()
 
@@ -74,7 +91,7 @@ final class RecordControllerAudioHookTests: XCTestCase {
         controller.recordNoteOff(pitch: 60)
 
         transport.stop()
-        await controller.pendingFinish?.value
+        _ = await controller.pendingFinish?.value
 
         XCTAssertEqual(spy.stopCount, 1)
         let audioRegion = timeline.document.regions.first { $0.laneID == audioLaneID }
@@ -87,7 +104,6 @@ final class RecordControllerAudioHookTests: XCTestCase {
         XCTAssertNotNil(midiRegion, "the armed MIDI lane must still capture its note, unaffected by the audio hook")
     }
 
-    @MainActor
     func testAudioRecorderReturnsNil_noRegionAddedForThatLane_midiStillCommits() async {
         let (transport, timeline, clips, bus, controller) = makeRig()
 
@@ -114,7 +130,7 @@ final class RecordControllerAudioHookTests: XCTestCase {
         transport.tick(step: 1)
         controller.recordNoteOff(pitch: 64)
         transport.stop()
-        await controller.pendingFinish?.value
+        _ = await controller.pendingFinish?.value
 
         XCTAssertEqual(spy.stopCount, 1)
         XCTAssertNil(timeline.document.regions.first { $0.laneID == audioLaneID },
@@ -123,7 +139,6 @@ final class RecordControllerAudioHookTests: XCTestCase {
                         "the MIDI take must still commit even when the audio leg produced nothing")
     }
 
-    @MainActor
     func testOverlappingStop_whileAudioFinishPending_doesNotDropTheTake() async {
         // Transport.stop() has no "already stopped" guard, and a second, unrelated
         // stop subscriber (e.g. the app's route-loss handler) can re-invoke it
@@ -139,6 +154,19 @@ final class RecordControllerAudioHookTests: XCTestCase {
             return XCTFail("addLane did not append a lane")
         }
         timeline.toggleArm(id: audioLaneID)
+
+        // An armed AUDIO lane alone cannot arm the controller: `.audioInput` is
+        // deliberately NOT `captureImplemented` (TrackInstrument.swift:144), so
+        // `RecordPlan.targets` comes back empty and `arm()` returns without setting
+        // `armed` — the CLIP-2 silent-data-loss gate. Without a MIDI lane the take
+        // never starts and this test would measure nothing. The MIDI lane records no
+        // notes, so its empty take is dropped at commit and the audio-region assertion
+        // below stays the load-bearing one.
+        timeline.addLane(kind: .midi, name: "Synth \(UUID().uuidString)")
+        guard let midiLaneID = timeline.document.lanes.last?.id else {
+            return XCTFail("addLane did not append a lane")
+        }
+        timeline.toggleArm(id: midiLaneID)
 
         let spy = SpyAudioRecorder()
         spy.result = (URL(fileURLWithPath: "/tmp/echoel-test-\(UUID().uuidString).caf"), 2.0)
@@ -167,7 +195,6 @@ final class RecordControllerAudioHookTests: XCTestCase {
                         "the audio take must still land — an overlapping stop must not drop it")
     }
 
-    @MainActor
     func testNoAudioRecorderWired_behavesExactlyAsBeforeTheHook() async {
         // The default `audioRecorder: nil` path — proves the feature is inert
         // (Release-shipped behavior) when the app doesn't inject a recorder,

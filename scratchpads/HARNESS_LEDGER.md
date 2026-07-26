@@ -531,6 +531,20 @@ Two traps inside that text, both hit on `58ae64e`:
   compile FIRST, then re-measure the install. Do not touch `project.yml` (founder-gated) on the
   strength of that error line.
 
+**And the part that matters beyond CI: a test file that has NEVER compiled has also never
+RUN, so making it compile is only half the work.** `RecordControllerAudioHookTests` compiled
+clean after the isolation fix and would then have failed three assertions deterministically —
+`testOverlappingStop_…` arms only an AUDIO lane, but `.audioInput` is deliberately not
+`captureImplemented` (`Sequencer/TrackInstrument.swift:144`), so `RecordPlan.targets` is empty,
+`arm()` returns without setting `armed`, and the take never starts. Its own sibling test
+documents that gate in a comment and adds the MIDI lane; this one forgot. Second latent trap in
+the same file: `ClipStore.setClip/clear` persist IMMEDIATELY to the shared AppGroupStore file
+and `init` reloads it, so tests that deposit clips without clearing leave a full 8-slot grid
+behind and `RecordController.commit` then skips every take silently. **PLAYBOOK: when you
+un-block a never-compiled test file, review its ASSERTIONS against the source gates too, and
+check every store it touches for the snapshot/restore idiom — otherwise the next reveal round
+just trades compile errors for red tests.**
+
 ## 2026-07-25 — GATE-PARSE: `cancelled` on the previous SHA is supersede, not failure
 Pushing a second commit quickly cancels the earlier SHA's in-flight runs (workflow concurrency,
 cancel-in-progress). Seen as `completed cancelled | Xcode Compile Check` on `ae81a5d` seconds after
