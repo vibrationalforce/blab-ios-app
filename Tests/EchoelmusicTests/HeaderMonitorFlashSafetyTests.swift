@@ -22,12 +22,25 @@ final class HeaderMonitorFlashSafetyTests: XCTestCase {
         XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 120), 2.0, accuracy: 1e-9)
     }
 
-    func testPulseRate_atAndAboveCap_isClampedToCeiling() {
-        // 150 BPM = 2.5 Hz sits exactly on the ceiling; 180/240 BPM would be 3.0/4.0 Hz
-        // and MUST clamp down to 2.5 Hz (never at or above the 3 Hz WCAG limit).
-        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 150), 2.5, accuracy: 1e-9)
-        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 180), 2.5, accuracy: 1e-9)
-        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 240), 2.5, accuracy: 1e-9)
+    func testPulseRate_atAndAboveCap_isClampedToTheSharedCeiling() {
+        // 150 BPM = 2.5 Hz sits exactly on the ceiling; 180/240 BPM would be 3.0/4.0 Hz and
+        // MUST clamp down to it (never at or above the 3 Hz WCAG limit).
+        //
+        // Reads `FlashGuard.maxPulseRateHz` instead of the three hardcoded 2.5s this used
+        // to carry. Those were the LAST copies of the ceiling: the constant was hoisted so
+        // no test would validate a duplicate of the value it proves, and this file — which
+        // the hoisting diff never opened — kept doing exactly that. They were also an
+        // obstruction: TIGHTENING the ceiling to 2.0 would have turned them red, i.e. a
+        // change that makes the app safer failing its own safety test.
+        for bpm in [150.0, 180.0, 240.0] {
+            XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: bpm),
+                           FlashGuard.maxPulseRateHz, accuracy: 1e-9,
+                           "\(bpm) BPM must clamp to the shared ceiling")
+        }
+        // Guard the OTHER direction too, so the clamp cannot be "fixed" into flattening
+        // normal pulses: a resting rate must pass through untouched.
+        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 60),
+                       1.0, accuracy: 1e-9)
     }
 
     func testPulseRate_neverReachesTheThreeHertzLimit_acrossFullRange() {

@@ -38,10 +38,16 @@ struct ClipLaunchGlyph: View {
     /// This region's role in its lane's single launch state.
     private enum Phase { case idle, queuedStart, playing, queuedStop }
 
-    /// One full blink per `1 / FlashGuard.maxPulseRateHz` — derived, not the 0.4 literal it
-    /// used to be. This view has no door today, so the copy was harmless; it would have
-    /// shipped as a third divergent flash rate the moment one was added.
-    private static let blinkPeriod: Double = 1.0 / FlashGuard.maxPulseRateHz
+    /// Duration of ONE state, i.e. a HALF-cycle: the glyph toggles every 0.4 s → 2.5
+    /// transitions per second → a full blink at 1.25 Hz. Deliberately NOT derived from
+    /// `FlashGuard.maxPulseRateHz`, and the attempt is worth recording: that constant is a
+    /// full-CYCLE phase rate, so `1 / maxPulseRateHz` reads as 0.4 only by coincidence of
+    /// the two numbers. Writing the derivation would have claimed a relationship that is
+    /// off by a factor of two, and the next person aligning code to comment would have
+    /// written `0.5 / maxPulseRateHz` = 0.2 s → 5 transitions/s. Unifying two quantities
+    /// of DIFFERENT kinds is not deduplication, it is a category error with a safety
+    /// consequence.
+    private static let blinkPeriod: Double = 0.4
     private static let size: CGFloat = 28          // HIG touch target
 
     var body: some View {

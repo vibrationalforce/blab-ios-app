@@ -189,26 +189,14 @@ final class FlashGuardTests: XCTestCase {
                                                  folds: false)
         XCTAssertLessThanOrEqual(aurora, FlashGuard.maxFlashHz,
                                  "Aurora at the app ceiling flashes at \(aurora) Hz")
-        // And the margin really is zero — assert it, so raising `maxPulseRateHz` fails HERE
-        // with an explanation rather than shipping a violation that only a device shows.
-        XCTAssertEqual(aurora, FlashGuard.maxFlashHz, accuracy: 0.001,
-                       "Aurora is expected to sit exactly ON the 3 Hz limit at the app "
-                       + "ceiling. If this moved, either a look budget or the ceiling "
-                       + "changed — re-derive the table in "
-                       + "testEveryReachableLookObeysTheThreeHzLaw before touching this.")
-    }
-
-    /// Every consumer of the pulse ceiling reads the constant. `flashSafePulseRate` is the
-    /// always-on header tile — the one flashing surface a user cannot navigate away from —
-    /// so it gets its own assertion rather than being covered by inspection.
-    @MainActor
-    func testHeaderTileHonoursTheSharedCeiling_notItsOwnCopy() {
-        // 240 bpm = 4 Hz raw; the cap must bring it down to the shared ceiling exactly.
-        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 240),
-                       FlashGuard.maxPulseRateHz, accuracy: 0.0001)
-        // A resting rate stays untouched (the cap must not flatten normal pulses).
-        XCTAssertEqual(ImmersiveMonitorMini.flashSafePulseRate(heartRateBPM: 60),
-                       1.0, accuracy: 0.0001)
+        // NO equality assertion on the zero margin. The first version had one, to make
+        // raising the ceiling "fail loudly here" — but the `<=` above already does exactly
+        // that (at a 3.0 ceiling Aurora is 3.6 and goes red with its own message), so the
+        // equality added no coverage while failing on changes that make the app SAFER:
+        // tightening the ceiling to 2.0, or calming Aurora's shader, both leave `<=` green
+        // and break equality. A safety guard that goes red when the margin GROWS teaches
+        // people to edit the guard. The zero-margin fact lives in `maxPulseRateHz`'s doc
+        // block, which is where someone changing the ceiling will actually read it.
     }
 
     /// Retired-but-compiled styles are NOT in `LookBlendMap.library`, and one of them
