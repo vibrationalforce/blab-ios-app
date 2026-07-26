@@ -308,6 +308,197 @@ final class EchoelPolyDDSPRenderTests: XCTestCase {
         }
     }
 }
+
+// MARK: - Velocity survives the bio pulse (#174 / #177)
+//
+// THE DEFECT THESE PIN. `spawnVoice` sets `amplitude` from the played velocity, and then
+// `applyBioToVoice` OVERWRITES `amplitude` outright (`ampBase = 0.35 + coherence * 0.15`),
+// re-applied on every 10 Hz bio frame. With `bioModulationEnabled` — i.e. whenever the
+// instrument is doing the one thing it exists to do — the played velocity therefore has no
+// effect on loudness at all.
+//
+// Why that is not a cosmetic complaint: the Mix faders (bass/pad/lead) are applied by baking
+// `velocity * fader` into the generated notes at compose time. So a fader pulled to 0 makes a
+// note that is STRUCTURALLY silent (velocity 0) but AUDIBLY unchanged (bio overwrites it) —
+// the mute does not mute. Meanwhile the visual reads note amplitude out of `MusicalFrame` and
+// correctly sees zero, which is exactly the founder's build-2466 log: `mfNotes=5 level=0.00`
+// while music is playing. One number, two consumers, opposite answers.
+//
+// The names carry the diagnosis on purpose: CI reports failing test NAMES only, never
+// assertion messages, so each name states the single fact its one assertion establishes.
+final class EchoelPolyDDSPVelocityUnderBioTests: XCTestCase {
+
+    /// Peak absolute sample over `blocks` render blocks. 400 × 128 = 51 200 samples ≈ 1.07 s at
+    /// 48 kHz, i.e. more than twice the 0.5 s default attack — the first draft used 200 blocks,
+    /// which cleared that attack by only 6.7 % and would have turned into a "not started yet"
+    /// comparison the moment anyone raised the default or applied a pad patch here.
+    private func peak(_ poly: EchoelPolyDDSP, blocks: Int = 400, frames: Int = 128) -> Float {
+        var left = [Float](repeating: 0, count: frames)
+        var right = [Float](repeating: 0, count: frames)
+        var p: Float = 0
+        for _ in 0..<blocks {
+            poly.renderStereo(left: &left, right: &right, frameCount: frames)
+            for i in 0..<frames { p = Swift.max(p, Swift.max(abs(left[i]), abs(right[i]))) }
+        }
+        return p
+    }
+
+    /// Arm the engine the way the app does: bio modulation on, one bio frame already applied,
+    /// so `spawnVoice`'s `applyBioToVoice` runs for the note we are about to play.
+    private func bioArmedEngine() -> EchoelPolyDDSP {
+        let poly = EchoelPolyDDSP(maxVoices: 4, sampleRate: 48000, frameSize: 128)
+        poly.bioModulationEnabled = true
+        poly.applyBioReactive(coherence: 0.7, hrvVariability: 0.5, heartRate: 0.5,
+                              breathPhase: 0.5, breathDepth: 0.5, lfHfRatio: 0.5)
+        return poly
+    }
+
+    /// THE MUTE. A Mix fader at 0 bakes velocity 0 into the note; that note must be silent.
+    func testBio_velocityZeroIsSilent_soAMixFaderAtZeroActuallyMutes() {
+        let poly = bioArmedEngine()
+        poly.noteOn(note: 60, velocity: 0)
+        // A second bio frame, as the 10 Hz poll delivers while the note rings.
+        poly.applyBioReactive(coherence: 0.7)
+        XCTAssertLessThan(peak(poly), 1e-4,
+                          "velocity 0 must render silence even while bio modulation is running")
+    }
+
+    /// THE DYNAMICS. Under bio, a harder note must still be louder than a soft one — this is
+    /// what makes the Mix faders audible at all, not just visible.
+    func testBio_harderVelocityIsLouderThanSoft_soTheMixFadersAreAudible() {
+        let soft = bioArmedEngine()
+        soft.noteOn(note: 60, velocity: 0.2)
+        soft.applyBioReactive(coherence: 0.7)
+        let softPeak = peak(soft)
+
+        let hard = bioArmedEngine()
+        hard.noteOn(note: 60, velocity: 1.0)
+        hard.applyBioReactive(coherence: 0.7)
+        let hardPeak = peak(hard)
+
+        XCTAssertGreaterThan(hardPeak, softPeak * 1.5,
+                             "under bio, velocity 1.0 must be clearly louder than velocity 0.2")
+    }
+
+    /// NEGATIVE CONTROL — with bio OFF this already worked, and must keep working. If this one
+    /// ever goes red alongside the two above, the fault is in the velocity path itself, not in
+    /// the bio overwrite.
+    func testNoBio_harderVelocityIsLouderThanSoft() {
+        let soft = EchoelPolyDDSP(maxVoices: 4, sampleRate: 48000, frameSize: 128)
+        soft.noteOn(note: 60, velocity: 0.2)
+        let hard = EchoelPolyDDSP(maxVoices: 4, sampleRate: 48000, frameSize: 128)
+        hard.noteOn(note: 60, velocity: 1.0)
+        XCTAssertGreaterThan(peak(hard), peak(soft) * 1.5,
+                             "without bio, velocity already sets level — this is the control")
+    }
+
+    /// THE LEVEL. A NOMINAL note must keep the level it had before this change, or the founder
+    /// hears "leiser geworden" and the fix reads as a regression. `velocityGain` is a ratio
+    /// against `EchoelDDSP.nominalVelocity`, so a note played AT that velocity must render
+    /// within a hair of the old bio-only amplitude (0.456 at coherence 0.7). The first draft
+    /// multiplied by the raw velocity instead, which cost the pad ~7 dB — this is the test that
+    /// would have caught it.
+    /// A LEVEL PIN, not a defect pin — and labelled that way on purpose. It is green before AND
+    /// after this change, because the whole point is that the level must not move. Its job is to
+    /// stop a future edit from silently dropping the instrument's loudness, which is the failure
+    /// mode a founder reports as "leiser geworden" and nobody can bisect from a test suite.
+    ///
+    /// Scope, stated so it is not over-trusted: it covers the two writers of voice `amplitude`
+    /// (`spawnVoice` and the bio apply) and NOTHING downstream. A regression in
+    /// `patchOutputLevel`, the poly makeup gain or the safety tanh passes this test unnoticed.
+    ///
+    /// It asserts the ABSOLUTE amplitude, not a ratio. An earlier draft compared a nominal note
+    /// against the hottest one; that cannot catch a uniform drop at all — halve every level and
+    /// the ratio is unchanged. The old number is not guesswork: bio amplitude at coherence 0.7 is
+    /// `0.35 + 0.7 * 0.15 = 0.455`, the breath swell is exactly 1.0 at the default phase 0.5, and
+    /// a nominal-velocity note carries `velocityGain` 1.0 by construction (the unity fixpoint).
+    func testBio_aNominalVelocityNoteKeepsItsPreviousAbsoluteLevel() {
+        let poly = bioArmedEngine()
+        poly.noteOn(note: 60, velocity: EchoelDDSP.nominalVelocity)
+        poly.applyBioReactive(coherence: 0.7)
+
+        // Read the voice's target amplitude directly: no render, so the envelope stage cannot
+        // colour the reading and the assertion is about LEVEL, not about attack timing.
+        var amplitudes: [Float] = []
+        poly.forEachVoice { if $0.isActive { amplitudes.append($0.amplitude) } }
+        XCTAssertEqual(amplitudes.count, 1, "one note, unison off ⇒ exactly one active voice")
+        XCTAssertEqual(amplitudes.first ?? 0, 0.455, accuracy: 0.04,
+                       "a nominal-velocity note must still sit at the pre-#174 bio amplitude")
+    }
+
+    /// THE UNITY FIXPOINT, asserted through the real `spawnVoice` path across the range of patch
+    /// attacks the genre roster actually uses (0.005 s pluck … 0.5 s pad). A nominal note must
+    /// come out at gain exactly 1 for EVERY exponent — that is what lets a pluck patch and a pad
+    /// patch both keep their level, and it is why the gamma sits on the exponent rather than on
+    /// the result.
+    ///
+    /// The first draft of this test computed `pow(nominal / nominal, …)` inline. That reduces to
+    /// `pow(1, x)`, which is 1 by definition for ANY value of either constant — so deleting the
+    /// `/ nominalVelocity` from the production line, i.e. exactly the ~7 dB regression this whole
+    /// design exists to prevent, would have left it green. A test that cannot fail is worse than
+    /// no test, because it gets cited as coverage.
+    func testVelocityGain_isExactlyUnityAtNominalVelocity_forEveryPatchAttack() {
+        for attack in [Float(0.005), 0.05, 0.15, 0.5] {
+            let poly = EchoelPolyDDSP(maxVoices: 2, sampleRate: 48000, frameSize: 128)
+            poly.forEachVoice { $0.attack = attack }
+            poly.noteOn(note: 60, velocity: EchoelDDSP.nominalVelocity)
+            var gains: [Float] = []
+            poly.forEachVoice { if $0.isActive { gains.append($0.velocityGain) } }
+            XCTAssertEqual(gains.first ?? 0, 1.0, accuracy: 1e-5,
+                           "nominal velocity must give gain 1 at patch attack \(attack)")
+        }
+    }
+
+    /// THE MUTE, at the gain level rather than the render level — the tripwire for a
+    /// `velocityCurve` of 0. `pow(x, 0)` is 1 in C for every x INCLUDING 0, so setting that
+    /// constant to zero (which an earlier doc comment wrongly offered as "velocity does nothing")
+    /// would hand every note gain 1 and silently re-arm the un-muteable fader of #174.
+    func testVelocityGain_isExactlyZeroAtVelocityZero_soTheCurveCannotUndoAMute() {
+        let poly = EchoelPolyDDSP(maxVoices: 2, sampleRate: 48000, frameSize: 128)
+        poly.noteOn(note: 60, velocity: 0)
+        var gains: [Float] = []
+        poly.forEachVoice { if $0.isActive { gains.append($0.velocityGain) } }
+        XCTAssertEqual(gains.count, 1, "a muted note still occupies a voice — it is silent, not absent")
+        XCTAssertEqual(gains.first ?? -1, 0, accuracy: 0,
+                       "velocity 0 must give gain 0 EXACTLY, whatever the curve")
+    }
+
+    /// THE MAKEUP GAIN. Muting one role must not make the others quieter. The poly stage backs
+    /// off by 1/√N over SOUNDING voices; a note at velocity 0 renders exact zeros, so counting
+    /// it would mean pulling the Lead fader down also thins the pad. Two audible notes must
+    /// render the same whether or not a third, muted note is held alongside them.
+    func testBio_aMutedVoiceDoesNotPullDownTheVoicesThatAreStillAudible() {
+        let alone = bioArmedEngine()
+        alone.noteOn(note: 60, velocity: 0.5)
+        alone.noteOn(note: 64, velocity: 0.5)
+        alone.applyBioReactive(coherence: 0.7)
+        let alonePeak = peak(alone)
+
+        let withMuted = bioArmedEngine()
+        withMuted.noteOn(note: 60, velocity: 0.5)
+        withMuted.noteOn(note: 64, velocity: 0.5)
+        withMuted.noteOn(note: 67, velocity: 0)      // the muted role
+        withMuted.applyBioReactive(coherence: 0.7)
+        let withMutedPeak = peak(withMuted)
+
+        // Absolute, not a percentage: the two renders are deterministically identical (same
+        // slots, same makeup trajectory, the muted voice contributes exact zeros), so any real
+        // difference is a partial-count regression. A 2 % window would have hidden one.
+        XCTAssertEqual(withMutedPeak, alonePeak, accuracy: 1e-5,
+                       "a silent voice must not count toward the 1/sqrt(N) makeup backoff")
+    }
+
+    /// The MONO bio voice never sets a velocity (`noteVelocity` defaults to 0, documented as
+    /// "no velocity context"). It must therefore be UNAFFECTED by the fix — a voice with no
+    /// velocity context keeps the full bio-driven amplitude, or the whole bio-reactive synth
+    /// goes silent. This is the test that stops the fix from being "multiply by velocity" naive.
+    func testBioVoiceWithoutVelocityContextStaysAudible() {
+        let voice = EchoelDDSP(sampleRate: 48000)
+        voice.applyBioReactive(coherence: 0.7)
+        XCTAssertGreaterThan(voice.amplitude, 0.1,
+                             "a voice that was never given a velocity must keep the bio amplitude")
+    }
+}
 // MARK: - DSP Crash Hardening Tests
 
 final class DSPCrashHardeningTests: XCTestCase {

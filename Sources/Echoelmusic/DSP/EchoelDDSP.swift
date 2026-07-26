@@ -152,6 +152,86 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// read on the audio thread in the attack stage — an aligned Float, atomic-width.
     public var noteVelocity: Float = 0
 
+    /// How much LOUDER OR QUIETER than a nominal note this one was played — the factor
+    /// `applyBioReactive` multiplies its bio amplitude by, so the body SHAPES the note's level
+    /// instead of erasing it. **Centred on 1.0, not on the raw velocity**: see below, because
+    /// the difference between those two is a ~7 dB level regression.
+    ///
+    /// WHY THIS EXISTS (#174/#177). `spawnVoice` set `amplitude` from velocity and then let
+    /// `applyBioToVoice` overwrite it outright. With bio modulation on — the instrument's whole
+    /// purpose — velocity therefore did nothing, which made the Mix faders inaudible: a fader at
+    /// 0 baked velocity 0 into the note (silent to the visual, which reads note amplitude out of
+    /// `MusicalFrame`) while the sound played on unchanged. Mute that does not mute, and a grey
+    /// visual over audible music.
+    ///
+    /// WHY IT IS A RATIO AGAINST `nominalVelocity`, NOT THE VELOCITY ITSELF. The generated take
+    /// does not play near 1.0: `BioComposer` writes pads at 0.34–0.56 and bass at 0.48–0.70,
+    /// then the genre mix glue trims further. Multiplying the bio amplitude by that raw value
+    /// would drop the pad — the dominant texture — by ~7 dB, and ~11 dB on a percussive patch.
+    /// `AutoMixChain` would claw some of it back, but it is clamped to ±6 dB and takes ~15–20 s,
+    /// so the founder would hear "leiser geworden" long before it settled. Dividing by the
+    /// velocity the material actually carries keeps a NOMINAL note at its previous level and
+    /// spends the change on dynamics, which is the point.
+    ///
+    /// Capped at `maxBoost` so a hot note lifts the mix a little instead of slamming the poly
+    /// tanh; 0 is deliberately reachable (velocity 0 ⇒ exactly 0 ⇒ a Mix fader at 0 truly mutes).
+    ///
+    /// 1.0 = "no velocity context" — the DEFAULT, and the mono/bio voice never leaves it. Its
+    /// amplitude is then bit-identical to before, which is what keeps the bio-reactive synth
+    /// from going quiet. Written in `spawnVoice` and read in the bio apply — on today's build
+    /// both happen in the SAME render block (the poly note and bio commands are drained there),
+    /// so there is no cross-thread hazard; it is an aligned Float, atomic-width, same discipline
+    /// as `noteVelocity` above, so it stays safe if that ever changes.
+    public var velocityGain: Float = 1.0
+
+    /// The velocity a nominal generated note carries — the reference `velocityGain` is centred
+    /// on. Taken from `BioComposer`'s own pad range (0.34–0.56), i.e. measured from the material
+    /// rather than picked: a pad at this velocity keeps exactly the level it had before #174.
+    public nonisolated static let nominalVelocity: Float = 0.5
+
+    /// Ceiling on `velocityGain`. A hot note may lift the mix, but not without bound — the poly
+    /// stage already has a safety tanh and this keeps notes off it. With `velocityCurve` applied
+    /// only a near-maximum velocity reaches it, so it acts as a last-resort limiter rather than
+    /// as the shape of the dynamics. (It was the shape, in the draft before this one, and that
+    /// was wrong: bass and hot leads ALL landed on it, so the accents this change exists to
+    /// restore were flattened back together at the top.)
+    ///
+    /// 1.7 is chosen so it NEVER binds for a legal velocity: the uncapped maximum is
+    /// `2^(expo * velocityCurve)`, which tops out at ~1.68 for the steepest patch attack in the
+    /// roster. A draft value of 1.4 still bound from velocity ~0.80 up — and downbeat lead
+    /// accents on percussive genres reach ~0.90, so the flattening had merely MOVED into the
+    /// loudest fifth of the range instead of going away. Headroom is not the constraint:
+    /// 0.455 × 1.7 = 0.774, still under the 0...1 clamp, with the poly makeup and safety tanh
+    /// downstream of that.
+    public nonisolated static let maxVelocityBoost: Float = 1.7
+
+    /// Gamma on the velocity exponent — how much of the played dynamic range reaches the level.
+    /// 1.0 = the full curve, 0.5 = half the range in dB. MUST STAY > 0: at 0 this is `pow(x, 0)`,
+    /// which is 1 for EVERY x including x = 0 in C, so a Mix fader at 0 would stop muting and
+    /// #174 would silently re-arm itself. (An earlier version of this line offered "0 = velocity
+    /// does nothing" as a supported setting. It is not; it is the defect.)
+    ///
+    /// WHY IT IS NOT 1.0. The exponent it modifies is `1 + percussiveness * 0.5`, and the roster
+    /// that governs a GENERATED take — `MusicStyle.synthPatch`, not `SynthPatch.factory` — is
+    /// mostly percussive: of its 26 genre patches, 19 have an attack under 0.15 s, so the exponent
+    /// runs ~1.17–1.47. The other 7 sit at exactly 1.0, and they are precisely the ambient family
+    /// (vaporwave · sciFi · esotericMeditation · classical · selfObservation · drift ·
+    /// contemplation) — so any retune of this constant must be checked against BOTH groups, not
+    /// against "mostly percussive" alone. (The first version of this comment cited the wrong
+    /// roster and the wrong counts. The conclusion held; the evidence did not.) At the full
+    /// curve that turned the generated material's own velocity spread (pads 0.34–0.56, leads up
+    /// to 0.9 — numbers nobody ever chose as a MIX decision) into a ~15 dB one-sided spread: the
+    /// pad's pulse layer 12 dB down, everything hot pinned to the cap, and the lead about 4 dB
+    /// FORWARD of the pad — reopening the exact complaint the genre mix glue exists to answer
+    /// (`MusicStyle.mixLevels`, founder 2026-07-07: the melody sticking out unpleasantly).
+    ///
+    /// A floor would have been the wrong instrument: any floor above zero either breaks the mute
+    /// this whole change is about, or needs a discontinuity right where the Mix fader travels —
+    /// level holds, holds, then falls off a ledge into silence, which is a worse lying control
+    /// than the one being fixed. A gamma keeps 0 → 0 exactly, keeps the unity fixpoint at
+    /// `nominalVelocity`, keeps the DIRECTION of every dynamic, and halves the spread.
+    public nonisolated static let velocityCurve: Float = 0.5
+
     /// Per-note attack-time multiplier derived from velocity × patch percussiveness,
     /// computed once at noteOn so the render loop just multiplies (no per-sample math).
     /// 1 = full patch attack (default / pads); <1 = snappier onset on a hard hit.
@@ -1444,7 +1524,14 @@ public final class EchoelDDSP: @unchecked Sendable {
         // never accumulates in the one-pole state.
         let breathSwell: Float = 0.5 - 0.5 * cosf(breathPhase * 2 * .pi)
         let swellDepth: Float = (profile == .harmonicSeries) ? 0.18 : 0.10
-        amplitude = (_smoothedAmplitude * (1.0 - swellDepth + swellDepth * breathSwell)).clamped(to: 0...1)
+        // × `velocityGain` (#174/#177): the bio pulse SHAPES the note's level, it does not
+        // replace it. This line used to be an absolute write, so with bio modulation on — i.e.
+        // always, in a bio-reactive instrument — the played velocity had no effect on loudness
+        // and the Mix faders were inaudible while still baking themselves into the note data
+        // the visual reads. `velocityGain` defaults to 1.0 ("no velocity context"), which the
+        // mono/bio voice never leaves, so ITS amplitude is bit-identical to before.
+        amplitude = (_smoothedAmplitude * (1.0 - swellDepth + swellDepth * breathSwell)
+                     * velocityGain).clamped(to: 0...1)
 
         // 3. Heart rate → Vibrato depth — GENTLE drift, not a wobble (founder: bio should be
         //    subtle). ~0.4 cent at rest → ~2.4 cent when active, a fraction of the old range.
@@ -1671,6 +1758,11 @@ public final class EchoelDDSP: @unchecked Sendable {
         attackStartLevel = 0
         morphTarget = nil
         morphPosition = 0
+        // Back to "no velocity context". Harmless today (the poly loops gate on
+        // `voiceNotes[i] >= 0`, which reset clears), but a reset voice must not carry a
+        // stale gain into whatever plays next — and since #174 a stale gain of 0 would
+        // read as a muted fader that nobody set.
+        velocityGain = 1
     }
 }
 
@@ -1913,6 +2005,10 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         let oldBase = a4Hz * pow(2.0, (Float(oldNote - 69) + oldCents / 100.0) / 12.0)
         let ratio = newBase / max(oldBase, 1e-3)
         var moved = false
+        // `velocityGain` is deliberately NOT re-derived here: a slide is legato, so the note
+        // keeps the level it was struck at (same reasoning that already left `amplitude`
+        // alone). This path is the touch surface, not the generated take, so no Mix fader is
+        // waiting on it.
         for i in 0..<maxVoices where voiceNotes[i] == oldNote {
             voices[i].frequency *= ratio        // smoothedFreq glides there per-sample
             voiceNotes[i] = newNote
@@ -2010,7 +2106,27 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // pad loudness is untouched. velocity stored for the per-note attack scale.
         let percussiveness = max(0, 1 - voices[voiceIdx].attack / 0.15)
         voices[voiceIdx].noteVelocity = v
-        voices[voiceIdx].amplitude = pow(v, 1 + percussiveness * 0.5) * unisonGain
+        let expo = 1 + percussiveness * 0.5
+        voices[voiceIdx].amplitude = pow(v, expo) * unisonGain
+        // The factor the bio apply SCALES its amplitude by, instead of overwriting it
+        // (#174/#177). Referenced against the velocity the generated material actually
+        // carries, so a nominal note keeps its old level and only the DIFFERENCES move —
+        // the raw velocity here would have cost the pad ~7 dB. `unisonGain` is folded in
+        // because bio used to erase it, which made a unison stack louder than one voice
+        // instead of the 1/√u the stack was built for.
+        // `velocityCurve` halves the dB spread — see its doc comment; the full curve put the
+        // pad's pulse layer 12 dB down and the lead 4 dB in front of it, on velocities nobody
+        // ever chose as a mix. The gamma sits on the EXPONENT, not on the result, so 0 stays
+        // exactly 0 (the mute) and `nominalVelocity` stays exactly 1 (the level).
+        // NaN belt: defensive only — `v` is clamped to 0...1 and every `unisonGain` producer is
+        // finite, so this cannot fire today. It falls back to 1, not 0, because this file's law
+        // is "fail to resting, never to silence", and 0 would be indistinguishable from the
+        // muted-fader case the change exists to make honest.
+        // NOT `Self.` — required, not stylistic: this line lives in EchoelPolyDDSP, which has no
+        // such member; the constants belong to the VOICE class whose property they bound.
+        let scale = pow(v / EchoelDDSP.nominalVelocity, expo * EchoelDDSP.velocityCurve) * unisonGain
+        voices[voiceIdx].velocityGain = scale.isFinite
+            ? Swift.min(scale, EchoelDDSP.maxVelocityBoost) : 1
         voices[voiceIdx].noteOn(frequency: freq)
         // Only let bio overwrite the note's velocity/timbre when bio modulation is
         // actually on. Previously unconditional → every note collapsed to a neutral
@@ -2168,7 +2284,24 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             // Render any voice still producing sound — held notes AND release
             // tails of notes already noteOff'd (voiceNotes == -1 but still ringing).
             guard voiceNotes[i] >= 0 || voices[i].isActive else { continue }
-            soundingVoices += 1
+            // Count only voices that CARRY LEVEL. Since #174 a Mix fader at 0 bakes velocity 0
+            // into the note, so a slot can be occupied by a note that renders exact zeros. Before
+            // that fix such a note was audible WITH BIO ON, so counting it was honest in the mode
+            // the product actually runs in — with bio off it was always silent and counting it was
+            // always wrong, which is the half this gate fixes retroactively. Counting it now would
+            // make muting one role quieter the others — 6 slots at 0.85/√6 = 0.347 instead of
+            // 4 at 0.425, i.e. the pad loses ~1.8 dB because you muted the lead.
+            //
+            // It still RENDERS (deliberately — the guard is on the counter, not the loop): the
+            // envelope has to keep advancing or a silent voice never finishes its release,
+            // `isActive` stays true, and the slot leaks for the rest of the session.
+            //
+            // Gated on `amplitude`, NOT on `velocityGain`, even though both are zero for a muted
+            // note today: `amplitude` is the value actually multiplied into the render gain in
+            // BOTH modes, so if a future level path ever writes it without touching
+            // `velocityGain`, this counter stays in step with what is audible instead of
+            // silently desyncing.
+            if voices[i].amplitude > 1e-5 { soundingVoices += 1 }
 
             // Fan the global cutoff scale (automation) + slide expression +
             // portamento to the voice before it renders (all on the one audio thread).
