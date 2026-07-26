@@ -1129,9 +1129,20 @@ final class BioComposerTests: XCTestCase {
             BioComposer.compose(input(coherence: 0.4, hr: 90, seed: 0x5EED, style: style)).notes.count
         }
         let held = noteCount(.classical)   // .sustained articulation on the non-arp path → held
-        for rhythmic in [MusicStyle.disco, .jazz, .rocksteady] {
-            XCTAssertGreaterThan(noteCount(rhythmic), held,
-                "\(rhythmic) must chop its chords in production (genre rhythm is not inert), not fall through to a held chord")
+        // Carry the MEASUREMENT into the failure text, not just the verdict. The CI
+        // reveal prints only a test's NAME (it greps `failed|error:` out of the run log),
+        // so a bare XCTAssertGreaterThan says "this failed" and nothing about WHICH genre
+        // or by how much — and the honest answer then has to be guessed from static
+        // reading. The counts are the diagnosis: classical's progression is 4 chords ×
+        // 3 chord tones while disco's is 3 × 4, so a rhythmic genre with too few onsets
+        // per section can land EQUAL to held rather than above it, which reads as
+        // "articulation is inert" while actually being an arithmetic tie.
+        let counts = [MusicStyle.disco, .jazz, .rocksteady].map { ($0, noteCount($0)) }
+        let census = counts.map { "\($0.0)=\($0.1)" }.joined(separator: " ")
+        for (rhythmic, count) in counts {
+            XCTAssertGreaterThan(count, held,
+                "\(rhythmic) must chop its chords in production (genre rhythm is not inert), "
+                + "not fall through to a held chord — classical(held)=\(held) \(census)")
         }
     }
 

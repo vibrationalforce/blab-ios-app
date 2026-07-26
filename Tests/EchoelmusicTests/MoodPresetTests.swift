@@ -59,8 +59,16 @@ final class MoodPresetTests: XCTestCase {
     }
 
     func testBundledCommunity_loadsSeededExample() {
-        XCTAssertTrue(MoodPreset.community.contains { $0.name == "Aurora Calm" },
-                      "seeded Resources/Community/moods/aurora-calm.json should bundle + decode")
+        // Report what WAS loaded: an empty list means the resource was never located in
+        // any candidate bundle (packaging), a non-empty one without the expected name
+        // means it was found but decoded to something else (schema/name). The CI reveal
+        // prints only the test name, so the bare form cannot tell those apart.
+        let names = MoodPreset.community.map(\.name)
+        XCTAssertTrue(names.contains("Aurora Calm"),
+                      "seeded Resources/Community/moods/aurora-calm.json should bundle + decode — "
+                      + (names.isEmpty
+                         ? "EMPTY (resource not located in any candidate bundle)"
+                         : "\(names.count) found: \(names.sorted().joined(separator: ", "))"))
     }
 
     @MainActor

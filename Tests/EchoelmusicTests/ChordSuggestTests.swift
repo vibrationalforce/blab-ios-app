@@ -300,7 +300,18 @@ final class ChordSuggestTests: XCTestCase {
         let off = BioComposer.compose(composerInput(style: .earlySynth, coherence: 1))
         let on = BioComposer.compose(composerInput(style: .earlySynth, coherence: 1,
                                                    suggestJourney: true))
-        XCTAssertNotEqual(off, on, "ON must actually re-choose the progression")
+        // Comparing whole compose results is the right assertion but a useless failure
+        // message: "not equal failed" says nothing about WHAT stayed the same. Carry the
+        // pad pitch/step signature of both sides so the log shows whether the journey was
+        // ignored entirely (identical signatures) or changed something the equality also
+        // covers but the ear would not (e.g. only note count).
+        func signature(_ r: BioComposition) -> String {
+            r.notes.sorted { ($0.startStep, $0.pitch) < ($1.startStep, $1.pitch) }
+                .prefix(24).map { "\($0.startStep):\($0.pitch)" }.joined(separator: ",")
+        }
+        XCTAssertNotEqual(off, on, "ON must actually re-choose the progression — "
+                          + "off[\(off.notes.count)]=\(signature(off)) | "
+                          + "on[\(on.notes.count)]=\(signature(on))")
     }
 
     func testSuggestJourneyOn_journeyAdvancesWithPhase() {
