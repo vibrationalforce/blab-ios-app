@@ -109,6 +109,10 @@ final class ClipHighlightSelectorTests: XCTestCase {
         // default length must be 15 (the vision's clip length).
         let w = Sel.bestWindow(samples: timeline([Float](repeating: 1, count: 61)))
         XCTAssertEqual(w?.duration, 15, "default clip length must be 15 s")
-        XCTAssertEqual(w?.start, 0, accuracy: 1e-9, "a flat session resolves the tie to the start")
+        // `?? Double.nan`: the `accuracy:` overload takes a non-optional FloatingPoint,
+        // so a bare `Double?` fails to type-check. NaN keeps the assertion honest — no
+        // window compares equal to anything.
+        XCTAssertEqual(w?.start ?? Double.nan, 0, accuracy: 1e-9,
+                       "a flat session resolves the tie to the start")
     }
 }
