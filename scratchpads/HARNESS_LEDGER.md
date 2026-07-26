@@ -596,3 +596,24 @@ bug for exactly the inputs nobody tested. Two smaller lessons from the same slic
   and the reviewer found it true for 2 of 6, wrong-shaped for 3, and false for oriental (its
   2-chord progression gives 8-step sections that always contain a hit). `prog.count` decides
   section length, so the defect is per-progression, never per-articulation.
+
+## 2026-07-26 — PLAYBOOK: a long-red test may be measuring the wrong QUANTITY, not failing
+`BioComposerTests.testCompose_rhythmicGenresChopChords_notInertThroughPipeline` was red for months
+against working music. It required a rhythmic genre's TOTAL NOTE COUNT to exceed a held genre's.
+Note count is decided by chord size and bass density, not by rhythm, so it failed in BOTH
+directions at once: rocksteady TIED (it shares prog.count, sectionLen and chordTones.count with
+classical) and read as "inert" while its chops landed on the full offbeat grid; and jazz PASSED
+throughout the months its pad was a held chord byte-identical to classical's, because 4 chord
+tones outnumber 3. **RULE: before assuming a long-red test found a bug, check that its measure is
+sensitive to the property it names AND insensitive to everything else.** A measure that both
+cries wolf and sleeps through the burglary is not a strict test — it is a coincidence detector.
+The replacement measures the property directly (chord onsets that coincide with no bass onset)
+and is paired with an explicit NEGATIVE CONTROL in its own test name, so "the measure stopped
+discriminating" is a diagnosable red name rather than silently making the positives vacuous.
+
+**And the reviewer finding that matters more than the fix:** my first cut exempted one genre from
+the new measure on a contamination theory I had reasoned out but not traced. Both halves were
+false — the interfering layer's stride is COMPUTED (8 at that operating point, not the fixed 4 I
+assumed), and the count I kept for that genre was green even for the regression it named. **When
+you exempt a case from a rule, trace the exemption as hard as the rule; an exemption is where the
+old defect goes to hide.**
