@@ -1,64 +1,89 @@
-build: v10.79.349 — Aufräum-Build: vier echte Defekte zu, Repo beschreibt wieder die App, die es ist
+build: v10.79.350 — Ultracheck-Build: der erste Start klingt, der Render-Block mallociert nicht mehr, jedes Control hat einen 3:1-Rand
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Founder-Auftrag „Bringe alles in Ordnung. Du entscheidest!" — ein 13-Agenten-Sweep über
-  Audio/DSP, UI, Plattform und Doku-Ehrlichkeit, jedes Team mit eigenem Lead, der die
-  Befunde seiner Worker gegen echten Quellcode gegenprüfen musste. 20 verifizierte
-  Befunde. Einen habe ich beim Nachlesen selbst verworfen (der „Donuts-Renderer ist
-  unerreichbar"-Befund war falsch — der Vollbild-Cover wird sehr wohl geöffnet).
+  Der Founder-Auftrag war „ultracodecheck ultradesigncheck ultrabrandcheck", danach
+  „get ready for TestFlight". Vier Teams, jeder Befund von seinem eigenen Worker auf
+  Datei+Zeile zurückverfolgt und nur behalten, wo die Kette hielt. Die vollständigen
+  Befunde stehen in `scratchpads/ULTRACHECK_2026-07-26.md`; hier ist nur, was in DIESEM
+  Build steckt.
 
-  VIER ECHTE DEFEKTE, die auf dem Gerät zu sehen waren:
+  ZWEI DEFEKTE, DIE MAN AUF DEM GERÄT MERKT:
 
-  1) HealthKit hat eine ERFUNDENE Herzfrequenz gesendet. `dataSource` springt auf
-     `.healthKit`, sobald die Queries INSTALLIERT sind — nicht wenn eine Messung kommt.
-     `BioSnapshot` startet mit nominellen 72 BPM und einem Konstruktions-Zeitstempel,
-     also hat der allererste Poll diesen Startwert als Messung auf den Bus gelegt: der
-     Bio-Streifen zeigte eine selbstbewusste „72" und meldete ein Live-Signal, bevor die
-     Watch überhaupt etwas gesagt hatte. Jetzt hängt die Veröffentlichung am ersten
-     echten Sample.
+  1) Der allererste Tap auf „Create from Within" war STUMM. `startBiofeedback` wartete
+     auf `AVCaptureDevice.requestAccess` — auf einer frischen Installation also auf den
+     Kamera-Dialog — BEVOR es komponierte. Der Knopf sprang auf „Stop", und dann kam
+     nichts: kein Audio, kein Transport, keine visuelle Reaktion, unbegrenzt lange, wenn
+     man den Dialog ignoriert oder die App wegwischt. Der Kommentar direkt daneben
+     behauptete das Gegenteil („immediate first sound") — das war für den PULS-Lock wahr
+     und für die Berechtigung falsch. Jetzt: Klang zuerst, Körper danach. Nichts am Klang
+     hängt daran, dass die Kamera schon läuft (ohne Frames komponiert es aus echten
+     neutralen Werten — HR 70, Kohärenz 0.5, eigener Struktur-Seed, genre-geklemmtes
+     Tempo), und der echte Herzschlag rastet später über den Lock-Snap ein.
 
-  2) Ein aussortiertes Genre komponierte unsichtbar weiter. Die Kuration (#125) hat
-     `MusicStyle.offered` auf eine Teilmenge verengt; ein vorher gespeichertes Genre ist
-     weiter ein gültiger Enum-Fall — nichts stürzte ab — es stand nur nicht mehr im
-     Picker. Keine Zeile ausgewählt, kein Weg zu sehen oder zu ändern, was man hört, und
-     es trieb trotzdem jede Take. Wird jetzt zurückgeschnappt, und zwar GANZ OBEN im
-     onAppear: später hätte der Clamp die KLANGFARBE auf dem aussortierten Genre gelassen
-     (`currentPatch` fällt auf `style.synthPatch` zurück) — derselbe Fehler, nur in den
-     Klang verschoben.
+     Dabei fiel ein zweites, älteres Leck auf: ein in `requestAccess` geparktes `start()`
+     ist nicht abbruchfähig. Ein Stop während des Dialogs riss die Kamera ab, und die
+     aufwachende Aufgabe fuhr die Capture-Session danach wieder hoch — Privacy-Anzeige an,
+     Watchdog lebt, Akku brennt, niemand liest Frames. Der Abbau sitzt jetzt in der
+     Generations-Prüfung des rPPG-Publishers, wo das Eigentums-Token lebt.
 
-  3) Zwei App-Store-Berechtigungstexte beschrieben gelöschte Funktionen. Die Foto-
-     Mediathek-Texte versprachen Import „auf die Video-Spuren der Timeline". Der Lese-
-     Schlüssel hatte überhaupt keinen Codepfad (nur `.addOnly` wird benutzt) und ist weg.
+  2) Der Drum-Reconfigure MALLOCIERTE IM RENDER-BLOCK — pro Note. `EchoelModalBank.material`
+     hatte keinen Gleichheits-Guard, und der `.drum`-Zweig baute jedes Mal ein
+     16-elementiges Array. Diese Zuweisung passiert im Audio-Render-Block bei jedem
+     Config-Bump, und der Bump kommt pro Note, sobald ein Pitch auf andere Drum-Params
+     abbildet (melodische Tom-/Perc-Linien). Der Kommentar dort behauptete
+     „allocation-free" — an DREI Stellen in derselben Datei, von denen ich zuerst nur eine
+     korrigiert hatte. Genau so überlebt ein Malloc im Render-Block mehrere Audits.
 
-  4) Der Genre-Picker war der EINE Lade-Pfad ohne Artikulations-Makro — dasselbe Genre
-     klang je nach Weg anders, und ein Neustart tauschte es wieder.
+  ERREICHBARKEIT UND LESBARKEIT (das, was der Founder als „mehr wie ein Instrument"
+  angefragt hatte):
 
-  Dazu: `EchoelDelayLine` konnte NaN in ein trappendes `Int()` auf dem Audio-Thread
-  lassen (`Swift.min(Swift.max(...))` ist für NaN wirkungslos); `Package.swift` schloss
-  zwölf Pfade aus, die es nicht mehr gibt.
+  - Das HAUPTFENSTER ist eine Frontplatte. Die Panel-Zone ist jetzt DAUERHAFT sichtbar und
+    inline: kein Scrim, kein Vorhang, kein „nichts"-Zustand. Die Chip-Leiste ist damit eine
+    Reiterleiste. Vorher war im Ruhezustand Leerraum, seit die Timeline weg ist.
+  - Jedes Control hat einen SICHTBAREN Rand. Die Umrisse der Bedienelemente lagen bei
+    1.16:1 — Beschriftungen bei 15.9:1, also sahen drei Accessibility-Durchgänge einen
+    sauberen Befund, während die Ränder unsichtbar waren. WCAG verlangt 3:1 für die Grenze
+    eines Controls; sie messen jetzt 3.50–4.01:1 durch jede echte Verschachtelung. Das Repo
+    hatte 296 Testdateien und keinen einzigen Kontrast-Test — jetzt rechnet einer die
+    WCAG-Formel aus DENSELBEN Konstanten, aus denen die Farben gebaut sind.
+  - Der Apple-Health-Schalter ist zurück. Das Löschen des toten Tools-Katalogs hatte die
+    EINZIGE Oberfläche für ein PERSISTIERTES Gesundheits-Einverständnis mitgenommen: die
+    App schrieb weiter Herz-/Atemdaten in Apple Health, ohne dass man es widerrufen konnte.
+  - Die Flash-Obergrenze ist EINE Konstante statt vier Kopien. Beim Zusammenführen kam
+    heraus, dass der Aurora-Look bei genau 3.00 Hz landet — die 2.5 Hz sind also kein
+    freier Parameter, sondern das, was den Look legal hält.
 
-  EHRLICHKEIT — der Teil, der die nächsten Zyklen schneller macht:
+  ZU PRÜFEN AUF DEM GERÄT (in dieser Reihenfolge, die ersten zwei sind neu und
+  unbewiesen):
+  - FRISCHE INSTALLATION, erster Tap auf Start: kommt sofort Klang, BEVOR man den
+    Kamera-Dialog beantwortet? (Das ist der Kernfix, und `.notDetermined` gibt es genau
+    einmal pro Installation — danach ist er nicht mehr prüfbar.)
+  - Start → sofort Stop während der Dialog offen steht → Erlauben tippen → nochmal Start:
+    läuft das Biofeedback? (Der Eigentums-Tanz zwischen zwei Starts.)
+  - Startet die App überhaupt sauber? Die Frontplatte hat den Root-Body um ein Kind
+    wachsen lassen — kein neuer Präsentations-Modifier, die Kette steht unverändert bei 16,
+    aber die Black-Screen-Grenze verzeiht nichts und das ist ungetestet.
+  - Reiter wechseln, WÄHREND Biofeedback läuft: friert ein Menü ein? (Die Panels laufen
+    jetzt dauerhaft im Body; das hält nur, weil `EchoelPanel` seinen Inhalt als Closure
+    hält und im EIGENEN Body auswertet.)
+  - Drums mit wechselnden Tonhöhen spielen (Tom/Perc): knackt oder stockt es?
+  - Sind die Ränder der Bedienelemente jetzt sichtbar, ohne dass die Oberfläche laut wirkt?
 
-  CLAUDE.md ist die Datei, aus der jede nächste Session plant, und sie beschrieb eine
-  andere App: sie drehte um, wo die Tempo-Steuerung sitzt, behauptete die Piano-Roll sei
-  türlos und der Bio-Streifen immer sichtbar (beides falsch), führte das gelöschte
-  AUv3-Target weiter und zählte die Modifier-Kette des Body als 12. Gezählt sind es 16
-  (10 sheet + 2 cover + 3 alert + 1 fileImporter) — der Unterschied liest sich als vier
-  freie Plätze, die es vor dem Black-Screen-Absturz nicht gibt. Zeilennummern sind
-  durchgängig durch Symbolnamen ersetzt; sechs waren bereits falsch.
+  WAS DIESER BUILD NICHT REPARIERT, obwohl es gefunden wurde — bewusst, weil ein Zyklus
+  ein Punkt ist:
+  - Der Panic-Knopf („Silence — all notes off") schweigt VIER klingende Voices nicht,
+    während sein Hinweis „every sounding note on every voice" behauptet.
+  - Das Stop im Notes-Editor beendet die ganze Bio-Session (Taschenlampe aus, Kamera aus).
+  - Vier Persistenz-Pfade, bei denen ein einziges kaputtes Element eine ganze Bibliothek
+    nimmt — permanent, weil der nächste Speichervorgang den geleerten Stand zurückschreibt.
+  - Die WEBSITE verkauft weiter das AUv3-Plugin, das am 24.07. gelöscht wurde (8 Dateien,
+    inkl. als LIVE getaggter Prosa und zwei schema.org-Blöcken). Die Store-Metadaten sind
+    bereits bereinigt, TestFlight schiebt keine Metadaten hoch — es ist also nichts live,
+    aber es ist der schwerste Marken-Befund.
 
-  Und: Beschreibung, Werbetext und Keywords im App Store verkauften weiterhin „als
-  AUv3-Plugin in Deiner DAW" — in beiden Sprachen. TestFlight schiebt keine Metadaten
-  hoch, es war also noch nicht live; die `upload_screenshots`-Lane hätte es als
-  2.3.1-Behauptung veröffentlicht. Bereinigt.
-
-  ZU PRÜFEN AUF DEM GERÄT (bitte kurz gegenhören/-sehen):
-  - Startet die App sauber? (Der Genre-Clamp ist NEUES Verhalten und schreibt eine
-    gespeicherte Auswahl einmalig um — bewusst so, aber ungetestet auf Gerät.)
-  - Zeigt der Bio-Streifen jetzt NICHTS statt „72", bis eine echte Messung da ist?
-  - Klingt dasselbe Genre gleich, egal ob über Picker oder „Genre default" geladen?
-  - Lock im GESTOPPTEN Zustand: der Klick gleitet jetzt über ~2,5 s ins gelockte Tempo,
-    statt zu springen (aus dem „ein BPM"-Zyklus davor).
-
-  Beide echten Gates grün auf 5b0f06f. Rausch-Triad unberührt, kein Heilungs-Claim,
-  keine neue Oberfläche, Sheet-Kette unverändert bei 16.
+  Beide echten Gates grün auf f15a119 (Xcode Compile Check + CI/CD Pipeline). Rausch-Triad
+  unberührt, kein Heilungs-Claim, keine neue Oberfläche, Sheet-Kette unverändert bei 16.
+  Ehrlich zur CI: auf einem Branch-Push ist `xcode-compile-check.yml` der EINZIGE
+  blockierende Gate, der iOS-only-Code kompiliert — `ci.yml` baut für den Simulator,
+  schluckt aber den Exit-Code, und `pr-check.yml` läuft nur bei Pull Requests. „Pipeline
+  grün" beweist hier also nicht, dass Tests gelaufen sind.
