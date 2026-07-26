@@ -29,10 +29,23 @@ public enum FlashGuard {
     /// rounding question.
     ///
     /// It lives here, and every consumer reads it, because the value used to be a bare
-    /// `2.5` literal in `MetalBioView`, in `HeaderMonitors`, in `ClipLaunchGlyph`'s blink
-    /// period AND in the test that proves the law — so the test validated a COPY and would
-    /// have stayed green while the renderer flashed faster. That is the same failure mode
-    /// `ringsPhaseDampingLiteral` below was written to end; the ceiling itself had escaped it.
+    /// `2.5` literal in `MetalBioView`, in `HeaderMonitors` AND in the tests that prove the
+    /// law — so those tests validated a COPY and would have stayed green while the renderer
+    /// flashed faster. That is the same failure mode `ringsPhaseDampingLiteral` below was
+    /// written to end; the ceiling itself had escaped it.
+    ///
+    /// `ClipLaunchGlyph.blinkPeriod` is deliberately NOT a consumer: it is a half-cycle
+    /// DURATION, not a full-cycle rate. `1 / maxPulseRateHz` happens to equal its 0.4 exactly,
+    /// so substituting it is bit-identical and reads correct while asserting a relationship
+    /// that is off by a factor of two — the trap springs on the NEXT maintainer, who aligns
+    /// the code to the comment and writes `0.5 / maxPulseRateHz` = 0.2 s → 5 transitions/s.
+    /// See the note there.
+    ///
+    /// It is a `Double`. `MetalBioView` works in `Float`, so it casts at the call site
+    /// (`Float(FlashGuard.maxPulseRateHz)`) rather than this type carrying a `Float` twin:
+    /// two symbols for one number is the drift surface this whole hoist exists to remove,
+    /// and the rounding it would buy is ~1e-7 Hz — three orders of magnitude below anything
+    /// WCAG can express, and below the smoothing already applied to `pulseHz` upstream.
     public static let maxPulseRateHz: Double = 2.5
 
     /// A general flash needs a relative-luminance change of at least this

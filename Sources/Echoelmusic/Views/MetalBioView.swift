@@ -1040,8 +1040,17 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // than WCAG's 3 Hz because Aurora's budget lands exactly on 3.00 Hz at this rate).
         // THIS is the authoritative cap — the phase every look's field is driven by.
         // Reduce Motion → freeze (no advance).
+        //
+        // The `Float(...)` cast is load-bearing for the BUILD, not for the maths: the ceiling
+        // used to be a bare `2.5` here, inferred as `Float` from the uniforms, so reading the
+        // hoisted `Double` broke `min` with "no exact matches" — and ONLY on the Xcode gate,
+        // since this file is behind `canImport(MetalKit) && canImport(UIKit) &&
+        // canImport(SwiftUI)`. Argument order is safe here for a reason worth stating: with
+        // the cap SECOND, `min` would return the uncapped product if the cap were ever NaN —
+        // it can't be (a finite literal), and both operands are sanitized above, but swapping
+        // in a computed cap without reversing the order would silently uncap the renderer.
         if !reduceMotion {
-            let flashHz = min(uniforms.pulseHz * uniforms.motion, FlashGuard.maxPulseRateHz)
+            let flashHz = min(uniforms.pulseHz * uniforms.motion, Float(FlashGuard.maxPulseRateHz))
             uniforms.pulsePhase += dt * flashHz
             if uniforms.pulsePhase > 1e6 { uniforms.pulsePhase -= 1e6 }   // keep it bounded
         }
