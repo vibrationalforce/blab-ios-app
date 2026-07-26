@@ -32,17 +32,27 @@
 //      the full skank grid, audibly offbeat. The red test's own comment warned about exactly
 //      this confound. This is a defect in the ASSERTION, not in the music.
 //
-//   2. A REAL SOUND DEFECT — `.comp` on a 4-step section. comp hits absolute steps 4 and 12
-//      only, so of jazz's four sections two catch nothing and take `chordOnsets`' empty-guard
-//      fallback: ONE onset holding the whole section. Jazz's distinct pad starts come out as
-//      {0, 4, 8, 12} — byte-identical to a HELD chord. The 2026-07-22 "going through the genres,
-//      everything sounds the same" fix therefore does not reach the comp family at all (jazz,
-//      oriental, rock, punk, rocknroll, heavyMetal). That is ship-gate 1, "genre identity
-//      survives", and it is invisible to the red test because jazz's 4 chord TONES still push
-//      its note COUNT above classical's.
+//   2. A REAL SOUND DEFECT — `.comp` on a section that misses the grid. FOUND HERE, FIXED IN
+//      THE SOURCE; these tests are now its regression pins. comp hits absolute steps 4 and 12
+//      only, so a section containing neither caught nothing and took `chordOnsets`' empty
+//      fallback: ONE onset holding the whole section. How bad that was is PER GENRE, and the
+//      first draft of this header got it wrong by naming the whole comp family:
 //
-// `testChop_jazz_…` below is expected RED and is the point of this file. Fixing it changes what
-// the instrument sounds like, so it is a Council slice, not a test edit.
+//        jazz, rock        prog 4 → 4-step sections; 0..<4 and 8..<12 both miss → pad starts
+//                          {0,4,8,12}, BYTE-IDENTICAL to held classical. The worst case.
+//        punk, rocknroll,  prog 3 → 0..<5, 5..<10, 10..<16; only the MIDDLE one misses → one
+//        heavyMetal        5-step hold out of three. Real, but not identical-to-held.
+//        oriental          prog 2 → 0..<8, 8..<16; both contain a hit → never degenerate.
+//                          It was NEVER broken and must not be listed as such.
+//
+//      That is ship-gate 1, "genre identity survives", and it was invisible to the red test
+//      because jazz's 4 chord TONES still push its note COUNT above classical's — it passed on
+//      chord size, not on rhythm. The fallback is now a short chop displaced off the section
+//      downbeat and snapped to the 8th grid, so jazz's pad starts become {2, 4, 10, 12} and
+//      punk's missed section lands on 6 rather than the 16th at 7 a fixed +2 would give.
+//
+// Finding 1 is still open: `testPipeline_rocksteady_…` below is expected RED, and the fix is to
+// reshape the RED TEST'S assertion (count → distinct positions), not to touch the music.
 //
 // Cannot redden a gate: Tests/EchoelmusicTests is compiled only by the EchoelmusicFullTests
 // scheme, which only the non-blocking full-tests.yml runs.
@@ -99,7 +109,8 @@ final class BioComposerChopDiagnosisTests: XCTestCase {
 
     // The full-bar behaviour of each grid is already covered by BioComposerTests
     // (`testChordOnsets_skankHitsOnlyOffbeatEighths` and siblings) and is unreachable here
-    // anyway, so it is not re-asserted. What was never covered is the 4-step section.
+    // anyway, so it is not re-asserted. What was never covered is the SHORT section — the only
+    // length production actually reaches, and the one the empty fallback governs.
 
     func testOnsets_skank_onAFourStepSection_stillChopsOffbeat() {
         // One chop per section — but on step 2, i.e. off the beat. Across four sections that
@@ -109,15 +120,77 @@ final class BioComposerChopDiagnosisTests: XCTestCase {
         XCTAssertEqual(onsets.map(\.start), [2])
     }
 
-    func testOnsets_comp_onAFourStepSection_degeneratesToAHeldChord() {
-        // THE SOUND DEFECT, isolated. comp hits phase % 8 == 4, so a section covering steps
-        // 0..<4 catches nothing and the empty-guard returns one onset spanning the whole
-        // section — indistinguishable from the held branch. Asserting the fallback's LENGTH is
-        // what makes this a defect report rather than a spacing observation.
+    func testOnsets_comp_onAFourStepSection_chopsOffTheDownbeatInsteadOfHolding() {
+        // THE SOUND DEFECT, isolated — and now the pin on its fix. comp hits phase % 8 == 4, so
+        // a section covering steps 0..<4 catches no grid hit and takes `chordOnsets`' empty
+        // fallback. That fallback used to return ONE onset spanning the whole section, i.e. a
+        // held chord indistinguishable from the `.sustained` branch. It is now a short chop
+        // placed off the section downbeat.
         let onsets = BioComposer.chordOnsets(secStart: 0, secLen: 4, energy: 0.2,
                                              syncopation: 0, articulation: .comp)
-        XCTAssertEqual(onsets.map(\.start), [0])
-        XCTAssertEqual(onsets.first?.len, 4, "a comp chop that holds the whole section is a held chord")
+        XCTAssertEqual(onsets.map(\.start), [2])
+        // The LENGTH is the half that makes this a defect report and not a spacing observation:
+        // a 4-long onset on a 4-long section is a hold no matter where it starts.
+        XCTAssertEqual(onsets.first?.len, 2, "the fallback must be a chop, not a held chord")
+    }
+
+    func testOnsets_comp_onAFiveStepSectionStartingOdd_snapsToTheEighthGrid() {
+        // punk/rocknroll/heavyMetal's real geometry: prog.count 3 → sections 0..<5, 5..<10,
+        // 10..<16, and the MIDDLE one catches neither comp hit (4 and 12). Its `secStart` is
+        // ODD, so a fixed +2 displacement would land on absolute step 7 — a 16th, a position
+        // no articulation in this function ever plays. The fallback snaps to the 8th grid
+        // instead: step 6, the "and" of beat 2.
+        let onsets = BioComposer.chordOnsets(secStart: 5, secLen: 5, energy: 0.2,
+                                             syncopation: 0, articulation: .comp)
+        XCTAssertEqual(onsets.map(\.start), [6])
+        XCTAssertEqual(onsets.first?.len, 2)
+    }
+
+    func testOnsets_comp_fallbackIsAlwaysOffTheDownbeatAndOnAnEighth() {
+        // The general contract, swept rather than pinned at one geometry — the earlier
+        // single-case version would have passed for ANY non-zero displacement, including one
+        // off the 8th grid. Two claims: never the section downbeat (that is `.stab`'s grid, and
+        // chopping there would collapse comp into stab on every section it misses), and always
+        // 8th-aligned (the grid every real hit in this function sits on).
+        var fallbacksSeen = 0
+        for secLen in 3...5 {
+            for secStart in 0...(16 - secLen) {
+                // Only sections that catch NO comp hit take the fallback; the rest are real
+                // grid hits and are covered elsewhere.
+                let caughtAHit = (secStart..<(secStart + secLen)).contains { $0 % 8 == 4 }
+                if caughtAHit { continue }
+                fallbacksSeen += 1
+                let onsets = BioComposer.chordOnsets(secStart: secStart, secLen: secLen,
+                                                     energy: 0.2, syncopation: 0,
+                                                     articulation: .comp)
+                let at = "sec \(secStart)+\(secLen)"
+                XCTAssertEqual(onsets.count, 1, "\(at): the fallback is exactly one onset")
+                guard let only = onsets.first else { continue }
+                XCTAssertNotEqual(only.start, secStart, "\(at): fallback sits on the downbeat")
+                XCTAssertTrue(only.start.isMultiple(of: 2), "\(at): fallback is off the 8th grid")
+                XCTAssertLessThan(only.len, secLen, "\(at): fallback holds the whole section")
+                XCTAssertLessThanOrEqual(only.start + only.len, secStart + secLen,
+                                         "\(at): fallback leaves the section")
+            }
+        }
+        // The sweep must actually exercise the branch — an empty loop would pass silently,
+        // which is the #140 defect class this file was written to avoid.
+        XCTAssertGreaterThan(fallbacksSeen, 0, "the sweep never reached the fallback branch")
+    }
+
+    func testOnsets_comp_onASectionWithNoEighthToMoveTo_holds() {
+        // The fallback's own edge, both halves. A 1-step section has no room at all; a 2-step
+        // section starting on an 8th has no OTHER 8th inside it. Both must still produce a
+        // note — an empty list would be silence — and must not start outside the section.
+        let one = BioComposer.chordOnsets(secStart: 5, secLen: 1, energy: 0.2,
+                                          syncopation: 0, articulation: .comp)
+        XCTAssertEqual(one.map(\.start), [5])
+        XCTAssertEqual(one.first?.len, 1)
+
+        let two = BioComposer.chordOnsets(secStart: 0, secLen: 2, energy: 0.2,
+                                          syncopation: 0, articulation: .comp)
+        XCTAssertEqual(two.map(\.start), [0])
+        XCTAssertEqual(two.first?.len, 2)
     }
 
     // MARK: - Layer 3: the pipeline, ONE genre per name
@@ -146,10 +219,11 @@ final class BioComposerChopDiagnosisTests: XCTestCase {
     }
 
     func testChop_jazz_hasMoreDistinctOnsetPositionsThanClassical() {
-        // EXPECTED RED — this is finding 2 and the reason the file exists. Jazz has the same
-        // prog.count as classical, so the comparison is fair, and jazz's comp grid produces
-        // the SAME onset positions as a held chord. Red here means the comp family carries no
-        // audible chord rhythm; it must not be silenced by editing this assertion.
+        // Finding 2, and the reason the file exists. This was RED on c3cfde8: jazz's comp grid
+        // produced the SAME onset positions as a held chord ({0,4,8,12}), so the comp family
+        // carried no audible chord rhythm at all. With the off-downbeat fallback the two missed
+        // sections land on 2 and 10, which no other layer contributes. It must not be silenced
+        // by editing this assertion — red here means the comp family is inert again.
         XCTAssertGreaterThan(distinctStarts(.jazz), distinctStarts(.classical))
     }
 }

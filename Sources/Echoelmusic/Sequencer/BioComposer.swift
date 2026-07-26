@@ -1346,6 +1346,8 @@ public enum BioComposer {
             s += stride
             i += 1
         }
+        // Deliberately NOT the displaced chop `chordOnsets` falls back to: the `.sustained`
+        // genres are the calm-is-still Fläche, so a section with no pulse SHOULD hold.
         return onsets.isEmpty ? [(secStart, secLen)] : onsets
     }
 
@@ -1394,8 +1396,40 @@ public enum BioComposer {
             }
             if hit { onsets.append((step, Swift.min(2, secEnd - step))) }
         }
-        // A section too short to catch a grid hit still sounds (one held onset).
-        return onsets.isEmpty ? [(secStart, secLen)] : onsets
+        // A section that catches NO grid hit still has to SOUND — but it must not sound like
+        // the `.sustained` branch. It used to return one onset spanning the whole section, i.e.
+        // a held chord, which is the "everything sounds the same" bug this function exists to
+        // fix. `.comp` hits absolute steps 4 and 12 only, and `composeHarmonic` cuts the bar
+        // into (16 / prog.count)-step sections, so:
+        //   jazz, rock (prog 4 → four 4-step sections): 0..<4 and 8..<12 caught nothing → pad
+        //     starts {0,4,8,12}, BYTE-IDENTICAL to held classical. The worst case.
+        //   punk, rocknroll, heavyMetal (prog 3 → 0..<5, 5..<10, 10..<16): the middle section
+        //     caught nothing → one 5-step hold out of three.
+        //   oriental (prog 2 → 0..<8, 8..<16): both sections contain a hit — never degenerate.
+        // `.stab` cannot reach this branch at all (its grid is every 4th step, and the widest
+        // section any shipping genre produces is 5). `.skank` CAN, but only once the user turns
+        // the Weird knob up: `weird > 0` splices a chord in, and rocksteady at prog 5 gets
+        // 3-step sections of which 3..<6 misses the 2/6/10/14 grid.
+        //
+        // So the fallback is a SHORT chop, displaced off the section downbeat and snapped to
+        // the 8th grid — the same grid every real hit above sits on, so the fallback speaks the
+        // function's own rhythmic vocabulary instead of inventing a 16th nobody else plays.
+        // Off the downbeat because a section downbeat is `.stab`'s grid; snapped to the 8th
+        // because sections are not always even (prog 3 gives odd `secStart`s).
+        // For jazz/rock that puts the two missed sections on absolute 2 and 10 — the "and" of
+        // beats 1 and 3, tied into the real chops on 4 and 12: a comping anticipation.
+        // On the skank-with-Weird path the snapped step can land ON a beat, which is not
+        // skank's own offbeat grid. Accepted rather than special-cased: it is one short chop in
+        // a variant the user dialled in, and still more articulate than the hold it replaces.
+        // Exactly ONE onset either way, so the RNG draw count downstream is unchanged.
+        if onsets.isEmpty {
+            var start = secStart + 1
+            while start < secEnd && !start.isMultiple(of: 2) { start += 1 }
+            // A 1- or 2-step section has no 8th-aligned room to move into; it holds, as before.
+            if start >= secEnd { start = secStart }
+            return [(start, Swift.min(2, secEnd - start))]
+        }
+        return onsets
     }
 
     /// Fold a lead pitch that has climbed into the piercing top octaves DOWN by whole
