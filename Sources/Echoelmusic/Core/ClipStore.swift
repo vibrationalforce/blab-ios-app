@@ -25,7 +25,9 @@ public final class ClipStore {
         // dropping a corrupt clip would shift every later one into the wrong cell AND fail the
         // count check below — turning one bad clip into all eight lost. `[Clip?]` already means
         // "nil = empty cell", so an unreadable clip degrades to exactly that: its own cell
-        // empties, the other seven survive.
+        // empties, the other seven survive. Honest scope: `Clip.init(from:)` is `try?`-guarded
+        // on every field, so a clip can only fail to decode if it is not a JSON object at all.
+        // This is insurance against a non-object element, not a live everyday hazard.
         let saved = store.loadLossyArray(Clip?.self, name: Self.fileName)?.map { $0 ?? nil }
         if let saved, saved.count == Self.slotCount {
             self.slots = saved

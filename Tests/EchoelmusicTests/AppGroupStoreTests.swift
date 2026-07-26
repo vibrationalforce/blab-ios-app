@@ -48,7 +48,14 @@ final class AppGroupStoreTests: XCTestCase {
     /// THE REGRESSION TEST. One corrupt element used to fail the WHOLE array decode, so
     /// `load` returned nil, the store fell back to empty, and the next save wrote that empty
     /// array back over the file — the user's entire library, gone for good.
-    func testLoadLossyArray_oneCorruptElement_keepsTheRest() {
+    ///
+    /// NOTE ON THE ASSERTION STYLE, because the first version of this file got it wrong: the
+    /// result is `[Item?]?`, so an optional-chained `lossy?[1]` has type `Item??` and a real
+    /// hole reads as `.some(.none)` — which `XCTAssertNil` FAILS, since it only sees the outer
+    /// `.some`. Three assertions here could therefore never pass, and the two tests carrying
+    /// the whole argument for this fix would have reported it broken. `XCTUnwrap` the array
+    /// ONCE and index the plain `[Item?]`; then `nil` means what it reads as.
+    func testLoadLossyArray_oneCorruptElement_keepsTheRest() throws {
         let s = store()
         // Hand-written JSON: three elements, the middle one missing a required field.
         let json = """
@@ -56,26 +63,31 @@ final class AppGroupStoreTests: XCTestCase {
         """.data(using: .utf8)!
         XCTAssertTrue(s.saveRawForTests(json, name: "library"))
 
-        // The old path: all-or-nothing. This assertion is what makes the fix falsifiable —
+        // The old path: all-or-nothing. This assertion is what makes THIS test falsifiable —
         // if `loadLossyArray` were just an alias for `load`, the next one would return nil.
         XCTAssertNil(s.load([Item].self, name: "library"),
                      "precondition: the strict decode must fail on this file")
 
-        let lossy = s.loadLossyArray(Item.self, name: "library")
-        XCTAssertEqual(lossy?.count, 3, "every slot must be accounted for, holes included")
-        XCTAssertEqual(lossy?.compactMap { $0 },
+        let lossy = try XCTUnwrap(s.loadLossyArray(Item.self, name: "library"))
+        XCTAssertEqual(lossy.count, 3, "every slot must be accounted for, holes included")
+        XCTAssertEqual(lossy.compactMap { $0 },
                        [Item(id: 1, name: "one"), Item(id: 3, name: "three")],
                        "the two good elements must survive the one bad one")
-        XCTAssertNil(lossy?[1], "the corrupt element must be the hole, in its own position")
+        XCTAssertNil(lossy[1], "the corrupt element must be the hole, in its own position")
         s.delete(name: "library")
     }
 
-    func testLoadLossyArray_wellFormedFile_isUnchangedAndOrdered() {
-        // The common case must be untouched: same elements, same order, no holes.
+    func testLoadLossyArray_wellFormedFile_isUnchangedAndOrdered() throws {
+        // The common case must be untouched: same elements, same order, NO holes. Compare the
+        // whole `[Item?]` rather than `.compactMap { $0 }` — compacting first would erase
+        // exactly the no-holes property this test's name claims, and would pass against an
+        // implementation that returned [nil, a, nil, b, nil, c].
         let s = store()
         let items = [Item(id: 1, name: "a"), Item(id: 2, name: "b"), Item(id: 3, name: "c")]
         XCTAssertTrue(s.save(items, name: "clean"))
-        XCTAssertEqual(s.loadLossyArray(Item.self, name: "clean")?.compactMap { $0 }, items)
+        let loaded = try XCTUnwrap(s.loadLossyArray(Item.self, name: "clean"))
+        XCTAssertEqual(loaded, items.map { Optional($0) },
+                       "a well-formed file must come back element-for-element, no holes")
         s.delete(name: "clean")
     }
 
@@ -90,15 +102,15 @@ final class AppGroupStoreTests: XCTestCase {
         s.delete(name: "object")
     }
 
-    func testLoadLossyArray_everyElementCorrupt_isEmptyNotNil() {
+    func testLoadLossyArray_everyElementCorrupt_isEmptyNotNil() throws {
         // The boundary between the two meanings: the file IS an array, so it is readable —
         // it just has nothing left in it. A caller must be able to tell this from "no file".
         let s = store()
         let json = "[{\"id\":1},{\"id\":2}]".data(using: .utf8)!
         XCTAssertTrue(s.saveRawForTests(json, name: "all-bad"))
-        let lossy = s.loadLossyArray(Item.self, name: "all-bad")
-        XCTAssertEqual(lossy?.count, 2)
-        XCTAssertTrue(lossy?.compactMap { $0 }.isEmpty ?? false)
+        let lossy = try XCTUnwrap(s.loadLossyArray(Item.self, name: "all-bad"))
+        XCTAssertEqual(lossy.count, 2)
+        XCTAssertTrue(lossy.compactMap { $0 }.isEmpty)
         s.delete(name: "all-bad")
     }
 
@@ -106,19 +118,24 @@ final class AppGroupStoreTests: XCTestCase {
     /// This pins that an optional element type survives the wrapper with its positions intact,
     /// which is what makes "one corrupt clip empties its own cell" true instead of "one
     /// corrupt clip shifts the grid and fails the count check, losing all eight".
-    func testLoadLossyArray_optionalElements_keepPositions() {
+    func testLoadLossyArray_optionalElements_keepPositions() throws {
         let s = store()
         let json = """
         [{"id":1,"name":"one"},null,{"id":9},{"id":4,"name":"four"}]
         """.data(using: .utf8)!
         XCTAssertTrue(s.saveRawForTests(json, name: "grid"))
 
-        let slots = s.loadLossyArray(Item?.self, name: "grid")?.map { $0 ?? nil }
-        XCTAssertEqual(slots?.count, 4, "the grid must keep its length")
-        XCTAssertEqual(slots?[0], Item(id: 1, name: "one"))
-        XCTAssertNil(slots?[1], "an explicit null stays an empty cell")
-        XCTAssertNil(slots?[2], "a corrupt element empties ITS cell")
-        XCTAssertEqual(slots?[3], Item(id: 4, name: "four"),
+        let slots = try XCTUnwrap(s.loadLossyArray(Item?.self, name: "grid")).map { $0 ?? nil }
+        // Check the length BEFORE indexing: a compacting implementation returns 3 elements and
+        // the `slots[3]` below would trap, taking the whole test bundle down instead of failing
+        // this one test.
+        guard slots.count == 4 else {
+            return XCTFail("the grid lost its length (\(slots.count) ≠ 4) — positions shifted")
+        }
+        XCTAssertEqual(slots[0], Item(id: 1, name: "one"))
+        XCTAssertNil(slots[1], "an explicit null stays an empty cell")
+        XCTAssertNil(slots[2], "a corrupt element empties ITS cell")
+        XCTAssertEqual(slots[3], Item(id: 4, name: "four"),
                        "the element AFTER the corrupt one must not shift into its place")
         s.delete(name: "grid")
     }

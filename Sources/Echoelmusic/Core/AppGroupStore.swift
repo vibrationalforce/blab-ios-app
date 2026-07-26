@@ -91,9 +91,17 @@ public struct AppGroupStore: Sendable {
     /// element the field-level `decodeIfPresent` guards cannot absorb (a renamed enum case, a
     /// wrong-typed value, a half-written file) threw, `load` returned nil, and the store fell
     /// back to EMPTY. The next save then wrote that empty array back over the file — so a
-    /// single bad patch silently destroyed the user's entire sound library, permanently, with
-    /// the only trace being one log line. `TimelineDocument` already got this treatment for
-    /// lanes/regions/automation; these stores did not.
+    /// single bad patch destroyed the user's entire sound library, permanently, with the only
+    /// trace being one log line. `TimelineDocument` already got this treatment for
+    /// lanes/regions/automation.
+    ///
+    /// THE CLASS IS NOT CLOSED. This defends the five stores that go through `AppGroupStore`
+    /// with a top-level array. Still open, same shape, tracked as task #170: `AutomationState`
+    /// (`AutomationPlayer`) — a corrupt lane wipes every drawn curve AND flips `enabled` off;
+    /// `Arrangement.sections` — a bare `try?` that turns a throw into total silent loss before
+    /// persisting it back; `[BioSessionSummary]` (`SessionRecorder`) and `[SignalRoute]`
+    /// (`SignalRouter`), both `UserDefaults`-backed, the latter holding the patchbay including
+    /// the BLE-strap source port. Do not read this doc as "persistence is handled".
     ///
     /// Returns `nil` only when the file is absent, unreadable, or is not a JSON array at all —
     /// i.e. exactly the cases where "nothing usable is saved" is the truth. A present-but-
@@ -108,7 +116,18 @@ public struct AppGroupStore: Sendable {
         guard let url = fileURL(name) else { return nil }
         guard let data = try? Data(contentsOf: url) else { return nil } // absent = normal
         do {
-            return try JSONDecoder().decode([Lossy<T>].self, from: data).map(\.value)
+            let values = try JSONDecoder().decode([Lossy<T>].self, from: data).map(\.value)
+            // TELEMETRY — do not remove. Dropping elements is still permanent data loss (the
+            // next save re-encodes the survivors and the bad bytes are gone), it is just
+            // BOUNDED loss. Without this line the partly-corrupt case would be the one truly
+            // silent failure in the store, which is worse than what it replaced: `load` at
+            // least logged when it lost everything. Logged once per read, not per element.
+            let dropped = values.filter { $0 == nil }.count
+            if dropped > 0 {
+                log.log(.error, category: .system,
+                        "AppGroupStore: \(name).json — dropped \(dropped)/\(values.count) undecodable \(T.self) element(s)")
+            }
+            return values
         } catch {
             log.log(.error, category: .system,
                     "AppGroupStore: \(name).json present but is not a decodable [\(T.self)] array — \(error)")
@@ -134,19 +153,22 @@ public struct AppGroupStore: Sendable {
         }
     }
 
-    #if DEBUG
-    /// TEST SEAM (Debug-only): write RAW bytes under `name`, bypassing `Encodable`.
+    /// TEST SEAM (`internal`, like every other seam in this repo — deliberately NOT behind
+    /// `#if DEBUG`: the symbol is already unreachable outside the module, and the guard would
+    /// only add a way for a Release `build-for-testing` to stop compiling the test file):
+    /// write RAW bytes under `name`, bypassing `Encodable`.
     ///
     /// Needed because the failure this store now defends against — a file whose elements do
     /// not all decode — cannot be produced by `save`, which can only ever write well-formed
     /// JSON for the current schema. Without this, a test could only assert that valid data
     /// stays valid, which is precisely the unfalsifiable shape to avoid.
+    /// Writes with the SAME options as `save` so the seam reproduces real on-disk conditions
+    /// (`.completeFileProtection` included) rather than an easier variant of them.
     @discardableResult
     internal func saveRawForTests(_ data: Data, name: String) -> Bool {
         guard let url = fileURL(name) else { return false }
-        return (try? data.write(to: url, options: [.atomic])) != nil
+        return (try? data.write(to: url, options: [.atomic, .completeFileProtection])) != nil
     }
-    #endif
 
     /// Delete the file stored under `name` (no-op if absent).
     public func delete(name: String) {
