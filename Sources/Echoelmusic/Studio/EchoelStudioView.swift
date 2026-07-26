@@ -3351,23 +3351,41 @@ struct EchoelStudioView: View {
         #endif
         startTask?.cancel()
         startTask = Task { @MainActor in
-            // Start the camera/bio source publishing, but DO NOT block on a pulse
-            // lock — sound must begin immediately. We compose now from whatever bio
-            // is available (neutral defaults if none) and snap to the real heartbeat
-            // the instant the lock arrives (see snapToLockWhenReady()).
+            // SOUND FIRST, bio source second. The order is the whole point.
+            //
+            // `startBioSource()` awaits `AVCaptureDevice.requestAccess`, which on a FIRST RUN
+            // suspends until the user answers the permission dialog — indefinitely if they
+            // ignore it or background the app. Composing after that await meant the very first
+            // "Create from Within" tap flipped the button to "Stop" and then produced nothing:
+            // no audio, no transport, no visual reaction. The old comment here even claimed
+            // "immediate first sound — no lock-wait stall", which was true of the pulse LOCK
+            // and false of the permission grant. First impression of the instrument, so it is
+            // worth the reorder rather than a caveat.
+            //
+            // Nothing below depends on the bio source being up: `generate` composes from
+            // whatever bio is on the bus, falling back to neutral defaults, and the real
+            // heartbeat arrives later via `snapToLockWhenReady()`. Enabling bio modulation
+            // early is inert until frames flow.
+            synth.bioModulationEnabled = true
+            generate(reason: "start")
+            startEvolving()
+
+            // Now bring the body in. Anything that must wait for the permission dialog to be
+            // DISMISSED stays below this await, so no system sheet is ever stacked on another.
             await startBioSource()
-            guard running, !Task.isCancelled else { return }
+            guard running, !Task.isCancelled else {
+                // Stop can land while the dialog is open. `stopEverything` already called
+                // `stopBioSource()` back then — but `startBioSource()` was still suspended and
+                // has just brought the camera (and torch) UP again, after the stop. Put it back
+                // down; `stopBioSource` is idempotent.
+                stopBioSource()
+                return
+            }
             // The user just STARTED a bio take and any camera permission dialog is
             // answered (startBioSource awaited it) — this is the honest moment for
             // the app layer to run its deferred HealthKit ask (UX-3), sequentially,
             // never stacked on another system sheet.
             NotificationCenter.default.post(name: .echoelBioSourceStarted, object: nil)
-            // Let the body continuously modulate the polyphonic timbre at 10 Hz
-            // between re-seeds — the sound hugs the live heartbeat/HRV in realtime
-            // instead of staying static until the next ~6 s recompose.
-            synth.bioModulationEnabled = true
-            generate(reason: "start")   // immediate first sound — no lock-wait stall
-            startEvolving()
             snapToLockWhenReady()   // non-blocking re-seed once the heartbeat locks
         }
     }
