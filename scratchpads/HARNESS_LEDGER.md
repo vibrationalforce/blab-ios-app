@@ -641,3 +641,34 @@ Two corollaries from the same review:
   guessing — and a guessed pin that happened to match is the arithmetic-tie trap again. A sweep
   with "at least one case differs" is provable-by-running and still fails exactly when the
   feature goes dead.
+
+## 2026-07-26 — PLAYBOOK: when the user HEARS music but SEES grey, look for one number with two consumers
+The founder's build-2466 log carried `mfNotes=5 level=0.00` while the instrument was audibly
+playing — five notes, all of amplitude zero, yet sound. Both readings cannot be true of the same
+signal, so one of the two consumers was reading a number the other ignores.
+
+It was note VELOCITY. The Mix faders (bass/pad/lead) are applied by baking `velocity * fader`
+into the generated notes at compose time. The VISUAL then reads that velocity out of
+`MusicalFrame` and dims accordingly — correct. The AUDIO, however, threw it away: `spawnVoice`
+set the voice amplitude from velocity and `applyBioToVoice` overwrote it outright one line later
+(`ampBase = 0.35 + coherence * 0.15`), re-applied on every 10 Hz bio frame. So a fader at 0 made
+a note that was silent to the eye and unchanged to the ear — **a mute that does not mute, and a
+grey visual over playing music.**
+
+**THE PATTERN TO CHECK FIRST: a control that writes into DATA, where one downstream consumer
+honours the data and another overwrites it.** Symptoms are always contradictory-by-report ("it's
+silent but I hear it", "the meter is dead but the file is loud"). Don't start from the consumer
+that looks broken — enumerate every writer of the shared field and ask which one wins last.
+
+Two corollaries:
+- **An "overwrite" in a modulation path is almost always meant to be a SCALE.** `x = bio` erases
+  the performer; `x = bio * played` lets the body shape what was played. The comment at the very
+  site already admitted an earlier version of this bug ("every note collapsed to a neutral ~0.45
+  amplitude and lost its patch character and velocity sensitivity") and had been fixed by GATING
+  the overwrite instead of converting it — which repaired the bio-off case and left the bio-on
+  case, i.e. the only case the product actually runs in. **A gate that fixes the disabled path
+  is not a fix.**
+- **Give the scale a neutral default and prove the neutral case.** `velocityGain = 1.0` means the
+  mono/bio voice — which never sets a velocity — stays bit-identical. That deserves its own named
+  test, because "multiply by velocity" applied naively to a voice with no velocity context is how
+  a bio-reactive synth goes permanently silent.
