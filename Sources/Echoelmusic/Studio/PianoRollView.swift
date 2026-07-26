@@ -138,6 +138,31 @@ public final class PianoRollModel {
     /// surface from `TimelineDocument.rollSlotGain`; default unity = unchanged.
     @ObservationIgnored public var mixGain: Float = 1.0
 
+    /// ONE-SHOT: "the stop that is about to happen is a PAUSE, not the end of the session."
+    ///
+    /// The app has ONE Stop by law: whenever the shared transport stops from anywhere, the
+    /// Studio ends the bio session too, so nothing is left armed behind a stopped clock. That
+    /// is right for the chrome's ■ — and punishing for the roll's own transport button, which
+    /// a user presses to hear an edit standing still. It tore down the camera and the pulse
+    /// lock, so re-starting cost another finger-on-lens re-lock; the Notes editor was
+    /// effectively unusable during a live take (ship gate 2 "Kontrolle").
+    ///
+    /// The roll therefore RAISES this flag immediately before it stops the transport, and the
+    /// Studio's stop cascade CONSUMES it: flag up ⇒ pause playback and keep the body session;
+    /// flag down ⇒ the full stop, unchanged. It is deliberately one-shot and consumed
+    /// unconditionally, so a flag that is somehow never read cannot swallow a later real stop
+    /// — the worst case is one pause instead of one stop, never a session that refuses to end.
+    @ObservationIgnored private var playbackOnlyStopRequested = false
+
+    /// Mark the NEXT transport stop as playback-only (see `playbackOnlyStopRequested`).
+    public func requestPlaybackOnlyStop() { playbackOnlyStopRequested = true }
+
+    /// Read AND clear the request. Returns true exactly once per `requestPlaybackOnlyStop()`.
+    public func consumePlaybackOnlyStopRequest() -> Bool {
+        defer { playbackOnlyStopRequested = false }
+        return playbackOnlyStopRequested
+    }
+
     public init() {}
 
     // MARK: - Undo / Redo (#58 — TimelineStore's proven snapshot-stack pattern)
@@ -1224,12 +1249,22 @@ struct PianoRollView: View {
             if !isClipScoped {
                 Button {
                     if pattern.isPlaying {
-                        // T1 breadcrumb: this stop cascades into the ONE-Stop door.
-                        EchoelCrashLog.breadcrumb("stop source: roll-stop")
+                        // PAUSE, not the end of the session (#161). Raising the flag first is
+                        // load-bearing: `pattern.stop()` synchronously flips the shared
+                        // transport, and the Studio's cascade reads the flag in that same
+                        // turn. Set it after, and the full stop has already torn down the
+                        // camera. See PianoRollModel.playbackOnlyStopRequested.
+                        model.requestPlaybackOnlyStop()
+                        EchoelCrashLog.breadcrumb("stop source: roll-pause (session kept)")
                         pattern.stop(); model.allNotesOff()
-                    } else { pattern.play() }
+                    } else {
+                        // Any unconsumed flag is stale the moment we play again — drop it so
+                        // it can never turn a LATER real stop into a pause.
+                        _ = model.consumePlaybackOnlyStopRequest()
+                        pattern.play()
+                    }
                 } label: {
-                    Image(systemName: pattern.isPlaying ? "stop.fill" : "play.fill")
+                    Image(systemName: pattern.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.black)
                         .frame(width: 44, height: 36)
@@ -1237,6 +1272,10 @@ struct PianoRollView: View {
                             .fill(pattern.isPlaying ? EchoelTheme.danger : EchoelTheme.accent))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(pattern.isPlaying ? "Pause" : "Play")
+                .accessibilityHint(pattern.isPlaying
+                                   ? "Stops the clock and keeps the body session running"
+                                   : "Plays the pattern")
             }
 
             // Draw length (steps a new tapped note spans).

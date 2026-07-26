@@ -702,7 +702,26 @@ struct EchoelStudioView: View {
         // (which flips transport.isPlaying false after already setting running=false) can't
         // recurse. To only WATCH the pulse without music, arm the body on the Bio page.
         .onChange(of: transport.isPlaying) { _, playing in
-            if !playing && running { stopEverything(reason: "transport-stopped") }
+            guard running else { return }
+            if playing {
+                // Resuming after a roll PAUSE must re-arm what the pause cancelled, or the
+                // take silently stops evolving with the body until the next full Start — a
+                // capability lost without a trace. `startEvolving()` cancels first, so the
+                // normal Start path (which calls it itself moments later) cannot end up with
+                // two loops.
+                if evolveTask == nil { startEvolving() }
+                return
+            }
+            // #161: the Notes editor's own transport button is a PAUSE, not the end of the
+            // session. It raises a one-shot flag before stopping the clock; consuming it here
+            // is what keeps the camera and the pulse lock alive, so re-starting does not cost
+            // another finger-on-lens re-lock. Consumed unconditionally (see the model's doc):
+            // an unread flag can only ever cost one pause instead of one stop.
+            if pianoRoll.consumePlaybackOnlyStopRequest() {
+                pausePlaybackKeepingSession()
+            } else {
+                stopEverything(reason: "transport-stopped")
+            }
         }
         .onChange(of: showVisual) { _, isUp in
             updateKeepAwake()
@@ -3404,10 +3423,40 @@ struct EchoelStudioView: View {
         #endif
     }
 
+    /// PAUSE (#161) — stop the clock and every sounding note, but KEEP the body session.
+    ///
+    /// The ONE-Stop law exists so nothing is left ARMED behind a stopped clock. This honours
+    /// that where it matters and departs from it where it hurt: the generative drivers that
+    /// would keep working against a stopped transport are cancelled (evolve, regen, the
+    /// lock-snap re-seed — the last one also protects the user's roll edits, which a mid-pause
+    /// regenerate would silently overwrite), while the SENSOR keeps running. A camera that
+    /// reads the pulse with no music playing is not an anomaly: it is the state the Bio panel's
+    /// own arm already puts the app in, and it is what makes the Notes editor usable during a
+    /// take — `stopBioSource()` costs another finger-on-lens re-lock, ~20 s, to undo.
+    ///
+    /// `running` deliberately stays TRUE: the take is paused, not ended. The chrome's ■ is
+    /// still the one full Stop, so this is not a second stop path — it is a pause path that
+    /// only the roll's own button can reach, by consuming a one-shot flag.
+    private func pausePlaybackKeepingSession() {
+        evolveTask?.cancel(); evolveTask = nil
+        regenTask?.cancel(); regenTask = nil
+        lockSnapTask?.cancel(); lockSnapTask = nil
+        // The roll already released its own notes before stopping the clock; this covers the
+        // other seven voices, which a bare `pattern.stop()` does not touch.
+        panicAllNotesOff()
+        EchoelCrashLog.breadcrumb("pausePlaybackKeepingSession: clock + voices stopped, bio kept")
+    }
+
     /// `reason` lands in the diagnostic breadcrumb — the founder's device logs
     /// showed bare "stopEverything" lines with no way to tell a user stop from a
     /// programmatic kill (the H7 fold-unmount hid behind exactly that ambiguity).
     private func stopEverything(reason: String) {
+        // SAFETY BELT for the #161 pause flag: every other stop path lands here without going
+        // through the transport `onChange` that normally consumes it. Dropping it here makes a
+        // LATCHED flag impossible — otherwise a request raised by the roll but never consumed
+        // (a stop routed around that observer) would downgrade the NEXT real Stop to a pause,
+        // i.e. a session that refuses to end with the camera still live. Cheap and total.
+        _ = pianoRoll.consumePlaybackOnlyStopRequest()
         running = false
         bus.setInstrumentRunning(false)  // chrome mirror (TransportBar pulse button)
         tempoSeededFromBody = false      // next take re-seeds tempo from a fresh pulse
