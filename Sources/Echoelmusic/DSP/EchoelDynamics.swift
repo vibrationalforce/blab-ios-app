@@ -84,8 +84,14 @@ public final class EchoelCompressor: @unchecked Sendable {
 
 // MARK: - Limiter (brick-wall)
 
-/// Brick-wall limiter: output magnitude never exceeds the ceiling, and the gain that
-/// achieves that moves CONTINUOUSLY rather than jumping.
+/// Brick-wall limiter: for FINITE input, output magnitude never exceeds the ceiling, and
+/// the gain that achieves that moves CONTINUOUSLY rather than jumping.
+///
+/// "For finite input" is not a hedge, it is the exact contract. A non-finite sample takes
+/// the bypass in `processStereo` and is scaled by the current gain without any ceiling
+/// enforcement — an `inf` in is an `inf` out. That is deliberate: this class is a gain
+/// computer, and sanitizing samples belongs to `AudioOutputGuard` upstream. What IS
+/// guaranteed for such a sample is that the limiter's own state survives it intact.
 ///
 /// ⛔ WHY THE ATTACK EXISTS (founder 2026-07-27: "Es knistert. Wie CPU overload bei
 /// Ableton oder so"). The previous version had zero attack:
@@ -131,7 +137,6 @@ public final class EchoelLimiter: @unchecked Sendable {
     private var ceilingLin: Float = 1
     private var attackCoeff: Float = 0
     private var releaseCoeff: Float = 0
-    private var envDecay: Float = 0
     private var env: Float = 0       // peak envelope, ≥ 0
     private var gain: Float = 1.0    // ≤ 1
 
@@ -163,9 +168,23 @@ public final class EchoelLimiter: @unchecked Sendable {
         // the flat-topping this whole class exists to remove simply comes back, just
         // periodically instead of continuously. Holding the peak between cycles is what
         // lets the gain sit still.
-        let decayed = env * envDecay
-        env = peak > decayed ? peak : decayed   // NOT Swift.max — see the guard above
+        // `1 - releaseCoeff` is exactly `exp(-1/t)`, computed here rather than cached as a
+        // field. One FSUB per sample, next to a division that already costs far more — and
+        // in exchange `releaseCoeff` stays the SINGLE source of truth. A cached `envDecay`
+        // would be a value DERIVED from `releaseCoeff` but stored separately, so a control
+        // thread running `recalc()` could leave the render thread reading a new
+        // `releaseCoeff` beside an old `envDecay` (arm64 gives no store ordering here).
+        // Same lesson as `EchoelSVFilter` (see its file doc): do not create a pair that has
+        // to stay consistent — remove the pairing instead.
+        let decayed = env * (1 - releaseCoeff)
+        env = peak > decayed ? peak : decayed
 
+        // ⚠ THE INVARIANT THE CEILING GUARANTEE RESTS ON: `env >= peak`, established by the
+        // line above. It is what makes the absolute guard at the bottom sufficient —
+        // `target = ceiling/env` gives `peak * target <= ceiling` only because `env >= peak`.
+        // If a later change makes this detector an RMS, or smooths its RISE, `env` can fall
+        // below `peak` and that guard silently stops clamping. Do not weaken the rise.
+        //
         // The gain the envelope WOULD need. `env <= ceiling` ⇒ 1, so quiet material has a
         // target of unity and the smoother simply releases toward it.
         let target = env > ceilingLin ? ceilingLin / env : 1
@@ -197,14 +216,18 @@ public final class EchoelLimiter: @unchecked Sendable {
         ceilingLin = powf(10.0, ceilingDb / 20.0)
         attackCoeff = Self.coeff(ms: attackMs, sr: sr)
         releaseCoeff = Self.coeff(ms: releaseMs, sr: sr)
-        // `coeff` is `1 - exp(-1/t)`, so this is exactly `exp(-1/t)` — the envelope decays
-        // over the release time, one `expf` instead of two.
-        envDecay = 1 - releaseCoeff
     }
 
     @inline(__always)
     private static func coeff(ms: Float, sr: Float) -> Float {
-        let t = Swift.max(0.01, ms) * 0.001 * sr
+        // Clamped at BOTH ends. The upper bound is the one that matters and was missing:
+        // past ~700 s, `1 - expf(-1/t)` rounds to exactly 0 in Float, the coefficient dies,
+        // and the limiter latches at whatever attenuation it happened to hold — permanent
+        // silence, the exact failure mode "fail to resting, never to silence" exists to
+        // forbid. No writer can reach that today (nothing sets attackMs/releaseMs), so this
+        // is a guard against a future control, not a live bug. 10 s is far beyond any
+        // musical release and still leaves the coefficient ~2e-6, comfortably normal.
+        let t = Swift.min(Swift.max(0.01, ms), 10_000) * 0.001 * sr
         return 1.0 - expf(-1.0 / t)
     }
 }
