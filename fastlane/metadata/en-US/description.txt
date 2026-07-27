@@ -8,15 +8,17 @@ THE BODY AS CONTROLLER
 Connect Apple Watch, a Bluetooth heart-rate strap, or use the iPhone camera (rPPG) to read your pulse:
 
 - Heart rate shapes tempo and vibrato
-- HRV and coherence shape brightness, harmonicity and texture
+- HRV and coherence shape brightness, harmonicity, texture and space
 - Breath shapes the amplitude envelope and space
+
+Not every source measures everything: the camera reads pulse, HRV and breath; a chest strap reads pulse and HRV; Apple Watch provides heart rate through Health. What isn't measured simply doesn't modulate.
 
 No two takes are the same.
 
 
 CREATE
 
-- Bio-reactive synthesis engine (additive DDSP, modal, cellular) — vDSP-accelerated, no external dependencies
+- Bio-reactive additive synthesis engine (DDSP) — vDSP-accelerated, no external dependencies
 - Design and save your own patches
 - Composition: pick a genre and a key; your body generates in-key material you shape with the sound and character controls
 - Concert pitch (A4 / Kammerton) set exactly to the cent; lock a BPM for tight loops or stay sync-free
@@ -28,7 +30,7 @@ CREATE
 
 CONNECT
 
-- MIDI in, with MPE expression; MIDI note output to your rig (enabled in the routing panel)
+- MIDI note input and output (output enabled in the routing panel)
 - OSC output for live rigs and visuals
 - ADM-OSC immersive object output
 - Art-Net native light output for installations and stage
@@ -36,7 +38,9 @@ CONNECT
 
 PRIVACY
 
-Your biometrics stay on your device — unless you explicitly enable OSC or ADM output, which sends live bio values to devices you choose on your own network. No accounts required, no ads, no tracking. What you create is yours.
+Your biometrics stay on your device. There are no accounts, no ads, no tracking and no analytics, and the app talks to no server of ours.
+
+Four things send bio values outward, each only after you switch it on, and each only on your own local network: OSC output, ADM-OSC object output, Art-Net or sACN light output (heart rate, HRV, breath and coherence become DMX values), and sharing a live session with a nearby device. You can additionally opt in to writing heart rate and respiratory rate into Apple Health. What you create is yours.
 
 
 ACCESSIBILITY

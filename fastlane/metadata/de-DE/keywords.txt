@@ -1,1 +1,1 @@
-Biofeedback,HRV,Kohärenz,bio-reaktiv,Herzfrequenz,Synthesizer,Musik,MPE,OSC,ArtNet,Visuals
+Biofeedback,HRV,Kohärenz,bio-reaktiv,Herzfrequenz,Synthesizer,Musik,MIDI,OSC,ArtNet,Visuals

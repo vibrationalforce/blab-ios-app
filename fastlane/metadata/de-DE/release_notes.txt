@@ -3,14 +3,14 @@ Echoel ist in aktiver Entwicklung. Feedback und Mitwirkende willkommen: echoel@t
 Neu in diesem Build
 
 Komposition
-- Viele neue Genres (u. a. Classical, Jazz, Klezmer, Oriental, Punk, Rock 'n' Roll, Rock, Ska, Rocksteady, Heavy Metal, Doom, Deep Ambient)
+- Acht kuratierte Genres: Self-Observation, Deep Ambient, Drift, Contemplation, Vaporwave, Sci-Fi, Classical und Dub Techno
 - Charakter-Regler: Liveliness, Darkness, Tension, Romance, Weird
 - Kammerton (A4) exakt auf den Cent einstellbar; Tonart und optionaler BPM-Lock
 
 Klang
-- Neuer algorithmischer Reverb (Raum/Halle) für echte Tiefe pro Genre
+- Algorithmischer Reverb mit Raum- und Hallen-Presets für echte Tiefe pro Genre
 - Harmonizer-Effekt: Terz- und Quint-Stimmen über der Melodie
-- Per-Genre-Sättigung — von klarem Klassik-Klang bis High-Gain-Metal
+- Per-Genre-Sättigung — von klarem Klassik-Klang bis stark angezerrt
 - Anti-Aliasing-Glättung für sauberere hohe Töne und Vibrato
 
 Workflow

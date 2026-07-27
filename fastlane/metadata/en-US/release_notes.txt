@@ -3,14 +3,14 @@ Echoel is in active development. Feedback and collaborators welcome: echoel@trop
 New in this build
 
 Composition
-- Many new genres (Classical, Jazz, Klezmer, Oriental, Punk, Rock 'n' Roll, Rock, Ska, Rocksteady, Heavy Metal, Doom, Deep Ambient and more)
+- Eight curated genres: Self-Observation, Deep Ambient, Drift, Contemplation, Vaporwave, Sci-Fi, Classical and Dub Techno
 - Character controls: Liveliness, Darkness, Tension, Romance, Weird
 - Concert pitch (A4) set exactly to the cent; key selection and optional BPM lock
 
 Sound
-- New algorithmic reverb (Room/Hall) for real depth per genre
+- Algorithmic reverb with room and hall presets for real depth per genre
 - Harmonizer effect: third and fifth harmony voices above the melody
-- Per-genre saturation — from clean classical to high-gain metal
+- Per-genre saturation, from clean classical to heavily driven
 - Anti-aliasing smoothing for cleaner high notes and vibrato
 
 Workflow

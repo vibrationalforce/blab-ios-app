@@ -8,15 +8,17 @@ DER KÖRPER ALS CONTROLLER
 Verbinde die Apple Watch, einen Bluetooth-Herzfrequenzgurt oder nutze die iPhone-Kamera (rPPG), um Deinen Puls zu lesen:
 
 - Herzfrequenz formt Tempo und Vibrato
-- HRV und Kohärenz formen Brillanz, Harmonizität und Textur
-- Atem formt die Hüllkurve und den Raum
+- HRV und Kohärenz formen Brillanz, Harmonizität, Textur und Raum
+- Atem formt die Hüllkurve
+
+Nicht jede Quelle misst alles: die Kamera liefert Puls, HRV und Atem; ein Brustgurt liefert Puls und HRV; die Apple Watch liefert die Herzfrequenz über Health. Was nicht gemessen wird, moduliert auch nicht.
 
 Keine zwei Takes sind gleich.
 
 
 ERSCHAFFEN
 
-- Bio-reaktive Synthese-Engine (additives DDSP, modal, zellular) — vDSP-beschleunigt, ohne externe Abhängigkeiten
+- Bio-reaktive additive Synthese-Engine (DDSP) — vDSP-beschleunigt, ohne externe Abhängigkeiten
 - Eigene Patches gestalten und speichern
 - Komposition: Genre und Tonart wählen; Dein Körper erzeugt tonart-konformes Material, das Du über die Klang- und Charakter-Regler formst
 - Kammerton (A4) exakt auf den Cent einstellbar; BPM für tighte Loops sperren oder sync-frei bleiben
@@ -27,7 +29,7 @@ ERSCHAFFEN
 
 VERBINDEN
 
-- MIDI-Eingang mit MPE-Expression; MIDI-Noten-Ausgang an Dein Rig (im Routing-Panel aktivierbar)
+- MIDI-Noten-Eingang und -Ausgang (Ausgang im Routing-Panel aktivierbar)
 - OSC-Ausgabe für Live-Rigs und Visuals
 - ADM-OSC immersive Objekt-Ausgabe
 - Natives Art-Net-Lichtsignal für Installationen und Bühne
@@ -35,7 +37,9 @@ VERBINDEN
 
 PRIVATSPHÄRE
 
-Deine Biometrie bleibt auf Deinem Gerät — außer Du aktivierst ausdrücklich die OSC- oder ADM-Ausgabe, die Live-Bio-Werte an Geräte Deiner Wahl in Deinem eigenen Netzwerk sendet. Keine Konten nötig, keine Werbung, kein Tracking. Was Du erschaffst, gehört Dir.
+Deine Biometrie bleibt auf Deinem Gerät. Es gibt keine Konten, keine Werbung, kein Tracking und keine Analyse, und die App spricht mit keinem Server von uns.
+
+Vier Funktionen senden Bio-Werte nach außen — jede erst, wenn Du sie einschaltest, und jede nur in Deinem eigenen lokalen Netzwerk: OSC-Ausgabe, ADM-OSC-Objekt-Ausgabe, Art-Net- oder sACN-Lichtausgabe (Herzfrequenz, HRV, Atem und Kohärenz werden zu DMX-Werten) und das Teilen einer laufenden Session mit einem Gerät in der Nähe. Zusätzlich kannst Du dem Schreiben von Herz- und Atemfrequenz in Apple Health zustimmen. Was Du erschaffst, gehört Dir.
 
 
 BARRIEREFREIHEIT
