@@ -841,3 +841,40 @@ been unimplementable as asked.
 REACHABLE — same standard as a code claim.** The correctly framed version is usually a better
 question anyway: not "should the export keep X" but "the export has no door — do you want one,
 and with or without X".
+
+## 2026-07-27 — DEAD-END: asserting a PHYSICAL mechanism from a language keyword (`weak` ⇒ "a lock")
+
+**Was ich tat (#154).** Ich las `weak var value` im Render-Closure von vier Voices,
+schrieb daraus einen Audio-Thread-Verstoß der Kategorie C ("weak-Load nimmt eine
+Sperre, Side-Table-malloc im Render-Block") und meldete das so dem Founder.
+
+**Warum es falsch war.** Der `audio-thread-reviewer` hat es widerlegt, und zwar auf
+der Mechanismus-Ebene, nicht der Meinungs-Ebene: `swift_weakLoadStrong` geht über
+die Side-Table `tryRetain()` → eine **lock-freie atomare CAS-Schleife**. Kein
+`os_unfair_lock`, kein `pthread_mutex`. Und der Side-Table-**malloc passiert, wenn
+die weak-Referenz GEBILDET wird** (Main-Thread, beim Node-Aufbau) — nie im Block.
+Kosten ~10–30 ns unkontendiert gegen 5.333.000 ns Deadline (256 Frames @ 48 kHz)
+≈ 0,004 %. Zusätzlich: der nil-Zweig ist unerreichbar, alle fünf Voices sind
+App-Lebensdauer-Singletons.
+
+**Die Regel.** Ein Sprach-Keyword ist eine SCHNITTSTELLE, keine Implementierung.
+`weak`, `@objc`, `Array`, `String` — jedes davon steht auf der Verbotsliste WEIL
+es typischerweise alloziert oder blockiert, aber „typischerweise" ist keine
+Messung. Bevor eine Audio-Thread-Verletzung gemeldet (oder gar refactort) wird:
+den tatsächlichen Runtime-Pfad benennen (welche Funktion, welche Synchronisation,
+wo der malloc liegt) und die Kosten gegen die Block-Deadline stellen. Sonst
+produziert die Verbotsliste Fehlalarme, die echte Verstöße im Rauschen ertränken.
+
+**Do this instead.** Bei jedem Kandidaten der Audio-Thread-Liste zuerst
+`audio-thread-reviewer` mit der Frage „welcher konkrete Runtime-Mechanismus, und
+was kostet er gegen die Deadline?" — nicht mit „ist das ein Verstoß?". Die zweite
+Frage bekommt immer ein Ja.
+
+**Bonus-Ertrag (der eigentliche Wert des Zyklus).** Der Spezialist empfahl, den
+Zyklus statt in den Refactor in die fehlende **Render-Pfad-Abdeckung** zu stecken.
+Das war richtig: `MetronomeVoice` hatte NULL Render-Tests — jeder Test las die
+`@Observable`-Kontroll-Properties, also hätte ein `didSet`, der seinen
+`nonisolated(unsafe)`-Spiegel nicht mehr schreibt, die ganze Suite grün gelassen,
+während der Klick auf dem Gerät verstummt. Merksatz: **wo die Kontroll-Ebene und
+die Audio-Ebene über einen Spiegel gekoppelt sind, testet ein Test der
+Kontroll-Ebene NICHTS.** Der Test muss durch die Render-Funktion.
