@@ -8499,3 +8499,34 @@ beide Besitzer sind jetzt unerreichbar).
 Gerät — unsichtbar wie zuvor. Dieser Commit hat den Aufrufer entfernt, nicht die Falle.
 Wer `TimelineRegionPlayer.play()` wieder scharf macht, holt denselben Bug zurück. Der
 dauerhafte Fix ist #132 Slice 5.
+
+## 2026-07-27 — Zyklus 13: der Bass-Fader regelte eine Zahl, die der Fühl-Sub nie liest
+
+**Founder (zwei Zeilen, Gerät):** „Es knistert. Wie CPU overload bei Ableton oder so" ·
+„Beim Mix ist der Bass nicht an den Level Regler geknüpft."
+
+**Der konkrete von den zweien zuerst.** Ursache, durchgelesen statt geraten: das Mix-Feld
+„Level" bindet auf `MixerStore.bass`; `finish()` skaliert damit die **Noten-Velocity**.
+Aber `SubBassVoice.noteOn(pitch:velocity:)` verwirft die Velocity — der mono Fühl-Sub hat
+keine Pro-Noten-Velocity, seine Lautstärke IST `subGain` — und `PianoRollModel` ruft ohnehin
+`noteOn(pitch:)` ganz ohne Velocity. Der Fader hat also eine Zahl skaliert, die auf dem Weg
+zum hörbaren Bass nirgends gelesen wird.
+
+**Gefixt (`66e2c83`):** eigener Audio-seitiger `SubBassVoice.mixLevel` (`@MainActor`-Property
++ `@ObservationIgnored nonisolated(unsafe)`-Spiegel, NaN-sicher auf 0…1.5 geklemmt), in das
+**Ziel** des Gain-Ein-Pols multipliziert — damit erbt er den vorhandenen ~10-ms-Glide, kein
+Zipper beim schnellen Ziehen. Dazu die Schreiber von `mixer.bass`: Launch-Restore,
+`mixBinding`-Setter, „Reset to genre balance".
+
+**Zyklus-12-Reviewer-Nachlese (`7467389`):** der Lebenszyklus-Krümel aus `b8ebf63` markierte
+die Transition, aber nicht ihre Folge. Die 2.5.4-Idle-Sperre — genau der Zweig, der Stille
+erzeugt — meldete ihr Ergebnis nur an `os_log`, also NICHT in `echoel_diag.log`, die Datei
+die der Founder teilt. Derselbe Defekt, den `b8ebf63` beheben sollte, einen Zweig weiter
+stehen geblieben. Drei Zeilen erreichen die Datei jetzt. Mit korrigiert: der Kommentar
+behauptete, `breadcrumb` sei der einzige Schreiber der Datei — der Signal-Handler schreibt
+roh auf denselben fd.
+
+**Offen und bewusst nicht geraten:** das Knistern (#193). Zwei Klassen sind zu trennen —
+echte CPU-/Thermal-Überlast vs. Signalweg-Diskontinuität — und der Master-Meter-Tap
+(`AudioEngine.swift:392`) scheidet bereits aus, er ist seit dem letzten Knister-Verdacht
+hinter `_detailedMetering` gegated.
