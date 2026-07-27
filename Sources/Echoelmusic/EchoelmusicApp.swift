@@ -448,7 +448,16 @@ struct EchoelmusicApp: App {
                 // screen). Best-effort file appends on the main actor — negligible cost.
                 EchoelCrashLog.breadcrumb("startup 1/4: audio session + graph")
                 audioEngine.prepareGraph()
-                beatPlayer.loadDefaultSamples()
+                // `beatPlayer.loadDefaultSamples()` used to sit here. Removed 2026-07-27:
+                // it decoded 8 bundled drum WAVs into the pad voices on EVERY launch, and
+                // since the drums removal (c9af52b) `BeatPlayer.attach(to:)` no longer
+                // attaches those voices to the engine — so the samples were read, decoded
+                // and held in memory for voices that cannot reach the output. Pure launch
+                // cost, in the most crash-prone window of the app's life.
+                //
+                // BeatPlayer itself STAYS, and is not a leftover: `beatPlayer.pattern` is
+                // the live PatternEngine — the transport, the tempo clock and what
+                // `pianoRoll.start(pattern:)` drives. Only its sampler half is dead.
 
                 log.log(.info, category: .system, "STARTUP [2/4] Attaching voices...")
                 EchoelCrashLog.breadcrumb("startup 2/4: attaching voices")
