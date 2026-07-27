@@ -19,6 +19,25 @@
 // `HealthKitBioPublisher.publishIfFresh(to:)` already established. The previous version of
 // this file claimed the wiring was not pinnable; it was, one file away.
 //
+// ⚠️ WHAT LAYER 2 ACTUALLY GUARDS, stated narrowly because a previous cycle here shipped
+// five tests that could not fail. Against the reset-on-source-change version:
+//   · `interleavingDoesNotSwallowARealBreath` FAILS — this is the one true regression test
+//     for this fix, and the reason the fix exists.
+//   · `longGapInOneSource_clearsOnlyThatSourcesState` passes against that version, but
+//     fails against a reset-everything variant AND against a no-stale-gap variant, which
+//     is the pair of mistakes it is here to prevent.
+//   · `interleavedSources_doNotCreateACrossSourceBreath` and `stampsProvenance…` also pass
+//     against it — they guard the ORIGINAL #186 bug and the `.stamped(source:)` call from
+//     `9513fcc` respectively. Kept, but they are not this cycle's guard. Do not read the
+//     file's green as proof that the per-source change is covered; ONE test covers it.
+//
+// NOT COVERED, deliberately: making the de-dup per-source (so a camera dropout-hold
+// republish stays a no-op when another source interleaves) has NO falsifying test, because
+// re-feeding an identical `breathPhase` cannot move `BreathPhaseDetector`, `motionEnergy`
+// is 0 at every publisher and `cleanedHeart` is passed 0. It becomes observable the day a
+// real motion producer or a heart waveform reaches the bus; a test that "passes" today
+// would be measuring nothing. Writing that down beats writing a green tautology.
+//
 // `BioEventGraph` is a PROTECTED Rausch component. Only its public API is called.
 
 import XCTest
@@ -135,16 +154,25 @@ final class BioEventSourceSwitchTests: XCTestCase {
 
     @MainActor
     func testPublisher_longGapInOneSource_clearsOnlyThatSourcesState() async {
-        // Camera stalls (the documented 68–200 s rPPG freeze) and resumes. Its stored
-        // `previous` describes a breath from minutes ago, so the resume must not be read
-        // as an edge — while a second source's state is untouched.
+        // Camera stalls (the documented 68–200 s rPPG freeze) and resumes while a second
+        // source keeps publishing THROUGHOUT. Two things must hold at once, which is why the
+        // second source needs a trajectory of its own rather than a single frame: the
+        // camera's resume must NOT read as an edge, and the other source's baseline must
+        // SURVIVE that reset. (An earlier version gave HealthKit one frame, so the "only"
+        // in this test's name was unobservable — `graphs.removeAll()` would have passed it.)
         let bus = EngineBus()
         let publisher = BioEventPublisher()
         await step(publisher, bus, frame(.cameraPPG, phase: 0.2, at: 1))
-        await step(publisher, bus, frame(.healthKit, phase: 0.5, at: 2))
-        await step(publisher, bus, frame(.cameraPPG, phase: 0.7, at: 200))   // resume after a stall
-        XCTAssertEqual(publisher.eventsPublished, 0,
-                       "a resume after a long silence establishes a baseline, not an edge")
+        // HealthKit keeps a continuous trajectory across the camera's silence — each hop is
+        // under the 10 s stale gap, so its own state is never legitimately cleared.
+        for t in [2.0, 11.0, 20.0, 29.0] {
+            await step(publisher, bus, frame(.healthKit, phase: 0.2, at: t))
+        }
+        await step(publisher, bus, frame(.cameraPPG, phase: 0.7, at: 30))    // resume after the stall
+        await step(publisher, bus, frame(.healthKit, phase: 0.7, at: 31))    // its own genuine edge
+
+        XCTAssertEqual(publisher.eventsPublished, 1,
+                       "the camera's resume is a baseline, not an edge — and clearing it must not take the other source's baseline with it")
     }
 
     @MainActor

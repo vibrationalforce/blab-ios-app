@@ -29,12 +29,15 @@
 //    · `breathRate` IS real Health-store data, but the graph is never fed it.
 //    · `cleanedHeart` is passed as `0`, so graph heartbeats do not fire at all.
 //  So no Health-store VALUE has actually left the device through this path. What could:
-//  the shared `BreathPhaseDetector.previous` is not reset when the source changes, so a
-//  camera session leaving it at e.g. 0.3 followed by a HealthKit frame at 0.5 fires one
-//  inhale event — a cross-source state artifact, carrying a placeholder, ungated.
-//  The gate is therefore DEFENCE-IN-DEPTH plus that one artifact: it costs nothing, and it
-//  means a future publisher that carries real Health-derived channels into the graph is
-//  covered on arrival instead of needing someone to remember this file.
+//  a SHARED detector state across sources, where a camera session leaving `previous` at 0.3
+//  followed by a HealthKit frame at 0.5 fires one inhale that belongs to neither.
+//  ⚠️ AND THE GATE BELOW WOULD NOT HAVE CAUGHT IT: such an event is stamped with whichever
+//  frame was current when it fired, so it could arrive stamped `.cameraPPG` and PASS. The
+//  stamp was wrong, not missing. That artifact is closed at its root instead — one
+//  `BioEventGraph` PER SOURCE in `BioEventPublisher`, so no edge can span two sources.
+//  This gate is therefore DEFENCE-IN-DEPTH: it costs nothing, and it means a future
+//  publisher that carries real Health-derived channels into the graph is covered on arrival
+//  instead of needing someone to remember this file. It is NOT the thing that fixed #186.
 //  Do not re-introduce an "events are exempt" claim; equally, do not overstate it as an
 //  active leak — both errors have now been made in this exact paragraph.
 //

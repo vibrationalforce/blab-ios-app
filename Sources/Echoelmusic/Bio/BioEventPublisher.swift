@@ -58,10 +58,27 @@ public final class BioEventPublisher {
     /// Per-source state removes the class instead of trading one artifact for another:
     /// each source's trajectory stays continuous and interleaving cannot contaminate.
     /// Bounded by `BioSource`'s case count (7), each a small value type.
+    ///
+    /// It also closes a 5.1.3 hole the first two attempts both missed. A cross-source event
+    /// was stamped with the source of the frame that happened to be current when it fired
+    /// (below), so a HealthKit-influenced onset could arrive stamped `.cameraPPG` and
+    /// therefore PASS `BioEgressPolicy` on its way to the network. Gating events (#186) did
+    /// not fix that — the stamp was wrong, not missing. Separating the state does.
     @ObservationIgnored
     private var graphs: [BioSource: BioEventGraph] = [:]
 
-    /// Last frame time SEEN PER SOURCE, so a long gap in one source resets only that one.
+    /// Last frame time SEEN PER SOURCE. Two jobs, both of which the shared field it replaced
+    /// got wrong under interleaving: it decides the stale gap below, AND it is the de-dup.
+    ///
+    /// The de-dup MUST be per-source. `CameraRPPGBioPublisher` republishes its last good
+    /// frame during a dropout hold carrying the ORIGINAL `timestamp`, and says so as a
+    /// contract at its call site: "consumers that dedupe on `timestamp` now treat a held
+    /// republish as a no-op". A single shared `lastFrameTimestamp` honoured that only while
+    /// one source published — the moment a HealthKit frame lands between two held camera
+    /// republishes, the held frame's timestamp no longer equals the last-seen one and the
+    /// same stale sample is fed to the camera's detector again and again. Benign today for
+    /// the same three reasons flagged in `tick` (constant phase, zero motion, zero heart),
+    /// which is exactly what makes it a latent defect rather than a non-issue.
     @ObservationIgnored
     private var lastFrameTimeBySource: [BioSource: TimeInterval] = [:]
 
@@ -75,11 +92,9 @@ public final class BioEventPublisher {
     @ObservationIgnored
     private var task: Task<Void, Never>?
 
-    @ObservationIgnored
-    private var lastFrameTimestamp: TimeInterval = -1
-
     /// Bus poll cadence is 10 Hz; the heartbeat detector's refractory is unused here
     /// (no waveform fed), so 10 is fine.
+    @ObservationIgnored
     private static let graphSampleRate: Double = 10
 
     public init() {}
@@ -101,6 +116,14 @@ public final class BioEventPublisher {
         task?.cancel()
         task = nil
         isActive = false
+        // Detector state does NOT survive a stop. Resuming inside the stale gap against a
+        // `previous` from the previous session is the same phantom edge as a source switch,
+        // only across a session boundary — and the stale gap cannot catch it, because wall
+        // time keeps running while this object does not. `stop()` has no production caller
+        // today (the publisher is started once, `EchoelmusicApp.swift:799`), so this closes
+        // a trap for whoever adds one rather than fixing a live bug.
+        graphs.removeAll()
+        lastFrameTimeBySource.removeAll()
     }
 
     /// Internal, not private, so a test can drive ONE frame deterministically instead of
@@ -109,8 +132,8 @@ public final class BioEventPublisher {
     /// "not pinnable"; that was wrong, and the precedent was one file away.
     func tick(_ bus: EngineBus) {
         guard let frame = bus.latestBio else { return }
-        guard frame.timestamp != lastFrameTimestamp else { return }
-        lastFrameTimestamp = frame.timestamp
+        let lastSeen = lastFrameTimeBySource[frame.source]
+        guard lastSeen != frame.timestamp else { return }
 
         // Each source gets its OWN detector state (see `graphs`), so an interleaved bus
         // cannot produce an edge spanning two sources. This is the caller's job by
@@ -128,7 +151,7 @@ public final class BioEventPublisher {
         // producer must revisit this line. Same shape on the heartbeat side: the first
         // beat after a reset reports `aux = 0` as an inter-beat interval, unreachable
         // only because `cleanedHeart` is passed as 0 below.)
-        if let last = lastFrameTimeBySource[frame.source], frame.timestamp - last > Self.staleGap {
+        if let lastSeen, frame.timestamp - lastSeen > Self.staleGap {
             graph.reset()
         }
         lastFrameTimeBySource[frame.source] = frame.timestamp
