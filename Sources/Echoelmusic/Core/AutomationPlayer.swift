@@ -110,9 +110,60 @@ public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifia
 }
 
 /// Persisted automation document: the on/off state plus one lane per target.
-private struct AutomationState: Codable, Sendable {
+///
+/// Defensive decode (#170, the same law as `SynthPatch`/`Project`/`AutomationLane`).
+/// `AutomationLane` is already forgiving element-side, but the DOCUMENT around it was
+/// not: the synthesized decoder made `enabled` and `lanes` both REQUIRED, so adding one
+/// field here tomorrow — or one lane element that is not a JSON object, or a truncated
+/// write — threw, `AppGroupStore.load` returned nil, and `AutomationPlayer.init` fell
+/// into its `else` branch: every drawn curve gone AND `enabled` silently flipped off.
+/// Both halves are needed and both are here — element-tolerant `lanes` (a bad lane
+/// becomes a hole, the rest survive) and field-tolerant `enabled`.
+///
+/// HONEST SCOPE — this protects a READ, not a save loop. No shipping surface writes
+/// automation any more: `TimelineAutomationRow` is unmounted (#121 Slice 4 took its
+/// editor sheet, the row retires in Slice 6) and grep finds ZERO production callers of
+/// any mutator that reaches `persist()`. So `automation.json` is not being rewritten
+/// today, and a failed decode could not destroy the file the way the #163 library-wipe
+/// did. What it CAN still do is silently stop curves a user drew in an earlier build
+/// from playing — `applyStep` runs on every transport step, so those lanes are live
+/// even with their editor gone. That read is what this defends.
+///
+/// Internal, not `private`, ONLY so the regression test can decode it directly:
+/// `AutomationPlayer` takes no injectable store, so testing through it would mean
+/// writing into the real App-Group container.
+struct AutomationState: Codable, Sendable {
     var enabled: Bool
     var lanes: [AutomationLane]
+
+    init(enabled: Bool, lanes: [AutomationLane]) {
+        self.enabled = enabled
+        self.lanes = lanes
+    }
+
+    private enum CodingKeys: String, CodingKey { case enabled, lanes }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        // `try?` rather than `decodeIfPresent`, deliberately: `decodeIfPresent` absorbs
+        // absent/null but still THROWS on a type mismatch, which is one of the shapes
+        // that has to stop being fatal here.
+        // Defaulting to `false` is the conservative direction — automation writes over
+        // whatever the performer has set live, so an unreadable flag must not be able to
+        // turn it ON. It also matches the branch `init` already takes when nothing loads.
+        enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? false
+        let wrapped = (try? c.decode([LossyDecoded<AutomationLane>].self, forKey: .lanes)) ?? []
+        lanes = wrapped.compactMap(\.value)
+        // TELEMETRY — dropping a lane is still real loss, just bounded loss; without this
+        // the partly-corrupt case would be the one SILENT failure (worse than the
+        // all-or-nothing behaviour it replaces, which at least logged when it lost
+        // everything). Logged once per read, never per lane.
+        let dropped = wrapped.count - lanes.count
+        if dropped > 0 {
+            log.log(.error, category: .system,
+                    "AutomationState — dropped \(dropped)/\(wrapped.count) undecodable lane(s)")
+        }
+    }
 }
 
 @MainActor

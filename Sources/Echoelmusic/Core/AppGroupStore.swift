@@ -89,11 +89,20 @@ public struct AppGroupStore: Sendable {
     ///
     /// THE CLASS IS NOT CLOSED. This defends the five stores that go through `AppGroupStore`
     /// with a top-level array; `SignalRouter` (the patchbay, `UserDefaults`-backed) now calls
-    /// the shared `decodeLossyArray` directly. Still open, same shape, tracked as task #170:
-    /// `AutomationState` (`AutomationPlayer`) — a corrupt lane wipes every drawn curve AND
-    /// flips `enabled` off; `Arrangement.sections` — a bare `try?` that turns a throw into
-    /// total silent loss before persisting it back; and `[BioSessionSummary]`
-    /// (`SessionRecorder`). Do not read this doc as "persistence is handled".
+    /// the shared `decodeLossyArray` directly; `AutomationState` (`AutomationPlayer`) got its
+    /// own element-tolerant + field-tolerant decoder in #170.
+    ///
+    /// Two of the originally-listed sites were CLOSED BY REACHABILITY, not by a decoder, and
+    /// the distinction is the point — writing a defensive decoder for a path nothing can
+    /// write is the compile-time-vs-runtime confusion this repo keeps paying for:
+    /// `Arrangement.sections` (`ArrangementStore` is instantiated and injected but has ZERO
+    /// readers and ZERO writers since `ArrangementView` went with #121 Slice 4; it retires in
+    /// Slice 5) and `[BioSessionSummary]` (`SessionRecorder`'s only consumer is the
+    /// deliberately doorless `MeditationView`, so nothing calls `start`/`stop` → `save()` never
+    /// runs). Neither can lose data today because neither is ever rewritten. If either surface
+    /// is ever re-doored, its decoder must be hardened IN THE SAME SLICE — that is the moment
+    /// the wipe becomes possible again, and a re-door is exactly when nobody is looking here.
+    /// Do not read this doc as "persistence is handled".
     ///
     /// Returns `nil` only when the file is absent, unreadable, or is not a JSON array at all —
     /// i.e. exactly the cases where "nothing usable is saved" is the truth. A present-but-

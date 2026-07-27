@@ -74,6 +74,11 @@ public func decodeLossyArray<T: Decodable>(
 // them is cosmetic, touches three persisted-decode paths at once, and buys the user nothing
 // — deliberately not done here. Do not read this file as "every array decode is tolerant".
 //
+// A KEYED container does NOT need a fourth copy, though — that was the wrong lesson to draw
+// from the paragraph above. `AutomationState.init(from:)` (#170) decodes
+// `[LossyDecoded<AutomationLane>]` straight out of its keyed container: only the FUNCTION is
+// top-level-array-only, the TYPE composes anywhere. New defensive decoders use the type.
+//
 // AND IT IS ONLY HALF A DEFENCE. Element-tolerance saves the readable elements; it does
 // nothing when EVERY element fails at once (a new required field on the element type), which
 // yields all-holes → `[]` → the same total wipe. The other half is a forgiving element
