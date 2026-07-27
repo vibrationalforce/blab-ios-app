@@ -688,6 +688,17 @@ public final class TimelineStore {
         return true
     }
 
+    /// Heal the roll slot and NAME the cause in one call, so no caller can read the
+    /// reason in the wrong order (see `TimelineDocument.healRollSlotNamingCause`).
+    /// Returns the repaired cause, or nil when nothing needed repairing. Persists on a
+    /// real heal, exactly like `healRollSlotAudibility`.
+    @discardableResult
+    public func healRollSlotNamingCause() -> TimelineDocument.RollSilenceReason? {
+        guard let cause = document.healRollSlotNamingCause() else { return nil }
+        persist()
+        return cause
+    }
+
     /// Remove an EMPTY lane (regions must move/delete first — no silent data loss).
     public func removeLaneIfEmpty(id: UUID) {
         guard document.regions(in: id).isEmpty else { return }

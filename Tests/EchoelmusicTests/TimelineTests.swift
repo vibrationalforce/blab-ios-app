@@ -238,29 +238,52 @@ final class TimelineTests: XCTestCase {
         XCTAssertNil(doc.rollSlotSilenceReason)
     }
 
-    /// ORDERING LAW for the Start breadcrumb: `startBiofeedback` logs WHICH cause it
-    /// rescued, and it can only do that by reading `rollSlotSilenceReason` BEFORE calling
-    /// the heal — afterwards the reason is nil by construction, so a reordered read would
-    /// silently log "unknown" forever. The founder iterates from pasted diag logs, and a
-    /// diagnostic that always prints the same word is worse than none: it looks like
-    /// evidence. Nothing else pins this, because both halves are individually correct.
-    func testSilenceReasonMustBeReadBeforeHealing_orTheStartBreadcrumbSaysNothing() {
-        var doc = TimelineDocument(lanes: [
-            TimelineLane(name: "MIDI 1", kind: .midi, isMuted: true),
-        ])
-        let readBefore = doc.rollSlotSilenceReason
-        XCTAssertEqual(readBefore, .muted, "the cause is knowable before the heal")
+    /// `healRollSlotNamingCause` exists so the Start breadcrumb cannot name the wrong
+    /// thing. The two-step form (read the reason, then heal) is order-dependent — after
+    /// the heal the reason is nil by construction — and a reordered read fails SILENTLY,
+    /// logging "unknown" forever while both halves stay individually correct.
+    ///
+    /// My first version of this test was named for that ordering and could not detect a
+    /// reordering, because it exercised only this type and never the call site. Review
+    /// caught it. The answer was not a better test but a better shape: one call, so there
+    /// is no order left to get wrong. This now tests the thing that removed the hazard.
+    func testHealRollSlotNamingCause_returnsTheCauseItRepaired() {
+        let cases: [(TimelineLane, TimelineDocument.RollSilenceReason)] = [
+            (TimelineLane(name: "MIDI 1", kind: .midi, isMuted: true), .muted),
+            (TimelineLane(name: "MIDI 1", kind: .midi, level: 0), .levelZero),
+        ]
+        for (lane, expected) in cases {
+            var doc = TimelineDocument(lanes: [lane])
+            XCTAssertEqual(doc.healRollSlotNamingCause(), expected)
+            XCTAssertNil(doc.rollSlotSilenceReason, "and it healed while naming")
+        }
 
-        XCTAssertTrue(doc.healRollSlotAudibility())
-        XCTAssertNil(doc.rollSlotSilenceReason,
-                     "and NOT knowable after — which is why the read must come first")
+        // A foreign solo is the third cause, and needs a second lane to hold it.
+        var soloed = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi),
+            TimelineLane(name: "Audio", kind: .audio, isSoloed: true),
+        ])
+        XCTAssertEqual(soloed.healRollSlotNamingCause(), .otherSoloed)
+        XCTAssertNil(soloed.rollSlotSilenceReason)
+    }
+
+    /// Nothing wrong ⇒ nil, and nothing written. Without this the breadcrumb could fire
+    /// on every Start of a perfectly healthy project and turn the diag log into noise —
+    /// which is how a real cause stops being noticed.
+    func testHealRollSlotNamingCause_isNilAndInertWhenAlreadyAudible() {
+        var doc = TimelineDocument(lanes: [TimelineLane(name: "MIDI 1", kind: .midi)])
+        let before = doc
+        XCTAssertNil(doc.healRollSlotNamingCause())
+        XCTAssertEqual(doc, before, "a healthy document must not be rewritten")
     }
 
     /// The three causes must stay distinguishable in a log line. A raw value that
     /// collides or renames turns a founder's pasted log into a wrong diagnosis.
     func testSilenceReasonRawValuesAreDistinctAndStable() {
+        // (A `Set(...).count == 3` check stood here and was DELETED: Swift rejects
+        // duplicate enum raw values at compile time, so it could never go red — the
+        // same can't-fail category as task #140. The line below strictly subsumes it.)
         let all: [TimelineDocument.RollSilenceReason] = [.muted, .otherSoloed, .levelZero]
-        XCTAssertEqual(Set(all.map(\.rawValue)).count, 3)
         XCTAssertEqual(all.map(\.rawValue), ["muted", "otherSoloed", "levelZero"])
     }
 

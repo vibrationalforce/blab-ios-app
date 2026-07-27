@@ -3294,15 +3294,14 @@ struct EchoelStudioView: View {
         // exit): an explicit Start expresses "I want to HEAR it" — heal a
         // persisted-silent roll slot (mute / zero level / stale solo) before
         // the first generate. Automatic paths (evolve/re-seed) never do this.
-        // Name WHICH of the three causes it was, read BEFORE the heal (afterwards it is
-        // nil by construction). `rollSlotSilenceReason` was built for this and had zero
-        // readers in production until now — the founder iterates from pasted diag logs,
-        // so "healed" alone tells him a rescue happened but not what had gone wrong, and
-        // a persisted mute is a different story from a stale solo left by another lane.
-        let silenceReason = timelineStore.document.rollSlotSilenceReason
-        if timelineStore.healRollSlotAudibility() {
-            EchoelCrashLog.breadcrumb(
-                "start: silent roll slot healed (cause: \(silenceReason?.rawValue ?? "unknown"))")
+        // Name WHICH of the three causes it was. `rollSlotSilenceReason` was built for
+        // exactly this and had zero production readers until now — the founder iterates
+        // from pasted diag logs, so "healed" alone tells him a rescue happened but not
+        // what had gone wrong, and a persisted mute is a different story from a stale
+        // solo left by another lane. ONE call, not read-then-heal: the reason is nil
+        // after the heal, so the two-step form is order-dependent and fails silently.
+        if let cause = timelineStore.healRollSlotNamingCause() {
+            EchoelCrashLog.breadcrumb("start: silent roll slot healed (cause: \(cause.rawValue))")
         }
         running = true
         bus.setInstrumentRunning(true)   // chrome mirror (TransportBar pulse button)

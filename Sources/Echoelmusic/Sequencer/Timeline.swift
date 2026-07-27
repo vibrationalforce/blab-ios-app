@@ -479,6 +479,21 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
         return self != before
     }
 
+    /// Heal the roll slot AND name what was wrong, in ONE call. Returns the cause that
+    /// was repaired, or `nil` when nothing needed repairing.
+    ///
+    /// WHY THIS EXISTS rather than "read the reason, then heal": after the heal the
+    /// reason is nil by construction, so the two-step version is order-dependent — and a
+    /// reordered read fails SILENTLY, logging "unknown" forever while both halves stay
+    /// individually correct and every test stays green. Review caught that my test for
+    /// the ordering could not actually detect a reordering, because it exercised only
+    /// this type and never the call site. Collapsing the pair into one call removes the
+    /// hazard instead of documenting it: there is no longer an order to get wrong.
+    public mutating func healRollSlotNamingCause() -> RollSilenceReason? {
+        let cause = rollSlotSilenceReason
+        return healRollSlotAudibility() ? cause : nil
+    }
+
     /// The stereo position the ONE shared Piano-Roll slot plays at (B2 — the
     /// rollSlotGain mirror for pan). Clamped −1…1; mute/solo do NOT touch pan
     /// (audibility is gain's job). No MIDI lane → center.

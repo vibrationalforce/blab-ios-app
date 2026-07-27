@@ -428,6 +428,17 @@ private struct TransportBar: View {
             // so the primary roll lane's auto-composer MIRROR — the new visible MIDI-clip
             // tile Generate places — does NOT flip ▶ from the live bio-generative loop to
             // a frozen region. Any real arrangement content still engages the arrangement.
+            // DIAGNOSE-ONLY, never heal here. Two of ▶'s three branches do not go through
+            // `startBiofeedback`, so they never consult the roll slot's audibility — a
+            // legacy-persisted mute would play a silent session and the diag log would
+            // show `rollMixGain=0.00` with no word about WHY. Reading the cause on every ▶
+            // closes that gap. It must stay a READ: `startBiofeedback` is the single owner
+            // of the heal (see `healRollSlotAudibility`'s note), and a second healer here
+            // would be the "two places decide the same thing" bug all over again — ▶ on an
+            // arrangement is not the same intent as "make the instrument audible".
+            if let cause = doc.rollSlotSilenceReason {
+                EchoelCrashLog.breadcrumb("play: roll slot is silent (cause: \(cause.rawValue))")
+            }
             if doc.rollLaneID != nil || !doc.audioLaneIDs.isEmpty,
                doc.hasArrangementContent(isComposerOwned: { clips.clip(id: $0)?.composerOwned ?? false }) {
                 // CLIP-5: start at the PARKED playhead's bar (drag-then-play), not
