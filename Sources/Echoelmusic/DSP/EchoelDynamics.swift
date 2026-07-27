@@ -37,6 +37,26 @@ public final class EchoelCompressor: @unchecked Sendable {
     @inline(__always)
     public func processStereo(_ inL: Float, _ inR: Float) -> (Float, Float) {
         let peak = Swift.max(abs(inL), abs(inR))
+
+        // Same state-integrity bail as the limiter below, and it closes a REACHABLE
+        // permanent-silence path rather than a theoretical one. `Swift.max(peak, 1e-7)`
+        // does NOT filter NaN (`1e-7 >= NaN` is false, so it returns `peak`), so one NaN
+        // sample makes `inDb` NaN, both knee comparisons fail into the `else`, `target`
+        // becomes NaN, `target < grState` is false, and the release branch writes
+        // `grState = NaN` — permanently. Every later sample then returns NaN until
+        // `reset()`, which nothing calls in production.
+        //
+        // This stage sits IMMEDIATELY BEFORE the limiter in `EchoelFXChain`, so the
+        // limiter's own non-finite hardening cannot help: the NaN would be manufactured
+        // downstream of it, inside the chain. `AudioOutputGuard` still silences the result
+        // at the source-node output, which is why the symptom is silence rather than a NaN
+        // reaching hardware — and why it would present as the "everything is quiet" class
+        // of bug with no crash and no log line to point at.
+        guard peak.isFinite else {
+            let held = powf(10.0, (grState + makeupDb) / 20.0)   // rare path; cost is moot
+            return (inL * held, inR * held)
+        }
+
         let inDb = 20.0 * log10f(Swift.max(peak, 1e-7))
 
         // Static gain-computer with quadratic soft knee.

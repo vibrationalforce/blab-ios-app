@@ -155,6 +155,29 @@ final class EchoelDynamicsTests: XCTestCase {
         XCTAssertLessThan(comp.gainReductionDb, -1.0)     // actively compressing
     }
 
+    /// The compressor had the same NaN state-poisoning the limiter was hardened against,
+    /// and unlike the limiter's it was REACHABLE as permanent silence: `Swift.max(peak, 1e-7)`
+    /// does not filter NaN, so one bad sample wrote `grState = NaN` and every later sample
+    /// returned NaN until a `reset()` that nothing calls. It sits immediately before the
+    /// limiter in `EchoelFXChain`, so the limiter's guard could not catch it — the NaN was
+    /// manufactured downstream of it.
+    func testCompressorNaNDoesNotPoisonGainState() {
+        let comp = EchoelCompressor(sampleRate: sr)
+        comp.thresholdDb = -24; comp.ratio = 4; comp.makeupDb = 0
+        for i in 0..<2000 { _ = comp.processStereo(0.9 * sinf(Float(i) * 0.1), 0) }
+        let engaged = comp.gainReductionDb
+        XCTAssertLessThan(engaged, -0.5, "compressor never engaged — test proves nothing")
+
+        XCTAssertTrue(comp.processStereo(Float.nan, 0).0.isNaN)   // sample passes through
+        XCTAssertEqual(comp.gainReductionDb, engaged, accuracy: 1e-6)   // state untouched
+
+        // The falsifier: BEFORE the fix every subsequent sample was NaN forever.
+        for i in 0..<200 {
+            let (l, r) = comp.processStereo(0.9 * sinf(Float(i) * 0.1), 0)
+            XCTAssertTrue(l.isFinite && r.isFinite, "compressor poisoned at sample \(i)")
+        }
+    }
+
     func testCompressorOutputIsFinite() {
         let comp = EchoelCompressor(sampleRate: sr)
         comp.thresholdDb = -30; comp.ratio = 20; comp.makeupDb = 6
