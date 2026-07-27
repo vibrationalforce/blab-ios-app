@@ -1043,3 +1043,49 @@ einem Satz, den ich gerade korrigiert hatte. Wenn ein Fix eine Behauptung an Ste
 entfernt und die identische an Stelle B stehen lässt, liest B sich hinterher wie
 bestätigt. Entweder die Klasse ganz oder als eigene Aufgabe mit Beleg anlegen — aber
 nie stillschweigend halb.
+
+---
+
+## DEAD-END: „Ich habe die Rechnung getestet" ist nicht „ich habe die Verdrahtung getestet"
+
+**Zweimal in zwei Tagen dieselbe Form.** Beide Male war eine reine Funktion sauber
+abgedeckt, während der Wert, der sie im Betrieb erreicht, aus einer Stelle kam, die
+**kein einziger Test berührte** — und beide Male war genau diese Stelle der Bug.
+
+- Loudness-Export: `steadyGainDB`/`normalizeGainDB` gut getestet; die −14 kam aus
+  `AutoMixChain.targetLUFS`, einer gespeicherten Property **ohne jeden Schreiber**.
+- rPPG-Gate: `pulseTrustworthy` gut getestet; der Publish-`guard` rief sie schlicht
+  nicht auf. Nach dem Fix konnte man den Aufruf zurückdrehen — alle Tests blieben grün.
+
+**Die Regel.** Nach jedem Extract-to-pure die Frage stellen: *„Wenn ich die
+Aufrufstelle auf den alten Ausdruck zurücksetze — welcher Test wird rot?"* Ist die
+Antwort „keiner", ist nur die Arithmetik gepinnt. Der Pin für die Verdrahtung ist ein
+**injizierbarer Seam** (`resolvedTarget(from: UserDefaults)`, `_testRender(...)`),
+getestet gegen eine Scratch-Instanz — nicht ein weiterer Test derselben reinen Funktion.
+
+**Und die Falle in der Falle:** ich habe für beide Fälle einen Test geschrieben, der
+behauptete, die Verdrahtung zu sichern, und in Wahrheit die reine Funktion mit sich
+selbst verglich. Der Doc-Kommentar lobte sich sogar dafür, eine Tautologie gelöscht zu
+haben — eine Ebene höher stand die nächste. **Ein Test, dessen Kommentar erklärt, was er
+schützt, ist kein Beweis, dass er es schützt.**
+
+## DEAD-END: eine Test-Schwelle, die den Bug dokumentiert statt an ihm zu scheitern
+
+„No target" sollte den Master-Gain auf Unity zurückführen; die Totzone parkte ihn
+dauerhaft 0.385 dB daneben. Mein Test prüfte `abs(g) < 0.5` — **großzügig genug, um den
+Restfehler durchzulassen**, und die Zahl 0.5 war nicht zufällig: ich hatte sie gewählt,
+weil 0.385 nicht bestand. Die Schwelle war eine stille Notiz über den Defekt.
+
+**Die Regel.** Wenn eine Toleranz gewählt wird, weil der Ist-Wert sonst durchfällt, ist
+das der Befund — nicht die Toleranz. Erst begründen, warum der Rest physikalisch da sein
+DARF; wenn es keine Begründung gibt, ist die Toleranz `1e-6`.
+
+## PLAYBOOK: grünes Gate ≠ gebaute Datei (Fortsetzung)
+
+`xcode-compile-check` kompiliert `Tests/EchoelmusicTests` **nicht** (nur `Tests/CISmoke`).
+Ein Reviewer meldete eine fehlende `nonisolated`-Markierung als wahrscheinlichen
+Gate-Bruch — das Gate war grün, weil es die Datei nie angefasst hat. Ebenso lief
+`auto-merge-docs.yml` grün **ohne zu mergen**: es diffed `origin/main..<sha>`, und ein
+einzelner Nicht-docs-Commit in der Branch-Delta setzt `docs_only=false`, worauf der
+Cherry-Pick-Schritt übersprungen wird und der Job trotzdem mit 0 endet.
+**Vor „grün" immer fragen: was hat dieser Lauf tatsächlich AUSGEFÜHRT?**
