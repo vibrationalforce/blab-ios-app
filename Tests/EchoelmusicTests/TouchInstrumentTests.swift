@@ -94,7 +94,7 @@ final class TouchInstrumentTests: XCTestCase {
             XCTAssertTrue((0...127).contains(p), "MIDI range")
         }
     }
-\n
+
     // MARK: - Micro-variation ("Leben") — founder 2026-07-27
 
     /// The switch must genuinely switch OFF, not merely reduce. Depth 0 has to return

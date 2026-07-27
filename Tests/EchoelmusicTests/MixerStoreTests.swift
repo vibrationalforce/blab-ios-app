@@ -113,7 +113,7 @@ final class MixerStoreTests: XCTestCase {
         XCTAssertEqual(velocity, 0.66, accuracy: 1e-6,
                        "a boosted fader flattened a 0.66 note to the 1.0 clamp")
     }
-\n
+
     /// The hole the FIRST version of the cap left open: it capped only the USER term, but
     /// `MusicStyle.mixLevels` ships GENRE levels above 1 — bass 1.18 on dubTechno/trap,
     /// 1.10 on ska/rock/punk/…, harmony 1.05 on the meditation genres. With bass velocities
