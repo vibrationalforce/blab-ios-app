@@ -293,7 +293,25 @@ public final class PolySynthVoice {
     // MARK: - Note gating (control plane)
 
     /// Sound a note. `pitch` is a MIDI note number, `velocity` is [0...1].
-    public func noteOn(pitch: Int, velocity: Float = 0.8, cutoffScale: Float = 1) {
+    ///
+    /// THE `NoteVoice` WITNESS, and why it cannot just be a default argument. Swift
+    /// identifies a method by its full parameter list, not by how it can be called: adding
+    /// `cutoffScale:` — even with a default — renamed the only entry point to
+    /// `noteOn(pitch:velocity:cutoffScale:)`, which stopped witnessing the protocol's
+    /// `noteOn(pitch:velocity:)` and broke `extension PolySynthVoice: NoteVoice`
+    /// (`PianoRollView.swift:23`). The Xcode gate caught it on 4655323; this two-parameter
+    /// entry point is the witness, not a redundant convenience. Do not merge the two back
+    /// together by re-defaulting `cutoffScale` below.
+    public func noteOn(pitch: Int, velocity: Float = 0.8) {
+        noteOn(pitch: pitch, velocity: velocity, cutoffScale: 1)
+    }
+
+    /// Sound a note with per-note filter expression (the play surface's MPE-style morph).
+    /// `cutoffScale` multiplies THIS note's filter cutoff; 1 = the patch's own value.
+    ///
+    /// `cutoffScale` deliberately has NO default — that is what keeps this unambiguous
+    /// against the two-parameter witness above.
+    public func noteOn(pitch: Int, velocity: Float = 0.8, cutoffScale: Float) {
         if !Self.noteTraced {
             Self.noteTraced = true
             EchoelCrashLog.breadcrumb("polyVoice.noteOn#1 enqueue pitch=\(pitch)")
