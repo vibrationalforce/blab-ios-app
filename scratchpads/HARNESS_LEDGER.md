@@ -1203,3 +1203,27 @@ aller Produzenten nachlesen (wer startet sie, wer stoppt sie — hier: `stopBioS
 `EchoelStudioView`, `EchoelmusicApp`). „Wechsel" setzt Exklusivität voraus; in diesem Repo
 ist Exklusivität die Ausnahme, nicht die Regel. Zweite Lehre: ein Reset ist nicht
 automatisch harmlos-unterdrückend — `MotionPeakDetector` wird davon *scharfgestellt*.
+
+### DEAD-END: eine Oberfläche entfernen und ihre Autorität stehen lassen
+
+Slice 4 löschte die Arrangement-UI. Das persistierte Dokument blieb — und blieb der ERSTE
+Leser im Play-Handler. Ergebnis: ein Knopf, der auf Daten hört, die der Nutzer weder sehen
+noch löschen kann. Der Founder drückte ▶ und bekam einen Breakbeat aus einer Session von
+vor Wochen.
+
+**Die Regel:** Beim Entfernen einer Fläche IMMER prüfen, welche Entscheidungen ihr Modell
+noch trifft — nicht nur, wer es anzeigt. `git grep` auf den Store-Typ, nicht auf die View.
+Unerreichbare Daten mit Entscheidungsgewalt sind schlimmer als sichtbare Altlast: der
+Nutzer kann den Zustand nicht einmal benennen, geschweige denn aufräumen.
+
+### PLAYBOOK: „das bleibt, weil es tragend ist" — erst den Guard lesen
+
+Ich verteidigte einen Codeblock als „live", weil ein Relay ihn pro Tick aufruft. Der Aufruf
+erfolgte tatsächlich — und kehrte in Zeile zwei an `guard isPlaying` um, das nach meiner
+eigenen Änderung nie mehr wahr wird. Eine Aufrufkette beweist keine Wirkung.
+
+**Die Regel:** Bevor ein Block als tragend deklariert wird (besonders in einem Kommentar,
+den eine spätere Löschung lesen wird): den ERSTEN Guard der Methode lesen und prüfen, ob
+seine Bedingung nach der aktuellen Änderung überhaupt noch erreichbar ist. Ein falsches
+„tragend" kostet keinen Bug, sondern eine verweigerte Löschung — teurer, weil es niemand
+als Fehler bemerkt.

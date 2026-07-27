@@ -8453,3 +8453,49 @@ Abdeckung liest. Ein Test, der sein eigenes „nur diese Quelle" nicht prüfte
 **Reviewer-Bilanz Zyklen 10–11:** 1 tautologische Test-Gruppe, 1 überzogene Begründung,
 **1 von mir ausgelieferte Regression**, 1 gekoppelt gelassenes Feld, 1 Test der seinen
 eigenen Namen nicht prüfte — alle behoben, jeweils mit benannter Ursache im Commit.
+
+## 2026-07-27 — Zyklus 12: ▶ spielte einen fremden Breakbeat (Founder-Log 2469)
+
+**Founder:** „Ich hab vorhin auf Play gedrückt … da kam der Breakbeat den ich mal in die
+Session geladen hab. Der ganze DAW Quatsch der nicht funktioniert hat soll erstmal raus."
+
+**Ursache, exakt:** `TransportBar.toggle()` las ZUERST das persistierte Timeline-Dokument.
+Lag darin irgendeine echte Region, spielte ▶ die ANORDNUNG statt das Instrument. Mit
+Slice 4 (#130) verschwand die Arrangement-Oberfläche — seitdem war dieses Dokument
+**unsichtbar und nicht löschbar**, behielt aber die Hoheit über den einen Transport-Knopf.
+Eine Fläche zu entfernen, ohne ihr die Autorität zu nehmen, macht aus einem Rest eine Falle.
+
+**Geschnitten (`73c8e97`):** ▶ liest die Timeline nicht mehr an. Zwei Zweige — nichts
+komponiert + nichts läuft → Instrument starten; sonst der Live-Loop. Mit raus:
+· die **Drum-Grid-Bedingung** — `pattern.steps` kommt aus Vor-#166-Projekten via `open(_:)`
+  noch gefüllt zurück und klingt seit dem Drum-Ausbau nicht mehr, unterdrückte also nur
+  noch den universellen Start und lieferte Stille. Ein Zweig, der nur noch Klang
+  zurückhält, ist keine Absicherung.
+· der **zweigeteilte Stop** — `play(document:)` hatte genau einen Aufrufer, den gelöschten
+  Zweig; `isPlaying` kann nie mehr wahr werden.
+
+**Reviewer-HIGH, und es traf meinen eigenen Kommentar (`6ad0320`):** ich schrieb, der
+Player „verteilt weiter Transport-Schritte an die sekundären Spur-Stimmen, das ist live".
+**Falsch.** `transportStep` beginnt mit `guard isPlaying` — die Fan-Out-Schicht, der
+Audio-Lane-Sink, Mixer-/Struktur-Refresh und die Timeline-Automation sind damit ALLE
+dauerhaft tot. Nichts regressiert (die Spuren klangen nur während Arrangement-Wiedergabe),
+aber der Satz hätte der nächsten Session gesagt, der Block sei tragend — und sie hätte
+#132 Slice 5 auf einem technischen Grund verweigert, den es nicht gibt. Genau die Falle,
+vor der CLAUDE.md warnt. Korrigiert. Dazu: derselbe tote Zweig noch einmal im
+Route-Lost-Handler (`EchoelmusicApp`) — eingeklappt.
+
+**Bewusst NICHT angefasst, mit Begründung im Code:** die zwei konstant-falschen Disjunkte
+im `audioNeeded`-Lifecycle-Check. Ein redundanter OR-Term kann keinen falschen Zweig
+wählen, nur ein `true` verpassen, das ohnehin abgedeckt ist — an einer Audio-Session-
+Lebenszyklus-Prüfung für Kosmetik zu schrauben ist das größere Risiko.
+
+**Ehrlich zur Absicherung:** kein Test. `toggle()` ist privat auf einer privaten `View`,
+ohne Injektionsnaht. Der überprüfbare Teil ist ein Grep — `play(document:` hat null
+Produktionsaufrufer, und der Reviewer hat unabhängig JEDEN anderen Weg geprüft, auf dem
+eine Nutzer-Audiodatei klingen kann (`TimelineAudioSink` ist der einzige Typ, der das tut;
+beide Besitzer sind jetzt unerreichbar).
+
+**Restrisiko, das in die Deploy-Note gehört:** die Breakbeat-DATEN liegen weiter auf dem
+Gerät — unsichtbar wie zuvor. Dieser Commit hat den Aufrufer entfernt, nicht die Falle.
+Wer `TimelineRegionPlayer.play()` wieder scharf macht, holt denselben Bug zurück. Der
+dauerhafte Fix ist #132 Slice 5.
