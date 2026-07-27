@@ -30,7 +30,7 @@ public enum MusicMediaMap {
     /// 16-bit = 8 (coarse/fine pairs), matching `ArtNetSender.dmxChannels(for:resolution:)`.
     public static func dmxChannels(forMusic f: MusicalFrame,
                                    resolution: ArtNetSender.DMXResolution) -> [UInt8] {
-        let rgb = SpectralColor.color(forChord: f.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })
+        let rgb = SpectralColor.physicalColor(forChord: f.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })
         let dim = dimmerUnit(forMusic: f)
         let r = Float(rgb.r), g = Float(rgb.g), b = Float(rgb.b)
         switch resolution {

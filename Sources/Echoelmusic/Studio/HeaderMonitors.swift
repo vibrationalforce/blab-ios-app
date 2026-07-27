@@ -316,7 +316,7 @@ struct ImmersiveMonitorMini: View {
         let pulse: Double = reduceMotion ? 0.5 : (0.5 - 0.5 * cos(phase * 2.0 * .pi))  // 0…1 per beat
         let chord: [(hz: Double, amplitude: Double)] =
             (mf?.notes ?? []).map { ($0.frequencyHz, $0.amplitude) }
-        let rgb = SpectralColor.color(forChord: chord)
+        let rgb = SpectralColor.physicalColor(forChord: chord)
         let level: Double = mf?.masterLevel ?? 0
         let energy: Double = 0.35 + 0.30 * pulse + 0.35 * level
         // Gamma-encode the linear mix for display (simple 1/2.2 — a 54 pt tile).
@@ -335,7 +335,7 @@ struct ImmersiveMonitorMini: View {
 /// Compact header monitor of the LIGHT output (founder 2026-07-12, red sketch:
 /// "oben neben dem EchoelBioSynth Monitor noch 2 Fenster … eins für EchoelLux").
 /// HONEST: it shows the colour the fixtures are actually being sent — the same
-/// `SpectralColor.color(forChord:)` × dimmer mapping the Art-Net/sACN senders
+/// `SpectralColor.physicalColor(forChord:)` × dimmer mapping the Art-Net/sACN senders
 /// compute (MusicMediaMap.dmxChannels) — and goes idle-grey when no light route
 /// is enabled. A LEAF: it reads the router + bus in its OWN body (freeze rule);
 /// the route flags only change on user edits, the live colour renders inside a
@@ -412,7 +412,7 @@ struct EchoelLuxMonitorMini: View {
     static func lightColor(mf: MusicalFrame?) -> Color {
         let chord: [(hz: Double, amplitude: Double)] =
             (mf?.notes ?? []).map { ($0.frequencyHz, $0.amplitude) }
-        let rgb = SpectralColor.color(forChord: chord)
+        let rgb = SpectralColor.physicalColor(forChord: chord)
         let dim: Double = 0.3 + 0.7 * (mf?.masterLevel ?? 0)
         func enc(_ v: Double) -> Double { pow(min(max(v * dim, 0.0), 1.0), 1.0 / 2.2) }
         return Color(red: enc(rgb.r), green: enc(rgb.g), blue: enc(rgb.b))

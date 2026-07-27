@@ -2,6 +2,27 @@
 //  SpectralColor.swift
 //  Echoelmusic — Studio
 //
+//  ⚠️ READ THIS FIRST (2026-07-27). This file holds TWO tone→colour languages, and the
+//  one that RENDERS is the PHYSICAL one:
+//
+//    · `toneLinearRGB` / `displayComponents` / `physicalColor(forChord:)` — octave
+//      transposition into the visible band → CIE 1931 → linear sRGB, with the CIE
+//      purple line closing the circle. This is what every note grid, the immersive
+//      visual, the header monitor tiles and the Art-Net/sACN fixture output now use.
+//      Founder 2026-07-27: "in jeder Situation die physikalisch korrekt hochoktavierten
+//      Farbfrequenzen." One chord, one colour, on every surface.
+//    · `oklab(forFrequency:)` / `color(forFrequency:)` / `color(forChord:)` / `hue01`
+//      — the pitch-class HUE-CIRCLE convention described below. As of 2026-07-27 it has
+//      ZERO rendering callers; it survives only because `SpectralColorTests` pins it.
+//      Do NOT reach for it for new surfaces, and do not "restore" it as the rule.
+//      Retiring it (with its tests) is its own slice.
+//
+//  The paragraph below is the ORIGINAL rationale for the hue circle. Its central
+//  argument — "the visible spectrum is a LINE, so we do NOT route pitch through
+//  wavelength→RGB (that would break at the red/violet ends)" — EXPIRED when
+//  `toneLinearRGB` closed the circle across the purple line. Kept as history so the
+//  reasoning is not lost, not as a live instruction.
+//
 //  Maps pitch (and chords) to colour the perceptually-honest way, per the cited
 //  research (scratchpads/RESEARCH_SOUND_TO_COLOR.md):
 //
@@ -253,6 +274,47 @@ public enum SpectralColor {
         return LinearRGB(r: clamp01(r), g: clamp01(g), b: clamp01(b))
     }
 
+    // MARK: Chord → ONE physical colour (the mix used by every rendering + light output)
+
+    /// A chord/spectrum → one colour built from the PHYSICALLY octave-transposed colour of
+    /// each sounding note (`toneLinearRGB`), mixed amplitude-weighted in OKLab.
+    ///
+    /// WHY THIS EXISTS (founder 2026-07-27: "in jeder Situation die physikalisch korrekt
+    /// hochoktavierten Farbfrequenzen"). Until now two different colour languages were live
+    /// at once for the SAME chord:
+    ///   · the note grids and the immersive visual used `toneLinearRGB` — octave
+    ///     transposition + CIE 1931, i.e. the physics;
+    ///   · the header monitor tiles and the Art-Net/sACN fixture output used
+    ///     `color(forChord:)` — the OKLab pitch-class HUE CIRCLE, which this file has always
+    ///     labelled a CONVENTION, not a fact.
+    /// So the lamp and the grid disagreed about the colour of the same chord. This closes that.
+    ///
+    /// The old header comment gave a real reason for the hue circle — "the visible spectrum is
+    /// a LINE, so we do NOT route pitch through wavelength→RGB (that would break at the
+    /// red/violet ends)". That reason EXPIRED when `toneLinearRGB` closed the circle across the
+    /// CIE purple line: the seam it was avoiding no longer exists, and every pitch class now has
+    /// a colour. Routing pitch through wavelength is exactly what we can now do honestly.
+    ///
+    /// The MIXING stays perceptual (OKLab, not RGB): summing spectral colours in RGB washes a
+    /// dense chord to white, while an OKLab average lets a cluster fall toward neutral — the
+    /// property `color(forChord:)` was written for, kept, with a physical input instead of a
+    /// conventional one. Amplitude is the mixing WEIGHT only; intensity is a separate dimmer
+    /// (`MusicMediaMapping.dimmerUnit`), so this never doubles as a level.
+    public static func physicalColor(forChord notes: [(hz: Double, amplitude: Double)]) -> LinearRGB {
+        let valid = notes.filter { $0.hz > 0 && $0.hz.isFinite && $0.amplitude > 0 && $0.amplitude.isFinite }
+        guard !valid.isEmpty else { return neutral }
+        let top = valid.sorted { $0.amplitude > $1.amplitude }.prefix(maxPartials)
+
+        var wSum = 0.0, L = 0.0, a = 0.0, b = 0.0
+        for n in top {
+            let lab = linearToOKLab(toneLinearRGB(forToneHz: n.hz))
+            let w = n.amplitude
+            L += w * lab.L; a += w * lab.a; b += w * lab.b; wSum += w
+        }
+        guard wSum > 0 else { return neutral }
+        return oklabToLinear(OKLab(L: L / wSum, a: a / wSum, b: b / wSum))
+    }
+
     // MARK: Tone → display-ready grid tint ("Je nach Kammerton … die Farbe des Notenrasters")
 
     /// Display-ready sRGB components (gamma-encoded 1/2.2, with a small white lift so
@@ -294,6 +356,25 @@ public enum SpectralColor {
     }
 
     // MARK: OKLab → linear sRGB (Ottosson 2020)
+
+    /// Linear sRGB → OKLab (Ottosson 2020 forward transform; exact inverse of
+    /// `oklabToLinear`). Needed so a PHYSICAL colour can be mixed perceptually:
+    /// `physicalColor(forChord:)` averages in OKLab, and its inputs arrive as linear
+    /// RGB from the CIE fit rather than as a synthesized hue.
+    public static func linearToOKLab(_ c: LinearRGB) -> OKLab {
+        let l = 0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b
+        let m = 0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b
+        let s = 0.0883024619 * c.r + 0.2817188376 * c.g + 0.6299787005 * c.b
+        // `c` is gamut-clamped to [0,1] by every producer, so l/m/s are non-negative
+        // and the cube roots are real. `cbrt` is used rather than `pow(x, 1/3)` so a
+        // hypothetical negative input yields a real root instead of NaN.
+        let l_ = Foundation.cbrt(l), m_ = Foundation.cbrt(m), s_ = Foundation.cbrt(s)
+        return OKLab(
+            L: 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+            a: 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+            b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+        )
+    }
 
     public static func oklabToLinear(_ c: OKLab) -> LinearRGB {
         let l_ = c.L + 0.3963377774 * c.a + 0.2158037573 * c.b

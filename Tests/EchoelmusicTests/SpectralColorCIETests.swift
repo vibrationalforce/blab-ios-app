@@ -1,7 +1,13 @@
 // SpectralColorCIETests.swift
 // Echoel — colorimetric wavelength→RGB via the CIE 1931 analytic fit, and the
 // octave-transposition tone→wavelength physics. Foundation-only (no AVFoundation
-// gate) so ci.yml EXECUTES these on Linux.
+// gate), so this file is UNGATED.
+//
+// ⛔ CORRECTED 2026-07-27: the header claimed "ci.yml EXECUTES these on Linux". It does
+// not — every build/test job in ci.yml runs on macos-26 via xcodebuild, and
+// quick-test.yml states outright that the suite cannot compile on Linux. The same false
+// claim was corrected in PatternEngineTransportRelayTests; it matters because it would
+// push a session into writing Linux-portability constraints for code no Linux job sees.
 
 import XCTest
 import Foundation
@@ -202,5 +208,61 @@ final class SpectralColorCIETests: XCTestCase {
                 XCTAssertGreaterThanOrEqual(v, 0); XCTAssertLessThanOrEqual(v, 1)
             }
         }
+    }
+
+    // MARK: - The physical chord mix (founder 2026-07-27: one colour, every surface)
+
+    /// THE assertion that earns its keep here. `physicalColor(forChord:)` mixes in OKLab,
+    /// so it round-trips every note through `linearToOKLab` → average → `oklabToLinear`.
+    /// A single note must therefore come back EXACTLY as `toneLinearRGB` — which is the
+    /// one thing a wrong inverse matrix (the real risk in this change) cannot fake. Note
+    /// this is NOT a tautology: the two sides are computed by different code paths.
+    func testPhysicalChord_singleNote_roundTripsToTheToneColourItself() {
+        for hz in [110.0, 261.626, 349.23, 440.0, 880.0, 1760.0] {
+            let direct = SpectralColor.toneLinearRGB(forToneHz: hz)
+            let viaMix = SpectralColor.physicalColor(forChord: [(hz: hz, amplitude: 1)])
+            XCTAssertEqual(viaMix.r, direct.r, accuracy: 1e-9, "r at \(hz) Hz")
+            XCTAssertEqual(viaMix.g, direct.g, accuracy: 1e-9, "g at \(hz) Hz")
+            XCTAssertEqual(viaMix.b, direct.b, accuracy: 1e-9, "b at \(hz) Hz")
+        }
+    }
+
+    /// The OKLab inverse must be an actual inverse. Pinned separately from the mix so a
+    /// failure says WHICH half broke.
+    func testLinearToOKLab_isTheInverseOfOklabToLinear() {
+        for c in [SpectralColor.wavelengthToLinearRGB(460),
+                  SpectralColor.wavelengthToLinearRGB(530),
+                  SpectralColor.wavelengthToLinearRGB(620),
+                  LinearRGB(r: 0, g: 0, b: 0),
+                  LinearRGB(r: 1, g: 1, b: 1)] {
+            let back = SpectralColor.oklabToLinear(SpectralColor.linearToOKLab(c))
+            XCTAssertEqual(back.r, c.r, accuracy: 1e-9)
+            XCTAssertEqual(back.g, c.g, accuracy: 1e-9)
+            XCTAssertEqual(back.b, c.b, accuracy: 1e-9)
+        }
+    }
+
+    /// The founder's actual claim, stated as a test: the colour comes from OCTAVE
+    /// transposition, so notes an octave apart are the same colour. If someone ever
+    /// replaces the mapping with a non-octave-equivalent stretch (the retired
+    /// `visibleColor` was exactly that), this fails.
+    func testPhysicalChord_isOctaveEquivalent() {
+        let a4 = SpectralColor.physicalColor(forChord: [(hz: 440, amplitude: 1)])
+        for hz in [110.0, 220.0, 880.0, 1760.0] {
+            let other = SpectralColor.physicalColor(forChord: [(hz: hz, amplitude: 1)])
+            XCTAssertEqual(other.r, a4.r, accuracy: 1e-9, "r at \(hz) Hz vs A4")
+            XCTAssertEqual(other.g, a4.g, accuracy: 1e-9, "g at \(hz) Hz vs A4")
+            XCTAssertEqual(other.b, a4.b, accuracy: 1e-9, "b at \(hz) Hz vs A4")
+        }
+    }
+
+    /// Invalid input must not produce NaN channels on a path that drives DMX fixtures.
+    func testPhysicalChord_invalidInput_isNeutralNotNaN() {
+        XCTAssertEqual(SpectralColor.physicalColor(forChord: []), SpectralColor.neutral)
+        let junk = SpectralColor.physicalColor(forChord: [(hz: 0, amplitude: 1),
+                                                         (hz: .nan, amplitude: 1),
+                                                         (hz: 440, amplitude: 0)])
+        XCTAssertEqual(junk, SpectralColor.neutral)
+        for v in [junk.r, junk.g, junk.b] { XCTAssertTrue(v.isFinite) }
     }
 }

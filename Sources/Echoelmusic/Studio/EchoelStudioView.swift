@@ -4669,7 +4669,7 @@ private struct MusicColourRowView: View {
     /// Output is LINEAR sRGB, so it's handed to SwiftUI as `.sRGBLinear`.
     private func musicColour(_ frame: MusicalFrame?) -> Color? {
         guard let frame, frame.isSounding else { return nil }
-        let rgb = SpectralColor.color(forChord: frame.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })
+        let rgb = SpectralColor.physicalColor(forChord: frame.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })
         return Color(.sRGBLinear, red: rgb.r, green: rgb.g, blue: rgb.b)
     }
 }
