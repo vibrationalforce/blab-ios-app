@@ -8319,3 +8319,47 @@ wenn #139 zu ist)".
 meldet, ist das kein Reviewer-Irrtum, sondern ein Signal über die Messung. Erst die
 Messung prüfen, dann den Befund verwerfen. Ein grünes Häkchen ist eine Behauptung über
 das, was der Job GETAN hat — nicht darüber, was er GEPRÜFT hat.
+
+## 2026-07-27 — Zyklus: #154 herabgestuft, Metronom-Render-Pfad getestet
+
+**Ergebnis in einem Satz:** Der gemeldete Audio-Thread-Verstoß #154 existierte nicht;
+der Zyklus ging stattdessen in die fehlende Render-Pfad-Abdeckung des Metronoms.
+
+**#154 (weak-Load im Render-Block, 4 Voices) — HERABGESTUFT, nicht gebaut.**
+Der `audio-thread-reviewer` widerlegte meine Prämisse auf Mechanismus-Ebene:
+`swift_weakLoadStrong` → Side-Table `tryRetain()` → lock-freie atomare CAS-Schleife
+(kein `os_unfair_lock`, kein `pthread_mutex`); der Side-Table-malloc passiert beim
+BILDEN der weak-Referenz auf dem Main-Thread, nie im Block. ~10–30 ns gegen
+5.333.000 ns Deadline ≈ 0,004 %. nil-Zweig unerreichbar (App-Lebensdauer-Singletons).
+`DrumSynthVoice:70` / `SamplerVoice:191` sind bereits das korrekte Muster.
+→ `decisions.csv` + Task #154 geschlossen mit den Zahlen.
+
+**Gebaut stattdessen (e30312e, korrigiert in 88339a3):** fünf Render-Pfad-Tests für
+`MetronomeVoice` über eine `_testRender`-Naht (Hausmuster von `SamplerVoice`,
+`nonisolated`, `renderOnAudioThread` bleibt `private`). Vorher las JEDER Metronom-Test
+nur die `@Observable`-Kontroll-Properties — ein `didSet`, der seinen
+`nonisolated(unsafe)`-Spiegel nicht mehr schreibt, hätte die ganze Suite grün gelassen,
+während der Klick verstummt.
+
+**Reviewer-Runde 2 fand vier Zahnlosigkeiten in meinen eigenen Tests** (Details im
+HARNESS_LEDGER): eine echte Tautologie (`isFinite` bei NaN-Pegel kann nicht scheitern,
+weil `AudioOutputGuard` NaN ohnehin zu 0 macht und das Gift-Muster selbst endlich ist),
+das Gift-Muster als Zweischneide (`energy > 0` bestand auch bei No-op), und zwei Tests,
+die einen Setter prüften, ohne ihn vom Default wegzubewegen (120 BPM, `accentDownbeat`).
+Alle vier ersetzt.
+
+**Zwei Korrekturen an eigenen Aussagen (beide gegen den Code selbst verifiziert):**
+1. „Der Render-Block nimmt eine Sperre" — falsch, siehe oben.
+2. „Beide Gates grün, also halten die neuen Tests" — falsch. `ci.yml` testet
+   `-scheme Echoelmusic` → Target `EchoelmusicTests` → `sources: Tests/CISmoke`.
+   `Tests/EchoelmusicTests` baut NUR das Schema `EchoelmusicFullTests` in
+   `full-tests.yml`, wo jeder Schritt `continue-on-error` trägt. Kein `swift test` in
+   irgendeinem Workflow. Testdateien MELDEN heute, sie SPERREN nicht (Task #139).
+
+**Belege:** e30312e — Xcode Compile Check ✓, CI/CD Pipeline ✓, Full Suite:
+build success, test success, `ECHOEL_TEST_FAILURES`-Block LEER (294 Dateien, null
+Fehler). 88339a3 — beide Gates ✓, Reveal-Lauf ausstehend.
+
+**Weiter offen an den Founder:** Loop Rendering (Ambiguität, mehrfach gefragt) ·
+Geräte-Verify Build 2469 (Mix-Fader hörbar? Pegel gehalten? Farbe im Visual? sauberer
+Start?).
