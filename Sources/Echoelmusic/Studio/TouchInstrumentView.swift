@@ -443,12 +443,11 @@ final class TouchInstrumentUIView: UIView {
             guard let old = held[id] else { continue }
             let p = touch.location(in: self)
             // CONTINUOUS morph while the finger travels — addressed to THIS finger's note.
-            if let sounding = held[id] {
-                let scale = morphScale(at: p)
-                if abs(scale - (lastSentMorph[id] ?? 1)) > 0.01 {
-                    lastSentMorph[id] = scale
-                    synth?.setNoteCutoffScale(pitch: sounding, scale: scale)
-                }
+            // `old` IS the sounding note (the guard above bound it) — no second lookup.
+            let scale = morphScale(at: p)
+            if abs(scale - (lastSentMorph[id] ?? 1)) > 0.01,
+               synth?.setNoteCutoffScale(pitch: old, scale: scale) == true {
+                lastSentMorph[id] = scale   // only once it is genuinely queued
             }
             // Slide-expression gesture (founder 2026-07-08: "hin und her sliden
             // verändert den Sound"): finger travel pumps vibrato/ensemble energy

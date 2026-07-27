@@ -2048,7 +2048,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         let u = min(max(unisonCount, 1), Self.maxUnison)
         if u == 1 {
             // OFF: spawn one voice with the original pan/amplitude behaviour (unchanged).
-            spawnVoice(note: note, frequency: baseFreq, velocity: v, unisonPan: nil, unisonGain: 1)
+            spawnVoice(note: note, frequency: baseFreq, velocity: v, unisonPan: nil, unisonGain: 1,
+                       cutoffScale: cutoffScale)
         } else {
             // ON: stack `u` detuned voices, symmetric about the played pitch, panned
             // across the stereo field. Per-voice gain 1/√u keeps the summed loudness sane.
@@ -2059,7 +2060,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
                 let t = Float(k) / Float(u - 1) * 2 - 1      // -1 … +1
                 let detune = pow(2.0, (t * spread * 0.5) / 1200.0)
                 spawnVoice(note: note, frequency: baseFreq * detune, velocity: v,
-                           unisonPan: t * panSpread, unisonGain: gain)
+                           unisonPan: t * panSpread, unisonGain: gain, cutoffScale: cutoffScale)
             }
         }
 
@@ -2073,7 +2074,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         if oct != 0, mix.isFinite, mix > 0 {
             spawnVoice(note: note, frequency: baseFreq * (oct > 0 ? 2 : 0.5), velocity: v,
                        unisonPan: Self.keyFollowPan(forNote: note + 12 * oct),
-                       unisonGain: (u == 1 ? 1 : 1 / sqrt(Float(u))) * min(mix, 1))
+                       unisonGain: (u == 1 ? 1 : 1 / sqrt(Float(u))) * min(mix, 1),
+                       cutoffScale: cutoffScale)
         }
     }
 
@@ -2089,8 +2091,15 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     /// Allocate one voice for `note` and start it. `unisonPan`/`unisonGain` override
     /// the default pan-spread / unity gain when stacking a unison voice.
+    ///
+    /// `cutoffScale` is the note's PER-NOTE filter expression and MUST be a parameter, not
+    /// read from the property of the same name. It was omitted here when per-note
+    /// expression landed: the write below then silently bound `self.cutoffScale` — the
+    /// GLOBAL automation scale — so (a) every note-on dropped its finger's position and
+    /// (b) the render's `cutoffScale * voiceCutoffScale[i]` SQUARED the automation value.
+    /// Neither is a compiler warning, because an unused function parameter is legal Swift.
     private func spawnVoice(note: Int, frequency freq: Float, velocity v: Float,
-                            unisonPan: Float?, unisonGain: Float) {
+                            unisonPan: Float?, unisonGain: Float, cutoffScale: Float) {
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note

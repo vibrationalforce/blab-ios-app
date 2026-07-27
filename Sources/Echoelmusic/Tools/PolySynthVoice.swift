@@ -343,10 +343,16 @@ public final class PolySynthVoice {
     ///
     /// Enqueued like every other note event so the write lands on the audio thread and
     /// never races the render — the same first-note-crash discipline as `noteOn`.
-    public func setNoteCutoffScale(pitch: Int, scale: Float) {
-        _ = noteCommands.tryEnqueue(NoteCommand(kind: .expression, pitch: Int32(pitch),
-                                                velocity: 0,
-                                                cutoff: scale.clamped(to: 0.1...8)))
+    /// Returns whether the update was actually queued. The caller throttles on "last value
+    /// SENT", so it must not record a value the queue rejected — a rejected update with a
+    /// finger that then stops moving would leave that note's colour permanently wrong, with
+    /// no further delta to heal it. This is the one note API whose result is worth reading:
+    /// a dropped note-on/off is a different (worse) problem with a different fix.
+    @discardableResult
+    public func setNoteCutoffScale(pitch: Int, scale: Float) -> Bool {
+        noteCommands.tryEnqueue(NoteCommand(kind: .expression, pitch: Int32(pitch),
+                                            velocity: 0,
+                                            cutoff: scale.clamped(to: 0.1...8)))
     }
 
     /// Portamento/glide time in seconds for slid notes (0 = the legacy ~2 ms
