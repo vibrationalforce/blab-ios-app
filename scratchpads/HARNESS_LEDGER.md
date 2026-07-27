@@ -930,3 +930,51 @@ Vierter Fall in Folge, in dem der Pflicht-Reviewer nicht den Code, sondern die
 **Do this instead.** Nach jedem neuen Test einmal fragen: „welche konkrete Mutation im
 Produktionscode lässt genau diese Zeile ROT werden?" Wer keine benennen kann, hat eine
 Zeile geschrieben, die nur so aussieht wie ein Test.
+
+## 2026-07-27 — PLAYBOOK: ein DETERMINISTISCHER Test, der zwischen Läufen kippt, liest fremden Speicher
+
+**Der Fund.** Der Volltest-Lauf meldete `EchoelDecimatorTests.testNoNaN` rot — auf dem
+Vorgänger-Commit war er grün, und mein Commit fasste eine völlig andere Datei an. Die
+bequeme Diagnose („unabhängig, vorbestehend") wäre falsch gewesen.
+
+**Die Signatur, die man erkennen muss.** Der Test hat feste Eingabe, frische Instanz,
+keine Uhr, keinen Zufall — er ist vollständig deterministisch. Und er bestand einen Lauf
+und scheiterte den nächsten bei IDENTISCHEM Code. Ein deterministischer Test, der sich
+nicht deterministisch verhält, hat genau eine Erklärungsklasse: er liest Speicher, der
+ihm nicht gehört. Nicht „Flake", nicht „Simulator", nicht „Infrastruktur".
+
+**Die Ursache.** `vDSP_desamp` verbraucht `(N-1)·I + P` Eingabewerte (Apple verlangt
+sogar `(N-1)·I + aufgerundet4(P)`, weil die Taps 4-weise gelesen werden). Der Dezimierer
+gab nur `input.count`. ~60 Floats aus fremdem Speicher, bei praktisch jeder
+Eingabelänge. Endlicher Müll bestand den Test und verfälschte die Ausgabe trotzdem
+still; nicht-endlicher Müll kippte ihn.
+
+**Do this instead.** Bei jedem vDSP-Gleitfenster-Aufruf (`vDSP_conv`, `vDSP_desamp`,
+`vDSP_filter`) die dokumentierte MINDEST-Eingabelänge nachrechnen und den Puffer danach
+dimensionieren — nicht nach der Ausgabelänge. Die 4er-Aufrundung nicht vergessen; wer
+nur auf `P` auffüllt, hat denselben Fehler in klein. `EchoelConvolution` in derselben
+Datei machte es seit jeher richtig (vorreservierter Scratch), der Dezimierer war die
+Ausnahme — also: existiert im selben File schon ein Nachbar, der die Grenze respektiert,
+ist dessen Muster die Referenz.
+
+**Und die ehrliche Grenze, die ich erst nach dem Review notiert habe:** KEINE
+Swift-Zusicherung kann einen Lesezugriff außerhalb der Grenzen deterministisch fangen,
+weil der Speicher dahinter oft schlicht null ist. Ein Test kann die Chance maximieren
+(auf ein Ausgabe-Element zielen, dessen Fenster die Grenze ÜBERSPANNT, und zweiseitig
+prüfen), aber das unbedingte Orakel ist ein Sanitizer. Wer behauptet, sein Test „nagelt
+den Fix deterministisch fest", sollte vorher durchgehen, welche seiner Zusicherungen
+unter dem ALTEN Code überhaupt scheitern konnten — bei mir waren es 2 von 4 nicht.
+
+## 2026-07-27 — DEAD-END: „konstant N" behaupten und nur gerade Beispiele in die Tabelle schreiben
+
+Ich schrieb, der Überlauf betrage „KONSTANT 61 Werte bei jeder Eingabelänge", und
+belegte es mit einer Tabelle: n=64, 128, 256, 4096. Alle vier gerade. Weil
+`outputLength` abrundet, sind es bei UNGERADEN Zählern 60, und bei Faktor 4
+`59 - n % 4`. Meine eigene Tabelle testete meine eigene Behauptung nie, weil ich die
+Beispiele aus derselben Intuition gezogen habe wie die Behauptung.
+
+**Regel.** Wer eine Invarianz behauptet („konstant", „immer", „für jede Länge"), muss
+die Beispiele so wählen, dass sie die Invarianz BRECHEN würden, wenn sie falsch ist —
+also über die Restklassen des beteiligten Divisors streuen. Beispiele, die aus derselben
+Annahme stammen wie die Behauptung, sind Dekoration, kein Beleg. (Die Behauptung stand
+auch in der Betreffzeile, also in dem, was `git log` für immer zeigt.)
