@@ -1008,3 +1008,38 @@ Audio-seitige Teil des Fixes („nil ⇒ 0 dB") von keinem einzigen Test abgedec
 während drei neue Tests die Enum-Auflösung prüften. **Wenn die eine Zeile, die das
 Verhalten ändert, nicht testbar ist, ist sie am falschen Ort** — herausziehen, bevor
 man Tests für das Drumherum schreibt.
+
+---
+
+## DEAD-END: eine falsche Behauptung entfernen ≠ eine wahre schreiben (2026-07-27, #158)
+
+**Was passierte.** Die Website bewarb ein AUv3-Plugin, das seit dem 24.07. gelöscht ist.
+Ich habe den Claim korrekt identifiziert, korrekt als CUT (nicht ROADMAP) eingestuft und
+an ~25 Stellen entfernt — und an jeder Stelle **Ersatztext** geschrieben: „erreicht deine
+DAW über eine virtuelle MIDI-2.0/MPE-Quelle plus WAV- und MIDI-Datei-Export". Ich habe
+die ENTFERNUNG gegen den Code geprüft und die ERSETZUNG nicht. Ergebnis: ein falscher
+Claim wurde durch vier ersetzt. `exportMIDI()` hat seit dem 02.07. keinen Aufrufer,
+die virtuelle Quelle ist `._1_0` (nicht 2.0), `mpeEnabled` hat **nirgends** einen
+Schreiber, und die Quelle entsteht nur bei aktiver Patchbay-Route. Zwei der neuen
+Stellen waren HANDLUNGSANWEISUNGEN („Screenshot vom MIDI-Export-Share-Sheet"), also ein
+Auftrag, einen Bildschirm zu fotografieren, den es nicht gibt.
+
+**Die Regel.** Beim Korrigieren einer Unwahrheit ist der Ersatzsatz eine NEUE Behauptung
+und braucht dieselbe Beweislast wie ein Feature-Claim: pro Substantiv im Ersatztext eine
+`git grep`-Kette bis zum erreichbaren Aufrufer. Der Reflex „ich schreibe hin, was es
+stattdessen kann" fühlt sich wie Ehrlichkeit an und ist ungeprüfte Behauptung.
+Diagnose-Frage: *Habe ich für jedes Wort im neuen Satz eine Datei:Zeile?*
+
+**Zweite Lehre — „nur Doku" ist kein Sicherheitsnetz.** Ich meldete „docs-only, also
+lösen die Pfadfilter keine Gates aus" als Entwarnung. Tatsächlich merged
+`.github/workflows/auto-merge-docs.yml` docs-Pushes von `claude/**` **ohne Review nach
+main**, und `pages.yml` deployt danach auf die Live-Site. Fehlende Gates heißen hier
+nicht „harmlos", sondern „ungeprüft veröffentlicht". Bei docs/-Änderungen ist der
+Reviewer daher NICHT optional und muss VOR dem Push laufen, nicht danach.
+
+**Dritte Lehre — halb korrigiert ist schlechter als unberührt.** Derselbe „`.wav` und
+MIDI"-Claim stand an 14 weiteren, älteren Stellen. Zwei davon standen zwei Zeilen neben
+einem Satz, den ich gerade korrigiert hatte. Wenn ein Fix eine Behauptung an Stelle A
+entfernt und die identische an Stelle B stehen lässt, liest B sich hinterher wie
+bestätigt. Entweder die Klasse ganz oder als eigene Aufgabe mit Beleg anlegen — aber
+nie stillschweigend halb.
