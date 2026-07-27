@@ -24,8 +24,7 @@ ERSCHAFFEN
 - Kammerton (A4) exakt auf den Cent einstellbar; BPM für tighte Loops sperren oder sync-frei bleiben
 - Effekte: Reverb, Delay, Chorus, Flanger, Phaser, Tremolo, Sättigung, Harmonizer und mehr
 - Rückwirkendes Aufnehmen: Behalte den Loop, den Du gerade gespielt hast
-- Export des gerade gespielten Loops als Audio (WAV) oder als MIDI (.mid) für
-  deine DAW — die MIDI-Datei trägt Tempo, 4/4 und Tonart und umfasst ganze Takte
+- Export des gerade gespielten Loops als Audio (WAV) oder als MIDI (.mid) für Deine DAW — die MIDI-Datei trägt Tempo, 4/4 und Tonart und umfasst ganze Takte
 
 
 VERBINDEN

@@ -914,10 +914,12 @@ struct EchoelStudioView: View {
     //    caller unmounted, `.fullScreenCover($showVisual)`, `.fileImporter($midiImportPresented)`
     //    and `.fullScreenCover($showMeditation)` can never open. That is how CLAUDE.md came
     //    to certify `SpectralDonutView` as reachable (it renders ONLY inside the first of
-    //    those covers) and MIDI import as wired. Three of the body's 15 presentation
-    //    modifiers are therefore free headroom at the metadata ceiling the black-screen law
-    //    is fighting over — reuse those slots, never append a 16th. (Count corrected
-    //    2026-07-26: the piano roll's door took the 16th modifier with it.)
+    //    those covers) and MIDI import as wired. Three of the body's presentation modifiers
+    //    are therefore free headroom at the metadata ceiling the black-screen law is
+    //    fighting over — reuse those slots, never append a new one. (⛔ The chain LENGTH is
+    //    deliberately not repeated here: this block said "15" while the pinned line said
+    //    "14", which is exactly the two-numbers problem that line exists to prevent. The
+    //    one number lives at the `craftEditor` note above; go read it there.)
     // 2. It was the LYING-`toolItems` TRAP in the flesh: the catalog declared 13 tools,
     //    `openTool` handled 7. `pianoroll`, `sound`, `automation`, `audioclip`, `plugins`
     //    and `broadcast` fell through `default: break` — six chips that would have rendered
@@ -927,9 +929,10 @@ struct EchoelStudioView: View {
     //
     // Nothing referenced these symbols from outside the block, in Sources/ or Tests/.
     // The capabilities the dead slots pointed at are NOT deleted with it: `SpectralDonutView`,
-    // the MIDI `fileImporter` + `importMIDI()`, and `exportMIDI()` (which separately has no
-    // caller at all) all still exist and need a real door or a deliberate cut — a founder
-    // call, not a side effect of tidying.
+    // the MIDI `fileImporter` + `importMIDI()` still exist and need a real door or a
+    // deliberate cut — a founder call, not a side effect of tidying. `exportMIDI()` was on
+    // that list too ("no caller at all"); it got its door back in #188 (a Button in the
+    // Export panel, through the existing `share` slot), so it is off the list.
 
     // MARK: - The one button
 
@@ -3074,7 +3077,7 @@ struct EchoelStudioView: View {
                 // Name the REAL button (audit 2026-07-09: no "Generate" exists — first-run
                 // users hunted for it and read the greyed buttons as broken). Video
                 // recording lives in the floating visual window, not here.
-                Text("Start with the pulse button (next to Play) first — then you can export the loop as a WAV.")
+                Text("Start with the pulse button (next to Play) first — then you can export the loop as a WAV or as MIDI.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -3125,8 +3128,14 @@ struct EchoelStudioView: View {
             // presentation-modifier chain on this body does not grow by one — that chain is
             // the metadata ceiling the app already crashed into (black screen, 10.76.34).
             // Zero new state, zero new modifier: a button, nothing else.
+            // ⛔ NO bar count in this label. `loopBars` drives the WAV capture length, but
+            // the MIDI region length comes from `pianoRoll.arrangementForExport()`, and
+            // after `open(_:)` those disagree: `PianoRollView.load(_:)` clears
+            // `arrangementBars`, so `arrangementForExport()` returns 1 bar while `loopBars`
+            // still reads 8 — a label promising "8 bars" over a 1-bar file. Naming no number
+            // is honest; naming the wrong one is the lying-control class again.
             Button { exportMIDI() } label: {
-                Label("Export MIDI (\(loopBars.label))", systemImage: "pianokeys")
+                Label("Export MIDI for your DAW", systemImage: "pianokeys")
                     .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
                     .frame(maxWidth: .infinity).frame(height: 44)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -4341,16 +4350,33 @@ struct EchoelStudioView: View {
         // writes tempo + 4/4 + key-signature so the clip drops onto the DAW grid in the right
         // Tonart and loops seamlessly.
         let (arrangedNotes, bars) = pianoRoll.arrangementForExport()
-        // MELODY ONLY — `steps`/`accents` are deliberately empty. The composer still fills
-        // `pattern.steps` (a groove is generated at :4017), but since the drums were deleted
-        // (#166/#167) NOTHING renders that grid: it is a bar clock now, not a beat. Tiling it
-        // into the .mid would hand a DAW a drum track the user never heard in the app —
-        // exactly the lying-control class, and the opposite of "keine Drums".
+        // MELODY ONLY — `steps`/`accents` are deliberately empty, because nothing renders
+        // that grid since the drums were deleted (#166/#167): it is a bar clock now, not a
+        // beat. Exporting it would hand a DAW a drum track the user never heard in the app —
+        // the lying-control class, and the opposite of "keine Drums".
+        //
+        // ⛔ CORRECTED (reviewer): the first version of this comment justified the change
+        // with "the composer still fills `pattern.steps`". It does NOT — `generate()` calls
+        // `BioComposer.silentBeat()`, which returns two all-false grids (the beat was cut
+        // 2026-07-07, "Schmeiß den Beat komplett raus"). On the GENERATED path the old code
+        // already produced zero drum events, so for a fresh take this change is byte-identical.
+        // The path where it actually bites is `open(_:)`: it restores `p.drumSteps` /
+        // `p.drumAccents` into the pattern, so a project SAVED BEFORE the drum removal puts a
+        // real groove back into that grid — inaudible in the app, and the old code would have
+        // written it into the .mid. That legacy-project case is the whole reason for the
+        // change, and it is the one a future session must not "simplify" away.
         // `exportCombined` (not the Type-0 melody `export`) is still the right engine: it is
         // what writes tempo + 4/4 + KEY SIGNATURE and anchors End-of-Track to bars × 4
         // quarters, which is the whole point of "in der DAW weiterarbeiten". It emits an
         // empty, named Drums track — inert in any DAW, and honest, because it is empty.
-        guard !arrangedNotes.isEmpty else { return }
+        guard !arrangedNotes.isEmpty else {
+            // The button is enabled on `hasComposed`, which can be true with an empty roll
+            // (open a project whose notes did not survive, then tap). Silent return = a
+            // control that looks like it worked. No alert — the sheet chain may not grow —
+            // but the diag log must be able to say what happened.
+            EchoelCrashLog.breadcrumb("MIDI export skipped: no notes in the roll")
+            return
+        }
         let data = MIDIFileExporter.exportCombined(
             notes: arrangedNotes, steps: [], accents: [],
             tempo: beatPlayer.pattern.tempo, bars: bars,

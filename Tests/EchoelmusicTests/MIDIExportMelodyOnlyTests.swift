@@ -5,10 +5,17 @@
 // the drums were deleted (#166/#167) nothing renders that grid — it is a bar clock now.
 // Tiling it into the .mid would hand a DAW a drum track the user never heard.
 //
-// The reason this is a test and not just a comment: the call site passes `steps: []` to
-// `exportCombined`, which is a one-token edit away from `pattern.steps` and looks like an
-// oversight to anyone who does not know the drums are gone. These tests fail loudly if
-// someone "restores" it.
+// ⛔ HONEST SCOPE, corrected by review: these tests pin `exportCombined`'s BEHAVIOUR given
+// empty steps — they do NOT pin that `exportMIDI()` passes empty steps. Restoring
+// `steps: LoopCutter.tile(grid: beatPlayer.pattern.steps, bars: bars)` at the call site
+// leaves this whole file green. The first version of this header claimed the opposite
+// ("these tests fail loudly if someone restores it"), which is the worst kind of wrong: a
+// false sense of coverage over the exact line that needs it.
+//
+// The call site is a `private func` inside a 4000-line `@MainActor` SwiftUI view with no
+// injection seam, so testing it means extracting the export payload into a pure function
+// first. That is a real slice, not a comment — deliberately not smuggled into this one.
+// Until then the guard is the comment at the call site plus this paragraph.
 //
 // The second half pins what melody-only must NOT cost. The obvious way to drop drums is
 // to switch to the Type-0 `export(notes:tempo:)`, which would silently lose the key
@@ -51,17 +58,57 @@ final class MIDIExportMelodyOnlyTests: XCTestCase {
 
     /// True if the payload contains any note-on with a non-zero velocity on any channel.
     ///
-    /// ⚠️ Deliberately naive — it scans raw bytes rather than parsing running status, so a
-    /// multi-byte delta-time VLQ (whose non-final bytes are ≥ 0x80, e.g. `0x93`) could in
-    /// principle read as a note-on. That is harmless HERE and only here: the one assertion
-    /// that depends on ABSENCE is the empty drum track, whose entire payload is
-    /// `[0x00,0xFF,0x03,5] + "Drums" + [0x00,0xFF,0x2F,0x00]` — no byte with high nibble 9,
-    /// verified by hand. Do not lift this helper into a test that asserts absence over
-    /// arbitrary payloads without parsing properly first.
+    /// ⛔ THE NAIVE VERSION OF THIS WAS A LOADED GUN — recorded because the trap is not
+    /// obvious. It scanned every byte for high nibble 9, and its comment claimed the empty
+    /// drum payload was `[0x00,0xFF,0x03,5] + "Drums" + [0x00,0xFF,0x2F,0x00]`. That was
+    /// WRONG: `serializeTrack` writes `vlq(endTick - lastTick)` before End-of-Track, and
+    /// `lastTick` is 0 on an empty track, so the payload carries `vlq(bars × 384)`. At
+    /// `bars: 8` that is `0x98 0x00` — high nibble 9, followed by `0xFF` — and the scanner
+    /// reported a note-on in a track with no notes. The test passed only because the fixture
+    /// happened to use `bars: 2` (`0x86`). Anyone "making the fixture realistic" by using
+    /// the app's default 8 bars would have hit a red test with no visible cause.
+    ///
+    /// So it parses properly now: walk delta-VLQ → event, skipping meta/sysex by their
+    /// declared length, and honour running status. `bars` is then just a number again.
     private func hasSoundingNotes(_ payload: Data) -> Bool {
         let b = [UInt8](payload)
-        for i in 0..<b.count where (b[i] & 0xF0) == 0x90 {
-            if i + 2 < b.count, b[i + 2] > 0 { return true }
+        var i = 0
+        var runningStatus: UInt8 = 0
+        while i < b.count {
+            // Delta time: VLQ, continuation bit high.
+            while i < b.count, b[i] & 0x80 != 0 { i += 1 }
+            guard i < b.count else { return false }
+            i += 1                                   // final VLQ byte
+            guard i < b.count else { return false }
+            var status = b[i]
+            if status & 0x80 != 0 { i += 1 } else { status = runningStatus }  // running status
+            switch status {
+            case 0xFF:                               // meta: type + VLQ length + payload
+                guard i + 1 < b.count else { return false }
+                i += 1                               // meta type
+                var len = 0
+                while i < b.count {
+                    len = (len << 7) | Int(b[i] & 0x7F)
+                    let more = b[i] & 0x80 != 0
+                    i += 1
+                    if !more { break }
+                }
+                i += len
+            case 0xF0, 0xF7:                         // sysex: VLQ length + payload
+                var len = 0
+                while i < b.count {
+                    len = (len << 7) | Int(b[i] & 0x7F)
+                    let more = b[i] & 0x80 != 0
+                    i += 1
+                    if !more { break }
+                }
+                i += len
+            default:
+                runningStatus = status
+                let dataBytes = (status & 0xF0 == 0xC0 || status & 0xF0 == 0xD0) ? 1 : 2
+                if status & 0xF0 == 0x90, i + 1 < b.count, b[i + 1] > 0 { return true }
+                i += dataBytes
+            }
         }
         return false
     }
