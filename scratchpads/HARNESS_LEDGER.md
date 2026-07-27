@@ -978,3 +978,33 @@ die Beispiele so wählen, dass sie die Invarianz BRECHEN würden, wenn sie falsc
 also über die Restklassen des beteiligten Divisors streuen. Beispiele, die aus derselben
 Annahme stammen wie die Behauptung, sind Dekoration, kein Beleg. (Die Behauptung stand
 auch in der Betreffzeile, also in dem, was `git log` für immer zeigt.)
+
+## 2026-07-27 — DEAD-END: „nichts anderes LIEST die Eigenschaft" als Freispruch für einen halben Fix
+
+**Was ich tat (#164[2]).** Ich machte `SingleExport.targetLUFS` optional, damit „No
+target" wirklich nichts normalisiert, und schrieb in die Commit-Nachricht: *„Nichts
+anderes liest die Eigenschaft (`FloatingVisualWindow` weist nur −14 zu,
+unverändert)."*
+
+**Warum das eine Falle ist.** Der Satz ist über LESE-Zugriffe wahr und in der Wirkung
+falsch. Eine **Zuweisung** eines fest verdrahteten Werts ist genau das, was einen Fix
+halb macht — und `FloatingVisualWindow` ist per Standard sichtbar und hat einen
+WAV-Knopf. Der Founder hätte „No target" gewählt, ein Fenster weiter getippt und
+wieder −14 bekommen. Ich hatte die Formulierung unbewusst um „liest" herum gebaut,
+sodass ein unbeteiligt klingender Nebensatz genau das Loch verdeckte.
+
+**Die Regel.** Bei jeder Umstellung einer Einstellung auf einen neuen Typ oder eine
+neue Semantik: **alle SCHREIBER aufzählen, nicht die Leser.** Ein Leser, der den alten
+Wert liest, kompiliert nicht mehr — der Compiler findet ihn für dich. Ein Schreiber,
+der einen alten Konstantwert setzt, kompiliert weiter und ist damit die einzige
+Fehlerklasse, die nur ein Mensch findet. Und danach: **alle AUSGÄNGE aufzählen** (hier:
+jeder Knopf, aus dem eine Datei fällt) und pro Ausgang sagen, ob er die Einstellung
+befolgt. Ein halb verdrahteter Fix ist schlimmer als keiner, weil er als erledigt gilt.
+
+**Zweite Lehre aus derselben Runde.** Ich extrahierte die geänderte Rechenzeile erst
+NACH dem Review in eine reine Funktion. Vorher steckte sie in einer `async`-Methode
+mit AVFoundation-Aufrufen und war damit unprüfbar — weshalb der ganze
+Audio-seitige Teil des Fixes („nil ⇒ 0 dB") von keinem einzigen Test abgedeckt war,
+während drei neue Tests die Enum-Auflösung prüften. **Wenn die eine Zeile, die das
+Verhalten ändert, nicht testbar ist, ist sie am falschen Ort** — herausziehen, bevor
+man Tests für das Drumherum schreibt.
