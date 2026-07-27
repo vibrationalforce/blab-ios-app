@@ -147,8 +147,15 @@ public final class CameraRPPGBioPublisher {
     @ObservationIgnored private var loopTicks = 0
     /// Below this sustained inbound rate the pulse band is unmeasurable → honest cooling.
     static let minMeasurableInboundHz = 6.0
-    /// Lock threshold — also the bus-publish gate.
-    static let lockThreshold = 0.35
+    /// Lock threshold. It is NO LONGER the bus-publish gate (that is `shouldPublish`, which
+    /// uses `pulseTrustworthy` — see 2026-07-27) and no longer the `isLocked` gate either.
+    /// What still reads it: the `displayThreshold` doc above, and the test that pins the
+    /// low-confidence/high-acf case as sitting below it.
+    /// `nonisolated` for the same SE-0434 reason as its three neighbours below: Xcode's
+    /// toolchain isolates a `static let` on a `@MainActor` class even when immutable, while
+    /// SwiftPM may not — so a nonisolated test reading it compiles on one toolchain and not
+    /// the other. Runtime-identical.
+    nonisolated static let lockThreshold = 0.35
 
     /// Minimum AUTOCORRELATION strength ("acf") a reading must carry before it may move the
     /// shown pulse OR latch the tempo. Confidence alone can be inflated by the peak-counter
@@ -182,9 +189,22 @@ public final class CameraRPPGBioPublisher {
     /// THE BUS-PUBLISH GATE — deliberately the SAME bar as the shown number.
     ///
     /// Until 2026-07-27 this path gated on `bpm > 0 && bpmConfidence >= lockThreshold`
-    /// alone, i.e. strictly WEAKER than `pulseTrustworthy`, which the display has used
-    /// since the acf work. That asymmetry meant the screen was held to more evidence than
-    /// the instrument: device log 2469 (build 10.79.352) carries
+    /// alone, while the display has used `pulseTrustworthy` since the acf work.
+    ///
+    /// The two gates were INCOMPARABLE, not merely one weaker than the other — the first
+    /// version of this comment claimed "strictly WEAKER" and that was wrong in a way worth
+    /// spelling out, because it hides half the behaviour change:
+    ///   · old-passes / new-rejects: conf 0.62, acf 0.30 — the device-log case below. The
+    ///     bus followed a reading the screen refused. This is what the fix removes.
+    ///   · old-rejects / new-passes: conf < 0.35 with acf ≥ 0.6 — also real and also
+    ///     device-observed (log 1783420026, acf 0.59–0.72 at conf 0.01, a stable 56 bpm).
+    ///     The bus used to block a pulse the screen already trusted. The fix OPENS this.
+    /// So device verification runs in both directions: watch for more idle, AND watch that
+    /// the newly-admitted low-confidence/high-acf band carries sane numbers outward to the
+    /// synth, OSC, ADM-OSC and Art-Net.
+    ///
+    /// The asymmetry meant the screen was held to more evidence than the instrument:
+    /// device log 2469 (build 10.79.352) carries
     /// `bpm=75 conf=0.62 acf=0.30 auto=64` and `bpm=80 conf=0.62 acf=0.32 auto=63` — over
     /// the old publish threshold, under the display's — so the readout correctly held ~48
     /// while the BUS fed 75–80 bpm to the synth, the visual, OSC, ADM-OSC and Art-Net.
@@ -195,13 +215,37 @@ public final class CameraRPPGBioPublisher {
     /// low-confidence case (acf 0.59–0.72 at conf 0.01, a rock-stable real 56 bpm) out of the
     /// SOUND while the display still shows it — the same asymmetry, merely inverted.
     ///
-    /// Pure → unit-testable, which the inline `guard` it replaces was not.
+    /// SCOPE — this unifies the BAR, not the VALUE. What gets published is the raw
+    /// `analyzer.estimatedBPM`; what gets shown is `displayBPM`, which is octave-folded and
+    /// slew-capped at `maxDisplayStep` (both explicitly display-only). So after a hold the
+    /// bus jumps to the new value immediately while the readout walks there over seconds,
+    /// and a trustworthy raw estimate that the fold would halve is published un-halved.
+    /// Same defect class, smaller and transient — not closed by this function.
+    ///
+    /// Pure → unit-testable, which the inline `guard` it replaces was not. Note what that
+    /// does NOT buy: no test asserts that the publish loop actually CALLS this. Reverting
+    /// the call site to the old inline guard keeps every test in `CameraRPPGTrustTests`
+    /// green. The predicate is pinned; the wiring is not.
     nonisolated static func shouldPublish(bpm: Double, confidence: Double, autoStrength: Double) -> Bool {
         bpm > 0 && pulseTrustworthy(confidence: confidence, autoStrength: autoStrength)
     }
 
-    /// True once a confident pulse is locked.
-    public var isLocked: Bool { detectedBPM > 0 && confidence >= Self.lockThreshold }
+    /// True once a confident pulse is locked — the SAME bar as the display and the bus.
+    ///
+    /// This used to be `detectedBPM > 0 && confidence >= lockThreshold`, i.e. byte-for-byte
+    /// the old publish guard, so "locked" implied "the instrument is being fed". Unifying
+    /// only the publish gate broke that implication and left `isLocked` true across the
+    /// newly-rejected band (conf 0.62 / acf 0.30 — both device-log-2469 readings): the
+    /// header light would go green, `PulseCue.locked` would say "Locked", the confidence bar
+    /// would pin to full and the coaching would fall silent (`.locked` is not actionable) —
+    /// while nothing reached the bus. That is the same lying control this change set out to
+    /// remove, moved one surface over. All three now clear one bar; the band falls through
+    /// `acquisitionCue` to `.finding`, which is the honest message.
+    public var isLocked: Bool {
+        Self.shouldPublish(bpm: detectedBPM,
+                           confidence: confidence,
+                           autoStrength: analyzer.lastAutoStrength)
+    }
 
     /// True once the pulse is confident AND FLAT — display-grade confidence with the calm
     /// displayBPM moving ≤ ~3 bpm over ~3 s. This is the gate for LATCHING the take tempo:
@@ -787,9 +831,18 @@ public final class CameraRPPGBioPublisher {
                 guard self.inboundRateEMA >= Self.minMeasurableInboundHz else { continue }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
+                // All three evidence values read HERE, not reused from the display block
+                // above: `manageExposure()` runs in between and can call
+                // `analyzer.resetForRecovery()`, which zeroes estimatedBPM, bpmConfidence
+                // AND lastAutoStrength together. Reusing the earlier `autoStrength` local
+                // would compare a stale-high periodicity against a fresh-zero confidence.
+                // Harmless today only because the same flush zeroes `bpm` and the `bpm > 0`
+                // conjunct short-circuits — a stale `acf >= strongAutoFloor` satisfies
+                // `pulseTrustworthy` on its own, so anyone who later relaxes `bpm > 0` or
+                // makes the flush preserve the last estimate would silently reopen it.
                 guard Self.shouldPublish(bpm: bpm,
                                          confidence: self.analyzer.bpmConfidence,
-                                         autoStrength: autoStrength) else {
+                                         autoStrength: self.analyzer.lastAutoStrength) else {
                     // Brief dropout: keep the visual + pulse warm by re-emitting the
                     // last good frame (coherence gently decaying — never a snap to 0)
                     // until the grace window expires, so a marginal signal can't

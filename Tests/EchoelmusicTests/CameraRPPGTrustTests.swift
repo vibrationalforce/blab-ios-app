@@ -91,9 +91,14 @@ final class CameraRPPGTrustTests: XCTestCase {
                        "device log 2469: over the old confidence-only threshold, under the "
                        + "display's — this is the reading the sound followed and the screen did not")
         XCTAssertFalse(P.shouldPublish(bpm: 80, confidence: 0.62, autoStrength: 0.32))
-        // The general property, not just those two samples: nothing may reach the bus that
-        // the display would refuse to show. This is the invariant; the cases above are its
-        // witnesses, and this assertion is what fails if someone re-weakens the gate.
+    }
+
+    /// HONEST LABEL: a CHANGE DETECTOR, not a behaviour test. `shouldPublish` is defined as
+    /// `bpm > 0 && pulseTrustworthy(...)`, so "published ⟹ the display would show it" is
+    /// true by construction and this sweep cannot fail unless someone edits the
+    /// implementation — which is exactly what it is here to catch. It is NOT evidence that
+    /// the invariant holds at runtime; that would need the publish loop itself.
+    func testPublishGate_neverAdmitsWhatTheDisplayWouldRefuse_byConstruction() {
         for conf in stride(from: 0.0, through: 1.0, by: 0.05) {
             for acf in stride(from: 0.0, through: 1.0, by: 0.05) {
                 if P.shouldPublish(bpm: 60, confidence: conf, autoStrength: acf) {
