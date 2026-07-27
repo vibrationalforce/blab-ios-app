@@ -72,13 +72,12 @@ targets:
         type: group
         excludes:
           - "**/*.md"
-          # Drums/Samples/Community are declared ONLY via the explicit folder
+          # Drums/Community are declared ONLY via the explicit folder
           # entries below, which preserve the real subdirectory structure that
           # `subdirectory:`-based bundle lookups need. Without these excludes the
           # generic group walk ALSO registers every file under them individually
           # (flattened), so each file would be double-declared.
           - "Resources/Drums/**"
-          - "Resources/Samples/**"
           - "Resources/Community/**"
 
       # === RESOURCES ===
@@ -113,13 +112,11 @@ targets:
       # instrument voice is gone entirely, founder "Real Instruments komplett raus",
       # so the 31 MB .sf2 no longer ships.)
       #
-      # Drum + sample WAVs — folder references keep the Drums/ · Samples/
-      # subdirectories `BeatPlayer` looks them up by (`subdirectory: "Drums"`) and
-      # avoid filename collisions between the two libraries.
+      # Drum WAVs — a folder reference keeps the Drums/ subdirectory that
+      # `BeatPlayer` looks them up by (`subdirectory: "Drums"`).
+      # (Resources/Samples — the 5.4 MB categorized sample library — was deleted
+      # 2026-07-27 with its browser and its BeatPlayer API, #167.)
       - path: Sources/Echoelmusic/Resources/Drums
-        type: folder
-        buildPhase: resources
-      - path: Sources/Echoelmusic/Resources/Samples
         type: folder
         buildPhase: resources
       # Community JSON (fx/moods/patches) — same folder-reference need:

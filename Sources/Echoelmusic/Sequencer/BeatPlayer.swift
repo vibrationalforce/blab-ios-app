@@ -274,7 +274,10 @@ public final class BeatPlayer {
     /// Persists a BUNDLED assignment (built-in drum or category-library sample) so a
     /// pad chosen in the browser survives relaunch — bundle files have no security-
     /// scoped bookmark, so they need their own tiny reference. Value scheme:
-    /// "drum:<Name>" (Resources/Drums) or "lib:<Category>/<Name>" (Resources/Samples).
+    /// "drum:<Name>" (Resources/Drums). A second scheme, "lib:<Category>/<Name>"
+    /// (Resources/Samples), existed until 2026-07-27 — those assets and their browser
+    /// are deleted, so a stored "lib:" value no longer resolves and is dropped on the
+    /// next launch by `restoreBundledAssignment`.
     private static func bundledKey(_ track: Int) -> String { "echoel.beat.sample.bundled.\(track)" }
 
     /// Resource bundle for the drum WAVs. `Bundle.module` exists only when
@@ -498,68 +501,14 @@ public final class BeatPlayer {
         }
     }
 
-    // MARK: - Categorized library (Resources/Samples/<Category>/*.wav)
-
-    /// One browsable bundled sample, grouped by its category folder. Value type so
-    /// the browser can `ForEach` it directly; `url` points into the app bundle
-    /// (not security-scoped → no bookmark needed to audition/assign).
-    public struct LibrarySample: Identifiable, Hashable, Sendable {
-        public let category: String
-        public let name: String
-        public let url: URL
-        public var id: String { "\(category)/\(name)" }
-    }
-
-    /// The `Samples` resource directory root, resolved for both the SwiftPM
-    /// (`Bundle.module`) and Xcode (folder-ref in `.main`) builds.
-    private static func samplesRoot() -> URL? {
-        let b = resourceBundle
-        if let u = b.url(forResource: "Samples", withExtension: nil) { return u }
-        return b.resourceURL?.appendingPathComponent("Samples")
-    }
-
-    /// All bundled library samples grouped by category (Bass · Stab · Keys · …),
-    /// each sorted by name, categories sorted alphabetically. Computed once
-    /// (static let) so browsing never re-scans the disk — render-safe.
-    public static let library: [(category: String, samples: [LibrarySample])] = {
-        guard let root = samplesRoot() else { return [] }
-        let fm = FileManager.default
-        guard let cats = try? fm.contentsOfDirectory(
-            at: root, includingPropertiesForKeys: [.isDirectoryKey]) else { return [] }
-        var out: [(String, [LibrarySample])] = []
-        for catURL in cats.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-            let isDir = (try? catURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            guard isDir else { continue }
-            let cat = catURL.lastPathComponent
-            guard let files = try? fm.contentsOfDirectory(
-                at: catURL, includingPropertiesForKeys: nil) else { continue }
-            let samples = files
-                .filter { $0.pathExtension.lowercased() == "wav" }
-                .map { LibrarySample(category: cat,
-                                     name: $0.deletingPathExtension().lastPathComponent,
-                                     url: $0) }
-                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-            if !samples.isEmpty { out.append((cat, samples)) }
-        }
-        return out
-    }()
-
-    /// Audition a library sample on the preview voice (does not touch the kit).
-    public func auditionLibrary(_ sample: LibrarySample) {
-        if (try? previewVoice.loadSample(from: sample.url)) != nil { previewVoice.fire() }
-    }
-
-    /// Assign a library sample to a pad (clears any custom bookmark, like
-    /// `assignBundled`). Bundle URL → no security scope needed. Persists a bundled
-    /// reference so the choice survives relaunch.
-    public func assignLibrary(track: Int, _ sample: LibrarySample) {
-        guard voices.indices.contains(track) else { return }
-        UserDefaults.standard.removeObject(forKey: Self.bookmarkKey(track))
-        if (try? voices[track].loadSample(from: sample.url)) != nil {
-            sampleLabels[track] = sample.name
-            UserDefaults.standard.set("lib:\(sample.id)", forKey: Self.bundledKey(track))
-        }
-    }
+    // MARK: - Categorized library — DELETED 2026-07-27 (#167)
+    //
+    // `LibrarySample`, `samplesRoot()`, the `library` index, `auditionLibrary` and
+    // `assignLibrary` browsed `Resources/Samples/<Category>/*.wav` (5.4 MB, ~15
+    // categories). Their only surface was `SampleBrowserView`, deleted the same day
+    // because no door could open it; the assets themselves are deleted with this
+    // change. Nothing outside this file ever referenced the API — verified by grep
+    // over `Sources/` and `Tests/` before removal.
 
     /// Re-load a persisted bundled assignment (built-in drum or library sample)
     /// on launch. No-op when none is stored or it no longer resolves.
@@ -575,14 +524,20 @@ public final class BeatPlayer {
         }
     }
 
-    /// Resolve a stored bundled reference ("drum:<Name>" or "lib:<Category>/<Name>")
-    /// to a bundle URL. Pure lookup — nil when the asset no longer exists.
+    /// Resolve a stored bundled reference ("drum:<Name>") to a bundle URL. Pure
+    /// lookup — nil when the asset no longer exists.
+    ///
+    /// The "lib:<Category>/<Name>" branch went with the sample library (#167). A
+    /// value persisted under the old scheme now returns nil, which is the SAME
+    /// answer this function already gave for a renamed or removed asset, and both
+    /// callers were written for it: `restoreBundledAssignment` drops the stale key
+    /// instead of retrying, and `resolveSampleRef` falls through to
+    /// `MediaLibrary.resolveRef` (also nil) leaving the sampler unloaded. No caller
+    /// treats nil as an error, so no saved state is lost beyond the sound that no
+    /// longer ships.
     private static func bundledAssignmentURL(_ ref: String) -> URL? {
         if let name = ref.stripping(prefix: "drum:") {
             return bundledSampleURL(name)
-        }
-        if let id = ref.stripping(prefix: "lib:") {
-            return library.flatMap { $0.samples }.first { $0.id == id }?.url
         }
         return nil
     }
@@ -592,9 +547,10 @@ public final class BeatPlayer {
     /// Resolve a persisted sample REF string to a playable file URL — THE one
     /// lookup for every surface that stores a sample choice as a string (the
     /// EchoelSampler lane's `TimelineLane.samplePath` today). Two conventions,
-    /// both already established: "drum:<Name>" / "lib:<Category>/<Name>" bundle
-    /// refs (this class's own pad-persistence format — resolved by NAME, so they
-    /// survive app updates), and everything else as a `Clip.mediaRef`-style
+    /// both already established: "drum:<Name>" bundle refs (this class's own
+    /// pad-persistence format — resolved by NAME, so they survive app updates;
+    /// the "lib:" sibling died with the sample library, #167), and everything
+    /// else as a `Clip.mediaRef`-style
     /// absolute path (`MediaLibrary.resolveRef`, incl. H6 container re-rooting).
     /// nil for empty/vanished refs — the caller's sampler simply stays unloaded.
     public static func resolveSampleRef(_ ref: String?) -> URL? {
@@ -606,6 +562,11 @@ public final class BeatPlayer {
     /// Human-readable name for a persisted sample REF ("drum:Kick" → "Kick",
     /// "lib:Bass/808" → "808", a media path → its file stem). nil for nil/empty —
     /// the UI shows its own "No sample" placeholder then. Pure string math.
+    ///
+    /// The "lib:" case is KEPT although no such ref can be written any more (#167
+    /// deleted the library): this is a READER of persisted values, and a document
+    /// saved before that change must still show "808" rather than the raw ref while
+    /// the resolver reports the file as gone.
     public static func sampleRefDisplayName(_ ref: String?) -> String? {
         guard let ref, !ref.isEmpty else { return nil }
         if let name = ref.stripping(prefix: "drum:") { return name }
