@@ -148,3 +148,18 @@ metrics.jsonl
 # Python bytecode (e.g. local workflow-script validation)
 __pycache__/
 *.pyc
+
+# CI/build artefacts written into the working tree by ci.yml, pr-check.yml,
+# full-tests.yml and debug.sh. Verified 2026-07-27 that none of these is
+# currently tracked, so the broad *.log rule cannot orphan an existing file.
+*.log
+TestResults/
+*.xcresult
+*.xcarchive
+coverage.lcov
+
+# Signing material — must never enter the repo, not even briefly.
+*.p8
+*.p12
+*.mobileprovision
+*.cer
