@@ -16,6 +16,12 @@ on:
       - 'Tests/**'
       - 'Package.swift'
       - 'project.yml'
+      # The gate must test its own changes. Without this path a repair to this
+      # file — or a regression that disarms it again — ships unexercised, which
+      # is how the `|| cat` mask survived: every commit that touched it was a
+      # workflow-only commit, so this workflow never ran on it.
+      # xcode-compile-check.yml already includes itself for the same reason.
+      - '.github/workflows/ci.yml'
   # NOTE: PR checks are handled by pr-check.yml
   # This workflow runs on push (post-merge) for thorough testing
   workflow_dispatch:
