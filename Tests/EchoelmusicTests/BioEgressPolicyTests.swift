@@ -42,22 +42,30 @@ final class BioEgressPolicyTests: XCTestCase {
 /// derived from that very frame, because `BioEvent` carried no provenance and the drain
 /// had no guard. The policy file's own header even declared the event path exempt.
 ///
-/// These tests are about the DECISION, which is where the rule lives — the drain is a
-/// `private func` on a `@MainActor` class that owns a live `NWConnection`, so asserting
-/// "no UDP packet left" is not something this suite can do honestly. What it CAN pin is
-/// the provenance contract that decision reads: that events carry a source, that the
-/// protected graph's unstamped output stays unstamped, and that unstamped fails CLOSED.
+/// ⛔ SCOPE, corrected by review — twice, so both corrections stay written down.
+/// (1) These tests call `BioEgressPolicy.allowsEgress(_ event:)`, the SAME symbol the
+///     drain guards on. The first cut re-implemented that predicate here as a local
+///     helper, which meant deleting the production guard left every test green — a
+///     tautology wearing a regression test's clothes. The predicate was hoisted into the
+///     policy type so there is one symbol and no drift.
+/// (2) The drain itself is a private method on a `@MainActor` class owning a live
+///     `NWConnection`, so "no UDP packet left the device" is still not something this
+///     suite can assert. What is pinned is the decision the drain reads.
+///
+/// Honest note on the leak: on a HealthKit frame the channels the graph is fed are a
+/// constant 0.5 and a hardcoded 0, so no Health-store VALUE has actually egressed here.
+/// The gate is defence-in-depth plus one cross-source detector-state artifact. These
+/// tests pin the rule, not a bug that was firing in the field.
 final class BioEventEgressTests: XCTestCase {
 
     private func event(_ source: BioSource?) -> BioEvent {
         BioEvent(timestamp: 1, kind: .breathInhaleOnset, confidence: 1, aux: 0, source: source)
     }
 
-    /// The exact expression `drainAndSendEvents` guards on. Kept in one place so the test
-    /// and the call site cannot drift into disagreeing about what "allowed" means.
+    /// THE production predicate — not a copy of it. `drainAndSendEvents` calls this exact
+    /// overload, so deleting the guard there can no longer leave these tests green.
     private func mayEgress(_ e: BioEvent) -> Bool {
-        guard let s = e.source else { return false }
-        return BioEgressPolicy.allowsEgress(s)
+        BioEgressPolicy.allowsEgress(e)
     }
 
     func testUnstampedEvent_isRefused_failClosed() {
@@ -66,11 +74,14 @@ final class BioEventEgressTests: XCTestCase {
         XCTAssertFalse(mayEgress(event(nil)))
     }
 
-    func testHealthDerivedOnset_isRefused_eventhoughItsChannelsAreDerived() {
-        // The failure mode in one line: a HealthKit frame carries a real breathRate /
-        // breathPhase from the Health store, so an onset derived from it is Health-derived
-        // — even though a graph, not the store, computed the onset.
+    func testHealthSourcedEvent_isRefused() {
+        // An event STAMPED with a Health-store source never goes out, whatever channel it
+        // was computed from. (The earlier name and comment here claimed the onset itself
+        // was Health-derived; on today's HealthKit frame it is not — see the file header.)
         XCTAssertFalse(mayEgress(event(.healthKit)))
+        // `.watch` and `.oura` are pinned even though NO publisher sets either today
+        // (verified by review) — the ruling must already exist when one appears, which is
+        // the only moment anybody would otherwise think about it.
         XCTAssertFalse(mayEgress(event(.watch)))
         XCTAssertFalse(mayEgress(event(.oura)))
     }

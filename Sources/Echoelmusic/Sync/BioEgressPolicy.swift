@@ -15,17 +15,28 @@
 //  `HealthWritePolicy.isWritableSource`
 //  (which gates the opposite direction: what we write INTO Health).
 //
-//  ⛔ CORRECTED 2026-07-27 (#186). This header used to say "Discrete BioEvents need no
-//  gate today … no HealthKit-store values flow through the event queue." That was FALSE,
-//  and it is the reason the gap survived several audits — the file that DEFINES the rule
-//  told every reader the event path was exempt.
-//  `BioEventPublisher.tick` reads `bus.latestBio` regardless of source and runs
-//  `frame.breathPhase` / `frame.motionEnergy` through the graph; a HealthKit frame carries
-//  a real `breathRate`/`breathPhase` from the Health store, so its breath onsets ARE
-//  Health-derived. They then reached `OSCSender.drainAndSendEvents`, which had no gate at
-//  all — the measurement was blocked while the onset derived from it went out.
-//  Events now carry `BioEvent.source` and the drain applies THIS policy, with unstamped
-//  events refused (fail-closed). Do not re-introduce an "events are exempt" claim.
+//  DISCRETE EVENTS ARE GATED TOO (#186, 2026-07-27) — and the honest reason is narrower
+//  than the first version of this note claimed, so it is spelled out rather than asserted.
+//  This header used to say events "need no gate today". The STRUCTURE that claim rested on
+//  was wrong: `BioEventPublisher.tick` reads `bus.latestBio` regardless of source and feeds
+//  `frame.breathPhase` / `frame.motionEnergy` into a graph whose detector state is shared
+//  across sources. But the DATA today is not Health-store data:
+//    · `motionEnergy` is hardcoded `0` on the HealthKit frame → a motion peak (needs ≥0.6)
+//      can never fire from that source.
+//    · `breathPhase` is a constant `0.5` there — its only writer in `EchoelBioEngine` sits
+//      inside `startFallbackMode()`, which is mutually exclusive with the HealthKit path.
+//      Inhale needs `previous < 0.5`, exhale needs `previous > 0.8`; neither can trigger.
+//    · `breathRate` IS real Health-store data, but the graph is never fed it.
+//    · `cleanedHeart` is passed as `0`, so graph heartbeats do not fire at all.
+//  So no Health-store VALUE has actually left the device through this path. What could:
+//  the shared `BreathPhaseDetector.previous` is not reset when the source changes, so a
+//  camera session leaving it at e.g. 0.3 followed by a HealthKit frame at 0.5 fires one
+//  inhale event — a cross-source state artifact, carrying a placeholder, ungated.
+//  The gate is therefore DEFENCE-IN-DEPTH plus that one artifact: it costs nothing, and it
+//  means a future publisher that carries real Health-derived channels into the graph is
+//  covered on arrival instead of needing someone to remember this file.
+//  Do not re-introduce an "events are exempt" claim; equally, do not overstate it as an
+//  active leak — both errors have now been made in this exact paragraph.
 //
 
 import Foundation
@@ -44,5 +55,21 @@ public enum BioEgressPolicy {
         case .healthKit, .watch, .oura:
             return false
         }
+    }
+
+    /// Whether this discrete event may be sent off-device (#186).
+    ///
+    /// It lives HERE, not inline in `OSCSender`, for a reason found by review: the first
+    /// cut inlined the guard and the test re-implemented it, so the test passed even with
+    /// the production guard deleted — a tautology wearing a regression test's clothes.
+    /// One symbol, called by both.
+    ///
+    /// An UNSTAMPED event (`source == nil`) is refused. `BioEventGraph` is a protected
+    /// component that cannot know provenance, so its events arrive unstamped and are
+    /// stamped by whoever publishes them; failing closed means a producer that forgets
+    /// goes silent rather than leaking.
+    public static func allowsEgress(_ event: BioEvent) -> Bool {
+        guard let source = event.source else { return false }
+        return allowsEgress(source)
     }
 }
