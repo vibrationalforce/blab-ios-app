@@ -672,3 +672,32 @@ Two corollaries:
   mono/bio voice — which never sets a velocity — stays bit-identical. That deserves its own named
   test, because "multiply by velocity" applied naively to a voice with no velocity context is how
   a bio-reactive synth goes permanently silent.
+
+## 2026-07-26 — DEAD-END: turning a reviewer's flag into a task without tracing it yourself
+A review of the velocity fix ended with a LOW note: "`SubBassVoice.noteOn(pitch:velocity:)`
+discards velocity — if the founder pulls the Bass fader and hears nothing change, this is why."
+I filed that verbatim as the next slice. It was WRONG, and one grep would have shown it:
+`outputVoice(for:)` sends `.bass` and `.harmony` to the POLY voice, where the fader works. The
+velocity-discarding overload only applies when a sub-bass LANE is bound as the primary kind
+voice — not the generated take. The felt sub is a separate layer with its own gain, pitch-only
+by design.
+
+**RULE: a finding is a hypothesis until YOU have followed the chain to its caller.** This is the
+same failure the repo already records one level up ("slot + setter does not prove reachability")
+— a reviewer's file:line is evidence that the CODE says what they quote, never that the code
+RUNS in the case being discussed. Cost here was one wrong task title; the same habit applied to
+a deletion would have cost a capability.
+
+The real defect, found only by tracing: the felt sub was reconciled from the lowest pitch in
+`active` with no audibility check, so a fader at 0 left it droning under a note nobody could
+hear. **And it had been INVISIBLE until the previous slice** — the bio pulse used to overwrite
+voice amplitude, so the muted note sounded anyway and the sub matched something real. A fix
+uncovering the next defect in the same chain is the normal shape of the thing; budget a
+follow-up slice for it rather than reading it as a regression in the fix.
+
+Third corollary from the same review, worth its own line: **a justification can be wrong while
+the value is right.** I defended the audibility threshold with "the band between 0 and the
+composer's 0.05 floor is unreachable". It is reachable (the humanizer clamp runs BEFORE the
+fader bake; a 0.01 fader puts a soft note at 0.000425). The threshold survives on audibility
+instead — but a future session tuning from the false premise would have raised it. Check the
+REASON in a comment as hard as the number.
