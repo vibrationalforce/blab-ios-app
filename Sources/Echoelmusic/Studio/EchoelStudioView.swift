@@ -4250,7 +4250,8 @@ struct EchoelStudioView: View {
     /// separable and unit-tested.
     ///
     /// This changes nothing for anyone who did not explicitly pick "No target": the
-    /// registered default is `.streaming` (`StudioDefaultKeys`), and an unreadable
+    /// canonical fresh-install default is `.streaming` (`StudioDefaultKeys` — nothing calls
+    /// `UserDefaults.register(defaults:)`, so the `??` fallback does the work), and an unreadable
     /// value still falls back to it.
     private var resolvedLUFS: Float? {
         LoudnessTarget.resolvedLUFS(rawValue: loudnessTargetRaw)

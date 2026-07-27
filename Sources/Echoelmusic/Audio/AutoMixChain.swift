@@ -42,8 +42,25 @@ final class AutoMixChain {
     ///
     /// `nil` = the user chose "No target": hold the level where the mix puts it. The safety
     /// limiter is a separate, always-on stage and stays on.
-    var targetLUFS: Float? {
-        let raw = UserDefaults.standard.string(forKey: StudioDefaultKeys.loudnessTarget.key)
+    /// NOT observation-tracked. `@Observable` instruments STORED properties only, so a
+    /// SwiftUI body reading this would never be re-rendered when the key changes. Nothing
+    /// reads it from a view today — if you need one, bind
+    /// `@AppStorage(StudioDefaultKeys.loudnessTarget.key)`, never this property.
+    var targetLUFS: Float? { Self.resolvedTarget(from: .standard) }
+
+    /// The resolution itself, pulled out as a pure, injectable seam so the WIRING is
+    /// testable and not just the arithmetic. That distinction is the whole reason this bug
+    /// lived so long: `steadyGainDB` was well covered while the −14 that actually reached it
+    /// came from a stored property nothing asserted. Same move as
+    /// `SingleExport.normalizeGainDB` for the export half of this fix.
+    ///
+    /// `StudioDefaultKeys.loudnessTarget.value` is the CANONICAL FRESH-INSTALL value, not a
+    /// registered one — nothing calls `UserDefaults.register(defaults:)` for it, `@AppStorage`
+    /// defaults are per-declaration and never written to the store. So on a fresh install
+    /// `string(forKey:)` returns nil and this `??` is doing all the work; do not delete it
+    /// believing a registration covers it.
+    nonisolated static func resolvedTarget(from defaults: UserDefaults) -> Float? {
+        let raw = defaults.string(forKey: StudioDefaultKeys.loudnessTarget.key)
             ?? StudioDefaultKeys.loudnessTarget.value
         return LoudnessTarget.resolvedLUFS(rawValue: raw)
     }
@@ -153,7 +170,16 @@ final class AutoMixChain {
                              deadZoneDB: Float = 0.4) -> Float {
         let raw = targetLUFS.map { Swift.min(Swift.max($0 - lufsReading, -maxDB), maxDB) } ?? 0
         let delta = raw - current
-        guard Swift.abs(delta) >= deadZoneDB else { return current }   // hold — no micro-pumping
+        guard Swift.abs(delta) >= deadZoneDB else {
+            // WITH a target, holding inside the dead zone is the anti-pumping rule.
+            // WITHOUT one there is nothing to hold against: the same guard would park a
+            // PERMANENT residual of up to ±deadZoneDB (±0.4 dB ≈ ±4.7 % linear) — so "no
+            // target" would still be applying a gain, just a smaller lie. Land on exact
+            // unity instead, which is also what the export half of this control does
+            // (`SingleExport.normalizeGainDB` returns exactly 0 for nil). The step taken
+            // here is by definition < deadZoneDB, so it cannot click.
+            return targetLUFS == nil ? 0 : current
+        }
         let coeff = delta > 0 ? boostCoeff : cutCoeff                  // slow to boost, quicker to cut
         return current + delta * Swift.min(Swift.max(coeff, 0), 1)
     }

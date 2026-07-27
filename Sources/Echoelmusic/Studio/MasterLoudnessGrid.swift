@@ -33,7 +33,9 @@ struct MasterLoudnessGrid: View {
     /// the colour-coding matches the user's chosen delivery target everywhere.
     @AppStorage(StudioDefaultKeys.loudnessTarget.key)
     private var targetRaw = StudioDefaultKeys.loudnessTarget.value
-    /// Falls back to `.streaming` — the REGISTERED default — not to `.off`. Until
+    /// Falls back to `.streaming` — the CANONICAL FRESH-INSTALL default — not to `.off`.
+    /// (Nothing calls `UserDefaults.register(defaults:)`; `@AppStorage` defaults are
+    /// per-declaration and never written to the store, so this fallback is load-bearing.) Until
     /// 2026-07-27 this said `?? .off` while the export path said `?? -14`, so one
     /// unreadable stored string made the readout claim "no target in effect" (neutral
     /// colours, no true-peak warning, empty picker) while the export still normalised

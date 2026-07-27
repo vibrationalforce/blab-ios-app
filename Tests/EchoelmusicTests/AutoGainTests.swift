@@ -75,9 +75,11 @@ final class AutoGainTests: XCTestCase {
         for start in [Float(-6), -3, 0, 3, 6] {
             var g = start
             for _ in 0..<800 { g = Mix.steadyGainDB(current: g, targetLUFS: nil, lufsReading: -40) }
-            XCTAssertLessThan(abs(g), 0.5,
-                              "from \(start) dB, \"no target\" must return the stage to unity "
-                              + "— not to −14's correction")
+            XCTAssertEqual(g, 0, accuracy: 1e-6,
+                           "from \(start) dB, \"no target\" must return the stage to EXACT "
+                           + "unity. An earlier version asserted `< 0.5` and passed while the "
+                           + "dead zone parked a permanent ±0.4 dB residual — the threshold "
+                           + "was quietly documenting the bug instead of failing on it.")
         }
     }
 
@@ -105,18 +107,40 @@ final class AutoGainTests: XCTestCase {
         XCTAssertGreaterThan(afterOneStep, 0.5, "but not arrive in a single 200 ms tick")
     }
 
-    /// The one thing left to state here rather than in `LoudnessTargetTests`: this stage
-    /// consumes the SAME resolver as the export path, so "No target" reaching the master
-    /// gain is a property of that shared function, not of a second copy.
+    // MARK: - The WIRING, not just the arithmetic
+
+    /// THE pin this commit was missing. The previous version of this test asserted only
+    /// `LoudnessTarget.resolvedLUFS(...)` — which `LoudnessTargetTests` already covers, which
+    /// never touches `AutoMixChain`, and which would pass byte-identically if the stage were
+    /// reverted to a stored `-14`. It claimed to guard the wiring and guarded nothing: the
+    /// same tautology its own comment congratulated itself for deleting, one layer up.
     ///
-    /// (An earlier draft of this test compared `resolvedLUFS(rawValue:)` to itself across a
-    /// list of raws — which is what "one resolver" makes it: a tautology that cannot fail.
-    /// Deleted rather than dressed up. What remains is the contract that would break if
-    /// someone gave this stage its own resolution again.)
-    func testNoTargetResolvesToNilForTheMasterStageToo() {
-        XCTAssertNil(LoudnessTarget.resolvedLUFS(rawValue: LoudnessTarget.off.rawValue))
-        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "broadcastEBU"), -23,
-                       "and a chosen target still reaches it")
+    /// This one reads the stage's real resolution path against a scratch defaults suite, so
+    /// re-hardcoding the target fails here. It deliberately does NOT construct `AutoMixChain`
+    /// — `init` builds an AVAudioUnitEQ and a PeakLimiter, and mutating the shared `standard`
+    /// domain from tests is its own hazard.
+    func testStageResolvesTheStoredSetting_notAHardcodedTarget() throws {
+        let suite = "echoel.tests.automix.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let key = StudioDefaultKeys.loudnessTarget.key
+
+        // Fresh install: nothing stored. Nothing calls register(defaults:), so this
+        // exercises the `??` fallback, not a registration.
+        XCTAssertEqual(Mix.resolvedTarget(from: defaults), -14,
+                       "fresh install must behave exactly like the old hardcoded −14")
+
+        defaults.set(LoudnessTarget.off.rawValue, forKey: key)
+        XCTAssertNil(Mix.resolvedTarget(from: defaults),
+                     "\"No target\" must reach the MASTER stage, not only the export")
+
+        defaults.set("broadcastEBU", forKey: key)
+        XCTAssertEqual(Mix.resolvedTarget(from: defaults), -23,
+                       "and a chosen target must move the master gain, not just the export")
+
+        defaults.set("not-a-target", forKey: key)
+        XCTAssertEqual(Mix.resolvedTarget(from: defaults), -14,
+                       "an unreadable setting falls back to the default — never to \"off\"")
     }
 }
 #endif

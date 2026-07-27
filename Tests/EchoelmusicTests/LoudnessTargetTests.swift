@@ -63,12 +63,12 @@ final class LoudnessTargetTests: XCTestCase {
         // distinguishes new code from old.
         //
         // Derived from `StudioDefaultKeys`, not hardcoded to −14: the resolver's
-        // `?? .streaming` duplicates the registered default with no compile-time link,
+        // `?? .streaming` duplicates the canonical fresh-install default with no compile-time link,
         // so changing the default tomorrow must fail here rather than silently leave
         // the resolver behind while the doc comment becomes a lie.
         let registeredDefault = LoudnessTarget(rawValue: StudioDefaultKeys.loudnessTarget.value)?.integratedLUFS
         XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "not-a-target"), registeredDefault)
         XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: ""), registeredDefault)
-        XCTAssertNotNil(registeredDefault, "the registered default must be a real target, never \"off\"")
+        XCTAssertNotNil(registeredDefault, "the fresh-install default must be a real target, never \"off\"")
     }
 }
