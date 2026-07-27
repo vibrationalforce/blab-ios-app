@@ -1089,3 +1089,42 @@ Gate-Bruch — das Gate war grün, weil es die Datei nie angefasst hat. Ebenso l
 einzelner Nicht-docs-Commit in der Branch-Delta setzt `docs_only=false`, worauf der
 Cherry-Pick-Schritt übersprungen wird und der Job trotzdem mit 0 endet.
 **Vor „grün" immer fragen: was hat dieser Lauf tatsächlich AUSGEFÜHRT?**
+
+## DEAD-END: einen Wert „vereinheitlichen", ohne zu prüfen, WELCHE der beiden Zahlen mehr Evidenz trägt
+
+Befund: Bus sendet `analyzer.estimatedBPM`, Anzeige zeigt `displayBPM` (oktavgefaltet).
+Diagnose damals: „der Bus hat die Faltung nicht" → Faltung auf den Publish-Pfad ziehen.
+**Falsch, und zwar rückwärts.** `CameraAnalyzer.stabilisedBPM` faltet bereits
+(`Video/CameraAnalyzer.swift:661-662`) — mit 40/200-Guards, gegen eine Referenz, die
+echtzeit-slew-limitiert nachgeführt und bei Signalverlust genullt wird, plus
+`octaveCorrected` gegen die Autokorrelations-Grundfrequenz. Der Bus trug also die
+Ausgabe des STÄRKEREN Verfahrens; die Anzeige legt eine ZWEITE, evidenzfreie Faltung
+darüber. „Vereinheitlichen" hieß in meiner Umsetzung: die schwächere Zahl gewinnt.
+
+**Die Regel.** Wenn zwei Pfade verschiedene Werte tragen, ist die erste Frage nicht
+„welcher Pfad hat die Korrektur nicht?", sondern **„welche der beiden Zahlen stützt sich
+auf unabhängige Evidenz?"** — und dann die andere angleichen. Ein Blick in die Quelle des
+Produzenten (hier: der Analyzer) klärt das in fünf Minuten und hätte den ganzen Commit
+gespart.
+
+## DEAD-END: gegen eine Referenz falten/klemmen, die selbst zum Ergebnis hin gezogen wird
+
+`displayBPM` ist EMA-getrieben zum GEFALTETEN Wert hin. Damit hat
+`D <- D + clamp(0.4*(fold(R,D) - D))` einen stabilen Fixpunkt bei `D = R/2`, sobald
+`R > 1.6*D`: D=60, echte Rate 105 → faltet auf 52.5, D läuft 59, 58 … 52.5, und dort gilt
+`105 > 84` weiter — **die Rastung löst sich nie**, bis die echte Rate ~20 % FÄLLT. Mein
+eigener Doc-Kommentar behauptete das Gegenteil („ONE step, not a loop — a `while` would
+collapse a genuine tachycardia onto a resting rate"). Ein Schritt pro 100-ms-Tick gegen
+eine mitwandernde Referenz IST diese Schleife, nur über die Zeit verteilt.
+
+**Die Regel.** Bei jeder Korrektur „X relativ zu Referenz R" prüfen: **wird R von X
+beeinflusst?** Wenn ja, ist es eine Rückkopplung, keine Korrektur — und die Stabilität
+muss ausgerechnet, nicht behauptet werden. Der Gegen-Entwurf steht im Repo:
+`CameraAnalyzer` faltet gegen eine Referenz, die es bei Verlust auf 0 setzt („don't seed
+the next lock from a stale median") und real-zeit-slew-limitiert nachführt.
+
+**Zweiter Schaden, leicht zu übersehen:** der rohe Bus-Wert war der EINZIGE unabhängige
+Zeuge, an dem ein Geräte-Log eine Anzeige-Rastung überhaupt sichtbar macht. Eine
+„Vereinheitlichung" hätte alle vier Ausgaben (Zahl, Take-Tempo, Bus, Health-Schreibpfad)
+aus EINEM Fehler speisen lassen. **Bevor zwei Pfade zusammengelegt werden: was verliert
+man an Beobachtbarkeit?**
