@@ -1,75 +1,65 @@
-build: v10.79.352 — die Mix-Fader wirken jetzt auf den Klang, nicht nur aufs Bild; die Pianoroll ist raus
+build: v10.79.353 — der Play-Knopf spielt wieder Dein Instrument, nicht einen alten Import
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
-retry: 2 — Versuch 1 (4ecc29a, Build 2468) scheiterte NACH dem Archive im Export-Schritt,
-  nach 4 Sekunden. Der Commit fasste ausschließlich diese Datei an und kann das Signing
-  also nicht gebrochen haben; das Archive selbst lief 4 Minuten sauber durch, Xcode-Compile
-  und CI/CD waren grün, und der Deploy davor (351) lief mit demselben Workflow. Damit ist es
-  das dokumentierte Apple-seitige Transienten-Muster — gleiche Version, neue Build-Nummer,
-  damit der Unterschied eindeutig bleibt. Scheitert auch dieser Lauf an derselben Stelle,
-  ist es KEIN Transient und der Export-Schritt gehört auseinandergenommen.
 notes: |
-  Dieser Inhalt ist unverändert gegenüber Versuch 1 — es ist derselbe Build, nur ein
-  zweiter Anlauf auf den Upload.
+  Dieser Build hat genau eine Ansage von Dir: „Ich hab vorhin auf Play gedrückt … da kam
+  der Breakbeat den ich mal in die Session geladen hab. Der ganze DAW Quatsch der nicht
+  funktioniert hat soll erstmal raus."
 
-  Zwei deiner vier Ansagen sind hiermit erledigt. Der Build davor (351) brachte die Drums
-  weg und die Genre-Identität zurück; dieser bringt die Pianoroll-Entfernung und die
-  eigentliche Ursache des grauen Visuals.
+  1) ▶ LIEST DIE TIMELINE NICHT MEHR AN. Die Ursache war schärfer als „Quatsch, der nicht
+     funktioniert": der Play-Knopf las ZUERST das gespeicherte Timeline-Dokument. Lag darin
+     irgendeine Region — Dein Breakbeat — spielte er die ANORDNUNG statt das Instrument.
+     Mit dem DAW-Ausbau war die Arrangement-Oberfläche entfernt worden, aber nicht ihre
+     Autorität: seitdem war dieses Dokument unsichtbar UND nicht löschbar und besaß trotzdem
+     den einen Transport-Knopf. Eine Fläche zu entfernen, ohne ihr die Hoheit zu nehmen,
+     macht aus einem Rest eine Falle — das war mein Fehler beim damaligen Ausbau, nicht ein
+     neuer Defekt.
 
-  1) DIE PIANOROLL IST RAUS. Der Notes-Chip, das Editor-Fenster und der Sheet-Slot
-     dahinter sind weg. Was BLEIBT, und zwar mit Absicht: das Modell darunter. Das ist
-     nicht der Editor, sondern der Noten-Motor — es spielt die erzeugte Aufnahme ab und
-     veröffentlicht die Noten, aus denen das Visual seine Farbe zieht. Hätte ich es
-     mitgelöscht, wäre das Instrument stumm und das Bild grau geworden, also genau das
-     Gegenteil von dem, was du im selben Satz bestellt hast.
+     ▶ hat jetzt zwei Zweige: nichts komponiert und nichts läuft → das Instrument startet;
+     sonst der Live-Loop. Kein Pfad führt mehr zu einer gespeicherten Audiodatei.
 
-     Ehrlich benannt, weil es eine echte Einbuße ist: es gibt jetzt KEINEN Noteneditor
-     mehr. Eine Aufnahme kannst du hören, mischen und exportieren — nicht korrigieren.
+  2) EIN ZWEITER STILLE-MACHER IST MITGEGANGEN. Eine alte Bedingung fragte das Drum-Raster
+     ab, bevor sie den Start freigab. Aus Projekten von vor dem Drum-Ausbau kommt dieses
+     Raster noch gefüllt zurück — und klingt seitdem nicht mehr. Es hat also nichts
+     abgesichert, sondern nur den Start unterdrückt und Dir Stille geliefert. Wenn ▶ bei
+     Dir gelegentlich einfach nichts tat: das war es wahrscheinlich.
 
-  2) DIE MIX-FADER WIRKEN JETZT AUF DEN KLANG. Das ist die Ursache hinter deinem grauen
-     Visual, und sie war absurder als gedacht: die Fader wurden beim Erzeugen in die Noten
-     eingebrannt, das VISUAL las diesen Wert und wurde dunkel — und das AUDIO warf ihn
-     eine Zeile später weg und spielte unverändert weiter. Dein Log sagte deshalb
-     „5 Noten, Lautstärke 0" während Musik lief. Ein Fader auf 0 war fürs Auge still und
-     fürs Ohr unverändert: ein Mute, das nicht stummschaltet.
+  ZU PRÜFEN AUF DEM GERÄT, in dieser Reihenfolge:
 
-     Jetzt formt der Bio-Puls die gespielte Lautstärke, statt sie zu ersetzen. Heißt: die
-     Fader sind hörbar, ein Fader auf 0 schaltet wirklich stumm, und das Bild zeigt, was
-     wirklich klingt.
+  - ▶ DRÜCKEN. Kommt jetzt Dein Instrument statt des Breakbeats? Das ist der ganze Build.
+  - ▶ AUS DEM STAND, ohne vorher etwas zu starten. Es soll die Bio-Session anwerfen und
+    klingen — nicht nur den Zeiger über Stille schieben.
+  - ■ DRÜCKEN. Stoppt sauber? Der Stop hatte zwei Zweige, einer davon war tot; jetzt ist
+    nur noch der lebende da.
+  - STARTET DIE APP SAUBER? Die Präsentations-Kette ist unverändert — dieser Build fasst
+    sie nicht an. Trotzdem ist es die Kette, die den Black Screen verursacht hat.
 
-  3) Der Panic-Knopf, das pausierende Notes-Stop, die Persistenz-Härtung und die
-     Ressourcen-Reparatur aus 351 sind natürlich weiter drin.
+  WAS DIESER BUILD NICHT REPARIERT — bitte nicht als neuen Fehler zurückmelden:
 
-  ZU PRÜFEN AUF DEM GERÄT, in dieser Reihenfolge — die ersten beiden sind neu und
-  unbewiesen, alles Weitere ist Beiwerk:
+  - DIE DATEN SIND NOCH DA. Ich habe dem gespeicherten Arrangement die Hoheit über ▶
+    genommen, nicht die Existenz. Der Breakbeat liegt weiter unsichtbar in Deiner Session.
+    Einen stillen Löschlauf über Daten, die Du nicht sehen kannst, mache ich nicht — das
+    ist unumkehrbar und wäre dieselbe Übergriffigkeit wie das Problem selbst. Wenn das
+    Modell in einer der nächsten Scheiben entfällt, wird es ohnehin nicht mehr geladen.
+  - DER BASS-FADER TUT WEITER NICHTS (bekannt, eigene Scheibe).
+  - LOOP RENDERING: weiter unangetastet, weil Deine Frage von neulich offen ist — fehlen
+    Dir STEMS pro Kanal, findest Du den vorhandenen WAV-Export nicht, oder meinst Du echtes
+    Offline-Rendering statt Echtzeit-Mitschnitt? Eine Zeile von Dir und ich baue es.
 
-  - MIX-FADER BEWEGEN (Bass / Pad / Lead). Hörst du jetzt einen Unterschied? Vorher: nein,
-    egal wie weit du gezogen hast. Und: einen Fader ganz runter — wird es wirklich still?
-  - IST ES INSGESAMT GLEICH LAUT GEBLIEBEN? Es soll. Ich habe mich beim Ausrechnen zweimal
-    geirrt, bevor die Reviews es gefangen haben — einmal wären es ~7 dB leiser geworden.
-    Wenn es dir leiser vorkommt, sag es sofort, dann ist die dritte Rechnung auch falsch.
-  - HAUT DIE MELODIE ZU SEHR RAUS? Sie sitzt jetzt etwa 1,7 dB vor der Fläche. Das ist
-    Absicht und musikalisch normal — aber du hattest am 07.07. genau darüber geklagt, und
-    diese Balance wurde vorher gar nicht geliefert (die Bio-Modulation hat alles
-    plattgemacht). Falls zu vorlaut: die Korrektur gehört in die Komposition, nicht in den
-    Synth, sonst gibt es wieder zwei Stellen, die dieselbe Lautstärke bestimmen.
-  - KOMMT FARBE INS VISUAL? Wenn die Fader oben sind, sollte sie. Falls nicht, schick das
-    Diag-Log — es trägt seit 351 ein Feld `mfAmp`, das die Frage beweist statt sie zu raten.
-  - STARTET DIE APP SAUBER? Die Präsentations-Kette ist von 16 auf 15 GESCHRUMPFT (die
-    Pianoroll-Tür hat ihren Slot mitgenommen), also in die sichere Richtung — trotzdem ist
-    es die Kette, die den Black Screen verursacht hat.
+  ZUM LETZTEN DIAG-LOG (2469), damit Du nicht danach suchst: die beiden Kamera-Aussetzer
+  waren KEIN rPPG-Fehler. Beide melden `videoNotAvailableInBackground`, und die Zeile
+  darunter nennt den App-Zustand — einmal „background", einmal „inactive". Die App war
+  weggeschaltet, iOS nimmt dann die Kamera; die Behandlung hat sauber gewartet statt zu
+  hetzen und danach die Belichtung neu gesperrt. Dass kein Puls gefunden wurde, lag daran,
+  dass vor dem Wegschalten nur rund fünf Sekunden Finger-Daten da waren und danach der
+  Finger runter war. Ein echtes Puls-Lock ist damit schlicht noch nicht geprüft — dafür
+  brauche ich einen Lauf mit Finger drauf UND App im Vordergrund.
 
-  WAS DIESER BUILD NICHT REPARIERT:
-  - DER BASS-FADER TUT WEITER NICHTS. Die Sub-Bass-Stimme wirft die Velocity komplett weg,
-    bevor sie irgendwo ankommt — dieselbe Defektklasse, andere Stimme, eigene Scheibe.
-    Such nicht danach, ich weiß davon.
-  - LOOP RENDERING: unangetastet, weil ich noch nicht weiß, was du meinst. Der Loop-Export
-    existiert (Export-Reiter: WAV, taktgenau geschnitten, LUFS-normalisiert, plus „Keep
-    last"). Fehlen dir STEMS pro Kanal aus dem Mix-Fenster heraus, findest du den Export
-    nicht, oder meinst du echtes Offline-Rendering statt Echtzeit-Mitschnitt? Eine Zeile
-    von dir und ich baue es.
-
-  Beide echten Gates grün auf 6f2932d (Xcode Compile Check + CI/CD Pipeline). Die
-  294-Datei-Testsuite meldet unverändert genau EINEN Fehler, und zwar den vorbestehenden
-  Simulator-Startfehler, der nichts mit Audio zu tun hat — die sieben neuen DSP-Tests sind
-  grün und kein bestehender ist umgekippt. Rausch-Triad unberührt, kein Heilungs-Claim,
+  Beide echten Gates grün auf 6ad0320 (Xcode Compile Check + CI/CD Pipeline), die
+  294-Datei-Testsuite ebenfalls grün. Rausch-Triad unberührt, kein Heilungs-Claim,
   Audio-Thread weiterhin lock- und allokationsfrei.
+
+  Ehrlich zur Absicherung: für diesen Fix gibt es keinen Test. Der Play-Handler ist eine
+  private Methode auf einer privaten View ohne Injektionsnaht. Der überprüfbare Teil ist,
+  dass der Abspiel-Eingang der Timeline null Aufrufer hat — und ein Reviewer hat unabhängig
+  jeden anderen Weg geprüft, auf dem eine Nutzer-Audiodatei überhaupt klingen kann. Es gibt
+  genau einen solchen Typ im Code, und seine beiden Besitzer sind jetzt unerreichbar.
