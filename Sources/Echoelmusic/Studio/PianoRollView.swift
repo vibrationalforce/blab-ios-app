@@ -274,7 +274,7 @@ public final class PianoRollModel {
 
     public func setVelocity(id: UUID, _ velocity: Float) {
         guard let i = notes.firstIndex(where: { $0.id == id }) else { return }
-        notes[i].velocity = min(max(velocity, 0), 1)
+        notes[i].velocity = velocity.clamped(to: 0...1)   // NaN-safe — see `Note`'s init
     }
 
     /// #58 S6b: set a note's per-note MPE overrides from the inspector. Always
@@ -774,7 +774,7 @@ public final class PianoRollModel {
     public func audition(pitch: Int, velocity: Float, role: NoteRole) {
         guard let v = outputVoice(for: role) else { return }
         endAudition()
-        v.noteOn(pitch: pitch, velocity: Swift.min(Swift.max(velocity, 0.05), 1))
+        v.noteOn(pitch: pitch, velocity: velocity.clamped(to: 0.05...1))   // NaN-safe
         auditioningVoice = v
         auditioningPitch = pitch
         auditionOffTask = Task { [weak v] in

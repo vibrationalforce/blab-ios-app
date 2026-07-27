@@ -130,7 +130,11 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         self.pitch = min(max(pitch, 0), 127)               // defensive: MIDI range
         self.startTick = max(0, startStep) * Note.ticksPerStep
         self.lengthTicks = max(1, lengthSteps) * Note.ticksPerStep
-        self.velocity = min(max(velocity, 0), 1)
+        // NaN-safe `clamped(to:)`, NOT `min(max(v, 0), 1)`: the free `max(x, y)` is
+        // `y >= x ? y : x`, so `max(NaN, 0)` is NaN and the old spelling let a NaN
+        // through. Since 6f2932d this number reaches `pow()` in `spawnVoice` and a NaN
+        // there poisons the voice permanently. NaN → 0 = a silent note (CLAUDE.md law).
+        self.velocity = velocity.clamped(to: 0...1)
         self.role = role
         self.operators = operators
     }
@@ -149,7 +153,8 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         self.pitch = min(max(pitch, 0), 127)
         self.startTick = max(0, startTick)
         self.lengthTicks = max(1, lengthTicks)
-        self.velocity = min(max(velocity, 0), 1)
+        self.velocity = velocity.clamped(to: 0...1)        // NaN-safe — see the step init
+
         self.role = role
         self.operators = operators
     }
@@ -214,7 +219,8 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         // saved takes) was lost on load. Degrade to middle C (60): a note with a missing
         // pitch stays a valid, visible, fixable note instead of vaporizing the document.
         self.pitch = min(max(try c.decodeIfPresent(Int.self, forKey: .pitch) ?? 60, 0), 127)
-        self.velocity = min(max(try c.decodeIfPresent(Float.self, forKey: .velocity) ?? 0.8, 0), 1)
+        self.velocity = (try c.decodeIfPresent(Float.self, forKey: .velocity) ?? 0.8)
+            .clamped(to: 0...1)                            // NaN-safe — see the step init
         if let t = try c.decodeIfPresent(Int.self, forKey: .startTick) {
             self.startTick = max(0, t)
         } else {

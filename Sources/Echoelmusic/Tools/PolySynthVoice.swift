@@ -306,7 +306,12 @@ public final class PolySynthVoice {
         // note events through a lock-free SPSC queue means ALL voice-state
         // mutation happens on the one audio thread, never racing the render.
         _ = noteCommands.tryEnqueue(
-            NoteCommand(kind: .on, pitch: Int32(pitch), velocity: min(max(velocity, 0), 1))
+            // NaN-safe clamp: this is the LAST gate before the lock-free queue to the
+            // render thread. `min(max(v, 0), 1)` passes NaN through (CLAUDE.md's
+            // argument-order law), and a NaN velocity in the render block produces NaN
+            // samples that poison envelope/filter state permanently — the stuck-silence
+            // class (#22/#29). NaN → 0 here is a dropped note, not a dead voice.
+            NoteCommand(kind: .on, pitch: Int32(pitch), velocity: velocity.clamped(to: 0...1))
         )
     }
 
@@ -322,7 +327,7 @@ public final class PolySynthVoice {
     /// travelling finger. If the old note is already gone, a normal noteOn fires.
     public func slide(from oldPitch: Int, to newPitch: Int, velocity: Float = 0.8) {
         _ = noteCommands.tryEnqueue(NoteCommand(kind: .slide, pitch: Int32(newPitch),
-                                                velocity: min(max(velocity, 0), 1),
+                                                velocity: velocity.clamped(to: 0...1),  // NaN-safe
                                                 pitch2: Int32(oldPitch)))
     }
 

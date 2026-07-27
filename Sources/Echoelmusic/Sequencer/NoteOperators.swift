@@ -25,7 +25,9 @@ public struct NoteHit: Equatable, Sendable {
     public init(offsetTicks: Int, lengthTicks: Int, velocity: Float) {
         self.offsetTicks = max(0, offsetTicks)
         self.lengthTicks = max(1, lengthTicks)
-        self.velocity = min(max(velocity, 0), 1)
+        // NaN-safe clamp (see `Note`'s step init): a NoteHit is what the sequencer
+        // actually plays, so a leaked NaN here reaches the voice with nothing after it.
+        self.velocity = velocity.clamped(to: 0...1)
     }
 }
 

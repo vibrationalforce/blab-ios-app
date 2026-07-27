@@ -19,7 +19,7 @@ public struct Humanizer: Sendable, Equatable {
 
     public init(timingTicks: Int, velocityJitter: Float) {
         self.timingTicks = max(0, timingTicks)
-        self.velocityJitter = min(max(velocityJitter, 0), 1)
+        self.velocityJitter = velocityJitter.clamped(to: 0...1)   // NaN-safe: NaN → no jitter
     }
 
     /// Dead on the grid — no humanization.

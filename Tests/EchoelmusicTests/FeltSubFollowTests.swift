@@ -94,11 +94,11 @@ final class FeltSubFollowTests: XCTestCase {
                        24, "just above the floor is audible")
     }
 
-    /// A NaN velocity now EXCLUDES the note, where it previously anchored the sub — `NaN > x`
-    /// is false. That is a real behaviour change riding along with this fix, and it is
-    /// reachable rather than theoretical: `Note.velocity`'s clamp `min(max(v, 0), 1)` returns
-    /// NaN for a NaN input (task #176), because `max(NaN, 0)` is NaN by argument order. Pinned
-    /// so the improvement is deliberate and cannot silently flip back.
+    /// A NaN velocity EXCLUDES the note rather than anchoring the sub — `NaN > x` is false.
+    /// This is now DEFENCE IN DEPTH rather than the only guard: #176 closed the clamps that
+    /// let a NaN into a `Note` in the first place, so `Note(velocity: .nan).velocity` is 0
+    /// and this note is excluded for being muted. The filter is kept because `velocity` is a
+    /// public `var` — a direct assignment still bypasses the constructor's clamp.
     func testFeltSub_excludesANaNVelocityRatherThanFollowingIt() {
         let nan = Note(pitch: 24, startStep: 0, lengthSteps: 4, velocity: .nan)
         XCTAssertEqual(PianoRollModel.feltSubPitch(forActive: [nan, note(60, 0.6)],

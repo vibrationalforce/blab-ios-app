@@ -400,8 +400,13 @@ public enum BioComposer {
         guard clamp01(depth) > 0, stepCount > 1 else { return notes }
         return notes.map { note in
             var n = note
-            n.velocity = min(max(note.velocity * barDynamic(step: note.startStep,
-                                                            stepCount: stepCount, depth: depth), 0.05), 1)
+            // NaN-safe `clamped(to:)`: this multiplies by a bio-derived factor, so ONE
+            // non-finite bio value used to write a NaN velocity straight into the take
+            // (`min(max(x, 0.05), 1)` passes NaN through — CLAUDE.md's argument-order
+            // law). NaN now lands on this window's floor: the quietest audible note.
+            n.velocity = (note.velocity * barDynamic(step: note.startStep,
+                                                     stepCount: stepCount, depth: depth))
+                .clamped(to: 0.05...1)
             return n
         }
     }
@@ -419,7 +424,7 @@ public enum BioComposer {
             var rng = SeededRNG(seed: seed &+ (UInt64(bitPattern: Int64(idx + 1)) &* 0x9E3779B97F4A7C15))
             let v = rng.unit() * 2 - 1               // -1…1
             var n = note
-            n.velocity = min(max(note.velocity * (1 + v * span), 0.05), 1)
+            n.velocity = (note.velocity * (1 + v * span)).clamped(to: 0.05...1)  // NaN-safe
             return n
         }
     }
@@ -456,7 +461,7 @@ public enum BioComposer {
             var rng = SeededRNG(seed: salted &+ (UInt64(bitPattern: Int64(idx + 1)) &* 0x9E3779B97F4A7C15))
             let v = rng.unit() * 2 - 1               // -1…1
             var n = note
-            n.velocity = min(max(note.velocity * (1 + v * span), 0.05), 1)
+            n.velocity = (note.velocity * (1 + v * span)).clamped(to: 0.05...1)  // NaN-safe
             return n
         }
     }
