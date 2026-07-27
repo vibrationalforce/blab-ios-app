@@ -97,9 +97,13 @@ public struct AppGroupStore: Sendable {
     /// write is the compile-time-vs-runtime confusion this repo keeps paying for:
     /// `Arrangement.sections` (`ArrangementStore` is instantiated and injected but has ZERO
     /// readers and ZERO writers since `ArrangementView` went with #121 Slice 4; it retires in
-    /// Slice 5) and `[BioSessionSummary]` (`SessionRecorder`'s only consumer is the
-    /// deliberately doorless `MeditationView`, so nothing calls `start`/`stop` → `save()` never
-    /// runs). Neither can lose data today because neither is ever rewritten. If either surface
+    /// Slice 5 — note its `init` DOES still read `song.json` every launch, so "zero readers"
+    /// is true of the API, not of the file; the safety argument is the missing WRITER) and
+    /// `[BioSessionSummary]` (`SessionRecorder`'s only consumer is the deliberately doorless
+    /// `MeditationView`, so nothing calls `start`/`stop` → `save()` never runs; a naive grep
+    /// for `recorder.start` also hits `RecordController` and `FloatingVisualWindow`, but
+    /// those are a DIFFERENT recorder type each — do not read them as live callers and
+    /// revert this). Neither can lose data today because neither is ever rewritten. If either surface
     /// is ever re-doored, its decoder must be hardened IN THE SAME SLICE — that is the moment
     /// the wipe becomes possible again, and a re-door is exactly when nobody is looking here.
     /// Do not read this doc as "persistence is handled".

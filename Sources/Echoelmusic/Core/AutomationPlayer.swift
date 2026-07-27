@@ -120,14 +120,28 @@ public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifia
 /// Both halves are needed and both are here — element-tolerant `lanes` (a bad lane
 /// becomes a hole, the rest survive) and field-tolerant `enabled`.
 ///
-/// HONEST SCOPE — this protects a READ, not a save loop. No shipping surface writes
-/// automation any more: `TimelineAutomationRow` is unmounted (#121 Slice 4 took its
-/// editor sheet, the row retires in Slice 6) and grep finds ZERO production callers of
-/// any mutator that reaches `persist()`. So `automation.json` is not being rewritten
-/// today, and a failed decode could not destroy the file the way the #163 library-wipe
-/// did. What it CAN still do is silently stop curves a user drew in an earlier build
-/// from playing — `applyStep` runs on every transport step, so those lanes are live
-/// even with their editor gone. That read is what this defends.
+/// HONEST SCOPE — this protects a READ, not a save loop. THE LOAD-BEARING FACT IS THE
+/// GREP, so state it as the grep: not one production call site in `Sources/` reaches
+/// `persist()` — none of `addPoint`/`removePoint`/`movePoint`/`setValue`/`setCurve`/
+/// `setCurvature`/`adoptLane`/`removeLane`/`clear`, and `enabled` (whose `didSet`
+/// persists) has no setter either. `enabled`'s `didSet` also does not fire during `init`,
+/// so launch writes nothing. `automation.json` is genuinely never rewritten today, and a
+/// failed decode could not destroy the file the way the #163 library-wipe did.
+/// ⛔ Do NOT restate this as "because `TimelineAutomationRow` is unmounted" — an earlier
+/// version of this comment did, and it is wrong twice over: that row commits into
+/// `TimelineStore`, not into this player (its only `AutomationPlayer` touch is a READ of
+/// `extraAutomatableDescriptors`), so re-mounting it would not restore a writer at all.
+///
+/// What a bad decode CAN still do is silently stop curves a user drew in an earlier build
+/// from playing: `applyStep` runs on every transport step (`PianoRollModel.start`'s
+/// `pattern.onTick`, installed once at launch), so those lanes are live even with their
+/// editor gone. That read is what this defends — with one narrowing that matters: the
+/// persisted lanes only APPLY inside `if enabled`, and `enabled` has no in-app setter.
+/// So this reaches exactly the user whose earlier build persisted `enabled: true`, and
+/// the `?? false` default below is a ONE-WAY DOOR for them: once that flag degrades there
+/// is no way back on from inside the app. That is the deliberate direction (automation
+/// overwrites live performer values, so an unreadable flag must never turn it ON), but it
+/// has to be written down, because "those lanes are live" reads as reversible and is not.
 ///
 /// Internal, not `private`, ONLY so the regression test can decode it directly:
 /// `AutomationPlayer` takes no injectable store, so testing through it would mean
@@ -152,16 +166,37 @@ struct AutomationState: Codable, Sendable {
         // whatever the performer has set live, so an unreadable flag must not be able to
         // turn it ON. It also matches the branch `init` already takes when nothing loads.
         enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? false
-        let wrapped = (try? c.decode([LossyDecoded<AutomationLane>].self, forKey: .lanes)) ?? []
-        lanes = wrapped.compactMap(\.value)
-        // TELEMETRY — dropping a lane is still real loss, just bounded loss; without this
-        // the partly-corrupt case would be the one SILENT failure (worse than the
-        // all-or-nothing behaviour it replaces, which at least logged when it lost
-        // everything). Logged once per read, never per lane.
-        let dropped = wrapped.count - lanes.count
-        if dropped > 0 {
-            log.log(.error, category: .system,
-                    "AutomationState — dropped \(dropped)/\(wrapped.count) undecodable lane(s)")
+        lanes = []
+        // NOT a bare `try? … ?? []`. That version shipped for one commit and made the
+        // WORST case the silent one: `lanes` present but not an array lost EVERY lane
+        // while `dropped` computed to 0, so the telemetry below never fired. It is the
+        // exact case `decodeLossyArray` refuses to swallow ("swallowing it would leave
+        // total loss undiagnosable"), so it gets the same treatment here.
+        do {
+            let wrapped = try c.decode([LossyDecoded<AutomationLane>].self, forKey: .lanes)
+            lanes = wrapped.compactMap(\.value)
+            // TELEMETRY — dropping a lane is bounded loss, but it is still permanent loss
+            // the moment anything re-encodes the survivors. Logged once per read, never
+            // per lane.
+            let dropped = wrapped.count - lanes.count
+            if dropped > 0 {
+                log.log(.error, category: .system,
+                        "AutomationState — dropped \(dropped)/\(wrapped.count) undecodable lane(s)")
+            }
+        } catch {
+            // An ABSENT `lanes` key is the legitimate "document with no lanes yet" case
+            // and must stay quiet — logging it would cry wolf on every clean first run.
+            // Anything else is total lane loss and is logged WITH the underlying error,
+            // because the reason is what tells a maintainer a schema change from a
+            // truncated write.
+            var absent = false
+            if let decodeError = error as? DecodingError, case .keyNotFound = decodeError {
+                absent = true
+            }
+            if !absent {
+                log.log(.error, category: .system,
+                        "AutomationState — `lanes` unreadable, ALL lanes lost: \(error)")
+            }
         }
     }
 }

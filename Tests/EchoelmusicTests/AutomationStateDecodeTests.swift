@@ -16,12 +16,13 @@
 //
 // Falsifiability, stated per test rather than for the file — the first version of this
 // header claimed `testUnknownDocumentField_doesNotThrow` fails on the old code, and that
-// was WRONG: JSONDecoder ignores unknown keys, so it passes either way. The tests that
-// genuinely FAIL against the pre-#170 synthesized decoder are the four that make a
-// REQUIRED key unreadable: `testCorruptLaneElement_keepsTheOtherLanes`,
-// `testEveryLaneCorrupt_…`, `testMissingEnabled_…`, `testWrongTypedEnabled_…`,
-// `testMissingLanes_…` and `testLanesWrongType_…`. The rest are characterization tests
-// and are marked as such where they sit.
+// was WRONG: JSONDecoder ignores unknown keys, so it passes either way. SIX tests
+// genuinely FAIL against the pre-#170 synthesized decoder, each by making a REQUIRED key
+// unreadable: `testCorruptLaneElement_…` and `testEveryLaneCorrupt_…` (the element
+// throws), `testMissingEnabled_…` and `testMissingLanes_…` (`keyNotFound`),
+// `testWrongTypedEnabled_…` and `testLanesWrongType_…` (`typeMismatch`). The remaining
+// two — `testUnknownDocumentField_…` and `testRoundTrip_…` — pass on BOTH sides and are
+// shape pins, not regression tests; they are labelled as such where they sit.
 
 import XCTest
 @testable import Echoelmusic
@@ -103,6 +104,12 @@ final class AutomationStateDecodeTests: XCTestCase {
     }
 
     func testLanesWrongType_yieldsEmpty_doesNotThrow() throws {
+        // This is the TOTAL-loss case, and it is the one the first cut of the decoder got
+        // wrong: `try? … ?? []` swallowed it silently, because `dropped` then computes to
+        // 0 and the drop telemetry never fires — leaving the WORST outcome as the only
+        // undiagnosable one. The decoder now catches and logs it (absent `lanes` stays
+        // quiet, everything else is logged with the underlying error). The assertion here
+        // is unchanged; it is the log line beside it that this comment exists to protect.
         let state = try decode(#"{"enabled":false,"lanes":{"tempo":[]}}"#)
         XCTAssertTrue(state.lanes.isEmpty)
     }
@@ -110,9 +117,10 @@ final class AutomationStateDecodeTests: XCTestCase {
     // MARK: - Encoding is untouched
 
     func testRoundTrip_encodeStaysSynthesized_andDecodesBack() throws {
-        // The decoder is custom; the ENCODER is still synthesized, so the on-disk shape
-        // of an existing install must be unchanged. A round-trip through both is the
-        // cheapest way to pin that the CodingKeys still line up.
+        // SHAPE PIN, not a regression test (passes on both sides). The decoder is custom;
+        // the ENCODER is still synthesized, so the on-disk shape of an existing install
+        // must be unchanged. A round-trip through both is the cheapest way to pin that the
+        // CodingKeys still line up.
         let original = AutomationState(
             enabled: true,
             lanes: [AutomationLane(parameter: "tempo",
