@@ -378,9 +378,12 @@ struct EchoelStudioView: View {
     // silent capability loss, not a cleanup.
     /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
     /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
-    /// roll it imported into has no door any more either. Kept as a reusable slot, like
-    /// `sampleBrowserTrack` below, on the same "a free slot beats three saved lines at the
-    /// metadata ceiling" trade. Do not read the declaration as evidence MIDI import ships.
+    /// roll it imported into has no door any more either. Kept as a reusable slot on the
+    /// "a free slot beats two saved lines at the metadata ceiling" trade — which holds here
+    /// because `importMIDI(_:)` still exists and would work the moment something sets this.
+    /// (The sample-browser slot did NOT survive that same test: its view is deleted, so its
+    /// slot pointed at nothing. See the note where it used to stand.) Do not read this
+    /// declaration as evidence MIDI import ships.
     @State private var midiImportPresented = false
     /// Drives the project-import file picker in the Open-project sheet.
     @State private var projectImportPresented = false
@@ -392,18 +395,15 @@ struct EchoelStudioView: View {
     @State private var showLiveColabo = false
     /// Presents the full per-stage FX panel (every parameter as a slider).
     @State private var showAllFX = false
-    /// Sample-browser sheet slot. NOTHING SETS THIS since the drums were removed
-    /// (founder 2026-07-26) — its only setter was the per-drum-channel strip's sample door.
-    /// Kept deliberately as a reusable `.sheet(item:)` slot rather than deleted, because the
-    /// body's modifier chain is at the SwiftUI metadata ceiling and a free slot is worth more
-    /// than three saved lines. It must stay unset until something legitimately claims it.
-    ///
-    /// Be honest about the cost of that trade: this is the FOURTH un-settable presentation
-    /// flag on the same chain (`showVisual`, `showMeditation`, `midiImportPresented` — all
-    /// verified setter-less by grep, 2026-07-26). The chain is 15 modifiers since the piano
-    /// roll's door went; four dead slots is headroom only if a future session actually reuses
-    /// them instead of appending a 16th — which is the crash this chain is one step away from.
-    @State private var sampleBrowserTrack: TrackRef?
+    // The sample-browser slot (`sampleBrowserTrack` + its `.sheet(item:)` + `TrackRef`)
+    // is GONE with `SampleBrowserView` itself (#167, founder "Drums sollen erstmal gar
+    // nicht mehr rein"). The previous session kept it as a "reusable slot" because the
+    // chain sits at the metadata ceiling — a defensible trade WHILE the view still
+    // existed. It stops being a trade once the view is deleted: a slot whose content
+    // closure names a type that no longer compiles is not reusable, and the next editor
+    // rewrites that closure anyway. Deleting it moves the chain 15 → 14, which is the
+    // safe direction. Three un-settable flags remain (`showVisual`, `showMeditation`,
+    // `midiImportPresented`) — reuse one of those before ever appending a 15th.
 
     // The craft-editor sheet slot is GONE with the piano roll (founder 2026-07-26,
     // "Pianoroll soll raus"). It held exactly one case, so removing the roll's door
@@ -770,7 +770,6 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        .sheet(item: $sampleBrowserTrack) { ref in AnyView(SampleBrowserView(track: ref.id).echoelSheetPanel()) }
         #if canImport(MetalKit) && canImport(UIKit)
         .fullScreenCover(isPresented: $showVisual) {
             // NOT AnyView-wrapped: this cover builds lazily on present (it never
@@ -4434,9 +4433,6 @@ private struct ExportedFile: Identifiable {
     let id = UUID()
     let url: URL
 }
-
-/// Identifiable wrapper so `.sheet(item:)` can carry a drum track index.
-private struct TrackRef: Identifiable { let id: Int }
 
 /// Lays its cards in ONE column in portrait and TWO in landscape / on iPad, so the
 /// wide layouts don't waste horizontal space (founder: "passendes adaptives Design
