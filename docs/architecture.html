@@ -21,10 +21,10 @@
     </script>
 
     <title>Architecture — Echoelmusic | Developer Reference</title>
-    <meta name="description" content="How Echoelmusic is built: the EngineBus signal chain, lock-free SPSC data plane, multidimensional MPE control, protected bio-DSP triad, synthesis engines, AUv3 plugin, visuals, OSC API, concurrency and performance. A precise developer reference, audited against the source.">
+    <meta name="description" content="How Echoelmusic is built: the EngineBus signal chain, lock-free SPSC data plane, multidimensional MPE control, protected bio-DSP triad, synthesis engines, visuals, OSC API, concurrency and performance. A precise developer reference, audited against the source.">
     <meta name="theme-color" content="#000000">
     <meta property="og:title" content="Echoelmusic — Architecture (Developer Reference)">
-    <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, MPE, the DSP triad, synthesis, AUv3, visuals, OSC, concurrency and performance.">
+    <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, MPE, the DSP triad, synthesis, visuals, OSC, concurrency and performance.">
     <meta property="og:url" content="https://echoelmusic.com/architecture.html">
     <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
     <meta property="og:image:width" content="1200">
@@ -145,7 +145,7 @@
                 <a href="#fx">Effects</a>
                 <a href="#audio">Audio</a>
                 <a href="#seq">Composition</a>
-                <a href="#plugin">AUv3 plugin</a>
+                <a href="#plugin">Standalone</a>
                 <a href="#visuals">Visuals &amp; video</a>
                 <a href="#ui">Studio UI</a>
                 <a href="#osc">OSC API</a>
@@ -251,13 +251,11 @@
                 <div class="data-row"><div class="k">Voice triggering</div><div class="v">Notes are fired lock-free via an atomic trigger counter (no allocation on the audio thread) into the bio-reactive synth voices. A drum/sampler track and a step sequencer are <span class="tag">ROADMAP</span>, not in the app today.</div></div>
             </section>
 
-            <!-- AUv3 -->
+            <!-- STANDALONE -->
             <section id="plugin">
-                <h2>AUv3 Plugin <span class="tag">LIVE</span></h2>
-                <p>Echoelmusic ships a working <strong>Audio Unit v3 instrument</strong> (<code>aumu / echl / Echo</code>) that runs inside Logic Pro, GarageBand and other AUv3 hosts. The render block uses pre-allocated scratch buffers — zero heap allocation on the audio thread — and state round-trips through <code>fullState</code>.</p>
-                <div class="data-row"><div class="k">Parameters (8)</div><div class="v">Coherence → harmonicity, HRV → brightness, Heart Rate, Breath Phase → amplitude, Base Frequency (40–440&nbsp;Hz), Texture, Reverb Mix, Master Gain — all DAW-automatable via <code>AUParameterTree</code>.</div></div>
-                <div class="data-row"><div class="k">Presets</div><div class="v">Factory presets: Ambient Calm, Deep Sleep, Active Focus.</div></div>
-                <div class="data-row"><div class="k">UI</div><div class="v">SwiftUI plugin view (Bio-Reactive + Sound sections) via <code>UIHostingController</code>. AUv3 <em>host</em> support is <span class="tag">ROADMAP</span>.</div></div>
+                <h2>Standalone instrument <span class="tag">NOT A PLUGIN</span></h2>
+                <p>Echoelmusic is a <strong>standalone iPhone instrument</strong>. It is not an Audio&nbsp;Unit (AUv3) plugin, and it does not host third-party AUv3 plugins. Both were built and then deliberately removed: an instrument you play with your body is not a workstation, and a plugin surface is a second product with its own host-compatibility matrix. Neither is on the roadmap.</p>
+                <div class="data-row"><div class="k">Into a DAW</div><div class="v">Over the open interfaces instead: a virtual CoreMIDI source (MIDI&nbsp;2.0 / MPE) any DAW records live, plus WAV and MIDI file export. See <a href="#formats">Formats &amp; I/O</a>.</div></div>
             </section>
 
             <!-- VISUALS & VIDEO -->
@@ -373,7 +371,6 @@
                             <li>Convolution reverb · 4-band EQ · LUFS</li>
                             <li>AudioEngine + 30s RetroCapture</li>
                             <li>Generative composition (any key/BPM)</li>
-                            <li>AUv3 generator plugin (8 params)</li>
                             <li>WAV/AAC + MIDI export</li>
                             <li>OSC + ADM-OSC out (EchoelSync)</li>
                             <li>MIDI 2.0 / MPE out (virtual CoreMIDI source)</li>
@@ -396,7 +393,6 @@
                             <li>EchoelStage — displays / projection</li>
                             <li>EchoelAI — on-device CoreML / stems</li>
                             <li>Ableton Link</li>
-                            <li>AUv3 host</li>
                             <li>iPad · Mac · Watch · TV · Vision</li>
                         </ul>
                     </div>

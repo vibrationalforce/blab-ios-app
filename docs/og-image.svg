@@ -46,7 +46,7 @@
     <text x="298" y="20" font-family="'Atkinson Hyperlegible',sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle" font-weight="700" opacity="0.5">Sequencer</text>
 
     <rect x="362" y="0" width="78" height="30" rx="15" fill="#e0e0e0" opacity="0.05"/>
-    <text x="401" y="20" font-family="'Atkinson Hyperlegible',sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle" font-weight="700" opacity="0.5">AUv3</text>
+    <text x="401" y="20" font-family="'Atkinson Hyperlegible',sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle" font-weight="700" opacity="0.5">MIDI</text>
   </g>
 
   <!-- Platforms (honest: iPhone first) -->

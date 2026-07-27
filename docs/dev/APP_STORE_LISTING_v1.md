@@ -9,6 +9,15 @@ subscription arrives in v1.1 and is deliberately NOT mentioned anywhere here.
 Primary locale: **en-US** (brand rule: American English). German (de-DE)
 localization = post-launch follow-up.
 
+> ⚠️ **STALE — RE-VERIFY EVERY CLAIM BEFORE PASTING THIS INTO ASC (2026-07-27).**
+> This draft was written on 2026-07-10 against the then-current app. Since then the
+> founder deliberately removed several features this copy still advertises. The AUv3
+> lines are corrected below (#121 Slices 1+2, target and hosting both deleted). **Two
+> claims are still stale and NOT yet corrected here: the "drum sequencer" (#166,
+> drums removed 2026-07-26) and the "piano roll" (#178, note editor removed
+> 2026-07-26).** Shipping metadata that claims a removed feature is an App Store 2.3
+> ("Accurate Metadata") rejection risk — fix or cut those two before submission.
+
 ---
 
 ## Name (30 chars max)
@@ -70,8 +79,7 @@ COMPOSE FROM YOUR BODY
 TAKE IT TO YOUR STUDIO AND YOUR SHOW
 • Export stamped MIDI files (artist · date · key · BPM · tuning) straight
   into Ableton, Logic or FL Studio.
-• Full MIDI and MPE in and out; use Echoelmusic as an AUv3 plugin inside
-  Logic, GarageBand or AUM.
+• Full MIDI and MPE in and out — a virtual source any DAW records live.
 • Stream your live bio data as OSC and ADM-OSC objects into immersive
   audio rigs, and drive stage lights over Art-Net and sACN — open
   standards, no vendor lock-in.
@@ -97,7 +105,7 @@ creative control and self-observation, not for medical use.
 
 ```
 The first release: your heartbeat makes music. Bio-reactive synthesis,
-23-genre generative composer, drum sequencer, piano roll, MIDI/MPE, AUv3,
+23-genre generative composer, MIDI/MPE,
 immersive visuals, OSC/ADM-OSC, Art-Net/sACN — free, private, no account.
 ```
 
@@ -197,8 +205,7 @@ Checklist before submitting:
 4. Piano roll / patch editor. Caption: "A real instrument: synth, drums, FX."
 5. Camera pulse measurement (finger on lens). Caption: "Measure with your
    fingertip — no accessories needed."
-6. AUv3 in a host / MIDI export share sheet. Caption: "MIDI, MPE, AUv3 —
-   plays with your studio."
+6. MIDI export share sheet. Caption: "MIDI and MPE — plays with your studio."
 7. Live Colabo side-by-side bio. Caption: "Play together, nearby — each
    person's own numbers."
 8. Routing panel (PatchbayView — the OSC/ADM-OSC/Art-Net door since the
@@ -206,7 +213,7 @@ Checklist before submitting:
    "Open standards for stage, light and immersive audio."
 
 Captions are indexed by Apple since 2025 — keep the keyword-bearing captions
-above (heartbeat, pulse, genres, synth, MIDI, AUv3, Art-Net).
+above (heartbeat, pulse, genres, synth, MIDI, Art-Net).
 
 Preview video (optional, +20–40% conversion): 15–30 s — finger on lens →
 pulse locks → play → music + visual react → "Free. Private. No account."
@@ -220,13 +227,18 @@ camera rPPG / universal BLE 0x180D / HealthKit (LIVE) · real HRV coherence
 Lomb-Scargle+Welch (LIVE) · 23 genres, 10 scales, A4 432–444 (LIVE) ·
 poly synth + patch editor + presets, drum sequencer velocity/accent/swing,
 piano roll, loop cutter, FX chain (LIVE) · stamped MIDI export, MIDI/MPE
-in+out (LIVE) · AUv3 plugin (shipped builds 1467/1469) · OSC + ADM-OSC +
+in+out (LIVE) · OSC + ADM-OSC +
 Art-Net + sACN unicast (LIVE) · Metal visual + MP4 clip recording (LIVE) ·
 nearby session share (`Sync/MultipeerSession` + `Studio/LiveColaboView`,
-wired). **Two claims are DEVICE-verify-pending before submission (founder):**
-(1) BLE strap end-to-end (strap on order — NEEDS-FOUNDER-VERIFY since B4),
-(2) AUv3 inside a third-party host on current builds. If either fails on
-device, soften or cut that line before submitting.
+wired). **One claim is DEVICE-verify-pending before submission (founder):**
+BLE strap end-to-end (strap on order — NEEDS-FOUNDER-VERIFY since B4). If it
+fails on device, soften or cut that line before submitting.
+
+⚠️ **This verification block is itself dated 2026-07-16 and no longer holds.**
+The AUv3 entry was struck (target + hosting deleted 2026-07-24); the drum-sequencer
+and piano-roll entries above it are ALSO stale (removed 2026-07-26) and are left
+visible on purpose so the next reader re-verifies rather than trusts them. Re-run
+the whole claim check against `FEATURE_MATRIX.md` + the code before submitting.
 
 ## Remaining founder to-dos for submission
 

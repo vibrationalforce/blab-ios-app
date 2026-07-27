@@ -26,7 +26,7 @@ _Last structured: 2026-06-19. Re-confirm at each session start alongside `memory
 
 ## 1. The five dimensions — reality status (anchor)
 
-Body → Sound → Space → Light → Vibration, with **Data** (OSC/MIDI 2.0/MPE/AUv3) as the spine.
+Body → Sound → Space → Light → Vibration, with **Data** (OSC/MIDI 2.0/MPE) as the spine.
 Full LIVE/ROADMAP/NORTH-STAR detail in [`vision.md`](../../memory/vision.md) and
 [`FEATURE_MATRIX.md`](FEATURE_MATRIX.md). One-line status:
 
@@ -37,7 +37,7 @@ Full LIVE/ROADMAP/NORTH-STAR detail in [`vision.md`](../../memory/vision.md) and
 | **Light** | LIVE | native Art-Net + sACN (zero-dep UDP) |
 | **Space** | LIVE | ADM-OSC object out `/adm/obj/{n}/*` |
 | **Vibration** | LIVE | sub-bass/LFE voice + Core Haptics infra |
-| **Data spine** | LIVE | OSC, MIDI 2.0/MPE in, RTP-MIDI, AUv3 + Widgets |
+| **Data spine** | LIVE | OSC, MIDI 2.0/MPE in, RTP-MIDI, Widgets (AUv3 target deleted — #121 Slice 1) |
 
 ---
 
@@ -133,7 +133,9 @@ Grouped by theme so nothing is lost. **Status legend:** 🟢 active input · �
   **Rule:** SPM-only APIs MUST be `#if SWIFT_PACKAGE`-guarded (see BeatPlayer/CommunityLibrary).
   **MITIGATED 2026-06-19:** added `.github/workflows/xcode-compile-check.yml` (macos, xcodegen +
   `xcodebuild build`, no-sign) on every code push — it caught the AUv3 `FXCharacter` error in ~30s.
-  **Standing rule:** keep `Sources/Echoelmusic/DSP/` self-contained (AUv3 compiles DSP/ only) and
+  **Standing rule:** keep `Sources/Echoelmusic/DSP/` self-contained — no `Core/`/`Sequencer/` types
+  in `DSP/` files. (The original reason was that the AUv3 target compiled `DSP/` in isolation; that
+  target is gone since #121, but the rule stays: it is what keeps the DSP layer portable.) And
   guard SPM-only APIs with `#if SWIFT_PACKAGE`.
 - **Community loader on-device verification pending** — `CommunityLibraryTests` proves the SPM
   bundling in CI, but the Xcode/TestFlight bundle path should be confirmed once on device.

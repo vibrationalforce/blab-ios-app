@@ -1,5 +1,14 @@
 # Echoel — Architecture North Star (multidimensional DMW)
 
+> ⛔ **SUPERSEDED 2026-07-25 — HISTORY ONLY, DO NOT PLAN FROM THIS FILE.**
+> The canonical scope decision is `docs/dev/PRODUCT_DEFINITION.md`: "DMMW" is retired
+> and Echoel is a bio-reactive **instrument**, not an all-in-one pro suite. The
+> workstation half this document targets was dismantled on purpose (epic #121 —
+> AUv3 target + AUv3 hosting, video cut, DAW UI). Concretely wrong below: the DMW
+> target itself, "AUv3 keeps ingesting DSP by path", and the `xcode-compile-check
+> (AUv3)` gate — that scheme no longer exists. The one part still worth reading is
+> the *method* (parallel planning, serial CI-green Ralph cycles), not the target.
+
 Status: ADOPTED 2026-06-20 (founder: full pivot → all-in-one pro suite, "perfekte
 Architektur für langfristig State-of-the-Art Software"). This is the canonical
 TARGET architecture. Precedence: `memory/vision.md` (WHY) → this ADR (target

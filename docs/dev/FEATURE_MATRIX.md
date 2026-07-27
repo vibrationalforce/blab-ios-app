@@ -97,7 +97,8 @@ acceptance line.
 > live-streaming, multitrack, waveform editing.
 >
 > **CURRENT SHIPPING STATE (2026-06-09):** TestFlight **build 1535 VALID** — app +
-> **EchoelmusicWidgets** (live bio glance) + **AUv3 plugin** embedded, driven by
+> **EchoelmusicWidgets** (live bio glance) + **AUv3 plugin** embedded (the AUv3 half of
+> this snapshot is HISTORY — the target was deleted 2026-07-24, see the Ecosystem table), driven by
 > live bio via `BioFeedbackPublisher` → App Group (CX). New since 1469:
 > **camera rPPG is LIVE** (finger-on-lens, locks on device); **BLE source is
 > universal** (any standard Heart Rate Service device, not just Polar);
@@ -150,7 +151,7 @@ acceptance line.
   - **Per-genre FX presets** — each of the 12 genres carries a signature space (long dub ping-pong delay, vapor chorus, psy roll), tempo-synced, auto-applied on "Generate from Body".
   - convolution reverb (HRV-reactive), 4-band EQ + LUFS auto-gain (−14 LUFS, 4 presets), soft `tanh` saturation.
   - Audio-thread-safe (no alloc/locks in render; `audio-thread-reviewer`-audited each change); gated by `fxEnabled` (default off → bit-identical to prior builds until engaged).
-- **Roadmap:** **master-FX bus** (so the whole beat/loop, not just the melody, can go Underwater — needs an AVAudioUnit insert on the master mixer), analog (VCA/Opto/FET/VariMu/Tube) emulations, spatial/Atmos 3D panning, stereo synth voice, AUv3-wrapped FX, ring-mod.
+- **Roadmap:** **master-FX bus** (so the whole beat/loop, not just the melody, can go Underwater — needs an AVAudioUnit insert on the master mixer), analog (VCA/Opto/FET/VariMu/Tube) emulations, spatial/Atmos 3D panning, stereo synth voice, ring-mod.
 - **TestFlight acceptance:** FX panel toggles the insert chain audibly; filter/delay/chorus/flanger/phaser/tremolo/comp/limiter each change the sound; stamping **Underwater** muffles + adds watery movement, **Clean** resets to dry; export path applies AutoMix to −14 LUFS without clipping.
 
 ### 3. EchoelMix — `PARTIAL`
@@ -231,7 +232,7 @@ acceptance line.
 
 | Surface | Bundle | Status | Notes |
 |---|---|---|---|
-| **AUv3 plugin** | `…app.auv3` | `LIVE` (shipped build 1467/1469) | Generator AU — Echoel-as-plugin in Logic/GarageBand/AUM. SDKROOT fixed (was macOS-only); embedded + signed via `xcodebuild -allowProvisioningUpdates`. |
+| **AUv3 plugin** | `…app.auv3` | `REMOVED` (2026-07-24) | Shipped in builds 1467/1469, then **deleted on purpose** by the pure-instrument epic #121 — Slice 1 dropped the target (`project.yml`, `Sources/EchoelmusicAUv3`, entitlements, CI scheme), Slice 2 dropped in-app AUv3 *hosting*. Echoel is a standalone instrument: neither plugin nor host, and not on the roadmap. Reaches a DAW via the virtual MIDI/MPE source + WAV/MIDI export. |
 | **Widgets** | `…app.widgets` | `LIVE` (shipped 1454→1469) | WidgetKit live bio glance, reads App Group via `BioFeedbackManager`. |
 | **watchOS** | `…app.watchkitapp` | `COMPILE-VERIFIED, not embedded` | Bio glance; embed export-blocked (needs `WKCompanionAppBundleIdentifier` + Embed-Watch-Content phase verified in local Xcode). |
 | **macOS (Catalyst)** | `com.echoelmusic.app` | `ROADMAP` (decided path) | Catalyst-first; native AppKit deferred. See `SPEC_ECOSYSTEM_TARGETS.md`. |
@@ -266,7 +267,7 @@ Ship only what is `LIVE` or the `LIVE` part of `PARTIAL`. Build #1 = a working
 - **Info.plist source:** XcodeGen generates it from `project.yml` `info.properties` — keep it synced with `Resources/iOS/Info.plist`.
 - **Entitlements:** HealthKit + App Group `group.com.echoelmusic` only. iCloud/CloudKit **disabled** (no code uses it; it blocks provisioning until the container is registered).
 - **Signing (CI):** automatic, via App Store Connect API key secrets `APP_STORE_CONNECT_KEY_ID / ISSUER_ID / PRIVATE_KEY` + `APPLE_TEAM_ID`, `-allowProvisioningUpdates`. If archive succeeds but upload fails → check these secrets first (key created Dec may be expired).
-- **AUv3 extension:** ✅ ENABLED + SHIPPED (build 1467/1469). Compile-verified via the `EchoelmusicAUv3` scheme in `compile_check`; signed/uploaded via `-allowProvisioningUpdates`. (Widget likewise embedded + shipped. Watch dependency kept OFF — export-blocked.)
+- **AUv3 extension:** ❌ REMOVED 2026-07-24 (#121 Slice 1). It was enabled and shipped in 1467/1469; the target, its sources, its entitlements and the `EchoelmusicAUv3` compile-check scheme are all gone. Do not re-add without a founder ask. (Widget remains embedded + shipped. Watch dependency kept OFF — export-blocked.)
 
 ---
 

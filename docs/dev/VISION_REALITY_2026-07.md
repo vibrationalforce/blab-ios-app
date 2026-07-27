@@ -74,7 +74,7 @@ noch kein Code) · ⭐ **NORTH STAR** (Konzept, ehrlich fern — nie Produkt-Cop
 | Stufe | Fähigkeit | Beleg |
 |---|---|---|
 | ✅ | MIDI/MPE **IN** (1.0/2.0/MPE + RTP-Netzwerk) · MIDI-**OUT** als virtuelle Quelle in jede DAW | `Audio/MIDIInput`, `Audio/MIDIOutput` |
-| ✅ | AUv3-Plugin (Echoel in Logic/AUM) + Widgets (Live-Bio-Glance) — shipped | FEATURE_MATRIX Ecosystem |
+| ✅ | Widgets (Live-Bio-Glance) — shipped. **Das AUv3-Plugin war geshippt und wurde am 2026-07-24 bewusst ENTFERNT** (Rein-Instrument-Epic #121 Slice 1 = Target, Slice 2 = Hosting). Kein Plugin, kein Host, nicht auf der Roadmap. | FEATURE_MATRIX Ecosystem |
 | ✅ | Nearby-Colabo: Session teilen + **Puls nebeneinander** (jeder die eigene Zahl — nie ein Gruppen-Score) | `Sync/MultipeerSession`, `LiveColaboView` |
 | ✅ | Push ohne Konto (CloudKit-Announcements, stumm) — **dein Dashboard-Setup + E2E-Test stehen aus** | `Sync/AnnouncementCenter`, `docs/dev/CLOUDKIT_ANNOUNCEMENTS.md` |
 | ✅ | Kein Konto, keine Datensammlung („Data Not Collected"), Sign-in-with-Apple bewusst ungenutzt | Beschluss 2026-07-10 |
