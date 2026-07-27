@@ -271,12 +271,23 @@ final class EchoelDecimatorTests: XCTestCase {
         // for EVERY input length, not only short ones. Whatever followed the array
         // decided the result, so the failure was intermittent rather than absent.
         //
-        // This test pins the fix DETERMINISTICALLY instead of hoping the garbage is
-        // non-finite. The anti-alias kernel is normalised to unit DC gain, so with an
-        // all-ones input the first output — whose window lies entirely inside the real
-        // input — must be exactly 1. The LAST output's window extends past the input,
-        // and with the tail zero-padded it must collapse to near zero. Out-of-bounds
-        // memory satisfies neither.
+        // HONEST LIMIT FIRST, because my first version of this test overstated itself:
+        // NO pure-Swift assertion can deterministically detect an out-of-bounds read,
+        // because the memory past the array is often simply zero. Only a sanitizer
+        // (`-sanitize=address`) is an unconditional oracle for that. What this test can
+        // do is maximise the chance of catching it and pin the repaired behaviour
+        // exactly — which is worth having either way.
+        //
+        // The load-bearing assertion is the STRADDLING one. `output[0]` reads only
+        // in-bounds memory, so it passes with or without the bug and proves nothing
+        // about it; the LAST output is dominated by two edge taps that are ~1e-10, so a
+        // one-sided "< 0.05" there is satisfied by almost anything. `output[48]` is the
+        // useful one: its window covers `input[96...158]`, so taps 0...31 are real and
+        // taps 32...62 land in the padding. The kernel is symmetric with unit DC gain
+        // and a centre tap of ~0.5, so the real half sums to (1 - 0.5)/2 + 0.5 = 0.75.
+        // The padding-side taps carry only 0.25 of SIGNED gain but 0.586 of ABSOLUTE
+        // gain, so foreign memory of order 1 moves this by up to ~0.59 — in either
+        // direction, which is why the check is two-sided rather than a `<`.
         let decimator = EchoelDecimator(factor: 2)
         let output = decimator.process([Float](repeating: 1.0, count: 128))
 
@@ -284,8 +295,8 @@ final class EchoelDecimatorTests: XCTestCase {
         XCTAssertTrue(output.allSatisfy { $0.isFinite }, "non-finite output means vDSP read foreign memory")
         XCTAssertEqual(output[0], 1.0, accuracy: 1e-4,
                        "a unit-DC-gain lowpass over an all-ones window must return 1")
-        XCTAssertLessThan(output[output.count - 1], 0.05,
-                          "the final window runs past the input; with a zero-padded tail it must fall to ~0")
+        XCTAssertEqual(output[48], 0.75, accuracy: 1e-3,
+                       "the half-real, half-padded window must be exactly the real half's tap sum")
     }
 }
 

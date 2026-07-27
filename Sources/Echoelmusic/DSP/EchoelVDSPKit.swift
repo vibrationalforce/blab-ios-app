@@ -684,28 +684,42 @@ public final class EchoelDecimator: @unchecked Sendable {
         )
     }
 
-    /// Decimate input signal.
+    /// Decimate a COMPLETE, FINITE signal (allocating result — non-audio-thread callers
+    /// only; it allocates twice, since the tail pad forces a copy of the input).
     ///
-    /// Zero-pads the tail before handing the buffer to vDSP. That is NOT cosmetic:
-    /// `vDSP_desamp` computes `output[n] = Σ_k filter[k] · input[n·factor + k]`, so it
-    /// reads `(outputLength - 1) · factor + filterLength` samples — with the default
-    /// 63 taps and factor 2 that is exactly 61 samples PAST the end of `input`, for
-    /// EVERY input length, not just short ones. It read whatever happened to follow the
-    /// array in memory, so the output was nondeterministic and occasionally non-finite;
-    /// `EchoelDecimatorTests.testNoNaN` is fully deterministic yet flipped between pass
-    /// and fail across CI runs on identical code, which is what surfaced this.
+    /// ONE-SHOT CONTRACT — do NOT call this per block on a continuous stream:
+    /// - Returns `input.count / factor` samples; `input.count % factor` trailing input
+    ///   samples are DISCARDED (per block that would be progressive time drift).
+    /// - The tail is zero-padded, so the last `(taps - 1) / (2 · factor)` outputs taper
+    ///   toward zero (31 of 64 for the 63-tap default at factor 2). Per block that is
+    ///   not a subtle seam but an amplitude notch plus phase break at every boundary.
+    /// - The output LEADS the input by `(taps - 1) / 2` input samples (31 by default):
+    ///   `output[n]` is the filter centred on `input[n·factor + 31]`.
+    /// Streaming needs a different shape entirely — pre-allocated scratch, overlap-save
+    /// history and a leftover carry, like `EchoelConvolution` above. Add that as its own
+    /// type rather than changing these semantics under existing callers.
     ///
-    /// Zero-padding (rather than shortening the output) keeps the caller-facing promise
-    /// "decimate by `factor`" — `input.count / factor` samples out — and is the standard
-    /// FIR treatment of the tail. `EchoelConvolution` in this same file already sizes
-    /// its `convScratch` so `vDSP_conv` can never read past the end; this is that
-    /// pattern, applied to the one place in the kit that was missing it.
+    /// WHY THE PAD EXISTS. `vDSP_desamp` computes
+    /// `output[n] = Σ_k filter[k] · input[n·factor + k]`, and Apple documents the
+    /// required input length as `(outputLength - 1) · factor + roundUpToMultipleOf4(taps)`
+    /// — the rounding is the SIMD tap block, which is why padding to the bare `taps`
+    /// still under-provisions by up to 3 elements. Before this pad the call read far
+    /// past the end of `input`: about 60 floats of foreign memory, for essentially every
+    /// input length (61 at factor 2 with an even count, 60 with an odd one, and
+    /// `59 - count % 4` at factor 4 — it is not the single constant an earlier version
+    /// of this comment claimed). The result was therefore nondeterministic, which is how
+    /// it surfaced: `EchoelDecimatorTests.testNoNaN` is fully deterministic — fixed
+    /// input, fresh instance, no clock, no RNG — yet passed one CI run and failed the
+    /// next on identical code.
     public func process(_ input: [Float]) -> [Float] {
         let outputLength = input.count / factor
         guard outputLength > 0 else { return [] }
 
         let filterLength = antiAliasFilter.count
-        let required = (outputLength - 1) * factor + filterLength
+        // Round the tap count up to the 4-wide block vDSP actually reads, not the bare
+        // tap count — see the doc above. Cheap: at worst 3 extra zeros.
+        let alignedTaps = (filterLength + 3) & ~3
+        let required = (outputLength - 1) * factor + alignedTaps
         var padded = input
         if required > padded.count {
             padded.append(contentsOf: repeatElement(0, count: required - padded.count))
