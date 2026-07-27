@@ -246,7 +246,7 @@
             <!-- GENERATIVE COMPOSITION -->
             <section id="seq">
                 <h2>Generative Composition <span class="tag">LIVE</span></h2>
-                <p>Your biometrics compose harmonic, melodic and rhythmic loops in any key and BPM — with an optional beat layer blending samples and physical-model drum synthesis — which you render to .wav and MIDI for your DAW.</p>
+                <p>Your biometrics compose harmonic, melodic and rhythmic loops in any key and BPM — with an optional beat layer blending samples and physical-model drum synthesis — which you render to .wav for your DAW.</p>
                 <div class="data-row"><div class="k">BioComposer</div><div class="v">Bio-driven harmonic/melodic loop generation, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s) for key/tempo locking. Per-note velocity, automation and richer voice-leading are <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Voice triggering</div><div class="v">Notes are fired lock-free via an atomic trigger counter (no allocation on the audio thread) into the bio-reactive synth voices. A drum/sampler track and a step sequencer are <span class="tag">ROADMAP</span>, not in the app today.</div></div>
             </section>
@@ -255,7 +255,7 @@
             <section id="plugin">
                 <h2>Standalone instrument <span class="tag">NOT A PLUGIN</span></h2>
                 <p>Echoelmusic is a <strong>standalone iPhone instrument</strong>. It is not an Audio&nbsp;Unit (AUv3) plugin, and it does not host third-party AUv3 plugins. Both were built and then deliberately removed: an instrument you play with your body is not a workstation, and a plugin surface is a second product with its own host-compatibility matrix. Neither is on the roadmap.</p>
-                <div class="data-row"><div class="k">Into a DAW</div><div class="v">Over the open interfaces instead: a virtual CoreMIDI source (MIDI&nbsp;2.0 / MPE) any DAW records live, plus WAV and MIDI file export. See <a href="#formats">Formats &amp; I/O</a>.</div></div>
+                <div class="data-row"><div class="k">Into a DAW</div><div class="v"><strong>WAV export</strong> today, plus live OSC / ADM-OSC and Art-Net / sACN output. A virtual CoreMIDI source exists but is created only once a MIDI route is enabled in the routing panel, and it speaks MIDI&nbsp;1.0 — MIDI&nbsp;2.0 out, MPE out and Standard MIDI File (.mid) export are <span class="tag">ROADMAP</span>. See <a href="#formats">Formats &amp; I/O</a>.</div></div>
             </section>
 
             <!-- VISUALS & VIDEO -->
@@ -292,7 +292,7 @@
             <!-- FORMATS & I/O -->
             <section id="formats">
                 <h2>Formats &amp; I/O</h2>
-                <div class="data-row"><div class="k">Audio <span class="tag">LIVE</span></div><div class="v">48&nbsp;kHz / 32-bit float internal; buffers 128 / 256 / 512. Export WAV + AAC/M4A at −14&nbsp;LUFS; 30&nbsp;s CAF pre-roll. FLAC / ALAC + stem export <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Audio <span class="tag">LIVE</span></div><div class="v">48&nbsp;kHz / 32-bit float internal; buffers 128 / 256 / 512. Export is WAV at the chosen loudness target; 30&nbsp;s CAF pre-roll. AAC/M4A (the encoder exists, the export path forces WAV), FLAC / ALAC and stem export <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Spatial audio</div><div class="v">Stereo with HRV-reactive spatial reverb character <span class="tag">LIVE</span>; 3D object panning, Dolby&nbsp;Atmos, head-tracked spatial audio (AirPods), 5.1 / 7.1.4 &amp; ambisonics <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI&nbsp;2.0 + MPE input <span class="tag">LIVE</span>; Standard MIDI File (.mid) I/O and MIDI output <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Video</div><div class="v">H.264 MP4 720×1280 short-form (15/30/60&nbsp;s); H.265/HEVC, ProRes 422/4444, 1080p/4K, LUT grading &mdash; all <span class="tag">ROADMAP</span>.</div></div>
@@ -342,7 +342,7 @@
                 <h2>Module Map</h2>
                 <p>How the product surface (the 12 <a href="tools.html">Echoel engines</a>) maps onto real source modules:</p>
                 <div class="data-row"><div class="k">EchoelSynth <span class="tag">LIVE</span></div><div class="v">EchoelDDSP · EchoelCellular · EchoelModalBank</div></div>
-                <div class="data-row"><div class="k">EchoelGen <span class="tag">LIVE</span></div><div class="v">Bio-driven generative composition — harmonic, melodic &amp; rhythmic loops in any key and BPM → .wav / MIDI export</div></div>
+                <div class="data-row"><div class="k">EchoelGen <span class="tag">LIVE</span></div><div class="v">Bio-driven generative composition — harmonic, melodic &amp; rhythmic loops in any key and BPM → .wav export</div></div>
                 <div class="data-row"><div class="k">EchoelFX <span class="tag">LIVE</span></div><div class="v">EchoelVDSPKit · EchoelSVFilter · EchoelLFO · AutoMixChain · DDSP convolution reverb</div></div>
                 <div class="data-row"><div class="k">EchoelMix <span class="tag">LIVE</span></div><div class="v">AudioEngine · AutoMixChain · SingleExport · RetroCapture</div></div>
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (MPE)</div></div>
@@ -371,9 +371,9 @@
                             <li>Convolution reverb · 4-band EQ · LUFS</li>
                             <li>AudioEngine + 30s RetroCapture</li>
                             <li>Generative composition (any key/BPM)</li>
-                            <li>WAV/AAC + MIDI export</li>
+                            <li>WAV export</li>
                             <li>OSC + ADM-OSC out (EchoelSync)</li>
-                            <li>MIDI 2.0 / MPE out (virtual CoreMIDI source)</li>
+                            <li>MIDI 2.0 + MPE input</li>
                             <li>Native Art-Net + sACN lighting (flash-safe)</li>
                             <li>Metal GPU bio-visual (HR&rarr;pulse &le;3&nbsp;Hz, coherence&rarr;hue)</li>
                             <li>Sub-bass / LFE voice + Core Haptics</li>

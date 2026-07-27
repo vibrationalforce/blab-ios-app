@@ -12,11 +12,13 @@ localization = post-launch follow-up.
 > ⚠️ **STALE — RE-VERIFY EVERY CLAIM BEFORE PASTING THIS INTO ASC (2026-07-27).**
 > This draft was written on 2026-07-10 against the then-current app. Since then the
 > founder deliberately removed several features this copy still advertises. The AUv3
-> lines are corrected below (#121 Slices 1+2, target and hosting both deleted). **Two
-> claims are still stale and NOT yet corrected here: the "drum sequencer" (#166,
-> drums removed 2026-07-26) and the "piano roll" (#178, note editor removed
-> 2026-07-26).** Shipping metadata that claims a removed feature is an App Store 2.3
-> ("Accurate Metadata") rejection risk — fix or cut those two before submission.
+> lines are corrected below (#121 Slices 1+2, target and hosting both deleted), as are
+> the MIDI-export and MPE-output claims (`exportMIDI()` has no caller; `mpeEnabled` has
+> no writer). The "drum sequencer" and "piano roll" were dropped from the *What's New*
+> block, **but they still stand in the screenshot plan and the claim-verification block
+> below** — drums went with #166 and the note editor with #178, both 2026-07-26.
+> Shipping metadata that claims a removed feature is an App Store 2.3 ("Accurate
+> Metadata") rejection risk — sweep those two before submission (task #184).
 
 ---
 
@@ -77,9 +79,9 @@ COMPOSE FROM YOUR BODY
   and a production FX chain (tape delay, chorus, filter, dynamics).
 
 TAKE IT TO YOUR STUDIO AND YOUR SHOW
-• Export stamped MIDI files (artist · date · key · BPM · tuning) straight
+• Export stamped WAV files (artist · date · key · BPM · tuning) straight
   into Ableton, Logic or FL Studio.
-• Full MIDI and MPE in and out — a virtual source any DAW records live.
+• MIDI and MPE input — play the instrument from your controller.
 • Stream your live bio data as OSC and ADM-OSC objects into immersive
   audio rigs, and drive stage lights over Art-Net and sACN — open
   standards, no vendor lock-in.
@@ -105,7 +107,7 @@ creative control and self-observation, not for medical use.
 
 ```
 The first release: your heartbeat makes music. Bio-reactive synthesis,
-23-genre generative composer, MIDI/MPE,
+23-genre generative composer, MIDI/MPE input, WAV export,
 immersive visuals, OSC/ADM-OSC, Art-Net/sACN — free, private, no account.
 ```
 
@@ -205,7 +207,7 @@ Checklist before submitting:
 4. Piano roll / patch editor. Caption: "A real instrument: synth, drums, FX."
 5. Camera pulse measurement (finger on lens). Caption: "Measure with your
    fingertip — no accessories needed."
-6. MIDI export share sheet. Caption: "MIDI and MPE — plays with your studio."
+6. WAV export share sheet. Caption: "Take the take into your studio."
 7. Live Colabo side-by-side bio. Caption: "Play together, nearby — each
    person's own numbers."
 8. Routing panel (PatchbayView — the OSC/ADM-OSC/Art-Net door since the

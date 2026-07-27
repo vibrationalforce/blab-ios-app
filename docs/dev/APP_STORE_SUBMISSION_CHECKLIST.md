@@ -23,7 +23,8 @@ Status: ✅ done · ⚠️ partial/needs-owner · ❌ missing/blocker. Companion
 
 ## 3. Screenshots  — ❌ BLOCKER for submission (`fastlane/screenshots/` empty)
 - Required device sizes (App Store, 2026): **6.9"** (iPhone 16 Pro Max, 1320×2868) **and 6.5"** (1284×2778) — Apple derives smaller from 6.9" if omitted, but at least one 6.9" set is mandatory. iPad sizes only if iPad is a supported destination (currently iPhone-only → not needed).
-- 1–10 per size. Show: BioStrip live (Demo), a Metal visual, the MIDI export share sheet.
+- 1–10 per size. Show: BioStrip live (Demo), a Metal visual, the WAV export share sheet.
+  (NOT a MIDI export sheet — `exportMIDI()` has no caller, so that screen cannot be opened.)
 - ⚠️ Generated on device/simulator (Fastlane `snapshot` config exists: `Snapfile`). The `Framefile.json` caption "Wellness"/localized still needs brand-clean if used.
 
 ## 4. App Privacy (Nutrition Labels in ASC)  — ❌ required, owner-fill
