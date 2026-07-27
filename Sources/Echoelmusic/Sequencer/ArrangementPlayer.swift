@@ -56,7 +56,7 @@ public final class ArrangementPlayer {
         self.currentIndex = 0
         isPlaying = true
         loadCurrentSection()
-        if !pattern.isPlaying { pattern.play() }
+        if !pattern.isPlaying { pattern.play(cause: .arrangement) }
     }
 
     /// Stop arrangement-follow and the transport.

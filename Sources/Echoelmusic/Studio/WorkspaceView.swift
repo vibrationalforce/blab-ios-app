@@ -469,7 +469,7 @@ private struct TransportBar: View {
                 EchoelCrashLog.breadcrumb("play: empty project → universal Start (toggleBio)")
                 NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
             } else {
-                player.pattern.play()
+                player.pattern.play(cause: .transportButton)
             }
         }
     }

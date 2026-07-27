@@ -70,7 +70,7 @@ public final class LoopExporter {
         status = .capturing
         beatPlayer.pattern.stop()
         engine.retroCapture.startRecording(preRoll: 0)
-        beatPlayer.pattern.play()
+        beatPlayer.pattern.play(cause: .loopExport)
 
         // 2. Record one loop + the decay tail past its end.
         try? await Task.sleep(for: .seconds(seconds + tailSeconds))

@@ -4055,7 +4055,7 @@ struct EchoelStudioView: View {
         // Start playback only for the user-initiated first generate; a background/onChange
         // re-seed must not restart a transport the user stopped from the transport bar.
         if !wasPlaying && startTransport {
-            beatPlayer.pattern.play()
+            beatPlayer.pattern.play(cause: .generate)
             metronome.resync()   // align the click's downbeat to the start
         }
         // SILENCE DIAG (founder "alles ist still", 2026-07-14): the melody only sounds

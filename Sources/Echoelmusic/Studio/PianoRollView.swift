@@ -1338,7 +1338,7 @@ struct PianoRollView: View {
                         // Any unconsumed flag is stale the moment we play again — drop it so
                         // it can never turn a LATER real stop into a pause.
                         _ = model.consumePlaybackOnlyStopRequest()
-                        pattern.play()
+                        pattern.play(cause: .pianoRoll)
                     }
                 } label: {
                     Image(systemName: pattern.isPlaying ? "pause.fill" : "play.fill")

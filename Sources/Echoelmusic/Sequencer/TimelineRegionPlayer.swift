@@ -296,7 +296,7 @@ public final class TimelineRegionPlayer {
         loadRollRegion(at: startTick)            // whatever is under the playhead
         primeSecondaryLanes(at: startTick)       // secondary lanes active at the start bar
         audioLanes?.prime(in: document, atTick: startTick, bpm: pattern.tempo)   // audio lanes (A1)
-        if !pattern.isPlaying { pattern.play() }
+        if !pattern.isPlaying { pattern.play(cause: .timelineRegion) }
     }
 
     /// The song-absolute BAR-start tick for a requested locate tick: floors to the

@@ -370,8 +370,29 @@ public final class PatternEngine {
         stoppedGlideTimer = nil
     }
 
+    /// WHO started playback. The stop side has carried a reason since the ONE-Stop work
+    /// (`stopEverything(reason)`, `"stop source: roll-pause"`); the play side carried
+    /// nothing, so a device log could show notes arriving with no record of what started
+    /// the clock — the founder's log 2466 has notes 67 s BEFORE the only play breadcrumb
+    /// that existed ("Start tapped", logged by the UI, not by the transport). Seven
+    /// production call sites can start the transport; this makes each one name itself.
+    public enum PlayCause: String, Sendable {
+        case transportButton   // WorkspaceView ▶
+        case generate          // EchoelStudioView: a fresh take starts playing
+        case pianoRoll         // PianoRollView's own play
+        case arrangement       // ArrangementPlayer
+        case timelineRegion    // TimelineRegionPlayer
+        case launchQuantized   // LaunchQuantizer (clip launch on the next bar)
+        case loopExport        // LoopExporter (offline render)
+        case unspecified       // a caller that has not been given a cause yet
+    }
+
     /// Start the timer from step 0. Idempotent: calling while playing is a no-op.
-    public func play() {
+    ///
+    /// `cause` is diagnostic ONLY — it never changes behavior. It is logged once per
+    /// real stop→play transition (not per tick, not on the idempotent no-op), so the
+    /// cost is one breadcrumb per Play, on the main actor, never on the audio thread.
+    public func play(cause: PlayCause = .unspecified) {
         guard !isPlaying else { return }
         isPlaying = true
         currentStep = 0
@@ -379,6 +400,7 @@ public final class PatternEngine {
         // tempoGlideTarget) so starting playback mid-glide stays seamless, no snap.
         stopStoppedGlide()
         transport?.play()
+        EchoelCrashLog.breadcrumb("transport play (\(cause.rawValue)) tempo=\(Int(tempo))")
         scheduleTick(after: 60.0 / tempo / 4.0)
     }
 

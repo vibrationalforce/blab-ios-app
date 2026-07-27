@@ -47,7 +47,7 @@ public final class LaunchQuantizer {
             pendingClipID = clip.id
         } else {
             fire(clip)
-            if !pattern.isPlaying { pattern.play() }
+            if !pattern.isPlaying { pattern.play(cause: .launchQuantized) }
         }
     }
 

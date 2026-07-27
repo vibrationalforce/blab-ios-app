@@ -86,4 +86,48 @@ final class PatternEngineTransportRelayTests: XCTestCase {
         XCTAssertEqual(pattern.tempo, 150, accuracy: 1e-9)
         XCTAssertEqual(pattern.swing, 0.25, accuracy: 1e-9)
     }
+
+    // MARK: - Play cause (#175): the diagnostic must not become behavior
+
+    /// `play(cause:)` exists so a device log can name WHICH of the seven call sites
+    /// started the transport. It must stay purely diagnostic: every cause has to leave
+    /// the engine and the relayed Transport in exactly the state a bare `play()` does.
+    func testPlayCause_doesNotChangeBehaviour() {
+        for cause in [PatternEngine.PlayCause.transportButton, .generate, .pianoRoll,
+                      .arrangement, .timelineRegion, .launchQuantized, .loopExport,
+                      .unspecified] {
+            let pattern = PatternEngine()
+            let transport = Transport()
+            pattern.transport = transport
+            pattern.play(cause: cause)
+            XCTAssertTrue(pattern.isPlaying, "\(cause.rawValue) must start the clock")
+            XCTAssertTrue(transport.isPlaying, "\(cause.rawValue) must relay to Transport")
+            XCTAssertEqual(pattern.currentStep, 0, "\(cause.rawValue) must start from step 0")
+            pattern.play(cause: cause)   // idempotent: a second call changes nothing
+            XCTAssertTrue(pattern.isPlaying)
+            pattern.stop()               // cancel the real timer before teardown
+            XCTAssertFalse(pattern.isPlaying)
+        }
+    }
+
+    /// The rawValues are what a founder's `echoel_diag.log` is grepped for, so they are
+    /// part of the diagnostic contract: renaming one silently breaks log reading of
+    /// every build shipped before the rename. Distinctness matters for the same reason —
+    /// two causes sharing a string would make the log unable to tell them apart.
+    func testPlayCauseRawValues_areStableAndDistinct() {
+        let expected: [PatternEngine.PlayCause: String] = [
+            .transportButton: "transportButton",
+            .generate:        "generate",
+            .pianoRoll:       "pianoRoll",
+            .arrangement:     "arrangement",
+            .timelineRegion:  "timelineRegion",
+            .launchQuantized: "launchQuantized",
+            .loopExport:      "loopExport",
+            .unspecified:     "unspecified",
+        ]
+        for (cause, raw) in expected {
+            XCTAssertEqual(cause.rawValue, raw)
+        }
+        XCTAssertEqual(Set(expected.values).count, expected.count, "rawValues must be distinct")
+    }
 }
