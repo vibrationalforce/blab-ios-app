@@ -72,12 +72,11 @@ targets:
         type: group
         excludes:
           - "**/*.md"
-          # Drums/Community are declared ONLY via the explicit folder
-          # entries below, which preserve the real subdirectory structure that
-          # `subdirectory:`-based bundle lookups need. Without these excludes the
-          # generic group walk ALSO registers every file under them individually
-          # (flattened), so each file would be double-declared.
-          - "Resources/Drums/**"
+          # Community is declared ONLY via the explicit folder entry below, which
+          # preserves the real subdirectory structure that `subdirectory:`-based bundle
+          # lookups need. Without this exclude the generic group walk ALSO registers
+          # every file under it individually (flattened), so each file would be
+          # double-declared.
           - "Resources/Community/**"
 
       # === RESOURCES ===
@@ -112,13 +111,11 @@ targets:
       # instrument voice is gone entirely, founder "Real Instruments komplett raus",
       # so the 31 MB .sf2 no longer ships.)
       #
-      # Drum WAVs — a folder reference keeps the Drums/ subdirectory that
-      # `BeatPlayer` looks them up by (`subdirectory: "Drums"`).
-      # (Resources/Samples — the 5.4 MB categorized sample library — was deleted
-      # 2026-07-27 with its browser and its BeatPlayer API, #167.)
-      - path: Sources/Echoelmusic/Resources/Drums
-        type: folder
-        buildPhase: resources
+      # (Removed 2026-07-27, #167: the two sample folders. `Resources/Samples` — the
+      # 5.4 MB categorized library — went with its browser; `Resources/Drums` — 8 drum
+      # WAVs, 472 KB — went with the drum voices that were the only thing able to play
+      # them. Both were folder references so the `subdirectory:` bundle lookups in
+      # `BeatPlayer` would resolve; those lookups are deleted too.)
       # Community JSON (fx/moods/patches) — same folder-reference need:
       # `CommunityLibrary.load(_:as:)` matches on the parent-path suffix
       # ("Community/fx"), which only a structure-preserving folder reference can

@@ -678,7 +678,8 @@ struct EchoelStudioView: View {
             // Apply the persisted per-track inserts at launch (bass → sub; melodic → both
             // the pad/harmony and lead voices). The two drum restores that stood here — the
             // persisted Mixer "Drums" level into `BeatPlayer.masterLevel`, and the persisted
-            // drums insert fanned across all 8 channels — are gone with the drums themselves.
+            // drums insert fanned across all 8 channels — are gone with the drums themselves;
+            // as of #167 `masterLevel` is not even a symbol any more, so do not grep for it.
             subBass.setInsert(trackFX.bass)
             laneVoiceRack.setBassInsert(trackFX.bass)  // S2-W2-5: lane subs too
             synth.setInsert(trackFX.melodic)
@@ -1550,13 +1551,13 @@ struct EchoelStudioView: View {
     // NO DRUMS (founder 2026-07-26): `drumsBinding`, `drumsCutoffBinding`,
     // `drumsDriveBinding` and `setDrumsFX(_:)` lived here. They were the only REACHABLE
     // writers of `trackFX.drums`, `BeatPlayer.masterLevel`/`setFX` and
-    // `laneVoiceRack.setDrumsInsert`. `BeatPlayer.setFX` and `BeatPlayer.masterLevel`'s
-    // Channel-Rack half no longer exist at all: #167 deleted the view (2026-07-27) and
-    // then the mixer state itself, so `setFX` is not a symbol any more — do not grep for
-    // it. `trackFX.drums` still has one writer, `TrackFXStore.resetToClean()` (no
-    // production caller, one test caller). Do not read this block as "the symbols have no
-    // writers" without grepping, and grep names that still exist: two earlier versions of
-    // this line cited `TrackFXStore.reset()` and a live `BeatPlayer.setFX`, neither real.
+    // `laneVoiceRack.setDrumsInsert`. `BeatPlayer.setFX` and `BeatPlayer.masterLevel` are
+    // not symbols any more at all — #167 deleted the Channel Rack, then the mixer state,
+    // then the whole drum kit (2026-07-27). Do not grep for them. `trackFX.drums` still
+    // has one writer, `TrackFXStore.resetToClean()` (no production caller, one test
+    // caller). Do not read this block as "the symbols have no writers" without grepping,
+    // and grep names that still exist: two earlier versions of this line cited
+    // `TrackFXStore.reset()` and a live `BeatPlayer.setFX`, neither of which was real.
 
     /// A binding to one mixer level that re-balances the running take when changed.
     private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {
