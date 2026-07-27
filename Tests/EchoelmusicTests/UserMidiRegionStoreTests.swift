@@ -3,7 +3,8 @@
 // Töne"): locks `ensureUserMidiRegion` — the USER-clip twin of
 // `ensureComposerRegion`. Opening a secondary MIDI track's door must land on a
 // real, user-owned MIDI clip + loop-window region (created once), so the region
-// player's kind routing (slotKindSink → kit/sub) has something to play. Laws:
+// player's kind routing (slotKindSink → sub/sampler; the kit arm is gone since the
+// 2026-07-26 drums removal) has something to play. Laws:
 // creates once, idempotent via the existing region, `composerOwned == false`
 // (generate/evolve may NEVER rewrite the user's clip), honest nil on a full
 // grid, MIDI/non-bio lanes only.

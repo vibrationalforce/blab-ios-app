@@ -243,9 +243,56 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
     }
 
     func testSlotKindSink_firesLaneKindAtPrime_resetsToPolyOnStop() {
-        // S2-W2-4: the player publishes each slot's voice KIND so the app rebinds
-        // the physical voice. A drums lane fires .drums at prime; stop resets to
-        // .poly so a reused slot never keeps a stale kit/sub.
+        // S2-W2-4: the player publishes each slot's voice KIND so the app rebinds the
+        // physical voice. A lane with a built-in instrument fires that instrument's kind
+        // at prime; stop resets to .poly so a reused slot never keeps a stale voice.
+        //
+        // WHY THE FIXTURE IS `.subBass` AND NOT `.drums` — this test was RED from c9af52b
+        // ("KEINE DRUMS", founder 2026-07-26) until now, and it was red for a good reason:
+        // that commit remapped `TrackInstrument.drums.voiceKind` to `.poly`, so a drums
+        // lane can no longer publish `.drums` from anywhere. The test was pinning a
+        // behaviour the founder had deliberately removed. c9af52b updated
+        // LaneVoiceKindTests and KindVoiceAllocatorTests for exactly this and missed this
+        // file. Production was never broken — do NOT "repair" it back into making drums.
+        //
+        // `.subBass` is not an arbitrary substitute: it is the cheapest fixture that keeps
+        // this test HONEST. With `.drums` the naive repair (assert `.poly` at prime) would
+        // be toothless, because stop publishes `.poly` too — the test would pass even if
+        // the reset in `flushPumps` were deleted, i.e. it would assert nothing. `.subBass`
+        // still resolves to a real bound voice (`LaneVoiceRack` creates `SubBassVoice`),
+        // so prime ≠ stop and both halves keep their teeth.
+        let roll = TimelineLane(name: "MIDI 1", kind: .midi)
+        let sub = TimelineLane(name: "SubBass", kind: .midi, builtinInstrument: .subBass)
+        let document = TimelineDocument(lanes: [roll, sub], regions: [
+            TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: sub.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+        ])
+        let player = TimelineRegionPlayer()
+        var kinds: [(Int, LaneVoiceKind)] = []
+        player.enableMultiRoll(capacity: 4, sink: { _, _ in })
+        player.slotKindSink = { kinds.append(($0, $1)) }
+
+        let pattern = PatternEngine()
+        let clips = ClipStore()
+        let pianoRoll = PianoRollModel()
+        player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
+        XCTAssertEqual(kinds.first?.0, 0)
+        XCTAssertEqual(kinds.first?.1, .subBass,
+                       "prime binds slot 0's sub-bass lane to the .subBass kind")
+
+        player.stop()
+        XCTAssertEqual(kinds.last?.1, .poly, "stop resets the slot's kind to poly")
+        XCTAssertEqual(kinds.last?.0, 0)
+        XCTAssertNotEqual(kinds.first?.1, kinds.last?.1,
+                          "prime and stop must differ, or this test asserts nothing")
+    }
+
+    /// #166 AS A STATED LAW, not an untested silence. Removing the drums left
+    /// `LaneVoiceKind.drums` in the enum (it is persisted) while making it unreachable —
+    /// a shape that reads like an oversight and invites a later session to "reconnect" it.
+    /// `LaneVoiceKindTests` covers the pure map; this pins it at the PLAYER, which is the
+    /// level a reconnection would actually happen at.
+    func testSlotKindSink_publishesPolyForADrumsLane_becauseDrumsWereRemoved() {
         let roll = TimelineLane(name: "MIDI 1", kind: .midi)
         let drums = TimelineLane(name: "EchoelDrums", kind: .midi, builtinInstrument: .drums)
         let document = TimelineDocument(lanes: [roll, drums], regions: [
@@ -261,12 +308,12 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
         let clips = ClipStore()
         let pianoRoll = PianoRollModel()
         player.play(document: document, clips: clips, pattern: pattern, pianoRoll: pianoRoll)
-        XCTAssertEqual(kinds.first?.0, 0)
-        XCTAssertEqual(kinds.first?.1, .drums, "prime binds slot 0's drums lane to the .drums kind")
-
-        player.stop()
-        XCTAssertEqual(kinds.last?.1, .poly, "stop resets the slot's kind to poly")
-        XCTAssertEqual(kinds.last?.0, 0)
+        defer { player.stop() }
+        XCTAssertEqual(kinds.first?.1, .poly,
+                       "a drums lane must fall back to the poly voice — a lane the user can "
+                       + "hear and re-point, not a track that mysteriously stops sounding")
+        XCTAssertFalse(kinds.contains { $0.1 == .drums },
+                       "nothing may bind a slot to .drums after c9af52b")
     }
 
     func testSlotSampleSink_firesLaneSampleRefAtPrime_resetsToNilOnStop() {
@@ -301,11 +348,15 @@ final class TimelineRegionPlayerLiveMixerTests: XCTestCase {
     func testSlotKindSink_firesBeforePatchAtPrime() {
         // ORDERING LAW: the kind must land BEFORE the per-slot patch/value sinks,
         // so the app's facade routes them to the freshly-bound physical voice.
+        // (Fixture was an `EchoelDrums` lane until 2026-07-27. It stayed GREEN through
+        // the drums removal because it asserts only the ORDER, never the value — but a
+        // drum fixture in a product that has no drums misleads the next reader, and its
+        // red sibling three tests up is what that costs. Same instrument as that one now.)
         let roll = TimelineLane(name: "MIDI 1", kind: .midi)
-        let drums = TimelineLane(name: "EchoelDrums", kind: .midi, builtinInstrument: .drums)
-        let document = TimelineDocument(lanes: [roll, drums], regions: [
+        let sub = TimelineLane(name: "SubBass", kind: .midi, builtinInstrument: .subBass)
+        let document = TimelineDocument(lanes: [roll, sub], regions: [
             TimelineRegion(laneID: roll.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
-            TimelineRegion(laneID: drums.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
+            TimelineRegion(laneID: sub.id, clipID: UUID(), startTick: 0, lengthTicks: 1920),
         ])
         let player = TimelineRegionPlayer()
         var order: [String] = []
