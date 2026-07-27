@@ -83,10 +83,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - destination: 'platform=iOS Simulator,OS=18.2,name=iPhone 16 Pro'
-            name: 'iPhone 16 Pro'
-          - destination: 'platform=iOS Simulator,OS=18.2,name=iPhone SE (3rd generation)'
-            name: 'iPhone SE'
+          # No OS pin. The previous 'OS=18.2,name=iPhone 16 Pro' / 'iPhone SE (3rd
+          # generation)' pins do NOT exist on the macos-26 runner image, and the
+          # `|| cat` mask below hid the resulting destination-not-found failure as a
+          # green build. full-tests.yml:69-72 already learned this the hard way; this
+          # adopts the shape it proved: a generic SDK destination to BUILD, and one
+          # concrete bootable simulator to RUN.
+          - destination: 'platform=iOS Simulator,name=iPhone 17'
+            name: 'iPhone 17'
 
     steps:
     - name: Checkout code
@@ -147,13 +151,21 @@ jobs:
     - name: Build for Testing
       run: |
         set -o pipefail
+        # `generic/platform=iOS Simulator` builds against the simulator SDK without
+        # naming a device, so this step cannot fail on runner-image sim drift.
+        # NO `|| cat` mask: with `set -o pipefail` the real xcodebuild exit status
+        # now reaches the step. On failure the log is printed by the next step.
         xcodebuild build-for-testing \
           -scheme Echoelmusic \
-          -destination '${{ matrix.destination }}' \
+          -destination 'generic/platform=iOS Simulator' \
           -configuration Debug \
           -enableCodeCoverage YES \
           CODE_SIGNING_ALLOWED=NO \
-          2>&1 | tee build.log | xcpretty || cat build.log
+          2>&1 | tee build.log | xcpretty
+
+    - name: Print build log on failure
+      if: failure()
+      run: tail -200 build.log
 
     - name: Run Tests
       run: |
@@ -165,8 +177,16 @@ jobs:
           -enableCodeCoverage YES \
           -parallel-testing-enabled YES \
           -resultBundlePath TestResults \
-          2>&1 | tee test.log | xcpretty || cat test.log
-      # NOTE: Test failures MUST fail the build - do not add continue-on-error
+          2>&1 | tee test.log | xcpretty
+      # NOTE: Test failures MUST fail the build — do not add continue-on-error,
+      # and do not re-add the `|| cat test.log` that used to sit at the end of the
+      # pipeline above. That mask was exactly the continue-on-error this note bans,
+      # written in a form that did not look like one: it swallowed xcodebuild's
+      # non-zero exit and the step reported success over a failed test run.
+
+    - name: Print test log on failure
+      if: failure()
+      run: tail -200 test.log
 
     - name: Generate Code Coverage
       if: success()
