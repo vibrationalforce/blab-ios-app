@@ -15,7 +15,6 @@ Klang
 
 Workflow
 - Rückwirkendes Aufnehmen des zuletzt gespielten Loops
-- MIDI-Datei-Export (.mid) für die DAW
 - Präzise Regler und numerische Eingabe für jeden Parameter
 
 Verbesserungen

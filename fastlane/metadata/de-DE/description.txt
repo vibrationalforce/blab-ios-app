@@ -10,26 +10,24 @@ Verbinde die Apple Watch, einen Bluetooth-Herzfrequenzgurt oder nutze die iPhone
 - Herzfrequenz formt Tempo und Vibrato
 - HRV und Kohärenz formen Brillanz, Harmonizität und Textur
 - Atem formt die Hüllkurve und den Raum
-- Bewegung treibt Onsets und Dynamik
 
 Keine zwei Takes sind gleich.
 
 
 ERSCHAFFEN
 
-- Bio-reaktive Synthese-Engine (additives DDSP, modal, zellular, Sampler) — vDSP-beschleunigt, ohne externe Abhängigkeiten
+- Bio-reaktive Synthese-Engine (additives DDSP, modal, zellular) — vDSP-beschleunigt, ohne externe Abhängigkeiten
 - Eigene Patches gestalten und speichern
-- Komposition: Genre und Tonart wählen; Dein Körper erzeugt tonart-konformes Material, das Du in einer echten Piano-Roll weiter bearbeitest
+- Komposition: Genre und Tonart wählen; Dein Körper erzeugt tonart-konformes Material, das Du über die Klang- und Charakter-Regler formst
 - Kammerton (A4) exakt auf den Cent einstellbar; BPM für tighte Loops sperren oder sync-frei bleiben
-- 16-Step-, 8-Spur-Beat-Maker und Sampler mit Velocity, Akzent, Swing und Sample-Import pro Pad
 - Effekte: Reverb, Delay, Chorus, Flanger, Phaser, Tremolo, Sättigung, Harmonizer und mehr
 - Rückwirkendes Aufnehmen: Behalte den Loop, den Du gerade gespielt hast
-- Export als Audio (WAV) und MIDI (.mid) für Deine DAW
+- Export des gerade gespielten Loops als Audio (WAV)
 
 
 VERBINDEN
 
-- MIDI / MPE Ein- und Ausgang
+- MIDI-Eingang mit MPE-Expression; MIDI-Noten-Ausgang an Dein Rig (im Routing-Panel aktivierbar)
 - OSC-Ausgabe für Live-Rigs und Visuals
 - ADM-OSC immersive Objekt-Ausgabe
 - Natives Art-Net-Lichtsignal für Installationen und Bühne

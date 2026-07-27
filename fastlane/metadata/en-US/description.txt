@@ -10,27 +10,25 @@ Connect Apple Watch, a Bluetooth heart-rate strap, or use the iPhone camera (rPP
 - Heart rate shapes tempo and vibrato
 - HRV and coherence shape brightness, harmonicity and texture
 - Breath shapes the amplitude envelope and space
-- Motion drives onsets and dynamics
 
 No two takes are the same.
 
 
 CREATE
 
-- Bio-reactive synthesis engine (additive DDSP, modal, cellular, sampler) — vDSP-accelerated, no external dependencies
+- Bio-reactive synthesis engine (additive DDSP, modal, cellular) — vDSP-accelerated, no external dependencies
 - Design and save your own patches
-- Composition: pick a genre and a key; generate in-key material you keep editing in a real piano roll
+- Composition: pick a genre and a key; your body generates in-key material you shape with the sound and character controls
 - Concert pitch (A4 / Kammerton) set exactly to the cent; lock a BPM for tight loops or stay sync-free
-- 16-step, 8-track beat maker and sampler with velocity, accent, swing and per-pad sample import
 - Effects: reverb, delay, chorus, flanger, phaser, tremolo, saturation, harmonizer and more
 - Immersive visual: the notes you play become colour in real time (perceptual pitch-to-hue), reacting to the music and your body
 - Retroactive capture: keep the loop you just played
-- Export audio (WAV) and MIDI (.mid) for your DAW
+- Export the loop you just made as audio (WAV)
 
 
 CONNECT
 
-- MIDI / MPE in and out
+- MIDI in, with MPE expression; MIDI note output to your rig (enabled in the routing panel)
 - OSC output for live rigs and visuals
 - ADM-OSC immersive object output
 - Art-Net native light output for installations and stage
