@@ -90,8 +90,17 @@ public enum TouchPitchMap {
             z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
             return z ^ (z >> 31)
         }
-        /// [-1, 1] from the top bits of an independent stream.
-        func bipolar(_ h: UInt64) -> Double { Double(h >> 11) / Double(1 << 52) * 2 - 1 }
+        /// [-1, 1) from the top 53 bits of an independent stream.
+        ///
+        /// The divisor MUST match the shift: `h >> 11` leaves 53 significant bits, so the
+        /// scale is 2^53. It said 2^52, which made the ratio span [0, 2) and the result
+        /// [-1, 3) — a one-sided distribution three times too wide on the positive side.
+        /// That is not cosmetic: it let `velocityScale` reach 1.12, and 0.95 × 1.12 = 1.064
+        /// pins at `finish()`'s velocity clamp, i.e. this feature re-created the exact
+        /// flat-fortissimo failure the mixer cap was written to remove. Caught by
+        /// `testMicroVariation_staysWithinAudibleAndSafeBounds`, which is why that test
+        /// asserts the product `0.95 * velocityScale < 1.0` and not just the factor.
+        func bipolar(_ h: UInt64) -> Double { Double(h >> 11) / Double(1 << 53) * 2 - 1 }
         let hCut = mix(noteIndex &* 2)
         let hVel = mix(noteIndex &* 2 &+ 1)
         // Brightness moves more than level: an instrument's timbre varies audibly note to
