@@ -82,7 +82,11 @@ public final class SubBassVoice {
     public var mixLevel: Float = 1 {
         // NaN-safe `clamped(to:)` for the reason spelled out on `subGain`: a NaN would
         // survive `min(max(...))`, poison `smoothedGain`'s one-pole, and mute the sub for
-        // the rest of the session. Upper bound matches `MixerStore.range`'s 1.5.
+        // the rest of the session. The upper bound only has to ACCEPT what `MixerStore`
+        // can send (its range tops out at 1.5); the audible ceiling is enforced in the
+        // render block, which caps `subGain × mixLevel` at 1 so this fader cannot boost
+        // the sub past the poly bass into the limiter. The literal is deliberate — a
+        // voice in `Tools/` should not take a dependency on a UI store to read a bound.
         didSet { audioMixLevel = mixLevel.clamped(to: 0...1.5) }
     }
 
@@ -323,15 +327,27 @@ public final class SubBassVoice {
         // Sub character coefficients ONCE per block (control-rate params; pure
         // arithmetic, no alloc). Defaults reproduce the old inline shaping exactly.
         let character = SubCharacter.coefficients(presence: audioPresence, heat: audioHeat)
+        // Felt-sub character level × the MIXER's Bass position, computed ONCE per block
+        // like every other control-rate value here (it cannot change mid-block — both
+        // mirrors are written from the main actor).
+        //
+        // CEILING AT 1, deliberately. `MixerStore.range` runs to 1.5, but the poly
+        // bass's velocity is clamped to 1 (`finish()`), so above unity the fader is
+        // already a no-op for every OTHER role. Letting the sub alone keep boosting
+        // would push it ~+3.5 dB past the poly bass into the always-on brick-wall
+        // limiter — i.e. the top third of the fader would quietly buy distortion
+        // instead of level, on a build the founder just reported crackling on.
+        // The cap also restores the [0, 1] invariant the truncation below relies on.
+        let gainTarget = Swift.min(1, audioSubGain * audioMixLevel)
 
         for frame in 0..<frameCount {
             currentFreq += freqGlide * (targetFreq - currentFreq)
             env += envCoeff * (gateTarget - env)
-            // Felt-sub character level × the MIXER's Bass position. Multiplied into the
-            // TARGET, not applied after the one-pole, so a fader drag inherits the same
-            // ~10 ms glide that already exists here for exactly this reason ("no zipper
-            // from slider drags") — a raw post-multiply would step per block and click.
-            smoothedGain += gainCoeff * (audioSubGain * audioMixLevel - smoothedGain)
+            // Multiplied into the TARGET, not applied after the one-pole, so a fader
+            // drag inherits the same ~10 ms glide that already exists here for exactly
+            // this reason ("no zipper from slider drags") — a raw post-multiply would
+            // step per block and click.
+            smoothedGain += gainCoeff * (gainTarget - smoothedGain)
             // Truncate the decaying one-poles' inaudible tails (~-300 dBFS — well
             // above the denormal region proper, so they never reach it).
             // ONE-SIDED ON PURPOSE, and only safe because both are UNIPOLAR BY

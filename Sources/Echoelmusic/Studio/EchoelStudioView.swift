@@ -689,6 +689,7 @@ struct EchoelStudioView: View {
             // live push in `mixBinding`: a value pulled to 0 last session must still be 0
             // after relaunch, or the fader would silently spring back on every launch.
             subBass.mixLevel = mixer.bass
+            laneVoiceRack.setBassMixLevel(mixer.bass)   // lane subs share the Bass bus
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
             laneVoiceRack.setInsert(trackFX.melodic)   // S2-W1: rack lanes too
@@ -1473,9 +1474,11 @@ struct EchoelStudioView: View {
                 // Reset writes the store DIRECTLY, so it bypasses `mixBinding` and would
                 // leave the sub at the old level while every other part jumped to unity —
                 // the same "one owner updates, the other doesn't" split that made this
-                // fader inert in the first place. Third and last writer of `mixer.bass`;
-                // a fourth must push here too.
+                // fader inert in the first place. Third of three MUTATORS; `MixerStore.init`
+                // is a fourth writer but is covered by the launch restore in `.onAppear`.
+                // A new mutator must push both lines below.
                 subBass.mixLevel = mixer.bass
+                laneVoiceRack.setBassMixLevel(mixer.bass)
                 setBassFX(.off)
                 setMelodicFX(.off)
                 recomposeIfRunning()
@@ -1587,6 +1590,7 @@ struct EchoelStudioView: View {
                     // mirror, cheaper than the comparison would be worth, and a gate is one
                     // more place to forget when a fader is added.
                     subBass.mixLevel = mixer.bass
+                    laneVoiceRack.setBassMixLevel(mixer.bass)
                     recomposeIfRunning()
                 })
     }

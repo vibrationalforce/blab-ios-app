@@ -1076,14 +1076,18 @@ public final class PianoRollModel {
     /// must not drive the sub either; and a bound kind voice (a kit, or a sub-bass lane that
     /// already IS the sub, playing at pitch rather than octave-doubled) must not be doubled.
     ///
-    /// TWO CONSEQUENCES, stated because they are behaviour, not implementation detail:
-    /// · Muting the Bass fader does not remove the felt sub — it moves UP to the lowest note
-    ///   still audible (the pad, usually). That is the existing design applied honestly, not a
-    ///   new decision: this function has always followed the lowest sounding note whatever its
-    ///   role, and already followed the pad whenever a passage had no bass at all.
-    /// · With the bass muted the sub therefore retriggers on the pad's note boundaries instead
-    ///   of resting under one long bass note, so the felt layer gets busier. That is a real,
-    ///   audible difference and the first thing to listen for if muting Bass feels wrong.
+    /// TWO CONSEQUENCES, stated because they are behaviour, not implementation detail.
+    /// ⛔ REWRITTEN 2026-07-27 — the previous text said "muting the Bass fader does NOT remove
+    /// the felt sub, it moves UP to the pad". That was true only for the ~two days between the
+    /// velocity fix (#174/#177) and the Bass fader reaching the sub at all. `SubBassVoice`
+    /// now carries the mixer's Bass position as its own `mixLevel`, so Bass at 0 SILENCES the
+    /// felt sub outright. Left as it stood, this block would have taught the next session the
+    /// opposite of what the code does — on the one function you consult to understand the sub.
+    /// · Muting the Bass fader now removes the felt sub. Which is what "mute the bass" means.
+    /// · The PITCH selection is unchanged and still role-blind: the sub follows the lowest
+    ///   audible note whatever its role, so in a passage with no bass at all it doubles the
+    ///   PAD — and the BASS fader scales and mutes it there. That cross-role coupling is real
+    ///   and is the first thing to check if the Bass fader ever seems to affect the pad.
     ///
     /// NaN velocity is excluded (`NaN > x` is false), where it previously anchored the sub.
     /// That is the better behaviour, but it is a change riding along: `Note.velocity`'s clamp

@@ -174,6 +174,17 @@ public final class LaneVoiceRack {
         for s in subs { s.setInsert(fx) }
     }
 
+    /// Push the mixer's Bass position to every dedicated lane sub — the level mirror of
+    /// `setBassInsert`. Without it the Bass fader was inert on exactly one reachable
+    /// configuration: with `FeatureFlags.voiceKindRouting` on (its registered default) a
+    /// lane whose instrument is `.subBass` becomes the `kindVoice`, `feltSubPitch`'s
+    /// `hasKindVoice` guard suppresses the primary `subBass`, and the only sub you can
+    /// hear is one nothing wrote a level to. Insert and tuning already fan out here;
+    /// level was the one bus property that did not. No-op while unattached (subs empty).
+    public func setBassMixLevel(_ level: Float) {
+        for s in subs { s.mixLevel = level }
+    }
+
     /// S2-W2-5: match every lane sub to the instrument's concert pitch, so a
     /// sub-bound lane stays in tune when A4 leaves 440 (the primary sub already
     /// gets this; without it a lane sub droned off-pitch at e.g. A=432). No-op
