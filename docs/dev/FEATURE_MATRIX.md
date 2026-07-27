@@ -51,6 +51,11 @@ acceptance line.
 >   each = level + its bus filter/drive) directly above the per-drum-channel strips
 >   (`ChannelRackView(embedded:)`). Pure layout over the existing MixerStore/TrackFXStore
 >   bindings — no new audio, FX off = bit-identical.
+>   ⛔ **Korrektur 2026-07-27 (#167):** die untere Hälfte davon existiert nicht mehr. Der
+>   „Drums"-Strip fiel mit der Drum-Entfernung (2026-07-26), und `ChannelRackView.swift` ist
+>   **gelöscht** — es mischte 8 Kanäle, die keinen Klang mehr erzeugen. Die Master-Strips
+>   (Bass · Melodic) bleiben. Damit haben `BeatPlayer.setFX/setShape/setMute/setSolo/clearSolos`
+>   und `sampleLabels` **keinen Aufrufer mehr** (nächster Schnitt).
 > - **Weather multi-parameter panel (LIVE, v172)** — `Core/WeatherMood.swift`: `Contribution`
 >   now carries continuous per-parameter targets split SOUND (darkness/liveliness/tension →
 >   blended into `MoodProfile` before the composer Input) + IMAGE (hue/saturation/glow/motion →
@@ -58,8 +63,9 @@ acceptance line.
 >   mixKey·`currentIntensity`) + pure `blend()`; the Session weather row is an explained,
 >   grouped Klang/Bild mixer of `WeatherMixRow` leaves (each an `EchoelValueField` 0..1). Weather
 >   opt-in (default OFF); every mixer 0 = bit-identical. Fully unit-tested (pure), UI ui-state-reviewed.
-> - **Adaptive H/V layout (LIVE, v170/v173)** — `ChannelRackView` (v170) and the new
->   `AdaptiveCardGrid` leaf (v173) reflow the drum channels, master mix strips, and weather
+> - **Adaptive H/V layout (LIVE, v170/v173 — Regel überlebt, Quelle nicht)** — die Regel kam aus
+>   `ChannelRackView.rackColumns` (v170, gelöscht #167); sie lebt heute nur noch im
+>   `AdaptiveCardGrid` leaf (v173) und reflowt master mix strips und weather
 >   Klang/Bild groups to 2 columns in landscape / on iPad, 1 in portrait. Size-class read
 >   confined to the leaf (render-safe); layout-only, revertible.
 > - **Timeline playback (PARTIAL, v169)** — `Sequencer/TimelineRegionPlayer.swift` rides the

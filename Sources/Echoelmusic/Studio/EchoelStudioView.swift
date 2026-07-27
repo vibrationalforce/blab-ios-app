@@ -1550,10 +1550,10 @@ struct EchoelStudioView: View {
     // NO DRUMS (founder 2026-07-26): `drumsBinding`, `drumsCutoffBinding`,
     // `drumsDriveBinding` and `setDrumsFX(_:)` lived here. They were the only REACHABLE
     // writers of `trackFX.drums`, `BeatPlayer.masterLevel`/`setFX` and
-    // `laneVoiceRack.setDrumsInsert`. Two of those four still have a writer in compiling
-    // code — `BeatPlayer.setFX` in the now-unmounted `ChannelRackView`, and `trackFX.drums`
-    // in `TrackFXStore.reset()`, itself callerless — so do not read this as "the symbol has
-    // no writers"; grep will find them.
+    // `laneVoiceRack.setDrumsInsert`. `BeatPlayer.setFX` kept one writer after that — the
+    // unmounted `ChannelRackView` — until #167 deleted the view (2026-07-27), so it now has
+    // none. `trackFX.drums` still has one, in `TrackFXStore.reset()`, itself callerless; do
+    // not read this block as "the symbols have no writers" without grepping.
 
     /// A binding to one mixer level that re-balances the running take when changed.
     private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {
@@ -4440,9 +4440,10 @@ private struct ExportedFile: Identifiable {
 /// wide layouts don't waste horizontal space (founder: "passendes adaptives Design
 /// für horizontal und Vertikal"). A LEAF that reads the size classes in its OWN body
 /// — size-class changes are rare (rotation / resize), never per-frame, and confining
-/// the read here keeps it off the churny root body (freeze rule). Mirrors the proven
-/// ChannelRackView.rackColumns rule (v170) so the master strips and the drum channels
-/// reflow together. Layout-only: identical content, just columns.
+/// the read here keeps it off the churny root body (freeze rule). The rule came from
+/// `ChannelRackView.rackColumns` (v170), which mixed the drum channels; that view is
+/// deleted (#167) and this is now the only place the rule lives.
+/// Layout-only: identical content, just columns.
 @MainActor
 private struct AdaptiveCardGrid<Content: View>: View {
     @Environment(\.horizontalSizeClass) private var hSize

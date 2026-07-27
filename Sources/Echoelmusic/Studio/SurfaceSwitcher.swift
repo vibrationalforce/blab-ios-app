@@ -109,8 +109,9 @@ struct SurfaceSwitcherBar: View {
 /// `ArrangeTimelineView` already removed); `SurfaceSwitcherBar` still stands,
 /// unmounted. `ChannelRackView` used to be the one exception — LIVE, embedded in
 /// `EchoelStudioView`'s Mix panel — but the drum removal (founder 2026-07-26,
-/// "es soll keine Drums geben. Auch nicht im Mixer.") unmounted it too: it mixed
-/// the 8 drum channels, and there are none. The v136 size contract (fill +
+/// "es soll keine Drums geben. Auch nicht im Mixer.") unmounted it: it mixed
+/// the 8 drum channels, and there are none. It is now DELETED (#167, 2026-07-27),
+/// which is why this paragraph is history rather than a map. The v136 size contract (fill +
 /// clipped) is preserved so nothing inflates past the screen.
 @MainActor
 struct SurfaceHost: View {
