@@ -8363,3 +8363,45 @@ Fehler). 88339a3 — beide Gates ✓, Reveal-Lauf ausstehend.
 **Weiter offen an den Founder:** Loop Rendering (Ambiguität, mehrfach gefragt) ·
 Geräte-Verify Build 2469 (Mix-Fader hörbar? Pegel gehalten? Farbe im Visual? sauberer
 Start?).
+
+---
+
+## 2026-07-27 — Zyklen 7–9: #175 · #170 · #188 (alle Gates grün)
+
+**#175 — Play-Pfade benennen sich** (`4b33f4a` + `83916a1`). `PatternEngine.PlayCause` +
+`play(cause:)` + EIN Breadcrumb VOR der Kaskade (die Stop-Seite hat das teuer gelernt:
+ein quellenloses „transport-stopped" kostete einen Triage-Zyklus). Damit ist Log 2466s
+Rätsel — Noten 67 s vor „Start tapped" — beim nächsten Geräte-Log auswertbar.
+**Korrektur an meiner eigenen Commit-Aussage:** ich schrieb „sieben Aufrufstellen können
+den Transport starten". Compile-Wahrheit, nicht Laufzeit-Wahrheit — drei hängen an
+gelöschten Flächen (`PianoRollView` #178, `ArrangementPlayer` #121/4, `LaunchQuantizer`).
+**Vier** Ursachen können je in einem Log stehen.
+
+**#170 — Automations-Dokument härten** (`2983395` + `d4dad40`). `AutomationState` hatte den
+synthetisierten Decoder: EIN nicht-Objekt-Lane, ein falsch getyptes Flag oder ein morgen
+hinzugefügtes Feld warf → alle gezeichneten Kurven weg UND `enabled` still auf aus.
+Jetzt element-tolerant (`LossyDecoded<AutomationLane>`) + feldtolerant. **Ehrlich:** das
+schützt ein LESEN, keine Speicher-Schleife — es gibt heute keinen erreichbaren Schreiber,
+aber `applyStep` läuft bei jedem Transport-Schritt, alte Kurven spielen also weiter.
+Einbahntür dokumentiert: `enabled` hat keinen In-App-Setter, `?? false` ist endgültig.
+Die zwei übrigen Stellen der Aufgabe wurden **per Erreichbarkeit** geschlossen, nicht per
+Decoder (siehe HARNESS_LEDGER, DEAD-END).
+
+**#188 — MIDI-Export-Tür zurück** (`8b759c0` + `4e44929`). Knopf im Export-Panel durch den
+VORHANDENEN `share`-Schacht: Kette bleibt bei 14 Modifiern, kein neuer `@State`, VStack
+7→8 Kinder. **Melodie-only** — Begründung ist NICHT der Generator (`silentBeat()` liefert
+leere Raster), sondern `open(_:)`, das `p.drumSteps` aus vor-#166-Projekten zurücklädt.
+App-Store-Text (en+de) nennt MIDI wieder, in DERSELBEN Scheibe wie der Code.
+
+**Reviewer-Bilanz dieser drei Zyklen: 3 sachlich falsche Aussagen von mir gefunden**
+(compile-vs-laufzeit ×1, Kommentar-Kopf-statt-Schwanz ×1, falsche Test-Abdeckung ×1),
+**2 echte Defekte, die ich selbst eingebaut hatte** (stiller Totalverlust im neuen
+Decoder; lügendes „(8 Takte)"-Label) und **1 latente Test-Falle** (Byte-Scanner bricht bei
+`bars: 8`). Alle behoben, jeweils als Nachlese-Commit mit benannter Ursache.
+
+**Belege:** `4b33f4a`/`83916a1`/`2983395`/`d4dad40`/`8b759c0` — Xcode Compile Check ✓,
+CI/CD Pipeline ✓, Full Test Suite ✓. `4e44929` — Xcode ✓, Rest lief noch.
+
+**Weiter offen an den Founder:** Geräte-Verify (Build 2469 und alles danach) — die
+Play-Breadcrumbs nützen erst mit einem neuen `echoel_diag.log`; und ob der Share-Dialog
+die `.mid` wirklich anbietet, ist nur auf dem Gerät zu sehen.

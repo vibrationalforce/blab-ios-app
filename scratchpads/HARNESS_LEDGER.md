@@ -1128,3 +1128,57 @@ Zeuge, an dem ein Geräte-Log eine Anzeige-Rastung überhaupt sichtbar macht. Ei
 „Vereinheitlichung" hätte alle vier Ausgaben (Zahl, Take-Tempo, Bus, Health-Schreibpfad)
 aus EINEM Fehler speisen lassen. **Bevor zwei Pfade zusammengelegt werden: was verliert
 man an Beobachtbarkeit?**
+
+---
+
+## 2026-07-27 — Drei Fallen aus einem Zyklus (#170 / #188), alle vom Pflicht-Reviewer
+
+### DEAD-END: „defensiver Decoder" für einen Pfad ohne Schreiber
+
+`#170` listete vier Stores. Zwei davon (`ArrangementStore`, `SessionRecorder`) haben
+**null erreichbare Schreiber** — ihre Oberflächen sind gelöscht bzw. türlos. Ein Decoder,
+der Datenverlust verhindert, ist dort wertlos: **die Datei wird nie überschrieben, also
+kann nichts verloren gehen.** Der Aufwand wäre in eine Datei geflossen, die mit #132
+sowieso stirbt.
+
+**Stattdessen:** Erreichbarkeit ZUERST prüfen (wer SCHREIBT?), dann härten. Und die
+Bedingung im Code hinterlegen: *wird die Fläche je wieder aufgemacht, muss ihr Decoder
+IM SELBEN Slice mit* — der Re-Door ist genau der Moment, in dem niemand hinschaut.
+
+**Nebenfalle im selben Fix:** `(try? decode([Lossy<T>].self)) ?? []` macht den
+**Totalverlust** still, weil `dropped = 0 - 0 = 0` und die Telemetrie nicht feuert. Die
+teilkaputte Variante war laut, die schlimmste stumm — exakt invertiert. `do`/`catch`,
+`keyNotFound` still (legitimer Erstlauf), alles andere MIT Fehler loggen.
+
+### DEAD-END: naiver Byte-Scanner auf SMF-Daten ist parameter-abhängig
+
+Ein Test-Helper suchte Note-Ons per `(b[i] & 0xF0) == 0x90`. `serializeTrack` schreibt vor
+End-of-Track ein `vlq(endTick - lastTick)`; bei `bars: 8` ist das `0x98 0x00` → der Scanner
+meldet einen Ton in einer **leeren** Spur. Grün war der Test nur, weil die Fixture zufällig
+`bars: 2` (`0x86`) nutzte. **Jeder, der die Fixture „realistischer" macht, bekommt Rot ohne
+sichtbare Ursache.**
+
+**Die Regel:** Ein Absenz-Assert über einem binären Format braucht einen echten Parser,
+nie eine Byte-Suche. Und wenn der Kommentar die Nutzlast byteweise behauptet — die
+Behauptung wirklich ausrechnen, inklusive der Delta-Zeiten.
+
+### PLAYBOOK: einen Kommentar zitieren, der sich selbst widerspricht
+
+Ich begründete eine Änderung mit „der Komponist füllt `pattern.steps` (siehe :4017)" —
+und zitierte damit die **erste Hälfte** eines Kommentars, dessen **Schwanz sechs Zeilen
+später** sagt, dass der Beat 2026-07-07 entfernt wurde (`BioComposer.silentBeat()` liefert
+leere Raster). Die Änderung war trotzdem richtig, nur aus einem anderen Grund
+(`open(_:)` lädt `p.drumSteps` aus Alt-Projekten zurück).
+
+**Die Regel:** Ein zitierter Kommentar-Block wird **bis zum Ende** gelesen, bevor er als
+Beleg dient — in diesem Repo dokumentieren Kommentar-Schwänze routinemäßig, dass der Kopf
+überholt ist. Und: die Begründung am **verifizierten Datenpfad** aufhängen, nicht am
+plausibelsten.
+
+### PLAYBOOK: Test-Abdeckung nicht behaupten, sondern eingrenzen
+
+Header behauptete „diese Tests schlagen an, wenn jemand X zurückholt". Sie prüften den
+**Exporter**, nicht die **Aufrufstelle** — das Zurückholen der einen Produktionszeile lässt
+die Suite grün. Falsche Abdeckung ist schlimmer als keine. Wenn die Aufrufstelle nicht
+testbar ist (privat, in einer 4000-Zeilen-`@MainActor`-View ohne Injektionsnaht), gehört
+genau das in den Header — plus die Notiz, dass die Extraktion eine eigene Scheibe ist.
