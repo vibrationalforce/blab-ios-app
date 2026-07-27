@@ -768,3 +768,39 @@ consumer must NOT build its input through that constructor.** Assign through the
 (which is also how production reaches it — the composer mutates `n.velocity` on a built note).
 General form: to prove a test covers line L, mentally revert ONLY L and ask whether it still
 passes. "It fails against the whole old tree" is not the same claim.
+
+## 2026-07-27 — DEAD-END: "pre-existing / infrastructure" as a diagnosis you never checked
+The suite's ONE red test carried the note "pre-existing simulator startup error, nothing to do
+with audio" through several cycles. I repeated that note each cycle without ever opening the
+test. Both halves were false: it was GREEN until `c9af52b` (the founder's drums removal) and it
+failed on an ASSERTION, not on the launch error sitting next to it in the CI output.
+
+Two mechanisms produced the wrong triage, both worth knowing:
+1. **The grep makes unrelated lines adjacent.** `full-tests.yml`'s Summary is
+   `grep -E "failed|error:" full-test.log`. A simulator-clone launch message matches on `failed`
+   and an assertion matches on `error:`; two lines minutes apart in the log print next to each
+   other. **Adjacency in that block is not causality.**
+2. **A label survives longer than the evidence for it.** Once "infrastructure flake" was in the
+   task title, every later cycle read the title instead of the test.
+
+**RULE: a parked failure gets ONE cheap re-derivation before it may be repeated as fact — read
+the test body and `git log -S` the assertion. If a whole suite is green except one test, the
+host app did NOT fail to launch.** The decisive check here took one grep: a SIBLING test in the
+same class uses the same fixture and the same call and is green.
+
+**And the real lesson underneath:** the test was pinning behaviour the founder had deliberately
+removed. Whenever a founder-ordered REMOVAL lands, grep the test suite for the removed
+behaviour in the SAME commit — `c9af52b` updated two test files and missed a third, and that
+miss looked like a product defect for ten hours.
+
+## 2026-07-27 — PLAYBOOK: after a removal, check the repaired test still has TEETH
+Fixing the above, the obvious repair was to keep the drums fixture and assert the new value
+(`.poly`) at prime. That would have been GREEN AND WORTHLESS: stop() publishes `.poly` too, so
+the test would pass even with the stop-reset deleted. Swapping the fixture to a kind that still
+resolves to a real voice (`.subBass`) keeps prime ≠ stop.
+
+**RULE: when a removal collapses two distinct expected values into one, the test that compared
+them is now vacuous. Re-point it at a live value, and add an explicit
+`XCTAssertNotEqual(before, after)` so the vacuity cannot creep back.** Generalises the
+already-ledgered "revert ONLY line L and ask if the test still passes" check to the case where
+the culprit is the FIXTURE rather than the input.
