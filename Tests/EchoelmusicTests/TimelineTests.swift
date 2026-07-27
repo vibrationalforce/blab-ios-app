@@ -238,6 +238,32 @@ final class TimelineTests: XCTestCase {
         XCTAssertNil(doc.rollSlotSilenceReason)
     }
 
+    /// ORDERING LAW for the Start breadcrumb: `startBiofeedback` logs WHICH cause it
+    /// rescued, and it can only do that by reading `rollSlotSilenceReason` BEFORE calling
+    /// the heal — afterwards the reason is nil by construction, so a reordered read would
+    /// silently log "unknown" forever. The founder iterates from pasted diag logs, and a
+    /// diagnostic that always prints the same word is worse than none: it looks like
+    /// evidence. Nothing else pins this, because both halves are individually correct.
+    func testSilenceReasonMustBeReadBeforeHealing_orTheStartBreadcrumbSaysNothing() {
+        var doc = TimelineDocument(lanes: [
+            TimelineLane(name: "MIDI 1", kind: .midi, isMuted: true),
+        ])
+        let readBefore = doc.rollSlotSilenceReason
+        XCTAssertEqual(readBefore, .muted, "the cause is knowable before the heal")
+
+        XCTAssertTrue(doc.healRollSlotAudibility())
+        XCTAssertNil(doc.rollSlotSilenceReason,
+                     "and NOT knowable after — which is why the read must come first")
+    }
+
+    /// The three causes must stay distinguishable in a log line. A raw value that
+    /// collides or renames turns a founder's pasted log into a wrong diagnosis.
+    func testSilenceReasonRawValuesAreDistinctAndStable() {
+        let all: [TimelineDocument.RollSilenceReason] = [.muted, .otherSoloed, .levelZero]
+        XCTAssertEqual(Set(all.map(\.rawValue)).count, 3)
+        XCTAssertEqual(all.map(\.rawValue), ["muted", "otherSoloed", "levelZero"])
+    }
+
     func testUnsilenceRollSlot_keepsRollOwnSolo_andNonZeroLevel() {
         var doc = TimelineDocument(lanes: [
             TimelineLane(name: "MIDI 1", kind: .midi, level: 0.7, isMuted: true, isSoloed: true),

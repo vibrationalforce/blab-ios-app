@@ -455,9 +455,17 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     /// #22 follow-up (founder log v255: `generate[start] … rollMixGain=0.00`
     /// then a 15 s silent session and an exit): make the ONE shared roll slot
     /// audible again for an explicit user Start. ONE law, not two (review
-    /// MEDIUM): this is a gated DELEGATE to `unsilenceRollSlot` — the same
-    /// heal the #22 "Ton an" banner button applies — so Start and the banner
-    /// can never drift. The gate uses the codebase-wide ≤ 0.001 audibility
+    /// MEDIUM): this is a gated DELEGATE to `unsilenceRollSlot`, so any future
+    /// second entry point cannot drift from Start.
+    ///
+    /// ⚠ CORRECTED 2026-07-27: this comment used to say "the same heal the #22
+    /// 'Ton an' banner button applies". **There is no such banner** — a grep for it
+    /// finds only this sentence. Start is the ONLY thing that heals a silent roll
+    /// slot, and that is a deliberate design, not a gap: Start already means "I want
+    /// to hear it", so the silence is repaired before the user can notice it. Do NOT
+    /// read this line as evidence that a banner once existed and should be restored —
+    /// a second heal owner is exactly the "two places decide the same thing" bug this
+    /// delegate exists to prevent. The gate uses the codebase-wide ≤ 0.001 audibility
     /// threshold (review MEDIUM: `== 0` left a crack — a persisted 0.0005
     /// level was gated silent everywhere yet refused the heal). Returns true
     /// when anything changed. Callers invoke this ONLY on an explicit user
