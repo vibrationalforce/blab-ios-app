@@ -56,11 +56,19 @@ final class LoudnessTargetTests: XCTestCase {
     }
 
     func testExportTarget_unreadableSettingFallsBackToTheDefaultNotToOff() {
-        // The second nil, and the reason this is a function rather than one more
-        // `??`. An unparseable stored value is a CORRUPTED setting, not a user
-        // choosing "off": it must land on the registered default (`.streaming`), or a
-        // damaged preference would silently switch normalisation off for everyone.
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "not-a-target"), -14)
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: ""), -14)
+        // HONEST LABEL: this asserts UNCHANGED behaviour, not the fix — the old
+        // expression also produced −14 for an unparseable raw. It is a regression pin
+        // (it would catch a future `?? .off`), not evidence that the two nils are now
+        // separated; `testExportTarget_offMeansDoNotNormalise` is the only test that
+        // distinguishes new code from old.
+        //
+        // Derived from `StudioDefaultKeys`, not hardcoded to −14: the resolver's
+        // `?? .streaming` duplicates the registered default with no compile-time link,
+        // so changing the default tomorrow must fail here rather than silently leave
+        // the resolver behind while the doc comment becomes a lie.
+        let registeredDefault = LoudnessTarget(rawValue: StudioDefaultKeys.loudnessTarget.value)?.integratedLUFS
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "not-a-target"), registeredDefault)
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: ""), registeredDefault)
+        XCTAssertNotNil(registeredDefault, "the registered default must be a real target, never \"off\"")
     }
 }

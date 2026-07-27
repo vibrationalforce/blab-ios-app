@@ -118,6 +118,10 @@ struct FloatingVisualWindow: View {
     @Environment(SessionContext.self) private var session
     @Environment(Transport.self) private var transport
     @AppStorage(StudioDefaultKeys.genre.key) private var genre: MusicStyle = StudioDefaultKeys.genre.value
+    /// Delivery loudness target, shared with the Master panel — read here so this
+    /// window's WAV export obeys the same setting as the Studio export buttons.
+    @AppStorage(StudioDefaultKeys.loudnessTarget.key)
+    private var loudnessTargetRaw = StudioDefaultKeys.loudnessTarget.value
     @State private var recordedClip: RecordedClip?
     /// When recording started — drives the on-screen REC elapsed time.
     @State private var recordStart: Date?
@@ -673,7 +677,11 @@ struct FloatingVisualWindow: View {
         let ex = audioEngine.singleExport
         ex.reset()
         ex.outputFormat = .wav          // lossless PCM — no codec artifacts
-        ex.targetLUFS = -14             // loudness match only (gain), character intact
+        // The SAME delivery target the Master panel shows — nil ("No target") means no
+        // normalisation. This was hardcoded to −14 until 2026-07-27, which made the
+        // Master setting a lie one button over: the two Studio export buttons honoured
+        // it while this one, in a window visible by default, always normalised to −14.
+        ex.targetLUFS = LoudnessTarget.exportTargetLUFS(rawValue: loudnessTargetRaw)
         ex.trimLengthSeconds = nil      // keep the WHOLE take (no bar-grid trim here)
         await ex.export(sourceURL: cafURL)
         if let url = ex.exportState.exportedURL {

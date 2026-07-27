@@ -9,8 +9,10 @@ import Observation
 ///
 /// Usage:
 ///   let exporter = SingleExport()
-///   try await exporter.export(sourceURL: cafURL, targetLUFS: -14, format: .aac)
-///   // → returns URL to finished file
+///   exporter.outputFormat = .aac
+///   exporter.targetLUFS = -14        // or nil to skip normalisation entirely
+///   await exporter.export(sourceURL: cafURL)
+///   let url = exporter.exportState.exportedURL
 @MainActor @Observable
 final class SingleExport {
 
@@ -83,6 +85,19 @@ final class SingleExport {
 
     // MARK: - Export
 
+    /// Gain to apply so a take measured at `measuredDB` lands on `target` — or 0 dB
+    /// when `target` is nil ("No target": deliver at the captured level). Clamped to
+    /// ±12 dB so a mismeasured or near-silent take can't be slammed.
+    ///
+    /// Pure + static ON PURPOSE. Inline inside the `async` AVFoundation method this
+    /// arithmetic was untestable, and it is the one line the "No target" fix actually
+    /// changes in the audio path — so it was the half of that fix nothing asserted.
+    /// A pure seam makes "nil ⇒ 0 dB" a test rather than a hope.
+    nonisolated static func normalizeGainDB(target: Float?, measuredDB: Float) -> Float {
+        let raw = target.map { $0 - measuredDB } ?? 0
+        return Swift.min(Swift.max(raw, -12), 12)
+    }
+
     func export(sourceURL: URL) async {
         guard exportState == .idle else { return }
         exportState = .analyzing
@@ -92,9 +107,7 @@ final class SingleExport {
             let outputURL = try makeOutputURL(sourceURL: sourceURL)
             let timeRange = try await resolveTrimRange(sourceURL: sourceURL)
             let gainDB = try await measureLUFS(sourceURL: sourceURL, timeRange: timeRange)
-            // nil target = deliver at the captured level: 0 dB, not a "neutral" −14.
-            let normalizeGain = targetLUFS.map { $0 - gainDB } ?? 0   // positive = boost, negative = cut
-            let clampedGain = Swift.min(Swift.max(normalizeGain, -12), 12)
+            let clampedGain = Self.normalizeGainDB(target: targetLUFS, measuredDB: gainDB)
 
             exportState = .exporting(progress: 0)
             log.log(.info, category: .audio, "SingleExport: gain \(String(format: "%.1f", clampedGain))dB → \(outputFormat.label)")

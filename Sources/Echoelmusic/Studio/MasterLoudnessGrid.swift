@@ -31,8 +31,14 @@ struct MasterLoudnessGrid: View {
     @Environment(AudioEngine.self) private var audioEngine
     /// Shared with the Master panel's target picker — both read/write this key so
     /// the colour-coding matches the user's chosen delivery target everywhere.
-    @AppStorage("studio.loudnessTarget") private var targetRaw = LoudnessTarget.streaming.rawValue
-    private var target: LoudnessTarget { LoudnessTarget(rawValue: targetRaw) ?? .off }
+    @AppStorage(StudioDefaultKeys.loudnessTarget.key)
+    private var targetRaw = StudioDefaultKeys.loudnessTarget.value
+    /// Falls back to `.streaming` — the REGISTERED default — not to `.off`. Until
+    /// 2026-07-27 this said `?? .off` while the export path said `?? -14`, so one
+    /// unreadable stored string made the readout claim "no target in effect" (neutral
+    /// colours, no true-peak warning, empty picker) while the export still normalised
+    /// to −14. One key must not have two fallbacks.
+    private var target: LoudnessTarget { LoudnessTarget(rawValue: targetRaw) ?? .streaming }
 
     private static let floor = EchoelLoudnessMeter.floorLUFS
 
