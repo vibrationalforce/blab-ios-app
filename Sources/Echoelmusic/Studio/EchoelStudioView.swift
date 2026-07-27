@@ -682,6 +682,13 @@ struct EchoelStudioView: View {
             // as of #167 `masterLevel` is not even a symbol any more, so do not grep for it.
             subBass.setInsert(trackFX.bass)
             laneVoiceRack.setBassInsert(trackFX.bass)  // S2-W2-5: lane subs too
+            // …and the persisted Mixer BASS LEVEL, which until now reached nothing audible:
+            // the mixer applies levels as a compose-time velocity scale, and the felt sub
+            // has no per-note velocity, so the one fader the founder reached for was the
+            // one that did nothing (2026-07-27). Restoring it here matters as much as the
+            // live push in `mixBinding`: a value pulled to 0 last session must still be 0
+            // after relaunch, or the fader would silently spring back on every launch.
+            subBass.mixLevel = mixer.bass
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
             laneVoiceRack.setInsert(trackFX.melodic)   // S2-W1: rack lanes too
@@ -1463,6 +1470,12 @@ struct EchoelStudioView: View {
 
             Button {
                 mixer.resetToUnity()
+                // Reset writes the store DIRECTLY, so it bypasses `mixBinding` and would
+                // leave the sub at the old level while every other part jumped to unity —
+                // the same "one owner updates, the other doesn't" split that made this
+                // fader inert in the first place. Third and last writer of `mixer.bass`;
+                // a fourth must push here too.
+                subBass.mixLevel = mixer.bass
                 setBassFX(.off)
                 setMelodicFX(.off)
                 recomposeIfRunning()
@@ -1565,7 +1578,17 @@ struct EchoelStudioView: View {
     /// A binding to one mixer level that re-balances the running take when changed.
     private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {
         Binding(get: { mixer[keyPath: keyPath] },
-                set: { mixer[keyPath: keyPath] = $0; recomposeIfRunning() })
+                set: {
+                    mixer[keyPath: keyPath] = $0
+                    // The felt sub takes its level on the AUDIO side, because it has no
+                    // per-note velocity for the compose-time path to scale (see
+                    // `SubBassVoice.mixLevel`). Pushed unconditionally rather than gated on
+                    // `keyPath == \.bass`: the assignment is a clamped Float store into a
+                    // mirror, cheaper than the comparison would be worth, and a gate is one
+                    // more place to forget when a fader is added.
+                    subBass.mixLevel = mixer.bass
+                    recomposeIfRunning()
+                })
     }
 
     /// Step 2b (2026-07-17, PLAN_DISSOLVE_BOTTOM_BAR): the Composition panel's

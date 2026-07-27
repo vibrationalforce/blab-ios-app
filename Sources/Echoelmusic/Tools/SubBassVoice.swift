@@ -60,6 +60,36 @@ public final class SubBassVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var audioSubGain: Float = SubBassVoice.defaultSubGain
 
+    /// The MIXER's Bass Level, as an audio-side level [0…1.5] (founder 2026-07-27:
+    /// "Beim Mix ist der Bass nicht an den Level Regler geknüpft").
+    ///
+    /// WHY IT NEEDED ITS OWN PATH instead of the mixer's existing one: every other part
+    /// takes the mixer level as a note-VELOCITY scale at compose time (`MixerStore` header,
+    /// `finish()` in `EchoelStudioView`). That cannot reach this voice, and deliberately so
+    /// — the felt sub has no per-note velocity at all (`noteOn(pitch:velocity:)` routes to
+    /// the pitch-only form, because a body-felt sub with per-note dynamics is a different
+    /// instrument). So the fader scaled a velocity that this voice discards, and the one
+    /// part the user most wants to pull down was the one part that would not move.
+    ///
+    /// It is deliberately SEPARATE from `subGain`, not folded into it: `subGain` is the
+    /// performer's felt-sub character control and is persisted/patched independently, while
+    /// this is the mix position. Multiplying them at the render target keeps both honest —
+    /// pulling either to 0 silences the sub, which is what both controls promise.
+    ///
+    /// Bass-role notes ALSO play through the poly voice and are already velocity-scaled by
+    /// the same mixer value; that is one scale per sounding path, not a double-apply — the
+    /// sub is an additional layer, not a duplicate of the poly bass.
+    public var mixLevel: Float = 1 {
+        // NaN-safe `clamped(to:)` for the reason spelled out on `subGain`: a NaN would
+        // survive `min(max(...))`, poison `smoothedGain`'s one-pole, and mute the sub for
+        // the rest of the session. Upper bound matches `MixerStore.range`'s 1.5.
+        didSet { audioMixLevel = mixLevel.clamped(to: 0...1.5) }
+    }
+
+    /// Audio-thread-readable mirror of `mixLevel` (same bridge as `audioSubGain`).
+    @ObservationIgnored
+    nonisolated(unsafe) private var audioMixLevel: Float = 1
+
     /// Sub character "presence" [0…1] — octave-harmonic stack so the sub READS on
     /// small speakers (SubCharacter; founder "sub culture" ask 2026-07-16). The
     /// 0.5 default reproduces the previous hard-coded shaping bit-identically.
@@ -297,7 +327,11 @@ public final class SubBassVoice {
         for frame in 0..<frameCount {
             currentFreq += freqGlide * (targetFreq - currentFreq)
             env += envCoeff * (gateTarget - env)
-            smoothedGain += gainCoeff * (audioSubGain - smoothedGain)
+            // Felt-sub character level × the MIXER's Bass position. Multiplied into the
+            // TARGET, not applied after the one-pole, so a fader drag inherits the same
+            // ~10 ms glide that already exists here for exactly this reason ("no zipper
+            // from slider drags") — a raw post-multiply would step per block and click.
+            smoothedGain += gainCoeff * (audioSubGain * audioMixLevel - smoothedGain)
             // Truncate the decaying one-poles' inaudible tails (~-300 dBFS — well
             // above the denormal region proper, so they never reach it).
             // ONE-SIDED ON PURPOSE, and only safe because both are UNIPOLAR BY
