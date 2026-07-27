@@ -3064,7 +3064,9 @@ struct EchoelStudioView: View {
     /// the default page shows only Bio strip · Start · pads; capturing a loop is
     /// a deliberate act, one tap away.
     private var utilityRow: some View {
-        panel("Export", "WAV loop · keep what just played", isExpanded: $showExport) {
+        // Subtitle names MIDI too (#188) — it is the only place the door is visible before
+        // the panel is opened, and a restored feature nobody can find is a removed feature.
+        panel("Export", "WAV loop · MIDI for your DAW · keep what just played", isExpanded: $showExport) {
         VStack(spacing: 10) {
             if !hasComposed {
                 // The export/keep/save buttons below are disabled until there's a take —
@@ -3111,8 +3113,31 @@ struct EchoelStudioView: View {
             .disabled(isExporting || !hasComposed)
             .accessibilityHint("Keeps the last bars you just heard as a WAV loop, without replaying them")
 
-            // MIDI export removed (founder 2026-07-02: "Midi Quatsch kann auch weg").
-            // The WAV export below now carries the key/tempo/tuning/genre in its name.
+            // MIDI export — RESTORED (#188, founder 2026-07-27). It was removed 2026-07-02
+            // ("Midi Quatsch kann auch weg"); the exporter itself was never deleted and
+            // stayed tested, so `exportMIDI()` sat here with no caller while the App Store
+            // text still promised it. Export is explicitly inside the product boundary
+            // (unlike arrangement / multitrack / video), and carrying a bio-take into a DAW
+            // is what separates an instrument from a toy.
+            //
+            // ⛔ NO NEW `.sheet`. This flows through the SAME `share` slot the WAV export
+            // already uses (`exportMIDI` ends in `share = ExportedFile(url:)`), so the
+            // presentation-modifier chain on this body does not grow by one — that chain is
+            // the metadata ceiling the app already crashed into (black screen, 10.76.34).
+            // Zero new state, zero new modifier: a button, nothing else.
+            Button { exportMIDI() } label: {
+                Label("Export MIDI (\(loopBars.label))", systemImage: "pianokeys")
+                    .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            // `isExporting` is a WAV concern, but both writers land in the ONE `share` slot,
+            // so a MIDI export mid-record would silently replace the WAV the user is waiting
+            // for. Disabled together for that reason, not because MIDI export is slow.
+            .disabled(isExporting || !hasComposed)
+            .accessibilityHint("Exports the take as a MIDI file to open in a DAW, with tempo and key")
 
             HStack(spacing: 10) {
                 Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
@@ -4316,11 +4341,18 @@ struct EchoelStudioView: View {
         // writes tempo + 4/4 + key-signature so the clip drops onto the DAW grid in the right
         // Tonart and loops seamlessly.
         let (arrangedNotes, bars) = pianoRoll.arrangementForExport()
-        let steps = LoopCutter.tile(grid: beatPlayer.pattern.steps, bars: bars)
-        let accents = LoopCutter.tile(grid: beatPlayer.pattern.accents, bars: bars)
-        guard !arrangedNotes.isEmpty || steps.contains(where: { $0.contains(true) }) else { return }
+        // MELODY ONLY — `steps`/`accents` are deliberately empty. The composer still fills
+        // `pattern.steps` (a groove is generated at :4017), but since the drums were deleted
+        // (#166/#167) NOTHING renders that grid: it is a bar clock now, not a beat. Tiling it
+        // into the .mid would hand a DAW a drum track the user never heard in the app —
+        // exactly the lying-control class, and the opposite of "keine Drums".
+        // `exportCombined` (not the Type-0 melody `export`) is still the right engine: it is
+        // what writes tempo + 4/4 + KEY SIGNATURE and anchors End-of-Track to bars × 4
+        // quarters, which is the whole point of "in der DAW weiterarbeiten". It emits an
+        // empty, named Drums track — inert in any DAW, and honest, because it is empty.
+        guard !arrangedNotes.isEmpty else { return }
         let data = MIDIFileExporter.exportCombined(
-            notes: arrangedNotes, steps: steps, accents: accents,
+            notes: arrangedNotes, steps: [], accents: [],
             tempo: beatPlayer.pattern.tempo, bars: bars,
             keyRootPitchClass: rootIndex, keyIsMinor: scale.isMinorTonality)
         // Name carries key + tempo + tuning + genre, like the WAV export.
