@@ -5,7 +5,7 @@ Gebaut für Performance, Installation, Content und Studioarbeit — auf dem iPho
 
 DER KÖRPER ALS CONTROLLER
 
-Verbinde die Apple Watch, einen Bluetooth-Herzfrequenzgurt oder nutze die iPhone-Kamera (rPPG), um Deinen Puls zu lesen:
+Lies Deinen Puls aus Apple Health (z. B. Apple Watch), von einem Bluetooth-Herzfrequenzgurt oder mit der iPhone-Kamera (rPPG):
 
 - Herzfrequenz formt Tempo und Vibrato
 - HRV und Kohärenz formen Brillanz, Harmonizität, Textur und Raum

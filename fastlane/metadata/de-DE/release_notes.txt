@@ -4,6 +4,7 @@ Neu in diesem Build
 
 Komposition
 - Acht kuratierte Genres: Self-Observation, Deep Ambient, Drift, Contemplation, Vaporwave, Sci-Fi, Classical und Dub Techno
+  (alle Genres sind derzeit schlagzeugfrei — Echoelmusic hat keine Drum-Engine; die Genres unterscheiden sich in Harmonik, Klangfarbe und Bewegung)
 - Charakter-Regler: Liveliness, Darkness, Tension, Romance, Weird
 - Kammerton (A4) exakt auf den Cent einstellbar; Tonart und optionaler BPM-Lock
 

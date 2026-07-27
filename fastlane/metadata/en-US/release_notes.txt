@@ -4,6 +4,7 @@ New in this build
 
 Composition
 - Eight curated genres: Self-Observation, Deep Ambient, Drift, Contemplation, Vaporwave, Sci-Fi, Classical and Dub Techno
+  (all genres are currently drum-free — Echoelmusic has no drum engine; the genres differ in harmony, timbre and motion)
 - Character controls: Liveliness, Darkness, Tension, Romance, Weird
 - Concert pitch (A4) set exactly to the cent; key selection and optional BPM lock
 

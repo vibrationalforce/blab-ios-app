@@ -126,7 +126,7 @@
             <p><strong>Biometric Data:</strong> Heart rate variability (HRV), heart rate, and breathing patterns from Apple Watch or HealthKit are processed in real-time on your device to influence audio, visuals, and lighting. This data never leaves your device and is not stored.</p>
             <p><strong>Audio Input:</strong> Microphone input for music production, voice synthesis, and audio analysis is processed locally. No audio is uploaded to servers or shared with third parties.</p>
             <p><strong>Camera (pulse / rPPG):</strong> When you start a camera pulse reading, the rear camera with the torch reads subtle color changes in your fingertip to estimate heart rate (photoplethysmography). Frames are analyzed in real time on-device and are never recorded, stored, or transmitted. There is no face tracking, AR, or video recording.</p>
-            <p><strong>Sensors:</strong> Bluetooth heart-rate straps and device motion are read on-device to drive the instrument. None of this is transmitted off-device, except optional OSC / Art-Net / MIDI control data you explicitly enable on your local network.</p>
+            <p><strong>Sensors:</strong> Bluetooth heart-rate straps are read on-device to drive the instrument. This stays on your device unless you explicitly switch on local-network output (OSC / ADM-OSC / Art-Net / sACN / MIDI) or nearby session sharing — see those sections below for exactly which values then leave.</p>
         </section>
 
         <section>
@@ -156,10 +156,23 @@
             <p>If you explicitly enable it, Echoel can send one-way control data over your local network or to connected gear:</p>
             <ul>
                 <li>OSC and ADM-OSC messages, Art-Net / sACN lighting, and MIDI you initiate</li>
-                <li>This carries control values only — no personal or health data is sent</li>
+                <li><strong>This stream carries live biosignal values, not only control data.</strong> Over OSC it can include heart rate, HRV (RMSSD, SDNN, pNN50), breathing rate and phase, and coherence — that is what makes lights and other software react to your body</li>
+                <li><strong>Only measurements Echoel takes itself are sent</strong> — the iPhone camera, a Bluetooth heart-rate strap, or the demo generator. Values read from Apple Health or Apple Watch are never sent; they stay on your device</li>
+                <li>It is plain UDP on your local network, so it is not encrypted — treat that network as you would any studio or stage LAN</li>
                 <li>Nothing is sent to our servers (we operate none)</li>
                 <li>You choose the target device/address; it stays on your network</li>
             </ul>
+        </section>
+
+        <section>
+            <h2>Nearby Session Sharing (peer-to-peer)</h2>
+            <p>Echoelmusic can share a live session with someone next to you, device to device. It is <strong>off until you start or accept a session</strong>, and there is no server involved — the connection runs directly between the two devices over Apple's MultipeerConnectivity.</p>
+            <p>While a session is active, these values are sent to the other person's device about twice per second:</p>
+            <ul>
+                <li>Your heart rate, coherence, normalized HRV and breathing rate</li>
+                <li>The display name you choose for the session</li>
+            </ul>
+            <p>The other person sees those numbers live. As with local-network output, only measurements Echoel takes itself are shared — values read from Apple Health or Apple Watch are excluded by the same rule. Nothing is recorded, and nothing reaches us. Leaving the session ends the transmission.</p>
         </section>
 
         <section>

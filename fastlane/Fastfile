@@ -255,15 +255,23 @@ platform :ios do
     )
   end
 
-  desc "Upload screenshots to App Store Connect"
+  desc "Upload screenshots to App Store Connect — DISARMED, see below"
   lane :upload_screenshots do
+    # ⛔ `overwrite_screenshots: true` against an EMPTY fastlane/screenshots/ would
+    # delete every live App Store screenshot and put nothing back. There is no
+    # screenshot pipeline today, so this lane could only ever destroy. It stays
+    # disarmed until screenshots actually exist here; flip both flags back in the
+    # same commit that adds them.
+    UI.user_error!("upload_screenshots is disarmed: fastlane/screenshots/ has no " \
+                   "screenshots, and running it would wipe the live App Store ones. " \
+                   "Add screenshots and re-arm this lane in the same commit.")
     api_key = setup_api_key
     upload_to_app_store(
       api_key: api_key,
       skip_binary_upload: true,
-      skip_metadata: false,
+      skip_metadata: true,
       screenshots_path: "./fastlane/screenshots",
-      overwrite_screenshots: true
+      overwrite_screenshots: false
     )
   end
 end

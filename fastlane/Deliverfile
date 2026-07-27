@@ -31,8 +31,11 @@ itc_team_id ENV["APPLE_TEAM_ID"]
 # METADATA CONFIGURATION
 # =============================================================================
 
-# false = deliver DOES upload metadata from fastlane/metadata/ (currently an
-# empty directory — see the caution in the header before reviving this).
+# false = deliver DOES upload metadata from fastlane/metadata/.
+# ⚠️ That directory is NOT empty — it holds the live App Store copy for en-US and
+# de-DE (8 files each). With skip_metadata false, `deliver` OVERWRITES the live
+# listing with whatever is in this repo. The "currently an empty directory"
+# parenthetical that stood here was false and contradicted this file's own header.
 skip_metadata false
 
 # Skip binary upload (handled by TestFlight lanes)
