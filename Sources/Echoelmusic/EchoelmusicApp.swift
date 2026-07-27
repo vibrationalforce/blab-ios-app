@@ -547,12 +547,16 @@ struct EchoelmusicApp: App {
                 // the loudspeaker. The engine's route-loss recovery only re-wires the
                 // graph (silent once stopped); THIS runs the exact TransportBar stop
                 // cascade so every player/voice releases through the proven path.
-                audioEngine.onOutputDeviceLost = { [weak timelinePlayer, weak beatPlayer] in
-                    guard beatPlayer?.pattern.isPlaying == true
-                            || timelinePlayer?.isPlaying == true else { return }
+                // The timeline half of this cascade is gone with ▶'s arrangement branch
+                // (`TransportBar.toggle`): `TimelineRegionPlayer.isPlaying` has one write
+                // site and no production caller reaches it, so the old two-branch form was
+                // a dead choice that still read like a live one — the exact thing the ▶
+                // change removed one file over. Leaving it here would have the repo assert
+                // in one file what it denies in another.
+                audioEngine.onOutputDeviceLost = { [weak beatPlayer] in
+                    guard beatPlayer?.pattern.isPlaying == true else { return }
                     EchoelCrashLog.breadcrumb("stop source: route-lost (output device gone)")
-                    if timelinePlayer?.isPlaying == true { timelinePlayer?.stop() }
-                    else { beatPlayer?.pattern.stop() }
+                    beatPlayer?.pattern.stop()
                 }
                 #if canImport(UIKit)
                 // 2.5.4, second hole (code review 2026-07-16): audio that ENDS while
@@ -987,6 +991,13 @@ struct EchoelmusicApp: App {
                     // drain (real-time audio thread). stop() also deactivates the
                     // session with .notifyOthersOnDeactivation, giving other apps
                     // their audio back; the .active branch below restarts idempotently.
+                    // `timelinePlayer.isPlaying` and `arrangementPlayer.isPlaying` are both
+                    // constant-false today (neither `play(...)` has a production caller).
+                    // They STAY: a redundant disjunct in an OR chain is not a lying choice
+                    // the way the route-lost `if` above was — it cannot pick a wrong branch,
+                    // only fail to add a `true` that is already covered. Editing a
+                    // background-audio lifecycle guard for tidiness is the riskier move, and
+                    // #132 Slice 5 removes the types outright.
                     let audioNeeded = transport.isPlaying
                         || beatPlayer.pattern.isPlaying
                         || timelinePlayer.isPlaying

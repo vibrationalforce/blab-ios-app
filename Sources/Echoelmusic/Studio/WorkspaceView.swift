@@ -435,10 +435,31 @@ private struct TransportBar: View {
             // Start below and delivered silence. A condition whose only remaining effect is
             // to withhold sound is not a guard.
             //
-            // The model (`TimelineStore`, `ClipStore`, `TimelineRegionPlayer`) is untouched:
-            // `TimelineRegionPlayer` still fans transport steps out to the secondary lane
-            // voices, which is live. Only its ARRANGEMENT-PLAYBACK entry point is now
-            // unreachable. Retiring the model itself is #132 Slice 5.
+            // The model (`TimelineStore`, `ClipStore`, `TimelineRegionPlayer`) is untouched
+            // as CODE, and #132 Slice 5 retires it. But be precise about what that means,
+            // because the first version of this comment got it wrong in the direction that
+            // blocks the deletion: I wrote that the player "still fans transport steps out
+            // to the secondary lane voices, which is live". It does NOT.
+            // `TimelineRegionPlayer.transportStep` opens with `guard isPlaying`, and
+            // `isPlaying` has ONE write site — inside `play(document:)`, which now has no
+            // production caller. So the per-tick relay from `PianoRollView` still fires and
+            // returns immediately: the secondary-lane fan-out, the audio-lane sink, the
+            // mixer/structure refresh and the timeline automation are ALL permanently inert.
+            // Nothing regressed — those lanes only ever sounded during arrangement playback,
+            // which is the thing being removed — but a future session must not read this
+            // block as "load-bearing, do not delete".
+            // The PRIMARY instrument is unaffected and that is the part that is live:
+            // `PianoRollModel.trigger(step)` runs from the same tick closure OUTSIDE any
+            // timeline guard, so roll → voices → `MusicalFrame` is untouched.
+            // Two things the deleted conditions used to carry, named so they are chosen
+            // rather than lost: (1) `doc.regions.isEmpty` existed so a VIDEO-ONLY
+            // arrangement fell through to the loop instead of being handed generative
+            // music it never asked for — such a project now gets the instrument, which is
+            // right since video capture went with #121 Slice 3. (2) the `pattern.play`
+            // branch below has no silence diagnostic any more; the universal-Start branch
+            // keeps one because it routes into `startBiofeedback`, which both names the
+            // cause and heals it. Restoring it here would mean reading the document again,
+            // i.e. undoing this change for a log line.
             if pianoRoll.notes.isEmpty, !bus.instrumentRunning {
                 // UX-2 (first-run silence): nothing is composed and nothing is running, so
                 // `pattern.play()` would just walk the playhead over silence and a new user
