@@ -21,11 +21,16 @@ import Foundation
 /// mix, then runs the fast-tanh `x·(27 + x²)/(27 + 9x²)` — a finite-but-large `x`
 /// overflows `x²` to `inf`, and `inf/inf` is NaN, produced AFTER that sweep.
 ///
-/// Nothing downstream cleans it up. The limiter makes it worse, not better:
-/// `EchoelLimiter.processStereo` is a gain computer, not a clamp — for `peak = inf`
-/// it solves `g = ceiling / peak = 0` and returns `inf * 0`, i.e. it CONVERTS an
-/// infinity into a NaN. NaN then fails every comparison, so it survives the
-/// remaining branches untouched and poisons each recursive node it reaches.
+/// Nothing downstream cleans it up. The limiter is a gain computer, not a clamp: it
+/// scales what it is given, so an `inf` leaves it as an `inf` and a NaN as a NaN.
+/// NaN then fails every comparison, so it survives the remaining branches untouched
+/// and poisons each recursive node it reaches. (Amended 2026-07-27: this used to say
+/// the limiter CONVERTED an infinity into a NaN via `inf * (ceiling/inf)`. That was
+/// true of the pre-#194 version. `EchoelLimiter.processStereo` now bails out of its
+/// whole state update on a non-finite input — otherwise `inf` would pin its peak
+/// envelope at infinity permanently and silence the master bus for good. The limiter
+/// no longer makes non-finite input worse; it still cannot make it better, which is
+/// exactly why this guard exists upstream.)
 ///
 /// ── COVERAGE ────────────────────────────────────────────────────────────────
 /// All seven of the app's `AVAudioSourceNode` render blocks are wired. WHICH ENTRY

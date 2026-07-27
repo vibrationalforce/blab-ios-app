@@ -33,6 +33,79 @@ final class EchoelDynamicsTests: XCTestCase {
         }
     }
 
+    /// THE FALSIFYING TEST for the 2026-07-27 crackle fix (#194). Both the old and the
+    /// new limiter satisfy `testLimiterNeverExceedsCeiling` — a hard clipper does too, and
+    /// that is exactly why that test did not catch the bug. What separates them is the
+    /// SHAPE of what comes out on sustained over-ceiling material:
+    ///
+    /// · a hard clipper (`g = ceiling/peak` with no ballistics) flat-tops the waveform, so
+    ///   the output tends toward a square wave — crest factor → ~1.07 at 4× overdrive;
+    /// · a limiter with a real attack SCALES it, so the sine stays a sine — crest ≈ √2.
+    ///
+    /// The crest floor of 1.30 sits well clear of both. The flat-topping is what folded
+    /// back as inharmonic aliasing at 48 kHz (un-oversampled) — the "gritty / like CPU
+    /// overload in Ableton" texture, not a click.
+    func testLimiterScalesSustainedMaterialInsteadOfFlatToppingIt() {
+        let lim = EchoelLimiter(sampleRate: sr)
+        lim.ceilingDb = -0.3
+        let ceiling = powf(10.0, -0.3 / 20.0)
+
+        let omega: Float = 2 * .pi * 200 / sr      // 200 Hz, period 240 samples
+        let total = 48_000, window = 4_800         // measure the last 20 cycles only
+        var peakOut: Float = 0, sumSq: Float = 0
+        var minGain: Float = .greatestFiniteMagnitude, maxGain: Float = 0
+
+        for i in 0..<total {
+            let x = 4.0 * sinf(Float(i) * omega)   // ~12 dB over the ceiling
+            let (l, _) = lim.processStereo(x, x)
+            guard i >= total - window else { continue }
+            peakOut = Swift.max(peakOut, abs(l))
+            sumSq += l * l
+            if abs(x) > 0.5 {                      // implied gain, away from zero crossings
+                let g = l / x
+                minGain = Swift.min(minGain, g); maxGain = Swift.max(maxGain, g)
+            }
+        }
+
+        let rms = sqrtf(sumSq / Float(window))
+        XCTAssertGreaterThan(rms, 0, "limiter went silent on sustained material")
+        XCTAssertGreaterThan(peakOut / rms, 1.30, "output is flat-topped, not scaled")
+        XCTAssertLessThanOrEqual(peakOut, ceiling * 1.001)
+
+        // The gain is a CONTINUOUS signal, not a per-sample step train. The old version's
+        // gain swung the full 0.24…1.0 every cycle (spread ~0.76) — multiplying audio by a
+        // discontinuous gain IS the distortion. With ballistics it barely moves.
+        XCTAssertLessThan(maxGain - minGain, 0.05, "gain is still stepping per sample")
+    }
+
+    /// "Fail to resting, never to silence": once loud material stops, the gain must come
+    /// back. A limiter that sticks down is the permanent-silence class of bug.
+    func testLimiterReleasesBackToUnityAfterLoudMaterial() {
+        let lim = EchoelLimiter(sampleRate: sr)
+        lim.ceilingDb = -0.3
+        for i in 0..<4_800 { _ = lim.processStereo(4.0 * sinf(Float(i) * 0.1), 0) }
+        XCTAssertLessThan(lim.gainReductionDb, -6, "limiter never engaged on loud input")
+
+        var last: Float = 0
+        let quiet: Float = 0.05
+        for _ in 0..<48_000 { last = lim.processStereo(quiet, quiet).0 }   // 1 s of quiet
+        XCTAssertEqual(last, quiet, accuracy: 1e-4)
+        XCTAssertEqual(lim.gainReductionDb, 0, accuracy: 0.05)
+    }
+
+    /// A NaN sample must not poison the smoother's state. NaN fails every comparison, so
+    /// it takes the release branch with `target = 1` and leaves `gain` untouched — the
+    /// next finite sample is processed as if nothing happened. (An `inf` is a different
+    /// case and is stopped UPSTREAM by `AudioOutputGuard`; see its file doc.)
+    func testLimiterNaNDoesNotPoisonGainState() {
+        let lim = EchoelLimiter(sampleRate: sr)
+        lim.ceilingDb = -0.3
+        let (l, _) = lim.processStereo(Float.nan, 0)
+        XCTAssertTrue(l.isNaN)                                  // passes through, unclean
+        XCTAssertTrue(lim.gainReductionDb.isFinite)             // state does not
+        XCTAssertEqual(lim.processStereo(0.5, 0.5).0, 0.5, accuracy: 1e-6)
+    }
+
     // MARK: - Compressor
 
     func testCompressorTransparentBelowThreshold() {
