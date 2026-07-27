@@ -1,65 +1,65 @@
-build: v10.79.351 — keine Drums mehr, die Genres klingen wieder verschieden, und der Panic-Knopf hält, was er verspricht
+build: v10.79.352 — die Mix-Fader wirken jetzt auf den Klang, nicht nur aufs Bild; die Pianoroll ist raus
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Dein Build war 2466 (v10.79.350). Seither liegen 14 fix/feat-Commits im Branch, die du
-  noch nie auf dem Gerät hattest. Deine erste Ansage — „Im Mix Fenster stimmt was nicht.
-  Sind noch Drums drin." — ist im Repo seit `c9af52b` erledigt; sie war nur nicht bei dir.
-  Deshalb zuerst dieser Deploy, bevor ich irgendwas Neues baue.
+  Zwei deiner vier Ansagen sind hiermit erledigt. Der Build davor (351) brachte die Drums
+  weg und die Genre-Identität zurück; dieser bringt die Pianoroll-Entfernung und die
+  eigentliche Ursache des grauen Visuals.
 
-  DAS, WORAUF DU GEWARTET HAST:
+  1) DIE PIANOROLL IST RAUS. Der Notes-Chip, das Editor-Fenster und der Sheet-Slot
+     dahinter sind weg. Was BLEIBT, und zwar mit Absicht: das Modell darunter. Das ist
+     nicht der Editor, sondern der Noten-Motor — es spielt die erzeugte Aufnahme ab und
+     veröffentlicht die Noten, aus denen das Visual seine Farbe zieht. Hätte ich es
+     mitgelöscht, wäre das Instrument stumm und das Bild grau geworden, also genau das
+     Gegenteil von dem, was du im selben Satz bestellt hast.
 
-  1) DRUMS SIND RAUS — aus dem Instrument UND aus dem Mix-Fenster. Nicht ausgeblendet,
-     sondern entfernt: das Mix-Fenster hat keine Drum-Regler mehr, und der Generator
-     erzeugt keine Drum-Spur. Was du im Mixer siehst, ist ab jetzt genau das, was klingt.
+     Ehrlich benannt, weil es eine echte Einbuße ist: es gibt jetzt KEINEN Noteneditor
+     mehr. Eine Aufnahme kannst du hören, mischen und exportieren — nicht korrigieren.
 
-  2) DIE GENRES KLINGEN WIEDER VERSCHIEDEN. Ein Comp-Genre (Jazz, Rock) hat den Akkord in
-     Wahrheit GEHALTEN statt ihn zu zerhacken — Ton für Ton identisch mit dem ruhigen
-     Klassik-Modus. Ursache: die Akkord-Sektionen werden aus 16 Steps geschnitten, und
-     eine Sektion, die keinen der Chop-Punkte enthielt, fiel auf „einmal halten" zurück.
-     Bei Jazz und Rock traf das zwei von vier Sektionen — damit war der Unterschied weg.
-     Jetzt zerhackt es auch dort, versetzt vom Sektions-Downbeat und auf das Achtel-Raster
-     gerastet. Da Drums stumm sind und Auto-Leads aus, ist die Fläche der Ort, wo Genre-
-     Rhythmus überhaupt noch lebt — deshalb war das hörbar tödlich.
+  2) DIE MIX-FADER WIRKEN JETZT AUF DEN KLANG. Das ist die Ursache hinter deinem grauen
+     Visual, und sie war absurder als gedacht: die Fader wurden beim Erzeugen in die Noten
+     eingebrannt, das VISUAL las diesen Wert und wurde dunkel — und das AUDIO warf ihn
+     eine Zeile später weg und spielte unverändert weiter. Dein Log sagte deshalb
+     „5 Noten, Lautstärke 0" während Musik lief. Ein Fader auf 0 war fürs Auge still und
+     fürs Ohr unverändert: ein Mute, das nicht stummschaltet.
 
-  3) DER PANIC-KNOPF („Silence — all notes off") erreicht jetzt JEDE klingende Stimme.
-     Er ließ vier von sieben weiterklingen, während sein Hinweistext das Gegenteil
-     behauptete.
+     Jetzt formt der Bio-Puls die gespielte Lautstärke, statt sie zu ersetzen. Heißt: die
+     Fader sind hörbar, ein Fader auf 0 schaltet wirklich stumm, und das Bild zeigt, was
+     wirklich klingt.
 
-  4) DAS STOP IM NOTES-EDITOR PAUSIERT, statt die ganze Bio-Session zu beenden. Vorher
-     ging mit einem Tap Taschenlampe, Kamera und Puls-Lock mit aus.
+  3) Der Panic-Knopf, das pausierende Notes-Stop, die Persistenz-Härtung und die
+     Ressourcen-Reparatur aus 351 sind natürlich weiter drin.
 
-  5) EINE KAPUTTE DATEI NIMMT KEINE BIBLIOTHEK MEHR MIT. Vier Persistenz-Pfade (Presets,
-     Patchbay-Routen u. a.) haben beim Laden alles verworfen, sobald EIN Element nicht
-     lesbar war — und der nächste Speichervorgang schrieb den geleerten Stand fest. Jetzt
-     wird das eine kaputte Element übersprungen, der Rest überlebt.
+  ZU PRÜFEN AUF DEM GERÄT, in dieser Reihenfolge — die ersten beiden sind neu und
+  unbewiesen, alles Weitere ist Beiwerk:
 
-  6) DIE RESSOURCEN LANDEN ÜBERHAUPT IM BUILD. XcodeGen kennt keinen `resources:`-Schlüssel
-     auf Target-Ebene — der ganze Block wurde still ignoriert. Das betraf Privacy-Manifest,
-     die Marken-Schrift und die Community-Presets. Bitte im Build 2467 daraufhin ansehen,
-     ob die Kopfzeile jetzt in der richtigen Schrift steht.
+  - MIX-FADER BEWEGEN (Bass / Pad / Lead). Hörst du jetzt einen Unterschied? Vorher: nein,
+    egal wie weit du gezogen hast. Und: einen Fader ganz runter — wird es wirklich still?
+  - IST ES INSGESAMT GLEICH LAUT GEBLIEBEN? Es soll. Ich habe mich beim Ausrechnen zweimal
+    geirrt, bevor die Reviews es gefangen haben — einmal wären es ~7 dB leiser geworden.
+    Wenn es dir leiser vorkommt, sag es sofort, dann ist die dritte Rechnung auch falsch.
+  - HAUT DIE MELODIE ZU SEHR RAUS? Sie sitzt jetzt etwa 1,7 dB vor der Fläche. Das ist
+    Absicht und musikalisch normal — aber du hattest am 07.07. genau darüber geklagt, und
+    diese Balance wurde vorher gar nicht geliefert (die Bio-Modulation hat alles
+    plattgemacht). Falls zu vorlaut: die Korrektur gehört in die Komposition, nicht in den
+    Synth, sonst gibt es wieder zwei Stellen, die dieselbe Lautstärke bestimmen.
+  - KOMMT FARBE INS VISUAL? Wenn die Fader oben sind, sollte sie. Falls nicht, schick das
+    Diag-Log — es trägt seit 351 ein Feld `mfAmp`, das die Frage beweist statt sie zu raten.
+  - STARTET DIE APP SAUBER? Die Präsentations-Kette ist von 16 auf 15 GESCHRUMPFT (die
+    Pianoroll-Tür hat ihren Slot mitgenommen), also in die sichere Richtung — trotzdem ist
+    es die Kette, die den Black Screen verursacht hat.
 
-  7) DIE VISUAL-FARBE KANN NICHT MEHR EWIG HÄNGEN. Sie rastete auf dem letzten Ton ein und
-     kam nie zurück auf neutral, wenn danach nur noch stille Noten kamen. Der Ausstieg hat
-     jetzt eine Hysterese (rein bei 0.02, raus erst unter 0.01), damit die Farbe nicht mit
-     ~3 Hz hin- und herspringt — die Flash-Obergrenze gilt auch hier.
+  WAS DIESER BUILD NICHT REPARIERT:
+  - DER BASS-FADER TUT WEITER NICHTS. Die Sub-Bass-Stimme wirft die Velocity komplett weg,
+    bevor sie irgendwo ankommt — dieselbe Defektklasse, andere Stimme, eigene Scheibe.
+    Such nicht danach, ich weiß davon.
+  - LOOP RENDERING: unangetastet, weil ich noch nicht weiß, was du meinst. Der Loop-Export
+    existiert (Export-Reiter: WAV, taktgenau geschnitten, LUFS-normalisiert, plus „Keep
+    last"). Fehlen dir STEMS pro Kanal aus dem Mix-Fenster heraus, findest du den Export
+    nicht, oder meinst du echtes Offline-Rendering statt Echtzeit-Mitschnitt? Eine Zeile
+    von dir und ich baue es.
 
-  WAS DIESER BUILD NICHT REPARIERT — ehrlich, damit du nicht danach suchst:
-
-  - DAS VISUAL BLEIBT WAHRSCHEINLICH GRAU. Ich habe nur den Latch repariert, nicht die
-    Ursache. Dein Log zeigt `mfNotes=5 level=0.00`: es kommen fünf Noten an, alle mit
-    Lautstärke null. Der Grund steht fest — die Mix-Regler werden BEIM ERZEUGEN in die
-    Note eingebrannt (`velocity * fader`), und ein Regler auf 0 erzeugt dauerhaft stille
-    Noten, die persistent gespeichert bleiben. Bis das gefixt ist: zieh im Mix-Fenster
-    Bass/Pad/Lead hoch, dann sollte Farbe kommen. Das ist der nächste Punkt.
-  - LOOP RENDERING fehlt weiter — noch nicht angefasst, kommt als eigener Zyklus.
-  - DIE PIANOROLL IST NOCH DRIN. Ich nehme die Tür raus, aber nicht das Modell darunter:
-    genau dieses Modell veröffentlicht die Noten, aus denen das Visual seine Farbe zieht.
-    Beides in einem Zug zu löschen, während du im selben Satz bessere Visuals bestellst,
-    wäre der falsche Schnitt. Erst Tür weg, Modell bleibt kopflos.
-
-  KORREKTUR ZU MEINER LETZTEN ANTWORT: ich hatte gesagt, im ersten Log spielten Noten vor
-  dem Start-Tap. Dein zweites Log zeigt direkt nach dem `noteOn` ein `touch=1` — das war
-  fast sicher das Touch-Instrument, also du selbst, nicht der Sequencer.
-
-  Beide echten Gates grün auf c29f8af (Xcode Compile Check + CI/CD Pipeline). Rausch-Triad
-  unberührt, kein Heilungs-Claim, keine neue Oberfläche, Sheet-Kette unverändert bei 16.
+  Beide echten Gates grün auf 6f2932d (Xcode Compile Check + CI/CD Pipeline). Die
+  294-Datei-Testsuite meldet unverändert genau EINEN Fehler, und zwar den vorbestehenden
+  Simulator-Startfehler, der nichts mit Audio zu tun hat — die sieben neuen DSP-Tests sind
+  grün und kein bestehender ist umgekippt. Rausch-Triad unberührt, kein Heilungs-Claim,
+  Audio-Thread weiterhin lock- und allokationsfrei.
