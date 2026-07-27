@@ -298,14 +298,12 @@ struct WorkspaceView: View {
 private struct TransportBar: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
-    // The ONE transport plays the ARRANGEMENT when the timeline has regions (founder
-    // 2026-07-15 video: "zu viele Play Knöpfe, einer reicht" — the separate "Play
-    // timeline" button is gone). These are read ONLY inside toggle()'s action, never in
-    // body, so the transport bar subscribes to none of them (freeze rule).
-    @Environment(TimelineStore.self) private var timeline
-    @Environment(ClipStore.self) private var clips
+    // ▶ is the INSTRUMENT's button and reads NOTHING from the timeline document
+    // (founder 2026-07-27). The `TimelineStore` / `ClipStore` / `TimelineRegionPlayer`
+    // reads that used to live here are gone — see toggle().
+    // Read ONLY inside toggle()'s action, never in body, so the transport bar
+    // subscribes to nothing (freeze rule).
     @Environment(PianoRollModel.self) private var pianoRoll
-    @Environment(TimelineRegionPlayer.self) private var timelinePlayer
     /// Read ONLY inside toggle() (a tap handler, not body) for the UX-2 empty-project
     /// branch — `instrumentRunning` is the Start/Stop-frequency chrome mirror, and a
     /// closure read registers no body observation anyway (freeze rule intact).
@@ -409,64 +407,48 @@ private struct TransportBar: View {
 
     private func toggle() {
         if transport.isPlaying {
-            // Stop whichever engine is running: timeline-follow releases its region clips
-            // + secondary-lane voices; a plain pattern loop just stops.
             // T1 breadcrumb: name the finger BEFORE the stop cascades — the 2361 log's
             // source-less "transport-stopped" burned a triage cycle proving it was a tap.
-            EchoelCrashLog.breadcrumb("stop source: transport-bar ■ (\(timelinePlayer.isPlaying ? "timeline" : "pattern"))")
-            if timelinePlayer.isPlaying { timelinePlayer.stop() }
-            else { player.pattern.stop() }
+            // The old two-branch stop (timeline-follow vs pattern) is gone with the
+            // arrangement branch below: nothing can put `TimelineRegionPlayer` into
+            // `isPlaying` any more, so a branch on it would have been dead code that
+            // still reads like a live choice.
+            EchoelCrashLog.breadcrumb("stop source: transport-bar ■")
+            player.pattern.stop()
         } else {
-            // Play the SONG if anything is arranged on the timeline, else the live loop.
-            // timelinePlayer.play starts the shared pattern itself and chains the region
-            // clips via the always-on onTick relay (PianoRollView) — so this ONE button
-            // covers both the loop and the arrangement.
-            let doc = timeline.document
-            // Playable = a MIDI (roll) lane OR an audio lane exists (A1: a pure-audio
-            // arrangement must sound too — the old rollLaneID-only check silenced it).
-            // Founder v287/v288: `hasArrangementContent` (not the raw `!regions.isEmpty`)
-            // so the primary roll lane's auto-composer MIRROR — the new visible MIDI-clip
-            // tile Generate places — does NOT flip ▶ from the live bio-generative loop to
-            // a frozen region. Any real arrangement content still engages the arrangement.
-            // DIAGNOSE-ONLY, never heal here. Two of ▶'s three branches do not go through
-            // `startBiofeedback`, so they never consult the roll slot's audibility — a
-            // legacy-persisted mute would play a silent session and the diag log would
-            // show `rollMixGain=0.00` with no word about WHY. Reading the cause on every ▶
-            // closes that gap. It must stay a READ: `startBiofeedback` is the single owner
-            // of the heal (see `healRollSlotAudibility`'s note), and a second healer here
-            // would be the "two places decide the same thing" bug all over again — ▶ on an
-            // arrangement is not the same intent as "make the instrument audible".
-            if let cause = doc.rollSlotSilenceReason {
-                EchoelCrashLog.breadcrumb("play: roll slot is silent (cause: \(cause.rawValue))")
-            }
-            if doc.rollLaneID != nil || !doc.audioLaneIDs.isEmpty,
-               doc.hasArrangementContent(isComposerOwned: { clips.clip(id: $0)?.composerOwned ?? false }) {
-                // CLIP-5: start at the PARKED playhead's bar (drag-then-play), not
-                // always bar 1. Read the position BEFORE play — pattern.play() →
-                // transport.play() zeroes it.
-                let parkedTick = transport.position.absoluteStep * TimelineTime.ticksPerTransportStep
-                timelinePlayer.play(document: doc, clips: clips,
-                                    pattern: player.pattern, pianoRoll: pianoRoll,
-                                    fromTick: parkedTick)
-                // Show the REAL start bar (the player folded/clamped the tick).
-                if timelinePlayer.isPlaying, timelinePlayer.currentTick > 0 {
-                    transport.seek(toBar: timelinePlayer.currentTick / TimelineTime.ticksPerBar)
-                }
-            } else if doc.regions.isEmpty,
-                      !player.pattern.steps.contains(where: { $0.contains(true) }),
-                      pianoRoll.notes.isEmpty, !bus.instrumentRunning {
-                // UX-2 (first-run silence): NOTHING is composed anywhere — no timeline
-                // region of ANY kind (explicit: a video-only arrangement must fall to
-                // pattern.play() below, not get generative music it never asked for),
-                // no drum step, no roll note. pattern.play()
-                // would move the playhead over pure silence and a new user concludes
-                // the app is broken. The one obvious ▶ must SOUND: start the
-                // bio-generative instrument through the exact notification the header
-                // pulse pill posts (the studio owns start/stop; chrome stays decoupled).
+            // ▶ PLAYS THE INSTRUMENT. It no longer consults the timeline document at all
+            // (founder 2026-07-27: "Der ganze DAW Quatsch der nicht funktioniert hat soll
+            // erstmal raus aus dem TestFlight").
+            //
+            // What it did, and why that had to go: the first branch here read the PERSISTED
+            // arrangement and, if it held any real region, played THAT instead of the
+            // instrument. On build 2469 that is exactly what happened — ▶ produced a
+            // breakbeat imported into the session weeks earlier. Slice 4 (#130) removed the
+            // arrangement UI, so since then the document has been invisible AND undeletable
+            // while still owning the one transport button: a control that answers to data
+            // the user can neither see nor reach. Removing the surface without removing its
+            // authority is what made it a trap rather than a leftover.
+            //
+            // The drum-grid condition went with it. `pattern.steps` can still come back
+            // non-empty from a pre-#166 project via `open(_:)`, and since the founder
+            // removed the drums it CANNOT make a sound — so it suppressed the universal
+            // Start below and delivered silence. A condition whose only remaining effect is
+            // to withhold sound is not a guard.
+            //
+            // The model (`TimelineStore`, `ClipStore`, `TimelineRegionPlayer`) is untouched:
+            // `TimelineRegionPlayer` still fans transport steps out to the secondary lane
+            // voices, which is live. Only its ARRANGEMENT-PLAYBACK entry point is now
+            // unreachable. Retiring the model itself is #132 Slice 5.
+            if pianoRoll.notes.isEmpty, !bus.instrumentRunning {
+                // UX-2 (first-run silence): nothing is composed and nothing is running, so
+                // `pattern.play()` would just walk the playhead over silence and a new user
+                // concludes the app is broken. The one obvious ▶ must SOUND: start the
+                // bio-generative instrument through the exact notification the header pulse
+                // pill posts (the studio owns start/stop; chrome stays decoupled).
                 // generate() starts the transport itself, so ▶ flips to ■ honestly.
-                // Guarded on instrumentRunning so a tap in the brief start window
-                // (before the first roll notes land) can't toggle the session OFF.
-                EchoelCrashLog.breadcrumb("play: empty project → universal Start (toggleBio)")
+                // Guarded on instrumentRunning so a tap in the brief start window (before
+                // the first roll notes land) can't toggle the session OFF.
+                EchoelCrashLog.breadcrumb("play: nothing composed → universal Start (toggleBio)")
                 NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
             } else {
                 player.pattern.play(cause: .transportButton)
