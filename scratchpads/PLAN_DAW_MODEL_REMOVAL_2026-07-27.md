@@ -24,13 +24,28 @@ und `transportStep` beginnt mit `guard isPlaying` — die gesamte Schicht ist un
 `TimelineLane` · `TimelineDocument.lanes` · `LaneComposerInput` · `TrackInstrument` ·
 `SpatialSceneStore` · `ImmersiveStageView` · `ParameterApplyRouter` ·
 `PerTrackAutomationResolver`.
-Diese Typen tragen Pro-Spur-Instrument, Patch, Mixer-Werte und die räumliche Platzierung.
-`SpatialSceneStore.rebuild(from: [TimelineLane])` ist der Immersive-Stage-Pfad.
+
+**DER TRAGENDE BELEG, korrigiert nach Review — hier genau lesen, sonst prüft die nächste
+Session das Falsche:** B bleibt wegen `LaneComposerInput.composeLaneOverrides`, aufgerufen
+aus `applyLaneOverrides(input:)` auf dem **Generate-Pfad** (`EchoelStudioView.swift:4119`),
+das `doc.lanes` liest. **Das ist die einzige LAUFZEIT-Kante.**
+Die erste Fassung dieses Absatzes begründete B mit
+`SpatialSceneStore.rebuild(from: [TimelineLane])` — das ist eine **Compile-Kante, keine
+Laufzeit-Kante**: ihre beiden Aufrufer liegen in `ImmersiveStageView`, und die View hat
+repo-weit NULL Instanziierungen (CLAUDE.md: „stays doorless — deliberately", Ship-Gate 4).
+`SpatialSceneStore` wird heute nie aus Spuren neu aufgebaut. Wer B über die Bühne
+„verifiziert", findet eine türlose View und schließt daraus entweder fälschlich auf Leben
+oder verweigert eine korrekte Löschung.
 
 **C — DER STIMMEN-RACK IN DER MITTE, und das ist die unangenehme Erkenntnis.**
 `LaneVoiceRack` wird im LIVE-Studio angehängt, gestartet, mit Insert-FX und Stimmung
 versorgt (`EchoelmusicApp.swift:488/492/615`, `EchoelStudioView` an 6 Stellen) — aber
-seine **Noten** kamen ausschließlich aus dem Fan-Out, der jetzt hinter `guard isPlaying`
+seine **Noten** kamen ausschließlich aus dem Fan-Out. `LaneVoiceRack.noteOn` hat GENAU
+EINEN Aufrufer (`EchoelmusicApp.swift:627`, im `slotNoteSink`-Closure), und jede
+Feuerstelle dieses Sinks liegt hinter `guard isPlaying`.
+**Präzise, weil „tot" hier zu grob wäre: notenlos ≠ ungefüttert** — `feedBio`
+(`LaneVoiceRack.swift:473` ← `EchoelmusicApp.swift:612`) läuft weiter pro Tick. Wer das
+Rack anfasst, muss diese Kante mitzählen. Der Fan-Out selbst liegt hinter `guard isPlaying`
 liegt. Das Rack ist damit heute eine Menge allozierter Stimmen, die **nie eine Note
 bekommen**. Kein Regress durch den ▶-Fix (sie klangen vorher auch nur während
 Arrangement-Wiedergabe), aber eine lügende Struktur: Insert-FX und Stimmung werden an
@@ -94,10 +109,23 @@ gepinnte Tabelle — beide Stellen mitgeändert. **Kein** Verhalten ändert sich
 ### 5b — Audio-Region-Wiedergabe
 `AudioLanePlayer` · `TimelineAudioSink` · `AudioClipPlayer` · `AudioRegionPlayback` ·
 `AudioClipFactory` · `WarpedClipPlan` · `StretchPlan` · `StretchMode`.
-**Achtung, zwei Kanten nach draußen:** `TimelineAudioSink` wird von
-`DSP/AudioOutputGuard.swift` und `Audio/AudioOutputGuard+PCMBuffer.swift` referenziert,
-und `BeatPlayer.auditionSink` hängt daran. Diese Scheibe beginnt damit, diese drei
-Kanten zu trennen — nicht mit dem Löschen.
+**KANTEN NACH DRAUSSEN — nach Review korrigiert, die erste Fassung schickte die Scheibe in
+die falsche Richtung.** Sie nannte `DSP/AudioOutputGuard.swift` und
+`Audio/AudioOutputGuard+PCMBuffer.swift` als Referenzen auf `TimelineAudioSink`. Beide sind
+**`///`-Prosa, kein Code** — dort ist nichts zu trennen. Die eine echte
+Produktions-Konstruktionsstelle fehlte dagegen:
+· **`EchoelmusicApp.swift:765`** — `makeSink: { TimelineAudioSink(engine: audioEngine) }`,
+  genau die Fabrik, die den zu löschenden `AudioLanePlayer` baut. **Da fängt 5b an.**
+· `BeatPlayer.auditionSink` (`BeatPlayer.swift:140/150/151/158`) ist echter Code, muss aber
+  NICHT erhalten werden: `BeatPlayer.swift:68` sagt selbst, dass `audition(url:)` und die
+  Region-Audition keinen Produktionsaufrufer haben. 5b kann den Audition-Pfad mitnehmen.
+· **Nicht einfach mitlöschen:** `DSP/AudioOutputGuard.swift:63-68` dokumentiert eine LEBENDE
+  NaN/inf-Lücke über `TimelineAudioSink.scheduleSegment`. Stirbt der Typ, muss dieser Absatz
+  UMGESCHRIEBEN werden, nicht gestrichen — die Lücke gilt auch für die überlebende
+  `BeatPlayer`-Region-Audition.
+**Lehre für diesen ganzen Plan:** eine Referenzliste, die per `grep` entstanden ist, zählt
+Kommentare als Kanten und übersieht Aufrufe in Closures. Vor jeder Scheibe: Treffer als
+Code-oder-Prosa klassifizieren.
 
 ### 5c — Region-/Arrangement-Wiedergabe
 `TimelineRegionPlayer`s Abspiel-Hälfte · `ArrangementPlayer` · `ArrangementStore` ·
@@ -107,7 +135,13 @@ Das ist die größte Scheibe und die einzige, die `MultiRollFanout` berührt —
 sie die letzte VOR der C-Frage, nicht die erste.
 
 ### 5d — `Clip` / `ClipStore` / `MediaLibrary`
-Zuletzt, weil `ClipStore` in `CloudSync`, `AppGroupStore` und `RecordController` steht.
+Zuletzt, und **größer als die erste Fassung dieses Absatzes behauptete.** Sie nannte
+`CloudSync`, `AppGroupStore` und `RecordController` — von den dreien ist nur
+`RecordController` echter Code (`RecordController.swift:35/62`); die beiden anderen sind
+`///`-Prosa (`CloudSync.swift:75`, `AppGroupStore.swift:117`). Dafür fehlten ~10 Dateien mit
+echtem `ClipStore`-Code, darunter `EchoelmusicApp.swift:767-769` (die `resolveURL`-Closure),
+`TimelineStore`, `TakeRecorder`, `ClipAutomationEdit`, `EchoelStudioView`, `WorkspaceView`.
+Vor dem Start dieser Scheibe also erst die Liste neu erheben, Code von Prosa getrennt.
 `MediaLibrary` überlebt vermutlich (Datei-Auflösung), das entscheidet der Graph zu dem
 Zeitpunkt, nicht dieser Plan.
 

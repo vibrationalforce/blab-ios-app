@@ -1227,3 +1227,31 @@ den eine spätere Löschung lesen wird): den ERSTEN Guard der Methode lesen und 
 seine Bedingung nach der aktuellen Änderung überhaupt noch erreichbar ist. Ein falsches
 „tragend" kostet keinen Bug, sondern eine verweigerte Löschung — teurer, weil es niemand
 als Fehler bemerkt.
+
+### DEAD-END: eine Referenzliste per `grep` erheben und Kommentare als Kanten zählen
+
+Der Entfernungsplan für das DAW-Modell führte `DSP/AudioOutputGuard.swift` und
+`Audio/AudioOutputGuard+PCMBuffer.swift` als Referenzen auf `TimelineAudioSink` — beide sind
+`///`-Prosa. Dieselbe Datei nannte `CloudSync`/`AppGroupStore` als `ClipStore`-Nutzer, auch
+Prosa. **Und in beiden Fällen fehlte die eine echte Kante**, weil sie in einer Closure lag
+(`makeSink: { TimelineAudioSink(...) }`, `resolveURL: { clipStore?... }`). Ein Zyklus, der
+aus so einer Liste geplant wird, arbeitet an Kommentaren ab und läuft unvorbereitet in die
+App-Verdrahtung.
+
+**Die Regel:** Jeder `grep`-Treffer wird VOR der Planung als **Code oder Prosa** klassifiziert,
+und Konstruktions-Closures (`makeX:`, `resolve…:`, Sink-/Factory-Parameter) werden separat
+gesucht — sie tauchen bei einer Suche nach dem Typnamen zwar auf, aber in einer Datei, die
+man beim Überfliegen für „nur Verdrahtung" hält.
+
+### DEAD-END: eine türlose View als Beleg dafür, dass ein Modell „lebt"
+
+Ich begründete den Erhalt des Spur-Modells damit, dass `SpatialSceneStore.rebuild(from:)`
+„der Immersive-Stage-Pfad" sei. Die beiden Aufrufer liegen in `ImmersiveStageView` — einer
+View mit NULL Instanziierungen, die CLAUDE.md ausdrücklich als „doorless — deliberately"
+führt. Das ist eine Compile-Kante, keine Laufzeit-Kante. Die Schlussfolgerung stimmte
+zufällig (es gibt eine echte Kante über den Generate-Pfad), die Begründung nicht.
+
+**Die Regel:** Als Lebendigkeits-Beleg zählt nur eine Kette bis zu einem RENDERNDEN oder
+pro Tick laufenden Aufrufer. In diesem Repo sind mehrere Views absichtlich türlos — sie
+sehen im Graphen aus wie Konsumenten und sind keine. Dieselbe Falle wie bei
+„Slot + Setzer beweist keine Erreichbarkeit", nur eine Ebene höher.

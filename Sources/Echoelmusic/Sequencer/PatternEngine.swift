@@ -376,17 +376,21 @@ public final class PatternEngine {
     /// the clock — the founder's log 2466 has notes 67 s BEFORE the only play breadcrumb
     /// that existed ("Start tapped", logged by the UI, not by the transport).
     ///
-    /// Seven call sites exist in code; only FOUR can appear in a log today, because three
-    /// of them are behind surfaces the pure-instrument epic already deleted. Stated
-    /// explicitly so nobody reads this enum as a map of live topology:
-    ///   REACHABLE — `.transportButton`, `.generate`, `.timelineRegion`, `.loopExport`.
+    /// Six named call sites exist in code; only THREE can appear in a log today, because
+    /// the rest sit behind surfaces the pure-instrument epic already deleted. Stated
+    /// explicitly so nobody reads this enum as a map of live topology — and KEEP THE
+    /// COUNTS IN STEP with the list below: the previous revision left "Seven/FOUR"
+    /// standing while the list underneath already said otherwise, which is the exact
+    /// mis-mapping this block exists to prevent.
+    ///   REACHABLE — `.transportButton`, `.generate`, `.loopExport`.
     ///   UNREACHABLE — `.pianoRoll` (`PianoRollView` has zero instantiations since #178),
     ///   `.arrangement` (`ArrangementPlayer.play(store:…)` has no caller since
-    ///   `ArrangementView` went with #121 Slice 4). Those two retire with #132; the cases
-    ///   stay only so the call sites keep naming themselves.
-    ///   `.timelineRegion` is now unreachable too — ▶ stopped consulting the timeline
-    ///   document — but it is NOT marked so above, because `TimelineRegionPlayer` still
-    ///   holds the call and dies as one piece in #132 Slice 5c.
+    ///   `ArrangementView` went with #121 Slice 4), and `.timelineRegion`, whose only
+    ///   writer is `TimelineRegionPlayer.play(document:)` — that method lost its last
+    ///   production caller when ▶ stopped consulting the timeline document. All three
+    ///   retire with #132; the cases stay only so the call sites keep naming themselves,
+    ///   and `TimelineRegionPlayer` dies as one piece in Slice 5c rather than being
+    ///   hollowed out first.
     ///   `.launchQuantized` is GONE (#132 Slice 5a): `LaunchQuantizer` is deleted, so the
     ///   case had no possible writer at all — an unreachable case whose type still exists
     ///   documents a dormant path, one whose type does not just lies.

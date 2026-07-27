@@ -95,7 +95,7 @@ final class PatternEngineTransportRelayTests: XCTestCase {
 
     // MARK: - Play cause (#175): the diagnostic must not become behavior
 
-    /// `play(cause:)` exists so a device log can name WHICH of the seven call sites
+    /// `play(cause:)` exists so a device log can name WHICH of the six named call sites
     /// started the transport. It must stay purely diagnostic: every cause has to leave
     /// the engine and the relayed Transport in exactly the state a bare `play()` does.
     func testPlayCause_doesNotChangeBehaviour() {
