@@ -1,9 +1,15 @@
 // PatternEngineTransportRelayTests.swift
 // Echoel — Cycle 1 of Transport unification: PatternEngine keeps its own timer but
 // RELAYS tempo / swing / play / stop into the authoritative Transport. These are
-// Foundation-only types (no AVFoundation/Accelerate), so this file is UNGATED and
-// ci.yml EXECUTES it on Linux — unlike TransportTests, which are AVFoundation-gated
-// and therefore only compiled, never run.
+// Foundation-only types (no AVFoundation/Accelerate), so this file is UNGATED — unlike
+// TransportTests, which are AVFoundation-gated.
+//
+// ⛔ CORRECTED 2026-07-27: this header used to claim "ci.yml EXECUTES it on Linux".
+// It does not. Every build/test job in `ci.yml` runs on `macos-26` via `xcodebuild`;
+// the only `ubuntu-latest` jobs are a grep-based security scan and a notifier, and
+// `quick-test.yml` says outright that the suite "cannot compile on Linux" because this
+// is an Apple-framework app. The claim mattered: it would push the next session into
+// writing Linux-portability constraints for code no Linux job ever sees.
 
 import XCTest
 import Foundation
@@ -128,6 +134,11 @@ final class PatternEngineTransportRelayTests: XCTestCase {
         for (cause, raw) in expected {
             XCTAssertEqual(cause.rawValue, raw)
         }
-        XCTAssertEqual(Set(expected.values).count, expected.count, "rawValues must be distinct")
+        // The assertion that actually earns its keep: a NEW case added tomorrow without a
+        // pinned rawValue fails here. (Distinctness needs no assertion — Swift rejects
+        // duplicate raw values at compile time; the first version of this test asserted it
+        // anyway, which could never fail.)
+        XCTAssertEqual(PatternEngine.PlayCause.allCases.count, expected.count,
+                       "a new PlayCause was added without pinning its rawValue here")
     }
 }

@@ -374,15 +374,33 @@ public final class PatternEngine {
     /// (`stopEverything(reason)`, `"stop source: roll-pause"`); the play side carried
     /// nothing, so a device log could show notes arriving with no record of what started
     /// the clock — the founder's log 2466 has notes 67 s BEFORE the only play breadcrumb
-    /// that existed ("Start tapped", logged by the UI, not by the transport). Seven
-    /// production call sites can start the transport; this makes each one name itself.
-    public enum PlayCause: String, Sendable {
-        case transportButton   // WorkspaceView ▶
-        case generate          // EchoelStudioView: a fresh take starts playing
-        case pianoRoll         // PianoRollView's own play
-        case arrangement       // ArrangementPlayer
+    /// that existed ("Start tapped", logged by the UI, not by the transport).
+    ///
+    /// Seven call sites exist in code; only FOUR can appear in a log today, because three
+    /// of them are behind surfaces the pure-instrument epic already deleted. Stated
+    /// explicitly so nobody reads this enum as a map of live topology:
+    ///   REACHABLE — `.transportButton`, `.generate`, `.timelineRegion`, `.loopExport`.
+    ///   UNREACHABLE — `.pianoRoll` (`PianoRollView` has zero instantiations since #178),
+    ///   `.arrangement` (`ArrangementPlayer.play(store:…)` has no caller since
+    ///   `ArrangementView` went with #121 Slice 4), `.launchQuantized` (`LaunchQuantizer`
+    ///   has no reference outside its own file since `ClipView` was deleted). Those three
+    ///   retire with #132; the cases stay only so the call sites keep naming themselves.
+    ///   `.unspecified` has no production caller either — seeing it in a log means a NEW
+    ///   call site was added without naming itself, which is exactly what it is for.
+    public enum PlayCause: String, Sendable, CaseIterable {
+        /// `WorkspaceView`'s ▶ — but only its THIRD branch. That button also routes to
+        /// `timelinePlayer.play` (→ `.timelineRegion`) and to the bio toggle (→ `.generate`),
+        /// so this does not mean "the play button was tapped", it means "▶ started the
+        /// live loop directly".
+        case transportButton
+        /// `EchoelStudioView` starting a fresh take. Conflates ▶-on-empty-project, Start,
+        /// and applyVariation — the `generate[<reason>]` breadcrumb on the next log line
+        /// disambiguates which.
+        case generate
+        case pianoRoll         // UNREACHABLE (#178) — PianoRollView is unmounted
+        case arrangement       // UNREACHABLE — ArrangementPlayer.play has no caller
         case timelineRegion    // TimelineRegionPlayer
-        case launchQuantized   // LaunchQuantizer (clip launch on the next bar)
+        case launchQuantized   // UNREACHABLE — LaunchQuantizer has no caller
         case loopExport        // LoopExporter (offline render)
         case unspecified       // a caller that has not been given a cause yet
     }
@@ -394,13 +412,18 @@ public final class PatternEngine {
     /// cost is one breadcrumb per Play, on the main actor, never on the audio thread.
     public func play(cause: PlayCause = .unspecified) {
         guard !isPlaying else { return }
+        // BEFORE the cascade, not after — the stop side learned this the expensive way
+        // (`WorkspaceView`: "name the finger BEFORE the stop cascades — the 2361 log's
+        // source-less 'transport-stopped' burned a triage cycle proving it was a tap").
+        // `transport?.play()` fans out to every tempo/step subscriber; if that hangs or
+        // traps, a breadcrumb written after it would be the one line we needed and lost.
+        EchoelCrashLog.breadcrumb("transport play (\(cause.rawValue)) tempo=\(Int(tempo))")
         isPlaying = true
         currentStep = 0
         // Hand any in-flight stopped-glide over to advance() (which eases toward the same
         // tempoGlideTarget) so starting playback mid-glide stays seamless, no snap.
         stopStoppedGlide()
         transport?.play()
-        EchoelCrashLog.breadcrumb("transport play (\(cause.rawValue)) tempo=\(Int(tempo))")
         scheduleTick(after: 60.0 / tempo / 4.0)
     }
 
