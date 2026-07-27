@@ -681,7 +681,7 @@ struct FloatingVisualWindow: View {
         // normalisation. This was hardcoded to −14 until 2026-07-27, which made the
         // Master setting a lie one button over: the two Studio export buttons honoured
         // it while this one, in a window visible by default, always normalised to −14.
-        ex.targetLUFS = LoudnessTarget.exportTargetLUFS(rawValue: loudnessTargetRaw)
+        ex.targetLUFS = LoudnessTarget.resolvedLUFS(rawValue: loudnessTargetRaw)
         ex.trimLengthSeconds = nil      // keep the WHOLE take (no bar-grid trim here)
         await ex.export(sourceURL: cafURL)
         if let url = ex.exportState.exportedURL {

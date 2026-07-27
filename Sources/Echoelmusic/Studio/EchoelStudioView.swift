@@ -4245,20 +4245,20 @@ struct EchoelStudioView: View {
     /// The old note here said "No target keeps the established −14 default so existing
     /// behaviour is unchanged", which described the bug rather than a decision: the
     /// picker offered "No target" and the export then did exactly what "Streaming (−14)"
-    /// does. The resolution moved into `LoudnessTarget.exportTargetLUFS(rawValue:)` so
+    /// does. The resolution moved into `LoudnessTarget.resolvedLUFS(rawValue:)` so
     /// the two nils it used to conflate — user chose off vs. setting unreadable — are
     /// separable and unit-tested.
     ///
     /// This changes nothing for anyone who did not explicitly pick "No target": the
     /// registered default is `.streaming` (`StudioDefaultKeys`), and an unreadable
     /// value still falls back to it.
-    private var exportTargetLUFS: Float? {
-        LoudnessTarget.exportTargetLUFS(rawValue: loudnessTargetRaw)
+    private var resolvedLUFS: Float? {
+        LoudnessTarget.resolvedLUFS(rawValue: loudnessTargetRaw)
     }
 
     private func exportWav() async {
         if let url = await exporter.exportWav(engine: audioEngine, beatPlayer: beatPlayer,
-                                              bars: loopBars.rawValue, targetLUFS: exportTargetLUFS) {
+                                              bars: loopBars.rawValue, targetLUFS: resolvedLUFS) {
             share = ExportedFile(url: renamedForShare(url))
         }
         // Always return to idle: a failed/empty export must never leave the button
@@ -4270,7 +4270,7 @@ struct EchoelStudioView: View {
     /// Retroactive "keep that" — export the last few bars already heard, no replay.
     private func keepLastLoop() async {
         if let url = await exporter.exportRecentLoop(engine: audioEngine, beatPlayer: beatPlayer,
-                                                     bars: loopBars.rawValue, targetLUFS: exportTargetLUFS) {
+                                                     bars: loopBars.rawValue, targetLUFS: resolvedLUFS) {
             share = ExportedFile(url: renamedForShare(url))
         }
         exporter.reset()

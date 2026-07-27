@@ -63,5 +63,60 @@ final class AutoGainTests: XCTestCase {
         XCTAssertLessThanOrEqual(g, 4.0, "never overshoots the target correction")
         XCTAssertGreaterThanOrEqual(g, 3.5, "settles at the target within the dead-zone")
     }
+
+    // MARK: - "No target" must reach THIS stage too (the other half of the lie)
+
+    /// Until 2026-07-27 `AutoMixChain.targetLUFS` was a stored `-14` with no writer, so
+    /// choosing "No target" only disabled the EXPORT normalisation. This stage kept pulling
+    /// the live master toward −14 — and `RetroCapture` taps `mainMixerNode`, DOWNSTREAM of
+    /// this gain, so the level was already baked into the captured file before the export
+    /// switch was consulted. nil now means nil here as well.
+    func testNilTarget_settlesAtUnityFromAnyStartingGain() {
+        for start in [Float(-6), -3, 0, 3, 6] {
+            var g = start
+            for _ in 0..<800 { g = Mix.steadyGainDB(current: g, targetLUFS: nil, lufsReading: -40) }
+            XCTAssertLessThan(abs(g), 0.5,
+                              "from \(start) dB, \"no target\" must return the stage to unity "
+                              + "— not to −14's correction")
+        }
+    }
+
+    /// The direction that proves it is the TARGET being removed and not just a quiet input:
+    /// at a loudness where −14 would demand a big correction, nil must demand none.
+    func testNilTarget_ignoresALoudnessThatWouldOtherwiseForceCorrection() {
+        // −40 LUFS against a −14 target wants +6 dB (clamped); against no target, 0.
+        let withTarget = Mix.steadyGainDB(current: 0, targetLUFS: -14, lufsReading: -40)
+        let without    = Mix.steadyGainDB(current: 0, targetLUFS: nil,  lufsReading: -40)
+        XCTAssertGreaterThan(withTarget, 0, "sanity: a target still corrects a quiet program")
+        XCTAssertEqual(without, 0, accuracy: 1e-6, "no target ⇒ no correction")
+        // And the loud direction, so this can't pass by only testing one sign.
+        XCTAssertLessThan(Mix.steadyGainDB(current: 0, targetLUFS: -14, lufsReading: 0), 0)
+        XCTAssertEqual(Mix.steadyGainDB(current: 0, targetLUFS: nil, lufsReading: 0), 0, accuracy: 1e-6)
+    }
+
+    /// Toggling the control must not click: from a settled correction, nil eases back
+    /// through the same one-pole rather than snapping to unity in one step.
+    func testNilTarget_easesBackRatherThanSnapping() {
+        var g: Float = 0
+        for _ in 0..<800 { g = Mix.steadyGainDB(current: g, targetLUFS: -14, lufsReading: -40) }
+        XCTAssertGreaterThan(g, 3, "precondition: the stage is holding a real boost")
+        let afterOneStep = Mix.steadyGainDB(current: g, targetLUFS: nil, lufsReading: -40)
+        XCTAssertLessThan(afterOneStep, g, "it must move toward unity")
+        XCTAssertGreaterThan(afterOneStep, 0.5, "but not arrive in a single 200 ms tick")
+    }
+
+    /// The one thing left to state here rather than in `LoudnessTargetTests`: this stage
+    /// consumes the SAME resolver as the export path, so "No target" reaching the master
+    /// gain is a property of that shared function, not of a second copy.
+    ///
+    /// (An earlier draft of this test compared `resolvedLUFS(rawValue:)` to itself across a
+    /// list of raws — which is what "one resolver" makes it: a tautology that cannot fail.
+    /// Deleted rather than dressed up. What remains is the contract that would break if
+    /// someone gave this stage its own resolution again.)
+    func testNoTargetResolvesToNilForTheMasterStageToo() {
+        XCTAssertNil(LoudnessTarget.resolvedLUFS(rawValue: LoudnessTarget.off.rawValue))
+        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "broadcastEBU"), -23,
+                       "and a chosen target still reaches it")
+    }
 }
 #endif

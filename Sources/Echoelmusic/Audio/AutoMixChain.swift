@@ -26,8 +26,26 @@ final class AutoMixChain {
     var isEnabled: Bool = true {
         didSet { applyBypass() }
     }
-    var targetLUFS: Float = -14 {          // Spotify / Apple Music standard
-        didSet { updateAutoGain() }
+    /// The master auto-gain target — resolved from the ONE stored loudness setting the export
+    /// path already uses, so the picker in the Master panel now moves both stages.
+    ///
+    /// It used to be a stored `Float = -14` with **no writer anywhere**. That made "No target"
+    /// a half-truth: it disabled the EXPORT normalisation (fixed 2026-07-27) while this stage
+    /// had already pulled the whole live signal toward −14 — and `RetroCapture` taps
+    /// `mainMixerNode`, i.e. DOWNSTREAM of this gain, so every captured file carried it baked
+    /// in before the export switch was even consulted.
+    ///
+    /// COMPUTED, not stored, deliberately: a stored mirror needs a writer, and every
+    /// half-threaded fix in this repo has been a writer someone forgot. One source, no
+    /// synchronisation. The 5 Hz auto-gain timer re-reads it, so a picker change takes effect
+    /// within ~200 ms and then eases — no `didSet` needed and no click.
+    ///
+    /// `nil` = the user chose "No target": hold the level where the mix puts it. The safety
+    /// limiter is a separate, always-on stage and stays on.
+    var targetLUFS: Float? {
+        let raw = UserDefaults.standard.string(forKey: StudioDefaultKeys.loudnessTarget.key)
+            ?? StudioDefaultKeys.loudnessTarget.value
+        return LoudnessTarget.resolvedLUFS(rawValue: raw)
     }
     private(set) var lufsReading: Float = -60
     private(set) var isInstalled: Bool = false
@@ -124,11 +142,16 @@ final class AutoMixChain {
     ///    job, not this stage's,
     ///  • held inside a small `deadZoneDB` so tiny deviations never nudge the level.
     /// Returns the next smoothed gain in dB.
-    nonisolated static func steadyGainDB(current: Float, targetLUFS: Float, lufsReading: Float,
+    ///
+    /// `targetLUFS` is OPTIONAL: `nil` means "No target" and resolves to a raw correction of
+    /// 0 dB, i.e. the stage eases back to unity through the SAME one-pole instead of snapping
+    /// — toggling the control must not click. The always-on PeakLimiter is a separate stage
+    /// and is unaffected, so "no target" never means "no clipping protection".
+    nonisolated static func steadyGainDB(current: Float, targetLUFS: Float?, lufsReading: Float,
                              maxDB: Float = 6,
                              boostCoeff: Float = 0.05, cutCoeff: Float = 0.18,
                              deadZoneDB: Float = 0.4) -> Float {
-        let raw = Swift.min(Swift.max(targetLUFS - lufsReading, -maxDB), maxDB)
+        let raw = targetLUFS.map { Swift.min(Swift.max($0 - lufsReading, -maxDB), maxDB) } ?? 0
         let delta = raw - current
         guard Swift.abs(delta) >= deadZoneDB else { return current }   // hold — no micro-pumping
         let coeff = delta > 0 ? boostCoeff : cutCoeff                  // slow to boost, quicker to cut

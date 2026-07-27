@@ -67,7 +67,14 @@ public enum LoudnessTarget: String, CaseIterable, Identifiable, Sendable {
     /// setting must fall back to the registered DEFAULT (`.streaming`, see
     /// `StudioDefaultKeys`), never silently disable normalisation; only an explicit
     /// `.off` returns nil.
-    public static func exportTargetLUFS(rawValue: String) -> Float? {
+    ///
+    /// Named `resolvedLUFS`, not `exportTargetLUFS` (2026-07-27): it is no longer the
+    /// export stage's private resolver. `AutoMixChain` reads it too, because the export
+    /// switch alone was only half the control — that stage had its own hardcoded −14 with
+    /// no writer, and `RetroCapture` taps DOWNSTREAM of it, so the level was already baked
+    /// into the captured file before the export path was ever consulted. Both stages now
+    /// resolve the one setting through this one function.
+    public static func resolvedLUFS(rawValue: String) -> Float? {
         (LoudnessTarget(rawValue: rawValue) ?? .streaming).integratedLUFS
     }
 }

@@ -44,15 +44,15 @@ final class LoudnessTargetTests: XCTestCase {
         // The whole point of the fix. Until now the export resolved "No target" to
         // −14 LUFS, so choosing it did exactly what choosing "Streaming (−14)" did:
         // a control that reads "off" and is not off.
-        XCTAssertNil(LoudnessTarget.exportTargetLUFS(rawValue: LoudnessTarget.off.rawValue),
+        XCTAssertNil(LoudnessTarget.resolvedLUFS(rawValue: LoudnessTarget.off.rawValue),
                      "\"No target\" must disable normalisation, not silently mean −14")
     }
 
     func testExportTarget_eachTargetResolvesToItsOwnLoudness() {
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "streaming"), -14)
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "podcast"), -16)
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "broadcastEBU"), -23)
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "cinema"), -24)
+        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "streaming"), -14)
+        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "podcast"), -16)
+        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "broadcastEBU"), -23)
+        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "cinema"), -24)
     }
 
     func testExportTarget_unreadableSettingFallsBackToTheDefaultNotToOff() {
@@ -67,8 +67,8 @@ final class LoudnessTargetTests: XCTestCase {
         // so changing the default tomorrow must fail here rather than silently leave
         // the resolver behind while the doc comment becomes a lie.
         let registeredDefault = LoudnessTarget(rawValue: StudioDefaultKeys.loudnessTarget.value)?.integratedLUFS
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "not-a-target"), registeredDefault)
-        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: ""), registeredDefault)
+        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: "not-a-target"), registeredDefault)
+        XCTAssertEqual(LoudnessTarget.resolvedLUFS(rawValue: ""), registeredDefault)
         XCTAssertNotNil(registeredDefault, "the registered default must be a real target, never \"off\"")
     }
 }
