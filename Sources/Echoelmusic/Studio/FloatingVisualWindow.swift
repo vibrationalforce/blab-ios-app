@@ -195,6 +195,7 @@ struct FloatingVisualWindow: View {
     @AppStorage(StudioDefaultKeys.touchSlideVibrato.key) private var touchSlideVibrato = StudioDefaultKeys.touchSlideVibrato.value
     @AppStorage(StudioDefaultKeys.touchSlideChorus.key) private var touchSlideChorus = StudioDefaultKeys.touchSlideChorus.value
     @AppStorage(StudioDefaultKeys.touchGlide.key) private var touchGlide = StudioDefaultKeys.touchGlide.value
+    @AppStorage(StudioDefaultKeys.touchLife.key) private var touchLife = StudioDefaultKeys.touchLife.value
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -402,6 +403,7 @@ struct FloatingVisualWindow: View {
                                         synth: touchSynth ?? synth,
                                         reduceMotion: reduceMotion,
                                         morphDepth: touchMorphDepth,
+                                        lifeDepth: touchLife,
                                         showGrid: touchShowGrid,
                                         slideVibrato: touchSlideVibrato,
                                         slideChorus: touchSlideChorus,

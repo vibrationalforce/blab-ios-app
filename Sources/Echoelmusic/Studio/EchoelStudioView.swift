@@ -74,6 +74,8 @@ struct EchoelStudioView: View {
     @AppStorage(StudioDefaultKeys.touchSlideVibrato.key) private var touchSlideVibrato = StudioDefaultKeys.touchSlideVibrato.value
     @AppStorage(StudioDefaultKeys.touchSlideChorus.key) private var touchSlideChorus = StudioDefaultKeys.touchSlideChorus.value
     @AppStorage(StudioDefaultKeys.touchGlide.key) private var touchGlide = StudioDefaultKeys.touchGlide.value
+    @AppStorage(StudioDefaultKeys.touchLevel.key) private var touchLevel = StudioDefaultKeys.touchLevel.value
+    @AppStorage(StudioDefaultKeys.touchLife.key) private var touchLife = StudioDefaultKeys.touchLife.value
     @Environment(SubBassVoice.self) private var subBass
     /// S2-W1: the Multi-Roll slot voices — the Melodic insert must reach them
     /// too, or a secondary lane's "Sound & FX" edit changes nothing it plays.
@@ -2272,7 +2274,21 @@ struct EchoelStudioView: View {
                 }
                 .padding(.vertical, 1)
             }
+            // LEVEL — a real gain on the touch voice's output (`PolySynthVoice.setGain`),
+            // NOT a velocity trim. Until now the surface had no level at all: its place in
+            // the mix sat hardcoded in `TouchPitchMap.velocity`'s 0.45…0.95 range, widened
+            // by hand in July so played notes would cut through. Velocity is how HARD you
+            // played; level is how loud the instrument is. Conflating them is what made
+            // three other faders in this app lie (see MixerStore).
+            EchoelValueField(label: "Level", value: $touchLevel,
+                             range: 0...1.5, unit: "", decimals: 2)
+                .onChange(of: touchLevel) { _, v in touchSynth?.setGain(Float(v)) }
             EchoelValueField(label: "Position morph", value: $touchMorphDepth,
+                             range: 0...1, unit: "", decimals: 2)
+            // LIFE — per-note micro-variation in brightness and attack, so two identical
+            // taps never produce two identical notes (founder 2026-07-27: "leben wie ein
+            // echtes Instrument mit micro changes"). 0 = off and bit-identical.
+            EchoelValueField(label: "Life", value: $touchLife,
                              range: 0...1, unit: "", decimals: 2)
             // SLIDE EXPRESSION (founder 2026-07-08: "Auf dem Gitter hin und her
             // sliden verändert den Sound: Filter, ein bisschen Vibrato, Chorus …
@@ -4278,6 +4294,11 @@ struct EchoelStudioView: View {
     /// wherever the take patch changes (generate / editor / preset recall).
     private func syncTouchSound() {
         guard let touchSynth else { return }
+        // Level is pushed here too, not only from the field's onChange: a persisted value
+        // must survive relaunch. This is the same "restore what was saved" step the Mix
+        // faders needed, and its absence is what made the Bass fader spring back to unity
+        // on every launch until 2026-07-27.
+        touchSynth.setGain(Float(touchLevel))
         if touchPatchID.isEmpty {
             touchSynth.apply(currentPatch)
         } else if let id = UUID(uuidString: touchPatchID),

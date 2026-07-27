@@ -94,4 +94,62 @@ final class TouchInstrumentTests: XCTestCase {
             XCTAssertTrue((0...127).contains(p), "MIDI range")
         }
     }
+\n
+    // MARK: - Micro-variation ("Leben") — founder 2026-07-27
+
+    /// The switch must genuinely switch OFF, not merely reduce. Depth 0 has to return
+    /// exact unity so the feature is provably bit-identical to the old behaviour — the
+    /// only way a founder A/B test means anything.
+    func testMicroVariation_depthZero_isExactlyNeutral() {
+        for i in UInt64(0)..<64 {
+            let m = TouchPitchMap.microVariation(noteIndex: i, depth: 0)
+            XCTAssertEqual(m.cutoffScale, 1, accuracy: 0, "cutoff at note \(i)")
+            XCTAssertEqual(m.velocityScale, 1, accuracy: 0, "velocity at note \(i)")
+        }
+        // Non-finite depth must fall back to OFF, not to a random amount.
+        let bad = TouchPitchMap.microVariation(noteIndex: 7, depth: .nan)
+        XCTAssertEqual(bad.cutoffScale, 1, accuracy: 0)
+        XCTAssertEqual(bad.velocityScale, 1, accuracy: 0)
+    }
+
+    /// The point of the feature, asserted rather than assumed: consecutive notes must
+    /// actually DIFFER. A hash with poor avalanche, or an accidental constant, would make
+    /// the "Life" control do nothing while still looking wired.
+    func testMicroVariation_consecutiveNotesDiffer() {
+        var cutoffs = Set<Float>(), velocities = Set<Float>()
+        for i in UInt64(0)..<32 {
+            let m = TouchPitchMap.microVariation(noteIndex: i, depth: 1)
+            cutoffs.insert(m.cutoffScale); velocities.insert(m.velocityScale)
+        }
+        XCTAssertEqual(cutoffs.count, 32, "a repeated cutoff means the sequence is degenerate")
+        XCTAssertEqual(velocities.count, 32, "a repeated velocity means the sequence is degenerate")
+    }
+
+    /// The two streams must be INDEPENDENT. Deriving both from one hash would make
+    /// brightness and level move together — an obviously synthetic "wobble" rather than
+    /// the uncorrelated variation a real instrument has.
+    func testMicroVariation_cutoffAndVelocityAreIndependent() {
+        var sameSign = 0
+        for i in UInt64(0)..<200 {
+            let m = TouchPitchMap.microVariation(noteIndex: i, depth: 1)
+            if (m.cutoffScale >= 1) == (m.velocityScale >= 1) { sameSign += 1 }
+        }
+        // Independent streams agree ~50% of the time; a shared one agrees 100%.
+        XCTAssertLessThan(sameSign, 140, "cutoff and velocity look correlated")
+        XCTAssertGreaterThan(sameSign, 60, "cutoff and velocity look anti-correlated")
+    }
+
+    /// BOUNDS ARE THE SAFETY PROPERTY. Velocity must stay clear of the 1.0 clamp that
+    /// flattens dynamics (the log-2470 defect), and cutoff must stay inside the engine's
+    /// legal expression range so it never needs rescuing by a downstream clamp.
+    func testMicroVariation_staysWithinAudibleAndSafeBounds() {
+        for i in UInt64(0)..<512 {
+            let m = TouchPitchMap.microVariation(noteIndex: i, depth: 1)
+            XCTAssertGreaterThan(m.cutoffScale, 0.93); XCTAssertLessThan(m.cutoffScale, 1.07)
+            XCTAssertGreaterThan(m.velocityScale, 0.95); XCTAssertLessThan(m.velocityScale, 1.05)
+            // The loudest velocity the surface can produce is 0.95 — with the variation on
+            // top it must still not reach the clamp that destroys velocity dynamics.
+            XCTAssertLessThan(0.95 * m.velocityScale, 1.0)
+        }
+    }
 }

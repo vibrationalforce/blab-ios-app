@@ -62,6 +62,46 @@ public enum TouchPitchMap {
         return Float(min(max(0.45 + 0.5 * intent, 0.3), 0.95))
     }
 
+    /// MICRO-VARIATION — the difference between a sampler and an instrument (founder
+    /// 2026-07-27: "Alles soll nie statisch gleich klingend sein sondern leben wie ein
+    /// echtes Instrument mit micro changes"). Two identical taps on the same tile must
+    /// not produce two identical notes: a real string, reed or hammer never repeats
+    /// itself exactly, and the ear reads perfect repetition as machinery.
+    ///
+    /// Returns multiplicative deviations for the two dimensions that already have
+    /// per-note plumbing — filter brightness and velocity — so this rides the MPE path
+    /// rather than adding a second one.
+    ///
+    /// DETERMINISTIC, NOT RANDOM: a counter-based integer hash (SplitMix64's finalizer),
+    /// so the sequence never repeats within a performance but a test can pin it exactly.
+    /// `Math.random` in a signal path is untestable and unreviewable; a seeded sequence
+    /// is both. It also means no allocation and no RNG state to share across threads.
+    ///
+    /// `depth` 0 returns exactly (1, 1) — the old behaviour, bit-identical, so the
+    /// setting genuinely switches the feature off rather than merely reducing it.
+    public static func microVariation(noteIndex: UInt64, depth: Double)
+        -> (cutoffScale: Float, velocityScale: Float) {
+        let d = min(max(depth.isFinite ? depth : 0, 0), 1)
+        guard d > 0 else { return (1, 1) }
+        // SplitMix64 finalizer — strong avalanche, no state, pure integer arithmetic.
+        func mix(_ x: UInt64) -> UInt64 {
+            var z = x &+ 0x9E37_79B9_7F4A_7C15
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return z ^ (z >> 31)
+        }
+        /// [-1, 1] from the top bits of an independent stream.
+        func bipolar(_ h: UInt64) -> Double { Double(h >> 11) / Double(1 << 52) * 2 - 1 }
+        let hCut = mix(noteIndex &* 2)
+        let hVel = mix(noteIndex &* 2 &+ 1)
+        // Brightness moves more than level: an instrument's timbre varies audibly note to
+        // note while its loudness under one steady touch does not. Bounds are deliberately
+        // small — ±6% cutoff and ±4% velocity at full depth. Velocity stays clear of the
+        // 1.0 clamp because `TouchPitchMap.velocity` tops out at 0.95 (0.95 × 1.04 = 0.988).
+        return (Float(1 + bipolar(hCut) * 0.06 * d),
+                Float(1 + bipolar(hVel) * 0.04 * d))
+    }
+
     /// A slide re-triggers only when it crosses into a new quantized pitch —
     /// jitter inside one degree must NOT machine-gun the note.
     public static func slideRetriggers(oldPitch: Int, newPitch: Int) -> Bool {
@@ -132,6 +172,7 @@ struct TouchInstrumentView: UIViewRepresentable {
     var reduceMotion: Bool = false
     /// Position-morph amount (0 = off … 1 = ±1 octave of filter travel).
     var morphDepth: Double = 0.6
+    var lifeDepth: Double = 0.35
     /// Fretboard grid (founder 2026-07-08: "eine Art Griffbrett einblenden …
     /// Gitter mit Feldern in den passenden Farben"): show which note lives where.
     var showGrid: Bool = false
@@ -147,6 +188,7 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.key = key
         v.reduceMotion = reduceMotion
         v.morphDepth = morphDepth
+        v.lifeDepth = lifeDepth
         v.showGrid = showGrid
         v.slideVibrato = slideVibrato
         v.slideChorus = slideChorus
@@ -159,6 +201,7 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.synth = synth
         uiView.reduceMotion = reduceMotion
         uiView.morphDepth = morphDepth
+        uiView.lifeDepth = lifeDepth
         uiView.showGrid = showGrid
         uiView.slideVibrato = slideVibrato
         uiView.slideChorus = slideChorus
@@ -182,6 +225,7 @@ final class TouchInstrumentUIView: UIView {
     var reduceMotion = false
     /// Position-morph amount for the vertical filter travel (0 = off).
     var morphDepth: Double = 0.6
+    var lifeDepth: Double = 0.35
     /// Slide-expression depths (founder 2026-07-08: "hin und her sliden verändert
     /// den Sound: Filter, ein bisschen Vibrato, Chorus"): how much a travelling
     /// finger opens vibrato / ensemble on the touch voice. User-set in the
@@ -219,6 +263,10 @@ final class TouchInstrumentUIView: UIView {
     /// changes keeps the queue far from its bound (#155) without any perceptible loss —
     /// a 1% cutoff step is well under a just-noticeable difference.
     private var lastSentMorph: [ObjectIdentifier: Float] = [:]
+    /// Monotonic note counter feeding `TouchPitchMap.microVariation`. Wrapping is
+    /// harmless — the hash has no structure at the wrap point, so note 2^64 sounds no
+    /// more like note 0 than any other pair.
+    private var noteCounter: UInt64 = 0
     private static let maxTouches = 4
     /// Last ring position per touch — a slide drops a new ring only every ~14 pt
     /// (a wake, not a smear).
@@ -365,7 +413,10 @@ final class TouchInstrumentUIView: UIView {
             let vel = velocity(of: touch)
             // This finger's OWN position travels with its note (MPE-style), instead of
             // being written to the instrument-wide scale where the next finger overwrote it.
-            synth?.noteOn(pitch: pitch, velocity: vel, cutoffScale: morphScale(at: p))
+            let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
+            noteCounter &+= 1
+            synth?.noteOn(pitch: pitch, velocity: vel * micro.velocityScale,
+                          cutoffScale: morphScale(at: p) * micro.cutoffScale)
             hapticGenerator.impactOccurred(intensity: CGFloat(0.4 + 0.6 * Double(vel)))
             hapticGenerator.prepare()   // re-warm the Taptic engine so the NEXT note (tap or
                                         // slide-retrigger) fires with minimal latency — a play
@@ -419,7 +470,10 @@ final class TouchInstrumentUIView: UIView {
                     synth?.slide(from: old, to: new, velocity: vel, cutoffScale: morphScale(at: p))
                 } else {
                     synth?.noteOff(pitch: old)
-                    synth?.noteOn(pitch: new, velocity: vel, cutoffScale: morphScale(at: p))
+                    let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
+                    noteCounter &+= 1
+                    synth?.noteOn(pitch: new, velocity: vel * micro.velocityScale,
+                                  cutoffScale: morphScale(at: p) * micro.cutoffScale)
                 }
                 // Slides tick more softly than fresh strikes — a fret-crossing feel.
                 hapticGenerator.impactOccurred(intensity: CGFloat(0.25 + 0.35 * Double(vel)))

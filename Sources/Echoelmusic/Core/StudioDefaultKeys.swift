@@ -74,6 +74,19 @@ public enum StudioDefaultKeys {
     public static let touchSlideVibrato = StudioDefault(key: "touch.slideVibrato", value: 0.35)
     public static let touchSlideChorus = StudioDefault(key: "touch.slideChorus", value: 0.30)
     public static let touchGlide = StudioDefault(key: "touch.glide", value: 0.0)
+    /// The play surface's own LEVEL, as a real gain on its voice's output — not a
+    /// velocity trim (founder 2026-07-27: "Play surface sound noch optimieren vom
+    /// mixing"). Until now the surface had no level at all: its position in the mix was
+    /// baked into `TouchPitchMap.velocity`'s hardcoded 0.45…0.95 range, widened once by
+    /// hand in July so played notes would "sich im mix ein bisschen mehr durchsetzen".
+    /// That is the level-as-velocity mistake this repo has now corrected three times;
+    /// here it becomes a control instead of a constant.
+    public static let touchLevel = StudioDefault(key: "touch.level", value: 1.0)
+    /// MICRO-VARIATION ("Leben") — founder 2026-07-27: "Alles soll nie statisch gleich
+    /// klingend sein sondern leben wie ein echtes Instrument mit micro changes." How much
+    /// each note deviates from its neighbours in brightness and attack. 0 = the old,
+    /// bit-identical behaviour; the default is deliberately audible-but-subtle.
+    public static let touchLife = StudioDefault(key: "touch.life", value: 0.35)
 
     // MARK: weather.*
 
