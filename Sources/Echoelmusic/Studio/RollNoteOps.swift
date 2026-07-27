@@ -90,14 +90,17 @@ public enum RollNoteOps {
     /// determinism covers every musical field, not the ids.
     public static func echo(_ notes: [Note], times: Int, decay: Float) -> [Note] {
         guard times > 0 else { return notes }
-        let d = min(max(decay, 0), 1)
+        let d = decay.clamped(to: 0...1)                  // NaN-safe (see Note's init)
         var out = notes
         for n in notes {
             var vel = n.velocity
             for k in 1...times {
                 let s = n.startTick + k * n.lengthTicks
                 guard s < barTicks else { break }
-                vel = min(max(vel * d, minVelocity), 1)
+                // NaN-safe: `c.velocity = vel` below writes the public `var`, which
+                // BYPASSES `Note`'s clamping init — so this is the only guard on the
+                // path from here into a saved note (and thence to `Int(v * 127)`).
+                vel = (vel * d).clamped(to: minVelocity...1)
                 var c = n
                 c.id = UUID()
                 c.startTick = s

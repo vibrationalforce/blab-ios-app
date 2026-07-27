@@ -306,11 +306,12 @@ public final class PolySynthVoice {
         // note events through a lock-free SPSC queue means ALL voice-state
         // mutation happens on the one audio thread, never racing the render.
         _ = noteCommands.tryEnqueue(
-            // NaN-safe clamp: this is the LAST gate before the lock-free queue to the
-            // render thread. `min(max(v, 0), 1)` passes NaN through (CLAUDE.md's
-            // argument-order law), and a NaN velocity in the render block produces NaN
-            // samples that poison envelope/filter state permanently — the stuck-silence
-            // class (#22/#29). NaN → 0 here is a dropped note, not a dead voice.
+            // NaN-safe clamp — `min(max(v, 0), 1)` passes NaN through (CLAUDE.md's
+            // argument-order law). This is DEFENCE IN DEPTH, not the only guard: the
+            // consumer on the other side of the queue, `EchoelPolyDDSP.noteOn`, already
+            // clamps in the SAFE order and `velocityGain` is `.isFinite`-guarded. Said
+            // explicitly because the first version of this comment called this "the last
+            // gate", which would invite a later session to delete those as redundant.
             NoteCommand(kind: .on, pitch: Int32(pitch), velocity: velocity.clamped(to: 0...1))
         )
     }

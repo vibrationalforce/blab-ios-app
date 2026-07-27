@@ -540,7 +540,7 @@ final class TouchInstrumentUIView: UIView {
         // and raw deep-red/violet CMF output is otherwise near-invisible.
         let m = max(rgb.r, max(rgb.g, rgb.b))
         let s = m > 0.001 ? 0.9 / m : 1
-        let vel = Double(velocity.clamped(to: 0...1))     // NaN-safe: NaN → no ripple light
+        let vel = Double(velocity.clamped(to: 0...1))     // NaN-safe: NaN → dimmest ripple
         TouchRippleChannel.shared.drop(
             x: Float(p.x / w),
             y: Float(1 - p.y / h),                    // shader space: y up

@@ -132,8 +132,17 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         self.lengthTicks = max(1, lengthSteps) * Note.ticksPerStep
         // NaN-safe `clamped(to:)`, NOT `min(max(v, 0), 1)`: the free `max(x, y)` is
         // `y >= x ? y : x`, so `max(NaN, 0)` is NaN and the old spelling let a NaN
-        // through. Since 6f2932d this number reaches `pow()` in `spawnVoice` and a NaN
-        // there poisons the voice permanently. NaN → 0 = a silent note (CLAUDE.md law).
+        // through. NaN → 0 = a silent note (CLAUDE.md's argument-order law).
+        //
+        // WHAT A LEAKED NaN ACTUALLY COSTS — corrected after review, because the first
+        // version of this comment named the wrong consumer and would have invited a
+        // later session to delete the real guard as redundant. It is NOT the synth:
+        // `EchoelPolyDDSP.noteOn` already clamps in the SAFE order (`min(1, max(0, v))`,
+        // EchoelDDSP.swift) and `velocityGain` is `.isFinite`-guarded, so the audio path
+        // is independently protected — do not remove those on the strength of this line.
+        // The real cost is a CRASH: `Int(Float.nan)` traps in Swift, and the MIDI paths
+        // do `Int(n.velocity * 127 * …)` (MIDIFileExporter, MIDIOutput). A NaN velocity
+        // that survives into a saved note therefore kills the app on export, not on play.
         self.velocity = velocity.clamped(to: 0...1)
         self.role = role
         self.operators = operators
@@ -154,7 +163,6 @@ public struct Note: Codable, Sendable, Equatable, Identifiable {
         self.startTick = max(0, startTick)
         self.lengthTicks = max(1, lengthTicks)
         self.velocity = velocity.clamped(to: 0...1)        // NaN-safe — see the step init
-
         self.role = role
         self.operators = operators
     }

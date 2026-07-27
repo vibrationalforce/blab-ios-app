@@ -8,12 +8,17 @@
 // NaN — and `min(max(v, 0), 1)`, the idiom used throughout the note model, is the
 // unsafe order. A NaN therefore passed straight through every one of those clamps.
 //
-// It used to be harmless-ish because nothing downstream cared much. Since 6f2932d it
-// does: `EchoelPolyDDSP.spawnVoice` computes `pow(v / nominalVelocity, expo * curve)`
-// from exactly this number and stores the result as the voice's `velocityGain`. A NaN
-// there yields a NaN gain, NaN samples, and poisoned oscillator/filter state — the
-// permanent-silence class this project has already shipped twice (#22, #29). Making
-// the faders audible is what put a note's velocity on the audio path for real.
+// WHAT IT ACTUALLY COSTS — corrected after review, because my first answer was wrong and
+// the wrong answer was the dangerous kind. I claimed the NaN reached `pow()` in
+// `EchoelPolyDDSP.spawnVoice` and poisoned the voice. It does not: `EchoelPolyDDSP.noteOn`
+// clamps in the SAFE order and `velocityGain` carries its own `.isFinite` guard, so the
+// synth was already protected. Believing my version would have made the DDSP clamp look
+// redundant to a later session — i.e. the "fix" would have deleted the real guard.
+//
+// The true cost is a CRASH, and it is worse than what I claimed: `Int(Float.nan)` TRAPS in
+// Swift, and the MIDI paths do `Int(n.velocity * 127 * …)` (MIDIFileExporter, MIDIOutput).
+// A NaN velocity that survives into a note therefore kills the app on MIDI export — a
+// hard, reproducible failure, not a subtle one.
 //
 // THE FIX IS THE EXISTING UTILITY, not a new one: `Core/FloatingPointClamp.swift`'s
 // `clamped(to:)` maps NaN to the range's lower bound. Note the consequence, stated
@@ -75,24 +80,35 @@ final class NoteVelocityNaNTests: XCTestCase {
     /// velocity by a bio-derived factor and re-clamp; a single non-finite bio value (a
     /// bad rPPG frame) therefore wrote NaN into the take. The composer is where a NaN
     /// gets MADE, so the clamp there is the one that has to hold.
+    ///
+    /// NOTE THE CONSTRUCTION, it is load-bearing. `Note(velocity: .nan)` no longer yields
+    /// a NaN — its init clamps it to 0 — so passing one in would test the INIT again and
+    /// leave these three clamps completely uncovered: revert them and the test would
+    /// still pass, because `min(max(0 · f, 0.05), 1)` is 0.05 either way. Review caught
+    /// exactly that. Assigning through the public `var` is also how it happens for real:
+    /// the composer mutates `n.velocity` on an already-built note.
+    private func noteWithNaNVelocity() -> Note {
+        var n = Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: 0.8)
+        n.velocity = .nan
+        XCTAssertTrue(n.velocity.isNaN, "the var assignment must really bypass the init clamp")
+        return n
+    }
+
     func testShapeBarDynamics_cannotEmitANaNVelocity() {
-        let notes = [Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: .nan)]
-        let out = BioComposer.shapeBarDynamics(notes, depth: 0.5, stepCount: 16)
+        let out = BioComposer.shapeBarDynamics([noteWithNaNVelocity()], depth: 0.5, stepCount: 16)
         XCTAssertFalse(out[0].velocity.isNaN, "a NaN in must not be a NaN out")
         XCTAssertEqual(out[0].velocity, 0.05, accuracy: 1e-6,
                        "this clamp's window is [0.05, 1] — NaN lands on its floor, not on 0")
     }
 
     func testHumanizeVelocity_cannotEmitANaNVelocity() {
-        let notes = [Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: .nan)]
-        let out = BioComposer.humanizeVelocity(notes, amount: 1, seed: 7)
+        let out = BioComposer.humanizeVelocity([noteWithNaNVelocity()], amount: 1, seed: 7)
         XCTAssertFalse(out[0].velocity.isNaN)
         XCTAssertEqual(out[0].velocity, 0.05, accuracy: 1e-6)
     }
 
     func testHrvHumanize_cannotEmitANaNVelocity() {
-        let notes = [Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: .nan)]
-        let out = BioComposer.hrvHumanize(notes, hrvNormalized: 1, seed: 7)
+        let out = BioComposer.hrvHumanize([noteWithNaNVelocity()], hrvNormalized: 1, seed: 7)
         XCTAssertFalse(out[0].velocity.isNaN)
         XCTAssertEqual(out[0].velocity, 0.05, accuracy: 1e-6)
     }
@@ -117,6 +133,21 @@ final class NoteVelocityNaNTests: XCTestCase {
         let out = BioComposer.humanizeVelocity(notes, amount: 1, seed: 7)
         XCTAssertEqual(out[0].velocity, 0.05, accuracy: 1e-6,
                        "0.001 · (1 ± 0.18) is still below the 0.05 floor")
+    }
+
+    /// `RollNoteOps.echo` is the twelfth site, found by review rather than by my own
+    /// grep. It matters out of proportion to its traffic: its result is written to
+    /// `c.velocity`, the public `var`, which BYPASSES `Note`'s clamping init entirely.
+    /// Its own clamp is therefore the only guard between a bad `decay` and a saved note.
+    /// Low traffic today (one caller, hardcoded `decay: 0.6`, in a doorless view) — but
+    /// "currently unreachable" is a property of the callers, not of the function.
+    func testRollEcho_cannotEmitANaNVelocity_fromANaNDecay() {
+        let src = [Note(pitch: 60, startStep: 0, lengthSteps: 1, velocity: 0.8)]
+        let out = RollNoteOps.echo(src, times: 3, decay: .nan)
+        XCTAssertFalse(out.contains { $0.velocity.isNaN },
+                       "a NaN decay must not write NaN velocities into new notes")
+        XCTAssertTrue(out.dropFirst().allSatisfy { $0.velocity == RollNoteOps.minVelocity },
+                      "NaN decay collapses to the op's floor, not to a poisoned note")
     }
 
     /// The humanize AMOUNT is the other way a NaN entered the composer's velocity maths:
