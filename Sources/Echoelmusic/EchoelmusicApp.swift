@@ -977,7 +977,9 @@ struct EchoelmusicApp: App {
                 //
                 // The `log.log(.info, …)` in the `.active` branch below does NOT close
                 // this: `os_log` goes to the system console, and what the founder shares
-                // is `echoel_diag.log`, which only `EchoelCrashLog.breadcrumb` writes.
+                // is `echoel_diag.log`, which only `EchoelCrashLog` writes (its
+                // signal handler writes raw to the same fd — `breadcrumb` is the
+                // non-crash path, not the only one).
                 // The information existed and simply never reached the file we read.
                 //
                 // Frequency is a handful of transitions per session, so this cannot
@@ -998,6 +1000,7 @@ struct EchoelmusicApp: App {
                         audioEngine.start()
                         bioFeedback.start(publishingFrom: bus)
                         log.log(.info, category: .system, "App active — audio resumed")
+                        EchoelCrashLog.breadcrumb("scene: audio resumed")
                     }
                 case .background:
                     wasBackgrounded = true
@@ -1037,12 +1040,19 @@ struct EchoelmusicApp: App {
                         || microphoneManager.isRecording
                         || audioEngine.isInputMonitoring
                         || polyVoice.activeVoiceCount > 0   // held MPE/performer notes
+                    // The OUTCOME belongs in the diag file too, not only in os_log:
+                    // during a long gap the founder's next question after "was it
+                    // backgrounded?" is "did the engine go down, and did it come
+                    // back?". Without these two lines the file marks the transition
+                    // and stays silent on the one branch that produces silence.
                     if !audioNeeded {
                         audioEngine.stop()
                         log.log(.info, category: .system,
                                 "App backgrounded — idle audio engine stopped (2.5.4)")
+                        EchoelCrashLog.breadcrumb("scene: idle audio engine stopped (2.5.4)")
                     } else {
                         log.log(.info, category: .system, "App backgrounded — audio continues")
+                        EchoelCrashLog.breadcrumb("scene: audio continues")
                     }
                 case .inactive:
                     break
