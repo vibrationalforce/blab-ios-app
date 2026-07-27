@@ -58,7 +58,7 @@ public final class LoopExporter {
     /// length (+ decay tail), captures the master, then trims + normalises the
     /// exact bar-aligned loop. Returns the file URL on success.
     @discardableResult
-    public func exportWav(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int, targetLUFS: Float = -14) async -> URL? {
+    public func exportWav(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int, targetLUFS: Float? = -14) async -> URL? {
         guard status != .capturing, status != .rendering else { return nil }
 
         let bpm = beatPlayer.pattern.tempo
@@ -98,7 +98,7 @@ public final class LoopExporter {
     /// snapped back to the last downbeat (C7) so the cut loops on the DAW grid.
     /// Returns the file URL on success.
     @discardableResult
-    public func exportRecentLoop(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int, targetLUFS: Float = -14) async -> URL? {
+    public func exportRecentLoop(engine: AudioEngine, beatPlayer: BeatPlayer, bars: Int, targetLUFS: Float? = -14) async -> URL? {
         guard status != .capturing, status != .rendering else { return nil }
 
         let bpm = beatPlayer.pattern.tempo
@@ -134,7 +134,7 @@ public final class LoopExporter {
     /// Shared tail: configure SingleExport for the bar-aligned loop window
     /// (trim + edge fades + LUFS on the window only) and run it.
     private func renderTrimmed(engine: AudioEngine, sourceURL: URL,
-                               loopSeconds: Double, fromEnd: Double, targetLUFS: Float) async -> URL? {
+                               loopSeconds: Double, fromEnd: Double, targetLUFS: Float?) async -> URL? {
         status = .rendering
         engine.singleExport.reset()
         engine.singleExport.outputFormat = .wav

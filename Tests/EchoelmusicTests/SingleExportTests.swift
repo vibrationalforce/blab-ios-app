@@ -25,7 +25,11 @@ final class SingleExportTests: XCTestCase {
     }
 
     func testInitialState_defaultTarget_streaming() {
-        XCTAssertEqual(exporter.targetLUFS, -14)
+        // `targetLUFS` is now `Float?` (nil = do not normalise), so assert the wrapped
+        // value explicitly rather than leaning on literal-to-Optional promotion —
+        // and pin that the DEFAULT is still a real target, not "off".
+        XCTAssertEqual(exporter.targetLUFS, Float(-14))
+        XCTAssertNotNil(exporter.targetLUFS, "the default must normalise; only an explicit choice disables it")
     }
 
     // MARK: - OutputFormat

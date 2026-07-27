@@ -51,6 +51,25 @@ public enum LoudnessTarget: String, CaseIterable, Identifiable, Sendable {
 
     /// ± tolerance (LU) counted as "on target".
     public static let tolerance: Float = 1.0
+
+    /// The loudness an export should normalise to for a persisted raw setting —
+    /// `nil` meaning DO NOT NORMALISE.
+    ///
+    /// This exists to keep two different nils apart, which is the bug it fixes. The
+    /// old call site was `LoudnessTarget(rawValue: raw)?.integratedLUFS ?? -14`, and
+    /// optional-chaining flattened both of them onto −14:
+    ///   · the user deliberately choosing "No target" (`.off` → `integratedLUFS` nil), and
+    ///   · an unreadable/absent raw value (the enum init returning nil).
+    /// So picking "No target" normalised the export to −14 LUFS — byte-identical to
+    /// picking "Streaming (−14)". A control that reads "off" and is not off.
+    ///
+    /// The two cases genuinely differ and are now handled separately: a corrupted
+    /// setting must fall back to the registered DEFAULT (`.streaming`, see
+    /// `StudioDefaultKeys`), never silently disable normalisation; only an explicit
+    /// `.off` returns nil.
+    public static func exportTargetLUFS(rawValue: String) -> Float? {
+        (LoudnessTarget(rawValue: rawValue) ?? .streaming).integratedLUFS
+    }
 }
 
 public enum LoudnessCompliance: Sendable {

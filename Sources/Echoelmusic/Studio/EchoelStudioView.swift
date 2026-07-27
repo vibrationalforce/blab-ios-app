@@ -4239,10 +4239,21 @@ struct EchoelStudioView: View {
     // MARK: - Export / projects
 
     /// The loudness the export normalises to — the same delivery target chosen in the
-    /// Master panel (Streaming −14 / Podcast −16 / Broadcast −23 / Cinema −24). "No
-    /// target" keeps the established −14 default so existing behaviour is unchanged.
-    private var exportTargetLUFS: Float {
-        LoudnessTarget(rawValue: loudnessTargetRaw)?.integratedLUFS ?? -14
+    /// Master panel (Streaming −14 / Podcast −16 / Broadcast −23 / Cinema −24), or nil
+    /// for "No target", which now really means NO normalisation.
+    ///
+    /// The old note here said "No target keeps the established −14 default so existing
+    /// behaviour is unchanged", which described the bug rather than a decision: the
+    /// picker offered "No target" and the export then did exactly what "Streaming (−14)"
+    /// does. The resolution moved into `LoudnessTarget.exportTargetLUFS(rawValue:)` so
+    /// the two nils it used to conflate — user chose off vs. setting unreadable — are
+    /// separable and unit-tested.
+    ///
+    /// This changes nothing for anyone who did not explicitly pick "No target": the
+    /// registered default is `.streaming` (`StudioDefaultKeys`), and an unreadable
+    /// value still falls back to it.
+    private var exportTargetLUFS: Float? {
+        LoudnessTarget.exportTargetLUFS(rawValue: loudnessTargetRaw)
     }
 
     private func exportWav() async {

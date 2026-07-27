@@ -65,7 +65,10 @@ final class SingleExport {
 
     private(set) var exportState: ExportState = .idle
     var outputFormat: OutputFormat = .aac
-    var targetLUFS: Float = -14
+    /// Loudness to normalise to, or `nil` for NO normalisation (render at the level
+    /// that was actually captured). Optional rather than a sentinel because "off" is a
+    /// real delivery choice the Master panel offers — see `LoudnessTarget.off`.
+    var targetLUFS: Float? = -14
 
     // Bar-aligned loop trim (audit C6/C7). When `trimLengthSeconds` is set, ONLY
     // the window [duration − trimFromEnd − length, +length] of the source is
@@ -89,7 +92,8 @@ final class SingleExport {
             let outputURL = try makeOutputURL(sourceURL: sourceURL)
             let timeRange = try await resolveTrimRange(sourceURL: sourceURL)
             let gainDB = try await measureLUFS(sourceURL: sourceURL, timeRange: timeRange)
-            let normalizeGain = targetLUFS - gainDB    // positive = boost, negative = cut
+            // nil target = deliver at the captured level: 0 dB, not a "neutral" −14.
+            let normalizeGain = targetLUFS.map { $0 - gainDB } ?? 0   // positive = boost, negative = cut
             let clampedGain = Swift.min(Swift.max(normalizeGain, -12), 12)
 
             exportState = .exporting(progress: 0)

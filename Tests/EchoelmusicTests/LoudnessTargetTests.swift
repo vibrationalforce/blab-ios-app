@@ -37,4 +37,30 @@ final class LoudnessTargetTests: XCTestCase {
         XCTAssertFalse(LoudnessTarget.off.truePeakExceeds(0.0, floor: floor))
         XCTAssertFalse(LoudnessTarget.streaming.truePeakExceeds(floor, floor: floor))
     }
+
+    // MARK: - Export target resolution (the "No target" lie)
+
+    func testExportTarget_offMeansDoNotNormalise() {
+        // The whole point of the fix. Until now the export resolved "No target" to
+        // −14 LUFS, so choosing it did exactly what choosing "Streaming (−14)" did:
+        // a control that reads "off" and is not off.
+        XCTAssertNil(LoudnessTarget.exportTargetLUFS(rawValue: LoudnessTarget.off.rawValue),
+                     "\"No target\" must disable normalisation, not silently mean −14")
+    }
+
+    func testExportTarget_eachTargetResolvesToItsOwnLoudness() {
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "streaming"), -14)
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "podcast"), -16)
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "broadcastEBU"), -23)
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "cinema"), -24)
+    }
+
+    func testExportTarget_unreadableSettingFallsBackToTheDefaultNotToOff() {
+        // The second nil, and the reason this is a function rather than one more
+        // `??`. An unparseable stored value is a CORRUPTED setting, not a user
+        // choosing "off": it must land on the registered default (`.streaming`), or a
+        // damaged preference would silently switch normalisation off for everyone.
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: "not-a-target"), -14)
+        XCTAssertEqual(LoudnessTarget.exportTargetLUFS(rawValue: ""), -14)
+    }
 }
