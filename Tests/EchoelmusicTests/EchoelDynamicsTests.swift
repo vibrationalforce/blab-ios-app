@@ -33,18 +33,29 @@ final class EchoelDynamicsTests: XCTestCase {
         }
     }
 
-    /// THE FALSIFYING TEST for the 2026-07-27 crackle fix (#194). Both the old and the
-    /// new limiter satisfy `testLimiterNeverExceedsCeiling` — a hard clipper does too, and
-    /// that is exactly why that test did not catch the bug. What separates them is the
-    /// SHAPE of what comes out on sustained over-ceiling material:
+    /// THE FALSIFYING TEST for the 2026-07-27 crackle fix (#194) — and the ONE assertion
+    /// that discriminates is the gain-spread one at the bottom, not the crest factor.
     ///
-    /// · a hard clipper (`g = ceiling/peak` with no ballistics) flat-tops the waveform, so
-    ///   the output tends toward a square wave — crest factor → ~1.07 at 4× overdrive;
-    /// · a limiter with a real attack SCALES it, so the sine stays a sine — crest ≈ √2.
+    /// The first version of this test asserted `crest > 1.30` and called that the falsifier.
+    /// It was not: the OLD limiter measures **1.358** here and would have gone green. The
+    /// reasoning behind 1.30 was wrong in a specific way worth recording, because it is the
+    /// obvious mistake to make again. "Hard clipper ⇒ square wave ⇒ crest → 1.07" describes
+    /// a UNITY-GAIN clipper. The old code was not that: its release ballistic had already
+    /// scaled the whole waveform to ~0.24, so `peak * g > ceiling` fired only above
+    /// |sin| ≈ 0.965 — **16.7% of samples**, the tips. That flat-tops the peaks and aliases
+    /// audibly (measured 3rd harmonic −31.2 dBc, vs −73.4 dBc for the version below), but
+    /// it leaves the RMS of a mostly-intact sine. Crest simply cannot see it.
     ///
-    /// The crest floor of 1.30 sits well clear of both. The flat-topping is what folded
-    /// back as inharmonic aliasing at 48 kHz (un-oversampled) — the "gritty / like CPU
-    /// overload in Ableton" texture, not a click.
+    /// What DOES separate them is how still the gain sits — which is the actual defect,
+    /// since a gain that jumps per sample is itself the distortion:
+    ///
+    ///     old  gain spread over one cycle:  0.0262
+    ///     new  gain spread over one cycle:  0.000185   (141× smaller)
+    ///
+    /// The 0.005 threshold sits 5× under the bug and 27× over the fix. The crest assertion
+    /// is KEPT but only as a sanity floor (it catches a limiter that has gone to silence or
+    /// to DC); it is not what proves the fix, and it must not be tightened toward 1.4 —
+    /// 1.4138 measured leaves under 9% headroom, and the bug lives inside that band.
     func testLimiterScalesSustainedMaterialInsteadOfFlatToppingIt() {
         let lim = EchoelLimiter(sampleRate: sr)
         lim.ceilingDb = -0.3
@@ -69,13 +80,14 @@ final class EchoelDynamicsTests: XCTestCase {
 
         let rms = sqrtf(sumSq / Float(window))
         XCTAssertGreaterThan(rms, 0, "limiter went silent on sustained material")
-        XCTAssertGreaterThan(peakOut / rms, 1.30, "output is flat-topped, not scaled")
+        // Sanity floor only — see the doc. Measures 1.4138; the OLD version measures 1.358,
+        // so this cannot discriminate and must not be read as the proof.
+        XCTAssertGreaterThan(peakOut / rms, 1.30, "output collapsed toward DC or silence")
         XCTAssertLessThanOrEqual(peakOut, ceiling * 1.001)
 
-        // The gain is a CONTINUOUS signal, not a per-sample step train. The old version's
-        // gain swung the full 0.24…1.0 every cycle (spread ~0.76) — multiplying audio by a
-        // discontinuous gain IS the distortion. With ballistics it barely moves.
-        XCTAssertLessThan(maxGain - minGain, 0.05, "gain is still stepping per sample")
+        // ⬇ THIS is the falsifying assertion. The gain must be a near-still signal, because
+        // a gain that moves per sample is itself the distortion. Old: 0.0262. New: 0.000185.
+        XCTAssertLessThan(maxGain - minGain, 0.005, "gain is still stepping per cycle")
     }
 
     /// "Fail to resting, never to silence": once loud material stops, the gain must come
@@ -93,10 +105,17 @@ final class EchoelDynamicsTests: XCTestCase {
         XCTAssertEqual(lim.gainReductionDb, 0, accuracy: 0.05)
     }
 
-    /// A NaN sample must not poison the smoother's state. NaN fails every comparison, so
-    /// it takes the release branch with `target = 1` and leaves `gain` untouched — the
-    /// next finite sample is processed as if nothing happened. (An `inf` is a different
-    /// case and is stopped UPSTREAM by `AudioOutputGuard`; see its file doc.)
+    /// A NaN sample must not poison the smoother's state. The `peak.isFinite` guard bails
+    /// before any state is touched, so the next finite sample is processed as if nothing
+    /// happened. (An earlier version of this comment claimed NaN "takes the release branch
+    /// with target = 1" — it does not reach a branch at all. Same observable behaviour,
+    /// wrong reason on the record, so it is corrected rather than left as folklore.)
+    ///
+    /// The sample itself still leaves as NaN. That is deliberate: `AudioOutputGuard` sweeps
+    /// non-finite samples at the source-node output, which is the stage DOWNSTREAM of this
+    /// whole FX chain (`PolySynthVoice` runs `fxChain.processBuffer` and only then
+    /// `copySilencingNonFinite`). Zeroing here would duplicate that and would make the
+    /// limiter stop being a pure gain computer.
     func testLimiterNaNDoesNotPoisonGainState() {
         let lim = EchoelLimiter(sampleRate: sr)
         lim.ceilingDb = -0.3

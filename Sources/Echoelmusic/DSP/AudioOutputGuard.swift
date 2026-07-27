@@ -30,7 +30,9 @@ import Foundation
 /// whole state update on a non-finite input — otherwise `inf` would pin its peak
 /// envelope at infinity permanently and silence the master bus for good. The limiter
 /// no longer makes non-finite input worse; it still cannot make it better, which is
-/// exactly why this guard exists upstream.)
+/// exactly why this guard exists. Note the ORDER, which I got wrong the first time I
+/// wrote this: the FX chain runs INSIDE the render block and this guard sweeps the
+/// buffer afterwards, so the guard is DOWNSTREAM of the limiter, not upstream of it.)
 ///
 /// ── COVERAGE ────────────────────────────────────────────────────────────────
 /// All seven of the app's `AVAudioSourceNode` render blocks are wired. WHICH ENTRY

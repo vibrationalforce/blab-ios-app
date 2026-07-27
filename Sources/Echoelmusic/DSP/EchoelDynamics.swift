@@ -90,8 +90,15 @@ public final class EchoelCompressor: @unchecked Sendable {
 /// "For finite input" is not a hedge, it is the exact contract. A non-finite sample takes
 /// the bypass in `processStereo` and is scaled by the current gain without any ceiling
 /// enforcement — an `inf` in is an `inf` out. That is deliberate: this class is a gain
-/// computer, and sanitizing samples belongs to `AudioOutputGuard` upstream. What IS
+/// computer, and sanitizing samples belongs to `AudioOutputGuard`, which sweeps at the
+/// source-node output — the stage immediately DOWNSTREAM of this whole FX chain
+/// (`PolySynthVoice` runs `fxChain.processBuffer`, then `copySilencingNonFinite`). What IS
 /// guaranteed for such a sample is that the limiter's own state survives it intact.
+///
+/// Also true and NOT a rounding-free absolute: the ceiling can be exceeded by up to ~2 ulp
+/// (measured worst case 108 ppb over 900k fuzzed samples), because `fl(fl(ceiling/env)·peak)`
+/// need not round down. Every assertion allows `ceiling * 1.001`, so nothing depends on the
+/// stronger reading — but "never exceeds" means "never by more than one rounding step".
 ///
 /// ⛔ WHY THE ATTACK EXISTS (founder 2026-07-27: "Es knistert. Wie CPU overload bei
 /// Ableton oder so"). The previous version had zero attack:
@@ -153,21 +160,31 @@ public final class EchoelLimiter: @unchecked Sendable {
         // infinity permanently (`inf * decay == inf`), and NaN propagates through
         // `Swift.max`, so either one would silence the limiter for good — a state bug far
         // worse than the bad sample itself. Skip the whole state update and apply the gain
-        // already held. Cleaning the SAMPLE up remains `AudioOutputGuard`'s job upstream;
+        // already held. Cleaning the SAMPLE up remains `AudioOutputGuard`'s job downstream;
         // this only guarantees the limiter survives one.
         guard peak.isFinite else { return (inL * gain, inR * gain) }
 
         // PEAK ENVELOPE — decays at the release rate, follows a rise instantly.
         //
-        // This stage is not optional, and leaving it out is a mistake worth naming: if the
-        // detector reads the RAW sample, it springs back to a target of unity at every zero
-        // crossing — on a 200 Hz sine that is ~15% of all samples. The slow release then
-        // walks the gain UP by ~0.04 per cycle before the fast attack claws it back, and
-        // that ripple pushes `peak * gain` over the ceiling for roughly a quarter of every
-        // cycle, re-engaging the absolute guard below. In other words: without the envelope
-        // the flat-topping this whole class exists to remove simply comes back, just
-        // periodically instead of continuously. Holding the peak between cycles is what
-        // lets the gain sit still.
+        // This stage is not optional. If the detector reads the RAW sample it springs back
+        // to a target of unity at every zero crossing (15.8% of samples on a 200 Hz sine at
+        // 12 dB over), the slow release walks the gain up between peaks, and that ripple
+        // re-engages the absolute guard below — the flat-topping this class exists to
+        // remove comes back, periodically instead of continuously.
+        //
+        // Measured on that signal (bit-accurate simulation of these three variants, DSP
+        // review 2026-07-27) — third harmonic, and the inharmonic floor above 1 kHz that IS
+        // the audible "grit":
+        //
+        //     old (no ballistics at all)   H3 −31.2 dBc     floor −80.4 dB
+        //     ballistics, RAW detector     H3 −37.9 dBc     floor −86.8 dB
+        //     ballistics + this envelope   H3 −73.4 dBc     floor −90.7 dB
+        //
+        // So the envelope is worth 35 of the 42 dB. The ballistics alone buy ~7.
+        // (Two earlier numbers here were mine and were wrong — "walks up ~0.04 per cycle"
+        // is really 0.0097, and "a quarter of every cycle" is really 9.2%. They are replaced
+        // by the measurements above rather than quietly deleted, because the conclusion
+        // survived them and the next session should trust the measurement, not my estimate.)
         // `1 - releaseCoeff` is exactly `exp(-1/t)`, computed here rather than cached as a
         // field. One FSUB per sample, next to a division that already costs far more — and
         // in exchange `releaseCoeff` stays the SINGLE source of truth. A cached `envDecay`
@@ -196,9 +213,13 @@ public final class EchoelLimiter: @unchecked Sendable {
         var g = gain + (target - gain) * coeff
 
         // THE CEILING STAYS ABSOLUTE. The smoother may not have arrived yet on a fast
-        // transient; this guard is what keeps the guarantee in the class doc true. On the
-        // sustained material that caused the report it no longer engages, because the
-        // smoothed gain has already settled at or below what each sample needs.
+        // transient; this guard is what keeps the guarantee in the class doc true.
+        //
+        // On the sustained material that caused the report it engages on ~1.7% of samples
+        // rather than 16.7%, and where it does the correction is under 0.01 dB — the
+        // smoothed gain settles a hair ABOVE `ceiling/env`, not at or below it. (An earlier
+        // version of this comment said "it no longer engages", stated as an absolute. It
+        // was not one.)
         if peak * g > ceilingLin { g = target }
         gain = g
         return (inL * g, inR * g)
