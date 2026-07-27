@@ -382,9 +382,14 @@ public final class PatternEngine {
     ///   REACHABLE — `.transportButton`, `.generate`, `.timelineRegion`, `.loopExport`.
     ///   UNREACHABLE — `.pianoRoll` (`PianoRollView` has zero instantiations since #178),
     ///   `.arrangement` (`ArrangementPlayer.play(store:…)` has no caller since
-    ///   `ArrangementView` went with #121 Slice 4), `.launchQuantized` (`LaunchQuantizer`
-    ///   has no reference outside its own file since `ClipView` was deleted). Those three
-    ///   retire with #132; the cases stay only so the call sites keep naming themselves.
+    ///   `ArrangementView` went with #121 Slice 4). Those two retire with #132; the cases
+    ///   stay only so the call sites keep naming themselves.
+    ///   `.timelineRegion` is now unreachable too — ▶ stopped consulting the timeline
+    ///   document — but it is NOT marked so above, because `TimelineRegionPlayer` still
+    ///   holds the call and dies as one piece in #132 Slice 5c.
+    ///   `.launchQuantized` is GONE (#132 Slice 5a): `LaunchQuantizer` is deleted, so the
+    ///   case had no possible writer at all — an unreachable case whose type still exists
+    ///   documents a dormant path, one whose type does not just lies.
     ///   `.unspecified` has no production caller either — seeing it in a log means a NEW
     ///   call site was added without naming itself, which is exactly what it is for.
     public enum PlayCause: String, Sendable, CaseIterable {
@@ -399,8 +404,7 @@ public final class PatternEngine {
         case generate
         case pianoRoll         // UNREACHABLE (#178) — PianoRollView is unmounted
         case arrangement       // UNREACHABLE — ArrangementPlayer.play has no caller
-        case timelineRegion    // TimelineRegionPlayer
-        case launchQuantized   // UNREACHABLE — LaunchQuantizer has no caller
+        case timelineRegion    // TimelineRegionPlayer (unreachable since ▶ stopped reading the document)
         case loopExport        // LoopExporter (offline render)
         case unspecified       // a caller that has not been given a cause yet
     }

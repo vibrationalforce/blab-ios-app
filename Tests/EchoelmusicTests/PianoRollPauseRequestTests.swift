@@ -12,7 +12,7 @@
 // requested with no take live stayed outstanding and downgraded the next REAL Stop to a pause —
 // music off, camera and torch still on. The accessor was flawless throughout; only a test at the
 // decision seam could have caught it, which is why that seam is now a pure type in `Core/`
-// (repo convention: FlashGuard, AutomationCanvasMath, LaunchQuantizer.shouldDefer).
+// (repo convention: FlashGuard, AutomationCanvasMath).
 //
 // Still NOT covered: the two call sites themselves (PianoRollView's button, EchoelStudioView's
 // onChange) sit in `View` bodies, unreachable from XCTest — same limit as the panic fan-out,

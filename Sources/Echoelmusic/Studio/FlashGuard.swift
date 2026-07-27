@@ -34,12 +34,14 @@ public enum FlashGuard {
     /// flashed faster. That is the same failure mode `ringsPhaseDampingLiteral` below was
     /// written to end; the ceiling itself had escaped it.
     ///
-    /// `ClipLaunchGlyph.blinkPeriod` is deliberately NOT a consumer: it is a half-cycle
-    /// DURATION, not a full-cycle rate. `1 / maxPulseRateHz` happens to equal its 0.4 exactly,
-    /// so substituting it is bit-identical and reads correct while asserting a relationship
-    /// that is off by a factor of two — the trap springs on the NEXT maintainer, who aligns
-    /// the code to the comment and writes `0.5 / maxPulseRateHz` = 0.2 s → 5 transitions/s.
-    /// See the note there.
+    /// The one deliberate NON-consumer this note used to name — `ClipLaunchGlyph.blinkPeriod`
+    /// — is gone with the file (#132 Slice 5a). The REASON it was excluded is kept, because
+    /// it is the general trap and the next blink/pulse constant will walk into it: a
+    /// half-cycle DURATION is not a full-cycle RATE. `1 / maxPulseRateHz` happened to equal
+    /// that 0.4 s exactly, so substituting it would have been bit-identical and read correct
+    /// while asserting a relationship off by a factor of two — the trap springs on the
+    /// maintainer who then aligns code to comment and writes `0.5 / maxPulseRateHz` = 0.2 s
+    /// → 5 transitions/s, i.e. a WCAG breach introduced by a tidy-up.
     ///
     /// It is a `Double`. `MetalBioView` works in `Float`, so it casts at the call site
     /// (`Float(FlashGuard.maxPulseRateHz)`) rather than this type carrying a `Float` twin:

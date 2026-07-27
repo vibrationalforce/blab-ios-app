@@ -100,7 +100,7 @@ final class PatternEngineTransportRelayTests: XCTestCase {
     /// the engine and the relayed Transport in exactly the state a bare `play()` does.
     func testPlayCause_doesNotChangeBehaviour() {
         for cause in [PatternEngine.PlayCause.transportButton, .generate, .pianoRoll,
-                      .arrangement, .timelineRegion, .launchQuantized, .loopExport,
+                      .arrangement, .timelineRegion, .loopExport,
                       .unspecified] {
             let pattern = PatternEngine()
             let transport = Transport()
@@ -127,7 +127,6 @@ final class PatternEngineTransportRelayTests: XCTestCase {
             .pianoRoll:       "pianoRoll",
             .arrangement:     "arrangement",
             .timelineRegion:  "timelineRegion",
-            .launchQuantized: "launchQuantized",
             .loopExport:      "loopExport",
             .unspecified:     "unspecified",
         ]

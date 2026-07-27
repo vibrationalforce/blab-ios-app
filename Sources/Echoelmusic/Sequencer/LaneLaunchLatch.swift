@@ -10,9 +10,11 @@
 // All launch grids are multiples of ticksPerTransportStep (120), so every quantize
 // boundary lands exactly on a sampled transport step → deterministic, never missed.
 //
-// NOTE: the older single-slot `LaunchQuantizer` class (global, also loaded drums)
-// stays as legacy; this is its lane-scoped successor. The
-// timing namespace here is `LaunchTiming` to avoid colliding with that class name.
+// NOTE: the older single-slot `LaunchQuantizer` class (global, also loaded drums) is
+// DELETED (#132 Slice 5a) — this was already its lane-scoped successor, and the legacy
+// one had no caller left. The timing namespace here stays `LaunchTiming`: the name was
+// chosen to avoid colliding with that class, and renaming it now would be churn for a
+// collision that no longer exists.
 
 import Foundation
 

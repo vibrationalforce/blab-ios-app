@@ -9,7 +9,7 @@
 // stopping the music but leaving the camera and its torch on, with `running` still true.
 //
 // This type is that decision, extracted so it can be pinned (repo convention: `FlashGuard`,
-// `AutomationCanvasMath`, `LaunchQuantizer.shouldDefer`). Pure value logic — no engine, no
+// `AutomationCanvasMath`). Pure value logic — no engine, no
 // view, no `Sequencer`/`DSP` types — so it compiles and tests on every platform.
 //
 // THE CONTRACT THAT PREVENTS THE DEFECT: the caller must consume the one-shot pause request
