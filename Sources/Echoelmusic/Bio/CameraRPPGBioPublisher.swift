@@ -179,6 +179,27 @@ public final class CameraRPPGBioPublisher {
         (confidence >= displayThreshold && autoStrength >= trustAutoFloor)
             || autoStrength >= strongAutoFloor
     }
+    /// THE BUS-PUBLISH GATE — deliberately the SAME bar as the shown number.
+    ///
+    /// Until 2026-07-27 this path gated on `bpm > 0 && bpmConfidence >= lockThreshold`
+    /// alone, i.e. strictly WEAKER than `pulseTrustworthy`, which the display has used
+    /// since the acf work. That asymmetry meant the screen was held to more evidence than
+    /// the instrument: device log 2469 (build 10.79.352) carries
+    /// `bpm=75 conf=0.62 acf=0.30 auto=64` and `bpm=80 conf=0.62 acf=0.32 auto=63` — over
+    /// the old publish threshold, under the display's — so the readout correctly held ~48
+    /// while the BUS fed 75–80 bpm to the synth, the visual, OSC, ADM-OSC and Art-Net.
+    /// The number you SEE and the number you HEAR must clear one bar.
+    ///
+    /// Note it is `pulseTrustworthy` EXACTLY, not `pulseTrustworthy && confidence >= lockThreshold`.
+    /// That AND looks safer and is wrong: it would drop the documented strong-periodicity /
+    /// low-confidence case (acf 0.59–0.72 at conf 0.01, a rock-stable real 56 bpm) out of the
+    /// SOUND while the display still shows it — the same asymmetry, merely inverted.
+    ///
+    /// Pure → unit-testable, which the inline `guard` it replaces was not.
+    nonisolated static func shouldPublish(bpm: Double, confidence: Double, autoStrength: Double) -> Bool {
+        bpm > 0 && pulseTrustworthy(confidence: confidence, autoStrength: autoStrength)
+    }
+
     /// True once a confident pulse is locked.
     public var isLocked: Bool { detectedBPM > 0 && confidence >= Self.lockThreshold }
 
@@ -766,7 +787,9 @@ public final class CameraRPPGBioPublisher {
                 guard self.inboundRateEMA >= Self.minMeasurableInboundHz else { continue }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
-                guard bpm > 0, self.analyzer.bpmConfidence >= Self.lockThreshold else {
+                guard Self.shouldPublish(bpm: bpm,
+                                         confidence: self.analyzer.bpmConfidence,
+                                         autoStrength: autoStrength) else {
                     // Brief dropout: keep the visual + pulse warm by re-emitting the
                     // last good frame (coherence gently decaying — never a snap to 0)
                     // until the grace window expires, so a marginal signal can't
