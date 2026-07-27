@@ -724,3 +724,47 @@ step fails again at the same place, it is NOT a transient and the export step ge
 The "Apple Development" signing identity in the archive log is NOT the smoking gun it looks
 like — automatic signing archives with a development identity and the export step re-signs for
 distribution. Do not chase it before the retry.
+
+## 2026-07-27 — CLOSES the deploy dead-end above: the retry rule held
+Attempt 2 on the identical content (`73a1927`, Build 2469) ran Archive → Export & Upload →
+"Verify build landed in App Store Connect", all green. So the previous entry's triage rule
+(commit touches only `.deploy/release` + prior deploy green on the same workflow + both gates
+green ⇒ Apple-side transient ⇒ re-trigger with version unchanged) is CONFIRMED, now twice over
+and at two DIFFERENT steps (archive-side provisioning, and export/upload). Do not spend a cycle
+diagnosing the export step the first time it fails under those conditions.
+
+Also worth keeping: `testflight.yml` has a "Verify build landed in App Store Connect" step. THAT
+is the signal to report a ship on — not the workflow's overall conclusion, and certainly not the
+push.
+
+## 2026-07-27 — PLAYBOOK: a wrong REASON attached to a right FIX is a booby trap, not a nit
+Shipping the NaN-velocity clamps (#176) I wrote, in a commit message and two code comments, that
+`PolySynthVoice.noteOn` was "the LAST gate before the render thread" and that a NaN reached
+`pow()` in `spawnVoice` and poisoned the voice. The FIX was right. The REASON was false:
+`EchoelPolyDDSP.noteOn` already clamped in the safe argument order and `velocityGain` had its own
+`.isFinite` guard, so the synth was protected all along.
+
+Why that is worse than a harmless inaccuracy: my sentence made the REAL guards look redundant. A
+later session tidying "duplicate" clamps would have deleted the load-bearing one and reintroduced
+exactly the bug the comment was written to prevent. The repo has been bitten by this shape before
+(the false "PianoRollView PUBLISHES MusicalFrame" line in CLAUDE.md, which would have blocked a
+founder-ordered removal on a technical ground that did not exist).
+
+**RULE: before writing "X is the only/last guard", go READ X's consumer and check whether it
+guards itself. If it does, say so IN the comment and name it as load-bearing.** The honest reason
+here was also the stronger one — `Int(Float.nan)` traps, and the MIDI exporters do
+`Int(v * 127)`, so a leaked NaN is a hard crash on export, not a quiet voice. Looking for the
+real mechanism found a worse bug than the one I had invented.
+
+## 2026-07-27 — DEAD-END: a NaN test that constructs its NaN through a clamping init
+Three tests named the BioComposer velocity clamps and passed `Note(velocity: .nan)`. But `Note`'s
+init clamps NaN to 0 (that was the same slice's fix), so the composer received 0, not NaN —
+reverting all three composer clamps left the tests GREEN. They still went red against the full
+pre-change tree, via the init, which is precisely why the hole was invisible: red-after,
+green-before, and covering the wrong line.
+
+**RULE: when the same slice hardens a constructor AND a downstream consumer, a test for the
+consumer must NOT build its input through that constructor.** Assign through the public `var`
+(which is also how production reaches it — the composer mutates `n.velocity` on a built note).
+General form: to prove a test covers line L, mentally revert ONLY L and ask whether it still
+passes. "It fails against the whole old tree" is not the same claim.
