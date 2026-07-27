@@ -32,8 +32,18 @@ jobs:
 
       - name: Check for secrets in code
         run: |
+          # This step used to be `! grep ... || echo "No secrets found"`, which
+          # exits 0 in BOTH directions: no match -> `!` flips 1 to 0; a match ->
+          # `!` flips 0 to 1 and `|| echo` swallows it. It could never fail, so
+          # it reported "no secrets" over a file that contained one.
           echo "Checking for hardcoded secrets..."
-          ! grep -r "AKIA\|sk-\|password\s*=\s*['\"]" --include="*.swift" --include="*.kt" . || echo "No secrets found"
+          if grep -rnE "AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|password[[:space:]]*=[[:space:]]*[\"']" \
+               --include="*.swift" --include="*.kt" --include="*.json" \
+               --exclude-dir=.git . ; then
+            echo "::error::possible hardcoded secret above"
+            exit 1
+          fi
+          echo "No secrets found"
 
       - name: "✅ Lint Passed"
         run: echo "Code quality checks passed!"
