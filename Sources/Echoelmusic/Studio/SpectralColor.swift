@@ -296,9 +296,13 @@ public enum SpectralColor {
     /// a colour. Routing pitch through wavelength is exactly what we can now do honestly.
     ///
     /// The MIXING stays perceptual (OKLab, not RGB): summing spectral colours in RGB washes a
-    /// dense chord to white, while an OKLab average lets a cluster fall toward neutral — the
+    /// dense chord to WHITE, and an OKLab average does not — the real failure mode, and the
     /// property `color(forChord:)` was written for, kept, with a physical input instead of a
-    /// conventional one. Amplitude is the mixing WEIGHT only; intensity is a separate dimmer
+    /// conventional one. Note the weaker guarantee, measured: with physical inputs a dense
+    /// cluster no longer lands on NEUTRAL grey the way the synthesized hue circle did (a
+    /// 12-note chromatic cluster comes out a distinct purple), because the CIE locus plus the
+    /// purple line is a lopsided horseshoe, not an evenly spaced circle. It stays bounded and
+    /// never blows out; do not restate the old "falls toward neutral" claim. Amplitude is the mixing WEIGHT only; intensity is a separate dimmer
     /// (`MusicMediaMapping.dimmerUnit`), so this never doubles as a level.
     public static func physicalColor(forChord notes: [(hz: Double, amplitude: Double)]) -> LinearRGB {
         let valid = notes.filter { $0.hz > 0 && $0.hz.isFinite && $0.amplitude > 0 && $0.amplitude.isFinite }

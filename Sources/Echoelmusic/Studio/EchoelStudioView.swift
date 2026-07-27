@@ -4642,8 +4642,9 @@ private struct StudioZoom: ViewModifier {
 }
 
 /// Live "music → colour": the chord sounding now (published on the bus by the
-/// piano roll as a MusicalFrame) mapped through SpectralColor (OKLab, octave-
-/// equivalent hue, amplitude-weighted chord mix). Proves the DMMW promise —
+/// piano roll as a MusicalFrame) mapped through SpectralColor — the PHYSICAL colour
+/// (octave transposition → CIE 1931), amplitude-weighted and mixed in OKLab. The hue
+/// is no longer OKLab-synthesized; it comes from the wavelength. Proves the promise —
 /// visuals shaped BY musical parameters — and feeds the immersive visual + light.
 ///
 /// OWN LEAF on purpose (freeze rule, audit 2026-07-09): `freshMusical` republishes
@@ -4664,7 +4665,7 @@ private struct MusicColourRowView: View {
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
             VStack(alignment: .leading, spacing: 1) {
                 Text("Music → colour").font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
-                Text(sounding ? "Live chord, mapped by pitch + loudness" : "Plays when the music is sounding")
+                Text(sounding ? "Live chord, mapped by pitch" : "Plays when the music is sounding")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
             Spacer(minLength: 0)

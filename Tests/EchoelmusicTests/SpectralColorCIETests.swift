@@ -221,9 +221,14 @@ final class SpectralColorCIETests: XCTestCase {
         for hz in [110.0, 261.626, 349.23, 440.0, 880.0, 1760.0] {
             let direct = SpectralColor.toneLinearRGB(forToneHz: hz)
             let viaMix = SpectralColor.physicalColor(forChord: [(hz: hz, amplitude: 1)])
-            XCTAssertEqual(viaMix.r, direct.r, accuracy: 1e-9, "r at \(hz) Hz")
-            XCTAssertEqual(viaMix.g, direct.g, accuracy: 1e-9, "g at \(hz) Hz")
-            XCTAssertEqual(viaMix.b, direct.b, accuracy: 1e-9, "b at \(hz) Hz")
+            // 1e-6, not 1e-9: Ottosson's forward and inverse constants are INDEPENDENTLY
+            // rounded 10-digit approximations, not an exactly-inverted pair — `M2 · M2⁻¹`
+            // is off identity by ~3.7e-8 and the cube in `oklabToLinear` amplifies it, so
+            // the true round-trip floor is ~3e-7. 1e-6 still falsifies what this test is
+            // for: a transposed or mistyped row moves the result by ~1e-2, four orders up.
+            XCTAssertEqual(viaMix.r, direct.r, accuracy: 1e-6, "r at \(hz) Hz")
+            XCTAssertEqual(viaMix.g, direct.g, accuracy: 1e-6, "g at \(hz) Hz")
+            XCTAssertEqual(viaMix.b, direct.b, accuracy: 1e-6, "b at \(hz) Hz")
         }
     }
 
@@ -236,9 +241,9 @@ final class SpectralColorCIETests: XCTestCase {
                   LinearRGB(r: 0, g: 0, b: 0),
                   LinearRGB(r: 1, g: 1, b: 1)] {
             let back = SpectralColor.oklabToLinear(SpectralColor.linearToOKLab(c))
-            XCTAssertEqual(back.r, c.r, accuracy: 1e-9)
-            XCTAssertEqual(back.g, c.g, accuracy: 1e-9)
-            XCTAssertEqual(back.b, c.b, accuracy: 1e-9)
+            XCTAssertEqual(back.r, c.r, accuracy: 1e-6)   // see the note above on 1e-6
+            XCTAssertEqual(back.g, c.g, accuracy: 1e-6)
+            XCTAssertEqual(back.b, c.b, accuracy: 1e-6)
         }
     }
 

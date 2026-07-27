@@ -1358,10 +1358,16 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float x      = q.x * 0.5 + 0.05 * sin(phase * 0.3 + q.y * 1.5);   // slow refraction drift
         float octave = clamp(x * span, -4.0, 4.0);               // guard exp2 range
         // Same anti-strobe crossfade as the clouds: fan BOTH note spectra and mix in RGB.
+        // Through `toneColour` — the CLOSED-circle twin of SpectralColor.toneLinearRGB.
+        // It sat directly above this function, written and with ZERO callers, while this
+        // line used the naive `clamp(toneWavelengthNm(...))` fold instead: the one with the
+        // deep-red/violet SEAM, where a tone landing at the edge hits near-zero CIE response
+        // and renders BLACK (at A4=440 that is the pitch class F — the founder's 2026-07-12
+        // "da fehlt jetzt gerade das F komplett als Farbe"). The clouds were fixed; the
+        // prism look kept the seam. Now every surface really does agree.
         float hzA    = max(toneA, 1.0) * exp2(octave);
         float hzB    = max(toneB, 1.0) * exp2(octave);
-        float3 c     = mix(wavelengthToRGB(clamp(toneWavelengthNm(hzA), 380.0, 780.0)),
-                           wavelengthToRGB(clamp(toneWavelengthNm(hzB), 380.0, 780.0)), fade);
+        float3 c     = mix(toneColour(hzA), toneColour(hzB), fade);
         float band   = 0.85 + 0.15 * cos(q.y * 3.14159265);      // luminous band, not flat fill
         return c * band;
     }
