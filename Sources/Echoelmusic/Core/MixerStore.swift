@@ -67,19 +67,43 @@ public final class MixerStore {
     /// it directly — session A varies 0.63…0.66, session B sits at 1.000 across dozens of
     /// samples with no variation at all.
     ///
-    /// It is also the leading mechanism behind "es knistert": full-velocity notes stack
-    /// (the render's polyphony makeup is a 1/√N law written for INCOHERENT sums, and an
-    /// in-key chord sums coherently on its shared partials) and drive the chain's
-    /// zero-lookahead, instant-attack limiter into per-sample gain steps — which is a
-    /// click, once per ceiling crossing, indistinguishable from CPU-overload dropouts.
+    /// It also removes the largest single amplitude excursion feeding "es knistert" —
+    /// though NOT, on the numbers, the leading mechanism, and two earlier framings of mine
+    /// were wrong enough to correct here rather than let them propagate:
+    /// · The makeup law `0.85/√N` is RIGHT for RMS — 12-TET pitches are irrational-ratio,
+    ///   so they do not phase-lock and the RMS sum really does grow as √N. The failure is
+    ///   that the downstream stage is PEAK-sensitive: peak approaches N·a at quasi-periodic
+    ///   alignments, so 1/√N leaves a √N peak excursion recurring at the beat rate (#195).
+    /// · The limiter does not produce "clicks". `g = ceiling/peak` makes the output of the
+    ///   louder channel EXACTLY ±ceiling every time — algebraically a per-sample HARD
+    ///   CLIPPER, not a fast limiter. Un-oversampled at 48 kHz, its odd harmonics fold back
+    ///   below Nyquist as inharmonic ALIASING, which is the gritty/digital texture the
+    ///   founder actually described far better than a periodic click would be (#194).
+    /// · And the makeup one-pole's 250 ms lag means a chord ATTACK is compensated at the
+    ///   previous, sparser gain — which overshoots the ceiling already at velocity 0.47.
+    ///   So the clipper was being driven on every sparse→dense entry at ANY fader position.
+    ///   A boosted fader made that continuous instead of transient: a large aggravation,
+    ///   not the root. Expect crackle to persist after this until #194 lands.
     ///
     /// So in the VELOCITY path a fader may only attenuate. Above-unity boost is a GAIN
     /// question, not a velocity question, and needs a per-role output gain to answer
-    /// honestly — the same distinction the felt sub just got (`SubBassVoice.mixLevel`).
-    /// Until that exists the top third of the pad/lead faders does nothing; that is a
-    /// known, recorded gap, and it is strictly better than silently flattening the take.
+    /// honestly — the same distinction the felt sub got (`SubBassVoice.mixLevel`, #196).
+    ///
+    /// ⛔ THE PRODUCT IS CAPPED, NOT JUST THE USER TERM — corrected 2026-07-27 after the
+    /// first version capped only `user` and left the hole open. **The GENRE term itself
+    /// exceeds 1**: `MusicStyle.mixLevels` gives bass **1.18** on dubTechno/trap and 1.10
+    /// on ska/rocksteady/disco/punk/rock/rocknroll/heavyMetal/doom, and harmony 1.05 on the
+    /// meditation genres. Bass velocities reach 0.9 (`BioComposer`), and 0.9 × 1.18 = 1.062
+    /// → still exactly 1.000 at the clamp. The pinned-at-1.000 signature from log 2470 was
+    /// therefore STILL reproducible with every fader at unity, on two shipped genres.
+    /// Capping the product makes `finish()`'s `min(1, …)` unreachable by construction — a
+    /// documented no-op instead of a live failure mode.
+    ///
+    /// The genre levels are deliberately NOT edited: they are a curated tonal balance, and
+    /// re-normalizing them would change how every genre sounds. Capping here bounds the
+    /// result without touching the mix design.
     public nonisolated static func combined(genre: Float, user: Float) -> Float {
-        Swift.max(genre, 0) * Swift.min(1, Swift.max(user, 0))
+        Swift.min(1, Swift.max(genre, 0) * Swift.min(1, Swift.max(user, 0)))
     }
 
     /// Reset every fader to unity (the genre's own balance).
@@ -87,6 +111,10 @@ public final class MixerStore {
         bass = 1.0; pad = 1.0; lead = 1.0; drums = 1.0
     }
 
-    /// The user-adjustable range for a fader: 0 (mute) … 1.5 (a little boost).
+    /// PERSISTENCE tolerance, not the fader's range any more (2026-07-27). The Mix fields
+    /// are drawn `0...1` because above unity nothing responds; this wider bound stays so a
+    /// value saved at e.g. 1.35 by an older build still decodes and still means unity via
+    /// `combined`'s cap — no migration, no data loss. Restore it as the UI range only
+    /// together with a per-role output gain (#196).
     public nonisolated static let range: ClosedRange<Float> = 0...1.5
 }

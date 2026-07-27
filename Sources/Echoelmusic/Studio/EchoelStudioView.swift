@@ -1448,8 +1448,17 @@ struct EchoelStudioView: View {
             // class, not the root body → render-safe).
             AdaptiveCardGrid {
                 mixStripCard("Bass") {
+                    // range 0...1, NOT `MixerStore.range` (which runs to 1.5). Above unity
+                    // these faders do nothing at all — the velocity path caps at unity
+                    // (`MixerStore.combined`) and the felt sub caps its own gain product.
+                    // A field that shows "1.35" to two decimals, persists it, and changes
+                    // nothing is the most explicit possible promise that a control works;
+                    // #164's "lügende Controls" at maximum visibility. `MixerStore.range`
+                    // stays as the PERSISTENCE tolerance, so a value saved at 1.35 before
+                    // this still loads and still means unity — no migration needed.
+                    // Widen this again only together with #196 (per-role output gain).
                     EchoelValueField(label: "Level", value: mixBinding(\.bass),
-                                     range: MixerStore.range, unit: "", decimals: 2)
+                                     range: 0...1, unit: "", decimals: 2)
                     EchoelValueField(label: "Filter", value: bassCutoffBinding,
                                      range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
                     EchoelValueField(label: "Drive", value: bassDriveBinding,
@@ -1459,9 +1468,9 @@ struct EchoelStudioView: View {
                 // a shrill lead directly.
                 mixStripCard("Melodic · Pad + Lead") {
                     EchoelValueField(label: "Pad", value: mixBinding(\.pad),
-                                     range: MixerStore.range, unit: "", decimals: 2)
+                                     range: 0...1, unit: "", decimals: 2)   // see Bass Level
                     EchoelValueField(label: "Lead", value: mixBinding(\.lead),
-                                     range: MixerStore.range, unit: "", decimals: 2)
+                                     range: 0...1, unit: "", decimals: 2)
                     EchoelValueField(label: "Filter", value: melodicCutoffBinding,
                                      range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
                     EchoelValueField(label: "Drive", value: melodicDriveBinding,

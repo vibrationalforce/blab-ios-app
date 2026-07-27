@@ -113,4 +113,36 @@ final class MixerStoreTests: XCTestCase {
         XCTAssertEqual(velocity, 0.66, accuracy: 1e-6,
                        "a boosted fader flattened a 0.66 note to the 1.0 clamp")
     }
+\n
+    /// The hole the FIRST version of the cap left open: it capped only the USER term, but
+    /// `MusicStyle.mixLevels` ships GENRE levels above 1 — bass 1.18 on dubTechno/trap,
+    /// 1.10 on ska/rock/punk/…, harmony 1.05 on the meditation genres. With bass velocities
+    /// reaching 0.9, `0.9 × 1.18 = 1.062` still pinned at the clamp, so log 2470's
+    /// flat-fortissimo signature stayed reproducible on two shipped genres with every fader
+    /// at unity. Capping the PRODUCT is what actually closes it.
+    func testCombined_genreLevelAboveUnity_isAlsoCapped() {
+        XCTAssertEqual(MixerStore.combined(genre: 1.18, user: 1.0), 1.0, accuracy: 1e-6,
+                       "dubTechno/trap bass must not exceed unity")
+        XCTAssertEqual(MixerStore.combined(genre: 1.10, user: 1.0), 1.0, accuracy: 1e-6)
+        XCTAssertEqual(MixerStore.combined(genre: 1.05, user: 1.0), 1.0, accuracy: 1e-6)
+        // A trimmed fader still trims a boosted genre — the cap must not become a floor.
+        XCTAssertEqual(MixerStore.combined(genre: 1.18, user: 0.5), 0.59, accuracy: 1e-6)
+    }
+
+    /// The end-to-end guarantee the cap buys: `finish()`'s `min(1, …)` becomes unreachable,
+    /// so no combination of shipped genre level and legal fader can flatten a note onto the
+    /// ceiling. Swept rather than spot-checked, because the defect was a corner nobody
+    /// thought to check.
+    func testCombined_noShippedGenreAndFaderCombinationCanPinANoteAtOne() {
+        let shippedGenreLevels: [Float] = [1.18, 1.10, 1.05, 1.00, 0.96, 0.95, 0.94,
+                                           0.92, 0.90, 0.88, 0.85, 0.56]
+        for g in shippedGenreLevels {
+            for user in [Float(0), 0.25, 0.5, 0.75, 1.0, 1.25, 1.5] {
+                let f = MixerStore.combined(genre: g, user: user)
+                let velocity = Swift.min(Float(1), Swift.max(0, 0.9 * f))
+                XCTAssertLessThan(velocity, 1.0,
+                                  "genre \(g) × fader \(user) pinned a 0.9 note at the clamp")
+            }
+        }
+    }
 }
