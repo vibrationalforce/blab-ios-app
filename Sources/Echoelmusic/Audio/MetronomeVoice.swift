@@ -215,6 +215,28 @@ public final class MetronomeVoice {
     }
 }
 
+// MARK: - Test hooks
+
+extension MetronomeVoice {
+    /// Test-only: renders one block synchronously, exactly as the
+    /// `AVAudioSourceNode` closure does on the audio thread — the same seam
+    /// `SamplerVoice._testRender` provides, and legal against `private` because a
+    /// same-file extension shares the file scope.
+    ///
+    /// Until 2026-07-27 the metronome had ZERO render-path coverage: every test read
+    /// the `@Observable` control properties, so a `didSet` that stopped writing its
+    /// `nonisolated(unsafe)` mirror would leave the whole suite green while the click
+    /// went silent on the device. That is precisely the regression a future change to
+    /// the render state would invite, so the seam is opened before such a change, not
+    /// after it.
+    func _testRender(
+        frameCount: Int,
+        audioBufferList: UnsafeMutablePointer<AudioBufferList>
+    ) {
+        renderOnAudioThread(frameCount: frameCount, audioBufferList: audioBufferList)
+    }
+}
+
 /// Weak holder so the audio-thread render closure references the MainActor voice
 /// without retaining it (mirrors WeakSub in SubBassVoice).
 private final class WeakMetronome: @unchecked Sendable {
