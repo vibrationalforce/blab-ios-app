@@ -26,10 +26,16 @@ then delete *files* (bigger diff, zero runtime risk), then touch *persisted enum
 Established by grep against the working tree, not inherited from a report. Re-verify before
 acting on any of it; this repo has been bitten by inherited claims twice this week.
 
-**`BeatPlayer`'s only LIVE surface is `.pattern`.** Every reference outside the file is
-`beatPlayer.pattern.*` (tempo, transport, `isPlaying`, `glideTempo`, `stop`) plus the two
-lifecycle calls. `pattern` is the PatternEngine — the transport and tempo clock that
-`pianoRoll.start(pattern:)` drives. **BeatPlayer is not a leftover; its sampler half is.**
+**`BeatPlayer` has TWO live surfaces** (the first draft of this plan said one — corrected
+by review before anyone acted on it):
+1. `beatPlayer.pattern` — the PatternEngine: transport, tempo clock, `pattern.transport`,
+   `automationPlayer.wire(pattern:)`, `pianoRoll.start(pattern:)`, the bio→tempo mod
+   destination, and ~20 sites in `EchoelStudioView`/`WorkspaceField`/`LoopExporter`.
+2. the **static** `BeatPlayer.resolveSampleRef`, installed as `timelinePlayer
+   .slotSampleSink` in `EchoelmusicApp` and fired from six sites in
+   `TimelineRegionPlayer`. This one is easy to miss because it is not `beatPlayer.*`.
+
+**BeatPlayer is not a leftover; its per-instance sampler half is.**
 
 **`SampleBrowserView` is UNREACHABLE.** `sampleBrowserTrack` has exactly three references in
 all of `Sources/`: the `@State` declaration, the `.sheet(item:)`, and a comment. **No
@@ -38,12 +44,25 @@ setter anywhere.** Its own trigger (the drum channel strip from B5) went with `c
 **`ChannelRackView` is UNREACHABLE** — zero instantiation sites since `c9af52b` removed the
 embedded mount.
 
-Therefore every sampler member of `BeatPlayer` — `audition(url:)`, `auditionBundled`,
-`isCustom`, `resetSample`, `sampleLabels`, `trackNames`, `trigger`, `playPad`, `setFX`,
-`voices`, `synthVoices`, `previewVoice`, `loadDefaultSamples` — has **no reachable
-consumer**. `trackNames` looks live in a grep (two view files read it) but both readers are
-themselves unreachable. This is the trap the repo has hit repeatedly: *a slot plus a
-consumer does not prove reachability — the chain must be traced to a rendering parent.*
+Therefore the sampler members `audition(url:)`, `auditionBundled`, `isCustom`,
+`resetSample`, `sampleLabels`, `trigger`, `playPad`, `setFX`, `voices`, `synthVoices`,
+`previewVoice`, `loadDefaultSamples` have **no reachable consumer**. This is the trap the
+repo keeps hitting: *a slot plus a consumer does not prove reachability — the chain must be
+traced to a rendering parent.*
+
+⚠ **`trackNames` IS NOT IN THAT LIST — my first draft put it there and was WRONG.** It has
+**four** referencing files, not two, and one of them is the live root surface:
+- `ChannelRackView` and `SampleBrowserView` — unreachable (Slice B)
+- `BrowserView` — reads `bundledSampleNames`; also uninstantiated, and it was **missing
+  from Slice B's delete list**
+- **`EchoelStudioView.importMIDI(_:)` — `BeatPlayer.trackNames.count`, in the app's live
+  root file**
+
+The distinction that makes this subtle, and the reason a grep-plus-reachability check is
+not enough on its own: `importMIDI` is **dead at RUNTIME** (`midiImportPresented` is one of
+the setter-less flags) but **live at COMPILE time**. Deleting `trackNames` without deleting
+`importMIDI` in the same commit turns the gate red — the exact cycle-burning failure this
+slicing exists to avoid.
 
 ---
 
@@ -66,7 +85,8 @@ compiles against `voices`, and removing the method belongs with the members in S
 ## Slice B — delete the two unreachable views + their tests
 
 `Studio/ChannelRackView.swift` (229) · `Studio/SampleBrowserView.swift` ·
-`ChannelRackTests.swift`.
+`Studio/BrowserView.swift` (added by review — also uninstantiated, and it reads
+`bundledSampleNames`, so leaving it out would red-gate Slice C) · `ChannelRackTests.swift`.
 
 ⚠ **Removing `SampleBrowserView` also removes the `.sheet(item: $sampleBrowserTrack)`
 modifier**, taking the presentation chain 15 → 14. That is the SAFE direction (the
@@ -88,10 +108,27 @@ in `PianoRollView.swift`, by `LaneVoiceRack`'s `.drums` arms, by
 `KindVoiceAllocator.drumUnits`, and by the `installKindUnitsForTests(kits:)` seam. Those go
 in the same commit or nothing compiles.
 
-Tests to retire with it: `DrumNoteMapTests` (38 refs), `LaneVoiceRackTests` (26),
-`KindVoiceAllocatorTests` (15), `DrumSynthTests` (11), `PianoRollKindVoiceTests` (7).
+**Also in this commit, or the gate goes red:** `importMIDI(_:)` and its `.fileImporter` in
+`EchoelStudioView` (the live compile-time consumer of `trackNames` — see the warning above).
+That also takes the presentation chain down by one more.
+
+Tests to retire with it: `DrumNoteMapTests`, `LaneVoiceRackTests`,
+`KindVoiceAllocatorTests`, `DrumSynthTests`, `PianoRollKindVoiceTests`. **Re-derive the
+scope yourself** — the first draft of this plan carried per-file reference counts that a
+review could not reproduce (it got a different number for three of the five), because the
+counting metric was never stated. A number nobody can check is worse than no number.
 `LaneVoiceRackTests` and `KindVoiceAllocatorTests` must be **edited, not deleted** — they
 cover live non-drum behaviour too.
+
+⚠ **`Resources/Drums/` IS NOT FREE TO DELETE — it is not just 472 KB of dead weight.**
+`BeatPlayer.resolveSampleRef` (live, via `slotSampleSink`) resolves a persisted
+`"drum:<Name>"` sample reference to `Resources/Drums/<Name>.wav`. An existing user whose
+saved project has `TimelineLane.samplePath == "drum:Kick"` would, after the update, get
+`nil` → `setSample(slot:url: nil)` → **a lane that used to sound goes silent, with no error
+and no way for them to tell why.** No compile error catches this.
+Before deleting the folder, either add a migration, or verify — by tracing
+`setLaneSamplePath`'s writers to a rendering parent, which has NOT been done — that no
+reachable writer can still create a `drum:` ref, and record that verification here.
 
 ---
 
@@ -107,10 +144,18 @@ decode work (#163/#170); until then they stay, and the law is pinned by
 ## NOT dead — needs a founder answer before anyone touches it
 
 `Clip.drums` / `DrumPattern` is on a **live** path: `TimelineRegionPlayer.loadClip` feeds it
-to `pattern.load(steps:accents:)`, `MIDIFileExporter` writes it into exported `.mid`, and
-`BioComposer` still GENERATES drum patterns (~34 references). Today those drive the step
-grid and the MIDI export while producing no sound.
+to `pattern.load(steps:accents:)`, and `BioComposer` still GENERATES drum patterns (~34
+references). Those drive the step grid while producing no sound.
 
-**The open question is the founder's, not an engineering call:** should an exported `.mid`
-still carry a drum track for use in another DAW, or should the generator stop producing one
-entirely? Asked 2026-07-27, unanswered. **Do not decide it by deleting code.**
+⚠ **CORRECTION, and I told the founder the wrong thing before catching it.** I wrote that
+`MIDIFileExporter` "writes it into exported `.mid`" and asked the founder whether an
+exported `.mid` should keep its drum track. **The app cannot export a `.mid` at all today**:
+`MIDIFileExporter`'s only call site is `exportMIDI()` in `EchoelStudioView`, and
+`exportMIDI()` has NO CALLER — only its definition and a comment (CLAUDE.md records the same
+thing). The exporter is intact and tested; what is missing is the door. So the question as
+put spent founder attention on a path he cannot reach.
+
+**The real question, correctly framed:** MIDI export is doorless — does he want it back, and
+if so, with or without a drum track? Re-asked 2026-07-27. **Do not decide it by deleting
+code**, and do not delete `MIDIFileExporter` on the grounds that it is unreachable: it is a
+tested exporter one button away from working, which is a different thing from dead code.

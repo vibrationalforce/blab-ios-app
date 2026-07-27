@@ -455,9 +455,20 @@ struct EchoelmusicApp: App {
                 // and held in memory for voices that cannot reach the output. Pure launch
                 // cost, in the most crash-prone window of the app's life.
                 //
-                // BeatPlayer itself STAYS, and is not a leftover: `beatPlayer.pattern` is
-                // the live PatternEngine — the transport, the tempo clock and what
-                // `pianoRoll.start(pattern:)` drives. Only its sampler half is dead.
+                // IT ALSO STOPPED FOUR PERSISTENCE RESTORES, which the first version of
+                // this comment failed to mention: `loadDefaultSamples()` was the sole
+                // caller of `restoreCustomSamples/Shapes/ModesAndSynth/Mix`, so seven
+                // UserDefaults-backed pad properties no longer reload at launch. Harmless
+                // TODAY because every reader is an unreachable view — but if either view
+                // is ever re-doored, that state will silently come back as DEFAULTS
+                // instead of the user's saved kit. Restore this call with it, or move the
+                // restores to the door.
+                //
+                // BeatPlayer itself STAYS, and is not a leftover. Two live surfaces:
+                // `beatPlayer.pattern` (the PatternEngine — transport, tempo clock, what
+                // `pianoRoll.start(pattern:)` drives) and the STATIC
+                // `BeatPlayer.resolveSampleRef`, installed as `timelinePlayer
+                // .slotSampleSink` below. Only the per-instance sampler half is dead.
 
                 log.log(.info, category: .system, "STARTUP [2/4] Attaching voices...")
                 EchoelCrashLog.breadcrumb("startup 2/4: attaching voices")

@@ -804,3 +804,40 @@ them is now vacuous. Re-point it at a live value, and add an explicit
 `XCTAssertNotEqual(before, after)` so the vacuity cannot creep back.** Generalises the
 already-ledgered "revert ONLY line L and ask if the test still passes" check to the case where
 the culprit is the FIXTURE rather than the input.
+
+## 2026-07-27 — PLAYBOOK: "unreachable at runtime" ≠ "safe to delete" (compile-time reachability)
+Planning the drum-apparatus removal I classified `BeatPlayer.trackNames` as dead because its
+only readers were unreachable views. Review found FOUR readers, one of them
+`EchoelStudioView.importMIDI` — which is **dead at runtime** (`midiImportPresented` has no
+setter) but **live at compile time**. Deleting `trackNames` without `importMIDI` in the same
+commit would have red-gated the build, i.e. exactly the cycle-burning failure the slicing was
+designed to prevent.
+
+**RULE: reachability analysis answers "can this run?", not "can this be deleted?". Before any
+delete, run BOTH passes — the runtime trace (to a rendering parent) AND a plain
+`git grep <symbol>` for compile-time references, including inside code that is itself dead.**
+Dead code still has to compile.
+
+Two more from the same review, both about deletes that LOOK free:
+- **A bundled resource can be load-bearing for PERSISTED data.** `Resources/Drums/` reads as
+  472 KB of dead weight, but the live `BeatPlayer.resolveSampleRef` maps a saved
+  `"drum:<Name>"` lane reference onto those files. Deleting the folder silences an upgraded
+  user's lane with no error and no compile failure. **Before deleting any bundled resource,
+  grep for code that resolves a PERSISTED string into a path under it.**
+- **Removing a call can silently remove side effects you did not inventory.**
+  `loadDefaultSamples()` was also the sole caller of four `restore*` persistence functions.
+  Dropping the call dropped seven UserDefaults restores. Harmless today (all readers
+  unreachable) but invisible in the diff. **Read the body of what you are un-calling, not just
+  its name.**
+
+## 2026-07-27 — DEAD-END: asking the founder about a path he cannot reach
+I asked whether exported `.mid` files should keep their drum track. The app **cannot export a
+`.mid` at all** — `exportMIDI()` has no caller, which CLAUDE.md already recorded. The question
+was well-intentioned (it looked like a genuine product decision, not an engineering one) but
+it spent founder attention on something that does not exist, and a "keep it" answer would have
+been unimplementable as asked.
+
+**RULE: before putting a product question to the founder, verify the feature it is about is
+REACHABLE — same standard as a code claim.** The correctly framed version is usually a better
+question anyway: not "should the export keep X" but "the export has no door — do you want one,
+and with or without X".
