@@ -340,16 +340,40 @@ public struct BioEvent: Sendable, Equatable {
     /// band power for `.eegBurst`).
     public let aux: Float
 
+    /// Which bio source this event was DERIVED FROM — the provenance the network
+    /// egress gate needs (#186, App Store 5.1.3).
+    ///
+    /// `nil` means UNSTAMPED, and the gate treats that as "do not send". Fail-closed is
+    /// the only safe default here: a permissive one would let a future producer leak by
+    /// forgetting a line, which is exactly how the gap this fixes came to exist.
+    ///
+    /// It is optional-with-a-default rather than required for a hard reason:
+    /// `BioEventGraph` constructs four of the five `BioEvent`s in this repo and is a
+    /// PROTECTED Rausch component (READ-ONLY without founder approval). A required
+    /// parameter would force edits inside it. So the graph keeps producing unstamped
+    /// events — it does not know the provenance anyway, it only sees channel values —
+    /// and whoever DOES know stamps them at the publish boundary via `stamped(source:)`.
+    public let source: BioSource?
+
     public init(
         timestamp: TimeInterval,
         kind: Kind,
         confidence: Float,
-        aux: Float
+        aux: Float,
+        source: BioSource? = nil
     ) {
         self.timestamp = timestamp
         self.kind = kind
         self.confidence = confidence
         self.aux = aux
+        self.source = source
+    }
+
+    /// This event with its provenance recorded. Non-mutating so the protected graph's
+    /// output can be stamped by its caller without the graph knowing about sources.
+    public func stamped(source: BioSource) -> BioEvent {
+        BioEvent(timestamp: timestamp, kind: kind, confidence: confidence,
+                 aux: aux, source: source)
     }
 }
 

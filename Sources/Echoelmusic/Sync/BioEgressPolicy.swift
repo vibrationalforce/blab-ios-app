@@ -15,10 +15,17 @@
 //  `HealthWritePolicy.isWritableSource`
 //  (which gates the opposite direction: what we write INTO Health).
 //
-//  Discrete BioEvents need no gate today: `.heartbeat` events are produced only by
-//  the BLE strap's own RR stream (PolarH10BioPublisher), and breath/motion onsets
-//  are BioEventGraph derivations of estimated channels — no HealthKit-store values
-//  flow through the event queue. Revisit if a HealthKit-fed event producer appears.
+//  ⛔ CORRECTED 2026-07-27 (#186). This header used to say "Discrete BioEvents need no
+//  gate today … no HealthKit-store values flow through the event queue." That was FALSE,
+//  and it is the reason the gap survived several audits — the file that DEFINES the rule
+//  told every reader the event path was exempt.
+//  `BioEventPublisher.tick` reads `bus.latestBio` regardless of source and runs
+//  `frame.breathPhase` / `frame.motionEnergy` through the graph; a HealthKit frame carries
+//  a real `breathRate`/`breathPhase` from the Health store, so its breath onsets ARE
+//  Health-derived. They then reached `OSCSender.drainAndSendEvents`, which had no gate at
+//  all — the measurement was blocked while the onset derived from it went out.
+//  Events now carry `BioEvent.source` and the drain applies THIS policy, with unstamped
+//  events refused (fail-closed). Do not re-introduce an "events are exempt" claim.
 //
 
 import Foundation

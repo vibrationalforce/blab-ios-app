@@ -89,7 +89,11 @@ public final class BioEventPublisher {
         )
 
         for event in events {
-            bus.publish(bioEvent: event)
+            // Stamp the provenance of the FRAME these events were derived from (#186).
+            // `BioEventGraph` is protected and sees only channel values, so this is the
+            // first point in the chain that knows where they came from — and the OSC
+            // drain downstream refuses to send anything unstamped.
+            bus.publish(bioEvent: event.stamped(source: frame.source))
             eventsPublished &+= 1
             lastEventTimestamp = event.timestamp
         }

@@ -152,6 +152,18 @@ public final class OSCSender {
     private func drainAndSendEvents(from bus: EngineBus) {
         var sentAny = false
         while let event = bus.bioEvents.dequeue() {
+            // 5.1.3, same rule as the frame path above (#186). This gate was MISSING:
+            // `sendIfFresh` refused a HealthKit/Watch frame while this loop sent the
+            // breath and motion ONSETS derived from that very frame — `BioEventPublisher`
+            // reads `bus.latestBio` whatever its source. A rule half the code follows is
+            // not a rule, and the app's own privacy text names the ways out.
+            //
+            // Unstamped (`source == nil`) is refused too, deliberately. `BioEventGraph` is
+            // protected and cannot know provenance, so events arrive unstamped and are
+            // stamped by their publisher; failing closed means a future producer that
+            // forgets to stamp goes SILENT rather than leaking. The dequeue stays above the
+            // guard — a blocked event must still be consumed, or it would wedge the queue.
+            guard let source = event.source, BioEgressPolicy.allowsEgress(source) else { continue }
             send(event: event)
             sentAny = true
         }

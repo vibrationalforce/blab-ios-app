@@ -480,7 +480,12 @@ extension PolarH10BioPublisher: CBPeripheralDelegate {
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     kind: .heartbeat,
                     confidence: 1,
-                    aux: Float(rr * 1000)
+                    aux: Float(rr * 1000),
+                    // Provenance for the egress gate (#186): this beat is the strap's own
+                    // RR stream, one of Echoel's own measurements, so it may leave the
+                    // device. Stated explicitly rather than defaulted — an unstamped event
+                    // is refused downstream, which is what makes forgetting it safe.
+                    source: .ble
                 ))
             }
         }
