@@ -1182,3 +1182,24 @@ Header behauptete „diese Tests schlagen an, wenn jemand X zurückholt". Sie pr
 die Suite grün. Falsche Abdeckung ist schlimmer als keine. Wenn die Aufrufstelle nicht
 testbar ist (privat, in einer 4000-Zeilen-`@MainActor`-View ohne Injektionsnaht), gehört
 genau das in den Header — plus die Notiz, dass die Extraktion eine eigene Scheibe ist.
+
+### DEAD-END: einen geteilten Detektor „bei Quellenwechsel zurücksetzen"
+
+Ein `BioEventGraph` wurde von ALLEN Bio-Quellen gefüttert, also produzierte er Flanken,
+die zu keiner gehörten. Mein Fix: `graph.reset()` sobald `frame.source` wechselt. Er
+beruhte auf einer Annahme, die ich nicht geprüft hatte — **dass die Quellen sich
+abwechseln.** Tun sie nicht: `stopBioSource()` stoppt Kamera/Gurt/Demo, aber NICHT
+`HealthKitBioPublisher`, der beim ersten Bio-Gebrauch startet und danach neben der
+gewählten Quelle weiterpubliziert. Der Bus **verschränkt**, also feuerte der Reset zweimal
+pro HealthKit-Sample und löschte die `previous` der Kamera zwischen deren eigenen Frames:
+aus einem Phantom-Ereignis wurde Taubheit für echte Atmung. Schlechter als der Bug.
+
+**Stattdessen:** Zustand **pro Quelle** halten (`[BioSource: BioEventGraph]`). Das entfernt
+die Klasse, statt ein Artefakt gegen ein anderes zu tauschen — jede Quelle behält ihre
+eigene Trajektorie, eine Flanke KANN nicht mehr zwei Quellen überspannen.
+
+**Die Regel:** Bevor „bei Wechsel zurücksetzen" als Fix gilt, die **Lebenszyklus-Besitzer**
+aller Produzenten nachlesen (wer startet sie, wer stoppt sie — hier: `stopBioSource` in
+`EchoelStudioView`, `EchoelmusicApp`). „Wechsel" setzt Exklusivität voraus; in diesem Repo
+ist Exklusivität die Ausnahme, nicht die Regel. Zweite Lehre: ein Reset ist nicht
+automatisch harmlos-unterdrückend — `MotionPeakDetector` wird davon *scharfgestellt*.
