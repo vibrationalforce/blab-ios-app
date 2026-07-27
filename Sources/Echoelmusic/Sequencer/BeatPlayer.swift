@@ -276,8 +276,10 @@ public final class BeatPlayer {
     /// scoped bookmark, so they need their own tiny reference. Value scheme:
     /// "drum:<Name>" (Resources/Drums). A second scheme, "lib:<Category>/<Name>"
     /// (Resources/Samples), existed until 2026-07-27 — those assets and their browser
-    /// are deleted, so a stored "lib:" value no longer resolves and is dropped on the
-    /// next launch by `restoreBundledAssignment`.
+    /// are deleted, so a stored "lib:" value can no longer resolve. It is INERT rather
+    /// than cleaned up: the cleanup path (`restoreBundledAssignment`) hangs off
+    /// `loadDefaultSamples()`, which has had no caller since it was dropped from app
+    /// start the same day. A stale key therefore just sits in UserDefaults.
     private static func bundledKey(_ track: Int) -> String { "echoel.beat.sample.bundled.\(track)" }
 
     /// Resource bundle for the drum WAVs. `Bundle.module` exists only when
@@ -410,10 +412,12 @@ public final class BeatPlayer {
     ///
     /// The pad voices are therefore no longer attached to the audio graph — they cannot be
     /// heard even if something calls `trigger`/`playPad` — and the whole voice apparatus is
-    /// dead code awaiting its own removal slice. Its SOUND path is dead, not its INIT path:
-    /// `loadDefaultSamples()` still runs at launch and reads 8 WAVs into those voices, which
-    /// is now pure waste and goes with the removal slice. Left in place for exactly one cycle
-    /// so this change stays small and reversible; do not build anything new on it.
+    /// dead code awaiting its own removal slice. Its INIT path is dead too since
+    /// 2026-07-27: `loadDefaultSamples()` was dropped from app start (`EchoelmusicApp`
+    /// startup stage 1) and now has no caller at all, so those 8 WAVs are no longer even
+    /// decoded. (An earlier version of this comment said it "still runs at launch" — that
+    /// was true for one day.) Left in place so the removal stays small and reversible; do
+    /// not build anything new on it.
     public func attach(to engine: AudioEngine) {
         guard attachedSourceNodes.isEmpty else { return }
         audioEngine = engine
@@ -530,11 +534,12 @@ public final class BeatPlayer {
     /// The "lib:<Category>/<Name>" branch went with the sample library (#167). A
     /// value persisted under the old scheme now returns nil, which is the SAME
     /// answer this function already gave for a renamed or removed asset, and both
-    /// callers were written for it: `restoreBundledAssignment` drops the stale key
-    /// instead of retrying, and `resolveSampleRef` falls through to
-    /// `MediaLibrary.resolveRef` (also nil) leaving the sampler unloaded. No caller
-    /// treats nil as an error, so no saved state is lost beyond the sound that no
-    /// longer ships.
+    /// callers were written for it. Only ONE of the two can actually run today:
+    /// `resolveSampleRef` (live, via the lane sampler) falls through to
+    /// `MediaLibrary.resolveRef` and leaves the slot unloaded — the nil path its own
+    /// test pins. `restoreBundledAssignment` would drop the stale key, but it hangs
+    /// off the callerless `loadDefaultSamples()`, so it never runs. Neither treats
+    /// nil as an error, so nothing is lost beyond a sound that no longer ships.
     private static func bundledAssignmentURL(_ ref: String) -> URL? {
         if let name = ref.stripping(prefix: "drum:") {
             return bundledSampleURL(name)
@@ -564,9 +569,10 @@ public final class BeatPlayer {
     /// the UI shows its own "No sample" placeholder then. Pure string math.
     ///
     /// The "lib:" case is KEPT although no such ref can be written any more (#167
-    /// deleted the library): this is a READER of persisted values, and a document
-    /// saved before that change must still show "808" rather than the raw ref while
-    /// the resolver reports the file as gone.
+    /// deleted the library) — but be honest about why: this function has NO
+    /// production caller today, only `LaneVoiceRackTests`. It is kept as the
+    /// already-written reader for persisted refs, ready for the lane-sampler UI that
+    /// would display them; it is not currently showing anyone anything.
     public static func sampleRefDisplayName(_ ref: String?) -> String? {
         guard let ref, !ref.isEmpty else { return nil }
         if let name = ref.stripping(prefix: "drum:") { return name }
