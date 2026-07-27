@@ -62,25 +62,23 @@ public final class BeatPlayer {
     /// Per-track synth (modal) drum params, persisted.
     public private(set) var synthParams: [DrumSynthParams]
 
-    /// Per-channel insert-FX settings (filter + drive), persisted (Channel Rack).
-    /// `type` is `ChannelInsertFX.FilterType.rawValue` (0 = off).
-    public struct ChannelFX: Codable, Sendable, Equatable {
-        public var type: Int = 0
-        public var cutoff: Float = 1200
-        public var resonance: Float = 0.707
-        public var drive: Float = 0
-        public init() {}
-    }
-
-    /// Per-track insert FX, persisted (Channel Rack). Applied to the sample voice.
-    public private(set) var fx: [ChannelFX]
-
-    /// Per-track MUTE — a muted channel never sounds. Persisted (Channel Rack).
-    public private(set) var mutes: [Bool]
-
-    /// Per-track SOLO — if ANY channel is soloed, only soloed channels sound.
-    /// Persisted (Channel Rack).
-    public private(set) var solos: [Bool]
+    // MARK: - Channel Rack mixer — DELETED 2026-07-27 (#167)
+    //
+    // `ChannelFX`, the `fx`/`mutes`/`solos` arrays, `setFX`/`applyFX`/`setMute`/
+    // `setSolo`/`clearSolos`, their three UserDefaults keys and `restoreMix()` lived
+    // here. `ChannelRackView` was their only surface and their only caller; it was
+    // deleted with the drums, leaving this block writable by nobody.
+    //
+    // The persisted keys (`echoel.beat.mute|solo|fx.<n>`) are NOT migrated or erased.
+    // Nothing reads them any more — `restoreMix()` was reachable only from
+    // `loadDefaultSamples()`, which itself lost its caller when it was dropped from app
+    // start the same day — so they are inert bytes in UserDefaults, not stuck state.
+    //
+    // `shouldSound` (below) deliberately SURVIVES this removal: it is a pure static
+    // function taking the arrays as arguments, and `ChannelRackTests` pins it with six
+    // tests. It has no production caller now. That is the honest end state for this
+    // half-torn-down class, not an oversight — the function goes when the drum voices
+    // it gated go.
 
     @ObservationIgnored private weak var audioEngine: AudioEngine?
     @ObservationIgnored private var attachedSourceNodes: [AVAudioSourceNode] = []
@@ -94,45 +92,18 @@ public final class BeatPlayer {
         self.shapes = Self.trackNames.map { _ in PadShape() }
         self.modes = Self.trackNames.map { _ in .sample }
         self.synthParams = Self.trackNames.map { _ in DrumSynthParams() }
-        self.fx = Self.trackNames.map { _ in ChannelFX() }
-        self.mutes = Self.trackNames.map { _ in false }
-        self.solos = Self.trackNames.map { _ in false }
     }
 
     private static func shapeKey(_ track: Int) -> String { "echoel.beat.shape.\(track)" }
     private static func modeKey(_ track: Int) -> String { "echoel.beat.mode.\(track)" }
     private static func synthKey(_ track: Int) -> String { "echoel.beat.synth.\(track)" }
-    private static func muteKey(_ track: Int) -> String { "echoel.beat.mute.\(track)" }
-    private static func soloKey(_ track: Int) -> String { "echoel.beat.solo.\(track)" }
-    private static func fxKey(_ track: Int) -> String { "echoel.beat.fx.\(track)" }
-
-    /// Push a channel's insert-FX params to both its sample and synth voices
-    /// (audio thread reads them) so the FX applies regardless of pad mode.
-    private func applyFX(_ track: Int) {
-        guard fx.indices.contains(track) else { return }
-        let f = fx[track]
-        if voices.indices.contains(track) {
-            voices[track].configureInsertFX(type: f.type, cutoff: f.cutoff,
-                                            resonance: f.resonance, drive: f.drive)
-        }
-        if synthVoices.indices.contains(track) {
-            synthVoices[track].configureInsertFX(type: f.type, cutoff: f.cutoff,
-                                                 resonance: f.resonance, drive: f.drive)
-        }
-    }
-
-    /// Update a channel's insert FX, apply it live, and persist (Channel Rack).
-    public func setFX(track: Int, _ value: ChannelFX) {
-        guard fx.indices.contains(track) else { return }
-        fx[track] = value
-        applyFX(track)
-        if let data = try? JSONEncoder().encode(value) {
-            UserDefaults.standard.set(data, forKey: Self.fxKey(track))
-        }
-    }
 
     /// Pure mixer rule (testable, no audio): a track sounds when it is not muted
     /// AND (nothing is soloed, OR this track is one of the soloed ones).
+    ///
+    /// TEST-ONLY since 2026-07-27 (#167) — the mute/solo state it read, and the
+    /// `trigger` gate that called it, are both gone. Kept because `ChannelRackTests`
+    /// pins the rule; it takes its inputs as arguments, so it needs no stored state.
     nonisolated public static func shouldSound(track: Int, mutes: [Bool], solos: [Bool]) -> Bool {
         guard mutes.indices.contains(track), solos.indices.contains(track) else { return true }
         if mutes[track] { return false }
@@ -154,28 +125,6 @@ public final class BeatPlayer {
         applyShape(track)
         if let data = try? JSONEncoder().encode(shape) {
             UserDefaults.standard.set(data, forKey: Self.shapeKey(track))
-        }
-    }
-
-    /// Set a channel's MUTE and persist it (Channel Rack).
-    public func setMute(track: Int, _ on: Bool) {
-        guard mutes.indices.contains(track) else { return }
-        mutes[track] = on
-        UserDefaults.standard.set(on, forKey: Self.muteKey(track))
-    }
-
-    /// Set a channel's SOLO and persist it (Channel Rack).
-    public func setSolo(track: Int, _ on: Bool) {
-        guard solos.indices.contains(track) else { return }
-        solos[track] = on
-        UserDefaults.standard.set(on, forKey: Self.soloKey(track))
-    }
-
-    /// Clear every solo (Channel Rack "exit solo").
-    public func clearSolos() {
-        for i in solos.indices where solos[i] {
-            solos[i] = false
-            UserDefaults.standard.set(false, forKey: Self.soloKey(i))
         }
     }
 
@@ -234,24 +183,23 @@ public final class BeatPlayer {
     }
 
     /// Trigger a pad through its current sound source (sample / synth / blend).
-    /// `respectMix` gates on the Channel Rack mute/solo state (sequencer playback);
-    /// manual pad auditions pass `false` so an explicit tap always sounds.
+    /// `sequenced` marks a hit that came from the step grid rather than a manual pad
+    /// tap; only those get velocity humanization. It used to ALSO gate on the Channel
+    /// Rack mute/solo state — that gate went with the mixer (#167), which is why the
+    /// parameter was renamed from `respectMix`: it no longer respects a mix.
     /// Max downward per-hit velocity variation (founder inspiration 2026-07-10,
     /// "why your sounds feel fake" — the #1 cause is every hit being identical).
     /// A small, DOWNWARD-only jitter (never boosts past the intended peak → no
     /// clipping) so a repeated pad reads like a played part, not a machine-gun.
     static let humanizeDepth: Float = 0.12
 
-    private func trigger(track: Int, gain: Float, respectMix: Bool = true) {
+    private func trigger(track: Int, gain: Float, sequenced: Bool = true) {
         guard voices.indices.contains(track) else { return }
-        // Channel Rack: a muted channel — or a non-soloed one while any solo is
-        // active — does not sound. Pure control-plane gate (no audio-graph change).
-        if respectMix, !Self.shouldSound(track: track, mutes: mutes, solos: solos) { return }
-        // Sequenced hits get velocity humanization; a manual pad tap (respectMix
-        // false) stays full. This runs on the pattern's main-queue timer, so
-        // Float.random is safe here — the audio thread only reads the lock-free
-        // trigger gain, never generates randomness.
-        let base = respectMix ? gain * (1 - Float.random(in: 0...Self.humanizeDepth)) : gain
+        // Sequenced hits get velocity humanization; a manual pad tap stays full.
+        // This runs on the pattern's main-queue timer, so Float.random is safe here —
+        // the audio thread only reads the lock-free trigger gain, never generates
+        // randomness.
+        let base = sequenced ? gain * (1 - Float.random(in: 0...Self.humanizeDepth)) : gain
         let g = base * max(masterLevel, 0)   // Mixer "Drums" fader; 1.0 = unity (unchanged)
         switch modes[track] {
         case .sample:
@@ -315,20 +263,7 @@ public final class BeatPlayer {
         restoreCustomSamples()
         restoreShapes()
         restoreModesAndSynth()
-        restoreMix()
-    }
-
-    /// Restore persisted Channel-Rack mute/solo + insert-FX state and apply the FX.
-    private func restoreMix() {
-        for i in Self.trackNames.indices {
-            mutes[i] = UserDefaults.standard.bool(forKey: Self.muteKey(i))
-            solos[i] = UserDefaults.standard.bool(forKey: Self.soloKey(i))
-            if let data = UserDefaults.standard.data(forKey: Self.fxKey(i)),
-               let f = try? JSONDecoder().decode(ChannelFX.self, from: data) {
-                fx[i] = f
-            }
-            applyFX(i)
-        }
+        // `restoreMix()` was the fourth call here — deleted with the Channel Rack (#167).
     }
 
     /// Re-loads any user-imported samples saved as security-scoped bookmarks on
@@ -439,7 +374,7 @@ public final class BeatPlayer {
     /// Manually fires one pad — used by drum-pad taps in BeatTab. Routes through
     /// the pad's current sound source (sample / synth / blend).
     public func playPad(_ track: Int) {
-        trigger(track: track, gain: 1.0, respectMix: false)
+        trigger(track: track, gain: 1.0, sequenced: false)
     }
 
     // MARK: - Sample browser support
