@@ -1019,8 +1019,13 @@ public final class PianoRollModel {
         // S2-W2-6: skip the poly DOUBLING sub when a kind voice is the instrument —
         // a drum kit must not also drive the felt sub, and a sub-bass lane already
         // IS the sub (its notes play through kindVoice at pitch, not octave-doubled).
-        let desiredSub = (!laneAudible || kindVoice != nil)
-            ? nil : active.values.map(\.pitch).min().map { $0 - 12 }
+        // ONE materialisation per tick, shared with the MusicalFrame publish below — that
+        // publish is unconditional, so the array is built either way and a second copy here
+        // bought nothing.
+        let activeNotes = Array(active.values)
+        let desiredSub = Self.feltSubPitch(forActive: activeNotes,
+                                           laneAudible: laneAudible,
+                                           hasKindVoice: kindVoice != nil)
         if desiredSub != currentSubPitch {
             if let p = desiredSub { subVoice?.noteOn(pitch: p) }   // monophonic → retunes
             else { subVoice?.allNotesOff() }
@@ -1030,10 +1035,69 @@ public final class PianoRollModel {
         // Publish the chord sounding NOW as a MusicalFrame so renderers can colour /
         // move with the music (DMMW backbone). 16 steps = 4 beats → beatPhase per beat.
         bus?.publish(musical: Self.musicalFrame(
-            forActive: Array(active.values),
+            forActive: activeNotes,
             a4Hz: musicalA4Hz, rootPitchClass: musicalRootPitchClass,
             scaleName: musicalScaleName, tempoBPM: musicalTempoBPM,
             beatPhase: Double(step % 4) / 4.0))
+    }
+
+    /// Below this, a note is INAUDIBLE and must not anchor the felt sub.
+    ///
+    /// A Mix fader at 0 produces exactly 0, and the composer's humanizers clamp velocity to a
+    /// 0.05 floor — but do NOT conclude from that pair that the band between is unreachable.
+    /// It is: the fader is continuous on a 0.01 grid, so 0.05 × a 0.85 genre level × a 0.01
+    /// fader bakes to 0.000425. (An earlier version of this comment claimed unreachability and
+    /// was simply wrong — the humanizer clamp happens BEFORE the fader bake, not after.) The
+    /// threshold is therefore justified by AUDIBILITY, not by a gap: 0.001 velocity is about
+    /// −60 dB, which nobody follows with a sub, while the softest real note the composer writes
+    /// sits 34 dB above it.
+    ///
+    /// This is a VELOCITY threshold. The 0.001 that recurs across `Timeline.swift`,
+    /// `MultiRollFanout.swift` and line 992 above is the codebase's audibility gate for GAINS —
+    /// same number, different dimension, deliberately not shared. A future change to either
+    /// must not assume it moves the other.
+    private static let audibleVelocityFloor: Float = 0.001
+
+    /// Which pitch the felt sub (the "Vibration" dimension) should sound, or nil for none.
+    /// Pure, so the three suppressions and the audibility rule are testable without a clock,
+    /// an engine or a voice — the same treatment `musicalFrame` already gets below.
+    ///
+    /// It follows the lowest AUDIBLE note an octave down. "Audible" is the part that was
+    /// missing: a Mix fader at 0 bakes velocity 0 into its notes, and those notes still enter
+    /// `active` — correctly, because `active` is note bookkeeping (ties, releases, un-mute)
+    /// and must not depend on level. Deriving the sub from it without checking level left the
+    /// sub droning an octave below a note nobody could hear: a mute that half-muted.
+    ///
+    /// This only became perceptible with the velocity fix (#174/#177). Before it, the bio
+    /// pulse overwrote every voice's amplitude, so a velocity-0 bass note sounded anyway and
+    /// the sub matched something real. Making the faders honest is what surfaced this.
+    ///
+    /// The two pre-existing suppressions are unchanged: a muted LANE fires no attacks, so it
+    /// must not drive the sub either; and a bound kind voice (a kit, or a sub-bass lane that
+    /// already IS the sub, playing at pitch rather than octave-doubled) must not be doubled.
+    ///
+    /// TWO CONSEQUENCES, stated because they are behaviour, not implementation detail:
+    /// · Muting the Bass fader does not remove the felt sub — it moves UP to the lowest note
+    ///   still audible (the pad, usually). That is the existing design applied honestly, not a
+    ///   new decision: this function has always followed the lowest sounding note whatever its
+    ///   role, and already followed the pad whenever a passage had no bass at all.
+    /// · With the bass muted the sub therefore retriggers on the pad's note boundaries instead
+    ///   of resting under one long bass note, so the felt layer gets busier. That is a real,
+    ///   audible difference and the first thing to listen for if muting Bass feels wrong.
+    ///
+    /// NaN velocity is excluded (`NaN > x` is false), where it previously anchored the sub.
+    /// That is the better behaviour, but it is a change riding along: `Note.velocity`'s clamp
+    /// still propagates NaN (task #176), so it is reachable rather than theoretical, and it is
+    /// pinned by a test rather than left to be rediscovered.
+    public static func feltSubPitch(forActive notes: [Note],
+                                    laneAudible: Bool,
+                                    hasKindVoice: Bool) -> Int? {
+        guard laneAudible, !hasKindVoice else { return nil }
+        return notes.lazy
+            .filter { $0.velocity > audibleVelocityFloor }
+            .map(\.pitch)
+            .min()
+            .map { $0 - 12 }
     }
 
     /// Build the live musical snapshot from the notes sounding now. Pure (testable):
