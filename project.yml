@@ -298,7 +298,14 @@ targets:
   # smoke test first to prove the plumbing (xcodegen target syntax + iOS-sim
   # test run + `@testable import` module linking) in isolation from whether all
   # 294 real files compile. SLICE 2 repoints `sources` at Tests/EchoelmusicTests.
-  # Hosted by the app (dependency below) → XcodeGen wires TEST_HOST automatically.
+  # NOT hosted automatically — that claim was false and cost a silently red gate.
+  # A `dependencies: [target: Echoelmusic]` makes XcodeGen BUILD the app first; it
+  # does NOT set TEST_HOST. Without TEST_HOST the linker gets no `-bundle_loader`,
+  # so `@testable import Echoelmusic` compiles and then fails at link with
+  # "Undefined symbols" for every app symbol the test touches (run 30266082422:
+  # MusicalKey.init, MusicalKey.degree, BioComposer.nearestChordDegree). ci.yml's
+  # `|| cat` mask reported that as success, which is why it survived. TEST_HOST +
+  # BUNDLE_LOADER are therefore set explicitly below, on both test targets.
   # ===========================================================================
   EchoelmusicTests:
     type: bundle.unit-test
@@ -310,6 +317,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.echoelmusic.app.tests
+        # Explicit test host. Xcode redirects BUNDLE_LOADER to the app's
+        # .debug.dylib itself when ENABLE_DEBUG_DYLIB is on (Xcode 16+ Debug
+        # default), so naming the stub binary here is correct and version-proof.
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Echoelmusic.app/Echoelmusic"
+        BUNDLE_LOADER: "$(TEST_HOST)"
         GENERATE_INFOPLIST_FILE: YES
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         SDKROOT: iphoneos
@@ -342,6 +354,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.echoelmusic.app.fulltests
+        # Explicit test host. Xcode redirects BUNDLE_LOADER to the app's
+        # .debug.dylib itself when ENABLE_DEBUG_DYLIB is on (Xcode 16+ Debug
+        # default), so naming the stub binary here is correct and version-proof.
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Echoelmusic.app/Echoelmusic"
+        BUNDLE_LOADER: "$(TEST_HOST)"
         GENERATE_INFOPLIST_FILE: YES
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         SDKROOT: iphoneos
