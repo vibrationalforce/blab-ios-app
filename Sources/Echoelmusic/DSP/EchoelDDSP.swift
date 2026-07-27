@@ -1824,6 +1824,16 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     private var voices: [EchoelDDSP]
     private var voiceNotes: [Int]      // MIDI note per voice (-1 = free)
+    /// PER-NOTE filter expression (founder 2026-07-27: "mehr MPE vibes … der Sound auf
+    /// den Kacheln soll je nach Position ein bisschen anders klingen"). The global
+    /// `cutoffScale` is automation and applies to the WHOLE instrument; this is the one
+    /// finger's own position, held for as long as that note sounds. They MULTIPLY in the
+    /// render fan, so automation still works and expression rides on top of it.
+    ///
+    /// Why this had to be per-voice: `cutoffScale` alone is a single Float fanned to every
+    /// voice, so three fingers at three heights all got the LAST finger's filter — the
+    /// opposite of MPE, and inaudible only because one finger is the common case.
+    private var voiceCutoffScale: [Float]
     private var voiceAges: [Int]       // Age counter for voice stealing
     private var ageCounter: Int = 0
 
@@ -1889,6 +1899,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             return v
         }
         self.voiceNotes = [Int](repeating: -1, count: maxVoices)
+        self.voiceCutoffScale = [Float](repeating: 1, count: maxVoices)
         self.voiceAges = [Int](repeating: 0, count: maxVoices)
         self.voicePans = [Float](repeating: 0, count: maxVoices)
 
@@ -1997,7 +2008,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// time instead of re-attacking — true legato for the touch surface. Runs on
     /// the AUDIO thread (called from the note-command drain, same discipline as
     /// noteOn/noteOff). If nothing holds `oldNote` any more, a normal noteOn fires.
-    public func slideNote(from oldNote: Int, to newNote: Int, velocity: Float = 1.0) {
+    public func slideNote(from oldNote: Int, to newNote: Int, velocity: Float = 1.0,
+                          cutoffScale: Float = 1) {
         guard oldNote != newNote else { return }
         let newCents = tuningCents[((newNote % 12) + 12) % 12]
         let newBase = a4Hz * pow(2.0, (Float(newNote - 69) + newCents / 100.0) / 12.0)
@@ -2012,17 +2024,18 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         for i in 0..<maxVoices where voiceNotes[i] == oldNote {
             voices[i].frequency *= ratio        // smoothedFreq glides there per-sample
             voiceNotes[i] = newNote
+            voiceCutoffScale[i] = Self.clampExpressionScale(cutoffScale)
             ageCounter += 1
             voiceAges[i] = ageCounter
             moved = true
         }
-        if !moved { noteOn(note: newNote, velocity: velocity) }
+        if !moved { noteOn(note: newNote, velocity: velocity, cutoffScale: cutoffScale) }
     }
 
     // MARK: - Note Control
 
     /// MIDI note on
-    public func noteOn(note: Int, velocity: Float = 1.0) {
+    public func noteOn(note: Int, velocity: Float = 1.0, cutoffScale: Float = 1) {
         // Per-pitch-class microtonal retune (cents → semitone fraction). Zero table
         // = standard 12-TET, bit-identical to before.
         let cents = tuningCents[((note % 12) + 12) % 12]
@@ -2081,6 +2094,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note
+        voiceCutoffScale[voiceIdx] = Self.clampExpressionScale(cutoffScale)
         ageCounter += 1
         voiceAges[voiceIdx] = ageCounter
 
@@ -2142,6 +2156,25 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
                 voiceNotes[i] = -1
             }
         }
+    }
+
+    /// Continuous PER-NOTE filter expression for a sounding note — the finger that is
+    /// still down moving to a new position. Same pitch→voice lookup `noteOff` uses. A note
+    /// that is no longer held simply matches nothing, so a stale update is a no-op rather
+    /// than a wrong-voice write. Pure arithmetic on the audio thread: no allocation, no lock.
+    public func setNoteCutoffScale(note: Int, scale: Float) {
+        let s = Self.clampExpressionScale(scale)
+        for i in 0..<maxVoices where voiceNotes[i] == note {
+            voiceCutoffScale[i] = s
+        }
+    }
+
+    /// One clamp for every writer of a per-note expression scale. NaN → 1 (resting), never
+    /// 0 — this file's law is "fail to resting, never to silence", and a NaN reaching the
+    /// filter cutoff is the permanent-silence class (#29/#92). Bounds match `setCutoffScale`.
+    @inline(__always)
+    private static func clampExpressionScale(_ x: Float) -> Float {
+        Swift.min(Swift.max(x.isFinite ? x : 1, 0.1), 8)
     }
 
     /// All notes off
@@ -2303,9 +2336,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             // silently desyncing.
             if voices[i].amplitude > 1e-5 { soundingVoices += 1 }
 
-            // Fan the global cutoff scale (automation) + slide expression +
-            // portamento to the voice before it renders (all on the one audio thread).
-            voices[i].renderCutoffScale = cutoffScale
+            // Fan the cutoff to the voice before it renders (all on the one audio thread):
+            // the GLOBAL scale (automation, whole instrument) MULTIPLIED by this voice's own
+            // PER-NOTE expression (where its finger is). Product clamped to the same bounds
+            // either factor obeys, so two legal values can never compound past the range the
+            // filter is designed for. Both default to 1 ⇒ bit-identical to before.
+            voices[i].renderCutoffScale = Self.clampExpressionScale(cutoffScale * voiceCutoffScale[i])
             voices[i].expressVibrato = expressVibrato
             voices[i].expressChorus = expressChorus
             voices[i].glideCoeff = portamentoCoeff

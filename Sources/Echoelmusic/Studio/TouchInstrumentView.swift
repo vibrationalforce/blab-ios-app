@@ -213,6 +213,12 @@ final class TouchInstrumentUIView: UIView {
     /// Sounding pitch per active touch. Capped so the play surface can never
     /// starve the generative loop of voices (PolySynthVoice steals oldest).
     private var held: [ObjectIdentifier: Int] = [:]
+    /// Last per-note filter scale actually SENT for each finger. UIKit delivers touch
+    /// moves at 60–120 Hz per finger; forwarding every one would push ~600 events/s into
+    /// the lock-free note queue, which the render drains ~94×/s. Sending only audible
+    /// changes keeps the queue far from its bound (#155) without any perceptible loss —
+    /// a 1% cutoff step is well under a just-noticeable difference.
+    private var lastSentMorph: [ObjectIdentifier: Float] = [:]
     private static let maxTouches = 4
     /// Last ring position per touch — a slide drops a new ring only every ~14 pt
     /// (a wake, not a smear).
@@ -355,9 +361,11 @@ final class TouchInstrumentUIView: UIView {
             let p = touch.location(in: self)
             let pitch = pitch(at: p)
             held[id] = pitch
-            applyMorph(at: p)   // set the position timbre BEFORE the note speaks
+            lastSentMorph[id] = morphScale(at: p)   // the note-on already carried this value
             let vel = velocity(of: touch)
-            synth?.noteOn(pitch: pitch, velocity: vel)
+            // This finger's OWN position travels with its note (MPE-style), instead of
+            // being written to the instrument-wide scale where the next finger overwrote it.
+            synth?.noteOn(pitch: pitch, velocity: vel, cutoffScale: morphScale(at: p))
             hapticGenerator.impactOccurred(intensity: CGFloat(0.4 + 0.6 * Double(vel)))
             hapticGenerator.prepare()   // re-warm the Taptic engine so the NEXT note (tap or
                                         // slide-retrigger) fires with minimal latency — a play
@@ -383,7 +391,14 @@ final class TouchInstrumentUIView: UIView {
             let id = ObjectIdentifier(touch)
             guard let old = held[id] else { continue }
             let p = touch.location(in: self)
-            applyMorph(at: p)   // CONTINUOUS morph while the finger travels (not just at retriggers)
+            // CONTINUOUS morph while the finger travels — addressed to THIS finger's note.
+            if let sounding = held[id] {
+                let scale = morphScale(at: p)
+                if abs(scale - (lastSentMorph[id] ?? 1)) > 0.01 {
+                    lastSentMorph[id] = scale
+                    synth?.setNoteCutoffScale(pitch: sounding, scale: scale)
+                }
+            }
             // Slide-expression gesture (founder 2026-07-08: "hin und her sliden
             // verändert den Sound"): finger travel pumps vibrato/ensemble energy
             // into the touch voice; it decays (~0.45 s) when the finger rests and
@@ -401,10 +416,10 @@ final class TouchInstrumentUIView: UIView {
                 if glideSeconds >= 0.005 {
                     // GLIDE (portamento on): the held voice keeps its envelope and
                     // SLIDES to the new pitch — no retrigger, a singing legato.
-                    synth?.slide(from: old, to: new, velocity: vel)
+                    synth?.slide(from: old, to: new, velocity: vel, cutoffScale: morphScale(at: p))
                 } else {
                     synth?.noteOff(pitch: old)
-                    synth?.noteOn(pitch: new, velocity: vel)
+                    synth?.noteOn(pitch: new, velocity: vel, cutoffScale: morphScale(at: p))
                 }
                 // Slides tick more softly than fresh strikes — a fret-crossing feel.
                 hapticGenerator.impactOccurred(intensity: CGFloat(0.25 + 0.35 * Double(vel)))
@@ -435,6 +450,7 @@ final class TouchInstrumentUIView: UIView {
     private func release(_ touches: Set<UITouch>) {
         for touch in touches {
             let id = ObjectIdentifier(touch)
+            lastSentMorph.removeValue(forKey: id)
             if let pitch = held.removeValue(forKey: id) {
                 synth?.noteOff(pitch: pitch)
                 // Colour follows the fingers: lifting releases this note's cloud;
@@ -456,6 +472,7 @@ final class TouchInstrumentUIView: UIView {
         if newWindow == nil, !held.isEmpty {
             for pitch in held.values { synth?.noteOff(pitch: pitch) }
             held.removeAll()
+            lastSentMorph.removeAll()
             lastRing.removeAll()
             lastExprPos.removeAll()
             synth?.setCutoffScale(1)           // no lingering morph after dismissal
@@ -485,16 +502,20 @@ final class TouchInstrumentUIView: UIView {
                                       radiusPoints: Double(touch.majorRadius))
     }
 
-    /// Vertical position → continuous filter morph on the touch synth. An atomic
-    /// param write consumed by the render block (same discipline as setTuning) —
-    /// safe at any touch-event rate. With a DEDICATED touch synth this shapes only
-    /// the played notes; the generative bed's timbre is untouched.
-    private func applyMorph(at p: CGPoint) {
-        guard morphDepth > 0.001 else { return }
+    /// Vertical position → this touch's filter morph, RETURNED rather than applied
+    /// (founder 2026-07-27: "mehr MPE vibes"). It used to call `setCutoffScale`, the
+    /// instrument-wide scale — so with three fingers at three heights every note took the
+    /// LAST finger's filter, which is the opposite of per-note expression and was invisible
+    /// only because one finger is the common case. The value now rides with the note event
+    /// and the engine holds it per voice; the global scale stays free for automation.
+    ///
+    /// `depth` 0 → 1 (neutral), so a disabled morph is bit-identical to no expression.
+    private func morphScale(at p: CGPoint) -> Float {
+        guard morphDepth > 0.001 else { return 1 }
         let rect = playRect
         let h = max(rect.height, 1)
         let normY = Double(min(max(1 - (p.y - rect.minY) / h, 0), 1))   // UIKit y is down; up = brighter
-        synth?.setCutoffScale(TouchPitchMap.morphCutoffScale(normY: normY, depth: morphDepth))
+        return TouchPitchMap.morphCutoffScale(normY: normY, depth: morphDepth)
     }
 
     /// Sounding frequency of a MIDI pitch at the take's concert pitch (the touch

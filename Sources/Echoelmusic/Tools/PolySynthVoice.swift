@@ -293,7 +293,7 @@ public final class PolySynthVoice {
     // MARK: - Note gating (control plane)
 
     /// Sound a note. `pitch` is a MIDI note number, `velocity` is [0...1].
-    public func noteOn(pitch: Int, velocity: Float = 0.8) {
+    public func noteOn(pitch: Int, velocity: Float = 0.8, cutoffScale: Float = 1) {
         if !Self.noteTraced {
             Self.noteTraced = true
             EchoelCrashLog.breadcrumb("polyVoice.noteOn#1 enqueue pitch=\(pitch)")
@@ -312,7 +312,8 @@ public final class PolySynthVoice {
             // clamps in the SAFE order and `velocityGain` is `.isFinite`-guarded. Said
             // explicitly because the first version of this comment called this "the last
             // gate", which would invite a later session to delete those as redundant.
-            NoteCommand(kind: .on, pitch: Int32(pitch), velocity: velocity.clamped(to: 0...1))
+            NoteCommand(kind: .on, pitch: Int32(pitch), velocity: velocity.clamped(to: 0...1),
+                        cutoff: cutoffScale.clamped(to: 0.1...8))   // NaN-safe, same law as the engine
         )
     }
 
@@ -326,10 +327,26 @@ public final class PolySynthVoice {
     /// `oldPitch` keep their running envelope and slide to the new frequency at the
     /// portamento time set via `setPortamento(seconds:)` — true legato under a
     /// travelling finger. If the old note is already gone, a normal noteOn fires.
-    public func slide(from oldPitch: Int, to newPitch: Int, velocity: Float = 0.8) {
+    public func slide(from oldPitch: Int, to newPitch: Int, velocity: Float = 0.8,
+                      cutoffScale: Float = 1) {
         _ = noteCommands.tryEnqueue(NoteCommand(kind: .slide, pitch: Int32(newPitch),
                                                 velocity: velocity.clamped(to: 0...1),  // NaN-safe
-                                                pitch2: Int32(oldPitch)))
+                                                pitch2: Int32(oldPitch),
+                                                cutoff: cutoffScale.clamped(to: 0.1...8)))
+    }
+
+    /// PER-NOTE filter expression for a note that is already sounding — the finger still
+    /// down, moving (founder 2026-07-27: "mehr MPE vibes … je nach Position ein bisschen
+    /// anders klingen"). Distinct from `setCutoffScale`, which is the GLOBAL automation
+    /// scale for the whole instrument: that one is why three fingers at three heights all
+    /// used to get the LAST finger's filter. The two multiply in the render.
+    ///
+    /// Enqueued like every other note event so the write lands on the audio thread and
+    /// never races the render — the same first-note-crash discipline as `noteOn`.
+    public func setNoteCutoffScale(pitch: Int, scale: Float) {
+        _ = noteCommands.tryEnqueue(NoteCommand(kind: .expression, pitch: Int32(pitch),
+                                                velocity: 0,
+                                                cutoff: scale.clamped(to: 0.1...8)))
     }
 
     /// Portamento/glide time in seconds for slid notes (0 = the legacy ~2 ms
@@ -808,7 +825,7 @@ public final class PolySynthVoice {
             case .on:
                 hasEverSounded = true
                 renderIdle = false; idleQuietFrames = 0   // wake IN this block
-                poly.noteOn(note: Int(cmd.pitch), velocity: cmd.velocity)
+                poly.noteOn(note: Int(cmd.pitch), velocity: cmd.velocity, cutoffScale: cmd.cutoff)
             case .off:
                 poly.noteOff(note: Int(cmd.pitch))
             case .allOff:
@@ -816,7 +833,14 @@ public final class PolySynthVoice {
             case .slide:
                 hasEverSounded = true   // a slide's noteOn-fallback must not be muted
                 renderIdle = false; idleQuietFrames = 0
-                poly.slideNote(from: Int(cmd.pitch2), to: Int(cmd.pitch), velocity: cmd.velocity)
+                poly.slideNote(from: Int(cmd.pitch2), to: Int(cmd.pitch), velocity: cmd.velocity,
+                               cutoffScale: cmd.cutoff)
+            case .expression:
+                // Pure parameter update: must NOT wake `renderIdle` or set `hasEverSounded`.
+                // A moving finger over a decayed note would otherwise resurrect the engine
+                // to render silence — and an expression event can arrive after the note is
+                // gone, where the engine's pitch lookup simply matches nothing.
+                poly.setNoteCutoffScale(note: Int(cmd.pitch), scale: cmd.cutoff)
             }
         }
     }
@@ -877,12 +901,18 @@ private final class WeakBox<T: AnyObject>: @unchecked Sendable {
 /// A note event passed from the control thread to the audio thread via a
 /// lock-free queue. Trivial value type (no ARC) → safe to hand across threads.
 private struct NoteCommand: Sendable {
-    enum Kind: UInt8 { case on, off, allOff, slide }
+    enum Kind: UInt8 { case on, off, allOff, slide, expression }
     let kind: Kind
     let pitch: Int32
     let velocity: Float
     /// Auxiliary pitch — only used by `.slide` (the note being slid FROM).
     var pitch2: Int32 = 0
+    /// PER-NOTE filter expression — where this note's finger is (1 = neutral). Carried on
+    /// `.on`/`.slide` so the timbre is set in the same audio-thread step that starts the
+    /// note (no one-block window at the wrong colour), and on `.expression` for a finger
+    /// that keeps moving while the note sustains. Still a trivial value type: one more
+    /// Float, no ARC, safe across the lock-free queue.
+    var cutoff: Float = 1
 }
 
 /// One bio-modulation frame handed from the control thread (the 10 Hz poll) to the
