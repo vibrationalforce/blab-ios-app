@@ -24,11 +24,15 @@ _Last reviewed: 2026-06-26._
   not reused (OFL §3). ✅ Make sure `Resources/Fonts/OFL.txt` is included as a bundled
   resource so the license ships with the app (see "Action items").
 
-### Drum samples — original work (procedurally generated)
+### Drum samples — REMOVED 2026-07-27 (no longer shipped)
 - **Files:** `Sources/Echoelmusic/Resources/Drums/*.wav` (Kick, Snare, Clap, Hats, Perc,
-  Bass, LeadFX).
-- **Origin:** procedurally synthesised by Echoel's own DSP (commit `aa54bb8`,
+  Bass, LeadFX) — **deleted** with the drum apparatus (#167), together with the
+  categorized sample library under `Resources/Samples/`.
+- **Origin (historical):** procedurally synthesised by Echoel's own DSP (commit `aa54bb8`,
   "procedural samples"). Original works of the developer — **no third-party rights**.
+- **Why this entry stays:** the removal is what makes it moot, and a notices file that
+  silently drops an entry gives no way to tell "was never there" from "was removed". The
+  app now ships no bundled audio samples at all, so there is nothing here to license.
 
 ### Apple system frameworks
 - AVFoundation, Accelerate, Metal/MetalKit, CoreMIDI, HealthKit, CoreBluetooth, Network,

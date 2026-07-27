@@ -15,7 +15,9 @@ An immersive, iPhone-first instrument and production platform where the body —
 
 Built for: **Installation · Event · Content · Cinema · Theater · Performance · Live Broadcast.**
 
-Capabilities (all routed through one typed bus): **Beat Maker** (16-step × 8-track sequencer + sampler) · **Multi-track Recorder** (mic over beats) · **Video Capture & Trim** · **RTMP Live Stream** (YouTube / Twitch / Facebook / custom) · **bio-reactive synthesis** · **OSC / MIDI / MPE I/O** · **generative visuals + lighting**.
+Capabilities (all routed through one typed bus): **bio-reactive synthesis** · **generative composition** (key/scale/genre, in-key melody + harmony from the body) · **OSC / MIDI I/O** · **generative visuals + lighting** (Art-Net · sACN · ADM-OSC).
+
+⛔ **Was hier stand und 2026-07-27 gestrichen wurde, weil es nichts davon (mehr) gibt:** „Beat Maker (16-step × 8-track sequencer + sampler)" — Drums, Pad-Stimmen, Sample-Import und die Sample-Bibliothek sind mit #166/#167 gelöscht, der Step-Grid überlebt nur als Takt-Clock · „Multi-track Recorder (mic over beats)" — nie gebaut · „Video Capture & Trim" — mit #121 Slice 3 entfernt · „RTMP Live Stream" — nie verlinkt (`BroadcastPublisher` ist ein Compile-Guard-Gerüst). **MPE** ist aus dem I/O-Satz gestrichen, weil `mpeEnabled`/`expressionEnabled` seit dem Tools-Grid-Removal keinen Schreiber haben. Diese Zeile ist die Identitäts-Zeile der Datei — sie muss der Wahrheit folgen, sonst plant die nächste Session aus ihr heraus Features, deren Fundament abgerissen ist.
 
 ---
 
@@ -152,7 +154,9 @@ Sources/Echoelmusic/
   Audio/               ← AudioEngine, AudioConfiguration, MIDIInput,
                           RetroCapture, AutoMixChain, SingleExport (KEEP)
                        ← MultiTrackRecorder (NEW W2)
-  Sequencer/           ← PatternEngine, SamplerVoice (NEW W1)
+  Sequencer/           ← PatternEngine (the TRANSPORT — tempo/play/stop/step clock),
+                          BeatPlayer (its holder + audition; the drum kit inside it was
+                          deleted 2026-07-27 #167), SamplerVoice (audition + lane sampler)
   Video/               ← CameraSession, VideoRecorder, ClipTrimmer (NEW W2)
                        ← existing CameraCapture/CameraAnalyzer kept compilable
   Stream/              ← RTMPPublisher (NEW W3)

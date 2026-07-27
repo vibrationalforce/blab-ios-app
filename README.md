@@ -39,7 +39,7 @@ one-button generate flow and a **Tools** menu for the deeper editors.
 | **Mix** | Levels / master | Live |
 | **Piano-Roll** | Note editor (also a Tools sheet) | Live |
 | **Well** | Coherence headline · resonance breath pacer · camera rPPG · immersive visual | Live |
-| **Tools** (menu) | Piano Roll · Clips · Sound Editor · Drum Samples · Breathing Guide · Audio Input · Immersive Visual · MIDI/MPE out | Live |
+| **Tools** (menu) | ⛔ **Diese Zeile ist überholt (2026-07-27).** Das Tools-Menü selbst wurde 2026-07-02 entfernt; von den acht Einträgen sind *Piano Roll* (#178), *Clips* (#121 Slice 4) und *Drum Samples* (#166/#167 — Kit, Samples und Import gelöscht) auch als Code weg. Sound-Editor, Breathing Guide, Audio Input und Immersive Visual leben, aber hinter anderen Türen. MIDI-out ist Routing-gebunden, MPE hat keinen Schreiber. | ⛔ |
 
 *Roadmap (built but app-unwired, or not built): RTMP streaming, video capture/edit,
 multitrack audio, Clips/Arrangement UI. See `docs/dev/FEATURE_MATRIX.md`.*

@@ -638,8 +638,12 @@ struct EchoelmusicApp: App {
                     }
                     // S2-W3 (EchoelSampler klingt): the lane's persisted sample REF,
                     // fired right after the kind at the same player sites — resolved
-                    // via the ONE ref lookup (drum:/lib: bundle refs + mediaRef-style
-                    // absolute paths) and loaded into the slot's bound sampler unit.
+                    // via the ONE ref lookup and loaded into the slot's bound sampler
+                    // unit. That lookup now knows exactly ONE convention — a
+                    // mediaRef-style absolute path. The two BUNDLE schemes it also used
+                    // to accept, "drum:<Name>" and "lib:<Category>/<Name>", died with
+                    // their assets (#167, 2026-07-27): a ref persisted under either by an
+                    // older build resolves to nil today and the slot stays unloaded.
                     // Unresolvable/nil ⇒ the unit stays as-is (never a crash).
                     timelinePlayer.slotSampleSink = { [weak laneVoiceRack] slot, path in
                         laneVoiceRack?.setSample(slot: slot, url: BeatPlayer.resolveSampleRef(path))

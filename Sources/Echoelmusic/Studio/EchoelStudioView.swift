@@ -4420,8 +4420,11 @@ struct EchoelStudioView: View {
         }
         let placed = pianoRoll.importNotes(imported)
         hasComposed = true
-        // Drums: if the file has GM channel-10 hits, load them onto the beat grid too
-        // (so one import brings both melody and drums). No hits → leave the kit alone.
+        // GM channel-10 hits still land on the 8×16 grid — but THERE IS NO KIT any more
+        // (#167): the grid is a bar/step CLOCK, nothing turns a step into sound. This
+        // block is inert, kept only because `PatternEngine` still carries the step data;
+        // it does not import "drums" in any audible sense. (`importMIDI` itself has no
+        // caller either — `midiImportPresented` has no setter.)
         if let grid = try? MIDIFileImporter.drumGrid(from: data,
                                                      trackCount: BeatPlayer.trackNames.count,
                                                      stepCount: PatternEngine.stepCount),
