@@ -42,8 +42,35 @@ public final class BioEventPublisher {
     @ObservationIgnored
     private weak var bus: EngineBus?
 
+    /// ONE DETECTOR GRAPH PER SOURCE (#186 follow-up, corrected after review).
+    ///
+    /// A single shared graph was the bug: its detectors are edge-triggered on the previous
+    /// sample, so two sources feeding one graph produce edges that belong to NEITHER —
+    /// a camera session ending mid-cycle at 0.3 followed by a HealthKit frame at 0.5 reads
+    /// as an inhale. My first fix reset the shared graph whenever the source changed, and
+    /// review showed that is WORSE, not better: sources do not take turns. `stopBioSource`
+    /// stops camera/strap/demo but NOT `HealthKitBioPublisher`, which is started at the
+    /// first bio use of every run and keeps publishing alongside whatever the user picked.
+    /// So the bus interleaves, and a reset-on-change would have fired twice per HealthKit
+    /// sample, destroying real camera breath edges — the exact "over-eager reset deafens
+    /// the detector" failure the tests were written to guard against, one layer up.
+    ///
+    /// Per-source state removes the class instead of trading one artifact for another:
+    /// each source's trajectory stays continuous and interleaving cannot contaminate.
+    /// Bounded by `BioSource`'s case count (7), each a small value type.
     @ObservationIgnored
-    private var graph: BioEventGraph
+    private var graphs: [BioSource: BioEventGraph] = [:]
+
+    /// Last frame time SEEN PER SOURCE, so a long gap in one source resets only that one.
+    @ObservationIgnored
+    private var lastFrameTimeBySource: [BioSource: TimeInterval] = [:]
+
+    /// A source silent for longer than this has its detector state cleared before its next
+    /// frame: after a documented 68–200 s rPPG stall the stored `previous` describes a
+    /// breath from minutes ago, and resuming against it is the same phantom edge as a
+    /// source switch. Generous on purpose — this must not fire between normal 10 Hz frames.
+    @ObservationIgnored
+    private static let staleGap: TimeInterval = 10
 
     @ObservationIgnored
     private var task: Task<Void, Never>?
@@ -51,16 +78,11 @@ public final class BioEventPublisher {
     @ObservationIgnored
     private var lastFrameTimestamp: TimeInterval = -1
 
-    /// Source of the last frame fed to the graph, so a SWITCH can clear detector state.
-    /// See `tick` for why that matters.
-    @ObservationIgnored
-    private var lastSource: BioSource?
+    /// Bus poll cadence is 10 Hz; the heartbeat detector's refractory is unused here
+    /// (no waveform fed), so 10 is fine.
+    private static let graphSampleRate: Double = 10
 
-    public init() {
-        // Bus poll cadence is 10 Hz; the heartbeat detector's
-        // refractory is unused here (no waveform fed), so 10 is fine.
-        self.graph = BioEventGraph(sampleRate: 10)
-    }
+    public init() {}
 
     public func start(on bus: EngineBus) {
         guard !isActive else { return }
@@ -81,27 +103,35 @@ public final class BioEventPublisher {
         isActive = false
     }
 
-    private func tick(_ bus: EngineBus) {
+    /// Internal, not private, so a test can drive ONE frame deterministically instead of
+    /// racing the 10 Hz task — the seam `HealthKitBioPublisher.publishIfFresh(to:)` already
+    /// established for exactly this reason. The first cut of this fix called the wiring
+    /// "not pinnable"; that was wrong, and the precedent was one file away.
+    func tick(_ bus: EngineBus) {
         guard let frame = bus.latestBio else { return }
         guard frame.timestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = frame.timestamp
 
-        // A SOURCE SWITCH CLEARS DETECTOR STATE (#186 follow-up). One long-lived
-        // `BioEventGraph` sees every frame from every source, and its detectors are
-        // edge-triggered on the PREVIOUS sample: `BreathPhaseDetector` fires inhale on
-        // `previous < 0.5 && phase >= 0.5`. So a camera session that ended mid-cycle at
-        // 0.3, followed by the first HealthKit frame (whose `breathPhase` is a constant
-        // 0.5 placeholder), fired one inhale onset that belonged to NEITHER source — an
-        // edge between two different bodies of data, reported as a breath.
-        //
-        // This is the caller's job by contract: `BioEventGraph` is protected and already
-        // exposes `reset()`, and its SKILL.md says a wrong output is fixed in the caller,
-        // the input data or the threading — not in the component. Resetting here also
-        // covers the other half, since detectors carry state across a stop/start too.
-        if frame.source != lastSource {
+        // Each source gets its OWN detector state (see `graphs`), so an interleaved bus
+        // cannot produce an edge spanning two sources. This is the caller's job by
+        // contract: `BioEventGraph` is protected and already exposes `reset()`, and its
+        // SKILL.md says a wrong output is fixed in the caller, the input data or the
+        // threading — never in the component.
+        var graph = graphs[frame.source] ?? BioEventGraph(sampleRate: Self.graphSampleRate)
+
+        // A source resuming after a long silence is the same phantom edge as a switch:
+        // its stored `previous` describes a breath from minutes ago. Reset only THAT
+        // source. (⚠️ `reset()` is not purely suppressive — `MotionPeakDetector` has no
+        // `previous`; it is a latched hysteresis, and reset re-ARMS it, so a reset during
+        // sustained motion would report a plateau as an onset. Unreachable today: every
+        // publisher writes `motionEnergy: 0`. The cycle that adds a real CoreMotion
+        // producer must revisit this line. Same shape on the heartbeat side: the first
+        // beat after a reset reports `aux = 0` as an inter-beat interval, unreachable
+        // only because `cleanedHeart` is passed as 0 below.)
+        if let last = lastFrameTimeBySource[frame.source], frame.timestamp - last > Self.staleGap {
             graph.reset()
-            lastSource = frame.source
         }
+        lastFrameTimeBySource[frame.source] = frame.timestamp
 
         let events = graph.process(
             cleanedHeart: 0,            // raw waveform not on the bus yet
@@ -109,6 +139,7 @@ public final class BioEventPublisher {
             motionEnergy: frame.motionEnergy,
             timestamp: frame.timestamp
         )
+        graphs[frame.source] = graph
 
         for event in events {
             // Stamp the provenance of the FRAME these events were derived from (#186).
