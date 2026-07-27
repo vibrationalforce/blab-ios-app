@@ -7,6 +7,19 @@ import AVFoundation   // AVAudioSession — Session-cue Latenzausgleich (outputL
 import UIKit          // applicationState — background idle-engine gate (2.5.4)
 #endif
 
+/// Stable, greppable names for the lifecycle breadcrumb. Written out rather than
+/// interpolating `ScenePhase` directly: its `description` is a synthesised enum dump that
+/// Apple is free to change, and these strings are what a founder's `echoel_diag.log` gets
+/// grepped for — the same contract `PatternEngine.PlayCause`'s rawValues carry.
+private func scenePhaseName(_ phase: ScenePhase) -> String {
+    switch phase {
+    case .active:     return "active"
+    case .inactive:   return "inactive"
+    case .background: return "background"
+    @unknown default: return "unknown"
+    }
+}
+
 /// Echoelmusic — Make Beats. Record Video. Stream Live.
 @main
 struct EchoelmusicApp: App {
@@ -280,7 +293,8 @@ struct EchoelmusicApp: App {
         }
     }
 
-    /// Bring outputs online/offline to match the Patchbay. An enabled route to an
+    /// Bring outputs online/offline to match the Patchbay (see also `scenePhaseName`
+    /// at file scope, used by the lifecycle breadcrumb). An enabled route to an
     /// output's port starts its sender (idempotent — each `start` guards `isActive`);
     /// removing the last route stops it. MIDI Out is a simple enable flag. Called on
     /// every routing change and once at launch (for persisted routes).
@@ -952,6 +966,23 @@ struct EchoelmusicApp: App {
             }
             #endif
             .onChange(of: scenePhase) { oldPhase, newPhase in
+                // THE MISSING LINE IN EVERY DEVICE LOG SO FAR. Two founder logs in a row
+                // produced a gap that could not be read: the camera reporting
+                // `videoNotAvailableInBackground`, and a 40-minute stretch where the
+                // visual's 5 s line stopped while `generate[evolve]` kept ticking. Both
+                // are EXACTLY what a backgrounded app looks like — and both are also what
+                // a stalled render loop or a hung session would look like. Without a
+                // lifecycle mark in the diag file the two are indistinguishable, so each
+                // one costs a triage cycle that ends in "probably backgrounded".
+                //
+                // The `log.log(.info, …)` in the `.active` branch below does NOT close
+                // this: `os_log` goes to the system console, and what the founder shares
+                // is `echoel_diag.log`, which only `EchoelCrashLog.breadcrumb` writes.
+                // The information existed and simply never reached the file we read.
+                //
+                // Frequency is a handful of transitions per session, so this cannot
+                // approach the "no I/O on a hot path" rule.
+                EchoelCrashLog.breadcrumb("scene: \(scenePhaseName(oldPhase)) → \(scenePhaseName(newPhase))")
                 switch newPhase {
                 case .active:
                     // Resume must survive BOTH transition orders — iOS can deliver
