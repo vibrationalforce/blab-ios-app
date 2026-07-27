@@ -1,6 +1,16 @@
 build: v10.79.352 — die Mix-Fader wirken jetzt auf den Klang, nicht nur aufs Bild; die Pianoroll ist raus
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
+retry: 2 — Versuch 1 (4ecc29a, Build 2468) scheiterte NACH dem Archive im Export-Schritt,
+  nach 4 Sekunden. Der Commit fasste ausschließlich diese Datei an und kann das Signing
+  also nicht gebrochen haben; das Archive selbst lief 4 Minuten sauber durch, Xcode-Compile
+  und CI/CD waren grün, und der Deploy davor (351) lief mit demselben Workflow. Damit ist es
+  das dokumentierte Apple-seitige Transienten-Muster — gleiche Version, neue Build-Nummer,
+  damit der Unterschied eindeutig bleibt. Scheitert auch dieser Lauf an derselben Stelle,
+  ist es KEIN Transient und der Export-Schritt gehört auseinandergenommen.
 notes: |
+  Dieser Inhalt ist unverändert gegenüber Versuch 1 — es ist derselbe Build, nur ein
+  zweiter Anlauf auf den Upload.
+
   Zwei deiner vier Ansagen sind hiermit erledigt. Der Build davor (351) brachte die Drums
   weg und die Genre-Identität zurück; dieser bringt die Pianoroll-Entfernung und die
   eigentliche Ursache des grauen Visuals.

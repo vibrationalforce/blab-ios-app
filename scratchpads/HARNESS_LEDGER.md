@@ -701,3 +701,26 @@ composer's 0.05 floor is unreachable". It is reachable (the humanizer clamp runs
 fader bake; a 0.01 fader puts a soft note at 0.000425). The threshold survives on audibility
 instead — but a future session tuning from the false premise would have raised it. Check the
 REASON in a comment as hard as the number.
+
+## 2026-07-26 — DEAD-END: reporting a deploy as shipped at PUSH time, not at BUILD time
+I told the founder "v10.79.352 ist raus" in the same turn I pushed the `.deploy/release` bump.
+The TestFlight run then FAILED, so no such build exists and the founder was told to go look for
+something that is not there — the most expensive kind of wrong, because he verifies on a device
+and would have concluded the fixes did not work.
+
+**RULE: a push is not a build. A deploy is only reportable once the TestFlight run is
+`completed/success`.** Until then the honest word is "unterwegs" / "läuft". The two real CI gates
+being green says nothing about it: they never run the archive, the export or the upload.
+
+Diagnostic detail worth keeping, because it is a DIFFERENT failure from the one already
+ledgered: the previous transient failed INSIDE the archive with `-allowProvisioningUpdates`.
+This one had a clean 4-minute archive and failed in the **Export & Upload** step after 4
+seconds. Same triage rule still applied and is what makes it cheap to decide: the commit touched
+`.deploy/release` ONLY, so it cannot have broken signing; the preceding deploy succeeded on the
+identical workflow; Xcode Compile + CI were green. That combination = re-trigger tokenlessly with
+the version UNCHANGED (so the new build number is the only difference), up to 3×. If the same
+step fails again at the same place, it is NOT a transient and the export step gets taken apart.
+
+The "Apple Development" signing identity in the archive log is NOT the smoking gun it looks
+like — automatic signing archives with a development identity and the export step re-signs for
+distribution. Do not chase it before the retry.
