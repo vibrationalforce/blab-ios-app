@@ -2195,7 +2195,12 @@ struct EchoelStudioView: View {
     // MARK: Panel — Visual (immersive sound→light)
 
     private var visualPanel: some View {
-        panel("EchoelSynth", "Play it with your fingers — immersive sound↔light in a floating window you can move + resize", isExpanded: $showVisualSettings) {
+        // No subtitle, on purpose (founder 2026-07-27: "Das kann weg: ist denkerisch
+        // selbst erklärend"). It was the one panel header in the Studio that EXPLAINED
+        // instead of labelling — every other one is a terse noun phrase ("Level per
+        // part", "Production character"). A window you can already see, drag and resize
+        // does not need a sentence telling you that you can drag and resize it.
+        panel("EchoelSynth", isExpanded: $showVisualSettings) {
             Button {
                 floatingVisualVisible.toggle()
             } label: {
@@ -3013,7 +3018,10 @@ struct EchoelStudioView: View {
     /// A collapsible, accessibility-first panel ("aufklappen"): a titled
     /// DisclosureGroup wrapped as a bordered card so the whole window is one
     /// scrollable stack of expandable sections.
-    private func panel<Content: View>(_ title: String, _ subtitle: String,
+    /// `subtitle` defaults to empty — `EchoelPanel` already omits the line entirely when
+    /// it is, so a panel whose title says everything renders as a clean single-line
+    /// header rather than a title with a gap under it.
+    private func panel<Content: View>(_ title: String, _ subtitle: String = "",
                                       isExpanded: Binding<Bool>,
                                       @ViewBuilder content: @escaping () -> Content) -> some View {
         // Delegates to the shared EchoelPanel so Studio, EFX and the coming workspace
