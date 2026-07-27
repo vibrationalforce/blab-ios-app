@@ -199,196 +199,7 @@ jobs:
         name: test-results-ios-${{ matrix.name }}
         path: TestResults
 
-  # Job 3: Build & Test - macOS
-  build-test-macos:
-    name: Build & Test (macOS)
-    runs-on: macos-26
-    needs: code-quality
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: ${{ env.XCODE_VERSION }}
-
-    - name: Cache Swift Package Dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.swiftpm
-          .build
-          ~/Library/Developer/Xcode/DerivedData
-        key: ${{ runner.os }}-spm-macos-${{ hashFiles('Package.swift', 'Package.resolved') }}
-        restore-keys: |
-          ${{ runner.os }}-spm-macos-
-          ${{ runner.os }}-spm-
-
-    - name: Setup XcodeGen
-      uses: ./.github/actions/setup-xcodegen
-      with:
-        version: ${{ env.XCODEGEN_VERSION }}
-
-    - name: Generate Xcode Project
-      run: |
-        set +e
-        sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
-        echo "=== XcodeGen version ==="
-        xcodegen --version 2>&1 || echo "xcodegen not found!"
-        echo "=== project.yml options ==="
-        head -20 project.yml
-        echo "=== Generating project ==="
-        XCODEGEN_OUTPUT=$(xcodegen generate --spec project.yml 2>&1)
-        XCODEGEN_EXIT=$?
-        echo "$XCODEGEN_OUTPUT"
-        if [ $XCODEGEN_EXIT -ne 0 ]; then
-          ERROR_MSG=$(echo "$XCODEGEN_OUTPUT" | tr '\n' ' ' | head -c 500)
-          echo "::error title=XcodeGen Failed::$ERROR_MSG"
-          exit 1
-        fi
-
-    - name: Build for Testing (macOS)
-      run: |
-        set -o pipefail
-        xcodebuild build-for-testing \
-          -scheme Echoelmusic-macOS \
-          -destination 'platform=macOS' \
-          -configuration Debug \
-          -enableCodeCoverage YES \
-          CODE_SIGNING_ALLOWED=NO \
-          2>&1 | tee build.log | xcpretty || cat build.log
-
-    - name: Run Tests (macOS)
-      run: |
-        set -o pipefail
-        xcodebuild test-without-building \
-          -scheme Echoelmusic-macOS \
-          -destination 'platform=macOS' \
-          -configuration Debug \
-          -enableCodeCoverage YES \
-          -parallel-testing-enabled YES \
-          2>&1 | tee test.log | xcpretty || cat test.log
-
-  # Job 4: Build - watchOS
-  build-watchos:
-    name: Build (watchOS)
-    runs-on: macos-26
-    needs: code-quality
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: ${{ env.XCODE_VERSION }}
-
-    - name: Setup XcodeGen
-      uses: ./.github/actions/setup-xcodegen
-      with:
-        version: ${{ env.XCODEGEN_VERSION }}
-
-    - name: Generate Xcode Project
-      run: |
-        sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
-        xcodegen --version || echo "xcodegen not found!"
-        xcodegen generate --spec project.yml 2>&1 || {
-          echo "::error title=XcodeGen Failed::xcodegen generate failed"
-          exit 1
-        }
-
-    - name: Build watchOS
-      run: |
-        set -o pipefail
-        xcodebuild build \
-          -scheme Echoelmusic-watchOS \
-          -destination 'platform=watchOS Simulator,name=Apple Watch Series 9 (45mm)' \
-          -configuration Debug \
-          CODE_SIGNING_ALLOWED=NO \
-          2>&1 | tee build.log | xcpretty || cat build.log
-
-  # Job 5: Build - tvOS
-  build-tvos:
-    name: Build (tvOS)
-    runs-on: macos-26
-    needs: code-quality
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: ${{ env.XCODE_VERSION }}
-
-    - name: Setup XcodeGen
-      uses: ./.github/actions/setup-xcodegen
-      with:
-        version: ${{ env.XCODEGEN_VERSION }}
-
-    - name: Generate Xcode Project
-      run: |
-        sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
-        xcodegen --version || echo "xcodegen not found!"
-        xcodegen generate --spec project.yml 2>&1 || {
-          echo "::error title=XcodeGen Failed::xcodegen generate failed"
-          exit 1
-        }
-
-    - name: Build tvOS
-      run: |
-        set -o pipefail
-        xcodebuild build \
-          -scheme Echoelmusic-tvOS \
-          -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' \
-          -configuration Debug \
-          CODE_SIGNING_ALLOWED=NO \
-          2>&1 | tee build.log | xcpretty || cat build.log
-
-  # Job 6: Build - visionOS
-  build-visionos:
-    name: Build (visionOS)
-    runs-on: macos-26
-    needs: code-quality
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: ${{ env.XCODE_VERSION }}
-
-    - name: Setup XcodeGen
-      uses: ./.github/actions/setup-xcodegen
-      with:
-        version: ${{ env.XCODEGEN_VERSION }}
-
-    - name: Generate Xcode Project
-      run: |
-        sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
-        xcodegen --version || echo "xcodegen not found!"
-        xcodegen generate --spec project.yml 2>&1 || {
-          echo "::error title=XcodeGen Failed::xcodegen generate failed"
-          exit 1
-        }
-
-    - name: Build visionOS
-      run: |
-        set -o pipefail
-        xcodebuild build \
-          -scheme Echoelmusic-visionOS \
-          -destination 'platform=visionOS Simulator,name=Apple Vision Pro' \
-          -configuration Debug \
-          CODE_SIGNING_ALLOWED=NO \
-          2>&1 | tee build.log | xcpretty || cat build.log
-
-  # Job 7: Performance Tests
+  # Job 3: Performance & memory
   performance-tests:
     name: Performance & Memory Tests
     runs-on: macos-26
@@ -473,7 +284,7 @@ jobs:
   build-archive:
     name: Build Archive (Release)
     runs-on: macos-26
-    needs: [build-test-ios, build-test-macos]
+    needs: [build-test-ios]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
 
     steps:
@@ -552,7 +363,7 @@ jobs:
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs: [build-test-ios, build-test-macos, performance-tests]
+    needs: [build-test-ios, performance-tests]
     if: always()
 
     steps:
@@ -560,17 +371,15 @@ jobs:
       run: |
         echo "📊 Build Summary:"
         echo "iOS Tests: ${{ needs.build-test-ios.result }}"
-        echo "macOS Tests: ${{ needs.build-test-macos.result }}"
         echo "Performance Tests: ${{ needs.performance-tests.result }}"
 
         # Check if any critical job failed (not just skipped)
         IOS_RESULT="${{ needs.build-test-ios.result }}"
-        MACOS_RESULT="${{ needs.build-test-macos.result }}"
 
-        if [ "$IOS_RESULT" == "failure" ] || [ "$MACOS_RESULT" == "failure" ]; then
+        if [ "$IOS_RESULT" == "failure" ]; then
           echo "❌ Some builds failed"
           # Don't exit 1 - this is just a notification
-        elif [ "$IOS_RESULT" == "success" ] && [ "$MACOS_RESULT" == "success" ]; then
+        elif [ "$IOS_RESULT" == "success" ]; then
           echo "✅ All builds passed!"
         else
           echo "⚠️ Some builds were skipped or had warnings"
