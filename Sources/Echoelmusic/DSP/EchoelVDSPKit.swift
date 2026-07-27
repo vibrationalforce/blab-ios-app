@@ -684,15 +684,37 @@ public final class EchoelDecimator: @unchecked Sendable {
         )
     }
 
-    /// Decimate input signal
+    /// Decimate input signal.
+    ///
+    /// Zero-pads the tail before handing the buffer to vDSP. That is NOT cosmetic:
+    /// `vDSP_desamp` computes `output[n] = Σ_k filter[k] · input[n·factor + k]`, so it
+    /// reads `(outputLength - 1) · factor + filterLength` samples — with the default
+    /// 63 taps and factor 2 that is exactly 61 samples PAST the end of `input`, for
+    /// EVERY input length, not just short ones. It read whatever happened to follow the
+    /// array in memory, so the output was nondeterministic and occasionally non-finite;
+    /// `EchoelDecimatorTests.testNoNaN` is fully deterministic yet flipped between pass
+    /// and fail across CI runs on identical code, which is what surfaced this.
+    ///
+    /// Zero-padding (rather than shortening the output) keeps the caller-facing promise
+    /// "decimate by `factor`" — `input.count / factor` samples out — and is the standard
+    /// FIR treatment of the tail. `EchoelConvolution` in this same file already sizes
+    /// its `convScratch` so `vDSP_conv` can never read past the end; this is that
+    /// pattern, applied to the one place in the kit that was missing it.
     public func process(_ input: [Float]) -> [Float] {
         let outputLength = input.count / factor
         guard outputLength > 0 else { return [] }
 
+        let filterLength = antiAliasFilter.count
+        let required = (outputLength - 1) * factor + filterLength
+        var padded = input
+        if required > padded.count {
+            padded.append(contentsOf: repeatElement(0, count: required - padded.count))
+        }
+
         var output = [Float](repeating: 0, count: outputLength)
 
-        vDSP_desamp(input, vDSP_Stride(factor), antiAliasFilter, &output,
-                    vDSP_Length(outputLength), vDSP_Length(antiAliasFilter.count))
+        vDSP_desamp(padded, vDSP_Stride(factor), antiAliasFilter, &output,
+                    vDSP_Length(outputLength), vDSP_Length(filterLength))
 
         return output
     }

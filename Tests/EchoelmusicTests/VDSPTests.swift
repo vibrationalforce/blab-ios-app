@@ -261,6 +261,32 @@ final class EchoelDecimatorTests: XCTestCase {
             XCTAssertFalse(sample.isInfinite)
         }
     }
+
+    func testProcess_readsOnlyItsOwnInput() {
+        // `testNoNaN` above is fully deterministic — fixed input, fresh instance, no
+        // clock, no RNG — yet it passed one CI run and failed the next on IDENTICAL
+        // code. That is the signature of reading memory the buffer does not own:
+        // `vDSP_desamp` consumes `(outputLength - 1) · factor + filterLength` samples,
+        // which with 63 taps and factor 2 is 61 samples past the end of the input —
+        // for EVERY input length, not only short ones. Whatever followed the array
+        // decided the result, so the failure was intermittent rather than absent.
+        //
+        // This test pins the fix DETERMINISTICALLY instead of hoping the garbage is
+        // non-finite. The anti-alias kernel is normalised to unit DC gain, so with an
+        // all-ones input the first output — whose window lies entirely inside the real
+        // input — must be exactly 1. The LAST output's window extends past the input,
+        // and with the tail zero-padded it must collapse to near zero. Out-of-bounds
+        // memory satisfies neither.
+        let decimator = EchoelDecimator(factor: 2)
+        let output = decimator.process([Float](repeating: 1.0, count: 128))
+
+        XCTAssertEqual(output.count, 64, "the decimate-by-N contract: input.count / factor samples out")
+        XCTAssertTrue(output.allSatisfy { $0.isFinite }, "non-finite output means vDSP read foreign memory")
+        XCTAssertEqual(output[0], 1.0, accuracy: 1e-4,
+                       "a unit-DC-gain lowpass over an all-ones window must return 1")
+        XCTAssertLessThan(output[output.count - 1], 0.05,
+                          "the final window runs past the input; with a zero-padded tail it must fall to ~0")
+    }
 }
 
 // MARK: - EchoelSpectralAnalyzer Tests
