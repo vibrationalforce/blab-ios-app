@@ -91,7 +91,13 @@ public final class MetronomeVoice {
     /// Click body pitches — accent (bar start) sits a fifth above the plain beat.
     @ObservationIgnored nonisolated private static let beatHz: Float = 1046    // ~C6
     @ObservationIgnored nonisolated private static let accentHz: Float = 1568  // ~G6
-    /// Per-sample exponential decay → a ~35 ms click tail (snappy, not a tone).
+    /// Per-sample exponential decay. ~26 ms TIME CONSTANT, which is a ~240 ms tail
+    /// down to the render's 1e-4 floor — the older "~35 ms click tail" here was
+    /// wrong by an order of magnitude. Correcting it matters now, not cosmetically:
+    /// `MetronomeVoiceTests` detects click onsets by the run of exact zeros BETWEEN
+    /// clicks, so the tail must stay well under one beat. At 0.99981 or slower the
+    /// tail would exceed a beat at moderate tempi and the detector would silently
+    /// see one long click. Raise this constant only together with those tests.
     @ObservationIgnored nonisolated private static let decay: Float = 0.9992
 
     @ObservationIgnored
@@ -229,7 +235,14 @@ extension MetronomeVoice {
     /// went silent on the device. That is precisely the regression a future change to
     /// the render state would invite, so the seam is opened before such a change, not
     /// after it.
-    func _testRender(
+    ///
+    /// `nonisolated` on purpose, and it is load-bearing: the real caller is the
+    /// `AVAudioSourceNode` closure, which is nonisolated. A `@MainActor` seam would
+    /// still compile and the tests would still pass if someone later dropped
+    /// `nonisolated` from `renderOnAudioThread` — while the actual render closure
+    /// broke. Matching the seam's isolation to the real caller turns that into a
+    /// same-file compile error instead of a green suite over a broken instrument.
+    nonisolated func _testRender(
         frameCount: Int,
         audioBufferList: UnsafeMutablePointer<AudioBufferList>
     ) {
