@@ -1,5 +1,13 @@
 // ChannelRackTests.swift
 // Echoelmusic — the Channel-Rack mixer gate (mute / solo) on BeatPlayer.
+//
+// ⚠ THE FEATURE IS GONE (#167, 2026-07-27). `ChannelRackView` is deleted, and so are
+// the `mutes`/`solos` arrays and the `trigger` gate that called this rule. This file
+// is now the only place in the repo the name "ChannelRack" survives, so read it as a
+// test for a pure function, not for a shipping surface: `BeatPlayer.shouldSound` is a
+// `nonisolated static` rule that takes both arrays as arguments and has no production
+// caller. It is kept on purpose — the rule is correct and cheap to hold — and it goes
+// when the drum voices it used to gate go.
 
 import XCTest
 @testable import Echoelmusic

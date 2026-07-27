@@ -1550,12 +1550,13 @@ struct EchoelStudioView: View {
     // NO DRUMS (founder 2026-07-26): `drumsBinding`, `drumsCutoffBinding`,
     // `drumsDriveBinding` and `setDrumsFX(_:)` lived here. They were the only REACHABLE
     // writers of `trackFX.drums`, `BeatPlayer.masterLevel`/`setFX` and
-    // `laneVoiceRack.setDrumsInsert`. `BeatPlayer.setFX` kept one writer after that — the
-    // unmounted `ChannelRackView` — until #167 deleted the view (2026-07-27), so it now has
-    // none. `trackFX.drums` still has one, in `TrackFXStore.resetToClean()` (no production
-    // caller, one test caller); do not read this block as "the symbols have no writers"
-    // without grepping — and grep the name that is actually there: an earlier version of
-    // this line said `TrackFXStore.reset()`, which does not exist.
+    // `laneVoiceRack.setDrumsInsert`. `BeatPlayer.setFX` and `BeatPlayer.masterLevel`'s
+    // Channel-Rack half no longer exist at all: #167 deleted the view (2026-07-27) and
+    // then the mixer state itself, so `setFX` is not a symbol any more — do not grep for
+    // it. `trackFX.drums` still has one writer, `TrackFXStore.resetToClean()` (no
+    // production caller, one test caller). Do not read this block as "the symbols have no
+    // writers" without grepping, and grep names that still exist: two earlier versions of
+    // this line cited `TrackFXStore.reset()` and a live `BeatPlayer.setFX`, neither real.
 
     /// A binding to one mixer level that re-balances the running take when changed.
     private func mixBinding(_ keyPath: ReferenceWritableKeyPath<MixerStore, Float>) -> Binding<Float> {

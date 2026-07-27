@@ -1,6 +1,19 @@
 // BeatPlayer.swift
-// Echoel — Orchestrator that owns the 8 SamplerVoices, wires them to
-// PatternEngine.onStep, and attaches them to AudioEngine.
+// Echoel — WAS the drum orchestrator: owned 8 SamplerVoices, wired them to
+// PatternEngine.onStep, attached them to AudioEngine. All three clauses are false
+// since the founder removed the drums (2026-07-26) and #167 began tearing the
+// apparatus out: `attach(to:)` attaches ONLY `previewVoice`, installs no `onStep`,
+// and no path can fire a pad any more.
+//
+// What the class still genuinely is, and why it is not a leftover:
+//   · `pattern` — the PatternEngine, i.e. the app's TRANSPORT (tempo, play/stop,
+//     the bar/step position the chrome reads, and the tick on which
+//     `PianoRollModel` publishes `MusicalFrame` to visuals/light/space),
+//   · `previewVoice` + the region `auditionSink` — audition playback,
+//   · the two static REF helpers (`resolveSampleRef`, `sampleRefDisplayName`) the
+//     lane sampler uses.
+// The pad voices, their per-pad state and their persistence are dead code awaiting
+// the remaining #167 slices. Do not build anything new on them.
 //
 // One BeatPlayer instance is owned by EchoelmusicApp and injected into
 // the view tree via .environment, so audio survives tab switches.
@@ -128,9 +141,6 @@ public final class BeatPlayer {
         }
     }
 
-    /// Audition a pad (one-shot), e.g. from the sound editor's Preview button.
-    public func preview(_ track: Int) { playPad(track) }
-
     /// Apply a track's synth params to its synth voice. Main-thread only.
     private func applySynth(_ track: Int) {
         guard synthVoices.indices.contains(track) else { return }
@@ -182,36 +192,19 @@ public final class BeatPlayer {
         }
     }
 
-    /// Trigger a pad through its current sound source (sample / synth / blend).
-    /// `sequenced` marks a hit that came from the step grid rather than a manual pad
-    /// tap; only those get velocity humanization. It used to ALSO gate on the Channel
-    /// Rack mute/solo state — that gate went with the mixer (#167), which is why the
-    /// parameter was renamed from `respectMix`: it no longer respects a mix.
-    /// Max downward per-hit velocity variation (founder inspiration 2026-07-10,
-    /// "why your sounds feel fake" — the #1 cause is every hit being identical).
-    /// A small, DOWNWARD-only jitter (never boosts past the intended peak → no
-    /// clipping) so a repeated pad reads like a played part, not a machine-gun.
-    static let humanizeDepth: Float = 0.12
-
-    private func trigger(track: Int, gain: Float, sequenced: Bool = true) {
-        guard voices.indices.contains(track) else { return }
-        // Sequenced hits get velocity humanization; a manual pad tap stays full.
-        // This runs on the pattern's main-queue timer, so Float.random is safe here —
-        // the audio thread only reads the lock-free trigger gain, never generates
-        // randomness.
-        let base = sequenced ? gain * (1 - Float.random(in: 0...Self.humanizeDepth)) : gain
-        let g = base * max(masterLevel, 0)   // Mixer "Drums" fader; 1.0 = unity (unchanged)
-        switch modes[track] {
-        case .sample:
-            voices[track].fire(gain: g)
-        case .synth:
-            synthVoices[track].fire(gain: g)
-        case .blend(let b):
-            let bb = min(max(b, 0), 1)
-            voices[track].fire(gain: g * (1 - bb))
-            synthVoices[track].fire(gain: g * bb)
-        }
-    }
+    // MARK: - Pad trigger — DELETED 2026-07-27 (#167)
+    //
+    // `trigger(track:gain:)`, `playPad`, `preview` and `humanizeDepth` (the downward-only
+    // velocity jitter, founder inspiration 2026-07-10 "why your sounds feel fake") were
+    // the pad-firing path. NOTHING could reach it: `attach(to:)` stopped installing
+    // `pattern.onStep` with the drum removal, so no step ever arrived, and `playPad` /
+    // `preview` have no call site anywhere in the repo.
+    //
+    // This is also where the mute/solo gate lived. Removing that gate left the remaining
+    // flag describing only humanization, so the same commit renamed it `respectMix` →
+    // `sequenced` — and the reviewer correctly called that trading one lying name for
+    // another, since no sequencer path existed either. Deleting the whole path is the
+    // honest answer; renaming a parameter on an unreachable function is not.
 
     /// True when track `i` is playing a user-imported sample (not the default).
     public func isCustom(_ track: Int) -> Bool {
@@ -345,9 +338,10 @@ public final class BeatPlayer {
     /// that drives visuals, light and space). Deleting it to remove drums would sever that.
     /// The step grid survives as a clock; nothing listens to it for sound any more.
     ///
-    /// The pad voices are therefore no longer attached to the audio graph — they cannot be
-    /// heard even if something calls `trigger`/`playPad` — and the whole voice apparatus is
-    /// dead code awaiting its own removal slice. Its INIT path is dead too since
+    /// The pad voices are therefore no longer attached to the audio graph, and as of #167
+    /// there is no longer even a way to ask them to sound: `trigger`/`playPad`/`preview`
+    /// are deleted. The voices themselves are dead code awaiting a further removal slice.
+    /// Their INIT path is dead too since
     /// 2026-07-27: `loadDefaultSamples()` was dropped from app start (`EchoelmusicApp`
     /// startup stage 1) and now has no caller at all, so those 8 WAVs are no longer even
     /// decoded. (An earlier version of this comment said it "still runs at launch" — that
@@ -369,12 +363,6 @@ public final class BeatPlayer {
         attachedSourceNodes.removeAll()
         pattern.onStep = nil
         audioEngine = nil
-    }
-
-    /// Manually fires one pad — used by drum-pad taps in BeatTab. Routes through
-    /// the pad's current sound source (sample / synth / blend).
-    public func playPad(_ track: Int) {
-        trigger(track: track, gain: 1.0, sequenced: false)
     }
 
     // MARK: - Sample browser support
