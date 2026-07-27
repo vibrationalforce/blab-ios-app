@@ -878,3 +878,55 @@ Das war richtig: `MetronomeVoice` hatte NULL Render-Tests — jeder Test las die
 während der Klick auf dem Gerät verstummt. Merksatz: **wo die Kontroll-Ebene und
 die Audio-Ebene über einen Spiegel gekoppelt sind, testet ein Test der
 Kontroll-Ebene NICHTS.** Der Test muss durch die Render-Funktion.
+
+## 2026-07-27 — PLAYBOOK: „grünes Gate" beweist nur, was das Gate ÜBERHAUPT baut
+
+**Was ich tat.** Ich meldete dem Founder: Xcode Compile Check ✓ und CI/CD Pipeline ✓,
+„also halten die vier neuen Render-Tests gegen den echten Render-Code". Der Reviewer
+widersprach, ich prüfte selbst nach — er hatte recht.
+
+**Der Sachverhalt (selbst verifiziert, nicht übernommen).**
+`ci.yml` testet `-scheme Echoelmusic` → Target `EchoelmusicTests` → dessen `sources`
+in `project.yml` ist **`Tests/CISmoke`**, nicht `Tests/EchoelmusicTests`. Es gibt in
+KEINEM Workflow ein `swift test` (nur `swift build` in `quick-test.yml`). Der einzige
+Ort, an dem `Tests/EchoelmusicTests` kompiliert und ausgeführt wird, ist das Schema
+`EchoelmusicFullTests` in `full-tests.yml` — und dort trägt **jeder** xcodebuild-Schritt
+absichtlich `continue-on-error: true`. Zusätzlich maskiert `ci.yml` Testfehler ohnehin
+über `| tee test.log | xcpretty || cat test.log` (`cat` endet mit 0), direkt unter dem
+Kommentar „Test failures MUST fail the build".
+
+**Die Konsequenz, die man leicht übersieht.** Eine Änderung an einer **Quelldatei** ist
+gated (sie liegt im App-Target, also reddet sie ci.yml, xcode-compile-check und
+testflight). Eine Änderung an einer **Testdatei** ist es nicht. Ein Compile-Fehler im
+Test taucht nur als Text in der Full-Tests-Zusammenfassung auf. „Beide Gates grün" heißt
+für neue Tests also: **die Naht kompiliert**, nicht: **die Behauptungen stimmen**.
+
+**Do this instead.** Bevor ein grünes Gate als Beweis für einen TEST zitiert wird:
+prüfen, welches Schema welches Target mit welchen `sources` baut. Die Frage ist nicht
+„ist der Lauf grün?", sondern „hat dieser Lauf diese Datei überhaupt angefasst?". Für
+Echoel heute: Testdateien unter `Tests/EchoelmusicTests` **melden**, sie **sperren
+nicht** — bis #139 landet und das Hauptschema das Volltest-Target übernimmt.
+
+## 2026-07-27 — PLAYBOOK: der Reviewer-Ertrag Nr. 5 — „ein Test, der schon vorher grün war"
+
+Vierter Fall in Folge, in dem der Pflicht-Reviewer nicht den Code, sondern die
+**Beweiskraft** meiner Tests kippte. Diesmal in vier Varianten, alle derselbe Fehler:
+
+1. **Tautologie.** `allSatisfy { $0.isFinite }` bei NaN-Pegel kann nicht scheitern —
+   die Ausgangs-Sicherung (`AudioOutputGuard.silencingNonFinite`) macht NaN ohnehin zu 0,
+   UND das Gift-Muster im Puffer (1234.5) ist selbst endlich, also besteht sogar ein
+   Render, der gar nichts tut. Regel: **ein Clamp ist nur über ENDLICHE Werte außerhalb
+   des Bereichs beobachtbar** — für alles, was eine nachgelagerte Sicherung ebenfalls
+   abfängt, testet man die Sicherung, nicht den Clamp.
+2. **Gift-Muster als Zweischneide.** Dasselbe Sentinel, das „nichts geschrieben" von
+   „Stille geschrieben" trennt, lässt `energy > 0` bei einem No-op durchgehen. Wer ein
+   Sentinel setzt, muss BEIDE Richtungen prüfen.
+3. **Test läuft auf dem Default.** Die Fehlermeldung beschuldigte den `bpm`-didSet, aber
+   der Test benutzte 120 BPM = den Default; ein toter didSet lässt den Spiegel korrekt
+   stehen. Regel: **ein Test, der einen Setter prüft, muss den Wert vom Default
+   WEGBEWEGEN** — sonst prüft er die Initialisierung.
+4. Dasselbe nochmal beim Akzent-Schalter (`accentDownbeat = true` ist der Default).
+
+**Do this instead.** Nach jedem neuen Test einmal fragen: „welche konkrete Mutation im
+Produktionscode lässt genau diese Zeile ROT werden?" Wer keine benennen kann, hat eine
+Zeile geschrieben, die nur so aussieht wie ein Test.
