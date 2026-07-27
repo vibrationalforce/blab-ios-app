@@ -123,7 +123,7 @@
                 <span class="status-badge">App — Coming Soon</span>
             </div>
 
-            <p class="lead"><strong>Your heartbeat, breath, and movement compose music in real time.</strong> Generate a loop or a whole piece from your body — to calm down and observe yourself, or to lock to a BPM and export to Ableton, Logic, or FL Studio for your track. Bio-reactive synthesis, generative composition, and open-standards output (MIDI, OSC, ADM-OSC, Art-Net) ship today; video, live broadcast, and the wider immersive vision are in active development.</p>
+            <p class="lead"><strong>Your heartbeat, breath, and movement compose music in real time.</strong> Generate a loop or a whole piece from your body — to calm down and observe yourself, or to lock to a BPM and export to Ableton, Logic, or FL Studio for your track. Bio-reactive synthesis, generative composition, and open-standards output (MIDI, OSC, ADM-OSC, Art-Net, sACN) ship today. Video editing, multitrack recording, an arrangement timeline and live broadcast are deliberately <em>not</em> part of Echoelmusic — it is an instrument, not a workstation.</p>
 
             <nav class="ov-toc" aria-label="On this page">
                 <a href="#pillars">Pillars</a>
@@ -146,7 +146,7 @@
                     <div class="pillar"><h4>Bio-Generative Loops</h4><p>Your heartbeat, breath and HRV compose harmonic, melodic and rhythmic loops in real time — in any key and BPM.</p></div>
                     <div class="pillar"><h4>Export to your DAW</h4><p>Render to .wav, ready to drop into Ableton, Logic or FL Studio.</p></div>
                     <div class="pillar"><h4>Create from Within</h4><p>Calm down and observe yourself, or lock to a BPM and create — coherence and self-observation built in.</p></div>
-                    <div class="pillar"><h4>Open-standards output</h4><p>Bio-reactive synthesis with MIDI/MPE input, OSC and ADM-OSC immersive object output, plus Art-Net and sACN lighting.</p></div>
+                    <div class="pillar"><h4>Open-standards output</h4><p>Bio-reactive synthesis with MIDI input, OSC and ADM-OSC immersive object output, plus Art-Net and sACN lighting.</p></div>
                 </div>
             </section>
 
@@ -160,12 +160,12 @@
                     <div class="engine-item"><h4>EchoelSynth</h4><p>Bio-reactive synthesis — DDSP, modal &amp; cellular voices driven by your heartbeat, breath and coherence.</p></div>
                     <div class="engine-item"><h4>EchoelFX</h4><p>EQ, dynamics, reverb, delay, modulation, drive, mastering + analog emulations.</p></div>
                     <div class="engine-item"><h4>EchoelGen</h4><p>Generative composition — harmonic, melodic &amp; rhythmic loops in any key and BPM, exported to .wav.</p></div>
-                    <div class="engine-item"><h4>EchoelMIDI</h4><p>MIDI 2.0-ready input (UMP), MPE, virtual MIDI out. Planned: audio-to-MIDI.</p></div>
+                    <div class="engine-item"><h4>EchoelMIDI</h4><p>MIDI 2.0-ready input (UMP) — notes, pitch bend, CC&nbsp;74; virtual MIDI 1.0 out behind a routing switch. Planned: MPE zones, MPE out, audio-to-MIDI.</p></div>
                     <div class="engine-item"><h4>EchoelBio</h4><p>HRV, heart rate, breath, coherence — HealthKit, Bluetooth straps (Polar H10) &amp; camera rPPG with a live control display.</p></div>
                     <div class="engine-item"><h4>EchoelNet</h4><p>OSC (EchoelSync) and ADM-OSC immersive object output, live today.</p></div>
-                    <div class="engine-item"><h4>EchoelMix <span class="tag">Planned</span></h4><p>Console, multi-track recording, LUFS metering, session &amp; BPM sync.</p></div>
+                    <div class="engine-item"><h4>EchoelMix <span class="tag">Cut</span></h4><p>A console and multi-track recorder would make this a workstation. LUFS-aware mastering on export stays; the rest belongs in your DAW.</p></div>
                     <div class="engine-item"><h4>EchoelVis</h4><p>Metal GPU bio-visual live today — heartbeat drives the pulse, coherence the hue, breath the spread. Particles, Hilbert map, generative &amp; AR worlds are <span class="tag">Planned</span>.</p></div>
-                    <div class="engine-item"><h4>EchoelVid <span class="tag">Planned</span></h4><p>Video capture, NLE editor, multi-cam, ProRes, color grading &amp; streaming.</p></div>
+                    <div class="engine-item"><h4>EchoelVid <span class="tag">Cut</span></h4><p>Video editing and RTMP streaming were built and removed in July&nbsp;2026. What remains is the immersive visual you can record as a share-ready clip.</p></div>
                     <div class="engine-item"><h4>EchoelLux</h4><p>Native Art-Net and sACN lighting live today, flash-safe by design. DMX-512, HomeKit smart lighting and a cue system are <span class="tag">Planned</span>.</p></div>
                     <div class="engine-item"><h4>EchoelStage <span class="tag">Planned</span></h4><p>External displays, projection mapping, multi-screen output.</p></div>
                     <div class="engine-item"><h4>EchoelAI <span class="tag">Planned</span></h4><p>On-device CoreML, stem separation. Private, fast, no cloud.</p></div>
@@ -198,7 +198,7 @@
                 <div class="data-row"><div class="k">At launch</div><div class="v">iPhone first (iOS 18+). Built natively on Apple frameworks — no wrappers, no Electron.</div></div>
                 <div class="data-row"><div class="k">Planned</div><div class="v">iPad, Mac, Apple Watch, Apple TV, Vision Pro.</div></div>
                 <div class="data-row"><div class="k">Standalone</div><div class="v">A standalone instrument, not an AUv3 plugin and not an AUv3 host. It reaches your DAW over WAV export, plus live OSC / ADM-OSC and Art-Net / sACN output.</div></div>
-                <div class="data-row"><div class="k">Dependencies</div><div class="v">Pure Apple frameworks today. One external dependency (HaishinKit) is planned for the roadmap RTMP streaming.</div></div>
+                <div class="data-row"><div class="k">Dependencies</div><div class="v">Pure Apple frameworks — zero external dependencies, shipped.</div></div>
             </section>
 
             <!-- EDITIONS -->
@@ -212,9 +212,9 @@
             <!-- WHO -->
             <section id="who">
                 <h2>Who it's for</h2>
-                <div class="data-row"><div class="k">Musicians &amp; Producers</div><div class="v">A full studio that responds to your body — a dimension no plugin can reach.</div></div>
+                <div class="data-row"><div class="k">Musicians &amp; Producers</div><div class="v">An instrument that responds to your body — a dimension no plugin can reach. You finish the track in your own DAW.</div></div>
                 <div class="data-row"><div class="k">DJs &amp; Performers</div><div class="v">Your pulse drives venue lights over Art-Net/sACN and a spatial-audio object over ADM-OSC; the crowd feels you.</div></div>
-                <div class="data-row"><div class="k">Filmmakers &amp; Artists</div><div class="v">Generative art from biology, driven live on device. Capture and broadcast tooling is on the roadmap.</div></div>
+                <div class="data-row"><div class="k">Filmmakers &amp; Artists</div><div class="v">Generative art from biology, driven live on device, and recordable as a share-ready clip. Video editing and broadcast are not part of Echoelmusic.</div></div>
                 <div class="data-row"><div class="k">Installations &amp; Staging</div><div class="v">Native Art-Net &amp; sACN lighting plus ADM-OSC spatial audio — bio-reactive spaces at any scale.</div></div>
                 <div class="data-row"><div class="k">Facilitators &amp; Coaches</div><div class="v">Biofeedback as creative expression — HRV coherence made audible and visible. A creative tool, not a therapeutic device.</div></div>
                 <div class="data-row"><div class="k">Education &amp; Accessibility</div><div class="v">Music from breath and movement — creative expression without barriers.</div></div>
@@ -225,7 +225,7 @@
                 <h2>Technical Specs</h2>
                 <div class="data-row"><div class="k">Audio latency</div><div class="v">Real-time, low-latency engine (target &lt;10ms).</div></div>
                 <div class="data-row"><div class="k">Bio loop</div><div class="v">Real-time control loop up to 120Hz.</div></div>
-                <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI 2.0-ready input (UMP) + MPE; MIDI 1.0/MPE out via virtual source.</div></div>
+                <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI 2.0-ready input (UMP) — notes, pitch bend, CC&nbsp;74; MIDI&nbsp;1.0 out via virtual source once a MIDI route is enabled.</div></div>
                 <div class="data-row"><div class="k">Networking</div><div class="v">OSC, ADM-OSC, Art-Net &amp; sACN, live today. Ableton Link planned (target &lt;5ms on LAN).</div></div>
                 <div class="data-row"><div class="k">Visuals</div><div class="v">Metal GPU bio-renderer (heart rate to pulse, coherence to hue, breath to spread); flash rate held under 3&nbsp;Hz.</div></div>
                 <div class="data-row"><div class="k">AI <span class="tag">Planned</span></div><div class="v">On-device CoreML, Neural Engine accelerated.</div></div>
@@ -238,12 +238,12 @@
                 <div class="data-row"><div class="k">Audio engine</div><div class="v">48&nbsp;kHz, 32-bit float internal; buffer 128 / 256 / 512 frames (2.67 / 5.3 / 10.7&nbsp;ms).</div></div>
                 <div class="data-row"><div class="k">Audio export</div><div class="v">At launch: WAV (lossless), normalized to the chosen loudness target; 30&nbsp;s CAF pre-roll capture. Planned: AAC/M4A (the encoder exists, the export path forces WAV), FLAC / ALAC, stem export.</div></div>
                 <div class="data-row"><div class="k">Spatial audio</div><div class="v">At launch: stereo with HRV-reactive spatial reverb character, plus ADM-OSC immersive object out (breath&rarr;azimuth, coherence&rarr;distance, HRV&rarr;elevation) into object-based renderers (L-ISA, d&amp;b&nbsp;Soundscape, Adamson&nbsp;FletcherMachine). Planned: Dolby&nbsp;Atmos authoring, head-tracked binaural for AirPods, multichannel (5.1 / 7.1.4) and ambisonics.</div></div>
-                <div class="data-row"><div class="k">MIDI</div><div class="v">At launch: MIDI&nbsp;2.0-ready input (UMP — parses 1.0 and 2.0) + MPE (per-note pitch bend, slide/timbre CC74, air-CC); Echoel publishes a virtual CoreMIDI source any DAW can record (MIDI&nbsp;1.0 over UMP today; native 2.0 out planned). Standard MIDI File (.mid) export. Planned: SMF import.</div></div>
-                <div class="data-row"><div class="k">Video</div><div class="v">Planned: H.264 MP4 short-form capture, H.265/HEVC, Apple&nbsp;ProRes 422/4444, 1080p &amp; 4K, 24/25/30/60&nbsp;fps, landscape &amp; square, LUT color grading.</div></div>
+                <div class="data-row"><div class="k">MIDI</div><div class="v">At launch: MIDI&nbsp;2.0-ready input (UMP — parses 1.0 and 2.0) carrying notes, per-note pitch bend, slide/timbre CC74 and air-CC; Echoel publishes a virtual CoreMIDI source any DAW can record (MIDI&nbsp;1.0 over UMP), created once a MIDI route is enabled in the routing panel. Planned: full MPE zone handling (RPN 6,6) and channel pressure, MPE out, native MIDI&nbsp;2.0 out, Standard MIDI File (.mid) export and import — the .mid exporter is built and tested but has no button in the current build.</div></div>
+                <div class="data-row"><div class="k">Video</div><div class="v">The immersive visual records to H.264 MP4 with the live audio muxed in — a share-ready clip. A video editor (ProRes, multi-cam, LUT grading) is <strong>not planned</strong>: it was built and removed in July&nbsp;2026.</div></div>
                 <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">At launch: Metal GPU bio-visual (heart rate to pulse, coherence to hue, breath to spread), flash-safe. Planned: richer 120&nbsp;fps modes, chroma key, projection mapping (warp + edge-blend), multi-screen / external-display output, NDI &amp; Syphon video-out, AirPlay.</div></div>
                 <div class="data-row"><div class="k">Lighting</div><div class="v">At launch: native Art-Net (UDP 6454) and sACN / E1.31 unicast, zero-dependency, with flash safety. Planned: DMX-512 over USB, HomeKit smart lighting, fixture profiles &amp; cue lists.</div></div>
                 <div class="data-row"><div class="k">Networking &amp; sync</div><div class="v">At launch: OSC&nbsp;1.0 over UDP (EchoelSync) — 6 bio addresses, default localhost:8000. Planned: Ableton&nbsp;Link tempo/phase sync, bidirectional OSC.</div></div>
-                <div class="data-row"><div class="k">Streaming</div><div class="v">Planned: RTMP / RTMPS to YouTube, Twitch, Facebook and custom endpoints (HaishinKit).</div></div>
+                <div class="data-row"><div class="k">Streaming</div><div class="v"><strong>Not planned.</strong> RTMP / RTMPS was scoped and cut &mdash; a broadcast stack is a second product. Echoelmusic goes out live over OSC, ADM-OSC, Art-Net and sACN instead.</div></div>
             </section>
 
             <!-- PRIVACY -->

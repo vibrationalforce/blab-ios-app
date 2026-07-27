@@ -28,11 +28,11 @@ noch kein Code) · ⭐ **NORTH STAR** (Konzept, ehrlich fern — nie Produkt-Cop
 
 | Stufe | Fähigkeit | Beleg |
 |---|---|---|
-| ✅ | Bio-generativer Komposer: 23 Genres, Tonart/Kammerton, seeded & reproduzierbar; Körper treibt Struktur | `MusicStyle.swift`, `BioComposer` |
-| ✅ | PolySynth + SubBass + Hybrid-Drums (Sample+Synthese), Patch-Editor + Presets, Piano Roll, LoopCutter | `Tools/PolySynthVoice`, `Studio/PatchEditorView`, `Studio/PianoRollView` |
-| ✅ | Sampler-ENGINE pro Pad: Start/End-Trim, Reverse, Pitch — lock-free | `Sequencer/SamplerVoice` (UI-Exposure = 🗺) |
+| ✅ | Bio-generativer Komposer: **8 kuratierte Genres** (`MusicStyle.offered`), **50 Tonleitern**, Tonart/Kammerton, seeded & reproduzierbar; Körper treibt Struktur | `MusicStyle.swift`, `MusicalKey.swift`, `BioComposer` |
+| ✅ | PolySynth + SubBass, Patch-Editor + Presets (`soundPanel`), LoopCutter | `Tools/PolySynthVoice`, `Tools/SubBassVoice`, `Sequencer/LoopCutter` |
+| ⛔ | **Drums, Step-Sequencer, Sampler, Piano Roll — vom Founder ENTFERNT** (#166/#167 Drums 2026-07-26, #178 Notenraster 2026-07-26). `PianoRollModel` bleibt als Noten-Engine + `MusicalFrame`-Publisher; es gibt keinen Noten-Editor mehr. | — |
 | ✅ | EchoelFX-Kette inkl. Bio-Modulation (~30 Hz Körper→FX), Bitcrush, Widener | `Core/FXModulation`, `FXBioModulator` |
-| ✅ | Export: WAV mit LUFS-Master (−1 dBFS True-Peak), MIDI-Export, Visual-MP4 | `SingleExport`, `exportMIDI()`, `VisualRecorder` |
+| ✅ | Export: WAV mit LUFS-Master (−1 dBFS True-Peak), Visual-MP4. **MIDI-Export ist gebaut, aber türlos** (`exportMIDI()` ohne Aufrufer) | `SingleExport`, `VisualRecorder`, `MIDIFileExporter` |
 | ✅ | Wetter färbt die Struktur (opt-in, 1 Fetch/Session, Attribution) · Ort im Session-Namen (opt-in, transient) | `Core/WeatherMood/-Provider`, `Core/LocationNamer` |
 | ✅ | Keine Töne außer der Musik (Launch garantiert stumm; Push seit v144 stumm) | `AnnouncementCenter.swift` |
 | 🔧 | **Audiovisual-Vocoder** (Flaggschiff: Stimme+Körper→Klang+Bild+Licht) — purer Kern getestet | `Studio/VocoderCore.swift` |

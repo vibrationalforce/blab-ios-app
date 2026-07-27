@@ -43,21 +43,28 @@ over time?**
 | Generative bio engine (the home) | Arrangement / clips timeline |
 | Flow + Loop modes | Multi-track recording & mixing desk |
 | **Patch editor** — shape and save the sound | Audio-file import as timeline regions |
-| **Piano roll** — fix/shape the notes of the current loop | Video capture, trim, edit |
+| ~~**Piano roll**~~ — REVERSED by the founder 2026-07-26 ("Pianoroll soll raus"); the note editor is CUT | Video capture, trim, edit |
 | Curated genres | AUv3 hosting and the AUv3 plugin target |
 | Output stage (below) | RTMP / broadcast |
-| Export: audio · MIDI · visual recording | Subscription commerce |
+| Export: audio (WAV) · visual recording | Subscription commerce |
+| | Drums, step sequencer, sampler (#166/#167) |
 
 **Craft tools are instrument controls, not DAW surfaces.** A synth you cannot
-tune is not an instrument. This resolves task #131: the patch editor and the
-piano roll **return as doors** in the instrument home.
+tune is not an instrument. Task #131 shipped the patch editor as a live door
+(`soundPanel`, behind the Sound chip) — that half stands.
 
-There is also a hard technical reason the piano roll stays: `PianoRollView`
-**publishes `MusicalFrame`** — it is the source that tells the visuals and the
-light rig what is currently sounding (`Core/MusicalFrame.swift`,
-`Core/EngineBus.swift`, consumed by `Views/MetalBioView.swift`,
-`Sync/MusicMediaMapping.swift`, `Studio/SpectrumAnalysis.swift`). Cutting it
-would sever the spine of the differentiator, not merely remove a convenience.
+> ⛔ **CORRECTION 2026-07-26/27 — the piano-roll half of this section is REVERSED.**
+> The founder decided "Pianoroll soll raus" (#178). `PianoRollView` has no door and
+> is not mounted; there is **no note editor** in the app. A generated take can be
+> heard, mixed and exported — not corrected note by note.
+>
+> The paragraph that stood here claimed a "hard technical reason the piano roll
+> stays: `PianoRollView` publishes `MusicalFrame`". **That was false.** The publish
+> lives in `PianoRollModel`'s tick handler, installed once at app start
+> (`pianoRoll.start(...)` in `EchoelmusicApp`) — view or no view. `PianoRollModel`
+> is genuinely load-bearing and stays; the VIEW was not. It is corrected rather than
+> deleted because a future session reading the old wording would refuse a founder
+> decision on a technical ground that does not exist.
 
 ## The two layers
 
@@ -65,8 +72,8 @@ would sever the spine of the differentiator, not merely remove a convenience.
 The generative bio-instrument is the home (`EchoelStudioView`). Body signals
 (camera rPPG · BLE heart-rate strap · HealthKit) drive the composition live.
 Flow mode is free and contemplative; Loop mode is tempo-locked and producible.
-The player can shape the sound (patch editor), correct the notes (piano roll),
-pick a curated genre, and export.
+The player can shape the sound (patch editor), pick a curated genre, and export.
+Correcting individual notes is deliberately not offered (#178).
 
 ### Layer 2 — The Output Stage (what makes it unique)
 Not a separate product and deliberately **not** given a brand name — it is the
@@ -81,7 +88,7 @@ into its own domain:
 | Light | `EchoelLux` Art-Net + sACN | open DMX-over-IP |
 | Space | `ADMOSCSender` | ADM-OSC |
 | Body | `HapticController` | CoreHaptics |
-| Control | OSC · MIDI/MPE in & out | OSC, MIDI 2 |
+| Control | OSC · MIDI in, MIDI 1.0 out | OSC, MIDI 2 |
 
 Adding a medium means adding a subscriber — never a new surface. That is what
 makes this maintainable by one person.
@@ -101,8 +108,9 @@ the founder test on device:
 
 1. **Klang** — curated genres sound professional and keep their identity (no
    convergence bug, #81/#82). Founder's ear is the judge.
-2. **Kontrolle** — the player can shape the sound (patch editor) and correct the
-   melody (piano roll). Both reachable. (#131)
+2. **Kontrolle** — the player can shape the sound: the patch editor is reachable
+   (`soundPanel`, Sound chip). The piano-roll half of this check is RETIRED by
+   founder decision 2026-07-26 (#178) — its absence does not block the gate.
 3. **Modi** — Flow and Loop both work as specified (#128).
 4. **Ausgabe** — the visual is live and contemplative on device ("wow"). Light
    and space are demonstrable but not required for v1.
@@ -142,8 +150,10 @@ medical diagnosis. Flash rate ≤ 3 Hz (WCAG).
 
 - The pure-instrument epic (#121) continues unchanged — Slices 4–6 keep removing
   workstation surfaces and the DAW model.
-- Task #131 is **decided**: re-door the patch editor and the piano roll (and the
-  spatial stage, which belongs to the output stage). Re-dooring must NOT grow the
-  `EchoelStudioView` sheet chain — reuse a slot or consolidate to one
-  `.sheet(item:)` enum first (black-screen metadata law).
+- Task #131 is **closed**: the patch editor is live (`soundPanel`). The piano-roll
+  door was shipped 2026-07-25 and removed again 2026-07-26 on the founder's call,
+  taking the `craftEditor` slot with it (an undoored enum case is the lying-catalog
+  trap). Any future editor re-introduces the slot as `enum` + `@State` + ONE
+  `.sheet(item:)` with an out-of-body content builder — never a bare appended
+  modifier (black-screen metadata law) — and a case is added only with its door.
 - `DMMW_ARCHITECTURE.md` is superseded; keep it only as history.

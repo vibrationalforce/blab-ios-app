@@ -76,7 +76,7 @@ acceptance line.
 > - **Sound:** analog-warmth soft-saturation (`EchoelDDSP.analogWarmth`, anti-"plastic") + tempo-adaptive note density (`BioComposer.tempoDensityScale`, less hectic at high BPM) shipped. `CloudSync` reclassified: not dead — a tested Phase-0 CloudKit foundation awaiting the founder's iCloud container (Phase 1).
 >
 > **UPDATE (2026-06-18) — reconciled to code (corrects stale notes below):**
-> - **EchoelVis is LIVE** — `Views/MetalBioView.swift` is the live full-screen bio visual (HR→pulse ≤2.5 Hz WCAG, coherence→hue, breath→spread, honours Reduce Motion). NOT dormant/deprecated. **EchoelSeq = 23 genres** (not 12). **sACN unicast is LIVE** beside Art-Net.
+> - **EchoelVis is LIVE** — `Views/MetalBioView.swift` is the live full-screen bio visual (HR→pulse ≤2.5 Hz WCAG, coherence→hue, breath→spread, honours Reduce Motion). NOT dormant/deprecated. **EchoelSeq = 8 offered genres** (corrected 2026-07-27; the "23"/"12" figures were both wrong). **sACN unicast is LIVE** beside Art-Net.
 > - **Real HRV coherence** (`Bio/HRVCoherence.swift`, Lomb-Scargle + Welch) replaced the placeholder; **resonance breath guide**, **tap-to-learn** bio metrics (`Studio/BioMetricInfo.swift` wired into BioStripView) + the "app as a school" layer (`Studio/MusicTheoryPrimer.swift`, `Studio/LearnLibrary.swift`).
 > - **rPPG hardened** (`Bio/CameraRPPGBioPublisher.swift` + `Video/CameraCapture.swift`): session-device torch + exposure lock → reliable lock; peak scan throttled off the main actor (UI no longer stalls).
 > - **New pure tested CORES, built but NOT yet wired** (do NOT claim as shipping): `Studio/BioVisualParams.swift`, `Studio/VocoderCore.swift` (the flagship audiovisual vocoder: voice→sound+visual+light, flash-safe), `Studio/FeedbackGuard.swift` (howlround duck+notch brain), `Studio/BioModulation.swift` (universal `BoundParameter` bio-binding spine + `ClockSource` heartbeat-vs-BPM-lock), `Core/CloudSync.swift` (zero references outside its own file as of the 2026-06-20 obstacle audit — wire or remove before it rots), `Bio/ResonanceFinder.swift` (personalized resonance-frequency core; host orchestration + UI pending).
@@ -148,7 +148,7 @@ acceptance line.
   - **Modulation** — chorus, flanger (feedback), phaser (cascaded allpass), tremolo / auto-pan; rates also tempo-syncable.
   - **Dynamics** — soft-knee compressor + brick-wall limiter (hard ceiling guarantee).
   - **Production FX characters** (`FXCharacter`): one-tap **Underwater** (deep low-pass + watery chorus + tape wobble), **Telephone**/**Megaphone** (band-pass), **Cassette**/**Vinyl** (warm low-pass), **Dream** (wide bright ping-pong), **Clean** (dry reset). Stampable in the FX tool *and* the Compose **Effects** picker. `Auto` defers to the genre's own space (see per-genre presets below).
-  - **Per-genre FX presets** — each of the 12 genres carries a signature space (long dub ping-pong delay, vapor chorus, psy roll), tempo-synced, auto-applied on "Generate from Body".
+  - **Per-genre FX presets** — each offered genre carries a signature space (long dub ping-pong delay, vapor chorus, psy roll), tempo-synced, auto-applied on "Generate from Body".
   - convolution reverb (HRV-reactive), 4-band EQ + LUFS auto-gain (−14 LUFS, 4 presets), soft `tanh` saturation.
   - Audio-thread-safe (no alloc/locks in render; `audio-thread-reviewer`-audited each change); gated by `fxEnabled` (default off → bit-identical to prior builds until engaged).
 - **Roadmap:** **master-FX bus** (so the whole beat/loop, not just the melody, can go Underwater — needs an AVAudioUnit insert on the master mixer), analog (VCA/Opto/FET/VariMu/Tube) emulations, spatial/Atmos 3D panning, stereo synth voice, ring-mod.
@@ -160,17 +160,38 @@ acceptance line.
 - **Roadmap:** `Audio/MultiTrackRecorder.swift` (skeleton), console UI, FLAC/ALAC, stem export.
 - **TestFlight acceptance:** SingleExport writes a valid −14 LUFS WAV/AAC.
 
-### 4. EchoelSeq — `LIVE`
+### 4. EchoelSeq — `PARTIAL`
+
+> ⛔ **CORRECTION 2026-07-27 — most of this section describes features the founder
+> REMOVED. Read the banner before any line below it.**
+> - **Drums / step sequencer / sampler: GONE** (#166 "keine Drums" 2026-07-26, full
+>   teardown #167). The `BeatPlayer` / `SamplerVoice` / sample-library / velocity /
+>   swing / humanization bullets below are HISTORY, not status.
+> - **Piano roll: GONE as a surface** (#178, 2026-07-26). `PianoRollModel` survives as
+>   the note engine and `MusicalFrame` publisher; `PianoRollView` has no door and is
+>   not mounted. There is no note editor in the app.
+> - **Clips + Arrange timeline: GONE** (#121 Slice 4 — `ClipView` 807dc0d,
+>   `ArrangeTimelineView` eb58e7a). The model retires in Slice 5 (#132).
+> - **Genres: 8, not 23 and not 12** — `MusicStyle.offered` = selfObservation,
+>   esotericMeditation ("Deep Ambient"), drift, contemplation, vaporwave, sciFi,
+>   classical, dubTechno. The enum still holds 26 cases; the picker shows `offered`.
+> - **Scales: 50** (`Scale` in `Sequencer/MusicalKey.swift`, all in the picker) — the
+>   "10 scales" figure repeated below and on the website was wrong for months.
+> - **MIDI file export: built, DOORLESS** — `exportMIDI()` has no caller.
+>
+> What is still LIVE here: the bio-generative composer (BioComposer / MusicalKey /
+> MusicStyle / GenrePatches), the studio precision + loop tools, and session naming.
+
 - **Code:** `Sequencer/PatternEngine.swift`, `Sequencer/BeatPlayer.swift`, `Sequencer/SamplerVoice.swift`, `Sequencer/MIDIFileExporter.swift`, `scripts/generate_drums.py`
 - **Live:** 8 tracks × 16 steps, 30–300 BPM; **velocity/accent** (tap cycles off→on→accent, gain 0.82/1.0); **swing** (self-rescheduling 16th clock, off-beat delay, tempo-preserving); **per-pad custom sample import** from Files (security-scoped bookmark, persists); upgraded procedural default drum kit; randomize/shift; SMF Type-0 MIDI export (⚠ exporter intact but DOORLESS — `exportMIDI()` has no caller since 2026-07-02).
 - **Polyphonic piano roll — LIVE** (`Studio/PianoRollView.swift`): per-note length/velocity roll → `PolySynthVoice`; reachable from the Tools menu.
 - **Session clips + Arrange timeline — LIVE foundation (corrected 2026-07-10; the old "NOT built" note was stale):** `Sequencer/Clip.swift` + `ClipStore`/`ClipView` (launchable typed clips) and the full timeline stack — `Sequencer/Timeline.swift` (480-PPQ lanes/regions/snap), `Core/TimelineStore` (persist + lossless legacy migration), `Studio/ArrangeTimelineView` — exist and since v10.79.144 form THE one main view (timeline over instrument, track-head doors: Piano Roll / audio editor / rename / delete / add). Honest limits: playback still runs through the bar-granular legacy `ArrangementPlayer` (timeline-drives-playback = convergence stage K3); region touch-editing and lane↔engine binding = K2/K3 (`scratchpads/PLAN_ONE_VIEW_CONVERGENCE_2026-07-10.md`).
 - **MIDI/MPE OUT — ⚠ NOT REACHABLE (corrected 2026-07-27):** `Audio/MIDIOutput.swift` builds a virtual "Echoelmusic" CoreMIDI source (`._1_0`) that mirrors played notes — but it is only created when a Patchbay MIDI route is enabled, and `mpeEnabled`/`expressionEnabled` have had **no writer** since the Tools-grid removal (2026-07-02) took their only toggle. So MPE out is unreachable and the plain source is route-gated. Was listed LIVE (2026-06-17) when the Tools menu still existed.
-- **Character params — LIVE (2026-06-17):** `MoodProfile` now 8 dims (… + **virtuosity, syncopation, humanize**), all consumed in the lead generator. **23 genres** in `MusicStyle.swift` (not 12).
+- **Character params — LIVE (2026-06-17):** `MoodProfile` now 8 dims (… + **virtuosity, syncopation, humanize**), all consumed in the lead generator. **8 offered genres** (`MusicStyle.offered`; the enum holds 26 cases).
 - **EchoelBeat-pro sampler — LIVE engine (2026-06-17):** `SamplerVoice` per-pad start/end trim, reverse, pitch (interpolated, lock-free).
 - **Categorized sample library + browser — LIVE (2026-07-10):** `BeatPlayer.library` scans `Resources/Samples/<Category>/*.wav` (Bass · Stab · Keys · Pad · Tone · Tom · Conga · FX · drum variations), surfaced in `Studio/SampleBrowserView` — audition ▶ before assign; bundled/library pad assignments persist across relaunch (`bundledKey`). Ships **~50 licence-clean ORIGINAL synthesized sounds** (`scratchpads/tools/echoel_tones.py` + `drum_synth.py`: subtractive/FM/additive + Karplus-Strong physical modeling, resonant-SVF character voices; mastered by `sample_processor.py`). Honest limit: pre-existing non-Echoel library samples are pack-derived → licence review pending before App Store submit.
 - **Per-hit velocity humanization — LIVE (2026-07-10):** sequenced pad hits get a small downward-only gain jitter (`BeatPlayer.humanizeDepth`, ≤12%, never clips) so a repeated pad reads as played, not machine-gunned (founder inspiration "why your sounds feel fake"). Per-note pitch movement = device-verified follow-up.
-- **Bio-generative composer ("your heartbeat composes"):** `Sequencer/MusicalKey.swift` (set your own key/scale, 10 scales) + `Sequencer/MusicStyle.swift` (**12 genres** — dub techno, trap, vaporwave, 80s, disco, synthwave, early synth, futuristic, sci-fi, psytrance, esoteric meditation, self-observation; dub/trap beat-driven, the rest pads/chords/leads) + `Sequencer/BioComposer.swift` (bio → in-key melody + heartbeat rhythm + tempo, SplitMix64-seeded → reproducible) + `Sequencer/GenrePatches.swift` (per-genre synth timbre), surfaced as **"Generate from Body"** (`Studio/ComposeView.swift`). Two modes: **Studio** (BPM-locked, for Ableton/FL handoff) and **Flow** (sync-free, follows the heart — for meditation). Each take gets its genre timbre + genre/character FX space. Generated **melody exports as MIDI** (real durations + velocity). *Archive-verified + on TestFlight (build #1657, 2026-06-12).*
+- **Bio-generative composer ("your heartbeat composes"):** `Sequencer/MusicalKey.swift` (set your own key/scale, **50 scales**) + `Sequencer/MusicStyle.swift` (**8 offered genres** — self-observation, Deep Ambient, drift, contemplation, vaporwave, sci-fi, classical, dub techno; all harmonic/melodic since the drums were removed) + `Sequencer/BioComposer.swift` (bio → in-key melody + heartbeat rhythm + tempo, SplitMix64-seeded → reproducible) + `Sequencer/GenrePatches.swift` (per-genre synth timbre), surfaced as **"Generate from Body"** (`Studio/ComposeView.swift`). Two modes: **Studio** (BPM-locked, for Ableton/FL handoff) and **Flow** (sync-free, follows the heart — for meditation). Each take gets its genre timbre + genre/character FX space. Generated **melody exports as MIDI** (real durations + velocity). *Archive-verified + on TestFlight (build #1657, 2026-06-12).*
 - **Studio precision & loop tools:** two-decimal **BPM + Kammerton** (`DSP/TuningReference.swift`, A4 432–444, default 440, user-changeable), tempo-synced FX/LFO via the **studio calculator** (`DSP/StudioCalculator.swift`, `DSP/TempoSyncOption.swift`), **loop/stem cutting** at 2/4/8/16/32 bars (`Sequencer/LoopCutter.swift`), **tight-grid vs humanized** feel (`Sequencer/Humanizer.swift`).
 - **Auto session name + export filename** (`Core/SessionNaming.swift`, `Core/SessionContext.swift`): every session and exported file is stamped `Artist_Date_Key_BPM_Kammerton[_Part]`, e.g. `Echoel_2026-06-12_Cm_124bpm_A440_Melody-4bar.mid` — persisted artist/key/Kammerton, previewed live in Compose, shown on saved bio sessions in Works.
 - **Roadmap:** per-step probability, automation lanes, Euclidean / polyrhythm; multi-bar generated "pieces" via the arrangement; WAV stem bounce (needs offline-render harness).

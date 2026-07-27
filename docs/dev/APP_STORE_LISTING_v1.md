@@ -9,16 +9,14 @@ subscription arrives in v1.1 and is deliberately NOT mentioned anywhere here.
 Primary locale: **en-US** (brand rule: American English). German (de-DE)
 localization = post-launch follow-up.
 
-> ⚠️ **STALE — RE-VERIFY EVERY CLAIM BEFORE PASTING THIS INTO ASC (2026-07-27).**
-> This draft was written on 2026-07-10 against the then-current app. Since then the
-> founder deliberately removed several features this copy still advertises. The AUv3
-> lines are corrected below (#121 Slices 1+2, target and hosting both deleted), as are
-> the MIDI-export and MPE-output claims (`exportMIDI()` has no caller; `mpeEnabled` has
-> no writer). The "drum sequencer" and "piano roll" were dropped from the *What's New*
-> block, **but they still stand in the screenshot plan and the claim-verification block
-> below** — drums went with #166 and the note editor with #178, both 2026-07-26.
-> Shipping metadata that claims a removed feature is an App Store 2.3 ("Accurate
-> Metadata") rejection risk — sweep those two before submission (task #184).
+> ✅ **SWEPT 2026-07-27 — every removed feature is now out of this file.** The draft
+> was written 2026-07-10 against an app that has since lost, by founder decision, its
+> AUv3 target and host (#121 Slices 1+2), its drum apparatus (#166/#167), its note
+> editor (#178) and its clip/arrangement surfaces (#121 Slice 4). The genre roster was
+> curated down from 23 to the 8 in `MusicStyle.offered`. MIDI-file export and MPE output
+> are built but have no caller/writer, so they are not claimed. Shipping metadata that
+> claims a removed feature is an App Store 2.3 ("Accurate Metadata") rejection risk —
+> re-verify against `FEATURE_MATRIX.md` and the code before each submission anyway.
 
 ---
 
@@ -39,7 +37,7 @@ Your heartbeat makes music
 ## Keyword field (100 bytes max, no words repeated from name/subtitle, commas without spaces)
 
 ```
-hrv,coherence,meditation,beat,sequencer,midi,mpe,drum,generative,pulse,breath,instrument,dj,live,daw
+hrv,coherence,meditate,synth,ambient,midi,osc,artnet,generative,pulse,breath,instrument,dj,live,daw
 ```
 (100/100 bytes — "daw" added 2026-07-16 to use the last 4 bytes; high-signal
 for the studio-handoff audience. No repeats of: echoelmusic, biofeedback,
@@ -70,18 +68,18 @@ PLAY WITH YOUR PULSE
 • No sensor around? Demo mode plays instantly.
 
 COMPOSE FROM YOUR BODY
-• One tap generates music in your key: 23 genres from dub techno to
-  synthwave to meditation.
-• Choose key and scale (10 scales), concert pitch A4 from 432 to 444 Hz,
+• One tap generates music in your key: eight curated genres, from deep
+  ambient and drift to classical and dub techno.
+• Choose key and scale (50 scales), concert pitch A4 from 432 to 444 Hz,
   tempo locked in the studio or flowing with your heart.
-• Polyphonic synthesizer with a deep patch editor and preset library,
-  drum sequencer with velocity, accent and swing, piano roll, loop cutter,
-  and a production FX chain (tape delay, chorus, filter, dynamics).
+• Polyphonic synthesizer with a live patch editor and preset library, a
+  sub-bass voice you can feel, loop cutter, and a production FX chain
+  (tape delay, chorus, filter, dynamics).
 
 TAKE IT TO YOUR STUDIO AND YOUR SHOW
 • Export stamped WAV files (artist · date · key · BPM · tuning) straight
   into Ableton, Logic or FL Studio.
-• MIDI and MPE input — play the instrument from your controller.
+• MIDI input — play the instrument from your own controller.
 • Stream your live bio data as OSC and ADM-OSC objects into immersive
   audio rigs, and drive stage lights over Art-Net and sACN — open
   standards, no vendor lock-in.
@@ -107,7 +105,7 @@ creative control and self-observation, not for medical use.
 
 ```
 The first release: your heartbeat makes music. Bio-reactive synthesis,
-23-genre generative composer, MIDI/MPE input, WAV export,
+eight-genre generative composer, MIDI input, WAV export,
 immersive visuals, OSC/ADM-OSC, Art-Net/sACN — free, private, no account.
 ```
 
@@ -202,9 +200,9 @@ Checklist before submitting:
    Composition panel. Caption: "Your heartbeat makes music."
 2. **Immersive visual fullscreen** with the pulse visibly driving it.
    Caption: "See your pulse. Flash-safe by design."
-3. **Generate from Body** — genre + key selection. Caption: "23 genres,
-   your key, your tempo — composed from your body."
-4. Piano roll / patch editor. Caption: "A real instrument: synth, drums, FX."
+3. **Generate from Body** — genre + key selection. Caption: "Eight genres,
+   50 scales, your key, your tempo — composed from your body."
+4. The patch editor. Caption: "A real instrument: shape and save your own sound."
 5. Camera pulse measurement (finger on lens). Caption: "Measure with your
    fingertip — no accessories needed."
 6. WAV export share sheet. Caption: "Take the take into your studio."
@@ -226,21 +224,22 @@ pulse locks → play → music + visual react → "Free. Private. No account."
 
 Every description claim re-checked against the repo — all grounded:
 camera rPPG / universal BLE 0x180D / HealthKit (LIVE) · real HRV coherence
-Lomb-Scargle+Welch (LIVE) · 23 genres, 10 scales, A4 432–444 (LIVE) ·
-poly synth + patch editor + presets, drum sequencer velocity/accent/swing,
-piano roll, loop cutter, FX chain (LIVE) · stamped MIDI export, MIDI/MPE
-in+out (LIVE) · OSC + ADM-OSC +
+Lomb-Scargle+Welch (LIVE) · 8 offered genres, 50 scales, A4 432–444 (LIVE) ·
+poly synth + patch editor + presets, sub-bass voice, loop cutter,
+FX chain (LIVE) · MIDI input (notes/bend/CC 74) (LIVE) · virtual MIDI 1.0 out,
+route-gated (LIVE) · OSC + ADM-OSC +
 Art-Net + sACN unicast (LIVE) · Metal visual + MP4 clip recording (LIVE) ·
 nearby session share (`Sync/MultipeerSession` + `Studio/LiveColaboView`,
 wired). **One claim is DEVICE-verify-pending before submission (founder):**
 BLE strap end-to-end (strap on order — NEEDS-FOUNDER-VERIFY since B4). If it
 fails on device, soften or cut that line before submitting.
 
-⚠️ **This verification block is itself dated 2026-07-16 and no longer holds.**
-The AUv3 entry was struck (target + hosting deleted 2026-07-24); the drum-sequencer
-and piano-roll entries above it are ALSO stale (removed 2026-07-26) and are left
-visible on purpose so the next reader re-verifies rather than trusts them. Re-run
-the whole claim check against `FEATURE_MATRIX.md` + the code before submitting.
+⚠️ **Re-verified 2026-07-27** — the AUv3, drum-sequencer, piano-roll, 23-genre,
+MIDI-export and MPE-output entries were all removed from this block because the
+features are gone or unreachable. NOT claimed here, deliberately: MIDI file export
+(`exportMIDI()` has no caller), MPE out (`mpeEnabled` has no writer), drums, note
+editor, clips/arrangement, video edit, RTMP, AUv3. Re-run the whole claim check
+against `FEATURE_MATRIX.md` + the code before every submission.
 
 ## Remaining founder to-dos for submission
 
