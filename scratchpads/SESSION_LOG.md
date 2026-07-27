@@ -8405,3 +8405,51 @@ CI/CD Pipeline ✓, Full Test Suite ✓. `4e44929` — Xcode ✓, Rest lief noch
 **Weiter offen an den Founder:** Geräte-Verify (Build 2469 und alles danach) — die
 Play-Breadcrumbs nützen erst mit einem neuen `echoel_diag.log`; und ob der Share-Dialog
 die `.mid` wirklich anbietet, ist nur auf dem Gerät zu sehen.
+
+## 2026-07-27 — Zyklen 10–11: #186 in drei Anläufen (zwei davon von mir verursacht)
+
+**Der Befund (#186):** `OSCSender` verweigerte HealthKit-**Frames** die Egress (5.1.3),
+sendete aber **Ereignisse**, die aus genau diesen Frames abgeleitet wurden. Eine Regel, der
+der halbe Code folgt, ist keine Regel.
+
+**Anlauf 1 (`9513fcc`/`bb17ab2`) — Tor eingebaut, Begründung zu groß, Tests wertlos.**
+Der Reviewer wies nach: es ist **kein aktives Leck**. Auf einem HealthKit-Frame ist
+`breathPhase` konstant 0.5 (einziger Schreiber liegt in `startFallbackMode()`),
+`motionEnergy` hart 0, `cleanedHeart` 0 — die Detektoren können daraus nicht feuern. Kopf
+neu geschrieben mit der Herleitung. Zweitens waren die fünf Tests eine **Tautologie**: der
+Test hatte das Prädikat nachgebaut, also blieb er grün, wenn man die Produktionszeile
+löscht. Behoben an der Wurzel — `BioEgressPolicy.allowsEgress(_ event:)` ist jetzt EIN
+Symbol, das beide aufrufen.
+
+**Anlauf 2 (`d77f99d`) — mein Fix war schlechter als der Bug.** Ein Reset des geteilten
+`BioEventGraph` bei Quellenwechsel. Die Annahme dahinter — Quellen wechseln sich ab — habe
+ich nicht geprüft: `stopBioSource()` stoppt Kamera/Gurt/Demo, **nicht** `HealthKitBioPublisher`.
+Der Bus verschränkt, also feuerte der Reset zweimal pro HealthKit-Sample und löschte die
+Kamera-Baseline zwischen deren eigenen Frames. Aus einem Phantom-Ereignis wurde **Taubheit
+für echte Atmung**. Beide Gates waren dabei grün — deshalb steht der Pflicht-Reviewer im
+Takt und nicht die CI. (Ledger: DEAD-END „Quellenwechsel-Reset".)
+
+**Anlauf 3 (`0afc8d7` + `90b87aa`) — Zustand PRO QUELLE.** `[BioSource: BioEventGraph]`,
+dazu ein Stale-Gap (10 s) pro Quelle für den dokumentierten rPPG-Stall. Damit ist die Klasse
+weg statt getauscht. Der Reviewer fand danach die **eine Stelle, die ich gekoppelt gelassen
+hatte**: die De-Duplizierung lief weiter über ein globales `lastFrameTimestamp`, obwohl die
+Kamera ihren Halte-Frame absichtlich mit ORIGINAL-Timestamp neu publiziert, damit Konsumenten
+ihn wegdedupen — bei Verschränkung bricht das. Jetzt trägt `lastFrameTimeBySource` beides.
+
+**Das stärkste Argument stand in keinem meiner Commits und kam aus dem Review:** ein
+quellenübergreifendes Ereignis wurde mit der Quelle des GERADE aktuellen Frames gestempelt.
+Es konnte also `.cameraPPG` tragen und das Egress-Tor **passieren**. Der Stempel war falsch,
+nicht fehlend — das Tor aus Anlauf 1 hätte es nie gefangen. Nachgetragen.
+
+**Test-Ehrlichkeit (die Lehre dieses Zyklus):** von vier Verdrahtungs-Tests schlägt **genau
+einer** gegen `d77f99d` an. Das steht jetzt im Datei-Kopf, damit niemand das Grün als
+Abdeckung liest. Ein Test, der sein eigenes „nur diese Quelle" nicht prüfte
+(`graphs.removeAll()` wäre grün geblieben), ist repariert. Und die neue De-Dup-Zeile bekommt
+**bewusst keinen Test**: sie ist heute nicht beobachtbar, ein grüner Test würde nichts messen.
+
+**Belege:** `9513fcc`/`bb17ab2`/`d77f99d` — Xcode ✓, CI/CD ✓, Full Suite ✓.
+`0afc8d7` — Xcode ✓, CI/CD lief noch. `90b87aa` (Review-Nachlese) — Gates laufen.
+
+**Reviewer-Bilanz Zyklen 10–11:** 1 tautologische Test-Gruppe, 1 überzogene Begründung,
+**1 von mir ausgelieferte Regression**, 1 gekoppelt gelassenes Feld, 1 Test der seinen
+eigenen Namen nicht prüfte — alle behoben, jeweils mit benannter Ursache im Commit.
