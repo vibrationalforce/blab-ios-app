@@ -41,17 +41,23 @@ noch kein Code) · ⭐ **NORTH STAR** (Konzept, ehrlich fern — nie Produkt-Cop
 | 🗺 | Transient/Sustain-Split-FX (vDSP; bio-moduliert = Alleinstellung) — heute geparkt | inspiration.csv 2026-07-10 |
 | 🗺 | **Stems auf einzelne USB-Kanäle** (BiG SiX/Xone:96 als Summing/Insert) | inspiration.csv 2026-07-10 |
 
-## 3 · Die EINE Hauptansicht (seit heute, v144)
+## 3 · Die EINE Hauptansicht
+
+> ⛔ **KOMPLETT ÜBERHOLT (korrigiert 2026-07-27).** Dieser Abschnitt beschrieb die
+> Arrangement-Timeline als fertige Hauptansicht — mit fünf ✅-Zeilen. Sie ist
+> **gelöscht** (#121 Slice 4: `ArrangeTimelineView` `eb58e7a`, `ClipView` `807dc0d`);
+> `Studio/SurfaceSwitcher.swift` sagt das im Code selbst, `SurfaceHost` mountet heute
+> nur noch `EchoelStudioView`. Die Spur-Köpfe, die Piano-Roll-Tür, das Regionen-Modell
+> und die K2–K5-Stufen sind damit gegenstandslos. Das Timeline-MODELL
+> (`Sequencer/Timeline.swift`, `Core/TimelineStore`) lebt noch und geht mit Slice 5
+> (#132). Als Historie stehen gelassen, nicht als Status.
 
 | Stufe | Fähigkeit | Beleg |
 |---|---|---|
-| ✅ | **K1: EIN Bildschirm** — Arrangement-Timeline ÜBER dem Instrument (Ableton-Prinzip), quer + hochkant; keine Umschalt-Chips mehr | `SurfaceSwitcher.swift` (SurfaceHost), `WorkspaceView` |
-| ✅ | Spur-Köpfe = Türen: MIDI→Piano Roll, Audio→Audio-Editor, Umbenennen, Löschen, „+" Spur | `ArrangeTimelineView.swift` |
-| ✅ | Timeline-Fundament: 480-PPQ-Modell, Store + verlustfreie Migration, Beat-Grid, Pinch-Zoom, Playhead, Snap/magnetisch, Waveform-Kette | `Sequencer/Timeline.swift`, `Core/TimelineStore`, `WaveformView` |
-| 🗺 | K2: Spur↔Engine-Bindung (Mute/Solo/Level in Spur-Köpfe — Mix löst sich auf) | `PLAN_ONE_VIEW_CONVERGENCE_2026-07-10.md` |
-| 🗺 | K3: Regionen anfassen (verschieben/ziehen/erzeugen) + **Timeline treibt das Playback** | ebd. |
-| 🗺 | K4: Compose-Bereich als Drawer der Timeline · K5: Video-/Bio-/MPE-Lanes | ebd. |
-| — | **Ehrlich:** Die Timeline ZEIGT heute an; Abspielen läuft noch über den bar-genauen Legacy-Player. Audio-Waveforms erscheinen erst, wenn Aufnahme/Import eine Datei referenziert (kommt mit K3/Stage A). | Audit 2026-07-10 |
+| ⛔ | ~~K1: EIN Bildschirm — Arrangement-Timeline ÜBER dem Instrument~~ | entfernt; `SurfaceSwitcher.swift:5-8` |
+| ⛔ | ~~Spur-Köpfe = Türen: MIDI→Piano Roll, Audio→Audio-Editor~~ | `ArrangeTimelineView.swift` gelöscht |
+| 🔧 | Timeline-**Modell** (480-PPQ, Store + verlustfreie Migration) existiert noch, ohne Oberfläche | `Sequencer/Timeline.swift`, `Core/TimelineStore` — Abriss = #132 |
+| — | **Heute:** eine Fläche, `EchoelStudioView` — Chip-Leiste, ein Panel pro Chip, Transport. Kein Arrangement, keine Clips, kein Notenraster. | Founder 2026-07-24/26 |
 
 ## 4 · Space · Licht · Vibration
 

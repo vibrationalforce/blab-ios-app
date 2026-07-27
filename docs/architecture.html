@@ -21,10 +21,10 @@
     </script>
 
     <title>Architecture — Echoelmusic | Developer Reference</title>
-    <meta name="description" content="How Echoelmusic is built: the EngineBus signal chain, lock-free SPSC data plane, multidimensional MPE control, protected bio-DSP triad, synthesis engines, visuals, OSC API, concurrency and performance. A precise developer reference, audited against the source.">
+    <meta name="description" content="How Echoelmusic is built: the EngineBus signal chain, lock-free SPSC data plane, multidimensional MIDI control, protected bio-DSP triad, synthesis engines, visuals, OSC API, concurrency and performance. A precise developer reference, audited against the source.">
     <meta name="theme-color" content="#000000">
     <meta property="og:title" content="Echoelmusic — Architecture (Developer Reference)">
-    <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, MPE, the DSP triad, synthesis, visuals, OSC, concurrency and performance.">
+    <meta property="og:description" content="The bio-reactive signal chain from sensor to sound: EngineBus, SPSC data plane, MIDI control, the DSP triad, synthesis, visuals, OSC, concurrency and performance.">
     <meta property="og:url" content="https://echoelmusic.com/architecture.html">
     <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
     <meta property="og:image:width" content="1200">
@@ -138,7 +138,7 @@
             <nav class="ov-toc" aria-label="On this page">
                 <a href="#chain">Signal chain</a>
                 <a href="#bus">EngineBus</a>
-                <a href="#mpe">Multidimensional / MPE</a>
+                <a href="#mpe">Multidimensional control</a>
                 <a href="#bio">Bio capture</a>
                 <a href="#triad">DSP triad</a>
                 <a href="#synth">Synthesis</a>
@@ -159,7 +159,7 @@
             <!-- SIGNAL CHAIN -->
             <section id="chain">
                 <h2>The Signal Chain</h2>
-                <p>One chain runs the whole instrument. Sensors are fused into a normalized bio frame, published on the bus, and consumed in parallel by the synth voice, the OSC sender and the event detector. Performer input (MIDI/MPE) joins on its own topic and takes priority over bio for note gating.</p>
+                <p>One chain runs the whole instrument. Sensors are fused into a normalized bio frame, published on the bus, and consumed in parallel by the synth voice, the OSC sender and the event detector. Performer input (MIDI) joins on its own topic and takes priority over bio for note gating.</p>
                 <div class="flow">  <b>SOURCES</b>                 <b>BUS</b> (EngineBus)             <b>CONSUMERS</b>
   HealthKit / Apple Watch  ─┐   confidence fusion
   BLE Heart Rate (direct)  ─┤   into one snapshot
@@ -167,7 +167,7 @@
   Demo (DEBUG)             ─┘   (@MainActor, ~10 Hz) ├─▶ OSCSender ─▶ UDP /echoelmusic/bio/*
                                                      └─▶ BioEventPublisher ─▶ BioEventGraph ─┐
                                           <b>bioEvents</b> (SPSC) ◀──────────────────────────────┘
-  CoreMIDI 2.0 / MPE ───────────▶ <b>controllerEvents</b> (SPSC) ─▶ synth notes (performer priority)</div>
+  CoreMIDI 1.0 / 2.0 ───────────▶ <b>controllerEvents</b> (SPSC) ─▶ synth notes (performer priority)</div>
                 <p class="note">The slow body signal flows over the <strong>@MainActor <code>latestBio</code> snapshot</strong>, polled at ~10&nbsp;Hz — so a slow sensor never stalls the audio thread. The lock-free SPSC queues carry the real-time streams: <strong>controllerEvents</strong> (MIDI/MPE) and <strong>bioEvents</strong> (discrete onsets). A <strong>bioFrames</strong> queue is defined for a future full-rate path but is currently reserved and undrained.</p>
                 <p class="note"><strong>Modulation, not control:</strong> bio signals are modulation sources for the parameter lanes you paint — not hard controllers. Tempo can optionally follow heart rate, but watch-HR latency (4–5&nbsp;s) makes that a loose adopt, never a beat-lock. The expressivity lives in continuous modulation of your own automation.</p>
             </section>
@@ -177,7 +177,7 @@
                 <h2>EngineBus &mdash; the spine <span class="tag">LIVE</span></h2>
                 <p><code>EngineBus</code> is <code>@MainActor @Observable</code> and is the single source of truth. It has a <strong>hybrid design</strong>: a control plane for SwiftUI (observable <code>latestBio</code>, <code>latestControllerEvent</code>, <code>latestBioEvent</code> snapshots) and a <strong>lock-free data plane</strong> of three typed queues for real-time consumers. Producers call <code>nonisolated</code> publish methods from any thread; consumers poll the queues without ever touching the bus object.</p>
                 <div class="data-row"><div class="k"><code>bioFrames</code></div><div class="v"><code>SPSCQueue&lt;BioSampleFrame&gt;</code> — heart rate (BPM), HRV (normalized), breath rate, breath phase, coherence, motion energy.</div></div>
-                <div class="data-row"><div class="k"><code>controllerEvents</code></div><div class="v"><code>SPSCQueue&lt;ControllerEvent&gt;</code> — note on/off, pitch bend, slide, air-CC (MPE).</div></div>
+                <div class="data-row"><div class="k"><code>controllerEvents</code></div><div class="v"><code>SPSCQueue&lt;ControllerEvent&gt;</code> — note on/off, pitch bend, slide (CC&nbsp;74), air-CC.</div></div>
                 <div class="data-row"><div class="k"><code>bioEvents</code></div><div class="v"><code>SPSCQueue&lt;BioEvent&gt;</code> — discrete onsets (heartbeat, breath inhale/exhale, motion peak) with a confidence score.</div></div>
                 <div class="data-row"><div class="k">Publish API</div><div class="v"><code>publish(bio:)</code>, <code>publish(controller:)</code>, <code>publish(bioEvent:)</code> — all <code>nonisolated</code>: atomic enqueue, then an async hop to the MainActor updates the observable snapshot. No locks, no allocation on the data plane.</div></div>
                 <div class="data-row"><div class="k"><code>SPSCQueue</code></div><div class="v">Cache-line-padded, lock-free single-producer / single-consumer ring buffer. Power-of-two capacity; <code>enqueue()</code> drops the oldest on overflow; <code>tryEnqueue()</code>, <code>dequeue()</code>, <code>peek()</code>; counters for dropped/enqueued/dequeued. Index updates use atomic memory barriers — no malloc, no locks.</div></div>
@@ -185,10 +185,11 @@
 
             <!-- MPE -->
             <section id="mpe">
-                <h2>Multidimensional Control &mdash; MPE <span class="tag">LIVE</span></h2>
+                <h2>Multidimensional Control <span class="tag">PARTIAL</span></h2>
+                <p class="note"><strong>Not MPE yet — stated plainly.</strong> <code>MIDIBusPublisher</code> says so in its own header: MPE master/member channel disambiguation, RPN&nbsp;6,6 zone detection and channel pressure are <em>not</em> wired. What is live is multi-dimensional control on one channel — several continuous axes over a note stream, not per-note channels.</p>
                 <p>Performer gestures arrive over <strong>CoreMIDI with the MIDI 2.0 protocol</strong> (<code>MIDIInputPortCreateWithProtocol(._2_0)</code>), parsing both MIDI 1.0 (16-bit) and MIDI 2.0 (32-bit) words and normalizing everything to clean float ranges. Each axis becomes a <code>ControllerEvent</code> on the bus — this is the <strong>multidimensional (MPE)</strong> layer: one note carries several continuous, independent dimensions of expression.</p>
                 <div class="data-row"><div class="k">Note + velocity</div><div class="v"><code>.noteOn</code> / <code>.noteOff</code> — note 0–127, velocity [0–1] (7-bit MIDI 1.0 or 16-bit MIDI 2.0).</div></div>
-                <div class="data-row"><div class="k">Per-note pitch bend</div><div class="v"><code>.pitchBend</code> — [−1…+1]; 14-bit (MIDI 1.0) or 32-bit (MIDI 2.0). The X / glide dimension.</div></div>
+                <div class="data-row"><div class="k">Pitch bend</div><div class="v"><code>.pitchBend</code> — [−1…+1]; 14-bit (MIDI 1.0) or 32-bit (MIDI 2.0). The X / glide dimension. <strong>Channel-wide, not per-note</strong>: MIDI&nbsp;2.0 per-note pitch bend (status <code>0x6</code>) is not parsed and the published event carries <code>note: 0</code>.</div></div>
                 <div class="data-row"><div class="k">Slide / timbre (CC&nbsp;74)</div><div class="v"><code>.slide</code> — [0–1]. The Y / vertical dimension on MPE controllers.</div></div>
                 <div class="data-row"><div class="k">Air-CC (CC&nbsp;21–31)</div><div class="v"><code>.airCC</code> — [0–1], CC number preserved in <code>auxCC</code>. Breath / wind-controller and gestural "air" dimensions.</div></div>
                 <div class="data-row"><div class="k">Next</div><div class="v"><code>.channelPressure</code> (Z / pressure) and MPE member/master <strong>zone detection</strong> (RPN 6,6) are defined in the event model and wired in the next cycle. <span class="tag">ROADMAP</span></div></div>
@@ -232,7 +233,7 @@
                 <div class="data-row"><div class="k">Reverb <span class="tag">LIVE</span></div><div class="v">Convolution reverb with synthetic impulse response inside EchoelDDSP — wet/dry and decay control, HRV-reactive.</div></div>
                 <div class="data-row"><div class="k">EQ + auto-gain <span class="tag">LIVE</span></div><div class="v"><code>AutoMixChain</code> — 4-band EQ (40&nbsp;Hz high-pass, 180&nbsp;Hz low-shelf, 3&nbsp;kHz parametric, 10&nbsp;kHz high-shelf) + LUFS auto-gain to −14&nbsp;LUFS (±12&nbsp;dB), with 4 presets (balanced, warm, bright, transparent).</div></div>
                 <div class="data-row"><div class="k">Filter + saturation <span class="tag">LIVE</span></div><div class="v">LFO-swept state-variable filter; soft <code>tanh</code> saturation in the voice-mix stage.</div></div>
-                <div class="data-row"><div class="k">More <span class="tag">ROADMAP</span></div><div class="v">Delay, chorus/flanger/phaser/tremolo, and dedicated compressor/limiter with analog (VCA/Opto/FET/VariMu/Tube) emulations.</div></div>
+                <div class="data-row"><div class="k">More <span class="tag">LIVE</span></div><div class="v">Delay, chorus/flanger/phaser/tremolo, stereo widener, compressor and limiter all ship in <code>EchoelFXChain</code> and are reachable from the FX door. Only the <em>modelled analog</em> compressors (VCA/Opto/FET/VariMu) are <span class="tag">ROADMAP</span>.</div></div>
             </section>
 
             <!-- AUDIO -->
@@ -273,7 +274,7 @@
                 <h2>Studio UI &amp; App Wiring <span class="tag">LIVE</span></h2>
                 <p><code>EchoelmusicApp</code> (<code>@main</code>) builds the graph in order — <code>MicrophoneManager → AudioEngine → EchoelStore → BeatPlayer → EngineBus</code>, then the bio publishers (HealthKit, Polar&nbsp;H10), the <code>BioReactiveSynthVoice</code>, the <code>BioEventPublisher</code>, MIDI (CoreMIDI), and the OSC sender — configures audio <em>before</em> the UI, then mounts the studio. SwiftUI observes EngineBus snapshots; nothing in the view layer touches the audio thread.</p>
                 <div class="data-row"><div class="k">BioStripView</div><div class="v">Always-on readout: <strong>HR · HRV · Br · Coh</strong>, applied synth-frame count, and activity dots (bio events, MIDI, OSC), plus a play/stop toggle and the active source tag.</div></div>
-                <div class="data-row"><div class="k">Studio views</div><div class="v">Perform (scene grid), Mix (voice + AutoMix + signal status), Export (WAV/AAC + MIDI), Settings (bio source), and a 60-second camera-pulse measurement. Short-form video export is <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">Studio views</div><div class="v">One shell, <code>EchoelStudioView</code>: a chip bar where each chip opens exactly one panel, the transport, and a 60-second camera-pulse measurement. The old Perform / Mix / Export / Settings tabs no longer exist.</div></div>
             </section>
 
             <!-- OSC API -->
@@ -384,7 +385,7 @@
                         <ul>
                             <li>MPE channel pressure + zone detection</li>
                             <li>Generative automation / Euclidean / polyrhythm</li>
-                            <li>Delay / modulation / compressor / limiter</li>
+                            <li>Modelled analog compressors (VCA / Opto / FET / VariMu)</li>
                             <li>Richer Metal visuals + chroma key</li>
                             <li>Standard MIDI File (.mid) export — built, needs its door back</li>
                             <li>EchoelLux — DMX-512 / HomeKit (Art-Net + sACN live)</li>
