@@ -29,6 +29,10 @@ on:
 env:
   XCODE_VERSION: '26.2'
   XCODEGEN_VERSION: '2.42.0'
+  # Substituted into project.yml's CURRENT_PROJECT_VERSION placeholder before
+  # generating (same mechanism testflight.yml uses). A build number is required
+  # for the app extension to install into the simulator at all.
+  BUILD_NUMBER: ${{ github.run_number }}
 
 jobs:
   # Job 1: Code Quality & Linting
@@ -135,6 +139,13 @@ jobs:
       run: |
         set +e
         sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
+        # project.yml carries CURRENT_PROJECT_VERSION as the literal placeholder
+        # ${BUILD_NUMBER:=1} and ONLY testflight.yml ever substituted it. Xcode expands
+        # an undefined ${...} reference to EMPTY, so every project this workflow
+        # generated had an empty CFBundleVersion. The simulator rejects that at INSTALL
+        # time ("bundleVersion must be set in placeholder attributes" for the widget
+        # appex) — invisible until the test job became able to fail at all (eb984a2).
+        sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml || true
         echo "=== XcodeGen version ==="
         xcodegen --version 2>&1 || echo "xcodegen not found!"
         echo "=== project.yml options ==="
@@ -250,6 +261,13 @@ jobs:
       run: |
         set +e
         sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
+        # project.yml carries CURRENT_PROJECT_VERSION as the literal placeholder
+        # ${BUILD_NUMBER:=1} and ONLY testflight.yml ever substituted it. Xcode expands
+        # an undefined ${...} reference to EMPTY, so every project this workflow
+        # generated had an empty CFBundleVersion. The simulator rejects that at INSTALL
+        # time ("bundleVersion must be set in placeholder attributes" for the widget
+        # appex) — invisible until the test job became able to fail at all (eb984a2).
+        sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml || true
         echo "=== XcodeGen version ==="
         xcodegen --version 2>&1 || echo "xcodegen not found!"
         echo "=== project.yml options ==="
@@ -343,6 +361,13 @@ jobs:
       run: |
         # Set placeholder Team ID for archive build (actual team set via xcargs)
         sed -i '' 's/DEVELOPMENT_TEAM: ""/DEVELOPMENT_TEAM: "XXXXXXXXXX"/' project.yml || true
+        # project.yml carries CURRENT_PROJECT_VERSION as the literal placeholder
+        # ${BUILD_NUMBER:=1} and ONLY testflight.yml ever substituted it. Xcode expands
+        # an undefined ${...} reference to EMPTY, so every project this workflow
+        # generated had an empty CFBundleVersion. The simulator rejects that at INSTALL
+        # time ("bundleVersion must be set in placeholder attributes" for the widget
+        # appex) — invisible until the test job became able to fail at all (eb984a2).
+        sed -i '' "s/\${BUILD_NUMBER:=1}/${{ env.BUILD_NUMBER }}/" project.yml || true
         xcodegen generate --spec project.yml
 
     - name: Build Release Archive
