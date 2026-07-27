@@ -401,16 +401,18 @@ struct EchoelStudioView: View {
     // chain sits at the metadata ceiling — a defensible trade WHILE the view still
     // existed. It stops being a trade once the view is deleted: a slot whose content
     // closure names a type that no longer compiles is not reusable, and the next editor
-    // rewrites that closure anyway. Deleting it moves the chain 15 → 14, which is the
-    // safe direction. Three un-settable flags remain (`showVisual`, `showMeditation`,
+    // rewrites that closure anyway.
+    //
+    // CHAIN LENGTH — ONE number, kept here so nobody reads two: the body carries
+    // **14** presentation modifiers today (8 `.sheet` + 2 `.fullScreenCover` +
+    // 3 `.alert` + 1 `.fileImporter`). It got there by shrinking twice, which is the
+    // only safe direction under the black-screen metadata law: 16 → 15 when the piano
+    // roll's craft-editor slot went (founder 2026-07-26, "Pianoroll soll raus" — it
+    // held exactly one case, so removing the roll's door would have left an undoored
+    // enum, the lying-`toolItems` trap), then 15 → 14 with this sample-browser slot.
+    // Three un-settable flags remain (`showVisual`, `showMeditation`,
     // `midiImportPresented`) — reuse one of those before ever appending a 15th.
-
-    // The craft-editor sheet slot is GONE with the piano roll (founder 2026-07-26,
-    // "Pianoroll soll raus"). It held exactly one case, so removing the roll's door
-    // left an undoored enum — the lying-`toolItems` trap the slot's own comment
-    // warned about — and the honest move was to take the slot with it. The body's
-    // presentation chain therefore SHRINKS 16 → 15, which is the safe direction.
-    // Whoever adds the next craft editor re-introduces this slot as a
+    // Whoever adds the next craft editor re-introduces its slot as a
     // `.sheet(item:)` + enum + out-of-body content builder, never a bare `.sheet`.
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
