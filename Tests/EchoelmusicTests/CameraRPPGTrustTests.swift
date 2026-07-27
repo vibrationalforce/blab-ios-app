@@ -125,5 +125,68 @@ final class CameraRPPGTrustTests: XCTestCase {
     func testPublishGate_rejectsZeroBPMEvenWhenTheEvidenceLooksStrong() {
         XCTAssertFalse(P.shouldPublish(bpm: 0, confidence: 0.95, autoStrength: 0.90))
     }
+
+    // MARK: - The published VALUE, not just the bar (#185)
+
+    /// The remainder the gate fix explicitly left open, and named in its own doc comment:
+    /// unifying `shouldPublish` made the screen and the bus clear ONE BAR, but the screen
+    /// showed `displayBPM` (octave-folded) while the bus carried the raw
+    /// `analyzer.estimatedBPM`. rPPG peak-counting reports 2× (or ½) the true pulse often
+    /// enough that the display has folded since 2026-07-02 ("springt ständig auf 196 bpm").
+    /// So a trustworthy 196 against an established 98 was SHOWN as 98 and PLAYED as 196 —
+    /// the same see/hear split, one layer down.
+    func testFold_halvesADoubledEstimateTowardTheEstablishedRate() {
+        XCTAssertEqual(P.octaveFolded(196, toward: 98), 98, accuracy: 1e-9)
+        XCTAssertEqual(P.octaveFolded(133, toward: 70), 66.5, accuracy: 1e-9)
+    }
+
+    func testFold_doublesAHalvedEstimate() {
+        XCTAssertEqual(P.octaveFolded(35, toward: 72), 70, accuracy: 1e-9)
+    }
+
+    /// The band that must pass through untouched is wide on purpose — a genuine heart rate
+    /// moves, and folding a real change would be worse than the octave error it prevents.
+    func testFold_leavesAGenuineChangeAlone() {
+        for raw in stride(from: 43.0, through: 110.0, by: 0.5) {   // 0.6× … 1.6× of 70
+            XCTAssertEqual(P.octaveFolded(raw, toward: 70), raw, accuracy: 1e-9,
+                           "\(raw) sits inside the pass band and must not be folded")
+        }
+    }
+
+    /// No reference yet (first reading, or the display never locked) ⇒ identity. This is
+    /// what keeps the change inert on the very first publish: `displayBPM` adopts the first
+    /// trustworthy reading as-is, so reference == raw and the fold is a no-op there too.
+    func testFold_withoutAReference_isIdentity() {
+        XCTAssertEqual(P.octaveFolded(196, toward: 0), 196, accuracy: 1e-9)
+        XCTAssertEqual(P.octaveFolded(196, toward: -1), 196, accuracy: 1e-9)
+        XCTAssertEqual(P.octaveFolded(0, toward: 70), 0, accuracy: 1e-9)
+    }
+
+    /// ONE step, deliberately — the same rule the display has run on for weeks. A 4×
+    /// estimate folds to 2×, not to 1×, and the next tick folds again. Pinning this stops
+    /// a future "improvement" turning it into a `while` loop that could collapse a real
+    /// tachycardia onto a resting rate.
+    func testFold_takesASingleOctaveStepNotALoop() {
+        XCTAssertEqual(P.octaveFolded(280, toward: 70), 140, accuracy: 1e-9)
+        XCTAssertEqual(P.octaveFolded(18, toward: 72), 36, accuracy: 1e-9)
+    }
+
+    /// The property the fix exists for, swept rather than sampled: after folding, the
+    /// published value is always within the display's own pass band of what is shown —
+    /// i.e. never an octave apart from the number on screen.
+    func testFold_publishedValueIsNeverAnOctaveFromTheShownOne() {
+        let reference = 70.0
+        for raw in stride(from: 30.0, through: 200.0, by: 0.5) {
+            let published = P.octaveFolded(raw, toward: reference)
+            // Bounds INCLUSIVE: the fold's own comparisons are strict (`>`/`<`), so a raw
+            // landing exactly on 1.6×/0.6× passes through unfolded and legitimately sits
+            // on the rail. Asserting strictly here would fail on that boundary value, which
+            // `stride(by: 0.5)` does hit exactly (112.0).
+            XCTAssertLessThanOrEqual(published, reference * 1.6,
+                                     "raw \(raw) still published an octave above the shown \(reference)")
+            XCTAssertGreaterThanOrEqual(published, reference * 0.6,
+                                        "raw \(raw) still published an octave below the shown \(reference)")
+        }
+    }
 }
 #endif

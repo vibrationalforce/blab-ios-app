@@ -110,8 +110,12 @@ public final class CameraRPPGBioPublisher {
     /// A CALM BPM for on-screen display (founder 2026-07-02: "ruhige Anzeige"). It updates
     /// only on a CONFIDENT reading and EMA-smooths, HOLDING the last good value through
     /// low-confidence patches — so the glanceable number stops bouncing (e.g. 55↔98 during
-    /// a marginal grip). The measurement (`detectedBPM`) and the bus-published HR stay
-    /// honest and untouched; this is display-only.
+    /// a marginal grip). The raw measurement (`detectedBPM`) stays honest and untouched.
+    ///
+    /// NOT display-only any more (#185): this value is also the OCTAVE REFERENCE the
+    /// publish path folds against, so the bus can no longer carry 196 while the screen
+    /// shows 98. The EMA + `maxDisplayStep` slew remain display-only — the bus follows a
+    /// real change at once rather than lagging the body by seconds.
     public private(set) var displayBPM: Double = 0
     /// Only readings at/above this confidence move `displayBPM` (higher than `lockThreshold`
     /// so the noisy 0.35–0.55 band holds instead of wandering).
@@ -215,12 +219,13 @@ public final class CameraRPPGBioPublisher {
     /// low-confidence case (acf 0.59–0.72 at conf 0.01, a rock-stable real 56 bpm) out of the
     /// SOUND while the display still shows it — the same asymmetry, merely inverted.
     ///
-    /// SCOPE — this unifies the BAR, not the VALUE. What gets published is the raw
-    /// `analyzer.estimatedBPM`; what gets shown is `displayBPM`, which is octave-folded and
-    /// slew-capped at `maxDisplayStep` (both explicitly display-only). So after a hold the
-    /// bus jumps to the new value immediately while the readout walks there over seconds,
-    /// and a trustworthy raw estimate that the fold would halve is published un-halved.
-    /// Same defect class, smaller and transient — not closed by this function.
+    /// SCOPE — this unifies the BAR, not the VALUE. The octave half of that remainder is
+    /// now closed by `octaveFolded` (see below); the SLEW half deliberately is not. The bus
+    /// still jumps to a new rate at once while the readout walks there at `maxDisplayStep`,
+    /// so the two can differ by a few bpm for a couple of seconds after a change. That is
+    /// the intended split: the fold is a correctness rule about which octave the pulse is
+    /// in, the slew is a display-calmness rule, and slewing the bus would put a
+    /// second-long lag between the body and the sound.
     ///
     /// Pure → unit-testable, which the inline `guard` it replaces was not. Note what that
     /// does NOT buy: no test asserts that the publish loop actually CALLS this. Reverting
@@ -228,6 +233,35 @@ public final class CameraRPPGBioPublisher {
     /// green. The predicate is pinned; the wiring is not.
     nonisolated static func shouldPublish(bpm: Double, confidence: Double, autoStrength: Double) -> Bool {
         bpm > 0 && pulseTrustworthy(confidence: confidence, autoStrength: autoStrength)
+    }
+
+    /// Fold a raw rPPG estimate into the octave of an established rate — the rule the SHOWN
+    /// pulse has run on since 2026-07-02 (founder: "springt ständig auf 196 bpm"), now
+    /// applied to the published value as well.
+    ///
+    /// rPPG peak-counting reports 2× (or ½) the true pulse often enough that the display
+    /// folds it. The bus did not, so a trustworthy 196 against an established 98 was SHOWN
+    /// as 98 and PLAYED as 196: the same see/hear split `shouldPublish` closed one layer up,
+    /// left open in its own doc comment and filed as #185. Both stages now resolve the same
+    /// octave from the same reference.
+    ///
+    /// `reference` is `displayBPM`, i.e. the number actually on screen. 0 (nothing shown
+    /// yet) or a non-positive `bpm` ⇒ identity, which is what keeps the first publish
+    /// unchanged: `displayBPM` adopts the first trustworthy reading as-is, so on that tick
+    /// reference == raw and nothing folds.
+    ///
+    /// ONE step, not a loop: a 4× estimate folds to 2×, and the next tick folds again as
+    /// the reference moves. A `while` would collapse a genuine tachycardia onto a resting
+    /// rate. The ±0.6/1.6 pass band is wide on purpose — folding a real change would be a
+    /// worse error than the octave glitch it prevents.
+    ///
+    /// Pure, so the octave rule is unit-tested; the WIRING is not (same honest limit as
+    /// `shouldPublish` — reverting either call site keeps every test green).
+    nonisolated static func octaveFolded(_ bpm: Double, toward reference: Double) -> Double {
+        guard bpm > 0, reference > 0 else { return bpm }
+        if bpm > reference * 1.6 { return bpm / 2 }
+        if bpm < reference * 0.6 { return bpm * 2 }
+        return bpm
     }
 
     /// True once a confident pulse is locked — the SAME bar as the display and the bus.
@@ -743,15 +777,13 @@ public final class CameraRPPGBioPublisher {
                 // corroborated by real periodicity), else hold — so a poorly-placed finger
                 // shows "acquiring" instead of a fantasy number.
                 if self.detectedBPM > 0 && Self.pulseTrustworthy(confidence: self.confidence, autoStrength: autoStrength) {
-                    var bpm = self.detectedBPM
                     // OCTAVE-FOLD toward the established rate: rPPG often reports 2× (or ½) the
                     // true pulse (founder: "springt ständig auf 196 bpm"). Once a stable value
                     // exists, fold a doubled/halved estimate back so the SHOWN number doesn't
-                    // yank between 98 and 196 — physiological continuity, display-only.
-                    if self.displayBPM > 0 {
-                        if bpm > self.displayBPM * 1.6 { bpm /= 2 }
-                        else if bpm < self.displayBPM * 0.6 { bpm *= 2 }
-                    }
+                    // yank between 98 and 196 — physiological continuity. No longer
+                    // display-only: the publish path below folds against the same reference,
+                    // so the number you see and the number you hear are in one octave (#185).
+                    let bpm = Self.octaveFolded(self.detectedBPM, toward: self.displayBPM)
                     if self.displayBPM == 0 {
                         self.displayBPM = bpm                       // first confident reading: adopt as-is
                     } else {
@@ -830,7 +862,11 @@ public final class CameraRPPGBioPublisher {
                 // the first ticks publish normally and a frameless warm-up self-clears.
                 guard self.inboundRateEMA >= Self.minMeasurableInboundHz else { continue }
                 guard tick % 10 == 0, let bus = self.bus else { continue }
-                let bpm = self.analyzer.estimatedBPM
+                // Fold into the octave of the number on screen BEFORE the gate, so the gate
+                // judges the value that will actually be published (#185). `displayBPM` is
+                // this tick's own value — the display block above has already run — and is 0
+                // until the first trustworthy reading, where the fold is identity.
+                let bpm = Self.octaveFolded(self.analyzer.estimatedBPM, toward: self.displayBPM)
                 // All three evidence values read HERE, not reused from the display block
                 // above: `manageExposure()` runs in between and can call
                 // `analyzer.resetForRecovery()`, which zeroes estimatedBPM, bpmConfidence
