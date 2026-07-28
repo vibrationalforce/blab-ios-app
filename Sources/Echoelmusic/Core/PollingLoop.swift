@@ -42,13 +42,12 @@ public enum PollingRateCeiling {
     /// non-finite or non-positive input is normalised to).
     public private(set) static var bioHz: Double = 0
 
-    /// Publish a new ceiling. Called by `ResourceGovernor` only.
+    /// Publish a new ceiling. The production writer is `ResourceGovernor`; tests set
+    /// it directly (it is `public` and nothing enforces a single caller).
     public static func setBioHz(_ hz: Double) {
         bioHz = (hz.isFinite && hz > 0) ? hz : 0
     }
 
-    /// Pure: the interval a loop should actually sleep. `nonisolated` so the policy
-    /// is testable (and reusable) without hopping to the main actor.
     /// The slowest a ceiling may make any loop. Not caution for its own sake: this is
     /// a public pure function, and `1.0 / ceilingHz` for a denormal-small input is a
     /// number `Duration.seconds(_:)` cannot represent. A ceiling below this is a

@@ -169,7 +169,11 @@ struct EchoelmusicApp: App {
     // keeps the history — the dormant SessionRecorder, now wired for the Meditation pillar.
     @State private var sessionRecorder = SessionRecorder()
     // Battery/CPU/GPU resource conservation: reads thermal/power/battery + render FPS
-    // and publishes one app-wide QualitySettings (visual FPS/detail, bio/OSC rates).
+    // and publishes one app-wide QualitySettings. What is ACTUALLY honoured today:
+    // visual detail + reduce-motion (MetalBioView) and the control-plane bio poll
+    // ceiling (via PollingRateCeiling). Visual FPS is deliberately NOT applied and the
+    // OSC rate has no consumer — see the knob table in ResourceGovernor before
+    // assuming a knob does something.
     @State private var resourceGovernor = ResourceGovernor()
     #if canImport(AVFoundation) && canImport(Metal)
     // Records the bio-reactive Metal visual to an .mp4 (the on-brand video source —

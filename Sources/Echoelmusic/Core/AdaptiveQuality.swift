@@ -61,11 +61,16 @@ public enum QualityTier: Int, Codable, Sendable, Comparable, CaseIterable {
 /// rather than inventing its own thresholds.
 public struct QualitySettings: Sendable, Equatable {
     public var tier: QualityTier
-    /// Preferred render frame rate for the Metal visual (MTKView.preferredFramesPerSecond).
+    /// REFERENCE rate only — nobody reassigns `MTKView.preferredFramesPerSecond`, which
+    /// is pinned at 60 because changing it reconfigures the CADisplayLink (a visible
+    /// cadence hitch; see `MetalBioView.draw(in:)`). Its one live role is as the value
+    /// the measured-FPS demotion below compares against.
     public var targetFPS: Int
     /// Multiplier on visual detail (ring density / particle counts). 0.5…1.0.
     public var visualDetailScale: Float
-    /// Whether the expensive spectral-donut overlay may render.
+    /// Whether the expensive spectral-donut overlay may render. NO CONSUMER —
+    /// `SpectralDonutView` has no reachable door (its only mount sits behind a flag
+    /// with no live setter), so this gates nothing today.
     public var allowSpectralDonuts: Bool
     /// CEILING (not a target) on the control-plane bio poll rate, in Hz. Consumed via
     /// `PollingRateCeiling`, which can only ever LENGTHEN a loop's interval: at the

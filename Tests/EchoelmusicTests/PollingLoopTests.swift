@@ -84,6 +84,11 @@ final class PollingLoopTests: XCTestCase {
     }
 
     func testSetBioHz_normalisesJunkToUncapped() {
+        // The holder is process-global. `defer`, not `addTeardownBlock`: the latter takes
+        // a NON-isolated `@Sendable` closure, and handing it a `@MainActor` one drops the
+        // isolation the holder requires. Restores the value even on an early failure, so
+        // a red assertion here cannot silently re-tune whatever runs next in-process.
+        defer { PollingRateCeiling.setBioHz(0) }
         PollingRateCeiling.setBioHz(5)
         XCTAssertEqual(PollingRateCeiling.bioHz, 5, accuracy: 0.0001)
         PollingRateCeiling.setBioHz(.nan)
@@ -96,20 +101,40 @@ final class PollingLoopTests: XCTestCase {
     /// The behaviour the fix exists for: the ceiling reaches a loop that is ALREADY
     /// running. Baking the interval at `start()` is why `bioHz` had no consumer.
     func testGovernedLoop_slowsWhileRunning() async {
+        defer { PollingRateCeiling.setBioHz(0) }
         let loop = PollingLoop()
         var count = 0
         PollingRateCeiling.setBioHz(0)
         loop.start(interval: .milliseconds(20), governedByBioCeiling: true) { count += 1 }
-        try? await Task.sleep(for: .milliseconds(100))
+        // 400 ms at 20 ms is ~20 expected ticks against a slow phase of at most 2 (one
+        // sleep already in flight plus one tick). A tighter window would make this a
+        // CI-load flake rather than a test of the throttle: at 100 ms the fast phase
+        // expects only ~5, and a loaded runner delivering 2 would fail it spuriously.
+        try? await Task.sleep(for: .milliseconds(400))
         let fastRuns = count
-        PollingRateCeiling.setBioHz(5)            // 200 ms — far longer than the window
-        try? await Task.sleep(for: .milliseconds(100))
+        PollingRateCeiling.setBioHz(1)            // 1 s — far longer than the window below
+        try? await Task.sleep(for: .milliseconds(200))
         let slowRuns = count - fastRuns
         loop.stop()
         PollingRateCeiling.setBioHz(0)
         XCTAssertGreaterThan(fastRuns, slowRuns,
                              "a ceiling published mid-run must throttle the live loop")
-        XCTAssertLessThanOrEqual(slowRuns, 2, "at 5 Hz at most ~1 tick fits in 100 ms")
+        XCTAssertLessThanOrEqual(slowRuns, 2, "at 1 Hz at most one in-flight tick fits in 200 ms")
+    }
+
+    /// The other half of the wiring: without this, deleting BOTH
+    /// `PollingRateCeiling.setBioHz(...)` calls in `ResourceGovernor` leaves the suite
+    /// green while the knob goes dead again — exactly the state this slice repaired.
+    func testResourceGovernor_publishesTheCeilingForAPinnedTier() {
+        defer { PollingRateCeiling.setBioHz(0) }
+        let governor = ResourceGovernor()
+        governor.isAutomatic = false              // pin, so the result is device-independent
+        governor.manualTier = .minimal
+        XCTAssertEqual(PollingRateCeiling.bioHz, 5, accuracy: 1e-9,
+                       "the minimal tier's 5 Hz must reach the holder")
+        governor.manualTier = .balanced
+        XCTAssertEqual(PollingRateCeiling.bioHz, 10, accuracy: 1e-9,
+                       "a tier change must republish, not latch the first value")
     }
 
     /// The default must stay bit-identical for every un-opted-in call site.

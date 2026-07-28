@@ -20,10 +20,14 @@
 //    · `targetFPS` → NOBODY, on purpose: reassigning MTKView.preferredFramesPerSecond
 //      reconfigures the CADisplayLink, a visible cadence hitch (see MetalBioView).
 //      It survives only as the reference the FPS-feedback demotion compares against.
-//    · `oscHz` → nobody yet. NOT an oversight: Art-Net/sACN slew per TICK
-//      (FlashGuard.slewedDimmer, maxDelta per call), so capping their rate would
-//      stretch a lighting fade 3× at the minimal tier — a show-visible change that
-//      needs its own founder-facing decision, not a drive-by.
+//    · `oscHz` → nobody yet, and mind the naming trap: the ONE governed egress loop
+//      is `OSCSender`'s, and it is governed by `bioHz`, because what it emits is a
+//      bio poll. The genuine unconsumed candidate for `oscHz` is `ADMOSCSender`'s
+//      20 Hz object-out, which the minimal tier's 10 Hz would actually halve.
+//      Art-Net/sACN are the other two rate-capping candidates (not OSC at all), and
+//      they are the reason this is NOT a drive-by: both slew per TICK
+//      (`FlashGuard.slewedDimmer`, maxDelta per call), so capping their 30 Hz to
+//      10 Hz stretches a lighting fade threefold — show-visible, founder's call.
 //    · `allowSpectralDonuts` → nobody; `SpectralDonutView` has no reachable door.
 //
 //  @MainActor @Observable: it is pure control-plane state read by SwiftUI. It never
@@ -225,14 +229,17 @@ public final class ResourceGovernor {
     @ObservationIgnored private var pendingPromoteSince: CFTimeInterval = 0
 
     private func apply(_ next: QualitySettings) {
-        // Publish the control-plane ceiling BEFORE the equality guard. `settings` is
-        // initialised to the balanced knobs, so the very first `recompute()` on a
-        // balanced device produces an equal value and returns here — a publish behind
-        // the guard would then never run on exactly the most common launch.
+        // Belt-and-braces with the unconditional publish at the end of `init()`: since
+        // `settings` is written ONLY here, the ceiling cannot go stale even behind the
+        // guard. Placed before it anyway so the invariant survives `apply` ever gaining
+        // a second caller — the class of drift this whole slice exists to end.
         PollingRateCeiling.setBioHz(next.bioHz)
         guard next != settings else { return }
         settings = next
+        // `fps ref`, not `fps target`: nothing reassigns MTKView.preferredFramesPerSecond
+        // (see the knob table above). Logged because it is the value the FPS-feedback
+        // demotion measures against — reading it as an applied setting is the trap.
         log.log(.info, category: .system,
-                "ResourceGovernor → \(next.tier.label) (fps target \(next.targetFPS), detail \(next.visualDetailScale))")
+                "ResourceGovernor → \(next.tier.label) (fps ref \(next.targetFPS), detail \(next.visualDetailScale))")
     }
 }
