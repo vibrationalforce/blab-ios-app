@@ -157,6 +157,30 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
         case .motion:      return false
         }
     }
+
+    /// Whether ANY publisher in this build can ever put a value on this channel.
+    ///
+    /// This is a STRUCTURAL question and `isMeasured` is a per-frame one. `isMeasured`
+    /// answers "is this reading real right now" — it needs a frame and it flips as the
+    /// body comes and goes. `hasProducer` answers "could this channel ever be anything
+    /// but zero", and it is a fact about the codebase, not about the moment. A picker
+    /// must filter on THIS one: offering a channel whose answer is permanently no is a
+    /// control that lies, and the user has no way to tell it apart from a body that has
+    /// not settled yet.
+    ///
+    /// Keep it in step with the two producers:
+    /// - `.motion` — every `BioSampleFrame` construction site in `Sources/` hardcodes
+    ///   `motionEnergy: 0`; the last CoreMotion provider went in the 2026-06-19 cleanup.
+    /// - the three face channels — `FaceExpressionBioPublisher` exists and is complete,
+    ///   but has ZERO instantiations in `Sources/` (it is behind `FeatureFlags
+    ///   .cameraExpression`, and its front-camera permission string is founder-gated,
+    ///   #67/#68). The day it is constructed, flip these to `true` in the same commit.
+    public var hasProducer: Bool {
+        switch self {
+        case .heartRate, .hrv, .coherence, .breathRate, .breathPhase: return true
+        case .motion, .faceSmile, .faceBrow, .faceJaw: return false
+        }
+    }
 }
 
 // MARK: - Destination

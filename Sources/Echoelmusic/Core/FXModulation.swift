@@ -88,9 +88,28 @@ public enum FXModCarrier: Codable, Sendable, Equatable, Hashable {
         }
     }
 
-    /// All carrier choices offered in the picker (every body channel + the LFO).
+    /// Carrier choices offered in the picker: every body channel that HAS a producer,
+    /// plus the LFO.
+    ///
+    /// It used to be `ModSource.allCases` unfiltered, which offered four channels
+    /// nothing in this build can write — motion and the three face channels (#135).
+    /// Picking one produced a route that renders "—" forever, and a user cannot
+    /// distinguish that from a body that has not settled yet. A control that cannot
+    /// do anything is worse than an absent one.
+    ///
+    /// ⚠ A SwiftUI `Picker` renders BLANK when its selection is not among its tags, so
+    /// a route persisted on a since-dropped channel would show an empty menu with no
+    /// way back. Call sites must union the route's own carrier in — see
+    /// `choices(including:)`, which is what the UI should use.
     public static var allChoices: [FXModCarrier] {
-        ModSource.allCases.map { .bio($0) } + [.lfo]
+        ModSource.allCases.filter(\.hasProducer).map { .bio($0) } + [.lfo]
+    }
+
+    /// `allChoices` plus `current`, so a persisted route on a channel that is no longer
+    /// offered still renders its own name instead of an empty menu.
+    public static func choices(including current: FXModCarrier) -> [FXModCarrier] {
+        let base = allChoices
+        return base.contains(current) ? base : [current] + base
     }
 }
 

@@ -797,7 +797,7 @@ private struct FXModRouteRow: View {
                 Toggle("", isOn: $route.enabled).labelsHidden().tint(EchoelTheme.accent)
                     .accessibilityLabel("Route enabled")
                 Picker("Source", selection: $route.carrier) {
-                    ForEach(FXModCarrier.allChoices, id: \.self) { c in
+                    ForEach(FXModCarrier.choices(including: route.carrier), id: \.self) { c in
                         Text(c.displayName).tag(c)
                     }
                 }
