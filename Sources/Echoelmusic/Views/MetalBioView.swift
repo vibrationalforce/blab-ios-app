@@ -815,10 +815,19 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                 // notes arriving with (near-)zero velocity from upstream, versus the level
                 // arithmetic here being wrong while the notes are fine. One number splits it —
                 // mfAmp ≈ 0 with notes present means the roll is publishing silence.
+                //
+                // mfNotes now reads AUDIBLE/ACTIVE (e.g. `0/5` = "nothing audible, five notes
+                // active"). The roll filters inaudible notes before publishing, which is right
+                // for every renderer but would have DELETED the fault signature above: the
+                // 2472 case `mfNotes=5 mfAmp=0.000` would collapse to `mfNotes=0`, byte-
+                // identical to a genuine rest. `inaudibleNoteCount` is carried purely so the
+                // recurrence ("the mixer is baking everything to inaudible again") still reads
+                // as a fault in a pasted log instead of as silence.
                 let mfAmp = mf?.notes.map(\.amplitude).max() ?? 0
+                let mfActive = mf.map { $0.notes.count + $0.inaudibleNoteCount } ?? -1
                 EchoelCrashLog.breadcrumb(String(format:
-                    "visual: bio=%d mfNotes=%d mfAmp=%.3f level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f ccw=%.2f c0=%.2f/%.2f/%.2f",
-                    bio != nil ? 1 : 0, mf?.notes.count ?? -1, mfAmp, musicLevel,
+                    "visual: bio=%d mfNotes=%d/%d mfAmp=%.3f level=%.2f tone=%.0f touch=%d redMot=%d detail=%.2f ccw=%.2f c0=%.2f/%.2f/%.2f",
+                    bio != nil ? 1 : 0, mf?.notes.count ?? -1, mfActive, mfAmp, musicLevel,
                     musicTone ?? 0, playedNotes.count,
                     effectiveReduceMotion ? 1 : 0, detailScale,
                     cloudW.reduce(0, +), uniforms.cc0r, uniforms.cc0g, uniforms.cc0b))

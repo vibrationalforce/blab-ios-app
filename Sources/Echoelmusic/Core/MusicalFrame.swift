@@ -48,6 +48,16 @@ public struct MusicalFrame: Sendable, Equatable {
     public let trackLevels: [Double]
     /// Broadband master output level [0,1].
     public let masterLevel: Double
+    /// How many ACTIVE notes the publisher dropped as inaudible before building this
+    /// frame. **DIAGNOSTIC ONLY — no renderer may react to it.**
+    ///
+    /// It exists because filtering silent notes at the publisher
+    /// (`PianoRollModel.musicalFrame`) destroyed the signature an earlier cycle added
+    /// precisely to FIND that class of fault: `mfNotes=5 mfAmp=0.000` meant "the roll is
+    /// publishing silence", and now reads `mfNotes=0`, which is byte-identical to a
+    /// genuine rest. Carrying the dropped count keeps the two apart in the founder's
+    /// pastable device log instead of trading a diagnosable failure for a silent one.
+    public let inaudibleNoteCount: Int
 
     public init(timestamp: Double = CFAbsoluteTimeGetCurrent(),
                 notes: [MusicalNote] = [],
@@ -57,7 +67,8 @@ public struct MusicalFrame: Sendable, Equatable {
                 sectionIndex: Int = -1,
                 beatPhase: Double = 0,
                 trackLevels: [Double] = [],
-                masterLevel: Double = 0) {
+                masterLevel: Double = 0,
+                inaudibleNoteCount: Int = 0) {
         self.timestamp = timestamp
         self.notes = notes
         self.rootPitchClass = rootPitchClass < 0 ? -1 : (rootPitchClass % 12)
@@ -67,6 +78,7 @@ public struct MusicalFrame: Sendable, Equatable {
         self.beatPhase = Self.clamp01(beatPhase)
         self.trackLevels = trackLevels.map(Self.clamp01)
         self.masterLevel = Self.clamp01(masterLevel)
+        self.inaudibleNoteCount = Swift.max(0, inaudibleNoteCount)
     }
 
     /// Nothing playing — the neutral default renderers fall back to.

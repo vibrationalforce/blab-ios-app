@@ -1058,6 +1058,15 @@ public final class PianoRollModel {
     /// must not assume it moves the other.
     private static let audibleVelocityFloor: Float = 0.001
 
+    #if DEBUG
+    /// TEST SEAM (Debug-only; same `#if DEBUG` + `internal` intent as
+    /// `PolySynthVoice.lastTuningForTests`, though that one is a stored property): the felt
+    /// sub and the published `MusicalFrame` must apply the SAME audibility rule. Exposing
+    /// the threshold lets a test pin that against the real constant instead of retyping
+    /// `0.001` — a second literal is exactly how the two would silently drift apart.
+    internal static var audibleVelocityFloorForTests: Float { audibleVelocityFloor }
+    #endif
+
     /// Which pitch the felt sub (the "Vibration" dimension) should sound, or nil for none.
     /// Pure, so the three suppressions and the audibility rule are testable without a clock,
     /// an engine or a voice — the same treatment `musicalFrame` already gets below.
@@ -1107,17 +1116,59 @@ public final class PianoRollModel {
     /// Build the live musical snapshot from the notes sounding now. Pure (testable):
     /// pitch → Hz at the given concert pitch, velocity → amplitude, master = the
     /// summed velocities (clamped) so "how much is sounding" tracks the chord density.
+    ///
+    /// INAUDIBLE NOTES ARE EXCLUDED, by the same `audibleVelocityFloor` the felt sub uses.
+    /// This frame answers "what is SOUNDING", and a note nobody can hear is not sounding.
+    /// `active` deliberately still holds them — that map is note bookkeeping (ties,
+    /// releases, un-mute) and must not depend on level — but publishing them was a real
+    /// device symptom: log 2472 (v10.79.355) shows `mfNotes=5 mfAmp=0.000 level=0.00`,
+    /// five active notes every one at ≈0, reachable exactly as `audibleVelocityFloor`'s
+    /// doc describes (0.05 humanizer floor × 0.85 genre level × 0.01 fader = 0.000425).
+    ///
+    /// WHY HERE AND NOT IN EACH RENDERER — and what the gate actually was. The Art-Net,
+    /// sACN and ADM-OSC senders were NOT ungated: all three ask `isSounding` before they
+    /// map music to a fixture. Their gate was INSUFFICIENT, which is a different and more
+    /// interesting fault: `isSounding` is `!notes.isEmpty && masterLevel > 0`, and five
+    /// notes at 0.000425 sum to `masterLevel` 0.002 — greater than zero, so a chord at
+    /// about −54 dBFS read as live. Worse, `SpectralColor.physicalColor` normalises by
+    /// summed weight, so amplitude magnitude does not dim the result at all: the two
+    /// header tiles rendered a FULLY SATURATED chord colour off those velocities. Two
+    /// further consumers (`HeaderMonitors` tile + light colour) have no floor of their
+    /// own. Fixing it per-renderer would mean three more constants and three more chances
+    /// to drift; one filter at the publisher is strictly less surface.
+    ///
+    /// THE DOWNSTREAM CHANGE TO KNOW ABOUT (do not read this as "nothing else happens"):
+    /// with `isSounding` now false, the three senders leave the music source. Where they go
+    /// depends on `BioEgressPolicy.allowsEgress` — with bio egress allowed they fall through
+    /// to the BIO colour; without it, Art-Net and sACN HOLD their last channels and ADM-OSC
+    /// stops sending. That is their documented intent and it is not a new mechanism (a
+    /// genuine rest has always done exactly this at every phrase boundary), but it is a
+    /// real, visible change on a lighting rig and it is the part that wants a device look.
+    ///
+    /// The handover RAMPS, it does not snap: Art-Net and sACN slew the dimmer AND the R/G/B
+    /// channels, both through `FlashGuard.slewedDimmer` (`ArtNetSender.applySlewedColour`).
+    /// ⛔ An earlier version of this line claimed colour was NOT slewed. It is — and that
+    /// claim was the one a session would act on, either by re-adding a slew that exists or
+    /// by refusing to ship for fear of a hue snap that cannot happen.
+    ///
+    /// `MetalBioView` is deliberately NOT cited as the victim here. It is the one consumer
+    /// already immune — its own 0.02/0.01 amplitude floor sends an all-silent chord to the
+    /// release branch — and in log 2472 its frame branch never even ran (`touch=1`, so a
+    /// finger drove the colour). Its floor stays load-bearing for the band between 0.001
+    /// and 0.02 and must not be deleted as redundant on the strength of this filter.
     public static func musicalFrame(forActive notes: [Note], a4Hz: Double,
                                     rootPitchClass: Int, scaleName: String,
                                     tempoBPM: Double, beatPhase: Double) -> MusicalFrame {
-        let mnotes = notes.map { n -> MusicalNote in
+        let audible = notes.filter { $0.velocity > audibleVelocityFloor }
+        let mnotes = audible.map { n -> MusicalNote in
             let hz = a4Hz * pow(2.0, Double(n.pitch - 69) / 12.0)
             return MusicalNote(frequencyHz: hz, amplitude: Double(n.velocity))
         }
-        let master = notes.isEmpty ? 0 : Swift.min(1.0, notes.reduce(0.0) { $0 + Double($1.velocity) })
+        let master = audible.isEmpty ? 0 : Swift.min(1.0, audible.reduce(0.0) { $0 + Double($1.velocity) })
         return MusicalFrame(notes: mnotes, rootPitchClass: rootPitchClass,
                             scaleName: scaleName, tempoBPM: tempoBPM,
-                            beatPhase: beatPhase, masterLevel: master)
+                            beatPhase: beatPhase, masterLevel: master,
+                            inaudibleNoteCount: notes.count - audible.count)
     }
 
     // MARK: - Labels
