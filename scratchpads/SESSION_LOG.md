@@ -8694,3 +8694,35 @@ Summary), Archive 3,5 min, Export+Upload 48 s, keine Provisioning-Transiente.
 **Deploy:** `badc78c` bumpt `.deploy/release` auf v10.79.356.
 **OFFENE GERÄTEFRAGE, die Scheibe 2 blockiert:** startet die App normal OHNE angeschlossenen Bildschirm?
 Ein einziger normaler Start reicht. Bis dahin kommt kein Metal auf die zweite Szene.
+
+### Nachtrag 2026-07-28 — v10.79.356 IST AUF TESTFLIGHT + #202/#59 Wetter/Standort
+
+- **TestFlight-Lauf auf `badc78c` = success.** v10.79.356 ist hochgeladen (Ultrasync, 64 Takte,
+  Aufnahme-Abbruch, #205, Beamer-Szene S1). Die EINE Gerätefrage, die #206 Scheibe 2 blockiert:
+  startet die App normal OHNE angeschlossenen Bildschirm?
+- **#202/#59 (`7d62fce`, beide echten Gates + Full Test Suite grün):** Wetter und Standort waren
+  gebaut, verdrahtet UND erreichbar (Transport „•••"). Was fehlte, war die **Beschriftung**: jede
+  Zeile, die sie benannte, beschrieb ein NAMENS-Feature („… in the name", „stamped into the name",
+  „Weather shapes the music"). Vor dem Umformulieren gegen den Code belegt — Wetter XORt den
+  Struktur-Seed und blendet darkness/liveliness/tension in die Mood (EchoelStudioView), plus
+  hue/saturation/glow/movement ins Live-Visual (`FloatingVisualWindow.weatheredVisuals`), und
+  `Param.defaultIntensity` ist 1.0/0.5, also wirkt es auf einer frischen Installation.
+- **REVIEWER-LEHRE (die wichtigste dieses Zyklus): mein Fix erzeugte einen schlimmeren Fehler als
+  den, den er behob.** Die Wetter-Voraussetzung (Standort) war eine Sackgasse — sie nannte den
+  anderen Toggle und ließ den Nutzer suchen. Ich machte daraus einen Tipp. Der Reviewer zeigte:
+  `fetchWeatherFlavour()` lief EINMAL beim Start und kehrte bei `lastFix == nil` hart zurück, ohne
+  jeden Retry (`lastFix` ist `@ObservationIgnored`, `resolve()` hat keine externen Aufrufer). Genau
+  dieser Ein-Tipp-Pfad macht „erlauben, dann sofort Start" zum NORMALFALL — die Session hätte
+  überhaupt kein Wetter gehabt, still, während die Zeile für immer „Sky reading arrives at Start."
+  versprach. **Merksatz: wenn eine Änderung einen Pfad von selten auf häufig hebt, muss jede
+  Annahme geprüft werden, die nur galt, WEIL der Pfad selten war.** Fix: Start wartet bis 6 s auf
+  einen bereits angeforderten Fix, bricht bei Stop/Aus/Verweigert ab.
+- **#204 BELEGT TOT (unabhängig verifiziert, nicht mit dem Zyklus vermischt):** `RecordController.arm()`
+  hat NULL Produktions-Aufrufer, es gibt keinen Record-Knopf in `Sources/`, und die
+  `.environment(recordController)`-Injektion hat null Leser. Zweiter, unabhängiger Bruch: selbst ein
+  wiederhergestellter `arm()`-Aufruf kehrte sofort zurück, weil `TimelineStore.toggleArm(id:)`
+  ebenfalls keine Produktions-Aufrufer hat und `isArmed` nirgends gesetzt wird (die Per-Spur-Knöpfe
+  gingen mit #121 Slice 4). Die 1/16-Quantisierung ist damit ein Fix an unerreichbarem Code —
+  Aufgabe neu gefasst, NICHT als nutzersichtbarer Fix geshippt.
+- Nebenbefund des Reviewers, wichtig für #121 Slice 5: `soundControls` (EchoelStudioView) hat null
+  Referenzen — tot. Der „chrome-door-only"-Kommentar über `sessionPanel` stimmt deshalb in der Praxis.
