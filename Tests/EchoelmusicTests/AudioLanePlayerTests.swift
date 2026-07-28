@@ -49,6 +49,14 @@ final class AudioLanePlayerTests: XCTestCase {
         }
     }
 
+    /// `@MainActor` is explicit rather than inferred (#142). A nested type does NOT inherit
+    /// the enclosing type's global-actor isolation, so `Factory` was non-isolated while the
+    /// `SpySink` it constructs infers `@MainActor` from `AudioRegionSink`. Two toolchains
+    /// disagreed about whether that is an error — SwiftPM compiles this target as Swift 5
+    /// with no strict concurrency, Xcode as Swift 6 — which is the worst possible state:
+    /// a file whose validity depends on which gate happens to look at it. Annotating costs
+    /// nothing today and settles it in both.
+    @MainActor
     final class Factory {
         var sinks: [SpySink] = []
         func make() -> AudioRegionSink { let s = SpySink(); sinks.append(s); return s }
@@ -423,7 +431,13 @@ final class AudioLanePlayerTests: XCTestCase {
         p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)
         XCTAssertEqual(factory.sinks.first?.pans.last ?? -1, 0.5, accuracy: 1e-6, "pan set at onset")
         p.apply(in: edited(document, pan: -1), fromTick: 0, toTick: 480, bpm: 120)
-        XCTAssertEqual(factory.sinks.first?.pans.last ?? -1, -1, accuracy: 1e-6, "live pan edit lands")
+        // ⛔ The nil sentinel here used to be `?? -1` — the SAME value as the expectation,
+        // so this assertion could not fail (#140). An empty `sinks`, or a `pans` that never
+        // received the live edit — precisely the regression this line exists to catch —
+        // produced -1 and passed. `.nan` is the correct sentinel for an `accuracy:` compare,
+        // because NaN fails every comparison, so "no value" can never look like the value.
+        // The other 28 `?? -1` sites in this file are fine: their expectations are all ≠ -1.
+        XCTAssertEqual(factory.sinks.first?.pans.last ?? .nan, -1, accuracy: 1e-6, "live pan edit lands")
         XCTAssertEqual(factory.sinks.first?.plays.count, 1, "pan never re-schedules")
     }
 
