@@ -42,7 +42,65 @@ public final class LoopExporter {
 
     /// The retro ring holds 30 s at 48 kHz — the hard history limit for the
     /// "keep last" path (slightly conservative so rate drift can't bite).
-    private let ringSeconds: Double = 29.5
+    ///
+    /// PUBLIC and `nonisolated` since #200: the UI has to be able to ask BEFORE the tap
+    /// whether the chosen length can be delivered retroactively. Until now it could only
+    /// find out afterwards, from the failure alert — a control that accepts the tap and
+    /// then refuses is the lying-control class this repo keeps paying for.
+    nonisolated public static let retroRingSeconds: Double = 29.5
+
+    /// Can the RETROACTIVE path ("keep the last N bars, without replaying them") actually
+    /// deliver `bars` at `bpm`? Pure, so the UI and the exporter share ONE arithmetic
+    /// instead of two that drift.
+    ///
+    /// The two loop directions the founder asked for are NOT symmetric, and this function
+    /// is where that asymmetry lives:
+    ///   • "ab dem ersten Takt" → `exportWav` records LIVE to a file. No history, no limit.
+    ///   • "rückwirkend für die letzten" → `exportRecentLoop` reads the always-on ring. It
+    ///     can only return what the ring still holds.
+    /// A bar is 4 beats, so `barSeconds = 240 / bpm`: at 120 BPM the ring holds 14 whole
+    /// bars, at 60 BPM only 7. That is why the answer cannot be baked into
+    /// `LoopBarLength` — it depends on the (bio-modulated) tempo at the moment of asking.
+    nonisolated public static func canKeepLast(bars: Int, bpm: Double) -> Bool {
+        guard bpm.isFinite, bpm > 0 else { return false }
+        let seconds = StudioCalculator(bpm: bpm).loopSeconds(bars: Swift.max(1, bars))
+        return seconds > 0 && seconds <= retroRingSeconds
+    }
+
+    /// The longest length the PICKER ACTUALLY OFFERS that the ring can hold at this tempo.
+    ///
+    /// ⛔ This exists because the obvious version was a lying control of its own. The first
+    /// draft named `keepableBars` — the raw whole-bar capacity — in the refusal text, so at
+    /// 120 BPM it told the user "keep up to 14", and 14 is not a `LoopBarLength` case. It
+    /// sent them looking for a segment that does not exist on the control right above.
+    /// `allCases` is ascending and `canKeepLast` is monotonic in `bars`, so `.last(where:)`
+    /// is the largest offered length that fits. `nil` = nothing fits (unusable tempo).
+    nonisolated public static func longestKeepable(bpm: Double) -> LoopBarLength? {
+        LoopBarLength.allCases.last { canKeepLast(bars: $0.rawValue, bpm: bpm) }
+    }
+
+    /// How many whole bars the ring CAN hold at this tempo — 0 when the tempo is not a
+    /// usable number. **Not a UI-facing number** (see `longestKeepable`): it is the raw
+    /// capacity, useful for diagnostics and for reasoning about the ring, not for telling
+    /// a user what to pick.
+    ///
+    /// The `isFinite` guard is not defensive decoration: `Int(nan)` TRAPS in Swift, and
+    /// the tempo reaching here comes from a bio-modulated transport.
+    nonisolated public static func keepableBars(bpm: Double) -> Int {
+        guard bpm.isFinite, bpm > 0 else { return 0 }
+        let barSeconds = 240.0 / bpm
+        guard barSeconds.isFinite, barSeconds > 0 else { return 0 }
+        let whole = (retroRingSeconds / barSeconds).rounded(.down)
+        guard whole.isFinite, whole >= 1 else { return 0 }
+        return Int(Swift.min(whole, 1_000))
+    }
+
+    nonisolated static func tooLongMessage(bars: Int, bpm: Double) -> String {
+        guard let fits = longestKeepable(bpm: bpm) else {
+            return "\(bars) bars is longer than the 30 s capture buffer — use Record instead"
+        }
+        return "\(bars) bars is longer than the 30 s capture buffer at this tempo — keep \(fits.label) or fewer, or use Record instead"
+    }
 
     public init() {}
 
@@ -105,10 +163,12 @@ public final class LoopExporter {
         let calc = StudioCalculator(bpm: bpm)
         let seconds = calc.loopSeconds(bars: max(1, bars))
         guard seconds > 0 else { status = .failed("Invalid loop length"); return nil }
-        guard seconds <= ringSeconds else {
+        guard Self.canKeepLast(bars: bars, bpm: bpm) else {
             // The ring only holds ~30 s of history — an honest limit beats a
-            // silently truncated, unloopable file.
-            status = .failed("Loop exceeds the 30 s capture buffer — choose fewer bars")
+            // silently truncated, unloopable file. Since #200 the UI asks the SAME
+            // function before enabling the button, so this guard is the backstop
+            // (tempo can drift between render and tap), not the first line of defence.
+            status = .failed(Self.tooLongMessage(bars: bars, bpm: bpm))
             return nil
         }
 
@@ -119,7 +179,7 @@ public final class LoopExporter {
         let ago = beatPlayer.pattern.isPlaying
             ? min(secondsSinceBarStart(beatPlayer), calc.barSeconds)
             : 0
-        let window = min(seconds + ago, ringSeconds)
+        let window = min(seconds + ago, Self.retroRingSeconds)
         let effectiveAgo = max(0, window - seconds)
         guard let cafURL = engine.retroCapture.captureRecent(seconds: window) else {
             status = .failed("Nothing to capture yet")

@@ -3263,17 +3263,9 @@ struct EchoelStudioView: View {
             .disabled(isExporting || !hasComposed)
             .accessibilityHint("Records one loop and exports a WAV to share")
 
-            Button { Task { await keepLastLoop() } } label: {
-                Label(isExporting ? exportLabel : "Keep last \(loopBars.label) (just played)",
-                      systemImage: "clock.arrow.circlepath")
-                    .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .disabled(isExporting || !hasComposed)
-            .accessibilityHint("Keeps the last bars you just heard as a WAV loop, without replaying them")
+            KeepLastLoopButton(pattern: beatPlayer.pattern, bars: loopBars,
+                               isExporting: isExporting, hasComposed: hasComposed,
+                               busyLabel: exportLabel) { Task { await keepLastLoop() } }
 
             // MIDI export — RESTORED (#188, founder 2026-07-27). It was removed 2026-07-02
             // ("Midi Quatsch kann auch weg"); the exporter itself was never deleted and
@@ -4767,6 +4759,67 @@ private struct StudioZoom: ViewModifier {
                 }
                 .onEnded { _ in pinchBase = nil }
         )
+    }
+}
+
+/// The RETROACTIVE loop door ("keep the last N bars you just heard").
+///
+/// Its own `View` struct for a reason that is a house law, not a style choice: deciding
+/// whether the ring can still deliver `bars` requires the LIVE tempo, and tempo moves
+/// under bio modulation. Reading `pattern.tempo` from `EchoelStudioView.body` — or from
+/// any computed var that body evaluates — would register the whole root as an observer,
+/// and every tempo tick would tear down an open `.menu` Picker popover. That is the
+/// menu-freeze this app shipped twice (10.76.41, 10.76.50). Confined here, only this
+/// button rebuilds. `pattern` is passed as a REFERENCE: capturing an `@Observable` does
+/// not register observation — only reading a property does, and that read happens in
+/// this body.
+///
+/// The honesty this buys: before #200 the picker offered lengths the ring could not
+/// hold (at 120 BPM anything from ~15 bars up), the tap was accepted, the capture ran,
+/// and only then did an alert say no. Now the control refuses in advance and names a
+/// length that works. The PLANNED door above is untouched — it records live to a file
+/// and has no such limit, which is exactly why 64 bars stays offered there.
+private struct KeepLastLoopButton: View {
+    let pattern: PatternEngine
+    let bars: LoopBarLength
+    let isExporting: Bool
+    let hasComposed: Bool
+    /// The parent's status text ("Recording loop…" / "Writing .wav…"), shown while busy.
+    let busyLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        let bpm = pattern.tempo
+        let fits = LoopExporter.canKeepLast(bars: bars.rawValue, bpm: bpm)
+        Button(action: action) {
+            Label(title(fits: fits, bpm: bpm), systemImage: "clock.arrow.circlepath")
+                .font(EchoelTheme.font(14, .semibold))
+                // The dim state must track `.disabled` EXACTLY. A full-brightness button
+                // carrying the inviting "just played" label while inert is the same lie in
+                // a quieter register — it just moves the disappointment to the tap.
+                .foregroundStyle(isExporting || (fits && hasComposed) ? EchoelTheme.text : EchoelTheme.dim)
+                .frame(maxWidth: .infinity).frame(height: 44)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .disabled(isExporting || !hasComposed || !fits)
+        .accessibilityHint(fits
+            ? "Keeps the last bars you just heard as a WAV loop, without replaying them"
+            : "This length is longer than the 30 second capture buffer at the current tempo")
+    }
+
+    private func title(fits: Bool, bpm: Double) -> String {
+        if isExporting { return busyLabel }
+        if fits { return "Keep last \(bars.label) (just played)" }
+        // Name a length the PICKER ABOVE ACTUALLY OFFERS. The raw ring capacity (14 bars
+        // at 120 BPM) is not a `LoopBarLength` case, so naming it would send the user
+        // hunting for a segment that does not exist — a refusal that lies while refusing.
+        // `nil` only when the tempo is unusable; then point at the door that does work.
+        guard let keepable = LoopExporter.longestKeepable(bpm: bpm) else {
+            return "Keep last: unavailable — use Record above"
+        }
+        return "Keep last: \(keepable.label) or fewer at this tempo"
     }
 }
 

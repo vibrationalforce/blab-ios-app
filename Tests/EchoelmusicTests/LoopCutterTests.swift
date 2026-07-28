@@ -1,5 +1,5 @@
 // LoopCutterTests.swift
-// Echoel — cutting one-bar material into 2/4/8/16/32-bar loops/stems.
+// Echoel — cutting one-bar material into 2/4/8/16/32/64-bar loops/stems.
 
 import XCTest
 @testable import Echoelmusic
@@ -7,7 +7,10 @@ import XCTest
 final class LoopCutterTests: XCTestCase {
 
     func testBarLengthsAreTheExpectedSet() {
-        XCTAssertEqual(LoopBarLength.allCases.map(\.rawValue), [1, 2, 4, 8, 16, 32])
+        // 64 added 2026-07-28 (#200, founder ask). The full contract — raw-value
+        // stability and which lengths the RETROACTIVE path can actually deliver — lives
+        // in LoopRetroCaptureFitTests; this stays the plain shape check.
+        XCTAssertEqual(LoopBarLength.allCases.map(\.rawValue), [1, 2, 4, 8, 16, 32, 64])
         XCTAssertEqual(LoopBarLength.four.label, "4 bars")
     }
 
