@@ -76,6 +76,14 @@ struct EchoelStudioView: View {
     @AppStorage(StudioDefaultKeys.touchGlide.key) private var touchGlide = StudioDefaultKeys.touchGlide.value
     @AppStorage(StudioDefaultKeys.touchLevel.key) private var touchLevel = StudioDefaultKeys.touchLevel.value
     @AppStorage(StudioDefaultKeys.touchLife.key) private var touchLife = StudioDefaultKeys.touchLife.value
+    @AppStorage(StudioDefaultKeys.touchSyncStrength.key)
+    private var touchSyncStrength = StudioDefaultKeys.touchSyncStrength.value
+    // Explicit type annotation on the enum-backed key, matching every other enum
+    // `@AppStorage` in this file — `@AppStorage` has overloads for Bool/Int/Double/
+    // String/URL/Data as well as RawRepresentable, and spelling the type out is what
+    // keeps the resolution unambiguous instead of merely inferable.
+    @AppStorage(StudioDefaultKeys.touchSyncGrid.key)
+    private var touchSyncGrid: TouchQuantizer.Grid = StudioDefaultKeys.touchSyncGrid.value
     @Environment(SubBassVoice.self) private var subBass
     /// S2-W1: the Multi-Roll slot voices — the Melodic insert must reach them
     /// too, or a secondary lane's "Sound & FX" edit changes nothing it plays.
@@ -2338,11 +2346,13 @@ struct EchoelStudioView: View {
                 .onChange(of: touchLevel) { _, v in touchSynth?.setGain(Float(v)) }
             EchoelValueField(label: "Position morph", value: $touchMorphDepth,
                              range: 0...1, unit: "", decimals: 2)
-            // LIFE — per-note micro-variation in brightness and attack, so two identical
-            // taps never produce two identical notes (founder 2026-07-27: "leben wie ein
-            // echtes Instrument mit micro changes"). 0 = off and bit-identical.
+            // LIFE — per-note micro-variation so two identical taps never produce two
+            // identical notes (founder 2026-07-27: "leben wie ein echtes Instrument mit
+            // micro changes"): brightness and attack, and — while Sync is on — also the
+            // note's placement in time. 0 = off and bit-identical.
             EchoelValueField(label: "Life", value: $touchLife,
                              range: 0...1, unit: "", decimals: 2)
+            touchSyncRows
             // SLIDE EXPRESSION (founder 2026-07-08: "Auf dem Gitter hin und her
             // sliden verändert den Sound: Filter, ein bisschen Vibrato, Chorus …
             // Glide bzw. Portamento kann man auch einstellen"): a travelling
@@ -2358,6 +2368,38 @@ struct EchoelStudioView: View {
                              range: 0...1, unit: "", decimals: 2)
             EchoelValueField(label: "Glide", value: $touchGlide,
                              range: 0...0.4, unit: "s", decimals: 2)
+        }
+    }
+
+    /// ULTRASYNC (founder 2026-07-28: "damit das Touch Instrument immer perfekt im timing
+    /// ist auch microtime — somit wird ungeschicktes Spielen auch zum ästhetischen
+    /// Ereignis"). The play surface already made a WRONG NOTE impossible; this makes a
+    /// wrong MOMENT unlikely. An early touch is held back onto the grid; a late one sounds
+    /// where it landed and gets the pulse restored by a quieter echo on the beat — the
+    /// mistake is answered rather than erased. Off (0) is bit-identical to the instrument
+    /// without it.
+    ///
+    /// Its own sub-view for a structural reason, not tidiness: `touchSoundSection` was at
+    /// 13 direct children and this file has a black-screen history rooted in exactly that
+    /// class of aggregate-type growth. Three rows behind one child is the cheap habit.
+    @ViewBuilder private var touchSyncRows: some View {
+        // The swing caveat is in the user-facing string on purpose. `Transport.currentTick`
+        // does not model swing, and eight shipping genres carry real swing values — a
+        // control that quietly does something different there is the "lying control" class
+        // this repo has an open task about. Better a short honest sentence than a surprise.
+        Text("Sync pulls your touches onto the beat while the transport runs — early ones wait for the grid, late ones get a quiet echo on it. Life sets how much the corrected notes breathe. On swung genres the grid it aims at is the straight one.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+        EchoelValueField(label: "Sync", value: $touchSyncStrength,
+                         range: 0...1, unit: "", decimals: 2)
+        HStack {
+            Text("Grid").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
+            Spacer()
+            Picker("Grid", selection: $touchSyncGrid) {
+                ForEach(TouchQuantizer.Grid.allCases) { g in Text(g.label).tag(g) }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .accessibilityLabel("Sync grid")
         }
     }
 

@@ -174,10 +174,30 @@ extension EnvironmentValues {
 #if canImport(UIKit) && canImport(SwiftUI)
 import UIKit
 
+/// Where the beat is, at the instant one finger lands. Tick and tick-length are read
+/// TOGETHER so they can never describe different tempos — the bug you get from passing
+/// a tick down one path and a BPM down another while a tempo glide is in flight.
+struct TouchMusicalTime {
+    /// Song-absolute 480-PPQ tick under the finger.
+    let tick: Int
+    /// Wall-clock duration of one tick, for turning a tick distance into a delay.
+    let secondsPerTick: Double
+}
+
 /// Transparent multi-touch layer mounted over the fullscreen immersive visual.
 struct TouchInstrumentView: UIViewRepresentable {
     let key: MusicalKey
     let synth: PolySynthVoice
+    /// ULTRASYNC. Default strength 0 = off, and the instrument behaves exactly as before.
+    var quantizer = TouchQuantizer()
+    /// Supplies the musical clock at touch time. `nil` (or a `nil` result) means "no
+    /// grid" and every touch sounds immediately, uncorrected.
+    ///
+    /// `@MainActor` on the FUNCTION TYPE, not just on the closure literal: without it the
+    /// type erases the isolation, and nothing would stop a later caller from invoking this
+    /// off the main actor and touching `Transport` unsynchronized. Closing that while it
+    /// costs nothing is cheaper than discovering it as a race.
+    var musicalNow: (@MainActor () -> TouchMusicalTime?)?
     var reduceMotion: Bool = false
     /// Position-morph amount (0 = off … 1 = ±1 octave of filter travel).
     var morphDepth: Double = 0.6
@@ -202,6 +222,8 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.slideVibrato = slideVibrato
         v.slideChorus = slideChorus
         v.glideSeconds = glide
+        v.quantizer = quantizer
+        v.musicalNow = musicalNow
         return v
     }
 
@@ -215,6 +237,8 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.slideVibrato = slideVibrato
         uiView.slideChorus = slideChorus
         uiView.glideSeconds = glide
+        uiView.quantizer = quantizer
+        uiView.musicalNow = musicalNow
     }
 }
 
@@ -276,6 +300,45 @@ final class TouchInstrumentUIView: UIView {
     /// harmless — the hash has no structure at the wrap point, so note 2^64 sounds no
     /// more like note 0 than any other pair.
     private var noteCounter: UInt64 = 0
+    /// ULTRASYNC (founder 2026-07-28). At `strength == 0` — the shipped default —
+    /// `plan` returns the touch untouched and this whole path is bit-identical to the
+    /// instrument before the feature existed.
+    var quantizer = TouchQuantizer()
+    /// Where the beat is, asked at the moment a finger lands.
+    ///
+    /// A closure rather than a `Transport` reference so this view stays testable and
+    /// engine-free. (An earlier version of this comment called the alternative impossible
+    /// — it is not: passing the object down is a capture, not a property read, and would
+    /// be equally freeze-safe. What WOULD violate the freeze law is reading
+    /// `transport.position` in a SwiftUI body to pass a VALUE down, and neither shape
+    /// does that.) The reads happen inside the closure, at touch time, outside any
+    /// observation tracking.
+    /// `@MainActor` on the function TYPE so the isolation cannot be erased at a later
+    /// call site and let someone reach `Transport` off the main actor.
+    var musicalNow: (@MainActor () -> TouchMusicalTime?)?
+    /// Note-ons the quantizer is holding back, per finger.
+    private var pendingOn: [ObjectIdentifier: Task<Void, Never>] = [:]
+    /// Fingers that lifted while their note was still held back.
+    ///
+    /// The note is NOT dropped. Cancelling it was the first design and it made STACCATO
+    /// PLAYING SILENTLY VANISH: at Sync 1 the hold is half a grid step — 62 ms on 1/16 at
+    /// 120 BPM, 500 ms on 1/4 at 60 BPM — while a percussive tap lasts 50–100 ms. So the
+    /// common case was a note the player felt (haptic), saw (ripple, colour) and never
+    /// heard, indistinguishable from a dropout. A tap shorter than the hold is still a
+    /// note that was played: it sounds ON the grid and releases itself right after.
+    private var liftedWhilePending: Set<ObjectIdentifier> = []
+
+    /// Is a pitch currently held by a finger whose note is actually SOUNDING?
+    ///
+    /// `held` alone cannot answer this, and conflating the two was a real stuck-note bug:
+    /// `touchesBegan` writes `held[id]` before anything sounds, so a finger waiting out
+    /// its hold made an echo's cleanup believe someone owned that pitch. The echo then
+    /// skipped its own note-off, that finger lifted without sending one either (correctly
+    /// — nothing had sounded), and the echo's voice was left in sustain with no owner.
+    private func isSounding(pitch: Int) -> Bool {
+        for (finger, p) in held where p == pitch && pendingOn[finger] == nil { return true }
+        return false
+    }
     private static let maxTouches = 4
     /// Last ring position per touch — a slide drops a new ring only every ~14 pt
     /// (a wake, not a smear).
@@ -423,9 +486,15 @@ final class TouchInstrumentUIView: UIView {
             // This finger's OWN position travels with its note (MPE-style), instead of
             // being written to the instrument-wide scale where the next finger overwrote it.
             let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
+            let noteIndex = Int(truncatingIfNeeded: noteCounter)
             noteCounter &+= 1
-            synth?.noteOn(pitch: pitch, velocity: vel * micro.velocityScale,
-                          cutoffScale: morphScale(at: p) * micro.cutoffScale)
+            // ULTRASYNC decides WHEN this sounds. Everything below — haptic, ripple,
+            // colour — stays immediate on purpose: the finger must feel and see its own
+            // touch with zero latency, and only the NOTE waits for the beat. That split
+            // is what makes a held note playable instead of laggy.
+            sound(pitch: pitch, velocity: vel * micro.velocityScale,
+                  cutoffScale: morphScale(at: p) * micro.cutoffScale,
+                  finger: id, index: noteIndex)
             hapticGenerator.impactOccurred(intensity: CGFloat(0.4 + 0.6 * Double(vel)))
             hapticGenerator.prepare()   // re-warm the Taptic engine so the NEXT note (tap or
                                         // slide-retrigger) fires with minimal latency — a play
@@ -451,6 +520,21 @@ final class TouchInstrumentUIView: UIView {
             let id = ObjectIdentifier(touch)
             guard let old = held[id] else { continue }
             let p = touch.location(in: self)
+            // While ULTRASYNC still holds this finger's note back, nothing may address it:
+            // a slide-retrigger would SOUND it early — the one thing the quantizer may
+            // never do — and a cutoff push would address a note that is not playing. The
+            // note keeps the pitch the finger LANDED on; an attack belongs to its landing
+            // point.
+            //
+            // What this `continue` COSTS, stated because the first version of this comment
+            // claimed the opposite: during the hold there is no wake ring and no slide
+            // expression. `lastExprPos` is still advanced so the hold does not end in one
+            // bogus travel spike; `lastRing` deliberately is NOT, so the 14 pt accumulator
+            // survives and the wake resumes from where the finger actually is.
+            if pendingOn[id] != nil {
+                lastExprPos[id] = p
+                continue
+            }
             // CONTINUOUS morph while the finger travels — addressed to THIS finger's note.
             // `old` IS the sounding note (the guard above bound it) — no second lookup.
             let scale = morphScale(at: p)
@@ -501,6 +585,99 @@ final class TouchInstrumentUIView: UIView {
         }
     }
 
+    // MARK: - ULTRASYNC scheduling
+
+    /// Sound one touch, in time. Falls back to an immediate note-on whenever there is
+    /// no grid to quantize to — a stopped transport, or correction turned off — because
+    /// holding a note back against a beat the player cannot hear is worse than not
+    /// quantizing at all.
+    private func sound(pitch: Int, velocity: Float, cutoffScale: Float,
+                       finger id: ObjectIdentifier, index: Int) {
+        guard let now = musicalNow?(), now.secondsPerTick > 0 else {
+            synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            return
+        }
+        // The echo tolerance is stored in TICKS, but "two onsets fuse into one" is a fact
+        // about MILLISECONDS. 12 ticks is 12.5 ms at 120 BPM and only 5 ms at 300 — where
+        // the echo would fire on nearly every late touch and land ~25 ms behind its parent,
+        // i.e. a flam, which is precisely the doubled-part failure the tolerance exists to
+        // prevent. Raising it to at least 20 ms of real time keeps the intent at any tempo.
+        var q = quantizer
+        q.latenessToleranceTicks = Swift.max(q.latenessToleranceTicks,
+                                             Int((0.020 / now.secondsPerTick).rounded()))
+        switch q.plan(forTick: now.tick, index: index) {
+        case .play:
+            synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+
+        case let .delay(toTick):
+            // The hold is bounded by the quantizer (half a grid step) plus its microtiming
+            // (up to `Humanizer.timingTicks`), and by Transport's 30…300 BPM clamp — worst
+            // case a quarter grid at 30 BPM with Life at 1: 240 + 8 ticks ≈ 1.03 s.
+            // Deliberately not capped further; a coarse grid IS the setting the player chose.
+            let seconds = Double(Swift.max(0, toTick - now.tick)) * now.secondsPerTick
+            guard seconds > 0.002 else {                 // below the jitter floor: just play it
+                synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+                return
+            }
+            pendingOn[id] = Task { @MainActor [weak self] in
+                // `catch { return }`, NOT `try?`: a cancelled sleep throws, and `try?`
+                // would swallow that and play a note the teardown just cancelled.
+                do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
+                // …and the `catch` alone is NOT enough, which is the subtle half. Once the
+                // deadline has elapsed the sleep returns SUCCESSFULLY and `cancel()` is a
+                // no-op — the continuation is merely queued on the main actor. Anything
+                // running in that gap (a lift, a dismissal) would otherwise still get the
+                // note. This guard is what closes it; there is no suspension point after
+                // it, so the decision cannot go stale.
+                guard let self, !Task.isCancelled else { return }
+                self.pendingOn.removeValue(forKey: id)
+                let lifted = self.liftedWhilePending.remove(id) != nil
+                self.synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+                guard lifted else { return }
+                // The finger is already gone, so nothing else will ever release this. It
+                // sounds on the grid — where the player aimed — and lets go by itself.
+                try? await Task.sleep(for: .seconds(Self.staccatoSeconds))
+                guard !self.isSounding(pitch: pitch) else { return }
+                self.synth?.noteOff(pitch: pitch)
+            }
+
+        case let .playThenEcho(_, echoTick, level):
+            synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            let seconds = Double(Swift.max(0, echoTick - now.tick)) * now.secondsPerTick
+            guard seconds > 0.002, let voice = synth else { return }
+            // The echo is deliberately NOT tracked in `pendingOn`: a lift must not cancel
+            // it. That is the point — the late note is answered on the beat whether or not
+            // the finger is still down. When it is down, this re-articulates the same
+            // pitch, which IS the "put the pulse back" gesture.
+            //
+            // `voice` is captured STRONGLY while `self` stays weak, because the note-off
+            // below is the only thing that can ever end this voice: with `[weak self]`
+            // alone, a view torn down inside the ghost window (closing the visual is
+            // exactly when that happens) left the echo sounding forever.
+            Task { @MainActor [weak self, voice] in
+                do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
+                guard !Task.isCancelled else { return }
+                voice.noteOn(pitch: pitch, velocity: velocity * level, cutoffScale: cutoffScale)
+                // `try?` here, NOT `catch { return }` — the asymmetry is deliberate. Before
+                // the note, cancellation must SUPPRESS it; before the release, cancellation
+                // must not, or cancelling is how the note gets stuck.
+                try? await Task.sleep(for: .seconds(Self.echoGhostSeconds))
+                // Release unless a finger is SOUNDING that pitch (then its own lift ends
+                // both). `self == nil` means the surface is gone, so nobody is holding
+                // anything and the off must go out.
+                guard self?.isSounding(pitch: pitch) != true else { return }
+                voice.noteOff(pitch: pitch)
+            }
+        }
+    }
+
+    /// How long an unheld echo rings before it is released. Short enough to read as a
+    /// ghost rather than a second part, long enough to survive the patch's own attack.
+    private static let echoGhostSeconds: Double = 0.28
+    /// How long a note whose finger already lifted rings once it lands on the grid. A tap
+    /// the player cut short should read as short, not as a held note.
+    private static let staccatoSeconds: Double = 0.18
+
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         release(touches)
     }
@@ -513,10 +690,20 @@ final class TouchInstrumentUIView: UIView {
         for touch in touches {
             let id = ObjectIdentifier(touch)
             lastSentMorph.removeValue(forKey: id)
+            // A finger that lifts while its note is still held back is NOT cancelled — it
+            // is marked, so the note still sounds on the grid and then releases itself.
+            // Cancelling was the first design and it silently swallowed staccato playing
+            // (see `liftedWhilePending`). No note-off goes out here either way: nothing
+            // has sounded yet, so an off would at best be a no-op and at worst cut another
+            // finger's note on the same pitch.
+            let isPending = pendingOn[id] != nil
+            if isPending { liftedWhilePending.insert(id) }
             if let pitch = held.removeValue(forKey: id) {
-                synth?.noteOff(pitch: pitch)
+                if !isPending { synth?.noteOff(pitch: pitch) }
                 // Colour follows the fingers: lifting releases this note's cloud;
-                // the last lift starts the ~1.2 s afterglow back to the bed.
+                // the last lift starts the ~1.2 s afterglow back to the bed. Sent even
+                // for a cancelled note, because `touchesBegan` opened this cloud the
+                // instant the finger landed — the picture never waits for the beat.
                 TouchToneChannel.shared.noteOff(pitch: pitch, at: CFAbsoluteTimeGetCurrent())
             }
             lastRing.removeValue(forKey: id)
@@ -532,6 +719,14 @@ final class TouchInstrumentUIView: UIView {
     override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
         if newWindow == nil, !held.isEmpty {
+            // Held-back notes die with the window. The ECHO deliberately does not: it is
+            // untracked, so one scheduled just before dismissal still fires — bounded,
+            // because it releases itself after `echoGhostSeconds` and only when no finger
+            // holds that pitch. Stated rather than implied, because "notes die with the
+            // window" on its own would read as covering both, and it does not.
+            for work in pendingOn.values { work.cancel() }
+            pendingOn.removeAll()
+            liftedWhilePending.removeAll()
             for pitch in held.values { synth?.noteOff(pitch: pitch) }
             held.removeAll()
             lastSentMorph.removeAll()

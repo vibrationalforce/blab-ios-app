@@ -65,10 +65,17 @@ final class StudioDefaultKeysTests: XCTestCase {
             StudioDefaultKeys.touchMorphDepth.key,
             StudioDefaultKeys.touchSlideVibrato.key,
             StudioDefaultKeys.touchSlideChorus.key, StudioDefaultKeys.touchGlide.key,
+            StudioDefaultKeys.touchSyncStrength.key, StudioDefaultKeys.touchSyncGrid.key,
             StudioDefaultKeys.weatherEnabled.key,
             StudioDefaultKeys.networkMIDI.key,
         ]
         XCTAssertEqual(keys.count, Set(keys).count, "keys must be unique")
+        // ULTRASYNC ships OFF. This pins that as a decision, not an accident: the value
+        // controls WHEN a played note sounds, and nobody should meet that by surprise
+        // after an update. Changing it is a founder call.
+        XCTAssertEqual(StudioDefaultKeys.touchSyncStrength.value, 0,
+                       "touch sync must ship off — it changes when a played note sounds")
+        XCTAssertEqual(StudioDefaultKeys.touchSyncGrid.value, .sixteenth)
         XCTAssertEqual(StudioDefaultKeys.loopBars.key, "studio.loopBars")
         XCTAssertEqual(StudioDefaultKeys.genre.key, "studio.genre")
         XCTAssertEqual(StudioDefaultKeys.scale.key, "studio.scale")

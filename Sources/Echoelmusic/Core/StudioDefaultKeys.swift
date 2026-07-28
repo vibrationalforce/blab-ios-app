@@ -84,9 +84,28 @@ public enum StudioDefaultKeys {
     public static let touchLevel = StudioDefault(key: "touch.level", value: 1.0)
     /// MICRO-VARIATION ("Leben") — founder 2026-07-27: "Alles soll nie statisch gleich
     /// klingend sein sondern leben wie ein echtes Instrument mit micro changes." How much
-    /// each note deviates from its neighbours in brightness and attack. 0 = the old,
+    /// each note deviates from its neighbours in brightness and attack — and, since #201,
+    /// in TIME: it also sets how much a Sync-corrected touch breathes around the grid
+    /// (founder's "auch microtime"). That third meaning only bites while `touchSyncStrength
+    /// > 0`; with Sync off this is brightness and attack exactly as before. 0 = the old,
     /// bit-identical behaviour; the default is deliberately audible-but-subtle.
     public static let touchLife = StudioDefault(key: "touch.life", value: 0.35)
+
+    /// ULTRASYNC — founder 2026-07-28: "einen Ultrasync … damit das Touch Instrument
+    /// immer perfekt im timing ist auch microtime (somit wird ungeschicktes Spielen auch
+    /// zum ästhetischen Ereignis)". How far a touch is pulled onto the beat.
+    ///
+    /// **Default 0 = OFF, and that is deliberate.** This changes when a played note
+    /// SOUNDS, which is the most intimate thing about an instrument; nobody should
+    /// discover it by surprise after an update. It also only does anything while the
+    /// transport runs — with the clock stopped there is no beat to be in time with.
+    public static let touchSyncStrength = StudioDefault(key: "touch.sync.strength", value: 0.0)
+
+    /// The musical grid ULTRASYNC quantizes to. Stored as the enum's raw string, so an
+    /// unknown value from an older or newer build falls back to this default instead of
+    /// refusing to load.
+    public static let touchSyncGrid = StudioDefault(key: "touch.sync.grid",
+                                                    value: TouchQuantizer.Grid.sixteenth)
 
     // MARK: midi.*
 

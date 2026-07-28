@@ -196,6 +196,23 @@ struct FloatingVisualWindow: View {
     @AppStorage(StudioDefaultKeys.touchSlideChorus.key) private var touchSlideChorus = StudioDefaultKeys.touchSlideChorus.value
     @AppStorage(StudioDefaultKeys.touchGlide.key) private var touchGlide = StudioDefaultKeys.touchGlide.value
     @AppStorage(StudioDefaultKeys.touchLife.key) private var touchLife = StudioDefaultKeys.touchLife.value
+    @AppStorage(StudioDefaultKeys.touchSyncStrength.key)
+    private var touchSyncStrength = StudioDefaultKeys.touchSyncStrength.value
+    @AppStorage(StudioDefaultKeys.touchSyncGrid.key)
+    private var touchSyncGrid: TouchQuantizer.Grid = StudioDefaultKeys.touchSyncGrid.value
+
+    /// ULTRASYNC as configured right now. The microtiming rides the EXISTING "Life"
+    /// control rather than adding a third knob: Life already means "two identical taps
+    /// never produce two identical notes", and the founder's ask was explicitly "auch
+    /// microtime" — so extending that same word to WHEN a note falls is what it already
+    /// promised. It only bites while Sync > 0, so Life alone behaves exactly as before.
+    /// 8 ticks ≈ 8 ms at 120 BPM: a breath, not a stumble.
+    private var touchQuantizer: TouchQuantizer {
+        TouchQuantizer(grid: touchSyncGrid,
+                       strength: Float(touchSyncStrength),
+                       microtiming: Humanizer(timingTicks: Int((touchLife * 8).rounded()),
+                                              velocityJitter: 0))
+    }
 
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
@@ -406,6 +423,20 @@ struct FloatingVisualWindow: View {
                 .overlay {
                     TouchInstrumentView(key: MusicalKey(root: rootIndex, scale: touchScale),
                                         synth: touchSynth ?? synth,
+                                        quantizer: touchQuantizer,
+                                        // Reads `position`/`tempo` — but INSIDE the
+                                        // closure, i.e. at touch time, not while this
+                                        // body evaluates. Capturing the reference is not
+                                        // a property access, so this window does not
+                                        // become an ~8 Hz observer (freeze law).
+                                        musicalNow: { [transport] in
+                                            guard let tick = transport.currentTick() else { return nil }
+                                            let bpm = transport.tempo
+                                            guard bpm > 0 else { return nil }
+                                            return TouchMusicalTime(
+                                                tick: tick,
+                                                secondsPerTick: 60.0 / (bpm * Double(TimelineTime.ticksPerQuarter)))
+                                        },
                                         reduceMotion: reduceMotion,
                                         morphDepth: touchMorphDepth,
                                         lifeDepth: touchLife,
