@@ -19,9 +19,9 @@ User preferences for development workflow, communication, and tooling.
 
 ## Tooling
 - **CI:** GitHub Actions (testflight.yml primary)
-- **Build:** Tuist + Fastlane + Codemagic
+- **Build:** XcodeGen (`project.yml`) + Fastlane + GitHub Actions (`testflight.yml` primary)
 - **Dependencies:** Zero external dependencies policy
-- **SDK Target:** iOS 26 (deadline April 28, 2026)
+- **SDK Target:** iOS 18 deployment floor (Package.swift + project.yml + Info.plist); Xcode 26.2 in CI
 
 ## Session Workflow
 - Read scratchpads/SESSION_LOG.md and memory/ at session start
@@ -36,13 +36,13 @@ User preferences for development workflow, communication, and tooling.
 - **Fahrplan discipline:** `docs/dev/FEATURE_MATRIX.md` is the roadmap (code-truth). The website MIRRORS code, never drives it ("if the website disagrees, the code wins"). Avoid marketing-driven overclaiming.
 - **Brand purity (hard):** never "wellness"/"meditation"/"healing"/"16K"/"Super Intelligence AI" overclaims in user-facing copy (App Store, Info.plist, website). Biofeedback is core, NOT wellness. Use "self-observation, not medical diagnosis".
 - **CI-verified, not blind:** every change verified via `testflight.yml` (compile_check or full ship) before trusting it. Don't blind-build unverifiable things (watch embed, camera concurrency) — architect + flag for a device session instead.
-- **SDK doctrine:** speak open standards (AUv3/MIDI/OSC/Link/Art-Net), depend on almost nothing; vendor SDKs only behind an explicit logged decision.
+- **SDK doctrine:** speak open standards (MIDI/OSC/Link/Art-Net/sACN/ADM-OSC), depend on almost nothing; vendor SDKs only behind an explicit logged decision. (AUv3 was in this list until the target was deleted 2026-07-24.)
 
-### Drift to confirm (memory above may be stale)
-- Build pipeline is **GitHub Actions `testflight.yml`** (pure xcodebuild + ASC API key), not Codemagic. macOS=Catalyst decided.
-- Deployment floor is **iOS 18** (CLAUDE.md), not iOS 26.
-- One sanctioned dependency (**HaishinKit**, RTMP) — not strictly zero.
+### Resolved 2026-07-28 (the three drift items above are now folded into the Tooling block)
 - "12 EchoelTools" is a **taxonomy over real modules**, not 12 Swift types (see FEATURE_MATRIX).
+- Dependencies really are **zero**: `Package.swift` ships `dependencies: []`. HaishinKit was
+  authorized for RTMP and never linked; RTMP itself is now decided OUT, so there is no
+  sanctioned dependency at all.
 - Note: user tolerates structured ✅/🔴 status emojis in chat despite the older "no emojis" line.
 
 ## Design doctrine (REMEMBER — founder 2026-07-11, standing instruction)

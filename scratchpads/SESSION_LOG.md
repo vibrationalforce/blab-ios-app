@@ -1,3 +1,8 @@
+> **NEWEST ENTRIES ARE AT THE END OF THIS FILE.** The block immediately below is
+> 2026-07-18…07-23 and PREDATES the pure-instrument epic (#121/#122/#123) and the
+> drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
+> a picture of the app that is a week out of date — scroll to the end first.
+
 ## 2026-07-23 (cron, ULTRACODE 24h) — v10.79.341 ERFOLGREICH auf TestFlight (AUv3-Härtung)
 
 - **Ausgeliefert:** v10.79.341 archivierte + lud erfolgreich hoch — TestFlight-Lauf 29975639149 (commit 33f81f6) = **success**. Konsolidiert zwei AUv3-Korrektheits-Fixes:

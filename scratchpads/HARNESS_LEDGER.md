@@ -56,7 +56,7 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | Audition/preview a variant of a generate()-built take | Extract generate()'s Input construction into ONE shared `makeComposerInput(advanceEvolution:…overrides)` so the preview scores the EXACT input the take will use (honest), and add nil-default seed overrides to `generate()` so apply replays the picked seeds bit-for-bit. Don't duplicate the composer logic in the preview. |
 | Milestone deploy | gates green → bump `.deploy/release` (vX.Y.Z + German notes) → push → TestFlight. Then German status delta to founder. |
 | Mandatory reviewers | audio-thread (render paths) · concurrency (`@Observable`/async) · ui-state (Views). Run BEFORE commit; PASS is the gate. |
-| Per-instrument feature (per-track sound/genre/mood) | AUDIBLE only via per-lane voices = `LaneVoiceRack` = `FeatureFlags.multiRoll` ON (default OFF, device-gated). Store + wire the per-lane data BEHIND the flag (bit-identical OFF); do NOT ship user-facing per-track SOUND UI while multiRoll is OFF (inert control = worse than none). The keystone flip is a founder/device milestone. |
+| Per-instrument feature (per-track sound/genre/mood) | AUDIBLE via per-lane voices = `LaneVoiceRack` = `FeatureFlags.multiRoll`, which is **DEFAULT-ON since 2026-07-14** — `EchoelmusicApp.swift` registers it `true` before the first read. The OFF branch survives only as a one-line rollback lever; never delete it. **The old "default OFF, device-gated → do NOT ship per-track sound UI" caveat no longer applies** and would today block work that is already shipped. |
 | MCP (GitHub) down mid-cron | Can't verify gates (no curl-to-github; token+curl blocked). git push still runs CI serverside. Do NOT push device-only `#if AVFoundation` code blind (only the Xcode gate validates it). Restrict to CI-safe pure/doc work; verify gates next tick when MCP returns. |
 | Flip/verify a risky keystone flag (multiRoll etc.) before wiring on top | Run a Workflow audit FIRST: N parallel subsystem readers → adversarial verify of blockers → synthesis of go/no-go + edit list. It found multiRoll was ALREADY default-ON with 3 live bugs (bar-1 silence, mute-leak, patch-unwired) that a blind wiring pass would have built on. Audit-first, then single-writer implement the confirmed fixes. |
 | Device-only fix that can't run on Linux CI (needs PianoRollModel/AVFoundation) | Extract the DECISION into a pure Foundation enum (e.g. `MultiRollFanout`) the @MainActor class consumes → the bug-fix logic is Linux-CI-tested even though play() isn't. Same pattern as `*Math` view-math splits. |
@@ -65,6 +65,12 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 ---
 
 ## LEADERBOARD — shipped this run (newest first)
+
+> ⚠ **HISTORICAL SHIPPING RECORD, NOT CURRENT CAPABILITY.** Rows dated before 2026-07-24
+> describe surfaces that epics #121 (DAW + video-cut + AUv3 removal), #166/#167 (drums)
+> and #178 (piano-roll door) have since removed — clips, the arrange timeline, the note
+> editor, the drum kit, AUv3 hosting. They shipped; they are gone. Do not read this table
+> as a feature list.
 
 | Version | What shipped | Gates |
 |---|---|---|

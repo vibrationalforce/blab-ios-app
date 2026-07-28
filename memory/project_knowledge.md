@@ -30,7 +30,9 @@ as the connective layer. See `memory/vision.md` for the LIVE / ROADMAP / NORTH-S
 - **Audio graph:** `AudioEngine` (`@MainActor @Observable`) master `AVAudioEngine`; source nodes
   attach BEFORE start (build-1363 hot-attach rule — hot-attach to a running engine crashed).
   PolySynthVoice (stereo, 8 voices, SPSC note/patch queues, WeakBox render), SubBassVoice (mono
-  LFE, own node), BeatPlayer/PatternEngine. **Single main-queue beat clock is LOAD-BEARING** —
+  LFE, own node), PatternEngine (the transport/step clock) + BeatPlayer (audition preview voice
+  ONLY — the drum kit inside it was removed 2026-07-26 (#166); #167 completes the file
+  deletion. No drum sound is produced today). **Single main-queue beat clock is LOAD-BEARING** —
   moving it caused real SIGTRAPs (1769/1777); do not move it.
 - **Self-healing:** AudioEngine watchdog auto-recovers from `.AVAudioEngineConfigurationChange`
   + route loss (de-bounced, capped); `degraded`/`lastAudioError` surface a manual retry.
@@ -40,8 +42,8 @@ as the connective layer. See `memory/vision.md` for the LIVE / ROADMAP / NORTH-S
 - **Bio sources:** HealthKit + universal BLE 0x180D (Polar/Wahoo/Garmin/generic, auto-reconnect)
   + camera rPPG (locks on device) + Demo. Silent until user-armed; guaranteed launch silence.
 - **Composition:** BioComposer (seed-rotated progressions, borrowed chords, turnarounds,
-  phrase-arc velocity, grace-note ornamentation, octave climax), MusicalKey, MusicStyle (12
-  genres), GenrePatches; mood model (liveliness/darkness/tension/romance/weird). Seamless
+  phrase-arc velocity, grace-note ornamentation, octave climax), MusicalKey, MusicStyle (8 genres OFFERED in the picker out of 25
+  declared — see `MusicStyle.offered`; 8 is the number the App Store text claims), GenrePatches; mood model (liveliness/darkness/tension/romance/weird). Seamless
   bar-boundary morph (pendingNotes/loadAtBoundary). Sound→light: tonic transposed ~40 octaves
   to visible wavelength→sRGB in MetalBioView.
 - **DSP:** EchoelDDSP (per-sample smoothed cutoff/harmonicity/noise/gain, denormal flush),
@@ -57,7 +59,9 @@ as the connective layer. See `memory/vision.md` for the LIVE / ROADMAP / NORTH-S
 - **Website CI is the source of truth** (`docs/shared.css`): black ground, #e0e0e0 muted text,
   1px subtle borders, ≤12px radius, bio-green accent ONLY for live signal/active state (never
   page chrome), Atkinson Hyperlegible font. EchoelTheme mirrors it.
-- Accessibility-first: VoiceOver on the DAW surface, WCAG ≤3 Hz flash by construction, scalable.
+- Accessibility-first: VoiceOver on the instrument surfaces (play surface, chips, panels — the
+  DAW surface this line used to name was deleted with #121 Slice 4), WCAG ≤3 Hz flash by
+  construction, scalable.
 - **No overclaim (auto-reject in product copy):** quantum AI, super-AI/AGI, wellness/healing/
   Solfeggio/chakra, "16K", BLAB/Vibrational Force/legacy soundscape. Biofeedback = science, show
   the number, never promise the benefit (FDA general-wellness line). **Code is the truth; if the
@@ -132,11 +136,20 @@ lives in scratchpads + SESSION_LOG. Phases:
 5. North-star concepts (installation worlds, auto-driving, dive-flying/Tauchfliegen, "revolutionise
    humanity via self-observation") are parked in `memory/vision.md` Tier-3 — never in product copy.
 
-## Roadmap (agreed track order, stable-first)
+## Roadmap — SHIP GATE "Instrument-Complete v1"
 
-Current: parameter expansion (Composition/Character/Transpose/Visual, accessible-professional).
-Then: EchoelFXView display-mapped values → EchoelValueField; Live Clip session grid; RTMP broadcast
-(HaishinKit); AUv3 instrument; video editing. Mapping (Art-Net/sACN/ADM-OSC) already live; Metal GPU
-visual foundation laid (mapping/holo/broadcast-overlay reuse it).
+The old track order here (Live Clip session grid · RTMP broadcast · AUv3 instrument · video
+editing) named four things that were deleted or decided out by the pure-instrument epic
+(#121/#122/#123) — it would have sent a session building against a product that no longer
+exists. The canonical gate now lives in `docs/dev/PRODUCT_DEFINITION.md`; five binary checks:
 
-_Last consolidated: 2026-06-17 (build 1875). Update when the arc advances materially._
+1. **Klang** — curated genres professional, identity survives, no convergence bug.
+2. **Kontrolle** — patch editor reachable (`soundPanel` behind the Sound chip). The piano-roll
+   half of this check was RETIRED by founder decision 2026-07-26 (#178).
+3. **Modi** — Flow + Loop.
+4. **Ausgabe** — visual live + contemplative on device; light/space demonstrable, not required.
+5. **Stabilität** — clean launch, no black screen, no menu freeze.
+
+Mapping (Art-Net/sACN/ADM-OSC) is live; the Metal GPU visual foundation is laid.
+
+_Last consolidated: 2026-07-28. Update when the arc advances materially._
