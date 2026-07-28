@@ -1,6 +1,9 @@
 #if canImport(AVFoundation)
 import Foundation
 import AVFoundation
+#if canImport(UIKit)
+import UIKit          // applicationState — the interruption-resume foreground gate
+#endif
 
 /// Audio configuration constants and optimization settings
 /// Target: < 5ms latency for real-time performance
@@ -390,24 +393,54 @@ enum AudioConfiguration {
             onInterruptionBegan?()
 
         case .ended:
-            // `.shouldResume` is ADVISORY, not permission — and the options key can be
-            // absent entirely. Both used to end the story here: the flag gated the whole
-            // resume and a missing key hit an early `return`. For a media PLAYER that is
-            // correct etiquette; for a live instrument it is a silent-forever bug. Siri, a
-            // Clock alarm banner and a declined incoming call all take this app to
-            // `.inactive` rather than `.background`, so no other path restarts the engine:
-            // `AudioEngine.onInterruptionBegan` has already set `isRunning = false`, and
-            // the scene-phase resume is gated on having been backgrounded. The user is left
-            // holding an instrument that looks alive, shows its visuals, and makes no sound
-            // until they relaunch. So: ALWAYS attempt to reactivate. If another app still
-            // legitimately owns the session, `setActive` throws and we log it — a failed
-            // attempt costs nothing, a skipped one costs the performance.
-            let options = (userInfo[AVAudioSessionInterruptionOptionKey] as? UInt)
-                .map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
+            // `.shouldResume` used to gate the whole resume, and an absent options key hit
+            // an early `return`. That is correct etiquette for a media PLAYER; for a live
+            // instrument it can mean silence for the rest of the session, because the two
+            // interruptions this app actually meets — Siri and a Clock alarm banner — leave
+            // it FOREGROUND and `.inactive`, so nothing else restarts it: the scene-phase
+            // resume is gated on having been backgrounded, and `onInterruptionBegan` has
+            // already set `isRunning = false`. iOS usually does attach `.shouldResume` for
+            // those, so the old code usually worked — the exposure is the tail where the
+            // hint is withheld or the key is absent.
+            //
+            // But "always resume" is the WRONG answer for the other half of that tail, and
+            // review caught me shipping it: while BACKGROUNDED, `.shouldResume` withheld is
+            // iOS saying "someone else owns playback now". `setActive(true)` on a
+            // `.playback` category does not politely throw in that situation — it succeeds
+            // and INTERRUPTS the other app. With `UIBackgroundModes: audio` declared, that
+            // is Echoel silencing the user's music from the background. Exactly the F2
+            // hazard this same change codified in `AudioEngine.shouldSelfHeal`, on the path
+            // the predicate does not cover.
+            //
+            // So: in the FOREGROUND the hint is advisory and we always resume (that is the
+            // stage case, and the user is looking at the instrument). In the BACKGROUND the
+            // hint is authoritative and we stand down.
+            let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+            #if canImport(UIKit)
+            // `assumeIsolated` rather than a plain read: this func is `nonisolated`, and
+            // `UIApplication.shared` is main-actor state, so a direct read is a strict-
+            // concurrency violation even though it happens to be correct here. The
+            // precondition IS met — the observer is registered with `queue: .main`
+            // (see `registerInterruptionHandlers`) — and `assumeIsolated` is the way to
+            // say so to the compiler instead of to a comment. A `Task { @MainActor }`
+            // (the pattern used in `CameraCapture` for its breadcrumb) is not available
+            // to us: the value is needed synchronously, before the resume decision.
+            let foreground = MainActor.assumeIsolated {
+                UIApplication.shared.applicationState == .active
+            }
+            #else
+            let foreground = true
+            #endif
+            guard options.contains(.shouldResume) || foreground else {
+                log.audio("Interruption ended without .shouldResume while backgrounded "
+                          + "— standing down so another app keeps the session")
+                return
+            }
             do {
                 try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
                 log.audio("Audio session resumed after interruption"
-                          + (options.contains(.shouldResume) ? "" : " (no shouldResume hint — resumed anyway)"))
+                          + (options.contains(.shouldResume) ? "" : " (no shouldResume hint — foreground, resumed anyway)"))
                 onInterruptionResume?()
             } catch {
                 log.audio("Failed to reactivate audio session: \(error)", level: .error)

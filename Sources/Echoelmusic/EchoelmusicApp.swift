@@ -1048,12 +1048,20 @@ struct EchoelmusicApp: App {
                     // call is a no-op. Critical since the .background branch may now
                     // deliberately STOP an idle engine (2.5.4) — a missed resume
                     // would mean silence until relaunch.
-                    // `wasInterrupted` is the THIRD order, and the one the two flags above
-                    // cannot see: Siri, an alarm banner and a declined call take the app
-                    // to .inactive, never .background, so neither gate fires — while the
-                    // engine sits paused from `onInterruptionBegan`. Coming back to the
-                    // app is the user's natural recovery gesture; it must work.
-                    if oldPhase == .background || wasBackgrounded || audioEngine.wasInterrupted {
+                    // The interruption case is the THIRD reason, and the one the two flags
+                    // above cannot see: Siri and an alarm banner leave the app FOREGROUND
+                    // and `.inactive`, never `.background`, so neither gate fires — while
+                    // the engine sits paused from `onInterruptionBegan`. Coming back to
+                    // the app is the user's natural recovery gesture; it must work.
+                    //
+                    // The decision lives on `AudioEngine`, not here, because it also has
+                    // to honour "a deliberate stop wins" — and `intentionallyStopped` is
+                    // private to that type. Written inline, this gate could not see it,
+                    // and a stopped-then-interrupted engine restarted itself against the
+                    // user's last explicit intent (review finding).
+                    if audioEngine.shouldResumeOnForeground(
+                        cameFromBackground: oldPhase == .background,
+                        wasBackgrounded: wasBackgrounded) {
                         wasBackgrounded = false
                         audioEngine.start()
                         bioFeedback.start(publishingFrom: bus)

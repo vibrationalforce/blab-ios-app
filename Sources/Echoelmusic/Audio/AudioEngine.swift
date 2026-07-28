@@ -213,6 +213,14 @@ public final class AudioEngine {
             log.audio("Audio interrupted — pausing engine")
         }
         AudioConfiguration.onInterruptionResume = { [weak self] in
+            // The same law `shouldSelfHeal` states, applied to the OTHER resume path.
+            // Review caught this: the predicate guarded the watchdog and left this
+            // closure — which also restarts the engine — with no intent check at all.
+            // A rule that holds on one of two paths is not a rule.
+            guard self?.intentionallyStopped == false else {
+                log.audio("Interruption ended but the engine was stopped deliberately — staying stopped")
+                return
+            }
             log.audio("Audio interruption ended — resuming engine")
             do {
                 try self?.masterEngine.start()
@@ -283,6 +291,28 @@ public final class AudioEngine {
         // happened first — the user's last explicit intent is the authority.
         if intentionallyStopped { return false }
         return isRunning || degraded || wasInterrupted
+    }
+
+    /// Should coming back to the foreground restart the engine? The scene-phase twin of
+    /// `shouldSelfHeal`, and it exists for the same reason: review found that the gate in
+    /// `EchoelmusicApp` could not honour the "a deliberate stop wins" law, because
+    /// `intentionallyStopped` is private to this type. A rule the enforcing site cannot
+    /// read is a comment, not a rule — so the rule moves to where the state lives.
+    nonisolated static func shouldResumeOnForeground(cameFromBackground: Bool,
+                                                     wasBackgrounded: Bool,
+                                                     wasInterrupted: Bool,
+                                                     intentionallyStopped: Bool) -> Bool {
+        if intentionallyStopped { return false }
+        return cameFromBackground || wasBackgrounded || wasInterrupted
+    }
+
+    /// The view-facing form: the app knows the two scene-phase facts, this type knows the
+    /// other two. Keeps `intentionallyStopped` private without keeping it unenforceable.
+    func shouldResumeOnForeground(cameFromBackground: Bool, wasBackgrounded: Bool) -> Bool {
+        Self.shouldResumeOnForeground(cameFromBackground: cameFromBackground,
+                                      wasBackgrounded: wasBackgrounded,
+                                      wasInterrupted: wasInterrupted,
+                                      intentionallyStopped: intentionallyStopped)
     }
 
     /// Self-healing watchdog: AVAudioEngine posts `.AVAudioEngineConfigurationChange`
@@ -656,6 +686,14 @@ public final class AudioEngine {
         // otherwise restart it in the background, re-creating the silent-audio
         // state the caller just removed (audio-thread review 2026-07-16, F1/F2).
         intentionallyStopped = true
+        // A deliberate stop outranks the interruption that preceded it. Without this the
+        // flag survives the stop and a later `.inactive → .active` transition (Control
+        // Centre, a notification banner — neither touches `.background`, so neither of
+        // the other two scene-phase conditions fires) restarts the engine against the
+        // user's last explicit intent. `shouldSelfHeal` already says this in words; the
+        // scene-phase gate cannot enforce it because `intentionallyStopped` is private
+        // to this type, so it has to be enforced here, at the source of the flag.
+        wasInterrupted = false
         meterPollTimer?.invalidate()
         meterPollTimer = nil
         microphoneManager.stopRecording()
