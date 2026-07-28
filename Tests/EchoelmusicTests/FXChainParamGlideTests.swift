@@ -64,8 +64,10 @@ final class FXChainParamGlideTests: XCTestCase {
     ///
     /// This is the assertion a "cache the coefficient once at init" shortcut fails: it would
     /// keep the 240-frame coefficient and run the 960-frame chain four times too slow.
-    /// Measured: both land on 7187.988, bit-identical — so this compares for equality with a
-    /// hairline tolerance rather than a loose band.
+    /// Measured: 7187.98779296875 against 7187.98828125 — ONE Float32 step apart, not
+    /// bit-identical (the earlier wording here overstated it). Different step counts on the
+    /// same exponential cannot round identically in general; the hairline tolerance below is
+    /// what the claim actually supports.
     func testGlide_isRateIndependent_acrossBufferSizes() {
         let small = EchoelFXChain(sampleRate: sr)
         small.filterEnabled = true; small.filterCutoff = 8000
@@ -122,6 +124,13 @@ final class FXChainParamGlideTests: XCTestCase {
         XCTAssertEqual(fx.filterL.cutoff, 12000, "a preset must land, not sweep in")
         XCTAssertEqual(fx.filterL.resonance, 0.7, accuracy: 1e-6)
         XCTAssertEqual(fx.filterCutoff, 12000, "and the target follows it")
+
+        // The assertions above ALSO pass with the snap deleted, because `setFilter` writes
+        // the SVF directly — they would be pinning the direct write, not the snap. The
+        // following block is what separates them: with the glide left at 2000 it would drag
+        // the mirror straight back off the preset.
+        run(fx, blocks: 1, frames: 256)
+        XCTAssertEqual(fx.filterL.cutoff, 12000, "and the next block must not undo it")
     }
 
     /// `reset()` means the signal path is empty — there is nothing to glide FROM, so a glide
@@ -135,6 +144,11 @@ final class FXChainParamGlideTests: XCTestCase {
         fx.reset()
         XCTAssertEqual(fx.filterL.cutoff, 8000, "reset lands on the target")
         XCTAssertEqual(fx.filterCutoff, 8000, "and does not clear it")
+
+        // Same falsifier as `testSetFilter_snaps…`: without the following block, the direct
+        // SVF write alone would satisfy the assertions and the snap could be deleted.
+        run(fx, blocks: 1, frames: 256)
+        XCTAssertEqual(fx.filterL.cutoff, 8000, "and the next block must not pull it back")
     }
 
     /// THE THIRD EDGE, and the one a reimplementation would miss. `FXBioModulator.enableStage`
@@ -157,6 +171,51 @@ final class FXChainParamGlideTests: XCTestCase {
         // And the very first block after enabling must not move it back off the target.
         run(fx, blocks: 1, frames: 256)
         XCTAssertEqual(fx.filterL.cutoff, 6000)
+    }
+
+    /// THE FOURTH EDGE, which is not in `EchoelFXChain` at all and was missed by the first
+    /// cut of this slice. `PolySynthVoice`/`BioReactiveSynthVoice` gate the WHOLE chain
+    /// behind `fxEnabled`; while that gate is off, `processBuffer` is never called, so the
+    /// glide freezes — but the tone fader and the 30 Hz bio driver keep writing the target.
+    /// Re-enabling insert FX would then open with a resonant sweep out of a stale value.
+    /// The two voices call `snapFilterToTarget()` on their false→true edge; this pins the
+    /// chain-side half of that contract.
+    func testSnapFilterToTarget_absorbsAGlideFrozenByAWholeChainBypass() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.filterEnabled = true
+        fx.filterCutoff = 8000
+        run(fx, blocks: 1, frames: 256)                 // mid-glide when the voice bypassed FX
+        fx.filterCutoff = 400                           // …and the user kept moving the fader
+        XCTAssertEqual(fx.filterL.cutoff, 2607.05, accuracy: 0.5,
+                       "precondition: no blocks reach the chain, so the mirror is frozen")
+
+        fx.snapFilterToTarget()
+        XCTAssertEqual(fx.filterL.cutoff, 400, "re-enabling must land, not sweep 2607 → 400")
+        XCTAssertEqual(fx.filterCutoff, 400, "and the target is untouched by its own snap")
+    }
+
+    /// A non-finite target must not reach the SVF through a SNAP either — `snapFilterToTarget`
+    /// publishes `ParamGlide.value` (the last finite value) rather than the target field, so
+    /// the guard in `ParamGlide.snap` cannot be walked around. Writing the raw target here is
+    /// the shape this used to have, and it puts a NaN into a recursive filter.
+    func testSnapFilterToTarget_doesNotPublishANonFiniteTarget() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.filterEnabled = true
+        fx.filterCutoff = .nan
+        fx.snapFilterToTarget()
+        XCTAssertTrue(fx.filterL.cutoff.isFinite, "a NaN must never reach the SVF via a snap")
+        XCTAssertEqual(fx.filterL.cutoff, 2000, "it holds the last good value")
+    }
+
+    /// A BYPASSED filter must not be glided. This is not a micro-optimisation: the rising-edge
+    /// snap in `filterEnabled`'s `willSet` justifies itself by "the audio thread is skipping
+    /// this stage right now", and advancing the glide of a skipped stage would make that
+    /// statement false. It also spends up to four `tanf` per block on silence.
+    func testABypassedFilter_isNotGlided() {
+        let fx = EchoelFXChain(sampleRate: sr)
+        fx.filterCutoff = 8000                          // filterEnabled deliberately left false
+        run(fx, blocks: 10, frames: 256)
+        XCTAssertEqual(fx.filterL.cutoff, 2000, "nobody hears this stage — do not step it")
     }
 
     // MARK: - Degenerate inputs

@@ -223,6 +223,12 @@ public final class PolySynthVoice {
     /// Enable or bypass the whole insert chain. Individual stages are toggled
     /// directly on `fxChain` (e.g. `fxChain.delayEnabled = true`).
     public func setFXEnabled(_ on: Bool) {
+        // #138 SLICE 2 — THE FOURTH SNAP EDGE. While this gate is off the chain's block
+        // entry point is never called, so its tone-filter glide FREEZES — while the user
+        // can still move the tone fader and the 30 Hz bio driver keeps writing the target.
+        // Without this, re-enabling insert FX opens with a resonant sweep out of a value
+        // last heard minutes ago. Rising edge only: on the way OFF there is nothing to land.
+        if on && !fxEnabled { fxChain.snapFilterToTarget() }
         fxEnabled = on
         isFXEnabled = on
     }

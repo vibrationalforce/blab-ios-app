@@ -153,6 +153,11 @@ public final class BioReactiveSynthVoice {
     /// and the observable mirror. Individual stages are toggled directly on
     /// `fxChain` (e.g. `fxChain.delayEnabled = true`).
     public func setFXEnabled(_ on: Bool) {
+        // #138 SLICE 2 — THE FOURTH SNAP EDGE; see `EchoelFXChain.snapFilterToTarget`.
+        // A bypassed chain never advances its tone-filter glide, so the mirror goes stale
+        // while the target keeps moving under the 30 Hz bio driver. This is the body-driven
+        // voice, so that drift is the largest here. Rising edge only.
+        if on && !fxEnabled { fxChain.snapFilterToTarget() }
         fxEnabled = on
         isFXEnabled = on
     }

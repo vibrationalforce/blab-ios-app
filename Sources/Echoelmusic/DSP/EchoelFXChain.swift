@@ -59,10 +59,7 @@ public final class EchoelFXChain: @unchecked Sendable {
                 // route engages would be a sweep up from whatever the glide happened to
                 // hold — the stale-value artefact `snap` exists to prevent, arriving
                 // exactly at the moment the user is listening for the body to take hold.
-                cutoffGlide.snap(to: filterCutoff)
-                resonanceGlide.snap(to: filterResonance)
-                filterL.cutoff = filterCutoff;       filterR.cutoff = filterCutoff
-                filterL.resonance = filterResonance; filterR.resonance = filterResonance
+                snapFilterToTarget()
             }
         }
     }
@@ -204,11 +201,38 @@ public final class EchoelFXChain: @unchecked Sendable {
     public func setFilter(mode: EchoelSVFilter.Mode, cutoff: Float, resonance: Float) {
         filterCutoff = cutoff
         filterResonance = resonance
-        cutoffGlide.snap(to: cutoff)
-        resonanceGlide.snap(to: resonance)
-        filterL.mode = mode; filterR.mode = mode
-        filterL.cutoff = cutoff; filterR.cutoff = cutoff
-        filterL.resonance = resonance; filterR.resonance = resonance
+        filterL.mode = mode; filterR.mode = mode   // discrete — nothing to glide
+        snapFilterToTarget()
+    }
+
+    /// Land the tone-filter mirror on the current targets, skipping the glide.
+    ///
+    /// The single place every snap edge goes through, and it exists in this form for a
+    /// reason worth stating: each edge used to write the RAW TARGET into the SVF right
+    /// after snapping the glide, which quietly bypassed `ParamGlide.snap`'s non-finite
+    /// guard. A NaN `filterCutoff` — one bad frame away, since the 30 Hz bio driver writes
+    /// this field — would then reach a recursive filter, where one NaN is permanent
+    /// silence. What reaches `filterL/filterR` here is always `ParamGlide.value`, i.e. the
+    /// last FINITE value, never the target itself.
+    ///
+    /// PUBLIC because of the fourth edge, which is not in this file. `PolySynthVoice` and
+    /// `BioReactiveSynthVoice` gate the whole chain behind `fxEnabled`; while that gate is
+    /// off, `processBuffer` is never called, so the glide FREEZES — while `filterCutoff`
+    /// keeps moving under the UI fader and the 30 Hz driver. Re-enabling insert FX would
+    /// then open with a 50 ms resonant sweep out of a value the user last heard minutes
+    /// ago: exactly the stale-value artefact the other three edges exist to prevent, on a
+    /// path that had no edge. Those two voices call this on their false→true edge.
+    ///
+    /// Control-plane only (main thread). It can be clobbered by a block that lands
+    /// between the snap and the caller's gate flip — the cost is bounded to one ≤50 ms
+    /// glide instead of a jump, and the next block heals it, so this is documented rather
+    /// than defended with a generation counter the audio thread would have to read.
+    public func snapFilterToTarget() {
+        cutoffGlide.snap(to: filterCutoff)
+        resonanceGlide.snap(to: filterResonance)
+        let c = cutoffGlide.value, q = resonanceGlide.value
+        filterL.cutoff = c;    filterR.cutoff = c
+        filterL.resonance = q; filterR.resonance = q
     }
 
     /// Advance the tone-filter glide by ONE block and publish it into the SVFs.
@@ -228,7 +252,13 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// assignment is a no-op comparison, and `updateCoefficients()` stops being called.
     @inline(__always)
     private func advanceFilterGlide(frameCount: Int) {
-        guard frameCount > 0 else { return }
+        // `filterEnabled` is part of the guard, not an optimisation. A bypassed stage is
+        // skipped entirely (the switch-crackle rule at the top of this file), and that is
+        // precisely what makes the rising-edge snap in `filterEnabled`'s `willSet` safe:
+        // it can only claim the audio thread is not touching the filter if the audio
+        // thread really is not. Advancing the glide of a stage nobody hears would void
+        // that argument and burn up to four `tanf` per block for silence.
+        guard frameCount > 0, filterEnabled else { return }
         if frameCount != glideCoefficientFrames {
             glideCoefficient = ParamGlide.coefficient(
                 tauSeconds: ParamGlide.bioTau,
@@ -333,10 +363,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         // there is nothing to glide FROM, so gliding here would sweep the first audio
         // after the reset up from a stale value. The targets themselves are untouched:
         // reset clears state, it does not change what the user set.
-        cutoffGlide.snap(to: filterCutoff)
-        resonanceGlide.snap(to: filterResonance)
-        filterL.cutoff = filterCutoff;       filterR.cutoff = filterCutoff
-        filterL.resonance = filterResonance; filterR.resonance = filterResonance
+        snapFilterToTarget()
         filterL.reset()
         filterR.reset()
         tape.reset()
