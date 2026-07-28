@@ -77,6 +77,16 @@ public final class Transport {
     /// Who drives the clock. Reserved for MIDI-clock / Ableton Link follow modes.
     public var clockSource: TransportClockSource = .internal
 
+    /// Wall-clock stamp (`CFAbsoluteTime`) of the most recent step boundary — the
+    /// anchor `currentTick(at:)` interpolates from. `0` means "no valid stamp"
+    /// (stopped, or nothing has ticked yet).
+    ///
+    /// `@ObservationIgnored` deliberately: this moves at the step rate (~8 Hz at
+    /// 120 BPM), and an OBSERVED property changing that fast, read from any view
+    /// body, rebuilds that body 8×/s and tears down an open `.menu` Picker popover
+    /// under the finger — CLAUDE.md's freeze law. Nothing may show this to the UI.
+    @ObservationIgnored public private(set) var lastStepAt: CFAbsoluteTime = 0
+
     // MARK: - Subscribers
 
     /// A step subscriber + its fire priority. Lower priority fires FIRST — this is
@@ -156,6 +166,7 @@ public final class Transport {
     public func play() {
         position = .zero
         lastStep = 0
+        lastStepAt = CFAbsoluteTimeGetCurrent()
         isPlaying = true
     }
 
@@ -163,6 +174,7 @@ public final class Transport {
         isPlaying = false
         position = .zero
         lastStep = 0
+        lastStepAt = 0          // no grid while stopped — see `currentTick(at:)`
         for cb in stopSubs.values { cb() }
     }
 
@@ -171,6 +183,9 @@ public final class Transport {
         let s = Swift.min(Swift.max(step, 0), Self.stepsPerBar - 1)
         position = TransportPosition(bar: bar, step: s)
         lastStep = s
+        // Re-anchor: without this the interpolation would keep measuring from the
+        // step boundary BEFORE the jump, i.e. from a position that no longer exists.
+        if isPlaying { lastStepAt = CFAbsoluteTimeGetCurrent() }
     }
 
     // MARK: - Tick
@@ -185,7 +200,42 @@ public final class Transport {
         if s == 0 && lastStep != 0 { bar += 1 }
         position = TransportPosition(bar: bar, step: s)
         lastStep = s
+        // Stamped BEFORE the fan-out so a subscriber that asks for `currentTick(at:)`
+        // inside its own callback measures from THIS step, not the previous one.
+        lastStepAt = CFAbsoluteTimeGetCurrent()
         for sub in stepSubs { sub.cb(position) }
+    }
+
+    /// The song-absolute 480-PPQ tick the transport is at RIGHT NOW, interpolated
+    /// between step boundaries.
+    ///
+    /// This exists because `position` moves once per sixteenth. A live touch needs to
+    /// know how far PAST the last grid point the finger landed; fed the step position
+    /// alone, `TouchQuantizer` would see every touch as already perfectly on the grid
+    /// and never correct anything.
+    ///
+    /// Returns `nil` when there is no grid: stopped, or nothing stamped yet. A caller
+    /// MUST read that as "sound it now, uncorrected" — holding notes back against a
+    /// beat the player cannot hear is worse than not quantizing at all.
+    ///
+    /// ⚠️ Reads `position` and `tempo`, which ARE observed. Call it from a touch
+    /// handler, a timer or a subscriber callback — NEVER from a SwiftUI `body` or from
+    /// a computed var a body evaluates, or that body becomes an ~8 Hz observer and
+    /// every open `.menu` Picker popover is torn down under the finger.
+    ///
+    /// SWING IS NOT MODELLED, and the error is NOT small. `PatternEngine` lengthens the
+    /// even step by `swing` and shortens the odd one to match; this map assumes both last
+    /// the nominal `60 / bpm / 4` seconds. Inside a lengthened step the interpolation
+    /// therefore runs ahead and saturates at that step's last tick — off by up to
+    /// `swing × ticksPerStep` (at swing 0.25: ~30 ticks ≈ 31 ms at 120 BPM, which IS
+    /// audible). Stated instead of buried: with swing on, a quantizer riding this clock
+    /// corrects toward a straight grid the beat is deliberately not on. Correct fix is a
+    /// swung grid on both sides, which no caller needs yet.
+    public func currentTick(at now: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()) -> Int? {
+        guard isPlaying, lastStepAt > 0 else { return nil }
+        return StepTickMath.tick(absoluteStep: position.absoluteStep,
+                                 secondsSinceStep: now - lastStepAt,
+                                 bpm: tempo)
     }
 
     // MARK: - Subscription
