@@ -201,9 +201,14 @@ public final class LoopExporter {
         // empty file: trim, LUFS-normalise the fragment, and present it as a finished
         // loop. The floating WAV button already shows the failure; this path is the more
         // prominent one and had no signal at all.
+        //
+        // `url` is NOT Optional: `stopRecording(completion:)` hands the closure a plain
+        // `URL` and only calls it at all when `lastURL` is set — which `startRecording`
+        // assigns in the same block that sets `isRecording`, so the guard above is what
+        // makes the continuation certain to resume.
         if engine.retroCapture.writeFailed {
             status = .failed("Recording could not be written to disk")
-            if let url { try? FileManager.default.removeItem(at: url) }
+            try? FileManager.default.removeItem(at: url)
             return nil
         }
         return url
