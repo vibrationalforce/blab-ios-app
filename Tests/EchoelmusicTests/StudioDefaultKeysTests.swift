@@ -23,6 +23,15 @@ final class StudioDefaultKeysTests: XCTestCase {
         // The living visual greets a fresh install ("wow von Sekunde 1") — the
         // studio panel's old false copy made its toggle button lie until first write.
         XCTAssertTrue(StudioDefaultKeys.floatingVisualVisible.value)
+
+        // #187 — inbound Apple Network MIDI (RTP-MIDI) is OFF on a fresh install.
+        // This is a FOUNDER decision, not a taste setting: with it on, the device
+        // advertises _apple-midi._udp and accepts a connection from ANY host on the
+        // LAN (connectionPolicy .anyone) from launch, with nothing in the UI saying
+        // so. A default-ON inbound network service is not something a performer opts
+        // into by installing an instrument. If this assertion ever fails, someone
+        // re-armed an always-on listener — that needs a founder ask, not a commit.
+        XCTAssertFalse(StudioDefaultKeys.networkMIDI.value)
         XCTAssertEqual(StudioDefaultKeys.visualStyle.value, 5)
         XCTAssertEqual(StudioDefaultKeys.visualStyleB.value, 0)
         XCTAssertEqual(StudioDefaultKeys.visualBlend.value, 0.0)
@@ -57,6 +66,7 @@ final class StudioDefaultKeysTests: XCTestCase {
             StudioDefaultKeys.touchSlideVibrato.key,
             StudioDefaultKeys.touchSlideChorus.key, StudioDefaultKeys.touchGlide.key,
             StudioDefaultKeys.weatherEnabled.key,
+            StudioDefaultKeys.networkMIDI.key,
         ]
         XCTAssertEqual(keys.count, Set(keys).count, "keys must be unique")
         XCTAssertEqual(StudioDefaultKeys.loopBars.key, "studio.loopBars")
@@ -66,6 +76,7 @@ final class StudioDefaultKeysTests: XCTestCase {
         XCTAssertEqual(StudioDefaultKeys.lockBPM.key, "studio.lockBPM")
         XCTAssertEqual(StudioDefaultKeys.lockedBPM.key, "studio.lockedBPM")
         XCTAssertEqual(StudioDefaultKeys.loudnessTarget.key, "studio.loudnessTarget")
+        XCTAssertEqual(StudioDefaultKeys.networkMIDI.key, "midi.networkSession")
         XCTAssertEqual(StudioDefaultKeys.visualStyle.key, "visual.style")
         XCTAssertEqual(StudioDefaultKeys.visualStyleB.key, "visual.styleB")
         XCTAssertEqual(StudioDefaultKeys.visualBlend.key, "visual.blend")

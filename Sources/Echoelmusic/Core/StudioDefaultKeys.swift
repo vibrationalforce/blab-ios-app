@@ -88,6 +88,18 @@ public enum StudioDefaultKeys {
     /// bit-identical behaviour; the default is deliberately audible-but-subtle.
     public static let touchLife = StudioDefault(key: "touch.life", value: 0.35)
 
+    // MARK: midi.*
+
+    /// Inbound Apple Network MIDI (RTP-MIDI, RFC 6295) — **OFF by default (#187,
+    /// founder 2026-07-27)**. When on, `MIDINetworkSession.default()` is enabled with
+    /// `connectionPolicy = .anyone`, so the device advertises `_apple-midi._udp` and
+    /// accepts a session from ANY host on the LAN. That is a genuinely useful stage
+    /// feature — a Mac or rtpMIDI sending wireless notes — but it is an INBOUND network
+    /// listener, and until this key existed it was armed unconditionally at launch with
+    /// no control anywhere in the app. Outbound MIDI/OSC is a thing you point somewhere;
+    /// this is a thing that accepts. Those are not the same consent.
+    public static let networkMIDI = StudioDefault(key: "midi.networkSession", value: false)
+
     // MARK: weather.*
 
     public static let weatherEnabled = StudioDefault(key: "weather.enabled", value: false)

@@ -71,27 +71,49 @@ final class MIDIInput {
             return
         }
 
-        // Enable RTP-MIDI (Apple network MIDI) BEFORE connecting sources, so the
-        // network session shows up as a CoreMIDI source and gets connected below.
-        enableNetworkMIDI()
+        // Apply the RTP-MIDI (Apple network MIDI) PREFERENCE before connecting sources,
+        // so that if the user has it on, the network session already shows up as a
+        // CoreMIDI source and gets connected below. Default is OFF (#187).
+        Self.applyNetworkSessionPreference()
 
         // Connect to all existing sources
         connectAllSources()
         log.log(.info, category: .system, "MIDI: Input ready (MIDI 2.0 + MPE + network)")
     }
 
-    /// Turn on Apple network MIDI (RTP-MIDI, RFC 6295) via CoreMIDI's built-in
-    /// session — a Tier-1 open standard, no external dependency. The device then
-    /// advertises `_apple-midi._udp` (declared in Info.plist NSBonjourServices)
-    /// and accepts wireless MIDI from a Mac's network session, rtpMIDI, etc.
-    /// Connecting peers are picked up by `connectAllSources()` + the MIDI
-    /// setup-changed notification. iOS-only API.
-    private func enableNetworkMIDI() {
+    /// Bring Apple network MIDI (RTP-MIDI, RFC 6295) in line with the user's
+    /// preference — a Tier-1 open standard, no external dependency. When ON, the
+    /// device advertises `_apple-midi._udp` (declared in Info.plist
+    /// NSBonjourServices) and accepts wireless MIDI from a Mac's network session,
+    /// rtpMIDI, etc.; connecting peers are picked up by `connectAllSources()` plus
+    /// the MIDI setup-changed notification. iOS-only API.
+    ///
+    /// **STATIC ON PURPOSE (#187).** `MIDINetworkSession.default()` is a process
+    /// singleton, so per-instance state would be a lie: two `MIDIInput`s would each
+    /// believe they own a switch that is really one switch. The preference lives in
+    /// `UserDefaults` and this function is the ONE place that reads it and acts. The
+    /// routing UI calls exactly this after writing the key, and `setupMIDI()` calls
+    /// it at launch — same code path, so the toggle can never disagree with reality.
+    ///
+    /// It used to be `enableNetworkMIDI()`, called unconditionally with
+    /// `connectionPolicy = .anyone`: from launch, on every install, the instrument
+    /// accepted a MIDI session from ANY host on the LAN, with no control anywhere in
+    /// the app and no mention in the local-network usage string. Outbound MIDI/OSC is
+    /// something you point at a destination; this ACCEPTS. Those are different
+    /// consent, and only one of them was ever asked for.
+    static func applyNetworkSessionPreference() {
         #if os(iOS)
+        // `bool(forKey:)` is right here (unlike the play-surface level, where an unset
+        // key had to fall back to 1.0): the canonical default IS false, and that is
+        // exactly what `bool(forKey:)` returns for an unwritten key.
+        let enabled = UserDefaults.standard.bool(forKey: StudioDefaultKeys.networkMIDI.key)
         let session = MIDINetworkSession.default()
-        session.isEnabled = true
-        session.connectionPolicy = .anyone
-        log.log(.info, category: .system, "MIDI: network session enabled (RTP-MIDI)")
+        session.isEnabled = enabled
+        // Only meaningful while enabled; set it alongside so an enable never lands
+        // with a stale policy from a previous session.
+        if enabled { session.connectionPolicy = .anyone }
+        log.log(.info, category: .system,
+                "MIDI: network session \(enabled ? "enabled" : "disabled") (RTP-MIDI, #187)")
         #endif
     }
 

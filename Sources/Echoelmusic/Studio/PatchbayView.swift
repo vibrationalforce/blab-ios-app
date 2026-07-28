@@ -21,6 +21,14 @@ struct PatchbayView: View {
     @Environment(SACNSender.self) private var sacn
     #endif
 
+    #if os(iOS) && canImport(CoreMIDI)
+    /// #187 — the inbound RTP-MIDI switch. Declared via `StudioDefaultKeys` so the
+    /// key string and the default-OFF literal live in one place (H15-KEYSTORE); the
+    /// engine reads the SAME key in `MIDIInput.applyNetworkSessionPreference()`.
+    @AppStorage(StudioDefaultKeys.networkMIDI.key)
+    private var networkMIDI = StudioDefaultKeys.networkMIDI.value
+    #endif
+
     /// `true` when hosted as a workspace surface rather than a sheet.
     var embedded = false
 
@@ -54,6 +62,13 @@ struct PatchbayView: View {
                 // exists on the sheet (non-embedded) path — so gate it to !embedded (no
                 // dead control in the dormant workspace path).
                 if !embedded { bluetoothMIDISection }
+                #endif
+                #if os(iOS) && canImport(CoreMIDI)
+                // No NavigationStack needed (it is a Toggle, not a push), so unlike the
+                // Bluetooth card this one is correct on BOTH the sheet and the embedded
+                // path — a switch that exists only on one of two hosts is how a control
+                // becomes unreachable again.
+                networkMIDISection
                 #endif
                 ForEach(router.graph.sources) { src in
                     sourceCard(src)
@@ -104,7 +119,48 @@ struct PatchbayView: View {
             .accessibilityHint("Opens Apple's Bluetooth MIDI pairing. A paired controller plays the synth directly.")
         }
     }
+
     #endif
+
+    #if os(iOS) && canImport(CoreMIDI)
+    // MARK: - Network MIDI (#187: the inbound listener gets a switch, default OFF)
+    /// The one control for Apple's RTP-MIDI session. It sits in Routing rather than
+    /// anywhere in the instrument because it is a ROUTE, not a sound — and because
+    /// this surface is reachable (master panel → "Routing"), which is the whole point:
+    /// until this shipped, the session was armed at launch on every install with no
+    /// control anywhere. A capability with no switch is not a feature, and an inbound
+    /// network listener with no switch is not a default anyone chose.
+    ///
+    /// `Toggle`, not `EchoelValueField`: the app-wide field law covers adjustable
+    /// NUMERIC parameters. This is a binary route on/off, same grammar as the other
+    /// route switches on this surface.
+    private var networkMIDISection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Network MIDI").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(isOn: $networkMIDI) {
+                    Text("Receive wireless MIDI")
+                        .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                }
+                .tint(EchoelTheme.accent)
+                Text(networkMIDI
+                     ? "This iPhone accepts a MIDI session from any device on your local network — a Mac's Network MIDI, rtpMIDI, or a compatible app. Turn it off when you are on a network you do not control."
+                     : "Off. This iPhone does not announce itself for wireless MIDI and accepts no incoming session. Turn it on to play the instrument from a Mac or another device over the network.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            // Apply on change, from the SAME entry point launch uses, so the switch
+            // and the live session can never disagree. @AppStorage has already written
+            // the key by the time this fires.
+            .onChange(of: networkMIDI) { _, _ in MIDIInput.applyNetworkSessionPreference() }
+        }
+    }
+    #endif
+
 
     #if canImport(Network)
     // MARK: - Netzwerk-Ausgabe (rank #1: OSC / ADM-OSC / sACN / Art-Net target config)
