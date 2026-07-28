@@ -19,6 +19,18 @@ final class RetroCapture {
     private(set) var recordingSeconds = 0
     private(set) var lastURL: URL?
 
+    /// Set when the tap could not write a buffer to disk — a full volume, a revoked
+    /// container, a closed file. Cleared once a recording actually STARTS (not when one
+    /// is merely attempted: the file/format/pre-roll steps ahead of it can throw, and
+    /// those failures are reported by `startRecording` itself, not through this latch).
+    ///
+    /// WHY THIS EXISTS AT ALL. The write error used to be caught and logged and NOTHING
+    /// else: `isRecording` stayed true, the REC pill kept counting, and the take was
+    /// quietly short or empty. That is the lying-control class — the same failure as a
+    /// record button armed over a renderer that is not capturing. A performer must find
+    /// out during the take, not when opening the file afterwards.
+    private(set) var writeFailed = false
+
     /// Downsampled waveform for UI display — 200 RMS values spanning last 30s.
     /// Updated every 500ms via waveformTimer.
     private(set) var waveformSamples: [Float] = Array(repeating: 0, count: 200)
@@ -44,6 +56,21 @@ final class RetroCapture {
 
     nonisolated(unsafe) private let activeFile: UnsafeMutablePointer<AVAudioFile?>
     nonisolated(unsafe) private let isActive: UnsafeMutablePointer<Bool>
+
+    /// Raised by the tap on the FIRST failed write, read by the 2 Hz waveform timer.
+    ///
+    /// A plain `Bool` cell, matching `isActive` next to it, because the traffic here is
+    /// one writer (the tap) and one reader (the main actor) exchanging a latch that only
+    /// ever goes false→true within a take. A torn read is not expressible for a Bool and
+    /// a late read costs at most half a second.
+    ///
+    /// The tap sets it and then STOPS attempting writes. That is the point: without it,
+    /// a disk that filled mid-take produced one failed write, one `String(describing:)`,
+    /// one `localizedDescription` (a bundle lookup) and one log allocation PER BUFFER —
+    /// ~12 times a second for the rest of the take, on the tap thread, while the take was
+    /// already lost. Error handling that gets more expensive the longer the error lasts
+    /// is a load source, not a diagnostic.
+    nonisolated(unsafe) private let writeFailure: UnsafeMutablePointer<Bool>
 
     private var timer: Timer?
     private var waveformTimer: Timer?
@@ -71,6 +98,9 @@ final class RetroCapture {
 
         isActive = .allocate(capacity: 1)
         isActive.initialize(to: false)
+
+        writeFailure = .allocate(capacity: 1)
+        writeFailure.initialize(to: false)
     }
 
     deinit {
@@ -83,6 +113,7 @@ final class RetroCapture {
         ringWriteFrame.deallocate()
         activeFile.deallocate()
         isActive.deallocate()
+        writeFailure.deallocate()
     }
 
     // MARK: - Tap installation
@@ -105,6 +136,7 @@ final class RetroCapture {
         let writePtr  = ringWriteFrame
         let filePtr   = activeFile
         let activePtr = isActive
+        let failPtr   = writeFailure
         let cap       = ringCapacity
 
         node.installTap(onBus: 0, bufferSize: 4096, format: format) { @Sendable buffer, _ in
@@ -123,9 +155,26 @@ final class RetroCapture {
             writePtr.pointee = Int64(frame)
 
             // --- if recording: write to disk file ---
-            guard activePtr.pointee, let file = filePtr.pointee else { return }
-            do { try file.write(from: buffer) }
-            catch { log.log(.error, category: .audio, "RetroCapture write error: \(error.localizedDescription)") }
+            //
+            // The ring above ALWAYS fills, whatever happens here — the pre-roll must
+            // survive a failed take so the next attempt still has its 30 s of history.
+            //
+            // `failPtr` short-circuits after the first failure, and that is the fix, not
+            // a micro-optimisation. Previously a full volume produced a failed write plus
+            // a `localizedDescription` (a bundle lookup) plus a log allocation on EVERY
+            // buffer — ~12 times a second, on the tap thread, for the rest of a take that
+            // was already lost. Error handling whose cost grows with the error's duration
+            // is a load source. One line, once, then quiet.
+            guard activePtr.pointee, !failPtr.pointee, let file = filePtr.pointee else { return }
+            do {
+                try file.write(from: buffer)
+            } catch {
+                // Raise the latch BEFORE logging: the log call is the expensive part and
+                // the flag is what stops the next buffer from repeating it.
+                failPtr.pointee = true
+                log.log(.error, category: .audio,
+                        "RetroCapture write failed — recording stops writing: \(error.localizedDescription)")
+            }
         }
 
         log.log(.info, category: .audio,
@@ -141,6 +190,22 @@ final class RetroCapture {
     // MARK: - Waveform
 
     private func updateWaveform() {
+        // The 2 Hz timer is how a failed write reaches the user DURING a take (the other
+        // lift is in `stopRecording`, for a failure in the last half-second). Adding a
+        // dedicated timer for a flag that flips at most once would be worse than half a
+        // second of latency on a take that is already lost.
+        //
+        // Deliberately NOT gated on `isRecording`: the latch can only be raised while the
+        // tap was armed, so that term added nothing and only created a window where a
+        // late failure went unreported.
+        //
+        // Written only on the false→true transition — `waveformSamples` below is written
+        // every tick, but `@Observable` tracks per keypath, so a view reading ONLY
+        // `writeFailed` does not become a 2 Hz observer. Anything reading
+        // `waveformSamples` from a floating/overlay view WOULD (freeze law).
+        if writeFailure.pointee, !writeFailed {
+            writeFailed = true
+        }
         let totalFrames = ringCapacity
         let endFrame   = Int(ringWriteFrame.pointee)
         let startFrame = max(0, endFrame - totalFrames)
@@ -187,6 +252,16 @@ final class RetroCapture {
             if preRoll > 0 {
                 try writePreRollToFile(file, format: format, seconds: preRoll)
             }
+
+            // Clear the latch BEFORE arming, so the first armed buffer starts from a
+            // known-false state. ⛔ The first version of this comment justified the order
+            // with a race that cannot happen — the tap tests `activePtr.pointee` first
+            // and that is still false here, so no buffer can reach the write path yet.
+            // The ordering is kept anyway, as defence for the day someone moves the arm
+            // earlier; the wrong reason is removed because it is what a future edit would
+            // have reasoned from.
+            writeFailure.pointee = false
+            writeFailed          = false
 
             activeFile.pointee = file
             isActive.pointee   = true
@@ -255,6 +330,13 @@ final class RetroCapture {
         isActive.pointee  = false
         timer?.invalidate()
         timer = nil
+
+        // Lift the latch HERE too, not only from the 2 Hz tick. Without this, a write
+        // that failed in the last half-second of a take is never surfaced at all: stop
+        // clears `isRecording`, the next tick finds nothing to report, and the caller
+        // exports a truncated file as if it were good. Short takes are exactly the ones
+        // a full volume produces, so this is the common case, not the corner.
+        if writeFailure.pointee { writeFailed = true }
 
         // Close file off the audio callback path
         let closedFile = activeFile.pointee

@@ -340,7 +340,15 @@ struct FloatingVisualWindow: View {
     /// both recorders must be recognizable).
     @ViewBuilder private var wavRecordControl: some View {
         HStack(spacing: 5) {
-            if wavRecording {
+            if wavRecording && audioEngine.retroCapture.writeFailed {
+                // The take stopped reaching disk (a full volume, a revoked container).
+                // Showing the running clock here would be the lying-control class: the
+                // number would keep climbing while nothing more is being written. Say it
+                // instead, in the one place the performer is already looking.
+                Text("WAV FAILED")
+                    .font(EchoelTheme.font(10, .semibold))
+                    .foregroundStyle(Color.red)
+            } else if wavRecording {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let elapsed = max(0, wavRecordStart.map { context.date.timeIntervalSince($0) } ?? 0)
                     Text("WAV \(recTimeString(elapsed))")
@@ -361,6 +369,8 @@ struct FloatingVisualWindow: View {
             .buttonStyle(.plain)
             .disabled(wavExporting)
             .accessibilityLabel(wavRecording ? "Stop WAV audio recording" : "Record lossless WAV audio")
+            .accessibilityValue(wavRecording && audioEngine.retroCapture.writeFailed
+                                ? "Writing to disk failed" : "")
         }
     }
 

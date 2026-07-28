@@ -192,9 +192,21 @@ public final class LoopExporter {
     /// mid-session is exactly when that format/file creation can fail.
     private func finishRecording(_ engine: AudioEngine) async -> URL? {
         guard engine.retroCapture.isRecording else { return nil }
-        return await withCheckedContinuation { continuation in
+        let url = await withCheckedContinuation { continuation in
             engine.retroCapture.stopRecording { continuation.resume(returning: $0) }
         }
+        // The tap may have stopped reaching disk mid-take (full volume, revoked
+        // container). `stopRecording` lifts that latch, so it is readable HERE and
+        // nowhere earlier. Without this check the export continues over a truncated or
+        // empty file: trim, LUFS-normalise the fragment, and present it as a finished
+        // loop. The floating WAV button already shows the failure; this path is the more
+        // prominent one and had no signal at all.
+        if engine.retroCapture.writeFailed {
+            status = .failed("Recording could not be written to disk")
+            if let url { try? FileManager.default.removeItem(at: url) }
+            return nil
+        }
+        return url
     }
 
     /// Undo everything `exportWav` started: the transport it began, the recording it
@@ -258,7 +270,11 @@ public final class LoopExporter {
         // whenever `startRecording` failed silently, only after the whole take had elapsed.
         let cafURL = await finishRecording(engine)
         guard let cafURL else {
-            status = .failed("Capture failed")
+            // `finishRecording` may already have set a SPECIFIC reason (the tap stopped
+            // reaching disk). Do not paper that over with the generic line — "Capture
+            // failed" tells the user nothing they can act on, "could not be written to
+            // disk" tells them to free space.
+            if case .failed = status {} else { status = .failed("Capture failed") }
             return nil
         }
 
