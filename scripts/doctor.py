@@ -300,9 +300,24 @@ def section_b() -> Section:
 
     docs = sorted(tracked(".claude/commands/*.md") + tracked(".claude/skills/*/SKILL.md"))
     path_like = re.compile(r"`(Sources/[\w/.*-]+|Tests/[\w/.*-]+|scripts/[\w/.-]+)`")
+    # A document that EXPLAINS a deletion has to name the deleted path. Flagging that is the
+    # cry-wolf failure in its most circular form: the doctor accusing the correction it asked
+    # for. So an obituary on the line exempts the paths ON THAT LINE.
+    #
+    # ⛔ The first version widened this to a ±2-line neighbourhood, and that was measurably
+    # worse than useless: it exempted 3 LIVE paths and caught no additional stale one. Among
+    # the three was `Sources/Echoelmusic/Tools/` — the path the very same commit ADDED as the
+    # replacement for the deleted AUv3 scan paths — because the sentence explaining the old
+    # paths sat two lines below it. Rename or empty `Tools/` and the doctor would have said
+    # clean forever. Same line is also the only form that PROVES the note is about that path;
+    # a nearby sentence can be about anything.
+    obituary = re.compile(r"deleted|removed|no longer|never existed|does not exist|gone with", re.I)
     stale: list[str] = []
     for doc in docs:
-        for i, line in enumerate(read(doc).splitlines()):
+        lines = read(doc).splitlines()
+        for i, line in enumerate(lines):
+            if obituary.search(line):
+                continue
             for m in path_like.finditer(line):
                 raw = m.group(1)
                 base = raw.split("*")[0].rstrip("/")
@@ -322,12 +337,31 @@ def section_b() -> Section:
     # either be skipped or produce a confusing error — either way its check does not happen.
     has_swift = shutil.which("swift") is not None
     if not has_swift:
+        # ⛔ Report only a step with NO fallback. Most of these commands are already
+        # platform-aware — `/scan`, `/debug`, `/ship`, `/testflight-deploy` each give the
+        # macOS command AND the CI route beside it, and flagging those was the cry-wolf
+        # failure again: 17 lines reported where 5 were real. The defect is a step that
+        # cannot run here and offers nothing instead.
+        #
+        # ⛔ Scope the search to the ENCLOSING `###` section, not a fixed line window. The
+        # first version used i-10:i+12 and let a real offender through: `/test` section 4
+        # ("Full Suite Fallback") offers no CI route at all, but inherited the exemption from
+        # the `**Linux/web:**` line in section 3 ten lines above. A fallback in a DIFFERENT
+        # step is not a fallback for this one.
+        fallback = re.compile(r"linux|web.session|no xcode|CI will|platform-aware|gh-run-status"
+                              r"|check .*CI|GitHub API", re.I)
         offenders: list[str] = []
         for doc in sorted(tracked(".claude/commands/*.md")):
-            body = read(doc)
-            for i, line in enumerate(body.splitlines()):
-                if re.search(r"^\s*swift\s+(build|test)\b", line):
-                    offenders.append(f"{rel(doc)}:{i + 1}  {line.strip()}")
+            lines = read(doc).splitlines()
+            heads = [k for k, ln in enumerate(lines) if ln.startswith("###")]
+            for i, line in enumerate(lines):
+                if not re.search(r"^\s*swift\s+(build|test)\b", line):
+                    continue
+                start = max([k for k in heads if k <= i], default=0)
+                end = min([k for k in heads if k > i], default=len(lines))
+                if fallback.search("\n".join(lines[start:end])):
+                    continue
+                offenders.append(f"{rel(doc)}:{i + 1}  {line.strip()} — and no CI route beside it")
         if offenders:
             sec.findings.append(Finding(
                 WARN,

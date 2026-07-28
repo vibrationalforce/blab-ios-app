@@ -6,7 +6,12 @@ overflows the tool-result budget and gets spilled to a file. Reading that file
 back blows context. This helper parses the SAVED file (path printed in the
 overflow message) and prints just what a deploy decision needs:
 
-    <sha7>  <status>  <conclusion>  <run_id>  <display_title>
+    <sha7>  <status>  <conclusion>  <run_id>  <workflow name>  <display_title>
+
+The WORKFLOW NAME column is not decoration. For a push run GitHub sets `display_title`
+to the commit-message headline, so a title-only listing can never answer "is Xcode
+Compile Check green?" — and that is the question every one of our commands tells the
+agent to ask. `name` is the workflow's own `name:` field, which is what to match on.
 
 Usage:
     python3 scripts/gh-run-status.py <saved-tool-result.json> [--limit N]
@@ -38,7 +43,8 @@ def _rows(data):
             r.get("status", "?"),
             r.get("conclusion") or "-",
             r.get("id", "?"),
-            (r.get("display_title") or r.get("name") or "")[:60],
+            (r.get("name") or "?")[:30],
+            (r.get("display_title") or "")[:44],
         )
 
 
@@ -64,8 +70,8 @@ def main(argv):
     rows = list(_rows(data))
     if limit:
         rows = rows[:limit]
-    for sha, status, concl, rid, title in rows:
-        print(f"{sha}  {status:<12} {concl:<10} {rid}  {title}")
+    for sha, status, concl, rid, wf, title in rows:
+        print(f"{sha}  {status:<12} {concl:<10} {rid}  {wf:<30} {title}")
     return 0
 
 

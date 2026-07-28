@@ -49,12 +49,27 @@ echo "Affected tests: [list]. Run on macOS or trigger CI."
 
 ### 4. Full Suite Fallback
 
-If changed file is a protocol, base class, or shared utility — run full suite:
+If changed file is a protocol, base class, or shared utility, the whole suite is in scope.
+
+**On macOS with Xcode:**
 ```bash
 swift test 2>&1
 ```
 
-Always run full suite before `/ship`.
+**Linux/web — which is every session here:** there is no toolchain, so the full suite is
+reachable only through CI, and only through the NON-BLOCKING one. Push, then read its log
+lines — not its checkmark, which `continue-on-error` keeps green even when nothing compiled:
+```bash
+python3 scripts/gh-run-status.py <saved-tool-result.json>
+# then in the Echoel Full Test Suite (non-blocking) job summary:
+#   - build-for-testing:      <-- must say success
+#   - test-without-building:  <-- must say success
+```
+This section had no CI route at all until 2026-07-28 — it inherited the `**Linux/web:**` line
+from section 3 above and looked covered. `/ship` was therefore told to "always run the full
+suite" with an instruction that cannot execute here.
+
+Always establish the full-suite result before `/ship`.
 
 ### 5. Report
 

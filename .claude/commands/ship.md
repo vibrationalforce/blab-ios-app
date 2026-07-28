@@ -66,12 +66,15 @@ swift build 2>&1
 swift test 2>&1
 ```
 
-**On Linux/web sessions:**
-Check latest CI build and test results via GitHub API:
+**On Linux/web sessions — which is every session here:**
+Same instrument as `/verify` and `/tdd`, so all three files read the gates the same way:
 ```bash
-GITHUB_TOKEN=$(python3 -c "import json; print(json.load(open('.claude/settings.local.json'))['github']['token'])" 2>/dev/null)
-gh run list --workflow ci.yml --limit 3 --json status,conclusion,headBranch
+# saved from mcp__github__actions_list (the raw response overflows context)
+python3 scripts/gh-run-status.py <saved-tool-result.json>   # sha status conclusion run_id WORKFLOW-NAME title
 ```
+
+The old line here was `gh run list --workflow ci.yml` — one workflow out of four, and it cannot
+show the two Full-Test-Suite log lines Step 7 asks you to quote.
 
 Must pass with zero errors. **If any test fails → STOP.**
 
@@ -165,24 +168,39 @@ git push -u origin $(git branch --show-current)
 
 ## Step 7: Create PR
 
+⛔ **Everything between the `<<'EOF'` and the closing `EOF` is PUBLISHED as the PR body.** Do not
+put instructions to yourself in there — the first version of this template did, and every PR
+Echoel opened would have carried a paragraph addressed to the agent. Notes for the agent go
+here, above the fence; only the filled-in template goes inside.
+
+Filling it in:
+- Every box starts UNCHECKED. Tick a box only for a check you actually ran in this session.
+  A pre-ticked `PASS` is a claim without a measurement — which is the exact defect this
+  template exists to prevent.
+- Never write `swift build: PASS`. Nothing in this environment can run it.
+- For the Full Test Suite quote the LOG LINES, never the checkmark: `continue-on-error` sits on
+  its build step, so the conclusion is green even when nothing compiled.
+
 ```bash
 gh pr create --base $_BASE --title "<type>: <summary>" --body "$(cat <<'EOF'
 ## Summary
 <bullet points describing what shipped>
 
 ## Echoelmusic Checks
-- [x] iOS 26 SDK validated (ITMS-90725)
-- [x] Audio thread safety audit: PASS
-- [x] Bio-safety compliance: PASS
-- [x] Crash path scan: PASS
-- [x] Performance baseline: documented
+- [ ] iOS 26 SDK validated (ITMS-90725)
+- [ ] Audio thread safety audit: <result>
+- [ ] Bio-safety compliance: <result>
+- [ ] Crash path scan: <result>
+- [ ] Performance baseline: <documented / not measured>
 
 ## Pre-Landing Review
 <findings from Step 3.5, or "No issues found.">
 
 ## Test Results
-- [x] swift build: PASS
-- [x] swift test: PASS (N tests)
+- [ ] Xcode Compile Check: <conclusion> (sha: <sha7>)
+- [ ] Echoelmusic CI/CD Pipeline: <conclusion> (sha: <sha7>)
+- [ ] Echoel Full Test Suite (non-blocking): `build-for-testing: <outcome>` /
+      `test-without-building: <outcome>`
 
 ## Test plan
 <what to verify on device>
