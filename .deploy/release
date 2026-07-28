@@ -1,70 +1,87 @@
-build: v10.79.354 — Wahrheits-Deploy: 23 Commits, die nie auf Dein Gerät kamen
+build: v10.79.355 — acht Commits, und ein Fehler, den erst ihr Zusammenspiel erzeugt hat
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Du hast gesagt: „Alles überprüfen! Repo, Website angleichen und abgleichen dann
-  TestFlight deploy." Das ist der Deploy danach. Vier Teams haben Code, Website,
-  Repo-Gedächtnis und Ship-Bereitschaft gegeneinander geprüft; umgesetzt habe ich
-  nur die Befunde, die sich gegen den echten Quelltext halten liessen.
+  ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
+  sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
+  nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
+  still unter der alten Version und landet in TestFlight UNTER dem vorherigen — genau so
+  ist es schon einmal passiert. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  ZUERST DAS WICHTIGSTE ZUM HÖREN — der Limiter war ein Hard-Clipper.
-  Seit v353 lagen 23 Commits ungeliefert auf dem Branch, darunter VIER, die direkt
-  am Klang hängen. Die kommen jetzt alle mit:
+  Der letzte Build auf Deinem Gerät ist 10.79.354. Seither lagen acht Commits hier und
+  keiner davon war bei Dir. Sie kommen jetzt alle mit.
 
-  1) „Es knistert. Wie CPU overload bei Ableton." — die Ursache war nicht die CPU.
-     Der Master-Limiter rechnete g = ceiling/peak pro Sample, ohne jede Ballistik.
-     Das ist algebraisch ein harter Clipper: er hat die Spitzen abgeschnitten statt
-     die Wellenform zu skalieren, und bei 48 kHz ohne Oversampling falten sich die
-     ungeraden Oberwellen als inharmonisches Rauschen zurück — genau das Knistern.
-     Jetzt: Peak-Hüllkurve + Attack/Release. Gemessen (bit-genaue Simulation, 200 Hz
-     Sinus 12 dB über dem Ceiling): 3. Oberwelle −31,2 → −73,4 dBc, inharmonischer
-     Boden −80,4 → −90,7 dB. Die Hüllkurve allein bringt 35 der 42 dB.
-     ⚠ Das ist compile-verifiziert, NICHT geräteverifiziert. Bitte hör hin, ob das
-     Knistern wirklich weg ist — und ob auf dünnem Flow-Material jetzt etwas pumpt
-     (die Erholung ist effektiv ~2× der nominellen Release-Zeit, offener Punkt #199).
+  ZUERST DAS, WAS DU SOFORT SIEHST.
 
-  2) EIN EINZIGES NaN KONNTE DIE APP FÜR IMMER STUMM SCHALTEN. Der Kompressor
-     schrieb ein nicht-endliches Sample in seinen eigenen Gain-Zustand; ab da war
-     jedes weitere Sample NaN, bis zum Neustart. Kein Crash, kein Log — nur Stille.
-     Beide Dynamikstufen prüfen jetzt ihre Eingänge, bevor sie Zustand anfassen.
+  1) DAS HAUPTFENSTER LIEST SICH ALS INSTRUMENT, NICHT ALS FORMULAR. Der Start-Knopf saß
+     zwischen der Chip-Leiste und der Platte darunter — und hat damit das eine Objekt,
+     die Reiter plus die Fläche, die sie umschalten, mittendurch geschnitten. Er sitzt
+     jetzt darunter: er verankert, statt zu teilen, und liegt einhändig in Daumenreichweite.
+     Die dünne Trennlinie unter den Chips ist weg; sie war die Unterkante einer MENÜLEISTE,
+     also genau die Grammatik, die wir loswerden wollten. Die ganze Bedienplatte rutscht
+     dadurch etwa eine Daumenbreite nach oben.
 
-  3) DIE MICRO-VARIATION WAR 3× ZU WEIT. Mein eigenes „lebt wie ein echtes
-     Instrument"-Feature hatte einen Rechenfehler (2^52 statt 2^53), der die
-     Anschlagstärke bis 1,12 statt 1,04 aufziehen konnte — also genau die
-     Lautstärke-über-Velocity-Falle, die wir dreimal repariert haben.
+  2) DAS SCHWEBENDE VISUAL-FENSTER BEMISST SICH ADAPTIV. Es rechnete sich vorher als zwei
+     UNABHÄNGIGE Bruchteile des Containers aus, mit Mindestwerten, die im Querformat
+     gebunden haben statt der Bruchteile. „Klein" kam auf einem Querformat-iPhone als
+     324 × 120 pt heraus, davon 44 pt Leiste — ein 324 × 76 pt Bild. Dieses Bild IST die
+     Spielfläche, der Briefschlitz hat also die Achse plattgedrückt, die die Oktavhöhe
+     trägt. Jetzt folgt es der Ausrichtung des Containers, in ein brauchbares
+     Seitenverhältnis geklemmt. Klein und mittel sind spürbar höher als vorher.
 
-  4) DER LEVEL-REGLER DER SPIELFLÄCHE WURDE ANGEZEIGT, ABER NIE ANGEWENDET.
-     Nach einem Neustart stand die gespeicherte Zahl im Feld und die Stimme lief
-     trotzdem auf Werksgain. Dieselbe Klasse wie der Bass-Fader von gestern.
+  UND JETZT DER FEHLER, DEN DAS AUDIT VOR DEM DEPLOY GEFANGEN HAT — weil er zeigt, wie
+  diese beiden je für sich richtigen Änderungen zusammen etwas Falsches ergeben haben.
+  Der Knopf wanderte an den unteren Rand. Das Fenster dockt unten rechts. Zusammen lag
+  die Karte auf den rechten ~40 % Deines wichtigsten Controls. Das ist schlimmer als eine
+  gewöhnliche Überlappung: die Karte ist die SPIELFLÄCHE, ein Tipp im verdeckten Streifen
+  hat den Knopf also nicht verfehlt, sondern eine Synth-Note gespielt statt Biofeedback zu
+  starten. Und es wäre das Erste gewesen, was Du triffst — beim Verlassen des Vollbilds
+  landet das Fenster direkt auf „klein". Behoben: die Karte parkt jetzt um die Höhe des
+  Steuerbands höher. Nur die VOREINSTELLUNG — Du kannst sie weiterhin überall hinziehen,
+  auch zurück über den Knopf. Kein Einzel-Review hätte das gesehen; es entsteht erst,
+  wenn man beide Änderungen gemeinsam anschaut.
+  Nachgerechnet: 16 pt Abstand im Hochformat bei „klein", unabhängig von der Bildschirm-
+  größe. Zwei Grenzen sage ich dazu, statt sie zu verschweigen: bei „groß" im QUERFORMAT
+  können ein paar Punkte Überlappung bleiben, und eine Karte, die Du schon einmal selbst
+  gezogen hast, behält ihre Position — das ist Absicht, Deine Platzierung gehört Dir.
 
-  DAZU DIE APP-STORE-BREMSE, DIE DAS TEAM GEFUNDEN HAT. Der HealthKit-Dialog —
-  genau der Text, den ein Apple-Prüfer bei einer Health-App liest — sagte: „wenn Du
-  OSC oder ADM einschaltest, werden die aktuellen Bio-Werte auch über Dein lokales
-  Netz gesendet". Für Health-Daten ist das FALSCH, und zwar mit Absicht falsch:
-  `BioEgressPolicy` blockiert Apple-Health/Watch/Oura an allen acht Sendestellen.
-  Ein Health-Dialog, der freiwillig eine 5.1.3-Verletzung einräumt, die es gar
-  nicht gibt, ist ein vermeidbares Ablehnungsrisiko. Text korrigiert. Der Egress-
-  Satz steht jetzt dort, wo er WAHR ist (lokales Netz, Kamera-/Gurt-Quellen) —
-  samt der bisher fehlenden Angabe, dass Netzwerk-MIDI eingehend offen ist.
+  WAS SICH SONST GEÄNDERT HAT.
 
-  WEBSITE UND REPO SIND JETZT EHRLICH. Die grösste Lüge war „Bewegung":
-  echoelmusic.com bewarb an elf Stellen Bewegung/Motion/„Dance" als Bio-Eingang,
-  obwohl JEDER Publisher `motionEnergy: 0` schreibt und es keinen CoreMotion-
-  Provider gibt — die beworbene ADM-OSC-Zuordnung „Motion → Gain" ist deshalb eine
-  Konstante. Ausserdem: „zehn generative Looks" (es sind vier erreichbare),
-  „modal & cellular voices" (beide erzeugen heute keinen Ton), RTMP dreifach
-  widersprüchlich, MIDI-Export fälschlich als Roadmap statt als ausgeliefert.
-  Alles korrigiert. Im Repo standen CLAUDE.md und memory/ noch auf dem alten
-  All-in-One-Produktionssuite-Kurs, der mit #121 demontiert wurde — inklusive
-  einer Modifier-Zählung, die zwei Slots Kopffreiheit vorgaukelte, die es nicht
-  gibt (das ist der Weg zurück zum Black Screen).
+  DRAHTLOSES MIDI IST JETZT STANDARDMÄSSIG AUS. Wenn ein Mac Dir bisher über WLAN Noten
+  geschickt hat, ist diese Verbindung nach dem Update tot, bis Du sie EINMAL wieder
+  einschaltest: Routing → „Wireless MIDI session". Das ist die Umsetzung Deiner
+  Entscheidung vom 27.7. und kein Fehler — aber es sieht wie einer aus, wenn man es nicht
+  weiß. Der Schalter schließt übrigens BEIDE Richtungen: das Telefon nimmt keine Sitzung
+  mehr an und erscheint auch nicht mehr als drahtloses MIDI-Ziel. Der Text am Schalter sagte
+  nur die halbe Wahrheit und sagt jetzt beide.
 
-  WAS IN DIESEM BUILD BEWUSST NICHT DRIN IST, obwohl gefunden: das iPad bleibt im
-  Universal-Binary (ohne Blitz keine Fingerkuppen-Messung; drei andere Bio-Quellen
-  funktionieren dort), Netzwerk-MIDI ist weiter standardmässig offen statt hinter
-  einem Schalter (#187), und die neun deklarierten Bonjour-Dienste inklusive
-  `_rtsp._tcp` stehen noch in der Info.plist. Alles drei ändert Verhalten oder
-  Build-Konfiguration und gehört nicht in einen Build, den Du auf Klang hörst.
+  DIE FARBE DER TÖNE IST ÜBERALL DIESELBE SPRACHE. Es gab zwei nebeneinander: einen frei
+  erfundenen „Tonhöhe → Farbton"-Kreis und den echten Weg, der die Frequenz eines Tons um
+  ganze Oktaven ins sichtbare Licht transponiert (CIE 1931, Akkorde amplitudengewichtet in
+  OKLab gemischt). Der erfundene ist gelöscht. Licht über Art-Net/sACN und das Bild sprechen
+  jetzt dieselbe. Sichtbar ändert sich für Dich nichts — der gelöschte Weg war in dem Build,
+  den Du hast, ohnehin unbenutzt. Der App-Store-Text bewarb ihn namentlich; auch korrigiert.
 
-  Beide echten Gates grün auf 5c6a06e (Xcode Compile Check + CI/CD Pipeline);
-  die 305-Datei-Testsuite läuft mit. Rausch-Triad unberührt, kein Heilungs-Claim,
-  Audio-Thread weiterhin lock- und allokationsfrei.
+  DER AKKU-REGLER HATTE KEINE SCHLEIFE. Man konnte die Bio-Abtastrate herunterdrehen und
+  niemand hat zugehört. Jetzt greift sie — aber nur bei kritischer Hitze oder unter 10 %
+  Akku, und nur auf EINE Netzwerkausgabe. Im normalen Betrieb merkst Du nichts.
+
+  WAS ICH NICHT WEISS, UND DU MIT EINEM BLICK.
+  · Auf kurzen Reitern (Export, FX, Mood, Bio) steht die schwarze Leere jetzt ZWISCHEN
+    Karte und Knopf statt am Fensterende. Nicht neu entstanden, nur umgezogen. Ob der
+    Knopf dadurch losgelöst statt verankernd wirkt, entscheidet Dein Auge.
+  · Auf dem Bio-Reiter liegt weder Linie noch Kartenkante unter der Chip-Leiste — es ist
+    das einzige Panel ohne eigene Karte. Die Chips tragen eigene Ränder, es sollte halten.
+  · Aus dem Vorgängerbuild noch offen: knistert der Limiter wirklich nicht mehr? Und pumpt
+    dünnes Flow-Material jetzt? Beides braucht Dein Ohr, nicht meine Messung.
+
+  EIN FUND, DEN DU VOR DEM LOOP-TESTEN WISSEN SOLLTEST (nicht neu, nicht aus diesem Build):
+  „Keep last 16 bars" und „Keep last 32 bars" KÖNNEN bei normalem Tempo nicht funktionieren.
+  Der Zwischenspeicher ist 30 Sekunden lang, ein Takt bei 120 BPM sind 2 Sekunden — die
+  Obergrenze liegt also bei knapp 15 Takten. Die App lehnt es korrekt ab, verschluckt die
+  Meldung aber: Du tippst, und es passiert nichts, ohne Hinweis. Steht als #200 auf der
+  Liste, zusammen mit Deinem Wunsch nach 2/4/8/16/32/64 Takten.
+
+  Beide echten Gates grün auf 6c9ca28 (Xcode Compile Check + CI/CD Pipeline); die
+  306-Datei-Testsuite läuft mit. Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Thread
+  weiterhin sperr- und allokationsfrei. Alles hier ist compile-verifiziert, NICHT
+  geräteverifiziert — Layout und Farbe sind genau die Klasse, die man sehen muss.
