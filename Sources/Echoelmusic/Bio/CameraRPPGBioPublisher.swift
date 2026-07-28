@@ -1159,10 +1159,17 @@ public final class CameraRPPGBioPublisher {
         publishTask?.cancel()
         publishTask = nil
         capture.onSessionReset = nil
+        // Detach the frame sink BEFORE tearing the session down, so the analyzer stops
+        // being fed the moment we decide to stop rather than whenever `stop()`'s async
+        // teardown happens to land. NOTE what this ordering is and is not: it is hygiene,
+        // NOT the safety guarantee. `CameraCapture.stop()` returns immediately (the work
+        // is on `sessionQueue`), so frames can still be in flight either way — what makes
+        // that safe is `LockedBox` (#213), not this line. Reading the order as the fix is
+        // exactly the mistake the first draft of that fix made.
+        capture.onFrame = nil
         capture.setTorch(false)
         capture.unlockExposure()       // leave the device back in auto for next time
         capture.stop()
-        capture.onFrame = nil
         sampleQueue.clear()            // drop any frames buffered but not yet drained
         analyzer.stopPulseDetection()
         isRunning = false

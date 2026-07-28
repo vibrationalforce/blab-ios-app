@@ -14,8 +14,20 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     private let captureQueue = DispatchQueue(label: "com.echoelmusic.camera.capture", qos: .userInitiated)
     private let sessionQueue = DispatchQueue(label: "com.echoelmusic.camera.session")
 
-    /// Called for each captured frame (on captureQueue — NOT main thread)
-    nonisolated(unsafe) var onFrame: ((CVPixelBuffer) -> Void)?
+    /// Called for each captured frame (on captureQueue — NOT main thread).
+    ///
+    /// Behind a `LockedBox` rather than `nonisolated(unsafe)`, because the owner nils
+    /// this from the MainActor (`CameraRPPGBioPublisher.stop()`) while a delivery can be
+    /// in flight on the capture queue. `sink?(buffer)` loads the optional and then calls
+    /// it; a `nil` assignment landing between those two steps can release the closure's
+    /// captured context under the running call — a use-after-free on the most ordinary
+    /// gesture in the app, switching biofeedback off. The `unsafe` attribute silenced the
+    /// compiler about exactly the thing that was unsafe.
+    private let frameSink = LockedBox<(CVPixelBuffer) -> Void>()
+    var onFrame: ((CVPixelBuffer) -> Void)? {
+        get { frameSink.value }
+        set { frameSink.value = newValue }
+    }
 
     // MARK: - Resilience (frame-stall watchdog + session-error recovery)
     /// Wall-clock of the last delivered frame. Written on captureQueue, read on the
@@ -38,7 +50,14 @@ final class CameraCapture: NSObject, @unchecked Sendable {
     private var torchDesired = false
     /// Called after the session is restarted/reconfigured by recovery, so the owner
     /// (rPPG publisher) can reset its exposure state machine and re-lock cleanly.
-    nonisolated(unsafe) var onSessionReset: (() -> Void)?
+    ///
+    /// Same hazard, same box as `onFrame`: fired from `sessionQueue`, nilled from the
+    /// MainActor in the same `stop()`. Rarer than a frame, not safer.
+    private let sessionResetSink = LockedBox<() -> Void>()
+    var onSessionReset: (() -> Void)? {
+        get { sessionResetSink.value }
+        set { sessionResetSink.value = newValue }
+    }
     /// Whether the owner WANTS the session running (set by start, cleared by stop;
     /// sessionQueue-only). The watchdog needs this to revive a session that DIED —
     /// the old `guard session.isRunning` made it blind exactly when a failed cold
@@ -335,7 +354,7 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                 if !self.session.isRunning { self.session.startRunning() }
                 self.lastFrameTime = CFAbsoluteTimeGetCurrent()
                 self.applyTorch()          // an interruption drops the torch
-                self.onSessionReset?()     // owner re-locks exposure cleanly
+                self.sessionResetSink.load()?()     // owner re-locks exposure cleanly
                 log.log(.info, category: .biofeedback, "Camera session resumed after interruption")
             }
         }
@@ -369,7 +388,7 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                 if !self.session.isRunning { self.session.startRunning() }
                 self.lastFrameTime = CFAbsoluteTimeGetCurrent()
                 self.applyTorch()
-                self.onSessionReset?()
+                self.sessionResetSink.load()?()
             }
         }
         sessionObservers.append(active)
@@ -432,7 +451,7 @@ final class CameraCapture: NSObject, @unchecked Sendable {
                 if !self.session.isRunning { self.session.startRunning() }
                 self.lastFrameTime = now
                 self.applyTorch()                 // an interruption drops the torch
-                self.onSessionReset?()            // owner re-locks exposure cleanly
+                self.sessionResetSink.load()?()            // owner re-locks exposure cleanly
                 return
             }
             let now = CFAbsoluteTimeGetCurrent()
@@ -489,7 +508,7 @@ final class CameraCapture: NSObject, @unchecked Sendable {
         session.startRunning()
         lastFrameTime = CFAbsoluteTimeGetCurrent()         // grace after the kick
         applyTorch()                                       // restart silently drops the torch
-        onSessionReset?()                                  // owner re-locks exposure cleanly
+        sessionResetSink.load()?()                         // owner re-locks exposure cleanly
     }
 
     /// Publisher-driven recovery: the RGB SAMPLE PIPE stalled (the analyzer got no new
@@ -544,7 +563,7 @@ extension CameraCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
     ) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         lastFrameTime = CFAbsoluteTimeGetCurrent()   // watchdog heartbeat
-        onFrame?(pixelBuffer)
+        frameSink.load()?(pixelBuffer)
     }
 }
 
