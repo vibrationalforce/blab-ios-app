@@ -2132,7 +2132,7 @@ struct EchoelStudioView: View {
         case "tuning":
             applyTuning()
         case "a4":
-            synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz); bioVoice.setTuning(a4Hz: session.a4Hz)
+            synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz); bioVoice.setTuning(a4Hz: session.a4Hz); leadSynth?.setTuning(a4Hz: session.a4Hz)
             // Note grids recolour with the concert pitch (founder
             // 2026-07-12) — push the new A4 to the roll immediately,
             // not only on the next compose, so an open/soon-opened
@@ -4174,6 +4174,7 @@ struct EchoelStudioView: View {
         laneVoiceRack.setTuning(a4Hz: session.a4Hz)   // S2-W2-5: lane subs in tune too
         touchSynth?.setTuning(a4Hz: session.a4Hz)
         bioVoice.setTuning(a4Hz: session.a4Hz)        // the global bio voice tunes too
+        leadSynth?.setTuning(a4Hz: session.a4Hz)      // the roll's lead plays the melody
         synth.apply(currentPatch)
         syncTouchSound()
         // TEMPO — bio-reactive but never jumpy. The body seeds the tempo once the pulse is
@@ -4734,6 +4735,7 @@ struct EchoelStudioView: View {
         laneVoiceRack.setTuning(a4Hz: p.a4Hz)   // S2-W2-5: lane subs in tune too
         touchSynth?.setTuning(a4Hz: p.a4Hz)
         bioVoice.setTuning(a4Hz: p.a4Hz)        // the global bio voice tunes too
+        leadSynth?.setTuning(a4Hz: p.a4Hz)      // the roll's lead plays the melody
         synth.apply(p.patch)
         syncTouchSound()
         fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: openStyle)
