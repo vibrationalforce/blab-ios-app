@@ -67,9 +67,14 @@ public struct QualitySettings: Sendable, Equatable {
     public var visualDetailScale: Float
     /// Whether the expensive spectral-donut overlay may render.
     public var allowSpectralDonuts: Bool
-    /// Bio snapshot poll rate (Hz) for UI/visual consumers.
+    /// CEILING (not a target) on the control-plane bio poll rate, in Hz. Consumed via
+    /// `PollingRateCeiling`, which can only ever LENGTHEN a loop's interval: at the
+    /// `high` tier this is 15 while every governed loop's nominal rate is 10 Hz, so
+    /// reading it as a target would speed loops up on a charging phone — spending
+    /// battery in the name of saving it.
     public var bioHz: Double
-    /// OSC / network emit rate (Hz).
+    /// CEILING on the OSC / network emit rate (Hz). No consumer yet, deliberately —
+    /// see the consumer table in `ResourceGovernor`.
     public var oscHz: Double
     /// Force a still visual (no animation) — true only at the minimal tier.
     public var reduceMotion: Bool

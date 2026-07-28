@@ -5,8 +5,26 @@
 //  Reads the OS signals the pure `AdaptiveQuality` policy needs — thermal state,
 //  Low Power Mode, battery level/charging — plus a smoothed measured render FPS from
 //  the visual, and republishes a single `QualitySettings` the whole app observes.
-//  Subsystems (MetalBioView frame rate / detail, spectral donuts, bio & OSC poll
-//  rates) read `.settings` so resource conservation is decided in ONE place.
+//  Resource conservation is decided in ONE place.
+//
+//  WHO ACTUALLY HONOURS WHICH KNOB (kept honest deliberately — the old header
+//  listed four consumers, three of which did not exist):
+//    · `visualDetailScale` + `reduceMotion` → MetalBioView.draw(in:).
+//    · `bioHz` → `OSCSender`'s bio-egress loop, via `PollingRateCeiling`. The other
+//      four 10 Hz control-plane loops are NOT opted in yet, each for a stated reason:
+//      `ModulationEngine` hardcodes `tickSeconds = 0.1` as the dt of its own
+//      smoothing filter, so slowing its loop without also measuring dt would silently
+//      double every route's time constant; `BioReactiveSynthVoice` and
+//      `PolySynthVoice` feed the synth and are held until the v10.79.354 limiter is
+//      device-auditioned; `SessionEngine` is dormant (nothing presents SessionView).
+//    · `targetFPS` → NOBODY, on purpose: reassigning MTKView.preferredFramesPerSecond
+//      reconfigures the CADisplayLink, a visible cadence hitch (see MetalBioView).
+//      It survives only as the reference the FPS-feedback demotion compares against.
+//    · `oscHz` → nobody yet. NOT an oversight: Art-Net/sACN slew per TICK
+//      (FlashGuard.slewedDimmer, maxDelta per call), so capping their rate would
+//      stretch a lighting fade 3× at the minimal tier — a show-visible change that
+//      needs its own founder-facing decision, not a drive-by.
+//    · `allowSpectralDonuts` → nobody; `SpectralDonutView` has no reachable door.
 //
 //  @MainActor @Observable: it is pure control-plane state read by SwiftUI. It never
 //  touches the audio thread. Updates are event-driven (thermal/power notifications)
@@ -51,6 +69,11 @@ public final class ResourceGovernor {
         readDeviceState()
         observeNotifications()
         recompute()
+        // `recompute()` can return WITHOUT calling `apply` (the promotion-dwell path:
+        // a charging, cool device wants `.high` immediately but must prove it for
+        // 6 s). Publish the ceiling that is actually in force either way, so the
+        // holder is never left at its uncapped launch default by that path.
+        PollingRateCeiling.setBioHz(settings.bioHz)
     }
 
     // MARK: - Device state
@@ -202,6 +225,11 @@ public final class ResourceGovernor {
     @ObservationIgnored private var pendingPromoteSince: CFTimeInterval = 0
 
     private func apply(_ next: QualitySettings) {
+        // Publish the control-plane ceiling BEFORE the equality guard. `settings` is
+        // initialised to the balanced knobs, so the very first `recompute()` on a
+        // balanced device produces an equal value and returns here — a publish behind
+        // the guard would then never run on exactly the most common launch.
+        PollingRateCeiling.setBioHz(next.bioHz)
         guard next != settings else { return }
         settings = next
         log.log(.info, category: .system,

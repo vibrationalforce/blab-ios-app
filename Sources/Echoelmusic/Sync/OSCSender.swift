@@ -79,7 +79,12 @@ public final class OSCSender {
         self.bus = bus
         connect()
         isActive = true
-        loop.start(interval: .milliseconds(100)) { [weak self] in
+        // Governed: 10 Hz nominal, but a thermally stressed or nearly empty device
+        // drops this to 5 Hz (minimal tier). Bio egress is a stream of smoothed
+        // scalars, not events with a deadline — halving its rate costs a receiving
+        // patch nothing but a coarser interpolation. `drainAndSendEvents` still
+        // drains the FULL queue on each tick, so no discrete event is lost.
+        loop.start(interval: .milliseconds(100), governedByBioCeiling: true) { [weak self] in
             guard let self, let bus = self.bus else { return }
             self.sendIfFresh(from: bus)
             self.drainAndSendEvents(from: bus)
