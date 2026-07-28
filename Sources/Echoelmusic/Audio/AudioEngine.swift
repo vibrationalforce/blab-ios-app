@@ -241,6 +241,22 @@ public final class AudioEngine {
             // tap and re-prepares the recorder. A media-services reset takes taps with
             // it; resuming without redoing them is silent data loss, not silence.
             self?.isRunning = false
+            // …and immediately raise the flag that says "stopped, NOT on purpose, still
+            // rescuable". Without it this closure walks straight into the trap documented
+            // 30 lines above: `shouldSelfHeal` reads `isRunning || degraded ||
+            // wasInterrupted`, so clearing `isRunning` and setting nothing leaves all
+            // three false. If `recoverEngine` then declines — already recovering, or the
+            // attempt cap — NOTHING can rescue the engine: the config-change watchdog
+            // stands down and so does the foreground resume. Silent until relaunch, which
+            // is the exact bug `wasInterrupted` was invented for one commit ago. The name
+            // is a stretch for a dead daemon; the MEANING is precisely right.
+            self?.wasInterrupted = true
+            // A media-services reset is a NEW fault, not the continuation of a route-flap
+            // streak. The cap is shared and only clears on a successful start, so three
+            // earlier failed route recoveries (a headphone plug flapping in a pocket)
+            // would otherwise make `recoverEngine` refuse this outright — surfacing
+            // `degraded` without ever attempting a start.
+            self?.recoveryAttempts = 0
             self?.recoverEngine(reason: "media services reset")
         }
         AudioConfiguration.onRouteDeviceLost = { [weak self] in
@@ -449,11 +465,44 @@ public final class AudioEngine {
         // output trim.
         masterEngine.mainMixerNode.outputVolume = 0.89   // ≈ −1.0 dBFS
 
+        // Extracted so `start()` can RE-install it: this method sits behind the one-shot
+        // `graphPrepared` latch, so a tap installed only here can never come back after a
+        // media-services reset orphans it (review of #212).
+        //
+        // Called from BOTH places on purpose — do not "clean up" the apparent redundancy.
+        // `prepareGraph()` has five callers that are not `start()` (`attachSourceNode`
+        // and friends), so dropping it here would leave the meters dead between graph
+        // build and first start; dropping it from `start()` would leave them dead after a
+        // reset, which is the whole point. `installMeterTap` removes any previous tap
+        // first, so calling it twice costs one extra `EchoelLoudnessMeter` at startup.
+        installMeterTap()
+        log.audio("Master AVAudioEngine graph: playerNode -> masterMixer -> mainMixer -> outputNode -> hardware")
+    }
+
+    /// Install (or RE-install) the master meter tap. Idempotent by construction —
+    /// `removeTap` first, exactly like `RetroCapture.install` — because it is called
+    /// on every `start()`, not once at graph build.
+    ///
+    /// WHY IT LIVES HERE INSTEAD OF IN `setupMasterEngine`: review of #212 pointed out
+    /// that the premise of that fix condemns this tap too. A media-services reset
+    /// orphans the audio objects a tap is attached to; `setupMasterEngine` runs only
+    /// through `prepareGraph()`, which returns immediately once `graphPrepared` is set.
+    /// So a tap installed there is gone for the rest of the process. And this one is not
+    /// only the level meters and the EBU R128 readouts: it is the SOLE writer of
+    /// `_outputRing`, which feeds the immersive FFT visual. Restoring the pre-roll ring
+    /// while leaving the visual dead would have been a fix that satisfied its own
+    /// commit message and not the user.
+    private func installMeterTap() {
+        masterMixer.removeTap(onBus: 0)   // idempotent — drops a previous/orphaned tap
         let meterFormat = masterMixer.outputFormat(forBus: 0)
         if meterFormat.sampleRate > 0 && meterFormat.channelCount > 0 {
-            // Match the loudness windows to the real hardware rate. Safe to
-            // reassign here: the meter has no tap yet, so it is untouched by any
-            // other thread until installTap below.
+            // Match the loudness windows to the real hardware rate. Safe to reassign
+            // here ONLY because `removeTap` above already ran: with the tap detached,
+            // no other thread is reading these. Before the #212 extraction this said
+            // "the meter has no tap yet", which stopped being true the moment the
+            // method became re-callable — and re-matching the rate is exactly why it
+            // must be re-callable, since a media-services reset can bring the hardware
+            // back at a different sample rate.
             sampleRate = meterFormat.sampleRate
             loudnessMeter = EchoelLoudnessMeter(sampleRate: Float(meterFormat.sampleRate))
             let ptrL = _rawMeterL
@@ -536,7 +585,6 @@ public final class AudioEngine {
                 ringCountPtr.pointee = count + n
             }
         }
-        log.audio("Master AVAudioEngine graph: playerNode -> masterMixer -> mainMixer -> outputNode -> hardware")
     }
 
     func start() {
@@ -569,6 +617,10 @@ public final class AudioEngine {
         }
         if inputMonitoringEnabled { microphoneManager.startRecording() }
         startMeterPollTimer()
+        // Both taps are re-installed on EVERY start, not once at graph build, and both
+        // remove any previous tap first. A media-services reset orphans them; the graph
+        // build is behind a one-shot latch and cannot redo it (#212).
+        installMeterTap()
         retroCapture.install(on: masterEngine)
         multiTrackRecorder.prepareForRecording(engine: masterEngine)
         autoMixChain.connectMeter { [weak self] in self?.masterLevel ?? 0 }

@@ -92,16 +92,36 @@ AVAudioEngine seinen internen Graphen selbst wieder aufbaut. Ich hätte auf dies
 einen spekulativen Umbau eines Wiederherstellungspfads geschrieben, den weder CI noch ich
 auslösen können — die teuerste Sorte Fix.
 
-**Was beim genauen Hinsehen ÜBRIG BLIEB, ist kleiner und beweisbar:** der Reset-Handler rief
-`onInterruptionResume`, und diese Closure macht ein nacktes `masterEngine.start()` — nicht
-`AudioEngine.start()`. Für eine Unterbrechung ist das richtig (der Graph ist gültig, nur
-pausiert). Für einen Media-Services-Reset ist es falsch, weil der Reset die Objekte
-entwertet, auf denen die **Taps** installiert sind. `retroCapture.install(on:)` läuft nur im
-vollen `start()`-Pfad — nach einem Reset also nie wieder. Der 30-s-Vorlaufring füllt sich
-still nicht mehr, und „letzten Loop behalten" liefert Stille. Kein Absturz, keine Meldung.
-**Geshippt** als eigener `onMediaServicesReset`-Hook → `recoverEngine` (Settle-Delay,
-gedeckelter Retry, `degraded`-Anzeige). **Nur compile-verifiziert** — einen
-Media-Services-Reset kann ich hier nicht auslösen.
+**Was übrig blieb:** der Reset-Handler rief `onInterruptionResume`, und diese Closure macht
+ein nacktes `masterEngine.start()` — nicht `AudioEngine.start()`. Für eine Unterbrechung ist
+das richtig (der Graph ist gültig, nur pausiert). Für einen Reset nicht, weil er die Objekte
+entwertet, auf denen die **Taps** sitzen, und `retroCapture.install(on:)` nur im vollen
+`start()`-Pfad läuft. Folge: der 30-s-Vorlaufring füllt sich still nicht mehr, „letzten Loop
+behalten" liefert Stille. Kein Absturz, keine Meldung.
+
+**Zweite Korrektur, aus dem Review desselben Commits — ich hatte schon wieder zu viel
+behauptet.** Zwei der drei genannten Auslassungen sind wirkungslos: `prepareForRecording`
+weist nur `self.engine = engine` zu (auf ein `let`, also ein No-op), und der Meter-Timer wird
+ausschließlich in `stop()` invalidiert, lief also weiter. **Und der Tap-Verlust war unter dem
+ALTEN Code vermutlich gar nicht offen:** der Configuration-Change-Watchdog nennt
+„media-services rebuild" selbst als Auslöser und ruft `retroCapture.install`. Er griff, weil
+`onInterruptionResume` `isRunning = true` setzte. Mein erster Entwurf setzte `isRunning =
+false` — und hätte damit genau diesen Auffangnetz-Pfad **entfernt**, während der Commit
+behauptete, ihn zu reparieren.
+
+**Und die eigene Prämisse traf mehr, als der Fix abdeckte:** wenn ein Reset Taps entwertet,
+dann auch den **Meter-Tap** — und der ist nicht nur Pegelanzeige, sondern der EINZIGE
+Schreiber von `_outputRing`, das das immersive FFT-Visual speist (Ship-Gate 4). Er hing in
+`setupMasterEngine` hinter derselben Einweg-Sperre. Ein Fix, der den Vorlaufring rettet und
+das Visual tot lässt, hätte seine eigene Commit-Nachricht erfüllt und nicht den Nutzer.
+
+**Geshippt** (`f9e5d76` + Nachbesserung): eigener `onMediaServicesReset`-Hook →
+`recoverEngine`, `wasInterrupted = true` (sonst ist der Motor „nicht laufend, nicht degraded,
+nicht unterbrochen" = unrettbar), `recoveryAttempts = 0` (ein Reset ist ein neuer Fehler,
+keine Fortsetzung einer Kabel-Wackel-Serie), und `installMeterTap()` als re-installierbare
+Methode, aufgerufen aus `start()`. **Nur compile-verifiziert** — einen Media-Services-Reset
+kann ich hier nicht auslösen, und ob Taps ihn überleben, ist Schlussfolgerung aus Apples
+„orphaned objects"-Leitlinie, keine Messung.
 
 ### P3 — Struktur, nicht Symptom
 
