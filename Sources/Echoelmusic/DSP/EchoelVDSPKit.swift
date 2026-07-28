@@ -460,10 +460,91 @@ public final class EchoelConvolution: @unchecked Sendable {
 
     // MARK: - Factory Methods
 
+    /// The smallest tap count at which ALL THREE factories return a finite, non-zero
+    /// kernel. Not "the smallest that filters well" — the smallest that is defined.
+    ///
+    /// The Blackman window is zero at BOTH endpoints, so a short kernel is mostly
+    /// endpoints, and each of the counts below it fails differently and SILENTLY:
+    /// - `taps <= 0` → `[Float](repeating:count:)` **traps** on a negative count, as does
+    ///   `highpassKernel`'s `for i in 0..<taps`.
+    /// - `taps == 1` → the window divides by `Float(taps - 1)` == 0 → 0/0 → the kernel is
+    ///   **NaN**. `sum > 0` is false for NaN, so the old normalize step skipped and
+    ///   returned it as if fine.
+    /// - `taps == 2` → both taps are endpoints → windowed to zero → an all-zero kernel →
+    ///   **permanent silence**, and `sum > 0` is false for zero as well: same silence.
+    /// - `taps == 3` → finite and non-zero, but only the centre tap survives the window,
+    ///   so the lowpass normalizes to `[0, 1, 0]` — the identity. The HIGHPASS is then
+    ///   `δ − δ`, i.e. an energy of ~3e-8 (≈ −150 dBFS): silence again, just a rounding
+    ///   artefact away from exactly zero.
+    ///
+    /// So the bound is **5**: the first count with a non-endpoint tap on either side of
+    /// the centre, which is what makes the spectral inversion in `highpassKernel` produce
+    /// an actual highpass instead of a cancelled impulse. An earlier version of this
+    /// constant was 3 and its doc called that "a filter at all" — measured, it is not.
+    ///
+    /// All of this is reachable from outside the module: `EchoelDecimator(factor:
+    /// filterTaps:)` hands `filterTaps` straight through, and all three factories are
+    /// `public`.
+    public static let minimumKernelTaps = 5
+
+    /// The tap count all three factories actually use.
+    ///
+    /// They MUST agree — `bandpassKernel` adds a lowpass and a highpass element-wise over
+    /// `taps` samples, so a disagreement reads past the end of one of them. Idempotent,
+    /// so the double application (here and again inside a delegated call) is harmless.
+    ///
+    /// `| 1` FORCES AN ODD LENGTH, and that is a correctness fix, not tidiness:
+    /// `highpassKernel` does `lp[taps / 2] += 1.0`, a spectral inversion that assumes a
+    /// true integer centre tap (Type-I linear phase). An even length has no centre, so
+    /// the inversion lands off-centre and the response is wrong — a pre-existing defect
+    /// that was one line away from this, the only chokepoint all three share. No caller
+    /// is affected: the sole production call site asks for 63 and the tests for 31, both
+    /// odd. An even REQUEST now comes back one sample longer; callers read `.count`.
+    private static func usableTaps(_ taps: Int) -> Int {
+        Swift.max(minimumKernelTaps, taps) | 1
+    }
+
+    /// A kernel that changes nothing: unity at the centre tap, zero elsewhere.
+    ///
+    /// This is the fallback for every degenerate request, and the choice is deliberate.
+    /// The two alternatives are worse in this app specifically: zeros are permanent
+    /// silence (indistinguishable, at the end of the chain, from a dead audio route —
+    /// this codebase has shipped that bug), and NaN poisons every downstream accumulator
+    /// it touches. A passthrough loses the filtering and keeps the instrument audible,
+    /// which is the failure a performer can hear and a test can catch.
+    private static func passthroughKernel(taps: Int) -> [Float] {
+        var kernel = [Float](repeating: 0, count: usableTaps(taps))
+        kernel[kernel.count / 2] = 1.0
+        return kernel
+    }
+
     /// Create a lowpass FIR filter kernel
+    ///
+    /// Degenerate input (see `minimumKernelTaps`) yields a unity passthrough of at least
+    /// `minimumKernelTaps` samples rather than NaN, zeros, or a trap. INSIDE the valid
+    /// range — `taps >= 3`, finite positive `sampleRate`, `0 < cutoffHz <= Nyquist` — the
+    /// result is bit-identical to the unguarded design; this bound must not be audible.
     public static func lowpassKernel(cutoffHz: Float, sampleRate: Float, taps: Int = 127) -> [Float] {
+        let taps = usableTaps(taps)
+        // Non-finite in, non-finite out: `fc` would be inf or NaN and `sin(inf)` is NaN.
+        // Checked BEFORE the divide. `sampleRate > 0` is doing two jobs — it rejects a
+        // negative rate AND it excludes the 0/0 that is the only way a finite÷finite
+        // quotient becomes NaN.
+        guard cutoffHz.isFinite, sampleRate.isFinite, sampleRate > 0 else {
+            return passthroughKernel(taps: taps)
+        }
+        // Clamp into the only band a sampled sinc can express. Above Nyquist it aliases;
+        // at or below zero it collapses to an all-zero kernel. The lower bound is a tiny
+        // positive number rather than zero on purpose: a 0 Hz request then designs the
+        // lowest lowpass this kernel CAN express (a near-DC filter), which is what the
+        // caller asked for, instead of falling through to a passthrough that would let
+        // everything past.
+        // Argument order matters: `max(x, y)` is `y >= x ? y : x`, so the known-good value
+        // goes FIRST and a NaN can never survive the clamp (CLAUDE.md's `max(NaN, 0)`
+        // rule). The guard above already makes NaN unreachable here — this is
+        // defence-in-depth for whoever relaxes that guard, and it costs nothing.
+        let fc = Swift.min(Swift.max(1e-6, cutoffHz / sampleRate), 0.5)
         var kernel = [Float](repeating: 0, count: taps)
-        let fc = cutoffHz / sampleRate
         let m = Float(taps - 1) / 2.0
 
         for i in 0..<taps {
@@ -479,21 +560,40 @@ public final class EchoelConvolution: @unchecked Sendable {
             kernel[i] *= Float(w)
         }
 
-        // Normalize
+        // Normalize to unity DC gain.
         var sum: Float = 0
         vDSP_sve(kernel, 1, &sum, vDSP_Length(taps))
-        if sum > 0 {
-            kernel.withUnsafeMutableBufferPointer { buf in
-                guard let ptr = buf.baseAddress else { return }
-                vDSP_vsdiv(ptr, 1, &sum, ptr, 1, vDSP_Length(taps))
-            }
+        // `sum > 0` alone was NOT a guard — it was how the two silent failures escaped:
+        // the comparison is false for NaN and false for an all-zero kernel alike, so both
+        // fell straight through to `return kernel` unnormalized. Make the else-branch say
+        // what it means. Everything above is guarded now, so reaching here would be a new
+        // defect rather than a known input, and a passthrough is the honest answer to it.
+        guard sum.isFinite, sum > 0 else { return passthroughKernel(taps: taps) }
+        kernel.withUnsafeMutableBufferPointer { buf in
+            guard let ptr = buf.baseAddress else { return }
+            vDSP_vsdiv(ptr, 1, &sum, ptr, 1, vDSP_Length(taps))
         }
 
         return kernel
     }
 
     /// Create a highpass FIR filter kernel
+    ///
+    /// Same degenerate-input contract as `lowpassKernel`, and it must clamp `taps` with
+    /// the SAME helper: it indexes the lowpass result directly, so a disagreement about
+    /// length is an out-of-bounds read, not a cosmetic mismatch.
     public static func highpassKernel(cutoffHz: Float, sampleRate: Float, taps: Int = 127) -> [Float] {
+        let taps = usableTaps(taps)
+        // ⚠️ THIS GUARD CANNOT BE DELEGATED, and the first version of this fix wrongly
+        // assumed it could. Spectral inversion is `δ − lowpass`, so when `lowpassKernel`
+        // returns its passthrough fallback (δ) for a degenerate rate or cutoff, this
+        // computes `δ − δ` = an ALL-ZERO kernel. That is precisely the permanent silence
+        // the fallback exists to prevent — the bug survived the fix, in the one third of
+        // the API that inverts it. Measured before this line existed:
+        // `highpassKernel(cutoffHz: .nan, sampleRate: 48000)` → total energy 0.0.
+        guard cutoffHz.isFinite, sampleRate.isFinite, sampleRate > 0 else {
+            return passthroughKernel(taps: taps)
+        }
         var lp = lowpassKernel(cutoffHz: cutoffHz, sampleRate: sampleRate, taps: taps)
         // Spectral inversion
         for i in 0..<taps { lp[i] = -lp[i] }
@@ -502,7 +602,19 @@ public final class EchoelConvolution: @unchecked Sendable {
     }
 
     /// Create a bandpass FIR filter kernel
+    ///
+    /// `vDSP_vadd` reads `taps` elements out of BOTH halves — the shared `usableTaps`
+    /// clamp is what keeps that in bounds when a caller asks for fewer.
     public static func bandpassKernel(lowHz: Float, highHz: Float, sampleRate: Float, taps: Int = 127) -> [Float] {
+        let taps = usableTaps(taps)
+        // Guarded here too, for a quieter reason than the other two: a non-finite `lowHz`
+        // alone does not silence this: the highpass half collapses and the sum is just
+        // the lowpass. No NaN, no zeros — a BANDPASS request answered with a LOWPASS.
+        // Wrong filter, no complaint, nothing in a spectrum plot that says "degenerate
+        // input" rather than "that is how this bandpass sounds".
+        guard lowHz.isFinite, highHz.isFinite, sampleRate.isFinite, sampleRate > 0 else {
+            return passthroughKernel(taps: taps)
+        }
         let lp = lowpassKernel(cutoffHz: highHz, sampleRate: sampleRate, taps: taps)
         let hp = highpassKernel(cutoffHz: lowHz, sampleRate: sampleRate, taps: taps)
         var bp = [Float](repeating: 0, count: taps)
