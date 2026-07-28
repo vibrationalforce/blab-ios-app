@@ -8860,3 +8860,44 @@ Pipeline grün auf `757d2e4` und `0ac1aa2`**; `a6b1017` lief zum Zeitpunkt diese
 **Offen und bewusst nicht angefasst:** #138 Slice 2 (FX-Parameter-Glide) — der Plan verlangt
 Fassade über sechs externe Schreibstellen, `audio-thread-reviewer` UND einen Gerätelauf; ohne
 lokalen Compiler ist das der nächste eigene Zyklus, keine Nebenbei-Scheibe.
+
+---
+
+## 2026-07-28 (abends) — Audio-Interruption + der kritische Produkt-Audit
+
+**Founder-Auftrag:** „Suche nach potentiellen Errors, issues, Crashs, Löchern und Fehlern.
+Performance, Resourcen Management, Qualität optimieren. Sei Kritisch."
+
+**Geliefert:** `scratchpads/AUDIT_KRITISCH_2026-07-28.md` (`bab258f`) — konsolidierte
+Rangfolge P0…P3, jeder Befund selbst am Code mit `datei:zeile` nachgeprüft, plus ein
+ausdrücklicher Abschnitt „nicht bestätigt" für zwei Agenten-Behauptungen, die ich NICHT
+belegen konnte (ein 60-Hz-Meter-Timer an einer Stelle, die es nicht gibt; eine
+`vvsinf`-Kostenaussage ohne Instruments). Backlog: #212–#216.
+
+**Zwei Befunde entstanden erst BEIM Nachprüfen, nicht in den Agenten-Berichten:**
+1. **ADM-OSC-Objekt-Gain ist in jeder möglichen Konfiguration exakt 0,3** — er kommt aus
+   `0.3 + motionEnergy * 0.7`, und alle sechs Bio-Publisher schreiben `motionEnergy: 0`.
+   Wer Echoel als immersive Objektquelle einhängt, bekommt ein um 10,5 dB abgesenktes
+   Objekt. Genau die Positionierung, die die Strategie trägt.
+2. **Der falsche Safe Mode ist schlimmer als notiert:** `confirmHealthy()` hängt am `.task`
+   von `mainContent`, und `mainContent` wird bei unfertigem Onboarding gar nicht gebaut.
+   Zweiter Start eines neuen Nutzers = Crash-Recovery-Bildschirm, ohne Crash.
+
+**Geshippt:** `2f57efd` + `8756b1c` (#211 Audio-Interruption). Drei Pfade konnten
+gleichzeitig versagen; `onInterruptionBegan` setzt `isRunning = false` und **entwaffnete
+damit den Watchdog**, der es hätte retten können.
+
+**Die Lehre dieses Zyklus, und sie ist unbequem:** mein erster Fix (`2f57efd`) war eine
+Überkorrektur, die der Reviewer als HIGH gefangen hat. „`.ended` immer resümieren" hätte
+Echoel aus dem HINTERGRUND heraus **Spotify unterbrechen** lassen — `setActive(true)` auf
+`.playback` scheitert nicht höflich, es gewinnt. Ich hatte im selben Commit das Gesetz
+„ein bewusster Stopp schlägt jeden Automatismus" in ein reines Prädikat gegossen UND es
+auf dem zweiten Resume-Pfad nicht angewandt. **Ein Gesetz, das auf einem von zwei Pfaden
+gilt, ist kein Gesetz.** Dazu: die vier neuen Tests lagen in `Tests/EchoelmusicTests/` und
+konnten daher NICHTS blockieren — die Kernbehauptung des Commits („das Löschen einer
+Hälfte lässt jetzt einen Test scheitern") war schlicht unwahr. Jetzt in `Tests/CISmoke/`.
+
+**Beinahe-Fehler, der es fast in die Historie geschafft hätte:** `git add A B C D 2>/dev/null`
+mit EINEM nicht existierenden Pfad staged **gar nichts** — der Commit wäre als reines
+Rename durchgegangen, mit einer Nachricht, die vier Fixes behauptet. Nur der `--stat`-Check
+danach hat es gefangen. Regel: nach jedem Commit `git show --stat` gegen die Absicht lesen.
