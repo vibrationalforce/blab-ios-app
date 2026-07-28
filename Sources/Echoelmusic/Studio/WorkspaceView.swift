@@ -363,8 +363,15 @@ private struct TransportBar: View {
                 // that FEED the name stay reachable through this door — same
                 // chrome-door-only pattern as Master/Export/Tempo. A Menu entry,
                 // not a modal (the studio's presentation chain is untouched).
-                doorMenuButton("Session — place and weather in the name",
-                               icon: "mappin.and.ellipse", door: "session")
+                // #202/#59 (founder 2026-07-28: "ansonsten fehlt mir das mit … weather,
+                // Standort"). Both were built, wired and reachable through THIS entry —
+                // what was missing is that this line described them as a NAMING feature.
+                // Weather salts the harmonic skeleton and blends darkness/liveliness/
+                // tension into the composer's mood, plus hue/saturation/glow/movement in
+                // the live visual. A founder reading "in the name" has no reason to open
+                // it. Same door, same panel, honest label.
+                doorMenuButton("Weather & place — weather shapes sound and image",
+                               icon: "cloud.sun", door: "session")
                 #if canImport(MultipeerConnectivity)
                 doorMenuButton("Live Colabo — play together nearby",
                                icon: "dot.radiowaves.left.and.right", door: "live")
@@ -383,7 +390,7 @@ private struct TransportBar: View {
             // bar's 12 pt spacing lets the hit area grow symmetrically (−6 → 42×44)
             // without overlapping the tempo field, matching the Play button's idiom.
             .contentShape(Rectangle().inset(by: -6))
-            .accessibilityLabel("More — Master, Export, Tempo, Session, Live, Learn")
+            .accessibilityLabel("More — Master, Export, Tempo, Weather and place, Live, Learn")
 
             Spacer(minLength: 0)
 

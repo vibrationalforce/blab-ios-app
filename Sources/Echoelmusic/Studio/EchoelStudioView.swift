@@ -458,7 +458,13 @@ struct EchoelStudioView: View {
             switch self {
             case .bio:         return "Bio — pulse, HRV, coherence, source"
             case .composition: return "Tempo and variations — tap tempo, metronome, haptic beat, variation ideas"
-            case .session:     return "Session — place, weather"
+            // #202/#59: the founder listed "weather, Standort" among the things he was
+            // MISSING while both were built, wired and reachable — because every string
+            // that advertises them said "in the name". Weather is not a naming gimmick:
+            // it salts the harmonic skeleton and blends darkness/liveliness/tension into
+            // the composer's mood, and hue/saturation/glow/motion into the live visual.
+            // The copy now names the effect; the naming is the smaller half.
+            case .session:     return "Weather and place — weather shapes the sound and the image; place names the session"
             case .sound:       return "Sound and texture"
             case .mix:         return "Mix — level per part"
             case .effects:     return "Effects"
@@ -1835,7 +1841,11 @@ struct EchoelStudioView: View {
     /// is chrome-door-only (transport "•••" → "Session"), the exact
     /// Master/Export/Tempo pattern; its Session chip fell with it.
     private var sessionPanel: some View {
-        panel("Session", "Place · weather — stamped into the name",
+        // Titled by what it DOES, not by the internal door name. "Session" also
+        // collided with session SAVING — a different thing the founder asked for in
+        // the same breath (#189) — so the old title actively pointed at the wrong
+        // feature. Nothing structural changed: same door, same rows, same panel slot.
+        panel("Weather & place", "Weather shapes sound and image · place names the session",
               isExpanded: $showSession) {
             #if canImport(CoreLocation)
             placeRow
@@ -1920,18 +1930,49 @@ struct EchoelStudioView: View {
     private var weatherRow: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $weatherEnabled) {
-                Text("Weather shapes the music")
+                // "the music" undersold it by exactly half: the visual half is wired
+                // too (hue · saturation · glow · movement, read in FloatingVisualWindow).
+                Text("Weather shapes the music and the image")
                     .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("One coarse weather lookup per session flavours sound and image. Each influence has its own intensity — mix it in or out. The body stays the main driver.")
             if weatherEnabled {
-                Text(!locationNamer.enabled
-                     ? "Needs \"Place in session name\" for a coarse location."
-                     : (weatherDescriptor.isEmpty ? "Sky reading arrives at Start."
-                                                  : "Now: \(weatherDescriptor)"))
-                    .font(EchoelTheme.font(11))
-                    .foregroundStyle(EchoelTheme.dim)
+                // The prerequisite used to be a DEAD END: it named the other toggle and
+                // left the user to hunt for it — and that toggle is labelled about
+                // NAMING, so nothing about it reads as "this is what weather needs".
+                // One tap instead. It stays a sentence, not a bare "Fix": turning this
+                // on requests location permission, so the button has to say what it does.
+                if !locationNamer.enabled {
+                    Button { turnLocationOnForWeather() } label: {
+                        Text("Weather needs a coarse location — turn on \"Place in session name\"")
+                            .font(EchoelTheme.font(11, .medium))
+                            .foregroundStyle(EchoelTheme.accent)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    // Without contentShape the hit area is the bare glyph bounds of an
+                    // 11 pt wrapped Text: a tap in the line gap does nothing, and the
+                    // line reads as the inert sentence it used to be — the exact
+                    // perception this change exists to remove. 44 pt is the same HIG
+                    // target the "•••" chip and `entryRow` already take.
+                    .contentShape(Rectangle())
+                    .accessibilityHint("Turns on the place toggle, asks for location permission if it has not been granted yet, and puts your city into session and export names.")
+                } else if locationNamer.denied {
+                    // This state existed and had no words here: with location denied the
+                    // lookup can never run, and the row would have promised a sky reading
+                    // at every Start forever.
+                    Text("Location is off for Echoel in Settings — weather has nothing to look up.")
+                        .font(EchoelTheme.font(11))
+                        .foregroundStyle(EchoelTheme.dim)
+                } else {
+                    Text(weatherDescriptor.isEmpty ? "Sky reading arrives at Start."
+                                                   : "Now: \(weatherDescriptor)")
+                        .font(EchoelTheme.font(11))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
 
                 // Separate, individually-mixable influences (founder: "Klang und
                 // Bild aber getrennte und mehrere Parameter" + an intensity slider
@@ -1954,6 +1995,19 @@ struct EchoelStudioView: View {
         }
     }
 
+    /// Grants the coarse location the weather lookup needs, from the weather row —
+    /// the same write the place toggle performs (`LocationNamer.enabled`), whose
+    /// `didSet` requests permission and resolves once. Deliberately NOT a silent
+    /// side effect of enabling weather: the user taps a line that says what it does,
+    /// so the location opt-in stays an explicit act. (The guard is belt-and-braces —
+    /// the button only exists in the `!enabled` branch, which disappears the instant
+    /// this runs — and `LocationNamer.enabled`'s own `didSet` no-ops on an unchanged
+    /// value anyway. It is NOT guarding a live race; do not read it as one.)
+    private func turnLocationOnForWeather() {
+        guard !locationNamer.enabled else { return }
+        locationNamer.enabled = true
+    }
+
     /// One titled block of weather mixers (Sound or Image), in the mix-strip look.
     @ViewBuilder
     private func weatherMixGroup(_ title: String, params: [WeatherMood.Param]) -> some View {
@@ -1972,12 +2026,39 @@ struct EchoelStudioView: View {
     /// re-seed (evolve/lock-snap) — never blocks the first sound.
     private func fetchWeatherFlavour() {
         weatherContribution = nil
-        guard weatherEnabled, let fix = locationNamer.lastFix else { return }
+        guard weatherEnabled else { return }
         Task { @MainActor in
-            guard let snap = await weatherProvider.snapshot(for: fix), running else { return }
+            // A GPS fix requested SECONDS ago is usually still in flight, and the old
+            // code hard-returned on `lastFix == nil` with no retry anywhere: one Start
+            // too early and the session had no weather at all, silently, until the next
+            // Start. That was survivable while granting location meant hunting for a
+            // toggle in another row — the new one-tap grant right above makes
+            // "granted, then Start immediately" the COMMON path, so the hole had to
+            // close with it. Polling (not observation) because `lastFix` is
+            // `@ObservationIgnored` by design; 0.5 s × 12 is a bounded wait that costs
+            // nothing when the fix is already there (the first read wins). It cannot
+            // delay the first sound — this whole method already runs off the Start
+            // path in its own Task, and the salt lands on the NEXT re-seed.
+            var fix = locationNamer.lastFix
+            var waited = 0.0
+            while fix == nil, waited < Self.locationFixWaitSeconds,
+                  running, locationNamer.enabled, !locationNamer.denied {
+                do { try await Task.sleep(for: .seconds(0.5)) } catch { return }
+                waited += 0.5
+                fix = locationNamer.lastFix
+            }
+            guard let fix, let snap = await weatherProvider.snapshot(for: fix), running else { return }
             weatherContribution = WeatherMood.contribution(for: snap)
         }
     }
+
+    /// How long a Start waits for a location fix that was requested moments earlier.
+    /// Long enough for a cold first fix after the permission prompt, short enough that
+    /// a session which will never get one (indoors, airplane mode) stops asking.
+    /// `nonisolated` on purpose: CLAUDE.md records that Xcode and SwiftPM disagree on
+    /// SE-0434 inference for a `static let` on a MainActor type, and this repo has no
+    /// local compiler to settle it — the explicit marker makes both toolchains agree.
+    nonisolated private static let locationFixWaitSeconds = 6.0
     #endif
 
     /// The drum layer, one segmented choice (founder: "Beat soll ausschaltbar sein
