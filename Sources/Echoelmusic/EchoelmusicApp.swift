@@ -189,6 +189,19 @@ struct EchoelmusicApp: App {
     /// Set when the user taps "Continue to Echoelmusic" in Safe Mode — renders the full
     /// app for the rest of this process even though this launch booted into Safe Mode.
     @State private var forceNormalMode = false
+    /// ONE-SHOT LATCH for the startup sequence below (#206).
+    ///
+    /// The startup `.task` hangs on `WorkspaceView()` INSIDE the `WindowGroup`, so it runs
+    /// once per WINDOW — which was harmless only while the app could have exactly one.
+    /// Enabling `UIApplicationSupportsMultipleScenes` for the external-display scene also
+    /// lets iPadOS open a SECOND app window (we ship `TARGETED_DEVICE_FAMILY: "1,2"`), and
+    /// that second window would re-run the whole sequence against the SHARED, already
+    /// running engine: every `attach(to:)` funnels into `AudioEngine.attachSourceNode`,
+    /// which has no already-attached guard and pauses/attaches/reconnects/restarts. That is
+    /// the hot-attach-to-a-running-engine shape this file already blames for the build-1363
+    /// launch crash. `@State` on an `App` is shared across its scenes, which is exactly
+    /// what makes a latch here work.
+    @State private var startupDone = false
     @Environment(\.scenePhase) private var scenePhase
     /// Order-proof backgrounding marker: iOS may deliver .background → .inactive →
     /// .active, so a `oldPhase == .background` gate alone can miss the resume. Set on
@@ -419,6 +432,14 @@ struct EchoelmusicApp: App {
                 // studio; if it stops at "init done" with no branch/startup line, the
                 // app never reached here (a hang or a non-studio branch).
                 EchoelCrashLog.breadcrumb("ui branch: STUDIO — startup task running")
+                // A SECOND window must not re-run any of this (see `startupDone`). The
+                // breadcrumb goes ABOVE the guard on purpose: a log that stops right here
+                // is then readable as "a second scene connected", not as a hang.
+                guard !startupDone else {
+                    EchoelCrashLog.breadcrumb("startup: already done — second scene, skipping")
+                    return
+                }
+                startupDone = true
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must
                 // start with NO awaiting dependency in front of it. Previously

@@ -19,9 +19,16 @@ auf demselben Gerät*; es erreicht keinen zweiten Bildschirm. Für Nicht-`AVPlay
 **Spiegeln (AirPlay/HDMI) funktioniert heute schon, ohne Code** — zeigt aber die gesamte
 Bedienoberfläche mit. Das ist der Grund für diesen Plan, nicht ein technisches Hindernis.
 
-**`UIScreen.didConnectNotification` + zweites `UIWindow`** wäre der Weg ohne Info.plist —
-aber seit iOS 16 deprecated, und `Package.swift:28` baut mit `-warnings-as-errors`. Eine
-Deprecation-Warnung ist hier ein roter Build. Also ausgeschlossen, nicht aus Stilgründen.
+**`UIScreen.didConnectNotification` + zweites `UIWindow`** wäre der Weg ohne Info.plist und
+damit die billigere Scheibe. Ausgeschlossen wird er, weil er seit iOS 16 **deprecated** ist
+und die Szenen-Rolle der unterstützte Mechanismus ist — also aus API-Gründen.
+
+⛔ **Korrektur (2026-07-28):** hier stand, das wäre „ein roter Build", weil `Package.swift:28`
+mit `-warnings-as-errors` baut. Das war **falsch** — und es war ausgerechnet die Begründung
+dafür, den Startpfad anzufassen. Jeder `UIScreen`-Code steht in `#if canImport(UIKit)`, beide
+SwiftPM-Jobs bauen für Hosts **ohne** UIKit (`ci.yml:41` macos-26, `ci.yml:310` ubuntu-latest),
+und die Xcode-Lanes setzen gar kein `SWIFT_TREAT_WARNINGS_AS_ERRORS`. Die Deprecation hätte
+nichts rot gemacht. Die Entscheidung bleibt dieselbe, der Grund ist ein anderer.
 
 ---
 
@@ -53,10 +60,20 @@ Deprecation-Warnung ist hier ein roter Build. Also ausgeschlossen, nicht aus Sti
 ### S1 — Szene existiert, Telefon unverändert
 - `Resources/iOS/Info.plist`: `UIApplicationSupportsMultipleScenes` → `true`, plus
   `UISceneConfigurations` mit einer Rolle `UIWindowSceneSessionRoleExternalDisplayNonInteractive`.
-- `UIApplicationDelegateAdaptor` + `application(_:configurationForConnecting:options:)`,
-  das **nur** für die externe Rolle eine eigene Konfiguration liefert; die
-  `UIWindowSceneSessionRoleApplication` bleibt exakt wie heute.
+- ~~`UIApplicationDelegateAdaptor` + `application(_:configurationForConnecting:options:)`~~ —
+  **abgewichen beim Bauen (2026-07-28):** die Info.plist nennt die Delegate-Klasse direkt
+  (`UISceneDelegateClassName = $(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate`), es gibt
+  **keinen** App-Delegate und keine `configurationForConnecting`-Methode. Grund: das ist
+  strikt WENIGER Code im Startpfad — und der Startpfad ist genau das Risiko, das diese
+  Scheibe prüfen soll. Der Application-Rollen-Eintrag trägt bewusst **keine**
+  `UISceneDelegateClassName`, damit SwiftUIs eigene Szenen-Behandlung unangetastet bleibt.
 - Die externe Szene zeigt zunächst nur eine schwarze Fläche mit dem Wortmarken-Text.
+- **Zusätzlich (nicht geplant, vom Reviewer erzwungen):** eine `startupDone`-Latch in
+  `EchoelmusicApp.swift`. `UIApplicationSupportsMultipleScenes` erlaubt auf iPad ein
+  ZWEITES App-Fenster; dessen `.task` würde den kompletten Startlauf ein zweites Mal gegen
+  die bereits laufende Engine fahren (`AudioEngine.attachSourceNode` hat keine
+  „schon-angehängt"-Prüfung) — genau die Hot-Attach-Form, die diese Datei für den
+  Startabsturz von Build 1363 verantwortlich macht. Die Latch macht den Start einmalig.
 - **Verify: Start auf dem Gerät ohne angeschlossenen Bildschirm.** Das ist der eigentliche
   Test dieser Scheibe — nicht der Beamer.
 
