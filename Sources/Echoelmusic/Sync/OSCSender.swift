@@ -79,6 +79,17 @@ public final class OSCSender {
         self.bus = bus
         connect()
         isActive = true
+        // Discard the backlog accrued while this route was OFF (#155 review). The
+        // producer (`bioEvents.start(on:)`) runs from app start, this consumer only
+        // once the patchbay routes `osc.out` — so the 64-slot queue is typically FULL
+        // of events from earlier in the session by the time anyone switches OSC on.
+        // Before #155 that mattered less: drop-oldest kept the newest ~6 s. Now the
+        // producer refuses on overflow, so the queue holds the OLDEST 63 events — and
+        // `drainAndSendEvents` would blast hours-old heartbeats down the wire on the
+        // first tick. `BioEgressPolicy` gates on source and privacy, NOT on age
+        // (`sendIfFresh` covers frames only), so nothing downstream would catch it.
+        // Enabling a route mid-performance is exactly when this happens.
+        while bus.bioEvents.dequeue() != nil {}
         // Governed: 10 Hz nominal, but a thermally stressed or nearly empty device
         // drops this to 5 Hz (minimal tier). Bio egress is a stream of smoothed
         // scalars, not events with a deadline — halving its rate costs a receiving

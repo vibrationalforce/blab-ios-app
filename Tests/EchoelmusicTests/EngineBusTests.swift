@@ -109,16 +109,22 @@ final class EngineBusTests: XCTestCase {
 
     // MARK: - Capacity / overflow
 
-    func testPublishBio_pastCapacity_dropsOldest() {
+    /// Renamed with #155: this was `..._dropsOldest`, and both the name and the comment
+    /// asserted the OPPOSITE of the contract after the producer stopped writing the
+    /// consumer's index. It kept passing either way — `count <= 4` and `droppedCount > 0`
+    /// hold under both policies — which is exactly what made it dangerous: a green test
+    /// whose NAME is the documentation a future session reads. Now it pins the policy.
+    func testPublishBio_pastCapacity_dropsTheIncomingFrame_andKeepsTheOldest() {
         let bus = EngineBus(bioCapacity: 4)
         for i in 0..<10 {
             bus.publish(bio: Self.makeBioFrame(timestamp: TimeInterval(i)))
         }
 
-        // SPSCQueue rounds capacity to next power of 2; 4 stays 4.
-        // Overflow drops oldest, so the queue retains the latest items.
-        XCTAssertLessThanOrEqual(bus.bioFrames.count, 4)
-        XCTAssertGreaterThan(bus.bioFrames.droppedCount, 0)
+        // SPSCQueue rounds capacity to next power of 2; 4 stays 4, so 3 are usable.
+        XCTAssertEqual(bus.bioFrames.count, 3)
+        XCTAssertEqual(bus.bioFrames.droppedCount, 7)
+        // The survivors are the FIRST three — the producer never evicts.
+        XCTAssertEqual(bus.bioFrames.dequeue()?.timestamp, 0)
     }
 
     // MARK: - Topics are independent

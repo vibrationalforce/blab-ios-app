@@ -21,7 +21,9 @@ import Foundation
 /// - Lock-free using atomic operations
 /// - Cache-line aligned to prevent false sharing
 /// - Zero allocation during operation
-/// - Automatic overflow handling (drops oldest)
+/// - Overflow drops the INCOMING element and reports `false` (see `enqueue` — this
+///   said "drops oldest" until #155, which is the behaviour that broke the invariant
+///   below by writing the consumer's index from the producer)
 ///
 /// Performance: ~2ns per operation on Apple Silicon
 ///
@@ -129,10 +131,61 @@ public final class SPSCQueue<Element> {
 
     /// Enqueue an element (producer thread only)
     ///
-    /// If queue is full, the oldest element is dropped.
+    /// If the queue is full the INCOMING element is dropped and `false` is returned;
+    /// everything already queued is left untouched.
+    ///
+    /// ⛔ THIS USED TO DROP THE OLDEST, AND THAT WAS UNSOUND (#155). Evicting the
+    /// oldest means advancing `head` — the CONSUMER's index — from the producer, which
+    /// contradicts this type's own stated invariant three doc-comments above.
+    ///
+    /// THE FAILURE IS A LOST UPDATE, AND ITS SIGNATURE IS "THE QUEUE CLAIMS TO BE
+    /// EMPTY WHILE HOLDING LIVE ELEMENTS". `dequeue()` publishes `head` with a PLAIN
+    /// store computed from a value it read earlier; two producer drops can land inside
+    /// that window (capacity 4, head=0, tail=3, elements at 0,1,2):
+    ///
+    ///     consumer: reads head=0, takes buffer[0]        ← its store of head=1 not issued yet
+    ///     producer: full → CAS head 0→1 ✓, buffer[3]=A, tail=0
+    ///     producer: full → CAS head 1→2 ✓, buffer[0]=B, tail=1
+    ///     consumer: plain store lands → head = 1         ← CLOBBERS the CAS's 2
+    ///     result:   head=1, tail=1 → isEmpty == true, count == 0, FOUR live elements
+    ///
+    /// `dequeue()` then returns nil until the producer writes again — a drain loop reads
+    /// that as "nothing pending" while the data sits in the ring.
+    ///
+    /// ⛔ A FIRST VERSION OF THIS COMMENT CLAIMED A SECOND, SINGLE-THREADED FAILURE:
+    /// that a LOST CAS left `tail` behind `head` and mis-indexed the ring permanently.
+    /// Review refuted it and the refutation matters, because that claim would have sent
+    /// the next session hunting a corruption that cannot happen. When the CAS loses, the
+    /// producer still writes `tail = its own index + 1`, and the consumer can never
+    /// reclaim that index (it stops at `head == tail`), so the state is CONSISTENT —
+    /// `count == capacity-1` is simply what a full ring reads. The old author's deleted
+    /// comment said exactly this. The race needs a concurrent consumer; there is no
+    /// single-threaded corruption.
+    ///
+    /// THE RACE IS LATENT, NOT OBSERVED. All three `enqueue()` queues are single-
+    /// threaded end to end today: `bioFrames` has no consumer at all, and both
+    /// `controllerEvents` and `bioEvents` have `@MainActor` producers AND consumers.
+    /// It is worth closing anyway because `EngineBus` declares these queues as having
+    /// "audio-thread consumers" by design — the mine goes off the day someone honours
+    /// that declaration. Do not cite this fix as the cause of any shipped symptom.
+    ///
+    /// SCOPE, since I got this wrong once: the voice queues (`PolySynthVoice`,
+    /// `SubBassVoice`, `SamplerVoice`, `BioReactiveSynthVoice`) all use `tryEnqueue`,
+    /// which never touched `head` and is untouched here. The ONLY production callers of
+    /// `enqueue` are the three publishes in `EngineBus`.
+    ///
+    /// THE COST, STATED PLAINLY: for a final-state stream, drop-oldest was the SAFER
+    /// policy and this trade gives that up. `controllerEvents` feeds a monophonic latch
+    /// (`BioReactiveSynthVoice.apply(controller:)`) — a rejected `.noteOff` strands its
+    /// `.noteOn` and the note drones until the next MIDI event clears it. That needs 128
+    /// events queued with the consumer stopped, and it self-clears on the next drain, so
+    /// it is accepted rather than dismissed. For bio scalars the staleness is bounded by
+    /// republication at ~10 Hz. If a future queue genuinely needs "newest wins", the
+    /// right structure is a single atomic mailbox, NOT a ring whose producer reaches
+    /// into the consumer's index.
     ///
     /// - Parameter element: Element to enqueue
-    /// - Returns: `true` if successful, `false` if element was dropped due to overflow
+    /// - Returns: `true` if stored, `false` if the queue was full and the element was dropped
     @discardableResult
     @inline(__always)
     public func enqueue(_ element: Element) -> Bool {
@@ -141,17 +194,12 @@ public final class SPSCQueue<Element> {
 
         let nextTail = (Int(currentTail) + 1) & mask
 
-        // Check if full
+        // Full: the only slot we could take belongs to the consumer. Refuse, count it,
+        // and touch NOTHING — no head write, and no tail publish either (publishing a
+        // tail we did not fill is what corrupted the ring above).
         if nextTail == Int(currentHead) & mask {
-            // Queue full - drop oldest (advance head). Advance with the SAME masked
-            // scheme the consumer's dequeue() uses; a plain increment left head
-            // unmasked, so once head reached `mask` the next dequeue indexed
-            // buffer[capacity] — out of bounds. CAS from the value we just read so a
-            // concurrent dequeue (which also frees a slot) safely wins instead.
             OSAtomicIncrement64Barrier(UnsafeMutablePointer<Int64>(OpaquePointer(_droppedCount)))
-            let nextHead = Int64((Int(currentHead) + 1) & mask)
-            _ = OSAtomicCompareAndSwap64Barrier(currentHead, nextHead,
-                                                UnsafeMutablePointer<Int64>(OpaquePointer(head)))
+            return false
         }
 
         // Store element

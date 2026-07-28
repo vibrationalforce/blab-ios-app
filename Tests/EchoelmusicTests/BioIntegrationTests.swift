@@ -714,9 +714,12 @@ final class BioCrashHardeningTests: XCTestCase {
         for i in 0..<10 {
             queue.enqueue(heartRate: Float(60 + i), hrvCoherence: 0.5, breathPhase: 0.3)
         }
-        // Should not crash, oldest samples should be dropped
-        let sample = queue.dequeue()
-        XCTAssertNotNil(sample, "Should have samples after overflow")
+        // Should not crash. Since #155 the INCOMING sample is dropped on overflow (the
+        // producer may not advance the consumer's index), so the survivors are the
+        // FIRST three — the comment here used to say "oldest samples should be dropped",
+        // which is now backwards. Asserted, not just described.
+        XCTAssertEqual(queue.count, 3)
+        XCTAssertEqual(queue.dequeue()?.heartRate, 60, "the oldest sample must survive")
     }
 }
 
