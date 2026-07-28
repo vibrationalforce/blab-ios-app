@@ -390,18 +390,27 @@ enum AudioConfiguration {
             onInterruptionBegan?()
 
         case .ended:
-            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else {
-                return
-            }
-            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if options.contains(.shouldResume) {
-                do {
-                    try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-                    log.audio("Audio session resumed after interruption")
-                    onInterruptionResume?()
-                } catch {
-                    log.audio("Failed to reactivate audio session: \(error)", level: .error)
-                }
+            // `.shouldResume` is ADVISORY, not permission — and the options key can be
+            // absent entirely. Both used to end the story here: the flag gated the whole
+            // resume and a missing key hit an early `return`. For a media PLAYER that is
+            // correct etiquette; for a live instrument it is a silent-forever bug. Siri, a
+            // Clock alarm banner and a declined incoming call all take this app to
+            // `.inactive` rather than `.background`, so no other path restarts the engine:
+            // `AudioEngine.onInterruptionBegan` has already set `isRunning = false`, and
+            // the scene-phase resume is gated on having been backgrounded. The user is left
+            // holding an instrument that looks alive, shows its visuals, and makes no sound
+            // until they relaunch. So: ALWAYS attempt to reactivate. If another app still
+            // legitimately owns the session, `setActive` throws and we log it — a failed
+            // attempt costs nothing, a skipped one costs the performance.
+            let options = (userInfo[AVAudioSessionInterruptionOptionKey] as? UInt)
+                .map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
+            do {
+                try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+                log.audio("Audio session resumed after interruption"
+                          + (options.contains(.shouldResume) ? "" : " (no shouldResume hint — resumed anyway)"))
+                onInterruptionResume?()
+            } catch {
+                log.audio("Failed to reactivate audio session: \(error)", level: .error)
             }
 
         @unknown default:

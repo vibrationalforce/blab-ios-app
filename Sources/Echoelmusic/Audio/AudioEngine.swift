@@ -24,6 +24,18 @@ public final class AudioEngine {
     var degraded: Bool = false
     /// Last audio failure reason (for the degraded affordance / diagnostics).
     var lastAudioError: String?
+    /// The engine was paused by an AUDIO SESSION INTERRUPTION (Siri, an alarm banner,
+    /// a call) and has not been successfully resumed since.
+    ///
+    /// This exists because an interruption looks exactly like a deliberate stop from the
+    /// inside — both leave `isRunning == false` — and the two must heal differently. A
+    /// deliberate stop must NEVER self-heal (it would resurrect a silent engine in the
+    /// background); an interrupted one MUST, because iOS does not guarantee an `.ended`
+    /// notification at all, and the interruptions this app actually meets take it to
+    /// `.inactive` rather than `.background`, so the scene-phase resume never fires
+    /// either. Without this flag the failure is silent, total and unrecoverable without
+    /// a relaunch — on a live instrument, the worst class of bug there is.
+    var wasInterrupted: Bool = false
 
     // MARK: - Self-healing recovery state (MainActor-confined)
 
@@ -192,6 +204,12 @@ public final class AudioEngine {
         AudioConfiguration.onInterruptionBegan = { [weak self] in
             self?.masterEngine.pause()
             self?.isRunning = false
+            // Remember WHY we stopped. Without this the next line is a trap: the
+            // configuration-change watchdog only self-heals a running-or-degraded engine,
+            // so setting `isRunning = false` here used to DISARM the one mechanism that
+            // could have rescued an interruption whose `.ended` notification never
+            // arrives (or arrives without `.shouldResume`). See `shouldSelfHeal`.
+            self?.wasInterrupted = true
             log.audio("Audio interrupted — pausing engine")
         }
         AudioConfiguration.onInterruptionResume = { [weak self] in
@@ -199,7 +217,10 @@ public final class AudioEngine {
             do {
                 try self?.masterEngine.start()
                 self?.isRunning = true
+                self?.wasInterrupted = false
             } catch {
+                // Leave `wasInterrupted` SET: the resume failed, so the watchdog and the
+                // scene-phase resume must both still consider this engine rescuable.
                 log.audio("Failed to resume master engine: \(error)", level: .error)
             }
         }
@@ -244,6 +265,26 @@ public final class AudioEngine {
         log.audio("AudioEngine graph prepared — master output wired to hardware")
     }
 
+    /// Should a stopped engine be restarted automatically? Pure, so the one rule that
+    /// decides between "rescue the performance" and "resurrect a silent engine in the
+    /// background" is testable without an audio device.
+    ///
+    /// The asymmetry is the whole point and it is easy to get wrong in either direction:
+    /// an INTENTIONAL stop must never heal — that was review finding F2, a stale
+    /// `degraded` re-opening the gate while backgrounded. An INTERRUPTED one must always
+    /// heal, because the interruption handler itself sets `isRunning = false`, which used
+    /// to make this predicate false and disarm the only rescue path the app has when
+    /// iOS delivers no usable `.ended` notification.
+    nonisolated static func shouldSelfHeal(isRunning: Bool,
+                                           degraded: Bool,
+                                           wasInterrupted: Bool,
+                                           intentionallyStopped: Bool) -> Bool {
+        // A deliberate stop wins over every other reason, including an interruption that
+        // happened first — the user's last explicit intent is the authority.
+        if intentionallyStopped { return false }
+        return isRunning || degraded || wasInterrupted
+    }
+
     /// Self-healing watchdog: AVAudioEngine posts `.AVAudioEngineConfigurationChange`
     /// when the OS rebuilds the I/O graph (AirPods/BT connect or disconnect, hardware
     /// sample-rate switch, media-services rebuild). Without observing it the engine
@@ -270,11 +311,12 @@ public final class AudioEngine {
                     self.retroCapture.install(on: self.masterEngine)
                     return
                 }
-                // Engine actually stopped: recover only if we were meant to be
-                // running. A deliberate stop() never self-heals (review F2 — a
-                // stale `degraded` must not re-open the gate in the background).
-                guard !self.intentionallyStopped else { return }
-                guard self.isRunning || self.degraded else { return }
+                // Engine actually stopped: recover only if we were meant to be running.
+                guard Self.shouldSelfHeal(isRunning: self.isRunning,
+                                          degraded: self.degraded,
+                                          wasInterrupted: self.wasInterrupted,
+                                          intentionallyStopped: self.intentionallyStopped)
+                else { return }
                 self.recoverEngine(reason: "engine configuration changed")
             }
         }
@@ -493,6 +535,7 @@ public final class AudioEngine {
         // A clean start clears any prior degraded state and the recovery counter.
         degraded = false
         lastAudioError = nil
+        wasInterrupted = false
         recoveryAttempts = 0
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }

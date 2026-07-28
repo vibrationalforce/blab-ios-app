@@ -1048,7 +1048,12 @@ struct EchoelmusicApp: App {
                     // call is a no-op. Critical since the .background branch may now
                     // deliberately STOP an idle engine (2.5.4) — a missed resume
                     // would mean silence until relaunch.
-                    if oldPhase == .background || wasBackgrounded {
+                    // `wasInterrupted` is the THIRD order, and the one the two flags above
+                    // cannot see: Siri, an alarm banner and a declined call take the app
+                    // to .inactive, never .background, so neither gate fires — while the
+                    // engine sits paused from `onInterruptionBegan`. Coming back to the
+                    // app is the user's natural recovery gesture; it must work.
+                    if oldPhase == .background || wasBackgrounded || audioEngine.wasInterrupted {
                         wasBackgrounded = false
                         audioEngine.start()
                         bioFeedback.start(publishingFrom: bus)
