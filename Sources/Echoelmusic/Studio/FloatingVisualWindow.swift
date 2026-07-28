@@ -214,14 +214,19 @@ struct FloatingVisualWindow: View {
     enum WindowSize: Int, CaseIterable {
         case small, medium, large, fullscreen
         var next: WindowSize { WindowSize(rawValue: (rawValue + 1) % WindowSize.allCases.count) ?? .small }
-        /// Width / height as a fraction of the available space. Fullscreen fills everything
-        /// (handled specially in `size(in:)`), so its fraction is unused.
-        var fraction: (w: CGFloat, h: CGFloat) {
+        /// How much of the available box the PICTURE may claim along whichever edge binds.
+        /// ONE number, not a width/height pair: the pair was two independent fractions
+        /// (small used to be 0.38 × width by 0.30 × height), which made the card's shape a
+        /// by-product of the container's shape — a landscape phone turned "small" into a
+        /// ≈ 324 × 76 pt letterbox strip. The shape now comes from
+        /// `FloatingVisualLayout.pictureAspect`; this only scales it. Fullscreen fills
+        /// everything (short-circuited in `size(in:)`), so its value is unused.
+        var fraction: CGFloat {
             switch self {
-            case .small:      return (0.38, 0.30)
-            case .medium:     return (0.62, 0.42)
-            case .large:      return (0.92, 0.62)
-            case .fullscreen: return (1.0, 1.0)
+            case .small:      return FloatingVisualLayout.smallStep
+            case .medium:     return FloatingVisualLayout.mediumStep
+            case .large:      return FloatingVisualLayout.largeStep
+            case .fullscreen: return 1.0
             }
         }
         var label: String {
@@ -713,13 +718,17 @@ struct FloatingVisualWindow: View {
 
     // MARK: - Geometry
 
+    /// Card size for the current step. Every rule — aspect band, chrome added rather than
+    /// carved out, minimum picture, the drag-travel cap, fit-with-margins on every path
+    /// including degenerate input — lives in `FloatingVisualLayout`, which is pure and
+    /// unit-tested on CI. This is only the hand-off (founder 2026-07-27: "auch das Fenster,
+    /// es soll adaptiv sein").
     private func size(in bounds: CGSize) -> CGSize {
         if windowSize.isFullscreen { return bounds }   // edge-to-edge, no margin
-        let f = windowSize.fraction
-        let w = max(140, bounds.width * f.w)
-        let h = max(120, bounds.height * f.h)
-        return CGSize(width: min(w, bounds.width - 2 * margin),
-                      height: min(h, bounds.height - 2 * margin))
+        return FloatingVisualLayout.cardSize(in: bounds,
+                                             fraction: windowSize.fraction,
+                                             margin: margin,
+                                             chromeHeight: handleHeight)
     }
 
     private func defaultCenter(in bounds: CGSize, card: CGSize) -> CGPoint {
