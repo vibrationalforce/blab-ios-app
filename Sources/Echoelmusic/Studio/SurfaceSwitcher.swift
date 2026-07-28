@@ -6,98 +6,29 @@ import SwiftUI
 // timeline over the instrument zone until the pure-instrument verdict (#121,
 // founder 2026-07-24: "keine Timeline etc nur das alte Interface mit create from
 // within") removed the timeline — SurfaceHost now mounts only EchoelStudioView.
-// The former 4-chip surface switching (SurfaceSwitcherBar) and the WorkspaceSurface
-// enum stay in code, unmounted and reversible. Nothing WRITES the raw values any
-// more — ArrangementView, which used to, was deleted with the timeline.
+// The former 4-chip surface switching and its enum are gone — see the note below.
 //
 // Render safety: SurfaceHost reads NO @Observable models and no @AppStorage — it
 // is a static wrapper, so it never rebuilds (freeze-rule trivially safe).
 
-/// The workspace surfaces. Raw values are PERSISTED via @AppStorage and must
-/// stay stable — `compose` and `clips` are the values `ArrangementView`'s
-/// empty-state navigation already writes (do not rename).
-enum WorkspaceSurface: String, CaseIterable {
-    case arrange, clips, compose, mix
-
-    /// Default surface. "Studio" (compose) until the Arrange timeline is real
-    /// (plan Stage 2 flips this to `.arrange`) — never ship an empty home.
-    static let initial: WorkspaceSurface = .compose
-
-    var title: String {
-        switch self {
-        case .arrange: return "Arrange"
-        case .clips:   return "Clips"
-        case .compose: return "Studio"
-        case .mix:     return "Mix"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .arrange: return "rectangle.split.3x1"
-        case .clips:   return "square.grid.3x3"
-        case .compose: return "music.note"
-        case .mix:     return "slider.horizontal.3"
-        }
-    }
-}
-
-/// Compact chip row under the transport bar — one tap switches the working
-/// surface. Selected chip = text-on-fill (accent green stays reserved for the
-/// live bio/playing state, per the theme rule).
-@MainActor
-struct SurfaceSwitcherBar: View {
-    @AppStorage("workspace.surface") private var surfaceRaw = WorkspaceSurface.initial.rawValue
-
-    private var selected: WorkspaceSurface {
-        WorkspaceSurface(rawValue: surfaceRaw) ?? .compose
-    }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(WorkspaceSurface.allCases, id: \.self) { surface in
-                chip(surface)
-            }
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 38)
-        .frame(maxWidth: .infinity)
-        .background(EchoelTheme.bg)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Workspace")
-    }
-
-    private func chip(_ surface: WorkspaceSurface) -> some View {
-        let isOn = surface == selected
-        return Button {
-            // Breadcrumb: device logs must show WHAT was switched WHEN — the
-            // crackle report ("knistert beim Umschalten") was untriageable
-            // without it.
-            log.log(.info, category: .ui, "Surface switch → \(surface.rawValue)")
-            surfaceRaw = surface.rawValue
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: surface.systemImage)
-                    .font(.system(size: 11, weight: .medium))
-                Text(surface.title)
-                    .font(EchoelTheme.font(12, isOn ? .semibold : .regular))
-            }
-            .foregroundStyle(isOn ? EchoelTheme.text : EchoelTheme.dim)
-            .padding(.horizontal, 10)
-            .frame(height: 28)
-            .frame(maxWidth: .infinity)
-            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                .fill(isOn ? EchoelTheme.fill : Color.clear))
-            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                .strokeBorder(isOn ? EchoelTheme.text.opacity(0.35) : EchoelTheme.border,
-                              lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle().inset(by: -5))   // 38 pt-class touch target
-        .accessibilityLabel(surface.title)
-        .accessibilityAddTraits(isOn ? [.isSelected] : [])
-    }
-}
+// ⛔ `WorkspaceSurface` (the 4-case enum) and `SurfaceSwitcherBar` (its chip row)
+// were DELETED here on 2026-07-28, #132 Slice 5. Both were unmounted leftovers of
+// the 4-surface workspace: `ArrangementView`, the only thing that ever WROTE the
+// persisted raw values, went with the timeline, and `SurfaceSwitcherBar` — the only
+// reader of `@AppStorage("workspace.surface")` — was never mounted again after the
+// pure-instrument verdict. So the key had no writer and no reader.
+//
+// The stored `@AppStorage` key is deliberately NOT migrated or cleared: an unread
+// UserDefaults string costs nothing, and a deletion pass is exactly the wrong place
+// to start touching persisted user state.
+//
+// ⚠ WHAT ALMOST WENT WRONG, recorded because the next deletion will face it again:
+// an audit reported this file as "3 grep hits, all inside itself — free deletion".
+// That was wrong twice. It missed `Tests/EchoelmusicTests/WorkspaceSurfaceTests.swift`
+// (deleted with this change, since it pinned raw values nothing persists any more),
+// and — much worse — the file ALSO contains `SurfaceHost`, which `WorkspaceView`
+// mounts as the app's entire main view. Deleting "the file" would have deleted the
+// screen. Grep the TYPE, never the file.
 
 /// THE one main view. Once (founder 2026-07-10) this hosted the Ableton-style
 /// arrangement (timeline on top, instrument below); the pure-instrument verdict
@@ -105,9 +36,9 @@ struct SurfaceSwitcherBar: View {
 /// from within") removed the timeline entirely — SurfaceHost is now a thin wrapper
 /// that mounts `EchoelStudioView` (the "create from within" instrument) as the
 /// whole screen. The pure-instrument epic (#121, Slice 4) is deleting the
-/// now-unreachable DAW surfaces one by one (`ClipView` and
-/// `ArrangeTimelineView` already removed); `SurfaceSwitcherBar` still stands,
-/// unmounted. `ChannelRackView` used to be the one exception — LIVE, embedded in
+/// now-unreachable DAW surfaces one by one (`ClipView`, `ArrangeTimelineView` and,
+/// as of Slice 5, the chip bar and its enum from this very file — see the note at
+/// the top). `ChannelRackView` used to be the one exception — LIVE, embedded in
 /// `EchoelStudioView`'s Mix panel — but the drum removal (founder 2026-07-26,
 /// "es soll keine Drums geben. Auch nicht im Mixer.") unmounted it: it mixed
 /// the 8 drum channels, and there are none. It is now DELETED (#167, 2026-07-27),
@@ -123,8 +54,7 @@ struct SurfaceHost: View {
     /// "DAW-UI-Removal"): the per-track DAW features are being removed, so the
     /// timeline that used to be the front door (the 2026-07-13 "tracks are home"
     /// default, H2 already folded) has no reason to mount — `ArrangeTimelineView`
-    /// itself was deleted in Slice 4 (4b); the former fold bar still stands,
-    /// unmounted.
+    /// itself was deleted in Slice 4 (4b), and the former fold bar in Slice 5.
     ///
     /// Render safety: dropping the timeline branch + the fold bar SHRINKS the
     /// composed tree, so it can only EASE the SwiftUI metadata budget, never grow
