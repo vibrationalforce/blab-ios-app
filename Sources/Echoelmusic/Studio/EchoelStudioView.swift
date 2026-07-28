@@ -4368,7 +4368,26 @@ struct EchoelStudioView: View {
         // lane's mute/solo/level (Timeline.rollSlotGain). mixGain≈0 ⇒ every noteOn is
         // gated off (PianoRollView:529 `laneAudible`) → total silence even though notes
         // generate + the transport plays. Logging it makes the cause pastable.
-        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain))")
+        // vMax + mix: the two numbers that decide the NEXT device log (#205 follow-up).
+        // Device log 2472 showed `mfNotes=5 mfAmp=0.000 level=0.00` for a whole session
+        // while this line reported ten notes and `rollMixGain=1.00` — and rollMixGain is
+        // a RED HERRING in both directions: it is applied at trigger time and never
+        // stored, so it cannot move the published amplitude at all. What CAN is the
+        // mixer bake twenty lines above (`n.velocity * MixerStore.combined(...)`), the
+        // one multiplier in the whole chain with no floor under it: the composer clamps
+        // every note to ≥ 0.05 and the genre term never goes below 0.85, so a published
+        // 0.000 needs a USER fader below 0.0118 — on a 0.01-grid field that means 0.00
+        // or 0.01, nothing else. `vMax` is the max velocity of the FINISHED bar 0, i.e.
+        // after the bake. vMax≈0 ⇒ the bake did it, and `mix` names which fader. vMax
+        // normal ⇒ the take left here healthy and something downstream publishes other
+        // notes — a different investigation entirely. One line, four numbers, no new
+        // call site and no new modifier.
+        // Read `bars[0]`, NOT `composition.notes`: the latter is the composer's output
+        // BEFORE `finish()` applies the mixer bake, and the composer's own clamp puts a
+        // hard 0.05 floor under it — so it could never print 0.000 and would have been a
+        // number that cannot answer the question it was added for.
+        let vMax = bars.first?.map(\.velocity).max() ?? 0
+        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), mix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead))")
     }
 
     /// Per-lane composition fan-out (Slice A): compose each override-carrying
