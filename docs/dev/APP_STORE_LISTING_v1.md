@@ -46,7 +46,7 @@ synth, your, heartbeat, makes, music.)
 ## Promotional Text (170 chars max, updatable without release)
 
 ```
-Launch: the first bio-reactive performance instrument. Your pulse, breath and motion compose live music and visuals — free, private, no account, on your iPhone.
+Launch: the first bio-reactive performance instrument. Your pulse and breath compose live music and visuals — free, private, no account, on your iPhone.
 ```
 (159/170.)
 
@@ -55,7 +55,7 @@ Launch: the first bio-reactive performance instrument. Your pulse, breath and mo
 ```
 Your body is the instrument.
 
-Echoelmusic turns your heartbeat, breath and motion into live, professional
+Echoelmusic turns your heartbeat and breath into live, professional
 generative music — with immersive visuals that pulse with you. No account,
 no ads, no cloud: everything happens on your iPhone.
 
