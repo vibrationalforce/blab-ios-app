@@ -26,8 +26,17 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     /// standing in for "current" — that distinction is the whole point of the field.
     public static let currentSchemaVersion = 1
 
-    /// Version of the format this instance was WRITTEN in — `0` for a file that predates
-    /// the stamp. Not `let`: a future migration rewrites it after upgrading the payload.
+    /// Version of the file this instance was READ FROM — `0` for a file that predates the
+    /// stamp. It is PROVENANCE, not the state of any file on disk: `encode(to:)` always
+    /// writes `currentSchemaVersion`, so after a save the bytes say 1 while this value still
+    /// says where the take came from.
+    ///
+    /// ⚠️ THE CONSEQUENCE FOR ANY FUTURE MIGRATION, because getting it wrong re-runs the
+    /// migration on already-migrated data: **migrate at LOAD, in `init(from:)`, not at save
+    /// and not off this property later in the session.** A take loaded as `0` keeps reading
+    /// `0` in memory for the whole session even after `ProjectStore.save()` has written a
+    /// current-shape file. `var` rather than `let` only so a migration inside the decoder can
+    /// stamp the value it produced.
     public var schemaVersion: Int
 
     public var id: UUID
@@ -126,8 +135,22 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         //
         // Unordered content, so holes are dropped (`compactMap`) — the note's own
         // `startTick` carries its position, unlike `ClipStore`'s index-is-the-slot grid.
-        notes          = (try c.decodeIfPresent([LossyDecoded<Note>].self, forKey: .notes) ?? [])
-            .compactMap(\.value)
+        let wrappedNotes = try c.decodeIfPresent([LossyDecoded<Note>].self, forKey: .notes) ?? []
+        notes = wrappedNotes.compactMap(\.value)
+        // TELEMETRY — do not remove, and it is not optional politeness. `LossyDecoded`'s own
+        // file states the law: dropping elements is still PERMANENT loss (the next
+        // `ProjectStore.persist()` re-encodes only the survivors and the bad bytes are gone),
+        // just bounded loss — so without this line the partly-corrupt case becomes the one
+        // SILENT failure, which is worse than the all-or-nothing behaviour it replaced,
+        // because that at least threw. `AutomationState` already does exactly this for its
+        // keyed lossy array; `Project` shipped without it for one commit. Logged once per
+        // decode, never per note. `name` is decoded above, so the line can say WHICH take.
+        let droppedNotes = wrappedNotes.count - notes.count
+        if droppedNotes > 0 {
+            log.log(.error, category: .system,
+                    "Project '\(name)' — dropped \(droppedNotes)/\(wrappedNotes.count) "
+                    + "undecodable note(s); they are gone at the next save")
+        }
         // NOT hardened the same way, deliberately: these two are the drum apparatus the
         // founder removed (#166), scheduled for deletion by #167. Left exactly as they are
         // so the removal is a clean subtraction rather than a revert of new work — and

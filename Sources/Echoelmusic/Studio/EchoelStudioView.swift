@@ -2370,7 +2370,7 @@ struct EchoelStudioView: View {
         // ORDER IS LOAD-BEARING — `pianoRoll` first, see `PanicFanOut`'s doc. The two
         // optionals are genuinely absent until their surfaces exist; `PanicFanOut` skips
         // nil rather than the caller pre-filtering, so the array reads as the inventory.
-        PanicFanOut([
+        let reached = PanicFanOut([
             pianoRoll,        // releases poly/lead/sub/kind/MIDI AND clears `active`
             synth,
             subBass,
@@ -2380,6 +2380,12 @@ struct EchoelStudioView: View {
             laneVoiceRack,
             midiOut
         ]).releaseAll()
+        // The count is the ONLY thing that distinguishes "panic reached six voices" from
+        // "panic reached none because the environment was empty" — and on device those two
+        // look identical: silence either way, one because it worked and one because nothing
+        // was there. Logging it is what makes the panic button diagnosable from a founder's
+        // `echoel_diag.log` instead of guessable. MainActor, once per tap, never a render path.
+        log.log(.info, category: .audio, "Panic: released \(reached) voice target(s)")
     }
 
     // MARK: Panel — Visual (immersive sound→light)
