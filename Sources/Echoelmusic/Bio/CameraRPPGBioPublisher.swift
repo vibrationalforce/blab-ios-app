@@ -35,7 +35,9 @@ private final class RGBSampleQueue: @unchecked Sendable {
     struct Sample { let r: Float; let g: Float; let b: Float; let t: TimeInterval }
     private let lock = NSLock()
     private var samples: [Sample] = []
-    /// Cap so a stalled drain can't grow this without bound (~3 s at 30 fps).
+    /// Cap so a stalled drain can't grow this without bound (~6 s at the 15 fps the
+    /// session is pinned to — `activeVideoMaxFrameDuration`. The "~3 s at 30 fps" here
+    /// was wrong about the rate and therefore about the headroom it claims).
     private static let maxBuffered = 90
 
     func push(r: Float, g: Float, b: Float, t: TimeInterval) {
@@ -523,7 +525,7 @@ public final class CameraRPPGBioPublisher {
         self.bus = bus
 
         let sampleQueue = self.sampleQueue
-        capture.onFrame = { pixelBuffer in
+        capture.setOnFrame { pixelBuffer in
             // Average the center region on the capture queue → 3 Sendable Floats.
             CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
             defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
@@ -559,7 +561,7 @@ public final class CameraRPPGBioPublisher {
         // an interruption resume keeps the same session, so a stale locked exposure
         // survives it (handleCameraSessionReset does both). The torch is re-armed
         // by CameraCapture itself. Fires on a background queue → hop.
-        capture.onSessionReset = { [weak self] in
+        capture.setOnSessionReset { [weak self] in
             Task { @MainActor [weak self] in self?.handleCameraSessionReset() }
         }
 
@@ -571,8 +573,8 @@ public final class CameraRPPGBioPublisher {
             // superseded us during the await owns the state now — don't clobber it).
             if gen == startGeneration {
                 isRunning = false
-                capture.onFrame = nil
-                capture.onSessionReset = nil
+                capture.setOnFrame(nil)
+                capture.setOnSessionReset(nil)
                 // Denied/restricted access is a SYSTEM fact, read fresh (not inferred
                 // from the error) — the UI must say "enable it in Settings" instead of
                 // coaching finger placement that can never work (UX-1).
@@ -1158,7 +1160,7 @@ public final class CameraRPPGBioPublisher {
         startGeneration += 1
         publishTask?.cancel()
         publishTask = nil
-        capture.onSessionReset = nil
+        capture.setOnSessionReset(nil)
         // Detach the frame sink BEFORE tearing the session down, so the analyzer stops
         // being fed the moment we decide to stop rather than whenever `stop()`'s async
         // teardown happens to land. NOTE what this ordering is and is not: it is hygiene,
@@ -1166,7 +1168,7 @@ public final class CameraRPPGBioPublisher {
         // is on `sessionQueue`), so frames can still be in flight either way — what makes
         // that safe is `LockedBox` (#213), not this line. Reading the order as the fix is
         // exactly the mistake the first draft of that fix made.
-        capture.onFrame = nil
+        capture.setOnFrame(nil)
         capture.setTorch(false)
         capture.unlockExposure()       // leave the device back in auto for next time
         capture.stop()

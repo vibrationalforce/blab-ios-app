@@ -2,22 +2,30 @@
 // Echoel — the holder that stands between "switch biofeedback off" and EXC_BAD_ACCESS.
 //
 // THE DEFECT (#213). `CameraCapture.onFrame` was a bare `nonisolated(unsafe) var`,
-// CALLED on the capture queue ~30×/s and NILLED on the MainActor by
-// `CameraRPPGBioPublisher.stop()`. `sink?(buffer)` is a load followed by a call; a `nil`
-// landing between them can release the closure's captured context while that call is
-// running. Not a torn read — a use-after-free, on the most ordinary gesture in the app.
+// CALLED on the capture queue (15 fps — the session pins `activeVideoMaxFrameDuration`
+// to 1/15) and NILLED on the MainActor by `CameraRPPGBioPublisher.stop()`. `sink?(buffer)`
+// lowers to load-the-reference, retain, call; a `nil` landing between the load and the
+// RETAIN touches freed memory. Not a torn read — a use-after-free.
 //
 // WHY IT LIVES IN CISmoke: this is the blocking bundle (see `SilenceClassSmokeTests` for
 // the full argument — `project.yml`'s `EchoelmusicTests` target sources only this
 // directory). A crash class earns a test that can actually fail a build.
 //
-// WHAT THESE TESTS CANNOT DO. They cannot reproduce the race — a passing threaded test
-// proves nothing about a data race, and a flaky one in the BLOCKING gate is worse than
-// no test at all. What they pin is the MECHANISM the fix rests on: that a value taken
-// out of the box stays alive and callable after the box is cleared. If someone "simplifies"
-// `LockedBox` back into a plain stored property, or rewrites a call site as
-// `if box.value != nil { box.value!(x) }` — two loads, the race straight back — the
-// deallocation test below fails. That is the guard that was actually available here.
+// WHAT THESE TESTS COVER — stated narrowly, because the first version of this header
+// overclaimed and review caught it. It said a call site rewritten to two loads would
+// fail "the deallocation test below". That is FALSE: nothing here imports, constructs or
+// touches `CameraCapture`, so every one of these stays green no matter what the call
+// sites do. Writing that into a commit whose whole stance is "be honest about what a
+// test proves" is the exact failure it warns about.
+//
+// What they DO pin is `LockedBox`'s semantics — that a value taken out of the box stays
+// alive and callable after the box is cleared. That is the mechanism the fix rests on,
+// and a "simplification" back to a plain stored property fails them. The CALL SITES are
+// guarded structurally instead: `CameraCapture` exposes `setOnFrame(_:)` with no getter,
+// so the two-step `capture.onFrame?(buf)` shape cannot be written at all.
+//
+// And they cannot reproduce the race. A passing threaded test proves nothing about a
+// data race, and a flaky one in the BLOCKING gate is worse than no test at all.
 
 import XCTest
 @testable import Echoelmusic

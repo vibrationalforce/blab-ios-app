@@ -6,7 +6,7 @@ import Observation
 #endif
 
 /// P3 · Video — the capture SINK. Writes a stream of `CVPixelBuffer` frames
-/// (the same 32BGRA buffers `CameraCapture.onFrame` already produces, and the
+/// (the same 32BGRA buffers `CameraCapture`'s frame sink already produces, and the
 /// buffers a future bio-visual compositor will render) to an H.264 `.mp4` on
 /// disk, ready for trim + share.
 ///
@@ -25,7 +25,7 @@ import Observation
 /// Usage:
 ///   let rec = VideoRecorder()
 ///   rec.startRecording()
-///   camera.onFrame = { buffer in rec.ingest(buffer, at: <capture PTS as CMTime>) }
+///   camera.setOnFrame { buffer in rec.ingest(buffer, at: <capture PTS as CMTime>) }
 ///   let url = await rec.stopRecording()   // → finished .mp4, or nil on failure
 @MainActor @Observable
 final class VideoRecorder {
