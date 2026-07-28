@@ -8652,3 +8652,45 @@ Der ASC-Verify-Schritt fand den Build nach ~2 Minuten (06:55:56 → 06:58:02), l
 NICHT ins 20-Minuten-Timeout, das mit Warnung + exit 0 endet. Deshalb ist das hier eine
 Bestätigung und keine Vermutung. Alle vier Jobs grün (Preflight · iOS · Compile Check ·
 Summary), Archive 3,5 min, Export+Upload 48 s, keine Provisioning-Transiente.
+
+## 2026-07-28 (cron, 24h-Mandat) — v10.79.356: Ultrasync + Loop-Takte + Abbruch + Beamer-Szene (Scheibe 1)
+
+**Sechs Commits seit v355, drei davon Founder-Asks vom selben Tag.**
+
+- **#201 ULTRASYNC** (`fc7b131`→`8f75d2f`, 4 Commits): Quantizer + eigener Clock + Anbindung an die
+  Touch-Fläche, „Sync" (0…1) + „Grid" im Touch-Panel, **Default AUS und per Test festgenagelt**.
+  DIE ENTSCHEIDUNG, die es spielbar macht: **nur die Note wartet** — Haptik, Wasserring und Farbwolke
+  feuern bei Touch-Down. Microtiming reitet auf dem vorhandenen „Life"-Regler statt einen dritten Knopf
+  zu öffnen. Offen: auf geswungenen Genres zielt das Raster auf das GERADE Raster (in der Deploy-Notiz
+  benannt, nicht verschwiegen).
+- **#205** (`a15a717`): Noten unter der Hörschwelle (`audibleVelocityFloor = 0.001`) meldeten sich als
+  klingend an Bild und Licht. Filter im `MusicalFrame`-Publish + `inaudibleNoteCount` als Diagnosewert,
+  damit der Filter die Diagnose nicht zerstört (`mfNotes=hörbar/aktiv`).
+- **#200 zweigeteilt:** (`c12c29d`) 64 Takte + `LoopExporter.canKeepLast/longestKeepable` — der Knopf
+  nennt jetzt die WAHRE Obergrenze des 29,5-s-Rings beim aktuellen Tempo statt still abzulehnen.
+  (`66fbefd`) Abbruch der laufenden Aufnahme; Reviewer fand dabei einen **Hänger**: `RetroCapture.stopRecording`
+  ruft seinen Completion NICHT auf, wenn `!isRecording` → der Export hätte ewig suspendiert, Status auf
+  `.capturing` festgenagelt, Knopf für die Sitzung tot. An BEIDEN Stellen geschlossen.
+- **#206 Scheibe 1** (`7ab2a66` Plan, `0e217cb` Bau): externe Ausgabe-Szene über
+  `UIWindowSceneSessionRoleExternalDisplayNonInteractive`. Founder gab das Info.plist-Gate per
+  AskUserQuestion frei; `decisions.csv:163` („AirPlay-Weg, KEINE Multi-Szene") ist damit **superseded**.
+  **ABWEICHUNG vom Plan:** kein `UIApplicationDelegateAdaptor` — die Plist nennt die Delegate-Klasse
+  direkt (`$(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate`), weil das strikt WENIGER Startpfad-Code
+  ist in genau der Scheibe, die den Start prüfen soll.
+
+**REVIEWER-LEHREN dieses Zyklus (beide teuer, wenn übersehen):**
+1. **Die iPad-Nebenwirkung war NICHT „survivable".** Ich hatte das behauptet; der Reviewer widerlegte es:
+   `UIApplicationSupportsMultipleScenes` erlaubt auf iPad ein Zweitfenster, dessen `.task` den GANZEN
+   Startlauf gegen die schon laufende Engine fährt — `AudioEngine.attachSourceNode` hat keine
+   „schon-angehängt"-Prüfung. Das ist die Hot-Attach-Form, der `EchoelmusicApp.swift` selbst den
+   Startabsturz von Build 1363 zuschreibt. Fix: `startupDone`-Latch, ein Bool statt eines Delegate-Hooks.
+2. **`-warnings-as-errors` war eine FALSCHE Begründung** — und ausgerechnet die, mit der ich das Anfassen
+   des Startpfads gerechtfertigt hatte. `Package.swift:28` gilt nur für SwiftPM, und beide SwiftPM-Jobs
+   bauen für Hosts OHNE UIKit (`ci.yml:41` macos-26, `ci.yml:310` ubuntu-latest); die Xcode-Lanes setzen
+   gar kein `SWIFT_TREAT_WARNINGS_AS_ERRORS`. `UIScreen.didConnectNotification` wird ausgeschlossen, weil
+   es seit iOS 16 deprecated ist — aus API-Gründen, nicht wegen eines Gates. In Quelle UND Plan korrigiert.
+
+**Gates:** Xcode Compile Check + CI/CD Pipeline grün auf `0e217cb`; Full Test Suite ebenfalls grün.
+**Deploy:** `badc78c` bumpt `.deploy/release` auf v10.79.356.
+**OFFENE GERÄTEFRAGE, die Scheibe 2 blockiert:** startet die App normal OHNE angeschlossenen Bildschirm?
+Ein einziger normaler Start reicht. Bis dahin kommt kein Metal auf die zweite Szene.
