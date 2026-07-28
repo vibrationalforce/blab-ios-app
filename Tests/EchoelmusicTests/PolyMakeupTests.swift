@@ -6,6 +6,19 @@
 // off along a 1/√N law — and the change from note to note must EASE, never jump
 // (the old raw per-block 1/√N pumped, which is why smoothing is mandatory).
 // Pure functions → fully unit-testable, no AVAudio / Accelerate render needed.
+//
+// ⛔ WHY THE EXPONENT IS PINNED HERE AND NOT LEFT AS "roughly 1/√N" (#195, 2026-07-28).
+// #195 was filed to RAISE it — "1/√N applies to incoherent sums; a chord sums coherently".
+// That reasoning is exactly inverted for the quantity this gain controls. Measured on
+// additive 8-harmonic voices at real intervals, 40 random phase sets each: RMS grows as
+// N^0.50 (to three decimals) for every chord with distinct pitches and every phase set —
+// it is the PEAK that grows coherently, at N^~1.0, and the peak is the safety tanh's and
+// the limiter's problem, not this function's. Acting on #195 would have made every chord
+// quieter than a single note, i.e. the "too thin" direction the founder keeps reporting.
+// The full table is on `polyMakeupTarget` in EchoelDDSP.swift. So the law is measured,
+// not assumed, and `testFollowsInverseSqrtLaw` checks the exponent at three points rather
+// than one ratio — a single 1:4 ratio also passes for a plain "halve every doubling"
+// lookup that is not a power law at all.
 
 #if canImport(Accelerate)
 import XCTest
@@ -28,7 +41,9 @@ final class PolyMakeupTests: XCTestCase {
     }
 
     func testDenseChordIsBackedOff() {
-        // More voices → lower makeup, so the coherent sum is tamed before the tanh.
+        // More voices → lower makeup, so the summed LOUDNESS stays put as notes stack.
+        // NOT "so the coherent sum is tamed before the tanh" (what this comment used to
+        // say): the peak still grows N^0.5 after this gain — see the file header.
         let one = Poly.polyMakeupTarget(voiceCount: 1)
         let four = Poly.polyMakeupTarget(voiceCount: 4)
         let twelve = Poly.polyMakeupTarget(voiceCount: 12)
@@ -37,10 +52,23 @@ final class PolyMakeupTests: XCTestCase {
     }
 
     func testFollowsInverseSqrtLaw() {
-        // Quadrupling the voice count halves the gain (1/√N), until the floor clamps.
+        // THE EXPONENT, at three points, because one ratio does not identify a power law:
+        // 1, 4 and 9 all sit above the 0.22 floor, so each must satisfy g(N) = g(1)·N^−0.5
+        // exactly. Solving for p in g(N)/g(1) = N^−p pins it to 0.500, which is the number
+        // #195 proposed to raise and the measurement says to keep (see the file header).
         let one = Poly.polyMakeupTarget(voiceCount: 1)
-        let four = Poly.polyMakeupTarget(voiceCount: 4)
-        XCTAssertEqual(four, one / 2, accuracy: 0.01, "1/√N: 4 voices ≈ half the single-note gain")
+        for n in [4, 9] {
+            let g = Poly.polyMakeupTarget(voiceCount: n)
+            XCTAssertEqual(g, one / Float(n).squareRoot(), accuracy: 1e-5,
+                           "\(n) voices must land on the 1/√N law, not near it")
+            // `logf`, not `log` — the global `log` in this project is the EchoelLogger.
+            let p = -logf(g / one) / logf(Float(n))
+            XCTAssertEqual(p, 0.5, accuracy: 1e-4,
+                           "\(n) voices: exponent is 0.500 by measurement — raising it toward "
+                           + "1 makes a chord quieter than a single note")
+        }
+        XCTAssertEqual(Poly.polyMakeupTarget(voiceCount: 4), one / 2, accuracy: 0.01,
+                       "1/√N: 4 voices ≈ half the single-note gain")
     }
 
     func testNeverBelowTheFloor() {

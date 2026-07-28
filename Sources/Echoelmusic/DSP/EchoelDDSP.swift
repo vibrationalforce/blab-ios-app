@@ -2276,9 +2276,42 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     /// Target makeup gain for `voiceCount` sounding voices. A single note plays at
     /// `fullGain` (near-full — the old fixed 0.40 made even one note thin); as more
-    /// voices stack, the gain follows an RMS-style 1/√N law so their coherent sum is
-    /// backed off before the safety tanh instead of slamming it. Clamped to
-    /// [`floorGain`, `fullGain`]. Pure — no state, no allocation, unit-testable.
+    /// voices stack, the gain follows an RMS 1/√N law. Clamped to [`floorGain`,
+    /// `fullGain`]. Pure — no state, no allocation, unit-testable.
+    ///
+    /// ⛔ THE SENTENCE THAT USED TO END THAT PARAGRAPH — "so their COHERENT sum is backed
+    /// off before the safety tanh instead of slamming it" — WAS WRONG, and it is worth
+    /// spelling out why, because #195 was filed on the same wrong intuition ("1/√N applies
+    /// to incoherent sums; a chord sums coherently") and the obvious 'fix' would have been
+    /// a regression. Measured, additive 8-harmonic voices at real intervals, 40 random
+    /// phase sets each (exponent p in growth = N^p, relative to one voice):
+    ///
+    ///     chord            N   p(RMS) zero-phase   p(RMS) random      p(PEAK) random
+    ///     octave           2        0.776           0.205 … 0.719      0.274 … 1.342
+    ///     fifth            2        0.492           0.489 … 0.511      0.766 … 1.341
+    ///     major triad      3        0.496           0.495 … 0.505      0.902 … 1.143
+    ///     major 7th        4        0.499           0.496 … 0.504      0.883 … 1.088
+    ///     five notes       5        0.499           0.497 … 0.504      0.864 … 1.014
+    ///
+    /// So it is EXACTLY INVERTED from the way it was written. What a chord sums coherently
+    /// is its PEAK (p ≈ 1, phase notwithstanding — the partials of musically-related pitches
+    /// realign every common period). Its RMS sums INCOHERENTLY at p = 0.50, to three
+    /// decimals, for every chord with distinct pitches and for every phase set tried. This
+    /// function controls LOUDNESS, so 1/√N is not an approximation here — it is the measured
+    /// law, and raising the exponent toward 1 "because chords are coherent" would make every
+    /// chord quieter than a single note by exactly the amount the founder has repeatedly
+    /// reported as too thin.
+    ///
+    /// The octave is the one real exception (its partials coincide rather than interleave,
+    /// so p(RMS) swings 0.21…0.72 with phase) and it is deliberately NOT special-cased: the
+    /// octaver is an opt-in effect carrying its own mix, and a voice-count law that branched
+    /// on interval content would be unpredictable to play.
+    ///
+    /// WHAT THIS FUNCTION THEREFORE DOES NOT DO: it does not protect the tanh. After 1/√N
+    /// the peak still grows as N^0.5 — a five-note chord peaks ~2.2× a single note. That is
+    /// the safety tanh's job, and the limiter's behind it. Do not extend this law to try to
+    /// cover it; a makeup that flattened peak growth would flatten the dynamics of playing
+    /// more notes, which is the musical gesture itself.
     nonisolated static func polyMakeupTarget(voiceCount: Int,
                                              fullGain: Float = 0.85,
                                              floorGain: Float = 0.22) -> Float {
