@@ -141,11 +141,13 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// preset would store wherever the sweep happened to be, and the UI would show a
     /// number the user never set. So: THIS is the authoritative control-plane number
     /// (what the user set, what gets saved, what the driver modulates around), and
-    /// `filterL/filterR.cutoff` becomes an internal audio mirror that only the block
-    /// entry points below write. Same shape `EchoelDelay` already uses for its read tap.
+    /// `filterL/filterR.cutoff` becomes an internal audio mirror written ONLY by
+    /// `advanceFilterGlide` and `snapFilterToTarget` in this file. Same shape
+    /// `EchoelDelay` already uses for its read tap. (`filterL.mode` is the exception and
+    /// is still written from outside — it is discrete, so there is nothing to glide.)
     ///
-    /// Writers: the UI fader and the 30 Hz driver GLIDE; `setFilter`, `reset()` and
-    /// `filterEnabled`'s rising edge SNAP.
+    /// Writers: the UI fader and the 30 Hz driver GLIDE; `setFilter`, `reset()`,
+    /// `filterEnabled`'s rising edge and a render resume after `noteRenderSkipped()` SNAP.
     public var filterCutoff: Float = 2000.0
     /// Companion target for resonance — same contract as `filterCutoff`.
     public var filterResonance: Float = 0.3
@@ -164,6 +166,10 @@ public final class EchoelFXChain: @unchecked Sendable {
     private var glideCoefficient: Float = 1
     private var glideCoefficientFrames: Int = 0
     private let sampleRateHz: Float
+    /// Set by `noteRenderSkipped()`, consumed by the next `advanceFilterGlide`. Written
+    /// and read on the AUDIO THREAD only (all four call sites are inside a render block),
+    /// so it needs no isolation and no atomics — it never crosses a thread.
+    private var renderSkipped = false
 
     // MARK: - Init
 
@@ -207,27 +213,24 @@ public final class EchoelFXChain: @unchecked Sendable {
 
     /// Land the tone-filter mirror on the current targets, skipping the glide.
     ///
-    /// The single place every snap edge goes through, and it exists in this form for a
-    /// reason worth stating: each edge used to write the RAW TARGET into the SVF right
-    /// after snapping the glide, which quietly bypassed `ParamGlide.snap`'s non-finite
-    /// guard. A NaN `filterCutoff` — one bad frame away, since the 30 Hz bio driver writes
-    /// this field — would then reach a recursive filter, where one NaN is permanent
-    /// silence. What reaches `filterL/filterR` here is always `ParamGlide.value`, i.e. the
-    /// last FINITE value, never the target itself.
+    /// The single place the three control-plane snap edges go through (`filterEnabled`'s
+    /// rising edge, `setFilter`, `reset()`). It exists in this form because each edge used
+    /// to write the RAW TARGET into the SVF right after snapping the glide, so
+    /// `ParamGlide.snap`'s non-finite guard was decorative on those paths. What reaches
+    /// `filterL/filterR` here is always `ParamGlide.value` — the last FINITE value.
     ///
-    /// PUBLIC because of the fourth edge, which is not in this file. `PolySynthVoice` and
-    /// `BioReactiveSynthVoice` gate the whole chain behind `fxEnabled`; while that gate is
-    /// off, `processBuffer` is never called, so the glide FREEZES — while `filterCutoff`
-    /// keeps moving under the UI fader and the 30 Hz driver. Re-enabling insert FX would
-    /// then open with a 50 ms resonant sweep out of a value the user last heard minutes
-    /// ago: exactly the stale-value artefact the other three edges exist to prevent, on a
-    /// path that had no edge. Those two voices call this on their false→true edge.
+    /// ⚠️ Be precise about the stake, because the first version of this comment was not:
+    /// a raw NaN in `filterL.cutoff` is NOT permanent silence. `EchoelSVFilter.process`
+    /// never reads `cutoff`; it reads the derived `g`/`k`, and `updateCoefficients()`
+    /// already substitutes 1 kHz / 0.3 for a non-finite input. The real cost is a filter
+    /// silently parked at a substitute frequency plus a field that reads back NaN. Worth
+    /// closing — one guard, one choke point — but do not repeat the silence claim.
     ///
-    /// Control-plane only (main thread). It can be clobbered by a block that lands
-    /// between the snap and the caller's gate flip — the cost is bounded to one ≤50 ms
-    /// glide instead of a jump, and the next block heals it, so this is documented rather
-    /// than defended with a generation counter the audio thread would have to read.
-    public func snapFilterToTarget() {
+    /// The FOURTH freeze path is deliberately NOT served from here. Three of the four ways
+    /// a block can skip this chain (`hasEverSounded`, the 2.5 s `renderIdle` skip, the
+    /// `fxEnabled` gate) are decided on the AUDIO thread, where there is no control-plane
+    /// edge to hook — they use `noteRenderSkipped()` instead.
+    func snapFilterToTarget() {
         cutoffGlide.snap(to: filterCutoff)
         resonanceGlide.snap(to: filterResonance)
         let c = cutoffGlide.value, q = resonanceGlide.value
@@ -250,6 +253,25 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// ⚠️ The SVF's equality guard is what keeps this cheap on a settled parameter: once
     /// the glide reaches its target, `ParamGlide` returns the exact target every block, the
     /// assignment is a no-op comparison, and `updateCoefficients()` stops being called.
+    /// Tell the chain that the caller's render block ran but SKIPPED this chain.
+    ///
+    /// The tone-filter glide only advances when a block reaches it, so any path that
+    /// returns before `processBuffer`/`processBufferMono` freezes the glide while the
+    /// control-plane target keeps moving under the UI fader and the 30 Hz bio driver. On
+    /// resume, the first audible thing would be a 50 ms resonant sweep out of a value the
+    /// user last heard seconds — or minutes — ago. Four such paths exist today, and only
+    /// one of them (the `fxEnabled` gate) has a control-plane setter that could snap
+    /// instead: `PolySynthVoice`'s `hasEverSounded` guard and its 2.5 s `renderIdle` skip
+    /// both decide on the AUDIO thread, so there is nothing on the main thread to hook.
+    /// Hence one flag, set from wherever the skip is decided, consumed by the next block.
+    ///
+    /// Audio-thread safe: a single Bool store, no allocation, no locks, no isolation
+    /// crossing. A chain whose caller never calls this behaves exactly as before.
+    @inline(__always)
+    public func noteRenderSkipped() {
+        renderSkipped = true
+    }
+
     @inline(__always)
     private func advanceFilterGlide(frameCount: Int) {
         // `filterEnabled` is part of the guard, not an optimisation. A bypassed stage is
@@ -259,14 +281,24 @@ public final class EchoelFXChain: @unchecked Sendable {
         // thread really is not. Advancing the glide of a stage nobody hears would void
         // that argument and burn up to four `tanf` per block for silence.
         guard frameCount > 0, filterEnabled else { return }
-        if frameCount != glideCoefficientFrames {
-            glideCoefficient = ParamGlide.coefficient(
-                tauSeconds: ParamGlide.bioTau,
-                stepRateHz: sampleRateHz / Float(frameCount))
-            glideCoefficientFrames = frameCount
+        if renderSkipped {
+            // The caller skipped this chain for an unknown span of wall time, so the
+            // glide's stored value is stale by an unknown amount. Gliding from it would
+            // sweep; the honest resume is to land. Same reasoning as `reset()` — there is
+            // nothing to glide FROM.
+            renderSkipped = false
+            cutoffGlide.snap(to: filterCutoff)
+            resonanceGlide.snap(to: filterResonance)
+        } else {
+            if frameCount != glideCoefficientFrames {
+                glideCoefficient = ParamGlide.coefficient(
+                    tauSeconds: ParamGlide.bioTau,
+                    stepRateHz: sampleRateHz / Float(frameCount))
+                glideCoefficientFrames = frameCount
+            }
+            cutoffGlide.advance(toward: filterCutoff, coefficient: glideCoefficient)
+            resonanceGlide.advance(toward: filterResonance, coefficient: glideCoefficient)
         }
-        cutoffGlide.advance(toward: filterCutoff, coefficient: glideCoefficient)
-        resonanceGlide.advance(toward: filterResonance, coefficient: glideCoefficient)
         let c = cutoffGlide.value, q = resonanceGlide.value
         filterL.cutoff = c;    filterR.cutoff = c
         filterL.resonance = q; filterR.resonance = q

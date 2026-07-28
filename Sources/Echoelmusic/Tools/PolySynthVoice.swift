@@ -222,13 +222,12 @@ public final class PolySynthVoice {
 
     /// Enable or bypass the whole insert chain. Individual stages are toggled
     /// directly on `fxChain` (e.g. `fxChain.delayEnabled = true`).
+    /// The stale-glide problem this gate creates is handled on the RENDER side, not here:
+    /// see `fxChain.noteRenderSkipped()` at the three skip paths in `renderOnAudioThread`.
+    /// A snap on this rising edge would have covered only ONE of them — `hasEverSounded`
+    /// and the 2.5 s `renderIdle` skip both decide on the audio thread and have no
+    /// control-plane setter to hook.
     public func setFXEnabled(_ on: Bool) {
-        // #138 SLICE 2 — THE FOURTH SNAP EDGE. While this gate is off the chain's block
-        // entry point is never called, so its tone-filter glide FREEZES — while the user
-        // can still move the tone fader and the 30 Hz bio driver keeps writing the target.
-        // Without this, re-enabling insert FX opens with a resonant sweep out of a value
-        // last heard minutes ago. Rising edge only: on the way OFF there is nothing to land.
-        if on && !fxEnabled { fxChain.snapFilterToTarget() }
         fxEnabled = on
         isFXEnabled = on
     }
@@ -764,6 +763,10 @@ public final class PolySynthVoice {
         // rendering.
         drainNoteCommands()
         guard hasEverSounded else {
+            // #138 Slice 2: the chain is about to be skipped, so its tone-filter glide
+            // must LAND on resume rather than sweep out of a value from before the
+            // session's first note. Same at the two skip paths below.
+            fxChain.noteRenderSkipped()
             Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
             return
         }
@@ -774,6 +777,7 @@ public final class PolySynthVoice {
             if audioEntrainmentActive {
                 renderIdle = false; idleQuietFrames = 0   // stimulus armed → wake
             } else {
+                fxChain.noteRenderSkipped()
                 Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
                 return
             }
@@ -785,6 +789,8 @@ public final class PolySynthVoice {
         // lets the Effects panel bypass the entire chain.
         if fxEnabled {
             fxChain.processBuffer(left: &scratchL, right: &scratchR, frameCount: count)
+        } else {
+            fxChain.noteRenderSkipped()
         }
         // Per-track melodic insert (user filter/drive), AFTER the genre fxChain so the two
         // never fight. Off = untouched (bit-identical). Independent L/R biquad state.

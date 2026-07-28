@@ -152,12 +152,14 @@ public final class BioReactiveSynthVoice {
     /// Enable or bypass the insert FX chain. Updates both the audio-thread gate
     /// and the observable mirror. Individual stages are toggled directly on
     /// `fxChain` (e.g. `fxChain.delayEnabled = true`).
+    /// The stale-glide problem this gate creates is handled on the RENDER side — see
+    /// `fxChain.noteRenderSkipped()` in `renderOnAudioThread`. (Today that is defensive
+    /// rather than live: nothing in `Sources/` calls this method, so this voice's chain
+    /// never runs, and `FXBioModulator` is attached to `PolySynthVoice.fxChain` only.
+    /// Stated plainly because the first draft of this comment claimed the opposite —
+    /// "this is the body-driven voice, so the drift is largest here" — which was false in
+    /// both halves and is exactly the kind of line a later session cites as evidence.)
     public func setFXEnabled(_ on: Bool) {
-        // #138 SLICE 2 — THE FOURTH SNAP EDGE; see `EchoelFXChain.snapFilterToTarget`.
-        // A bypassed chain never advances its tone-filter glide, so the mirror goes stale
-        // while the target keeps moving under the 30 Hz bio driver. This is the body-driven
-        // voice, so that drift is the largest here. Rising edge only.
-        if on && !fxEnabled { fxChain.snapFilterToTarget() }
         fxEnabled = on
         isFXEnabled = on
     }
@@ -463,6 +465,9 @@ public final class BioReactiveSynthVoice {
         // Launch-silence guarantee: never emit anything until the first
         // user-initiated trigger. Pure zero out of this node on app open.
         guard hasEverSounded else {
+            // #138 Slice 2: the chain is skipped here, so its tone-filter glide must LAND
+            // on resume instead of sweeping out of a pre-session value.
+            fxChain.noteRenderSkipped()
             Self.silence(audioBufferList: audioBufferList, frameCount: frameCount)
             return
         }
@@ -471,6 +476,8 @@ public final class BioReactiveSynthVoice {
         // Insert FX (mono, in place). Gated so it is a true no-op until enabled.
         if fxEnabled {
             fxChain.processBufferMono(&scratchBuffer, frameCount: count)
+        } else {
+            fxChain.noteRenderSkipped()
         }
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         guard abl.count > 0, let raw = abl[0].mData else { return }

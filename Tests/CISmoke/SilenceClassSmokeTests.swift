@@ -46,9 +46,12 @@ final class SilenceClassSmokeTests: XCTestCase {
     }
 
     /// A non-finite TARGET must be held, never propagated. `ParamGlide` feeds recursive
-    /// filters (the FX tone filter, the delay read tap); one NaN in a recursive structure
-    /// is permanent silence, not a glitch. Both entry points are checked: the per-block
-    /// `advance` and the `snap` used by every document-level edge.
+    /// structures — the FX tone filter, a delay read tap — where a NaN that reaches the
+    /// STATE does not decay out: it is silence for the rest of the session, not a glitch.
+    /// (Downstream guards exist in places — `EchoelSVFilter` substitutes 1 kHz for a
+    /// non-finite cutoff — but the guard here is the one that keeps the value itself
+    /// meaningful rather than merely non-fatal.) Both entry points are checked: the
+    /// per-block `advance` and the `snap` used by every document-level edge.
     func testAGlideHoldsANonFiniteTargetInsteadOfPropagatingIt() {
         var glide = ParamGlide(2000)
         glide.advance(toward: .nan, coefficient: 0.1)
