@@ -101,8 +101,14 @@ public struct ParamGlide: Sendable, Equatable {
     /// itself falls under half an ULP at cutoff magnitudes and the glide stalls sub-Hz
     /// short — harmless, but it will not reach the target exactly.
     ///
-    /// A non-finite target is ignored (hold the last good value) rather than propagated —
-    /// this feeds a recursive filter, where one NaN is permanent.
+    /// A non-finite target is ignored (hold the last good value) rather than propagated.
+    /// Precisely: the ONE consumer today is `EchoelFXChain`'s tone filter, and that filter
+    /// substitutes 1 kHz for a non-finite cutoff of its own accord — so this guard is not
+    /// what stands between a NaN and permanent silence there, as an earlier version of
+    /// this line claimed. What it buys is that the parameter keeps a MEANINGFUL value
+    /// instead of a substitute one, and that a future consumer without such a substitute
+    /// (a delay read tap, an oscillator frequency, anything feeding recursive state where
+    /// a NaN does not decay out) inherits the guard rather than needing its own.
     public mutating func advance(toward target: Float, coefficient: Float,
                                  epsilon: Float = 1e-4) {
         guard target.isFinite else { return }

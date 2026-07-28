@@ -96,8 +96,12 @@ final class ParamGlideTests: XCTestCase {
     }
 
     func testGlide_nonFiniteTargetIsIgnored_notPropagated() {
-        // This value feeds a recursive filter, where a single NaN is permanent. Holding
-        // the last good value is the only safe answer.
+        // Holding the last good value is the only safe answer. Stated precisely, because
+        // the same claim was overstated in three places: today's one consumer
+        // (`EchoelFXChain`'s tone filter) substitutes 1 kHz for a non-finite cutoff itself,
+        // so this guard is what keeps the value MEANINGFUL rather than what prevents
+        // silence there — and it is what a future consumer with no such substitute, feeding
+        // recursive state a NaN cannot decay out of, will depend on.
         var g = ParamGlide(2000)
         g.advance(toward: .nan, coefficient: 0.5)
         XCTAssertEqual(g.value, 2000)

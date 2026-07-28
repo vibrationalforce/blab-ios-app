@@ -167,8 +167,9 @@ public final class EchoelFXChain: @unchecked Sendable {
     private var glideCoefficientFrames: Int = 0
     private let sampleRateHz: Float
     /// Set by `noteRenderSkipped()`, consumed by the next `advanceFilterGlide`. Written
-    /// and read on the AUDIO THREAD only (all four call sites are inside a render block),
-    /// so it needs no isolation and no atomics — it never crosses a thread.
+    /// and read on the AUDIO THREAD only (all FIVE call sites are inside a render block),
+    /// so it needs no isolation and no atomics — it never crosses a thread. That argument
+    /// is the reason `noteRenderSkipped` is internal rather than public.
     private var renderSkipped = false
 
     // MARK: - Init
@@ -226,16 +227,57 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// silently parked at a substitute frequency plus a field that reads back NaN. Worth
     /// closing — one guard, one choke point — but do not repeat the silence claim.
     ///
-    /// The FOURTH freeze path is deliberately NOT served from here. Three of the four ways
-    /// a block can skip this chain (`hasEverSounded`, the 2.5 s `renderIdle` skip, the
-    /// `fxEnabled` gate) are decided on the AUDIO thread, where there is no control-plane
-    /// edge to hook — they use `noteRenderSkipped()` instead.
+    /// CONTROL PLANE ONLY (main thread). The audio thread performs the identical two-line
+    /// snap inline in `advanceFilterGlide`'s resume branch — it must not come through
+    /// here, because two threads snapping the same `ParamGlide` structs is a race with no
+    /// guard on it. A new caller that is not one of the three edges above needs to think
+    /// about that first.
+    ///
+    /// The render-side freeze paths are deliberately NOT served from here. Every way a
+    /// block can skip this chain (`hasEverSounded`, the 2.5 s `renderIdle` skip, the
+    /// `fxEnabled` gate — five call sites across the two voices) is decided ON the audio
+    /// thread, where there is no control-plane edge to hook. Those use
+    /// `noteRenderSkipped()` instead.
     func snapFilterToTarget() {
         cutoffGlide.snap(to: filterCutoff)
         resonanceGlide.snap(to: filterResonance)
         let c = cutoffGlide.value, q = resonanceGlide.value
         filterL.cutoff = c;    filterR.cutoff = c
         filterL.resonance = q; filterR.resonance = q
+    }
+
+    /// Tell the chain that the caller's render block ran but SKIPPED this chain.
+    ///
+    /// The tone-filter glide only advances when a block reaches it, so any path that
+    /// returns before `processBuffer`/`processBufferMono` freezes the glide while the
+    /// control-plane target keeps moving under the UI fader and the 30 Hz bio driver. On
+    /// resume, the first audible thing would be a 50 ms resonant sweep out of a value the
+    /// user last heard seconds — or minutes — ago.
+    ///
+    /// **FIVE such call sites exist today** — `PolySynthVoice`'s `hasEverSounded` guard,
+    /// its 2.5 s `renderIdle` skip and its `fxEnabled` gate; `BioReactiveSynthVoice`'s
+    /// `hasEverSounded` guard and its `fxEnabled` gate. (An earlier draft of this comment
+    /// said four, having counted the `fxEnabled` gate once for both voices — the same
+    /// blind spot that made the previous two rounds of this fix incomplete. Count the
+    /// call sites, not the kinds.) Only the `fxEnabled` kind has a control-plane setter
+    /// that could snap instead; `hasEverSounded` and `renderIdle` are decided on the
+    /// AUDIO thread, so there is nothing on the main thread to hook. Hence one flag, set
+    /// wherever the skip is decided, consumed by the next block that reaches the filter.
+    ///
+    /// SCOPE, so this does not read as more than it is: it restores the tone-filter
+    /// GLIDE only. The time-based stages (delay, reverb, tape) also freeze across a skip
+    /// and can burst stale audio on resume — this file's own switch-crackle rule at the
+    /// top — and that is deliberately left alone here; it predates this mechanism and
+    /// wants its own slice. This hook is where such a fix would attach.
+    ///
+    /// Audio-thread safe: a single Bool store, no allocation, no locks, no isolation
+    /// crossing. Internal, not public, for the same reason `processStereo` was narrowed:
+    /// `renderSkipped`'s whole correctness argument is "audio thread only", and a
+    /// main-thread caller would break it with no symptom louder than one extra snap.
+    /// A chain whose caller never calls this behaves exactly as before.
+    @inline(__always)
+    func noteRenderSkipped() {
+        renderSkipped = true
     }
 
     /// Advance the tone-filter glide by ONE block and publish it into the SVFs.
@@ -253,25 +295,6 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// ⚠️ The SVF's equality guard is what keeps this cheap on a settled parameter: once
     /// the glide reaches its target, `ParamGlide` returns the exact target every block, the
     /// assignment is a no-op comparison, and `updateCoefficients()` stops being called.
-    /// Tell the chain that the caller's render block ran but SKIPPED this chain.
-    ///
-    /// The tone-filter glide only advances when a block reaches it, so any path that
-    /// returns before `processBuffer`/`processBufferMono` freezes the glide while the
-    /// control-plane target keeps moving under the UI fader and the 30 Hz bio driver. On
-    /// resume, the first audible thing would be a 50 ms resonant sweep out of a value the
-    /// user last heard seconds — or minutes — ago. Four such paths exist today, and only
-    /// one of them (the `fxEnabled` gate) has a control-plane setter that could snap
-    /// instead: `PolySynthVoice`'s `hasEverSounded` guard and its 2.5 s `renderIdle` skip
-    /// both decide on the AUDIO thread, so there is nothing on the main thread to hook.
-    /// Hence one flag, set from wherever the skip is decided, consumed by the next block.
-    ///
-    /// Audio-thread safe: a single Bool store, no allocation, no locks, no isolation
-    /// crossing. A chain whose caller never calls this behaves exactly as before.
-    @inline(__always)
-    public func noteRenderSkipped() {
-        renderSkipped = true
-    }
-
     @inline(__always)
     private func advanceFilterGlide(frameCount: Int) {
         // `filterEnabled` is part of the guard, not an optimisation. A bypassed stage is
@@ -396,6 +419,10 @@ public final class EchoelFXChain: @unchecked Sendable {
         // after the reset up from a stale value. The targets themselves are untouched:
         // reset clears state, it does not change what the user set.
         snapFilterToTarget()
+        // …and a pending skip is state too. Leaving it set would make the first block
+        // after a reset snap a second time — bounded and harmless, but `reset()` is the
+        // one method that claims to return the chain to a defined state.
+        renderSkipped = false
         filterL.reset()
         filterR.reset()
         tape.reset()

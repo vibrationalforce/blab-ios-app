@@ -180,23 +180,32 @@ final class FXChainParamGlideTests: XCTestCase {
     /// decided on the audio thread. So the resume snap is driven from the render side, by
     /// `noteRenderSkipped()`, and this is the contract that pins it.
     ///
-    /// Scope note, stated rather than implied: this covers the CHAIN half. The four call
+    /// Scope note, stated rather than implied: this covers the CHAIN half. The FIVE call
     /// sites in the two voices are compile-verified only — exercising them needs an
     /// `AudioBufferList` render harness this file does not have.
     func testAResumeAfterASkippedRenderLands_insteadOfSweepingFromAStaleValue() {
         let fx = EchoelFXChain(sampleRate: sr)
         fx.filterEnabled = true
         fx.filterCutoff = 8000
+        fx.filterResonance = 0.9
         run(fx, blocks: 1, frames: 256)                 // sounding: mid-glide at 2607
-        // …the voice goes idle. It keeps rendering silence and says so, but no block
-        // reaches this chain, while the body keeps moving the target.
-        for _ in 0..<10 { fx.noteRenderSkipped() }
+        // …the voice goes idle. It keeps rendering silence and says so on every skipped
+        // block (only the truthiness matters), but no block reaches this chain — while
+        // the body keeps moving both targets.
+        fx.noteRenderSkipped()
         fx.filterCutoff = 400
+        fx.filterResonance = 0.2
         XCTAssertEqual(fx.filterL.cutoff, 2607.05, accuracy: 0.5,
                        "precondition: no blocks reach the chain, so the mirror is frozen")
 
         run(fx, blocks: 1, frames: 256)                 // the first block after the wake
         XCTAssertEqual(fx.filterL.cutoff, 400, "the wake block must land, not sweep 2607 → 400")
+        // RESONANCE TOO, and it is not decoration: deleting only the resonance half of the
+        // resume snap passed the entire suite before this line existed. Resonance steps are
+        // the more audible half — a sweep there is a series of clicks — which is exactly
+        // what `testResonance_glidesToo` warns about for the glide path.
+        XCTAssertEqual(fx.filterL.resonance, 0.2, accuracy: 1e-6,
+                       "the resume must land BOTH parameters, not just the cutoff")
         XCTAssertEqual(fx.filterCutoff, 400, "and the target is untouched by its own snap")
 
         // The flag is CONSUMED, not sticky: the next block must glide again, or every
@@ -252,9 +261,13 @@ final class FXChainParamGlideTests: XCTestCase {
         XCTAssertEqual(fx.filterL.cutoff, 2000, "no frames, no time, no movement")
     }
 
-    /// A non-finite target must be HELD, not propagated: this feeds a recursive filter, where
-    /// one NaN is permanent silence. `ParamGlide.advance` ignores it; the assertion here is
-    /// that nothing on the chain's path defeats that.
+    /// A non-finite target must be HELD, not propagated. `ParamGlide.advance` ignores it;
+    /// the assertion here is that nothing on the chain's path defeats that. Same precision
+    /// as the corrected note ~40 lines above, so the two do not contradict each other in
+    /// one file: for THIS filter a raw NaN is not permanent silence — `EchoelSVFilter`
+    /// substitutes 1 kHz — it is a filter silently parked on a frequency nobody chose.
+    /// Holding the last good value is what keeps the parameter meaningful, not merely
+    /// non-fatal.
     func testNonFiniteTarget_isHeld_notPropagatedIntoTheFilter() {
         let fx = EchoelFXChain(sampleRate: sr)
         fx.filterEnabled = true
