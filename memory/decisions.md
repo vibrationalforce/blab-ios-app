@@ -1220,6 +1220,16 @@ Architectural and strategic decisions with context and rationale.
   tells visuals and light what is sounding. Cutting it would sever the differentiator's spine, not
   merely remove convenience. → task #131 decided: **re-door** patch editor + piano roll (+ the spatial
   stage, which belongs to the output stage). Slot-reuse only; must NOT grow the sheet chain.
+  - **CORRECTION 2026-07-28 — the evidence that resolved this dissent was FALSE.** `PianoRollView`
+    does not publish `MusicalFrame`. The publish lives in `PianoRollModel`'s tick handler, installed
+    once at app start (`pianoRoll.start(...)` in `EchoelmusicApp`), so the output stage is lit
+    whether or not any editor is on screen. The historical text stays as written — it is what was
+    argued — but do not plan from it: the founder removed the roll's door on 2026-07-26 (#178) and
+    the visual/light spine did NOT go dark, which is the empirical proof. **`PianoRollView` = the
+    editor, removed. `PianoRollModel` = the note engine + publisher, kept and load-bearing.** The
+    lesson is the one this file keeps relearning: a technical-sounding premise settles a debate far
+    more forcefully than taste, so it must be verified to the rendering/publishing call site before
+    it is allowed to decide anything.
 - **Premortem that shaped the ship gate:** "we shipped a beautiful generative toy that producers tried
   once and could do nothing with, because they could not shape or keep what it made."
 - **Ship gate "Instrument-Complete v1"** replaces the DEAD criterion "bis die gesamte DMMW auf
