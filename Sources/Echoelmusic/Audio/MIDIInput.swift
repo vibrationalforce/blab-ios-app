@@ -45,6 +45,17 @@ final class MIDIInput {
     // MARK: - Setup
 
     private func setupMIDI() {
+        // FIRST, before anything that can fail. The preference must be applied even if
+        // the MIDI client or input port cannot be created, because it now also carries a
+        // DISABLE: `MIDINetworkSession.default().isEnabled` is persisted by CoreMIDI
+        // across launches, so a user upgrading from a build that armed it would keep an
+        // armed inbound listener while the new UI reads OFF. Downstream of the two
+        // `guard … else { return }`s below this would fail OPEN — under the old
+        // enable-only code that same position was harmless (failure meant "never
+        // enabled"), which is exactly why the ordering had to move when the meaning
+        // flipped. It does not depend on the client or the port. (#187, review 11a2076.)
+        Self.applyNetworkSessionPreference()
+
         // Create MIDI client
         let status = MIDIClientCreateWithBlock("Echoelmusic" as CFString, &midiClient) { [weak self] notification in
             Task { @MainActor [weak self] in
@@ -71,11 +82,9 @@ final class MIDIInput {
             return
         }
 
-        // Apply the RTP-MIDI (Apple network MIDI) PREFERENCE before connecting sources,
-        // so that if the user has it on, the network session already shows up as a
-        // CoreMIDI source and gets connected below. Default is OFF (#187).
-        Self.applyNetworkSessionPreference()
-
+        // (The RTP-MIDI preference was applied at the top of this function, before the
+        // failure guards — so if it is ON, the network session is already a CoreMIDI
+        // source by the time `connectAllSources()` runs.)
         // Connect to all existing sources
         connectAllSources()
         log.log(.info, category: .system, "MIDI: Input ready (MIDI 2.0 + MPE + network)")
@@ -93,7 +102,9 @@ final class MIDIInput {
     /// believe they own a switch that is really one switch. The preference lives in
     /// `UserDefaults` and this function is the ONE place that reads it and acts. The
     /// routing UI calls exactly this after writing the key, and `setupMIDI()` calls
-    /// it at launch — same code path, so the toggle can never disagree with reality.
+    /// it at launch (FIRST, before any failure guard) — one code path, so the toggle and
+    /// the live session agree by construction rather than by two implementations happening
+    /// to match.
     ///
     /// It used to be `enableNetworkMIDI()`, called unconditionally with
     /// `connectionPolicy = .anyone`: from launch, on every install, the instrument
@@ -108,10 +119,21 @@ final class MIDIInput {
         // exactly what `bool(forKey:)` returns for an unwritten key.
         let enabled = UserDefaults.standard.bool(forKey: StudioDefaultKeys.networkMIDI.key)
         let session = MIDINetworkSession.default()
-        session.isEnabled = enabled
-        // Only meaningful while enabled; set it alongside so an enable never lands
-        // with a stale policy from a previous session.
-        if enabled { session.connectionPolicy = .anyone }
+        if enabled {
+            // Set the policy alongside, so an enable never lands with a stale policy
+            // from a previous session.
+            session.connectionPolicy = .anyone
+            session.isEnabled = true
+        } else {
+            // Drop established peers EXPLICITLY, then disable. `isEnabled = false`
+            // should tear the session down on its own, but "should" is not good enough
+            // for the off state of a network listener: if a Mac is mid-session when the
+            // performer flips the switch, the honest behaviour is that the connection
+            // ends. Removing first also means the peer list cannot survive as state that
+            // a later enable silently reuses. Harmless when there are no connections.
+            for connection in session.connections() { session.removeConnection(connection) }
+            session.isEnabled = false
+        }
         log.log(.info, category: .system,
                 "MIDI: network session \(enabled ? "enabled" : "disabled") (RTP-MIDI, #187)")
         #endif

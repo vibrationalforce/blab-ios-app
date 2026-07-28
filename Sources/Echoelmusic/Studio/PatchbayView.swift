@@ -64,10 +64,11 @@ struct PatchbayView: View {
                 if !embedded { bluetoothMIDISection }
                 #endif
                 #if os(iOS) && canImport(CoreMIDI)
-                // No NavigationStack needed (it is a Toggle, not a push), so unlike the
-                // Bluetooth card this one is correct on BOTH the sheet and the embedded
-                // path — a switch that exists only on one of two hosts is how a control
-                // becomes unreachable again.
+                // Mounted unconditionally: it is a Toggle, not a NavigationLink push, so
+                // unlike `bluetoothMIDISection` it needs no enclosing NavigationStack and
+                // is correct on the embedded path too. Defensive rather than a live fix —
+                // `PatchbayView(embedded:)` has no caller today — but a control that only
+                // works on one of two hosts is exactly how a door goes missing again.
                 networkMIDISection
                 #endif
                 ForEach(router.graph.sources) { src in
@@ -119,7 +120,6 @@ struct PatchbayView: View {
             .accessibilityHint("Opens Apple's Bluetooth MIDI pairing. A paired controller plays the synth directly.")
         }
     }
-
     #endif
 
     #if os(iOS) && canImport(CoreMIDI)
@@ -143,6 +143,9 @@ struct PatchbayView: View {
                         .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
                 }
                 .tint(EchoelTheme.accent)
+                .accessibilityHint(networkMIDI
+                    ? "On. Any device on your local network can open a MIDI session with this iPhone."
+                    : "Off. No incoming wireless MIDI session is accepted.")
                 Text(networkMIDI
                      ? "This iPhone accepts a MIDI session from any device on your local network — a Mac's Network MIDI, rtpMIDI, or a compatible app. Turn it off when you are on a network you do not control."
                      : "Off. This iPhone does not announce itself for wireless MIDI and accepts no incoming session. Turn it on to play the instrument from a Mac or another device over the network.")
