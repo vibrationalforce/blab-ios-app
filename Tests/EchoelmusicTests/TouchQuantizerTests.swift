@@ -251,6 +251,12 @@ final class TouchQuantizerTests: XCTestCase {
     func testSoundingTick_reportsWhenTheNoteIsHeard_notTheEcho() {
         XCTAssertEqual(TouchQuantizeAction.play(atTick: 130).soundingTick, 130)
         XCTAssertEqual(TouchQuantizeAction.delay(toTick: 120).soundingTick, 120)
-        XCTAssertEqual(TouchQuantizeAction.playThenEcho(atTick: 130, echoTick: 240).soundingTick, 130)
+        // `echoVelocityScale` is part of the case and must be passed. Asserted at BOTH ends of
+        // its range, because the point of `soundingTick` is that neither the echo's position
+        // nor its level moves when the note is first heard.
+        XCTAssertEqual(TouchQuantizeAction.playThenEcho(atTick: 130, echoTick: 240,
+                                                        echoVelocityScale: 0.5).soundingTick, 130)
+        XCTAssertEqual(TouchQuantizeAction.playThenEcho(atTick: 130, echoTick: 240,
+                                                        echoVelocityScale: 1).soundingTick, 130)
     }
 }
