@@ -111,10 +111,19 @@ nichts rot gemacht. Die Entscheidung bleibt dieselbe, der Grund ist ein anderer.
   Aufrufstellen liegen im Modul.
 - Randlos, ohne jede Bedienung.
 
-### S3 — Sichtbarkeit + Abziehen
-- Ein Zeichen im Header, dass die externe Ausgabe live ist (User-Advocate).
-- Abziehen mitten im Betrieb: Szene wird abgebaut, Telefon läuft weiter, kein Freeze.
-  **Das ist ein Bühnen-Szenario, kein Randfall.**
+### S3 — Sichtbarkeit + Abziehen  ✅ gebaut 2026-07-28
+- **Sichtbarkeit: KEINE neue Kachel.** Erster Versuch war eine eigene Header-Kachel — der
+  Reviewer hat sie mit Zahlen erledigt: `topBar` ist ein ZStack, dessen rechter HStack ÜBER
+  der zentrierten Wortmarke zeichnet; eine vierte 38-pt-Kachel + Abstand schiebt den Block
+  46 pt nach links → **64 pt Überlappung auf einem 375-pt-iPhone**, dazu abgeschnittene
+  Kohärenz-Zahl in der Puls-Pille. Und es hätte im schlechtesten Moment gefeuert: beim
+  Einstecken mitten in der Show. Der Zustand sitzt jetzt AUF `ImmersiveMonitorMini` — das
+  IST der Visual-Monitor und schon eine Tür — Breite ±0.
+- Angezeigt wird nur, was auch stimmt: `isConnected && bus != nil`. Zwischen „Szene
+  verbunden" und „gewired" zeigt die Leinwand die Wortmarke, nicht das Visual — die Kachel
+  darf in diesem Fenster nicht „läuft" behaupten.
+- Abziehen mitten im Betrieb: Fenster wird abgebaut, DANN der GPU-Anspruch freigegeben,
+  Telefon läuft weiter. **Bühnen-Szenario, kein Randfall.**
 
 ---
 

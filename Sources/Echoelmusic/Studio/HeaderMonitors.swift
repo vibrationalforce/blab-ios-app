@@ -257,9 +257,39 @@ struct ImmersiveMonitorMini: View {
     /// for everyone in `tileColor`).
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// True while a second screen actually has the picture — i.e. the external scene is
+    /// connected AND wired, so it is rendering the visual rather than the ECHOEL wordmark
+    /// it falls back to before `wire(...)` lands (`ExternalStageBridge`).
+    ///
+    /// WHY THIS LIVES HERE INSTEAD OF ITS OWN CHIP (#206 slice 3). It was a separate
+    /// header tile for exactly one review round. `topBar` is a ZStack whose right-hand
+    /// HStack draws OVER the centred wordmark, and a fourth 38 pt tile + spacing moved the
+    /// cluster 46 pt left — 64 pt of overlap on a 375 pt iPhone, plus the pulse pill's
+    /// coherence number truncating. It would have fired at the worst possible moment: a
+    /// cable going in mid-show. This tile is already THE visual monitor and already the
+    /// door to the floating window, so the state belongs on it and costs zero width.
+    private var onExternalScreen: Bool {
+        #if canImport(UIKit)
+        let bridge = ExternalStageBridge.shared
+        return bridge.isConnected && bridge.bus != nil
+        #else
+        return false
+        #endif
+    }
+
     var body: some View {
         Group {
-            if active {
+            if onExternalScreen {
+                // The picture is on the beamer; this phone's renderer has yielded (GPU
+                // law). Show WHERE it went — a performer whose projector is behind them
+                // otherwise cannot tell a live external output from a dead visual. Static
+                // and solid: no animation, because the point of yielding is to spend
+                // nothing here.
+                ZStack {
+                    EchoelTheme.fill
+                    Image(systemName: "tv").font(.system(size: 12)).foregroundStyle(EchoelTheme.text)
+                }
+            } else if active {
                 TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { tl in
                     // Colour work lives in the pure helper below — inlining the
                     // Double/Float mix here sent the type-checker into "unable to
@@ -288,7 +318,7 @@ struct ImmersiveMonitorMini: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Immersive visual monitor")
-        .accessibilityValue(active ? "Live" : "Idle")
+        .accessibilityValue(onExternalScreen ? "On external screen" : (active ? "Live" : "Idle"))
         .accessibilityHint("Shows or hides the floating visual window")
         .accessibilityAddTraits(.isButton)
     }
