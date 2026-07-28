@@ -695,6 +695,12 @@ struct EchoelStudioView: View {
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
             laneVoiceRack.setInsert(trackFX.melodic)   // S2-W1: rack lanes too
+            // Restore the persisted play-surface LEVEL unconditionally. It used to ride
+            // inside `syncTouchSound()` below, which only runs when a custom touch patch
+            // is selected — so in the default follow-the-take case the field displayed the
+            // saved value while the voice still ran at its init gain. Exactly the Bass
+            // fader bug of 2026-07-27: a control that shows a number it does not apply.
+            touchSynth?.setGain(Float(touchLevel))
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
@@ -3146,7 +3152,11 @@ struct EchoelStudioView: View {
                 // Founder v287/v288: the generated take could not get its own MIDI clip
                 // because the 8-slot clip grid is full. Honest + visible (the sound still
                 // plays) — mirror of the Arrange track panel's gridFullWarning.
-                Text("Clip grid full (\(ClipStore.slotCount) slots) — clear a slot so the generated take can get its own MIDI clip on the timeline.")
+                // The old wording told the user to "clear a slot … on the timeline". Both
+                // the clip grid UI and the timeline were deleted with #121 Slice 4, so it
+                // named a surface that does not exist and an action nobody can take. State
+                // the consequence instead: nothing is lost, only the internal slot.
+                Text("Internal clip slots are full (\(ClipStore.slotCount)) — the generated take still plays and still exports.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)

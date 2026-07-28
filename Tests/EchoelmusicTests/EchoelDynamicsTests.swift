@@ -125,6 +125,36 @@ final class EchoelDynamicsTests: XCTestCase {
         XCTAssertEqual(lim.processStereo(0.5, 0.5).0, 0.5, accuracy: 1e-6)
     }
 
+    /// A NaN in the RIGHT channel must hold the state exactly like a NaN in the left one.
+    ///
+    /// This is the falsifier for a guard I got wrong first time: `guard peak.isFinite` on
+    /// `Swift.max(abs(inL), abs(inR))` cannot see a right-channel NaN, because
+    /// `Swift.max(x, y)` is `y >= x ? y : x` and `NaN >= x` is false — the max returns the
+    /// finite LEFT channel. So the old guard let a half-valid frame run a full
+    /// envelope+ballistics update. Not a silence bug (the state stayed finite, and the NaN
+    /// sample leaves the stage either way by design), which is why the assertion below is
+    /// about the state ADVANCING, not about NaN reaching the output.
+    ///
+    /// Why this falsifies (derived, not measured — there is no local toolchain): with the
+    /// pre-fix guard, `(0, NaN)` is processed as a legitimate silent frame. `env` decays and
+    /// `target` becomes 1, so the gain releases upward at `releaseCoeff = 1 - exp(-1/2880)`
+    /// for a 60 ms release at 48 kHz; over 4000 samples that closes `1 - exp(-4000/2880)`
+    /// ≈ 75% of the distance back to unity — far outside the 1e-6 tolerance below.
+    func testLimiterRightChannelNaNHoldsStateLikeLeft() {
+        let lim = EchoelLimiter(sampleRate: sr)
+        lim.ceilingDb = -0.3
+        lim.releaseMs = 60
+        // Feed material ABOVE the ceiling (0.966 lin) — 0.9 would not reduce at all.
+        for _ in 0..<4000 { _ = lim.processStereo(2.0, 2.0) }
+        let reduced = lim.gainReductionDb
+        XCTAssertLessThan(reduced, -1, "setup failed: limiter is not reducing")
+
+        for _ in 0..<4000 { _ = lim.processStereo(0, Float.nan) }
+        XCTAssertEqual(lim.gainReductionDb, reduced, accuracy: 1e-6,
+                       "a right-channel NaN advanced the limiter's state")
+        XCTAssertTrue(lim.gainReductionDb.isFinite)
+    }
+
     // MARK: - Compressor
 
     func testCompressorTransparentBelowThreshold() {

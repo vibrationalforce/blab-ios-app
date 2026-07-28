@@ -52,7 +52,19 @@ public final class EchoelCompressor: @unchecked Sendable {
         // at the source-node output, which is why the symptom is silence rather than a NaN
         // reaching hardware — and why it would present as the "everything is quiet" class
         // of bug with no crash and no log line to point at.
-        guard peak.isFinite else {
+        //
+        // ⚠ TEST THE INPUTS, NOT `peak` — and the sentence above ("`Swift.max(peak, 1e-7)`
+        // does NOT filter NaN") is right about `max(peak, 1e-7)` but the FIRST version of
+        // this guard read `peak.isFinite`, which is not the same test. `Swift.max(x, y)` is
+        // `y >= x ? y : x`, so `max(abs(inL), NaN)` returns `abs(inL)` — finite. A NaN in the
+        // RIGHT channel walked past that guard.
+        //
+        // Scope honestly: that did NOT poison `grState` (the state maths only ever reads
+        // `peak`, which stayed finite) and it did not silence anything — the NaN sample left
+        // the stage either way, which is deliberate (`AudioOutputGuard` sweeps it downstream).
+        // What it did was run a full ballistics update on a HALF-VALID frame. Guarding the
+        // inputs makes the guard mean what it says and holds the state on any bad frame.
+        guard inL.isFinite, inR.isFinite else {
             let held = powf(10.0, (grState + makeupDb) / 20.0)   // rare path; cost is moot
             return (inL * held, inR * held)
         }
@@ -177,12 +189,21 @@ public final class EchoelLimiter: @unchecked Sendable {
         let peak = Swift.max(abs(inL), abs(inR))
 
         // A non-finite sample must not reach the detector. `inf` would pin `env` at
-        // infinity permanently (`inf * decay == inf`), and NaN propagates through
-        // `Swift.max`, so either one would silence the limiter for good — a state bug far
-        // worse than the bad sample itself. Skip the whole state update and apply the gain
-        // already held. Cleaning the SAMPLE up remains `AudioOutputGuard`'s job downstream;
-        // this only guarantees the limiter survives one.
-        guard peak.isFinite else { return (inL * gain, inR * gain) }
+        // infinity permanently (`inf * decay == inf`) and a NaN in the LEFT channel reaches
+        // `env` the same way, so either one would silence the limiter for good — a state bug
+        // far worse than the bad sample itself. Skip the whole state update and apply the
+        // gain already held. Cleaning the SAMPLE up remains `AudioOutputGuard`'s job
+        // downstream; this only guarantees the limiter survives one.
+        //
+        // ⚠ Guard the INPUTS, not `peak` — the version I shipped first tested `peak.isFinite`
+        // and claimed "NaN propagates through `Swift.max`". It does not, in this argument
+        // order: `Swift.max(x, y)` is `y >= x ? y : x`, so `max(abs(inL), NaN)` returns
+        // `abs(inL)`. A right-channel NaN passed that guard and ran a full envelope+ballistics
+        // update on a half-valid frame. `inf` was always caught in EITHER channel
+        // (`inf >= x` is true, so `max` returns it), and a left-channel NaN too — so this is
+        // guard hygiene, not a silence bug. It is corrected because the comment was false and
+        // false DSP folklore is how the next session builds on sand.
+        guard inL.isFinite, inR.isFinite else { return (inL * gain, inR * gain) }
 
         // PEAK ENVELOPE — decays at the release rate, follows a rise instantly.
         //
