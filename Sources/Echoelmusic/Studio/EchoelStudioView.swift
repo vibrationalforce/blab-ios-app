@@ -31,7 +31,7 @@ struct SharedEchoelProject: Transferable {
 #endif
 
 // EchoelStudioView.swift
-// Echoel — ONE button, then sliders.
+// Echoel — a tab strip on a front plate, with ONE button under it.
 //
 // "Start — Create from Within" begins the biofeedback (camera pulse, or the demo
 // source where no camera exists). From the live HRV / heart / breath an individual,
@@ -589,17 +589,6 @@ struct EchoelStudioView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .echoelCompositionEdited)) { note in
                     handleCompositionEdit(note.object as? String)
                 })
-            // H1 (founder 2026-07-24: "nur das alte Interface mit create from within"):
-            // the signature generate control returns as the instrument-home centrepiece —
-            // tap it and the body composes and plays. A plain Button: NO new .sheet
-            // (metadata/black-screen law — the modal chain is untouched), and it reads only
-            // `running` (discrete @State, line 130) — NOT a live/10 Hz bio observable, so
-            // the menu-freeze law holds. AnyView keeps its generics out of the root body
-            // type, same discipline as menuBar. Pairs with the timeline-folded default
-            // (SurfaceHost) so the instrument — not the timeline — is the home.
-            AnyView(startButton
-                .padding(.horizontal, 16)
-                .padding(.top, 12))
             // The rare session card, above the plate. Static content — no live bio read
             // (freeze rule). Bounded so it can never push the front plate off-screen.
             if let presentSession {
@@ -612,12 +601,36 @@ struct EchoelStudioView: View {
             // while a dropdown was open: since the timeline went away (#130) the idle
             // main window was a chip bar, one button and a black void, and every control
             // sat behind a menu and a scrim — the opposite of an instrument.
-            // METADATA: this is a FOURTH child of the root VStack, so the body's generic
-            // type grows by one TupleView element — cheaply (a type-erased sibling, not a
-            // ModifiedContent re-wrapping the whole body like a .sheet would), and with no
-            // presentation modifier added, but it GROWS. Do not read this block as licence
-            // to append a fifth; see menuPanelHost's METADATA note.
+            // METADATA: adding this plate took the root VStack from 3 children to 4, so the
+            // body's generic type grew by one TupleView element — cheaply (a type-erased
+            // sibling, not a ModifiedContent re-wrapping the whole body like a .sheet
+            // would), and with no presentation modifier added, but it GREW. Do not read
+            // this block as licence to append a fifth; see menuPanelHost's METADATA note.
+            // (It is the THIRD child in source order since #157 moved startButton below it.
+            // The count is what costs metadata; the position does not — but the ordinal
+            // stood here as "FOURTH" and would have been read as the count.)
             AnyView(menuPanelHost)
+            // H1 (founder 2026-07-24: "nur das alte Interface mit create from within"):
+            // the signature generate control — tap it and the body composes and plays.
+            //
+            // MOVED BELOW THE PLATE (#157, founder 2026-07-27 "alles vereinfachen und
+            // schöner"). It used to sit BETWEEN the chip bar and the plate, which is what
+            // made the window read as "a menu bar, then a button, then a form": the chips
+            // and the panel they switch are one object, and a full-width primary button
+            // wedged between them cut that object in half. Below the plate it anchors the
+            // surface instead of splitting it — and lands in thumb reach on a phone held
+            // one-handed, which is how this instrument is actually played.
+            //
+            // A plain Button: NO new .sheet (metadata/black-screen law — the modal chain
+            // is untouched), and it reads only `running` (discrete @State) — NOT a live
+            // 10 Hz bio observable, so the menu-freeze law holds. AnyView keeps its
+            // generics out of the root body type, same discipline as menuBar. Reordering
+            // siblings does not change the root VStack's child COUNT, so the aggregate
+            // generic type is the same size as before — this is a move, not a fifth child.
+            AnyView(startButton
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .padding(.bottom, 10))
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
         // text size until the user explicitly zooms. For users who need larger text.
@@ -1147,16 +1160,33 @@ struct EchoelStudioView: View {
             // No vertical padding any more: each chip now carries its own 44 pt HIG
             // tap frame (see `chipTapTarget`), whose transparent margin IS the
             // breathing room the 6 pt padding used to provide. Net bar height
-            // 38 → 44 (+6); clearance above the 1 px bottom border goes 6 → 9 pt.
+            // 38 → 44 (+6). (That clause used to end "clearance above the 1 px bottom
+            // border goes 6 → 9 pt" — there is no bottom border any more, see below.)
             // The PILLS are pixel-identical, but a narrow one ("FX") now sits in a
             // 44 pt-wide frame instead of ~38, so the visible GAP between pills grows
             // by up to ~6 pt and the scroll content is slightly wider. Deliberate —
             // don't "fix" it back.
         }
         .background(EchoelTheme.bg)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(EchoelTheme.border).frame(height: 1)
-        }
+        // The 1 px bottom rule is GONE (#157, founder 2026-07-27 "alles vereinfachen
+        // und schöner"). It was correct while the panel was a transient dropdown: the
+        // line was the bottom edge of a MENU BAR, and what lay under it changed. Since
+        // #130 the panel is permanent and the chips SELECT it, so the line drew a border
+        // between a tab strip and its own content — the visual grammar of "a bar above a
+        // form", which is exactly the reading this slice removes.
+        //
+        // What carries the separation instead — stated precisely, because the obvious
+        // version of this sentence is FALSE for one tab: `menuPanelHost` pads 8 pt, and
+        // TEN of the eleven panels go through `panel(...)` → `EchoelPanel`, whose card
+        // draws its own 1 px `EchoelTheme.border`. `bioPanel` is the exception (a raw
+        // `VStack`, see menuPanelHost's FREEZE LAW note), so on the Bio tab there is now
+        // neither a rule nor a card edge under the strip. That is survivable rather than
+        // invisible: every chip — active AND inactive — carries a solid fill plus a
+        // `borderStrong` stroke (3.70:1) in `menuChip`, so the strip is anchored by the
+        // chips themselves, not by anything drawn beneath them. The deleted rule used
+        // `EchoelTheme.border` at 0.10 opacity — 1.16:1 on black, the decorative token —
+        // so almost nothing was lost visually and the grammar was.
+        // Uncodixfy: one border per object, not a border per stacked band.
     }
 
     /// Accessibility (founder axis "accessible", 2026-07-25): give a small chip the
@@ -1232,7 +1262,16 @@ struct EchoelStudioView: View {
     ///   content and leave a void below it.
     ///
     /// METADATA (black-screen law): NO presentation modifier is added, removed or moved —
-    /// the body's count stays at 16 (10 sheet + 2 cover + 3 alert + 1 fileImporter). But
+    /// the body's count stays at 14 (8 sheet + 2 cover + 3 alert + 1 fileImporter; counted
+    /// again 2026-07-28, and the `.sheet(item: $visualShare)` at :881 is deliberately NOT
+    /// in it — it sits INSIDE the fullScreenCover's content, not on the body chain). The
+    /// figure said 16 here until today, and its own parts summed to 16 only because the
+    /// sheet term had drifted to 10; two of those went with `SampleBrowserView` and the
+    /// craft-editor slot. Overstating the count is the safe direction for a WARNING but the
+    /// dangerous one for a BUDGET, and this line is read as a budget. 14 is the iOS-DEVICE
+    /// figure — three of them are behind `#if canImport` (UniformTypeIdentifiers, MetalKit +
+    /// UIKit, MultipeerConnectivity), so a SwiftPM/Linux compile sees 11 and cannot reproduce
+    /// the ceiling this number exists to protect. But
     /// the root `VStack` goes from 3 children to 4, so the aggregate generic type GROWS by
     /// one `TupleView` element. An earlier version of this comment claimed it shrinks; that
     /// was wrong, and wrong in the dangerous direction — CLAUDE.md's black-screen history is
