@@ -675,6 +675,13 @@ struct EchoelStudioView: View {
                 ? SynthPatch.factory[presetIndex] : style.synthPatch
             applyArticulation()                // impose the persisted Pluck↔Pad envelope
             applyTuning()                      // 12-TET default = no-op; restores any selected system
+            // …and the persisted CONCERT PITCH, which nothing applied at launch until
+            // 2026-07-28. `session.a4Hz` restores from UserDefaults, but the only pushes
+            // were inside `generate()`, `open(_:)` and the A4 field's own edit — so a user
+            // who had saved A=432 and touched the play surface before pressing Generate
+            // heard 440 (`EchoelPolyDDSP.a4Hz` defaults to 440). Silent, and exactly the
+            // kind of thing only a tuning-sensitive player notices.
+            applyConcertPitch(session.a4Hz)
             // Restore the last-picked immersive visual look so an installation /
             // performance setup survives relaunch (the live params aren't persisted
             // individually, but the chosen scene is).
@@ -2099,6 +2106,28 @@ struct EchoelStudioView: View {
         // The touch instrument plays the same tone system — and its note→colour
         // mapping reads this table, so the colour follows the SOUNDING pitch.
         touchSynth?.setTuningCents(cents)
+        // ⛔ And the LEAD. This was missing until 2026-07-28 and it is the same defect as
+        // #114's concert-pitch gap, one function away: `setTuningCents` exists on exactly
+        // three reachable objects (all `PolySynthVoice` — `subBass`/`bioVoice`/`laneVoiceRack`
+        // have no such method, so their absence is correct), and the lead was the one left
+        // out. With any non-12-TET system selected, the generated melody played 12-TET
+        // against a retuned pad and touch surface — a larger error than the 32 cents of the
+        // A4 gap for a maqām or just table.
+        leadSynth?.setTuningCents(cents)
+    }
+
+    /// Push the concert pitch to every voice that has one. Split out of the three inline
+    /// fan-outs (#114) because it also has to run at LAUNCH: `session.a4Hz` restores from
+    /// `UserDefaults`, but nothing applied it until the first Generate or a manual A4 edit,
+    /// so a user who had saved A=432 and played the touch instrument first heard 440 —
+    /// `EchoelPolyDDSP.a4Hz` defaults to 440. Called from `onAppear` beside `applyTuning()`.
+    private func applyConcertPitch(_ a4Hz: Double) {
+        synth.setTuning(a4Hz: a4Hz)
+        subBass.setTuning(a4Hz: a4Hz)
+        laneVoiceRack.setTuning(a4Hz: a4Hz)
+        touchSynth?.setTuning(a4Hz: a4Hz)
+        bioVoice.setTuning(a4Hz: a4Hz)
+        leadSynth?.setTuning(a4Hz: a4Hz)
     }
 
     /// Step 2b: applies the audible side effects of a USER edit in the chrome's
@@ -2132,7 +2161,7 @@ struct EchoelStudioView: View {
         case "tuning":
             applyTuning()
         case "a4":
-            synth.setTuning(a4Hz: session.a4Hz); subBass.setTuning(a4Hz: session.a4Hz); touchSynth?.setTuning(a4Hz: session.a4Hz); laneVoiceRack.setTuning(a4Hz: session.a4Hz); bioVoice.setTuning(a4Hz: session.a4Hz); leadSynth?.setTuning(a4Hz: session.a4Hz)
+            applyConcertPitch(session.a4Hz)
             // Note grids recolour with the concert pitch (founder
             // 2026-07-12) — push the new A4 to the roll immediately,
             // not only on the next compose, so an open/soon-opened
@@ -4169,12 +4198,7 @@ struct EchoelStudioView: View {
                               structureSeedOverride: structureSeedOverride)
         let composition = BioComposer.compose(input)
         // Honor the user's concert pitch + live timbre on the next notes.
-        synth.setTuning(a4Hz: session.a4Hz)
-        subBass.setTuning(a4Hz: session.a4Hz)
-        laneVoiceRack.setTuning(a4Hz: session.a4Hz)   // S2-W2-5: lane subs in tune too
-        touchSynth?.setTuning(a4Hz: session.a4Hz)
-        bioVoice.setTuning(a4Hz: session.a4Hz)        // the global bio voice tunes too
-        leadSynth?.setTuning(a4Hz: session.a4Hz)      // the roll's lead plays the melody
+        applyConcertPitch(session.a4Hz)
         synth.apply(currentPatch)
         syncTouchSound()
         // TEMPO — bio-reactive but never jumpy. The body seeds the tempo once the pulse is
@@ -4730,12 +4754,7 @@ struct EchoelStudioView: View {
         presetIndex = -1                // a saved patch is "custom", not a factory preset
         session.adopt(key: p.key)
         session.a4Hz = p.a4Hz
-        synth.setTuning(a4Hz: p.a4Hz)
-        subBass.setTuning(a4Hz: p.a4Hz)
-        laneVoiceRack.setTuning(a4Hz: p.a4Hz)   // S2-W2-5: lane subs in tune too
-        touchSynth?.setTuning(a4Hz: p.a4Hz)
-        bioVoice.setTuning(a4Hz: p.a4Hz)        // the global bio voice tunes too
-        leadSynth?.setTuning(a4Hz: p.a4Hz)      // the roll's lead plays the melody
+        applyConcertPitch(p.a4Hz)
         synth.apply(p.patch)
         syncTouchSound()
         fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: openStyle)

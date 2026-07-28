@@ -136,12 +136,12 @@ public final class EchoelCompressor: @unchecked Sendable {
         // that late duck is what a listener would hear, not the 0.6 dB. It is inherent to a
         // hold-y detector ahead of a gain computer, it is why the constant is short, and it is
         // the specific thing to listen for on device.
-        let decayed = env * envDecayFactor
-        env = peak > decayed ? peak : decayed
-        // Denormal flush (#207) — the compressor half. `EchoelLimiter` carries the same two
-        // lines with the same reasoning; the task says "both or neither" because a rule that
-        // holds in one of two adjacent stages in the same file is worse than no rule: the
-        // next reader cannot tell whether the other omission is deliberate.
+        //
+        // Denormal flush (#207) — the compressor half, flushing the INPUT for the same reason
+        // the limiter does (see there): never let the post-max `env` drop below `peak`.
+        // "Both or neither" is the task's own wording, because a rule that holds in one of
+        // two adjacent stages in the same file is worse than no rule — the next reader cannot
+        // tell whether the other omission is deliberate.
         //
         // ⛔ I first wrote here that `grState` needs no flush because "0 is its neutral
         // resting value, so it reaches exact zero on its own". That is wrong, and it is
@@ -150,7 +150,9 @@ public final class EchoelCompressor: @unchecked Sendable {
         // to `grState += -grState * releaseCoeff`, i.e. `grState *= (1 - releaseCoeff)`:
         // the SAME one-pole, approaching zero asymptotically and crawling through the
         // subnormal range on the way. It is flushed below, next to its own recursion.
-        if env < 1e-20 { env = 0 }
+        var decayed = env * envDecayFactor
+        if decayed < 1e-20 { decayed = 0 }
+        env = peak > decayed ? peak : decayed
 
         let inDb = 20.0 * log10f(Swift.max(env, 1e-7))
 
@@ -284,7 +286,19 @@ public final class EchoelLimiter: @unchecked Sendable {
     /// Decay time of the DETECTOR's peak envelope, in ms — deliberately a constant and
     /// deliberately NOT `releaseMs`. Same decoupling as `EchoelCompressor` (#198); see
     /// `processStereo` for why the coupled version made this control lie.
-    private static let detectorReleaseMs: Float = 25
+    ///
+    /// ⛔ 40, NOT 25. The first version of #199 used 25 ms and that was a real regression,
+    /// caught in review. The constant is squeezed from BOTH sides and only one side is
+    /// obvious: short enough that the detector is not what sets recovery time, but ALSO long
+    /// enough to still smooth a bass period. At 48 kHz, 25 ms is τ = 1200 samples against a
+    /// 600-sample 40 Hz half-period — the envelope droops ~30% per half-cycle, the gain
+    /// ripples ~0.27 dB at 2f, and that AM puts sidebands on the third harmonic. That is
+    /// WORSE than the 0.249 dB #198 identified as the compressor's audible bass defect, and
+    /// it would have landed in the more exposed stage: `limiterEnabled` defaults to TRUE
+    /// (`EchoelFXChain.swift:105`) while `compressorEnabled` defaults to false. Matching the
+    /// sibling's measured 40 ms still takes the cascade from ~128 ms to ~106 ms against a
+    /// 60 ms nominal, which is the #199 win, without buying it back in ripple.
+    private static let detectorReleaseMs: Float = 40
 
     private let sr: Float
     private var ceilingLin: Float = 1
@@ -348,6 +362,28 @@ public final class EchoelLimiter: @unchecked Sendable {
         // is really 0.0097, and "a quarter of every cycle" is really 9.2%. They are replaced
         // by the measurements above rather than quietly deleted, because the conclusion
         // survived them and the next session should trust the measurement, not my estimate.)
+        //
+        // ⚠ THAT TABLE WAS MEASURED WITH THE DETECTOR DECAYING AT `releaseMs`, i.e. before
+        // #199. It still shows why the envelope exists, which is what it is for — but it no
+        // longer describes this code. Re-measured 2026-07-28 (same method, +12 dB sine, gain
+        // ripple over the second half of a 0.6 s run):
+        //
+        //     detector        40 Hz spread   40 Hz ripple   H3 @40 Hz    200 Hz ripple
+        //     releaseMs(old)     0.00401       0.138 dB     −46.8 dBc      0.007 dB
+        //     25 ms              0.00868       0.295 dB     −39.9 dBc      0.015 dB
+        //     40 ms (shipped)    0.00576       0.197 dB     −43.6 dBc      0.010 dB
+        //
+        // The 200 Hz "old" column reproduces the 0.000185 spread measured above to within 4%,
+        // which is what makes the rest of the table trustworthy. Decoupling the detector DOES
+        // cost bass ripple — that is the honest trade, not a free win. 40 ms keeps it under
+        // the 0.249 dB that #198 identified as the compressor's audible bass defect; 25 ms
+        // did not, which is why it is not the shipped value.
+        //
+        // Recovery, the thing #199 is actually about (50 ms of +12 dB tone, then silence,
+        // time for the gain to travel 63% back to unity, nominal release 60 ms):
+        //
+        //     releaseMs(old) 113.5 ms   ·   40 ms 94.4 ms   ·   25 ms 80.6 ms
+        //
         // ⛔ THE DETECTOR DECAYS ON ITS OWN CONSTANT, NOT ON `releaseMs` (#199, 2026-07-28).
         //
         // It used to read `env * (1 - releaseCoeff)`, and the comment here defended that as
@@ -375,15 +411,23 @@ public final class EchoelLimiter: @unchecked Sendable {
         // 60 ms nominal release) and long enough to still smooth the ripple the envelope was
         // added for. The founder's ear picks the final number — open device question: does
         // sparse Flow material still pump?
-        let decayed = env * envDecayFactor
+        // DENORMAL FLUSH (#207), applied to `decayed` and NOT to `env` after the max.
+        //
+        // Why here: after seconds of digital silence `env` decays into subnormal territory
+        // and stays there. House idiom, matching `EchoelDDSP` and `ChannelInsertFX`. Honest
+        // scope: on arm64 the CPU penalty for subnormals is small to none, so this is
+        // consistency with the house rule, NOT a proven crackle fix.
+        //
+        // ⚠ Why on `decayed`: flushing `env` AFTER the max would break the `env >= peak`
+        // invariant the ceiling guarantee rests on — for a peak in (0, 1e-20) it would zero
+        // `env` while `peak` is non-zero. Harmless at that magnitude, but the warning
+        // immediately below says a change letting `env` fall under `peak` "silently stops
+        // clamping", and shipping exactly that change in a narrow band without saying so is
+        // how a warning like it stops being read. Flushing the INPUT keeps the invariant
+        // exact and still reaches 0 when the signal is truly silent.
+        var decayed = env * envDecayFactor
+        if decayed < 1e-20 { decayed = 0 }
         env = peak > decayed ? peak : decayed
-        // Denormal flush (#207). After a few seconds of digital silence `env` decays into
-        // subnormal territory and stays there for the rest of the session — this stage runs
-        // on every block of an armed bio session via `BioReactiveSynthVoice`, which (unlike
-        // `PolySynthVoice`) has no idle-block skip. House idiom, matching `EchoelDDSP` and
-        // `ChannelInsertFX`. Honest scope: on arm64 the CPU penalty for subnormals is small
-        // to none, so this is consistency with the house rule, NOT a proven crackle fix.
-        if env < 1e-20 { env = 0 }
 
         // ⚠ THE INVARIANT THE CEILING GUARANTEE RESTS ON: `env >= peak`, established by the
         // line above. It is what makes the absolute guard at the bottom sufficient —

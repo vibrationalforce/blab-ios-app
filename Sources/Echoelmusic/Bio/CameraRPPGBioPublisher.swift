@@ -216,11 +216,17 @@ public final class CameraRPPGBioPublisher {
     /// SOUND while the display still shows it — the same asymmetry, merely inverted.
     ///
     /// SCOPE — this unifies the BAR, not the VALUE. What gets published is the raw
-    /// `analyzer.estimatedBPM`; what gets shown is `displayBPM`, which is octave-folded and
-    /// slew-capped at `maxDisplayStep` (both explicitly display-only). So after a hold the
-    /// bus jumps to the new value immediately while the readout walks there over seconds,
-    /// and a trustworthy raw estimate that the fold would halve is published un-halved.
-    /// Same defect class, smaller and transient — not closed by this function.
+    /// `analyzer.estimatedBPM`; what gets shown is `displayBPM`, which is slew-capped at
+    /// `maxDisplayStep` (explicitly display-only). So after a hold the bus jumps to the new
+    /// value immediately while the readout walks there over seconds. Same defect class,
+    /// smaller and transient — not closed by this function.
+    ///
+    /// ⛔ This paragraph used to say `displayBPM` was "octave-folded and slew-capped", and
+    /// that a raw estimate "the fold would halve is published un-halved". Both halves died
+    /// with #185 (2026-07-28): the display-side fold is gone, because it folded against its
+    /// own output and could latch the shown pulse at half the real rate forever. Corrected
+    /// rather than deleted, because a session reading the old text would go looking for a
+    /// second fold that no longer exists.
     ///
     /// Pure → unit-testable, which the inline `guard` it replaces was not. Note what that
     /// does NOT buy: no test asserts that the publish loop actually CALLS this. Reverting

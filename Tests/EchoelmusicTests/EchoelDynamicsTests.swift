@@ -90,6 +90,66 @@ final class EchoelDynamicsTests: XCTestCase {
         XCTAssertLessThan(maxGain - minGain, 0.005, "gain is still stepping per cycle")
     }
 
+    /// THE GUARD ON `detectorReleaseMs`, and the reason this test exists at all: the first
+    /// version of #199 set it to 25 ms and nothing in the suite could see the regression.
+    /// `testLimiterScalesSustainedMaterialInsteadOfFlatToppingIt` runs at 200 Hz, where the
+    /// ripple is under 0.02 dB for every candidate constant — it is structurally blind here.
+    /// The defect lives in the bass, exactly as it did for the compressor sibling (#198),
+    /// and it is worse in this stage because `limiterEnabled` defaults to TRUE.
+    ///
+    /// WHY IT RIPPLES. The detector's envelope droops between the peaks of a low note; the
+    /// gain follows that droop and so moves at 2f while multiplying a carrier at f. That is
+    /// amplitude modulation, and its sidebands land on the third harmonic. The shorter the
+    /// detector's decay, the deeper the droop per half-period.
+    ///
+    /// Measured, bit-accurate Float32 simulation of this exact code (+12 dBFS sine into a
+    /// −0.3 dBFS ceiling, gain spread over the steady-state tail, in dB):
+    ///
+    ///     detector       30 Hz    40 Hz    60 Hz    80 Hz   120 Hz   200 Hz
+    ///     coupled 60 ms  0.2305   0.1376   0.0653   0.0382   0.0177   0.0067
+    ///     40 ms (ships)  0.3274   0.1968   0.0942   0.0553   0.0258   0.0097
+    ///     25 ms (bug)    0.4857   0.2949   0.1428   0.0843   0.0396   0.0151
+    ///
+    /// So the bound is per-frequency — a single number cannot work when the quantity itself
+    /// spans 34× across the band. Each is the shipped value × 1.30.
+    ///
+    /// ⚠️ HONEST ABOUT THE MARGIN, because it is thinner than the compressor's: the two
+    /// constants are only ~1.5× apart in ripple, so 25 ms overshoots these bounds by just
+    /// 14–20%. That is deliberate and must not be loosened — a bound with comfortable
+    /// headroom over 25 ms would not reject it at all. What it buys in exchange is that the
+    /// SHIPPED value has a full 30% of room, so this cannot fail on a last-ulp `sinf`
+    /// difference between toolchains. If a future change genuinely needs a shorter detector,
+    /// the numbers above move together and the table is rewritten from a fresh measurement —
+    /// never by widening the factor.
+    ///
+    /// Note the coupled 60 ms row is the QUIETEST of the three. Decoupling the detector cost
+    /// ripple; #199 bought recovery time with it (t63 ~128 ms → ~106 ms against a 60 ms
+    /// nominal). That trade is the whole content of the constant, and it is why the value is
+    /// pinned from both sides rather than minimised.
+    func testLimiter_rippleStaysFlatAcrossTheBassRange() {
+        let ceilingDb: Float = -0.3
+        let bounds: [(hz: Float, maxRipple: Float)] = [
+            (30, 0.426), (40, 0.256), (60, 0.123), (80, 0.072), (120, 0.034), (200, 0.013)
+        ]
+        for (hz, bound) in bounds {
+            let lim = EchoelLimiter(sampleRate: sr)
+            lim.ceilingDb = ceilingDb
+            let w = 2 * Float.pi * hz / sr
+            let amp = powf(10, 12.0 / 20.0)          // +12 dBFS, well into limiting
+            let total = Int(sr * 1.5), settle = Int(sr * 1.0)
+            var lo = Float.greatestFiniteMagnitude, hi = -Float.greatestFiniteMagnitude
+            for i in 0..<total {
+                _ = lim.processStereo(amp * sinf(w * Float(i)), amp * sinf(w * Float(i)))
+                guard i >= settle else { continue }  // the first second is attack settling
+                let gr = lim.gainReductionDb
+                lo = Swift.min(lo, gr); hi = Swift.max(hi, gr)
+            }
+            XCTAssertLessThan(hi - lo, bound,
+                              "\(hz) Hz: gain ripple \(hi - lo) dB — the detector is drooping "
+                              + "between peaks; that ripple IS the third harmonic")
+        }
+    }
+
     /// "Fail to resting, never to silence": once loud material stops, the gain must come
     /// back. A limiter that sticks down is the permanent-silence class of bug.
     func testLimiterReleasesBackToUnityAfterLoudMaterial() {

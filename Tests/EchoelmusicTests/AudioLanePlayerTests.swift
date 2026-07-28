@@ -123,7 +123,11 @@ final class AudioLanePlayerTests: XCTestCase {
         let factory = Factory()
         let p = player(factory) { _ in self.fileURL }
         p.prime(in: document, atTick: 0, bpm: 120)   // warms the sink; 0-gain stays silent
-        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? true, "0-gain region never plays")
+        // ⛔ `?? true` here was an assertion that could not fail: with no sink the
+        // default IS the expectation. `prime` warms EVERY lane that has content
+        // (mute and gain are not consulted there), so a sink is expected —
+        // `?? false` makes "no sink at all" a failure instead of a silent pass.
+        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? false, "0-gain region never plays")
 
         document.regions[0].gain = 1
         p.apply(in: document, fromTick: 0, toTick: 480, bpm: 120)
@@ -181,7 +185,11 @@ final class AudioLanePlayerTests: XCTestCase {
         let factory = Factory()
         let p = player(factory) { _ in nil }   // no URL for any clip
         p.apply(in: document, fromTick: -1, toTick: 0, bpm: 120)
-        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? true, "no file ⇒ no playback")
+        // ⛔ NOT `plays.isEmpty ?? false` like its two siblings: there is no `prime`
+        // here and `start` bails at `guard … resolveURL` BEFORE `sink(for:)`, so no
+        // sink is ever created. Asserting on `sinks.first` would be asserting on nil.
+        // The honest statement is that the play path was never entered at all.
+        XCTAssertTrue(factory.sinks.isEmpty, "no file ⇒ no sink, no playback")
     }
 
     // MARK: - Warm-up + teardown (audio-thread review on the wiring cycle)
@@ -296,7 +304,9 @@ final class AudioLanePlayerTests: XCTestCase {
         let factory = Factory()
         let p = player(factory) { _ in self.fileURL }
         p.prime(in: document, atTick: 0, bpm: 120)                            // muted ⇒ silent
-        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? true)
+        // `prime` warms a muted lane too (it never reads mute), so the sink must
+        // exist and be silent — `?? false`, not the vacuous `?? true`.
+        XCTAssertTrue(factory.sinks.first?.plays.isEmpty ?? false, "primed but silent while muted")
         p.apply(in: edited(document, muted: false), fromTick: 0, toTick: 480, bpm: 120)
         XCTAssertEqual(factory.sinks.first?.plays.count, 1, "unmute inside the region starts playback")
         XCTAssertEqual(factory.sinks.first?.plays.first?.from ?? -1, 0.5, accuracy: 1e-9,
