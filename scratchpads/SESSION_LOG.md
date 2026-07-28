@@ -8726,3 +8726,56 @@ Ein einziger normaler Start reicht. Bis dahin kommt kein Metal auf die zweite Sz
   Aufgabe neu gefasst, NICHT als nutzersichtbarer Fix geshippt.
 - Nebenbefund des Reviewers, wichtig für #121 Slice 5: `soundControls` (EchoelStudioView) hat null
   Referenzen — tot. Der „chrome-door-only"-Kommentar über `sessionPanel` stimmt deshalb in der Praxis.
+
+### Nachtrag 2026-07-28 (2) — #182/#153/#206 geschlossen, #198 mit korrigierter Begründung geshippt
+
+- **#206 Beamer/Externer Bildschirm KOMPLETT** (3 Scheiben, alle Gates grün): `8d5490f` Scheibe 2
+  (Telefon behält die Spielfläche, nur die Metal-Schicht wandert), `e971543` Scheibe 3 (der
+  Immersive-Header-Kachel sagt „auf dem externen Bildschirm"). **Zwei Reviewer-Fänge, die ich ohne
+  ihn geshippt hätte:** (a) mein Plan, `FloatingVisualWindow` bei angeschlossenem Beamer ganz zu
+  verstecken, hätte `TouchInstrumentView` mitgenommen — das ist ein OVERLAY auf der Metal-Schicht,
+  also hätte der Beamer-Modus dem Founder das Instrument weggenommen, das genaue Gegenteil des
+  Wunsches. (b) Meine separate Header-Kachel hätte die zentrierte Wortmarke auf einem 375-pt-iPhone
+  um 64 pt überlappt (rechter Cluster 146 → 192 pt). Gerät-Verify steht aus: echtes Kabel, 60 fps
+  bei Beamer-Auflösung, HDMI vs AirPlay.
+- **#182 (`cda2b45`) Filterkernel:** `usableTaps` = `max(5, taps) | 1`. **Reviewer-HIGH:** mein
+  erster Fix schützte nur den Tiefpass — der Hochpass invertiert den Durchlass-Kernel, δ−δ = exakt
+  0.0 Energie, die Stille überlebte den Stille-Fix. Und meine erste Assertion (`energy > 0`) BESTAND
+  auf einem 2.97e-08-Kernel, hätte den Bug also zertifiziert. Beides korrigiert (Guard je Funktion,
+  Energieboden 1e-3). Minimum 5 statt 3, weil Blackman an BEIDEN Enden null ist: 3 Taps = Identität
+  beim Tiefpass, ~−150 dBFS beim Hochpass.
+- **#153 (`3128b5a` + `7c7786a`): die Prämisse war falsch.** `installTap` ist NICHT der Render-Thread
+  (`MicrophoneManager.swift:236` sagt es selbst). Statt eine funktionierende Aufnahme-Architektur zu
+  „reparieren", neu gefasst: unbegrenzte Fehlerkosten (`localizedDescription` ~12×/s für den Rest
+  einer verlorenen Aufnahme) + lügendes Control (REC zählt weiter über eine Datei, die nichts mehr
+  erreicht). Latch + einmal loggen. **Reviewer-HIGH ×2:** ein Fehler in den letzten 500 ms wäre nie
+  sichtbar geworden (Lift jetzt auch in `stopRecording`), und `LoopExporter` hatte GAR kein Signal —
+  eine volle Platte lieferte ein normalisiertes Fragment als fertigen Loop.
+- **CI-Lehre (kostete einen roten Zyklus):** `3128b5a` machte BEIDE echten Gates rot mit einem
+  Fehler — `if let url` auf einem nicht-optionalen `URL`. `stopRecording(completion:)` reicht ein
+  blankes `URL`, die alte Zeile gab es direkt in ein `URL?`-Return zurück und die implizite
+  Promotion verdeckte den Unterschied. **Merksatz: eine Zeile, die nur durch implizite
+  Optional-Promotion kompilierte, bricht, sobald man etwas dazwischen schiebt.**
+- **#198 Kompressor-Detektor (`d34161e`) — geshippt MIT umgeschriebener Begründung.** Der Defekt ist
+  echt und gemessen: Rohsample als Detektor → Gain-Ripple 0,249 dB @ 40 Hz → H3 −41,7 dBc, schlimmer
+  je tiefer der Ton (0,332 @ 30 Hz) = genau der `SubBassVoice`-Bereich. Peak-Hülle wie im Limiter
+  (#194), aber mit EIGENER 40-ms-Konstante statt `releaseMs` — gekoppelt kaskadieren zwei Ein-Pol-
+  Filter gleicher Zeitkonstante und die Stufe hält 100 ms nach einem 5-ms-Transienten noch −9,73 dB.
+  **Der Reviewer widerlegte DREI meiner Kommentar-Behauptungen, davon eine die gesamte Begründung
+  der Konstante:** mein Referenzwert −12·e^(−100/120) = −5,2 dB ist Fiktion — ein 5-ms-Transient
+  erreicht bei 10 ms Attack nur −4,40 dB, es zerfällt also nichts von −12. Echte Referenz (ripple-
+  freier Detektor, gleiche Ballistik): **−2,08 dB**. Damit kippt die Aussage: der ROHE Detektor ist
+  an DIESEM Messpunkt der beste der drei; er ist trotzdem der Defekt, aber wegen Ripple/H3, nicht
+  wegen Release-Genauigkeit. 40 ms ist **gewählt, nicht hergeleitet** (25–60 ms bestehen alle Tests).
+  Ehrliche Kosten jetzt vollständig im Kommentar: nicht nur 0,6 dB mehr auf Gehaltenem, sondern
+  −9,20 dB tiefste Reduktion **18 ms NACH** dem Transienten (roh: −3,40 dB WÄHREND) — auf perkussivem
+  Material ist dieses späte Ducken die hörbare Änderung. Zwei weitere falsche Kommentare korrigiert:
+  `reset()` HAT einen Produktions-Aufrufer (`compressorEnabled`-Steigflanke), und `releaseMs` hat
+  GAR keinen Schreiber (FXPreset speichert nur threshold/ratio/makeup).
+- **#208 BELEGT (Reviewer, Governance-Wahrheit): „beide Gates grün" beweist NICHT, dass ein neuer
+  Test lief.** Das blockierende `EchoelmusicTests`-Bundle baut laut `project.yml:304-308` aus
+  `Tests/CISmoke` — die 305 Dateien unter `Tests/EchoelmusicTests/` kompilieren die echten Gates nie.
+  `full-tests.yml` ist die einzige Workflow, die sie baut, und hat `continue-on-error: true` auf
+  Build- UND Run-Schritt. Zusätzlich benennt `ci.yml:290-291` eine Suite (`ComprehensiveTestSuite`),
+  die es nicht gibt — der Schritt testet nichts. Wer einen Test schreibt, muss `full-tests.yml`
+  gezielt lesen. Entscheidung ist founder-gated (`project.yml`).
