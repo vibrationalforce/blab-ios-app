@@ -81,15 +81,27 @@ statt ihn zu bewerben.
 |---|--------|-------|--------|
 | 8 | `ProfessionalLogger` hält **10 000** Einträge im RAM | `ProfessionalLogger.swift:239-240,295-297` | `LogEntry` = UUID + Date + 4 Strings + Dictionary → mehrere MB, dauerhaft |
 | 9 | `RetroCapture` allokiert **11,5 MB im `init`**, nicht beim ersten Gebrauch | `RetroCapture.swift:40,86-91` | 48 000 × 30 s × 2 ch × 4 B = 11 520 000 B — **5,8 % des 200-MB-Budgets**, immer, auch wenn nie aufgenommen wird |
-| 10 | `mediaServicesWereReset` kann den Graphen nicht neu bauen — `graphPrepared` ist eine Einweg-Sperre | `AudioEngine.swift:180,253-254`; Handler `AudioConfiguration.swift:365-371` | selten, aber dann total |
+| 10 | `mediaServicesWereReset` lief über den Interruption-Pfad und ließ **den RetroCapture-Tap fallen** | `AudioConfiguration.swift` `handleMediaServicesReset`; `AudioEngine.swift` `onInterruptionResume` | selten, aber dann stiller Datenverlust |
 
-**#10 ist verwandt mit #1 und dieselbe Klasse.** Wenn iOS die Media-Services zurücksetzt,
-sind ALLE Audio-Objekte ungültig. `prepareGraph()` steigt bei `graphPrepared == true`
-sofort aus (`:253`) — der Neuaufbau, den genau dieser Fall braucht, kann nicht stattfinden.
-Es ist seltener als eine Siri-Unterbrechung, aber der Ausgang ist derselbe: stumm bis
-Neustart. **Fix:** `graphPrepared` im Media-Reset-Handler zurücksetzen, dann `prepareGraph()`
-+ `start()`. Gehört als Slice 2 direkt hinter #1, weil es dieselbe Datei und dieselbe
-Denkfigur ist.
+**#10 — KORRIGIERT 2026-07-28 beim Bauen, meine erste Fassung war überzogen.** Sie lautete:
+„`prepareGraph()` steigt bei `graphPrepared == true` aus, also kann der Neuaufbau, den
+dieser Fall braucht, nicht stattfinden." Das klingt zwingend und hält der näheren Lektüre
+nicht stand: `masterEngine` ist ein `let AVAudioEngine()`, ein echtes Neu-Erzeugen ist gar
+nicht möglich, und `AudioEngine.start()` ruft ohnehin `prepare()` + `start()`, worauf
+AVAudioEngine seinen internen Graphen selbst wieder aufbaut. Ich hätte auf dieser Grundlage
+einen spekulativen Umbau eines Wiederherstellungspfads geschrieben, den weder CI noch ich
+auslösen können — die teuerste Sorte Fix.
+
+**Was beim genauen Hinsehen ÜBRIG BLIEB, ist kleiner und beweisbar:** der Reset-Handler rief
+`onInterruptionResume`, und diese Closure macht ein nacktes `masterEngine.start()` — nicht
+`AudioEngine.start()`. Für eine Unterbrechung ist das richtig (der Graph ist gültig, nur
+pausiert). Für einen Media-Services-Reset ist es falsch, weil der Reset die Objekte
+entwertet, auf denen die **Taps** installiert sind. `retroCapture.install(on:)` läuft nur im
+vollen `start()`-Pfad — nach einem Reset also nie wieder. Der 30-s-Vorlaufring füllt sich
+still nicht mehr, und „letzten Loop behalten" liefert Stille. Kein Absturz, keine Meldung.
+**Geshippt** als eigener `onMediaServicesReset`-Hook → `recoverEngine` (Settle-Delay,
+gedeckelter Retry, `degraded`-Anzeige). **Nur compile-verifiziert** — einen
+Media-Services-Reset kann ich hier nicht auslösen.
 
 ### P3 — Struktur, nicht Symptom
 

@@ -232,6 +232,17 @@ public final class AudioEngine {
                 log.audio("Failed to resume master engine: \(error)", level: .error)
             }
         }
+        AudioConfiguration.onMediaServicesReset = { [weak self] in
+            // Route through the SAME de-bounced machinery route-loss uses, not through a
+            // bare engine start. Three things that only `recoverEngine` → `start()` does
+            // matter here: the 300 ms settle (the daemon is still coming up), the capped
+            // retry with a `degraded` surface if it never does, and — the reason this
+            // hook exists at all — the full start path, which reinstalls RetroCapture's
+            // tap and re-prepares the recorder. A media-services reset takes taps with
+            // it; resuming without redoing them is silent data loss, not silence.
+            self?.isRunning = false
+            self?.recoverEngine(reason: "media services reset")
+        }
         AudioConfiguration.onRouteDeviceLost = { [weak self] in
             guard let self else { return }
             self.masterEngine.pause()

@@ -330,6 +330,15 @@ enum AudioConfiguration {
     /// Apple HIG requires pausing playback to prevent unexpected speaker output.
     nonisolated(unsafe) static var onRouteDeviceLost: (() -> Void)?
 
+    /// The OS tore down and rebuilt the media daemon. DISTINCT from an interruption on
+    /// purpose: an interruption pauses a graph that is still valid, so resuming it is a
+    /// bare `AVAudioEngine.start()`. A media-services reset invalidates the audio objects
+    /// underneath, which takes every TAP with it — so the owner has to redo the whole
+    /// start path (tap reinstall, recorder prepare, meter timer), not just start the
+    /// engine. This hook used to be `onInterruptionResume`, and that difference is
+    /// exactly what got lost.
+    nonisolated(unsafe) static var onMediaServicesReset: (() -> Void)?
+
     /// Whether interruption handlers have already been registered (prevents duplicate observers)
     nonisolated(unsafe) private static var interruptionHandlersRegistered = false
 
@@ -475,7 +484,13 @@ enum AudioConfiguration {
         log.audio("Media services were reset - reinitializing audio", level: .warning)
         do {
             try configureAudioSession()
-            onInterruptionResume?()
+            // NOT `onInterruptionResume` — see the hook's doc comment. That closure does a
+            // bare `masterEngine.start()`, which is right for a paused-but-valid graph and
+            // wrong here: the reset invalidated the objects the tap was installed on, so
+            // resuming that way brings the engine back with RetroCapture's tap silently
+            // gone. The pre-roll ring then stops filling and "keep last loop" hands the
+            // user 30 seconds of silence, with nothing anywhere reporting a problem.
+            onMediaServicesReset?()
         } catch {
             log.audio("Failed to reconfigure audio after media services reset: \(error)", level: .error)
         }
