@@ -406,11 +406,15 @@ public final class EchoelLimiter: @unchecked Sendable {
         // The `env >= peak` invariant below is untouched — the RISE is still instantaneous.
         // Only the decay rate changed, so the ceiling guarantee is unaffected.
         //
-        // ⚠ 25 ms is a starting value, not a measured optimum. It has to be short enough that
-        // the detector is not the thing setting recovery time (it must be well under the
-        // 60 ms nominal release) and long enough to still smooth the ripple the envelope was
-        // added for. The founder's ear picks the final number — open device question: does
-        // sparse Flow material still pump?
+        // ⛔ A paragraph arguing for "25 ms, a starting value" stood here until 2026-07-28.
+        // It survived the change that made the constant 40, so the body of this function was
+        // recommending the exact value `detectorReleaseMs`'s own doc calls "a real
+        // regression" and that `testLimiter_rippleStaysFlatAcrossTheBassRange` exists to
+        // reject. Deleted rather than corrected: its surviving content — the two-sided
+        // squeeze on the constant, and the open device question about pumping on sparse Flow
+        // material — is already stated at the declaration (`detectorReleaseMs`) and in the
+        // recovery table above, and one authority per fact is what keeps them from drifting.
+        //
         // DENORMAL FLUSH (#207), applied to `decayed` and NOT to `env` after the max.
         //
         // Why here: after seconds of digital silence `env` decays into subnormal territory

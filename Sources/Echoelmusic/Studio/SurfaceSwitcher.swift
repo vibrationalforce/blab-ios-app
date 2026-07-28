@@ -13,10 +13,15 @@ import SwiftUI
 
 // ⛔ `WorkspaceSurface` (the 4-case enum) and `SurfaceSwitcherBar` (its chip row)
 // were DELETED here on 2026-07-28, #132 Slice 5. Both were unmounted leftovers of
-// the 4-surface workspace: `ArrangementView`, the only thing that ever WROTE the
-// persisted raw values, went with the timeline, and `SurfaceSwitcherBar` — the only
-// reader of `@AppStorage("workspace.surface")` — was never mounted again after the
-// pure-instrument verdict. So the key had no writer and no reader.
+// the 4-surface workspace: `SurfaceSwitcherBar` was the LAST writer and the ONLY
+// reader of `@AppStorage("workspace.surface")` (its chip body did `surfaceRaw =
+// surface.rawValue`) once `ArrangementView` went with the timeline, and it was never
+// mounted again after the pure-instrument verdict. So with it gone the key has no
+// writer and no reader. (⛔ An earlier version of this note said `ArrangementView`
+// was "the only thing that ever WROTE" the key. It was not — the bar wrote it too.
+// The conclusion is unchanged, but this comment is positioned as the record the next
+// deletion pass reads, and an incorrect ownership model is exactly what it must not
+// teach.)
 //
 // The stored `@AppStorage` key is deliberately NOT migrated or cleared: an unread
 // UserDefaults string costs nothing, and a deletion pass is exactly the wrong place
@@ -68,27 +73,17 @@ struct SurfaceHost: View {
     }
 }
 
-/// Show/hide a mounted surface: invisible surfaces take no touches and are
-/// silent for VoiceOver, but keep their state (no teardown churn).
-///
-/// SIZE CONTRACT (v136 regression fix — founder screenshots: chrome + content
-/// clipped at BOTH edges on every surface): a ZStack sizes to the UNION of its
-/// children, so ONE sheet-era surface reporting wider-than-screen inflated the
-/// whole workspace VStack (header/transport included) past the display. Pinning
-/// every child to exactly the proposed size (maxWidth/maxHeight .infinity =
-/// adopt the proposal) caps the union at screen size — the modifier the old
-/// shell applied to EchoelStudioView directly. `.clipped()` keeps any internal
-/// overflow inside the surface instead of painting over the chrome.
-private struct SurfaceVisibility: ViewModifier {
-    let on: Bool
-    func body(content: Content) -> some View {
-        content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-            .opacity(on ? 1 : 0)
-            .allowsHitTesting(on)
-            .accessibilityHidden(!on)
-            .zIndex(on ? 1 : 0)
-    }
-}
+// ⛔ `SurfaceVisibility` (a `ViewModifier` that hid an inactive surface while keeping
+// its state) was DELETED here too, 2026-07-28. It was the last piece of the 4-surface
+// machinery and had been orphaned BEFORE this slice — `private`, so this file was the
+// only place it could be used, and it was used nowhere in it. Its doc described a
+// world of "every surface" and a ZStack union that has not existed since the timeline
+// went, so leaving it would have been a map to a screen the app no longer has.
+//
+// Its one durable lesson is kept because it can bite the surviving `SurfaceHost`: a
+// ZStack sizes to the UNION of its children, so a single child reporting
+// wider-than-screen inflates the whole workspace VStack — header and transport
+// included — past the display (the v136 founder screenshots, clipped at BOTH edges).
+// That is why `SurfaceHost.body` still pins `maxWidth/maxHeight: .infinity` and
+// `.clipped()`; those two lines are a size CONTRACT, not decoration.
 #endif

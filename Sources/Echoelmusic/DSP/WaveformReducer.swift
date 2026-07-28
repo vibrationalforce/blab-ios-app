@@ -2,7 +2,20 @@
 // Echoel — pure waveform reduction (Stage 2 core). Research-validated pro
 // rendering: per pixel-column keep MIN and MAX (visual extremes survive) plus
 // RMS (the inner "body" layer). Never draw raw PCM. Pure Foundation —
-// Linux-CI-testable; the AVAudioFile reader + disk cache build on this.
+// Linux-CI-testable.
+//
+// ⛔ TEST-ONLY SINCE 2026-07-28 (#132 Slice 5). This header used to end "the
+// AVAudioFile reader + disk cache build on this" — both were deleted that day
+// (`Audio/WaveformCache.swift`, `Studio/WaveformView.swift`), so `WaveformReducer`
+// and `WaveformBucket` now have ZERO consumers in `Sources/`; the only reference
+// left in the repo is `Tests/EchoelmusicTests/WaveformReducerTests.swift`.
+//
+// KEPT ON PURPOSE, not overlooked: it is a pure, tested, dependency-free core, and
+// the sampler/file waveform browser that would consume it again is still on the map
+// (`docs/dev/VISION_REALITY_2026-07.md`). Deleting it is a separate decision from
+// deleting the DAW view stack, and this note exists so the next pass finds a parked
+// core rather than an orphan with no explanation — which is exactly what made the
+// deleted `FileWaveformView` a defect instead of a parked feature.
 
 import Foundation
 

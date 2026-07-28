@@ -134,16 +134,36 @@ final class EchoelDynamicsTests: XCTestCase {
         for (hz, bound) in bounds {
             let lim = EchoelLimiter(sampleRate: sr)
             lim.ceilingDb = ceilingDb
+            // PINNED, because the table is release-sensitive and the failure message points
+            // at the detector. Measured at 30/40/200 Hz: release 60 ms → 0.327/0.197/0.010,
+            // release 30 ms → 0.591/0.364/0.019 — a future retune of the RELEASE default
+            // would fail all six here and read as "the detector is drooping", sending the
+            // next session at the wrong constant and tempting them to widen bounds the doc
+            // says must never be widened. (`attackMs`, `ceilingDb` and the input amplitude
+            // are all irrelevant to the spread — only the release is.)
+            lim.releaseMs = 60
             let w = 2 * Float.pi * hz / sr
             let amp = powf(10, 12.0 / 20.0)          // +12 dBFS, well into limiting
             let total = Int(sr * 1.5), settle = Int(sr * 1.0)
             var lo = Float.greatestFiniteMagnitude, hi = -Float.greatestFiniteMagnitude
             for i in 0..<total {
                 _ = lim.processStereo(amp * sinf(w * Float(i)), amp * sinf(w * Float(i)))
-                guard i >= settle else { continue }  // the first second is attack settling
+                // Settling, not "attack settling" — `attackMs` is 0.5 ms; what takes time is
+                // the 60 ms release / 40 ms detector pair, and everything is steady by
+                // ~0.2 s. A full second is deliberate slack, not a measured requirement.
+                guard i >= settle else { continue }
                 let gr = lim.gainReductionDb
                 lo = Swift.min(lo, gr); hi = Swift.max(hi, gr)
             }
+            // ⛔ WITHOUT THIS LINE THE TEST PASSES ON A DEAD LIMITER. A stage that stopped
+            // reducing (gain latched at 1, or `env` stuck at 0) holds `gainReductionDb`
+            // constant, so the spread is 0 and all six ripple bounds go green — the
+            // permanent-silence class this file exists to catch, passing in the one test
+            // that drives deepest into limiting. Measured `hi` is −11.97…−12.29 dB, so −6
+            // is a wide floor, not a brittle one. It also closes the vacuous case where
+            // `settle >= total` would leave `hi - lo == -inf < bound`.
+            XCTAssertLessThan(hi, -6,
+                              "\(hz) Hz: limiter never engaged — the ripple bound proves nothing")
             XCTAssertLessThan(hi - lo, bound,
                               "\(hz) Hz: gain ripple \(hi - lo) dB — the detector is drooping "
                               + "between peaks; that ripple IS the third harmonic")

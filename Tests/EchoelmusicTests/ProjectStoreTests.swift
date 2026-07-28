@@ -89,6 +89,98 @@ final class ProjectCodableTests: XCTestCase {
         XCTAssertEqual(p.patch.name, "Default")
     }
 
+    // MARK: - Schema version (#189 slice 1)
+
+    /// A file written before the stamp existed must decode as `0`, NOT as the current
+    /// version. That distinction is the entire value of the field: a migration can only
+    /// branch on it if pre-stamp files are distinguishable from current ones, and a
+    /// `?? currentSchemaVersion` default would make every legacy take claim to be current.
+    func testPreVersioningFile_decodesAsSchemaVersionZero() throws {
+        let full = try JSONEncoder().encode(sample("Legacy"))
+        var dict = try XCTUnwrap(try JSONSerialization.jsonObject(with: full) as? [String: Any])
+        dict.removeValue(forKey: "schemaVersion")           // as every take saved before today
+        let p = try JSONDecoder().decode(
+            Project.self, from: try JSONSerialization.data(withJSONObject: dict))
+        XCTAssertEqual(p.schemaVersion, 0, "an unstamped file is pre-versioning, not current")
+        XCTAssertEqual(p.name, "Legacy", "and it still loads completely")
+    }
+
+    /// THE TRAP THE EXPLICIT ENCODER EXISTS FOR. Re-saving a legacy take produces a file
+    /// in TODAY's shape, so it must be stamped with today's version — the synthesized
+    /// encoder would have written the loaded `0` straight back and left a current file
+    /// permanently claiming to be pre-versioning, which a migration would then re-run on.
+    func testResavingALegacyTake_stampsTheCurrentVersion() throws {
+        let full = try JSONEncoder().encode(sample("Legacy"))
+        var dict = try XCTUnwrap(try JSONSerialization.jsonObject(with: full) as? [String: Any])
+        dict.removeValue(forKey: "schemaVersion")
+        let legacy = try JSONDecoder().decode(
+            Project.self, from: try JSONSerialization.data(withJSONObject: dict))
+        XCTAssertEqual(legacy.schemaVersion, 0)             // in memory: where it came from
+
+        let resaved = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: try JSONEncoder().encode(legacy)) as? [String: Any])
+        XCTAssertEqual(resaved["schemaVersion"] as? Int, Project.currentSchemaVersion,
+                       "the bytes just written are in the current shape and must say so")
+    }
+
+    /// The explicit encoder replaced a synthesized one, so a field dropped from it would
+    /// vanish from every save with nothing to catch it. Pin the key set.
+    func testExplicitEncoder_writesEveryField() throws {
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: try JSONEncoder().encode(sample())) as? [String: Any])
+        let expected: Set<String> = [
+            "schemaVersion", "id", "name", "savedAt", "styleRaw", "keyRoot", "scaleRaw",
+            "bpm", "modeRaw", "fxCharacterRaw", "loopBars", "a4Hz", "artist", "patch",
+            "notes", "drumSteps", "drumAccents"
+        ]
+        XCTAssertEqual(Set(obj.keys), expected,
+                       "a stored property missing from encode(to:) is silent data loss")
+    }
+
+    // MARK: - Element-tolerant notes (#189 slice 1)
+
+    /// ONE bad note must cost ONE note, not the whole take. `decodeIfPresent([Note].self)`
+    /// absorbed a MISSING `notes` key but not a malformed ELEMENT inside a present one —
+    /// that throw left `Project.init(from:)` and `ProjectStore`'s `try?` turned it into
+    /// nothing at all.
+    func testOneMalformedNote_costsOneNote_notTheWholeTake() throws {
+        var p = sample("Partly corrupt")
+        p.notes = [Note(pitch: 60, startStep: 0), Note(pitch: 64, startStep: 4),
+                   Note(pitch: 67, startStep: 8)]
+        var dict = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: try JSONEncoder().encode(p)) as? [String: Any])
+        var notes = try XCTUnwrap(dict["notes"] as? [[String: Any]])
+        notes[1] = ["pitch": "not a number"]                // wrong TYPE, which no default absorbs
+        dict["notes"] = notes
+
+        let back = try JSONDecoder().decode(
+            Project.self, from: try JSONSerialization.data(withJSONObject: dict))
+        XCTAssertEqual(back.notes.count, 2, "the two readable notes survive")
+        XCTAssertEqual(back.notes.map(\.pitch), [60, 67])
+        XCTAssertEqual(back.name, "Partly corrupt", "and the take itself is not lost")
+    }
+
+    /// The concrete way this fires in the field, and the reason it is not paranoia:
+    /// `NoteRole` is a `String`-raw enum, and the synthesized `RawRepresentable` decode
+    /// THROWS on a raw value it does not know — `decodeIfPresent` only absorbs a missing
+    /// key. So the day a build adds a fourth role, every take it saves would have been
+    /// unreadable, whole-file, by every earlier build.
+    func testUnknownFutureNoteRole_dropsThatNote_notTheTake() throws {
+        var p = sample("From a newer build")
+        p.notes = [Note(pitch: 60, startStep: 0), Note(pitch: 72, startStep: 4)]
+        var dict = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: try JSONEncoder().encode(p)) as? [String: Any])
+        var notes = try XCTUnwrap(dict["notes"] as? [[String: Any]])
+        notes[0]["role"] = "percussion"                     // a role this build has never heard of
+        dict["notes"] = notes
+
+        let back = try JSONDecoder().decode(
+            Project.self, from: try JSONSerialization.data(withJSONObject: dict))
+        XCTAssertEqual(back.notes.map(\.pitch), [72],
+                       "only the note carrying the unknown role is lost")
+        XCTAssertEqual(back.name, "From a newer build")
+    }
+
     func testNearlyEmptyObject_stillDecodesToAValidTake() throws {
         // The extreme: almost nothing present. A valid Project, never a thrown error.
         let p = try JSONDecoder().decode(Project.self, from: Data("{\"name\":\"Salvaged\"}".utf8))
