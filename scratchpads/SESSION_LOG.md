@@ -8646,3 +8646,9 @@ Fehlermeldung wird verschluckt. Man tippt, nichts passiert, kein Hinweis. Vor de
 
 **Gates:** alle fünf grün auf `6c9ca28`. **Testdateien: 306.**
 **Nicht geräteverifiziert:** alles. Layout und Farbe sind genau die Klasse, die man sehen muss.
+
+**DEPLOY BESTÄTIGT:** v10.79.355, **Build 2472**, TestFlight-Lauf `30336194588`.
+Der ASC-Verify-Schritt fand den Build nach ~2 Minuten (06:55:56 → 06:58:02), lief also
+NICHT ins 20-Minuten-Timeout, das mit Warnung + exit 0 endet. Deshalb ist das hier eine
+Bestätigung und keine Vermutung. Alle vier Jobs grün (Preflight · iOS · Compile Check ·
+Summary), Archive 3,5 min, Export+Upload 48 s, keine Provisioning-Transiente.
