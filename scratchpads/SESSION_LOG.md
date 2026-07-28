@@ -8779,3 +8779,38 @@ Ein einziger normaler Start reicht. Bis dahin kommt kein Metal auf die zweite Sz
   Build- UND Run-Schritt. Zusätzlich benennt `ci.yml:290-291` eine Suite (`ComprehensiveTestSuite`),
   die es nicht gibt — der Schritt testet nichts. Wer einen Test schreibt, muss `full-tests.yml`
   gezielt lesen. Entscheidung ist founder-gated (`project.yml`).
+
+### Nachtrag 2026-07-28 (3) — die Testsuite war 14 h tot und meldete „success"
+
+- **Der Fund.** `full-tests.yml` trägt `continue-on-error: true` auf dem **Build**-Schritt (nicht
+  nur auf dem Run-Schritt). Ab `7db996c` kompilierte das 305-Dateien-Modul nicht mehr — eine
+  `.nan`-Mehrdeutigkeit in einem `CGSize(...)` — und der Workflow meldete trotzdem `success`,
+  während seine EIGENE Zusammenfassung `- build-for-testing: failure` druckte. 14 Stunden,
+  15 Commits, kein rotes Signal.
+- **Zwei Fehler, zwei Runden.** `004de18` (`CGFloat.nan` statt `.nan`; `CGSize.init` ist für
+  Int/Double/CGFloat überladen, ein nacktes `.nan` hat keine Default-Präferenz) legte den
+  zweiten frei: `3566ba1` (`TouchQuantizeAction.playThenEcho` ohne `echoVelocityScale`).
+  Danach: `build-for-testing: success`, `test-without-building: success`, **null Compile-Fehler,
+  null Testfehler**, 6 min Laufzeit — die Suite läuft wirklich.
+- **ZWEI EIGENE FALSCHE BEHAUPTUNGEN korrigiert.** Bei #182 schrieb ich, die grüne Full Test
+  Suite beweise, dass die Kernel-Tests liefen. Sie liefen nicht. Dasselbe galt für die
+  Kompressor-Tests aus #198. Beide sind JETZT tatsächlich gelaufen und grün — die Zusicherungen
+  stehen nicht mehr nur auf meiner Simulation.
+- **MERKSATZ (der eigentliche Ertrag): ein grünes Workflow-Ergebnis ist kein Beweis, dass etwas
+  ausgeführt wurde.** Bei jedem Workflow mit `continue-on-error` ist die Zusammenfassung im Log
+  die Wahrheit, nicht die Conclusion. Wer einen Test schreibt, liest `full-tests.yml`s Zeilen
+  `build-for-testing:` / `test-without-building:` — nicht das Häkchen.
+- **Methodenlehre, die sich bezahlt gemacht hat:** statt Runde für Runde einen Fehler
+  aufzudecken (je ~7 min), hat ein Reviewer die 13 im Blindfenster geänderten Testdateien
+  Aufruf für Aufruf gegen die aktuellen Signaturen gelesen — Labels, Arität, Isolation,
+  Pattern-Match-Arität, Equatable. Ergebnis „sauber", und die nächste Runde bestätigte es.
+  Er belegte außerdem die Prämisse statt sie zu glauben: im ganzen Fenster wurde keine API
+  entfernt oder umbenannt, also konnten unveränderte Testdateien gar nicht betroffen sein.
+- **Struktur bleibt offen und ist founder-gated (#208):** `full-tests.yml` so ändern, dass ein
+  Build-Bruch den Job rot macht (Testfehler dürfen tolerant bleiben), und `project.yml`, wo das
+  blockierende Bundle aus `Tests/CISmoke` baut statt aus `Tests/EchoelmusicTests`. Nebenbefund:
+  `ci.yml:290-291` testet eine Suite, die es nicht gibt; `pr-check.yml` läuft `swiftlint --strict`
+  gegen eine `single_test_class`-Regel, die 20+ Dateien verletzen — das Gate kann nicht grün sein.
+- **Founder-Frage im Zyklus: „Doctor skill am start?"** — gibt es nicht. Angeboten, eine zu bauen
+  (drei Fragen: lügt eine grüne Anzeige? verspricht eine Oberfläche etwas, das der Code nicht hat?
+  steht in CLAUDE.md etwas, das gegen Sources/ nicht mehr stimmt?). NICHT ungefragt begonnen.
