@@ -743,15 +743,29 @@ public final class CameraRPPGBioPublisher {
                 // corroborated by real periodicity), else hold — so a poorly-placed finger
                 // shows "acquiring" instead of a fantasy number.
                 if self.detectedBPM > 0 && Self.pulseTrustworthy(confidence: self.confidence, autoStrength: autoStrength) {
-                    var bpm = self.detectedBPM
-                    // OCTAVE-FOLD toward the established rate: rPPG often reports 2× (or ½) the
-                    // true pulse (founder: "springt ständig auf 196 bpm"). Once a stable value
-                    // exists, fold a doubled/halved estimate back so the SHOWN number doesn't
-                    // yank between 98 and 196 — physiological continuity, display-only.
-                    if self.displayBPM > 0 {
-                        if bpm > self.displayBPM * 1.6 { bpm /= 2 }
-                        else if bpm < self.displayBPM * 0.6 { bpm *= 2 }
-                    }
+                    let bpm = self.detectedBPM
+                    // ⛔ A SECOND octave-fold used to sit here, folding against `displayBPM`.
+                    // Deleted 2026-07-28 (#185) because it could not release once it engaged.
+                    //
+                    // It read: if bpm > displayBPM * 1.6 { bpm /= 2 } else if < 0.6 { bpm *= 2 }
+                    // — and `displayBPM` is not an independent reference, it is the value the
+                    // very next lines move TOWARD the folded number. So the recurrence is
+                    // D ← D + slew(EMA(D, fold(R, D)) − D), whose fixed point for a genuine
+                    // rate R is D = R/2: at D = R/2 the trigger asks whether R > 1.6·(R/2),
+                    // i.e. whether R > 0.8·R, which is TRUE FOR EVERY R. The fold therefore
+                    // re-arms itself on every tick and the shown pulse stays halved forever.
+                    // A real 105 bpm settles at 52.5 and never comes back — and because
+                    // `displayBPM` feeds the settle gate below, the latched take tempo is
+                    // halved with it.
+                    //
+                    // Nothing is lost by removing it: the harmonic fold the founder actually
+                    // asked for ("springt ständig auf 196 bpm") already happened upstream in
+                    // `CameraAnalyzer.stabilisedBPM`, against the RUNNING ESTIMATE rather than
+                    // the display, with plausibility bounds (fold only if the result stays in
+                    // 40…200) and an autocorrelation octave anchor — none of which this copy
+                    // had. And a 2× glitch that slips through is already handled below: the
+                    // EMA plus the `maxDisplayStep` slew cap eases through it instead of
+                    // yanking. Do not reintroduce a fold that reads its own output.
                     if self.displayBPM == 0 {
                         self.displayBPM = bpm                       // first confident reading: adopt as-is
                     } else {
