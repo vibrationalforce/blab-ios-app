@@ -79,12 +79,14 @@ public final class Transport {
 
     /// Wall-clock stamp (`CFAbsoluteTime`) of the most recent step boundary — the
     /// anchor `currentTick(at:)` interpolates from. `0` means "no valid stamp"
-    /// (stopped, or nothing has ticked yet).
+    /// (stopped, or no step has fired yet).
     ///
-    /// `@ObservationIgnored` deliberately: this moves at the step rate (~8 Hz at
-    /// 120 BPM), and an OBSERVED property changing that fast, read from any view
-    /// body, rebuilds that body 8×/s and tears down an open `.menu` Picker popover
-    /// under the finger — CLAUDE.md's freeze law. Nothing may show this to the UI.
+    /// `@ObservationIgnored` because this changes at the step rate (~8 Hz at 120 BPM)
+    /// and nothing should be able to bind a view to it. To be exact about what that
+    /// buys, since the first version of this comment overclaimed: it does NOT make
+    /// `currentTick(at:)` safe to call from a body. That method also reads `position`,
+    /// which IS observed and is written in the same statement block as this stamp — so
+    /// the freeze risk lives there, and the warning that matters is on the method.
     @ObservationIgnored public private(set) var lastStepAt: CFAbsoluteTime = 0
 
     // MARK: - Subscribers
@@ -166,7 +168,19 @@ public final class Transport {
     public func play() {
         position = .zero
         lastStep = 0
-        lastStepAt = CFAbsoluteTimeGetCurrent()
+        // DELIBERATELY NOT STAMPED — and this is load-bearing, not an omission.
+        // `PatternEngine.play()` calls us and then schedules its FIRST `advance()` a
+        // whole step later, which relays `tick(step: 0)` — step 0 again. Stamping here
+        // would anchor step 0 at play-time and then re-anchor it 125 ms later, so a
+        // touch just before that second stamp read tick 119 and one just after read
+        // tick 0: the clock RAN BACKWARDS by a full step. `TouchQuantizer` is built
+        // entirely on "a live note can never be moved earlier", so that would have
+        // reordered two consecutive touches. It is also simply the wrong instant —
+        // step 0's notes SOUND at that first `advance()`, not at play-time, so the
+        // tick clock now agrees with what the player hears.
+        // Until then `currentTick(at:)` returns nil, which its contract already
+        // defines as "sound it now, uncorrected".
+        lastStepAt = 0
         isPlaying = true
     }
 
@@ -183,9 +197,14 @@ public final class Transport {
         let s = Swift.min(Swift.max(step, 0), Self.stepsPerBar - 1)
         position = TransportPosition(bar: bar, step: s)
         lastStep = s
-        // Re-anchor: without this the interpolation would keep measuring from the
-        // step boundary BEFORE the jump, i.e. from a position that no longer exists.
-        if isPlaying { lastStepAt = CFAbsoluteTimeGetCurrent() }
+        // Re-anchor, unconditionally. Without it the interpolation would keep measuring
+        // from the step boundary BEFORE the jump — a position that no longer exists.
+        // The `if isPlaying` this once carried bought nothing (`currentTick` already
+        // guards on `isPlaying`) and cost consistency: `tick(step:)` stamps whether or
+        // not the clock runs, so the conditional was the one writer that could leave the
+        // anchor describing a different position than `position` does.
+        // (No production caller today — `seek` is exercised only by tests.)
+        lastStepAt = CFAbsoluteTimeGetCurrent()
     }
 
     // MARK: - Tick
@@ -223,14 +242,26 @@ public final class Transport {
     /// a computed var a body evaluates, or that body becomes an ~8 Hz observer and
     /// every open `.menu` Picker popover is torn down under the finger.
     ///
-    /// SWING IS NOT MODELLED, and the error is NOT small. `PatternEngine` lengthens the
-    /// even step by `swing` and shortens the odd one to match; this map assumes both last
-    /// the nominal `60 / bpm / 4` seconds. Inside a lengthened step the interpolation
-    /// therefore runs ahead and saturates at that step's last tick — off by up to
-    /// `swing × ticksPerStep` (at swing 0.25: ~30 ticks ≈ 31 ms at 120 BPM, which IS
-    /// audible). Stated instead of buried: with swing on, a quantizer riding this clock
-    /// corrects toward a straight grid the beat is deliberately not on. Correct fix is a
-    /// swung grid on both sides, which no caller needs yet.
+    /// SWING IS NOT MODELLED, AND UNDER SWING THIS CLOCK IS WRONG ENOUGH TO MATTER.
+    /// `PatternEngine.swingGap` makes an even step last `base × (1 + swing)` and the
+    /// following odd step `base × (1 − swing)`; this map assumes both last the nominal
+    /// `60 / bpm / 4`. `MusicStyle.swing` ships real values — jazz 0.34, rock'n'roll
+    /// 0.28, rocksteady 0.22, klezmer 0.20, ska 0.18, vaporwave 0.15, disco 0.14,
+    /// trap 0.12 — so at jazz/120 BPM the LONG step lasts 167.5 ms and everything after
+    /// its first 125 ms reads as the same last tick, while the SHORT step lasts 82.5 ms
+    /// and ticks 80…119 of it are unreachable: a ~40-tick / ~42 ms error, not the "well
+    /// under one tick" an earlier version of this comment claimed.
+    ///
+    /// The consequence is specific, which is why it is spelled out rather than hedged:
+    /// `TouchQuantizer.latenessToleranceTicks` is 12, and on a short swung step this
+    /// clock UNDERSTATES lateness by up to a third — a touch 18 ticks late reads as 12
+    /// and falls inside the tolerance, so the echo silently does not fire. The two
+    /// halves of every swung pair are therefore judged by different rules. Separately,
+    /// only the grids that tile a step (`.sixteenth`, `.eighth`, `.quarter`) land on
+    /// real boundaries at all; the triplet grids never do.
+    ///
+    /// The correct fix is a swung grid on BOTH sides (clock and quantizer). No caller
+    /// needs it yet, so it is written down instead of guessed at.
     public func currentTick(at now: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()) -> Int? {
         guard isPlaying, lastStepAt > 0 else { return nil }
         return StepTickMath.tick(absoluteStep: position.absoluteStep,

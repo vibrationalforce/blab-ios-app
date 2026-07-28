@@ -45,7 +45,10 @@ public enum StepTickMath {
     ///
     /// - Parameters:
     ///   - absoluteStep: steps since play started (`bar * 16 + step`). Negative reads
-    ///     as 0 — a position before the start is not a musical location.
+    ///     as 0 — a position before the start is not a musical location. An absurdly
+    ///     large one is clamped to the highest step that cannot overflow, so the result
+    ///     then belongs to a DIFFERENT step than the one asked for; that is the honest
+    ///     trade against trapping, and it is ~4.8e15 bars away from anything real.
     ///   - secondsSinceStep: elapsed since that step boundary. Non-finite, negative or
     ///     over-long values collapse to the step boundary or its last tick (see above).
     ///   - bpm: musical tempo, held constant across the one step being interpolated.
@@ -53,11 +56,14 @@ public enum StepTickMath {
     /// - Returns: the tick under the finger, always within `[stepTick, stepTick + ticksPerStep - 1]`.
     public static func tick(absoluteStep: Int, secondsSinceStep: Double, bpm: Double) -> Int {
         // Clamped at BOTH ends before the multiply: negative is not a musical location,
-        // and an absurd step count would overflow the multiplication into a trap. Neither
-        // is reachable from a running transport — they are reachable from a corrupt
-        // restore or a future caller, and a trap here would kill the app on a touch.
-        let step = Swift.min(Swift.max(0, absoluteStep), Int.max / Swift.max(1, ticksPerStep))
-        let base = step * ticksPerStep
+        // and an absurd step count would overflow into a trap. The headroom subtracted
+        // from the ceiling is the fix for a bug the first version of this line had — it
+        // clamped the MULTIPLY and then overflowed on the ADD, because `base` could land
+        // at `Int.max - 7` while `within` reaches 119. A comment promising no trap while
+        // the code still trapped is worse than no comment.
+        let span = Swift.max(1, ticksPerStep)
+        let step = Swift.min(Swift.max(0, absoluteStep), (Int.max - (span - 1)) / span)
+        let base = step * span
         guard bpm.isFinite, bpm > 0,
               secondsSinceStep.isFinite, secondsSinceStep > 0 else { return base }
 
@@ -65,8 +71,10 @@ public enum StepTickMath {
         let raw = (secondsSinceStep * ticksPerSecond).rounded()
         // Bound BEFORE the Int conversion, not after: `raw` is unbounded (a stale stamp
         // or an absurd tempo makes it astronomically large) and converting that to Int
-        // first would trap. `Swift.min` on the Double is total.
-        let within = Swift.min(Double(ticksPerStep - 1), raw)
+        // first would trap. `Swift.min` on the Double is total — and NaN-safe in this
+        // argument order (`min(119, .nan)` is 119; the other order would pass NaN on,
+        // which is CLAUDE.md's shipped-silence bug).
+        let within = Swift.min(Double(span - 1), raw)
         return base + Int(within)
     }
 }

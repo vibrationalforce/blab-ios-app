@@ -51,13 +51,22 @@ final class StepTickMathTests: XCTestCase {
     }
 
     func testInterpolation_scalesWithTempo() {
-        // The same 62.5 ms is a WHOLE step at 60 BPM (steps last twice as long there,
-        // so the same wall time covers twice the musical distance) — and the clamp
-        // then holds it at the last tick of the step it belongs to.
+        // The same 62.5 ms of wall time is a different musical distance at each tempo:
+        // a quarter of a step at 60 BPM (steps last 0.25 s there), half a step at 120,
+        // and a WHOLE step at 240 — where the clamp holds it at that step's last tick.
         let slow = StepTickMath.tick(absoluteStep: 0, secondsSinceStep: 0.0625, bpm: 60)
         XCTAssertEqual(slow, 30, "at 60 BPM, 62.5 ms is a quarter of a step")
         let fast = StepTickMath.tick(absoluteStep: 0, secondsSinceStep: 0.0625, bpm: 240)
         XCTAssertEqual(fast, 119, "at 240 BPM the same wall time overshoots the step — clamped")
+    }
+
+    func testHugeStepCount_clampsInsteadOfTrapping() {
+        // The first version of the ceiling clamped the MULTIPLY and then overflowed on
+        // the ADD (`base` at Int.max − 7, `within` up to 119). Unreachable from a running
+        // transport — but a trap on a touch is not a defect anyone gets to debug live.
+        let t = StepTickMath.tick(absoluteStep: .max, secondsSinceStep: 0.05, bpm: 120)
+        XCTAssertGreaterThan(t, 0)
+        XCTAssertLessThanOrEqual(t, Int.max)
     }
 
     func testStaleStamp_cannotWalkIntoStepsThatHaveNotHappened() {
@@ -160,15 +169,47 @@ final class TransportCurrentTickTests: XCTestCase {
         let t = Transport()
         XCTAssertNil(t.currentTick(), "quantizing against a beat the player cannot hear is worse than not quantizing")
         t.play()
+        t.tick(step: 5)                       // a real anchor exists now
+        XCTAssertNotNil(t.currentTick())
         t.stop()
         XCTAssertNil(t.currentTick())
         XCTAssertEqual(t.lastStepAt, 0, "a stale stamp must not survive a stop")
     }
 
-    func testPlaying_startsAtTheDownbeat() {
+    func testPlay_doesNotAnchor_untilTheFirstStepActuallyFires() {
+        // THE BUG THIS PINS, and it would have broken the feature outright.
+        // `PatternEngine.play()` calls `Transport.play()` and then schedules its FIRST
+        // `advance()` a whole step later — which relays `tick(step: 0)`, i.e. step 0
+        // AGAIN. Stamping in `play()` anchored step 0 at play-time and then re-anchored
+        // it 125 ms later, so a touch just before the second stamp read tick 119 and one
+        // just after read tick 0: the clock ran BACKWARDS by a full step.
+        //
+        // `TouchQuantizer` is built entirely on "a live note can never be moved earlier"
+        // — two consecutive touches across that boundary would have been scheduled out
+        // of order. It is also the wrong instant musically: step 0's notes SOUND at that
+        // first `advance()`, not at play-time.
         let t = Transport()
         t.play()
+        XCTAssertNil(t.currentTick(), "play() must not anchor a step the sequencer has not reached")
+        XCTAssertEqual(t.lastStepAt, 0)
+
+        t.tick(step: 0)
+        XCTAssertEqual(t.currentTick(at: t.lastStepAt), 0, "the first real step is the downbeat anchor")
+    }
+
+    func testTheComposedClock_neverRunsBackwardsAcrossTheFirstStep() {
+        // The pure function is monotone by construction; this asserts the COMPOSED
+        // Transport clock is too, which is where the defect actually lived.
+        let t = Transport()
+        t.setTempo(120)
+        t.play()
+        XCTAssertNil(t.currentTick(at: t.lastStepAt + 0.124))   // no grid yet — uncorrected
+        t.tick(step: 0)
         XCTAssertEqual(t.currentTick(at: t.lastStepAt), 0)
+        XCTAssertEqual(t.currentTick(at: t.lastStepAt + 0.124), 119, "saturates, never spills over")
+        t.tick(step: 1)
+        XCTAssertEqual(t.currentTick(at: t.lastStepAt), 120,
+                       "the next step starts ABOVE the highest tick the previous one could reach")
     }
 
     func testStepPlusElapsed_isTheSongAbsoluteTick() {
