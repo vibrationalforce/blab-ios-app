@@ -8814,3 +8814,49 @@ Ein einziger normaler Start reicht. Bis dahin kommt kein Metal auf die zweite Sz
 - **Founder-Frage im Zyklus: „Doctor skill am start?"** — gibt es nicht. Angeboten, eine zu bauen
   (drei Fragen: lügt eine grüne Anzeige? verspricht eine Oberfläche etwas, das der Code nicht hat?
   steht in CLAUDE.md etwas, das gegen Sources/ nicht mehr stimmt?). NICHT ungefragt begonnen.
+
+## 2026-07-28 (cron, /goal "Greb all tasks and finish") — Backlog-Abarbeitung, beide Gates grün
+
+Neun Commits, alle auf `claude/echoelmusic-neustart-auv3-6ri2ek`. **Xcode Compile Check + CI/CD
+Pipeline grün auf `757d2e4` und `0ac1aa2`**; `a6b1017` lief zum Zeitpunkt dieser Zeile noch.
+
+**Geshippt (Reihenfolge = Commit-Reihenfolge):**
+- `c124fbe` /verify, /tdd, /deep-dive, /ship, /test auf CI als einzigen Compiler+Testrunner
+  umgestellt; `scripts/doctor.py` + Workflow-Namen-Spalte in `gh-run-status.py`.
+- `4591d83` CLAUDE.md-Zahlen mit dem erzeugenden Befehl danebengeschrieben.
+- `aec9bc5` (#114) `leadSynth` bekam den Kammerton nie — plus, aus dem Review: dieselbe
+  Auslassung in `applyTuning()` für die mikrotonale Tabelle, und ein persistiertes A=432
+  klang bis zum ersten Generate als 440.
+- `1d98697` (#135) FX-Träger-Picker bot vier Kanäle an, die niemand schreibt.
+- `7bd30e9` (#185) die Anzeige-Oktavfaltung las ihre eigene Ausgabe → Fixpunkt bei R/2.
+- `5b944ca` (#199/#207) Limiter-Detektor von `releaseMs` entkoppelt; Denormal-Flush auf den
+  EINGANG statt auf `env` nach dem Max, sonst bricht die `env >= peak`-Invariante.
+- `52d3c98` (#140/#142) eine Assertion, die nicht scheitern konnte, + die Isolation, über die
+  die beiden Toolchains uneins waren.
+- `2245671` (#132 Slice 5) Surface-Switcher + Waveform-Stack gelöscht. **`SurfaceHost` steht in
+  derselben Datei und IST die Hauptansicht** — „Datei ist frei löschbar" war falsch. Grep den
+  TYP, nie die Datei.
+- `5e11f5c` (#52) Website widersprach sich beim MIDI-Export und verkaufte Stems.
+- `757d2e4` (#199/#207/#140) **Limiter-Bass-Ripple-Test** — der 25-ms-Detektor wäre grün
+  durchgekommen, weil der einzige Gain-Stillstands-Test bei 200 Hz läuft, wo jede Kandidaten-
+  Konstante unter 0,02 dB welligt. Pro-Frequenz-Tabelle, bitgenau simuliert.
+- `0ac1aa2` (#189 Slice 1) **`Project.schemaVersion` + element-tolerante `notes`.** Der Encoder
+  musste explizit werden: der synthetisierte hätte die GELADENE Version zurückgeschrieben, eine
+  neu gespeicherte Altdatei behauptete also für immer „vor-versioniert".
+- `723ae15` (#168) Panic-Fan-Out als `PanicFanOut` + `NoteReleasable` testbar.
+- `a6b1017` (#171) `SignalRoute.amount` bleibt — Entscheidung mit Ablaufbedingung im Code.
+
+**Zwei Lehren, die in den Dateien stehen und nicht nur hier:**
+1. **Ein Reviewer, der die Zahlen NACHRECHNET, findet anderes als einer, der liest.** Der
+   dsp-reviewer reproduzierte alle 18 Ripple-Werte bitgenau und fand danach zwei echte
+   Test-Design-Lücken: der Ripple-Test wäre auf einem TOTEN Limiter grün (konstanter Gain →
+   Spread 0), und die Schranken hängen an `releaseMs`, das der Test nicht pinnte — eine
+   spätere Release-Änderung hätte mit „der Detektor tropft" gemeldet und die nächste Session
+   an die falsche Konstante geschickt.
+2. **Ein Eintrag in CLAUDE.md, der als PLAN geschrieben wurde, liest sich danach als TATSACHE.**
+   `FileWaveformView` stand am selben Tag in der „NICHT erreichbar"-Liste, an dem der Commit sie
+   löschte. Genau die Falle, vor der der Absatz zweimal warnt.
+
+**Offen und bewusst nicht angefasst:** #138 Slice 2 (FX-Parameter-Glide) — der Plan verlangt
+Fassade über sechs externe Schreibstellen, `audio-thread-reviewer` UND einen Gerätelauf; ohne
+lokalen Compiler ist das der nächste eigene Zyklus, keine Nebenbei-Scheibe.
