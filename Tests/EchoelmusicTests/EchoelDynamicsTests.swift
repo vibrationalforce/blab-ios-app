@@ -136,10 +136,15 @@ final class EchoelDynamicsTests: XCTestCase {
     /// about the state ADVANCING, not about NaN reaching the output.
     ///
     /// Why this falsifies (derived, not measured — there is no local toolchain): with the
-    /// pre-fix guard, `(0, NaN)` is processed as a legitimate silent frame. `env` decays and
-    /// `target` becomes 1, so the gain releases upward at `releaseCoeff = 1 - exp(-1/2880)`
-    /// for a 60 ms release at 48 kHz; over 4000 samples that closes `1 - exp(-4000/2880)`
-    /// ≈ 75% of the distance back to unity — far outside the 1e-6 tolerance below.
+    /// pre-fix guard, `(0, NaN)` is processed as a legitimate silent frame. `env` decays at
+    /// the release rate and the gain walks back toward unity. Solving the one-pole with
+    /// τ = 2880 samples (60 ms at 48 kHz) over 4000 samples: `env` only falls below the
+    /// ceiling at n ≈ 2880·ln(2/0.96605) ≈ 2096, so the gain first rises as 0.483·cosh(t)
+    /// and only then relaxes toward 1 — landing at g ≈ 0.80, i.e. **≈62%** of the way back,
+    /// and `gainReductionDb` −6.32 → ≈ −1.9 dB. (My first note here said ≈75%; that is the
+    /// upper bound you get by assuming `target == 1` for all 4000 samples, which is not
+    /// true for the first ~2100 of them. The conclusion is unaffected — ≈4.4 dB against a
+    /// 1e-6 tolerance — but an upper bound must not be written down as the value.)
     func testLimiterRightChannelNaNHoldsStateLikeLeft() {
         let lim = EchoelLimiter(sampleRate: sr)
         lim.ceilingDb = -0.3
@@ -153,6 +158,25 @@ final class EchoelDynamicsTests: XCTestCase {
         XCTAssertEqual(lim.gainReductionDb, reduced, accuracy: 1e-6,
                        "a right-channel NaN advanced the limiter's state")
         XCTAssertTrue(lim.gainReductionDb.isFinite)
+    }
+
+    /// The compressor half of the same guard, with its own falsifier.
+    ///
+    /// `EchoelCompressor.processStereo` got the identical `peak.isFinite` →
+    /// `inL.isFinite, inR.isFinite` change, but the existing compressor NaN test only feeds
+    /// `(NaN, 0)` — a LEFT-channel NaN, which the old guard already caught. So nothing in
+    /// the suite would have noticed the compressor guard regressing. This closes that.
+    func testCompressorRightChannelNaNHoldsStateLikeLeft() {
+        let comp = EchoelCompressor(sampleRate: sr)
+        comp.thresholdDb = -18; comp.ratio = 4; comp.makeupDb = 0
+        comp.attackMs = 5; comp.releaseMs = 120
+        for _ in 0..<8000 { _ = comp.processStereo(0.9, 0.9) }   // well above threshold
+        let reduced = comp.gainReductionDb
+        XCTAssertLessThan(reduced, -1, "setup failed: compressor is not reducing")
+
+        for _ in 0..<8000 { _ = comp.processStereo(0, Float.nan) }
+        XCTAssertEqual(comp.gainReductionDb, reduced, accuracy: 1e-6,
+                       "a right-channel NaN advanced the compressor's state")
     }
 
     // MARK: - Compressor

@@ -188,10 +188,12 @@ public final class EchoelLimiter: @unchecked Sendable {
     public func processStereo(_ inL: Float, _ inR: Float) -> (Float, Float) {
         let peak = Swift.max(abs(inL), abs(inR))
 
-        // A non-finite sample must not reach the detector. `inf` would pin `env` at
-        // infinity permanently (`inf * decay == inf`) and a NaN in the LEFT channel reaches
-        // `env` the same way, so either one would silence the limiter for good — a state bug
-        // far worse than the bad sample itself. Skip the whole state update and apply the
+        // A non-finite sample must not reach the detector. ABSENT ANY GUARD, `inf` would pin
+        // `env` at infinity permanently (`inf * decay == inf`) and a NaN in the LEFT channel
+        // would reach `env` the same way, so either one would silence the limiter for good —
+        // a state bug far worse than the bad sample itself. (Those two are the cases the
+        // ORIGINAL `peak.isFinite` guard already caught; the note below is about the one it
+        // did not.) Skip the whole state update and apply the
         // gain already held. Cleaning the SAMPLE up remains `AudioOutputGuard`'s job
         // downstream; this only guarantees the limiter survives one.
         //
