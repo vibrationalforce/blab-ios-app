@@ -8535,3 +8535,50 @@ roh auf denselben fd.
 echte CPU-/Thermal-Überlast vs. Signalweg-Diskontinuität — und der Master-Meter-Tap
 (`AudioEngine.swift:392`) scheidet bereits aus, er ist seit dem letzten Knister-Verdacht
 hinter `_detailedMetering` gegated.
+
+## 2026-07-28 (cron, ULTRACODE 24h) — Founder-Direktive „Alles überprüfen! Repo, Website angleichen und abgleichen dann TestFlight deploy"
+
+**Vier-Team-Sweep (Website · RepoDocs · CodeHealth · ShipReady), dann sieben Commits, dann v10.79.354.**
+
+- **Ship-Blocker gefunden und behoben (App Store 5.1.3):** `NSHealthShareUsageDescription`
+  sagte dem Apple-Prüfer, Health-Werte gingen bei eingeschaltetem OSC/ADM über das lokale
+  Netz. `BioEgressPolicy.allowsEgress` gibt für `.healthKit/.watch/.oura` **false** zurück,
+  und alle acht Sendestellen prüfen das (OSCSender :133/:172, ADMOSCSender, ArtNetSender,
+  SACNSender, ModulationEngine, LiveColaboView, BioFeedbackPublisher). Der Dialog räumte
+  eine Verletzung ein, die es nicht gibt. `NSLocalNetworkUsageDescription` hat dafür die
+  fehlende EINGEHENDE Hälfte bekommen (Network MIDI mit `connectionPolicy .anyone`, #187
+  bleibt offen).
+- **Website-Wahrheit Runde 3:** „Bewegung/Motion/Dance" als Bio-Eingang an 11 Stellen —
+  jeder Publisher schreibt `motionEnergy: 0`, kein CoreMotion-Provider existiert, die
+  ADM-OSC-Zuordnung „motion → gain" ist damit die Konstante 0.3. Dazu „zehn generative
+  Looks" (`LookBlendMap.library` hat vier), „modal & cellular voices" (EchoelCellular hat
+  NULL Produktions-Konsumenten; EchoelModalBank nur über die gelöschte Drum-Stimme), RTMP
+  dreifach widersprüchlich, MIDI-Export als Roadmap statt ausgeliefert. Beide JSON-LD-Blöcke
+  nach dem Edit als JSON revalidiert.
+- **Repo-Gedächtnis:** CLAUDE.md behauptete **16** Präsentations-Modifier (grep: **14**) —
+  genau die Zahl, die eine Session vor dem nächsten Modal liest, also der Weg zurück zum
+  Black-Screen-SIGSEGV. Dazu: `exportMIDI` als „kein Aufrufer" (seit #188 falsch), vier
+  nicht existierende Dateien in REPO STRUCTURE, vier fälschlich als „unwired" geführte
+  Cores, Dateizahlen. `memory/vision.md` führte noch den All-in-One-Produktionssuite-Pivot
+  vom 2026-06-20 als geltend — von #121 demontiert. `preferences.md` nannte Tuist +
+  Codemagic + iOS 26 (real: XcodeGen + GitHub Actions + iOS 18).
+- **CodeHealth-Fixes im Binary:** Play-Flächen-Level wurde angezeigt, aber beim Kaltstart
+  nie angewendet (Bass-Fader-Klasse). **Reviewer fing meinen ersten Fix:** `onAppear` läuft
+  VOR dem async Startup-Task, der die Node anhängt — der Restore landete auf einer nicht
+  angehängten `sourceNode`. Jetzt in `EchoelmusicApp` direkt nach `touchVoice.attach`.
+  Ausserdem: die Clip-Grid-Meldung schickte Tester „auf die Timeline", die es seit #121
+  Slice 4 nicht mehr gibt.
+- **DSP-Nachlese zu #194:** beide Nicht-Endlich-Guards prüften `peak` statt der Eingänge.
+  `Swift.max(x, y)` ist `y >= x ? y : x` — ein NaN im RECHTEN Kanal kam durch. Ehrlicher
+  Scope: kein Stille-Bug (Zustand blieb endlich), aber eine volle Ballistik-Aktualisierung
+  auf einem halb-gültigen Frame. Kompressor-Hälfte hatte **keinen** Falsifizierer; einer
+  ergänzt. Meine „≈75%"-Angabe im Limiter-Test war eine obere Schranke, real ≈62% —
+  korrigiert, weil eine Schranke nicht als Wert dastehen darf.
+- **decisions.csv:** 14 Zeilen standen auf ACTIVE/open für ein demontiertes Produkt.
+  **Fallstrick dokumentiert:** die Datei hat mehrzeilige Felder, ab ~Zeile 102 ist Zeile N
+  ≠ Datensatz N — Zeilen-Adressierung hätte „NFT + Krypto-Wallet" als AUv3-Opfer markiert.
+  Jetzt per Text-Präfix-Assertion, die den ganzen Schreibvorgang abbricht.
+
+**Gates:** Xcode Compile Check grün auf `5c6a06e`; CI/CD Pipeline lief beim Schreiben noch.
+**Nicht geräteverifiziert:** alles aus dieser Session. Der Limiter-Klang ist die eine Sache,
+die der Founder hören muss.

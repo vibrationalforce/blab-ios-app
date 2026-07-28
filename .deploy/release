@@ -1,65 +1,70 @@
-build: v10.79.353 — der Play-Knopf spielt wieder Dein Instrument, nicht einen alten Import
+build: v10.79.354 — Wahrheits-Deploy: 23 Commits, die nie auf Dein Gerät kamen
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
-  Dieser Build hat genau eine Ansage von Dir: „Ich hab vorhin auf Play gedrückt … da kam
-  der Breakbeat den ich mal in die Session geladen hab. Der ganze DAW Quatsch der nicht
-  funktioniert hat soll erstmal raus."
+  Du hast gesagt: „Alles überprüfen! Repo, Website angleichen und abgleichen dann
+  TestFlight deploy." Das ist der Deploy danach. Vier Teams haben Code, Website,
+  Repo-Gedächtnis und Ship-Bereitschaft gegeneinander geprüft; umgesetzt habe ich
+  nur die Befunde, die sich gegen den echten Quelltext halten liessen.
 
-  1) ▶ LIEST DIE TIMELINE NICHT MEHR AN. Die Ursache war schärfer als „Quatsch, der nicht
-     funktioniert": der Play-Knopf las ZUERST das gespeicherte Timeline-Dokument. Lag darin
-     irgendeine Region — Dein Breakbeat — spielte er die ANORDNUNG statt das Instrument.
-     Mit dem DAW-Ausbau war die Arrangement-Oberfläche entfernt worden, aber nicht ihre
-     Autorität: seitdem war dieses Dokument unsichtbar UND nicht löschbar und besaß trotzdem
-     den einen Transport-Knopf. Eine Fläche zu entfernen, ohne ihr die Hoheit zu nehmen,
-     macht aus einem Rest eine Falle — das war mein Fehler beim damaligen Ausbau, nicht ein
-     neuer Defekt.
+  ZUERST DAS WICHTIGSTE ZUM HÖREN — der Limiter war ein Hard-Clipper.
+  Seit v353 lagen 23 Commits ungeliefert auf dem Branch, darunter VIER, die direkt
+  am Klang hängen. Die kommen jetzt alle mit:
 
-     ▶ hat jetzt zwei Zweige: nichts komponiert und nichts läuft → das Instrument startet;
-     sonst der Live-Loop. Kein Pfad führt mehr zu einer gespeicherten Audiodatei.
+  1) „Es knistert. Wie CPU overload bei Ableton." — die Ursache war nicht die CPU.
+     Der Master-Limiter rechnete g = ceiling/peak pro Sample, ohne jede Ballistik.
+     Das ist algebraisch ein harter Clipper: er hat die Spitzen abgeschnitten statt
+     die Wellenform zu skalieren, und bei 48 kHz ohne Oversampling falten sich die
+     ungeraden Oberwellen als inharmonisches Rauschen zurück — genau das Knistern.
+     Jetzt: Peak-Hüllkurve + Attack/Release. Gemessen (bit-genaue Simulation, 200 Hz
+     Sinus 12 dB über dem Ceiling): 3. Oberwelle −31,2 → −73,4 dBc, inharmonischer
+     Boden −80,4 → −90,7 dB. Die Hüllkurve allein bringt 35 der 42 dB.
+     ⚠ Das ist compile-verifiziert, NICHT geräteverifiziert. Bitte hör hin, ob das
+     Knistern wirklich weg ist — und ob auf dünnem Flow-Material jetzt etwas pumpt
+     (die Erholung ist effektiv ~2× der nominellen Release-Zeit, offener Punkt #199).
 
-  2) EIN ZWEITER STILLE-MACHER IST MITGEGANGEN. Eine alte Bedingung fragte das Drum-Raster
-     ab, bevor sie den Start freigab. Aus Projekten von vor dem Drum-Ausbau kommt dieses
-     Raster noch gefüllt zurück — und klingt seitdem nicht mehr. Es hat also nichts
-     abgesichert, sondern nur den Start unterdrückt und Dir Stille geliefert. Wenn ▶ bei
-     Dir gelegentlich einfach nichts tat: das war es wahrscheinlich.
+  2) EIN EINZIGES NaN KONNTE DIE APP FÜR IMMER STUMM SCHALTEN. Der Kompressor
+     schrieb ein nicht-endliches Sample in seinen eigenen Gain-Zustand; ab da war
+     jedes weitere Sample NaN, bis zum Neustart. Kein Crash, kein Log — nur Stille.
+     Beide Dynamikstufen prüfen jetzt ihre Eingänge, bevor sie Zustand anfassen.
 
-  ZU PRÜFEN AUF DEM GERÄT, in dieser Reihenfolge:
+  3) DIE MICRO-VARIATION WAR 3× ZU WEIT. Mein eigenes „lebt wie ein echtes
+     Instrument"-Feature hatte einen Rechenfehler (2^52 statt 2^53), der die
+     Anschlagstärke bis 1,12 statt 1,04 aufziehen konnte — also genau die
+     Lautstärke-über-Velocity-Falle, die wir dreimal repariert haben.
 
-  - ▶ DRÜCKEN. Kommt jetzt Dein Instrument statt des Breakbeats? Das ist der ganze Build.
-  - ▶ AUS DEM STAND, ohne vorher etwas zu starten. Es soll die Bio-Session anwerfen und
-    klingen — nicht nur den Zeiger über Stille schieben.
-  - ■ DRÜCKEN. Stoppt sauber? Der Stop hatte zwei Zweige, einer davon war tot; jetzt ist
-    nur noch der lebende da.
-  - STARTET DIE APP SAUBER? Die Präsentations-Kette ist unverändert — dieser Build fasst
-    sie nicht an. Trotzdem ist es die Kette, die den Black Screen verursacht hat.
+  4) DER LEVEL-REGLER DER SPIELFLÄCHE WURDE ANGEZEIGT, ABER NIE ANGEWENDET.
+     Nach einem Neustart stand die gespeicherte Zahl im Feld und die Stimme lief
+     trotzdem auf Werksgain. Dieselbe Klasse wie der Bass-Fader von gestern.
 
-  WAS DIESER BUILD NICHT REPARIERT — bitte nicht als neuen Fehler zurückmelden:
+  DAZU DIE APP-STORE-BREMSE, DIE DAS TEAM GEFUNDEN HAT. Der HealthKit-Dialog —
+  genau der Text, den ein Apple-Prüfer bei einer Health-App liest — sagte: „wenn Du
+  OSC oder ADM einschaltest, werden die aktuellen Bio-Werte auch über Dein lokales
+  Netz gesendet". Für Health-Daten ist das FALSCH, und zwar mit Absicht falsch:
+  `BioEgressPolicy` blockiert Apple-Health/Watch/Oura an allen acht Sendestellen.
+  Ein Health-Dialog, der freiwillig eine 5.1.3-Verletzung einräumt, die es gar
+  nicht gibt, ist ein vermeidbares Ablehnungsrisiko. Text korrigiert. Der Egress-
+  Satz steht jetzt dort, wo er WAHR ist (lokales Netz, Kamera-/Gurt-Quellen) —
+  samt der bisher fehlenden Angabe, dass Netzwerk-MIDI eingehend offen ist.
 
-  - DIE DATEN SIND NOCH DA. Ich habe dem gespeicherten Arrangement die Hoheit über ▶
-    genommen, nicht die Existenz. Der Breakbeat liegt weiter unsichtbar in Deiner Session.
-    Einen stillen Löschlauf über Daten, die Du nicht sehen kannst, mache ich nicht — das
-    ist unumkehrbar und wäre dieselbe Übergriffigkeit wie das Problem selbst. Wenn das
-    Modell in einer der nächsten Scheiben entfällt, wird es ohnehin nicht mehr geladen.
-  - DER BASS-FADER TUT WEITER NICHTS (bekannt, eigene Scheibe).
-  - LOOP RENDERING: weiter unangetastet, weil Deine Frage von neulich offen ist — fehlen
-    Dir STEMS pro Kanal, findest Du den vorhandenen WAV-Export nicht, oder meinst Du echtes
-    Offline-Rendering statt Echtzeit-Mitschnitt? Eine Zeile von Dir und ich baue es.
+  WEBSITE UND REPO SIND JETZT EHRLICH. Die grösste Lüge war „Bewegung":
+  echoelmusic.com bewarb an elf Stellen Bewegung/Motion/„Dance" als Bio-Eingang,
+  obwohl JEDER Publisher `motionEnergy: 0` schreibt und es keinen CoreMotion-
+  Provider gibt — die beworbene ADM-OSC-Zuordnung „Motion → Gain" ist deshalb eine
+  Konstante. Ausserdem: „zehn generative Looks" (es sind vier erreichbare),
+  „modal & cellular voices" (beide erzeugen heute keinen Ton), RTMP dreifach
+  widersprüchlich, MIDI-Export fälschlich als Roadmap statt als ausgeliefert.
+  Alles korrigiert. Im Repo standen CLAUDE.md und memory/ noch auf dem alten
+  All-in-One-Produktionssuite-Kurs, der mit #121 demontiert wurde — inklusive
+  einer Modifier-Zählung, die zwei Slots Kopffreiheit vorgaukelte, die es nicht
+  gibt (das ist der Weg zurück zum Black Screen).
 
-  ZUM LETZTEN DIAG-LOG (2469), damit Du nicht danach suchst: die beiden Kamera-Aussetzer
-  waren KEIN rPPG-Fehler. Beide melden `videoNotAvailableInBackground`, und die Zeile
-  darunter nennt den App-Zustand — einmal „background", einmal „inactive". Die App war
-  weggeschaltet, iOS nimmt dann die Kamera; die Behandlung hat sauber gewartet statt zu
-  hetzen und danach die Belichtung neu gesperrt. Dass kein Puls gefunden wurde, lag daran,
-  dass vor dem Wegschalten nur rund fünf Sekunden Finger-Daten da waren und danach der
-  Finger runter war. Ein echtes Puls-Lock ist damit schlicht noch nicht geprüft — dafür
-  brauche ich einen Lauf mit Finger drauf UND App im Vordergrund.
+  WAS IN DIESEM BUILD BEWUSST NICHT DRIN IST, obwohl gefunden: das iPad bleibt im
+  Universal-Binary (ohne Blitz keine Fingerkuppen-Messung; drei andere Bio-Quellen
+  funktionieren dort), Netzwerk-MIDI ist weiter standardmässig offen statt hinter
+  einem Schalter (#187), und die neun deklarierten Bonjour-Dienste inklusive
+  `_rtsp._tcp` stehen noch in der Info.plist. Alles drei ändert Verhalten oder
+  Build-Konfiguration und gehört nicht in einen Build, den Du auf Klang hörst.
 
-  Beide echten Gates grün auf 6ad0320 (Xcode Compile Check + CI/CD Pipeline), die
-  294-Datei-Testsuite ebenfalls grün. Rausch-Triad unberührt, kein Heilungs-Claim,
+  Beide echten Gates grün auf 5c6a06e (Xcode Compile Check + CI/CD Pipeline);
+  die 305-Datei-Testsuite läuft mit. Rausch-Triad unberührt, kein Heilungs-Claim,
   Audio-Thread weiterhin lock- und allokationsfrei.
-
-  Ehrlich zur Absicherung: für diesen Fix gibt es keinen Test. Der Play-Handler ist eine
-  private Methode auf einer privaten View ohne Injektionsnaht. Der überprüfbare Teil ist,
-  dass der Abspiel-Eingang der Timeline null Aufrufer hat — und ein Reviewer hat unabhängig
-  jeden anderen Weg geprüft, auf dem eine Nutzer-Audiodatei überhaupt klingen kann. Es gibt
-  genau einen solchen Typ im Code, und seine beiden Besitzer sind jetzt unerreichbar.
