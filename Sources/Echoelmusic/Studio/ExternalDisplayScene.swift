@@ -13,13 +13,10 @@
 //  DIFFERENT content on the second screen, over both cable and AirPlay, while the phone
 //  keeps the instrument and stays playable.
 //
-//  ⚠️ SLICE 1 DELIBERATELY RENDERS ALMOST NOTHING. The visual itself lands in slice 2.
-//  This slice exists to answer ONE question on a real device: does the app still launch
-//  cleanly with NO external screen attached? Adding a scene manifest flips
-//  `UIApplicationSupportsMultipleScenes` and introduces a scene delegate — it touches the
-//  launch path, and this app has a black-screen history (10.76.34, SIGSEGV before first
-//  render). Verifying that first, alone, is the whole point. Do not add the Metal view
-//  here until the launch has been confirmed on hardware.
+//  ✅ SLICE 1'S QUESTION IS ANSWERED — device log v10.79.356 (build 2473): `init a`–`f`,
+//  `startup 1/4`–`4/4`, `LaunchGuard: launch confirmed healthy`, `inactive → active`,
+//  with nothing attached. The scene manifest did not harm the launch path, so slice 2
+//  (the actual visual, below) was allowed to proceed. That gate was real, not ceremony.
 //
 //  WHY THE APPLICATION ROLE IS DECLARED TOO (Info.plist): once `UISceneConfigurations`
 //  exists, an app that names ONLY the external role logs "Info.plist contained no UIScene
@@ -79,6 +76,7 @@ final class ExternalDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
         let size = windowScene.screen.bounds.size
         EchoelCrashLog.breadcrumb(String(format: "extdisplay: connect %.0fx%.0f", size.width, size.height))
+        ExternalStageBridge.shared.setConnected(true)
         let window = UIWindow(windowScene: windowScene)
         window.rootViewController = UIHostingController(rootView: ExternalStageView())
         // A projector is not a phone: nothing here is touchable, and the OS already
@@ -94,22 +92,84 @@ final class ExternalDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
         // window here is what lets the phone carry on untouched; holding a reference to a
         // disconnected scene's window is how the next reconnect gets a dead surface.
         EchoelCrashLog.breadcrumb("extdisplay: disconnect")
+        // ORDER MATTERS: drop the window FIRST, release the claim second. The reverse
+        // (which this file briefly had) hands the phone permission to mount its renderer
+        // while this one is still alive — two live `MetalBioView`s, the exact state the
+        // GPU law forbids. This order can only ever leave a gap, never an overlap, and a
+        // gap is a black beamer for one layout pass instead of a starved GPU.
         window = nil
+        ExternalStageBridge.shared.setConnected(false)
     }
 }
 
-/// What the projector shows. Slice 1: the room stays dark and the instrument is named.
-/// Slice 2 replaces this body with the live visual.
+/// What the projector shows: the live visual, edge to edge, with no controls.
+///
+/// It reads the SAME `@AppStorage` look keys the floating window uses, so the beamer and
+/// the phone are one instrument with one set of settings rather than two that drift. The
+/// engine objects come from `ExternalStageBridge` — this hierarchy is created by UIKit
+/// and inherits no `@Environment`, which is the whole reason that type exists.
+///
+/// ⚠️ ONE MetalBioView APP-WIDE (decisions.csv 2026-07-03: two live renderers = GPU
+/// starvation = the documented black immersive). The phone's floating window yields
+/// while this one is up; see `WorkspaceView`. Do not mount a second renderer here.
 private struct ExternalStageView: View {
+
+    // The SAME design keys the floating window reads, so a tweak in the Visual panel
+    // shows on the beamer too. NOTE the deliberate name mismatch: the key is
+    // `visualDetail`, the `MetalBioView` parameter is `ringDensity:` — there is no
+    // `visualRingDensity` key, and only the call site records that.
+    @AppStorage(StudioDefaultKeys.visualStyle.key) private var style = StudioDefaultKeys.visualStyle.value
+    @AppStorage(StudioDefaultKeys.visualStyleB.key) private var styleB = StudioDefaultKeys.visualStyleB.value
+    @AppStorage(StudioDefaultKeys.visualBlend.key) private var blend = StudioDefaultKeys.visualBlend.value
+    @AppStorage(StudioDefaultKeys.visualIntensity.key) private var intensity = StudioDefaultKeys.visualIntensity.value
+    @AppStorage(StudioDefaultKeys.visualDetail.key) private var detail = StudioDefaultKeys.visualDetail.value
+    @AppStorage(StudioDefaultKeys.visualMotion.key) private var motion = StudioDefaultKeys.visualMotion.value
+    @AppStorage(StudioDefaultKeys.visualSpread.key) private var spread = StudioDefaultKeys.visualSpread.value
+    @AppStorage(StudioDefaultKeys.visualHue.key) private var hue = StudioDefaultKeys.visualHue.value
+    @AppStorage(StudioDefaultKeys.visualSaturation.key) private var saturation = StudioDefaultKeys.visualSaturation.value
+
     var body: some View {
-        ZStack {
+        // Read `.shared` INLINE, not via a stored `private let`. Observation registers on
+        // the property getter either way, so this is not about correctness — it matches
+        // how every other view in this repo reaches a shared object, and it avoids a
+        // stored-property default whose isolation rules are subtler than they look.
+        let bridge = ExternalStageBridge.shared
+        return ZStack {
             // Solid fill, not a gradient — a projector in a dark room exaggerates banding,
-            // and this is also the surface a live visual will later draw over.
+            // and it is the backdrop the visual draws over.
             EchoelTheme.bg.ignoresSafeArea()
-            Text("ECHOEL")
-                .font(EchoelTheme.font(28, .semibold))
-                .foregroundStyle(EchoelTheme.dim)
-                .accessibilityHidden(true)
+            // The `if let` IS the guard — it binds what it checks. There is deliberately
+            // no separate "is it wired?" boolean to drift out of sync with it.
+            if let bus = bridge.bus, let governor = bridge.governor, let recorder = bridge.recorder {
+                // `capturesVideo: false` — deliberately, and the cost is GUARDED, not just
+                // noted: while the beamer has the picture the phone's capturing instance
+                // has yielded, so `FloatingVisualWindow` DISABLES its video-record button
+                // rather than let a red REC pill count up over an empty file. Handing
+                // capture over here is not a one-liner — `AVAssetWriter` takes its
+                // dimensions from the first frame, so a projector plugged in mid-recording
+                // would push landscape frames into a portrait file. Own slice.
+                MetalBioView(capturesVideo: false,
+                             intensity: Float(intensity),
+                             ringDensity: Float(detail),
+                             motion: Float(motion),
+                             spread: Float(spread),
+                             hueShift: Float(hue),
+                             saturation: Float(saturation),
+                             style: style, styleB: styleB, blend: Float(blend))
+                    .environment(bus)
+                    .environment(governor)
+                    .environment(recorder)
+                    .ignoresSafeArea()
+            } else {
+                // Not wired yet (a screen attached before the startup task finished, or a
+                // future refactor that forgets `wire`). A backdrop that says ECHOEL is a
+                // usable stage; a trapped `@Environment` lookup takes the whole app down
+                // in front of an audience. Fail to the wordmark, on purpose.
+                Text("ECHOEL")
+                    .font(EchoelTheme.font(28, .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .accessibilityHidden(true)
+            }
         }
     }
 }

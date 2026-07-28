@@ -77,12 +77,38 @@ nichts rot gemacht. Die Entscheidung bleibt dieselbe, der Grund ist ein anderer.
 - **Verify: Start auf dem Gerät ohne angeschlossenen Bildschirm.** Das ist der eigentliche
   Test dieser Scheibe — nicht der Beamer.
 
-### S2 — Das Visual auf die Leinwand
+### S2 — Das Visual auf die Leinwand  ✅ gebaut 2026-07-28
+- **Freigegeben durch das Geräte-Log v10.79.356 (Build 2473):** sauberer Start, `startup
+  1/4`–`4/4`, `LaunchGuard: launch confirmed healthy`, kein Schwarzbild. Das S1-Tor war echt
+  und ist beantwortet.
 - Externe Szene rendert `MetalBioView` mit denselben `@AppStorage`-Look-Parametern.
-- **Freeze-Gesetz beachten:** die externe Szene liest Bio/Musik in ihrem EIGENEN Leaf,
-  niemals über den Telefon-Body. Zwei `MTKView`-Instanzen heißt zwei Renderer — die
-  `ResourceGovernor`/`AdaptiveQuality`-Frage („was passiert mit 60 fps × 2?") gehört
-  ausdrücklich in diese Scheibe, nicht in eine spätere.
+- **Die Frage „was passiert mit 60 fps × 2?" wird nicht beantwortet, sondern aufgelöst:**
+  es gibt nie zwei Renderer. `ExternalStageBridge.isConnected` nimmt dem Telefon die
+  Metal-Schicht, solange die Leinwand das Bild hat (GPU-Gesetz, decisions.csv 2026-07-03).
+- **Der Fund, der die Scheibe umgebaut hat:** das Naheliegende — `FloatingVisualWindow` beim
+  angeschlossenen Beamer einfach nicht mounten — wäre FALSCH gewesen. `TouchInstrumentView`
+  ist ein **Overlay auf** dieser Metal-Schicht; das Fenster auszublenden nimmt dem Telefon
+  die SPIELFLÄCHE, also genau das Gegenteil des Founder-Asks („trotzdem vom iPhone aus
+  spielbar"). Getauscht wird deshalb nur die Bildschicht (`visualLayer`), jedes Overlay
+  bleibt hängen.
+- **`ExternalStageBridge`** existiert, weil ein von UIKit gebauter `UIHostingController`
+  KEIN `@Environment` erbt, `MetalBioView` aber drei Objekte braucht (`EngineBus`,
+  `ResourceGovernor`, `VisualRecorder`). Bewusst das schmalste mögliche Singleton.
+- **Bekannte Lücke — und der Reviewer hat sie zu Recht hochgestuft.** Die aufnehmende
+  Instanz ist die des Telefons (`capturesVideo: true`); solange der Beamer das Bild hat,
+  hat die Video-Aufnahme keine Quelle. Ein Kommentar allein hätte bedeutet: rote
+  REC-Pille läuft mit, Datei wird ohne gestartete Writer-Session geschlossen, **Take mitten
+  in der Show verloren** — die „lügende Controls"-Klasse (#164). Deshalb ist der
+  Video-Knopf gesperrt, solange die Leinwand das Bild hat (`videoCaptureYielded`).
+  Bewusst NUR der Start: eine bereits laufende Aufnahme bleibt stoppbar. WAV-Audio ist
+  nicht betroffen (kommt aus der Audio-Engine, nicht aus dieser Schicht). Die Aufnahme an
+  die externe Instanz zu übergeben bleibt eine eigene Scheibe — `AVAssetWriter` nimmt seine
+  Maße vom ersten Frame, ein mitten in der Aufnahme eingestecktes Kabel schöbe
+  Querformat-Frames in eine Hochformat-Datei.
+- **Zwei echte Compile-Fehler vom Reviewer gefangen, bevor CI sie sah:** `public`-API über
+  dem **internen** `VisualRecorder` (Eigenschaft UND Methodensignatur — zwei getrennte
+  Diagnosen). `ExternalStageBridge` ist jetzt durchgehend `internal`; alle vier
+  Aufrufstellen liegen im Modul.
 - Randlos, ohne jede Bedienung.
 
 ### S3 — Sichtbarkeit + Abziehen
@@ -94,8 +120,11 @@ nichts rot gemacht. Die Entscheidung bleibt dieselbe, der Grund ist ein anderer.
 
 ## Offene Fragen, die erst das Gerät beantwortet
 
-- Zwei gleichzeitige Metal-Renderer auf einem iPhone: thermisch und für die Bildrate.
-  `MetalBioView.swift` pinnt `preferredFramesPerSecond = 60` statisch — ob das für beide
-  Ansichten tragfähig ist, kann hier niemand ausrechnen.
+- ~~Zwei gleichzeitige Metal-Renderer auf einem iPhone~~ — **hinfällig durch S2:** es sind
+  nie zwei. Bleibt offen: ob der EINE Renderer auf Beamer-Auflösung die 60 fps hält, die
+  `MetalBioView.swift` statisch pinnt.
 - Auflösung/Seitenverhältnis eines echten Beamers (der Simulator hilft nur begrenzt).
+- Ob der Übergabe-Spalt sichtbar ist. `isConnected` kippt vor dem Aufbau und nach dem Abbau
+  des externen Fensters — das kann nur eine LÜCKE erzeugen (ein Layout-Durchgang schwarz),
+  nie eine dauerhafte Überlappung. Ob man diese Lücke sieht, sagt nur das Gerät.
 - AirPlay-Latenz gegen Kabel, in der Praxis, mit laufendem Audio.

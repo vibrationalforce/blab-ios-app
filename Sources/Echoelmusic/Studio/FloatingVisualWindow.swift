@@ -393,21 +393,96 @@ struct FloatingVisualWindow: View {
         #endif
     }
 
+    /// The picture layer of the window — the live renderer, OR a quiet stand-in while an
+    /// external screen has the picture (#206).
+    ///
+    /// WHY A SWAP AND NOT AN `if` AROUND THE WHOLE WINDOW. The obvious move — hide
+    /// `FloatingVisualWindow` while a beamer is connected — is WRONG here, and it took
+    /// reading `card(...)` to see why: `TouchInstrumentView` is an OVERLAY on this layer,
+    /// so hiding the window takes the phone's PLAY SURFACE with it. That is the precise
+    /// opposite of the founder's ask ("es soll trotzdem vom iPhone aus spielbar sein").
+    /// Swapping only the Metal layer honours BOTH halves: the beamer takes the image, the
+    /// phone keeps the instrument. Every overlay (touch, REC badge, hint) is attached
+    /// AFTER this call and is therefore untouched by the swap.
+    ///
+    /// GPU LAW (decisions.csv 2026-07-03): ONE `MetalBioView` app-wide — two live
+    /// renderers starve the GPU and produced the documented black immersive.
+    ///
+    /// ⚠️ KNOWN GAP — and it is GUARDED, not merely documented. The capturing instance is
+    /// THIS one (`capturesVideo: true`), so while the beamer has the picture, video
+    /// capture has no source. A comment alone would have left a red REC pill counting up
+    /// over a file whose writer session never started — a lost take, mid-show, from a
+    /// control that claimed to be recording (the lying-control class, #164). The video
+    /// button is therefore DISABLED while yielded (`videoCaptureYielded`). WAV audio
+    /// capture is unaffected — it comes off the audio engine, not off this layer.
+    /// Handing capture to the external instance is NOT a one-line change —
+    /// `AVAssetWriter` is configured from the first frame's size, and plugging a projector
+    /// in mid-recording would switch portrait phone frames to landscape beamer frames
+    /// inside one file. That is its own slice.
+    ///
+    /// HONEST LIMIT: the hand-over is not instantaneous. `isConnected` flips before the
+    /// external window is built and after it is torn down, so the ordering can only ever
+    /// leave a GAP (a black beamer or a dark card for one layout pass), never a sustained
+    /// overlap. A single frame of overlap during the SwiftUI update that reacts to the
+    /// flag is possible and is not what the GPU law is about.
+    #if canImport(AVFoundation)
+    /// True when the phone has handed its renderer to an external screen and NO capture is
+    /// already in flight — i.e. when starting a video recording would silently produce an
+    /// empty file. Blocks the START only; a recording already running when the cable goes
+    /// in stays stoppable. Both reads are event-rate (a cable connect, a record tap), so
+    /// this is not a freeze-law read.
+    private var videoCaptureYielded: Bool {
+        ExternalStageBridge.shared.isConnected && !recorder.isRecording
+    }
+    #endif
+
+    /// (No `#if canImport(UIKit)` inside: the WHOLE file is already gated on
+    /// `canImport(UIKit)` at line 1, so an inner guard would imply a portability story
+    /// this file does not have.)
+    @ViewBuilder
+    private func visualLayer(_ wv: (hue: Double, saturation: Double, intensity: Double, motion: Double)) -> some View {
+        if ExternalStageBridge.shared.isConnected {
+            // Not a placeholder for a missing feature — a deliberate statement of where
+            // the picture went, so a performer who looks down does not think the visual
+            // died. Solid fill, no animation: nothing here may flash (WCAG) and nothing
+            // here may cost the GPU, which is the entire point of yielding.
+            ZStack {
+                Color.black
+                VStack(spacing: 6) {
+                    Image(systemName: "tv")
+                        .font(.system(size: 22, weight: .regular))
+                    Text("On external screen")
+                        .font(EchoelTheme.font(12, .medium))
+                }
+                .foregroundStyle(EchoelTheme.dim)
+            }
+            .allowsHitTesting(false)   // the play surface above must get every touch
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Visual is showing on the external screen")
+        } else {
+            liveVisual(wv)
+        }
+    }
+
+    /// The real renderer. `capturesVideo: true` → this instance feeds the shared
+    /// VisualRecorder when recording (on the phone it is the only Metal path, so no
+    /// double-capture). The look params are the SHARED design keys (style/blend + the six
+    /// energy/palette params), so every tweak in the Visual panel shows here live.
+    private func liveVisual(_ wv: (hue: Double, saturation: Double, intensity: Double, motion: Double)) -> some View {
+        MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: idleToneHz,
+                     intensity: Float(wv.intensity), ringDensity: Float(visualDetail),
+                     motion: Float(wv.motion), spread: Float(visualSpread),
+                     hueShift: Float(wv.hue), saturation: Float(wv.saturation),
+                     style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend),
+                     entrainmentPulseHz: entrainmentPulse)
+    }
+
     @ViewBuilder
     private func card(size: CGSize, in bounds: CGSize) -> some View {
         let wv = weatheredVisuals()
         VStack(spacing: 0) {
             handleBar(in: bounds, card: size)
-            // `capturesVideo: true` → this instance feeds the shared VisualRecorder when
-            // recording (it is the only Metal path, so no double-capture). The look params
-            // are the SHARED design keys (style/blend + the six energy/palette params), so
-            // every tweak in the Visual panel shows here live.
-            MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: idleToneHz,
-                         intensity: Float(wv.intensity), ringDensity: Float(visualDetail),
-                         motion: Float(wv.motion), spread: Float(visualSpread),
-                         hueShift: Float(wv.hue), saturation: Float(wv.saturation),
-                         style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend),
-                         entrainmentPulseHz: entrainmentPulse)
+            visualLayer(wv)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
                 #if canImport(UIKit) && canImport(AVFoundation)
@@ -593,14 +668,32 @@ struct FloatingVisualWindow: View {
             // MP4 VIDEO capture. Distinct "video" glyph (vs. the WAV button's waveform)
             // so the two recorders are recognizable at a glance (founder: "Video
             // und wav Aufnahme muss … erkennbar sein").
+            //
+            // ⚠️ DISABLED WHILE THE BEAMER HAS THE PICTURE (#206). The capturing renderer
+            // is THIS window's `MetalBioView`, and `visualLayer` unmounts it while an
+            // external screen is connected — so a "recording" started now would show a
+            // red pill counting up and produce a file whose writer session never started.
+            // A control that says it is recording while nothing is captured is the
+            // lying-control class (#164), and losing a take mid-show is the worst place
+            // to meet it. Blocking the START is one line; handing capture over to the
+            // external instance is its own slice (`AVAssetWriter` fixes its dimensions on
+            // the first frame). The guard deliberately does NOT block a STOP: a recording
+            // already running when the cable goes in must stay stoppable.
             Button { toggleRecording() } label: {
                 Image(systemName: recorder.isRecording ? "stop.circle.fill" : "video.circle")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(recorder.isRecording ? Color.red : EchoelTheme.text)
+                    .foregroundStyle(recorder.isRecording
+                                     ? Color.red
+                                     : (videoCaptureYielded ? EchoelTheme.dim : EchoelTheme.text))
                     .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(recorder.isRecording ? "Stop video recording" : "Record MP4 video")
+            .disabled(videoCaptureYielded)
+            .accessibilityLabel(recorder.isRecording
+                                ? "Stop video recording"
+                                : (videoCaptureYielded
+                                   ? "Video recording unavailable while the visual is on the external screen"
+                                   : "Record MP4 video"))
             #endif
             Button { cycleSize() } label: {
                 // Cycles Small → Medium → Large → Fullscreen → Small. Shows a "contract"

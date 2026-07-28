@@ -440,6 +440,18 @@ struct EchoelmusicApp: App {
                     return
                 }
                 startupDone = true
+                #if canImport(UIKit)
+                // THE EXTERNAL STAGE HAND-OFF (#206 slice 2), first thing and with no
+                // await in front of it: a beamer is usually plugged in BEFORE the app is
+                // launched, so the external scene can connect while this task is still
+                // running. Publishing the three engine objects here is the whole reason
+                // `ExternalStageBridge` exists — the scene is built by UIKit and inherits
+                // none of this view's `@Environment`. Three reference assignments; it
+                // cannot fail, block, or touch audio.
+                ExternalStageBridge.shared.wire(bus: bus,
+                                                governor: resourceGovernor,
+                                                recorder: visualRecorder)
+                #endif
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must
                 // start with NO awaiting dependency in front of it. Previously
