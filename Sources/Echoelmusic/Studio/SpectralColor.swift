@@ -2,46 +2,33 @@
 //  SpectralColor.swift
 //  Echoelmusic — Studio
 //
-//  ⚠️ READ THIS FIRST (2026-07-27). This file holds TWO tone→colour languages, and the
-//  one that RENDERS is the PHYSICAL one:
+//  ONE tone→colour language, and it is the PHYSICAL one (founder 2026-07-27: "in jeder
+//  Situation die physikalisch korrekt hochoktavierten Farbfrequenzen"):
+//  `toneLinearRGB` / `displayComponents` / `physicalColor(forChord:)` — octave
+//  transposition into the visible band → CIE 1931 → linear sRGB, with the CIE purple
+//  line closing the circle. Every note grid, the immersive visual, the header monitor
+//  tiles and the Art-Net/sACN fixture output read from it. One chord, one colour, on
+//  every surface.
 //
-//    · `toneLinearRGB` / `displayComponents` / `physicalColor(forChord:)` — octave
-//      transposition into the visible band → CIE 1931 → linear sRGB, with the CIE
-//      purple line closing the circle. This is what every note grid, the immersive
-//      visual, the header monitor tiles and the Art-Net/sACN fixture output now use.
-//      Founder 2026-07-27: "in jeder Situation die physikalisch korrekt hochoktavierten
-//      Farbfrequenzen." One chord, one colour, on every surface.
-//    · `oklab(forFrequency:)` / `color(forFrequency:)` / `color(forChord:)` / `hue01`
-//      — the pitch-class HUE-CIRCLE convention described below. As of 2026-07-27 it has
-//      ZERO rendering callers; it survives only because `SpectralColorTests` pins it.
-//      Do NOT reach for it for new surfaces, and do not "restore" it as the rule.
-//      Retiring it (with its tests) is its own slice.
+//  RETIRED 2026-07-28 — the pitch-class OKLCH HUE CIRCLE (`hue01`, `oklab(forFrequency:)`,
+//  `color(forFrequency:)`, `color(forChord:)`, `hueOffsetDegrees`). It was a second,
+//  contradicting language for the same chord; since 2026-07-27 it had ZERO rendering
+//  callers and survived only because its tests pinned it. Its founding argument — "the
+//  visible spectrum is a LINE, so routing pitch through wavelength→RGB would break at
+//  the red/violet ends" — expired when `toneLinearRGB` closed the circle across the
+//  purple line, which is exactly the seam that argument was avoiding. Reintroducing it
+//  would revive the bug it was deleted for: the lamp and the grid disagreeing about the
+//  colour of the same chord. If a future surface wants amplitude→saturation or
+//  pitch→lightness, build those as MODULATIONS of the physical colour, not as a rival
+//  mapping. History: scratchpads/archive/RESEARCH_SOUND_TO_COLOR.md + this file's git log.
 //
-//  The paragraph below is the ORIGINAL rationale for the hue circle. Its central
-//  argument — "the visible spectrum is a LINE, so we do NOT route pitch through
-//  wavelength→RGB (that would break at the red/violet ends)" — EXPIRED when
-//  `toneLinearRGB` closed the circle across the purple line. Kept as history so the
-//  reasoning is not lost, not as a live instruction.
-//
-//  Maps pitch (and chords) to colour the perceptually-honest way, per the cited
-//  research (scratchpads/RESEARCH_SOUND_TO_COLOR.md):
-//
-//    • Pitch-class → hue on an OKLCH hue circle (12 equal 30° steps). Pitch-class is
-//      circular (octave-equivalent: C→C); the visible spectrum is a LINE, so we do
-//      NOT route pitch through wavelength→RGB (that would break at the red/violet
-//      ends). The OKLCH hue circle is a closed loop with the non-spectral magenta /
-//      "line of purples" synthesized for us — exactly what closes pitch-class cleanly.
-//    • Higher pitch → lighter (OKLab L). Robust cross-modal correspondence.
-//    • Louder → more chroma/saturation. Robust correspondence.
-//    • Chords mix amplitude-weighted in OKLab (perceptual), NOT summed in RGB — RGB
-//      sums wash to white; an OKLab average lets a dense cluster fall toward neutral
-//      (low chroma) instead of blowing out. Partials are capped.
-//
-//  The specific pitch-class→hue table is a CONVENTION (note→hue is idiosyncratic /
-//  synesthete-specific), exposed via `hueOffsetDegrees`, not a scientific claim.
+//  What the physical mapping keeps from the perceptual one: chords still MIX in OKLab,
+//  never summed in RGB — an RGB sum washes a dense chord to white. See
+//  `physicalColor(forChord:)` for the one property that measurably weakened with
+//  physical inputs (dense clusters land on a bounded purple, not on neutral grey).
 //
 //  Pure value type, Foundation-only. Output is LINEAR sRGB [0,1] (gamut-clamped) so
-//  the Metal shader / lighting can consume it directly; `hue01` gives the bare hue.
+//  the Metal shader / lighting can consume it directly.
 //
 
 import Foundation
@@ -60,26 +47,21 @@ public struct OKLab: Equatable, Sendable {
 
 public enum SpectralColor {
 
-    // MARK: Convention / tuning
-    /// Hue offset (degrees) for the pitch-class→hue convention. A preset, not a fact.
-    public static let hueOffsetDegrees = 0.0
-    /// Reference C0 (Hz) for pitch-class, and the lightness range over the audible band.
+    // MARK: Tuning
+    /// Reference C0 (Hz) for pitch-class and for `notePosition`'s octave bucketing.
     private static let c0Hz = 16.351597831287414       // MIDI 12 = C0
-    private static let lightLowHz = 55.0               // A1 — bottom of the L ramp
-    private static let lightOctaves = 6.0              // ~A1…A7 spans the L ramp
-    private static let lMin = 0.45, lMax = 0.82        // OKLab lightness range
-    /// Max OKLab chroma at full amplitude — capped to stay (mostly) in sRGB gamut.
-    private static let maxChroma = 0.13
     /// Cap on how many chord partials are mixed (avoids mush + cost). 12 = every
     /// distinct pitch class — a lower cap combined with `sorted`'s stable-sort
     /// tie-breaking silently picked only the first N pitch classes when amplitudes
-    /// tied (e.g. a full chromatic cluster), biasing the average toward one hue
-    /// region instead of cancelling toward neutral (dsp-reviewer, 2026-07-21).
+    /// tied (e.g. a full chromatic cluster), biasing the average toward one region of
+    /// the spectrum instead of representing the whole chord (dsp-reviewer, 2026-07-21).
+    /// (That note originally ended "instead of cancelling toward neutral" — true of the
+    /// hue circle it was written for, false of the physical mixer that replaced it.)
     private static let maxPartials = 12
     /// Neutral fallback (no/!valid input): mid-grey from L only.
     public static let neutral = SpectralColor.oklabToLinear(OKLab(L: 0.6, a: 0, b: 0))
 
-    // MARK: Pitch → perceptual colour
+    // MARK: Pitch class
 
     /// Pitch-class [0,12) of a frequency (octave-equivalent). 0 = C.
     public static func pitchClass(ofFrequency hz: Double) -> Double {
@@ -90,64 +72,14 @@ public enum SpectralColor {
         return pc
     }
 
-    /// Bare hue [0,1) for the pitch-class (octave-equivalent). Feeds e.g. a hue knob.
-    public static func hue01(forFrequency hz: Double) -> Double {
-        guard hz > 0, hz.isFinite else { return 0 }
-        let deg = pitchClass(ofFrequency: hz) / 12.0 * 360.0 + hueOffsetDegrees
-        var h = deg.truncatingRemainder(dividingBy: 360.0)
-        if h < 0 { h += 360.0 }
-        return h / 360.0
-    }
-
-    /// A single note as OKLab: hue from pitch-class, L from pitch height, chroma from
-    /// amplitude. The building block for both display and mixing.
-    public static func oklab(forFrequency hz: Double, amplitude: Double = 1) -> OKLab {
-        guard hz > 0, hz.isFinite else { return OKLab(L: 0.6, a: 0, b: 0) }
-        let amp = Swift.min(1.0, Swift.max(0.0, amplitude.isFinite ? amplitude : 0))
-
-        // Hue (radians) from pitch-class.
-        let hueRad = (pitchClass(ofFrequency: hz) / 12.0 * 360.0 + hueOffsetDegrees) * .pi / 180.0
-
-        // Lightness rises with pitch height (clamped to the visible-comfortable band).
-        let heightNorm = Swift.min(1.0, Swift.max(0.0, log2(hz / lightLowHz) / lightOctaves))
-        let L = lMin + (lMax - lMin) * heightNorm
-
-        // Chroma from amplitude.
-        let C = maxChroma * amp
-        return OKLab(L: L, a: C * cos(hueRad), b: C * sin(hueRad))
-    }
-
-    /// A single note as linear sRGB (gamut-clamped).
-    public static func color(forFrequency hz: Double, amplitude: Double = 1) -> LinearRGB {
-        oklabToLinear(oklab(forFrequency: hz, amplitude: amplitude))
-    }
-
-    /// A chord/spectrum → one colour. Amplitude-weighted OKLab average of the loudest
-    /// `maxPartials` notes (perceptual mix; dense clusters fall toward neutral, never
-    /// blow out to white). Empty/!valid input → neutral grey.
-    public static func color(forChord notes: [(hz: Double, amplitude: Double)]) -> LinearRGB {
-        let valid = notes.filter { $0.hz > 0 && $0.hz.isFinite && $0.amplitude > 0 && $0.amplitude.isFinite }
-        guard !valid.isEmpty else { return neutral }
-        let top = valid.sorted { $0.amplitude > $1.amplitude }.prefix(maxPartials)
-
-        var wSum = 0.0, L = 0.0, a = 0.0, b = 0.0
-        for n in top {
-            let lab = oklab(forFrequency: n.hz, amplitude: n.amplitude)
-            let w = n.amplitude
-            L += w * lab.L; a += w * lab.a; b += w * lab.b; wSum += w
-        }
-        guard wSum > 0 else { return neutral }
-        return oklabToLinear(OKLab(L: L / wSum, a: a / wSum, b: b / wSum))
-    }
-
     // MARK: Audible → visible spectrum (per-band donut visualization)
 
     /// Translate an audible frequency to a VISIBLE-spectrum colour by mapping the
     /// (log) audible range onto wavelengths 700 nm (low → red) … 400 nm (high → violet),
-    /// then wavelength → RGB. Unlike `oklab(forFrequency:)` (octave-CYCLIC pitch-class
-    /// hue, so partials of one note collapse onto one hue), this spreads the WHOLE
-    /// spectrum across the whole visible range so fundamentals, partials and overtones
-    /// each read as a DISTINCT colour — the founder's "translate the audible+feelable
+    /// then wavelength → RGB. Unlike `toneLinearRGB` (octave-CYCLIC — it folds every
+    /// octave onto one colour, so a note and its OCTAVE partials collapse together), this
+    /// spreads the WHOLE spectrum across the whole visible range so fundamentals, partials
+    /// and overtones each read as a DISTINCT colour — the founder's "translate the audible+feelable
     /// spectrum into the visible spectrum" for the concentric-donut visual.
     public static func visibleColor(forFrequency hz: Double, fMin: Double = 30, fMax: Double = 16000) -> LinearRGB {
         guard hz > 0, hz.isFinite, fMax > fMin, fMin > 0 else { return neutral }
@@ -280,25 +212,18 @@ public enum SpectralColor {
     /// each sounding note (`toneLinearRGB`), mixed amplitude-weighted in OKLab.
     ///
     /// WHY THIS EXISTS (founder 2026-07-27: "in jeder Situation die physikalisch korrekt
-    /// hochoktavierten Farbfrequenzen"). Until now two different colour languages were live
-    /// at once for the SAME chord:
-    ///   · the note grids and the immersive visual used `toneLinearRGB` — octave
-    ///     transposition + CIE 1931, i.e. the physics;
-    ///   · the header monitor tiles and the Art-Net/sACN fixture output used
-    ///     `color(forChord:)` — the OKLab pitch-class HUE CIRCLE, which this file has always
-    ///     labelled a CONVENTION, not a fact.
-    /// So the lamp and the grid disagreed about the colour of the same chord. This closes that.
-    ///
-    /// The old header comment gave a real reason for the hue circle — "the visible spectrum is
-    /// a LINE, so we do NOT route pitch through wavelength→RGB (that would break at the
-    /// red/violet ends)". That reason EXPIRED when `toneLinearRGB` closed the circle across the
-    /// CIE purple line: the seam it was avoiding no longer exists, and every pitch class now has
-    /// a colour. Routing pitch through wavelength is exactly what we can now do honestly.
+    /// hochoktavierten Farbfrequenzen"). Until it landed, two colour languages were live at
+    /// once for the SAME chord: the note grids and the immersive visual used `toneLinearRGB`
+    /// (octave transposition + CIE 1931, i.e. the physics), while the header monitor tiles and
+    /// the Art-Net/sACN fixture output used the OKLab pitch-class hue circle, which this file
+    /// had always labelled a CONVENTION, not a fact. So the lamp and the grid disagreed about
+    /// the colour of the same chord. This closed that; the hue circle itself was deleted
+    /// 2026-07-28 (see the file header) so the disagreement cannot reappear.
     ///
     /// The MIXING stays perceptual (OKLab, not RGB): summing spectral colours in RGB washes a
-    /// dense chord to WHITE, and an OKLab average does not — the real failure mode, and the
-    /// property `color(forChord:)` was written for, kept, with a physical input instead of a
-    /// conventional one. Note the weaker guarantee, measured: with physical inputs a dense
+    /// dense chord to WHITE, and an OKLab average does not — the real failure mode, and the one
+    /// property worth carrying over from the hue-circle mixer, now fed a physical input instead
+    /// of a conventional one. Note the weaker guarantee, measured: with physical inputs a dense
     /// cluster no longer lands on NEUTRAL grey the way the synthesized hue circle did (a
     /// 12-note chromatic cluster comes out a distinct purple), because the CIE locus plus the
     /// purple line is a lopsided horseshoe, not an evenly spaced circle. It stays bounded and

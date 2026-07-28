@@ -48,7 +48,8 @@ as named CHOP channels — patch them into anything.
 ## 2. Light — Art-Net / sACN (DMX)
 
 Connect **Music** or **Body** → **Art-Net** (or **sACN**) in the patchbay. Echoel maps
-the live chord to colour (SpectralColor, perceptual OKLab) and sends DMX — drive fixtures
+the live chord to colour (`SpectralColor.physicalColor(forChord:)` — octave-transposed into
+visible light via CIE 1931, mixed perceptually in OKLab) and sends DMX — drive fixtures
 or a lighting desk directly. Bio is the fallback co-modulator when nothing is sounding.
 Flash-safety is slew-limited (≤3 Hz, WCAG). See `MusicMediaMapping.swift`.
 

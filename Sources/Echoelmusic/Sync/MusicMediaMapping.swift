@@ -24,10 +24,16 @@ public enum MusicMediaMap {
         clampUnit(0.3 + 0.7 * Float(f.masterLevel))
     }
 
-    /// Maps a musical frame to a 4-param fixture (dimmer + R + G + B), colour from
-    /// the sounding CHORD via SpectralColor (OKLab hue circle, amplitude-weighted,
-    /// anti-white) — so the pitch/chord you play IS the colour. 8-bit = 4 channels;
-    /// 16-bit = 8 (coarse/fine pairs), matching `ArtNetSender.dmxChannels(for:resolution:)`.
+    /// Maps a musical frame to a 4-param fixture (dimmer + R + G + B), colour from the
+    /// sounding CHORD via `SpectralColor.physicalColor(forChord:)` — octave-transposed
+    /// into the visible band, CIE 1931, mixed amplitude-weighted in OKLab (anti-white) —
+    /// so the pitch/chord you play IS the colour, and the lamp agrees with the note grid.
+    /// 8-bit = 4 channels; 16-bit = 8 (coarse/fine pairs), matching
+    /// `ArtNetSender.dmxChannels(for:resolution:)`.
+    ///
+    /// (This doc said "OKLab hue circle" until 2026-07-28. That was this call site's
+    /// ORIGINAL mapper, left behind when the call switched to the physical one on
+    /// 2026-07-27; the hue circle has since been deleted entirely.)
     public static func dmxChannels(forMusic f: MusicalFrame,
                                    resolution: ArtNetSender.DMXResolution) -> [UInt8] {
         let rgb = SpectralColor.physicalColor(forChord: f.notes.map { (hz: $0.frequencyHz, amplitude: $0.amplitude) })

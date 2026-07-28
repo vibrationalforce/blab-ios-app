@@ -1,7 +1,27 @@
 // SpectralColorTests.swift
-// Echoel — the perceptual sound→colour mapper: pitch-class→OKLCH hue (octave-equivalent,
-// magenta-bridged loop), pitch→lightness, amplitude→chroma, and OKLab chord mixing that
-// falls toward neutral (never blows out to white).
+// Echoel — the sound→colour mapper: pitch-class, the Cousto/physics wavelength checks,
+// note POSITION in the visual field, and the chord mixer's boundary behaviour.
+//
+// REWRITTEN 2026-07-28 for the DELETION of the pitch-class OKLCH hue circle (#197).
+// SEVEN tests here pinned `color(forChord:)`/`color(forFrequency:)`/`hue01`, which is the
+// only reason that dead second colour language survived. FOUR moved onto
+// `physicalColor(forChord:)` — unison == the single note, octaves stay saturated, the mix
+// is really a mix, empty/invalid → neutral. THREE did not, because the physical mapping
+// genuinely lacks their laws:
+//   · "amplitude → saturation": there is no chroma ramp. Amplitude is the mixing WEIGHT
+//     only (intensity is a separate dimmer). The "zero amplitude → grey" half DOES still
+//     hold, but by a different mechanism — `physicalColor` FILTERS `amplitude > 0`, so an
+//     all-silent chord returns `neutral` — and that is asserted below via the `(440, 0)`
+//     entry, not via desaturation.
+//   · "higher pitch → lighter": absent. Lightness comes from the CIE eye response at the
+//     transposed wavelength, which is not monotonic in pitch.
+//   · "one semitone = 1/12 turn of a hue circle": there is no hue circle. The other half
+//     of that test — octave equivalence — survives, pinned in SpectralColorCIETests.
+// And one property was deliberately WEAKENED rather than dropped: "a dense cluster falls
+// toward NEUTRAL grey" is measured false for the physical mixer (the CIE locus plus the
+// purple line is a lopsided horseshoe, not an evenly spaced circle — a 12-note chromatic
+// cluster comes out a bounded purple). What survives is that the cluster is markedly LESS
+// saturated than a unison stack, which is what actually proves an average happened.
 
 #if canImport(AVFoundation) && canImport(Accelerate)
 import XCTest
@@ -23,69 +43,69 @@ final class SpectralColorTests: XCTestCase {
         XCTAssertEqual(b, 9.0, accuracy: 1e-3)   // A is 9 semitones above C
     }
 
-    func testHue01_octaveEquivalent_andSemitoneStep() {
-        XCTAssertEqual(SpectralColor.hue01(forFrequency: 220),
-                       SpectralColor.hue01(forFrequency: 440), accuracy: 1e-6)
-        let h0 = SpectralColor.hue01(forFrequency: 440)
-        let h1 = SpectralColor.hue01(forFrequency: 440 * pow(2.0, 1.0 / 12.0))
-        var d = (h1 - h0).truncatingRemainder(dividingBy: 1.0)
-        if d < 0 { d += 1 }
-        XCTAssertEqual(d, 1.0 / 12.0, accuracy: 1e-3)  // one semitone = 30° = 1/12 turn
-    }
-
-    func testColor_alwaysInGamut_overSweep() {
+    func testPhysicalChord_staysColoured_overSweep() {
+        // This deliberately does NOT assert isFinite/0…1: `oklabToLinear` ends in
+        // `clamp01` on all three channels, and `clamp01` maps non-finite → 0, so those
+        // three assertions are true by construction one line before the return and cannot
+        // fail however badly the mapping breaks. (Measured over this exact sweep, the
+        // PRE-clamp values never leave [0.03, 0.94] either, so the clamp is not even
+        // engaging.) The falsifiable property is that a two-note chord never degenerates
+        // to grey — a broken CIE fit or a collapsed OKLab round-trip lands near neutral.
         var hz = 50.0
         while hz < 4000 {
-            let c = SpectralColor.color(forFrequency: hz, amplitude: 1)
-            for v in [c.r, c.g, c.b] {
-                XCTAssertTrue(v.isFinite)
-                XCTAssertGreaterThanOrEqual(v, 0.0)
-                XCTAssertLessThanOrEqual(v, 1.0)
-            }
+            let c = SpectralColor.physicalColor(forChord: [(hz, 1), (hz * 1.5, 0.6)])
+            XCTAssertGreaterThan(spread(c), 0.01,
+                                 "a sounding chord at \(Int(hz)) Hz must have a colour")
             hz *= 1.05
         }
     }
 
-    func testSingleNote_isSaturated_butZeroAmplitudeIsGrey() {
-        XCTAssertGreaterThan(spread(SpectralColor.color(forFrequency: 440, amplitude: 1)), 0.05)
-        XCTAssertLessThan(spread(SpectralColor.color(forFrequency: 440, amplitude: 0)), 0.02)
+    func testPhysicalChordUnison_matchesTheSingleNoteColour() {
+        // A unison must survive the OKLab round-trip unchanged. This corroborates the
+        // inverse pair on the two-note AVERAGING path (wSum == 2); the single-note sweep
+        // and the inverse pair on their own are pinned in SpectralColorCIETests. Measured
+        // error 3.7e-8 — 1e-9 would be pinning cbrt's last bits, 1e-6 is still far below
+        // any 8-bit fixture or display step.
+        let single = SpectralColor.toneLinearRGB(forToneHz: 440)
+        let unison = SpectralColor.physicalColor(forChord: [(440, 1), (440, 1)])
+        XCTAssertEqual(single.r, unison.r, accuracy: 1e-6)
+        XCTAssertEqual(single.g, unison.g, accuracy: 1e-6)
+        XCTAssertEqual(single.b, unison.b, accuracy: 1e-6)
     }
 
-    func testHigherPitch_isLighter() {
-        // Isolate lightness (amplitude 0 → greys): a higher note must be brighter.
-        let low = SpectralColor.color(forFrequency: 110, amplitude: 0)
-        let high = SpectralColor.color(forFrequency: 880, amplitude: 0)
-        XCTAssertGreaterThan(high.r, low.r)
-    }
+    func testPhysicalMixer_averagesTheChord_andNeverWashesOut() {
+        // `toneLinearRGB` is octave-cyclic, so these three are the SAME colour; the mix of
+        // them must stay fully saturated. (The octave-equivalence law itself is pinned at
+        // 1e-9 in SpectralColorCIETests — this assertion would survive a broken fold, so
+        // don't read it as the octave test.)
+        let octaves = SpectralColor.physicalColor(forChord: [(220, 1), (440, 1), (880, 1)])
+        XCTAssertGreaterThan(spread(octaves), 0.05, "a unison/octave stack stays saturated")
 
-    func testChordUnison_matchesSingleNote() {
-        let single = SpectralColor.color(forFrequency: 440, amplitude: 1)
-        let unison = SpectralColor.color(forChord: [(440, 1), (440, 1)])
-        XCTAssertEqual(single.r, unison.r, accuracy: 1e-9)
-        XCTAssertEqual(single.g, unison.g, accuracy: 1e-9)
-        XCTAssertEqual(single.b, unison.b, accuracy: 1e-9)
-    }
-
-    func testOctavesReinforceHue_dissonantClusterGoesNeutral() {
-        // All-A octaves share a pitch-class → colour stays saturated.
-        let octaves = SpectralColor.color(forChord: [(220, 1), (440, 1), (880, 1)])
-        // A full chromatic cluster spreads hues around the circle → averages to neutral.
         var cluster: [(hz: Double, amplitude: Double)] = []
         for k in 0..<12 { cluster.append((261.63 * pow(2.0, Double(k) / 12.0), 1.0)) }
-        let dense = SpectralColor.color(forChord: cluster)
+        let dense = SpectralColor.physicalColor(forChord: cluster)
 
-        XCTAssertGreaterThan(spread(octaves), 0.05, "octaves should reinforce a hue")
-        XCTAssertLessThan(spread(dense), 0.05, "a dense cluster should fall toward neutral")
-        // ...and NOT blow out to white (the RGB-sum failure mode this avoids).
-        XCTAssertLessThan(Swift.max(dense.r, Swift.max(dense.g, dense.b)), 0.95)
+        // THE load-bearing assertion: an implementation that just returned the LOUDEST
+        // note's colour would pass every other test in this file and in
+        // SpectralColorCIETests. Only the contrast catches it — measured, a chromatic
+        // cluster spreads 0.267 against the octave stack's 1.0, while pick-the-loudest
+        // gives 1.0 for both. (The deleted hue-circle test asserted the same thing as
+        // "falls toward neutral"; that absolute is false here, the contrast is not.)
+        XCTAssertLessThan(spread(dense), spread(octaves) * 0.6,
+                          "the mixer must average the chord, not take its loudest note")
+        // ...and the failure mode an RGB sum would cause instead: everything near white.
+        XCTAssertLessThan(Swift.min(dense.r, Swift.min(dense.g, dense.b)), 0.90,
+                          "a dense chord must not wash out to white")
     }
 
-    func testEmptyAndInvalid_returnNeutral() {
-        XCTAssertEqual(SpectralColor.color(forChord: []), SpectralColor.neutral)
-        let bad = SpectralColor.color(forChord: [(0, 1), (.nan, 1), (440, 0)])
+    func testPhysicalChord_emptyAndInvalid_returnNeutral() {
+        XCTAssertEqual(SpectralColor.physicalColor(forChord: []), SpectralColor.neutral)
+        // Zero, NaN and zero-amplitude entries are each filtered out; all three gone → neutral.
+        let bad = SpectralColor.physicalColor(forChord: [(0, 1), (.nan, 1), (440, 0)])
         XCTAssertEqual(bad, SpectralColor.neutral)
-        // Single invalid frequency → neutral grey, no crash.
-        XCTAssertLessThan(spread(SpectralColor.color(forFrequency: -10, amplitude: 1)), 0.02)
+        // A single invalid note among valid ones must be dropped, not poison the average.
+        let mixed = SpectralColor.physicalColor(forChord: [(440, 1), (.nan, 1)])
+        XCTAssertEqual(mixed, SpectralColor.physicalColor(forChord: [(440, 1)]))
     }
 
     func testNeutral_isGrey() {

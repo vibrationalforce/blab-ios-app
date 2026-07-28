@@ -23,7 +23,7 @@ CREATE
 - Composition: pick a genre and a key; your body generates in-key material you shape with the sound and character controls
 - Concert pitch (A4 / Kammerton) set exactly to the cent; lock a BPM for tight loops or stay sync-free
 - Effects: reverb, delay, chorus, flanger, phaser, tremolo, saturation, harmonizer and more
-- Immersive visual: the notes you play become colour in real time (perceptual pitch-to-hue), reacting to the music and your body
+- Immersive visual: the notes you play become colour in real time — each tone's frequency transposed by whole octaves into visible light — reacting to the music and your body
 - Retroactive capture: keep the loop you just played
 - Export the loop you just made as audio (WAV) or as MIDI (.mid) for your DAW — the MIDI file carries tempo, 4/4 and the key signature, and spans whole bars
 
