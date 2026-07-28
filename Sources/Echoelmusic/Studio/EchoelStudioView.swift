@@ -3251,21 +3251,36 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             loopLengthSelector
-            Button { Task { await exportWav() } } label: {
+            // ONE button, two jobs: start the take, and abort it — founder 2026-07-28
+            // ("wichtig das man die Aufnahme dann auch abbrechen kann, wenn man sich
+            // verspielt hat"). Deliberately NOT a second button next to it: the abort is
+            // only meaningful while this exact take runs, and a permanent Cancel that is
+            // dead 99 % of the time is more clutter than help. Once the capture ends it
+            // stops offering the abort — during the rendering seconds it reads "Writing
+            // .wav…", disabled, because that pass cannot be interrupted (see
+            // `LoopExporter.isCancellable`).
+            Button {
+                if exporter.isCancellable { exporter.cancel() } else { Task { await exportWav() } }
+            } label: {
                 Label(exportLabel, systemImage: exportIcon)
                     .font(EchoelTheme.font(15, .semibold)).foregroundStyle(.black)
                     .frame(maxWidth: .infinity).frame(height: 48)
                     // Website CI primary action (off-white fill, black label).
+                    // The fill must track `.disabled` EXACTLY — same law the keep-last
+                    // button already carries. `!hasComposed` was missing here, so a dead
+                    // button sat at full brightness under an inviting "Record 8 bars" label.
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(isExporting ? EchoelTheme.dim : EchoelTheme.text))
+                        .fill(isRecordButtonInert ? EchoelTheme.dim : EchoelTheme.text))
             }
             .buttonStyle(.plain)
-            .disabled(isExporting || !hasComposed)
-            .accessibilityHint("Records one loop and exports a WAV to share")
+            .disabled(isRecordButtonInert)
+            .accessibilityHint(exporter.isCancellable
+                ? "Stops this take and discards it. Nothing is saved."
+                : "Records one loop and exports a WAV to share")
 
             KeepLastLoopButton(pattern: beatPlayer.pattern, bars: loopBars,
                                isExporting: isExporting, hasComposed: hasComposed,
-                               busyLabel: exportLabel) { Task { await keepLastLoop() } }
+                               busyLabel: busyStatusLabel) { Task { await keepLastLoop() } }
 
             // MIDI export — RESTORED (#188, founder 2026-07-27). It was removed 2026-07-02
             // ("Midi Quatsch kann auch weg"); the exporter itself was never deleted and
@@ -3388,14 +3403,38 @@ struct EchoelStudioView: View {
     private var isExporting: Bool {
         exporter.status == .capturing || exporter.status == .rendering
     }
+    /// ONE expression for "this button does nothing if you tap it", so the dim state and
+    /// `.disabled` cannot drift apart. Busy-but-abortable is NOT inert — that is the whole
+    /// point of the Cancel state.
+    private var isRecordButtonInert: Bool {
+        (isExporting && !exporter.isCancellable) || !hasComposed
+    }
     private var exportLabel: String {
         switch exporter.status {
-        case .capturing: return "Recording loop…"
+        // While the take runs, the button IS the abort — so it must say so. "Recording
+        // loop…" read as a progress notice, which is exactly why nobody would think to
+        // tap it after a fumbled bar.
+        case .capturing: return exporter.isCancellable ? "Stop and discard this take"
+                                                       : "Recording loop…"
         case .rendering: return "Writing .wav…"
         default:         return "Record \(loopBars.label) → send"
         }
     }
-    private var exportIcon: String { isExporting ? "hourglass" : "square.and.arrow.up" }
+    private var exportIcon: String {
+        if exporter.isCancellable { return "stop.circle" }
+        return isExporting ? "hourglass" : "square.and.arrow.up"
+    }
+    /// What the OTHER export buttons show while this one is busy — status only, never the
+    /// abort wording. `exportLabel` now doubles as the Record button's ACTION text, and
+    /// handing that to a disabled neighbour would make it announce an action it cannot
+    /// perform ("Stop and discard this take" on the keep-last button).
+    private var busyStatusLabel: String {
+        switch exporter.status {
+        case .capturing: return "Recording loop…"
+        case .rendering: return "Writing .wav…"
+        default:         return ""
+        }
+    }
 
     // MARK: - Camera pulse readout
     //
