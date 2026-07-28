@@ -215,7 +215,12 @@ final class FloatingVisualLayoutTests: XCTestCase {
     }
 
     func testNonFiniteAndZeroInputs_doNotProduceNaN() {
-        for bounds in [CGSize(width: .nan, height: 700), CGSize(width: 393, height: .nan),
+        // ⛔ `CGFloat.nan`, never a bare `.nan`. `CGSize.init(width:height:)` is overloaded for
+        // Int, Double and CGFloat, and a bare `.nan` cannot pick between the two floating
+        // ones — "ambiguous use of 'nan'". That error kept the WHOLE 305-file suite from
+        // building for a day without anything going red, because `full-tests.yml` carries
+        // `continue-on-error` on its build step (#208).
+        for bounds in [CGSize(width: CGFloat.nan, height: 700), CGSize(width: 393, height: CGFloat.nan),
                        CGSize(width: 0, height: 700), CGSize(width: 393, height: 0),
                        CGSize(width: -100, height: -100)] {
             let c = card(bounds, 0.5)
@@ -232,7 +237,7 @@ final class FloatingVisualLayoutTests: XCTestCase {
     func testPictureAspect_degenerateBox_fallsBackToSquare() {
         XCTAssertEqual(FloatingVisualLayout.pictureAspect(forAvailable: .zero), 1, accuracy: 1e-9)
         XCTAssertEqual(FloatingVisualLayout.pictureAspect(
-            forAvailable: CGSize(width: .nan, height: 100)), 1, accuracy: 1e-9)
+            forAvailable: CGSize(width: CGFloat.nan, height: 100)), 1, accuracy: 1e-9)
     }
 
     /// An absurdly wide or tall box is exactly where the clamp has to bite.
