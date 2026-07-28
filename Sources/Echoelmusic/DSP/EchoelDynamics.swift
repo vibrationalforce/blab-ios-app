@@ -24,13 +24,24 @@ public final class EchoelCompressor: @unchecked Sendable {
     /// Make-up gain in dB.
     public var makeupDb: Float = 0
 
+    /// Decay time of the DETECTOR's peak envelope, in ms — deliberately a constant and
+    /// deliberately NOT `releaseMs`. See `processStereo` for the measurement that picked it.
+    private static let detectorReleaseMs: Float = 40
+
     private let sr: Float
     private var attackCoeff: Float = 0
     private var releaseCoeff: Float = 0
     private var grState: Float = 0   // current gain reduction in dB (≤ 0)
+    private var env: Float = 0       // peak envelope, ≥ 0 — the DETECTOR (see processStereo)
+    /// `exp(-1/t)` for the detector — the per-sample factor the envelope decays by. A `let`,
+    /// computed once: it depends on nothing a control thread can change, so unlike a cached
+    /// `1 - releaseCoeff` it can never go stale beside a coefficient `recalc()` just rewrote.
+    private let envDecayFactor: Float
 
     public init(sampleRate: Float = 48000) {
         self.sr = sampleRate
+        let t = Swift.max(0.01, Self.detectorReleaseMs) * 0.001 * sampleRate
+        self.envDecayFactor = expf(-1.0 / t)
         recalc()
     }
 
@@ -44,7 +55,11 @@ public final class EchoelCompressor: @unchecked Sendable {
         // sample makes `inDb` NaN, both knee comparisons fail into the `else`, `target`
         // becomes NaN, `target < grState` is false, and the release branch writes
         // `grState = NaN` — permanently. Every later sample then returns NaN until
-        // `reset()`, which nothing calls in production.
+        // `reset()`, which the performer can only reach by toggling the compressor off and
+        // on again (`EchoelFXChain.compressorEnabled`'s rising edge — see `reset()` below).
+        // ⛔ This clause used to read "which nothing calls in production". That was false and
+        // it argued the wrong way: it made the latch sound unrecoverable, which is a reason
+        // to panic about a guard that already exists rather than to trust it.
         //
         // This stage sits IMMEDIATELY BEFORE the limiter in `EchoelFXChain`, so the
         // limiter's own non-finite hardening cannot help: the NaN would be manufactured
@@ -69,7 +84,62 @@ public final class EchoelCompressor: @unchecked Sendable {
             return (inL * held, inR * held)
         }
 
-        let inDb = 20.0 * log10f(Swift.max(peak, 1e-7))
+        // PEAK ENVELOPE — the detector. Follows a rise instantly, decays at a FIXED 40 ms.
+        // Same shape as `EchoelLimiter`'s (#194), one stage earlier in the chain, but with
+        // its own constant rather than `releaseMs` — and that difference is the whole design.
+        //
+        // WITHOUT ANY ENVELOPE the gain computer reads the RAW sample magnitude, which
+        // collapses to zero twice per cycle on any periodic signal. The target collapses with
+        // it, the ballistics' release branch walks the gain back up between peaks, and the
+        // gain ripples at 2f. A gain moving at 2f multiplying a carrier at f is amplitude
+        // modulation — its sidebands land on the THIRD HARMONIC. The compressor was
+        // manufacturing distortion out of a clean sine, worst where the period is longest, so
+        // this was a BASS defect specifically — the range `SubBassVoice` lives in.
+        //
+        // WHY 40 ms AND NOT `releaseMs`. The obvious version decays the envelope at
+        // `releaseCoeff`, which reads as "one release time, one source of truth". It is the
+        // error the decoupled-detector topology exists to avoid (Giannoulis/Massberg/Reiss,
+        // level detection): the envelope and the ballistics become TWO cascaded one-poles at
+        // the same time constant, and the stage then hangs onto reduction long after the peak
+        // that caused it. Measured (bit-accurate Float32 simulation of this exact code; gain
+        // ripple over the bass range at −6 dBFS, and GR 100 ms after a 5 ms 0 dBFS transient
+        // into a body at −20 dBFS — 2 dB UNDER the threshold, so it must be let go):
+        //
+        //     detector   ripple 30 Hz   ripple 40 Hz   H3 @40 Hz   GR at +100 ms   t63
+        //     raw            0.332          0.249       −41.7 dBc     −1.48 dB    ~120 ms
+        //     40 ms          0.076          0.044       −56.2 dBc     −6.16 dB    ~145 ms
+        //     releaseMs      0.029          0.017       −65.1 dBc     −9.73 dB    ~210 ms
+        //
+        // ⛔ DO NOT read the +100 ms column against −12·e^(−100/120) = −5.2 dB. An earlier
+        // version of this comment did, and every conclusion it drew from that was wrong. The
+        // gain computer's TARGET is −12 dB, but a 5 ms transient into a 10 ms attack only ever
+        // reaches −4.40 dB, so the decay starts from there. The like-for-like reference is a
+        // RIPPLE-FREE detector with these same ballistics: it reads −4.72 dB at the transient
+        // and −2.08 dB at +100 ms. Against that, the raw detector (−1.48) is the CLOSEST of
+        // the three at this one measurement point, and 40 ms is ~3× deep. The raw detector is
+        // still the defect — for the ripple and the third harmonic, which is what this change
+        // is actually for. It is not fixing a release-accuracy problem, and claiming so sends
+        // the next tuning pass after a target that does not exist.
+        //
+        // So 40 ms is CHOSEN, not derived. 25–60 ms is the band that satisfies every
+        // assertion in `CompressorDetectorTests`; inside it the trade is monotone — shorter
+        // holds less after a transient and leaves more ripple in the bass, longer the reverse.
+        // 40 sits mid-band. Moving it is a listening decision, not a derivation, and the tests
+        // are written so the whole band passes.
+        //
+        // THE COST, in full, because the first version of this paragraph named only the small
+        // half. Sustained material compresses ~0.6 dB harder (mean −7.13 → −7.76 dB) — that is
+        // the small half. The large half is post-transient: a peak the detector HOLDS keeps
+        // driving the gain computer after the sound is gone, so on that same 5 ms transient
+        // the deepest reduction is −9.20 dB and it arrives 18 ms AFTER the transient ended,
+        // against −3.40 dB DURING it with the raw detector. On plucked or percussive material
+        // that late duck is what a listener would hear, not the 0.6 dB. It is inherent to a
+        // hold-y detector ahead of a gain computer, it is why the constant is short, and it is
+        // the specific thing to listen for on device.
+        let decayed = env * envDecayFactor
+        env = peak > decayed ? peak : decayed
+
+        let inDb = 20.0 * log10f(Swift.max(env, 1e-7))
 
         // Static gain-computer with quadratic soft knee.
         let r = Swift.max(1.0, ratio)
@@ -100,7 +170,18 @@ public final class EchoelCompressor: @unchecked Sendable {
     /// Current gain reduction in dB (≤ 0), for metering.
     public var gainReductionDb: Float { grState }
 
-    public func reset() { grState = 0 }
+    /// Clears BOTH pieces of state. The envelope must be cleared with the gain — leaving a
+    /// held peak behind would make the stage start already reduced.
+    ///
+    /// It IS called in production, from exactly ONE live path: `EchoelFXChain`'s
+    /// `compressorEnabled` rising edge (`willSet`). That is the point — switching the
+    /// compressor on with stale state applies a gain step to running audio, which is the
+    /// switch-crackle this clears. (`EchoelFXChain.reset()` calls it too, but that method
+    /// has no production caller of its own, so do not count it as a second path.)
+    public func reset() {
+        grState = 0
+        env = 0
+    }
 
     private func recalc() {
         attackCoeff = coeff(forMs: attackMs)
@@ -109,7 +190,17 @@ public final class EchoelCompressor: @unchecked Sendable {
 
     @inline(__always)
     private func coeff(forMs ms: Float) -> Float {
-        let t = Swift.max(0.01, ms) * 0.001 * sr
+        // Clamped at BOTH ends, same as the limiter's and for the same reason. The upper
+        // bound is the one that was missing: past ~700 s, `1 - expf(-1/t)` rounds to exactly
+        // 0 in Float, the coefficient dies, and `grState` can never move back toward 0 —
+        // whatever attenuation it held at that moment becomes permanent, which is the "fail
+        // to resting, never to silence" law. ⛔ Nothing writes `releaseMs` or `attackMs`
+        // today: `FXPreset` persists only threshold, ratio and makeup, and `EchoelFXView`
+        // exposes the same three. So this guards a FUTURE control, exactly like the limiter's
+        // — an earlier version of this comment claimed a saved preset could restore a release
+        // time, which is not true and would have been read as licence to skip the clamp
+        // elsewhere.
+        let t = Swift.min(Swift.max(0.01, ms), 10_000) * 0.001 * sr
         return 1.0 - expf(-1.0 / t)
     }
 }
