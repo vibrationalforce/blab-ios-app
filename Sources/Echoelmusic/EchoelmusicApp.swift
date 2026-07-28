@@ -491,6 +491,22 @@ struct EchoelmusicApp: App {
                 polyVoice.attach(to: audioEngine)
                 leadVoice.attach(to: audioEngine)
                 touchVoice.attach(to: audioEngine)
+                // Restore the persisted play-surface Level HERE, immediately after the
+                // node is attached and connected — NOT from a view's onAppear. The first
+                // synchronous appear pass (EchoelStudioView.onAppear) runs BEFORE this
+                // async startup task, so a setGain from there writes `sourceNode.volume`
+                // on a node that has not been through attach+connect yet, and nothing in
+                // this repo establishes that such a write survives the later connect.
+                // `SubBassVoice.setGain` already guards on `attachedToEngine` for exactly
+                // this reason; `PolySynthVoice.setGain` does not, so the ordering has to
+                // be correct here instead.
+                //
+                // `object(forKey:)` first: `double(forKey:)` returns 0 for an unset key,
+                // which would silence the play surface on every fresh install.
+                if let storedTouchLevel = UserDefaults.standard
+                    .object(forKey: StudioDefaultKeys.touchLevel.key) as? Double {
+                    touchVoice.setGain(Float(storedTouchLevel))
+                }
                 subBass.attach(to: audioEngine)
                 metronome.attach(to: audioEngine)
                 // Session breathing cue — attached BEFORE start like every voice

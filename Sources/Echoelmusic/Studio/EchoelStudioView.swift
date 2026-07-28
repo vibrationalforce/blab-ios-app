@@ -695,12 +695,11 @@ struct EchoelStudioView: View {
             synth.setInsert(trackFX.melodic)
             leadSynth?.setInsert(trackFX.melodic)
             laneVoiceRack.setInsert(trackFX.melodic)   // S2-W1: rack lanes too
-            // Restore the persisted play-surface LEVEL unconditionally. It used to ride
-            // inside `syncTouchSound()` below, which only runs when a custom touch patch
-            // is selected — so in the default follow-the-take case the field displayed the
-            // saved value while the voice still ran at its init gain. Exactly the Bass
-            // fader bug of 2026-07-27: a control that shows a number it does not apply.
-            touchSynth?.setGain(Float(touchLevel))
+            // The persisted play-surface LEVEL is restored in `EchoelmusicApp`'s startup
+            // task, right after `touchVoice.attach(to:)`. It briefly lived HERE and that
+            // was wrong: this `onAppear` runs in the first SYNCHRONOUS appear pass, before
+            // the async startup task attaches the node, so the write landed on an
+            // unattached `sourceNode`. Do not move it back.
             // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
