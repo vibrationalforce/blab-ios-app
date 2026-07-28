@@ -271,8 +271,11 @@ public extension FXPreset {
             fxEnabled: fxEnabled,
             filterEnabled: chain.filterEnabled,
             filterModeRaw: chain.filterL.mode.rawValue,
-            filterCutoff: chain.filterL.cutoff,
-            filterResonance: chain.filterL.resonance,
+            // #138: the chain's TARGET, not the audio mirror. Capturing `filterL.cutoff`
+            // would save wherever a glide happened to be mid-sweep instead of the value
+            // the user set — a preset that does not round-trip to what was on screen.
+            filterCutoff: chain.filterCutoff,
+            filterResonance: chain.filterResonance,
             saturationEnabled: chain.saturationEnabled,
             saturationDrive: chain.saturationDrive,
             saturationMix: chain.saturationMix,

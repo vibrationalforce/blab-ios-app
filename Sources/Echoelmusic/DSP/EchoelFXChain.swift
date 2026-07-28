@@ -50,7 +50,21 @@ public final class EchoelFXChain: @unchecked Sendable {
     // race the render loop.
 
     public var filterEnabled: Bool = false {
-        willSet { if newValue && !filterEnabled { filterL.reset(); filterR.reset() } }
+        willSet {
+            if newValue && !filterEnabled {
+                filterL.reset(); filterR.reset()
+                // #138 SLICE 2 — THE THIRD SNAP EDGE, and the one that is easy to miss.
+                // `FXBioModulator.enableStage` flips this the first time a bio route
+                // contributes. Without the snap, the first audible thing after a body
+                // route engages would be a sweep up from whatever the glide happened to
+                // hold — the stale-value artefact `snap` exists to prevent, arriving
+                // exactly at the moment the user is listening for the body to take hold.
+                cutoffGlide.snap(to: filterCutoff)
+                resonanceGlide.snap(to: filterResonance)
+                filterL.cutoff = filterCutoff;       filterR.cutoff = filterCutoff
+                filterL.resonance = filterResonance; filterR.resonance = filterResonance
+            }
+        }
     }
     /// Analog warmth. On by default — the additive source is otherwise a sterile
     /// sum of sines; saturation adds the harmonic body that sounds professional.
@@ -115,9 +129,49 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// while folding in the saturated harmonics (parallel-style warmth).
     public var saturationMix: Float = 0.5
 
+    // MARK: - Tone filter: TARGET (control plane) vs. GLIDE (audio) — #138 Slice 2
+
+    /// THE DEFECT THIS SPLIT EXISTS FOR. Nothing in this chain smoothed its own
+    /// parameters. `FXBioModulator` writes at 30 Hz off a bio carrier that itself only
+    /// updates at ~10 Hz, so a body-driven filter sweep was a staircase with ten steps a
+    /// second — and on a resonant filter every step is an audible edge, not a sweep.
+    ///
+    /// WHY A FACADE RATHER THAN GLIDING `filterL.cutoff` IN PLACE, which is the obvious
+    /// and wrong fix: five places outside this file READ that field — `FXBioModulator`
+    /// captures its modulation BASE from it, `FXPreset` saves from it, `EchoelFXView`
+    /// seeds its view model from it. Glide it directly and the driver would capture a
+    /// value caught mid-glide and then modulate around a random intermediate, the saved
+    /// preset would store wherever the sweep happened to be, and the UI would show a
+    /// number the user never set. So: THIS is the authoritative control-plane number
+    /// (what the user set, what gets saved, what the driver modulates around), and
+    /// `filterL/filterR.cutoff` becomes an internal audio mirror that only the block
+    /// entry points below write. Same shape `EchoelDelay` already uses for its read tap.
+    ///
+    /// Writers: the UI fader and the 30 Hz driver GLIDE; `setFilter`, `reset()` and
+    /// `filterEnabled`'s rising edge SNAP.
+    public var filterCutoff: Float = 2000.0
+    /// Companion target for resonance — same contract as `filterCutoff`.
+    public var filterResonance: Float = 0.3
+
+    /// Audio-side mirrors. Stepped once per block in `processBuffer`/`processBufferMono`,
+    /// never per sample: `EchoelSVFilter.cutoff`'s `didSet` runs `tanf`, and the filter's
+    /// integrators cannot resolve cutoff motion inside one block anyway — ~10 coefficient
+    /// updates per glide instead of ~3000, for no audible difference.
+    private var cutoffGlide = ParamGlide(2000.0)
+    private var resonanceGlide = ParamGlide(0.3)
+    /// `expf` is not free, and the coefficient only changes when the host hands us a
+    /// different buffer size. Cached against the LAST SEEN `frameCount` — never against
+    /// an assumed 256, which would make the glide's wall-clock duration scale with the
+    /// host's buffer, reintroducing exactly the rate-dependence `ParamGlide.coefficient`
+    /// is formulated to remove.
+    private var glideCoefficient: Float = 1
+    private var glideCoefficientFrames: Int = 0
+    private let sampleRateHz: Float
+
     // MARK: - Init
 
     public init(sampleRate: Float = 48000) {
+        self.sampleRateHz = sampleRate > 0 && sampleRate.isFinite ? sampleRate : 48000
         self.filterL = EchoelSVFilter(sampleRate: sampleRate)
         self.filterR = EchoelSVFilter(sampleRate: sampleRate)
         self.tape = EchoelTape(sampleRate: sampleRate)
@@ -140,16 +194,66 @@ public final class EchoelFXChain: @unchecked Sendable {
     }
 
     /// Configure both channels of the tone filter together (control plane).
+    ///
+    /// SNAPS rather than glides, and that is the point of having both. Its callers are
+    /// `FXPreset.apply`, `GenreFX` and `FXCuratedLibrary` — a preset load, a genre change,
+    /// a character switch. Gliding there would be WRONG, not merely fast: the new sound
+    /// would arrive as a 50 ms sweep from the old one, which is an artefact of the switch
+    /// rather than part of either sound. The UI fader and the 30 Hz bio driver glide; the
+    /// document-level changes land.
     public func setFilter(mode: EchoelSVFilter.Mode, cutoff: Float, resonance: Float) {
+        filterCutoff = cutoff
+        filterResonance = resonance
+        cutoffGlide.snap(to: cutoff)
+        resonanceGlide.snap(to: resonance)
         filterL.mode = mode; filterR.mode = mode
         filterL.cutoff = cutoff; filterR.cutoff = cutoff
         filterL.resonance = resonance; filterR.resonance = resonance
     }
 
+    /// Advance the tone-filter glide by ONE block and publish it into the SVFs.
+    ///
+    /// Called from the two block entry points only. Kept separate rather than inlined so
+    /// the one invariant is stated in one place: **the glide advances once per block, never
+    /// per sample.** `EchoelSVFilter.cutoff`'s `didSet` runs `tanf`, and the filter's
+    /// integrators cannot resolve cutoff motion inside a single block — per-sample gliding
+    /// would cost ~3000 transcendental calls per glide instead of ~10 for no audible gain.
+    ///
+    /// Audio-thread safe: pure arithmetic plus `expf` (only when the host's buffer size
+    /// changes) and `tanf` inside the SVF's own `didSet`, both on the permitted C-math
+    /// list. No allocation, no locks, no shared mutable state beyond the chain itself.
+    ///
+    /// ⚠️ The SVF's equality guard is what keeps this cheap on a settled parameter: once
+    /// the glide reaches its target, `ParamGlide` returns the exact target every block, the
+    /// assignment is a no-op comparison, and `updateCoefficients()` stops being called.
+    @inline(__always)
+    private func advanceFilterGlide(frameCount: Int) {
+        guard frameCount > 0 else { return }
+        if frameCount != glideCoefficientFrames {
+            glideCoefficient = ParamGlide.coefficient(
+                tauSeconds: ParamGlide.bioTau,
+                stepRateHz: sampleRateHz / Float(frameCount))
+            glideCoefficientFrames = frameCount
+        }
+        cutoffGlide.advance(toward: filterCutoff, coefficient: glideCoefficient)
+        resonanceGlide.advance(toward: filterResonance, coefficient: glideCoefficient)
+        let c = cutoffGlide.value, q = resonanceGlide.value
+        filterL.cutoff = c;    filterR.cutoff = c
+        filterL.resonance = q; filterR.resonance = q
+    }
+
     // MARK: - Process
 
+    /// ONE SAMPLE. Deliberately `internal`, not `public`, since #138 Slice 2.
+    ///
+    /// It does NOT advance the tone-filter glide — `processBuffer`/`processBufferMono` do
+    /// that once per block before entering their loop. A caller that drove this directly
+    /// would therefore get a filter frozen at whatever cutoff the glide last held, which is
+    /// a silent wrong-sound bug rather than a crash. There is no such caller today (grep:
+    /// only the two block entry points below, in this file), and narrowing the access level
+    /// is what keeps it that way without a comment nobody reads.
     @inline(__always)
-    public func processStereo(_ inL: Float, _ inR: Float) -> (Float, Float) {
+    func processStereo(_ inL: Float, _ inR: Float) -> (Float, Float) {
         var l = inL
         var r = inR
         if filterEnabled     { l = filterL.process(l); r = filterR.process(r) }
@@ -197,6 +301,11 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// Process separate L/R buffers in place.
     public func processBuffer(left bufL: inout [Float], right bufR: inout [Float], frameCount: Int) {
         let n = Swift.min(frameCount, Swift.min(bufL.count, bufR.count))
+        // Once per block, BEFORE the loop, and against the REAL block length — `n`, not the
+        // requested `frameCount` and not an assumed 256. A coefficient derived from a
+        // number of frames we did not actually process would make the glide's wall-clock
+        // duration drift from the audio it is smoothing.
+        advanceFilterGlide(frameCount: n)
         for i in 0..<n {
             let (l, r) = processStereo(bufL[i], bufR[i])
             bufL[i] = l
@@ -209,6 +318,7 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// nodes (e.g. the bio synth voice). Audio-thread safe.
     public func processBufferMono(_ buf: inout [Float], frameCount: Int) {
         let n = Swift.min(frameCount, buf.count)
+        advanceFilterGlide(frameCount: n)   // once per block — see `processBuffer`
         for i in 0..<n {
             let x = buf[i]
             let (l, _) = processStereo(x, x)
@@ -219,6 +329,14 @@ public final class EchoelFXChain: @unchecked Sendable {
     // MARK: - Reset
 
     public func reset() {
+        // SNAP, second of the three edges. `reset()` means "the signal path is empty" —
+        // there is nothing to glide FROM, so gliding here would sweep the first audio
+        // after the reset up from a stale value. The targets themselves are untouched:
+        // reset clears state, it does not change what the user set.
+        cutoffGlide.snap(to: filterCutoff)
+        resonanceGlide.snap(to: filterResonance)
+        filterL.cutoff = filterCutoff;       filterR.cutoff = filterCutoff
+        filterL.resonance = filterResonance; filterR.resonance = filterResonance
         filterL.reset()
         filterR.reset()
         tape.reset()

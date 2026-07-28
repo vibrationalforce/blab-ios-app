@@ -42,7 +42,9 @@ final class FXViewModel {
         fxEnabled = masterEnabled()
         // Seed mirrors from the live chain so the UI reflects current state.
         filterEnabled = c.filterEnabled; filterMode = c.filterL.mode
-        filterCutoff = c.filterL.cutoff; filterResonance = c.filterL.resonance
+        // #138: read the TARGET. The audio mirror can be mid-glide, and a fader that
+        // seeds itself from it would show a number the user never set.
+        filterCutoff = c.filterCutoff; filterResonance = c.filterResonance
         delayEnabled = c.delayEnabled; delayMode = c.delay.mode
         delayMix = c.delay.mix; delayTime = c.delay.timeSeconds
         delayFeedback = c.delay.feedback; delayTone = c.delay.tone
@@ -76,8 +78,10 @@ final class FXViewModel {
     // Filter (tone — underwater low-pass, telephone band-pass, lo-fi)
     var filterEnabled: Bool { didSet { chain.filterEnabled = filterEnabled } }
     var filterMode: EchoelSVFilter.Mode { didSet { chain.filterL.mode = filterMode; chain.filterR.mode = filterMode } }
-    var filterCutoff: Float { didSet { chain.filterL.cutoff = filterCutoff; chain.filterR.cutoff = filterCutoff } }
-    var filterResonance: Float { didSet { chain.filterL.resonance = filterResonance; chain.filterR.resonance = filterResonance } }
+    // #138: write the TARGET and let the chain glide there over ~50 ms. A fader dragged
+    // fast used to write the SVF coefficients directly on every gesture sample.
+    var filterCutoff: Float { didSet { chain.filterCutoff = filterCutoff } }
+    var filterResonance: Float { didSet { chain.filterResonance = filterResonance } }
 
     // Delay
     var delayEnabled: Bool { didSet { chain.delayEnabled = delayEnabled } }
@@ -175,10 +179,16 @@ final class FXViewModel {
     /// Re-read every mirror from the live chain (after a character stamp). The
     /// write-back through each `didSet` is idempotent — same values land on the
     /// chain — so this only resynchronises the UI.
+    ///
+    /// #138: the two filter values come from the chain's TARGET, not from `filterL`.
+    /// A character stamp goes through `setFilter`, which snaps both, so target and mirror
+    /// agree at this instant — but reading the mirror would still be wrong the moment a
+    /// stamp ever lands while a glide is running, and idempotence holds only against the
+    /// target (the `didSet` writes the target back).
     func reseed() {
         let c = chain
         filterEnabled = c.filterEnabled; filterMode = c.filterL.mode
-        filterCutoff = c.filterL.cutoff; filterResonance = c.filterL.resonance
+        filterCutoff = c.filterCutoff; filterResonance = c.filterResonance
         delayEnabled = c.delayEnabled; delayMode = c.delay.mode
         delayMix = c.delay.mix; delayTime = c.delay.timeSeconds
         delayFeedback = c.delay.feedback; delayTone = c.delay.tone

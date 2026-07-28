@@ -225,8 +225,11 @@ public final class FXBioModulator {
 
     private func read(_ t: FXModTarget, from c: EchoelFXChain) -> Float {
         switch t {
-        case .filterCutoff:    return c.filterL.cutoff
-        case .filterResonance: return c.filterL.resonance
+        // #138 — THE BASE CAPTURE, and the reason the target/glide split exists at all.
+        // Reading the audio mirror here would let the driver latch a value caught
+        // mid-glide and then modulate around that random intermediate forever.
+        case .filterCutoff:    return c.filterCutoff
+        case .filterResonance: return c.filterResonance
         case .saturationDrive: return c.saturationDrive
         case .chorusMix:       return c.chorus.mix
         case .flangerMix:      return c.flanger.mix
@@ -243,8 +246,10 @@ public final class FXBioModulator {
 
     private func write(_ t: FXModTarget, _ v: Float, to c: EchoelFXChain) {
         switch t {
-        case .filterCutoff:    c.filterL.cutoff = v; c.filterR.cutoff = v
-        case .filterResonance: c.filterL.resonance = v; c.filterR.resonance = v
+        // #138: the 30 Hz driver writes the TARGET. This is the writer whose staircase
+        // (a ~10 Hz bio carrier resampled at 30 Hz) the glide exists to smooth.
+        case .filterCutoff:    c.filterCutoff = v
+        case .filterResonance: c.filterResonance = v
         case .saturationDrive: c.saturationDrive = v
         case .chorusMix:       c.chorus.mix = v
         case .flangerMix:      c.flanger.mix = v
