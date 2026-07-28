@@ -2,7 +2,7 @@
 // Echoel — the invariants whose failure mode is "the app makes no sound and the user
 // cannot get it back". They live HERE, in the CISmoke bundle, for one blunt reason:
 //
-//   THIS IS THE ONLY TEST BUNDLE THAT CAN FAIL THE BUILD.
+//   THIS IS THE ONLY TEST BUNDLE THAT CAN FAIL THE **XCODE** BUILD.
 //
 // `project.yml`'s `EchoelmusicTests` target sources exactly one directory —
 // `Tests/CISmoke` — so the 300+ files under `Tests/EchoelmusicTests/` run only in the
@@ -12,15 +12,28 @@
 // config is founder-gated (#208); adding a source file to a directory the blocking
 // target already compiles is not. So this file is the lever that exists today.
 //
+// ⚠️ THE SHARP EDGE, because the sentence above is only true of the Xcode path:
+// `Package.swift`'s `.testTarget(name: "EchoelmusicTests")` declares NO `path:`, so
+// SwiftPM resolves the SAME NAME to `Tests/EchoelmusicTests` — the suite this file calls
+// non-blocking. `Tests/CISmoke` belongs to no SwiftPM target at all. `swift test`
+// therefore compiles the other suite and NEVER compiles this file, and a break here is
+// invisible to every SwiftPM command. One name, two directories. Not corrected here
+// because renaming either side is a build-config change; stated so nobody reads a green
+// `swift test` as evidence that these invariants ran.
+//
 // THE CHARTER, and it is deliberately narrow — a bundle that grows into a second copy
 // of the suite will be slow, will drift, and will stop being read: ONLY invariants
 // whose regression is (a) silent, (b) permanent within a session, and (c) audible as
 // SILENCE rather than as a wrong sound. Everything else belongs in the real suite.
 //
-// Yes, three of these are also asserted in `Tests/EchoelmusicTests/` — that duplication
-// is the point, not an oversight. Those copies are richer and cannot fail the build;
-// these four are the minimum that must never merge red. When #208's structural half
-// lands and the whole suite blocks, delete this file rather than growing it.
+// ALL FIVE of these are also asserted in `Tests/EchoelmusicTests/` — this file adds no
+// new coverage, it relocates existing coverage to where failing has consequences. That
+// duplication is the point. Those copies are richer and cannot fail the build; these
+// five are the minimum that must never merge red. Every assertion here pins a VALUE,
+// never just a predicate that zero also satisfies — the first draft asserted only
+// `isFinite` on the filter, and a "sanitize NaN to 0 Hz" fix would have passed it while
+// pinning the lowpass shut. When #208's structural half lands and the whole suite
+// blocks, delete this file rather than growing it.
 
 import XCTest
 @testable import Echoelmusic
@@ -39,8 +52,10 @@ final class SilenceClassSmokeTests: XCTestCase {
         XCTAssertFalse(clamped.isNaN, "a NaN clamp must not return a NaN")
         XCTAssertEqual(clamped, 0, "NaN maps to the lower bound — finite and in range")
 
-        // The bio path's real shape: a bad rPPG frame arriving as ±inf, on a range that
-        // does not start at zero.
+        // ±inf on a range that does not start at zero. Stated honestly: these two pass
+        // under the buggy `min(max(…))` too — infinity compares fine, only NaN does not —
+        // so they pin the RANGE behaviour, not the NaN guard. Kept because a bad rPPG
+        // frame arrives as either, dropped from the charter claim above.
         XCTAssertEqual(Float.infinity.clamped(to: 20...200), 200)
         XCTAssertEqual((-Float.infinity).clamped(to: 20...200), 20)
     }
@@ -62,49 +77,75 @@ final class SilenceClassSmokeTests: XCTestCase {
         XCTAssertEqual(glide.value, 2000, "snap has the same guard as advance")
     }
 
-    /// The rate law. A glide coefficient derived from an ASSUMED buffer size makes the
-    /// glide's wall-clock duration scale with whatever the host hands us — and the user
-    /// never chose the audio session's I/O size. 20 blocks of 240 frames and 5 blocks of
-    /// 960 are both exactly 0.1 s at 48 kHz and must land on the same value.
+    /// The rate law, driven through the REAL chain rather than a hand-built copy of its
+    /// arithmetic. That distinction is the whole value of this test: the regression that
+    /// can actually ship is `EchoelFXChain.advanceFilterGlide` caching its coefficient
+    /// against an ASSUMED 256 frames "for speed", which a test computing its own
+    /// `stepRateHz` would never see. 20 blocks of 240 frames and 5 blocks of 960 are both
+    /// exactly 0.1 s at 48 kHz and must land on the same value — with a fixed coefficient
+    /// they cannot, because the block COUNTS differ.
     ///
-    /// Silence-class because the failure is not merely "wrong speed": a coefficient
-    /// computed from a zero or non-finite rate returns 1 ("instant") at best, and the
-    /// arithmetic that produced it is one divide-by-zero away from feeding NaN into the
-    /// same recursive filters as the test above.
+    /// Silence-class because the failure is not merely "wrong speed": the same arithmetic
+    /// is one divide-by-zero away from feeding a NaN coefficient into the recursive filter
+    /// the test above protects.
     func testAGlideTakesTheSameWallClockTimeAtAnyBufferSize() {
         func landing(frames: Int, blocks: Int) -> Float {
-            let c = ParamGlide.coefficient(tauSeconds: ParamGlide.bioTau,
-                                           stepRateHz: 48000 / Float(frames))
-            var glide = ParamGlide(2000)
-            for _ in 0..<blocks { glide.advance(toward: 8000, coefficient: c) }
-            return glide.value
+            let fx = EchoelFXChain(sampleRate: 48000)
+            fx.filterEnabled = true          // snaps the mirror to the 2000 Hz default
+            fx.filterCutoff = 8000
+            var left = [Float](repeating: 0, count: frames)
+            var right = [Float](repeating: 0, count: frames)
+            for _ in 0..<blocks {
+                fx.processBuffer(left: &left, right: &right, frameCount: frames)
+            }
+            return fx.filterL.cutoff
         }
-        XCTAssertEqual(landing(frames: 240, blocks: 20),
-                       landing(frames: 960, blocks: 5), accuracy: 0.05,
+        let small = landing(frames: 240, blocks: 20)
+        XCTAssertEqual(small, landing(frames: 960, blocks: 5), accuracy: 0.05,
                        "0.1 s is 0.1 s — the host's buffer size must not change the glide")
+        // …and the absolute value, so "both wrong in the same direction" cannot pass:
+        // 8000 − 6000·e^(−0.1/0.05) by construction.
+        XCTAssertEqual(small, 7187.988, accuracy: 0.05, "0.1 s of a 50 ms one-pole")
 
-        // Degenerate rates must yield "instant", never a NaN coefficient.
+        // Degenerate rates must yield "instant" (1), never a frozen or NaN coefficient.
+        // The NEGATIVE case is the load-bearing one: without the input guard it clamps to
+        // 0 — a parameter that never reaches its target at all — whereas 0 and NaN both
+        // happen to fall out as 1 from the formula and the `isFinite` backstop, so those
+        // two cannot detect the guard's removal. Keeping them anyway costs nothing;
+        // relying on them would have been the `?? true` sentinel in a new dress.
+        XCTAssertEqual(ParamGlide.coefficient(tauSeconds: 0.05, stepRateHz: -100), 1,
+                       "a negative rate must not clamp to 0 and freeze the parameter")
+        XCTAssertEqual(ParamGlide.coefficient(tauSeconds: -0.05, stepRateHz: 100), 1)
         XCTAssertEqual(ParamGlide.coefficient(tauSeconds: 0.05, stepRateHz: 0), 1)
         XCTAssertEqual(ParamGlide.coefficient(tauSeconds: .nan, stepRateHz: 100), 1)
     }
 
     /// End to end on the real chain: a NaN written to the tone-filter TARGET — one bad
     /// frame away, since a 30 Hz bio driver writes that field — must reach neither the
-    /// state-variable filter's coefficients nor the output samples. Both paths into the
-    /// filter are exercised: the control-plane snap and a rendered block.
-    func testANaNFilterTargetProducesNeitherNaNCoefficientsNorNaNSamples() {
+    /// filter's cutoff/resonance inputs nor the output samples. (The derived `g`/`k`
+    /// coefficients are private and cannot be asserted; the inputs they are solved from
+    /// are the reachable proxy.) Both paths in are exercised: the control-plane snap and
+    /// a rendered block.
+    ///
+    /// ⚠️ The assertions pin the HELD VALUE, not just finiteness, and that is the point.
+    /// A plausible future "hardening" — `filterL.cutoff = c.isFinite ? c : 0` — sanitizes
+    /// the NaN away and pins the lowpass shut at 0 Hz: permanent silence, every sample
+    /// finite, an `isFinite`-only test green. Holding the LAST GOOD value is the contract.
+    func testANaNFilterTargetHoldsTheLastGoodValue_andEmitsNoNaNSamples() {
         let fx = EchoelFXChain(sampleRate: 48000)
-        fx.filterEnabled = true
+        fx.filterEnabled = true                 // snaps the mirror to the 2000 Hz / 0.3 default
         fx.filterCutoff = .nan
         fx.filterResonance = .nan
         fx.snapFilterToTarget()
-        XCTAssertTrue(fx.filterL.cutoff.isFinite, "a NaN must not reach the SVF via a snap")
-        XCTAssertTrue(fx.filterL.resonance.isFinite)
+        XCTAssertEqual(fx.filterL.cutoff, 2000, "a snap must HOLD, not sanitize to zero")
+        XCTAssertEqual(fx.filterL.resonance, 0.3, accuracy: 1e-6)
 
         var left = [Float](repeating: 0.25, count: 128)
         var right = [Float](repeating: 0.25, count: 128)
         fx.processBuffer(left: &left, right: &right, frameCount: 128)
-        XCTAssertTrue(fx.filterL.cutoff.isFinite, "…nor via a rendered block")
+        XCTAssertEqual(fx.filterL.cutoff, 2000, "…and so must a rendered block")
+        // The whole chain runs here, not just the filter — saturation, chorus and the
+        // limiter are on by default — so this also catches a NaN escaping any of those.
         XCTAssertTrue(left.allSatisfy { $0.isFinite }, "and no sample may come out NaN")
         XCTAssertTrue(right.allSatisfy { $0.isFinite })
     }
