@@ -187,9 +187,30 @@ public struct SignalRoute: Codable, Sendable, Identifiable, Equatable {
     public var sinkPortID: String
     public var enabled: Bool
     /// Intended transform depth / gain, [0..1] — but NO CONSUMER TODAY. It is persisted and
-    /// clamped and nothing reads it, so changing it has no audible or visible effect (#171:
-    /// wire it into the converters or drop it from the schema). Do not document it as if it
-    /// already scales anything.
+    /// clamped and nothing reads it, so changing it has no audible or visible effect. Do not
+    /// document it as if it already scales anything.
+    ///
+    /// ✅ DECIDED 2026-07-28 (#171): KEPT deliberately, not wired and not dropped. The three
+    /// options were weighed against what each costs:
+    /// - WIRE IT: there is nothing to wire it INTO. The converters are named identity
+    ///   transforms; depth-scaling them is a feature with its own design, not a Ralph slice.
+    /// - DROP IT: the `amount:` parameter on both `connect` overloads is the ONLY way to set
+    ///   this field (`routes` is `private(set)`, there is no setter), so dropping the field
+    ///   means dropping the parameter, and dropping the parameter means the concept has to be
+    ///   re-introduced through a persisted schema change the day a depth control lands. That
+    ///   is a one-way door bought for no benefit — every persisted value today is exactly the
+    ///   1.0 default, so there is no dead weight to clear and no user state at risk either way.
+    /// - KEEP: costs 4 bytes per route and one paragraph. This.
+    ///
+    /// ⚠️ IT IS NOT A LYING CONTROL, and that distinction is why "keep" is defensible here
+    /// while the founder's standing verdict on dead controls is "remove". Nothing in the UI
+    /// exposes it: no user can see or set it, so no one is being shown a knob that does
+    /// nothing. It is a schema slot with an honest comment.
+    ///
+    /// THE EXPIRY CONDITION, so this does not quietly become permanent: the moment ANYTHING
+    /// reads it, this paragraph and the two `connect` docs must be rewritten in the same
+    /// commit — and the moment a Patchbay control WRITES it while nothing reads it, that is
+    /// the lying control, and the control does not ship until the read side does.
     public var amount: Float
     /// Named converter id when source/sink kinds differ; nil for same-kind edges.
     public var converterID: String?
@@ -323,6 +344,12 @@ public struct SignalGraph: Codable, Sendable, Equatable {
 
     /// Connect if valid, picking the right converter automatically. Returns the new
     /// route, or nil if the connection is invalid (caller can show `check` reason).
+    ///
+    /// ⚠️ `amount` IS STORED, NOT APPLIED (#171 — see `SignalRoute.amount` for the decision
+    /// and its expiry condition). Passing 0.5 persists 0.5 and routes at full depth; no
+    /// caller in `Sources/` passes anything but the default. The parameter is kept because
+    /// it is the only way the field can be set at all, and removing it would make a future
+    /// depth control a schema change rather than a wiring change.
     @discardableResult
     public mutating func connect(sourceID: String, sinkID: String, amount: Float = 1.0) -> SignalRoute? {
         guard case let .ok(converterID) = check(sourceID: sourceID, sinkID: sinkID) else { return nil }

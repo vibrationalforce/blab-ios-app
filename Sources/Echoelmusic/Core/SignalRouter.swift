@@ -41,6 +41,9 @@ public final class SignalRouter {
     // MARK: - Editing (persisted)
 
     /// Connect if type-compatible (auto-picks the converter). Persists on success.
+    ///
+    /// ⚠️ `amount` is STORED, NOT APPLIED — see `SignalRoute.amount` (#171, decided
+    /// 2026-07-28: kept with an expiry condition, not wired and not dropped).
     @discardableResult
     public func connect(_ sourceID: String, _ sinkID: String, amount: Float = 1.0) -> Bool {
         guard graph.connect(sourceID: sourceID, sinkID: sinkID, amount: amount) != nil else { return false }
