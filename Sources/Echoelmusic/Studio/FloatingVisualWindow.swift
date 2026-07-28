@@ -731,9 +731,31 @@ struct FloatingVisualWindow: View {
                                              chromeHeight: handleHeight)
     }
 
+    /// Where a NON-fullscreen card parks before the user has dragged it.
+    ///
+    /// It sits above the control band, not on it. #157 moved the primary button to the
+    /// bottom of the studio and #197 made this card claim more of the box; each change
+    /// was right on its own, and together they parked the card on top of the app's most
+    /// important control — roughly its right-hand 40 %. That is worse than an ordinary
+    /// overlap, because this card is the PLAY SURFACE: a tap in the covered strip did not
+    /// miss the button, it played a synth note instead of starting biofeedback. And it was
+    /// the FIRST thing you met, since leaving fullscreen drops straight to `.small`.
+    ///
+    /// Only the DEFAULT moves. The drag clamp is untouched, so parking the card back over
+    /// the button stays the user's choice — this just stops the app from choosing it for
+    /// them. `clamp(_:in:card:)` still runs afterwards, so on a container too short to
+    /// afford the band the offset is absorbed rather than pushing the card off-screen — the
+    /// clamp can only move the card UP to `minY`, never back down onto the button.
+    ///
+    /// Measured clearance on a 393 × 852 portrait iPhone at the `.small` step: 16 pt, and it
+    /// is container-independent (`margin 12 + band 70 − card-half-offset 66`). Two limits
+    /// stated honestly: at the LARGE step in landscape the height cap can leave a few points
+    /// of residual overlap, and any card the user has ALREADY dragged keeps its position —
+    /// deliberately, since repositioning is theirs to decide.
     private func defaultCenter(in bounds: CGSize, card: CGSize) -> CGPoint {
         CGPoint(x: bounds.width - card.width / 2 - margin,
-                y: bounds.height - card.height / 2 - margin)
+                y: bounds.height - card.height / 2 - margin
+                    - FloatingVisualLayout.studioControlBandHeight)
     }
 
     /// Keep the whole card on screen (with the margin) whatever the size/drag.

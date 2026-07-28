@@ -138,17 +138,25 @@ struct PatchbayView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Network MIDI").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
             VStack(alignment: .leading, spacing: 6) {
+                // COPY IS DELIBERATELY TWO-DIRECTIONAL (corrected 2026-07-28). The label
+                // read "Receive wireless MIDI" and the off-state promised only that no
+                // INCOMING session is accepted. That understates the switch: disabling
+                // `MIDINetworkSession` withdraws the network endpoint as a CoreMIDI
+                // DESTINATION too, and `MIDIOutput.send` fans out to every destination —
+                // so wireless MIDI OUT to a Mac stops as well. A control that names half
+                // of what it does is the repo's own "lying control" class; the rationale
+                // in MIDIInput being framed as inbound-only is what led the copy astray.
                 Toggle(isOn: $networkMIDI) {
-                    Text("Receive wireless MIDI")
+                    Text("Wireless MIDI session")
                         .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
                 }
                 .tint(EchoelTheme.accent)
                 .accessibilityHint(networkMIDI
-                    ? "On. Any device on your local network can open a MIDI session with this iPhone."
-                    : "Off. No incoming wireless MIDI session is accepted.")
+                    ? "On. Any device on your local network can open a MIDI session with this iPhone, and this iPhone can send MIDI out over the network."
+                    : "Off. No wireless MIDI session in either direction.")
                 Text(networkMIDI
-                     ? "This iPhone accepts a MIDI session from any device on your local network — a Mac's Network MIDI, rtpMIDI, or a compatible app. Turn it off when you are on a network you do not control."
-                     : "Off. This iPhone does not announce itself for wireless MIDI and accepts no incoming session. Turn it on to play the instrument from a Mac or another device over the network.")
+                     ? "This iPhone accepts a MIDI session from any device on your local network — a Mac's Network MIDI, rtpMIDI, or a compatible app — and appears to them as a wireless MIDI destination. Turn it off when you are on a network you do not control."
+                     : "Off. This iPhone does not announce itself for wireless MIDI: no incoming session is accepted, and it no longer appears as a wireless MIDI destination, so MIDI out over the network stops too. Turn it on to play the instrument from a Mac, or to play a Mac from here, over the network.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }

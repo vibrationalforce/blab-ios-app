@@ -627,10 +627,12 @@ struct EchoelStudioView: View {
             // generics out of the root body type, same discipline as menuBar. Reordering
             // siblings does not change the root VStack's child COUNT, so the aggregate
             // generic type is the same size as before — this is a move, not a fifth child.
+            // The two paddings come from FloatingVisualLayout for the same reason as the
+            // height above: together they are the control band the docked visual clears.
             AnyView(startButton
                 .padding(.horizontal, 16)
-                .padding(.top, 4)
-                .padding(.bottom, 10))
+                .padding(.top, FloatingVisualLayout.startButtonTopPadding)
+                .padding(.bottom, FloatingVisualLayout.startButtonBottomPadding))
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
         // text size until the user explicitly zooms. For users who need larger text.
@@ -1038,7 +1040,14 @@ struct EchoelStudioView: View {
                   systemImage: running ? "stop.circle.fill" : "waveform.path.ecg")
                 .font(EchoelTheme.font(17, .semibold))
                 .foregroundStyle(running ? EchoelTheme.text : .black)
-                .frame(maxWidth: .infinity).frame(height: 56)
+                // Height comes from FloatingVisualLayout, not a literal, because the docked
+                // floating visual lifts itself by exactly this band to avoid covering this
+                // button (it once covered ~40 % of it, and since that card is the play
+                // surface, taps there played a note instead of starting biofeedback).
+                // Changing the number here now moves the card too, instead of silently
+                // re-creating the overlap.
+                .frame(maxWidth: .infinity)
+                .frame(height: FloatingVisualLayout.startButtonHeight)
                 // Website CI: primary action = off-white fill, black label (.btn-primary).
                 // Green is reserved for live bio signal, not chrome. Stop = neutral fill.
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)

@@ -8582,3 +8582,67 @@ hinter `_detailedMetering` gegated.
 **Gates:** Xcode Compile Check grün auf `5c6a06e`; CI/CD Pipeline lief beim Schreiben noch.
 **Nicht geräteverifiziert:** alles aus dieser Session. Der Limiter-Klang ist die eine Sache,
 die der Founder hören muss.
+
+---
+
+## 2026-07-28 — Acht Commits nach v354, ein Blocker vom eigenen Audit gefangen, Deploy v10.79.355
+
+**Branch:** `claude/echoelmusic-neustart-auv3-6ri2ek` (der Cron-Prompt nennt bis heute
+`claude/piano-roll-clip-view-wozlie-5kxnrl` — das ist FALSCH und war die gefährlichste
+stehende Unwahrheit im Projekt; `scratchpads/HANDOVER_2026-07-28.md` ersetzt ihn).
+
+**Geshippt in dieser Session (alle Gates grün):**
+- `11a2076` + `ae386cb` — eingehendes Netzwerk-MIDI bekommt einen Schalter, Default AUS (#187).
+  Der erste Anlauf griff nicht: das Abschalten lag hinter zwei unbeteiligten Fehler-Guards.
+  **#187 ist damit GESCHLOSSEN** — der letzte Log-Eintrag sagt noch „bleibt offen", das gilt nicht mehr.
+- `34e2355` + `ed083a6` — `PollingRateCeiling`: der `bioHz`-Regler des Governors erreicht endlich
+  eine Schleife (`OSCSender`). `PollingLoop.start` hatte das Intervall in seinen `Task` gebacken,
+  deshalb konnte der Regler strukturell keinen Konsumenten haben. **Es ist eine DECKELUNG, kein
+  Ziel** — als Ziel gelesen würde sie Schleifen auf einem ladenden Telefon beschleunigen.
+- `5c612d1` — der Tonhöhen-Farbkreis (`hue01`, `oklab(forFrequency:)`, `color(forFrequency:)`,
+  `color(forChord:)`, `hueOffsetDegrees`) ist GELÖSCHT. Eine Farbsprache: physikalisch
+  oktav-transponiert über CIE 1931, Akkorde amplitudengewichtet in OKLab gemischt. OKLab
+  überlebt als MISCHRAUM, nie als Tonhöhen→Farbton-Abbildung. App-Store-Text mitgezogen
+  (er bewarb „perceptual pitch-to-hue" namentlich).
+- `7db996c` — `FloatingVisualLayout`: das schwebende Fenster bemisst sich adaptiv statt aus zwei
+  unabhängigen Bruchteilen. Querformat-„klein" war ein 324 × 76 pt Briefschlitz — und dieses Bild
+  IST die Spielfläche.
+- `6c9ca28` — #157 Teil 1: Chip-Leiste auf die Frontplatte, Start-Knopf ans Ende des Root-VStack,
+  Trennlinie gelöscht. Modifier-Budget im Kommentar von falschen 16 auf wahre 14 korrigiert.
+- `e1a8932` — Übergabe-Prompt + Deploy-Note als Entwurf.
+
+**DER BLOCKER, den das Vor-Deploy-Audit fing (und der ohne es auf das Gerät gegangen wäre):**
+#157 und #197 waren einzeln beide richtig und ergaben zusammen einen echten Defekt — der
+Start-Knopf wanderte an den unteren Rand, das adaptive Fenster dockt unten rechts, und es
+verdeckte ~40 % des wichtigsten Controls der App. Schlimmer als eine gewöhnliche Überlappung,
+weil die Karte die SPIELFLÄCHE ist: ein Tipp im verdeckten Streifen verfehlte den Knopf nicht,
+er spielte eine Synth-Note statt Biofeedback zu starten. Und es war das ERSTE, was man trifft
+(Verlassen des Vollbilds landet direkt auf `.small`). Fix: `defaultCenter` hebt die Karte um die
+Höhe des Steuerbands (70 pt). Nur der DEFAULT — die Drag-Klemme bleibt unberührt.
+**Lehre für den Ledger:** zwei je für sich korrekte Layout-Slices können einen Defekt ERZEUGEN,
+den kein Einzel-Review sieht. Ein Vor-Deploy-Durchgang, der die Slices GEMEINSAM betrachtet,
+ist deshalb kein Luxus.
+
+**Ebenfalls gefixt:** die Netzwerk-MIDI-Zeile war eine lügende Kontrolle — das Abschalten der
+`MIDINetworkSession` entzieht auch den Netzwerk-Endpunkt als DESTINATION, drahtloses MIDI OUT
+hört also mit auf. Text sagt das jetzt in beide Richtungen.
+
+**Gedächtnis begradigt:** `decisions.csv` 109/117/120 (der Farbkreis stand als ACTIVE
+formulierte Dauerregel — eine Session hätte fünf gelöschte Funktionen nachgebaut),
+`CLAUDE.md` Adaptive-Quality-Zeile (behauptete eine FPS-Steuerung, die es nie gab),
+`memory/decisions.md` (die Evidenz, die den Piano-Roll-Streit entschied, war falsch —
+der Publish sitzt in `PianoRollModel`, nicht in der View).
+
+**Neu auf der Liste, gegen den Quelltext geprüft:** #200 Loop-Recording (LoopBarLength kennt
+kein 64; RetroCapture-Ring ist 30 s, 64 Takte @120 BPM sind 128 s → Noten-Ring statt Audio-Ring),
+#201 Ultrasync (das Touch-Instrument quantisiert die TONHÖHE, nicht die ZEIT — genau die Lücke;
+`MIDINoteRecorder`/`RecordAnchor`/`Humanizer` liegen fertig und unverbunden da), #202
+Wetter/Standort sind gebaut UND erreichbar (Transport „•••" → Session), Cloud existiert nicht
+(`CloudSync` hat null Aufrufer).
+
+**Offener Gerätefund aus dem Audit (nicht neu, nicht von diesem Build):** „Keep last 16/32 bars"
+kann bei normalem Tempo nicht funktionieren — der Export lehnt alles über 29,5 s ab, und die
+Fehlermeldung wird verschluckt. Man tippt, nichts passiert, kein Hinweis. Vor dem Loop-Test wissen.
+
+**Gates:** alle fünf grün auf `6c9ca28`. **Testdateien: 306.**
+**Nicht geräteverifiziert:** alles. Layout und Farbe sind genau die Klasse, die man sehen muss.

@@ -156,6 +156,52 @@ final class FloatingVisualLayoutTests: XCTestCase {
         XCTAssertGreaterThan(c.width, 330, "portrait large must stay a big picture")
     }
 
+    // MARK: - The studio control band (the docked card must not cover the primary button)
+
+    /// The card once parked on top of the "Create from Within"/Stop button, covering ~40 %
+    /// of it — and because the card is the PLAY SURFACE, a tap in the covered strip played
+    /// a synth note instead of starting biofeedback. `FloatingVisualWindow.defaultCenter`
+    /// lifts the card by `studioControlBandHeight`, and `EchoelStudioView` builds the button
+    /// from the SAME three constants. This test is what makes that agreement non-silent:
+    /// neither `defaultCenter` nor the button is reachable from a Foundation-level test
+    /// (both live behind `#if canImport(SwiftUI) && canImport(MetalKit) && canImport(UIKit)`),
+    /// so the shared constants are the only surface a CI test can hold still.
+    func testStudioControlBand_isExactlyTheButtonPlusItsPadding() {
+        XCTAssertEqual(FloatingVisualLayout.studioControlBandHeight,
+                       FloatingVisualLayout.startButtonHeight
+                       + FloatingVisualLayout.startButtonTopPadding
+                       + FloatingVisualLayout.startButtonBottomPadding,
+                       accuracy: 1e-9,
+                       "the band must be the button's full vertical footprint, or the docked card covers it")
+    }
+
+    /// A restyle that shrinks the button toward nothing would quietly stop the card from
+    /// clearing it. Pin the band to a range that keeps a 44 pt HIG-sized control plus air.
+    func testStudioControlBand_staysBigEnoughToBeWorthClearing() {
+        XCTAssertGreaterThanOrEqual(FloatingVisualLayout.startButtonHeight, 44,
+                                    "the primary control must stay at least HIG tap size")
+        XCTAssertGreaterThan(FloatingVisualLayout.studioControlBandHeight,
+                             FloatingVisualLayout.startButtonHeight,
+                             "the band must include the paddings, not just the button")
+    }
+
+    /// The clearance the fix actually buys, expressed as the arithmetic it comes from:
+    /// the card's own margin plus the band, minus the half-card offset the dock already
+    /// applied. Container-independent, which is why it can be asserted without a device.
+    func testDockedCard_clearsTheButton_atTheSmallStep() {
+        let bounds = CGSize(width: 393, height: 759)   // portrait iPhone, inside app chrome
+        let c = card(bounds, FloatingVisualLayout.smallStep)
+        let centerY = bounds.height - c.height / 2 - margin
+            - FloatingVisualLayout.studioControlBandHeight
+        let cardBottom = centerY + c.height / 2
+        let buttonTop = bounds.height - FloatingVisualLayout.startButtonBottomPadding
+            - FloatingVisualLayout.startButtonHeight
+        XCTAssertLessThan(cardBottom, buttonTop,
+                          "the docked card must end above the primary button, not on it")
+        XCTAssertGreaterThan(buttonTop - cardBottom, 10,
+                             "clearance must be visible, not a rounding accident")
+    }
+
     // MARK: - Degenerate input (nothing here may trap or return nonsense)
 
     func testTinyContainer_returnsSomethingUsable_neverNegative() {

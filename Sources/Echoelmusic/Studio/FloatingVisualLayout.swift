@@ -60,6 +60,33 @@ public enum FloatingVisualLayout {
     public static let mediumStep: CGFloat = 0.66
     public static let largeStep: CGFloat = 0.94
 
+    // MARK: The studio's bottom control band
+    //
+    // These three own the primary "Create from Within"/"Stop" button's vertical footprint,
+    // and they live HERE — in the pure, CI-tested type — rather than as literals in the two
+    // views that need them to AGREE. `EchoelStudioView` builds the button from them; this
+    // file's `studioControlBandHeight` is what `FloatingVisualWindow.defaultCenter` lifts
+    // the docked card by, so the card cannot park on the button.
+    //
+    // WHY THE INDIRECTION IS WORTH IT. The card once covered ~40 % of that button, and
+    // because the card is the PLAY SURFACE, a tap in the covered strip played a synth note
+    // instead of starting biofeedback. The first fix hardcoded 70 in the window file with a
+    // comment asking the next person to keep it in step — but that comment sits in the file
+    // nobody opens when they restyle a button. Now the dependency is a compile-time one and
+    // `FloatingVisualLayoutTests` pins the sum, so a restyle that would re-create the overlap
+    // cannot pass silently.
+    //
+    // Safe as a constant: `StudioZoom` scales via `dynamicTypeSize`, not `scaleEffect`, and
+    // the button's height is a hard `.frame(height:)` — so the band does NOT grow at
+    // accessibility text sizes. If that ever changes, this is the thing to make dynamic.
+    public static let startButtonHeight: CGFloat = 56
+    public static let startButtonTopPadding: CGFloat = 4
+    public static let startButtonBottomPadding: CGFloat = 10
+    /// Total height the studio's primary control claims at the bottom of the window.
+    public static var studioControlBandHeight: CGFloat {
+        startButtonHeight + startButtonTopPadding + startButtonBottomPadding
+    }
+
     /// Floor on the picture itself (NOT the card): below this a concentric visual has no
     /// room and the play surface is untappable. It is a floor, never an override — the
     /// lift is capped by what the available box can hold, so a container too small to
