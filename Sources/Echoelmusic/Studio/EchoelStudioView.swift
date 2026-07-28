@@ -2348,8 +2348,11 @@ struct EchoelStudioView: View {
     /// likely reason to reach for this than one on the composer's synth, so the button failed
     /// precisely in the case it exists for.
     ///
-    /// NOT COVERED BY A TEST: this method is `private` on a `View` struct, so XCTest cannot
-    /// reach it — nothing fails if a release is dropped from this list. Task #168 is the seam.
+    /// TESTED, as of #168 — but only half of it, and the half matters. The fan-out itself now
+    /// lives in `PanicFanOut` (`Sequencer/PanicFanOut.swift`), which XCTest can hand spies to,
+    /// so dropping a release from the mapping fails a test. What NO test can see is a voice
+    /// that never reaches the array BELOW: that inventory is this method's alone, which is why
+    /// the last paragraph here is still the only enforcement.
     ///
     /// `pianoRoll.allNotesOff()` comes FIRST and is not redundant with the direct releases
     /// below: it also CLEARS the roll's `active` note table. Without it the roll still
@@ -2364,14 +2367,19 @@ struct EchoelStudioView: View {
     /// If a new note-producing voice is added to this view, it belongs here in the same edit.
     /// Nothing in the type system enforces that — this comment is the enforcement.
     private func panicAllNotesOff() {
-        pianoRoll.allNotesOff()     // releases poly/lead/sub/kind/MIDI AND clears `active`
-        synth.allNotesOff()
-        subBass.allNotesOff()
-        leadSynth?.allNotesOff()
-        touchSynth?.allNotesOff()
-        bioVoice.panic()            // mono release + clears a stuck controller-held latch
-        laneVoiceRack.allNotesOff()
-        midiOut.allNotesOff()
+        // ORDER IS LOAD-BEARING — `pianoRoll` first, see `PanicFanOut`'s doc. The two
+        // optionals are genuinely absent until their surfaces exist; `PanicFanOut` skips
+        // nil rather than the caller pre-filtering, so the array reads as the inventory.
+        PanicFanOut([
+            pianoRoll,        // releases poly/lead/sub/kind/MIDI AND clears `active`
+            synth,
+            subBass,
+            leadSynth,
+            touchSynth,
+            bioVoice,         // mono release + clears a stuck controller-held latch
+            laneVoiceRack,
+            midiOut
+        ]).releaseAll()
     }
 
     // MARK: Panel — Visual (immersive sound→light)
