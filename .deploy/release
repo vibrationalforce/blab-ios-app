@@ -1,87 +1,115 @@
-build: v10.79.355 — acht Commits, und ein Fehler, den erst ihr Zusammenspiel erzeugt hat
+build: v10.79.356 — Ultrasync, Loop-Takte bis 64, Abbruch der Aufnahme, und eine Szene für den Beamer
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
-  still unter der alten Version und landet in TestFlight UNTER dem vorherigen — genau so
-  ist es schon einmal passiert. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
+  still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der letzte Build auf Deinem Gerät ist 10.79.354. Seither lagen acht Commits hier und
-  keiner davon war bei Dir. Sie kommen jetzt alle mit.
+  Der letzte Build auf Deinem Gerät ist 10.79.355. Dieser hier bringt Deine drei Wünsche
+  vom 28.7. — Ultrasync, Loop-Recording mit 2/4/8/16/32/64 Takten, und den Abbruch einer
+  verspielten Aufnahme — plus die erste Scheibe der Beamer-Ausgabe.
 
-  ZUERST DAS, WAS DU SOFORT SIEHST.
+  ── 1. ULTRASYNC: DAS TOUCH-INSTRUMENT IM TAKT ──────────────────────────────
 
-  1) DAS HAUPTFENSTER LIEST SICH ALS INSTRUMENT, NICHT ALS FORMULAR. Der Start-Knopf saß
-     zwischen der Chip-Leiste und der Platte darunter — und hat damit das eine Objekt,
-     die Reiter plus die Fläche, die sie umschalten, mittendurch geschnitten. Er sitzt
-     jetzt darunter: er verankert, statt zu teilen, und liegt einhändig in Daumenreichweite.
-     Die dünne Trennlinie unter den Chips ist weg; sie war die Unterkante einer MENÜLEISTE,
-     also genau die Grammatik, die wir loswerden wollten. Die ganze Bedienplatte rutscht
-     dadurch etwa eine Daumenbreite nach oben.
+  Deine Formulierung war: „damit das Touch Instrument immer perfekt im Timing ist auch
+  microtime (somit wird ungeschicktes Spielen auch zum ästhetischen Ereignis)". Genau so
+  ist es gebaut.
 
-  2) DAS SCHWEBENDE VISUAL-FENSTER BEMISST SICH ADAPTIV. Es rechnete sich vorher als zwei
-     UNABHÄNGIGE Bruchteile des Containers aus, mit Mindestwerten, die im Querformat
-     gebunden haben statt der Bruchteile. „Klein" kam auf einem Querformat-iPhone als
-     324 × 120 pt heraus, davon 44 pt Leiste — ein 324 × 76 pt Bild. Dieses Bild IST die
-     Spielfläche, der Briefschlitz hat also die Achse plattgedrückt, die die Oktavhöhe
-     trägt. Jetzt folgt es der Ausrichtung des Containers, in ein brauchbares
-     Seitenverhältnis geklemmt. Klein und mittel sind spürbar höher als vorher.
+  Neu im Touch-Reiter: ein Regler „Sync" (0…1) und ein Menü „Grid" (1/4 bis 1/32).
+  Sync 0 = wie bisher, der Ton kommt sofort. Sync 1 = der Ton wartet auf das nächste
+  Rasterfeld. Alles dazwischen zieht ihn anteilig hin. STANDARD IST AUS, und ein Test hält
+  das fest — es ändert, WANN ein gespielter Ton klingt, und das ist das Intimste an einem
+  Instrument; das trifft man nicht durch ein Update überrascht.
 
-  UND JETZT DER FEHLER, DEN DAS AUDIT VOR DEM DEPLOY GEFANGEN HAT — weil er zeigt, wie
-  diese beiden je für sich richtigen Änderungen zusammen etwas Falsches ergeben haben.
-  Der Knopf wanderte an den unteren Rand. Das Fenster dockt unten rechts. Zusammen lag
-  die Karte auf den rechten ~40 % Deines wichtigsten Controls. Das ist schlimmer als eine
-  gewöhnliche Überlappung: die Karte ist die SPIELFLÄCHE, ein Tipp im verdeckten Streifen
-  hat den Knopf also nicht verfehlt, sondern eine Synth-Note gespielt statt Biofeedback zu
-  starten. Und es wäre das Erste gewesen, was Du triffst — beim Verlassen des Vollbilds
-  landet das Fenster direkt auf „klein". Behoben: die Karte parkt jetzt um die Höhe des
-  Steuerbands höher. Nur die VOREINSTELLUNG — Du kannst sie weiterhin überall hinziehen,
-  auch zurück über den Knopf. Kein Einzel-Review hätte das gesehen; es entsteht erst,
-  wenn man beide Änderungen gemeinsam anschaut.
-  Nachgerechnet: 16 pt Abstand im Hochformat bei „klein", unabhängig von der Bildschirm-
-  größe. Zwei Grenzen sage ich dazu, statt sie zu verschweigen: bei „groß" im QUERFORMAT
-  können ein paar Punkte Überlappung bleiben, und eine Karte, die Du schon einmal selbst
-  gezogen hast, behält ihre Position — das ist Absicht, Deine Platzierung gehört Dir.
+  DAS ENTSCHEIDENDE DETAIL, DAMIT ES SICH NICHT TOT ANFÜHLT: nur der Ton wartet. Haptik,
+  Wasserring und Farbwolke feuern in dem Moment, in dem der Finger landet. Die Hand kriegt
+  sofort Antwort, nur die Note geht aufs Raster. Ohne diese Trennung fühlt sich jedes
+  Quantisieren nach Verzögerung an statt nach Groove.
 
-  WAS SICH SONST GEÄNDERT HAT.
+  Das „microtime" reitet bewusst auf dem vorhandenen „Life"-Regler mit, statt einen dritten
+  Knopf aufzumachen. Life hat schon versprochen „zwei identische Tipper klingen nie
+  identisch" — Dein „auch microtime" ist dasselbe Versprechen, angewandt auf die Zeit.
 
-  DRAHTLOSES MIDI IST JETZT STANDARDMÄSSIG AUS. Wenn ein Mac Dir bisher über WLAN Noten
-  geschickt hat, ist diese Verbindung nach dem Update tot, bis Du sie EINMAL wieder
-  einschaltest: Routing → „Wireless MIDI session". Das ist die Umsetzung Deiner
-  Entscheidung vom 27.7. und kein Fehler — aber es sieht wie einer aus, wenn man es nicht
-  weiß. Der Schalter schließt übrigens BEIDE Richtungen: das Telefon nimmt keine Sitzung
-  mehr an und erscheint auch nicht mehr als drahtloses MIDI-Ziel. Der Text am Schalter sagte
-  nur die halbe Wahrheit und sagt jetzt beide.
+  Was ich Dir dazu ehrlich sage, weil es Dein Ohr entscheidet: bei GESWUNGENEN GENRES zielt
+  das Raster auf das GERADE Raster, nicht auf den Swing. Auf Jazz mit starkem Swing kann
+  Sync 1 sich deshalb gegen die Musik stellen. Steht als Nacharbeit auf der Liste; ich
+  wollte es Dir nicht verschweigen, damit Du es nicht für einen Fehler hältst.
 
-  DIE FARBE DER TÖNE IST ÜBERALL DIESELBE SPRACHE. Es gab zwei nebeneinander: einen frei
-  erfundenen „Tonhöhe → Farbton"-Kreis und den echten Weg, der die Frequenz eines Tons um
-  ganze Oktaven ins sichtbare Licht transponiert (CIE 1931, Akkorde amplitudengewichtet in
-  OKLab gemischt). Der erfundene ist gelöscht. Licht über Art-Net/sACN und das Bild sprechen
-  jetzt dieselbe. Sichtbar ändert sich für Dich nichts — der gelöschte Weg war in dem Build,
-  den Du hast, ohnehin unbenutzt. Der App-Store-Text bewarb ihn namentlich; auch korrigiert.
+  ── 2. LOOP-RECORDING: 2/4/8/16/32/64 TAKTE — UND EINE EHRLICHE GRENZE ──────
 
-  DER AKKU-REGLER HATTE KEINE SCHLEIFE. Man konnte die Bio-Abtastrate herunterdrehen und
-  niemand hat zugehört. Jetzt greift sie — aber nur bei kritischer Hitze oder unter 10 %
-  Akku, und nur auf EINE Netzwerkausgabe. Im normalen Betrieb merkst Du nichts.
+  Die Taktlängen gehen jetzt bis 64 (vorher 16). Aber der wichtigere Teil ist der, den ich
+  Dir im letzten Deploy als offenen Fehler genannt habe:
 
-  WAS ICH NICHT WEISS, UND DU MIT EINEM BLICK.
-  · Auf kurzen Reitern (Export, FX, Mood, Bio) steht die schwarze Leere jetzt ZWISCHEN
-    Karte und Knopf statt am Fensterende. Nicht neu entstanden, nur umgezogen. Ob der
-    Knopf dadurch losgelöst statt verankernd wirkt, entscheidet Dein Auge.
-  · Auf dem Bio-Reiter liegt weder Linie noch Kartenkante unter der Chip-Leiste — es ist
-    das einzige Panel ohne eigene Karte. Die Chips tragen eigene Ränder, es sollte halten.
-  · Aus dem Vorgängerbuild noch offen: knistert der Limiter wirklich nicht mehr? Und pumpt
-    dünnes Flow-Material jetzt? Beides braucht Dein Ohr, nicht meine Messung.
+  „Keep last 16 bars" hat bei normalem Tempo NICHT funktioniert und es nicht gesagt. Der
+  Zwischenspeicher ist knapp 30 Sekunden lang; ein Takt bei 120 BPM sind 2 Sekunden. Du
+  hast getippt, und es passierte nichts — ohne Hinweis. Jetzt rechnet der Knopf mit Deinem
+  aktuellen Tempo und nennt die WAHRE Obergrenze, statt eine Länge anzubieten, die er nicht
+  halten kann. Bei 120 BPM ist das die 8; bei langsamem Tempo mehr, bei schnellem weniger.
+  Der Knopf ändert seine Beschriftung mit dem Tempo mit.
 
-  EIN FUND, DEN DU VOR DEM LOOP-TESTEN WISSEN SOLLTEST (nicht neu, nicht aus diesem Build):
-  „Keep last 16 bars" und „Keep last 32 bars" KÖNNEN bei normalem Tempo nicht funktionieren.
-  Der Zwischenspeicher ist 30 Sekunden lang, ein Takt bei 120 BPM sind 2 Sekunden — die
-  Obergrenze liegt also bei knapp 15 Takten. Die App lehnt es korrekt ab, verschluckt die
-  Meldung aber: Du tippst, und es passiert nichts, ohne Hinweis. Steht als #200 auf der
-  Liste, zusammen mit Deinem Wunsch nach 2/4/8/16/32/64 Takten.
+  Das Rückwirkende ist damit ehrlich. Das „ab dem ersten Takt" — also mitschneiden ab jetzt
+  für N Takte — läuft über den normalen Aufnahme-Knopf.
 
-  Beide echten Gates grün auf 6c9ca28 (Xcode Compile Check + CI/CD Pipeline); die
-  306-Datei-Testsuite läuft mit. Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Thread
-  weiterhin sperr- und allokationsfrei. Alles hier ist compile-verifiziert, NICHT
-  geräteverifiziert — Layout und Farbe sind genau die Klasse, die man sehen muss.
+  ── 3. DIE AUFNAHME LÄSST SICH ABBRECHEN ────────────────────────────────────
+
+  „Es ist schon wichtig das man die Aufnahme dann auch abbrechen kann, wenn man sich
+  verspielt hat." Der Aufnahme-Knopf wird während der Aufnahme zum Abbruch-Knopf
+  („Stop and discard this take", Stop-Symbol). Ein Tipp: Transport aus, Datei gelöscht,
+  zurück auf Anfang. Es bleibt nichts liegen.
+
+  Zwei Dinge, die beim Bauen fast schiefgegangen wären und die ich benenne, weil sie genau
+  die Klasse Fehler sind, die man erst auf dem Gerät merkt: der Abbruch hätte den Knopf für
+  den Rest der Sitzung tot lassen können (die Aufnahme-Schicht ruft ihren Rückruf NICHT auf,
+  wenn gar nicht aufgenommen wird — der Export hätte ewig gewartet). Und der Knopf hätte
+  nach dem Abbruch weiter „Stop" angezeigt und Tipper ignoriert. Beides ist geschlossen.
+  Die Phase NACH dem Abbruchfenster — während die .wav geschrieben wird — ist bewusst nicht
+  abbrechbar; da ist die Aufnahme fertig, es wird nur noch gerechnet.
+
+  ── 4. EIN LEISER FEHLER IN DER KLANGFARBE DES BILDES ───────────────────────
+
+  Aus Deinem Log 2472: fünf klingende Noten, alle mit Anschlagstärke 0. Die Musik meldete
+  „ich klinge" an Bild und Licht, obwohl niemand etwas hört. Ergebnis: Visual und Lampen
+  konnten auf eine Stille reagieren. Noten unterhalb der Hörschwelle zählen jetzt nicht mehr
+  als klingend. Die Diagnosezeile zeigt beide Zahlen (hörbar/aktiv), damit der Unterschied
+  nicht wieder unsichtbar wird.
+
+  ── 5. BEAMER-AUSGABE, SCHEIBE 1 — UND WAS ICH VON DIR BRAUCHE ──────────────
+
+  Deine Frage: „Macht es Sinn so ein Bild in Bild Fenster … damit man das Bild für die
+  visuals für einen anderen Bildschirm, Beamer etc nutzen kann?" Antwort in kurz: Bild-in-
+  Bild ist das falsche Werkzeug — es hält ein Video über ANDEREN APPS auf DEMSELBEN Gerät
+  und erreicht per Definition keinen zweiten Bildschirm. Spiegeln (AirPlay/HDMI) geht heute
+  schon ohne jede Zeile Code, zeigt aber die ganze Bedienoberfläche mit. Du hast Dich für
+  die eigene Ausgabe-Szene entschieden, und die ist der einzige unterstützte Weg, auf dem
+  der Beamer etwas ANDERES zeigt als das Telefon, während das Telefon spielbar bleibt.
+
+  ⚠ DIESE SCHEIBE ZEIGT ABSICHTLICH FAST NICHTS. Am Beamer erscheint schwarz mit dem Wort
+  ECHOEL. Das Visual kommt in Scheibe 2. Der Grund: das Risiko ist nicht der zweite
+  Bildschirm, sondern der START. Diese Änderung fasst den Startpfad an, und diese App hat
+  eine dokumentierte Schwarzbild-Geschichte. Ich will EINE Frage von Dir beantwortet haben,
+  bevor ich Metal auf die zweite Szene lege:
+
+  STARTET DIE APP NORMAL — OHNE IRGENDETWAS ANGESCHLOSSEN? Ein einziger normaler Start
+  reicht mir. Wenn ja, baue ich das Visual drauf. Wenn nein, ist es ein Commit zum
+  Zurücknehmen.
+
+  Nebenwirkung, die ich nenne, weil sie NICHT bestellt war: der Schalter dafür gilt app-weit,
+  und wir bauen auch für iPad. Auf einem iPad lässt sich damit nun ein ZWEITES App-Fenster
+  öffnen. Damit dessen Start nicht ein zweites Mal über die schon laufende Audio-Engine
+  fährt (genau die Form, die dem Startabsturz von Build 1363 zugeschrieben wird), läuft der
+  Startlauf jetzt garantiert nur einmal pro Prozess.
+
+  ── WAS NICHT GEPRÜFT IST ───────────────────────────────────────────────────
+
+  Alles hier ist compile-verifiziert (beide echten Gates grün), NICHT geräteverifiziert.
+  Drei Dinge kann nur Dein Gerät beantworten:
+  · Der normale Start (siehe oben) — das ist die wichtigste.
+  · Ob Ultrasync sich musikalisch anfühlt oder nach Verzögerung. Ein hängengebliebener Ton
+    wäre ebenfalls hier zu sehen; die Review hat drei solche Fälle vorher gefunden und
+    geschlossen, aber CI kann eine hängende Note nicht fangen.
+  · Aus dem Vorgängerbuild noch offen: knistert der Limiter wirklich nicht mehr, und pumpt
+    dünnes Flow-Material?
+
+  Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Thread weiterhin sperr- und
+  allokationsfrei.
