@@ -11,10 +11,24 @@
 // So the bottom of the surface is the lowest AND most filtered note there is. Nothing
 // compensated: this app has no key tracking and no filter make-up gain anywhere.
 //
+// ⚠️ TWO THINGS THE FIRST VERSION OF THIS FIX GOT WRONG, both found in review and both worth
+// knowing before touching the constants again:
+//   · The weights were mis-apportioned. The filter term was 2.5 dB/oct — but the cutoff sits
+//     4–40× above the fundamental for every factory patch, so a 12 dB/oct lowpass barely
+//     moves the energy, and the app's own `SynthPatch.loudnessEstimate` has no cutoff term at
+//     all. Meanwhile ISO 226 across this surface's register (130…523 Hz) falls 4–5 dB/octave,
+//     so PITCH is the dominant cause and it carried the smaller weight. Corrected, with the
+//     corner total held near 3 dB so nothing about the shape or the safety changed.
+//   · A velocity factor is not an amplitude factor: the engine applies `pow(velocity, expo)`
+//     with `expo` up to 1.5 on percussive patches, so the delivered dB is larger than the
+//     number in the doc comment. `evenness` is now set against that.
+//
 // ⚠️ WHAT THESE TESTS CAN AND CANNOT SETTLE. They pin the SHAPE and the SAFETY of the
 // correction — monotone in the right direction, never boosting, bounded, NaN-proof,
-// switchable off. They cannot tell you whether 2.5 dB/octave is the right number for this
-// synth's spectrum: that is an ear at a device, and the constants are documented as estimates.
+// switchable off. They cannot tell you whether 1.0 and 3.0 dB/octave are the right numbers for
+// this synth's spectrum: that is an ear at a device, and the constants are documented as
+// estimates — the review above changed both of them without a single test going red, which is
+// exactly the limit being stated.
 // A green run here means "this cannot clip, cannot flatten, cannot explode" — not "it sounds
 // even". Do not report it as the latter.
 
@@ -40,8 +54,11 @@ final class TouchEvennessSmokeTests: XCTestCase {
         }
     }
 
-    /// …and it is BOUNDED below, so no extreme cutoff can mute a note. The engine clamps
-    /// cutoff to 0.1…8, which alone reaches −9 dB through the filter term.
+    /// …and it is BOUNDED below, so no extreme cutoff can mute a note. Note what the floor is
+    /// NOT: at the corrected weights the engine's own cutoff clamp (0.1…8) reaches only about
+    /// −1.5 dB through the filter term, so the floor is a backstop for a corrupted preset or a
+    /// future bio mapping, not a limit the surface can hit. The inputs below are deliberately
+    /// outside the engine's clamp for that reason.
     func testTheCompensationIsBoundedBelow() {
         for cutoff in [Float(0.001), 0.1, 8, 1000] {
             for pitch in [0, 60, 127] {
@@ -100,6 +117,23 @@ final class TouchEvennessSmokeTests: XCTestCase {
             + TouchPitchMap.pitchLoudnessDbPerOctave
         let expected = pow(10.0, -(expectedDb * TouchPitchMap.evenness) / 20.0)
         XCTAssertEqual(Double(top), expected, accuracy: 1e-4)
+    }
+
+    /// The reference pitch must MOVE the neutral point, not decorate the signature. Without
+    /// it the trim is anchored at C4 while the surface's own middle band is `key.degree(d,
+    /// octave: 4)` — about 9 semitones higher in A than in C — so the whole surface would be
+    /// roughly 1 dB quieter in one key than another, a level change with no musical cause.
+    func testTheReferencePitchMovesTheNeutralPoint() {
+        // At its own reference, a neutral-brightness note is always untouched, whatever key.
+        for ref in [55, 60, 69, 72] {
+            XCTAssertEqual(TouchPitchMap.levelCompensation(cutoffScale: 1, pitch: ref,
+                                                           referencePitch: ref), 1)
+        }
+        // And raising the reference must LOOSEN the trim on a given note, never tighten it.
+        let atC4 = TouchPitchMap.levelCompensation(cutoffScale: 1, pitch: 72, referencePitch: 60)
+        let atA4 = TouchPitchMap.levelCompensation(cutoffScale: 1, pitch: 72, referencePitch: 69)
+        XCTAssertLessThan(atC4, atA4, "a higher reference must trim a given note less")
+        XCTAssertLessThanOrEqual(atA4, 1)
     }
 
     /// Non-finite input cannot produce a non-finite gain. A cutoff scale is a product of the
