@@ -130,6 +130,72 @@ public enum TouchPitchMap {
         let d = min(max(depth.isFinite ? depth : 0, 0), 1)
         return Float(pow(2.0, (y - 0.5) * 2.0 * d))
     }
+
+    // MARK: - Evenness (founder 2026-07-29: "die Sounds sind teilweise unterschiedlich laut")
+
+    /// THE DEFECT THIS FIXES, and the founder diagnosed it correctly: *"das liegt evtl.
+    /// daran, dass einige dunkler sind und gefiltert"*.
+    ///
+    /// The vertical axis of the play surface drives **two** things at once, and they stack in
+    /// the SAME direction:
+    ///   · `pitch(normX:normY:key:)` picks the octave band — bottom = lowest.
+    ///   · `morphCutoffScale(normY:depth:)` picks the filter — bottom = darkest.
+    /// At the default morph depth 0.6 the cutoff spans 0.66×…1.52×, i.e. **1.2 octaves of
+    /// filter**, on top of two octaves of pitch. So the bottom-left of the surface is the
+    /// lowest AND the most filtered note there is, and the top-right is the highest AND the
+    /// brightest. That is not a patch quirk — it is structural, and nothing anywhere in this
+    /// app compensated for it: there is no key tracking and no filter make-up gain.
+    ///
+    /// The morph is meant to be a COLOUR control. It was silently also a LOUDNESS control.
+    ///
+    /// **Direction: this only ever CUTS, never boosts, and that is a hard safety property.**
+    /// The obvious fix — lift the quiet notes — cannot work here: `velocity` tops out at 0.95
+    /// and Life multiplies it by up to 1.04, leaving 1.2 % of headroom before the engine's
+    /// clamp. Any real boost would pin every firm touch at the ceiling, which is exactly the
+    /// flat-fortissimo failure `microVariation`'s own comment records having already shipped
+    /// once. So the reference point is the patch's neutral (`cutoffScale` 1, middle octave):
+    /// notes brighter or higher than neutral are pulled DOWN toward the dark ones, and the
+    /// dark ones — the ones that sounded too quiet — keep their full level. Result at the
+    /// shipped defaults: about −2.3 dB at the top of the surface, 0 dB at the bottom.
+    ///
+    /// ⚠️ **THE TWO dB CONSTANTS ARE ESTIMATES AND NEED AN EAR.** How much loudness a lowpass
+    /// actually removes depends on the patch's own spectrum, and equal-loudness (ISO 226) is
+    /// a curve, not a line. They are deliberately CONSERVATIVE — under-correcting leaves a
+    /// little of the natural "brighter reads as more present", over-correcting makes the top
+    /// of the surface sound choked, and the second is much worse than the first. `evenness`
+    /// exists so the whole correction can be scaled or switched off (0 = bit-identical to the
+    /// old behaviour) from one place once the founder has heard it.
+    public static let filterLoudnessDbPerOctave: Double = 2.5
+    /// Perceptual tilt with PITCH, the residue after the filter term. Small on purpose: bass
+    /// sitting slightly softer than treble is normal and wanted in a mix; only the part that
+    /// reads as "different instrument loudness" is being removed.
+    public static let pitchLoudnessDbPerOctave: Double = 1.5
+    /// How much of the computed imbalance is removed. Not 1.0: a surface where every note is
+    /// *exactly* as loud reads as synthetic, and the goal is evenness, not flatness.
+    public static let evenness: Double = 0.75
+
+    /// A velocity multiplier in `(0, 1]` that takes the loudness side-effect out of the
+    /// vertical axis. Multiply the note's velocity by it.
+    ///
+    /// - Parameters:
+    ///   - cutoffScale: the note's filter scale, 1 = the patch's own cutoff.
+    ///   - pitch: MIDI note number. Referenced to 60 (C4) — near the middle octave band the
+    ///     surface uses, so the middle of the surface is the neutral point in both terms.
+    public static func levelCompensation(cutoffScale: Float, pitch: Int) -> Float {
+        guard evenness > 0 else { return 1 }
+        let s = Double(cutoffScale)
+        guard s.isFinite, s > 0 else { return 1 }
+        // How many dB this note is expected to sound ABOVE neutral. Negative for the dark,
+        // low notes — and those are then left alone by the `min(1, …)` below.
+        let aboveNeutralDb = filterLoudnessDbPerOctave * Foundation.log2(s)
+            + pitchLoudnessDbPerOctave * Double(pitch - 60) / 12.0
+        guard aboveNeutralDb.isFinite else { return 1 }
+        let gain = pow(10.0, -(aboveNeutralDb * evenness) / 20.0)
+        // NaN-safe by argument order (`max(0, x)` returns 0 for NaN, `max(x, 0)` returns NaN)
+        // and cut-only. The 0.35 floor bounds a corrupted or extreme cutoffScale — the engine
+        // itself clamps cutoff to 0.1…8, which alone would reach −9 dB here.
+        return Float(min(1.0, max(0.35, gain.isFinite ? gain : 1)))
+    }
 }
 
 #if canImport(SwiftUI)
@@ -497,8 +563,13 @@ final class TouchInstrumentUIView: UIView {
             // colour — stays immediate on purpose: the finger must feel and see its own
             // touch with zero latency, and only the NOTE waits for the beat. That split
             // is what makes a held note playable instead of laggy.
-            sound(pitch: pitch, velocity: vel * micro.velocityScale,
-                  cutoffScale: morphScale(at: p) * micro.cutoffScale,
+            // EVENNESS: the vertical axis chooses colour and octave; it must not also choose
+            // loudness (founder 2026-07-29). Cut-only, so a firm touch can never be pushed
+            // into the engine's velocity clamp — see `levelCompensation`.
+            let cutoff = morphScale(at: p) * micro.cutoffScale
+            let even = TouchPitchMap.levelCompensation(cutoffScale: cutoff, pitch: pitch)
+            sound(pitch: pitch, velocity: vel * micro.velocityScale * even,
+                  cutoffScale: cutoff,
                   finger: id, index: noteIndex)
             hapticGenerator.impactOccurred(intensity: CGFloat(0.4 + 0.6 * Double(vel)))
             hapticGenerator.prepare()   // re-warm the Taptic engine so the NEXT note (tap or
@@ -564,13 +635,22 @@ final class TouchInstrumentUIView: UIView {
                 if glideSeconds >= 0.005 {
                     // GLIDE (portamento on): the held voice keeps its envelope and
                     // SLIDES to the new pitch — no retrigger, a singing legato.
-                    synth?.slide(from: old, to: new, velocity: vel, cutoffScale: morphScale(at: p))
+                    // Same evenness trim as a fresh strike — a slide that CHANGED octave band
+                    // would otherwise jump in level mid-gesture, which is the most audible
+                    // place of all for this defect.
+                    let cutoff = morphScale(at: p)
+                    synth?.slide(from: old, to: new,
+                                 velocity: vel * TouchPitchMap.levelCompensation(cutoffScale: cutoff,
+                                                                                 pitch: new),
+                                 cutoffScale: cutoff)
                 } else {
                     synth?.noteOff(pitch: old)
                     let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
                     noteCounter &+= 1
-                    synth?.noteOn(pitch: new, velocity: vel * micro.velocityScale,
-                                  cutoffScale: morphScale(at: p) * micro.cutoffScale)
+                    let cutoff = morphScale(at: p) * micro.cutoffScale
+                    let even = TouchPitchMap.levelCompensation(cutoffScale: cutoff, pitch: new)
+                    synth?.noteOn(pitch: new, velocity: vel * micro.velocityScale * even,
+                                  cutoffScale: cutoff)
                 }
                 // Slides tick more softly than fresh strikes — a fret-crossing feel.
                 hapticGenerator.impactOccurred(intensity: CGFloat(0.25 + 0.35 * Double(vel)))
