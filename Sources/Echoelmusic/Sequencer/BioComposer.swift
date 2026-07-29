@@ -278,6 +278,49 @@ public enum BioComposer {
     /// before looping (the legacy path loops after `progression.count`).
     static let chordJourneyLoopLength = 8
 
+    /// Even a fully aroused body keeps this share of the genre's own progression.
+    static let genreAnchorFloor: Float = 0.34
+    /// Coherence at which the genre's progression is anchored in FULL — the same
+    /// threshold at which the beat turns "spacious".
+    static let genreAnchorFullBy: Float = 0.7
+
+    /// How many of a take's `n` section roots are locked to the genre's OWN authored
+    /// progression instead of the shared, coherence-selected chord journey.
+    ///
+    /// The crossfade (founder 2026-07-22: *"bei den Genres kommt erst eine individuelle
+    /// Variation und dann klingt plötzlich alles gleich"*): calm ⇒ k→n ⇒ the root motion
+    /// IS the genre signature; aroused ⇒ k→the floor ⇒ the genre's first roots stay
+    /// anchored while the rest of the journey explores. Pure function of coherence — no
+    /// RNG draw, so every downstream draw keeps its order (determinism law).
+    ///
+    /// ⛔ THE `max(1, …)` IS THE WHOLE POINT, and it was missing until 2026-07-29.
+    /// The expression used to be `min(n, Int((Float(n) * anchor).rounded()))`. For
+    /// **n == 1** that rounds `1 × 0.34` to **0** — nothing anchored, the single root
+    /// taken wholesale from the shared journey — for every body below coherence 0.35.
+    /// FOUR profiles have n == 1: `.selfObservation` (the SHIPPED DEFAULT) and
+    /// `.esotericMeditation` (both sustained with a >2-chord progression → one section
+    /// per take), plus `.psytrance` and `.doom` (one-chord progressions). Camera rPPG reports
+    /// coherence 0 until beats accrue and HealthKit never measures it at all, so this is
+    /// not an edge case — it is the FIRST MINUTES OF EVERY SESSION on the default genre,
+    /// which is exactly where a listener forms their judgement, and exactly the founder's
+    /// complaint. The old comment block admitted the gap in a parenthetical ("k≥1 for
+    /// n≥2") rather than closing it; documenting a hole is not choosing it.
+    ///
+    /// The clamp is a no-op for n ≥ 2 (`2 × 0.34 = 0.68` already rounds to 1), so this
+    /// changes the sound of those four profiles only — and only below coherence 0.35.
+    ///
+    /// `sections` is a progression length (≤ 4 across the whole roster), so the `Int(_:)`
+    /// below cannot overflow; the guard covers the one degenerate value that IS worth a
+    /// contract (`0` ⇒ nothing to anchor, which the caller's `if k > 0` relies on).
+    static func genreAnchorCount(sections n: Int, coherence: Float) -> Int {
+        guard n > 0 else { return 0 }
+        // `clamp01` would pass NaN straight through (`max(NaN, 0)` returns NaN — see the
+        // argument-order law in CLAUDE.md), and a NaN anchor makes `Int(_:)` trap.
+        let coh = coherence.isFinite ? Swift.min(Swift.max(coherence, 0), 1) : 0
+        let anchor = Swift.max(genreAnchorFloor, Swift.min(1, coh / genreAnchorFullBy))
+        return Swift.min(n, Swift.max(1, Int((Float(n) * anchor).rounded())))
+    }
+
     private static func clamp01(_ x: Float) -> Float { min(max(x, 0), 1) }
 
     /// A deterministic UUID drawn from the RNG, so a whole composition — note
@@ -1503,7 +1546,10 @@ public enum BioComposer {
                 // diatonic), where `k` grows with coherence off a FLOOR: calm
                 // (coherence→1) ⇒ k→n ⇒ the root motion IS the genre signature (Disco
                 // stays Disco, Doom stays Doom); aroused (coherence→0) ⇒ k→ the floor
-                // (≥1 for n≥2, see below) ⇒ at least the genre's first root stays
+                // (≥1 for EVERY n≥1 since 2026-07-29 — it used to read "≥1 for n≥2",
+                // which was an accurate description of a hole rather than a guarantee:
+                // the one-section genres, Doom among them, got k=0 and stopped staying
+                // Doom) ⇒ at least the genre's first root stays
                 // anchored while the rest of the journey explores seeded/free. Pure
                 // function of coherence + two
                 // in-key degree arrays — NO rng/structureRNG draw, so every
@@ -1511,22 +1557,16 @@ public enum BioComposer {
                 // (profile.chordTones, e.g. jazz 7ths) is untouched below; only ROOT
                 // MOTION is genre-anchored. Every substituted degree is a diatonic
                 // scale degree ([0,0,0] alterations) → always resolves in key.
-                let coh = sc.coherence.isFinite ? Swift.min(Swift.max(sc.coherence, 0), 1) : 0
                 // Anchor the genre's harmony as the body SETTLES, not only when fully
                 // calm (founder 2026-07-22: "ich gehe durch die Genres und nach kurzer
                 // Zeit klingt alles wie classic" — while browsing at MODERATE coherence
-                // the shared journey still dominated, so genres converged). Reach the
-                // full genre progression by coherence 0.7 — the same threshold the beat
-                // turns "spacious" — so a settling body hears THIS genre's own harmony
-                // well before it is perfectly calm. FLOOR 0.34 (ultrascan 2026-07-22 step 2):
-                // even fully aroused (coh 0) at least ONE section root stays anchored to
-                // THIS genre's baseProg (k≥1 for n≥2), so browsing genres in an aroused /
-                // finger-just-on state no longer collapses every genre onto the same free
-                // journey ("gehe durch die Genres → alles wie classic"). The non-anchored
-                // roots still journey freely for variation; the anchor only ever GROWS with
-                // coherence. Deterministic (pure function of coherence, no RNG).
-                let anchor = Swift.max(0.34, Swift.min(1, coh / 0.7))
-                let k = Swift.min(n, Int((Float(n) * anchor).rounded()))
+                // the shared journey still dominated, so genres converged). The law —
+                // floor 0.34, full anchor by coherence 0.7, and the `max(1, …)` that
+                // makes it hold for a ONE-section take too — lives in
+                // `genreAnchorCount`, which is pinned in the blocking test bundle
+                // (`Tests/CISmoke/GenreAnchorFloorTests.swift`). It was inline here and
+                // silently returned 0 for n == 1, i.e. for the default genre.
+                let k = Self.genreAnchorCount(sections: n, coherence: sc.coherence)
                 if k > 0 {
                     let rotBase = ((progressionPhase % baseProg.count) + baseProg.count) % baseProg.count
                     for i in 0..<k {
