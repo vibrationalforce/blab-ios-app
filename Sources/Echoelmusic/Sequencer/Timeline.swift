@@ -369,6 +369,32 @@ public struct TimelineRegion: Codable, Sendable, Equatable, Identifiable {
 
 /// The whole timeline document: ordered lanes + their regions.
 public struct TimelineDocument: Codable, Sendable, Equatable {
+
+    /// 1 = the shape as of 2026-07-29. Same law as `Project.currentSchemaVersion`, and it
+    /// exists here for the reason that file's header spells out: a version stamp is only
+    /// useful if it was ALREADY in the file before the breaking change. Added afterwards,
+    /// every pre-existing song is indistinguishable from the new format and a migration
+    /// has nothing to branch on. `Project` and `SpatialScene` closed that blind spot for
+    /// takes and scenes; this is the format that holds the whole SONG — lanes, regions and
+    /// arrangement automation — and it was the largest one still unstamped (#189).
+    ///
+    /// The concrete break this is being put in front of: #167 removes the drums, which
+    /// deletes a case from the persisted lane enums. A song written today must still be
+    /// readable after that, and a migration must be able to tell "written before the
+    /// drums went" from "written after".
+    public static let currentSchemaVersion = 1
+
+    /// Version of the file this document was READ FROM — `0` for a song that predates the
+    /// stamp, which is a TRUE statement about it and not a default standing in for
+    /// "current". PROVENANCE, not the state of any file on disk: `encode(to:)` always
+    /// writes `currentSchemaVersion`, so after a save the bytes say 1 while this value
+    /// still says where the song came from.
+    ///
+    /// ⚠️ Same consequence as `Project`, repeated because getting it wrong re-runs a
+    /// migration on already-migrated data: **migrate at LOAD, in `init(from:)`, never at
+    /// save and never off this property later in the session.**
+    public var schemaVersion: Int
+
     public var lanes: [TimelineLane]
     public var regions: [TimelineRegion]
     /// Parameter automation for the ARRANGEMENT (automation-in-track cycle 5).
@@ -380,12 +406,16 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
 
     public init(lanes: [TimelineLane] = [], regions: [TimelineRegion] = [],
                 automation: [AutomationLane] = []) {
+        // Deliberately NOT an init parameter (same call as `Project` made): a freshly-built
+        // document is by definition in the format this build writes, and no caller could
+        // honestly supply anything else. It also leaves every existing call site untouched.
+        self.schemaVersion = Self.currentSchemaVersion
         self.lanes = lanes
         self.regions = regions
         self.automation = automation
     }
 
-    private enum CodingKeys: String, CodingKey { case lanes, regions, automation }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, lanes, regions, automation }
 
     /// Wrapper that decodes an element or yields nil on a malformed one, always
     /// consuming exactly one array slot so the unkeyed decode can't stall.
@@ -412,9 +442,34 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     /// vaporized the user's whole song. Now only the bad element is lost.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        // `?? 0` and NOT `?? currentSchemaVersion`: a song with no stamp is genuinely
+        // pre-versioning, and saying so is the only thing that lets a later migration tell
+        // the two apart.
+        //
+        // `try? c.decode` rather than `decodeIfPresent` — a deliberate divergence from
+        // `Project`, which would THROW on a wrong-typed stamp. Here a stamp that is a
+        // string, or null, or an object must degrade to "unknown provenance" exactly like
+        // every other field in this decoder, because throwing loses the user's ENTIRE
+        // song, and that is the precise failure this decoder exists to prevent. Missing
+        // key and malformed key take the same path.
+        schemaVersion = (try? c.decode(Int.self, forKey: .schemaVersion)) ?? 0
         lanes = Self.lossyArray(TimelineLane.self, in: c, forKey: .lanes)
         regions = Self.lossyArray(TimelineRegion.self, in: c, forKey: .regions)
         automation = Self.lossyArray(AutomationLane.self, in: c, forKey: .automation)
+    }
+
+    /// EXPLICIT rather than synthesized, for one reason: the stamp written to disk must be
+    /// `currentSchemaVersion`, never the provenance value this instance is carrying. A song
+    /// loaded from a pre-versioning file (`schemaVersion == 0`) and saved again IS in
+    /// today's shape, so the bytes must say so; the synthesized encoder would have written
+    /// the 0 back and made every re-saved old song permanently indistinguishable from a
+    /// genuinely ancient one. Same law as `Project.encode(to:)`.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(Self.currentSchemaVersion, forKey: .schemaVersion)
+        try c.encode(lanes, forKey: .lanes)
+        try c.encode(regions, forKey: .regions)
+        try c.encode(automation, forKey: .automation)
     }
 
     public func regions(in laneID: UUID) -> [TimelineRegion] {
