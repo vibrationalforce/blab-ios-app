@@ -98,9 +98,17 @@ law applies to the roster itself. So:
 **Deliberately rejected** (coverage audit 2026-07-19 — do NOT re-add without new evidence):
 a standalone Eng/Architecture lead or separate CORE team (duplicates the-council Architect
 + PLAN/ARCHITECTURE); a standalone Performance team (folds into RELEASE/CI); Head of Growth
-+ a Localization team (growth folds into Head of Product; localization is a deliberate v1.0
-iPhone-first single-market deferral — zero `.strings` today); standalone EchoelAI/Commerce/
+(growth folds into Head of Product); standalone EchoelAI/Commerce/
 Community worker teams (all decision-ownership or dormant, covered by roles/fold-ins above).
+
+⛔ **The Localization rejection above is REVERSED (founder 2026-07-29: "international für alle
+Kulturen und Hintergründe accessible").** The 2026-07-19 audit rejected it on the ground that
+localization was "a deliberate v1.0 iPhone-first single-market deferral". That was a true
+description of the plan then and is a false description of the plan now, and it is exactly the
+line a session would read before deciding not to staff the work — so it is corrected here
+rather than left as history. Zero `.strings` today is still accurate as a STATE; it is no
+longer a decision. Track the work under #232; it is a cross-cutting concern of ADAPTIVE
+DESIGN/UX (a11y + culture) plus UI/STUDIO, not yet a standing team of its own.
 
 ## The lead's job (the quality gate)
 
