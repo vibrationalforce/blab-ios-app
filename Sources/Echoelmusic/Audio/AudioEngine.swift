@@ -45,12 +45,6 @@ public final class AudioEngine {
     /// Called on the MainActor (the route observer runs on the main queue).
     @ObservationIgnored var onOutputDeviceLost: (() -> Void)?
 
-    /// True between a deliberate `stop()` (e.g. backgrounding with nothing
-    /// audible) and the next explicit `start()`. While set, ALL self-healing
-    /// paths (route-loss recovery, its 300 ms settle-Task, the config-change
-    /// watchdog) stand down — an intentionally stopped engine is not broken,
-    /// and resurrecting it in the background would re-create the 2.5.4
-    /// silent-audio state (audio-thread review 2026-07-16, findings F1/F2).
     /// WHY a stop happened, not merely THAT one did.
     ///
     /// ⛔ THE BUG THIS EXISTS TO FIX (device log 2475, v10.79.358, founder: *"Ich hab keinen
@@ -87,8 +81,9 @@ public final class AudioEngine {
         /// ⚠️ NO PRODUCTION CONSTRUCTOR TODAY, and that is stated rather than hidden. It is
         /// kept because the distinction is the whole content of this type: without it the
         /// next user-facing stop (#179, #204) reintroduces exactly the bug above by reusing
-        /// the idle path. `AudioTimingReportGateTests`' sibling pins both directions so the
-        /// case cannot quietly become equivalent to `.idleBackground`.
+        /// the idle path. `Tests/CISmoke/AudioEngineStopReasonTests.swift` pins both
+        /// directions — including that the two predicates DISAGREE on `.idleBackground` —
+        /// so this case cannot quietly become equivalent to it.
         case user
     }
 
@@ -490,6 +485,15 @@ public final class AudioEngine {
         // whole bug fix. Passing `intentionallyStopped` made the 2.5.4 idle stop refuse to
         // come back, so the app returned to the foreground with a dead engine and every
         // later Start produced a running transport and total silence (device log 2475).
+        //
+        // A SECOND effect rides along, and it is named here so a later audit does not read
+        // it as an unexplained regression. `start()` is what clears the stop reason, and it
+        // has only two callers (app startup, and this foreground resume) — the Start button
+        // is NOT one of them, which is exactly why the founder's log shows notes without
+        // audio. So before the fix, an idle stop disarmed self-healing PERMANENTLY for the
+        // rest of the process: a later route or configuration change could not recover the
+        // engine even in the foreground. Now the foreground return runs `start()` and
+        // re-arms the watchdog. The predicate is bit-identical; the reachable state is not.
         Self.shouldResumeOnForeground(cameFromBackground: cameFromBackground,
                                       wasBackgrounded: wasBackgrounded,
                                       wasInterrupted: wasInterrupted,

@@ -188,7 +188,17 @@ final class StringCatalogIsHonestTests: XCTestCase {
                              + "vacuously on a tree it never read.")
         let keys = try strings().keys
         for key in keys {
-            XCTAssertTrue(haystack.contains(key),
+            // ⛔ MATCH THE QUOTED LITERAL, NOT THE BARE SUBSTRING. A bare `contains(key)`
+            // is shielded by any LONGER sentence elsewhere in `Sources/` that happens to
+            // embed the same words — and five of the twenty-one keys are, including two
+            // MANDATED SAFETY WARNINGS: `BioSourceView.swift` runs "…coordinate any
+            // therapeutic use with your provider. For self-observation, not medical
+            // diagnosis…" as one paragraph, and `SessionView.swift` has "Not while driving
+            // or operating machinery. Not a medical device." Reword either sentence in the
+            // onboarding view and the bare form stays GREEN while the German silently dies
+            // — the exact orphan this test is the only guard against. `"Ready"` was the
+            // worst: 23 bare hits across the tree, 1 as a literal.
+            XCTAssertTrue(haystack.contains("\"\(key)\""),
                           "`\(key)` is in the catalog but appears nowhere in Sources/. Either the "
                           + "sentence was edited in the view and this entry is now an orphan — its "
                           + "translation silently dead — or the entry was added for a string that "
@@ -205,8 +215,14 @@ final class StringCatalogIsHonestTests: XCTestCase {
     /// precisely because the wrong reading makes a warning look better guarded than it is:
     /// rewording the sentence in the VIEW leaves the catalog untouched, so THIS test stays
     /// green. The one that goes red is `testEveryKeyStillExistsAsALiteralInSources` above —
-    /// the literal no longer appears in `Sources/`. What THIS test catches is the other
-    /// direction: a mandated warning deleted from the catalog, or never added to it.
+    /// the quoted literal no longer appears in `Sources/`. (It only goes red because that
+    /// test matches `"key"` WITH the quotes. In its first form it matched the bare
+    /// substring, and two of the five sentences below were shielded by longer paragraphs in
+    /// `BioSourceView` and `SessionView` that embed them — so for exactly the highest-stakes
+    /// strings, NEITHER test would have fired. Both halves of this note were wrong once;
+    /// they are two edits apart in the file, which is why the pointer is spelled out.)
+    /// What THIS test catches is the other direction: a mandated warning deleted from the
+    /// catalog, or never added to it.
     func testEveryMandatedSafetyWarningIsTranslated() throws {
         let mandated = [
             "For self-observation, not medical diagnosis.",

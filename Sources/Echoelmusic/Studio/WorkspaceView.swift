@@ -1,11 +1,17 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
-/// Chrome → instrument channel: the TransportBar's pulse button posts this; the
-/// studio (which owns the start/stop logic + camera/evolve lifecycle) listens and
-/// toggles. Decoupled — the chrome never reaches into the studio view.
+/// Chrome → instrument channels. Decoupled — the chrome never reaches into the studio view.
+///
+/// ⛔ `echoelToggleBio` USED TO LIVE HERE and is deleted with #234 (founder 2026-07-29:
+/// "Ich hab jetzt hier 3 Knöpfe zum Start … könnte man das zu einem zusammenfassen?").
+/// It was the wire by which two pieces of CHROME — the transport ▶ and the header pulse
+/// pill — started the session that the front plate's "Create from Within" also starts.
+/// Consolidating to one start button left it with zero posters, and a notification nobody
+/// sends, plus a live `.onReceive` for it, is a wire that reads as an available hook while
+/// being unreachable. If a future chrome control needs to start the session, re-add it
+/// together with that control, never ahead of it.
 extension Notification.Name {
-    static let echoelToggleBio = Notification.Name("echoel.toggleBio")
     /// Header pill → studio: pick the BIO input source (founder 2026-07-15 video:
     /// "Lange drücken = drop down: camera light · Search for Bluetooth Device ·
     /// Simulation"). `object` = the source id ("camera" · "ble" · "sim"); the studio
@@ -301,35 +307,61 @@ private struct TransportBar: View {
     // ▶ is the INSTRUMENT's button and reads NOTHING from the timeline document
     // (founder 2026-07-27). The `TimelineStore` / `ClipStore` / `TimelineRegionPlayer`
     // reads that used to live here are gone — see toggle().
-    // Read ONLY inside toggle()'s action, never in body, so the transport bar
-    // subscribes to nothing (freeze rule).
-    @Environment(PianoRollModel.self) private var pianoRoll
-    /// Read ONLY inside toggle() (a tap handler, not body) for the UX-2 empty-project
-    /// branch — `instrumentRunning` is the Start/Stop-frequency chrome mirror, and a
-    /// closure read registers no body observation anyway (freeze rule intact).
+    // (The `PianoRollModel` environment that used to sit here is gone with #234: its one
+    // reader was the UX-2 empty-project branch inside toggle(), which is now unreachable.
+    // Holding an `@Environment` nobody reads is how a 10 Hz-adjacent model creeps back into
+    // a chrome view's body during a later edit.)
+    /// `instrumentRunning` is the Start/Stop-frequency chrome mirror — it changes twice per
+    /// session, so unlike a bio snapshot or the roll it is safe to read in this body, which
+    /// is what gates ▶ to sessions only (#234).
     @Environment(EngineBus.self) private var bus
 
     var body: some View {
         HStack(spacing: 12) {
-            Button { toggle() } label: {
-                Image(systemName: transport.isPlaying ? "stop.fill" : "play.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
-                    .frame(width: 38, height: 32)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+            // ⛔ THE MUSIC TRANSPORT, AND ONLY WHILE A SESSION RUNS (founder 2026-07-29,
+            // screenshot: "Ich hab jetzt hier 3 Knöpfe zum Start … könnte man das zu
+            // einem zusammenfassen?"). Three controls began the same session: this ▶,
+            // the header pulse pill, and the full-width "Create from Within". The last
+            // one — labelled, unmissable, named after what the instrument does — is now
+            // the only way to START.
+            //
+            // Why this button SURVIVES instead of being deleted outright: it does a job
+            // the hero button cannot. "Stop" ends the whole session, and the camera
+            // pulse then needs ~20 s to re-acquire a lock. A performer who wants silence
+            // between two sections must be able to drop the music WITHOUT dropping the
+            // body — that is this ■, and it only makes sense while there is a session to
+            // drop out of. Hidden the rest of the time, so at the "how do I start?"
+            // moment exactly one button on screen starts anything.
+            //
+            // `instrumentRunning` is the start/stop chrome mirror — it changes twice per
+            // session, not per frame, so reading it in this body is freeze-safe. The
+            // layout only shifts on start and on stop, never mid-performance. (Reading
+            // `pianoRoll.notes` here instead would have been the exact 10 Hz-in-an-
+            // ancestor read the freeze law forbids — the roll changes on every generate.)
+            if bus.instrumentRunning {
+                Button { toggle() } label: {
+                    Image(systemName: transport.isPlaying ? "stop.fill" : "play.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
+                        .frame(width: 38, height: 32)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit
+                // area fills the bar height (performance control, AX audit 2026-07-09).
+                .contentShape(Rectangle().inset(by: -6))
+                .accessibilityLabel(transport.isPlaying ? "Stop the music" : "Play the music")
+                .accessibilityHint("Leaves the session and your pulse reading running.")
             }
-            .buttonStyle(.plain)
-            // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit
-            // area fills the bar height (performance control, AX audit 2026-07-09).
-            .contentShape(Rectangle().inset(by: -6))
-            .accessibilityLabel(transport.isPlaying ? "Stop" : "Play")
 
             // (The transport pulse button is GONE — founder 2026-07-15 video: "zu viele
-            //  Play Knöpfe, einer reicht." Bio activation moved to the pulse pill next to
-            //  the E-logo in the brand header: TAP = start/stop, long-press = pick source.
-            //  The pill posts the exact same `.echoelToggleBio` the button used to.)
+            //  Play Knöpfe, einer reicht." Its job moved to the header pulse pill, and
+            //  with #234 it moved on again: the pill is a MONITOR whose tap opens the Bio
+            //  panel, and starting the session is the front plate's "Create from Within"
+            //  alone. Same founder complaint, answered twice — the second time by removing
+            //  the duplicate rather than relocating it.)
 
             // THE tempo control, up in the transport chrome next to Play (founder
             // 2026-07-15 "Das soll da oben hin", "beide behalten" — the pulse monitor
@@ -458,29 +490,23 @@ private struct TransportBar: View {
             // The PRIMARY instrument is unaffected and that is the part that is live:
             // `PianoRollModel.trigger(step)` runs from the same tick closure OUTSIDE any
             // timeline guard, so roll → voices → `MusicalFrame` is untouched.
-            // Two things the deleted conditions used to carry, named so they are chosen
-            // rather than lost: (1) `doc.regions.isEmpty` existed so a VIDEO-ONLY
-            // arrangement fell through to the loop instead of being handed generative
-            // music it never asked for — such a project now gets the instrument, which is
-            // right since video capture went with #121 Slice 3. (2) the `pattern.play`
-            // branch below has no silence diagnostic any more; the universal-Start branch
-            // keeps one because it routes into `startBiofeedback`, which both names the
-            // cause and heals it. Restoring it here would mean reading the document again,
-            // i.e. undoing this change for a log line.
-            if pianoRoll.notes.isEmpty, !bus.instrumentRunning {
-                // UX-2 (first-run silence): nothing is composed and nothing is running, so
-                // `pattern.play()` would just walk the playhead over silence and a new user
-                // concludes the app is broken. The one obvious ▶ must SOUND: start the
-                // bio-generative instrument through the exact notification the header pulse
-                // pill posts (the studio owns start/stop; chrome stays decoupled).
-                // generate() starts the transport itself, so ▶ flips to ■ honestly.
-                // Guarded on instrumentRunning so a tap in the brief start window (before
-                // the first roll notes land) can't toggle the session OFF.
-                EchoelCrashLog.breadcrumb("play: nothing composed → universal Start (toggleBio)")
-                NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
-            } else {
-                player.pattern.play(cause: .transportButton)
-            }
+            // One thing the deleted conditions used to carry, named so it is chosen rather
+            // than lost: `doc.regions.isEmpty` existed so a VIDEO-ONLY arrangement fell
+            // through to the loop instead of being handed generative music it never asked
+            // for — such a project now gets the instrument, which is right since video
+            // capture went with #121 Slice 3.
+            //
+            // The UX-2 branch that used to stand here is GONE with the same change that
+            // made this button session-only (#234). It read `pianoRoll.notes.isEmpty` and
+            // posted `.echoelToggleBio` so that a first-run ▶ would START the instrument
+            // instead of walking a playhead over silence. That was the right answer while ▶
+            // was on screen before anything ran; it is unreachable now, because the button
+            // only exists while `bus.instrumentRunning` is true — the very condition the
+            // branch required to be false. Left in place it would have been dead code that
+            // still reads like a live choice, which is the shape this file has been burned
+            // by twice. First-run silence is now answered where it belongs: by the one
+            // labelled "Create from Within" on the front plate.
+            player.pattern.play(cause: .transportButton)
         }
     }
 }

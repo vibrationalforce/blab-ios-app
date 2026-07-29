@@ -614,12 +614,11 @@ struct EchoelStudioView: View {
             // receivers moved onto the menu bar (still an INNER row — the
             // root's modifier chain / metadata type is untouched).
             AnyView(menuBar
-                // The header pulse pill (next to the E-logo — founder 2026-07-15 video)
-                // starts/stops the instrument through this notification (TAP). The old
-                // transport pulse button that posted this is gone ("einer reicht").
-                .onReceive(NotificationCenter.default.publisher(for: .echoelToggleBio)) { _ in
-                    toggleBiofeedback()
-                }
+                // (The `.echoelToggleBio` receiver that stood here is gone with #234 — the
+                // header pill and the transport ▶ no longer start the session, so nothing
+                // posted it. `toggleBiofeedback()` is now reached only from the front
+                // plate's own "Create from Within" button and from the Siri/Shortcuts
+                // inbox, both of which call it directly.)
                 // Header pill long-press → pick the bio input source (camera · BLE · sim).
                 .onReceive(NotificationCenter.default.publisher(for: .echoelSelectBioSource)) { note in
                     selectBioSource(note.object as? String)

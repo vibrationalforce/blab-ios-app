@@ -232,15 +232,16 @@ struct OnboardingView: View {
             // Disabled state was communicated by OPACITY alone — VoiceOver said "Start,
             // dimmed, button" and named no way out. Same defect class as the Patchbay dot:
             // one channel, and some users cannot receive it.
-            // ⚠️ `Text(...)` on BOTH branches, not bare literals. A ternary is a weaker
-            // inference site than a direct argument: with two string literals the solver can
-            // legitimately default them to `String` and pick the generic `StringProtocol`
-            // overload, which does NOT look anything up — so the one label that explains why
-            // Start is disabled would stay English in every language, with no diagnostic
-            // anywhere. `Text(literal)` is unambiguously the `LocalizedStringKey` initialiser
-            // and `accessibilityLabel(_: Text)` is a concrete overload, so the question does
-            // not arise. ("Start" needs no catalog entry — it is the same word in German and
-            // falls back to its own key.)
+            // ⚠️ `Text(...)` on BOTH branches so this binds to the concrete
+            // `accessibilityLabel(_: Text)` overload — no reliance on how the solver ranks
+            // the `LocalizedStringKey` and generic `StringProtocol` overloads for two bare
+            // literals joined by a ternary. The bare form very probably localised too
+            // (SwiftUI marks the `StringProtocol` overloads `@_disfavoredOverload` for
+            // exactly this reason); this is the version that does not need that to be true,
+            // on the one label that tells a VoiceOver user WHY Start is disabled. There is
+            // no compiler here and no diagnostic if it were wrong — it would simply stay
+            // English in every language.
+            // ("Start" needs no catalog entry: absent keys fall back to the key itself.)
             .accessibilityLabel(acknowledgedSafety
                                 ? Text("Start")
                                 : Text("Start — confirm the safety notice above first"))

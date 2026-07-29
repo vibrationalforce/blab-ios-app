@@ -197,22 +197,35 @@ struct PulseMonitorMiniLive: View {
                          status: strapStatus(cameraLive: cameraLive,
                                              hasLiveFrames: fresh != nil))
             // E-Bio-Header — bio's HOME is this header pill (founder 2026-07-14 +
-            // 2026-07-15 video: "Wenn Biofeedback aktiviert werden soll drückt man
-            // einfach oben rechts neben dem Echoel Icon drauf. Lange drücken = drop
-            // down: camera light · Search for Bluetooth Device · Simulation").
-            //   • TAP starts/stops the bio-generative instrument (the exact
-            //     `.echoelToggleBio` the removed transport pulse button used to post —
-            //     "einer reicht", the duplicate button is gone).
+            // 2026-07-15 video: "Lange drücken = drop down: camera light · Search for
+            // Bluetooth Device · Simulation").
+            //   • TAP opens the Bio panel — the live numbers, tap-to-learn, the camera
+            //     source control and Routing.
             //   • LONG-PRESS opens the SOURCE dropdown: pick Camera light / a Bluetooth
             //     strap / the Simulation demo; the studio owns all three publishers and
-            //     switches the live one (decoupled via .echoelSelectBioSource). A "Bio
-            //     details…" entry still reaches the full HR/HRV/routing panel (chrome
-            //     door "bio") so nothing is stranded.
-            // `.contextMenu` builds its content only when opened (not at body time), so
-            // this adds NO 10 Hz read to the pill's body — freeze rule intact.
+            //     switches the live one (decoupled via .echoelSelectBioSource).
+            //
+            // ⛔ TAP NO LONGER STARTS THE INSTRUMENT (founder 2026-07-29, screenshot:
+            // "Ich hab jetzt hier 3 Knöpfe zum Start … könnte man das zu einem
+            // zusammenfassen?"). It did from 2026-07-15 until now, and it was one of
+            // three controls that all began the same session. The one that stays is the
+            // full-width, labelled "Create from Within" on the front plate; this pill
+            // goes back to being what it looks like — a MONITOR. Two reasons beyond the
+            // count: (a) a tap target that shows CAMERA state (`cameraRPPG.isRunning`)
+            // while starting the WHOLE session is a control whose picture and effect
+            // disagree the moment a BLE strap is the source; (b) the bio panel behind it
+            // was reachable only through a long-press submenu entry, which is the least
+            // discoverable gesture we ship and is hard to perform with a motor
+            // impairment. The tap now buys the thing the pill is about.
+            //
+            // Deliberately a chrome-door NOTIFICATION and not a `Menu` here: this leaf
+            // reads the ~10 Hz publisher in its own body, and a menu popover hosted by a
+            // body that rebuilds 10×/s is torn down as fast as it opens (the freeze law,
+            // 10.76.41/50). `.contextMenu` is safe because it builds its content only
+            // when opened, never at body time.
             .contentShape(Rectangle())
             .onTapGesture {
-                NotificationCenter.default.post(name: .echoelToggleBio, object: nil)
+                NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
             }
             .contextMenu {
                 Button {
@@ -230,9 +243,12 @@ struct PulseMonitorMiniLive: View {
                 } label: { Label("Bio details…", systemImage: "info.circle") }
             }
             .accessibilityAddTraits(.isButton)
-            .accessibilityHint(cameraRPPG.isRunning
-                ? "Tap to stop your pulse reading. Touch and hold to choose a bio source or open details."
-                : "Tap to start reading your pulse. Touch and hold to choose a bio source or open details.")
+            // One hint, not two: the tap now does the same thing whether or not a pulse
+            // is live, so branching on `cameraRPPG.isRunning` would only have described
+            // the CAMERA while the pill may be showing a strap. The old branch also
+            // promised "Tap to start reading your pulse", which is no longer true.
+            .accessibilityHint("Opens the bio panel — pulse, breath and coherence. "
+                               + "Touch and hold to choose a bio source.")
     }
 }
 #endif
