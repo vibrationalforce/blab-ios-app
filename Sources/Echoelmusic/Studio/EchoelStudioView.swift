@@ -3381,7 +3381,16 @@ struct EchoelStudioView: View {
                     ForEach(TempoSyncOption.common) { opt in Text(opt.label).tag(opt) }
                 }
                 .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: delaySync) { _, _ in applyDelaySync(bpm: currentTempo) }
+                .onChange(of: delaySync) { _, _ in
+                    // Reaching into this picker IS a request for delay, so arm it here —
+                    // this row has no enable of its own, and a division that silently did
+                    // nothing on a dry character would just be the lying control from
+                    // `applyDelaySync` moved one row over. The enable belongs on the
+                    // GESTURE; the automatic re-stamps (applyFX, re-seed) must not touch
+                    // it. See `applyDelaySync(bpm:)`.
+                    synth.fxChain.delayEnabled = true
+                    applyDelaySync(bpm: currentTempo)
+                }
                 .accessibilityLabel("Delay note value")
             }
             // Full control: open every stage (filter, delay, chorus, flanger,
@@ -3421,9 +3430,39 @@ struct EchoelStudioView: View {
 
     /// Re-apply the user's tempo-synced delay note value on top of the genre/character
     /// FX (which also set delay time), so the chosen division is never clobbered.
+    ///
+    /// ⛔ IT SETS THE TIME AND NOTHING ELSE. It used to end with
+    /// `synth.fxChain.delayEnabled = true`, one line past what its own first sentence
+    /// promised, and that line made two controls lie:
+    ///
+    ///  1. **"Clean (dry) — no effects"** was never dry. `FXCharacter.clean`'s preset says
+    ///     `delayEnabled: false` under the comment *"Everything off — a dry reset"*
+    ///     (`GenreFX.swift`), `applyFX()` stamps that preset, and then called this function
+    ///     immediately after, which switched the delay straight back on. FIVE of the twelve
+    ///     characters were affected: `.clean`, `.telephone` and `.vinyl` say
+    ///     `delayEnabled: false` outright; `.harmonizer` and `.room` get it from
+    ///     `GenreFXPreset.init`'s default by omitting the parameter. (NOT the genre presets
+    ///     — every `MusicStyle.fxPreset` enables delay, pinned by `GenreFXTests`. An earlier
+    ///     draft of this comment said "every genre preset that ships with delay off", which
+    ///     described a set that does not exist.)
+    ///  2. **The Delay switch in the "All parameters" panel could not stay off.** Turning it
+    ///     off writes `chain.delayEnabled = false` (`EchoelFXView`), and the next
+    ///     `applyFX()` / re-seed re-enabled it — the switch flipping itself back with no
+    ///     input from the user.
+    ///
+    /// THE RULE: an AUTOMATIC re-stamp may set the delay time, never the enable. A direct
+    /// user GESTURE may do both — the Effects panel's delay-division picker arms the effect
+    /// in its own `onChange`, because that row carries no enable of its own and a division
+    /// that silently did nothing would be the same lying control one row over.
+    ///
+    /// Two honest limits on that rule, so it is not read as absolute:
+    ///  • `FXBioModulator` still force-enables the delay when a bio route targets delay mix
+    ///    or feedback. That is a second automatic writer, out of scope here.
+    ///  • This function only ever wrote `synth.fxChain`. `applyFX()` stamps the character on
+    ///    the touch/Field chain too, so the two chains now agree on WHETHER delay is on but
+    ///    still disagree on its TIME (#240).
     private func applyDelaySync(bpm: Double) {
         synth.fxChain.delay.timeSeconds = delaySync.clampedSeconds(bpm: bpm, in: 0.001...2.0)
-        synth.fxChain.delayEnabled = true
     }
 
     // MARK: Panel chrome
