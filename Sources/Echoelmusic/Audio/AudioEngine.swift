@@ -51,7 +51,74 @@ public final class AudioEngine {
     /// watchdog) stand down — an intentionally stopped engine is not broken,
     /// and resurrecting it in the background would re-create the 2.5.4
     /// silent-audio state (audio-thread review 2026-07-16, findings F1/F2).
-    @ObservationIgnored private var intentionallyStopped = false
+    /// WHY a stop happened, not merely THAT one did.
+    ///
+    /// ⛔ THE BUG THIS EXISTS TO FIX (device log 2475, v10.79.358, founder: *"Ich hab keinen
+    /// Sound alles stumm"*). One flag was answering two different questions, and they have
+    /// opposite correct answers for the same event:
+    ///   1. "May a self-healing path resurrect this engine?" — for the 2.5.4 idle stop: NO.
+    ///      Resurrecting it in the background re-creates the silent-audio state the stop
+    ///      just removed (audio-thread review 2026-07-16, F1/F2).
+    ///   2. "May coming back to the FOREGROUND start it again?" — for the same idle stop:
+    ///      YES, emphatically. That is the entire point of stopping only while idle.
+    /// `intentionallyStopped` said no to both. So: app backgrounded with nothing playing →
+    /// idle stop → flag set → foreground → the resume gate refused → the user pressed Start
+    /// and got a running transport, a running generator, moving visuals and TOTAL SILENCE,
+    /// with no way back short of relaunch. The log shows it exactly: `scene: idle audio
+    /// engine stopped (2.5.4)` at 629 s, and no `scene: audio resumed` afterwards, ever.
+    ///
+    /// The flag's NAME is what hid it. "Intentionally" reads as "the user meant it" — and
+    /// the resume gate was written against that reading. But grep the two `stop()` callers:
+    /// both are the idle rule (`EchoelmusicApp.swift`, the `.background` branch and the
+    /// `background-idle` transport subscriber). **There is no user-initiated engine stop in
+    /// this app at all.** The gate was therefore suppressing resume on behalf of an intent
+    /// nobody had ever expressed.
+    /// ⚠️ Deliberately has NO `.none` case — "not stopped" is `stopReason == nil`. A `.none`
+    /// case would be passable to `stop(reason:)`, and a stop that recorded "no reason" would
+    /// leave `intentionallyStopped` false, letting a self-healing path restart the engine in
+    /// the background: the 2.5.4 rejection signature, reintroduced by a typo. Optionality
+    /// makes that state unrepresentable instead of merely discouraged.
+    enum StopReason {
+        /// Guideline 2.5.4: backgrounded with nothing audible. Must NOT self-heal (that is
+        /// the rejection signature) and MUST resume when the app returns to the foreground.
+        case idleBackground
+        /// The user asked for silence. Must neither self-heal nor resume by itself.
+        ///
+        /// ⚠️ NO PRODUCTION CONSTRUCTOR TODAY, and that is stated rather than hidden. It is
+        /// kept because the distinction is the whole content of this type: without it the
+        /// next user-facing stop (#179, #204) reintroduces exactly the bug above by reusing
+        /// the idle path. `AudioTimingReportGateTests`' sibling pins both directions so the
+        /// case cannot quietly become equivalent to `.idleBackground`.
+        case user
+    }
+
+    /// `nil` while running, or before the first stop.
+    @ObservationIgnored private var stopReason: StopReason?
+
+    /// Whether a SELF-HEALING path may restart the engine. BOTH stop reasons suppress it —
+    /// bit-identical to the old stored flag, so all six guards that read it keep today's
+    /// behaviour exactly. Only the foreground-resume gate changed.
+    private var intentionallyStopped: Bool { Self.selfHealSuppressed(after: stopReason) }
+
+    /// Whether returning to the FOREGROUND may start the engine again. This is the half that
+    /// was wrong: an idle-background stop must come back, a user stop must not.
+    private var resumeSuppressed: Bool { Self.resumeSuppressed(after: stopReason) }
+
+    /// The two answers, as pure functions, for the same reason `shouldSelfHeal` is one: the
+    /// mapping is the part that was wrong, and the properties above are `private` on a
+    /// `@MainActor` type that owns a real `AVAudioEngine` — a test cannot reach them without
+    /// standing up audio hardware in CI. `nonisolated` so an ordinary `XCTestCase` can call
+    /// them (the isolation shape CLAUDE.md records for `static let`).
+    ///
+    /// They differ on exactly one input, and that difference IS the bug fix. Written as one
+    /// predicate with a comment, the next person merges them again.
+    nonisolated static func selfHealSuppressed(after reason: StopReason?) -> Bool {
+        reason != nil          // both reasons: never resurrect in the background
+    }
+
+    nonisolated static func resumeSuppressed(after reason: StopReason?) -> Bool {
+        reason == .user        // only the user's own stop survives a foreground return
+    }
 
     /// De-bounce guard so overlapping recovery triggers (route flap + config
     /// change firing together) don't schedule competing `start()` calls.
@@ -419,10 +486,14 @@ public final class AudioEngine {
     /// The view-facing form: the app knows the two scene-phase facts, this type knows the
     /// other two. Keeps `intentionallyStopped` private without keeping it unenforceable.
     func shouldResumeOnForeground(cameFromBackground: Bool, wasBackgrounded: Bool) -> Bool {
+        // ⛔ `resumeSuppressed`, NOT `intentionallyStopped` — this one substitution is the
+        // whole bug fix. Passing `intentionallyStopped` made the 2.5.4 idle stop refuse to
+        // come back, so the app returned to the foreground with a dead engine and every
+        // later Start produced a running transport and total silence (device log 2475).
         Self.shouldResumeOnForeground(cameFromBackground: cameFromBackground,
                                       wasBackgrounded: wasBackgrounded,
                                       wasInterrupted: wasInterrupted,
-                                      intentionallyStopped: intentionallyStopped)
+                                      intentionallyStopped: resumeSuppressed)
     }
 
     /// Self-healing watchdog: AVAudioEngine posts `.AVAudioEngineConfigurationChange`
@@ -782,7 +853,7 @@ public final class AudioEngine {
     func start() {
         // An explicit start (startup, scenePhase .active, user retry) always
         // re-arms self-healing after an intentional stop.
-        intentionallyStopped = false
+        stopReason = nil
         // Ensure the session + graph exist before starting, regardless of caller
         // (startup task, scenePhase .active, or route-change recovery).
         prepareGraph()
@@ -1146,13 +1217,17 @@ public final class AudioEngine {
         _worstScore.deallocate()
     }
 
-    func stop() {
-        // Deliberate stop (e.g. backgrounding with nothing audible, 2.5.4): the
-        // self-healing paths must NOT resurrect the engine — an in-flight
-        // recoverEngine settle-Task or a late config-change notification would
-        // otherwise restart it in the background, re-creating the silent-audio
-        // state the caller just removed (audio-thread review 2026-07-16, F1/F2).
-        intentionallyStopped = true
+    /// - Parameter reason: WHY, and it is required rather than defaulted. A default would
+    ///   have let the two existing idle-stop call sites keep saying nothing about intent —
+    ///   which is exactly how one flag came to answer two questions with opposite correct
+    ///   answers and cost the founder a fully silent session (see `StopReason`).
+    func stop(reason: StopReason) {
+        // Either reason stands the self-healing paths down: an intentionally stopped engine
+        // is not broken, and an in-flight recoverEngine settle-Task or a late config-change
+        // notification would otherwise restart it in the BACKGROUND, re-creating the 2.5.4
+        // silent-audio state the caller just removed (audio-thread review 2026-07-16, F1/F2).
+        // Only the FOREGROUND-resume gate distinguishes them.
+        stopReason = reason
         // A deliberate stop outranks the interruption that preceded it. Without this the
         // flag survives the stop and a later `.inactive → .active` transition (Control
         // Centre, a notification banner — neither touches `.background`, so neither of

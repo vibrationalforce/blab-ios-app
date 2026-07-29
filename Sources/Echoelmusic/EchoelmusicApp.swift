@@ -682,7 +682,10 @@ struct EchoelmusicApp: App {
                         || audioEngine.isInputMonitoring
                         || (polyVoice?.activeVoiceCount ?? 0) > 0
                     guard !audioNeeded else { return }
-                    audioEngine.stop()
+                    // `.idleBackground`, and the label is load-bearing: this is the SYSTEM's
+                    // 2.5.4 rule, never the user's wish. Passing the user reason here is what
+                    // used to leave the engine dead after the next foreground return.
+                    audioEngine.stop(reason: .idleBackground)
                     log.log(.info, category: .system,
                             "Transport stopped in background — idle audio engine stopped (2.5.4)")
                 }
@@ -1150,7 +1153,9 @@ struct EchoelmusicApp: App {
                     // back?". Without these two lines the file marks the transition
                     // and stays silent on the one branch that produces silence.
                     if !audioNeeded {
-                        audioEngine.stop()
+                        // `.idleBackground` — the app decided this, not the user, so coming
+                        // back to the foreground must undo it (see AudioEngine.StopReason).
+                        audioEngine.stop(reason: .idleBackground)
                         log.log(.info, category: .system,
                                 "App backgrounded — idle audio engine stopped (2.5.4)")
                         EchoelCrashLog.breadcrumb("scene: idle audio engine stopped (2.5.4)")
