@@ -46,10 +46,14 @@
 //  shape of a wander is exactly the kind of thing that looks right in code and sounds like a
 //  stuck note on a device.
 //
-//  ⚠️ NOT REACHABLE YET. Nothing constructs this as of the commit that introduced it — the
-//  wiring to the voice and its control surface are the next slice. Said plainly here because
-//  this repo has repeatedly been misled by cores that read as shipped (see the CLAUDE.md
-//  "doors" paragraph); if you are reading this and there is still no caller, that is the gap.
+//  ⚠️ WIRED TO THE VOICE, NOT YET TO A CONTROL — and the distinction is the whole point of
+//  this note. `TouchInstrumentUIView.autoPlay` now drives a display-link clock that turns
+//  these positions into notes through the same `sound(...)` dispatch a finger uses, so the
+//  intent above is FACT for the audio path. But `TouchInstrumentView.autoPlay` defaults to
+//  `nil` and NOTHING IN THE APP SETS IT: there is no panel row yet, so a user cannot switch
+//  self-play on. The panel control is slice 2c-3 (`PLAN_FIELD_SELFPLAY_WIRING.md`).
+//  Said this precisely because "wired" and "reachable" are exactly the two things this repo
+//  has repeatedly conflated (see the CLAUDE.md "doors" paragraph).
 //
 
 import Foundation

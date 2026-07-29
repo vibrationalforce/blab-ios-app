@@ -320,6 +320,12 @@ struct TouchInstrumentView: UIViewRepresentable {
     var slideVibrato: Double = 0.35
     var slideChorus: Double = 0.30
     var glide: Double = 0
+    /// SELF-PLAY (founder 2026-07-29: *"Es soll auch eine Möglichkeit geben wie der Synth
+    /// selbst spielt ohne das man Touch bedienen muss"*). `nil` = off, and OFF IS THE
+    /// DEFAULT — this thing plays unattended, so it may never start on its own.
+    var autoPlay: FieldAutoPlay.Params?
+    /// Makes `.drift` reproducible. Same value → same figure.
+    var autoPlaySeed: UInt64 = 0
 
     func makeUIView(context: Context) -> TouchInstrumentUIView {
         let v = TouchInstrumentUIView()
@@ -334,6 +340,8 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.glideSeconds = glide
         v.quantizer = quantizer
         v.musicalNow = musicalNow
+        v.autoPlaySeed = autoPlaySeed
+        v.autoPlay = autoPlay            // LAST: its `didSet` starts the clock
         return v
     }
 
@@ -349,6 +357,8 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.glideSeconds = glide
         uiView.quantizer = quantizer
         uiView.musicalNow = musicalNow
+        uiView.autoPlaySeed = autoPlaySeed
+        uiView.autoPlay = autoPlay
     }
 }
 
@@ -426,6 +436,136 @@ final class TouchInstrumentUIView: UIView {
     /// `@MainActor` on the function TYPE so the isolation cannot be erased at a later
     /// call site and let someone reach `Transport` off the main actor.
     var musicalNow: (@MainActor () -> TouchMusicalTime?)?
+    /// SELF-PLAY (#224, founder 2026-07-29: *"Es soll auch eine Möglichkeit geben wie der
+    /// Synth selbst spielt ohne das man Touch bedienen muss"*). `nil` = off, and OFF IS THE
+    /// DEFAULT: a generator that runs unattended must never start by itself.
+    ///
+    /// The generated contacts go through the SAME `sound(...)` dispatch a finger uses, so
+    /// Ultrasync, Life and the evenness trim all apply to them and there is no second note
+    /// path to drift (the #177 lesson, and the reason `FieldAutoPlay` emits POSITIONS).
+    var autoPlay: FieldAutoPlay.Params? {
+        didSet {
+            // Only the on/off EDGE touches the clock — changing a dial mid-run must not
+            // restart it, or every turn of a knob would re-align the phase to that moment.
+            guard (autoPlay == nil) != (oldValue == nil) else { return }
+            if autoPlay == nil { stopAutoPlay() } else { startAutoPlay() }
+        }
+    }
+    /// Makes `.drift` reproducible; the other motions are fixed curves and ignore it.
+    var autoPlaySeed: UInt64 = 0
+    /// The cell the generator last acted on. `nil` = "next tick is a fresh start".
+    private var lastFiredCell: Int?
+    /// Stable synthetic "fingers" for generated notes, one per possible voice.
+    ///
+    /// `sound(...)` keys its held-back-note bookkeeping on a finger identity. A generated
+    /// note has no `UITouch`, so it needs one — and it must be STABLE PER VOICE rather than
+    /// fresh per note: with a fresh identity every cell, a voice re-firing before its own
+    /// previous note landed would leave that pending note in the map with nothing that can
+    /// ever cancel it. With a stable one, re-firing voice 2 replaces voice 2's own pending
+    /// note and touches nobody else's — exactly how a finger behaves.
+    private let autoPlayFingers: [NSObject] =
+        (0..<FieldAutoPlay.maxVoices).map { _ in NSObject() }
+
+    /// `CADisplayLink` RETAINS its target AND is retained by the run loop, which makes the
+    /// naive version — link targeting the view — an immortal pair: the link keeps the view
+    /// alive, so the view's `deinit` never runs, so nothing ever invalidates the link, and a
+    /// surface nobody can see keeps ticking for the rest of the process.
+    ///
+    /// This proxy breaks it in BOTH directions. The run loop retains the proxy, the proxy
+    /// holds the view WEAKLY, and the proxy owns the link — so the first tick after the view
+    /// has gone invalidates the link and the whole thing is released. That is also why the
+    /// view needs no `deinit`: cleanup does not depend on one running.
+    @MainActor
+    private final class AutoPlayProxy: NSObject {
+        weak var view: TouchInstrumentUIView?
+        var link: CADisplayLink?
+
+        @objc func tick() {
+            guard let view else {
+                link?.invalidate()
+                link = nil
+                return
+            }
+            view.autoPlayTick()
+        }
+
+        func stop() {
+            link?.invalidate()
+            link = nil
+        }
+    }
+    private let autoPlayProxy = AutoPlayProxy()
+
+    private func startAutoPlay() {
+        // `window != nil` is the whole lifetime rule in one place: the generator exists only
+        // while the surface is on screen, and `didMoveToWindow` is what starts it otherwise.
+        guard autoPlayProxy.link == nil, window != nil else { return }
+        autoPlayProxy.view = self
+        let link = CADisplayLink(target: autoPlayProxy, selector: #selector(AutoPlayProxy.tick))
+        // 60 Hz, and the number is arithmetic rather than taste. This only has to NOTICE a
+        // cell edge, but a look no faster than a cell silently drops notes — and the shortest
+        // cell in the grid vocabulary is 1/16-triplet (80 ticks) at Transport's 300 BPM
+        // ceiling, i.e. 33.3 ms, which is EXACTLY a 30 Hz look period. Critically sampled is
+        // not "just enough": each cell then gets at most one look and rounding decides whether
+        // it gets any — simulated, 30 Hz fires 46 of 61 cells. 60 Hz gives two looks per cell
+        // at the worst setting the app allows and still survives a dropped frame.
+        // `FieldAutoPlayDriverTests` pins the working case, the 30 Hz failure and the margin,
+        // so this cannot be "optimised" back down without a red test.
+        link.preferredFramesPerSecond = 60
+        link.add(to: .main, forMode: .common)
+        autoPlayProxy.link = link
+    }
+
+    private func stopAutoPlay() {
+        autoPlayProxy.stop()
+        // Not a "resume from where we were" — the transport moved on meanwhile. The next
+        // start begins on the next cell edge it sees.
+        lastFiredCell = nil
+    }
+
+    /// One clock look. Cheap and boring on purpose: the decision is `FieldAutoPlay.cell`,
+    /// which is pure and tested, and everything here is bookkeeping around it.
+    fileprivate func autoPlayTick() {
+        // Self-healing backstop, not the primary rule — `didMoveToWindow` is. If UIKit ever
+        // tore the hierarchy down without that call, a generator on an off-screen surface
+        // would be inaudible and unstoppable, so it costs one pointer check to make that
+        // state impossible instead of merely unlikely.
+        guard window != nil else { stopAutoPlay(); return }
+        guard let params = autoPlay,
+              let now = musicalNow?(), now.secondsPerTick > 0 else { return }
+        // One cell = one grid step, reusing the Ultrasync vocabulary rather than inventing a
+        // second time unit. Changing the grid therefore changes the self-play rate too, which
+        // is the behaviour a player expects from one "grid" setting.
+        let cell = FieldAutoPlay.cell(forTick: now.tick, ticksPerCell: quantizer.grid.tickSpan)
+        guard cell != lastFiredCell else { return }
+        lastFiredCell = cell
+
+        // THE HAND ALWAYS WINS (founder's own metaphor: even with a finished soup people
+        // want to feel they are cooking). While any finger is down the generator is silent —
+        // not ducked, silent, and with no mode to find: put a finger down and it is yours.
+        //
+        // The cell is CONSUMED above rather than skipped, deliberately. Marking it fired
+        // before this guard means lifting a hand does not dump the notes it silenced; play
+        // simply resumes at the next cell edge.
+        guard held.isEmpty else { return }
+
+        let touches = FieldAutoPlay.touches(atStep: cell, params: params, seed: autoPlaySeed)
+        for (voice, t) in touches.enumerated() where voice < autoPlayFingers.count {
+            let pitch = TouchPitchMap.pitch(normX: Double(t.x), normY: Double(t.y), key: key)
+            let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
+            let index = Int(truncatingIfNeeded: noteCounter)
+            noteCounter &+= 1
+            let cutoff = morphScale(normY: Double(t.y)) * micro.cutoffScale
+            let even = TouchPitchMap.levelCompensation(cutoffScale: cutoff, pitch: pitch,
+                                                       referencePitch: surfaceReferencePitch)
+            sound(pitch: pitch,
+                  velocity: t.velocity * micro.velocityScale * even,
+                  cutoffScale: cutoff,
+                  finger: ObjectIdentifier(autoPlayFingers[voice]), index: index,
+                  autoRelease: true)
+        }
+    }
+
     /// Note-ons the quantizer is holding back, per finger.
     private var pendingOn: [ObjectIdentifier: Task<Void, Never>] = [:]
     /// Fingers that lifted while their note was still held back.
@@ -726,10 +866,17 @@ final class TouchInstrumentUIView: UIView {
     /// no grid to quantize to — a stopped transport, or correction turned off — because
     /// holding a note back against a beat the player cannot hear is worse than not
     /// quantizing at all.
+    ///
+    /// - Parameter autoRelease: the note has no finger and nothing will ever lift it — let it
+    ///   go by itself after `staccatoSeconds`. Self-play's notes set this; a real touch never
+    ///   does, because a real touch's release is its lift. This reuses the lifted-while-pending
+    ///   behaviour that already exists rather than adding a second lifecycle.
     private func sound(pitch: Int, velocity: Float, cutoffScale: Float,
-                       finger id: ObjectIdentifier, index: Int) {
+                       finger id: ObjectIdentifier, index: Int,
+                       autoRelease: Bool = false) {
         guard let now = musicalNow?(), now.secondsPerTick > 0 else {
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            if autoRelease { scheduleSelfRelease(pitch: pitch) }
             return
         }
         // The echo tolerance is stored in TICKS, but "two onsets fuse into one" is a fact
@@ -743,6 +890,7 @@ final class TouchInstrumentUIView: UIView {
         switch q.plan(forTick: now.tick, index: index) {
         case .play:
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            if autoRelease { scheduleSelfRelease(pitch: pitch) }
 
         case let .delay(toTick):
             // The hold is bounded by the quantizer (half a grid step) plus its microtiming
@@ -752,6 +900,7 @@ final class TouchInstrumentUIView: UIView {
             let seconds = Double(Swift.max(0, toTick - now.tick)) * now.secondsPerTick
             guard seconds > 0.002 else {                 // below the jitter floor: just play it
                 synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+                if autoRelease { scheduleSelfRelease(pitch: pitch) }
                 return
             }
             pendingOn[id] = Task { @MainActor [weak self] in
@@ -766,7 +915,10 @@ final class TouchInstrumentUIView: UIView {
                 // it, so the decision cannot go stale.
                 guard let self, !Task.isCancelled else { return }
                 self.pendingOn.removeValue(forKey: id)
-                let lifted = self.liftedWhilePending.remove(id) != nil
+                // `remove(id) != nil` FIRST so the set is cleaned up even when `autoRelease`
+                // already decided the answer — `||` short-circuits, and a generated finger
+                // that leaked into `liftedWhilePending` would never be taken out again.
+                let lifted = (self.liftedWhilePending.remove(id) != nil) || autoRelease
                 self.synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
                 guard lifted else { return }
                 // The finger is already gone, so nothing else will ever release this. It
@@ -778,6 +930,7 @@ final class TouchInstrumentUIView: UIView {
 
         case let .playThenEcho(_, echoTick, level):
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            if autoRelease { scheduleSelfRelease(pitch: pitch) }
             let seconds = Double(Swift.max(0, echoTick - now.tick)) * now.secondsPerTick
             guard seconds > 0.002, let voice = synth else { return }
             // The echo is deliberately NOT tracked in `pendingOn`: a lift must not cancel
@@ -803,6 +956,27 @@ final class TouchInstrumentUIView: UIView {
                 guard self?.isSounding(pitch: pitch) != true else { return }
                 voice.noteOff(pitch: pitch)
             }
+        }
+    }
+
+    /// Let a note nobody is holding go again. Used by self-play, where there is no finger
+    /// whose lift could end the note.
+    ///
+    /// Captures `voice` STRONGLY while `self` stays weak, for the same reason the echo does:
+    /// this note-off is the ONLY thing that can end this voice, so a view torn down in the
+    /// meantime (closing the visual, exactly when it happens) must not take the release with
+    /// it and leave the note sounding forever.
+    ///
+    /// `isSounding` is checked first so a finger that landed on this pitch in the meantime
+    /// keeps its note — its own lift ends both.
+    private func scheduleSelfRelease(pitch: Int) {
+        guard let voice = synth else { return }
+        Task { @MainActor [weak self, voice] in
+            // `try?`, not `catch { return }`: before a note, cancellation must suppress it;
+            // before a RELEASE, cancellation must not, or cancelling is how a note sticks.
+            try? await Task.sleep(for: .seconds(Self.staccatoSeconds))
+            guard self?.isSounding(pitch: pitch) != true else { return }
+            voice.noteOff(pitch: pitch)
         }
     }
 
@@ -875,6 +1049,19 @@ final class TouchInstrumentUIView: UIView {
         }
     }
 
+    /// Self-play follows the surface's own lifetime: it runs while the field is on screen and
+    /// stops when it leaves. That is a REAL LIMIT, not an oversight — closing the floating
+    /// visual stops the generator. Making it survive a closed window means an app-level driver
+    /// and a second note path, which is a separate decision (see `PLAN_FIELD_SELFPLAY_WIRING`).
+    ///
+    /// Generated notes already sounding are NOT cut here: each carries its own release, so the
+    /// worst case is one 0.18 s tail after dismissal. Cancelling them instead would need the
+    /// pending map, and those tasks are deliberately untracked.
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window == nil { stopAutoPlay() } else if autoPlay != nil { startAutoPlay() }
+    }
+
     // MARK: - Mapping
 
     private func pitch(at p: CGPoint) -> Int {
@@ -915,8 +1102,15 @@ final class TouchInstrumentUIView: UIView {
         guard morphDepth > 0.001 else { return 1 }
         let rect = playRect
         let h = max(rect.height, 1)
-        let normY = Double(min(max(1 - (p.y - rect.minY) / h, 0), 1))   // UIKit y is down; up = brighter
-        return TouchPitchMap.morphCutoffScale(normY: normY, depth: morphDepth)
+        return morphScale(normY: Double(1 - (p.y - rect.minY) / h))   // UIKit y is down; up = brighter
+    }
+
+    /// The same morph from a NORMALISED height, for a generated contact that never had view
+    /// coordinates. Split out rather than duplicated so a self-played note and a finger at
+    /// the same height cannot ever get different filters.
+    private func morphScale(normY: Double) -> Float {
+        guard morphDepth > 0.001 else { return 1 }
+        return TouchPitchMap.morphCutoffScale(normY: min(max(normY, 0), 1), depth: morphDepth)
     }
 
     /// Sounding frequency of a MIDI pitch at the take's concert pitch (the touch
