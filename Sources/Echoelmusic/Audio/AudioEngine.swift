@@ -900,6 +900,33 @@ public final class AudioEngine {
     /// worst one increment lands in the wrong window. These are counters whose ORDER OF
     /// MAGNITUDE is the diagnosis, and no lock belongs on the audio path to make a
     /// diagnostic tidier.
+    /// Whether a completed timing window is worth a line in `echoel_diag.log`.
+    ///
+    /// Pure and `static` on purpose, mirroring `shouldSelfHeal(isRunning:…)` in this same
+    /// file: the decision is the part that can be wrong, and it is the part a device cannot
+    /// be asked to demonstrate. Three reasons to speak, and each exists because its silence
+    /// would have meant something false:
+    ///   · `firstWindow` — proof of life. Without it, "no line" cannot be told from "the tap
+    ///     never ran".
+    ///   · `!isClean` — the actual finding.
+    ///   · blind while running — the hole this function was extracted to close. `isClean` is
+    ///     `glitchCount == 0` and ignores the denominator, so a window that measured NOTHING
+    ///     looks identical to a spotless one. Gated on the engine running so a stopped
+    ///     instrument stays quiet: a diagnostic that talks during idle gets tuned out, and a
+    ///     tuned-out diagnostic is the same as no diagnostic.
+    /// ⚠️ `nonisolated`, matching `shouldSelfHeal` above and NOT by preference: `AudioEngine`
+    /// is `@MainActor`, so a plain `static func` inherits that isolation and cannot be called
+    /// from an ordinary `XCTestCase` method — the same access shape CLAUDE.md records for
+    /// `static let`. A predicate that cannot be tested is the one thing this must not be.
+    nonisolated static func shouldReportTimingWindow(firstWindow: Bool,
+                                                     isClean: Bool,
+                                                     measuredIntervals: Int,
+                                                     engineRunning: Bool) -> Bool {
+        if firstWindow { return true }
+        if !isClean { return true }
+        return measuredIntervals == 0 && engineRunning
+    }
+
     private func pollAudioTiming(now: TimeInterval) {
         if timingWindowStart == 0 { timingWindowStart = now; return }
         let elapsed = now - timingWindowStart
@@ -934,12 +961,45 @@ public final class AudioEngine {
         // And the count is what carries that, not the fact that the tap fired: a window
         // in which NOTHING was classified must never print "no starvation", which would
         // be the same lie in a new place.
+        // ⛔ THE PROOF OF LIFE COVERED ONLY THE FIRST WINDOW, AND THAT WAS NOT ENOUGH —
+        // found by reading the founder's first real log (v10.79.357, build 2474, 2026-07-29).
+        // Nine minutes of session produced exactly ONE timing line, at 60 s. That is correct
+        // behaviour and I nearly reported it as a broken instrument: after the first window
+        // the meter deliberately speaks only when a window is dirty, so silence means clean.
+        //
+        // But `isClean` is `glitchCount == 0` and says NOTHING about the denominator. So a
+        // window in which the tap never fired — audio route torn down, tap lost after a
+        // media-services reset, graph stopped while the engine still claims to run — has
+        // glitchCount 0, counts as clean, and is suppressed. Silence therefore meant BOTH
+        // "nine clean minutes" and "the instrument died after minute one", which is exactly
+        // the ambiguity the comment above says the proof-of-life exists to remove. It removed
+        // it once and then let it back in for every window after.
+        //
+        // A blind window now always speaks. Gated on the engine claiming to be running so an
+        // idle app (user stopped playback; no tap, correctly) does not print a line a minute —
+        // noise is how a diagnostic gets ignored, which is the same failure in a nicer form.
+        // The contradiction "engine running, nothing measured" is the one worth a line.
         let firstWindow = !timingReportedOnce
         timingReportedOnce = true
-        guard firstWindow || !tally.isClean else { return }
+        guard Self.shouldReportTimingWindow(firstWindow: firstWindow,
+                                            isClean: tally.isClean,
+                                            measuredIntervals: measured,
+                                            engineRunning: masterEngine.isRunning)
+        else { return }
         guard measured > 0, timingQuantumSeconds > 0 else {
-            EchoelCrashLog.breadcrumb("audio timing: instrument measured nothing in "
-                                      + "\(Int(elapsed)) s — no verdict either way")
+            // The state is spelled out rather than assumed: this branch is also reached on the
+            // FIRST window with the engine legitimately stopped, and when the quantum lookup
+            // failed with intervals present. A line that asserted "engine running" in those
+            // cases would be a confidently wrong diagnostic — the class of defect this whole
+            // instrument was rebuilt five times to avoid.
+            let why = measured == 0
+                ? (masterEngine.isRunning
+                   ? "the tap classified nothing while the engine reports RUNNING"
+                   : "the engine was not running")
+                : "the render quantum is unknown"
+            EchoelCrashLog.breadcrumb("audio timing: no verdict for the last \(Int(elapsed)) s "
+                                      + "— \(why). Silence after this line is not evidence of "
+                                      + "a clean audio path.")
             return
         }
         // Print the quantum in ms so a later multiplier can be read back as a duration.
