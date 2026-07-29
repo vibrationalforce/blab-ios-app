@@ -9,10 +9,11 @@
 // to enter the surface where a finger does, so key-quantisation, Ultrasync, Life and Level
 // apply to it with no second code path to keep in step.
 //
-// ⚠️ Of those four, only `TouchPitchMap` is a reusable core TODAY. Ultrasync, Life and Level
-// live inside a private method on `TouchInstrumentUIView`, so the wiring slice has to hoist
-// them before this generator can honestly claim to share them. The first version of this
-// header stated all four as fact; it is written as the intent here, which is what it is.
+// ⚠️ Not wired yet — but the gap is small: the DECISION cores are already public and reusable
+// (`TouchPitchMap`, `TouchQuantizer.plan`, `TouchPitchMap.microVariation`), and Level is a gain
+// on the shared voice that anything routed there inherits. What the wiring slice must hoist is
+// the private DISPATCH in `TouchInstrumentUIView.sound(...)`. See the source file's header;
+// two earlier versions of this note overstated the gap in exactly the same direction.
 //
 // So these tests pin the SHAPE of the movement, which is the part a listener actually hears:
 // does it travel, does it stay inside the surface, does it repeat identically, does a
@@ -238,6 +239,11 @@ final class FieldAutoPlaySmokeTests: XCTestCase {
                 // A deliberately large step index, so the fold and the drift walk both run
                 // against a real cell rather than cell 0.
                 let touches = FieldAutoPlay.touches(atStep: 5_000, params: p, seed: 7)
+                // Non-vacuity guard, and this file has already paid for its absence once (see
+                // the NaN test above): every assertion below lives inside the loop, so an
+                // empty array would make this pass while proving nothing.
+                XCTAssertEqual(touches.count, 1,
+                               "\(motion) at periodSteps \(steps) generated nothing")
                 for t in touches {
                     XCTAssertTrue((0...1).contains(t.x) && (0...1).contains(t.y),
                                   "\(motion) at periodSteps \(steps) left the surface")
@@ -246,12 +252,18 @@ final class FieldAutoPlaySmokeTests: XCTestCase {
         }
     }
 
-    /// The accent must survive a SHORT traverse. `period / 4` reaches 1 at any period of four
-    /// or less, and `cell % 1 == 0` is true for every cell — so the downbeat silently
-    /// disappeared and everything came out at one velocity. A four-cell traverse is exactly
-    /// where a player still expects to hear a "one".
+    /// The accent must survive a SHORT traverse. Integer division makes `period / 4` equal 0
+    /// for periods 1–3 and 1 for 4–7, and the old `max(1, …)` floored all of them to 1 — and
+    /// `cell % 1 == 0` is true for every cell, so the downbeat silently disappeared and
+    /// everything came out at one velocity. A short traverse is exactly where a player still
+    /// expects to hear a "one".
+    ///
+    /// ⚠️ 5, 6 and 7 are in this list deliberately. The first version swept 2, 3, 4, 8, 16 —
+    /// because its comment said the break was at "4 or less". It is 1–7, so the sweep skipped
+    /// exactly the half of the range the wrong number hid. A test built from a mistaken
+    /// description tests the description, not the code.
     func testTheDownbeatSurvivesAShortTraverse() {
-        for period in [2, 3, 4, 8, 16] {
+        for period in [2, 3, 4, 5, 6, 7, 8, 16] {
             let velocities = Set(sweep(params(periodSteps: period), steps: period * 2)
                                     .map { $0.velocity })
             XCTAssertEqual(velocities.count, 2,

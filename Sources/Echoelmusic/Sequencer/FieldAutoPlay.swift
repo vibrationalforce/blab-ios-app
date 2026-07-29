@@ -11,13 +11,23 @@
 //  the same place a finger does, so key-quantisation, the Ultrasync grid, the Life
 //  micro-variation and the Level all apply to it without a second note path existing.
 //
-//  ⚠️ THAT IS THE INTENT, NOT YET THE FACT, and the first version of this header stated it as
-//  fact. `TouchPitchMap` IS a reusable core and a generated `Touch` can go through it today.
-//  Ultrasync, Life and Level are NOT: they live inside `private func sound(_:)` on
-//  `TouchInstrumentUIView`, so there is nothing for this to call. Making the wiring slice
-//  honest therefore means HOISTING that method's body into a core both a finger and this
-//  generator enter — not calling it from here (impossible) and not re-implementing it (the
-//  parallel path this file exists to avoid). Whoever wires this: that hoist IS the slice.
+//  ⚠️ THAT IS THE INTENT, NOT YET THE FACT — but the gap is SMALLER than the first two
+//  versions of this paragraph claimed, and both were wrong in the same direction. The
+//  DECISION cores are already reusable and a generated touch can enter all of them today:
+//    · Ultrasync — `TouchQuantizer.plan(forTick:index:seed:)` (public; the view only calls it)
+//    · Life      — `TouchPitchMap.microVariation(noteIndex:depth:)` (public static)
+//    · Level     — not in the touch path at all: it is a gain on the shared voice
+//                  (`touchVoice.setGain` from `StudioDefaultKeys.touchLevel`, EchoelmusicApp),
+//                  so anything routed into that voice inherits it with no hoist whatsoever.
+//  What IS private is the DISPATCH in `TouchInstrumentUIView.sound(pitch:velocity:…)`: the
+//  `Task.sleep` delay/echo scheduling, the lateness floor, the pending-note bookkeeping, and
+//  the `noteCounter` that feeds `microVariation`. That dispatch — not the decisions — is what
+//  the wiring slice must hoist or deliberately duplicate.
+//
+//  Said this precisely because the previous wording ("that hoist IS the slice") SIZED THE WORK
+//  WRONGLY: it sent the next session off to hoist three things, two of which were already
+//  hoisted and one of which was never in that method. A correction that is itself inaccurate
+//  is worse than the claim it replaced, because it arrives wearing the authority of a fix.
 //
 //  A generator that emitted `Note`s directly would have been shorter to write and wrong for the
 //  same reason: it would re-implement all four and drift from them the first time one changed.
@@ -107,9 +117,11 @@ public enum FieldAutoPlay {
         /// selects one of THREE octave bands (`TouchPitchMap`: `min(2, Int(y * 3))`), so the
         /// wander must span more than 1/3 to cross a boundary and change the octave at all.
         /// The default 0.2 centred at band 0.5 stays inside 0.4…0.6 — entirely within the
-        /// middle band. That is NOT a dead default: `y` is also the vertical position of the
-        /// light the touch drops into the field, so sub-threshold values move the VISUAL and
-        /// leave the pitch alone, which is a musically sensible place to start. Above ~0.34 it
+        /// middle band. That is NOT a dead default: `y` is also the vertical position a
+        /// finger's light drops at in the field, so ONCE WIRED, sub-threshold values will move
+        /// the VISUAL and leave the pitch alone — a musically sensible place to start. (Stated
+        /// as intent: nothing consumes this generator yet, and the ripple itself is private to
+        /// the touch view and skipped under Reduce Motion.) Above ~0.34 it
         /// starts changing octaves. Documented because a control whose first third does
         /// nothing audible reads as broken unless you say what it is doing instead.
         public var bandDrift: Float
@@ -281,12 +293,17 @@ public enum FieldAutoPlay {
     /// Kept small and deterministic; the expressive micro-variation belongs to Life, which
     /// already applies on the touch path this feeds.
     ///
-    /// The floor is 2, not 1, and that is the whole fix: `period / 4` reaches 1 at any period
-    /// of 4 or less, and `cell % 1 == 0` is true for EVERY cell — so at a four-cell traverse
-    /// the accent silently vanished and every note came out at 0.78. A short traverse is
-    /// exactly where a player would still expect to hear a downbeat, so the degenerate case
-    /// was the one that mattered. With a floor of 2 the shortest traverses alternate
-    /// loud/quiet; at period 16 the value is 4 as before, so nothing shipped changes.
+    /// The floor is 2, not 1, and that is the whole fix. INTEGER division: `period / 4` is 0
+    /// for periods 1–3 and 1 for 4–7, and the old `max(1, …)` floored all of them to 1 — and
+    /// `cell % 1 == 0` is true for EVERY cell, so the accent silently vanished and every note
+    /// came out at 0.78. A short traverse is exactly where a player still expects to hear a
+    /// downbeat, so the degenerate case was the one that mattered.
+    ///
+    /// ⚠️ THE BROKEN RANGE IS 1–7, NOT ≤4. The first version of this note said "4 or less"
+    /// and its test swept 2, 3, 4, 8, 16 — skipping 5, 6 and 7, which is precisely the half
+    /// of the range the wrong number hid. So this floor changes behaviour at periods 5–7 as
+    /// well; say so rather than repeating "nothing shipped changes", which is true only of
+    /// the default. At period 16 the value is 4 exactly as before.
     static func velocity(cell: Int, period: Int) -> Float {
         let beat = Swift.max(2, period / 4)
         return cell % beat == 0 ? 0.78 : 0.62
