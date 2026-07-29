@@ -34,6 +34,14 @@ struct BioStripView: View {
     var measuring: Bool = false
     /// One-tap entry from the otherwise-dead strip: bring the body's pulse in.
     ///
+    /// ⚠️ No `= nil`, deliberately, after a round trip: it was written out on the theory that
+    /// an implicit memberwise default is the kind of assumption that costs a CI round trip to
+    /// disprove. The assumption was then DISPROVEN by evidence already in the repo — the
+    /// pre-#234 call site omitted all eight of this view's other members, so the synthesized
+    /// init demonstrably supplies defaults here. Explicit `= nil` is redundant, and SwiftLint's
+    /// `redundant_optional_initialization` is on. Belt-and-braces is right while a fact is
+    /// unknown and is just noise once it is known.
+    ///
     /// ⛔ OPTIONAL SINCE #234, and `nil` is the case that matters. In `EchoelStudioView`'s
     /// Bio panel this handler was `startBiofeedback()` — i.e. a button labelled "Read pulse"
     /// that started the entire generative session. That is a lying control on its own, and
@@ -42,12 +50,7 @@ struct BioStripView: View {
     /// honest "No signal" instead; the one Start is the front plate's own button, on the
     /// same screen. `BioSourceView` still passes a handler and is still right to: its
     /// `arm(true)` really does arm the sensor alone.
-    /// `= nil` is written out rather than relied on. Swift does synthesise a `nil` default for
-    /// an Optional `var` in a memberwise initialiser (SE-0242), so `BioStripView(measuring:)`
-    /// would compile without it — but there is no compiler on this machine, the omission is
-    /// the kind of thing that turns into a full CI round trip, and one word is cheaper than
-    /// being right.
-    var onStartPulse: (() -> Void)? = nil
+    var onStartPulse: (() -> Void)?
 
     /// Tapped metric → its plain-language explanation sheet ("app as a school").
     @State private var explain: BioMetric?
@@ -259,12 +262,22 @@ struct BioStripView: View {
 
     // MARK: - Source control (live tag · measuring · one-tap pulse entry)
 
-    /// The right end of the strip. Three honest states, no synthetic data ever:
-    /// • a real signal is live → green source tag (HR / PPG / BLE…);
-    /// • a pulse read is in progress → live "Reading… / Cover camera" feedback;
-    /// • nothing yet → a one-tap button that brings the body in (camera rPPG),
-    ///   so the most bio-looking element is the gateway to the instrument, not a
-    ///   dead end. Only a real, fresh signal turns it green.
+    /// The right end of the strip. FOUR honest states, no synthetic data ever:
+    /// • a real signal is live → green source tag (HR / PPG / BLE…). Only a real,
+    ///   fresh signal turns it green;
+    /// • camera access denied → the one real door, the system Settings;
+    /// • a read is in progress → live "Reading… / Connecting…" feedback;
+    /// • nothing yet → EITHER a one-tap button that brings the body in, when the
+    ///   host passed `onStartPulse` (only `BioSourceView` does, and its handler arms
+    ///   the sensor alone), OR a static "No signal" tag when it did not.
+    ///
+    /// ⛔ THE THIRD BULLET USED TO SAY the no-signal state was "a one-tap button …
+    /// so the most bio-looking element is the gateway to the instrument, not a dead
+    /// end", full stop. That stopped being true for the app's only reachable mount
+    /// with #234: in `EchoelStudioView`'s Bio panel the button was a "Read pulse"
+    /// label that started the entire generative session, and it is gone. Corrected
+    /// here rather than contradicted from the branch below — a comment that a newer
+    /// comment has to argue against is the drift this file keeps paying for.
     @ViewBuilder private var sourceControl: some View {
         if hasLiveSignal {
             liveTag
@@ -332,21 +345,39 @@ struct BioStripView: View {
 
     private var measuringTag: some View {
         let amber = EchoelTheme.warning
+        // ⛔ "Cover camera" IS ONLY TRUE FOR THE CAMERA. This tag shows whenever a session
+        // runs without a live signal, and the host passes `measuring: running` — so with a
+        // BLE strap or the Simulation selected it used to instruct the user to cover a lens
+        // that has nothing to do with the reading. Pre-existing, but #234 made it the only
+        // non-live state the Bio panel can show, so the wrong instruction became the whole
+        // message. `cameraRPPG.isRunning` is the low-frequency "camera is the live source"
+        // flag; `fingerDetected` is the 10 Hz one this leaf already reads, so no new churn
+        // and no new observer (freeze rule).
+        let camera = cameraRPPG.isRunning
         let finger = cameraRPPG.fingerDetected
+        let caption: LocalizedStringKey = camera
+            ? (finger ? "Reading…" : "Cover camera")
+            : "Connecting…"
         return HStack(spacing: 4) {
             Image(systemName: "heart.fill").font(.system(size: 9))
                 .symbolEffect(.pulse, isActive: !reduceMotion)
-            Text(finger ? "Reading…" : "Cover camera")
+            Text(caption)
         }
         .lineLimit(1)
         .padding(.horizontal, 6).padding(.vertical, 2)
         .background(amber.opacity(0.20))
         .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
         .foregroundStyle(amber)
-        .accessibilityLabel(finger ? "Reading your pulse" : "Cover the rear camera and flash to read your pulse")
+        // Same three-way split as the visible caption — a VoiceOver user must not be told to
+        // cover a lens that is not the source either.
+        .accessibilityLabel(camera
+                            ? (finger ? Text("Reading your pulse")
+                                      : Text("Cover the rear camera and flash to read your pulse"))
+                            : Text("Waiting for your bio source to deliver a signal"))
     }
 
-    /// The old dead "No signal" becomes the one-tap gateway to the live body.
+    /// The one-tap gateway to the live body, for a host that passes `onStartPulse`.
+    /// (`EchoelStudioView`'s Bio panel no longer does — see the property's own note.)
     private var startPulseButton: some View {
         Button { onStartPulse?() } label: {
             HStack(spacing: 4) {

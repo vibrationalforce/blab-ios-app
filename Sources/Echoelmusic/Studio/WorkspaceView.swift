@@ -368,10 +368,14 @@ private struct TransportBar: View {
                 // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit
                 // area fills the bar height (performance control, AX audit 2026-07-09).
                 .contentShape(Rectangle().inset(by: -6))
-                // `Text` on both ternary branches — same reason as `OnboardingView`'s Start
-                // label: a bare two-literal ternary is a weaker inference site, and this is
-                // the only description a VoiceOver user gets of a control whose whole point
-                // is that it does NOT end the session.
+                // `Text` on both ternary branches, as a forward guard — NOT a bug fix. Be
+                // precise, because the sibling comment in `OnboardingView` was written as if
+                // it were one: the non-generic `LocalizedStringKey` overload is preferred over
+                // the generic `StringProtocol` one, so two bare literals almost certainly
+                // localised already. Neither string is a catalog key today either, so nothing
+                // a user sees changes. What `Text` buys is that the question stops depending
+                // on overload ranking — worth one word on the only description a VoiceOver
+                // user gets of a control whose whole point is that it does NOT end the session.
                 .accessibilityLabel(transport.isPlaying ? Text("Stop the music") : Text("Play the music"))
                 .accessibilityHint(Text("Leaves the session and your pulse reading running."))
             }

@@ -201,9 +201,11 @@ struct PulseMonitorMiniLive: View {
             // Bluetooth Device · Simulation").
             //   • TAP opens the Bio panel — the live numbers, tap-to-learn, the camera
             //     source control and Routing.
-            //   • LONG-PRESS opens the SOURCE dropdown: pick Camera light / a Bluetooth
-            //     strap / the Simulation demo; the studio owns all three publishers and
-            //     switches the live one (decoupled via .echoelSelectBioSource).
+            //   • LONG-PRESS opens the SOURCE dropdown — "Play with camera light / a
+            //     Bluetooth strap / the simulation" (the labels say "Play with" because the
+            //     entries START the music when idle; see the menu's own note). The studio
+            //     owns all three publishers and switches the live one (decoupled via
+            //     .echoelSelectBioSource).
             //
             // ⛔ TAP NO LONGER STARTS THE INSTRUMENT (founder 2026-07-29, screenshot:
             // "Ich hab jetzt hier 3 Knöpfe zum Start … könnte man das zu einem
@@ -241,7 +243,12 @@ struct PulseMonitorMiniLive: View {
                 } label: { Label("Play with camera light", systemImage: "camera.fill") }
                 Button {
                     NotificationCenter.default.post(name: .echoelSelectBioSource, object: "ble")
-                } label: { Label("Play with a Bluetooth strap", systemImage: "dot.radiowaves.left.and.right") }
+                  // "scans for one" carries the half the old "Search for Bluetooth device"
+                  // said and the bare rename dropped: the music starts from neutral defaults
+                  // immediately, whether or not a strap is ever found. Both halves are true
+                  // and the user needs both.
+                } label: { Label("Play with a Bluetooth strap — scans for one",
+                                 systemImage: "dot.radiowaves.left.and.right") }
                 Button {
                     NotificationCenter.default.post(name: .echoelSelectBioSource, object: "sim")
                 } label: { Label("Play with the simulation", systemImage: "waveform.path") }

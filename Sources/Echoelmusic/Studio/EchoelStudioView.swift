@@ -1452,7 +1452,7 @@ struct EchoelStudioView: View {
             // pill, behind a label promising a measurement. The one Start is the front
             // plate's own button, in this same view.
             BioStripView(measuring: running)
-            Text("Press \u{201C}Create from Within\u{201D} to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse pill in the header and pick \u{201C}Play with a Bluetooth strap\u{201D}; Apple Watch feeds in through Health.")
+            Text("Press \u{201C}Create from Within\u{201D} to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse pill in the header and pick \u{201C}Play with a Bluetooth strap — scans for one\u{201D}; Apple Watch feeds in through Health.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
@@ -4087,9 +4087,14 @@ struct EchoelStudioView: View {
     ///
     /// BE HONEST ABOUT WHAT THIS IS: "camera live, no music" is a NEW state, introduced here.
     /// An earlier version of this comment called it "the state the Bio panel's own arm already
-    /// puts the app in" — false. Every reachable arm (`BioStripView`'s pulse start, the source
-    /// picker when idle) goes through `startBiofeedback()`, i.e. a full take; the camera-only
-    /// arms live in `BioSourceView`/`SessionView`, both doorless. So this is a product
+    /// puts the app in" — false. The ONE reachable arm, the pill's long-press source picker,
+    /// goes through `startBiofeedback()` when idle, i.e. a full take; the camera-only arms
+    /// live in `BioSourceView`/`SessionView`, both doorless. (This sentence used to list
+    /// `BioStripView`'s pulse start alongside the picker as a second reachable arm. #234
+    /// removed it from the Bio panel, so it now survives only inside `BioSourceView` — the
+    /// very view this same sentence calls doorless. Corrected because the conclusion survives
+    /// and the evidence did not, which is the worse of the two ways to be stale.) So this is a
+    /// product
     /// decision — and as of #234 it is a SHIPPED one, reachable by every user who presses ■
     /// during a take. Flagged to the founder rather than buried: if "■ should end everything"
     /// is what he wants, the change is one line in `TransportBar.toggle()`.
