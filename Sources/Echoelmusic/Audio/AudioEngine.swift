@@ -686,7 +686,11 @@ public final class AudioEngine {
                         // on every single interval.
                         let rate = buffer.format.sampleRate
                         let q = quantumPtr.pointee * rate
-                        let quantumFrames = (q.isFinite && q >= 1 && q < 1e7) ? Int(q) : 0
+                        // `.rounded()` and not truncation: 0.0106666… × 48000 is
+                        // 511.99997, and truncating gives 511 — a unit 0.2 % away from the
+                        // millisecond figure printed beside it, which is exactly the
+                        // conversion that figure exists to make exact.
+                        let quantumFrames = (q.isFinite && q >= 1 && q < 1e7) ? Int(q.rounded()) : 0
                         measuredPtr.pointee &+= 1
                         switch RenderGapDetector.classify(elapsedSeconds: elapsed,
                                                           previousFrames: previousFrames,
@@ -908,9 +912,16 @@ public final class AudioEngine {
                                             measuredIntervals: _measuredCount.pointee)
         let measured = _measuredCount.pointee
         _gapCount.pointee = 0
+        // The SCORE is cleared FIRST, deliberately. Cleared last, a glitch classified in
+        // between would be measured against the stale high-water mark, lose, and skip
+        // writing its pair — into cells that had already been zeroed. The window would
+        // then print "N late … worst one 0.0× … frame drift 0.0×", a line that
+        // contradicts itself, in the file the founder ships. With the score at zero the
+        // first glitch of the new window always wins (a glitch needs a channel above
+        // 0.75, so its score is always > 0).
+        _worstScore.pointee = 0
         _gapWorst.pointee = 0
         _driftWorst.pointee = 0
-        _worstScore.pointee = 0
         _discCount.pointee = 0
         _measuredCount.pointee = 0
 

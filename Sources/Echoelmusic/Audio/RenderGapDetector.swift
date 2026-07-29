@@ -238,11 +238,16 @@ public enum RenderGapDetector {
         public var glitchCount: Int
         public var worstLateInQuanta: Double
         /// The frame drift OF THE SAME INTERVAL that produced `worstLateInQuanta` — the
-        /// two are one event, not two independent window maxima. That distinction is the
-        /// whole value of the pair: `0` drift beside a large lateness means the graph
-        /// stopped rendering, non-zero means audio was skipped. Maximising them separately
-        /// would compose a description of an event that never occurred, which is the
-        /// false-composite this design exists to avoid.
+        /// two are meant to be one event, not two independent window maxima. That
+        /// distinction is the whole value of the pair: `0` drift beside a large lateness
+        /// means the graph stopped rendering, non-zero means audio was skipped. Maximising
+        /// them separately would compose a description of an event that never occurred.
+        ///
+        /// Stated exactly, because this file does not let a comment outrun its code: the
+        /// producer writes the two in sequence without a lock, so a snapshot taken between
+        /// those two stores can still pair a new lateness with the previous drift. That is
+        /// a handful of instructions per 60 s window, not a structural guarantee — and a
+        /// lock on the audio path to tidy a diagnostic would be the worse trade.
         public var worstDriftInQuanta: Double
         /// Intervals discarded as pause/restart artefacts. Reported, not hidden: if this
         /// is large the instrument was mostly looking at a stopped graph, and the
