@@ -95,6 +95,12 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     public var delayTone: Float
     public var delayWow: Float
     public var delayDrive: Float
+    /// STEREO SPREAD (#246). The right tap's offset, `spread * 0.025 * sampleRate` — at the
+    /// 0.6 that some characters stamp, 15 ms, which is the difference between a centred echo
+    /// and a wide one. It was the ONE live delay parameter that did not round-trip: seven
+    /// travelled, the eighth did not, so `apply` left whatever genre had been stamped last in
+    /// place and the same preset sounded different depending on what came before it.
+    public var delaySpread: Float
 
     // Reverb
     public var reverbEnabled: Bool
@@ -194,6 +200,21 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         delayTone = f(.delayTone, 0.5)
         delayWow = f(.delayWow, 0)
         delayDrive = f(.delayDrive, 0)
+        // 0 = `EchoelDelay.spread`'s own initial value, for the reason the compressor block
+        // below states: a preset written before this key existed must load onto a FRESH chain
+        // bit-identically.
+        //
+        // ⚠️ BUT SAY THE REST OF IT, because "more deterministic" is not the whole truth and a
+        // later reader deserves the honest version: this fix is NOT neutral for presets a user
+        // has ALREADY saved. Save a take while `dream` (spread 0.6, GenreFX.swift:510) or
+        // `blurry` (0.55, :526) is stamped and the JSON carries no spread key. Today, re-loading
+        // it under the same character keeps 0.6 and it sounds as saved; from now on it decodes 0
+        // and `apply` hard-writes 0, so the 15 ms right-tap offset collapses to centre. The
+        // change is one-directional — always toward narrower, never wider — and there is no UI
+        // row to dial it back yet. It is still the right fix, because the alternative is a
+        // preset whose stereo image depends on what was loaded before it; but it is a change to
+        // existing sounds, not merely a tightening.
+        delaySpread = f(.delaySpread, 0)
 
         reverbEnabled = b(.reverbEnabled, false)
         reverbRoomSize = f(.reverbRoomSize, 0.72)
@@ -232,6 +253,7 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         tremoloEnabled: Bool, tremoloRate: Float, tremoloDepth: Float, tremoloStereoPan: Bool,
         delayEnabled: Bool, delayModeRaw: String, delayMix: Float, delayTime: Float,
         delayFeedback: Float, delayTone: Float, delayWow: Float, delayDrive: Float,
+        delaySpread: Float,
         reverbEnabled: Bool, reverbRoomSize: Float, reverbDamping: Float,
         reverbMix: Float, reverbWidth: Float,
         compressorEnabled: Bool, compThreshold: Float, compRatio: Float, compMakeup: Float,
@@ -267,6 +289,7 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         self.delayEnabled = delayEnabled; self.delayModeRaw = delayModeRaw; self.delayMix = delayMix
         self.delayTime = delayTime; self.delayFeedback = delayFeedback; self.delayTone = delayTone
         self.delayWow = delayWow; self.delayDrive = delayDrive
+        self.delaySpread = delaySpread
         self.reverbEnabled = reverbEnabled
         self.reverbRoomSize = reverbRoomSize; self.reverbDamping = reverbDamping
         self.reverbMix = reverbMix; self.reverbWidth = reverbWidth
@@ -341,6 +364,7 @@ public extension FXPreset {
             delayTone: chain.delay.tone,
             delayWow: chain.delay.wow,
             delayDrive: chain.delay.drive,
+            delaySpread: chain.delay.spread,
             reverbEnabled: chain.reverbEnabled,
             reverbRoomSize: chain.reverb.roomSize,
             reverbDamping: chain.reverb.damping,
@@ -411,6 +435,7 @@ public extension FXPreset {
         chain.delay.tone = delayTone
         chain.delay.wow = delayWow
         chain.delay.drive = delayDrive
+        chain.delay.spread = delaySpread
         chain.reverbEnabled = reverbEnabled
         chain.reverb.roomSize = reverbRoomSize
         chain.reverb.damping = reverbDamping
@@ -548,6 +573,7 @@ public extension FXPreset {
             delayTone: L(delayTone, other.delayTone),
             delayWow: L(delayWow, other.delayWow),
             delayDrive: L(delayDrive, other.delayDrive),
+            delaySpread: L(delaySpread, other.delaySpread),
             reverbEnabled: B(reverbEnabled, other.reverbEnabled),
             reverbRoomSize: L(reverbRoomSize, other.reverbRoomSize),
             reverbDamping: L(reverbDamping, other.reverbDamping),

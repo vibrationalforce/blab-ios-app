@@ -102,8 +102,24 @@ public final class EchoelDelay: @unchecked Sendable {
         timeSmoothed += timeGlide * (timeSeconds - timeSmoothed)
 
         // Base delay in samples, with optional stereo spread on the right tap.
+        //
+        // `spread` is held to its declared [0, 1] domain here, beside `feedback` and `mix`.
+        // ⚠️ NOT a crash guard — it was checked and it is not needed for that: `EchoelDelayLine.read`
+        // already clamps to `1...maxDelaySamples` with the NaN-safe `clamped(to:)`
+        // (EchoelDelayLine.swift:56), so a wild value cannot trap or index out of bounds. The
+        // reason is RECOVERABILITY. Until #246 the only writer was `GenreFXPreset.apply` with
+        // hardcoded 0…0.6 literals; it now round-trips through `FXPreset`, whose decoder does not
+        // bound it, and there is still no UI row for it — so a hand-edited preset carrying 40
+        // would park the right tap at the far end of the buffer with nothing on screen able to
+        // dial it back. Every shipped value is inside the range: this is a no-op for all of them.
+        //
+        // `clamped(to:)` and NOT `min(max(v, 0), 1)`: that idiom passes NaN straight through
+        // (`max(NaN, 0)` is NaN — argument order decides), and a NaN here would reach the
+        // multiply. The two lines above still carry the unsafe form; fixing those is a separate
+        // change with its own audible surface, not something to smuggle in here.
+        let sp = spread.clamped(to: 0...1)
         let baseL = Swift.max(1.0, timeSmoothed * sr)
-        let spreadSamples = spread * 0.025 * sr
+        let spreadSamples = sp * 0.025 * sr
         let baseR = Swift.max(1.0, baseL + spreadSamples)
 
         // Tape pitch modulation (skip work entirely when not in tape mode).
