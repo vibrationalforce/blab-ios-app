@@ -70,7 +70,7 @@ private struct BioUniforms {
     /// a per-pixel RGB fade from the PREVIOUS note's dispersion (A) to the CURRENT
     /// note's (B) — NEVER computed from an eased frequency. Gliding Hz sweeps the hue
     /// through every colour between two notes, and when the glide crosses the
-    /// visible-band edge the octave-fold in toneWavelengthNm wraps red↔violet in ONE
+    /// visible-band edge the octave fold wraps red↔violet in ONE
     /// frame ("Kästchen flackern"). A/B are discrete note frequencies; only the MIX
     /// eases, and retargets are GATED until the running fade is well past halfway.
     var colorToneA: Float = 261.63
@@ -1270,28 +1270,34 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         return clamp(c, 0.0, 1.0);
     }
 
-    // Physically transpose an audible tone up by WHOLE octaves into visible light and
-    // return the resulting WAVELENGTH (nm, unclamped — the caller clamps). c = 2.998e17
-    // nm/s, so wavelength = c / f_light.
-    float toneWavelengthNm(float toneHz) {
-        float f = max(toneHz, 1.0);
-        float n = round(log2(5.4e14 / f));         // octaves up to ~555 nm (green centre)
-        float fLight = f * exp2(n);                 // now in the ~400–790 THz visible band
-        return 2.998e17 / fLight;                   // nanometres
-    }
+    // DELETED 2026-07-29: `toneWavelengthNm` — the NAIVE octave fold (nearest octave to a
+    // ~555 nm green centre, then clamp). It had zero callers since the prism look moved to
+    // `toneColour` below, and it is a DIFFERENT fold from the one every surface agrees on
+    // (ceil-fold anchored at 780 nm): same tone, different colour. A second fold sitting in
+    // the file with nothing calling it is not neutral — it is the one a future edit reaches
+    // for by name, which is exactly how the prism kept the black-F seam for two weeks after
+    // the clouds were fixed. `toneColour` is the only fold; deleting this makes that literal.
+
     // Tone → colour on the CLOSED spectral circle. The visible band is barely one
     // octave, so the naive fold has a SEAM where CIE response → 0 (at A4=440 the
     // pitch class F rendered BLACK, G/E dim — founder 2026-07-12). Colorimetry's
     // own closure is the CIE PURPLE LINE (red end ↔ violet end, real perceived
-    // colours); inside 640…420 nm the pure spectral colour holds. EXACT twin of
-    // SpectralColor.toneLinearRGB — every surface must agree (anti-strobe law).
+    // colours); inside 640…420 nm the pure spectral colour holds. Hand-written twin
+    // of SpectralColor.toneLinearRGB — every surface must agree (anti-strobe law).
+    //
+    // The two SEAM BOUNDARIES are interpolated from SpectralColor rather than typed
+    // here, because typed here they had DRIFTED: tViolet read 0.89306425 against a
+    // true log2(780/420) = 0.89308480, while this comment claimed to be an "EXACT
+    // twin". Sub-perceptual (the violet edge sat at 420.006 nm) and unreachable by
+    // any test — the two properties that let it survive. The rest of the function is
+    // still a hand-written twin; only the derived constants are now single-source.
     float3 toneColour(float toneHz) {
         float f = max(toneHz, 1.0);
         float p = log2(2.99792458e17 / 780.0 / f);  // octaves up to the 780 nm anchor
         float t = ceil(p) - p;                       // position in the closed circle [0,1)
         if (t >= 1.0) t -= 1.0;
-        float tRed = 0.28540222;                     // log2(780/640) — last strong red
-        float tViolet = 0.89306425;                  // log2(780/420) — last strong violet
+        float tRed = \(SpectralColor.tRedMetalLiteral);      // log2(780/640) — last strong red
+        float tViolet = \(SpectralColor.tVioletMetalLiteral); // log2(780/420) — last strong violet
         if (t >= tRed && t <= tViolet) {
             return wavelengthToRGB(780.0 / exp2(t));
         }
@@ -1369,7 +1375,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Same anti-strobe crossfade as the clouds: fan BOTH note spectra and mix in RGB.
         // Through `toneColour` — the CLOSED-circle twin of SpectralColor.toneLinearRGB.
         // It sat directly above this function, written and with ZERO callers, while this
-        // line used the naive `clamp(toneWavelengthNm(...))` fold instead: the one with the
+        // line used a naive nearest-octave fold instead (`toneWavelengthNm`, deleted
+        // 2026-07-29 once this was its last trace): the one with the
         // deep-red/violet SEAM, where a tone landing at the edge hits near-zero CIE response
         // and renders BLACK (at A4=440 that is the pitch class F — the founder's 2026-07-12
         // "da fehlt jetzt gerade das F komplett als Farbe"). The clouds were fixed; the

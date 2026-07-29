@@ -152,6 +152,39 @@ public enum SpectralColor {
 
     // MARK: Tone → colour on the CLOSED spectral circle (purple-line seam)
 
+    /// The anchor + the two spectral edges, in nanometres. ONE octave of light, top-anchored
+    /// at 780 nm; the pure-spectral span inside it runs 640 nm (red) → 420 nm (violet).
+    public static let anchorNm: Double = 780.0
+    public static let redEdgeNm: Double = 640.0
+    public static let violetEdgeNm: Double = 420.0
+
+    /// Where the pure-spectral span ENDS and the purple-line seam begins, expressed as a
+    /// position in the closed octave circle (`t`, see `toneLinearRGB`). `tRed` = the deep-red
+    /// edge at 640 nm, `tViolet` = the deep-violet edge at 420 nm.
+    ///
+    /// ⚠️ THESE EXIST BECAUSE THE METAL SHADER NEEDS THEM AS TOKENS. `MetalBioView`'s
+    /// `toneColour` is a hand-written MSL twin of `toneLinearRGB`, and its comment claimed to
+    /// be an "EXACT twin" while carrying `tViolet = 0.89306425` — the true value is
+    /// 0.8930847960834881, i.e. wrong from the fifth decimal. The GPU's violet boundary sat at
+    /// 420.006 nm instead of 420.000 and its seam was 2.06e-5 octaves wide of the CPU's.
+    /// Sub-perceptual (≈0.006 nm — nobody would ever have seen it), and that is exactly why a
+    /// hand-typed transcendental had sat wrong for as long as it had: there was no observation
+    /// that could catch it and no test that could reach it. Now the shader interpolates these,
+    /// so CPU and GPU cannot disagree by transcription again.
+    public static let tRed: Double = Foundation.log2(anchorNm / redEdgeNm)
+    public static let tViolet: Double = Foundation.log2(anchorNm / violetEdgeNm)
+
+    /// The same two positions as EXACT Metal float tokens, following `FlashGuard`'s
+    /// `ringsPhaseDampingLiteral` pattern: the shader is compiled from a string at RUNTIME,
+    /// so a bad token here is a device-only black visual, never a build error. Written by
+    /// hand rather than formatted at runtime so no locale can put a comma in them.
+    ///
+    /// Enough digits that `Float(literal) == Float(theDouble)` — the bar `SpectralColor`'s
+    /// smoke test asserts, and the only bar that means anything, since Metal has no `double`
+    /// and rounds both to the same float32 regardless.
+    public static let tRedMetalLiteral: String = "0.285402219"
+    public static let tVioletMetalLiteral: String = "0.893084796"
+
     /// The visible band is barely more than ONE octave, so the naive octave
     /// transposition has a SEAM: tones landing at the deep-red (~780 nm) or
     /// deep-violet (~390 nm) edge hit near-zero CIE eye response and render
@@ -176,20 +209,18 @@ public enum SpectralColor {
         // Fold the tone into EXACTLY one light octave anchored at 780 nm:
         // t ∈ [0,1) is the position within the closed circle (λ = 780/2^t).
         let cNmPerSec = 2.99792458e17
-        let fRef = cNmPerSec / 780.0
+        let fRef = cNmPerSec / anchorNm
         let p = Foundation.log2(fRef / hz)
         var t = p.rounded(.up) - p            // = fract of the octave fold
         if t >= 1 { t -= 1 }                  // guard the exact-integer case
-        let tRed    = Foundation.log2(780.0 / 640.0)   // ≈ 0.285 — last strong red
-        let tViolet = Foundation.log2(780.0 / 420.0)   // ≈ 0.893 — last strong violet
-        if t >= tRed && t <= tViolet {
-            return wavelengthToLinearRGB(780.0 / Foundation.pow(2.0, t))
+        if t >= tRed && t <= tViolet {        // ≈ 0.285…0.893 — the pure-spectral span
+            return wavelengthToLinearRGB(anchorNm / Foundation.pow(2.0, t))
         }
         // Seam zone (deep red edge ↔ wrap ↔ deep violet edge): CIE purple line.
         let seam = tRed + 1 - tViolet
         let s = t < tRed ? (tRed - t) / seam : (tRed + 1 - t) / seam
-        let red = wavelengthToLinearRGB(640)
-        let violet = wavelengthToLinearRGB(420)
+        let red = wavelengthToLinearRGB(redEdgeNm)
+        let violet = wavelengthToLinearRGB(violetEdgeNm)
         var r = red.r + (violet.r - red.r) * s
         var g = red.g + (violet.g - red.g) * s
         var b = red.b + (violet.b - red.b) * s
