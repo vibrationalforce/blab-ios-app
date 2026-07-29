@@ -71,10 +71,32 @@ final class TimelineSchemaVersionSmokeTests: XCTestCase {
     /// silently clamping it to current would erase the one signal a downgrade could act on.
     func testAFutureSongIsNotVaporizedAndKeepsItsOwnStamp() throws {
         let json = """
-        {"schemaVersion":99,"lanes":[],"regions":[],"automation":[]}
+        {"schemaVersion":99,
+         "lanes":[{"id":"00000000-0000-0000-0000-000000000010","kind":"audio"}],
+         "regions":[],"automation":[]}
         """
         let doc = try JSONDecoder().decode(TimelineDocument.self, from: Data(json.utf8))
         XCTAssertEqual(doc.schemaVersion, 99)
+        // The lane assertion is the "not vaporized" half of the name. Without it the test
+        // passed on an empty document and proved only that an Int decoded.
+        XCTAssertEqual(doc.lanes.count, 1)
+    }
+
+    /// GUARD FOR THE HAND-WRITTEN ENCODER. Replacing synthesis with an explicit
+    /// `encode(to:)` made this type a silent-data-loss surface: a stored property added
+    /// later and forgotten in the encoder vanishes on every save, with no compiler error.
+    /// A whole-document round-trip catches that — and it has to live HERE, in the blocking
+    /// bundle, because the equivalent assertion in `TimelineDocumentPersistenceTests` is
+    /// non-blocking (#208) and would let the loss merge green.
+    func testAFullDocumentSurvivesTheHandWrittenEncoderUnchanged() throws {
+        let lane = TimelineLane(name: "Lead", kind: .midi, builtinInstrument: .polySynth)
+        var doc = TimelineDocument(lanes: [lane])
+        doc.regions = [TimelineRegion(laneID: lane.id, clipID: UUID(),
+                                      startTick: 480, lengthTicks: 1920)]
+
+        let round = try JSONDecoder().decode(TimelineDocument.self,
+                                             from: JSONEncoder().encode(doc))
+        XCTAssertEqual(round, doc, "a field dropped from encode(to:) shows up here and nowhere else")
     }
 
     /// A MALFORMED stamp degrades to "unknown provenance" instead of throwing. This is the

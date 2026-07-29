@@ -151,7 +151,22 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         // Pre-2026-07-13 docs carry no built-in-instrument/arm keys — decode to unset/
         // disarmed. A legacy doc's old AUv3 `instrument`/`effects` keys (removed in the
         // pure-instrument cut) are ignored — Swift skips unknown keys (TimelineDecodeTests).
-        builtinInstrument = try c.decodeIfPresent(TrackInstrument.self, forKey: .builtinInstrument)
+        // `try?` on top, and it is what actually makes #167 survivable — the document-level
+        // `schemaVersion` stamp alone does NOT. `TrackInstrument` is a String-raw enum with
+        // synthesized `RawRepresentable` decoding, which THROWS `dataCorrupted` on a raw
+        // value it does not know; `decodeIfPresent` absorbs a MISSING key, never an unknown
+        // case (the same mechanism `Project` documents at length for `NoteRole`). So the day
+        // `case drums` is deleted, an old song's drum lane would throw here → `Lossy<Lane>`
+        // yields nil → `lossyArray` drops the WHOLE LANE → its regions survive as orphans
+        // pointing at a laneID that no longer exists. And all of that happens INSIDE this
+        // decoder, before any migration could ever branch on the stamp.
+        //
+        // Unknown instrument → `nil` = "no built-in instrument", the same state a
+        // pre-2026-07-13 document decodes to. The lane, its regions, its clips, its mixer
+        // settings and its patch all survive; only the retired instrument choice is lost,
+        // which is precisely what retiring it means.
+        builtinInstrument = (try? c.decodeIfPresent(TrackInstrument.self,
+                                                    forKey: .builtinInstrument)) ?? nil
         isArmed = try c.decodeIfPresent(Bool.self, forKey: .isArmed) ?? false
         // Pre-2026-07-14 docs carry no per-track patch — decode to nil (global sound).
         patch = try c.decodeIfPresent(SynthPatch.self, forKey: .patch)
@@ -373,15 +388,26 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     /// 1 = the shape as of 2026-07-29. Same law as `Project.currentSchemaVersion`, and it
     /// exists here for the reason that file's header spells out: a version stamp is only
     /// useful if it was ALREADY in the file before the breaking change. Added afterwards,
-    /// every pre-existing song is indistinguishable from the new format and a migration
+    /// every pre-existing document is indistinguishable from the new format and a migration
     /// has nothing to branch on. `Project` and `SpatialScene` closed that blind spot for
-    /// takes and scenes; this is the format that holds the whole SONG — lanes, regions and
-    /// arrangement automation — and it was the largest one still unstamped (#189).
+    /// takes and scenes; this is the ARRANGEMENT format — lanes, regions and arrangement
+    /// automation (#189).
+    ///
+    /// ⛔ NOT "the whole song", and the correction matters because the overstatement would
+    /// have read as "persistence is now covered". A region is a `clipID` POINTER; the
+    /// musical content it points at — `MelodyClip`, clip automation — lives in `Clip` and
+    /// is persisted separately by `ClipStore`, which is **still unstamped**. That is the
+    /// next slice of #189, not a solved problem.
     ///
     /// The concrete break this is being put in front of: #167 removes the drums, which
-    /// deletes a case from the persisted lane enums. A song written today must still be
-    /// readable after that, and a migration must be able to tell "written before the
-    /// drums went" from "written after".
+    /// deletes a case from `TrackInstrument` — the ONE persisted lane enum carrying
+    /// `.drums` (`LaneVoiceKind` also has the case but is not `Codable` and never reaches
+    /// disk). A migration must be able to tell "written before the drums went" from
+    /// "written after".
+    ///
+    /// ⚠️ AND THE STAMP ALONE IS NOT ENOUGH FOR THAT — see the `try?` on
+    /// `TimelineLane.builtinInstrument`'s decode, which is what actually keeps the lane
+    /// alive when the case disappears. The stamp is necessary, not sufficient.
     public static let currentSchemaVersion = 1
 
     /// Version of the file this document was READ FROM — `0` for a song that predates the
@@ -462,8 +488,15 @@ public struct TimelineDocument: Codable, Sendable, Equatable {
     /// `currentSchemaVersion`, never the provenance value this instance is carrying. A song
     /// loaded from a pre-versioning file (`schemaVersion == 0`) and saved again IS in
     /// today's shape, so the bytes must say so; the synthesized encoder would have written
-    /// the 0 back and made every re-saved old song permanently indistinguishable from a
+    /// the 0 back and made every re-saved old document permanently indistinguishable from a
     /// genuinely ancient one. Same law as `Project.encode(to:)`.
+    ///
+    /// ⚠️ THE COST OF WRITING IT BY HAND, copied from `Project` because this type is edited
+    /// far more often than that one (`patch`, `genreOverride`, `mood`, `variationSeed`,
+    /// `transposeSemitones`, `detuneCents`, `octaveDouble`, `samplePath` all landed on its
+    /// lane type post-ship): **a new stored property must be added HERE as well as to
+    /// `CodingKeys` and the decoder.** Synthesis is no longer covering for an omission, and
+    /// an omission is silent — no compiler error, the field simply vanishes on every save.
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(Self.currentSchemaVersion, forKey: .schemaVersion)
