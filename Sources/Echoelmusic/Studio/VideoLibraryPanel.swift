@@ -210,6 +210,19 @@ struct VideoLibraryPanelContent: View {
         // fixes both in one call — it picks the unit AND punctuates it in the reader's locale.
         // The sibling `title(for:)` above already uses a locale-aware `DateFormatter`, so this
         // line was the odd one out in its own file.
+        //
+        // TWO CONSEQUENCES THE FIRST VERSION OF THIS COMMENT LEFT OUT, and leaving them out is
+        // the same defect class as the bug — an incomplete note written to explain a
+        // correctness fix reads as if nothing else moved:
+        //  · `.file` counts in DECIMAL (1000-based), the old maths divided by 1_048_576 (MiB).
+        //    Every size now prints ~4.8 % larger per magnitude — a clip that read "400.0 MB"
+        //    reads "419.4 MB". That is not a regression: it is what Finder and the Files app
+        //    show for the same file, so the number finally agrees with the rest of the system.
+        //  · a 0-byte clip (a failed recording, or `resourceValues` failing at the `try?` in
+        //    `reload`) now reads "Zero KB" instead of "0.0 MB", because
+        //    `allowsNonnumericFormatting` defaults on. Kept at the default deliberately —
+        //    Apple recommends it for languages where a bare "0" reads badly, and a conspicuous
+        //    row is the honest presentation of a clip that has no content.
         let size = ByteCountFormatter.string(fromByteCount: clip.bytes, countStyle: .file)
         return "\(size) · MP4 · visual + master mix"
     }
