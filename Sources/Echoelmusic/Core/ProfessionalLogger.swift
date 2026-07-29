@@ -237,7 +237,40 @@ public final class EchoelLogger: @unchecked Sendable {
     // MARK: - In-Memory Log Storage
 
     private var entries: [LogEntry] = []
-    private let maxEntries: Int = 10000
+
+    /// How many entries the in-memory ring keeps. 400, not the 10 000 it was.
+    ///
+    /// TWO REASONS, and the second is the expensive one.
+    ///
+    /// SIZE. `getRecentEntries` — the ONLY reader of this array — has zero callers in
+    /// `Sources/`. The diagnostics sheet reads `EchoelCrashLog`, not this. So the buffer
+    /// is write-only today: 10 000 `LogEntry` values, each a `UUID` + `Date` + two enums +
+    /// FOUR heap-backed `String`s (message, file, function) + a `Dictionary`, held for the
+    /// life of the process on a device with a 200 MB budget. 400 still covers that reader's
+    /// own default page of 100 four times over, if it is ever wired up.
+    ///
+    /// COST PER LOG CALL. This is the part that is not about memory at all. The old trim
+    /// was `removeFirst(count - max)` on a Swift `Array`, which is O(n) — it shifts every
+    /// remaining element down. Once the buffer was full, EVERY subsequent log line paid a
+    /// ~10 000-element memmove, forever, to make room for one entry. Trimming to a low-water
+    /// mark instead amortises that over `cap - lowWater` appends; see `trimCount`.
+    private let maxEntries: Int = 400
+
+    /// How many entries to drop, given the current count and the cap. `0` = leave it alone.
+    ///
+    /// Pure and static so the amortisation is testable without touching the logger's serial
+    /// queue or its global singleton — the trim runs inside a `queue.async`, which no unit
+    /// test can observe deterministically.
+    ///
+    /// Trims down to a LOW-WATER mark (¾ of the cap) rather than exactly to the cap. That
+    /// one change is the whole point: trimming to the cap means the very next append is over
+    /// again, so the O(n) shift runs on every single log call once the buffer fills. Going
+    /// to ¾ buys `cap / 4` cheap appends between shifts.
+    static func trimCount(currentCount: Int, cap: Int) -> Int {
+        guard cap > 0, currentCount > cap else { return 0 }
+        let lowWater = Swift.max(1, (cap * 3) / 4)
+        return currentCount - lowWater
+    }
 
     // MARK: - Configuration
 
@@ -293,9 +326,8 @@ public final class EchoelLogger: @unchecked Sendable {
 
             // Store entry
             self.entries.append(entry)
-            if self.entries.count > self.maxEntries {
-                self.entries.removeFirst(self.entries.count - self.maxEntries)
-            }
+            let drop = Self.trimCount(currentCount: self.entries.count, cap: self.maxEntries)
+            if drop > 0 { self.entries.removeFirst(drop) }
 
             // Write to outputs
             for output in self.outputs {
@@ -430,7 +462,13 @@ public final class EchoelLogger: @unchecked Sendable {
 
     // MARK: - Log Retrieval
 
-    /// Get recent log entries (thread-safe)
+    /// Get recent log entries (thread-safe).
+    ///
+    /// ⚠️ NO CALLER in `Sources/` (verified 2026-07-29). The in-app diagnostics sheet reads
+    /// `EchoelCrashLog.currentLog()`, not this — so the in-memory ring this reads is
+    /// write-only today. Stated here rather than left to be rediscovered: it is why the
+    /// ring was cut from 10 000 entries to 400. Wiring a real reader is fine; sizing the
+    /// buffer for a reader that does not exist was not.
     public func getRecentEntries(count: Int = 100, level: LogLevel? = nil, category: LogCategory? = nil) -> [LogEntry] {
         queue.sync {
             var filtered = entries

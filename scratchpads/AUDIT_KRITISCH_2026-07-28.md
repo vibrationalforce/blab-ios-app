@@ -83,6 +83,20 @@ statt ihn zu bewerben.
 | 9 | `RetroCapture` allokiert **11,5 MB im `init`**, nicht beim ersten Gebrauch | `RetroCapture.swift:40,86-91` | 48 000 × 30 s × 2 ch × 4 B = 11 520 000 B — **5,8 % des 200-MB-Budgets**, immer, auch wenn nie aufgenommen wird |
 | 10 | `mediaServicesWereReset` lief über den Interruption-Pfad und ließ **den RetroCapture-Tap fallen** | `AudioConfiguration.swift` `handleMediaServicesReset`; `AudioEngine.swift` `onInterruptionResume` | selten, aber dann stiller Datenverlust |
 
+**#9 — GEPRÜFT UND VERWORFEN 2026-07-29. Die Kostenspalte behauptet etwas Falsches.**
+„immer, auch wenn nie aufgenommen wird" trifft zu, ist aber kein Vorwurf, sondern die
+Funktion: `RetroCapture` IST der immer-mitlaufende Vorlauf — die rückwirkende
+„keep last"-Ausgabe kann nur existieren, weil der Ring seit dem Start gefüllt wird. Und der
+vorgeschlagene Umbau bringt nichts: `AudioEngine` wird in `EchoelmusicApp.init` erzeugt
+(`EchoelmusicApp.swift:228`), `retroCapture.install(on:)` läuft in `start()`
+(`AudioEngine.swift:624`), und `audioEngine.start()` steht unbedingt in der Startsequenz
+(`EchoelmusicApp.swift:602`, STARTUP 3/4). Eine Verlagerung von `init` nach `install`
+verschöbe die 11,5 MB also um wenige Sekunden im Startpfad und senkte den Dauerverbrauch um
+NULL. Bezahlt würde sie damit, dass `ring` — heute ein `nonisolated(unsafe) let
+UnsafeMutablePointer`, das der Tap auf dem Audio-Thread dereferenziert — zu einem später
+zugewiesenen `var` wird. Genau die Zeiger-Lebenszeit-Klasse, die dieses Repo schon zweimal
+bezahlt hat, für keinen messbaren Gewinn. **Bleibt wie es ist.**
+
 **#10 — KORRIGIERT 2026-07-28 beim Bauen, meine erste Fassung war überzogen.** Sie lautete:
 „`prepareGraph()` steigt bei `graphPrepared == true` aus, also kann der Neuaufbau, den
 dieser Fall braucht, nicht stattfinden." Das klingt zwingend und hält der näheren Lektüre
