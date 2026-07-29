@@ -90,6 +90,35 @@ final class OneStartControlTests: XCTestCase {
                       + "notification WITH that control, never ahead of it.")
     }
 
+    /// ⛔ THE OTHER REGRESSION GUARD, and it exists because the claim it protects was already
+    /// shipped once while FALSE.
+    ///
+    /// The transport ■ is kept on the argument that it stops the MUSIC without ending the
+    /// bio session — the pulse lock costs ~20 s to re-acquire, so that difference is the
+    /// button's entire justification. It only holds if something actually REQUESTS a
+    /// playback-only stop: `TransportTransition.decide` returns `.endSession` otherwise.
+    ///
+    /// From 2026-07-26 (the piano roll's door removed) to 2026-07-29 nothing did, and the
+    /// founder's device log 2475 shows the consequence — `stop source: transport-bar ■` at
+    /// 828.182, `stopEverything(transport-stopped)` 14 ms later. A second full Stop wearing
+    /// a different glyph.
+    ///
+    /// `PianoRollView.swift` is excluded deliberately: it holds both the declaration and the
+    /// roll's own pause button, and that view has had no door since 2026-07-26. Counting it
+    /// would let this test go green on a producer no user can reach — which is precisely the
+    /// state it is meant to detect.
+    func testThePlaybackOnlyStopHasAReachableProducer() throws {
+        let producers = try sourceLines().filter {
+            $0.text.contains("requestPlaybackOnlyStop()") && $0.file != "PianoRollView.swift"
+        }
+        XCTAssertFalse(producers.isEmpty,
+                       "Nothing outside PianoRollView requests a playback-only stop, so the "
+                       + "transport ■ ends the whole bio session — camera included — and is a "
+                       + "duplicate of the front plate's Stop with a ~20 s pulse re-lock as "
+                       + "its hidden price. Either restore a producer or remove the button; "
+                       + "do not leave the justification standing without the mechanism.")
+    }
+
     // MARK: - Locating the repo
 
     /// Same walk-up — and the same SKIP — as the sibling `StringCatalogIsHonestTests`:

@@ -307,10 +307,10 @@ private struct TransportBar: View {
     // ▶ is the INSTRUMENT's button and reads NOTHING from the timeline document
     // (founder 2026-07-27). The `TimelineStore` / `ClipStore` / `TimelineRegionPlayer`
     // reads that used to live here are gone — see toggle().
-    // (The `PianoRollModel` environment that used to sit here is gone with #234: its one
-    // reader was the UX-2 empty-project branch inside toggle(), which is now unreachable.
-    // Holding an `@Environment` nobody reads is how a 10 Hz-adjacent model creeps back into
-    // a chrome view's body during a later edit.)
+    /// Read ONLY inside `toggle()` — a tap handler, never `body` — so the transport bar
+    /// subscribes to nothing (freeze rule). It carries the PAUSE INTENT: `PianoRollModel`
+    /// owns the one-shot flag the studio's transport observer consumes.
+    @Environment(PianoRollModel.self) private var pianoRoll
     /// `instrumentRunning` is the Start/Stop-frequency chrome mirror — it changes twice per
     /// session, so unlike a bio snapshot or the roll it is safe to read in this body, which
     /// is what gates ▶ to sessions only (#234).
@@ -326,12 +326,28 @@ private struct TransportBar: View {
             // the only way to START.
             //
             // Why this button SURVIVES instead of being deleted outright: it does a job
-            // the hero button cannot. "Stop" ends the whole session, and the camera
-            // pulse then needs ~20 s to re-acquire a lock. A performer who wants silence
-            // between two sections must be able to drop the music WITHOUT dropping the
-            // body — that is this ■, and it only makes sense while there is a session to
-            // drop out of. Hidden the rest of the time, so at the "how do I start?"
-            // moment exactly one button on screen starts anything.
+            // the hero button cannot. "Stop" ends the whole session, and the camera pulse
+            // then needs ~20 s to re-acquire a lock. A performer who wants silence between
+            // two sections must be able to drop the music WITHOUT dropping the body — that
+            // is this ■, and it only makes sense while there is a session to drop out of.
+            // Hidden the rest of the time, so at the "how do I start?" moment exactly one
+            // button on screen starts anything.
+            //
+            // ⛔ THAT WAS NOT TRUE WHEN IT WAS FIRST WRITTEN, and the founder's own device
+            // log proved it within the hour (2475, second session):
+            //
+            //     828.182  stop source: transport-bar ■
+            //     828.196  stopEverything(transport-stopped): transport + all voices released
+            //
+            // `TransportTransition.decide` returns `.endSession` unless a playback-only stop
+            // was REQUESTED, and the only producer of that request was `PianoRollView`,
+            // whose door was removed on 2026-07-26. So this ■ ended the whole session — a
+            // second full Stop wearing a different glyph, i.e. exactly the duplicate the
+            // slice claimed to have removed. The rationale above is now honoured instead of
+            // repaired away: `toggle()` raises the pause intent, so the sentence describes
+            // what the button does. This is #179 decided as RESCUE rather than RETIRE —
+            // every piece (the flag, the pure decision, `pausePlaybackKeepingSession`,
+            // `resumeAfterPause`) was already built and tested and only lacked a caller.
             //
             // `instrumentRunning` is the start/stop chrome mirror — it changes twice per
             // session, not per frame, so reading it in this body is freeze-safe. The
@@ -452,7 +468,17 @@ private struct TransportBar: View {
             // arrangement branch below: nothing can put `TimelineRegionPlayer` into
             // `isPlaying` any more, so a branch on it would have been dead code that
             // still reads like a live choice.
-            EchoelCrashLog.breadcrumb("stop source: transport-bar ■")
+            // PAUSE, not end-of-session. The flag is a one-shot consumed by the studio's
+            // transport observer in the SAME turn as the `isPlaying` flip below, and every
+            // other stop path clears it defensively (`stopEverything`), so it cannot latch
+            // and downgrade a later real Stop — the #161 trap. Raising it BEFORE
+            // `pattern.stop()` is required, not stylistic: the observer reads it as a
+            // consequence of that call.
+            //
+            // It also cannot be raised while no take is live, which is the other half of
+            // that trap: this button does not exist unless `bus.instrumentRunning` is true.
+            EchoelCrashLog.breadcrumb("stop source: transport-bar ■ (playback only)")
+            pianoRoll.requestPlaybackOnlyStop()
             player.pattern.stop()
         } else {
             // ▶ PLAYS THE INSTRUMENT. It no longer consults the timeline document at all

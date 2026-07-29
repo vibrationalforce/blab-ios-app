@@ -820,14 +820,22 @@ struct EchoelStudioView: View {
             // Stop to a pause — music off, camera and torch still on, `running` still true, and
             // the ■ already flipped back to ▶ so the user had no obvious way out. It used to be
             // reachable in four taps from a cold launch (Notes → ▶ → ⏸ → close → Start → ■).
-            // ⚠ THAT REPRO IS GONE, and the mechanism with it: the piano roll's door was removed
-            // 2026-07-26 ("Pianoroll soll raus"), and `requestPlaybackOnlyStop()` has exactly one
-            // producer — `PianoRollView.transport` — which nothing mounts any more. So this read
-            // now always returns false, `.pausePlayback` is unreachable, and behaviour is exactly
-            // pre-#161. DO NOT read that as "the ordering was over-engineering" and inline it:
-            // the ordering IS the fix, and it becomes load-bearing again the instant anything
-            // re-acquires the ability to request a playback-only stop. Retiring the mechanism
-            // outright is a separate slice (#180), not a comment-cleanup side effect.
+            // ⚠ THE MECHANISM WAS ORPHANED between 2026-07-26 and 2026-07-29: the piano roll's
+            // door was removed ("Pianoroll soll raus"), which left `requestPlaybackOnlyStop()`
+            // with no producer, so this read always returned false and `.pausePlayback` was
+            // unreachable. The comment here said so and added that the ordering "becomes
+            // load-bearing again the instant anything re-acquires the ability to request a
+            // playback-only stop". That instant is now: the transport bar's ■ raises the
+            // request (#234/#179 — `WorkspaceView.TransportBar.toggle()`).
+            //
+            // What made it urgent rather than tidy: while the request had no producer, the
+            // chrome ■ silently ended the whole bio session, camera and all. The founder's
+            // log 2475 shows it — `stop source: transport-bar ■` at 828.182 followed 14 ms
+            // later by `stopEverything(transport-stopped)`. A second full Stop wearing a
+            // different glyph, with a ~20 s pulse re-lock as its hidden price.
+            //
+            // Both orderings below stay load-bearing: reading the flag BEFORE `guard running`
+            // (#161), and the transport bar raising it before `pattern.stop()`.
             let pauseRequested = pianoRoll.consumePlaybackOnlyStopRequest()
             switch TransportTransition.decide(isPlaying: playing,
                                               running: running,
@@ -4069,16 +4077,18 @@ struct EchoelStudioView: View {
     /// regenerate would silently overwrite, since `regenTask`'s own guard is `running` and that
     /// stays true here), while the SENSOR keeps running. `stopBioSource()` costs another
     /// finger-on-lens re-lock, ~20 s, to undo — that cost is what made the Notes editor
-    /// unusable during a take. (That editor has no door since 2026-07-26, so this whole
-    /// function is currently unreachable; it is kept because the reasoning is the design of
-    /// the pause state, and deleting it is a deliberate slice, not a comment cleanup.)
+    /// unusable during a take. (It was unreachable from 2026-07-26, when the Notes editor's
+    /// door went, until 2026-07-29, when the transport bar's ■ became its producer — #234.
+    /// It is now THE behaviour of the one chrome stop, not a parked design.)
     ///
     /// BE HONEST ABOUT WHAT THIS IS: "camera live, no music" is a NEW state, introduced here.
     /// An earlier version of this comment called it "the state the Bio panel's own arm already
     /// puts the app in" — false. Every reachable arm (`BioStripView`'s pulse start, the source
     /// picker when idle) goes through `startBiofeedback()`, i.e. a full take; the camera-only
-    /// arms live in `BioSourceView`/`SessionView`, both doorless. So this is a product decision,
-    /// not a precedent — worth a founder look, not a citation.
+    /// arms live in `BioSourceView`/`SessionView`, both doorless. So this is a product
+    /// decision — and as of #234 it is a SHIPPED one, reachable by every user who presses ■
+    /// during a take. Flagged to the founder rather than buried: if "■ should end everything"
+    /// is what he wants, the change is one line in `TransportBar.toggle()`.
     ///
     /// `running` deliberately stays TRUE: the take is paused, not ended. The chrome's ■ is
     /// still the one full Stop.
@@ -4093,8 +4103,12 @@ struct EchoelStudioView: View {
         evolveTask?.cancel(); evolveTask = nil
         regenTask?.cancel(); regenTask = nil
         lockSnapTask?.cancel(); lockSnapTask = nil
-        // The roll already released its own notes before stopping the clock; this covers the
-        // other seven voices, which a bare `pattern.stop()` does not touch.
+        // Releases EVERY voice, the roll included — `panicAllNotesOff` puts `pianoRoll` first
+        // in its fan-out precisely because that one clears `active` and releases poly/lead/
+        // sub/kind/MIDI. (The old comment here said the roll "already released its own notes
+        // before stopping the clock", which was true only of the roll's OWN pause button —
+        // the transport bar's ■ does not, and it is the only producer left. Relying on the
+        // caller to have done it would have left notes ringing under a stopped clock.)
         panicAllNotesOff()
         EchoelCrashLog.breadcrumb("pausePlaybackKeepingSession: clock + voices stopped, bio kept")
     }
