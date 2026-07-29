@@ -109,7 +109,14 @@ public enum SessionNaming {
     /// dates belong in the UI, where `DateFormatter` already handles them
     /// (`VideoLibraryPanel.title(for:)`); a filename is an interchange token, and interchange
     /// tokens are Gregorian.
-    static let fileCalendar = Calendar(identifier: .gregorian)
+    /// ⚠️ `public`, and not by preference: it is the default argument of the PUBLIC `stem` and
+    /// `fileName`, and Swift will not let a public signature name an internal declaration
+    /// ("static property 'fileCalendar' is internal and cannot be referenced from a default
+    /// argument value"). Shipped internal first and the Xcode gate caught it within minutes —
+    /// the access-level mismatch CLAUDE.md already lists as a known hard-error pattern, walked
+    /// straight into anyway. Keeping the note so the next person moving a constant into a
+    /// default argument checks the signature's visibility first.
+    public static let fileCalendar = Calendar(identifier: .gregorian)
 
     /// `yyyy-MM-dd` in the Gregorian calendar — sortable and unambiguous worldwide, which is
     /// only true because of `fileCalendar`; read its note before changing the default.
