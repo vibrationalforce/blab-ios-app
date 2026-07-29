@@ -1,4 +1,4 @@
-build: v10.79.358 — das Instrument spielt sich selbst, und es spricht jetzt eine Sprache
+build: v10.79.359 — der stumme App-Fehler, ein Start-Knopf, und das Tempo lief rückwärts
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,115 +6,122 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.357.
+  Der Vorgänger auf Deinem Gerät ist 10.79.358.
 
-  Das ist ein großer Build — 35 Änderungen plus diese Notiz. Ich sortiere ihn nach dem,
-  was Du MERKST, nicht nach dem, was mich Arbeit gekostet hat.
+  Du hast gefragt, ob hier alles drin ist, was Du Dir gewünscht hast. NEIN — und ich sage
+  Dir zuerst, was fehlt, weil Du sonst danach suchst: der ARP als eigene Kategorie, die
+  Sample-Engine fürs Feld (laden/aufnehmen), das EINE Bedienelement statt neun Reglern für
+  die Visuals, und der große UX-Durchgang über das ganze Projekt sind NICHT drin. Die sind
+  gebaut-noch-nicht, nicht vergessen.
 
-  ── WAS SICH BEIM SPIELEN ANDERS ANFÜHLT ────────────────────────────────────
+  Was drin ist, sind vierzehn Änderungen — und darunter die vier Dinge, die Dich in den
+  letzten Tagen am meisten gestört haben.
 
-  DAS FELD SPIELT SICH SELBST. Die Spielfläche heißt jetzt Feld, und sie kann von allein
-  weiterspielen — Du legst den Finger weg, und es hört nicht auf. Es gibt einen Schalter
-  dafür, kein verstecktes Verhalten. Zwei Fehler auf dem Weg dorthin sind mit drin und
-  beide waren hörbar: eine selbstgespielte Note wurde von ihrer eigenen Vorgängerin
-  abgeschnitten, und die senkrechte Achse der Spielfläche war heimlich AUCH ein
-  Lautstärkeregler — Du wolltest die Klangfarbe ändern und hast die Lautstärke
-  mitverstellt.
+  ── DER GRUND, WARUM ALLES STUMM WAR ────────────────────────────────────────
 
-  SIEBEN NEUE STIMMUNGS-CHARAKTERE. Du hattest „sei kreativ" gesagt. Dazu ein Test, der
-  nicht prüft, ob die Zahlen anders sind, sondern ob das ANKOMMENDE Signal anders ist —
-  sonst hätte ich Dir sieben Namen für denselben Klang verkauft.
+  „Ich hab keinen Sound alles stumm." Gefunden, und es war kein Klangproblem.
 
-  DER REGLER IST WIEDER BEDIENBAR. Er war abgeschnitten und zu grob, um einen Wert
-  wirklich zu treffen.
+  Die App stoppt die Audio-Engine, wenn sie im Hintergrund untätig ist — das ist
+  vorgeschrieben (Apple 2.5.4). Beim Zurückkommen sollte sie wieder anlaufen. Sie tat es
+  nicht: derselbe Merker, der das Selbstheilen unterdrückt, unterdrückte auch das
+  Wiederanlaufen. Die App war ab diesem Moment für den Rest der Sitzung stumm, und der
+  einzige Ausweg war ein Neustart. Es sind jetzt zwei getrennte Regeln, und ein Test hält
+  sie auseinander, weil sie AUSEINANDERGEHEN müssen — dass sie sich widersprechen, ist
+  genau der Punkt.
 
-  DER KOMPRESSOR HAT ENDLICH ZEIT. Attack, Release und Knee sind jetzt echte Regler statt
-  fester Werte. Dazu ein Befund, den ich Dir nicht verschweige: der LIMITER hat auch einen
-  Attack-Wert im Code — der tut NICHTS. Ich habe das nicht vermutet, ich habe es
-  nachgerechnet: bei jedem Wert von 0,01 ms bis 10 000 ms kommt bitgleich dasselbe heraus.
-  Deshalb bekommt er KEINEN Regler. Ein Regler, der nichts tut, ist schlimmer als ein
-  fehlender — er beendet die Suche, wenn Du damit etwas reparieren willst.
+  ── DAS TEMPO LIEF RÜCKWÄRTS ────────────────────────────────────────────────
 
-  DER MISCHER-FADER MISCHT WIEDER. Er hat den Take vorher ERSETZT statt ihn zu
-  balancieren.
+  Das ist der schwerste Fehler in diesem Build, und er kehrte die eine Behauptung um, auf
+  der das ganze Produkt steht: dass Dein Körper spielt.
 
-  ── WAS DICH VOR EINEM VERLUST SCHÜTZT ──────────────────────────────────────
+  Ein Puls knapp ÜBER der Genre-Obergrenze wurde halbiert, rutschte unter die Untergrenze
+  und wurde dort festgeklemmt. Auf Contemplation (44–66 BPM): 66 ergab 66, aber 67 ergab
+  44. 80 ergab 44. 134 ergab 44. Der schnellere Körper machte die langsamere Musik.
+  Betroffen war ein großer Teil jedes Genrefensters — 41 % bei Contemplation, 47 % bei
+  Fläche, 90 % bei Psytrance — weil JEDES Genrefenster schmaler ist als eine Oktave.
 
-  Eine ganz normale Bearbeitung hat bisher die Insert-Einstellungen pro Bus still
-  gelöscht. Nicht „vielleicht" — belegt. Alle tragenden Speicherformate haben jetzt einen
-  Versionsstempel und einen Decoder, der ein unbekanntes Feld überspringt statt das ganze
-  Dokument fallenzulassen. Das ist die Sorte Arbeit, die man nur merkt, wenn sie fehlt.
+  Das ist mit hoher Wahrscheinlichkeit auch die 44 BPM aus Deinem Log 2475. Ich schreibe
+  „Wahrscheinlichkeit", weil ich es hergeleitet und nicht gemessen habe.
 
-  ── INTERNATIONAL UND ZUGÄNGLICH (Dein Auftrag von heute) ───────────────────
+  ── UND WARUM ALLES WIE CLASSIC KLANG ───────────────────────────────────────
 
-  Du hast gesagt: für alle Kulturen und Hintergründe. Ich habe zuerst gemessen statt
-  losgelaufen, und die erste Vermutung war falsch — ich dachte, das Zahlenfeld sei für
-  deutsche Nutzer kaputt (Komma statt Punkt). Ist es nicht: Tastenfeld und Auswertung
-  benutzen beide den Punkt, sie sind miteinander einig. Nur zu LESEN ist es ungewohnt. Ich
-  habe es bewusst NICHT halb repariert — die Anzeige zu lokalisieren, ohne die Eingabe
-  mitzuziehen, hätte einen Wert erzeugt, den man nicht mehr eintippen kann. Das ist eine
-  eigene Scheibe.
+  Deine Klage vom 22. Juli. Es gibt einen Anker, der die Harmonie auf die EIGENE Progression
+  des Genres zurückholt, damit nicht alle dieselbe geteilte Akkordreise spielen. Sein
+  Mindestwert rundete bei einem Ein-Sektions-Take auf NULL — also kein Anker, gar keiner.
 
-  Was stattdessen wirklich kaputt war:
+  Betroffen: Selbstbeobachtung (das Standard-Genre), Meditation, Psytrance und Doom. Und
+  zwar bei jeder Kohärenz unter 0,35 — Kamera-Puls meldet 0, bis sich Schläge angesammelt
+  haben, und HealthKit misst Kohärenz überhaupt nie. Das waren die ersten Minuten JEDER
+  Sitzung auf dem Standard-Genre.
 
-  · ZEHN DEUTSCHE TEXTE standen mitten in einer sonst englischen App. Genre-Überschriften,
-    die Hinweise im Visual-Fenster, „Ort manuell", „Datei:". Die App war zweisprachig aus
-    Versehen.
-  · DER DATEINAME TRUG DEINEN KALENDER. Nicht kosmetisch: in Thailand ist der Standard
-    buddhistisch, in Saudi-Arabien islamisch. Derselbe Take im selben Moment hieß bei
-    einem thailändischen Musiker `Echoel_2569-…`. Dateinamen sind ab jetzt gregorianisch
-    — der TAG bleibt Dein lokaler Tag.
-  · DER ORTSNAME AUCH. Derselbe Veranstaltungsort ergab `München`, `ミュンヘン` oder
-    `Μόναχο`, je nach Telefon — und diese Schriften überleben die Namensbereinigung. Zwei
-    Leute, die denselben Abend gespielt haben, konnten ihre Aufnahmen nicht über den Namen
-    zusammenbringen. Genau dafür gibt es den Ort im Namen. Jetzt einheitlich; wer seine
-    eigene Schrift will, tippt den Ort weiterhin selbst ein, das gewinnt.
-  · DIE MITSPIELER-LISTE war nach Zeichencodes sortiert, nicht nach Alphabet — „Ärger"
-    landete hinter „Zoe", jeder kyrillische Gerätename in einem Block hinter allen
-    lateinischen.
-  · DATEIGRÖSSEN standen mit festem Dezimalpunkt und erzwungener Einheit da; ein 400-KB-
-    Clip las sich als „0.4 MB". Nebenwirkung, die ich benenne statt sie zu verstecken: die
-    Zahlen sind jetzt ~5 % größer, weil sie so rechnen wie der Finder — sie stimmen jetzt
-    mit dem überein, was Dein Mac für dieselbe Datei anzeigt.
+  ── EIN START-KNOPF ─────────────────────────────────────────────────────────
 
-  Und zwei Stellen für Menschen, die die App nicht sehen können:
+  Dein Screenshot: „3 Knöpfe zum Start drücken, könnte man das zu einem zusammenfassen?"
 
-  · DIE ROUTING-FLÄCHE sagte „sendet gerade" ausschließlich über FARBE. Ein Punkt, gefüllt
-    oder nicht. Wer VoiceOver benutzt, bekam die Information gar nicht — und wer auf einer
-    dunklen Bühne auf ein Notebook schaut, kaum.
-  · DAS ONBOARDING hatte über 211 Zeilen NULL Zugänglichkeit — der erste Bildschirm, den
-    überhaupt jemand sieht. Am schwersten wog dabei die Sicherheits-Zustimmung: der
-    Schalter hieß nur „Ich verstehe", ohne zu sagen, WAS. Sie steht jetzt im Namen des
-    Schalters selbst, nicht in einem Hinweis — Hinweise kann man abschalten, und
-    Sprachsteuerungs-Nutzer bekommen sie nie. Eine Zustimmung, die man nicht hören kann,
-    ist keine.
+  Es waren fünf. Drei sichtbare und zwei versteckte — die Pulse-Pille, das ▶, „Create from
+  Within", plus eine Zeile im Bio-Panel namens „Read pulse", die eine ganze Session startete
+  statt zu messen, und das lange Drücken auf die Pille. Geblieben ist der beschriftete.
+
+  Die Pille ist wieder ein reines Anzeigegerät (Antippen öffnet jetzt das Bio-Panel — das war
+  vorher nur per langem Drücken erreichbar). Das ▶ erscheint nur noch WÄHREND einer Session
+  und ist dort der Musik-Transport: Musik weglassen, ohne den Pulslock zu verlieren, der
+  ~20 s zum Wiederfinden braucht.
+
+  Dabei habe ich einen Fehler gemacht und ihn selbst gefunden: ich hatte das ▶ mit der
+  Begründung behalten, es stoppe nur die Musik — und Dein eigenes Log widerlegte das
+  innerhalb einer Stunde (`stop source: transport-bar ■` bei 828.182, `stopEverything`
+  14 Millisekunden später). Ich habe die Begründung nicht schöngeredet, sondern den Satz
+  wahr gemacht.
+
+  ── „CLEAN (DRY)" WAR NIE TROCKEN ───────────────────────────────────────────
+
+  Fünf der zwölf FX-Charaktere haben in JEDEM bisher ausgelieferten Build ein hörbares
+  Delay getragen, obwohl ihr Preset es ausschaltet: Clean, Telephone, Vinyl, Harmonizer und
+  Room. Eine Zeile schaltete es unmittelbar danach wieder ein. Der Delay-Schalter im
+  „Alle Parameter"-Panel konnte deshalb auch nicht aus bleiben — er sprang zurück.
+
+  DAS HÖRST DU: diese fünf Charaktere klingen jetzt anders als in allem, was Du bisher
+  hattest. Trockener. Ob das besser ist, kann ich nicht beurteilen.
+
+  ── FÜR MENSCHEN, DIE DIE APP NICHT SEHEN ───────────────────────────────────
+
+  Das Zahlenfeld — 58 Stellen in der App — reagierte auf VoiceOver-Wischen mit einer
+  neuen, korrekt gesprochenen Zahl, die die Engine NIE erreichte. Der ganze Klang-Editor
+  hinter dem Sound-Chip war erreichbar und wirkungslos. Und zusätzlich: bei jedem Feld mit
+  ganzen Zahlen und einer Spannweite unter 25 war die Schrittweite kleiner als das Raster,
+  auf das gerundet wird — „Beats per bar", die Feld-Stimmen, FX-„Bits", beide
+  Harmonizer-Intervalle waren per VoiceOver überhaupt nicht verstellbar, während der
+  Hinweis „Swipe up or down to adjust" versprach. Beides ist dieselbe Sorte Lüge.
 
   ── WAS ICH VON DIR BRAUCHE ─────────────────────────────────────────────────
 
-  · SPIELT SICH DAS FELD MUSIKALISCH SELBST, oder klingt es mechanisch? Das ist die eine
-    Sache in diesem Build, die ich hier nicht beurteilen kann.
-  · Klingen die sieben neuen Charaktere WIRKLICH verschieden voneinander?
-  · Der Kompressor mit langsamem Attack auf dünnem Flow-Material — atmet er, oder pumpt er?
-  · Und weiter offen aus 10.79.357: KNISTERT es noch, und wenn ja, schick mir bitte
-    `echoel_diag.log` mit den Zeilen ab „audio timing:" — einmal mit Kamera und Visual an,
-    einmal nur Klang. Die Zahl steht seit dem letzten Build im Log; ohne sie rate ich
-    wieder.
-  · Und die Frage aus 10.79.356, die noch niemand beantwortet hat: STARTET DIE APP NORMAL
-    ohne angeschlossenen Bildschirm? Ein einziger Start reicht.
+  · IST ES NOCH STUMM? App in den Hintergrund, ein paar Minuten warten, zurückkommen,
+    spielen. Das ist der wichtigste Test in diesem Build.
+  · KLINGT DAS TEMPO JETZT WIE DEIN PULS? Ein bewusst schnellerer Herzschlag muss die Musik
+    SCHNELLER machen, nicht langsamer.
+  · Klingen Selbstbeobachtung, Meditation, Psytrance und Doom in den ersten Minuten
+    unterscheidbar — oder immer noch „alles wie classic"?
+  · Die fünf trockenen FX-Charaktere: Verlust oder Gewinn?
+  · Ein Start-Knopf: genug, oder fehlt Dir jetzt etwas?
+  · Weiter offen aus 358: spielt sich das Feld musikalisch selbst · klingen die sieben
+    Charaktere verschieden · knistert es (bitte `echoel_diag.log` ab „audio timing:") ·
+    startet die App ohne angeschlossenen Bildschirm.
 
   ── PRÜFSTAND ───────────────────────────────────────────────────────────────
 
-  Genau, weil das sonst zur Floskel wird: der Xcode-Compile-Check — das strengere der
-  beiden Gates und dasjenige, das denselben Weg geht wie der TestFlight-Build — ist auf
-  dem Commit mit dem gesamten Code GRÜN. Die CI/CD-Pipeline (SwiftPM plus Tests) hing zum
-  Zeitpunkt dieses Bumps noch in der Warteschlange, nicht auf Rot; der letzte Commit, auf
-  dem BEIDE fertig und grün gemeldet haben, ist der davor. Ich schreibe das so hin statt
-  „beide grün", weil ich es sonst behaupten würde, ohne es gesehen zu haben. Fällt sie
-  nachträglich um, fixe ich und schiebe einen neuen Build nach.
+  Auf dem letzten Commit dieses Builds (62ed115) sind BEIDE echten Gates fertig und grün:
+  Xcode Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide fertig
+  gesehen habe — beim letzten Build hing eines noch in der Warteschlange und das stand
+  auch so da.
 
-  NICHT geräteverifiziert — und bei diesem Build ist der Unterschied größer als sonst:
-  Zugänglichkeit lässt sich hier gar nicht prüfen. Jede Ansage oben braucht einen echten
-  VoiceOver-Durchlauf, den nur Du machen kannst. Dasselbe gilt für alles, was klingt.
+  Vier von fünf Änderungen dieses Zyklus wurden vor dem Commit von einem Reviewer geprüft,
+  und JEDER fand etwas Echtes: die tote Delay-Zeile hätte das lügende Control nur eine
+  Zeile weiterwandern lassen; die VoiceOver-Reparatur war ohne die Schrittweite nur halb;
+  drei Zahlen in meinen eigenen Kommentaren waren falsch ergrept. Mein eigener Nachrechnen
+  fand zusätzlich eine falsche Testzusicherung von mir.
+
+  NICHT geräteverifiziert. Alles oben, was klingt oder sich anfühlt, entscheidet Dein Ohr.
+  Der Stumm-Fehler betrifft den Audio-Weg und ist damit ERST auf dem Gerät bewiesen.
 
   Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
   allokationsfrei.
