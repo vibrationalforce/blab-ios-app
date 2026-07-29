@@ -4458,6 +4458,32 @@ struct EchoelStudioView: View {
             guard let v, v.isFinite else { return d }
             return v
         }
+        /// A heart rate only counts as a MEASUREMENT when it is above zero.
+        ///
+        /// ⛔ THIS IS THE SAME TRAP `fin` DOES NOT CATCH, and it was live on device (log 2476,
+        /// v10.79.359): camera rPPG reports `bpm=0` for the first ~13 s and again whenever it
+        /// loses lock, and zero is FINITE — so `fin` waved it through as if the performer's heart
+        /// had stopped. `heldCoh` above already applies exactly this `> 0` rule to coherence, and
+        /// the comment on the `hrvNormalized` line below describes exactly this bug for HRV. Heart
+        /// rate was the one field left unguarded, and it is the one that sets the TEMPO.
+        ///
+        /// What it cost, end to end: `BioComposer.tempo(for:)` computed
+        /// `0·(1−calm) + 72·calm` = 0 at coherence 0, clamped up to its floor of 40, and
+        /// `StudioCalculator.genreTempo(40, into: 44...66)` folded that to the genre's floor, 44.
+        /// The device log reads `transport play (generate) tempo=44` — the app started every take
+        /// as slow as the genre allows, and held it there for the whole settling window, because
+        /// the `frame != nil` branch only keeps `pattern.tempo` when it is `>= 50`.
+        /// It was not only tempo: `musicalState`'s `energy` maps 50…120 bpm, so a zero read as
+        /// minimum cardiac drive and the composer built a lower-energy take to match.
+        ///
+        /// Deliberately `> 0` and not a plausibility floor like 30: zero is the SENTINEL the
+        /// sources actually emit, `bodyTempoTrustworthy` already gates whether a reading may LOCK
+        /// the tempo, and every downstream stage clamps. A second threshold here would be a second
+        /// policy owner for the same question.
+        func measured(_ v: Float?) -> Float? {
+            guard let v, v.isFinite, v > 0 else { return nil }
+            return v
+        }
         // The body sets the CHARACTER (density, tempo, contour) via the Input fields;
         // the seed picks the specific notes. Fold an advancing nonce into the bio seed
         // so each take is a fresh individual variation — the music keeps evolving and
@@ -4542,7 +4568,13 @@ struct EchoelStudioView: View {
         let moodForInput = mood
         #endif
         let input = BioComposer.Input(
-            heartRateBPM: fin(frame?.heartRateBPM, heldBody.map { Float($0.bpm) } ?? 70),
+            // `measured`, not the raw value — an unlocked rPPG's finite 0 is not a heart rate.
+            // The fallback chain is deliberate: the last take's body first (so a momentary loss of
+            // lock mid-session keeps the tempo the performer's own pulse set), then 70 as the
+            // resting neutral for a body that has never been read. Both go through `measured` for
+            // the same reason.
+            heartRateBPM: fin(measured(frame?.heartRateBPM)
+                                ?? measured(heldBody.map { Float($0.bpm) }), 70),
             // `hrvForSound`, not the raw value: `fin`'s fallback only fires for nil or
             // non-finite, so a REAL 0 (= not measured yet) went straight through — and in
             // BioComposer low HRV means high sympathetic load, so the composer answered
@@ -4659,7 +4691,13 @@ struct EchoelStudioView: View {
                 // Pulse present but still settling → hold current tempo, don't chase rPPG noise.
                 tempo = beatPlayer.pattern.tempo >= 50 ? beatPlayer.pattern.tempo : bodySeed
             } else {
-                // No body yet → neutral body-mapped seed (~72).
+                // No body yet → the neutral RESTING pulse (70 bpm, set at the `Input`) mapped
+                // through the genre's window. Note "~72" used to stand here as if it were the
+                // TEMPO: it is the heart rate. On Contemplation (44…66) a 70 bpm pulse folds to
+                // 66, and once the real pulse arrives at ~61 the convergence walks it down —
+                // continuous, no jump. Before the `measured` guard above, this branch was
+                // unreachable in practice anyway: a frame with `bpm=0` existed from the first
+                // camera tick, so the app took the `frame != nil` branch with a zero body.
                 tempo = bodySeed
             }
         }
