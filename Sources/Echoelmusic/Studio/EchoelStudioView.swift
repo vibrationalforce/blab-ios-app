@@ -3375,6 +3375,24 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             loopLengthSelector
+            if let reason = exportFailure {
+                // WHY A PLAIN LINE AND NOT AN ALERT (#216). The body's presentation chain
+                // is at 14 modifiers and is the metadata ceiling this app has already
+                // crashed into (black screen, 10.76.34) — a 15th `.alert` is exactly what
+                // CLAUDE.md forbids. This costs zero modifiers and zero state, sits where
+                // the user is already looking, and mirrors the `composerClipGridFull`
+                // warning right above. It clears itself: the next capture overwrites the
+                // status, so there is no timer and nothing to dismiss.
+                // Suffix stays neutral rather than "tap Record to try again": one of the
+                // six reasons is the too-long message, which already ends with its own
+                // instruction ("…or use Record instead"). "Nothing was saved" is the one
+                // thing true of all six and the one thing the user actually needs.
+                Text("\(reason) — nothing was saved.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Export failed. \(reason). Nothing was saved.")
+            }
             // ONE button, two jobs: start the take, and abort it — founder 2026-07-28
             // ("wichtig das man die Aufnahme dann auch abbrechen kann, wenn man sich
             // verspielt hat"). Deliberately NOT a second button next to it: the abort is
@@ -3558,6 +3576,14 @@ struct EchoelStudioView: View {
         case .rendering: return "Writing .wav…"
         default:         return ""
         }
+    }
+    /// The reason the last export attempt failed, or nil. Deliberately NOT folded into
+    /// `busyStatusLabel`: that one answers "what is the OTHER button doing while this one
+    /// is busy", and a failure is not a busy state — putting it there would have announced
+    /// a dead attempt on a neighbouring control instead of at the button that ran it.
+    private var exportFailure: String? {
+        if case .failed(let reason) = exporter.status { return reason }
+        return nil
     }
 
     // MARK: - Camera pulse readout
@@ -4635,10 +4661,12 @@ struct EchoelStudioView: View {
                                               bars: loopBars.rawValue, targetLUFS: resolvedLUFS) {
             share = ExportedFile(url: renamedForShare(url))
         }
-        // Always return to idle: a failed/empty export must never leave the button
-        // stuck on "Recording…/Writing…" (a "hanging button"). On success the URL is
-        // already captured above, so resetting the status here is safe.
-        exporter.reset()
+        // Clear the busy state so the button can never hang on "Recording…/Writing…" —
+        // but NOT a failure. `reset()` stood here and erased `.failed` in this same
+        // synchronous turn, so none of the exporter's six failure messages could ever
+        // reach the screen (#216). `finishAttempt()` keeps that one status; `exportFailure`
+        // below renders it.
+        exporter.finishAttempt()
     }
 
     /// Retroactive "keep that" — export the last few bars already heard, no replay.
@@ -4647,7 +4675,7 @@ struct EchoelStudioView: View {
                                                      bars: loopBars.rawValue, targetLUFS: resolvedLUFS) {
             share = ExportedFile(url: renamedForShare(url))
         }
-        exporter.reset()
+        exporter.finishAttempt()   // keeps `.failed` readable — see `exportWav` (#216)
     }
 
     /// Copy the exported loop to a share-ready file whose NAME carries the musical

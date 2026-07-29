@@ -350,5 +350,39 @@ public final class LoopExporter {
         }
     }
 
+    /// Force back to `.idle`, whatever happened. The blunt instrument — use
+    /// `finishAttempt()` after an export, which keeps a failure readable.
     public func reset() { status = .idle }
+
+    // MARK: - Ending an attempt without erasing why it failed (#216)
+
+    /// Whether an attempt that has just returned should drop back to `.idle`.
+    ///
+    /// THE DEFECT THIS EXISTS FOR. Both callers in `EchoelStudioView` ended with an
+    /// unconditional `exporter.reset()` — correct in spirit (a finished attempt must never
+    /// leave the button stuck on "Writing .wav…") but it also wiped `.failed`, in the same
+    /// synchronous turn, before SwiftUI could ever render it. This class carries SIX
+    /// distinct failure messages — the write failed, the loop is longer than the ring, the
+    /// ring is empty, the render produced nothing — and NOT ONE of them could reach a user.
+    /// The button simply returned to "Record 8 bars → send" and the take was gone, which
+    /// reads as "nothing happened" rather than "that did not work".
+    ///
+    /// So `.failed` is the one status that must survive the reset. It costs nothing: the
+    /// button's own label already falls through to the idle wording for `.failed`, so it
+    /// stays live and tappable, and the next capture overwrites the status anyway. Nothing
+    /// hangs.
+    ///
+    /// Pure and static so both answers are testable without an `AudioEngine`, a device or
+    /// a real capture — the failure paths all need one, and a test that cannot reach them
+    /// would be pinning nothing.
+    public static func shouldReturnToIdle(after status: Status) -> Bool {
+        if case .failed = status { return false }
+        return true
+    }
+
+    /// Called by the UI when an export attempt has returned, successfully or not.
+    /// Returns to idle unless the attempt failed — see `shouldReturnToIdle`.
+    public func finishAttempt() {
+        if Self.shouldReturnToIdle(after: status) { status = .idle }
+    }
 }
