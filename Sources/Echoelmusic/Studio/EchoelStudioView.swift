@@ -3377,17 +3377,25 @@ struct EchoelStudioView: View {
             loopLengthSelector
             if let reason = exportFailure {
                 // WHY A PLAIN LINE AND NOT AN ALERT (#216). The body's presentation chain
-                // is at 14 modifiers and is the metadata ceiling this app has already
-                // crashed into (black screen, 10.76.34) — a 15th `.alert` is exactly what
+                // is at 14 modifiers, close under the ceiling this app has already crashed
+                // THROUGH (black screen, 10.76.34 — the chain was fine at 10.76.21 and three
+                // additions tipped it; 14 is the current count, not a measured limit). A
+                // 15th `.alert` is exactly what
                 // CLAUDE.md forbids. This costs zero modifiers and zero state, sits where
                 // the user is already looking, and mirrors the `composerClipGridFull`
-                // warning right above. It clears itself: the next capture overwrites the
-                // status, so there is no timer and nothing to dismiss.
+                // warning right above. It clears on the next export ATTEMPT and nothing
+                // else — `LoopExporter` lives for the app's lifetime, so a user who fails
+                // once and never exports again keeps the line for the session. No timer,
+                // nothing to dismiss.
                 // Suffix stays neutral rather than "tap Record to try again": one of the
                 // six reasons is the too-long message, which already ends with its own
                 // instruction ("…or use Record instead"). "Nothing was saved" is the one
                 // thing true of all six and the one thing the user actually needs.
-                Text("\(reason) — nothing was saved.")
+                //
+                // Joined with a full stop, NOT an em-dash: two of the reasons already carry
+                // an em-dash, and " — nothing was saved" made those a run-on with three
+                // dashes in one line. Review caught it by reading all six rendered strings.
+                Text("\(reason). Nothing was saved.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -4665,7 +4673,7 @@ struct EchoelStudioView: View {
         // but NOT a failure. `reset()` stood here and erased `.failed` in this same
         // synchronous turn, so none of the exporter's six failure messages could ever
         // reach the screen (#216). `finishAttempt()` keeps that one status; `exportFailure`
-        // below renders it.
+        // and the warning line in `utilityRow` render it.
         exporter.finishAttempt()
     }
 

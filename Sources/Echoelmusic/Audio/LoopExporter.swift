@@ -67,10 +67,11 @@ public final class LoopExporter {
     /// The capture wait polls this ~10×/s, so the stop is felt immediately rather than at
     /// the end of the take. Everything it started is undone: the transport it began, the
     /// recording it opened, and the temp file it wrote. Status returns to `.idle`, NOT
-    /// `.failed` — a deliberate choice is not a failure, and the two are indistinguishable
-    /// downstream anyway (nothing consumes `.failed`; both fall into `default:` in the
-    /// label switches, and no alert exists), so `.idle` is the honest label, not a
-    /// workaround for one.
+    /// `.failed` — a deliberate choice is not a failure. This used to add "and the two are
+    /// indistinguishable downstream anyway (nothing consumes `.failed`)", which #216 made
+    /// false: `.failed` now survives the end of an attempt and renders a warning line above
+    /// the Record button. That makes the choice here MORE load-bearing, not less — an abort
+    /// must not accuse the app of losing your take.
     public func cancel() {
         guard isCancellable else { return }
         cancelRequested = true
@@ -188,7 +189,7 @@ public final class LoopExporter {
     /// file creation, pre-roll write), leaving `isRecording` false. Awaiting a completion
     /// that will not arrive suspends `exportWav` forever: `status` stays `.capturing`, the
     /// Record button stays disabled reading "Recording loop…" for the rest of the session,
-    /// `reset()` never runs, and the continuation leaks. The camera route activating
+    /// the caller's `finishAttempt()` never runs, and the continuation leaks. The camera route activating
     /// mid-session is exactly when that format/file creation can fail.
     private func finishRecording(_ engine: AudioEngine) async -> URL? {
         guard engine.retroCapture.isRecording else { return nil }
@@ -319,7 +320,9 @@ public final class LoopExporter {
         let window = min(seconds + ago, Self.retroRingSeconds)
         let effectiveAgo = max(0, window - seconds)
         guard let cafURL = engine.retroCapture.captureRecent(seconds: window) else {
-            status = .failed("Nothing to capture yet")
+            // Wording deliberately not "Nothing to capture yet": it is rendered as
+            // "<reason>. Nothing was saved." and read "Nothing … nothing".
+            status = .failed("The capture buffer is empty")
             return nil
         }
 
@@ -350,8 +353,13 @@ public final class LoopExporter {
         }
     }
 
-    /// Force back to `.idle`, whatever happened. The blunt instrument — use
-    /// `finishAttempt()` after an export, which keeps a failure readable.
+    /// Force back to `.idle`, whatever happened.
+    ///
+    /// ⚠️ NO PRODUCTION CALLER since #216 — both view sites now use `finishAttempt()`.
+    /// Said out loud because a `public` method that reads as "the blunt instrument" looks
+    /// in-use, and this repo's whole audit history is about surfaces that quietly stopped
+    /// having a caller. Kept deliberately: it is what the tests drive, and it is the honest
+    /// force-idle for any future path that must discard a failure rather than show it.
     public func reset() { status = .idle }
 
     // MARK: - Ending an attempt without erasing why it failed (#216)
@@ -361,9 +369,10 @@ public final class LoopExporter {
     /// THE DEFECT THIS EXISTS FOR. Both callers in `EchoelStudioView` ended with an
     /// unconditional `exporter.reset()` — correct in spirit (a finished attempt must never
     /// leave the button stuck on "Writing .wav…") but it also wiped `.failed`, in the same
-    /// synchronous turn, before SwiftUI could ever render it. This class carries SIX
-    /// distinct failure messages — the write failed, the loop is longer than the ring, the
-    /// ring is empty, the render produced nothing — and NOT ONE of them could reach a user.
+    /// synchronous turn, before SwiftUI could ever render it. This class writes `.failed` at
+    /// six places — the write failed, the loop is longer than the ring, the ring is empty,
+    /// the render produced nothing, the loop length is invalid, the capture failed — and NOT
+    /// ONE of them could reach a user.
     /// The button simply returned to "Record 8 bars → send" and the take was gone, which
     /// reads as "nothing happened" rather than "that did not work".
     ///

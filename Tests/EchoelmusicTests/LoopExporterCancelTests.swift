@@ -63,8 +63,9 @@ final class LoopExporterCancelTests: XCTestCase {
         }
     }
 
-    /// The instance method must actually use the predicate. Reachable from `.idle` only
-    /// without an engine, which is the weak end of this test and is said out loud.
+    /// A stray call on an idle exporter must not invent a state — same contract the
+    /// `cancel()` test above pins. It proves nothing about the predicate; see the
+    /// disclaimer below, which review corrected me on.
     func testFinishAttemptFromIdleIsANoOp() {
         let exporter = LoopExporter()
         exporter.finishAttempt()
@@ -76,8 +77,17 @@ final class LoopExporterCancelTests: XCTestCase {
     // transport is left stopped. All three need a live AudioEngine + BeatPlayer, which
     // this suite cannot stand up. They are device-verify items — see the commit body.
     //
-    // Nor that the warning line RENDERS: `exportFailure` lives in `EchoelStudioView`, and
-    // no unit test here can build that view. Deleting that one `if let` block leaves every
-    // test above green. What is pinned is the mechanism it depends on.
+    // AND THE #216 FIX ITSELF IS NOT PINNED, which is a sharper gap than the first version
+    // of this block admitted. Exactly ONE thing above is a regression test: the truth table
+    // of `shouldReturnToIdle`. Everything else would survive a revert —
+    //   · put `exporter.reset()` back at both `EchoelStudioView` call sites and all three
+    //     new tests stay green; the defect WAS the call site;
+    //   · implement `finishAttempt()` as a bare `status = .idle` — identical to `reset()` —
+    //     and they still pass, because from `.idle` the two are indistinguishable and no
+    //     test here can reach `.failed` without an engine;
+    //   · delete the warning line in `EchoelStudioView` and nothing here notices, since no
+    //     unit test in this suite can build that view.
+    // The predicate is the piece a future "simplification" is most likely to collapse, so
+    // pinning it is worth something — but it is not the same as pinning the fix.
 }
 #endif
