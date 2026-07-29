@@ -27,8 +27,11 @@ struct OnboardingView: View {
     /// compiler here. Binding it to a property pins the type to `String` before the modifier
     /// ever sees it. Cheap insurance against a red gate for zero behavioural difference.
     ///
-    /// ⚠️ KNOWN AND DELIBERATE: this one string is NOT localised, and it is the only string on
-    /// this screen that isn't. Being a `String` (built by `+`) it hits `accessibilityHint`'s
+    /// ⚠️ KNOWN AND DELIBERATE: this string is NOT localised. (An earlier version of this note
+    /// said it was "the only string on this screen that isn't" — wrong by two: `"Echoelmusic"`
+    /// and `"Start"` are also absent from the catalog, both legitimately, being identical in
+    /// German. Corrected because a confidently-stale claim in a comment is this repo's most
+    /// expensive recurring defect.) Being a `String` (built by `+`) it hits `accessibilityHint`'s
     /// `StringProtocol` overload, which does not look anything up; and it cannot become a
     /// `LocalizedStringKey` without collapsing to one ~200-character source line. Acceptable
     /// precisely because of the rule two properties below: the CONSENT lives in the LABEL,
@@ -229,9 +232,18 @@ struct OnboardingView: View {
             // Disabled state was communicated by OPACITY alone — VoiceOver said "Start,
             // dimmed, button" and named no way out. Same defect class as the Patchbay dot:
             // one channel, and some users cannot receive it.
+            // ⚠️ `Text(...)` on BOTH branches, not bare literals. A ternary is a weaker
+            // inference site than a direct argument: with two string literals the solver can
+            // legitimately default them to `String` and pick the generic `StringProtocol`
+            // overload, which does NOT look anything up — so the one label that explains why
+            // Start is disabled would stay English in every language, with no diagnostic
+            // anywhere. `Text(literal)` is unambiguously the `LocalizedStringKey` initialiser
+            // and `accessibilityLabel(_: Text)` is a concrete overload, so the question does
+            // not arise. ("Start" needs no catalog entry — it is the same word in German and
+            // falls back to its own key.)
             .accessibilityLabel(acknowledgedSafety
-                                ? "Start"
-                                : "Start — confirm the safety notice above first")
+                                ? Text("Start")
+                                : Text("Start — confirm the safety notice above first"))
             .disabled(!acknowledgedSafety)
             .opacity(acknowledgedSafety ? 1 : 0.4)
             .padding(.horizontal, 40)

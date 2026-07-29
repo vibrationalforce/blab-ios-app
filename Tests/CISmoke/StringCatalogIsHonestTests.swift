@@ -198,8 +198,15 @@ final class StringCatalogIsHonestTests: XCTestCase {
 
     /// The five sentences CLAUDE.md mandates. They are the highest-stakes strings in the app:
     /// if one of these silently reverts to English, a user who cannot read English loses a
-    /// safety warning, not a label. Pinned by content so an edit to the view fails HERE, loudly,
-    /// instead of on someone's device.
+    /// safety warning, not a label.
+    ///
+    /// ⚠️ WHAT THIS DOES **NOT** CATCH — the first version of this comment claimed it was
+    /// "pinned by content so an edit to the view fails HERE". False, and worth stating
+    /// precisely because the wrong reading makes a warning look better guarded than it is:
+    /// rewording the sentence in the VIEW leaves the catalog untouched, so THIS test stays
+    /// green. The one that goes red is `testEveryKeyStillExistsAsALiteralInSources` above —
+    /// the literal no longer appears in `Sources/`. What THIS test catches is the other
+    /// direction: a mandated warning deleted from the catalog, or never added to it.
     func testEveryMandatedSafetyWarningIsTranslated() throws {
         let mandated = [
             "For self-observation, not medical diagnosis.",
