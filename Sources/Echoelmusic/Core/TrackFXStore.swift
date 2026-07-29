@@ -33,6 +33,24 @@ public enum FXBus: String, CaseIterable, Codable, Sendable {
 /// The persisted control-plane settings for one bus insert. Pure value type (Codable) so
 /// it round-trips independent of any audio framework and is unit-testable off-thread.
 public struct TrackFX: Codable, Equatable, Sendable {
+
+    /// 1 = the shape as of 2026-07-29 (#189 slice 4). Same stamp SHAPE as `Clip` — never
+    /// decoded, never assigned, so the synthesized encoder writes the current version by
+    /// construction — but reached differently: `Clip` keeps a synthesized decoder, while
+    /// this type now hand-writes one that deliberately never touches `.schemaVersion`. See
+    /// `Clip.currentSchemaVersion` for why this shape beats the provenance-carrying one used
+    /// by `Project`/`TimelineDocument`.
+    public static let currentSchemaVersion = 1
+
+    /// ⚠️ Deliberately never read by `init(from:)` — the key exists so the ENCODER writes it,
+    /// which is the whole job of a stamp added before the break it is meant to survive. Two
+    /// consequences, both easy to trip over later: a loaded file's own version is available
+    /// only as a local inside the decoder (that is where a migration reads it), and because
+    /// every live instance holds the same constant, the synthesized `==` gains a term that
+    /// cannot change any result. The day a migration DOES assign a decoded version here,
+    /// that stops being true and `==` starts telling a loaded value apart from a fresh one.
+    public private(set) var schemaVersion: Int = TrackFX.currentSchemaVersion
+
     public var filter: ChannelInsertFX.FilterType
     public var cutoffHz: Float
     public var resonance: Float
@@ -49,6 +67,61 @@ public struct TrackFX: Codable, Equatable, Sendable {
         self.cutoffHz = cutoffHz
         self.resonance = resonance
         self.drive = drive
+    }
+
+    // MARK: - Defensive decoding
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, filter, cutoffHz, resonance, drive
+    }
+
+    /// Custom decoder, and it closes a LIVE data-loss path rather than merely preparing for
+    /// one — the version stamp above is the smaller half of this change.
+    ///
+    /// Until now `TrackFX` had a fully SYNTHESIZED decoder, and `TrackFXStore.read` turns any
+    /// throw into `.off`. Two ordinary edits therefore silently wiped the user's filter and
+    /// drive on ALL THREE buses at once, with no error anywhere:
+    ///
+    ///  1. Adding a non-optional field. The synthesized decoder throws `keyNotFound` on every
+    ///     already-saved bus. This is exactly the bug that fired on `SynthPatch` (#95) and
+    ///     took the whole patch library with it.
+    ///  2. Touching `ChannelInsertFX.FilterType`. It is a raw-value enum, and synthesized
+    ///     `RawRepresentable` decoding throws `dataCorrupted` on a value it does not know —
+    ///     `decodeIfPresent` absorbs a MISSING key, never an unknown case. So a filter type
+    ///     added in a newer build makes the settings unreadable to any older one, and
+    ///     removing a type does the same in the other direction. Same mechanism, same cure,
+    ///     as `TimelineLane.builtinInstrument` (`Sequencer/Timeline.swift`, the
+    ///     `(try? decodeIfPresent(…)) ?? nil` line).
+    ///
+    /// Missing/unreadable fields fall back to `TrackFX.off`, NOT to the memberwise defaults.
+    /// The difference is audible: the memberwise `cutoffHz` default is 1200 Hz, so falling
+    /// back there would suddenly darken a bus that was full open. `.off` rests at 18 kHz —
+    /// "as if no insert were dialed", which is what the surrounding store already promises.
+    ///
+    /// The `isFinite` check is NOT an audio-thread rescue — an earlier draft of this comment
+    /// claimed it was, and that was false. `ChannelInsertFX` already sanitises: `recompute()`
+    /// substitutes for a non-finite `cutoffHz`/`resonance`, `process(_:)` self-heals its
+    /// biquad state, and the saturation path is behind `drive > 0`, which a NaN fails. What
+    /// the check is really for is the SAME data-loss the rest of this decoder addresses: a
+    /// number the file can hold but a `Float` cannot (`1e39`) used to throw and cost the
+    /// whole bus, and it keeps an unusable value out of the `EchoelValueField` UI. A finite
+    /// file is byte-identical through this path either way.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = TrackFX.off
+        let storedFilter = (try? c.decodeIfPresent(ChannelInsertFX.FilterType.self,
+                                                   forKey: .filter)) ?? nil
+        filter    = storedFilter ?? fallback.filter
+        cutoffHz  = TrackFX.finite(c, .cutoffHz,  fallback: fallback.cutoffHz)
+        resonance = TrackFX.finite(c, .resonance, fallback: fallback.resonance)
+        drive     = TrackFX.finite(c, .drive,     fallback: fallback.drive)
+    }
+
+    private static func finite(_ c: KeyedDecodingContainer<CodingKeys>,
+                               _ key: CodingKeys, fallback: Float) -> Float {
+        guard let value = (try? c.decodeIfPresent(Float.self, forKey: key)) ?? nil,
+              value.isFinite else { return fallback }
+        return value
     }
 
     /// True when this insert does nothing — the render path can skip it entirely.
