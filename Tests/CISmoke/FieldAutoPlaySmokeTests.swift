@@ -5,11 +5,14 @@
 //
 // WHAT IS BEING TESTED, and what deliberately is not. `FieldAutoPlay` emits POSITIONS on the
 // play surface — normalised x/y plus a velocity — and nothing else. It does not know about
-// pitch, keys, scales or voices. That is the whole design decision: a generated touch goes
-// through `TouchPitchMap` exactly like a finger does, so key-quantisation, Ultrasync, Life
-// and Level keep working with no second code path to keep in step. A generator that emitted
-// notes directly would have to re-implement all four, and would drift from them the first
-// time one changed.
+// pitch, keys, scales or voices. That is the whole design decision: a generated touch is meant
+// to enter the surface where a finger does, so key-quantisation, Ultrasync, Life and Level
+// apply to it with no second code path to keep in step.
+//
+// ⚠️ Of those four, only `TouchPitchMap` is a reusable core TODAY. Ultrasync, Life and Level
+// live inside a private method on `TouchInstrumentUIView`, so the wiring slice has to hoist
+// them before this generator can honestly claim to share them. The first version of this
+// header stated all four as fact; it is written as the intent here, which is what it is.
 //
 // So these tests pin the SHAPE of the movement, which is the part a listener actually hears:
 // does it travel, does it stay inside the surface, does it repeat identically, does a
@@ -215,5 +218,104 @@ final class FieldAutoPlaySmokeTests: XCTestCase {
         let curve = params(motion: .pendulum)
         XCTAssertEqual(sweep(curve, steps: 24, seed: 1), sweep(curve, steps: 24, seed: 2),
                        "a fixed curve must not secretly depend on the seed")
+    }
+
+    // MARK: - It cannot be handed something that kills it
+
+    /// THE CRASH ONE. `periodSteps` is a plain `Int` on a public struct with a memberwise
+    /// init, so any caller — a bio mapping, a UI field, a corrupted preset — can hand over
+    /// `Int.max`. Downstream, `period * 3` builds the vertical wander's slower cycle, and
+    /// Swift TRAPS on integer overflow: that is a hard crash mid-performance, not an odd
+    /// sound. The `.drift` walk is the second path — it iterates once per cell, so a huge
+    /// period is a huge loop on the caller's thread.
+    ///
+    /// This test would have crashed the whole bundle before the cap existed, which is the
+    /// right kind of failure for this class of defect: loud, immediate, unmissable.
+    func testAnAbsurdTraverseLengthIsCappedInsteadOfTrappingOrHanging() {
+        for motion in FieldAutoPlay.Motion.allCases {
+            for steps in [Int.max, Int.max / 2, 100_000, 0, -7] {
+                let p = params(motion: motion, bandDrift: 1, periodSteps: steps)
+                // A deliberately large step index, so the fold and the drift walk both run
+                // against a real cell rather than cell 0.
+                let touches = FieldAutoPlay.touches(atStep: 5_000, params: p, seed: 7)
+                for t in touches {
+                    XCTAssertTrue((0...1).contains(t.x) && (0...1).contains(t.y),
+                                  "\(motion) at periodSteps \(steps) left the surface")
+                }
+            }
+        }
+    }
+
+    /// The accent must survive a SHORT traverse. `period / 4` reaches 1 at any period of four
+    /// or less, and `cell % 1 == 0` is true for every cell — so the downbeat silently
+    /// disappeared and everything came out at one velocity. A four-cell traverse is exactly
+    /// where a player still expects to hear a "one".
+    func testTheDownbeatSurvivesAShortTraverse() {
+        for period in [2, 3, 4, 8, 16] {
+            let velocities = Set(sweep(params(periodSteps: period), steps: period * 2)
+                                    .map { $0.velocity })
+            XCTAssertEqual(velocities.count, 2,
+                           "a \(period)-cell traverse played every note at one velocity")
+        }
+    }
+
+    /// A one-cell traverse is the degenerate end and must not throw the accent away either —
+    /// there is only one cell, and it is a downbeat.
+    func testASingleCellTraverseIsAllDownbeat() {
+        let velocities = Set(sweep(params(periodSteps: 1), steps: 8).map { $0.velocity })
+        XCTAssertEqual(velocities, [0.78])
+    }
+
+    // MARK: - It survives being saved
+
+    /// The format stamp is WRITTEN (#189). Without it, the first change that cannot be made
+    /// additively has no way to tell an old payload from a new one — and by then every save
+    /// already in the wild is unstamped forever.
+    func testTheFormatStampIsWritten() throws {
+        let data = try JSONEncoder().encode(FieldAutoPlay.Params())
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["schemaVersion"] as? Int, FieldAutoPlay.Params.currentSchemaVersion)
+    }
+
+    /// A payload written before a dial existed must load with that dial's DEFAULT, not throw
+    /// the whole setting away — the additive-decode law (#163/#170/#189). Here: a minimal
+    /// pre-stamp payload with three of eight dials and no version.
+    func testAPreStampPayloadLoadsWithDefaultsForEverythingMissing() throws {
+        let old = #"{"motion":"rise","density":0.9,"voices":3}"#
+        let p = try JSONDecoder().decode(FieldAutoPlay.Params.self,
+                                         from: try XCTUnwrap(old.data(using: .utf8)))
+        XCTAssertEqual(p.motion, .rise)
+        XCTAssertEqual(p.density, 0.9, accuracy: 1e-6)
+        XCTAssertEqual(p.voices, 3)
+        // Untouched by the payload → the factory defaults, not zeros.
+        XCTAssertEqual(p.span, FieldAutoPlay.Params().span, accuracy: 1e-6)
+        XCTAssertEqual(p.periodSteps, FieldAutoPlay.Params().periodSteps)
+    }
+
+    /// A motion whose case no longer exists must fall back, not throw. `decodeIfPresent` does
+    /// NOT cover this — it absorbs ABSENCE, and an unknown raw value throws `dataCorrupted`.
+    /// That distinction is why the decoder uses `try?`, and it is worth a test because the
+    /// two read almost identically at the call site.
+    func testAnUnknownMotionFallsBackInsteadOfLosingTheWholeSetting() throws {
+        let future = #"{"motion":"spiral","density":0.4,"periodSteps":24}"#
+        let p = try JSONDecoder().decode(FieldAutoPlay.Params.self,
+                                         from: try XCTUnwrap(future.data(using: .utf8)))
+        XCTAssertEqual(p.motion, FieldAutoPlay.Params().motion, "unknown motion must fall back")
+        XCTAssertEqual(p.density, 0.4, accuracy: 1e-6, "the rest of the setting must survive")
+        XCTAssertEqual(p.periodSteps, 24)
+    }
+
+    /// And a monster traverse must be clamped at the BOUNDARY too, so it never sits in memory
+    /// looking like a legal value waiting for something to multiply it.
+    func testADecodedPayloadCannotCarryAMonsterTraverse() throws {
+        let hostile = #"{"periodSteps":9223372036854775807}"#
+        let p = try JSONDecoder().decode(FieldAutoPlay.Params.self,
+                                         from: try XCTUnwrap(hostile.data(using: .utf8)))
+        XCTAssertEqual(p.periodSteps, FieldAutoPlay.maxPeriodSteps)
+
+        let negative = #"{"periodSteps":-4}"#
+        let q = try JSONDecoder().decode(FieldAutoPlay.Params.self,
+                                         from: try XCTUnwrap(negative.data(using: .utf8)))
+        XCTAssertGreaterThanOrEqual(q.periodSteps, 1)
     }
 }

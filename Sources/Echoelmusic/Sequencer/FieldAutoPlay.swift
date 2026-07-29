@@ -7,15 +7,22 @@
 //  Parametern").
 //
 //  THE ONE DESIGN DECISION, and everything else follows from it: this emits POSITIONS on the
-//  play surface, not notes. A generated touch is a touch — it goes through `TouchPitchMap`
-//  exactly like a finger, and from there through the same key-quantisation, the same
-//  Ultrasync grid, the same Life micro-variation and the same Level. There is no second note
-//  path to keep in step with the first.
+//  play surface, not notes. A generated touch is a touch — it is meant to enter the surface at
+//  the same place a finger does, so key-quantisation, the Ultrasync grid, the Life
+//  micro-variation and the Level all apply to it without a second note path existing.
 //
-//  A generator that emitted `Note`s directly would have been shorter to write and wrong: it
-//  would have to re-implement all four of those, and would drift from them the first time one
-//  changed. This app has already paid for a parallel path once (the mixer faders that could
-//  not be heard because a second stage overwrote their amplitude, #177).
+//  ⚠️ THAT IS THE INTENT, NOT YET THE FACT, and the first version of this header stated it as
+//  fact. `TouchPitchMap` IS a reusable core and a generated `Touch` can go through it today.
+//  Ultrasync, Life and Level are NOT: they live inside `private func sound(_:)` on
+//  `TouchInstrumentUIView`, so there is nothing for this to call. Making the wiring slice
+//  honest therefore means HOISTING that method's body into a core both a finger and this
+//  generator enter — not calling it from here (impossible) and not re-implementing it (the
+//  parallel path this file exists to avoid). Whoever wires this: that hoist IS the slice.
+//
+//  A generator that emitted `Note`s directly would have been shorter to write and wrong for the
+//  same reason: it would re-implement all four and drift from them the first time one changed.
+//  This app has already paid for a parallel path once (the mixer faders that could not be heard
+//  because a second stage overwrote their amplitude, #177).
 //
 //  Not an arpeggiator, and the difference is the point. `BreathArp` walks the notes of a
 //  CHORD. This walks the SURFACE — x is a scale degree across one octave, y is the octave
@@ -49,7 +56,14 @@ public enum FieldAutoPlay {
         case fall
         /// Up and back down without a jump: the most continuous, and the default.
         case pendulum
-        /// A bounded seeded random walk — moves without a pattern the ear can predict.
+        /// A bounded seeded walk — moves without a shape the ear can name.
+        ///
+        /// It REPEATS every traverse, and that is deliberate rather than a shortcoming: the
+        /// walk is recomputed from the cell index (see `travel`), so the same figure returns
+        /// each period. A walk keyed on absolute step would never repeat, and would also cost
+        /// one RNG draw per elapsed step forever — a generator that gets slower the longer the
+        /// performance runs. What this gives is an irregular FIGURE, not noise. Say it that way
+        /// to a player; the original wording promised unpredictability it does not deliver.
         case drift
         /// Does not travel. How a player parks on one note and shapes it with everything
         /// else. NOT a slow wander — exactly still.
@@ -88,11 +102,33 @@ public enum FieldAutoPlay {
         public var band: Float
         /// How far it wanders vertically, 0…1. Deliberately on a slower cycle than the
         /// horizontal travel, so the two do not lock into one diagonal line.
+        ///
+        /// ⚠️ THE PITCH EFFECT HAS A THRESHOLD, and it is not obvious from the number. `y`
+        /// selects one of THREE octave bands (`TouchPitchMap`: `min(2, Int(y * 3))`), so the
+        /// wander must span more than 1/3 to cross a boundary and change the octave at all.
+        /// The default 0.2 centred at band 0.5 stays inside 0.4…0.6 — entirely within the
+        /// middle band. That is NOT a dead default: `y` is also the vertical position of the
+        /// light the touch drops into the field, so sub-threshold values move the VISUAL and
+        /// leave the pitch alone, which is a musically sensible place to start. Above ~0.34 it
+        /// starts changing octaves. Documented because a control whose first third does
+        /// nothing audible reads as broken unless you say what it is doing instead.
         public var bandDrift: Float
         /// Simultaneous points — a chord under a hand that is not there.
         public var voices: Int
         /// Grid cells in one full traverse. Bigger = slower sweep at the same tempo.
+        /// Clamped to `maxPeriodSteps` on both decode and use — see that constant.
         public var periodSteps: Int
+
+        /// Format stamp (#189), same shape as `MoodPreset`: the ENCODER writes it; a future
+        /// migration that cannot be handled additively (a renamed dial, a changed unit) reads
+        /// the file's own value into a local inside `init(from:)`. Stamping costs one line
+        /// now; adding it after the first saves are in the wild does nothing for those saves.
+        public static let currentSchemaVersion = 1
+
+        /// ⚠️ Deliberately NOT assigned from the payload on decode — it stays at current, so
+        /// two functionally identical Params never compare unequal just because one came off
+        /// disk. Same reasoning as `MoodPreset.schemaVersion`.
+        public private(set) var schemaVersion: Int = Params.currentSchemaVersion
 
         public init(motion: Motion = .pendulum, density: Float = 0.5, span: Float = 0.6,
                     centre: Float = 0.5, band: Float = 0.5, bandDrift: Float = 0.2,
@@ -112,23 +148,43 @@ public enum FieldAutoPlay {
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             let d = Params()
-            // `?? nil` rather than a bare `decodeIfPresent`: a raw-value enum whose stored
-            // case no longer exists throws `dataCorrupted`, which `decodeIfPresent` does NOT
-            // absorb. Precedent: `Timeline.builtinInstrument`.
-            motion = ((try? c.decodeIfPresent(Motion.self, forKey: .motion)) ?? nil) ?? d.motion
+            // `try?` rather than a bare `decodeIfPresent`: a raw-value enum whose stored case
+            // no longer exists throws `dataCorrupted`, and `decodeIfPresent` does NOT absorb a
+            // throw — it only absorbs ABSENCE. Precedent: `Timeline.builtinInstrument`.
+            // (The first version wrapped this in `?? nil` and explained the wrap; under
+            // SE-0230 `try?` already flattens the double optional, so the wrap was a no-op
+            // and its explanation was wrong. The DEFENCE was right, the reasoning was not.)
+            motion = (try? c.decode(Motion.self, forKey: .motion)) ?? d.motion
             density = (try? c.decode(Float.self, forKey: .density)) ?? d.density
             span = (try? c.decode(Float.self, forKey: .span)) ?? d.span
             centre = (try? c.decode(Float.self, forKey: .centre)) ?? d.centre
             band = (try? c.decode(Float.self, forKey: .band)) ?? d.band
             bandDrift = (try? c.decode(Float.self, forKey: .bandDrift)) ?? d.bandDrift
             voices = (try? c.decode(Int.self, forKey: .voices)) ?? d.voices
-            periodSteps = (try? c.decode(Int.self, forKey: .periodSteps)) ?? d.periodSteps
+            // Clamped at the BOUNDARY as well as at use: a corrupted or hand-edited payload
+            // carrying `Int.max` would otherwise sit in memory as a legal-looking value and
+            // trap the first time something multiplied it.
+            let steps = (try? c.decode(Int.self, forKey: .periodSteps)) ?? d.periodSteps
+            periodSteps = Swift.min(FieldAutoPlay.maxPeriodSteps, Swift.max(1, steps))
         }
     }
 
     /// Hard ceiling on simultaneous points. These become note-ons: an absurd `voices` value
     /// from a corrupted preset or a future bio mapping must be CAPPED, never honoured.
     public static let maxVoices = 8
+
+    /// Hard ceiling on the traverse length, and this one is a CRASH GUARD, not taste.
+    ///
+    /// Three things downstream are not safe for an arbitrary `Int`:
+    ///   • `period * 3` (the vertical wander's slower cycle) — Swift TRAPS on overflow, so a
+    ///     `periodSteps` near `Int.max` is a hard crash, not a strange sound.
+    ///   • the `.drift` walk iterates once per cell (`for _ in 0...cell`), so a millionfold
+    ///     period is a millionfold RNG loop on whatever thread called it.
+    ///   • `Float(cell) / Float(period)` loses meaning long before either of those.
+    ///
+    /// 1024 cells is already ~64 bars of sixteenths — far past any musical traverse, and the
+    /// exact reason the ceiling can be this generous and still be a real guard.
+    public static let maxPeriodSteps = 1024
 
     // MARK: - The generator
 
@@ -147,7 +203,10 @@ public enum FieldAutoPlay {
         let density = clamp01(params.density)
         guard density > 0 else { return [] }
 
-        let period = Swift.max(1, params.periodSteps)
+        // Clamped HERE as well as in the decoder: `Params` is a public struct with a
+        // memberwise init, so a caller (a bio mapping, a UI, a test) can hand us any Int
+        // without ever going through a decoder. The guard belongs where the arithmetic is.
+        let period = Swift.min(maxPeriodSteps, Swift.max(1, params.periodSteps))
         // Fold negatives into the period so a caller may count from anywhere.
         let cell = ((step % period) + period) % period
 
@@ -221,8 +280,15 @@ public enum FieldAutoPlay {
     /// Downbeat cells hit a little harder — the difference between a player and a metronome.
     /// Kept small and deterministic; the expressive micro-variation belongs to Life, which
     /// already applies on the touch path this feeds.
+    ///
+    /// The floor is 2, not 1, and that is the whole fix: `period / 4` reaches 1 at any period
+    /// of 4 or less, and `cell % 1 == 0` is true for EVERY cell — so at a four-cell traverse
+    /// the accent silently vanished and every note came out at 0.78. A short traverse is
+    /// exactly where a player would still expect to hear a downbeat, so the degenerate case
+    /// was the one that mattered. With a floor of 2 the shortest traverses alternate
+    /// loud/quiet; at period 16 the value is 4 as before, so nothing shipped changes.
     static func velocity(cell: Int, period: Int) -> Float {
-        let beat = Swift.max(1, period / 4)
+        let beat = Swift.max(2, period / 4)
         return cell % beat == 0 ? 0.78 : 0.62
     }
 
