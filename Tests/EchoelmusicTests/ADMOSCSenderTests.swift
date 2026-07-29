@@ -21,12 +21,17 @@ final class ADMOSCSenderTests: XCTestCase {
     func testAdmMessages_addressesFollowAdmObjNamespace() {
         let msgs = ADMOSCSender.admMessages(for: frame(), object: 1)
         let addresses = msgs.map { $0.0 }
-        XCTAssertEqual(addresses, [
+        // The three POSITION addresses are unconditional and ordered. `/gain` rides the
+        // motion producer (#215) and is asserted separately below, so this stays true
+        // whichever side of that gate the build is on.
+        XCTAssertEqual(Array(addresses.prefix(3)), [
             "/adm/obj/1/position/azimuth",
             "/adm/obj/1/position/elevation",
-            "/adm/obj/1/position/distance",
-            "/adm/obj/1/gain"
+            "/adm/obj/1/position/distance"
         ])
+        XCTAssertEqual(addresses.contains("/adm/obj/1/gain"),
+                       ModSource.motion.hasProducer,
+                       "the bio arm asserts /gain exactly when something drives it")
     }
 
     func testAdmMessages_objectIndexIsEmbeddedAndClampedToOneBased() {
@@ -64,42 +69,33 @@ final class ADMOSCSenderTests: XCTestCase {
         XCTAssertEqual(elevation(1.0), 60, accuracy: 0.001)
     }
 
-    /// #215 — the motion→gain mapping is DORMANT while nothing measures motion, and this
-    /// test is written so it flips with the product rather than pinning today's answer
-    /// forever. It asserts the branch that `ModSource.motion.hasProducer` selects, not a
-    /// literal: the day a CoreMotion producer lands, the modulated arm below is what must
-    /// hold, and this test starts checking it without being edited.
-    ///
-    /// The old version asserted `gain(0.0) == 0.3` unconditionally. That was a green test
-    /// pinning a defect in place: with no producer, 0.3 was not a resting level but the
-    /// ONLY level the object could ever have — every Echoel object arriving in a house
-    /// rig 10.5 dB down, with no control in the app to lift it.
-    func testGain_isUnityWhileMotionHasNoProducer_andModulatedOnceItDoes() {
-        func gain(_ motion: Float) -> Float {
-            ADMOSCSender.admMessages(for: frame(motion: motion), object: 1)[3].1
-        }
-        if ModSource.motion.hasProducer {
-            XCTAssertEqual(gain(0.0), ADMOSCSender.motionRestingGain, accuracy: 0.001,
-                           "a measured body at rest sits at the resting floor")
-            XCTAssertEqual(gain(1.0), 1.0, accuracy: 0.001,
-                           "full movement brings the object all the way forward")
-        } else {
-            XCTAssertEqual(gain(0.0), 1.0, accuracy: 0.001,
-                           "with no producer the object is unmodulated and belongs at "
-                           + "unity — the renderer's own gain stage is the one control")
-            XCTAssertEqual(gain(0.9), 1.0, accuracy: 0.001,
-                           "and no frame can move it, because no frame carries motion")
-        }
+    /// THE DECISION, tested on BOTH answers because the kernel takes the predicate as a
+    /// parameter. Branching on `ModSource.motion.hasProducer` inside the test instead
+    /// would leave the live arm permanently unreachable — prose in `if` clothing — and
+    /// would silently switch off the dormant-case assertions the day a producer lands.
+    func testMotionGain_isAbsentWithoutAProducer_andTheFullMappingWithOne() {
+        XCTAssertNil(ADMOSCSender.motionGain(motion: 0, hasProducer: false),
+                     "with nothing driving it, the bio arm asserts no gain at all — "
+                     + "substituting a value would step the level at every musical rest")
+        XCTAssertNil(ADMOSCSender.motionGain(motion: 0.9, hasProducer: false),
+                     "and no frame can change that, because no frame carries motion")
+
+        XCTAssertEqual(ADMOSCSender.motionGain(motion: 0, hasProducer: true),
+                       ADMOSCSender.motionRestingGain,
+                       "a measured body at rest sits at the resting floor")
+        XCTAssertEqual(ADMOSCSender.motionGain(motion: 1, hasProducer: true), 1.0,
+                       "and full movement brings the object all the way forward — the "
+                       + "mapping must reach unity exactly, whatever the floor is tuned to")
     }
 
-    /// The floor is not deleted, only bypassed — and its value is the one that keeps the
-    /// live mapping bit-identical to the expression it replaced (`0.3 + m * 0.7`, where
-    /// the 0.7 is `1 - 0.3`). If someone retunes the constant, this says out loud that
-    /// the second coefficient follows it.
-    func testRestingGainIsTheFloorOfAFullRangeMapping() {
-        XCTAssertEqual(ADMOSCSender.motionRestingGain, 0.3, accuracy: 0.0001)
-        XCTAssertGreaterThan(ADMOSCSender.motionRestingGain, 0)
-        XCTAssertLessThan(ADMOSCSender.motionRestingGain, 1)
+    /// The mapping the sender actually calls must be the one above, fed the REAL
+    /// predicate. Without this the parameterised kernel could be perfect and unused.
+    func testAdmMessagesUsesTheMotionGainKernelWithTheLivePredicate() {
+        let msgs = ADMOSCSender.admMessages(for: frame(motion: 0.4), object: 1)
+        let sent = msgs.first { $0.0 == "/adm/obj/1/gain" }?.1
+        XCTAssertEqual(sent,
+                       ADMOSCSender.motionGain(motion: 0.4,
+                                               hasProducer: ModSource.motion.hasProducer))
     }
 
     // MARK: - Range safety (out-of-range bio values stay within ADM-OSC v1.0 spec)
@@ -108,20 +104,29 @@ final class ADMOSCSenderTests: XCTestCase {
         // Deliberately overdriven bio values (e.g. unnormalized sensor glitch).
         let wild = frame(hrv: 5, breathPhase: 3, coherence: -2, motion: 9)
         let msgs = ADMOSCSender.admMessages(for: wild, object: 1)
-        let azimuth = msgs[0].1, elevation = msgs[1].1, distance = msgs[2].1, gain = msgs[3].1
+        let azimuth = msgs[0].1, elevation = msgs[1].1, distance = msgs[2].1
         XCTAssertGreaterThanOrEqual(azimuth, -180); XCTAssertLessThanOrEqual(azimuth, 180)
         XCTAssertGreaterThanOrEqual(elevation, -90); XCTAssertLessThanOrEqual(elevation, 90)
         XCTAssertGreaterThanOrEqual(distance, 0); XCTAssertLessThanOrEqual(distance, 1)
-        XCTAssertGreaterThanOrEqual(gain, 0); XCTAssertLessThanOrEqual(gain, 1)
+        // Gain is optional (#215) — clamp it when present, and check the kernel directly
+        // so the range guarantee is asserted for BOTH producer answers, not just today's.
+        if let gain = msgs.first(where: { $0.0 == "/adm/obj/1/gain" })?.1 {
+            XCTAssertGreaterThanOrEqual(gain, 0); XCTAssertLessThanOrEqual(gain, 1)
+        }
+        let wildGain = ADMOSCSender.motionGain(motion: 9, hasProducer: true)
+        XCTAssertEqual(wildGain, 1.0, "an overdriven motion value still clamps into spec")
     }
 
     // MARK: - On-the-wire (reuses the audited OSC encoder)
 
     func testAdmMessage_encodesAsValidOSCFloat() {
-        // /adm/obj/1/gain at motion=1.0 → gain 1.0 → big-endian 0x3F800000 tail.
-        let gain = ADMOSCSender.admMessages(for: frame(motion: 1.0), object: 1)[3]
-        let data = OSCSender.encode(address: gain.0, floats: [gain.1])
-        XCTAssertEqual(Array(data.suffix(4)), [0x3F, 0x80, 0x00, 0x00])
+        // Uses a POSITION address, which is unconditional: `/gain` now rides the motion
+        // producer (#215) and would make this test disappear rather than fail.
+        // breathPhase 1.0 → azimuth +180 → big-endian 0x43340000.
+        let azimuth = ADMOSCSender.admMessages(for: frame(breathPhase: 1.0), object: 1)[0]
+        XCTAssertEqual(azimuth.0, "/adm/obj/1/position/azimuth")
+        let data = OSCSender.encode(address: azimuth.0, floats: [azimuth.1])
+        XCTAssertEqual(Array(data.suffix(4)), [0x43, 0x34, 0x00, 0x00])
     }
 
     // MARK: - Lifecycle

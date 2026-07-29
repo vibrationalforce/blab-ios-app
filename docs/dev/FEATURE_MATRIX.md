@@ -243,7 +243,7 @@ acceptance line.
 
 ### 11. EchoelNet — `LIVE` (partial)
 - **Code:** `Sync/OSCSender.swift`, `Sync/ADMOSCSender.swift`, `Sync/MIDIBusPublisher.swift`
-- **Live:** OSC 1.0 over UDP — 6 continuous `/echoelmusic/bio/*` + 6 discrete `/echoelmusic/bio/event/*` + `/echoelmusic/mod/*` (modulation), default `localhost:8000`. **ADM-OSC** immersive object output (`/adm/obj/{n}/position/{azimuth|elevation|distance}` + `/gain`, bio→object) into FletcherMachine/L-ISA/d&b — opt-in from the Sync tab. MIDI 2.0/MPE in.
+- **Live:** OSC 1.0 over UDP — 5 continuous `/echoelmusic/bio/*` (`/bio/motion` is the 6th and is NOT sent in this build, #215: no motion sensor) + 6 discrete `/echoelmusic/bio/event/*` + `/echoelmusic/mod/*` (modulation), default `localhost:8000`. **ADM-OSC** immersive object output (`/adm/obj/{n}/position/{azimuth|elevation|distance}` + `/gain`, bio→object) into FletcherMachine/L-ISA/d&b — opt-in from the Sync tab. MIDI 2.0/MPE in.
 - **Beat-sync (audit fix 2026-06-09):** OSCSender now DRAINS the `bioEvents` SPSC queue (sole consumer) → every PolarH10 per-RR `.heartbeat` (+ breath/motion) event is sent at full resolution, no longer lost to the 100 ms snapshot. The synth's breath path still uses the independent `latestBioEvent` snapshot.
 - **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, RTP-MIDI, ADM-OSC native-protocol fallback lane.
 - **TestFlight acceptance:** OSC frames reach a LAN receiver; ADM-OSC `/adm/obj/1/*` visible on an OSC monitor; heartbeat events arrive per-beat.

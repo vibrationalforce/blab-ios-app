@@ -17,7 +17,10 @@ Find the laptop's LAN IP (macOS: System Settings → Network, e.g. 192.168.1.50)
   - `/adm/obj/1/position/azimuth`  float −180…180  (breath)
   - `/adm/obj/1/position/elevation` float 0…60     (HRV)
   - `/adm/obj/1/position/distance` float 0…1       (1−coherence)
-  - `/adm/obj/1/gain`              float 0.3…1      (motion)
+  - `/adm/obj/1/gain`              NOT sent by the bio arm (#215 — nothing measures
+    motion). It appears only while notes SOUND, from the music arm
+    (`MusicMediaMap.admMessages`, master level → 0.3…1). If the rig is silent and you
+    see no /gain at all, that is the expected result, not a fault.
 - Into a real renderer: point Host at the **FletcherMachine / L-ISA / d&b / SPAT**
   controller's ADM-OSC input; object 1 should move. Validate ranges with the
   `immersive-audio-live/ADM-OSC` repo's Python stress-test if a renderer rejects values.

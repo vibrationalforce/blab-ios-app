@@ -25,7 +25,8 @@ Key contributors, collaborators, and contacts.
   standard for object positioning) + MIDI + PosiStageNet/RTTrPM. This is a zero-SDK,
   open-standard bridge — exactly Echoel's "speak standards, depend on nothing" doctrine.
 - **Opportunity:** Echoel as a **bio-reactive object source** for immersive rigs — body
-  (HR/HRV/breath/motion) drives object position/gain over ADM-OSC into FletcherMachine.
+  (HR/HRV/breath) drives object position over ADM-OSC into FletcherMachine; gain follows
+  the music's master level. (Motion was in this list and never had a sensor — #215.)
   Anchors the "EchoelStage" roadmap (Installation/Event/Cinema/Theater/Live Broadcast).
 - **Status:** Networking contact; integration is roadmap (ADM-OSC out is a small, additive
   layer on the already-live OSCSender). No commitment yet.

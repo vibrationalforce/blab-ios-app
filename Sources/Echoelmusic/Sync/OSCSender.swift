@@ -263,9 +263,16 @@ public final class OSCSender {
         // and the last CoreMotion provider went in the 2026-06-19 cleanup, so this
         // address carried a constant 0 to every receiver — and at the receiving end a
         // constant 0 is indistinguishable from a performer standing perfectly still.
-        // A VJ binds a visual to it, sees nothing move, and has no way to learn the
-        // channel is dead; `docs/dev/VJ_BRIDGE.md` had to warn about it in prose. Not
-        // sending it makes the absence visible in any OSC monitor instead.
+        // A VJ binds a visual to it, sees nothing move, and has no way to learn FROM THE
+        // WIRE that the channel is dead — `docs/dev/VJ_BRIDGE.md` had to carry the
+        // warning in prose because the protocol could not. Not sending it makes the
+        // absence visible in any OSC monitor instead.
+        //
+        // What a bound receiver sees is unchanged: it was receiving a constant 0 and now
+        // holds its last value, which is 0. The one real difference is a receiver that
+        // CREATES channels on first receipt (TouchDesigner's OSC In CHOP) — after an app
+        // restart the channel never appears, so a downstream expression errors instead of
+        // reading 0. That is a doc note, and VJ_BRIDGE.md carries it.
         //
         // Why `hasProducer` and not `motionEnergy > 0`: 0 is a REAL reading for motion
         // (perfectly still) with no sentinel — a value gate would drop a motionless

@@ -24,9 +24,10 @@
 //    coherence    → distance   coherent = pulled close; scattered = far
 //    HRV          → elevation  calm lifts the object
 //    motion       → gain       movement brings it forward — DORMANT in this build
-//                              (#215): nothing measures motion, so the object is sent
-//                              at unity rather than pinned to the mapping's resting
-//                              floor. See `admMessages`.
+//                              (#215): nothing measures motion, so the BIO arm sends no
+//                              /gain at all rather than a constant. The MUSIC arm
+//                              (`MusicMediaMap.admMessages`) still drives /gain from the
+//                              master level whenever notes sound. See `motionGain`.
 //
 
 #if canImport(Network)
@@ -231,43 +232,62 @@ public final class ADMOSCSender {
         // HRV [0..1] → elevation [-90..90]: calm lifts (use upper hemisphere 0..60)
         let elevation = clamp(f.hrvNormalized * 60, -90, 90)
         // motion [0..1] → gain [0..1]: movement brings the object forward — WHEN
-        // something measures motion. Today nothing does (#215).
-        //
-        // `ModSource.motion.hasProducer` is `false`: every `BioSampleFrame` construction
-        // site in `Sources/` hardcodes `motionEnergy: 0`, and the last CoreMotion provider
-        // went in the 2026-06-19 cleanup. So `0.3 + 0 * 0.7` was never a resting level
-        // that movement would lift — it was the ONLY level this object could ever have,
-        // in every show, forever. −10.5 dB is not a neutral default for an object
-        // arriving in a house rig, and Echoel exposes NO control anywhere to raise it:
-        // the operator sees a quiet object with no visible cause. An unmodulated object
-        // belongs at unity, leaving the renderer's own gain stage as the one control —
-        // which is where a house engineer looks first anyway.
-        //
-        // The resting floor is NOT deleted, because it is the right resting point for a
-        // LIVE motion channel. The day a CoreMotion producer returns, `hasProducer` flips
-        // in the same commit and this reverts to the modulated mapping — which is
-        // bit-identical to the old expression (`1 - 0.3 == 0.7`), so nothing about the
-        // live behaviour is being redesigned here.
-        let gain: Float = ModSource.motion.hasProducer
-            ? clamp(motionRestingGain + f.motionEnergy * (1 - motionRestingGain), 0, 1)
-            : 1
-        return [
+        // something measures motion. Today nothing does, so this arm asserts no gain at
+        // all (#215); see `motionGain`.
+        var msgs: [(String, Float)] = [
             ("\(prefix)/position/azimuth", azimuth),
             ("\(prefix)/position/elevation", elevation),
-            ("\(prefix)/position/distance", distance),
-            ("\(prefix)/gain", gain)
+            ("\(prefix)/position/distance", distance)
         ]
+        if let gain = motionGain(motion: f.motionEnergy,
+                                 hasProducer: ModSource.motion.hasProducer) {
+            msgs.append(("\(prefix)/gain", gain))
+        }
+        return msgs
     }
 
-    /// Object gain with the motion modulator at rest. Named rather than inlined so the
-    /// "what does an unmoving body sound like" decision has one place to be argued with,
-    /// and so the unity fallback above reads as a deliberate branch, not a magic number.
+    /// The bio arm's object gain, or `nil` when nothing measures motion — in which case
+    /// this sender asserts no gain at all and the renderer keeps whatever it has.
+    ///
+    /// WHY NIL RATHER THAN A NUMBER, and this is the part a first attempt got wrong.
+    /// `sendIfFresh` has TWO gain arms for the same object index, alternating at 20 Hz:
+    /// `MusicMediaMap.admMessages` while `MusicalFrame.isSounding`, this one otherwise.
+    /// `isSounding` is `!notes.isEmpty && masterLevel > 0`, so the arms swap at every rest
+    /// and every phrase boundary, and ADM-OSC carries no slew. So the old constant `0.3`
+    /// here was NOT "the only level this object could ever have" — it was the level at
+    /// musical rest, and it happened to equal the music arm's own floor, i.e. a clean duck.
+    /// Substituting unity would have inverted that into a JUMP of up to +8 dB above where
+    /// the music arm left off, on every rest, snapping back at the next note onset — a
+    /// boost of whatever tail, bleed or room sits on that object, exactly when the music
+    /// stops. Sending nothing produces no step at all, and in a bio-only rig it leaves
+    /// `/adm/obj/{n}/gain` unasserted, which is the honest statement: Echoel is not
+    /// driving this parameter today. It also matches how the sibling defect was fixed on
+    /// the OSC side (`/echoelmusic/bio/motion` is omitted, not zeroed).
+    ///
+    /// Parameterised on the predicate instead of reading it, so BOTH answers are reachable
+    /// from a test. Branching on `ModSource.motion.hasProducer` INSIDE the tests would
+    /// leave the live arm permanently dead — prose in `if` clothing — and would silently
+    /// switch off the regression assertions on the day a producer lands.
+    nonisolated static func motionGain(motion: Float, hasProducer: Bool) -> Float? {
+        guard hasProducer else { return nil }
+        // Bit-identical to the expression this replaced (`0.3 + motion * 0.7`), because
+        // `1 - Float(0.3)` and `Float(0.7)` are the same binary32 value. The live mapping
+        // is not being retuned; only its dormant case is being answered differently.
+        return clamp(motionRestingGain + motion * (1 - motionRestingGain), 0, 1)
+    }
+
+    /// Object gain with a MEASURED motion modulator at rest. Named rather than inlined so
+    /// the "what does an unmoving body sound like" decision has one place to be argued
+    /// with. Unused while `hasProducer` is false — kept because it is the right resting
+    /// point for a live motion channel, not because anything reads it today.
+    ///
     /// `nonisolated` deliberately: this class is `@MainActor`, and CLAUDE.md records that
     /// Xcode's toolchain isolates an immutable `static let` on such a class even where
-    /// SwiftPM accepts it. Spelling it out keeps the two gates agreeing.
+    /// SwiftPM accepts it. Both call sites are on the main actor anyway, so this
+    /// pre-empts the toolchain disagreement rather than being load-bearing.
     nonisolated static let motionRestingGain: Float = 0.3
 
-    private static func clamp(_ v: Float, _ lo: Float, _ hi: Float) -> Float {
+    nonisolated private static func clamp(_ v: Float, _ lo: Float, _ hi: Float) -> Float {
         Swift.min(Swift.max(v, lo), hi)
     }
 }
