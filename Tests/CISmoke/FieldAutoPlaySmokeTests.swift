@@ -221,6 +221,67 @@ final class FieldAutoPlaySmokeTests: XCTestCase {
                        "a fixed curve must not secretly depend on the seed")
     }
 
+    // MARK: - The clock decision
+
+    /// Cells are uniformly `ticksPerCell` wide and advance exactly on the boundary. The
+    /// caller fires when this value CHANGES, so an off-by-one here is a note played twice or
+    /// not at all — the two failure modes that are obvious on a device and invisible in code.
+    func testCellsAreUniformAndAdvanceOnTheBoundary() {
+        for per in [1, 4, 24, 96] {
+            for k in -3...3 {
+                let start = k * per
+                XCTAssertEqual(FieldAutoPlay.cell(forTick: start, ticksPerCell: per), k)
+                // Guarded: at `per == 1` the "last tick" IS the first tick, so this would
+                // restate the assertion above rather than test anything.
+                if per > 1 {
+                    XCTAssertEqual(FieldAutoPlay.cell(forTick: start + per - 1, ticksPerCell: per), k,
+                                   "the last tick of cell \(k) fell into a different cell")
+                }
+                XCTAssertEqual(FieldAutoPlay.cell(forTick: start + per, ticksPerCell: per), k + 1,
+                               "the boundary did not advance the cell")
+            }
+        }
+    }
+
+    /// NEGATIVE ticks must FLOOR, not truncate. Swift's `/` rounds toward zero, so a naive
+    /// `tick / per` puts ticks −3…3 all in cell 0 at a four-tick grid — one cell twice as
+    /// wide as every other, sitting exactly on the origin, where a count-in or a loop start
+    /// before the bar line lands. The generator would silently skip a fire there.
+    func testNegativeTicksFloorInsteadOfTruncating() {
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: -1, ticksPerCell: 4), -1)
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: -4, ticksPerCell: 4), -1)
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: -5, ticksPerCell: 4), -2)
+        // The property that makes it uniform: every cell is exactly `per` ticks wide,
+        // including the two straddling the origin.
+        let widths = Dictionary(grouping: (-20...20).map {
+            FieldAutoPlay.cell(forTick: $0, ticksPerCell: 4)
+        }, by: { $0 }).mapValues(\.count)
+        for (cell, width) in widths where cell > -5 && cell < 5 {
+            XCTAssertEqual(width, 4, "cell \(cell) is \(width) ticks wide, not 4")
+        }
+    }
+
+    /// A zero or negative grid must not TRAP. Integer division by zero in Swift is a hard
+    /// crash, not a NaN, and `ticksPerCell` will come from a grid setting that a decoder or
+    /// a bio mapping can hand over. The clamp is the guard; this is the test that proves it
+    /// is actually there, and it would crash the whole bundle if it were removed.
+    func testADegenerateGridIsClampedInsteadOfTrapping() {
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: 7, ticksPerCell: 0), 7)
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: 7, ticksPerCell: -4), 7)
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: -7, ticksPerCell: 0), -7)
+    }
+
+    /// The extremes of `Int` must not trap either — `q - 1` on the negative branch is the
+    /// place an overflow would hide.
+    func testTheClockSurvivesTheExtremesOfInt() {
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: Int.min, ticksPerCell: 1), Int.min)
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: Int.max, ticksPerCell: 1), Int.max)
+        // Int.min is exactly divisible by any power of two, so it takes the non-adjusting
+        // branch; Int.min + 1 is the one that reaches `q - 1`.
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: Int.min, ticksPerCell: 4), Int.min / 4)
+        XCTAssertEqual(FieldAutoPlay.cell(forTick: Int.min + 1, ticksPerCell: 4), Int.min / 4)
+    }
+
     // MARK: - It cannot be handed something that kills it
 
     /// THE CRASH ONE. `periodSteps` is a plain `Int` on a public struct with a memberwise

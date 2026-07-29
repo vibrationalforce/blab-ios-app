@@ -245,6 +245,40 @@ public enum FieldAutoPlay {
         }
     }
 
+    // MARK: - The clock decision
+
+    /// Which cell of the traverse a musical TICK falls in. The caller keeps the last value
+    /// it fired and asks for touches when this changes — that is the whole "when do I play"
+    /// decision, and it lives here as a pure function so it can be tested instead of being
+    /// discovered as a stuck or double-firing note on a device.
+    ///
+    /// TWO THINGS THIS GUARDS, both of which trap or misbehave if written inline:
+    ///
+    /// • **Division by zero.** `ticksPerCell` will come from a grid setting, and an integer
+    ///   division by zero in Swift is a hard trap, not a NaN. Clamped to ≥ 1 here so no
+    ///   caller has to remember.
+    /// • **Negative ticks floor, they do not truncate.** Swift's `/` rounds toward zero, so
+    ///   `-1 / 4 == 0` — the same cell as tick 0, making the cell straddling the origin twice
+    ///   as wide as every other and swallowing one fire. Floor division makes cells uniformly
+    ///   `ticksPerCell` wide on both sides of zero.
+    ///
+    ///   DEFENSIVE, not a live scenario — and worth saying precisely, because the first
+    ///   version of this comment asserted that "a transport counting from a bar line can
+    ///   legitimately hand over a negative tick". It cannot: `Transport.currentTick()` goes
+    ///   through `StepTickMath`, which clamps the step to ≥ 0. No clock in this repo produces
+    ///   a negative tick today. The guard stays because this is a `public` function taking a
+    ///   plain `Int` from any future caller, and because floor is simply the correct meaning
+    ///   of "which cell" — but it is insurance, not a bug being fixed.
+    ///
+    /// Deliberately NOT folded into `periodSteps` here — this answers "which cell of the
+    /// clock", `touches(atStep:)` answers "what does that cell play". Keeping them separate
+    /// is what lets the caller detect a CHANGE; a pre-folded value repeats.
+    public static func cell(forTick tick: Int, ticksPerCell: Int) -> Int {
+        let per = Swift.max(1, ticksPerCell)
+        let q = tick / per
+        return (tick < 0 && tick % per != 0) ? q - 1 : q
+    }
+
     // MARK: - Pure pieces
 
     /// Which cells fire, spread evenly rather than clustered. Reuses the Euclidean rule
