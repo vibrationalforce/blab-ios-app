@@ -1,0 +1,384 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Breathe, lock a key and BPM, and let your body compose. Export to your DAW." : {
+      "comment" : "Onboarding, page 3 body.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atme, leg Tonart und Tempo fest und lass deinen Körper komponieren. Export in deine DAW."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breathe, lock a key and BPM, and let your body compose. Export to your DAW."
+          }
+        }
+      }
+    },
+    "Bio-reactive generative loops in any key and BPM — composed by your heart and breath, exported to your DAW." : {
+      "comment" : "Onboarding, page 1 body. 'Bio-reactive' is brand vocabulary and stays.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bio-reaktive generative Loops in jeder Tonart und jedem Tempo — komponiert von Herz und Atem, exportiert in deine DAW."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bio-reactive generative loops in any key and BPM — composed by your heart and breath, exported to your DAW."
+          }
+        }
+      }
+    },
+    "Continue" : {
+      "comment" : "Onboarding, advance from page 1.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiter"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "Coordinate any therapeutic use with your provider." : {
+      "comment" : "MANDATED SAFETY WARNING (CLAUDE.md). Not a therapy claim — a boundary. Translate faithfully; do not soften and do not imply Echoel is a treatment.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Therapeutische Anwendung mit deiner behandelnden Fachperson abstimmen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coordinate any therapeutic use with your provider."
+          }
+        }
+      }
+    },
+    "For self-observation, not medical diagnosis." : {
+      "comment" : "MANDATED SAFETY WARNING (CLAUDE.md). The sentence that keeps Echoel out of medical-device territory — its meaning must survive translation exactly.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zur Selbstbeobachtung, nicht zur medizinischen Diagnose."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For self-observation, not medical diagnosis."
+          }
+        }
+      }
+    },
+    "Got it" : {
+      "comment" : "Onboarding, advance from page 2.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verstanden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Got it"
+          }
+        }
+      }
+    },
+    "I understand" : {
+      "comment" : "Onboarding, the visible label of the safety consent toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ich verstehe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I understand"
+          }
+        }
+      }
+    },
+    "I understand the safety and privacy notice above" : {
+      "comment" : "VoiceOver label of the consent toggle. This carries the CONSENT — a hint would be user-disableable — so it must say what is understood in every language.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ich verstehe den Hinweis zu Sicherheit und Privatsphäre oben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I understand the safety and privacy notice above"
+          }
+        }
+      }
+    },
+    "Immersive spatial objects — ADM-OSC" : {
+      "comment" : "Onboarding, page 2 row. ADM-OSC is an open-standard protocol name and stays.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immersive Raumobjekte — ADM-OSC"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immersive spatial objects — ADM-OSC"
+          }
+        }
+      }
+    },
+    "Light & stage — DMX / Art-Net" : {
+      "comment" : "Onboarding, page 2 row. DMX and Art-Net are protocol names and stay.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licht & Bühne — DMX / Art-Net"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light & stage — DMX / Art-Net"
+          }
+        }
+      }
+    },
+    "Living visuals that move with your body" : {
+      "comment" : "Onboarding, page 2 row.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lebendige Visuals, die sich mit deinem Körper bewegen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Living visuals that move with your body"
+          }
+        }
+      }
+    },
+    "Not under the influence of alcohol or drugs." : {
+      "comment" : "MANDATED SAFETY WARNING (CLAUDE.md).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht unter Einfluss von Alkohol oder Drogen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not under the influence of alcohol or drugs."
+          }
+        }
+      }
+    },
+    "Not while driving or operating machinery." : {
+      "comment" : "MANDATED SAFETY WARNING (CLAUDE.md).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht beim Führen von Fahrzeugen oder Maschinen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not while driving or operating machinery."
+          }
+        }
+      }
+    },
+    "Ready" : {
+      "comment" : "Onboarding, page 3 title.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready"
+          }
+        }
+      }
+    },
+    "Safety & privacy" : {
+      "comment" : "Onboarding, visible heading of the safety box.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sicherheit & Privatsphäre"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Safety & privacy"
+          }
+        }
+      }
+    },
+    "Safety and privacy notice" : {
+      "comment" : "VoiceOver container label for the safety box.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hinweis zu Sicherheit und Privatsphäre"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Safety and privacy notice"
+          }
+        }
+      }
+    },
+    "Start — confirm the safety notice above first" : {
+      "comment" : "VoiceOver label of the Start button while it is disabled. States the way out; without it the button is only dimmed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start — bestätige zuerst den Sicherheitshinweis oben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start — confirm the safety notice above first"
+          }
+        }
+      }
+    },
+    "The wider vision" : {
+      "comment" : "Onboarding, page 2 title.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der größere Zusammenhang"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The wider vision"
+          }
+        }
+      }
+    },
+    "This release is the bio-reactive instrument — with living visuals, stage light and immersive output built in." : {
+      "comment" : "Onboarding, page 2 footer. States what THIS release is; keep it honest if scope changes.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Version ist das bio-reaktive Instrument — mit lebendigen Visuals, Bühnenlicht und immersiver Ausgabe eingebaut."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This release is the bio-reactive instrument — with living visuals, stage light and immersive output built in."
+          }
+        }
+      }
+    },
+    "Visuals are capped at a safe 3 Hz flash rate." : {
+      "comment" : "MANDATED SAFETY WARNING (CLAUDE.md, W3C WCAG epilepsy limit). The number is a hard limit, not a style choice — never change it in a translation.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visuals sind auf sichere 3 Hz Blitzrate begrenzt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visuals are capped at a safe 3 Hz flash rate."
+          }
+        }
+      }
+    },
+    "Your heartbeat makes music." : {
+      "comment" : "Onboarding, page 1 subtitle — the app's one-sentence promise.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Herzschlag macht Musik."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your heartbeat makes music."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

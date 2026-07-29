@@ -26,6 +26,16 @@ struct OnboardingView: View {
     /// in `Sources/` — no precedent that it resolves the way I expect, and CI is the only
     /// compiler here. Binding it to a property pins the type to `String` before the modifier
     /// ever sees it. Cheap insurance against a red gate for zero behavioural difference.
+    ///
+    /// ⚠️ KNOWN AND DELIBERATE: this one string is NOT localised, and it is the only string on
+    /// this screen that isn't. Being a `String` (built by `+`) it hits `accessibilityHint`'s
+    /// `StringProtocol` overload, which does not look anything up; and it cannot become a
+    /// `LocalizedStringKey` without collapsing to one ~200-character source line. Acceptable
+    /// precisely because of the rule two properties below: the CONSENT lives in the LABEL,
+    /// which IS localised. This hint only enumerates what the label already commits to, for
+    /// users who have hints switched on. Fixing it properly means giving it a short symbolic
+    /// key — a different key style from the rest of the catalog, so it waits for the slice
+    /// that decides that question for the whole app rather than being smuggled in here.
     private static let consentHint =
         "Confirms you have read the safety and privacy notice above: for self-observation, "
         + "not medical diagnosis; not while driving or under the influence; visuals capped "
@@ -231,7 +241,15 @@ struct OnboardingView: View {
 
     // MARK: - Helpers
 
-    private func row(symbol: String, text: String) -> some View {
+    // ⛔ `text` IS `LocalizedStringKey`, NOT `String`, AND THAT IS THE WHOLE POINT.
+    // `Text("literal")` resolves to the `LocalizedStringKey` initialiser and looks the
+    // literal up in the String Catalog for free. `Text(someString)` resolves to the
+    // `StringProtocol` initialiser, which NEVER localises — even when the value came from a
+    // literal one line away at the call site. So a helper typed `String` silently turns
+    // every caller's literal into permanently-English text while looking identical in the
+    // diff. This is the single trap that decides whether the catalog does anything at all;
+    // `symbol` stays `String` because an SF Symbol name must never be translated.
+    private func row(symbol: String, text: LocalizedStringKey) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
                 .font(EchoelTheme.font(14))
@@ -245,7 +263,7 @@ struct OnboardingView: View {
         }
     }
 
-    private func safetyRow(_ symbol: String, _ text: String) -> some View {
+    private func safetyRow(_ symbol: String, _ text: LocalizedStringKey) -> some View {
         // 0.7 opacity like the page's body copy — at 0.5 the MANDATED safety
         // warnings were the least legible text in onboarding (~4.3:1, below the
         // WCAG AA 4.5:1 small-text minimum; AX audit 2026-07-09).
@@ -264,7 +282,7 @@ struct OnboardingView: View {
         }
     }
 
-    private func nextButton(label: String) -> some View {
+    private func nextButton(label: LocalizedStringKey) -> some View {
         Button {
             withAnimation { currentPage += 1 }
         } label: {
