@@ -128,6 +128,39 @@ public enum StudioDefaultKeys {
     /// discovering the split later. Same promotion as `touchPatchID` above.
     public static let touchShowGrid = StudioDefault(key: "touch.showGrid", value: false)
 
+    /// SELF-PLAY — founder 2026-07-29: *"Es soll auch eine Möglichkeit geben wie der Synth
+    /// selbst spielt ohne das man Touch bedienen muss. Natürlich mit mehreren Parametern."*
+    ///
+    /// **`""` = off, and that IS the default.** Everything else in this file describes how
+    /// the instrument responds when it is played; this one plays it. A generator that runs
+    /// unattended must never be inherited from an update, a restored backup, or a key that
+    /// happened to be written once — so "off" is a real stored state, not the absence of one.
+    ///
+    /// Stored as `FieldAutoPlay.Motion`'s raw string rather than an index: the motions are a
+    /// deliberately short, audibly distinct set that will gain the ARP as a sixth (#220), and
+    /// an index would silently re-point every saved setting the moment one is inserted. An
+    /// unknown value falls back to off.
+    public static let fieldAutoPlayMotion = StudioDefault(key: "field.autoPlay.motion", value: "")
+    /// How many grid cells fire, 0…1. **0 is silence, not "sparse"** — see `FieldAutoPlay`.
+    public static let fieldAutoPlayDensity = StudioDefault(key: "field.autoPlay.density", value: 0.5)
+    /// How much of the surface the travel covers (0 collapses onto `centre`).
+    public static let fieldAutoPlaySpan = StudioDefault(key: "field.autoPlay.span", value: 0.6)
+    /// Where the travel is centred, 0 = left edge … 1 = right edge.
+    public static let fieldAutoPlayCentre = StudioDefault(key: "field.autoPlay.centre", value: 0.5)
+    /// Which octave band it sits in, 0 = bottom … 1 = top.
+    public static let fieldAutoPlayBand = StudioDefault(key: "field.autoPlay.band", value: 0.5)
+    /// How far it wanders vertically. ⚠️ Below ~0.34 this moves the LIGHT and not the octave —
+    /// `y` selects one of three bands, so the wander must span more than a third to cross a
+    /// boundary. The default is deliberately sub-threshold; the panel copy must not promise
+    /// pitch movement it does not deliver.
+    public static let fieldAutoPlayBandDrift = StudioDefault(key: "field.autoPlay.bandDrift", value: 0.2)
+    /// Simultaneous points — a chord under a hand that is not there. Capped by
+    /// `FieldAutoPlay.maxVoices` wherever it is used.
+    public static let fieldAutoPlayVoices = StudioDefault(key: "field.autoPlay.voices", value: 1.0)
+    /// Grid cells in one full traverse. Bigger = a slower sweep at the same tempo. Stored as a
+    /// Double because that is what `EchoelValueField` binds to; clamped on the way in.
+    public static let fieldAutoPlayPeriod = StudioDefault(key: "field.autoPlay.period", value: 16.0)
+
     // MARK: midi.*
 
     /// Inbound Apple Network MIDI (RTP-MIDI, RFC 6295) — **OFF by default (#187,

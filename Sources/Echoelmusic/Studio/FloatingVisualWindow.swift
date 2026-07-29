@@ -215,6 +215,50 @@ struct FloatingVisualWindow: View {
                                               velocityJitter: 0))
     }
 
+    // SELF-PLAY (#224). Same keys the Field panel writes — this window is where the surface
+    // actually lives, so it is where the dials become a `Params`.
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayMotion.key)
+    private var fieldMotionRaw = StudioDefaultKeys.fieldAutoPlayMotion.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayDensity.key)
+    private var fieldDensity = StudioDefaultKeys.fieldAutoPlayDensity.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlaySpan.key)
+    private var fieldSpan = StudioDefaultKeys.fieldAutoPlaySpan.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayCentre.key)
+    private var fieldCentre = StudioDefaultKeys.fieldAutoPlayCentre.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayBand.key)
+    private var fieldBand = StudioDefaultKeys.fieldAutoPlayBand.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayBandDrift.key)
+    private var fieldBandDrift = StudioDefaultKeys.fieldAutoPlayBandDrift.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayVoices.key)
+    private var fieldVoices = StudioDefaultKeys.fieldAutoPlayVoices.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayPeriod.key)
+    private var fieldPeriod = StudioDefaultKeys.fieldAutoPlayPeriod.value
+
+    /// Self-play as configured right now, or `nil` when it is off.
+    ///
+    /// `nil` rather than a zero-density `Params` is deliberate: `nil` stops the clock, while
+    /// a silent `Params` would leave a display link running to decide, sixty times a second,
+    /// to do nothing. Off must cost nothing.
+    ///
+    /// An unrecognised stored motion also reads as OFF — the same direction as the rest of
+    /// this app's lossy decoding, and the safe one for a generator: a build that renamed a
+    /// case must not leave a user's field playing something they did not choose.
+    private var fieldAutoPlay: FieldAutoPlay.Params? {
+        guard let motion = FieldAutoPlay.Motion(rawValue: fieldMotionRaw) else { return nil }
+        return FieldAutoPlay.Params(
+            motion: motion,
+            density: Float(fieldDensity),
+            span: Float(fieldSpan),
+            centre: Float(fieldCentre),
+            band: Float(fieldBand),
+            bandDrift: Float(fieldBandDrift),
+            // Both clamped HERE as well as inside the generator: these come off disk as
+            // Doubles a user or a corrupt payload can set to anything, and `Int(...)` of a
+            // huge or non-finite Double TRAPS in Swift before any generator sees it.
+            voices: Int(fieldVoices.clamped(to: 1...Double(FieldAutoPlay.maxVoices))),
+            periodSteps: Int(fieldPeriod.clamped(to: 1...Double(FieldAutoPlay.maxPeriodSteps))))
+    }
+
     /// Snap size, persisted so the window reopens the size you left it.
     @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
     private var windowSize: WindowSize { WindowSize(rawValue: sizeRaw) ?? .medium }
@@ -529,7 +573,15 @@ struct FloatingVisualWindow: View {
                                         showGrid: touchShowGrid,
                                         slideVibrato: touchSlideVibrato,
                                         slideChorus: touchSlideChorus,
-                                        glide: touchGlide)
+                                        glide: touchGlide,
+                                        // Seed left at 0 deliberately: `.drift` is meant to
+                                        // be an irregular FIGURE that returns, not noise
+                                        // (see `FieldAutoPlay.Motion.drift`). A per-session
+                                        // random seed would make the same settings sound
+                                        // different every launch, which is the opposite of
+                                        // what a saved setting means.
+                                        autoPlay: fieldAutoPlay,
+                                        autoPlaySeed: 0)
                 }
                 #endif
                 #if canImport(AVFoundation)

@@ -46,14 +46,20 @@
 //  shape of a wander is exactly the kind of thing that looks right in code and sounds like a
 //  stuck note on a device.
 //
-//  ⚠️ WIRED TO THE VOICE, NOT YET TO A CONTROL — and the distinction is the whole point of
-//  this note. `TouchInstrumentUIView.autoPlay` now drives a display-link clock that turns
-//  these positions into notes through the same `sound(...)` dispatch a finger uses, so the
-//  intent above is FACT for the audio path. But `TouchInstrumentView.autoPlay` defaults to
-//  `nil` and NOTHING IN THE APP SETS IT: there is no panel row yet, so a user cannot switch
-//  self-play on. The panel control is slice 2c-3 (`PLAN_FIELD_SELFPLAY_WIRING.md`).
-//  Said this precisely because "wired" and "reachable" are exactly the two things this repo
-//  has repeatedly conflated (see the CLAUDE.md "doors" paragraph).
+//  REACHABLE, and here is the exact chain, because "wired" and "reachable" are the two things
+//  this repo keeps conflating (see the CLAUDE.md "doors" paragraph — a slot with a setter is
+//  not a door until the parent that renders it is itself reachable):
+//    Field chip → `EchoelStudioView.visualPanel` → `touchSoundSection` → `fieldSelfPlaySection`
+//    → `field.autoPlay.*` (StudioDefaultKeys) → `FloatingVisualWindow.fieldAutoPlay`
+//    → `TouchInstrumentView(autoPlay:)` → `TouchInstrumentUIView`'s display-link clock
+//    → `sound(...)`, the same dispatch a finger uses.
+//  Default is OFF (`field.autoPlay.motion` == ""), and that is a stored state rather than the
+//  absence of one: a generator that runs unattended must not be inherited from an update.
+//
+//  ⚠️ ONE REAL LIFETIME LIMIT, written here because it is discovered otherwise: self-play runs
+//  only while the play surface is MOUNTED, i.e. while the floating visual window is on screen.
+//  Closing that window stops it. Making it survive a closed window means an app-level driver
+//  and a second note path — a separate decision, not a bug.
 //
 
 import Foundation

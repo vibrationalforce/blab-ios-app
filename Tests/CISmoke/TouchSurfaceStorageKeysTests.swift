@@ -55,6 +55,52 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
         // the surface's VOICE — the most user-visible thing it persists.
         XCTAssertEqual(StudioDefaultKeys.touchPatchID.key, "touch.patchID")
         XCTAssertEqual(StudioDefaultKeys.touchShowGrid.key, "touch.showGrid")
+        // SELF-PLAY (#224). Prefixed `field.*` rather than `touch.*` — deliberately, and it is
+        // the one place in this file where a NEW prefix is correct rather than a drift: every
+        // key above describes how the surface answers a FINGER, and these describe what it
+        // does when there is none. Pinned from the first commit, before any of them are in the
+        // wild, because that is the only moment the choice is still free.
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayMotion.key, "field.autoPlay.motion")
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayDensity.key, "field.autoPlay.density")
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlaySpan.key, "field.autoPlay.span")
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayCentre.key, "field.autoPlay.centre")
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayBand.key, "field.autoPlay.band")
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayBandDrift.key, "field.autoPlay.bandDrift")
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayVoices.key, "field.autoPlay.voices")
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayPeriod.key, "field.autoPlay.period")
+    }
+
+    /// SELF-PLAY MUST BE OFF ON A FRESH INSTALL, and this is the assertion that gates it.
+    ///
+    /// Every other default in this file changes how the instrument ANSWERS. This one decides
+    /// whether it plays on its own — so a default that armed it would mean an app that starts
+    /// making music at a user who only opened it. `""` is not a case of `FieldAutoPlay.Motion`,
+    /// which is why it reads as off; the second assertion pins that the enum really cannot
+    /// decode it, because if a case named "" were ever added the first assertion alone would
+    /// still pass while the field started playing.
+    func testSelfPlayIsOffOnAFreshInstall() {
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayMotion.value, "")
+        XCTAssertNil(FieldAutoPlay.Motion(rawValue: StudioDefaultKeys.fieldAutoPlayMotion.value),
+                     "the stored default must not decode to a motion — that IS the off state")
+    }
+
+    /// The dials' own defaults must be a MUSICALLY SENSIBLE starting point, because the moment
+    /// a motion is chosen they all take effect at once — nobody dials seven values before
+    /// hearing anything. Two of them are load-bearing rather than taste:
+    ///   · density 0 would be silence, so the default must not be near it;
+    ///   · voices 1 is a single line — a chord by default would be a surprise, and every extra
+    ///     voice is another note-on per cell.
+    func testTheSelfPlayDialsStartSomewhereMusical() {
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayDensity.value, 0.5)
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayVoices.value, 1.0)
+        XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayPeriod.value, 16.0)
+        XCTAssertGreaterThan(StudioDefaultKeys.fieldAutoPlayDensity.value, 0,
+                             "density 0 is silence, not sparseness — see FieldAutoPlay")
+        // Within `FieldAutoPlay`'s own caps, so the default can never be the clamped value.
+        XCTAssertLessThanOrEqual(Int(StudioDefaultKeys.fieldAutoPlayVoices.value),
+                                 FieldAutoPlay.maxVoices)
+        XCTAssertLessThanOrEqual(Int(StudioDefaultKeys.fieldAutoPlayPeriod.value),
+                                 FieldAutoPlay.maxPeriodSteps)
     }
 
     /// The defaults behind those keys are founder decisions, and a rename is not the moment

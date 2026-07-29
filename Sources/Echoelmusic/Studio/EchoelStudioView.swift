@@ -85,6 +85,27 @@ struct EchoelStudioView: View {
     // keeps the resolution unambiguous instead of merely inferable.
     @AppStorage(StudioDefaultKeys.touchSyncGrid.key)
     private var touchSyncGrid: TouchQuantizer.Grid = StudioDefaultKeys.touchSyncGrid.value
+    // SELF-PLAY (#224). Stored as the motion's RAW STRING rather than the enum, because "off"
+    // is not a case of `FieldAutoPlay.Motion` — the generator's own vocabulary has no word for
+    // not running, and inventing a `.off` case would put a non-motion into a type whose whole
+    // job is to describe movement. `""` is the off state; `FloatingVisualWindow` turns an
+    // unrecognised value into "off" the same way.
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayMotion.key)
+    private var fieldMotionRaw = StudioDefaultKeys.fieldAutoPlayMotion.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayDensity.key)
+    private var fieldDensity = StudioDefaultKeys.fieldAutoPlayDensity.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlaySpan.key)
+    private var fieldSpan = StudioDefaultKeys.fieldAutoPlaySpan.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayCentre.key)
+    private var fieldCentre = StudioDefaultKeys.fieldAutoPlayCentre.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayBand.key)
+    private var fieldBand = StudioDefaultKeys.fieldAutoPlayBand.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayBandDrift.key)
+    private var fieldBandDrift = StudioDefaultKeys.fieldAutoPlayBandDrift.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayVoices.key)
+    private var fieldVoices = StudioDefaultKeys.fieldAutoPlayVoices.value
+    @AppStorage(StudioDefaultKeys.fieldAutoPlayPeriod.key)
+    private var fieldPeriod = StudioDefaultKeys.fieldAutoPlayPeriod.value
     @Environment(SubBassVoice.self) private var subBass
     /// S2-W1: the Multi-Roll slot voices — the Melodic insert must reach them
     /// too, or a secondary lane's "Sound & FX" edit changes nothing it plays.
@@ -2544,6 +2565,87 @@ struct EchoelStudioView: View {
                              range: 0...1, unit: "", decimals: 2)
             EchoelValueField(label: "Glide", value: $touchGlide,
                              range: 0...0.4, unit: "s", decimals: 2)
+            fieldSelfPlaySection
+        }
+    }
+
+    /// SELF-PLAY (founder 2026-07-29: *"Es soll auch eine Möglichkeit geben wie der Synth
+    /// selbst spielt ohne das man Touch bedienen muss. Natürlich mit mehreren Parametern."*).
+    ///
+    /// A third heading under "Look" and "Voice" — the field's two sides plus what it does on
+    /// its own. It is NOT a new panel and NOT a new sheet: the presentation chain does not
+    /// grow (black-screen law), and one more panel would be one more place to look for the
+    /// same surface.
+    ///
+    /// The dials only appear once a motion is chosen. That is not tidiness — seven numeric
+    /// fields under an "Off" setting are seven controls that provably do nothing, which is
+    /// the lying-control class this repo has an open task about.
+    @ViewBuilder private var fieldSelfPlaySection: some View {
+        Text("Self-play").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            .padding(.top, 4)
+        // Says what it does AND what it does not, in the user's own terms. The hand-wins rule
+        // is the one thing a player must know before switching this on, because without it
+        // "the field plays itself" reads as "the field takes over".
+        // The transport precondition is in the FIRST sentence, not a footnote. Self-play reads
+        // the musical clock, and `Transport.currentTick()` returns nothing while stopped — so
+        // switching this on with the transport idle produces exact silence. Without the
+        // sentence, the obvious reading of that silence is "the feature is broken".
+        Text("The field plays itself while the transport runs: a point travels the surface and strikes notes in your key. Press Play to hear it. Put a finger down and it stops instantly — your hand always wins. Its speed follows the Sync grid above, even with Sync itself off.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+        HStack {
+            Text("Motion").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
+            Spacer()
+            Picker("Motion", selection: $fieldMotionRaw) {
+                Text("Off").tag("")
+                ForEach(FieldAutoPlay.Motion.allCases, id: \.rawValue) { m in
+                    Text(fieldMotionLabel(m)).tag(m.rawValue)
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .accessibilityLabel("Self-play motion")
+        }
+        if FieldAutoPlay.Motion(rawValue: fieldMotionRaw) != nil { fieldSelfPlayFields }
+    }
+
+    /// Split from `fieldSelfPlaySection` for the same structural reason `touchSyncRows` was:
+    /// this file has a black-screen history rooted in aggregate-type growth, and seven fields
+    /// behind one child is the cheap habit.
+    @ViewBuilder private var fieldSelfPlayFields: some View {
+        EchoelValueField(label: "Density", value: $fieldDensity,
+                         range: 0...1, unit: "", decimals: 2)
+        EchoelValueField(label: "Voices", value: $fieldVoices,
+                         range: 1...Double(FieldAutoPlay.maxVoices), unit: "", decimals: 0)
+        // "Period" in cells of the Sync grid, so the two settings share one vocabulary rather
+        // than the generator inventing a second time unit.
+        EchoelValueField(label: "Traverse", value: $fieldPeriod,
+                         range: 1...64, unit: "cells", decimals: 0)
+        EchoelValueField(label: "Span", value: $fieldSpan,
+                         range: 0...1, unit: "", decimals: 2)
+        EchoelValueField(label: "Centre", value: $fieldCentre,
+                         range: 0...1, unit: "", decimals: 2)
+        EchoelValueField(label: "Band", value: $fieldBand,
+                         range: 0...1, unit: "", decimals: 2)
+        EchoelValueField(label: "Band drift", value: $fieldBandDrift,
+                         range: 0...1, unit: "", decimals: 2)
+        // The threshold is stated because a control whose first third does nothing AUDIBLE
+        // reads as broken unless you say what it is doing instead. `y` picks one of three
+        // octave bands, so the wander has to span more than a third to cross a boundary.
+        Text("Band drift under about 0.35 moves the light on the field without changing the octave.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Player-facing names for the motions. Kept out of `FieldAutoPlay` on purpose: that type
+    /// is pure and Foundation-only, and a display string is a UI decision that will want to be
+    /// localised long before the generator wants to know about language.
+    private func fieldMotionLabel(_ m: FieldAutoPlay.Motion) -> String {
+        switch m {
+        case .rise:     return "Rise"
+        case .fall:     return "Fall"
+        case .pendulum: return "Pendulum"
+        case .drift:    return "Drift"
+        case .hold:     return "Hold"
         }
     }
 
