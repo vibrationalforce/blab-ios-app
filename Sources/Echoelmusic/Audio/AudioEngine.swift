@@ -111,15 +111,29 @@ public final class AudioEngine {
 
     // MARK: - Audio-path timing instrument (#193 "es knistert")
 
-    /// Host-clock stamp of the previous master-tap delivery, in mach ticks. `0` = no
-    /// previous delivery (first callback after an install, or after a reset), which the
-    /// tap treats as "nothing to compare against" rather than as a giant gap.
+    /// CoreAudio's own `hostTime` for the previous master-tap delivery, in mach ticks.
+    /// `0` = no previous delivery (first callback after an install), which the tap treats
+    /// as "nothing to compare against" rather than as a giant gap.
+    ///
+    /// It is the RENDER-CYCLE stamp out of `AVAudioTime`, not `mach_absolute_time()` read
+    /// inside the block. The difference is the whole point: the latter would also include
+    /// however long the tap's own delivery path was descheduled, and this instrument
+    /// exists to tell starvation of the audio path apart from everything else.
     @ObservationIgnored nonisolated(unsafe) private let _lastTapTicks = UnsafeMutablePointer<UInt64>.allocate(capacity: 1)
-    /// How many tap-to-tap intervals ran more than a whole buffer period long.
+    /// Frame position of the previous delivery. A jump other than exactly `frameLength`
+    /// means the RENDER STREAM itself broke (engine pause/restart/reset) — the interval
+    /// across it is not a timing measurement. `Int64.min` = unknown/unavailable.
+    @ObservationIgnored nonisolated(unsafe) private let _lastTapSampleTime = UnsafeMutablePointer<Int64>.allocate(capacity: 1)
+    /// Frames the tap last delivered — proof-of-life for the instrument and the number
+    /// that converts its multipliers back to milliseconds. `0` = the tap never ran.
+    @ObservationIgnored nonisolated(unsafe) private let _tapFrames = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+    /// How many intervals ran late enough to count as a starved audio path.
     @ObservationIgnored nonisolated(unsafe) private let _gapCount = UnsafeMutablePointer<Int>.allocate(capacity: 1)
-    /// Worst such interval, in buffer periods — the number that says whether it was a
+    /// Worst such interval, in render quanta — the number that says whether it was a
     /// hiccup or a stall.
     @ObservationIgnored nonisolated(unsafe) private let _gapWorst = UnsafeMutablePointer<Double>.allocate(capacity: 1)
+    /// Intervals discarded as pause/restart artefacts rather than counted as starvation.
+    @ObservationIgnored nonisolated(unsafe) private let _discCount = UnsafeMutablePointer<Int>.allocate(capacity: 1)
     /// mach ticks → seconds, resolved ONCE on the main actor (`mach_timebase_info` is a
     /// syscall-ish lookup and has no business on the audio path). Captured by value into
     /// the tap closure so the callback does nothing but multiply.
@@ -128,6 +142,9 @@ public final class AudioEngine {
     /// When the current measurement window opened, on the MONOTONIC uptime clock, so the
     /// reported rate has a denominator instead of being a bare count. `0` = not yet open.
     @ObservationIgnored private var timingWindowStart: TimeInterval = 0
+    /// The first window always writes a line — see `pollAudioTiming` for why an absent
+    /// line would be an ambiguous null result.
+    @ObservationIgnored private var timingReportedOnce = false
 
     /// Lock-free mono ring of the most recent master-output samples, for the
     /// immersive FFT visual. The meter tap `memcpy`s the live mix into it
@@ -215,8 +232,11 @@ public final class AudioEngine {
         _lufsI.initialize(to: EchoelLoudnessMeter.floorLUFS)
         _lra.initialize(to: 0)
         _lastTapTicks.initialize(to: 0)
+        _lastTapSampleTime.initialize(to: Int64.min)
+        _tapFrames.initialize(to: 0)
         _gapCount.initialize(to: 0)
         _gapWorst.initialize(to: 0)
+        _discCount.initialize(to: 0)
         // Resolve the mach timebase once, here, so the audio path never does. On Apple
         // silicon numer/denom are not 1/1, so the ratio is not optional.
         var timebase = mach_timebase_info_data_t()
@@ -252,6 +272,7 @@ public final class AudioEngine {
             }
             log.audio("Audio interruption ended — resuming engine")
             do {
+                self?.armTimingInstrument()
                 try self?.masterEngine.start()
                 self?.isRunning = true
                 self?.wasInterrupted = false
@@ -552,37 +573,60 @@ public final class AudioEngine {
             let ringSize = AudioEngine.outputRingSize
             // #193 instrument — captured by value so the callback touches no `self`.
             let lastTicksPtr = _lastTapTicks
+            let lastSamplePtr = _lastTapSampleTime
+            let tapFramesPtr = _tapFrames
             let gapCountPtr = _gapCount
             let gapWorstPtr = _gapWorst
+            let discCountPtr = _discCount
             let tickRatio = tickToSeconds
             let tapRate = meterFormat.sampleRate
-            lastTicksPtr.pointee = 0   // a re-install must not measure across the gap
-            masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, _ in
+            // One missed RENDER deadline is the event under investigation, so lateness is
+            // denominated in IO buffers — not in this tap's (larger) buffer.
+            let quantumFrames = Int(AudioConfiguration.currentBufferSize)
+            armTimingInstrument()
+            masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, when in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = UInt(buffer.frameLength)
                 guard frameLength > 0 else { return }
 
                 // AUDIO-PATH TIMING (#193). Everything here is arithmetic on pre-allocated
-                // cells plus one `mach_absolute_time()` — a C function, no allocation, no
-                // lock, no ObjC, nothing that can block. It runs BEFORE the metering work
-                // below so the measurement is not skewed by this callback's own cost.
+                // cells plus two reads off the `AVAudioTime` CoreAudio already handed us —
+                // no allocation, no lock, no ObjC, nothing that can block.
                 //
-                // It measures the interval between deliveries of THIS tap. A long interval
-                // means the audio path was starved — the "CPU overload bei Ableton" class
-                // the founder described. It cannot see a signal-path click; see
-                // `RenderGapDetector` for the full statement of what it does not prove.
-                if tickRatio > 0 {
-                    let now = mach_absolute_time()
+                // `when.hostTime` is the RENDER-CYCLE stamp, so a long interval is evidence
+                // that the audio path ran late, not that this block was descheduled. Note
+                // the interval spans top-of-callback N−1 → N and therefore CONTAINS the
+                // previous callback's metering work: this instrument can implicate the
+                // meters, it cannot exonerate them. `when.sampleTime` is the second,
+                // sharper channel — a jump other than `frameLength` means the render stream
+                // itself broke (pause/restart), which is not a timing measurement at all.
+                // See `RenderGapDetector` for the full statement of what it does not prove.
+                tapFramesPtr.pointee = Int(frameLength)
+                if tickRatio > 0 && when.isHostTimeValid {
+                    let now = when.hostTime
                     let last = lastTicksPtr.pointee
                     lastTicksPtr.pointee = now
+
+                    var streamContinuous = true
+                    if when.isSampleTimeValid {
+                        let position = when.sampleTime
+                        let previous = lastSamplePtr.pointee
+                        lastSamplePtr.pointee = position
+                        if previous != Int64.min,
+                           position &- previous != Int64(frameLength) { streamContinuous = false }
+                    }
+
                     if last != 0 && now > last {
                         let elapsed = Double(now &- last) * tickRatio
                         let report = RenderGapDetector.compare(elapsedSeconds: elapsed,
                                                                frames: Int(frameLength),
-                                                               sampleRate: tapRate)
-                        if RenderGapDetector.isGlitch(report) {
+                                                               sampleRate: tapRate,
+                                                               renderQuantumFrames: quantumFrames)
+                        if !streamContinuous || RenderGapDetector.isDiscontinuity(report) {
+                            discCountPtr.pointee &+= 1
+                        } else if RenderGapDetector.isGlitch(report) {
                             gapCountPtr.pointee &+= 1
-                            let worst = report.lateInBuffers
+                            let worst = report.lateInQuanta
                             if worst > gapWorstPtr.pointee { gapWorstPtr.pointee = worst }
                         }
                     }
@@ -659,6 +703,7 @@ public final class AudioEngine {
         prepareGraph()
         if !masterEngine.isRunning {
             masterEngine.prepare()
+            armTimingInstrument()
             do {
                 try masterEngine.start()
                 log.audio("Master AVAudioEngine started — audio output active")
@@ -702,6 +747,23 @@ public final class AudioEngine {
     /// they heard.
     private static let timingWindowSeconds: TimeInterval = 60
 
+    /// Forget the previous delivery so the first interval AFTER a (re)start is not
+    /// measured across the pause.
+    ///
+    /// Called at every `masterEngine.start()`, not only at tap install — that was the
+    /// original mistake: an interruption (Siri, a call) or an ordinary node attach
+    /// restarts the graph without re-installing the tap, and the surviving stamp then
+    /// produced one interval as long as the entire pause. In the founder's log that
+    /// reads `worst 1400×`, which would send the next cycle hunting a stall that never
+    /// happened. `nonisolated` so the interruption-resume closure can call it.
+    ///
+    /// This is belt; the braces are the `sampleTime` continuity check in the tap, which
+    /// catches any restart path that forgets to call this.
+    nonisolated private func armTimingInstrument() {
+        _lastTapTicks.pointee = 0
+        _lastTapSampleTime.pointee = Int64.min
+    }
+
     /// Once per window, drain the audio-thread timing cells and write ONE line to
     /// `echoel_diag.log` — the file the founder actually shares (#193).
     ///
@@ -723,15 +785,31 @@ public final class AudioEngine {
         guard elapsed >= Self.timingWindowSeconds else { return }
         timingWindowStart = now
         let tally = RenderGapDetector.Tally(glitchCount: _gapCount.pointee,
-                                            worstLateInBuffers: _gapWorst.pointee)
+                                            worstLateInQuanta: _gapWorst.pointee,
+                                            discontinuityCount: _discCount.pointee)
+        let frames = _tapFrames.pointee
         _gapCount.pointee = 0
         _gapWorst.pointee = 0
-        // Only a DIRTY window is worth a line. A clean one every minute would bury the
-        // signal in its own noise — the mechanism that made `continue-on-error` invisible
-        // for 14 hours. `Tally.diagnosticLine` carries the "does not rule out" caveat for
-        // whenever a clean window IS asked for explicitly.
-        guard !tally.isClean else { return }
-        EchoelCrashLog.breadcrumb(tally.diagnosticLine(overSeconds: elapsed))
+        _discCount.pointee = 0
+
+        // PROOF OF LIFE. The first window always reports, even clean. Otherwise an absent
+        // line is indistinguishable between "the audio path was clean", "the timebase
+        // lookup failed so the whole measurement was skipped", and "the tap never ran" —
+        // and an instrument whose null result cannot be told from a dead instrument
+        // cannot falsify anything, which is the one thing this was built to do.
+        let firstWindow = !timingReportedOnce
+        timingReportedOnce = true
+        guard firstWindow || !tally.isClean else { return }
+        guard frames > 0, sampleRate > 0 else {
+            EchoelCrashLog.breadcrumb("audio timing: instrument idle — the master tap "
+                                      + "delivered nothing in \(Int(elapsed)) s")
+            return
+        }
+        // The quantum is the IO buffer, which is what the tap's lateness is denominated
+        // in; print it in ms so a later multiplier can be read back as a duration.
+        let quantumMs = Double(AudioConfiguration.currentBufferSize) / sampleRate * 1000
+        EchoelCrashLog.breadcrumb(tally.diagnosticLine(overSeconds: elapsed,
+                                                       quantumMilliseconds: quantumMs))
     }
 
     private func startMeterPollTimer() {
@@ -848,10 +926,16 @@ public final class AudioEngine {
         _outputRingCount.deallocate()
         _lastTapTicks.deinitialize(count: 1)
         _lastTapTicks.deallocate()
+        _lastTapSampleTime.deinitialize(count: 1)
+        _lastTapSampleTime.deallocate()
+        _tapFrames.deinitialize(count: 1)
+        _tapFrames.deallocate()
         _gapCount.deinitialize(count: 1)
         _gapCount.deallocate()
         _gapWorst.deinitialize(count: 1)
         _gapWorst.deallocate()
+        _discCount.deinitialize(count: 1)
+        _discCount.deallocate()
     }
 
     func stop() {
@@ -940,6 +1024,7 @@ public final class AudioEngine {
             monitorLevelHistory.removeAll(keepingCapacity: true)
             feedbackGuardActive = false
             if wasRunning {
+                armTimingInstrument()
                 do { try masterEngine.start() }
                 catch {
                     log.audio("Input monitoring: engine restart failed (\(error))", level: .error)
@@ -1006,6 +1091,7 @@ public final class AudioEngine {
             }
         }
         if wasRunning {
+            armTimingInstrument()
             do { try masterEngine.start() }
             catch { log.audio("Failed to restart engine after source node attachment: \(error)", level: .error) }
         }
@@ -1038,6 +1124,7 @@ public final class AudioEngine {
             }
         }
         if wasRunning {
+            armTimingInstrument()
             do { try masterEngine.start() }
             catch { log.audio("Failed to restart engine after player-node attach: \(error)", level: .error) }
         }
@@ -1079,6 +1166,7 @@ public final class AudioEngine {
             log.audio("Warpable clip player attach aborted — no valid format", level: .error)
         }
         if wasRunning {
+            armTimingInstrument()
             do { try masterEngine.start() }
             catch { log.audio("Failed to restart engine after warpable player attach: \(error)", level: .error) }
         }
