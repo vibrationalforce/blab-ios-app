@@ -42,7 +42,12 @@ struct BioStripView: View {
     /// honest "No signal" instead; the one Start is the front plate's own button, on the
     /// same screen. `BioSourceView` still passes a handler and is still right to: its
     /// `arm(true)` really does arm the sensor alone.
-    var onStartPulse: (() -> Void)?
+    /// `= nil` is written out rather than relied on. Swift does synthesise a `nil` default for
+    /// an Optional `var` in a memberwise initialiser (SE-0242), so `BioStripView(measuring:)`
+    /// would compile without it — but there is no compiler on this machine, the omission is
+    /// the kind of thing that turns into a full CI round trip, and one word is cheaper than
+    /// being right.
+    var onStartPulse: (() -> Void)? = nil
 
     /// Tapped metric → its plain-language explanation sheet ("app as a school").
     @State private var explain: BioMetric?
