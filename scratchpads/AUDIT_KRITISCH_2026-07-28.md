@@ -87,15 +87,32 @@ statt ihn zu bewerben.
 „immer, auch wenn nie aufgenommen wird" trifft zu, ist aber kein Vorwurf, sondern die
 Funktion: `RetroCapture` IST der immer-mitlaufende Vorlauf — die rückwirkende
 „keep last"-Ausgabe kann nur existieren, weil der Ring seit dem Start gefüllt wird. Und der
-vorgeschlagene Umbau bringt nichts: `AudioEngine` wird in `EchoelmusicApp.init` erzeugt
-(`EchoelmusicApp.swift:228`), `retroCapture.install(on:)` läuft in `start()`
-(`AudioEngine.swift:624`), und `audioEngine.start()` steht unbedingt in der Startsequenz
-(`EchoelmusicApp.swift:602`, STARTUP 3/4). Eine Verlagerung von `init` nach `install`
-verschöbe die 11,5 MB also um wenige Sekunden im Startpfad und senkte den Dauerverbrauch um
-NULL. Bezahlt würde sie damit, dass `ring` — heute ein `nonisolated(unsafe) let
+vorgeschlagene Umbau bringt im Normalbetrieb nichts: `AudioEngine` wird in
+`EchoelmusicApp.init` erzeugt (`EchoelmusicApp.swift:228`, der Ring hängt als
+Stored-Property-Initializer daran — `AudioEngine.swift:134`), `retroCapture.install(on:)`
+läuft in `start()` (`AudioEngine.swift:624`), und `audioEngine.start()` steht in der
+Startsequenz (`EchoelmusicApp.swift:602`, STARTUP 3/4). Eine Verlagerung von `init` nach
+`install` verschöbe die 11,5 MB also um wenige Sekunden im Startpfad und senkte den
+Dauerverbrauch um NULL.
+
+⚠️ **Meine erste Fassung schrieb hier „steht UNBEDINGT in der Startsequenz" — das ist
+falsch, der Reviewer hat drei Gegenbeispiele gefunden.** `audioEngine.start()` liegt im
+`.task` von `mainContent`, und `mainContent` wird in DREI Zuständen nie gebaut oder nie
+erreicht: im Safe Mode (`EchoelmusicApp.swift:284`, die Datei sagt es selbst), solange das
+Onboarding nicht fertig ist (`:304`), und wenn `masterEngine.start()` wirft — dann kehrt
+`start()` vor Zeile 624 zurück. Der Ring ist in allen drei Fällen trotzdem schon allokiert.
+Die Ersparnis wäre also real, aber auf Ausnahmezustände beschränkt — Safe Mode ist
+allerdings ein Absturz-Wiederherstellungszustand, in dem Speicher-Spielraum nicht nichts
+ist. Das Urteil bleibt trotzdem: es trägt der DRITTE Punkt, nicht dieser.
+
+Bezahlt würde der Umbau damit, dass `ring` — heute ein `nonisolated(unsafe) let
 UnsafeMutablePointer`, das der Tap auf dem Audio-Thread dereferenziert — zu einem später
 zugewiesenen `var` wird. Genau die Zeiger-Lebenszeit-Klasse, die dieses Repo schon zweimal
-bezahlt hat, für keinen messbaren Gewinn. **Bleibt wie es ist.**
+bezahlt hat — für einen Gewinn, der nur in Ausnahmezuständen anfällt. (Auch dieser Punkt
+ist eine Spur schwächer, als ich ihn zuerst geschrieben habe: der Tap wird ausschließlich
+von `install(on:)` gesetzt, ein dort oben allokierter Ring könnte vom Tap also nie als nil
+gesehen werden. Die Gefahr ist die `let`→`var`-Klasse, kein konkretes Nil-Fenster.)
+**Bleibt wie es ist.**
 
 **#10 — KORRIGIERT 2026-07-28 beim Bauen, meine erste Fassung war überzogen.** Sie lautete:
 „`prepareGraph()` steigt bei `graphPrepared == true` aus, also kann der Neuaufbau, den

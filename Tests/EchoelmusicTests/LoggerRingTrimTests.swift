@@ -2,10 +2,10 @@
 // Echoel — the trim rule behind the in-memory log ring.
 //
 // THE DEFECT (#216, resource half). `ProfessionalLogger` kept 10 000 `LogEntry` values —
-// each a UUID + Date + two enums + four heap-backed Strings + a Dictionary — in an array
-// that `getRecentEntries` is the only reader of, and `getRecentEntries` has NO caller in
-// `Sources/` (the diagnostics sheet reads `EchoelCrashLog`). Write-only, for the life of
-// the process, on a 200 MB budget.
+// each a UUID + Date + two enums + three Strings + a Dictionary — in an array with TWO
+// readers, `getRecentEntries` and `exportLogs(since:)`, NEITHER of which has a caller
+// anywhere in the repo (the diagnostics sheet reads `EchoelCrashLog`). Write-only, for the
+// life of the process.
 //
 // The sharper half was not the memory. The trim was `removeFirst(count - max)`, and
 // `Array.removeFirst` is O(n): once the buffer was full, EVERY log call shifted ~10 000
@@ -15,9 +15,10 @@
 // WHAT IS PINNED HERE, narrowly: the pure `trimCount` rule. The actual trim runs inside
 // the logger's `queue.async` against a global singleton, which no unit test can observe
 // deterministically — so nothing below proves the call site uses this function, and a
-// revert of that one line would leave these green. What they do catch is the mistake the
-// rule exists to prevent: trimming exactly to the cap, which puts the O(n) shift back on
-// every append.
+// revert of that one line would leave these green. Nor do they pin the CAP: every test
+// passes `cap` explicitly, so restoring `maxEntries = 10_000` also leaves them green.
+// What they do catch is the mistake the rule exists to prevent: trimming exactly to the
+// cap, which puts the O(n) shift back on every append.
 
 import XCTest
 @testable import Echoelmusic
@@ -52,8 +53,14 @@ final class LoggerRingTrimTests: XCTestCase {
         var count = cap + 1
         count -= EchoelLogger.trimCount(currentCount: count, cap: cap)
         var cheapAppends = 0
-        while EchoelLogger.trimCount(currentCount: count, cap: cap) == 0 {
+        // Append FIRST, then test the post-append count. The first version tested the
+        // pre-append count and so counted the append that TRIGGERS the next trim as a
+        // cheap one — it computed 101 and asserted 100, i.e. it failed. Nothing told me:
+        // this suite is non-blocking (#208), so a red test here reddens no gate. Review
+        // caught it by tracing the loop by hand.
+        while true {
             count += 1
+            if EchoelLogger.trimCount(currentCount: count, cap: cap) > 0 { break }
             cheapAppends += 1
         }
         XCTAssertEqual(cheapAppends, 100, "cap/4 appends between shifts, not one")

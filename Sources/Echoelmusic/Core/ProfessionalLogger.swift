@@ -242,12 +242,22 @@ public final class EchoelLogger: @unchecked Sendable {
     ///
     /// TWO REASONS, and the second is the expensive one.
     ///
-    /// SIZE. `getRecentEntries` — the ONLY reader of this array — has zero callers in
-    /// `Sources/`. The diagnostics sheet reads `EchoelCrashLog`, not this. So the buffer
-    /// is write-only today: 10 000 `LogEntry` values, each a `UUID` + `Date` + two enums +
-    /// FOUR heap-backed `String`s (message, file, function) + a `Dictionary`, held for the
-    /// life of the process on a device with a 200 MB budget. 400 still covers that reader's
-    /// own default page of 100 four times over, if it is ever wired up.
+    /// SIZE. This array has TWO readers — `getRecentEntries` and `exportLogs(since:)` —
+    /// and NEITHER has a caller anywhere in the repo (verified 2026-07-29; review caught me
+    /// naming only the first, and `exportLogs` is the one whose shape the cap actually
+    /// binds: it takes a timestamp, not a page). The diagnostics sheet reads
+    /// `EchoelCrashLog.currentLog()`, not this. So the buffer is write-only today: 10 000
+    /// `LogEntry` values, each a `UUID` + `Date` + two enums + THREE `String`s (message,
+    /// file, function) + a `Dictionary`, for the life of the process.
+    ///
+    /// Be honest about the size, because "10 000 on a 200 MB budget" invites a bigger
+    /// number than is real: `file`/`function` come from `#file`/`#function`, which are
+    /// literals with immortal static storage, so the per-entry heap cost is essentially
+    /// just the interpolated `message`. The inline saving from 10 000 → 400 is on the order
+    /// of a megabyte, not many. That is why the cost-per-call half below is the real story.
+    /// 400 still covers `getRecentEntries`' default page of 100 four times over WHEN
+    /// UNFILTERED; a `level:`/`category:` query draws that page from a 400-entry raw
+    /// window, so re-check this number when a reader is finally wired up.
     ///
     /// COST PER LOG CALL. This is the part that is not about memory at all. The old trim
     /// was `removeFirst(count - max)` on a Swift `Array`, which is O(n) — it shifts every
@@ -266,9 +276,17 @@ public final class EchoelLogger: @unchecked Sendable {
     /// one change is the whole point: trimming to the cap means the very next append is over
     /// again, so the O(n) shift runs on every single log call once the buffer fills. Going
     /// to ¾ buys `cap / 4` cheap appends between shifts.
+    /// `cap - cap / 4` rather than `(cap * 3) / 4`: same value for every cap ≥ 4 and no
+    /// multiply to overflow. The overflow was unreachable — it needs `currentCount > cap`
+    /// with `cap > Int.max/3`, i.e. an array of 10^18 elements — but the subtraction is
+    /// free and removes the question.
+    ///
+    /// Trap-safety, checked exhaustively rather than assumed, because `removeFirst(n)`
+    /// traps on a negative `n` and on `n > count`: for any `currentCount > cap ≥ 1`,
+    /// `1 ≤ lowWater ≤ cap < currentCount`, so `1 ≤ drop ≤ currentCount - 1`.
     static func trimCount(currentCount: Int, cap: Int) -> Int {
         guard cap > 0, currentCount > cap else { return 0 }
-        let lowWater = Swift.max(1, (cap * 3) / 4)
+        let lowWater = Swift.max(1, cap - cap / 4)
         return currentCount - lowWater
     }
 
