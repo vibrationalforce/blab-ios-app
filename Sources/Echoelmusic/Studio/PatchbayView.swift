@@ -219,11 +219,14 @@ struct PatchbayView: View {
                     if active {
                         Circle().fill(EchoelTheme.accent)
                     } else {
-                        Circle().strokeBorder(EchoelTheme.border, lineWidth: 1)
+                        Circle().strokeBorder(EchoelTheme.border, lineWidth: 1.5)
                     }
                 }
                 .frame(width: 7, height: 7)
-                .accessibilityHidden(true)   // the row below speaks for it
+                // No-op today: the `.ignore` below already discards this subtree. Kept so a
+                // later switch to `.combine` stays correct rather than silently reading a
+                // glyph name.
+                .accessibilityHidden(true)
                 Text(name).font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
             }
@@ -331,6 +334,10 @@ struct PatchbayView: View {
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
             }
             .buttonStyle(.plain)
+            // Disabled-with-no-reason, the same one-channel defect as the status dot above.
+            .accessibilityLabel(router.suggestions().isEmpty
+                                ? "Smart patch — no suggestions available"
+                                : "Smart patch")
             .disabled(router.suggestions().isEmpty)
             Button { router.clearAll() } label: {
                 Text("Clear").font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
@@ -338,6 +345,9 @@ struct PatchbayView: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(router.graph.routes.isEmpty
+                                ? "Clear — no routes to clear"
+                                : "Clear all routes")
             .disabled(router.graph.routes.isEmpty)
         }
     }

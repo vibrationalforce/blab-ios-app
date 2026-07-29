@@ -20,6 +20,17 @@ struct OnboardingView: View {
     /// Gates the Start button — the user must acknowledge the safety notice.
     @State private var acknowledgedSafety = false
 
+    /// The consent toggle's VoiceOver hint, hoisted out of the modifier deliberately.
+    /// `accessibilityHint` has three overloads (`LocalizedStringKey`, `StringProtocol`, `Text`)
+    /// and a multi-part `+` chain passed straight in is the only such inference site anywhere
+    /// in `Sources/` — no precedent that it resolves the way I expect, and CI is the only
+    /// compiler here. Binding it to a property pins the type to `String` before the modifier
+    /// ever sees it. Cheap insurance against a red gate for zero behavioural difference.
+    private static let consentHint =
+        "Confirms you have read the safety and privacy notice above: for self-observation, "
+        + "not medical diagnosis; not while driving or under the influence; visuals capped "
+        + "at 3 hertz."
+
     var body: some View {
         ZStack {
             EchoelTheme.bg.ignoresSafeArea()
@@ -55,6 +66,10 @@ struct OnboardingView: View {
             Text("Echoelmusic")
                 .font(EchoelTheme.font(32, .bold))
                 .foregroundStyle(EchoelTheme.text)
+                // Rotor heading navigation is how a VoiceOver user skims a screen. Without
+                // the trait these three page titles are headings by font weight only, so the
+                // rotor finds nothing at all on the first screen of the app.
+                .accessibilityAddTraits(.isHeader)
 
             Text("Your heartbeat makes music.")
                 .font(EchoelTheme.font(17))
@@ -86,6 +101,7 @@ struct OnboardingView: View {
             Text("The wider vision")
                 .font(EchoelTheme.font(24, .bold))
                 .foregroundStyle(EchoelTheme.text)
+                .accessibilityAddTraits(.isHeader)
 
             VStack(alignment: .leading, spacing: 12) {
                 row(symbol: "sparkles", text: "Living visuals that move with your body")
@@ -119,6 +135,7 @@ struct OnboardingView: View {
             Text("Ready")
                 .font(EchoelTheme.font(24, .bold))
                 .foregroundStyle(EchoelTheme.text)
+                .accessibilityAddTraits(.isHeader)
 
             Text("Breathe, lock a key and BPM, and let your body compose. Export to your DAW.")
                 .font(EchoelTheme.font(15))
@@ -128,6 +145,15 @@ struct OnboardingView: View {
 
             // Required safety & privacy notice.
             VStack(alignment: .leading, spacing: 8) {
+                // The box had NO visible title — five bare sentences in a grey rectangle, and
+                // the only thing naming them was a code comment. Sighted users were in the
+                // same position as VoiceOver users. A real heading fixes both at once, and is
+                // what the container label below should be belt-and-braces for rather than
+                // the sole channel.
+                Text("Safety & privacy")
+                    .font(EchoelTheme.font(11, .bold))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .accessibilityAddTraits(.isHeader)
                 safetyRow("heart.text.square", "For self-observation, not medical diagnosis.")
                 safetyRow("car", "Not while driving or operating machinery.")
                 safetyRow("exclamationmark.triangle", "Not under the influence of alcohol or drugs.")
@@ -138,8 +164,10 @@ struct OnboardingView: View {
             .padding(14)
             .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
             .padding(.horizontal, 32)
-            // Named as a container so a VoiceOver user knows what the five rows below the
-            // heading ARE before reading them, and so the toggle's hint can refer to it.
+            // Named as a container so the rows are grouped rather than loose. ⚠️ A `.contain`
+            // container label is ADVISORY — iOS announces it on entering the group, and not
+            // reliably across versions or navigation modes. That is exactly why the visible
+            // heading above exists: this line must not be the only thing naming the notice.
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Safety and privacy notice")
 
@@ -151,14 +179,19 @@ struct OnboardingView: View {
             .tint(EchoelTheme.text)
             .padding(.horizontal, 32)
             // ⚠️ THIS TOGGLE IS A CONSENT, not a preference — the Start button below stays
-            // disabled until it is on. Sighted users read the five warnings sitting directly
-            // above it; a VoiceOver user arriving at the control heard only "I understand,
-            // switch, off", with no statement of WHAT is understood. That is the one place in
-            // onboarding where a missing hint is a substantive problem rather than a rough
-            // edge, so it names the notice explicitly.
-            .accessibilityHint("Confirms you have read the safety and privacy notice above: "
-                               + "for self-observation, not medical diagnosis; not while "
-                               + "driving or under the influence; visuals capped at 3 hertz.")
+            // disabled until it is on. Sighted users read the warnings sitting directly above
+            // it; a VoiceOver user arriving at the control heard only "I understand, switch,
+            // off", with no statement of WHAT is understood.
+            //
+            // ⛔ THE SUBSTANCE IS IN THE LABEL, NOT THE HINT, and the first version got this
+            // wrong. `Speak Hints` is user-disableable (and off in some configurations), hints
+            // are spoken only after a delay and are interruptible, and Voice Control users
+            // never receive them at all. A consent whose meaning lives only in a hint is a
+            // consent a real user can legitimately never hear while still being able to flip
+            // the switch and unblock Start. The label is unconditional; the hint carries the
+            // enumeration for those who have hints on.
+            .accessibilityLabel("I understand the safety and privacy notice above")
+            .accessibilityHint(Self.consentHint)
 
             Spacer()
 
@@ -166,9 +199,12 @@ struct OnboardingView: View {
                 isComplete = true
             } label: {
                 HStack(spacing: 8) {
-                    // Inside a Button label SwiftUI combines children, so without this the
-                    // button announces "play fill, Start" — the glyph name read as part of
-                    // the action.
+                    // Inside a Button label SwiftUI MERGES the children into one announcement,
+                    // so an unhidden SF Symbol gets its glyph description read out ahead of
+                    // "Start". (The earlier version of this comment quoted the exact string
+                    // VoiceOver would say. That was a guess dressed as a fact — the symbol
+                    // description varies by symbol and OS version, and I have no device to
+                    // check it on. The label above pins the announcement regardless.)
                     Image(systemName: "play.fill")
                         .font(EchoelTheme.font(13))
                         .accessibilityHidden(true)
@@ -180,6 +216,12 @@ struct OnboardingView: View {
                 .padding(.vertical, 14)
                 .background(EchoelTheme.text, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
             }
+            // Disabled state was communicated by OPACITY alone — VoiceOver said "Start,
+            // dimmed, button" and named no way out. Same defect class as the Patchbay dot:
+            // one channel, and some users cannot receive it.
+            .accessibilityLabel(acknowledgedSafety
+                                ? "Start"
+                                : "Start — confirm the safety notice above first")
             .disabled(!acknowledgedSafety)
             .opacity(acknowledgedSafety ? 1 : 0.4)
             .padding(.horizontal, 40)
