@@ -3388,7 +3388,12 @@ struct EchoelStudioView: View {
                     // `applyDelaySync` moved one row over. The enable belongs on the
                     // GESTURE; the automatic re-stamps (applyFX, re-seed) must not touch
                     // it. See `applyDelaySync(bpm:)`.
-                    synth.fxChain.delayEnabled = true
+                    //
+                    // Over the SAME inventory the time write uses, not just `synth`: arming one
+                    // chain and timing both would give the Field a delay time it cannot hear
+                    // and the generated take a room the played notes do not share — half of
+                    // #240 fixed is a new inconsistency, not a smaller one.
+                    for chain in characterFXChains { chain.delayEnabled = true }
                     applyDelaySync(bpm: currentTempo)
                 }
                 .accessibilityLabel("Delay note value")
@@ -3424,10 +3429,43 @@ struct EchoelStudioView: View {
     /// filename — the fix for "die BPM ist nicht überall konsistent".
     private var currentTempo: Double { beatPlayer.pattern.tempo }
 
-    /// Stamp the chosen effect character on the live FX chain (independent of genre).
+    /// Every FX chain the chosen character and delay division must reach — the ONE inventory,
+    /// so a knob can never land on some of the chains and not the others (#240).
+    ///
+    /// Before this existed, `applyFX()` listed two chains inline and `applyDelaySync(bpm:)`
+    /// listed one, so the composer's synth and the Field agreed on WHETHER delay was on and
+    /// disagreed on its TIME: the division picker moved the room for the generated take and
+    /// left the played notes echoing at whatever the character had stamped. Two lists that
+    /// must agree are one list.
+    ///
+    /// ⚠️ TWO SOUNDING CHAINS ARE DELIBERATELY NOT HERE, and the difference between them
+    /// matters:
+    ///  • `leadSynth.fxChain` IS live — `PolySynthVoice.fxEnabled` defaults to `true` and its
+    ///    render block processes the chain — but nothing has ever configured it, so the lead
+    ///    plays through the chain's DEFAULTS: saturation and the safety limiter only (both
+    ///    default on, deliberately, "so every take has body"), no character, no delay time.
+    ///    Not "dry" — an earlier draft of this comment said dry, which is wrong and would have
+    ///    sent the next reader looking for a bypassed chain. Adding it here would make the lead
+    ///    suddenly WET in every genre. That is an audible PRODUCT change, not a bug fix, and it would
+    ///    land in the middle of the founder's pending ear-check on the five newly-dry
+    ///    characters where they could not attribute what they heard. Tracked separately.
+    ///  • `bioVoice.fxChain` is genuinely dead: nothing in `Sources/` calls
+    ///    `BioReactiveSynthVoice.setFXEnabled`, so its chain never runs (its own doc says so).
+    ///    Configuring it would be writing to a chain that produces no sound.
+    ///
+    /// If a new SOUNDING voice with its own chain is added, it belongs here in the same edit —
+    /// same rule, and same lack of type-system enforcement, as `panicAllNotesOff`'s inventory.
+    private var characterFXChains: [EchoelFXChain] {
+        // `compactMap` over the optionals rather than pre-filtering, so the literal reads as
+        // the inventory it is.
+        [synth.fxChain, touchSynth?.fxChain].compactMap { $0 }
+    }
+
+    /// Stamp the chosen effect character on every live FX chain (independent of genre).
     private func applyFX() {
-        fxCharacter.apply(to: synth.fxChain, bpm: currentTempo, genre: style)
-        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: currentTempo, genre: style) }   // same room for played notes
+        for chain in characterFXChains {
+            fxCharacter.apply(to: chain, bpm: currentTempo, genre: style)
+        }
         applyDelaySync(bpm: currentTempo)
     }
 
@@ -3461,11 +3499,13 @@ struct EchoelStudioView: View {
     /// Two honest limits on that rule, so it is not read as absolute:
     ///  • `FXBioModulator` still force-enables the delay when a bio route targets delay mix
     ///    or feedback. That is a second automatic writer, out of scope here.
-    ///  • This function only ever wrote `synth.fxChain`. `applyFX()` stamps the character on
-    ///    the touch/Field chain too, so the two chains now agree on WHETHER delay is on but
-    ///    still disagree on its TIME (#240).
+    ///  • It used to write ONLY `synth.fxChain` while `applyFX()` stamped the character on the
+    ///    Field chain as well — so the two agreed on WHETHER delay was on and disagreed on its
+    ///    TIME. That was #240, and it is fixed by both reading the one `characterFXChains`
+    ///    inventory rather than by adding a second line here.
     private func applyDelaySync(bpm: Double) {
-        synth.fxChain.delay.timeSeconds = delaySync.clampedSeconds(bpm: bpm, in: 0.001...2.0)
+        let seconds = delaySync.clampedSeconds(bpm: bpm, in: 0.001...2.0)
+        for chain in characterFXChains { chain.delay.timeSeconds = seconds }
     }
 
     // MARK: Panel chrome
@@ -4629,8 +4669,11 @@ struct EchoelStudioView: View {
         pianoRoll.musicalRootPitchClass = rootIndex
         pianoRoll.musicalScaleName = scale.rawValue
         pianoRoll.musicalTempoBPM = tempo
-        fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
-        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: tempo, genre: style) }   // same room for played notes
+        // The ONE inventory (`characterFXChains`) — not `applyFX()`, because a re-seed stamps
+        // at the JUST-DERIVED `tempo`, which is not yet `currentTempo`.
+        for chain in characterFXChains {
+            fxCharacter.apply(to: chain, bpm: tempo, genre: style)
+        }
         applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
         // LOOP-CONFORM ARRANGEMENT (1b, founder: "je nachdem wie groß der Loop umgestellt
         // ist"): build `loopBars` distinct bars that the roll cycles through — a different
@@ -5129,8 +5172,6 @@ struct EchoelStudioView: View {
         applyConcertPitch(p.a4Hz)
         synth.apply(p.patch)
         syncTouchSound()
-        fxCharacter.apply(to: synth.fxChain, bpm: p.bpm, genre: openStyle)
-        if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: p.bpm, genre: openStyle) }   // same room for played notes
         pianoRoll.load(p.notes)
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
@@ -5141,6 +5182,24 @@ struct EchoelStudioView: View {
         let loadedTempo = beatPlayer.pattern.tempo
         pianoRoll.musicalTempoBPM = loadedTempo
         lockedBPM = loadedTempo
+        // The FX room is one more thing that mirrors tempo, so it belongs on the SAME side of
+        // that line — and it did not use to be. Both the character stamp and the delay division
+        // ran earlier in this function on the RAW `p.bpm`, while `PatternEngine.setTempo` clamps
+        // to its own tempo range: a saved take outside that range got tempo-synced delay and
+        // character times computed from a tempo the app never actually plays at, wrong for the
+        // whole session until something else re-stamped. Same rule the two lines above already
+        // invoke — one authoritative number, every reader on it.
+        for chain in characterFXChains {
+            fxCharacter.apply(to: chain, bpm: loadedTempo, genre: openStyle)
+        }
+        // ⛔ AND THIS CALL WAS MISSING ENTIRELY — the same lying control on a third path. The
+        // character stamp above sets a delay TIME; `delaySync` is `@State` and is NOT part of
+        // the saved `Project`, so after opening a take the picker still displayed the session's
+        // division while the chain held whatever the character had stamped. The re-seed path
+        // already re-applied it; the open path did not. Restoring the SAVED division is a schema
+        // change and stays out of this fix — making the chain match what the picker SHOWS is what
+        // stops it lying.
+        applyDelaySync(bpm: loadedTempo)
         hasComposed = true
         // Re-push the microtonal retune for the restored root. Programmatic writes
         // of rootIndex never post .echoelCompositionEdited (step 2b — by design, so
