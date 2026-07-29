@@ -13,6 +13,25 @@ import Foundation
 /// envelope curve) are stored as their String rawValue for stable Codable.
 public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
 
+    /// 1 = the shape as of 2026-07-29 (#189 slice 5). This is the user's own timbre
+    /// library, and the one type here with a PROVEN loss history — see the WHY on
+    /// `init(from:)` below: a non-optional field added 2026-07-11 made every older patch
+    /// unreadable and `PatchStore`'s `try?` turned that into an empty library (#95). The
+    /// defensive decoder bounded that; this stamp is what a later migration branches on.
+    ///
+    /// Same shape as `Clip`/`TrackFX` — never decoded, never assigned, so the SYNTHESIZED
+    /// encoder writes the current version by construction and no future field can go
+    /// missing from a hand-written one. `PatchStore` persists a bare `[SynthPatch]`, so
+    /// like `Clip` the stamp is PER PATCH; nothing versions the array itself.
+    public static let currentSchemaVersion = 1
+
+    /// ⚠️ Deliberately never read by `init(from:)` — the key exists so the ENCODER writes
+    /// it. A migration reads the file's own value into a local inside the decoder. While
+    /// nothing assigns it, every instance holds the same constant and the synthesized `==`
+    /// gains a term that cannot change a result; the day a migration DOES assign a decoded
+    /// version here, that stops being true.
+    public private(set) var schemaVersion: Int = SynthPatch.currentSchemaVersion
+
     public var id: UUID
     public var name: String
 

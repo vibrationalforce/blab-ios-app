@@ -55,13 +55,34 @@ public struct ArrangementSection: Codable, Sendable, Equatable, Identifiable {
 
 /// The full song: an ordered list of sections.
 public struct Arrangement: Codable, Sendable, Equatable {
+
+    /// 1 = the shape as of 2026-07-29 (#189 slice 5). Unlike `Clip`/`SynthPatch`/
+    /// `MoodPreset`, this one IS a document: `ArrangementStore` persists a single
+    /// `Arrangement`, so the stamp genuinely versions the file rather than each element.
+    /// The stamp shape is still the same — never decoded, never assigned, written by the
+    /// synthesized encoder — so no hand-written encoder can drop a future field.
+    public static let currentSchemaVersion = 1
+
+    /// ⚠️ Deliberately never read by `init(from:)` — the key exists so the ENCODER writes
+    /// it; a migration reads the file's own value into a local inside the decoder.
+    public private(set) var schemaVersion: Int = Arrangement.currentSchemaVersion
+
     public var sections: [ArrangementSection]
 
     public init(sections: [ArrangementSection] = []) {
         self.sections = sections
     }
 
-    private enum CodingKeys: String, CodingKey { case sections }
+    /// ⚠️ EXPLICIT `CodingKeys`, so a new stored property is NOT picked up automatically —
+    /// it must be listed here or the synthesized encoder silently omits it and the stamp is
+    /// purely decorative.
+    ///
+    /// Which types self-extend is worth getting right, because the first version of this
+    /// line got it backwards and would have told a later session that adding a field to
+    /// `Clip` is free: only `SynthPatch` and `MoodPreset` have SYNTHESIZED `CodingKeys` that
+    /// grow by themselves. `Clip`, `TrackFX` and this type all hand-list their cases, so a
+    /// new stored property on any of the three must be added to its enum by hand.
+    private enum CodingKeys: String, CodingKey { case schemaVersion, sections }
 
     /// Additive decode (law 9): a document missing `sections` (or a future added
     /// field) loads as an empty song instead of throwing and losing everything.

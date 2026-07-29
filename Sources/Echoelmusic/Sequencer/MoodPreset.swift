@@ -12,6 +12,22 @@ import Foundation
 /// A named snapshot of a `MoodProfile` (the 8 composition-character dimensions),
 /// plus curation tags. `Codable` so it round-trips to disk and to the community.
 public struct MoodPreset: Codable, Identifiable, Sendable, Equatable {
+
+    /// 1 = the shape as of 2026-07-29 (#189 slice 5). Same shape as `Clip`/`TrackFX`/
+    /// `SynthPatch`: never decoded, never assigned, so the SYNTHESIZED encoder writes the
+    /// current version by construction. `MoodPresetStore` persists a bare `[MoodPreset]`,
+    /// so the stamp is PER MOOD — nothing versions the array itself.
+    ///
+    /// Note the deliberate inconsistency with its sibling `FXPreset`, which carries its own
+    /// older `schema: Int` (assigned by callers, factory presets ship `3`). That one is NOT
+    /// renamed to match: it is persisted and its values are meaningful, so a rename would
+    /// be the exact silent-loss move this whole task exists to prevent.
+    public static let currentSchemaVersion = 1
+
+    /// ⚠️ Deliberately never read by `init(from:)` — the key exists so the ENCODER writes
+    /// it; a migration reads the file's own value into a local inside the decoder.
+    public private(set) var schemaVersion: Int = MoodPreset.currentSchemaVersion
+
     public var id: UUID
     public var name: String
     public var tags: [String]

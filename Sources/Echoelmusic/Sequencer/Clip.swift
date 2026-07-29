@@ -100,10 +100,23 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
     ///
     /// NOT "the last unstamped format" full stop — that overclaim was caught in review and
     /// is corrected here rather than softened, because it would have read as "persistence is
-    /// done". Still unstamped, all of them top-level App-Group documents: `Arrangement`,
-    /// the `[SynthPatch]` timbre library (whose decoder already cost one live data-loss fix,
-    /// #95), `[FXPreset]`, `[MoodPreset]`, `TrackFX`, and the three `Meta` structs in
-    /// `PatchStore`/`FXPresetStore`/`MoodPresetStore`.
+    /// done". The list that stood here was itself wrong twice over and is kept, corrected,
+    /// for the same reason: `TrackFX` was stamped by slice 4, and `[FXPreset]` was NEVER
+    /// unstamped — it has carried its own `schema: Int` since long before this task (factory
+    /// presets ship `3`), which I only found by reading the file rather than trusting the
+    /// list. Slice 5 closed `Arrangement`, `[SynthPatch]` and `[MoodPreset]`.
+    ///
+    /// What genuinely remains unstamped — and this sentence was ALSO incomplete on its first
+    /// writing, which is why the list now names its source rather than trusting memory
+    /// (`git grep` for the App-Group save calls, not a recollection):
+    ///   · `AutomationState` + its element `AutomationLane` (`Core/AutomationPlayer.swift`,
+    ///     persisted into the "Automation" subdirectory) — a real top-level document with an
+    ///     explicit `CodingKeys` and no version field. The biggest of the remainder.
+    ///   · the three `Meta` structs in `PatchStore` / `FXPresetStore` / `MoodPresetStore`
+    ///     (`favorites` + `recents`) — curation, not the user's work, hence last.
+    /// Everything else that reaches the App Group is stamped: `Project`, `TimelineDocument`,
+    /// `SpatialScene`, `Clip`, `TrackFX`, `SynthPatch`, `MoodPreset`, `Arrangement`, and
+    /// `FXPreset` via its own older `schema`.
     ///
     /// ⚠️ AND THE STAMP HERE IS PER CLIP, NOT PER FILE. `ClipStore` persists `[Clip?]`
     /// positionally, so a saved grid carries eight copies of this key and NOTHING versions
