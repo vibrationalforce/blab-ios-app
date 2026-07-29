@@ -89,7 +89,9 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
      analyzer (mic pitch/energy/brightness) which was removed in the soundscape refactor.
 8. **[Sound]** Replicate the preset/community pattern to **Mood** + **Sound & texture** surfaces.
    - ✅ **Mood** — DONE 2026-06-19 (v10.34.4): `MoodPreset`/`MoodPresetStore` mirror `PatchStore`
-     (8 curated factory moods, favorites/recents, App-Group JSON, community loop with seeded
+     (15 curated factory moods as of 2026-07-29 — `git grep -c 'MoodPreset(id: Self.uid'
+     Sources/Echoelmusic/Sequencer/MoodPreset.swift`; it said 8 for six weeks after the set
+     grew, so cite the command, not the number — favorites/recents, App-Group JSON, community loop with seeded
      `Aurora Calm` + triage). Mood panel has the full preset bar. CI-verified (`MoodPresetTests`).
    - ⬜ **Sound & texture** — the in-studio `soundPanel` still only picks `SynthPatch.factory` via
      `@AppStorage`; wire the existing `PatchStore` (saved user patches + favorites/recents +
