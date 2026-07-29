@@ -33,7 +33,16 @@ struct BioStripView: View {
     /// yet — the strip shows live "reading…" feedback instead of a dead "No signal".
     var measuring: Bool = false
     /// One-tap entry from the otherwise-dead strip: bring the body's pulse in.
-    var onStartPulse: () -> Void = {}
+    ///
+    /// ⛔ OPTIONAL SINCE #234, and `nil` is the case that matters. In `EchoelStudioView`'s
+    /// Bio panel this handler was `startBiofeedback()` — i.e. a button labelled "Read pulse"
+    /// that started the entire generative session. That is a lying control on its own, and
+    /// after the founder's "3 Knöpfe zum Start → einer" it was also a hidden fourth Start,
+    /// two taps from the header pill. The panel now passes nothing and the strip shows an
+    /// honest "No signal" instead; the one Start is the front plate's own button, on the
+    /// same screen. `BioSourceView` still passes a handler and is still right to: its
+    /// `arm(true)` really does arm the sensor alone.
+    var onStartPulse: (() -> Void)?
 
     /// Tapped metric → its plain-language explanation sheet ("app as a school").
     @State private var explain: BioMetric?
@@ -262,9 +271,26 @@ struct BioStripView: View {
             openSettingsButton
         } else if measuring {
             measuringTag
-        } else {
+        } else if onStartPulse != nil {
             startPulseButton
+        } else {
+            noSignalTag
         }
+    }
+
+    /// The fourth state, added with #234: no signal, and this strip is NOT the place to
+    /// start one. It is not the "dead end" the doc above warns about — the Bio panel that
+    /// mounts it sits on the front plate, with the labelled Start button in the same view.
+    /// Naming that button here is what keeps it a signpost rather than a dead end.
+    private var noSignalTag: some View {
+        Text("No signal")
+            .lineLimit(1)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .overlay(RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
+            .foregroundStyle(EchoelTheme.dim)
+            .accessibilityLabel(Text("No body signal yet"))
+            .accessibilityHint(Text("Press Create from Within to start; your body then drives the sound."))
     }
 
     /// The honest replacement for the dead end: camera access is off, and the
@@ -317,7 +343,7 @@ struct BioStripView: View {
 
     /// The old dead "No signal" becomes the one-tap gateway to the live body.
     private var startPulseButton: some View {
-        Button(action: onStartPulse) {
+        Button { onStartPulse?() } label: {
             HStack(spacing: 4) {
                 Image(systemName: "heart.fill").font(.system(size: 9))
                 Text("Read pulse")

@@ -1447,8 +1447,12 @@ struct EchoelStudioView: View {
     /// pulse-pill dropdown (BLE-3 single owner); Watch via Health.
     private var bioPanel: some View {
         VStack(alignment: .leading, spacing: 10) {
-            BioStripView(measuring: running, onStartPulse: { startBiofeedback() })
-            Text("Camera pulse starts here. For a BLE chest strap, touch and hold the pulse pill in the header and pick \u{201C}Search for Bluetooth device\u{201D}; Apple Watch feeds in through Health.")
+            // No `onStartPulse` (#234): this panel used to carry a "Read pulse" button that
+            // ran `startBiofeedback()` — a hidden fourth Start, two taps from the header
+            // pill, behind a label promising a measurement. The one Start is the front
+            // plate's own button, in this same view.
+            BioStripView(measuring: running)
+            Text("Press \u{201C}Create from Within\u{201D} to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse pill in the header and pick \u{201C}Play with a Bluetooth strap\u{201D}; Apple Watch feeds in through Health.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             Button {

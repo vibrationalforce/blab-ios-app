@@ -21,12 +21,19 @@
 // of removing it, and the count grew back. A comment does not fail; this does.
 //
 // WHAT THIS CANNOT PROVE: that the one remaining button is reachable, legible, or works — it
-// pins the COUNT and the absence of the chrome wire, nothing about rendering. And it is not
-// a claim that no other code path can begin a bio session: the Bio panel's own "start pulse"
-// row and the Siri/Shortcuts inbox both call `startBiofeedback()` directly, deliberately.
-// Those are one level deeper than the front plate, which is exactly where the founder's
-// complaint was not.
+// pins counts and the absence of the chrome wire, nothing about rendering.
+//
+// ⚠️ AN EARLIER VERSION OF THIS NOTE WAS WRONG, in the direction that made the guard look
+// stronger than it was. It said the uncovered paths were "the Bio panel's own 'start pulse'
+// row and the Siri/Shortcuts inbox", both "one level deeper than the front plate, which is
+// exactly where the founder's complaint was not". There were THREE, and the omitted one —
+// the header pill's long-press source picker — is the founder's own pill, one gesture from
+// the surface he pointed at. The panel row is now gone and the picker is now labelled; both
+// counts are pinned below instead of being described in prose.
 
+import Foundation   // FileManager/URL. XCTest re-exports it on Darwin, but every sibling in
+                    // this directory imports it explicitly and one line is cheaper than a
+                    // red gate on a repo with no local toolchain.
 import XCTest
 
 final class OneStartControlTests: XCTestCase {
@@ -88,6 +95,34 @@ final class OneStartControlTests: XCTestCase {
                       + ". Chrome that starts the session is what produced three Start "
                       + "buttons; if a chrome control must start it again, re-add the "
                       + "notification WITH that control, never ahead of it.")
+    }
+
+    /// ⛔ THE CAPABILITY GUARD. The test above pins a SYMBOL — but every side door calls
+    /// `startBiofeedback()` directly, not `toggleBiofeedback()`, so a fourth Start added that
+    /// way would sail past it. This counts the thing that actually begins a session.
+    ///
+    /// The inventory, all three deliberate:
+    ///   1. `toggleBiofeedback()`'s own body — the front plate's Start/Stop, i.e. THE button.
+    ///   2. `handlePendingIntent()` — Siri/Shortcuts, no on-screen control at all.
+    ///   3. `selectBioSource()` — the header pill's long-press, idle branch. It is labelled
+    ///      "Play with camera light / a Bluetooth strap / the simulation" precisely because it
+    ///      starts the music; under its old labels ("Camera light", "Simulation") it was a
+    ///      hidden Start, which is what the founder was counting.
+    ///
+    /// A FOURTH one was removed to get here: the Bio panel's "Read pulse" button ran
+    /// `startBiofeedback()` behind a label promising a measurement — a lying control and a
+    /// hidden Start two taps from the pill. If this count rises, say which of those two a new
+    /// caller is, and fix it rather than raising the number.
+    func testOnlyTheKnownThreePathsBeginABioSession() throws {
+        let starts = try sourceLines().filter {
+            $0.text.contains("startBiofeedback()") && !$0.text.contains("func startBiofeedback")
+        }
+        XCTAssertEqual(starts.count, 3,
+                       "Expected exactly 3 session-start call sites, found \(starts.count): "
+                       + starts.map { "\($0.file):\($0.line)" }.joined(separator: ", ")
+                       + ". Every one of them must be either the one labelled button, a "
+                       + "no-UI automation path, or a control whose LABEL says the music "
+                       + "starts.")
     }
 
     /// ⛔ THE OTHER REGRESSION GUARD, and it exists because the claim it protects was already

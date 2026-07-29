@@ -368,8 +368,12 @@ private struct TransportBar: View {
                 // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit
                 // area fills the bar height (performance control, AX audit 2026-07-09).
                 .contentShape(Rectangle().inset(by: -6))
-                .accessibilityLabel(transport.isPlaying ? "Stop the music" : "Play the music")
-                .accessibilityHint("Leaves the session and your pulse reading running.")
+                // `Text` on both ternary branches — same reason as `OnboardingView`'s Start
+                // label: a bare two-literal ternary is a weaker inference site, and this is
+                // the only description a VoiceOver user gets of a control whose whole point
+                // is that it does NOT end the session.
+                .accessibilityLabel(transport.isPlaying ? Text("Stop the music") : Text("Play the music"))
+                .accessibilityHint(Text("Leaves the session and your pulse reading running."))
             }
 
             // (The transport pulse button is GONE — founder 2026-07-15 video: "zu viele

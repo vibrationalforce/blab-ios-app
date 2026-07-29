@@ -227,17 +227,29 @@ struct PulseMonitorMiniLive: View {
             .onTapGesture {
                 NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
             }
+            // ⚠️ "Play with …", not the bare source names these carried until #234. Every one
+            // of them routes to `selectBioSource`, which hot-swaps the source while a take is
+            // live and STARTS A FULL GENERATIVE SESSION when idle. Under the plain labels
+            // ("Camera light", "Simulation") that made this menu a hidden Start — the exact
+            // thing the founder counted — and one that promised only a sensor choice. The
+            // capability is deliberately kept (choosing how to begin is useful); what changed
+            // is that the label now says the music begins. "Play with" is honest in BOTH
+            // states: idle it starts, running it keeps playing on the new source.
             .contextMenu {
                 Button {
                     NotificationCenter.default.post(name: .echoelSelectBioSource, object: "camera")
-                } label: { Label("Camera light", systemImage: "camera.fill") }
+                } label: { Label("Play with camera light", systemImage: "camera.fill") }
                 Button {
                     NotificationCenter.default.post(name: .echoelSelectBioSource, object: "ble")
-                } label: { Label("Search for Bluetooth device", systemImage: "dot.radiowaves.left.and.right") }
+                } label: { Label("Play with a Bluetooth strap", systemImage: "dot.radiowaves.left.and.right") }
                 Button {
                     NotificationCenter.default.post(name: .echoelSelectBioSource, object: "sim")
-                } label: { Label("Simulation", systemImage: "waveform.path") }
+                } label: { Label("Play with the simulation", systemImage: "waveform.path") }
                 Divider()
+                // The only entry here that does NOT start anything — and now a duplicate of
+                // the pill's own tap. Kept deliberately: it is the one place a VoiceOver user
+                // exploring this menu learns the panel exists, and the three above it are all
+                // commitments to start playing.
                 Button {
                     NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
                 } label: { Label("Bio details…", systemImage: "info.circle") }
@@ -247,8 +259,11 @@ struct PulseMonitorMiniLive: View {
             // is live, so branching on `cameraRPPG.isRunning` would only have described
             // the CAMERA while the pill may be showing a strap. The old branch also
             // promised "Tap to start reading your pulse", which is no longer true.
-            .accessibilityHint("Opens the bio panel — pulse, breath and coherence. "
-                               + "Touch and hold to choose a bio source.")
+            // `Text(...)`, not a `String + String`: a concatenation binds the generic
+            // `StringProtocol` overload, which looks nothing up — the same trap the same
+            // slice spent ten lines guarding against in `OnboardingView`, walked into one
+            // file over. One literal, one localisable key.
+            .accessibilityHint(Text("Opens the bio panel — pulse, breath and coherence. Touch and hold to choose a bio source."))
     }
 }
 #endif
