@@ -128,12 +128,17 @@ public enum FieldAutoPlay {
         /// wander must span more than 1/3 to cross a boundary and change the octave at all.
         /// The default 0.2 centred at band 0.5 stays inside 0.4…0.6 — entirely within the
         /// middle band. That is NOT a dead default: `y` is also the vertical position a
-        /// finger's light drops at in the field, so ONCE WIRED, sub-threshold values will move
-        /// the VISUAL and leave the pitch alone — a musically sensible place to start. (Stated
-        /// as intent: nothing consumes this generator yet, and the ripple itself is private to
-        /// the touch view and skipped under Reduce Motion.) Above ~0.34 it
-        /// starts changing octaves. Documented because a control whose first third does
+        /// generated note's light drops at in the field, so sub-threshold values move the
+        /// VISUAL and leave the pitch alone — a musically sensible place to start. Above ~0.34
+        /// it starts changing octaves. Documented because a control whose first third does
         /// nothing audible reads as broken unless you say what it is doing instead.
+        ///
+        /// ⚠️ That sentence was written as INTENT and was false for one commit: the driver
+        /// sounded generated notes without touching the colour/ripple channels a finger uses,
+        /// so sub-threshold drift moved nothing whatsoever. Review caught it; the driver now
+        /// calls `showGeneratedNote`. Kept as a note because a doc promise about a SECOND
+        /// subsystem is only true while that subsystem keeps its half — and the ripple is
+        /// still skipped under Reduce Motion, which is correct and is not this promise.
         public var bandDrift: Float
         /// Simultaneous points — a chord under a hand that is not there.
         public var voices: Int

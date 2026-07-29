@@ -341,7 +341,11 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.quantizer = quantizer
         v.musicalNow = musicalNow
         v.autoPlaySeed = autoPlaySeed
-        v.autoPlay = autoPlay            // LAST: its `didSet` starts the clock
+        // Set last so the seed is in place before the clock could ever look at it. The clock
+        // does NOT start here — `startAutoPlay` requires a window and this view has none yet;
+        // `didMoveToWindow` is what starts it. (An earlier comment on this line claimed the
+        // `didSet` started it, which would have made the ordering load-bearing. It is not.)
+        v.autoPlay = autoPlay
         return v
     }
 
@@ -549,7 +553,18 @@ final class TouchInstrumentUIView: UIView {
         // simply resumes at the next cell edge.
         guard held.isEmpty else { return }
 
+        // The cell's OWN tick, not the tick the display link happened to fire on. A generated
+        // note is on the grid by construction; handing Ultrasync the look's tick made it
+        // correct POLLING JITTER as if it were human lateness — at 1/16 / 120 BPM one dropped
+        // frame put the offset past the ~20 ms tolerance, so the quantizer answered with an
+        // echo on the next grid point, landing on top of the next cell's own note. That flam
+        // is precisely what the tolerance exists to prevent.
+        let onGridTick = cell * Swift.max(1, quantizer.grid.tickSpan)
+
         let touches = FieldAutoPlay.touches(atStep: cell, params: params, seed: autoPlaySeed)
+        // The bound cannot bite today — `touches` returns at most `FieldAutoPlay.maxVoices`
+        // and there is one finger per that — but it is the index guard for an array, and the
+        // two caps living in different files is exactly how those drift apart.
         for (voice, t) in touches.enumerated() where voice < autoPlayFingers.count {
             let pitch = TouchPitchMap.pitch(normX: Double(t.x), normY: Double(t.y), key: key)
             let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
@@ -562,8 +577,22 @@ final class TouchInstrumentUIView: UIView {
                   velocity: t.velocity * micro.velocityScale * even,
                   cutoffScale: cutoff,
                   finger: ObjectIdentifier(autoPlayFingers[voice]), index: index,
-                  autoRelease: true)
+                  autoRelease: true, onGridTick: onGridTick)
+            // The picture follows a generated note exactly as it follows a finger. Without
+            // this the field would play in visual silence — and `bandDrift` below its octave
+            // threshold, which the generator documents as "moves the light, not the pitch",
+            // would move nothing at all.
+            showGeneratedNote(pitch: pitch, at: point(normX: Double(t.x), normY: Double(t.y)),
+                              velocity: t.velocity)
         }
+    }
+
+    /// A generated contact's position in view coordinates, so it can drop a ring where a
+    /// finger at that place would have. Mirrors `pitch(at:)`'s mapping in reverse.
+    private func point(normX: Double, normY: Double) -> CGPoint {
+        let rect = playRect
+        return CGPoint(x: rect.minX + CGFloat(min(max(normX, 0), 1)) * rect.width,
+                       y: rect.minY + CGFloat(1 - min(max(normY, 0), 1)) * rect.height)
     }
 
     /// Note-ons the quantizer is holding back, per finger.
@@ -867,14 +896,23 @@ final class TouchInstrumentUIView: UIView {
     /// holding a note back against a beat the player cannot hear is worse than not
     /// quantizing at all.
     ///
-    /// - Parameter autoRelease: the note has no finger and nothing will ever lift it — let it
-    ///   go by itself after `staccatoSeconds`. Self-play's notes set this; a real touch never
-    ///   does, because a real touch's release is its lift. This reuses the lifted-while-pending
-    ///   behaviour that already exists rather than adding a second lifecycle.
+    /// - Parameters:
+    ///   - autoRelease: the note has no finger and nothing will ever lift it — let it go by
+    ///     itself after `staccatoSeconds`. Self-play's notes set this; a real touch never does,
+    ///     because a real touch's release is its lift. This reuses the lifted-while-pending
+    ///     behaviour that already exists rather than adding a second lifecycle.
+    ///   - onGridTick: the tick Ultrasync should CORRECT AGAINST, when that differs from the
+    ///     tick the note arrived on. A finger passes nil — it landed when it landed, and the
+    ///     difference from the grid is the human timing being corrected. A generated note
+    ///     passes its cell's start tick, because it is on the grid by construction and the only
+    ///     thing "now" would measure is how late the display link woke up.
     private func sound(pitch: Int, velocity: Float, cutoffScale: Float,
                        finger id: ObjectIdentifier, index: Int,
-                       autoRelease: Bool = false) {
+                       autoRelease: Bool = false, onGridTick: Int? = nil) {
         guard let now = musicalNow?(), now.secondsPerTick > 0 else {
+            // Unreachable for a generated note today — `autoPlayTick` already required a
+            // musical clock and there is no suspension point between the two reads. Kept
+            // because `sound` is called from four places and must be correct for all of them.
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
             if autoRelease { scheduleSelfRelease(pitch: pitch) }
             return
@@ -887,7 +925,7 @@ final class TouchInstrumentUIView: UIView {
         var q = quantizer
         q.latenessToleranceTicks = Swift.max(q.latenessToleranceTicks,
                                              Int((0.020 / now.secondsPerTick).rounded()))
-        switch q.plan(forTick: now.tick, index: index) {
+        switch q.plan(forTick: onGridTick ?? now.tick, index: index) {
         case .play:
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
             if autoRelease { scheduleSelfRelease(pitch: pitch) }
@@ -915,17 +953,21 @@ final class TouchInstrumentUIView: UIView {
                 // it, so the decision cannot go stale.
                 guard let self, !Task.isCancelled else { return }
                 self.pendingOn.removeValue(forKey: id)
-                // `remove(id) != nil` FIRST so the set is cleaned up even when `autoRelease`
-                // already decided the answer — `||` short-circuits, and a generated finger
-                // that leaked into `liftedWhilePending` would never be taken out again.
+                // `remove(id) != nil` FIRST because `||` short-circuits and the removal is the
+                // point of the call, not the answer. (An earlier version of this comment
+                // justified the order with "a generated finger that leaked into
+                // liftedWhilePending" — that state is unreachable: the set is only written in
+                // `release(_:)`, which iterates real `UITouch`es. The ordering is still right;
+                // the reason given for it was not.)
                 let lifted = (self.liftedWhilePending.remove(id) != nil) || autoRelease
                 self.synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
                 guard lifted else { return }
-                // The finger is already gone, so nothing else will ever release this. It
-                // sounds on the grid — where the player aimed — and lets go by itself.
-                try? await Task.sleep(for: .seconds(Self.staccatoSeconds))
-                guard !self.isSounding(pitch: pitch) else { return }
-                self.synth?.noteOff(pitch: pitch)
+                // The finger is already gone (or there never was one), so nothing else will
+                // ever release this. It sounds on the grid — where the player aimed — and lets
+                // go by itself. Routed through `scheduleSelfRelease` rather than an inline
+                // sleep so BOTH unheld paths get the same ownership check; the inline version
+                // was pitch-keyed and would cut a newer note on the same pitch.
+                self.scheduleSelfRelease(pitch: pitch)
             }
 
         case let .playThenEcho(_, echoTick, level):
@@ -959,6 +1001,10 @@ final class TouchInstrumentUIView: UIView {
         }
     }
 
+    /// Which unheld note most recently claimed each pitch. See `scheduleSelfRelease`.
+    private var unheldOwner: [Int: UInt64] = [:]
+    private var unheldTokenCounter: UInt64 = 0
+
     /// Let a note nobody is holding go again. Used by self-play, where there is no finger
     /// whose lift could end the note.
     ///
@@ -967,17 +1013,58 @@ final class TouchInstrumentUIView: UIView {
     /// meantime (closing the visual, exactly when it happens) must not take the release with
     /// it and leave the note sounding forever.
     ///
-    /// `isSounding` is checked first so a finger that landed on this pitch in the meantime
-    /// keeps its note — its own lift ends both.
+    /// ⚠️ THE TOKEN IS NOT BOOKKEEPING, IT IS THE FIX for a defect the first version shipped
+    /// with. `EchoelDDSP.noteOff(note:)` releases EVERY voice on that note number, and
+    /// `isSounding` only walks `held` — which generated notes never enter. So a pitch-keyed
+    /// release could only ever protect a FINGER, never a second generated note. At the
+    /// shipped defaults (1/16 at 120 BPM = 125 ms cells, `staccatoSeconds` 0.18) every repeat
+    /// of a pitch was cut by its own predecessor's release after ~55 ms; and repeats are the
+    /// common case, not an edge one — at the default span the travel advances about half a
+    /// scale degree per cell, and `Motion.hold` is an offered mode that plays one pitch
+    /// forever. The token makes "is this still my note" answerable; without it, it isn't.
+    ///
+    /// `isSounding` is still checked, for the other half: a finger that landed on this pitch
+    /// meanwhile keeps its note — its own lift ends both.
     private func scheduleSelfRelease(pitch: Int) {
         guard let voice = synth else { return }
+        unheldTokenCounter &+= 1
+        let token = unheldTokenCounter
+        unheldOwner[pitch] = token
         Task { @MainActor [weak self, voice] in
             // `try?`, not `catch { return }`: before a note, cancellation must suppress it;
             // before a RELEASE, cancellation must not, or cancelling is how a note sticks.
             try? await Task.sleep(for: .seconds(Self.staccatoSeconds))
-            guard self?.isSounding(pitch: pitch) != true else { return }
+            if let self {
+                // A newer unheld note owns this pitch → it will end it. Ours is already gone,
+                // swallowed by that note's own `noteOn` on the same voice.
+                guard self.unheldOwner[pitch] == token else { return }
+                guard !self.isSounding(pitch: pitch) else { return }
+                self.unheldOwner.removeValue(forKey: pitch)
+                self.releaseGeneratedColour(pitch: pitch)
+            }
+            // `self == nil` means the surface is gone: nobody holds anything, so the off MUST
+            // go out. That is the one case where skipping the ownership check is correct.
             voice.noteOff(pitch: pitch)
         }
+    }
+
+    /// The picture must follow a self-played note exactly as it follows a finger — colour,
+    /// excitation and a ring. Without this the field plays in silence visually, and
+    /// `FieldAutoPlay`'s Band-drift dial is inert below its octave threshold: its documented
+    /// sub-threshold behaviour ("moves the light, not the pitch") depends on there BEING a
+    /// light. Reduce Motion is honoured by `spawnRing` itself.
+    private func showGeneratedNote(pitch: Int, at p: CGPoint, velocity: Float) {
+        TouchVisualEnergy.shared.excite(0.35)
+        TouchToneChannel.shared.noteOn(pitch: pitch, hz: frequency(of: pitch),
+                                       at: CFAbsoluteTimeGetCurrent())
+        spawnRing(at: p, strong: true, pitch: pitch, velocity: velocity)
+    }
+
+    /// …and hand the colour back when that note ends, which is what `release(_:)` does for a
+    /// finger. Skipped while a finger holds the same pitch — that finger's lift owns it.
+    private func releaseGeneratedColour(pitch: Int) {
+        guard !isSounding(pitch: pitch) else { return }
+        TouchToneChannel.shared.noteOff(pitch: pitch, at: CFAbsoluteTimeGetCurrent())
     }
 
     /// How long an unheld echo rings before it is released. Short enough to read as a
@@ -1027,12 +1114,26 @@ final class TouchInstrumentUIView: UIView {
     /// notes hanging.
     override func willMove(toWindow newWindow: UIWindow?) {
         super.willMove(toWindow: newWindow)
-        if newWindow == nil, !held.isEmpty {
+        if newWindow == nil {
+            // ⚠️ NO LONGER GATED ON `!held.isEmpty`, and that gate was a real hole once
+            // self-play existed: a generated note has no finger, so `held` is empty by
+            // definition and the whole cleanup — INCLUDING the `pendingOn` cancellation —
+            // was skipped on dismissal. A held-back generated note then fired its note-on up
+            // to ~1.03 s AFTER the surface was gone (the delay bound documented above) and
+            // rang for `staccatoSeconds` on top. Everything below is idempotent, so running
+            // it on a dismissal with no touches costs nothing and closes that.
+            //
             // Held-back notes die with the window. The ECHO deliberately does not: it is
             // untracked, so one scheduled just before dismissal still fires — bounded,
             // because it releases itself after `echoGhostSeconds` and only when no finger
             // holds that pitch. Stated rather than implied, because "notes die with the
             // window" on its own would read as covering both, and it does not.
+            //
+            // The self-release tasks are untracked for the same reason as the echo, and are
+            // bounded the same way: ≤ `staccatoSeconds`, and their `voice` capture is strong
+            // so the note-off still goes out after the view is gone. That is the safe
+            // direction — a cancelled release is a stuck note.
+            stopAutoPlay()
             for work in pendingOn.values { work.cancel() }
             pendingOn.removeAll()
             liftedWhilePending.removeAll()

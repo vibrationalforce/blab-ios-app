@@ -131,7 +131,13 @@ final class FieldAutoPlayDriverTests: XCTestCase {
                                              centre: 0.5, band: 0.5, bandDrift: 1,
                                              voices: voices, periodSteps: 16)
                 for step in 0..<64 {
-                    for t in FieldAutoPlay.touches(atStep: step, params: p, seed: 7) {
+                    let touches = FieldAutoPlay.touches(atStep: step, params: p, seed: 7)
+                    // Non-vacuity: at density 1 every cell must fire, so an empty result is
+                    // itself the bug. Without this the loop below could pass by never running
+                    // — the failure mode this repo has already written into two other test
+                    // files after hitting it.
+                    XCTAssertFalse(touches.isEmpty, "\(motion) step \(step) fired nothing at density 1")
+                    for t in touches {
                         XCTAssertTrue((0...1).contains(t.x), "\(motion) x \(t.x)")
                         XCTAssertTrue((0...1).contains(t.y), "\(motion) y \(t.y)")
                         XCTAssertTrue(t.velocity > 0 && t.velocity <= 1)
@@ -153,7 +159,9 @@ final class FieldAutoPlayDriverTests: XCTestCase {
             for scale in Scale.allCases {
                 let key = MusicalKey(root: root, scale: scale)
                 for step in 0..<32 {
-                    for t in FieldAutoPlay.touches(atStep: step, params: params, seed: 3) {
+                    let touches = FieldAutoPlay.touches(atStep: step, params: params, seed: 3)
+                    XCTAssertFalse(touches.isEmpty, "step \(step) fired nothing at density 1")
+                    for t in touches {
                         let pitch = TouchPitchMap.pitch(normX: Double(t.x),
                                                         normY: Double(t.y), key: key)
                         XCTAssertTrue((0...127).contains(pitch),
