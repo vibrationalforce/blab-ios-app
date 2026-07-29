@@ -602,10 +602,12 @@ public final class PianoRollModel {
     /// cutting something that is sounding (#174 — the mixer re-bake).
     ///
     /// `loadArrangement(_:playing:)` cannot be reused for this, and the reason is a trap
-    /// worth naming: its `guard bars.count > 1` sends the SINGLE-bar case — the default
-    /// loop length, i.e. the common one — down `load(_:)`, which opens with
-    /// `allNotesOff()`. Re-balancing through it would therefore chop every sounding note
-    /// each time a fader settled, which is a worse artefact than the bug being fixed.
+    /// worth naming: its `guard bars.count > 1` sends the SINGLE-bar case down `load(_:)`,
+    /// which opens with `allNotesOff()`. Re-balancing through it would therefore chop
+    /// every sounding note each time a fader settled, which is a worse artefact than the
+    /// bug being fixed. (The default loop length is EIGHT bars — `StudioDefaultKeys` — so
+    /// one bar is the edge case; an earlier version of this comment called it the common
+    /// one, which is exactly backwards and would misdirect the next reader.)
     ///
     /// The two branches deliberately differ, because the EXPORT reads a different array
     /// in each case and #174 is ultimately about the export telling the truth:
@@ -618,19 +620,32 @@ public final class PianoRollModel {
     ///   its voice (releases come from `active`, not from `notes`) and one whose
     ///   `startStep` has passed cannot retrigger, so only notes still to come in this bar
     ///   pick up the new level — which is what a level control should do. Staging it
-    ///   instead would have left an export taken within the same bar on the old levels.
+    ///   instead would have left an export taken within the same bar on the old levels —
+    ///   and would have LOST the re-bake entirely on "move fader → Stop within the bar",
+    ///   because `pattern.onStop` clears `pendingNotes` and only refreshes `notes` when
+    ///   `arrangementBars.count > 1`, which this branch deliberately leaves empty.
     ///
-    /// `playedBars` is never reset in either branch, and nothing here calls `allNotesOff`.
-    /// Stopped, there is nothing to cut and the ordinary load path (with its intro
-    /// attenuation) is exactly right.
+    /// While PLAYING nothing here calls `allNotesOff` and `playedBars` keeps counting.
+    /// Stopped, the ordinary load path is delegated to unchanged — which does reset
+    /// `playedBars` and does apply `IntroAttenuation`, but ONLY on its multi-bar branch;
+    /// a stopped single-bar re-bake goes through `load(_:)` and gets neither. Both are
+    /// exactly what a stopped `generate()` already does, so this introduces no new
+    /// behaviour — but an earlier version of this comment claimed the opposite on both
+    /// counts, so it is spelled out rather than summarised.
+    ///
+    /// `arrangementPhaseOffset` is deliberately NOT touched: `loadArrangement` zeroes it
+    /// because it INSTALLS an arrangement, whereas this method promises the same notes at
+    /// new levels, and zeroing a region-installed rotation would change which bar plays
+    /// next — a compositional side effect in a level-only call.
     public func rebakeArrangement(_ bars: [[Note]], playing: Bool) {
         guard let firstBar = bars.first else { return }
         guard playing else { loadArrangement(bars, playing: false); return }
-        // Generative path is phase-0 by definition (same reason as loadArrangement).
-        arrangementPhaseOffset = 0
         if bars.count > 1 {
             arrangementBars = bars
-            pendingNotes = bars[playedBars % bars.count]
+            // The offset is CARRIED, not zeroed (see above), so the staged index must
+            // include it — this is the exact expression `trigger` uses to stage the next
+            // bar, which is what keeps the re-bake level-only.
+            pendingNotes = bars[(playedBars + arrangementPhaseOffset) % bars.count]
         } else {
             // A one-bar arrangement is the classic loop: `arrangementBars` stays empty so
             // `trigger`'s cycling branch is untouched, exactly as `load(_:)` leaves it.

@@ -121,12 +121,18 @@ public final class MixerStore {
     /// · a non-finite VELOCITY leaves a silent note — the clamp is written `Swift.max(0, x)`,
     ///   which returns 0 for NaN, where `Swift.max(x, 0)` would return NaN and poison the
     ///   voice (this repo has shipped that permanent-silence bug before).
-    /// · a non-finite `genre` or `user` is treated as UNITY, not as zero, because
-    ///   `combined` uses the other argument order and `Swift.min(1, .nan)` returns 1.
-    ///   Neither is reachable today (genre levels are constants, the fader is persisted
-    ///   from a bounded field) and, more importantly, neither can escape: the result is
-    ///   provably in [0, 1] and never NaN for ANY input, so nothing non-finite reaches
-    ///   the audio thread. That invariant — not the argument order — is what the
+    /// · a non-finite `genre` or `user` is treated as UNITY, not as zero. ⛔ AND THE
+    ///   MECHANISM IS NOT THE ARGUMENT ORDER — an earlier version of this comment said it
+    ///   was, which is worse than saying nothing, because it invites "hardening"
+    ///   `combined` to `Swift.max(0, genre)` in the belief that nothing changes.
+    ///   Something does: `Swift.max(0, .nan)` is 0, so a NaN genre would flip from unity
+    ///   to SILENCE. `combined` below in fact uses the NaN-PROPAGATING order in both
+    ///   `max`es; the NaN survives them and is swallowed only by the OUTER
+    ///   `Swift.min(1, .nan)`, which returns 1.
+    ///   Neither input is reachable today (genre levels are constants, the fader is
+    ///   persisted from a bounded field) and, more importantly, neither can escape: the
+    ///   result is provably in [0, 1] and never NaN for ANY input, so nothing non-finite
+    ///   reaches the audio thread. That invariant — not any argument order — is what the
     ///   blocking-bundle test pins.
     public nonisolated static func mixedVelocity(_ velocity: Float,
                                                  genre: Float,

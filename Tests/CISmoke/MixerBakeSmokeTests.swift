@@ -9,19 +9,22 @@
 // the app would regress into a bug that already shipped once:
 //
 //  1. NON-COMPOUNDING is FALSE — applying the law twice really does square the user
-//     term. That is exactly why `EchoelStudioView` keeps `lastRawBars` and re-derives
+//     term. That is exactly why `EchoelStudioView` keeps `lastRawTake` and re-derives
 //     from the composer's own notes on every fader move, instead of trimming the take
 //     it already has. A future session that "simplifies" that away needs to fail here.
 //  2. The result must ALWAYS land in [0, 1] and never be NaN — for any input at all.
 //     That is the property that keeps a poisoned value off the audio thread. My first
 //     draft of this file asserted something stronger and FALSE (that a NaN genre or
-//     fader silences the note); it does not, because `combined` uses the other
-//     `min`/`max` argument order and `Swift.min(1, .nan)` returns 1, i.e. unity. The
-//     assertions below pin what the code actually does, checked against it rather than
-//     against what the doc comment made it sound like.
+//     fader silences the note); it does not, because the NaN survives BOTH of
+//     `combined`'s `max`es — they use the propagating argument order — and is swallowed
+//     only by the OUTER `Swift.min(1, .nan)`, which returns 1, i.e. unity. (My second
+//     draft got the outcome right and the mechanism wrong, blaming the argument order;
+//     that version is corrected here too, because it would have invited someone to
+//     "harden" `combined` to `Swift.max(0, genre)` — which flips NaN from unity to
+//     silence.) The assertions below pin what the code actually does.
 //
 // (`Tests/EchoelmusicTests/MixerStoreTests.swift` covers `combined` in depth — but that
-// suite is non-blocking today, #208. These four run where red actually stops a ship.)
+// suite is non-blocking today, #208. These run where red actually stops a ship.)
 
 import XCTest
 @testable import Echoelmusic
@@ -41,7 +44,11 @@ final class MixerBakeSmokeTests: XCTestCase {
     /// 1.18) can never push a velocity past the top of the range.
     func testTheResultIsCappedAtFullVelocity() {
         XCTAssertEqual(MixerStore.mixedVelocity(0.95, genre: 1.18, user: 1), 0.95, accuracy: 1e-6)
-        XCTAssertLessThanOrEqual(MixerStore.mixedVelocity(1.0, genre: 1.18, user: 1), 1)
+        // (A second `XCTAssertLessThanOrEqual(mixedVelocity(1.0, genre: 1.18, user: 1), 1)`
+        // stood here and was deleted: `combined` already caps at 1, so the product is
+        // exactly 1.0 before `mixedVelocity`'s own clamp is reached — deleting that clamp
+        // entirely would have left the assertion passing. The line above pins the same cap
+        // by equality, and `testTheResultIsAlwaysFiniteAndInRangeForEveryInput` subsumes it.)
     }
 
     /// THE #174 PROPERTY. Baking the law onto an already-baked velocity compounds — so

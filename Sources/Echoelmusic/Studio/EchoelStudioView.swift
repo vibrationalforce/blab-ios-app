@@ -3346,33 +3346,54 @@ struct EchoelStudioView: View {
     /// was baked at compose time. A fader pulled to 0 exported silence, permanently.
     ///
     /// The level stays baked into VELOCITY on purpose. `PianoRollView` reads velocity as
-    /// "is this note audible" in three places — `audibleVelocityFloor`, the felt-sub
-    /// decision and the `MusicalFrame` publish — so moving the user term to trigger time
+    /// "is this note audible" (the two `audibleVelocityFloor` comparisons — the felt-sub
+    /// decision and the `MusicalFrame` publish) and as the note-on amplitude itself, so
+    /// moving the user term to trigger time
     /// would light the visual, the light output and the felt sub for notes nobody can
     /// hear. That is exactly #205, and re-deriving from `lastRawTake` avoids it without
     /// re-opening it.
     private func rebalanceTake() {
-        guard let take = lastRawTake, !take.bars.isEmpty else { applySoundLive(); return }
+        // NO RAW TAKE = NO RE-BAKE, so fall back to the OLD behaviour rather than doing
+        // nothing. `lastRawTake` is `@State`: nil until this app session's first
+        // generate(), and `open(_:)` restores an already-baked take via
+        // `pianoRoll.load(p.notes)` without it. Returning here would have made the fader a
+        // lying control on every opened project — the number moves, nothing else does
+        // (#164's class) — and would have been a REGRESSION, since `recomposeIfRunning()`
+        // at least applied the level, if at the price of a new take. Persisting the raw
+        // bars into `Project` is the real answer and is its own task; until then the
+        // fader always does something.
+        guard let take = lastRawTake, !take.bars.isEmpty else { recomposeIfRunning(); return }
         // `take.genre`, NOT `style`: the take must be re-glued with the genre it was
         // COMPOSED in, even if the user has since picked another one whose recompose has
         // not landed yet (see `lastRawTake`).
         let bars = take.bars.map { mixGlued($0, genre: take.genre) }
-        // `rebakeArrangement`, NOT `loadArrangement`: the latter routes a single-bar loop
-        // — the common case — through `load(_:)`, which begins with `allNotesOff()`, so
-        // every fader settle would chop the sounding notes. Playing → staged at the bar
-        // boundary, no cut; stopped → the ordinary load path.
+        // `rebakeArrangement`, NOT `loadArrangement`: the latter routes a SINGLE-bar loop
+        // through `load(_:)`, which begins with `allNotesOff()`, so a fader settle would
+        // chop the sounding notes. (The loop default is EIGHT bars — `StudioDefaultKeys`
+        // — so that is the edge case, not the common one; an earlier version of this
+        // comment claimed the opposite and would have sent the next reader to the wrong
+        // branch.) Playing → staged at the bar boundary, no cut; stopped → the ordinary
+        // load path.
         pianoRoll.rebakeArrangement(bars, playing: running && beatPlayer.pattern.isPlaying)
         // `createIfNeeded: false` — a level change must never invent a clip; it only
         // rewrites the composer-owned one if it is already there.
         syncPrimaryRollClip(bars: bars, createIfNeeded: false)
-        writeLaneTakes()
+        writeLaneTakes(lastLaneRaw)
         if !running { applySoundLive() }
     }
 
-    /// Coalesce fader movement into one re-bake. A drag writes continuously and each
-    /// re-bake rewrites clip contents; 120 ms is short enough that a decisive move still
-    /// lands within the same bar (the roll swaps at the bar boundary anyway) and long
-    /// enough that dragging does not rewrite the clip store per pixel.
+    /// Coalesce fader movement into one re-bake.
+    ///
+    /// 350 ms, and the number is set by the EXPENSIVE half, not the audible one. A
+    /// re-bake reaches `ClipStore.updateComposerMelody` → `persist()` → `AppGroupStore`,
+    /// i.e. a pretty-printed JSON encode of the whole clip grid plus an atomic
+    /// file-protected write — synchronously, on the actor that also hosts this view's
+    /// `.menu` Pickers. At 120 ms a stepwise drag could fire that ~8×/s, which is the
+    /// main-actor-starvation class that froze menus in 10.76.48. Nothing is LOST by
+    /// waiting: the roll swaps the new levels in at the next bar boundary regardless, and
+    /// a bar is ~2 s at any usable tempo. Still not free — if a device log ever shows a
+    /// hitch while dragging a Mix fader, the next step is to split the clip write onto its
+    /// own longer settle and keep only the roll on this one.
     ///
     /// DELIBERATELY NOT cancelled by `stopEverything` / `pausePlaybackKeepingSession`,
     /// unlike `regenTask`. Those cancel WORK GENERATORS — a pending re-bake starts no
@@ -3382,10 +3403,15 @@ struct EchoelStudioView: View {
     private func scheduleRebalance() {
         rebalanceTask?.cancel()
         rebalanceTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(120))
+            try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
+            // No `rebalanceTask = nil` here on purpose: this line is reachable only when
+            // the task was NOT cancelled, i.e. only when no successor handle has been
+            // stored, so it could never clear a live one — it would buy nothing and cost
+            // one more `@State` write (one more root invalidation) per re-bake. The
+            // sibling handles are nil'd from the cancel-all blocks, not from inside
+            // themselves.
             rebalanceTake()
-            rebalanceTask = nil
         }
     }
 
@@ -4535,7 +4561,7 @@ struct EchoelStudioView: View {
         // while this line reported ten notes and `rollMixGain=1.00` — and rollMixGain is
         // a RED HERRING in both directions: it is applied at trigger time and never
         // stored, so it cannot move the published amplitude at all. What CAN is the
-        // mixer bake twenty lines above (`n.velocity * MixerStore.combined(...)`), the
+        // mixer bake (`mixGlued` → `MixerStore.mixedVelocity`, no longer inline here), the
         // one multiplier in the whole chain with no floor under it: the composer clamps
         // every note to ≥ 0.05 and the genre term never goes below 0.85, so a published
         // 0.000 needs a USER fader below 0.0118 — on a 0.01-grid field that means 0.00
@@ -4545,7 +4571,7 @@ struct EchoelStudioView: View {
         // notes — a different investigation entirely. One line, four numbers, no new
         // call site and no new modifier.
         // Read `bars[0]`, NOT `composition.notes`: the latter is the composer's output
-        // BEFORE `finish()` applies the mixer bake, and the composer's own clamp puts a
+        // BEFORE `mixGlued` applies the mixer bake, and the composer's own clamp puts a
         // hard 0.05 floor under it — so it could never print 0.000 and would have been a
         // number that cannot answer the question it was added for.
         let vMax = bars.first?.map(\.velocity).max() ?? 0
@@ -4581,7 +4607,11 @@ struct EchoelStudioView: View {
                            notes: notes)
         }
         lastLaneRaw = raw
-        writeLaneTakes()
+        // Pass the local, do NOT let this read `lastLaneRaw` back: SwiftUI `State`
+        // set-then-get returns the OLD value inside a view update. Correct today only
+        // because generate() never runs during body evaluation — a parameter is correct
+        // unconditionally, and one refactor safer.
+        writeLaneTakes(raw)
     }
 
     /// Bake the stored lane takes at the CURRENT mixer levels and write them into each
@@ -4590,11 +4620,11 @@ struct EchoelStudioView: View {
     /// whatever level happened to be set when they were composed — otherwise the two
     /// paths would end up obeying two different laws, which is the failure mode this
     /// whole change exists to remove.
-    private func writeLaneTakes() {
-        guard !lastLaneRaw.isEmpty else { return }
+    private func writeLaneTakes(_ takes: [UUID: (genre: MusicStyle, notes: [Note])]) {
+        guard !takes.isEmpty else { return }
         // The generative instrument cycles bars 0..<loopBars — the active window.
         let windowTicks = max(1, loopBars.rawValue) * TimelineTime.ticksPerBar
-        for (laneID, take) in lastLaneRaw {
+        for (laneID, take) in takes {
             let glued = mixGlued(take.notes, genre: take.genre)
             var wrote = false
             for region in timelineStore.document.regions(in: laneID)
