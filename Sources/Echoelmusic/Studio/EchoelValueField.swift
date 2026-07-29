@@ -58,6 +58,31 @@ enum ScrubPrecision {
     /// to a slow finger reads as broken, which is the opposite of the ask.
     static let fineScale: Double = 0.22
 
+    /// How far ONE VoiceOver adjustment swipe moves the value, for a range of width `span`
+    /// displayed to `decimals` places.
+    ///
+    /// ⛔ WHY IT IS NOT JUST `span / 50` (found 2026-07-29, in review of the fix that wired
+    /// this path to the engine at all). `EchoelValueField.apply(_:)` snaps to the `10^decimals`
+    /// grid, so a step smaller than half that grid rounds back to where it started — the value
+    /// never moves and the swipe does nothing. Every `decimals: 0` field with a span under 25
+    /// was in that state, which is not an edge case: "Beats per bar" (1…12), the Field's
+    /// "Voices" (1…8), the FX "Bits" (1…16) and both Harmonizer intervals (−12…12) could not be
+    /// changed by VoiceOver at all, while the field's own hint promised "Swipe up or down to
+    /// adjust". Wiring the callback without this would have fixed the silence and left the
+    /// paralysis — a lying hint is the same defect class either way (#227).
+    ///
+    /// So the step is at least one grid unit. Fields whose fiftieth is already coarser than the
+    /// grid (a 20…18000 Hz cutoff moves ~360 Hz) are untouched — 50 swipes across a range stays
+    /// the design for everything that could already move.
+    static func adjustmentStep(span: Double, decimals: Int) -> Double {
+        let grid = pow(10.0, -Double(decimals))
+        let fiftieth = span / 50
+        // A non-finite or non-positive span (a degenerate `a...a` range) falls back to the grid
+        // rather than to zero: a control that cannot move is the thing being fixed here.
+        guard fiftieth.isFinite, fiftieth > 0 else { return grid }
+        return Swift.max(fiftieth, grid)
+    }
+
     /// Travel multiplier in `fineScale…1` for a finger speed in points per second.
     ///
     /// Non-finite input returns 1 (full travel), never 0 or a fine value: speed is
@@ -143,14 +168,46 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         .accessibilityLabel(label)
         .accessibilityValue(accessibleValue)
         .accessibilityHint("Swipe up or down to adjust, or double-tap to type")
+        // ⛔ BOTH CALLBACKS, and `onChange` is the one that was missing (found 2026-07-29).
+        // `apply(_:)` writes the binding and nothing else — the WORK lives in the caller's
+        // closures, and the two are not interchangeable: `onChange` is live-apply (7 argument
+        // sites — `applySoundLive()`, `applyArticulation()`, clearing the visual preset —
+        // reaching ~22 rendered rows through the `param`/`knob` helpers), `onCommit` is
+        // persist/settle (3 sites). This action called only `onCommit`, so every VoiceOver
+        // adjustment moved the number, saved it, and never reached the engine. The whole timbre
+        // editor behind the Sound chip — ship-gate 2 — was therefore REACHABLE AND INERT for a
+        // non-sighted performer: the spoken value changed and the instrument did not. The drag
+        // path (`onChange` per event, `onCommit` on end) and the keypad path (both, once) were
+        // always correct; only this one was half-wired.
+        //
+        // (Those counts were "10 / 5 / 15" in the first draft. That was `grep -c` on
+        // `onChange:` / `onCommit:`, which also counts the two property declarations above, an
+        // unrelated `SignalRouter.onChange`, and one line of prose. Ergrepped, cited, wrong.)
+        //
+        // Fires both ONCE, like the keypad — a swipe is a discrete completed edit — and only if
+        // the value actually moved. (#232)
         .accessibilityAdjustableAction { dir in
-            let span = Double(range.upperBound - range.lowerBound)
-            let step = span / 50
+            let step = ScrubPrecision.adjustmentStep(
+                span: Double(range.upperBound - range.lowerBound), decimals: decimals)
+            let before = value
             switch dir {
             case .increment: apply(Double(value) + step)
             case .decrement: apply(Double(value) - step)
-            @unknown default: break
+            // `return`, not `break`: an unhandled direction changed NOTHING, so announcing a
+            // change and a commit for it would push a phantom edit through every live-apply and
+            // persist closure. Falling through was harmless only while the value could not move
+            // without them.
+            @unknown default: return
             }
+            // Same principle one step further, and it is NOT cosmetic: at a range edge `apply`
+            // clamps, so the value is unchanged — and two of the seven closures do something
+            // destructive with an unchanged value. `visualPresetID = ""` drops the user's chosen
+            // visual look, and `applyArticulation()` overwrites hand-tuned Attack/Decay/Sustain/
+            // Release from an articulation that did not move. Swiping past the top must not undo
+            // work. (The drag path guards the requested delta rather than the snapped value, so
+            // it still has this hole — noted, not silently inherited.)
+            guard value != before else { return }
+            onChange()
             onCommit()
         }
     }
