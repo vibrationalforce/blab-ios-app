@@ -461,15 +461,27 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .rocksteady:         return 80...110
         case .heavyMetal:         return 130...185
         case .doom:               return 50...80
+        // ⚠️ THE THREE CALM WINDOWS BELOW: their ceiling is what keeps the pad from
+        // racing, and that still holds — nothing here can exceed 78 / 74 / 66 BPM.
+        // But the WAY an elevated pulse is brought inside changed on 2026-07-29
+        // (`StudioCalculator.genreTempo`), and these comments used to describe the
+        // broken version. They said an elevated pulse "octave-folds DOWN". It did —
+        // straight past the floor and back onto it, so 79 bpm on Fläche produced 46,
+        // the SLOWEST tempo the window allows. Today a body just above the ceiling
+        // holds AT the ceiling and only halves once it is closer to the floor's octave
+        // (the crossover is √(2·lo·hi): 84.7 Fläche, 84.3 drift, 76.2 contemplation).
+        // So: 79–84.7 on Fläche now gives 78, not 46. Calm is preserved by the
+        // CEILING, not by a fold — do not "restore" the old behaviour from this note.
+        //
         // Fläche window (founder 2026-07-07 "langsamere Vibes"): the ceiling
-        // drops 100 -> 78 so an elevated pulse octave-folds DOWN — the pad can
-        // never race; the floor still admits a deep resting pulse (46).
+        // drops 100 -> 78 so the pad can never race; the floor still admits a deep
+        // resting pulse (46).
         case .selfObservation:    return 46...78
         // Drift sits in the same calm band — a shade slower-centred than meditation
-        // so the pad floats; the ceiling stays low so an elevated pulse folds DOWN.
+        // so the pad floats; the ceiling stays low so nothing hurries.
         case .drift:              return 48...74
         // Contemplation is the slowest, deepest ambient window — a still, grounded
-        // pad; the low ceiling folds an elevated pulse down so it never hurries.
+        // pad; the lowest ceiling of the three.
         case .contemplation:      return 44...66
         }
     }

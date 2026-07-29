@@ -140,17 +140,77 @@ public struct StudioCalculator: Sendable, Equatable {
     /// tempo — Punk (160–210) or Trap (130–150) were unreachable. Here the pulse
     /// still DRIVES the beat, but at the genre's rhythmic level: doubling/halving
     /// preserves the felt relationship to the heart (66 bpm body → 132 bpm Trap =
-    /// the same pulse, double-time), and the final clamp guarantees the genre's
+    /// the same pulse, double-time), and the fallback guarantees the genre's
     /// identity window. Same runaway-safety as seedTempo: a 2× rPPG artifact folds
-    /// back down instead of slamming the clock. Both while-loops terminate for any
-    /// positive input (each strictly approaches the range from one side). Pure +
-    /// deterministic (Linux-CI-tested in StudioCalculatorTests).
+    /// back down instead of slamming the clock. Pure + deterministic (pinned in the
+    /// BLOCKING bundle, `Tests/CISmoke/GenreTempoFoldTests.swift`).
+    ///
+    /// ⛔ THE BUG THIS SHAPE EXISTS TO PREVENT (found 2026-07-29, shipped since B4).
+    /// The previous body was two independent loops followed by a clamp:
+    ///
+    ///     while t < range.lowerBound { t *= 2 }
+    ///     while t > range.upperBound { t /= 2 }
+    ///     return max(lowerBound, min(upperBound, t))
+    ///
+    /// The second loop could halve a value straight PAST the floor, and nothing
+    /// doubled it back — the clamp then pinned it to `lowerBound`. Because EVERY
+    /// genre window here is narrower than an octave (contemplation 44…66 is a ratio
+    /// of 1.5; psytrance 140…150 is 1.07), that was not a corner case: a body one
+    /// BPM above the ceiling produced the SLOWEST tempo the genre allows.
+    /// Traced on contemplation (44…66): 66 → 66, but 67 → 33.5 → **44**. 80 → **44**.
+    /// 134 → 67 → 33.5 → **44**. Measured in log space — the fraction of ONE octave of
+    /// body tempo that collapsed onto the floor, `log2(2·lo/hi)` — that is 41 % of
+    /// contemplation (44…66), 24 % of Fläche (46…78) and 90 % of psytrance (140…150).
+    /// The faster the body, the slower the music: the exact inverse of the one thing
+    /// this app claims to do.
+    ///
+    /// The floor is still a legitimate answer when NO octave lands inside a
+    /// sub-octave window — what changed is WHERE the crossover sits. It is now the
+    /// geometric mean `√(2·lo·hi)` (76.2 bpm on contemplation), i.e. the point where
+    /// halving and holding are equally far in musical terms. It used to sit one BPM
+    /// above the ceiling.
+    ///
+    /// The shape below cannot regress that way, because it never returns a folded
+    /// value it has not checked against BOTH bounds.
     public static func genreTempo(_ t: Double, into range: ClosedRange<Double>) -> Double {
-        guard t.isFinite, t > 0, range.lowerBound > 0 else { return range.lowerBound }
-        var t = t
-        while t < range.lowerBound { t *= 2 }
-        while t > range.upperBound { t /= 2 }
-        return Swift.max(range.lowerBound, Swift.min(range.upperBound, t))
+        // `lowerBound.isFinite` is not decoration: `ClosedRange<Double>` happily holds
+        // `.infinity...`, and the second loop below would spin forever on it
+        // (`inf / 2 >= inf` is true and `folded` never changes). No shipped
+        // `MusicStyle.tempoRange` can produce that — but the loop is the caller's to
+        // feed, and a hang is a worse failure than a fallback.
+        guard t.isFinite, t > 0, range.lowerBound > 0, range.lowerBound.isFinite else {
+            return range.lowerBound
+        }
+
+        // Fold to the UNIQUE octave of `t` that sits in `[lowerBound, 2·lowerBound)`.
+        // Both loops terminate for any finite t > 0, and neither can run away: the
+        // first doubles at most ⌈log2(lowerBound / t)⌉ times and stops the instant it
+        // reaches lowerBound, so it is bounded ABOVE by 2·lowerBound and can never
+        // overflow; the second halves at most ⌈log2(t / lowerBound)⌉ times and stops
+        // the instant another halving would cross lowerBound. Doubling and halving are
+        // exact in binary floating point, so neither loop can stall on a value that
+        // never changes.
+        var folded = t
+        while folded < range.lowerBound { folded *= 2 }
+        while folded / 2 >= range.lowerBound { folded /= 2 }
+
+        // An octave of the body lands inside the window — return it, whatever the
+        // window's width. (For a window spanning a full octave this branch always
+        // wins; for the narrower shipped ones it wins whenever the body's octave
+        // happens to fall between the bounds, which is the common case.)
+        if folded <= range.upperBound { return folded }
+
+        // No octave lands inside — `folded` is the lowest one above the floor and it
+        // overshoots the ceiling, so its half is necessarily below the floor. Those
+        // two are the only neighbouring candidates. Choose by musical distance, i.e.
+        // the smaller RATIO to its bound, not the smaller BPM difference: pushing a
+        // 261.7 bpm candidate down to 150 (×0.57) is a bigger musical move than lifting
+        // its half 130.9 up to 140 (×1.07), even though 111.7 BPM vs 9.1 BPM says the
+        // opposite. Ratios are safe to compare directly — every term is > 0 here.
+        let below = folded / 2
+        let liftFromBelow = range.lowerBound / below      // ≥ 1
+        let dropFromAbove = folded / range.upperBound     // > 1
+        return dropFromAbove <= liftFromBelow ? range.upperBound : range.lowerBound
     }
 
     // MARK: - Bar-aligned loop trim window (audit C6/C7)

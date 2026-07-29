@@ -62,6 +62,12 @@ final class StudioCalculatorTests: XCTestCase {
     }
 
     // MARK: - Genre tempo fold (audit B4 — body tempo INTO the genre window)
+    //
+    // ⚠️ THESE CASES DO NOT GATE A MERGE. This file builds only in `full-tests.yml`, which is
+    // `continue-on-error: true` on both its build and its run step (#208). They also passed
+    // unbroken while `genreTempo` inverted the mapping for every input just above a genre
+    // ceiling — none of them fed such a value. The regression guard that DOES gate is
+    // `Tests/CISmoke/GenreTempoFoldTests.swift`; extend that one, not this one.
 
     func testGenreTempoPassesThroughWhenInRange() {
         XCTAssertEqual(StudioCalculator.genreTempo(120, into: 110...155), 120)
@@ -75,7 +81,11 @@ final class StudioCalculatorTests: XCTestCase {
     }
 
     func testGenreTempoFoldsRunawayEstimateBackDown() {
-        // The 2× rPPG artifact (196) folds down to 98, then clamps to the window edge.
+        // The 2× rPPG artifact (196). No octave of it lands inside either window, so the
+        // nearest bound wins — and 98 (the octave below) is a shorter musical move up to the
+        // floor than 196 is down to the ceiling. NOTE the mechanism changed on 2026-07-29:
+        // 196 is no longer HALVED and then clamped, it is compared against both bounds. Same
+        // numbers, different route — see `Tests/CISmoke/GenreTempoFoldTests.swift`.
         XCTAssertEqual(StudioCalculator.genreTempo(196, into: 115...125), 115)
         XCTAssertEqual(StudioCalculator.genreTempo(196, into: 110...155), 110)
     }
