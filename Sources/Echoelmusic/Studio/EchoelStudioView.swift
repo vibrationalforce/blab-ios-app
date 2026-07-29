@@ -454,7 +454,13 @@ struct EchoelStudioView: View {
     /// The menu-bar entries. Each case reuses an EXISTING panel builder as its
     /// dropdown content — no new surfaces, the card pile just moved into menus.
     private enum StudioMenu: String, CaseIterable, Identifiable {
-        case bio, composition, session, sound, mix, effects, master, mood, export, synth, video
+        // ⚠️ `field` was `synth` until 2026-07-29. Safe to rename ONLY because the raw value
+        // is not persisted anywhere: `activeMenu` is `@State` (:452), the raw value serves
+        // as `Identifiable.id` and nothing else, and the string dispatch further down
+        // (:593-612) never named "synth". The `touch.*` AppStorage keys behind this panel are
+        // a different matter and are deliberately NOT renamed — those DO persist, and
+        // renaming them would silently discard every setting already dialled in.
+        case bio, composition, session, sound, mix, effects, master, mood, export, field, video
         var id: String { rawValue }
         /// Short chip label (DAW-style small buttons — Uncodixfy 12 pt chips).
         var label: String {
@@ -468,7 +474,7 @@ struct EchoelStudioView: View {
             case .master:      return "Master"
             case .mood:        return "Mood"
             case .export:      return "Export"
-            case .synth:       return "Synth"
+            case .field:       return "Field"
             case .video:       return "Video"
             }
         }
@@ -490,7 +496,11 @@ struct EchoelStudioView: View {
             case .master:      return "Master"
             case .mood:        return "Mood"
             case .export:      return "Export — WAV loop"
-            case .synth:       return "EchoelSynth — immersive visual window"
+            // Was "EchoelSynth — immersive visual window", which named the wrong half and
+            // collided with the patch editor behind "Sound". This panel governs ONE thing
+            // from two sides: the field's look, and the field's voice under your fingers.
+            // Nobody could guess from the old string that the picture is playable.
+            case .field:       return "Field — the visual surface you play with your fingers"
             case .video:       return "Video — recorded clips library"
             }
         }
@@ -1376,7 +1386,7 @@ struct EchoelStudioView: View {
         case .master:      return AnyView(masterPanel)
         case .mood:        return AnyView(moodPanel)
         case .export:      return AnyView(utilityRow)
-        case .synth:       return AnyView(visualPanel)
+        case .field:       return AnyView(visualPanel)
         case .video:       return AnyView(videoPanel)
         }
     }
@@ -2421,7 +2431,7 @@ struct EchoelStudioView: View {
         // instead of labelling — every other one is a terse noun phrase ("Level per
         // part", "Production character"). A window you can already see, drag and resize
         // does not need a sentence telling you that you can drag and resize it.
-        panel("EchoelSynth", isExpanded: $showVisualSettings) {
+        panel("Field", isExpanded: $showVisualSettings) {
             Button {
                 floatingVisualVisible.toggle()
             } label: {
@@ -2463,10 +2473,14 @@ struct EchoelStudioView: View {
     /// sheet (the modifier-chain metadata rule).
     private var touchSoundSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Play surface sound")
+            // "Voice", paired with the "Look" heading further up: the panel is now one
+            // surface described from its two sides, instead of a visual panel with a sound
+            // section bolted to the end. The two headings are the whole of Slice 1's
+            // "ordering" — the rows under them are untouched.
+            Text("Voice")
                 .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
                 .padding(.top, 4)
-            Text("What your fingers sound like on the fullscreen visual. Take sound follows the generated music; pick a patch to give the surface its own voice.")
+            Text("What your fingers sound like on the field. Take sound follows the generated music; pick a patch to give the field its own voice.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             ScrollView(.horizontal, showsIndicators: false) {

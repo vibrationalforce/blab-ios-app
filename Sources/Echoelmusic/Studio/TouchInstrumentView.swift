@@ -364,7 +364,12 @@ final class TouchInstrumentUIView: UIView {
         // drawn OVER the surrounding Studio UI (play-at-every-size made this visible).
         clipsToBounds = true
         isAccessibilityElement = true
-        accessibilityLabel = "EchoelSynth play surface"
+        // The surface is called "Field" (founder 2026-07-29, rename delegated). This is the
+        // one string a VoiceOver user hears for it, so it has to match the chip and the
+        // panel heading exactly — a surface with two names is a surface nobody can be told
+        // how to find. ⚠️ The `touch.*` AppStorage keys behind it are deliberately NOT
+        // renamed: those persist, and renaming them would discard settings already dialled in.
+        accessibilityLabel = "Field play surface"
         accessibilityHint = "Touch and slide to play notes in the current key"
         // DIRECT INTERACTION — the accessibility standard for musical instruments
         // (GarageBand model): a VoiceOver user double-taps the surface once, then
