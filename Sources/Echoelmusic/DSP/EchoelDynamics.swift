@@ -26,6 +26,16 @@ public final class EchoelCompressor: @unchecked Sendable {
 
     /// Decay time of the DETECTOR's peak envelope, in ms — deliberately a constant and
     /// deliberately NOT `releaseMs`. See `processStereo` for the measurement that picked it.
+    ///
+    /// ⚠️ WHAT #221 MEANS FOR THE BOTTOM OF THE RELEASE RANGE, stated before a listening pass
+    /// reports it as a bug: the two stages are in SERIES, so the audible recovery is roughly
+    /// their sum. Dialling `releaseMs` down to the UI's 10 ms floor therefore does not give a
+    /// 10 ms recovery — this envelope still has to fall, so the result is ~40-something ms and
+    /// the last stretch of the control's travel does very little. That is a real, deliberate
+    /// floor on how fast this compressor can let go, not a broken slider: the constant exists
+    /// because a detector that tracked `releaseMs` reintroduced the #198 ripple. If the founder
+    /// wants a genuinely faster release, the change is to this constant (with the #198
+    /// measurement redone), not to the row's range.
     private static let detectorReleaseMs: Float = 40
 
     private let sr: Float
@@ -217,12 +227,17 @@ public final class EchoelCompressor: @unchecked Sendable {
         // to resting, never to silence" law. ⚠️ THIS CLAMP IS NOW LIVE, not a guard against a
         // future control: as of #221 `EchoelFXView` exposes Attack/Release/Knee and `FXPreset`
         // persists them, so a hand-edited or corrupted preset really can reach this function
-        // with any Float. (Two earlier versions of this comment were each true when written
-        // and then went stale — the first claimed a preset could restore a release time when
-        // none could, the second said nothing ever would. A "nothing writes this" note is a
-        // dated claim, so it has to be re-read whenever a control is added, and this is that
-        // re-read.) The UI's own range is 0.1…100 ms / 10…1000 ms; that is the range of GOOD
-        // values, this is the range of SAFE ones, and they are deliberately not the same.
+        // with any Float. (Comment history, corrected — the version that stood here got it
+        // wrong in a way worth pinning: it said two earlier versions "were each true when
+        // written and then went stale". Neither half holds. The FIRST was never true; #198
+        // deleted it precisely BECAUSE it claimed a preset could restore a release time when
+        // none could. The SECOND — #198's own — did not say nothing ever would; it said
+        // "today", and called this "a guard against a FUTURE control, exactly like the
+        // limiter's". It aged exactly as it said it would. So the lesson is narrower than
+        // "comments go stale": a dated claim has to be RE-READ, not summarized from memory,
+        // whenever a control is added. This is that re-read.) The UI's own range is
+        // 0.1…100 ms / 10…1000 ms; that is the range of GOOD values, this is the range of
+        // SAFE ones, and they are deliberately not the same.
         let t = Swift.min(Swift.max(0.01, ms), 10_000) * 0.001 * sr
         return 1.0 - expf(-1.0 / t)
     }
@@ -491,10 +506,24 @@ public final class EchoelLimiter: @unchecked Sendable {
         // normal.
         //
         // ⚠️ STILL TRUE AFTER #221, and deliberately so — the compressor got Attack/Release
-        // controls, the limiter did NOT. This one is the last stage and a brick wall: its job
-        // is the −1 dBFS true-peak guarantee, and a user-slowed attack would let material
-        // overshoot the ceiling it exists to hold. Exposing it is a different decision with a
-        // different risk, not the same slice with one more row.
+        // controls, the limiter did NOT.
+        //
+        // ⛔ AND THE REASON MATTERS, because the first version of this note gave the wrong
+        // one: it said a user-slowed attack "would let material overshoot the ceiling". It
+        // would not. Line ~470 — `if peak * g > ceilingLin { g = target }` — is an
+        // UNCONDITIONAL per-sample guard, and `env >= peak` by the instant-rise detector, so
+        // `peak * target <= ceiling` holds no matter what the attack coefficient is. The
+        // ceiling is safe at any attack. What a slowed attack costs is WAVEFORM SHAPE: the
+        // smoother arrives late, so the absolute guard engages on far more samples, and a
+        // guard that snaps `g` to `target` every sample IS the zero-attack limiter this class
+        // stopped being in #199 — algebraically the hard clipper behind the founder's
+        // "Es knistert". So the risk of exposing it is aliasing, not overshoot. That
+        // distinction is load-bearing: the wrong reason would let a later session "fix" a
+        // crackle report by trusting a ceiling guarantee that was never in danger.
+        //
+        // (Also corrected: this is a SAMPLE-peak limiter with a −0.3 dB default ceiling, not
+        // a "−1 dBFS true-peak" stage. True peak is measured in `EchoelMeter` and trimmed
+        // separately in `AudioEngine`, downstream of here.)
         let t = Swift.min(Swift.max(0.01, ms), 10_000) * 0.001 * sr
         return 1.0 - expf(-1.0 / t)
     }

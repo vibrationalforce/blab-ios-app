@@ -50,10 +50,17 @@ final class FXPresetCompressorTimingTests: XCTestCase {
                        "an old preset must keep its knee")
     }
 
-    /// The controls must survive a save/load round-trip. Trivial-looking and not trivial: the
-    /// `CodingKeys` here are SYNTHESIZED while `init(from:)` is hand-written, so a property
-    /// added to the struct but forgotten in the decoder encodes fine and silently decodes to
-    /// a default forever. That asymmetry is exactly what this catches.
+    /// The controls must survive a save/load round-trip. `CodingKeys` and `encode(to:)` here
+    /// are SYNTHESIZED while `init(from:)` is hand-written as one `f(.key, default)` lookup
+    /// per field — so the asymmetry this covers is a MIS-WIRED key, `compAttack = f(.compRelease, …)`,
+    /// the copy-paste slip that fifty near-identical lines invite. Encoding still writes both
+    /// keys, decoding silently crosses or drops them, and nothing anywhere raises.
+    ///
+    /// ⚠️ It does NOT catch "a property added to the struct but forgotten in the decoder" —
+    /// an earlier version of this comment claimed that, and it is compiler-impossible: these
+    /// three have no declaration-site default, so omitting them from `init(from:)` leaves
+    /// `self` uninitialized and the file does not build. Worth stating, because a test whose
+    /// advertised failure mode cannot occur reads as covering more than it does.
     func testTheTimingControlsSurviveASaveAndLoad() throws {
         var preset = FXPreset.capture(from: EchoelFXChain(sampleRate: 48000), fxEnabled: true, name: "Round")
         preset.compAttack = 3.5
@@ -99,37 +106,57 @@ final class FXPresetCompressorTimingTests: XCTestCase {
     }
 
     /// THE SAFETY PROPERTY THE UI RANGE DOES NOT PROVIDE. `EchoelCompressor.coeff(forMs:)`
-    /// clamps to 0.01…10 000 ms because past ~700 s the coefficient rounds to exactly 0 in
-    /// Float and the gain reduction can never return to 0 — permanent attenuation, the
-    /// "fail to resting, never to silence" law. Until #221 nothing could write those fields,
-    /// so the clamp guarded a hypothetical. It now guards a real path: a hand-edited or
-    /// corrupted preset carries any Float straight into the engine.
+    /// clamps to 0.01…10 000 ms because past ~700 s `1 - expf(-1/t)` rounds to exactly 0 in
+    /// Float, the coefficient dies, and the gain reduction can never move back toward 0 —
+    /// permanent attenuation, the "fail to resting, never to silence" law. Until #221 nothing
+    /// could write those fields, so the clamp guarded a hypothetical. It now guards a real
+    /// path: a hand-edited or corrupted preset carries any Float straight into the engine.
     ///
-    /// Asserted through BEHAVIOUR rather than the private coefficient: after an absurd
-    /// release, the compressor must still produce finite audio and still recover.
-    func testAnAbsurdPresetCannotLatchTheCompressor() {
-        let chain = EchoelFXChain(sampleRate: 48000)
-        chain.compressorEnabled = true
-        chain.compressor.thresholdDb = -30
-        chain.compressor.ratio = 20
-        chain.compressor.attackMs = .greatestFiniteMagnitude
-        chain.compressor.releaseMs = .greatestFiniteMagnitude
+    /// ⚠️ THE FIRST VERSION OF THIS TEST COULD NOT FAIL, and it is worth knowing exactly how,
+    /// because it looked thorough. It set the absurd timing BEFORE processing anything: with
+    /// `ms = .greatestFiniteMagnitude` the unclamped `t` overflows Float to `+inf`, so BOTH
+    /// coefficients are 0 from the very first sample, `grState` never leaves 0, and the output
+    /// is simply the input — green with the clamp deleted. A latch needs attenuation to exist
+    /// FIRST and then be unable to leave. Its second assertion was unfailable too (`grState`
+    /// is bounded, so a latched compressor still outputs ~0.002, never 0), and its "silence"
+    /// was −26 dBFS against a −30 dB threshold — 4 dB ABOVE it, so the recovery phase it
+    /// claimed to test was still the attack branch.
+    ///
+    /// This version builds real gain reduction with HEALTHY ballistics, then writes the absurd
+    /// release, then feeds true silence and asserts the reduction actually returns.
+    func testAnAbsurdReleaseCannotLatchTheCompressor() {
+        let comp = EchoelCompressor(sampleRate: 48000)
+        comp.thresholdDb = -30
+        comp.ratio = 20
+        comp.attackMs = 1                     // healthy, so reduction really accumulates
 
-        // A loud burst to drive gain reduction, then silence to see it come back.
-        for _ in 0..<4800 { _ = chain.compressor.processStereo(0.9, 0.9) }
-        var last: Float = 0
-        for _ in 0..<48_000 { last = chain.compressor.processStereo(0.05, 0.05).0 }
+        for _ in 0..<4800 { _ = comp.processStereo(0.9, 0.9) }
+        let reduced = comp.gainReductionDb
+        XCTAssertLessThan(reduced, -6,
+                          "the burst did not compress — the rest of this test would be vacuous")
 
-        XCTAssertTrue(last.isFinite, "an absurd timing must not produce non-finite audio")
-        XCTAssertGreaterThan(abs(last), 0,
-                             "the compressor latched at full attenuation — the permanent-"
-                             + "silence failure the ms clamp exists to prevent")
+        // NOW the corrupted value arrives, exactly as a hand-edited preset would deliver it.
+        comp.releaseMs = .greatestFiniteMagnitude
+
+        // True silence: unambiguously below the threshold and below the knee, so the release
+        // branch is the only one that can run.
+        var out: Float = 1
+        for _ in 0..<96_000 { out = comp.processStereo(0, 0).0 }
+
+        XCTAssertTrue(out.isFinite, "an absurd timing must not produce non-finite audio")
+        XCTAssertGreaterThan(comp.gainReductionDb, reduced + 1,
+                             "the gain reduction never moved back toward 0 — the latched, "
+                             + "permanently-attenuating state the ms clamp exists to prevent")
     }
 
     /// The LIMITER deliberately did NOT get these controls, and that is a decision rather than
-    /// an oversight: it is the last stage and a brick wall holding the true-peak ceiling, so a
-    /// user-slowed attack would let material overshoot the very thing it exists to guarantee.
-    /// Pinned so "finish the job" later is a deliberate act with a red test, not a tidy-up.
+    /// an oversight. ⛔ THE REASON GIVEN HERE WAS WRONG and is corrected in place: it said a
+    /// user-slowed attack "would let material overshoot the ceiling". It would not —
+    /// `EchoelDynamics.swift`'s `if peak * g > ceilingLin { g = target }` is an unconditional
+    /// per-sample guard, so the ceiling holds at any attack. What a slowed attack costs is
+    /// waveform SHAPE: the guard then engages on most samples, which is algebraically the
+    /// zero-attack hard clipper #199 removed after the founder's "Es knistert". Aliasing, not
+    /// overshoot. Pinned so "finish the job" later is a deliberate act with a red test.
     func testTheLimiterTimingIsStillNotAPresetField() {
         let source = EchoelFXChain(sampleRate: 48000)
         source.limiter.attackMs = 40          // absurd for a brick wall

@@ -235,7 +235,13 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         reverbEnabled: Bool, reverbRoomSize: Float, reverbDamping: Float,
         reverbMix: Float, reverbWidth: Float,
         compressorEnabled: Bool, compThreshold: Float, compRatio: Float, compMakeup: Float,
-        compAttack: Float = 10, compRelease: Float = 120, compKnee: Float = 6,
+        // ⛔ NO DEFAULTS HERE, deliberately — unlike `init(from:)`, where 10/120/6 are the
+        // load-bearing backward-compatibility values for a pre-#221 payload. Both callers
+        // (`capture`, the morph `L(...)`) read the real numbers off the chain, so defaults
+        // here would buy nothing and would be a THIRD unpinned copy of the engine's
+        // constants — the copy a future call site could silently drift against by simply
+        // omitting the arguments. No other parameter in this memberwise init has one either.
+        compAttack: Float, compRelease: Float, compKnee: Float,
         limiterEnabled: Bool, limiterCeiling: Float
     ) {
         self.id = id; self.name = name; self.tags = tags; self.schema = schema
