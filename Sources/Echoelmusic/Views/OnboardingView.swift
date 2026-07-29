@@ -43,9 +43,14 @@ struct OnboardingView: View {
         VStack(spacing: 24) {
             Spacer()
 
+            // ⛔ DECORATIVE. Without this VoiceOver announces "square grid four by three
+            // fill" — an SF Symbol's API name, read aloud, as the FIRST thing a blind user
+            // hears from Echoel. All three page glyphs carry no information the headline
+            // below them does not already carry.
             Image(systemName: "square.grid.4x3.fill")
                 .font(EchoelTheme.font(48))
                 .foregroundStyle(EchoelTheme.text.opacity(0.3))
+                .accessibilityHidden(true)
 
             Text("Echoelmusic")
                 .font(EchoelTheme.font(32, .bold))
@@ -76,6 +81,7 @@ struct OnboardingView: View {
             Image(systemName: "calendar.badge.clock")
                 .font(EchoelTheme.font(48))
                 .foregroundStyle(EchoelTheme.text.opacity(0.3))
+                .accessibilityHidden(true)
 
             Text("The wider vision")
                 .font(EchoelTheme.font(24, .bold))
@@ -108,6 +114,7 @@ struct OnboardingView: View {
             Image(systemName: "waveform")
                 .font(EchoelTheme.font(48))
                 .foregroundStyle(EchoelTheme.text.opacity(0.3))
+                .accessibilityHidden(true)
 
             Text("Ready")
                 .font(EchoelTheme.font(24, .bold))
@@ -131,6 +138,10 @@ struct OnboardingView: View {
             .padding(14)
             .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
             .padding(.horizontal, 32)
+            // Named as a container so a VoiceOver user knows what the five rows below the
+            // heading ARE before reading them, and so the toggle's hint can refer to it.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Safety and privacy notice")
 
             Toggle(isOn: $acknowledgedSafety) {
                 Text("I understand")
@@ -139,6 +150,15 @@ struct OnboardingView: View {
             }
             .tint(EchoelTheme.text)
             .padding(.horizontal, 32)
+            // ⚠️ THIS TOGGLE IS A CONSENT, not a preference — the Start button below stays
+            // disabled until it is on. Sighted users read the five warnings sitting directly
+            // above it; a VoiceOver user arriving at the control heard only "I understand,
+            // switch, off", with no statement of WHAT is understood. That is the one place in
+            // onboarding where a missing hint is a substantive problem rather than a rough
+            // edge, so it names the notice explicitly.
+            .accessibilityHint("Confirms you have read the safety and privacy notice above: "
+                               + "for self-observation, not medical diagnosis; not while "
+                               + "driving or under the influence; visuals capped at 3 hertz.")
 
             Spacer()
 
@@ -146,8 +166,12 @@ struct OnboardingView: View {
                 isComplete = true
             } label: {
                 HStack(spacing: 8) {
+                    // Inside a Button label SwiftUI combines children, so without this the
+                    // button announces "play fill, Start" — the glyph name read as part of
+                    // the action.
                     Image(systemName: "play.fill")
                         .font(EchoelTheme.font(13))
+                        .accessibilityHidden(true)
                     Text("Start")
                 }
                 .font(EchoelTheme.font(15, .semibold))
@@ -171,6 +195,7 @@ struct OnboardingView: View {
                 .font(EchoelTheme.font(14))
                 .frame(width: 20)
                 .foregroundStyle(EchoelTheme.text.opacity(0.5))
+                .accessibilityHidden(true)
             Text(text)
                 .font(EchoelTheme.font(14))
                 .foregroundStyle(EchoelTheme.text.opacity(0.6))
@@ -183,10 +208,13 @@ struct OnboardingView: View {
         // warnings were the least legible text in onboarding (~4.3:1, below the
         // WCAG AA 4.5:1 small-text minimum; AX audit 2026-07-09).
         HStack(alignment: .top, spacing: 8) {
+            // The glyph restates the sentence; announcing "cross case" before "Coordinate any
+            // therapeutic use with your provider" adds noise to a MANDATED warning.
             Image(systemName: symbol)
                 .font(EchoelTheme.font(11))
                 .frame(width: 16)
                 .foregroundStyle(EchoelTheme.text.opacity(0.6))
+                .accessibilityHidden(true)
             Text(text)
                 .font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.text.opacity(0.7))
