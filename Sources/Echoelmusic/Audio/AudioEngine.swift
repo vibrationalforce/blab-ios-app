@@ -120,9 +120,11 @@ public final class AudioEngine {
     /// however long the tap's own delivery path was descheduled, and this instrument
     /// exists to tell starvation of the audio path apart from everything else.
     @ObservationIgnored nonisolated(unsafe) private let _lastTapTicks = UnsafeMutablePointer<UInt64>.allocate(capacity: 1)
-    /// Frame position of the previous delivery. A jump other than exactly `frameLength`
-    /// means the RENDER STREAM itself broke (engine pause/restart/reset) — the interval
-    /// across it is not a timing measurement. `Int64.min` = unknown/unavailable.
+    /// Frame position of the previous delivery. How far it advanced versus how far the
+    /// PREVIOUS buffer said it should is the second, independent channel: forward drift =
+    /// audio that was never rendered, backwards = the stream restarted. It is NOT true
+    /// that any drift means a pause — that claim was the reason a dropped render cycle
+    /// spent one commit being filed as "ignored". `Int64.min` = unknown/unavailable.
     @ObservationIgnored nonisolated(unsafe) private let _lastTapSampleTime = UnsafeMutablePointer<Int64>.allocate(capacity: 1)
     /// Frames the PREVIOUS delivery carried. The interval between two deliveries covers
     /// that buffer's worth of audio, so it is the number the interval is measured
@@ -140,6 +142,16 @@ public final class AudioEngine {
     @ObservationIgnored nonisolated(unsafe) private let _gapWorst = UnsafeMutablePointer<Double>.allocate(capacity: 1)
     /// Intervals discarded as pause/restart artefacts rather than counted as starvation.
     @ObservationIgnored nonisolated(unsafe) private let _discCount = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+    /// Worst FRAME drift seen alongside a late interval, in render quanta. Reported next
+    /// to the lateness because the two together say something neither says alone: drift
+    /// with lateness = audio was skipped; lateness with ZERO drift = the graph was not
+    /// rendering at all (a short pause), which is a different fault with the same symptom.
+    /// Which of the two the founder's device actually produces is the open question this
+    /// instrument exists to settle, so it must not be reduced to one number here.
+    @ObservationIgnored nonisolated(unsafe) private let _driftWorst = UnsafeMutablePointer<Double>.allocate(capacity: 1)
+    /// The granted IO buffer in frames, read by the tap. A CELL and not a captured copy
+    /// so a mid-session route change can update it without re-installing the tap.
+    @ObservationIgnored nonisolated(unsafe) private let _quantumFrames = UnsafeMutablePointer<Int>.allocate(capacity: 1)
     /// mach ticks → seconds, resolved ONCE on the main actor (`mach_timebase_info` is a
     /// syscall-ish lookup and has no business on the audio path). Captured by value into
     /// the tap closure so the callback does nothing but multiply.
@@ -248,6 +260,8 @@ public final class AudioEngine {
         _gapCount.initialize(to: 0)
         _gapWorst.initialize(to: 0)
         _discCount.initialize(to: 0)
+        _driftWorst.initialize(to: 0)
+        _quantumFrames.initialize(to: Int(AudioConfiguration.currentBufferSize))
         // Resolve the mach timebase once, here, so the audio path never does. On Apple
         // silicon numer/denom are not 1/1, so the ratio is not optional.
         var timebase = mach_timebase_info_data_t()
@@ -427,6 +441,11 @@ public final class AudioEngine {
                 if self.masterEngine.isRunning {
                     self.recoveryAttempts = 0
                     self.retroCapture.install(on: self.masterEngine)
+                    // The route changed under a surviving tap: the granted IO buffer may
+                    // be a different size now, and the render may have gapped across the
+                    // switch. Re-read the one, forget the baseline for the other (#193).
+                    self.refreshRenderQuantum(sampleRate: self.sampleRate)
+                    self.armTimingInstrument()
                     return
                 }
                 // Engine actually stopped: recover only if we were meant to be running.
@@ -600,8 +619,9 @@ public final class AudioEngine {
             // by side in `AudioConfiguration.describeSession`). Believing 512 while
             // running 1024 would double every figure here AND print a millisecond value
             // that is simply wrong — which is the one thing that value exists to prevent.
-            let quantumFrames = resolveRenderQuantumFrames(sampleRate: meterFormat.sampleRate)
-            timingQuantumFrames = quantumFrames
+            refreshRenderQuantum(sampleRate: meterFormat.sampleRate)
+            let quantumPtr = _quantumFrames
+            let driftWorstPtr = _driftWorst
             armTimingInstrument()
             masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, when in
                 guard let channelData = buffer.floatChannelData else { return }
@@ -621,30 +641,35 @@ public final class AudioEngine {
                 // the interval spans top-of-callback N−1 → N and therefore CONTAINS the
                 // previous callback's metering work: this instrument can implicate the
                 // meters, it cannot exonerate them. `when.sampleTime` is the second,
-                // sharper channel — a jump other than `frameLength` means the render stream
-                // itself broke (pause/restart), which is not a timing measurement at all.
+                // INDEPENDENT channel: how far the render position advanced versus how far
+                // the previous buffer said it should. The two disagree in a way that is
+                // itself diagnostic, so both are reported rather than reduced to one.
                 // See `RenderGapDetector` for the full statement of what it does not prove.
                 let previousFrames = tapFramesPtr.pointee
                 tapFramesPtr.pointee = Int(frameLength)
-                if tickRatio > 0 && when.isHostTimeValid {
-                    let now = when.hostTime
-                    let last = lastTicksPtr.pointee
-                    lastTicksPtr.pointee = now
+                // Both baselines are updated on EVERY delivery, valid or not — outside
+                // the measuring branch below. An earlier version reset them inside it, so
+                // one delivery with an unusable timestamp left BOTH cells holding a stamp
+                // two buffers old, and the next good delivery measured across that hole
+                // and fabricated a glitch out of it.
+                let hostValid = when.isHostTimeValid
+                let now = hostValid ? when.hostTime : 0
+                let last = lastTicksPtr.pointee
+                lastTicksPtr.pointee = now
 
-                    // `nil` = this delivery carried no usable frame position, so the
-                    // second channel abstains rather than voting blind. Reset to unknown
-                    // in that case too: keeping a stale position would make the NEXT
-                    // valid delivery compare across a hole and read as a fake break.
-                    var sampleGap: Int64?
-                    if when.isSampleTimeValid {
-                        let position = when.sampleTime
-                        let previous = lastSamplePtr.pointee
-                        lastSamplePtr.pointee = position
-                        if previous != Int64.min { sampleGap = position &- previous }
-                    } else {
-                        lastSamplePtr.pointee = Int64.min
-                    }
+                // `nil` = this delivery carried no usable frame position, so the second
+                // channel abstains rather than voting blind.
+                var sampleGap: Int64?
+                if when.isSampleTimeValid {
+                    let position = when.sampleTime
+                    let previous = lastSamplePtr.pointee
+                    lastSamplePtr.pointee = position
+                    if previous != Int64.min { sampleGap = position &- previous }
+                } else {
+                    lastSamplePtr.pointee = Int64.min
+                }
 
+                if tickRatio > 0 && hostValid {
                     if last != 0 && now > last && previousFrames > 0 {
                         let elapsed = Double(now &- last) * tickRatio
                         measuredPtr.pointee &+= 1
@@ -652,12 +677,13 @@ public final class AudioEngine {
                                                           previousFrames: previousFrames,
                                                           sampleGap: sampleGap,
                                                           sampleRate: tapRate,
-                                                          renderQuantumFrames: quantumFrames) {
+                                                          renderQuantumFrames: quantumPtr.pointee) {
                         case .discontinuity:
                             discCountPtr.pointee &+= 1
-                        case .glitch(let lateInQuanta):
+                        case .glitch(let lateInQuanta, let driftInQuanta):
                             gapCountPtr.pointee &+= 1
                             if lateInQuanta > gapWorstPtr.pointee { gapWorstPtr.pointee = lateInQuanta }
+                            if driftInQuanta > driftWorstPtr.pointee { driftWorstPtr.pointee = driftInQuanta }
                         case .onTime:
                             break
                         }
@@ -779,19 +805,27 @@ public final class AudioEngine {
     /// they heard.
     private static let timingWindowSeconds: TimeInterval = 60
 
-    /// The IO buffer size the audio session actually GRANTED, in frames — the unit the
-    /// timing instrument denominates lateness in.
+    /// Re-read the IO buffer size the audio session actually GRANTED, in frames — the
+    /// unit the timing instrument denominates lateness in.
     ///
     /// `AudioConfiguration.currentBufferSize` is only ever handed to
     /// `setPreferredIOBufferDuration`; iOS is free to grant something else and routinely
     /// does (always on Bluetooth). Falls back to the preference when the session cannot
     /// answer — on a non-iOS build there is no session to ask.
-    private func resolveRenderQuantumFrames(sampleRate: Double) -> Int {
+    ///
+    /// Called at tap install AND on a configuration change that leaves the tap in place:
+    /// plugging in AirPods mid-session changes the granted buffer without re-installing
+    /// anything, and a stale value would scale every figure by the ratio while printing a
+    /// millisecond number for a buffer the device is not running. The tap reads the cell,
+    /// not a captured copy, for exactly that reason.
+    private func refreshRenderQuantum(sampleRate: Double) {
+        var frames = Int(AudioConfiguration.currentBufferSize)
         #if os(iOS)
         let granted = AVAudioSession.sharedInstance().ioBufferDuration * sampleRate
-        if granted.isFinite, granted >= 1 { return Int(granted.rounded()) }
+        if granted.isFinite, granted >= 1 { frames = Int(granted.rounded()) }
         #endif
-        return Int(AudioConfiguration.currentBufferSize)
+        _quantumFrames.pointee = frames
+        timingQuantumFrames = frames
     }
 
     /// Forget the previous delivery so the first interval AFTER a (re)start is not
@@ -807,10 +841,13 @@ public final class AudioEngine {
     /// interruption-resume closure needs it: that closure inherits MainActor isolation
     /// from its context and calls `masterEngine.start()` right below.
     ///
-    /// This is belt; the braces are the `sampleTime` check in the tap, which catches any
-    /// restart path that forgets to call this. One residual, pre-existing: `removeTap`
-    /// does not guarantee an in-flight block has returned, so a straggler can undo the
-    /// arm at re-install. Bounded to one spurious discontinuity by the pause ceiling.
+    /// This is belt. The braces are narrower than they sound: the `sampleTime` check
+    /// catches a BACKWARDS jump, and the 32-quantum ceiling catches a long gap — a pause
+    /// shorter than ~340 ms that leaves the render position untouched is caught by
+    /// neither, and is reported as lateness with a zero frame drift beside it. That
+    /// pairing is the honest output, not a classification. One residual, pre-existing:
+    /// `removeTap` does not guarantee an in-flight block has returned, so a straggler can
+    /// undo the arm at re-install. Bounded to one spurious discontinuity by the ceiling.
     nonisolated private func armTimingInstrument() {
         _lastTapTicks.pointee = 0
         _lastTapSampleTime.pointee = Int64.min
@@ -838,10 +875,13 @@ public final class AudioEngine {
         timingWindowStart = now
         let tally = RenderGapDetector.Tally(glitchCount: _gapCount.pointee,
                                             worstLateInQuanta: _gapWorst.pointee,
-                                            discontinuityCount: _discCount.pointee)
+                                            worstDriftInQuanta: _driftWorst.pointee,
+                                            discontinuityCount: _discCount.pointee,
+                                            measuredIntervals: _measuredCount.pointee)
         let measured = _measuredCount.pointee
         _gapCount.pointee = 0
         _gapWorst.pointee = 0
+        _driftWorst.pointee = 0
         _discCount.pointee = 0
         _measuredCount.pointee = 0
 
@@ -998,6 +1038,10 @@ public final class AudioEngine {
         _gapWorst.deallocate()
         _discCount.deinitialize(count: 1)
         _discCount.deallocate()
+        _driftWorst.deinitialize(count: 1)
+        _driftWorst.deallocate()
+        _quantumFrames.deinitialize(count: 1)
+        _quantumFrames.deallocate()
     }
 
     func stop() {

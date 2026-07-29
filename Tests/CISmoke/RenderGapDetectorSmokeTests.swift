@@ -131,7 +131,7 @@ final class RenderGapDetectorSmokeTests: XCTestCase {
     func testAForwardFramePositionSkipIsStarvation_notAPause() {
         // On time by the clock, but 512 frames of audio never happened.
         XCTAssertEqual(verdict(elapsed: tapPeriod, sampleGap: Int64(tapFrames + quantumFrames)),
-                       .glitch(lateInQuanta: 1))
+                       .glitch(lateInQuanta: 1, driftInQuanta: 1))
     }
 
     /// Backwards, or beyond the pause ceiling, IS a restart — that half must survive.
@@ -161,10 +161,28 @@ final class RenderGapDetectorSmokeTests: XCTestCase {
         XCTAssertEqual(verdict(elapsed: tapPeriod, sampleGap: nil), .onTime)
         // No exact enum compare here: `(tapPeriod + quantum) - tapPeriod` is not bit-exact
         // (3·q needs 55 significand bits), so the payload lands 1 ulp either side of 1.
-        guard case .glitch(let late) = verdict(elapsed: tapPeriod + quantum, sampleGap: nil) else {
+        guard case .glitch(let late, let drift) = verdict(elapsed: tapPeriod + quantum,
+                                                          sampleGap: nil) else {
             return XCTFail("the wall-clock channel must still decide on its own")
         }
         XCTAssertEqual(late, 1, accuracy: 1e-9)
+        XCTAssertEqual(drift, 0, "no frame evidence is reported as no drift, not as drift")
+    }
+
+    /// THE OTHER HALF of the same question, and the reason the verdict carries two
+    /// numbers instead of one. A graph that is PAUSED but not stopped leaves the render
+    /// position exactly where it was — the frame channel positively says "nothing was
+    /// skipped" — while the clock says a tenth of a second went by. That is a different
+    /// fault from a dropped render cycle, with the same symptom, and this instrument
+    /// cannot tell them apart from inside. So it reports both and lets the first device
+    /// log settle it, rather than picking one and calling it starvation.
+    func testLatenessWithZeroFrameDriftIsReportedAsSuch() {
+        guard case .glitch(let late, let drift) = verdict(elapsed: tapPeriod + quantum * 10,
+                                                          sampleGap: Int64(tapFrames)) else {
+            return XCTFail("ten quanta of wall clock is not on time")
+        }
+        XCTAssertEqual(late, 10, accuracy: 1e-9)
+        XCTAssertEqual(drift, 0, "the render position did not move — say so, do not hide it")
     }
 
     /// An unmeasurable interval claims nothing in either direction.
@@ -216,11 +234,16 @@ final class RenderGapDetectorSmokeTests: XCTestCase {
     }
 
     func testADirtyLineCarriesTheCountTheWorstCaseAndTheUnit() {
-        let line = RenderGapDetector.Tally(glitchCount: 7, worstLateInQuanta: 4.25)
+        let line = RenderGapDetector.Tally(glitchCount: 7, worstLateInQuanta: 4.25,
+                                           worstDriftInQuanta: 2.0, measuredIntervals: 5_600)
             .diagnosticLine(overSeconds: 60, quantumMilliseconds: 10.67)
         XCTAssertTrue(line.contains("7"), line)
         XCTAssertTrue(line.contains("4.2") || line.contains("4.3"), line)
         XCTAssertTrue(line.contains("10.67"), line)
+        XCTAssertTrue(line.contains("frame drift 2.0"),
+                      "the second channel must reach the log, not just the verdict — \(line)")
+        XCTAssertTrue(line.contains("5600 intervals seen"),
+                      "a window is only worth what it actually measured — \(line)")
         XCTAssertFalse(RenderGapDetector.Tally(glitchCount: 1).isClean)
     }
 
@@ -238,6 +261,6 @@ final class RenderGapDetectorSmokeTests: XCTestCase {
 
         XCTAssertFalse(RenderGapDetector.Tally().diagnosticLine(overSeconds: 60,
                                                                 quantumMilliseconds: 10.67)
-            .contains("ignored"), "no tail when there were none")
+            .contains("ignored"), "no pause tail when there were none")
     }
 }

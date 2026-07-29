@@ -17,9 +17,11 @@
 //  `hostTime` — the render-cycle timestamp, not "when the tap block happened to run" —
 //  and passes the interval between two consecutive deliveries of the always-on master
 //  tap. That interval should equal the TAP's period (`frames / sampleRate`, where
-//  `frames` is what the tap actually delivered, not what was requested). When it runs
-//  long, the audio path was starved — CPU/thermal contention, which is exactly the class
-//  the founder's "CPU overload" wording describes.
+//  `frames` is what the PREVIOUS delivery carried — the audio this interval covers).
+//  When it runs long, the audio path did not deliver on time. CPU/thermal contention is
+//  the class the founder's "CPU overload" wording describes and the one this is built to
+//  catch; a short pause looks the same from here, which is why the frame-position channel
+//  below is reported alongside instead of being folded in.
 //
 //  TWO PERIODS, AND THE DIFFERENCE IS THE WHOLE POINT. The tap is installed at 1024
 //  frames while the IO buffer is around 512, so ONE missed render deadline delays the tap
@@ -44,10 +46,14 @@
 //    previous callback's own metering work. If the true-peak/EBU meters overrun their
 //    budget, this instrument will (correctly) report that as lateness — it cannot be used
 //    to rule the metering path out.
-//  · An engine pause/restart (interruption, node attach, route change) produces an
-//    interval that is not a measurement at all. Those are classified separately as
-//    DISCONTINUITIES and counted, never mixed into the starvation figure — see
-//    `isDiscontinuity`.
+//  · A LONG pause or a stream restart (interruption, node attach, route change) produces
+//    an interval that is not a measurement at all; those are counted separately as
+//    discontinuities. A SHORT pause — under the ceiling, with the render position
+//    untouched — is indistinguishable from lateness by the clock alone, and is NOT
+//    filtered out. It is reported as lateness with a zero frame drift beside it, which is
+//    the honest output: whether the founder's device produces skipped frames or stalled
+//    time when it crackles is the open question, and reducing the two channels to one
+//    number would answer it by assertion instead of by measurement.
 //
 //  Pure value types, no clock of its own: the caller passes seconds. That keeps the
 //  audio-thread side to plain arithmetic (a timestamp CoreAudio already handed us times a
@@ -152,10 +158,14 @@ public enum RenderGapDetector {
         return report.lateInQuanta > thresholdInQuanta
     }
 
-    /// What one delivery was: on time, a starved audio path, or not a measurement at all.
+    /// What one delivery was: on time, late, or not a measurement at all.
+    ///
+    /// `glitch` carries BOTH channels. `driftInQuanta` is `0` when the render position
+    /// advanced exactly as it should have (or carried no usable position) — i.e. the
+    /// clock says late, the frame count says nothing was skipped.
     public enum Verdict: Equatable, Sendable {
         case onTime
-        case glitch(lateInQuanta: Double)
+        case glitch(lateInQuanta: Double, driftInQuanta: Double)
         case discontinuity
     }
 
@@ -193,14 +203,18 @@ public enum RenderGapDetector {
                              renderQuantumFrames: renderQuantumFrames)
         guard report.quantumSeconds > 0 else { return .onTime }
 
-        var late = report.lateInQuanta
+        var drift = 0.0
         if let gap = sampleGap {
-            let drift = Double(gap - Int64(previousFrames)) / Double(renderQuantumFrames)
-            if drift < 0 { return .discontinuity }   // the stream restarted
-            late = Swift.max(late, drift)
+            drift = Double(gap - Int64(previousFrames)) / Double(renderQuantumFrames)
+            // Backwards at ANY magnitude: the position cannot move back inside a running
+            // stream, so this is a restart, not a small error worth a tolerance.
+            if drift < 0 { return .discontinuity }
         }
+        let late = Swift.max(report.lateInQuanta, drift)
         if late > discontinuityThresholdInQuanta { return .discontinuity }
-        if late > glitchThresholdInQuanta { return .glitch(lateInQuanta: late) }
+        if late > glitchThresholdInQuanta {
+            return .glitch(lateInQuanta: late, driftInQuanta: drift)
+        }
         return .onTime
     }
 
@@ -215,17 +229,29 @@ public enum RenderGapDetector {
     public struct Tally: Equatable, Sendable {
         public var glitchCount: Int
         public var worstLateInQuanta: Double
+        /// Worst FRAME drift seen on a late interval. `0` with a large `worstLateInQuanta`
+        /// means the clock gapped while the render position stood still — a stalled graph
+        /// rather than skipped audio. The pair is the finding; neither half alone is.
+        public var worstDriftInQuanta: Double
         /// Intervals discarded as pause/restart artefacts. Reported, not hidden: if this
         /// is large the instrument was mostly looking at a stopped graph, and the
-        /// starvation figure next to it means correspondingly less.
+        /// lateness figure next to it means correspondingly less.
         public var discontinuityCount: Int
+        /// Intervals actually classified. The honest denominator: a 60 s window in which
+        /// the graph ran for 5 s is not 60 s of evidence, and the line must not read as
+        /// though it were.
+        public var measuredIntervals: Int
 
         public init(glitchCount: Int = 0,
                     worstLateInQuanta: Double = 0,
-                    discontinuityCount: Int = 0) {
+                    worstDriftInQuanta: Double = 0,
+                    discontinuityCount: Int = 0,
+                    measuredIntervals: Int = 0) {
             self.glitchCount = glitchCount
             self.worstLateInQuanta = worstLateInQuanta
+            self.worstDriftInQuanta = worstDriftInQuanta
             self.discontinuityCount = discontinuityCount
+            self.measuredIntervals = measuredIntervals
         }
 
         public var isClean: Bool { glitchCount == 0 }
@@ -238,17 +264,19 @@ public enum RenderGapDetector {
         /// milliseconds by whoever reads the log next, without knowing the buffer size
         /// the device happened to be running.
         public func diagnosticLine(overSeconds: Double, quantumMilliseconds: Double) -> String {
-            let tail = discontinuityCount > 0
-                ? String(format: " · %ld pause/restart gaps ignored", discontinuityCount)
-                : ""
+            var tail = String(format: " · %ld intervals seen", measuredIntervals)
+            if discontinuityCount > 0 {
+                tail += String(format: " · %ld pause/restart gaps ignored", discontinuityCount)
+            }
             guard glitchCount > 0 else {
-                return String(format: "audio timing: no starvation in %.0f s "
+                return String(format: "audio timing: nothing late in %.0f s "
                               + "(quantum %.2f ms; does not rule out signal-path clicks)",
                               overSeconds, quantumMilliseconds) + tail
             }
-            return String(format: "audio timing: %ld late renders in %.0f s, worst %.1f× "
-                          + "the %.2f ms render quantum",
-                          glitchCount, overSeconds, worstLateInQuanta, quantumMilliseconds) + tail
+            return String(format: "audio timing: %ld late in %.0f s, worst %.1f× the "
+                          + "%.2f ms quantum, frame drift %.1f×",
+                          glitchCount, overSeconds, worstLateInQuanta,
+                          quantumMilliseconds, worstDriftInQuanta) + tail
         }
     }
 }
