@@ -22,12 +22,15 @@
 //  the founder's "CPU overload" wording describes.
 //
 //  TWO PERIODS, AND THE DIFFERENCE IS THE WHOLE POINT. The tap is installed at 1024
-//  frames while the IO buffer is 512 (`AudioConfiguration.currentBufferSize`), so ONE
-//  missed render deadline delays the tap by only HALF a tap period. A threshold
-//  denominated in tap periods would therefore miss the single dropped render cycle that
-//  makes one audible crackle — which is the whole event under investigation. So lateness
-//  is reported in RENDER QUANTA (`renderQuantumFrames / sampleRate`): one unit = one
-//  missed render deadline, whatever size the tap happens to be.
+//  frames while the IO buffer is around 512, so ONE missed render deadline delays the tap
+//  by only HALF a tap period. A threshold denominated in tap periods would therefore miss
+//  the single dropped render cycle that makes one audible crackle — which is the whole
+//  event under investigation. So lateness is reported in RENDER QUANTA
+//  (`renderQuantumFrames / sampleRate`): one unit = one missed render deadline, whatever
+//  size the tap happens to be. The caller must pass the buffer size the session GRANTED
+//  (`AVAudioSession.ioBufferDuration`), not the one it preferred — those differ routinely
+//  on iOS and always on Bluetooth, and using the preference would scale every number here
+//  by the ratio between them while printing a millisecond figure that is simply wrong.
 //
 //  WHAT IT DOES NOT MEASURE, so a clean report is never read as an all-clear:
 //  · It is not an xrun counter. iOS exposes no dropout count for `AVAudioEngine`, and a
@@ -147,6 +150,58 @@ public enum RenderGapDetector {
                                        thresholdInQuanta: Double = discontinuityThresholdInQuanta) -> Bool {
         guard report.quantumSeconds > 0 else { return false }
         return report.lateInQuanta > thresholdInQuanta
+    }
+
+    /// What one delivery was: on time, a starved audio path, or not a measurement at all.
+    public enum Verdict: Equatable, Sendable {
+        case onTime
+        case glitch(lateInQuanta: Double)
+        case discontinuity
+    }
+
+    /// THE decision the diagnostics file is built out of, kept here rather than in the tap
+    /// callback so it is arguable in a test instead of on a device. It is the one branch
+    /// able to INVERT the instrument's output, and it lived untested in the callback for
+    /// exactly one commit.
+    ///
+    /// Two independent pieces of evidence, reduced to one rule:
+    ///
+    /// · WALL-CLOCK — the `hostTime` interval against `previousFrames / sampleRate`.
+    ///   (`previousFrames`, not the current buffer's: the interval covers the audio the
+    ///   PREVIOUS delivery carried. Comparing it against the current length made every
+    ///   change in delivered buffer size look like a break, and alternating sizes would
+    ///   have pinned the glitch count at zero forever while the log looked healthy.)
+    ///
+    /// · FRAME POSITION — how far `sampleTime` advanced versus how far it should have.
+    ///   Pass `nil` when the timestamp carried no valid sample time. A FORWARD drift means
+    ///   audio that should have been rendered was not, which is the event under
+    ///   investigation, so it is weighed exactly like wall-clock lateness rather than
+    ///   dismissed. Only a BACKWARDS jump, or a drift past the pause ceiling, means the
+    ///   graph was stopped and restarted.
+    ///
+    /// The earlier version treated ANY sample-position drift as a pause. That would have
+    /// filed a single dropped render cycle — the crackle — under "pause/restart gaps
+    /// ignored", and printed a confident "no starvation" over the top of it.
+    public static func classify(elapsedSeconds: Double,
+                                previousFrames: Int,
+                                sampleGap: Int64?,
+                                sampleRate: Double,
+                                renderQuantumFrames: Int) -> Verdict {
+        let report = compare(elapsedSeconds: elapsedSeconds,
+                             frames: previousFrames,
+                             sampleRate: sampleRate,
+                             renderQuantumFrames: renderQuantumFrames)
+        guard report.quantumSeconds > 0 else { return .onTime }
+
+        var late = report.lateInQuanta
+        if let gap = sampleGap {
+            let drift = Double(gap - Int64(previousFrames)) / Double(renderQuantumFrames)
+            if drift < 0 { return .discontinuity }   // the stream restarted
+            late = Swift.max(late, drift)
+        }
+        if late > discontinuityThresholdInQuanta { return .discontinuity }
+        if late > glitchThresholdInQuanta { return .glitch(lateInQuanta: late) }
+        return .onTime
     }
 
     /// Running tally the audio thread keeps and the UI poll drains.

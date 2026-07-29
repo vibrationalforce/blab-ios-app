@@ -112,6 +112,67 @@ final class RenderGapDetectorSmokeTests: XCTestCase {
         XCTAssertTrue(RenderGapDetector.isGlitch(stall))
     }
 
+    // MARK: - The verdict (the one branch able to INVERT the instrument)
+
+    private func verdict(elapsed: Double, sampleGap: Int64?, previousFrames: Int? = nil)
+        -> RenderGapDetector.Verdict {
+        RenderGapDetector.classify(elapsedSeconds: elapsed,
+                                   previousFrames: previousFrames ?? tapFrames,
+                                   sampleGap: sampleGap,
+                                   sampleRate: rate,
+                                   renderQuantumFrames: quantumFrames)
+    }
+
+    /// THE REGRESSION TEST for the mistake that shipped for one commit: ANY sample-position
+    /// drift was filed as "pause/restart, ignored". A drift of one render quantum is not a
+    /// pause — it is audio that should have been rendered and was not, i.e. exactly the
+    /// crackle. Treating it as a pause would have printed a confident "no starvation" over
+    /// the top of the defect and ENDED the search.
+    func testAForwardFramePositionSkipIsStarvation_notAPause() {
+        // On time by the clock, but 512 frames of audio never happened.
+        XCTAssertEqual(verdict(elapsed: tapPeriod, sampleGap: Int64(tapFrames + quantumFrames)),
+                       .glitch(lateInQuanta: 1))
+    }
+
+    /// Backwards, or beyond the pause ceiling, IS a restart — that half must survive.
+    func testABackwardsOrHugeFramePositionJumpIsAPause() {
+        XCTAssertEqual(verdict(elapsed: tapPeriod, sampleGap: 0), .discontinuity,
+                       "the stream restarted from an earlier position")
+        XCTAssertEqual(verdict(elapsed: tapPeriod,
+                               sampleGap: Int64(tapFrames + quantumFrames * 40)), .discontinuity)
+    }
+
+    /// The interval covers the PREVIOUS buffer's audio, so that is what it is measured
+    /// against. Comparing it to the current buffer's length made every change in delivered
+    /// size look like a break — and alternating sizes would have pinned the glitch count at
+    /// zero forever while the log still read "healthy".
+    func testAChangeInDeliveredBufferSizeIsNotABreak() {
+        // Previous delivery was 512 frames; this interval is exactly 512 frames long and
+        // the position advanced by exactly 512. Nothing is wrong.
+        XCTAssertEqual(verdict(elapsed: Double(quantumFrames) / rate,
+                               sampleGap: Int64(quantumFrames),
+                               previousFrames: quantumFrames), .onTime)
+    }
+
+    /// An unusable frame position must make that channel ABSTAIN, not vote. Otherwise a
+    /// timestamp without sample time silently classifies every interval as a pause and the
+    /// instrument reports zero glitches forever while looking healthy.
+    func testAnAbsentFramePositionAbstains() {
+        XCTAssertEqual(verdict(elapsed: tapPeriod, sampleGap: nil), .onTime)
+        // No exact enum compare here: `(tapPeriod + quantum) - tapPeriod` is not bit-exact
+        // (3·q needs 55 significand bits), so the payload lands 1 ulp either side of 1.
+        guard case .glitch(let late) = verdict(elapsed: tapPeriod + quantum, sampleGap: nil) else {
+            return XCTFail("the wall-clock channel must still decide on its own")
+        }
+        XCTAssertEqual(late, 1, accuracy: 1e-9)
+    }
+
+    /// An unmeasurable interval claims nothing in either direction.
+    func testAnUnmeasurableIntervalIsNeverAVerdict() {
+        XCTAssertEqual(verdict(elapsed: .nan, sampleGap: nil), .onTime)
+        XCTAssertEqual(verdict(elapsed: tapPeriod, sampleGap: nil, previousFrames: 0), .onTime)
+    }
+
     // MARK: - Boundaries (a NaN here would poison every later max())
 
     func testNonFiniteOrImpossibleInputsYieldAnEmptyReport_notNaN() {
