@@ -107,6 +107,27 @@ public enum StudioDefaultKeys {
     public static let touchSyncGrid = StudioDefault(key: "touch.sync.grid",
                                                     value: TouchQuantizer.Grid.sixteenth)
 
+    /// The Field's VOICE — the id of the chosen `SynthPatch`, or `""` meaning "follow the
+    /// take". Arguably the most user-visible thing this surface persists: losing it silently
+    /// reverts the surface to the generated take's sound, which reads as "my patch is gone".
+    ///
+    /// ⚠️ Promoted here from a raw `@AppStorage("touch.patchID")` literal on 2026-07-29,
+    /// during the Field rename. It was one of exactly two `touch.*` keys living outside this
+    /// file — and the rename's own regression test claimed to pin "every shared preference
+    /// behind the play surface" while covering neither. A literal at the use site is the
+    /// shape of the defect that file exists to prevent (#163/#170): change it there and the
+    /// test stays green while the setting vanishes.
+    ///
+    /// Stored as the UUID string, never the patch NAME, which is why the default patch has
+    /// been renamed twice without anyone losing their selection.
+    public static let touchPatchID = StudioDefault(key: "touch.patchID", value: "")
+
+    /// Whether the note grid is drawn on the play surface. Read by the visual window and
+    /// (once the Field panel offers the toggle) by the studio panel — the shared-key rule
+    /// applies the moment a second reader appears, and promoting it now is cheaper than
+    /// discovering the split later. Same promotion as `touchPatchID` above.
+    public static let touchShowGrid = StudioDefault(key: "touch.showGrid", value: false)
+
     // MARK: midi.*
 
     /// Inbound Apple Network MIDI (RTP-MIDI, RFC 6295) — **OFF by default (#187,

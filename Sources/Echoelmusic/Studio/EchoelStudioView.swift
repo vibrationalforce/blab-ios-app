@@ -64,7 +64,8 @@ struct EchoelStudioView: View {
     @Environment(\.touchSynth) private var touchSynth
     @Environment(\.leadSynth) private var leadSynth
     /// Patch id for the play surface: "" = follow the take's sound (default).
-    @AppStorage("touch.patchID") private var touchPatchID = ""
+    @AppStorage(StudioDefaultKeys.touchPatchID.key)
+    private var touchPatchID = StudioDefaultKeys.touchPatchID.value
     /// How much sliding UP the play surface brightens the tone (0 = off … 1 = ±1 octave).
     @AppStorage(StudioDefaultKeys.touchMorphDepth.key) private var touchMorphDepth = StudioDefaultKeys.touchMorphDepth.value
     /// Slide-expression depths + glide for the play surface (founder 2026-07-08:
@@ -455,11 +456,17 @@ struct EchoelStudioView: View {
     /// dropdown content — no new surfaces, the card pile just moved into menus.
     private enum StudioMenu: String, CaseIterable, Identifiable {
         // ⚠️ `field` was `synth` until 2026-07-29. Safe to rename ONLY because the raw value
-        // is not persisted anywhere: `activeMenu` is `@State` (:452), the raw value serves
-        // as `Identifiable.id` and nothing else, and the string dispatch further down
-        // (:593-612) never named "synth". The `touch.*` AppStorage keys behind this panel are
-        // a different matter and are deliberately NOT renamed — those DO persist, and
-        // renaming them would silently discard every setting already dialled in.
+        // is not persisted anywhere: `activeMenu` is `@State`, the raw value serves as
+        // `Identifiable.id` and nothing else, and the chrome-door string dispatch in
+        // `onAppear` never named "synth". Independently re-verified afterwards: no
+        // `@SceneStorage`, no `NSUserActivity`, no `onOpenURL`, no widget payload and no
+        // Codable anywhere references `StudioMenu`. The `touch.*` AppStorage keys behind this
+        // panel are a different matter and are deliberately NOT renamed — those DO persist,
+        // and renaming them would silently discard every setting already dialled in.
+        //
+        // (No line numbers in this comment on purpose: the commit that first wrote it cited
+        // three, and shifted the file by +6 in the same diff. CLAUDE.md bans the pattern for
+        // exactly that reason.)
         case bio, composition, session, sound, mix, effects, master, mood, export, field, video
         var id: String { rawValue }
         /// Short chip label (DAW-style small buttons — Uncodixfy 12 pt chips).
@@ -2473,12 +2480,18 @@ struct EchoelStudioView: View {
     /// sheet (the modifier-chain metadata rule).
     private var touchSoundSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // "Voice", paired with the "Look" heading further up: the panel is now one
-            // surface described from its two sides, instead of a visual panel with a sound
-            // section bolted to the end. The two headings are the whole of Slice 1's
-            // "ordering" — the rows under them are untouched.
-            Text("Voice")
-                .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            // "Voice" — a PEER of the "Look" heading further up, so the panel reads as one
+            // surface described from its two sides instead of a visual panel with a sound
+            // section bolted to the end. ("Look" already existed; only this one was renamed
+            // — an earlier version of this comment claimed the panel "gained two headings",
+            // which was simply false and is the kind of sentence that gets cited later.)
+            //
+            // Typography copied from "Look" EXACTLY, and that is the whole fix: at 13 pt in
+            // `EchoelTheme.text` this sat one point under the panel title in the same
+            // colour, so on device it read as a SECOND panel title rather than a peer of the
+            // 10 pt dim heading it was supposed to pair with. Two headings that claim to be
+            // siblings must look like siblings.
+            Text("Voice").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
                 .padding(.top, 4)
             Text("What your fingers sound like on the field. Take sound follows the generated music; pick a patch to give the field its own voice.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)

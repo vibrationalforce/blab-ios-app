@@ -188,7 +188,8 @@ struct FloatingVisualWindow: View {
     @AppStorage(StudioDefaultKeys.scale.key) private var touchScale: Scale = StudioDefaultKeys.scale.value
     /// Fretboard grid over the play surface (founder 2026-07-08: "eine Art
     /// Griffbrett einblenden … Gitter mit Feldern in den passenden Farben").
-    @AppStorage("touch.showGrid") private var touchShowGrid = false
+    @AppStorage(StudioDefaultKeys.touchShowGrid.key)
+    private var touchShowGrid = StudioDefaultKeys.touchShowGrid.value
     /// Slide-expression depths + glide for the play surface (founder 2026-07-08:
     /// "hin und her sliden verändert den Sound … Glide bzw. Portamento kann man
     /// auch einstellen"). Same keys + defaults as EchoelStudioView's menu.
@@ -609,11 +610,13 @@ struct FloatingVisualWindow: View {
             Spacer(minLength: 0)
             // PRODUCER DOOR (founder 2026-07-22: "die Ebene der tighten Loops — Video
             // und wav — muss für mich als Produzent noch mit reindürfen"). In fullscreen
-            // the DAW chrome is hidden BENEATH this visual; this labeled "Studio" chip
-            // drops out of fullscreen to the docked PiP size, revealing the full
-            // tight-loops DAW (timeline · clips · per-track instruments · video lanes ·
-            // WAV export) with the visual kept as a small floating picture — exactly the
-            // producer view from just before the rebuild. The running session survives
+            // the studio chrome is hidden BENEATH this visual; this labeled "Studio" chip
+            // drops out of fullscreen to the docked PiP size, revealing the instrument
+            // controls with the visual kept as a small floating picture. (This comment used
+            // to promise "timeline · clips · per-track instruments · video lanes · WAV
+            // export"; the first four were deleted by #121 Slice 4 and #167, and the same
+            // stale list had leaked into the button's VoiceOver hint below — where a user
+            // could not see it was untrue.) The running session survives
             // (the chrome stayed MOUNTED, no teardown). A FIRST-CLASS door, not the tiny
             // resize glyph. Shown only in fullscreen; in the floating sizes the DAW is
             // already on screen. Neutral tokens (accent green stays reserved for live bio).
@@ -634,8 +637,16 @@ struct FloatingVisualWindow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Studio — die Produzenten-Ebene öffnen")
-                .accessibilityHint("Verlässt das Vollbild und zeigt Timeline, Clips und Spuren")
+                // WAS GERMAN, AND WAS LYING. It read "Studio — die Produzenten-Ebene öffnen"
+                // / "Verlässt das Vollbild und zeigt Timeline, Clips und Spuren" — two
+                // defects in two lines. German, in an app that ships in English and has no
+                // localisation at all (zero `.strings` files), so a VoiceOver user hears one
+                // sentence in another language. And it promised a timeline, clips and tracks:
+                // all three were deleted (#121 Slice 4, #167). A hint that describes a screen
+                // which no longer exists is worse than none — a blind user is told to expect
+                // something that cannot appear, with nothing on screen to correct them.
+                .accessibilityLabel("Studio")
+                .accessibilityHint("Leaves fullscreen and shows the instrument controls, with the field kept as a small floating picture")
             }
             // Live LOOK slider, STUFENLOS (founder 2026-07-07: "langem slider, der durch
             // alle Modi stufenlos überblendet … während des Spielens"). Dragging morphs

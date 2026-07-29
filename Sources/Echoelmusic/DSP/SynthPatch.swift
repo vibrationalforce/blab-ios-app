@@ -404,7 +404,14 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         // the immersive space without washing out. Brand-named per the Echoel* CI.
         SynthPatch(
             id: stableID("00000000-0000-0000-0000-0000000000B4"),
-            name: "Echoel Synth",
+            // "Echoel Field" since 2026-07-29. It was "Echoel Synth", and that was the ONE
+            // string that visibly contradicted the surface rename: this patch is applied at
+            // launch and renders as the selected chip on the panel titled "Field", under the
+            // heading "Voice" — so a fresh install showed the removed word right where the
+            // new one had just been introduced. Display name only; the id is untouched
+            // (`touchDefaultID`) and `touch.patchID` stores the UUID, never the name, so
+            // every saved selection survives. Second rename of this patch on those terms.
+            name: "Echoel Field",
             attack: 0.03, decay: 0.4, sustain: 0.72, release: 1.3,
             harmonicity: 0.9, harmonicLevel: 0.82, brightness: 0.42, noiseLevel: 0.006,
             spectralShape: "natural", filterCutoff: 3200, filterResonance: 0.12,
@@ -414,8 +421,9 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         )
     ]
 
-    /// Stable id of the play-surface default patch ("Echoel Synth", ex "Echoel Touch"
-    /// — id unchanged so saved selections survive), picked by identity at launch.
+    /// Stable id of the play-surface default patch ("Echoel Field", ex "Echoel Synth", ex
+    /// "Echoel Touch" — id unchanged through every rename so saved selections survive),
+    /// picked by identity at launch.
     public static let touchDefaultID = stableID("00000000-0000-0000-0000-0000000000B4")
 }
 
