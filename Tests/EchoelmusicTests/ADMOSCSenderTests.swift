@@ -64,12 +64,42 @@ final class ADMOSCSenderTests: XCTestCase {
         XCTAssertEqual(elevation(1.0), 60, accuracy: 0.001)
     }
 
-    func testGain_motionBringsObjectForward() {
+    /// #215 — the motion→gain mapping is DORMANT while nothing measures motion, and this
+    /// test is written so it flips with the product rather than pinning today's answer
+    /// forever. It asserts the branch that `ModSource.motion.hasProducer` selects, not a
+    /// literal: the day a CoreMotion producer lands, the modulated arm below is what must
+    /// hold, and this test starts checking it without being edited.
+    ///
+    /// The old version asserted `gain(0.0) == 0.3` unconditionally. That was a green test
+    /// pinning a defect in place: with no producer, 0.3 was not a resting level but the
+    /// ONLY level the object could ever have — every Echoel object arriving in a house
+    /// rig 10.5 dB down, with no control in the app to lift it.
+    func testGain_isUnityWhileMotionHasNoProducer_andModulatedOnceItDoes() {
         func gain(_ motion: Float) -> Float {
             ADMOSCSender.admMessages(for: frame(motion: motion), object: 1)[3].1
         }
-        XCTAssertEqual(gain(0.0), 0.3, accuracy: 0.001)
-        XCTAssertEqual(gain(1.0), 1.0, accuracy: 0.001)
+        if ModSource.motion.hasProducer {
+            XCTAssertEqual(gain(0.0), ADMOSCSender.motionRestingGain, accuracy: 0.001,
+                           "a measured body at rest sits at the resting floor")
+            XCTAssertEqual(gain(1.0), 1.0, accuracy: 0.001,
+                           "full movement brings the object all the way forward")
+        } else {
+            XCTAssertEqual(gain(0.0), 1.0, accuracy: 0.001,
+                           "with no producer the object is unmodulated and belongs at "
+                           + "unity — the renderer's own gain stage is the one control")
+            XCTAssertEqual(gain(0.9), 1.0, accuracy: 0.001,
+                           "and no frame can move it, because no frame carries motion")
+        }
+    }
+
+    /// The floor is not deleted, only bypassed — and its value is the one that keeps the
+    /// live mapping bit-identical to the expression it replaced (`0.3 + m * 0.7`, where
+    /// the 0.7 is `1 - 0.3`). If someone retunes the constant, this says out loud that
+    /// the second coefficient follows it.
+    func testRestingGainIsTheFloorOfAFullRangeMapping() {
+        XCTAssertEqual(ADMOSCSender.motionRestingGain, 0.3, accuracy: 0.0001)
+        XCTAssertGreaterThan(ADMOSCSender.motionRestingGain, 0)
+        XCTAssertLessThan(ADMOSCSender.motionRestingGain, 1)
     }
 
     // MARK: - Range safety (out-of-range bio values stay within ADM-OSC v1.0 spec)

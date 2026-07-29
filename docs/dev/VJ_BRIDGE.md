@@ -24,7 +24,7 @@ receiving app at the phone's IP (UDP). Default namespace:
 | `/echoelmusic/bio/breath/rate` | 4–30 | breaths per minute |
 | `/echoelmusic/bio/breath/phase` | 0–1 | inhale→exhale phase (great for smooth motion) |
 | `/echoelmusic/bio/coherence` | 0–1 | HRV coherence |
-| `/echoelmusic/bio/motion` | 0–1 | body motion energy — **always 0 today**: no CoreMotion provider exists, every publisher writes `motionEnergy: 0`. Do not bind a visual to it. |
+| `/echoelmusic/bio/motion` | 0–1 | body motion energy — **NOT SENT today** (#215): no CoreMotion provider exists, every publisher writes `motionEnergy: 0`. It used to arrive as a constant 0, which no receiver can tell apart from a performer standing still; now the address simply does not appear. It returns when a motion sensor does. |
 | `/echoelmusic/bio/event/heartbeat` | trigger | per-beat bang (flash on the beat) |
 | `/echoelmusic/bio/event/breath/inhale` · `/exhale` | trigger | breath onsets |
 | `/echoelmusic/bio/event/coherence` · `/eeg` · `/motion` | trigger | onset bangs (the `/motion` bang cannot fire while motion energy is a constant 0) |

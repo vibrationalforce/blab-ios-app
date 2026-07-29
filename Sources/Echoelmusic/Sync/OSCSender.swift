@@ -16,7 +16,10 @@
 //    /echoelmusic/bio/breath/rate   float [4..30]
 //    /echoelmusic/bio/breath/phase  float [0..1]
 //    /echoelmusic/bio/coherence     float [0..1]
-//    /echoelmusic/bio/motion        float [0..1]
+//    /echoelmusic/bio/motion        float [0..1]  — NOT SENT in this build (#215):
+//        nothing measures motion, so the address would carry a constant 0 that a
+//        receiver cannot tell apart from a motionless performer. It returns the day a
+//        CoreMotion producer does; see `bioMessages` and `ModSource.hasProducer`.
 //
 //  Discrete BioEventGraph events (kind → address, args [confidence, aux]):
 //    /echoelmusic/bio/event/heartbeat      float[2]  aux = inter-beat interval ms
@@ -255,7 +258,22 @@ public final class OSCSender {
         msgs.append(("/echoelmusic/bio/breath/rate", [frame.breathRate]))
         msgs.append(("/echoelmusic/bio/breath/phase", [frame.breathPhase]))
         msgs.append(("/echoelmusic/bio/coherence", [frame.coherence]))
-        msgs.append(("/echoelmusic/bio/motion", [frame.motionEnergy]))
+        // Motion rides a STRUCTURAL gate rather than a value one (#215). Every
+        // `BioSampleFrame` construction site in `Sources/` hardcodes `motionEnergy: 0`
+        // and the last CoreMotion provider went in the 2026-06-19 cleanup, so this
+        // address carried a constant 0 to every receiver — and at the receiving end a
+        // constant 0 is indistinguishable from a performer standing perfectly still.
+        // A VJ binds a visual to it, sees nothing move, and has no way to learn the
+        // channel is dead; `docs/dev/VJ_BRIDGE.md` had to warn about it in prose. Not
+        // sending it makes the absence visible in any OSC monitor instead.
+        //
+        // Why `hasProducer` and not `motionEnergy > 0`: 0 is a REAL reading for motion
+        // (perfectly still) with no sentinel — a value gate would drop a motionless
+        // performer's channel mid-show. `ModulationMatrix` already argues this at
+        // length and owns the predicate; this is the same question asked at egress.
+        if ModSource.motion.hasProducer {
+            msgs.append(("/echoelmusic/bio/motion", [frame.motionEnergy]))
+        }
         return msgs
     }
 

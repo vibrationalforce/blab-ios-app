@@ -113,6 +113,29 @@ final class OSCSenderTests: XCTestCase {
         XCTAssertFalse(addrs.contains("/echoelmusic/bio/heart/pnn50"), "no RR → no pNN50")
     }
 
+    /// #215 — `/echoelmusic/bio/motion` rides a STRUCTURAL gate, not a value one, and
+    /// like the ADM gain test this one flips with the product instead of pinning today.
+    /// A constant-0 address is worse than a missing one: a VJ binding a visual to it
+    /// cannot tell a dead channel from a performer standing still.
+    func testBioMessages_motionIsOnlySentWhileSomethingCanMeasureIt() {
+        let addrs = addresses(frame())
+        if ModSource.motion.hasProducer {
+            XCTAssertTrue(addrs.contains("/echoelmusic/bio/motion"),
+                          "once a producer exists, 0 is a real reading and must be sent — "
+                          + "silence would drop a motionless performer's channel mid-show")
+        } else {
+            XCTAssertFalse(addrs.contains("/echoelmusic/bio/motion"),
+                           "no producer → the address must not appear at all, so its "
+                           + "absence is visible in any OSC monitor")
+        }
+        // The rest of the always-on frame is untouched by the gate.
+        for a in ["/echoelmusic/bio/heart/bpm", "/echoelmusic/bio/heart/hrv",
+                  "/echoelmusic/bio/breath/rate", "/echoelmusic/bio/breath/phase",
+                  "/echoelmusic/bio/coherence"] {
+            XCTAssertTrue(addrs.contains(a), "\(a) must still be sent")
+        }
+    }
+
     func testBioMessages_realRRSource_emitsAllThree() {
         // Camera/Polar provide RR → RMSSD + pNN50 + SDNN all present.
         let addrs = addresses(frame(rmssd: 50, sdnn: 60, pnn50: 0.3))

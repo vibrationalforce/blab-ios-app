@@ -444,7 +444,10 @@ the old list named eeg/{band}, audio/rms, audio/pitch which are NEVER sent):
 /echoelmusic/bio/breath/rate     float
 /echoelmusic/bio/breath/phase    float [0-1]
 /echoelmusic/bio/coherence       float [0-1]
-/echoelmusic/bio/motion          float
+/echoelmusic/bio/motion          float      — NOT SENT in this build (#215): nothing
+                                              measures motion, so a constant 0 would be
+                                              indistinguishable from a still performer.
+                                              Gated on `ModSource.motion.hasProducer`
 /echoelmusic/mod/<key>           float      (modulation-matrix outs, e.g. seq.tempo)
 /echoelmusic/bio/event/heartbeat | breath/inhale | breath/exhale | motion
                                  | coherence | eeg   (discrete events)

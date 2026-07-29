@@ -23,7 +23,10 @@
 //    breath phase → azimuth    sound sweeps L↔R with the breath
 //    coherence    → distance   coherent = pulled close; scattered = far
 //    HRV          → elevation  calm lifts the object
-//    motion       → gain       movement brings it forward
+//    motion       → gain       movement brings it forward — DORMANT in this build
+//                              (#215): nothing measures motion, so the object is sent
+//                              at unity rather than pinned to the mapping's resting
+//                              floor. See `admMessages`.
 //
 
 #if canImport(Network)
@@ -227,8 +230,27 @@ public final class ADMOSCSender {
         let distance = clamp(1 - f.coherence, 0, 1)
         // HRV [0..1] → elevation [-90..90]: calm lifts (use upper hemisphere 0..60)
         let elevation = clamp(f.hrvNormalized * 60, -90, 90)
-        // motion [0..1] → gain [0..1]: movement brings the object forward
-        let gain = clamp(0.3 + f.motionEnergy * 0.7, 0, 1)
+        // motion [0..1] → gain [0..1]: movement brings the object forward — WHEN
+        // something measures motion. Today nothing does (#215).
+        //
+        // `ModSource.motion.hasProducer` is `false`: every `BioSampleFrame` construction
+        // site in `Sources/` hardcodes `motionEnergy: 0`, and the last CoreMotion provider
+        // went in the 2026-06-19 cleanup. So `0.3 + 0 * 0.7` was never a resting level
+        // that movement would lift — it was the ONLY level this object could ever have,
+        // in every show, forever. −10.5 dB is not a neutral default for an object
+        // arriving in a house rig, and Echoel exposes NO control anywhere to raise it:
+        // the operator sees a quiet object with no visible cause. An unmodulated object
+        // belongs at unity, leaving the renderer's own gain stage as the one control —
+        // which is where a house engineer looks first anyway.
+        //
+        // The resting floor is NOT deleted, because it is the right resting point for a
+        // LIVE motion channel. The day a CoreMotion producer returns, `hasProducer` flips
+        // in the same commit and this reverts to the modulated mapping — which is
+        // bit-identical to the old expression (`1 - 0.3 == 0.7`), so nothing about the
+        // live behaviour is being redesigned here.
+        let gain: Float = ModSource.motion.hasProducer
+            ? clamp(motionRestingGain + f.motionEnergy * (1 - motionRestingGain), 0, 1)
+            : 1
         return [
             ("\(prefix)/position/azimuth", azimuth),
             ("\(prefix)/position/elevation", elevation),
@@ -236,6 +258,14 @@ public final class ADMOSCSender {
             ("\(prefix)/gain", gain)
         ]
     }
+
+    /// Object gain with the motion modulator at rest. Named rather than inlined so the
+    /// "what does an unmoving body sound like" decision has one place to be argued with,
+    /// and so the unity fallback above reads as a deliberate branch, not a magic number.
+    /// `nonisolated` deliberately: this class is `@MainActor`, and CLAUDE.md records that
+    /// Xcode's toolchain isolates an immutable `static let` on such a class even where
+    /// SwiftPM accepts it. Spelling it out keeps the two gates agreeing.
+    nonisolated static let motionRestingGain: Float = 0.3
 
     private static func clamp(_ v: Float, _ lo: Float, _ hi: Float) -> Float {
         Swift.min(Swift.max(v, lo), hi)
