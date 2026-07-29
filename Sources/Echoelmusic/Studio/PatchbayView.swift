@@ -204,10 +204,34 @@ struct PatchbayView: View {
                            universeRange: ClosedRange<Float> = 1...63_999) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 7) {
-                Circle().fill(active ? EchoelTheme.accent : EchoelTheme.border).frame(width: 7, height: 7)
+                // ⛔ THIS DOT WAS COLOUR-ONLY until 2026-07-29: `fill(active ? accent : border)`
+                // on an identical 7 pt circle, no text, no label. Whether an Art-Net / sACN /
+                // OSC output is actually live was green-versus-grey and nothing else — so for
+                // a red-green colour-blind operator (~8% of men) it was unreadable, on the one
+                // surface where reading it wrong means a silent show. `differentiateWithoutColor`
+                // is used ZERO times in this codebase, so there was no fallback anywhere.
+                //
+                // Fixed by SHAPE, not by a setting: filled when live, hollow ring when not.
+                // That is the idiom `BioStripView` already uses for its driving/live/idle dot,
+                // and it is unconditional — it helps everyone, including someone glancing at a
+                // dim laptop screen in a venue, rather than only users who found a toggle.
+                Group {
+                    if active {
+                        Circle().fill(EchoelTheme.accent)
+                    } else {
+                        Circle().strokeBorder(EchoelTheme.border, lineWidth: 1)
+                    }
+                }
+                .frame(width: 7, height: 7)
+                .accessibilityHidden(true)   // the row below speaks for it
                 Text(name).font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
                 Spacer(minLength: 0)
             }
+            // …and VoiceOver could not read the state at all, because a bare `Circle` carries
+            // no label. The name and the state are announced as one element.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(name)
+            .accessibilityValue(active ? "sending" : "not sending")
             TextField("IP / host", text: host)
                 .textFieldStyle(.plain)
                 .font(EchoelTheme.font(13).monospacedDigit())
