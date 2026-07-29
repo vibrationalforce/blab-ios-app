@@ -133,10 +133,15 @@ final class ArpFigureTests: XCTestCase {
         for absurd in [99, Int.max, 4] {
             let seq = try walk(.up, octaves: absurd, length: 200).map { try XCTUnwrap($0) }
             let highest = seq.map(\.octaveOffset).max() ?? 0
-            XCTAssertLessThan(highest, ArpFigure.maxOctaves,
-                              "octaves: \(absurd) produced octaveOffset \(highest) — the play "
-                              + "surface has only \(ArpFigure.maxOctaves) bands "
-                              + "(TouchPitchMap.octaveBands), so anything above could not sound")
+            // ⛔ EQUALITY, NOT `LessThan`, and the difference is the point. `< maxOctaves` also
+            // passes if a future `step()` collapsed the span to ONE octave (highest == 0 < 3) —
+            // a UI row offering 1–3 over an engine that silently plays one, which is exactly the
+            // lying-control class this file's header cites (#164, #227). The cap must SATURATE at
+            // the top, not swallow the request.
+            XCTAssertEqual(highest, ArpFigure.maxOctaves - 1,
+                           "octaves: \(absurd) reached octaveOffset \(highest); it must saturate "
+                           + "at \(ArpFigure.maxOctaves - 1) — neither climb past the surface's "
+                           + "registers nor quietly collapse to a single octave")
         }
         // …and downward too: 0 and negative must become 1, not 0 (a zero span is silence).
         for tooLow in [0, -1, Int.min] {
@@ -288,12 +293,60 @@ final class ArpFigureTests: XCTestCase {
     /// each frame's work unbounded. Asserted as a cap on what SOUNDS, not on the input array.
     func testAnAbsurdlyLongChordIsCappedRatherThanWalkedForever() throws {
         let huge = Array(0..<500)
-        let cycle = ArpFigure.maxVoices
+        let cycle = ArpFigure.maxChordTones
         let seq = try walk(.up, chord: huge, length: cycle + 1).map { try XCTUnwrap($0) }
         XCTAssertEqual(Set(seq.prefix(cycle)).count, cycle)
         XCTAssertEqual(seq[cycle], seq[0],
                        "the walk did not wrap after \(cycle) tones — the chord cap is not applied")
-        XCTAssertLessThanOrEqual(seq.map(\.degreeIndex).max() ?? 0, ArpFigure.maxVoices - 1)
+        XCTAssertLessThanOrEqual(seq.map(\.degreeIndex).max() ?? 0, ArpFigure.maxChordTones - 1)
+    }
+
+    // MARK: - The helpers' own guards
+
+    /// The three defensive branches in `floorMod`, `floorDiv` and `permutation` are UNREACHABLE
+    /// from `step()` — `cycle` is always ≥ 1 there, so `guard m > 0` never fires and
+    /// `permutation(count: 0, …)` never happens. That makes them dead-by-construction in a file
+    /// whose header argues against untested paths, so they are exercised directly rather than
+    /// deleted: the invariant is worth keeping enforceable if a later slice calls these helpers
+    /// with a computed count.
+    ///
+    /// ⚠️ Note what `permutation(count: 0, …) == []` is worth: nothing, on its own. If `step()`
+    /// ever did reach it, the `[position]` subscript would trap before the empty array helped. The
+    /// guard exists so a FUTURE caller gets an empty permutation instead of a crash, and this test
+    /// is what makes that promise real rather than decorative.
+    func testTheHelperGuardsHoldAtTheirDegenerateInputs() {
+        // A zero or negative modulus must fold to 0 rather than trap.
+        for bad in [0, -1, Int.min] {
+            XCTAssertEqual(ArpFigure.floorMod(7, bad), 0)
+            XCTAssertEqual(ArpFigure.floorDiv(7, bad), 0)
+        }
+        XCTAssertEqual(ArpFigure.permutation(count: 0, seed: 1, cycleIndex: 0), [])
+        XCTAssertEqual(ArpFigure.permutation(count: 1, seed: 1, cycleIndex: 0), [0])
+
+        // …and the division identity the two must jointly satisfy, across zero. This is the
+        // property `.random` depends on: position and cycle have to agree, or index −1 lands in
+        // cycle 0 at position −1 and the subscript traps.
+        for m in [1, 2, 3, 7, 36] {
+            for a in [-37, -8, -3, -1, 0, 1, 3, 8, 37] {
+                let r = ArpFigure.floorMod(a, m)
+                let q = ArpFigure.floorDiv(a, m)
+                XCTAssertTrue((0..<m).contains(r), "floorMod(\(a), \(m)) = \(r) escaped 0..<\(m)")
+                XCTAssertEqual(m * q + r, a,
+                               "floorDiv and floorMod disagree at (\(a), \(m)): "
+                               + "\(m)·\(q) + \(r) ≠ \(a)")
+            }
+        }
+    }
+
+    /// `sanitize` is the one helper `step()` really depends on for its invariants, and its own
+    /// edge cases are cheaper to state here than through the walk.
+    func testSanitizeDropsNegativesCollapsesDuplicatesAndCaps() {
+        XCTAssertEqual(ArpFigure.sanitize([]), [])
+        XCTAssertEqual(ArpFigure.sanitize([-3, -1]), [])
+        XCTAssertEqual(ArpFigure.sanitize([4, 0, 2]), [4, 0, 2], "order must survive")
+        XCTAssertEqual(ArpFigure.sanitize([2, 2, 0, 2, 0]), [2, 0], "first occurrence wins")
+        XCTAssertEqual(ArpFigure.sanitize([-1, 3, -2, 3, 5]), [3, 5])
+        XCTAssertEqual(ArpFigure.sanitize(Array(0..<500)).count, ArpFigure.maxChordTones)
     }
 
     // MARK: - The six orders are six different figures
@@ -308,6 +361,12 @@ final class ArpFigureTests: XCTestCase {
     /// collision, so pinning distinctness on that input would have been a test demanding a
     /// difference that should not exist. My first draft did exactly that and would have gone red.
     /// `[4, 0, 2]` is an inversion, which is the input where the six orders are six figures.
+    ///
+    /// ⚠️ `length: 12` IS LOAD-BEARING — do not "simplify" it to one cycle (6). At `octaves: 2`,
+    /// `.down` and `.downUp` are byte-identical for indices 0…5 (both walk position 5,4,3,2,1,0);
+    /// they first diverge at index 6, because `.downUp`'s wrap length is 10 rather than 6. Same
+    /// for `.up` versus `.upDown`. Shortening the window turns this into a permanent red on
+    /// correct code.
     func testTheSixOrdersAreAudiblyDistinctWalks() throws {
         let voiced = [4, 0, 2]
         var figures: [ArpFigure.Order: [ArpFigure.Step]] = [:]

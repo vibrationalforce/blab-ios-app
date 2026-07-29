@@ -6,11 +6,19 @@
 //  Kategorie und könnte ein komplexes bedienelement werden"*).
 //
 //  ⛔ WHY THIS EXISTS AS A NEW CORE RATHER THAN A CONTROL ON THE EXISTING ARP, because that is
-//  the decision a reader will want to overturn first. `BreathArp` already walks a chord, and it
-//  is genuinely doorless: its one production caller is `PianoRollModel.stampArp`, whose one call
-//  site sits inside `PianoRollView` — and `PianoRollView` is instantiated NOWHERE since the
-//  founder removed the note editor (#178). So the obvious move is to re-door `BreathArp`. It
-//  does not work, and the reason is structural rather than a matter of effort:
+//  the decision a reader will want to overturn first. `BreathArp` already walks a chord, and its
+//  PATTERN half is genuinely doorless: `BreathArp.pattern`'s one caller is
+//  `PianoRollModel.stampArp`, whose one call site sits inside `PianoRollView` — and
+//  `PianoRollView` is instantiated NOWHERE since the founder removed the note editor (#178). So
+//  the obvious move is to re-door `BreathArp`. It does not work, and the reason is structural
+//  rather than a matter of effort:
+//
+//  ⚠️ SAY "PATTERN HALF", NOT "BreathArp", and the distinction is not pedantry — an earlier draft
+//  of this paragraph said `BreathArp`'s ONE production caller was `stampArp`, which is FALSE:
+//  `BreathArp.isActive` is live and reachable at `FieldAutoPlay.swift:310`, on the 60 Hz self-play
+//  path. A session reading the wrong version would have concluded the whole type is dead and
+//  deleted it, taking the Field's Euclidean density rule with it. `BreathArp` is not dead; one of
+//  its two halves has no door.
 //
 //    `PianoRollModel.trigger` selects notes by `$0.startStep == step`, and `Note.startStep` is a
 //    ROUNDING view over ticks (`Note.swift:173-176`), with `lengthSteps` rounding UP to at least
@@ -95,20 +103,36 @@ public enum ArpFigure {
 
     /// Highest octave span the walk may use.
     ///
-    /// 3 because `TouchPitchMap.octaveBands` has exactly three entries — the play surface has a
-    /// low, a middle and a top band and nothing above it, so a fourth octave could not sound.
-    /// Bounded here rather than at the UI so a corrupted stored value cannot climb out of the
-    /// surface; the row that offers it still has to offer the same range, or the control lies.
+    /// 3 to match the play surface's three registers (`TouchPitchMap.octaveBands` = `[3, 4, 5]`).
+    ///
+    /// ⚠️ A DESIGN CHOICE, NOT A PHYSICAL LIMIT, and the first version of this comment claimed the
+    /// stronger thing — that a fourth octave "could not sound". It can. `octaveBands` picks the
+    /// BASE octave from the finger's y position; `Step.octaveOffset` is an offset on top of that,
+    /// and `MusicalKey.degree` applies no ceiling (only `Note` clamps, at MIDI 127). So octaves 6
+    /// and 7 sound perfectly well. What 3 buys is that the arp stays inside the register the
+    /// surface itself spans, and the actual saturation against the top band belongs to the S2
+    /// projection. Overstating a bound as impossible is how a later slice skips the clamp that
+    /// really is needed.
     public static let maxOctaves = 3
 
     /// Most chord tones the walk will carry.
     ///
     /// A chord is not a scale: twelve is one full chromatic octave, past which "chord tone" has
-    /// stopped meaning anything. The cap is not cosmetic — `.random` re-derives its permutation
-    /// on every call (see `permutation`), so the per-call cost is proportional to the cycle
-    /// length, and the caller is a 60 Hz display link. An unbounded array handed in from a
-    /// decoded field would make each frame's work unbounded too.
-    public static let maxVoices = 12
+    /// stopped meaning anything. Octave spread is a separate dial, so the largest musically
+    /// meaningful input is a thirteenth chord — seven tones.
+    ///
+    /// ⚠️ NAMED `maxChordTones` AND NOT `maxVoices` ON PURPOSE: `FieldAutoPlay.maxVoices` = 8 in
+    /// this same directory means something else entirely (simultaneous sounding points), and S2
+    /// wires the two types together. Two different numbers under one name in one folder is a trap.
+    ///
+    /// ⚠️ AND THE REASON IS NOT WHAT I FIRST WROTE. The claim was that this bounds per-call work
+    /// because the eventual caller is a 60 Hz display link. It does not: `sanitize` iterates the
+    /// ENTIRE input array whatever the cap, so a 500-element decoded array still costs 500
+    /// iterations per frame. The cap bounds the `permutation` allocation and the cycle length —
+    /// which at ≤ 36 was never a 60 Hz concern in the first place. The honest reason to keep it is
+    /// that a decoded array must not size an allocation, and that a "chord" of 500 tones is data
+    /// corruption rather than a musical request.
+    public static let maxChordTones = 12
 
     // MARK: - The walk
 
@@ -124,7 +148,7 @@ public enum ArpFigure {
     ///     transport tick before zero) and wraps by flooring, so `-1` is the last position of
     ///     the previous cycle rather than a crash or a mirrored index.
     ///   - chordDegrees: Scale-degree indices. Negatives are dropped, duplicates collapse to
-    ///     their first occurrence, and the first `maxVoices` survive.
+    ///     their first occurrence, and the first `maxChordTones` survive.
     ///   - octaves: Octave span, clamped to `1...maxOctaves`.
     ///   - order: How the walk moves.
     ///   - seed: Consumed by `.random` ONLY. The other five orders are shapes, not draws, and
@@ -146,18 +170,22 @@ public enum ArpFigure {
         // Doing it this way is what makes `.down` walk the top octave downwards before dropping
         // to the next one — the musically expected shape, and the one an
         // octave-outside-the-degree-loop implementation gets wrong.
-        let ascending = voices.sorted()
+        //
+        // The sort lives INSIDE `ascendingTone` rather than above the switch so `.asPlayed`, the
+        // one order that must not sort, does not pay for it. Small, but this file argues about
+        // per-call cost elsewhere and should not then allocate a sorted copy it never reads.
         func tone(_ position: Int, from pool: [Int]) -> Step {
             Step(degreeIndex: pool[position % pool.count],
                  octaveOffset: position / pool.count)
         }
+        func ascendingTone(_ position: Int) -> Step { tone(position, from: voices.sorted()) }
 
         switch order {
         case .up:
-            return tone(floorMod(index, cycle), from: ascending)
+            return ascendingTone(floorMod(index, cycle))
 
         case .down:
-            return tone(cycle - 1 - floorMod(index, cycle), from: ascending)
+            return ascendingTone(cycle - 1 - floorMod(index, cycle))
 
         case .asPlayed:
             return tone(floorMod(index, cycle), from: voices)
@@ -168,7 +196,7 @@ public enum ArpFigure {
             let length = cycle > 1 ? 2 * cycle - 2 : 1
             let j = floorMod(index, length)
             let up = j < cycle ? j : 2 * cycle - 2 - j
-            return tone(order == .upDown ? up : cycle - 1 - up, from: ascending)
+            return ascendingTone(order == .upDown ? up : cycle - 1 - up)
 
         case .random:
             // Re-derived from the CYCLE index rather than carried in state, for the reason
@@ -178,15 +206,14 @@ public enum ArpFigure {
             // depend on call order.
             let which = floorDiv(index, cycle)
             let position = floorMod(index, cycle)
-            return tone(permutation(count: cycle, seed: seed, cycleIndex: which)[position],
-                        from: ascending)
+            return ascendingTone(permutation(count: cycle, seed: seed, cycleIndex: which)[position])
         }
     }
 
     // MARK: - Pure pieces
 
     /// Drops negative degrees, collapses duplicates to their first occurrence (so `.asPlayed`
-    /// keeps the voicing it was handed) and caps the result at `maxVoices`.
+    /// keeps the voicing it was handed) and caps the result at `maxChordTones`.
     ///
     /// Duplicates have to go, and not for tidiness: with them, one chord tone would sound twice
     /// per cycle while the cycle length still counted it twice — the walk would stutter on that
@@ -194,11 +221,11 @@ public enum ArpFigure {
     static func sanitize(_ chordDegrees: [Int]) -> [Int] {
         var seen = Set<Int>()
         var out: [Int] = []
-        out.reserveCapacity(Swift.min(chordDegrees.count, maxVoices))
+        out.reserveCapacity(Swift.min(chordDegrees.count, maxChordTones))
         for degree in chordDegrees where degree >= 0 {
             guard seen.insert(degree).inserted else { continue }
             out.append(degree)
-            if out.count == maxVoices { break }
+            if out.count == maxChordTones { break }
         }
         return out
     }
