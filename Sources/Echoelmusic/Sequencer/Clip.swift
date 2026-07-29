@@ -91,6 +91,65 @@ public enum ClipKind: String, Codable, Sendable, CaseIterable {
 /// A launchable cell: a typed clip (MIDI pattern today; audio/video/visual carry a
 /// `mediaRef`), with a name + color.
 public struct Clip: Codable, Sendable, Equatable, Identifiable {
+
+    /// 1 = the shape as of 2026-07-29. Closes the last unstamped format that holds
+    /// MUSICAL CONTENT (#189 slice 3). `Project` covers takes, `SpatialScene` scenes,
+    /// `TimelineDocument` the arrangement — but a timeline region is only a `clipID`
+    /// POINTER, and the notes it points at live HERE, persisted separately by `ClipStore`.
+    /// Stamping the arrangement without stamping this left the actual notes unversioned.
+    ///
+    /// NOT "the last unstamped format" full stop — that overclaim was caught in review and
+    /// is corrected here rather than softened, because it would have read as "persistence is
+    /// done". Still unstamped, all of them top-level App-Group documents: `Arrangement`,
+    /// the `[SynthPatch]` timbre library (whose decoder already cost one live data-loss fix,
+    /// #95), `[FXPreset]`, `[MoodPreset]`, `TrackFX`, and the three `Meta` structs in
+    /// `PatchStore`/`FXPresetStore`/`MoodPresetStore`.
+    ///
+    /// ⚠️ AND THE STAMP HERE IS PER CLIP, NOT PER FILE. `ClipStore` persists `[Clip?]`
+    /// positionally, so a saved grid carries eight copies of this key and NOTHING versions
+    /// the container. If the slot count changes, or the nil-slot encoding changes, or the
+    /// array is ever wrapped in an envelope, there is still nothing to branch on at the
+    /// document level — unlike `Project`/`TimelineDocument`, which stamp the document
+    /// itself. The clips in the file are versioned; the file is not.
+    public static let currentSchemaVersion = 1
+
+    /// ⛔ A THIRD SHAPE FOR THE SAME IDEA, and the divergence is deliberate — read this
+    /// before "harmonising" it with `Project`/`TimelineDocument`.
+    ///
+    /// Those two keep the DECODED value as in-memory provenance, which forces an explicit
+    /// `encode(to:)` (so a loaded 0 is not written back). That is affordable for a type
+    /// with a stable field list. `Clip` is not that type: it has eleven fields and
+    /// four of them landed after ship in a single week — `automation` (04ee5fb),
+    /// `nativeDurationSeconds` (3564e81), `nativeBPM` (3717d3b), `composerOwned` (6a696ae).
+    /// (The SHAs are here because the first draft of this comment claimed FIVE and counted
+    /// `mediaRef`, which cannot be dated from this clone at all — it falls in the
+    /// shallow-graft boundary commit. A number nobody can check is how a rationale rots.)
+    /// A hand-written encoder here is a standing invitation to add
+    /// a twelfth field, forget it in the encoder, and have it vanish on every save with no
+    /// compiler error — the exact trap `TimelineDocument.encode(to:)` now carries a warning
+    /// about. The risk is much higher here than the benefit.
+    ///
+    /// So: never decoded, never assigned. The SYNTHESIZED encoder therefore writes the
+    /// current version by construction, and no future field can go missing. The cost is
+    /// that a loaded clip does not remember which version it came from — which costs
+    /// nothing real, because the version's whole job is to let a migration branch, and a
+    /// migration branches inside `init(from:)` where the file's value is a local. That is
+    /// the same "migrate at LOAD" law the other two state; this type just does not need to
+    /// carry the answer around afterwards.
+    ///
+    /// `private(set) var` and not `let` — kept as belt, but the reason first written here
+    /// was WRONG and is corrected rather than deleted, because the wrong version is the one
+    /// a later session would have copied to a type where it matters. It said a `let` with an
+    /// initial value plus a `CodingKey` triggers "immutable property will not be decoded…"
+    /// and so would fail the `-warnings-as-errors` build. That diagnostic is emitted while
+    /// DERIVING `init(from:)` — the synthesizer skips a `let` it cannot assign and says so.
+    /// `Clip` hand-writes its decoder, so that code path never runs and no spelling of this
+    /// property can trip it. There is no encode-side twin: encoding a `let` is always
+    /// possible. So `var` here is free insurance, not a necessity — but on a type that DOES
+    /// synthesize its decoder the original warning is real, and that is the case worth
+    /// remembering.
+    public private(set) var schemaVersion: Int = Clip.currentSchemaVersion
+
     public var id: UUID
     public var name: String
     public var colorIndex: Int
@@ -158,12 +217,20 @@ public struct Clip: Codable, Sendable, Equatable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
+        case schemaVersion
         case id, name, colorIndex, kind, drums, melody, mediaRef, nativeDurationSeconds
         case nativeBPM, automation, composerOwned
     }
 
     // Forward/backward-compatible decode: clips saved before `kind`/`mediaRef` existed
     // load as MIDI pattern clips, so no library is lost on upgrade.
+    //
+    // `schemaVersion` is deliberately NOT read here today. It is in `CodingKeys` so the
+    // synthesized encoder WRITES it — that is the whole job, because a stamp is only ever
+    // useful to a build that reads a file written before the break. When a migration is
+    // actually needed it reads the key into a LOCAL right here and branches on it; a file
+    // with no key is genuinely pre-versioning and reads as 0. Nothing carries the answer
+    // around afterwards (see the property's own comment for why).
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = (try? c.decode(UUID.self, forKey: .id)) ?? UUID()
