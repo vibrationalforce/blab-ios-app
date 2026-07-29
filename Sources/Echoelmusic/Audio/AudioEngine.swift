@@ -109,6 +109,26 @@ public final class AudioEngine {
     @ObservationIgnored nonisolated(unsafe) private let _detailedMetering = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
     @ObservationIgnored nonisolated(unsafe) private var meterPollTimer: Timer?
 
+    // MARK: - Audio-path timing instrument (#193 "es knistert")
+
+    /// Host-clock stamp of the previous master-tap delivery, in mach ticks. `0` = no
+    /// previous delivery (first callback after an install, or after a reset), which the
+    /// tap treats as "nothing to compare against" rather than as a giant gap.
+    @ObservationIgnored nonisolated(unsafe) private let _lastTapTicks = UnsafeMutablePointer<UInt64>.allocate(capacity: 1)
+    /// How many tap-to-tap intervals ran more than a whole buffer period long.
+    @ObservationIgnored nonisolated(unsafe) private let _gapCount = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+    /// Worst such interval, in buffer periods — the number that says whether it was a
+    /// hiccup or a stall.
+    @ObservationIgnored nonisolated(unsafe) private let _gapWorst = UnsafeMutablePointer<Double>.allocate(capacity: 1)
+    /// mach ticks → seconds, resolved ONCE on the main actor (`mach_timebase_info` is a
+    /// syscall-ish lookup and has no business on the audio path). Captured by value into
+    /// the tap closure so the callback does nothing but multiply.
+    @ObservationIgnored nonisolated(unsafe) private var tickToSeconds: Double = 0
+
+    /// When the current measurement window opened, on the MONOTONIC uptime clock, so the
+    /// reported rate has a denominator instead of being a bare count. `0` = not yet open.
+    @ObservationIgnored private var timingWindowStart: TimeInterval = 0
+
     /// Lock-free mono ring of the most recent master-output samples, for the
     /// immersive FFT visual. The meter tap `memcpy`s the live mix into it
     /// (allocation-free, audio-safe — no DSP on the tap thread); a UI reader pulls
@@ -194,6 +214,15 @@ public final class AudioEngine {
         _tpMax.initialize(to: EchoelMeter.floorDb)
         _lufsI.initialize(to: EchoelLoudnessMeter.floorLUFS)
         _lra.initialize(to: 0)
+        _lastTapTicks.initialize(to: 0)
+        _gapCount.initialize(to: 0)
+        _gapWorst.initialize(to: 0)
+        // Resolve the mach timebase once, here, so the audio path never does. On Apple
+        // silicon numer/denom are not 1/1, so the ratio is not optional.
+        var timebase = mach_timebase_info_data_t()
+        if mach_timebase_info(&timebase) == KERN_SUCCESS, timebase.denom != 0 {
+            tickToSeconds = Double(timebase.numer) / Double(timebase.denom) * 1e-9
+        }
         _resetMeters.initialize(to: false)
         _detailedMetering.initialize(to: false)
         _outputRing.initialize(repeating: 0, count: AudioEngine.outputRingSize)
@@ -521,10 +550,44 @@ public final class AudioEngine {
             let ringPtr = _outputRing
             let ringCountPtr = _outputRingCount
             let ringSize = AudioEngine.outputRingSize
+            // #193 instrument — captured by value so the callback touches no `self`.
+            let lastTicksPtr = _lastTapTicks
+            let gapCountPtr = _gapCount
+            let gapWorstPtr = _gapWorst
+            let tickRatio = tickToSeconds
+            let tapRate = meterFormat.sampleRate
+            lastTicksPtr.pointee = 0   // a re-install must not measure across the gap
             masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, _ in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = UInt(buffer.frameLength)
                 guard frameLength > 0 else { return }
+
+                // AUDIO-PATH TIMING (#193). Everything here is arithmetic on pre-allocated
+                // cells plus one `mach_absolute_time()` — a C function, no allocation, no
+                // lock, no ObjC, nothing that can block. It runs BEFORE the metering work
+                // below so the measurement is not skewed by this callback's own cost.
+                //
+                // It measures the interval between deliveries of THIS tap. A long interval
+                // means the audio path was starved — the "CPU overload bei Ableton" class
+                // the founder described. It cannot see a signal-path click; see
+                // `RenderGapDetector` for the full statement of what it does not prove.
+                if tickRatio > 0 {
+                    let now = mach_absolute_time()
+                    let last = lastTicksPtr.pointee
+                    lastTicksPtr.pointee = now
+                    if last != 0 && now > last {
+                        let elapsed = Double(now &- last) * tickRatio
+                        let report = RenderGapDetector.compare(elapsedSeconds: elapsed,
+                                                               frames: Int(frameLength),
+                                                               sampleRate: tapRate)
+                        if RenderGapDetector.isGlitch(report) {
+                            gapCountPtr.pointee &+= 1
+                            let worst = report.lateInBuffers
+                            if worst > gapWorstPtr.pointee { gapWorstPtr.pointee = worst }
+                        }
+                    }
+                }
+
                 // Honor a pending reset on this (the meter-owning) thread.
                 if resetPtr.pointee {
                     resetPtr.pointee = false
@@ -633,8 +696,47 @@ public final class AudioEngine {
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }
 
+    /// How long one audio-timing measurement window runs before it reports and resets.
+    /// 60 s: long enough that a single scheduler hiccup does not produce a log line, short
+    /// enough that a founder session yields several data points to compare against what
+    /// they heard.
+    private static let timingWindowSeconds: TimeInterval = 60
+
+    /// Once per window, drain the audio-thread timing cells and write ONE line to
+    /// `echoel_diag.log` — the file the founder actually shares (#193).
+    ///
+    /// Called from the existing 60 Hz meter poll; adds no timer and no thread. Between
+    /// windows it is two `Double` compares and returns, and it writes NOTHING observable —
+    /// deliberately: a 60 Hz write to an `@Observable` property registers every reader of
+    /// this engine as a 60 Hz observer (assigning an equal value still notifies), which is
+    /// exactly the churn that tears down an open `.menu` Picker. The log file is the
+    /// delivery path for this instrument; there is no on-screen readout, and adding one
+    /// would have to go through a leaf view, not through here.
+    ///
+    /// Reading and resetting the cells races the audio thread writing them. Deliberate: at
+    /// worst one increment lands in the wrong window. These are counters whose ORDER OF
+    /// MAGNITUDE is the diagnosis, and no lock belongs on the audio path to make a
+    /// diagnostic tidier.
+    private func pollAudioTiming(now: TimeInterval) {
+        if timingWindowStart == 0 { timingWindowStart = now; return }
+        let elapsed = now - timingWindowStart
+        guard elapsed >= Self.timingWindowSeconds else { return }
+        timingWindowStart = now
+        let tally = RenderGapDetector.Tally(glitchCount: _gapCount.pointee,
+                                            worstLateInBuffers: _gapWorst.pointee)
+        _gapCount.pointee = 0
+        _gapWorst.pointee = 0
+        // Only a DIRTY window is worth a line. A clean one every minute would bury the
+        // signal in its own noise — the mechanism that made `continue-on-error` invisible
+        // for 14 hours. `Tally.diagnosticLine` carries the "does not rule out" caveat for
+        // whenever a clean window IS asked for explicitly.
+        guard !tally.isClean else { return }
+        EchoelCrashLog.breadcrumb(tally.diagnosticLine(overSeconds: elapsed))
+    }
+
     private func startMeterPollTimer() {
         meterPollTimer?.invalidate()
+        timingWindowStart = 0
         // Read the meter values through `self` (the `_*` pointers are
         // `nonisolated(unsafe)` properties) rather than capturing non-Sendable
         // local pointer copies into the `@Sendable` timer block — Xcode's strict
@@ -661,6 +763,10 @@ public final class AudioEngine {
                     self.updateFeedbackGuard()
                 }
                 #endif
+                // #193. `systemUptime` and not `Date`/`CFAbsoluteTimeGetCurrent`: the
+                // window is an ELAPSED duration, and wall-clock can step backwards on an
+                // NTP correction, which would freeze the window open (or fire it early).
+                self.pollAudioTiming(now: ProcessInfo.processInfo.systemUptime)
             }
         }
     }
@@ -740,6 +846,12 @@ public final class AudioEngine {
         _outputRing.deallocate()
         _outputRingCount.deinitialize(count: 1)
         _outputRingCount.deallocate()
+        _lastTapTicks.deinitialize(count: 1)
+        _lastTapTicks.deallocate()
+        _gapCount.deinitialize(count: 1)
+        _gapCount.deallocate()
+        _gapWorst.deinitialize(count: 1)
+        _gapWorst.deallocate()
     }
 
     func stop() {
