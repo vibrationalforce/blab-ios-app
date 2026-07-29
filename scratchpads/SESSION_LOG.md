@@ -8901,3 +8901,56 @@ Hälfte lässt jetzt einen Test scheitern") war schlicht unwahr. Jetzt in `Tests
 mit EINEM nicht existierenden Pfad staged **gar nichts** — der Commit wäre als reines
 Rename durchgegangen, mit einer Nachricht, die vier Fixes behauptet. Nur der `--stat`-Check
 danach hat es gefangen. Regel: nach jedem Commit `git show --stat` gegen die Absicht lesen.
+
+---
+
+## 2026-07-29 — Die stumme App, ein Start-Knopf, und ein Log, das mich in einer Stunde widerlegt hat
+
+**Founder:** „Ich hab keinen Sound alles stumm" + Screenshot „Ich hab jetzt hier 3 Knöpfe
+zum Start drücken könnte man das zu einem zusammenfassen? Du entscheidest."
+
+**P0, aus Log 2475 exakt ablesbar:** App geht mit nichts Klingendem in den Hintergrund →
+`scene: idle audio engine stopped (2.5.4)` → zurück in den Vordergrund → **kein**
+`scene: audio resumed` → Start gedrückt → Transport, Generator, Noten, Visuals laufen,
+AVAudioEngine steht. Totale Stille bei lauter gesunden Anzeigen, ohne Neustart kein Weg
+zurück. Ursache: EINE Flagge `intentionallyStopped` beantwortete zwei Fragen mit
+entgegengesetzten richtigen Antworten (Selbstheilung im Hintergrund: nein · Vordergrund-
+Resume: ja). **Der NAME hat es versteckt** — „intentionally" liest sich als „der Nutzer
+wollte das", und beide `stop()`-Aufrufer sind die 2.5.4-Leerlaufregel. Es gibt in dieser
+App gar keinen nutzer-initiierten Engine-Stopp. Fix: `StopReason?` + zwei reine Prädikate,
+die sich auf genau einer Eingabe unterscheiden (`4fbe338`).
+
+**Die härteste Lehre des Tages, und sie ging gegen mich:** ich habe das Transport-■ mit der
+Begründung behalten, es lasse „die Musik fallen, ohne den Körper fallen zu lassen". Das
+Log des Founders widerlegte das **in derselben Stunde**: `stop source: transport-bar ■` →
+14 ms später `stopEverything(transport-stopped)`. Die Pause-Maschinerie war vollständig
+gebaut und getestet — ihr einziger Produzent saß in der Pianoroll, deren Tür am 26.07.
+entfernt wurde. Also: **#179 als RETTEN entschieden** (`7469f14`), das ■ hebt jetzt die
+Pause-Absicht. Regel daraus: *eine Begründung, die man nicht am Code nachweisen kann, ist
+keine Begründung — sie ist der Wunsch, den Knopf zu behalten.*
+
+**Der Reviewer fand danach, dass die Zahl stimmte und die Eigenschaft nicht:** zwei
+WEITERE Controls starteten die volle Session — „Read pulse" im Bio-Panel (ein Label, das
+eine Messung verspricht) und jeder Eintrag des Quellenmenüs („Camera light" …). Beide
+gefixt (`2a3d43e`), und der Test hängt seitdem nicht mehr an einem Symbol
+(`toggleBiofeedback`), sondern an der **Fähigkeit** (`startBiofeedback`-Aufrufstellen = 3,
+jede einzeln begründet). Ein Test, der ein Symbol pinnt, während jede Seitentür ein anderes
+ruft, bewacht nichts.
+
+**Vier Kommentare, die meine eigenen Slices falsch gemacht hatten**, wurden im selben Zug
+korrigiert (`672fe64`) — darunter einer, der `BioStripView`s Arm zwei Zeilen auseinander
+als erreichbar UND türlos führte. Und ein `= nil`, das ich als Sicherheitsnetz gesetzt
+hatte, wurde zurückgenommen, nachdem der Beleg dafür im Repo lag: **Gürtel-und-Hosenträger
+ist richtig, solange ein Fakt unbekannt ist, und ist Lärm, sobald er bekannt ist.**
+
+**i18n-Fundament:** String Catalog (21 Schlüssel, en+de, jede Unit `translated` —
+`state:"new"` baut nichts und meldet nichts), `defaultLocalization` in Package.swift, und
+ein Wächtertest, dessen erste Fassung **zwei der fünf Pflicht-Sicherheitshinweise nicht
+gefangen hätte**: er suchte den Satz als bloßen Teilstring, und längere Absätze in
+`BioSourceView`/`SessionView` schirmten ihn ab. Jetzt wird das zitierte Literal gesucht.
+
+**Gates:** `7469f14` und `d17d2ec` mit beiden echten Gates + voller Testsuite grün.
+
+**Offen:** #235 (`visual: bio=0` — braucht ein Log mit offenem Visual UND Lock im selben
+Fenster), #236 (dreimal `tempo=44` gegen „~72" im Kommentar), Founder-Entscheid ob ■ doch
+alles beenden soll, und der Vier-Bahnen-Sweep (Klang · UX · Authentizität · Marktwahrheit).
