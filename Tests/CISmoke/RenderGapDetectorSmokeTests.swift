@@ -129,9 +129,12 @@ final class RenderGapDetectorSmokeTests: XCTestCase {
     /// crackle. Treating it as a pause would have printed a confident "no starvation" over
     /// the top of the defect and ENDED the search.
     func testAForwardFramePositionSkipIsStarvation_notAPause() {
-        // On time by the clock, but 512 frames of audio never happened.
+        // On time by the clock, but 512 frames of audio never happened. The lateness
+        // field must stay ZERO: it is printed as a millisecond-convertible claim about the
+        // clock, and the clock was fine. An earlier version returned max() in that field
+        // and so reported wall-clock lateness that never happened.
         XCTAssertEqual(verdict(elapsed: tapPeriod, sampleGap: Int64(tapFrames + quantumFrames)),
-                       .glitch(lateInQuanta: 1, driftInQuanta: 1))
+                       .glitch(lateInQuanta: 0, driftInQuanta: 1))
     }
 
     /// Backwards, or beyond the pause ceiling, IS a restart — that half must survive.
@@ -237,7 +240,8 @@ final class RenderGapDetectorSmokeTests: XCTestCase {
         let line = RenderGapDetector.Tally(glitchCount: 7, worstLateInQuanta: 4.25,
                                            worstDriftInQuanta: 2.0, measuredIntervals: 5_600)
             .diagnosticLine(overSeconds: 60, quantumMilliseconds: 10.67)
-        XCTAssertTrue(line.contains("7"), line)
+        XCTAssertTrue(line.contains("7 late"),
+                      "the count must come from the count, not from the 7 in 10.67 — \(line)")
         XCTAssertTrue(line.contains("4.2") || line.contains("4.3"), line)
         XCTAssertTrue(line.contains("10.67"), line)
         XCTAssertTrue(line.contains("frame drift 2.0"),

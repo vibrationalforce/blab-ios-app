@@ -210,9 +210,17 @@ public enum RenderGapDetector {
             // stream, so this is a restart, not a small error worth a tolerance.
             if drift < 0 { return .discontinuity }
         }
-        let late = Swift.max(report.lateInQuanta, drift)
-        if late > discontinuityThresholdInQuanta { return .discontinuity }
-        if late > glitchThresholdInQuanta {
+        // The two channels are kept SEPARATE all the way out. An earlier version returned
+        // `max(late, drift)` in the field labelled `lateInQuanta` — so a delivery that was
+        // perfectly on time but skipped a buffer reported wall-clock lateness that never
+        // happened, and the log printed it as a millisecond-convertible claim about the
+        // clock. Either channel alone can raise the verdict; neither may speak for the
+        // other.
+        let late = report.lateInQuanta
+        if late > discontinuityThresholdInQuanta || drift > discontinuityThresholdInQuanta {
+            return .discontinuity
+        }
+        if late > glitchThresholdInQuanta || drift > glitchThresholdInQuanta {
             return .glitch(lateInQuanta: late, driftInQuanta: drift)
         }
         return .onTime
@@ -229,9 +237,12 @@ public enum RenderGapDetector {
     public struct Tally: Equatable, Sendable {
         public var glitchCount: Int
         public var worstLateInQuanta: Double
-        /// Worst FRAME drift seen on a late interval. `0` with a large `worstLateInQuanta`
-        /// means the clock gapped while the render position stood still — a stalled graph
-        /// rather than skipped audio. The pair is the finding; neither half alone is.
+        /// The frame drift OF THE SAME INTERVAL that produced `worstLateInQuanta` — the
+        /// two are one event, not two independent window maxima. That distinction is the
+        /// whole value of the pair: `0` drift beside a large lateness means the graph
+        /// stopped rendering, non-zero means audio was skipped. Maximising them separately
+        /// would compose a description of an event that never occurred, which is the
+        /// false-composite this design exists to avoid.
         public var worstDriftInQuanta: Double
         /// Intervals discarded as pause/restart artefacts. Reported, not hidden: if this
         /// is large the instrument was mostly looking at a stopped graph, and the
@@ -273,8 +284,8 @@ public enum RenderGapDetector {
                               + "(quantum %.2f ms; does not rule out signal-path clicks)",
                               overSeconds, quantumMilliseconds) + tail
             }
-            return String(format: "audio timing: %ld late in %.0f s, worst %.1f× the "
-                          + "%.2f ms quantum, frame drift %.1f×",
+            return String(format: "audio timing: %ld late in %.0f s, worst one %.1f× the "
+                          + "%.2f ms quantum with frame drift %.1f×",
                           glitchCount, overSeconds, worstLateInQuanta,
                           quantumMilliseconds, worstDriftInQuanta) + tail
         }

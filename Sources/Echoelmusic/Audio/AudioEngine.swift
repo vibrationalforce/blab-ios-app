@@ -149,9 +149,16 @@ public final class AudioEngine {
     /// Which of the two the founder's device actually produces is the open question this
     /// instrument exists to settle, so it must not be reduced to one number here.
     @ObservationIgnored nonisolated(unsafe) private let _driftWorst = UnsafeMutablePointer<Double>.allocate(capacity: 1)
-    /// The granted IO buffer in frames, read by the tap. A CELL and not a captured copy
-    /// so a mid-session route change can update it without re-installing the tap.
-    @ObservationIgnored nonisolated(unsafe) private let _quantumFrames = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+    /// The granted IO buffer DURATION in seconds, read by the tap. Seconds and not
+    /// frames: the tap converts using the rate of the buffer it was actually handed, so a
+    /// mid-session hardware rate change cannot leave a frame count denominated in the old
+    /// rate. A CELL and not a captured copy so a route change can update it without
+    /// re-installing the tap.
+    @ObservationIgnored nonisolated(unsafe) private let _quantumSeconds = UnsafeMutablePointer<Double>.allocate(capacity: 1)
+    /// `max(lateness, drift)` of the worst interval so far this window. Only the ranking
+    /// key — the two reported numbers are that interval's OWN pair, so the log describes
+    /// one real event rather than composing one out of two.
+    @ObservationIgnored nonisolated(unsafe) private let _worstScore = UnsafeMutablePointer<Double>.allocate(capacity: 1)
     /// mach ticks → seconds, resolved ONCE on the main actor (`mach_timebase_info` is a
     /// syscall-ish lookup and has no business on the audio path). Captured by value into
     /// the tap closure so the callback does nothing but multiply.
@@ -163,10 +170,10 @@ public final class AudioEngine {
     /// The first window always writes a line — see `pollAudioTiming` for why an absent
     /// line would be an ambiguous null result.
     @ObservationIgnored private var timingReportedOnce = false
-    /// The render quantum the tap is measuring against, resolved at install. The SAME
-    /// value must reach the log line, or the printed millisecond figure describes a
-    /// different buffer than the multiplier next to it.
-    @ObservationIgnored private var timingQuantumFrames = 0
+    /// The render quantum the tap is measuring against, in seconds. The SAME value must
+    /// reach the log line, or the printed millisecond figure describes a different buffer
+    /// than the multiplier next to it.
+    @ObservationIgnored private var timingQuantumSeconds: Double = 0
 
     /// Lock-free mono ring of the most recent master-output samples, for the
     /// immersive FFT visual. The meter tap `memcpy`s the live mix into it
@@ -261,7 +268,8 @@ public final class AudioEngine {
         _gapWorst.initialize(to: 0)
         _discCount.initialize(to: 0)
         _driftWorst.initialize(to: 0)
-        _quantumFrames.initialize(to: Int(AudioConfiguration.currentBufferSize))
+        _quantumSeconds.initialize(to: Double(AudioConfiguration.currentBufferSize) / AudioConfiguration.preferredSampleRate)
+        _worstScore.initialize(to: 0)
         // Resolve the mach timebase once, here, so the audio path never does. On Apple
         // silicon numer/denom are not 1/1, so the ratio is not optional.
         var timebase = mach_timebase_info_data_t()
@@ -444,7 +452,7 @@ public final class AudioEngine {
                     // The route changed under a surviving tap: the granted IO buffer may
                     // be a different size now, and the render may have gapped across the
                     // switch. Re-read the one, forget the baseline for the other (#193).
-                    self.refreshRenderQuantum(sampleRate: self.sampleRate)
+                    self.refreshRenderQuantum(fallbackSampleRate: self.sampleRate)
                     self.armTimingInstrument()
                     return
                 }
@@ -610,7 +618,6 @@ public final class AudioEngine {
             let discCountPtr = _discCount
             let measuredPtr = _measuredCount
             let tickRatio = tickToSeconds
-            let tapRate = meterFormat.sampleRate
             // One missed RENDER deadline is the event under investigation, so lateness is
             // denominated in IO buffers — not in this tap's (larger) buffer. It must be
             // the buffer the session GRANTED, not the one we preferred:
@@ -619,9 +626,10 @@ public final class AudioEngine {
             // by side in `AudioConfiguration.describeSession`). Believing 512 while
             // running 1024 would double every figure here AND print a millisecond value
             // that is simply wrong — which is the one thing that value exists to prevent.
-            refreshRenderQuantum(sampleRate: meterFormat.sampleRate)
-            let quantumPtr = _quantumFrames
+            refreshRenderQuantum(fallbackSampleRate: meterFormat.sampleRate)
+            let quantumPtr = _quantumSeconds
             let driftWorstPtr = _driftWorst
+            let worstScorePtr = _worstScore
             armTimingInstrument()
             masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, when in
                 guard let channelData = buffer.floatChannelData else { return }
@@ -672,18 +680,33 @@ public final class AudioEngine {
                 if tickRatio > 0 && hostValid {
                     if last != 0 && now > last && previousFrames > 0 {
                         let elapsed = Double(now &- last) * tickRatio
+                        // The rate of the buffer IN HAND, not one captured at install: a
+                        // route change can move the hardware rate under a surviving tap,
+                        // and a period computed from the old rate would fabricate lateness
+                        // on every single interval.
+                        let rate = buffer.format.sampleRate
+                        let q = quantumPtr.pointee * rate
+                        let quantumFrames = (q.isFinite && q >= 1 && q < 1e7) ? Int(q) : 0
                         measuredPtr.pointee &+= 1
                         switch RenderGapDetector.classify(elapsedSeconds: elapsed,
                                                           previousFrames: previousFrames,
                                                           sampleGap: sampleGap,
-                                                          sampleRate: tapRate,
-                                                          renderQuantumFrames: quantumPtr.pointee) {
+                                                          sampleRate: rate,
+                                                          renderQuantumFrames: quantumFrames) {
                         case .discontinuity:
                             discCountPtr.pointee &+= 1
                         case .glitch(let lateInQuanta, let driftInQuanta):
                             gapCountPtr.pointee &+= 1
-                            if lateInQuanta > gapWorstPtr.pointee { gapWorstPtr.pointee = lateInQuanta }
-                            if driftInQuanta > driftWorstPtr.pointee { driftWorstPtr.pointee = driftInQuanta }
+                            // Rank by whichever channel is worse, but REPORT that one
+                            // interval's own pair. Two independent maxima would print a
+                            // lateness from one event beside a drift from another and read
+                            // as a single finding that never happened.
+                            let score = Swift.max(lateInQuanta, driftInQuanta)
+                            if score > worstScorePtr.pointee {
+                                worstScorePtr.pointee = score
+                                gapWorstPtr.pointee = lateInQuanta
+                                driftWorstPtr.pointee = driftInQuanta
+                            }
                         case .onTime:
                             break
                         }
@@ -818,14 +841,19 @@ public final class AudioEngine {
     /// anything, and a stale value would scale every figure by the ratio while printing a
     /// millisecond number for a buffer the device is not running. The tap reads the cell,
     /// not a captured copy, for exactly that reason.
-    private func refreshRenderQuantum(sampleRate: Double) {
-        var frames = Int(AudioConfiguration.currentBufferSize)
+    private func refreshRenderQuantum(fallbackSampleRate: Double) {
         #if os(iOS)
-        let granted = AVAudioSession.sharedInstance().ioBufferDuration * sampleRate
-        if granted.isFinite, granted >= 1 { frames = Int(granted.rounded()) }
+        let granted = AVAudioSession.sharedInstance().ioBufferDuration
+        if granted.isFinite, granted > 0 {
+            _quantumSeconds.pointee = granted
+            timingQuantumSeconds = granted
+            return
+        }
         #endif
-        _quantumFrames.pointee = frames
-        timingQuantumFrames = frames
+        let rate = fallbackSampleRate > 0 ? fallbackSampleRate : AudioConfiguration.preferredSampleRate
+        let seconds = Double(AudioConfiguration.currentBufferSize) / rate
+        _quantumSeconds.pointee = seconds
+        timingQuantumSeconds = seconds
     }
 
     /// Forget the previous delivery so the first interval AFTER a (re)start is not
@@ -882,6 +910,7 @@ public final class AudioEngine {
         _gapCount.pointee = 0
         _gapWorst.pointee = 0
         _driftWorst.pointee = 0
+        _worstScore.pointee = 0
         _discCount.pointee = 0
         _measuredCount.pointee = 0
 
@@ -897,13 +926,13 @@ public final class AudioEngine {
         let firstWindow = !timingReportedOnce
         timingReportedOnce = true
         guard firstWindow || !tally.isClean else { return }
-        guard measured > 0, timingQuantumFrames > 0, sampleRate > 0 else {
+        guard measured > 0, timingQuantumSeconds > 0 else {
             EchoelCrashLog.breadcrumb("audio timing: instrument measured nothing in "
                                       + "\(Int(elapsed)) s — no verdict either way")
             return
         }
         // Print the quantum in ms so a later multiplier can be read back as a duration.
-        let quantumMs = Double(timingQuantumFrames) / sampleRate * 1000
+        let quantumMs = timingQuantumSeconds * 1000
         EchoelCrashLog.breadcrumb(tally.diagnosticLine(overSeconds: elapsed,
                                                        quantumMilliseconds: quantumMs))
     }
@@ -1040,8 +1069,10 @@ public final class AudioEngine {
         _discCount.deallocate()
         _driftWorst.deinitialize(count: 1)
         _driftWorst.deallocate()
-        _quantumFrames.deinitialize(count: 1)
-        _quantumFrames.deallocate()
+        _quantumSeconds.deinitialize(count: 1)
+        _quantumSeconds.deallocate()
+        _worstScore.deinitialize(count: 1)
+        _worstScore.deallocate()
     }
 
     func stop() {
