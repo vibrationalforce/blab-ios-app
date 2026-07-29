@@ -51,7 +51,7 @@ Capabilities (all routed through one typed bus): **bio-reactive synthesis** · *
   · **Correction to a claim I made about the roll:** presenting it is NOT what publishes `MusicalFrame`. That publish is in `PianoRollModel`'s tick handler (`PianoRollView.swift`) on the shared sequencer tick, installed once at app start (`pianoRoll.start(...)` in `EchoelmusicApp`) — so the visual/light output stage is lit whether or not the roll is open. The door is load-bearing for EDITING, not for the spine.
   · **NEEDS-FOUNDER-VERIFY:** launch (the +1 modifier vs the black-screen law) and the roll's Stop, which cascades the ONE-Stop law (the ONE-Stop cascade in `PianoRollView`) and ends the whole bio session rather than only playback.
   Music theory is fully in-house. The real remaining frontier is **P3 Video** (no recorder/trim/export yet) and **P4 Broadcast**. See `scratchpads/PLAN_REDOOR_CRAFT_TOOLS_2026-07-25.md`.
-- **Files:** **330** Swift under `Sources/` (`git ls-files 'Sources/**/*.swift' | wc -l`, 2026-07-29 — davor „326" (28.), davor „323" am selben Tag; drei Stände in zwei Tagen, alle einmal als Beleg zitiert. **Schreib hier nie eine Zahl hin, ohne den Befehl danebenzustellen**, und lies sie nie ohne ihn nachzuführen), **ZERO Metal files** — corrected 2026-07-25; the old "~212 Swift + 1 Metal (`Video/Shaders/ChromaKey.metal`)" was stale twice over: the count was long out of date and `ChromaKey.metal` was DELETED by Slice 3 (video-cut removal) together with its directory. `MetalBioView` compiles its shader inline at runtime, so the app ships no `.metal` source at all. | **Swift 100%** | top-level dirs under `Sources/Echoelmusic/`: `Audio Bio Core DSP EchoelAI Resources Sequencer Stream Studio Sync Tools Video Views`, plus the two loose top-level files `EchoelmusicApp.swift` and `MicrophoneManager.swift`. NOTE: the "four pillars" (EchoelTools/Works/Sync/Well) referenced by older vision docs were **never built as modules** — `EngineBus` is the one real coupling spine; `Views/` now holds only `MetalBioView` + `OnboardingView` (its long deprecated list is gone).
+- **Files:** **331** Swift under `Sources/` (`git ls-files 'Sources/**/*.swift' | wc -l`, 2026-07-29 — davor „330" am selben Tag, davor „326" (28.), davor „323" am selben Tag; VIER Stände in zwei Tagen, alle einmal als Beleg zitiert. **Schreib hier nie eine Zahl hin, ohne den Befehl danebenzustellen**, und lies sie nie ohne ihn nachzuführen), **ZERO Metal files** — corrected 2026-07-25; the old "~212 Swift + 1 Metal (`Video/Shaders/ChromaKey.metal`)" was stale twice over: the count was long out of date and `ChromaKey.metal` was DELETED by Slice 3 (video-cut removal) together with its directory. `MetalBioView` compiles its shader inline at runtime, so the app ships no `.metal` source at all. | **Swift 100%** | top-level dirs under `Sources/Echoelmusic/`: `Audio Bio Core DSP EchoelAI Resources Sequencer Stream Studio Sync Tools Video Views`, plus the two loose top-level files `EchoelmusicApp.swift` and `MicrophoneManager.swift`. NOTE: the "four pillars" (EchoelTools/Works/Sync/Well) referenced by older vision docs were **never built as modules** — `EngineBus` is the one real coupling spine; `Views/` now holds only `MetalBioView` + `OnboardingView` (its long deprecated list is gone).
 
 ---
 
@@ -190,9 +190,14 @@ Tests/EchoelmusicTests/ ← 314 test files (`git ls-files 'Tests/EchoelmusicTest
                           2026-07-28 — heute 314. Die Workflow-Beschriftung ist founder-gated und
                           bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**21** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-07-29; hier stand „1 Datei", was seit Monaten falsch war und das
-                          blockierende Bundle kleiner aussehen ließ, als es ist). Siehe KEY TESTS.
+                          `Tests/CISmoke` (**30** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-07-29 nachmittags; am Vormittag desselben Tages stand hier „21", und
+                          davor monatelang „1 Datei" — das ließ das EINZIGE Bundle, das einen Merge
+                          rot färben kann, kleiner aussehen als es ist. Das Bundle WÄCHST gerade
+                          schnell, weil jeder Ralph-Slice seinen Wächter hierher legt statt in die
+                          non-blocking Suite: **diese Zahl ist die am schnellsten veraltende in dieser
+                          Datei — führ sie mit dem Befehl nach, zitier sie nie ungeprüft**).
+                          Siehe KEY TESTS.
 docs/                  ← Website (GitHub Pages)
 .github/workflows/     ← CI/CD (testflight.yml is primary)
 ```
@@ -611,6 +616,16 @@ When generating SwiftUI views, follow clean design principles. Avoid AI-default 
   values show as raw decimals (e.g. `0.50`), not `%`. New parameter UI MUST use it; if it can't, raise it
   in The Council before diverging. **Scope:** the whole app. (The old exemption for the standalone `EchoelmusicAUv3`
   plugin target is void — that target was removed 2026-07-24.)
+  **⚠️ READ THE WORD "NUMERIC" — the law is not "every parameter is a number field".** A parameter whose
+  values have NAMES is a `Picker`, and always was: the filter mode and the delay mode rows are
+  `.pickerStyle(.segmented)`, the bio-mod carrier/target/curve rows are `.pickerStyle(.menu)`. Since
+  2026-07-29 the two **harmonizer intervals** are too (`HarmonyInterval`, `EchoelFXView.intervalRow`) —
+  the founder asked for *"keine semitone Schritte sondern sinnvolle harmonische"*, and the point of that
+  change is precisely that a harmony interval STOPS being a number to decode. **Do not "restore" any of
+  those to an `EchoelValueField` in the name of this rule.** The rule exists so numbers read and behave
+  identically app-wide; turning a named choice back into a raw semitone count would be obeying its letter
+  against its purpose — and against an explicit founder ask. The Council step above still applies to a
+  genuinely NUMERIC parameter that wants to diverge.
 
 **SCIENCE-FIRST display:**
 - Real biometric data only — no decorative visualizations
