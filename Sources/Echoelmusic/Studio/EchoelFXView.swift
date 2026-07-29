@@ -343,9 +343,9 @@ struct EchoelFXView: View {
                 }
 
                 effectSection("Harmonizer", isOn: $vm.harmonizerEnabled) {
-                    field("Voice 1", $vm.harmInterval1, -12...12, unit: "st", decimals: 0)
+                    intervalRow("Voice 1", $vm.harmInterval1)
                     Toggle("Voice 2", isOn: $vm.harmVoice2).tint(EchoelTheme.accent)
-                    field("Voice 2 interval", $vm.harmInterval2, -12...12, unit: "st", decimals: 0)
+                    intervalRow("Voice 2 interval", $vm.harmInterval2)
                     field("Mix", $vm.harmMix, 0...1)
                 }
 
@@ -683,6 +683,50 @@ struct EchoelFXView: View {
         decimals: Int = 2
     ) -> some View {
         EchoelValueField(label: title, value: value, range: range, unit: unit, decimals: decimals)
+    }
+
+    /// A harmony-voice row: NAMED intervals instead of a semitone number.
+    ///
+    /// Founder 2026-07-29: *"Harmonizer mit 5th etc? Keine semitone Schritte sondern sinnvolle
+    /// harmonische."* The number field offered 25 whole semitones, of which the seconds (±1, ±2),
+    /// the tritone (±6) and the sevenths (±10, ±11) are not parallel harmony — held under every
+    /// note of a melody they beat. `HarmonyInterval` is the curated fifteen, each saying its own
+    /// name, with MAJOR/MINOR spelled out where the interval has both forms.
+    ///
+    /// ⚠️ This is deliberately NOT the app-wide `EchoelValueField`. That rule ("no raw
+    /// `Slider`/`Stepper` for parameters") exists so every *numeric* parameter reads and behaves
+    /// identically — and the whole point of this change is that a harmony interval stops being a
+    /// number the performer has to decode. A `Picker` over a named set is the choice the filter
+    /// mode and the delay mode rows already make; `.menu` rather than their `.segmented` because
+    /// fifteen entries do not fit a segmented control (the bio-mod carrier row is the `.menu`
+    /// precedent). If a future parameter wants to diverge from `EchoelValueField`, it goes to The
+    /// Council first.
+    ///
+    /// The binding writes `Float` semitones straight through, so `EchoelHarmonizer`, `FXPreset`
+    /// and every saved preset keep the exact format they already have — no migration.
+    private func intervalRow(_ title: String, _ semitones: Binding<Float>) -> some View {
+        // An off-grid stored value maps to `nil`, which shows as itself rather than snapping to a
+        // neighbour. That is not theoretical: the macro-morph fader LERPs both intervals
+        // continuously (`FXPreset.morphed(to:amount:)`), so a value like 5.5 is reachable in the
+        // shipping app and must be able to display.
+        let selection = Binding<HarmonyInterval?>(
+            get: { HarmonyInterval.curated(forSemitones: semitones.wrappedValue) },
+            // Picking the custom entry is a no-op: it is a readout of where the sound already is,
+            // not a value anyone should be able to choose deliberately.
+            set: { if let picked = $0 { semitones.wrappedValue = picked.semitones } }
+        )
+        return Picker(title, selection: selection) {
+            ForEach(HarmonyInterval.choices(includingSemitones: semitones.wrappedValue),
+                    id: \.self) { choice in
+                if let choice {
+                    Text(choice.displayName).tag(HarmonyInterval?.some(choice))
+                } else {
+                    Text(HarmonyInterval.customLabel(forSemitones: semitones.wrappedValue))
+                        .tag(HarmonyInterval?.none)
+                }
+            }
+        }
+        .pickerStyle(.menu).tint(EchoelTheme.text)
     }
 }
 

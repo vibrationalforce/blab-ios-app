@@ -27,6 +27,12 @@
 // intervals (−12…12). Wiring the callback alone would have cured the silence and left the
 // paralysis, on a control whose hint says "Swipe up or down to adjust".
 //
+// ⚠️ ONE OF THOSE FOUR IS NOW HISTORY, and is kept below deliberately. The two Harmonizer
+// intervals became a NAMED-interval `Picker` later the same day (founder: *"keine semitone
+// Schritte sondern sinnvolle harmonische"*), so they are no longer `EchoelValueField`s at all.
+// The table entry stays because it is a real shipped range that this arithmetic froze — it
+// documents the defect's reach, not the app's present controls.
+//
 // WHY A SOURCE SCAN. The action closure is attached to a SwiftUI `View` body; there is no seam to
 // invoke it from a unit test and no local toolchain to build a UI-test host with. A real test
 // would be an XCUITest driving VoiceOver, which this repo has no runner for. So the guard is
@@ -103,7 +109,7 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
             ("Beats per bar 1…12", 11, 0),
             ("Field Voices 1…8", 7, 0),
             ("FX Bits 1…16", 15, 0),
-            ("Harmonizer interval −12…12", 24, 0),
+            ("Harmonizer interval −12…12 (since replaced by a named-interval picker)", 24, 0),
         ]
         for (name, span, decimals) in frozenBefore {
             let step = ScrubPrecision.adjustmentStep(span: span, decimals: decimals)

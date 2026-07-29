@@ -3394,7 +3394,10 @@ struct EchoelStudioView: View {
                 .accessibilityLabel("Delay note value")
             }
             // Full control: open every stage (filter, delay, chorus, flanger,
-            // phaser, tremolo, compressor, limiter) with all parameters as sliders.
+            // phaser, tremolo, compressor, limiter) with all parameters exposed.
+            // NOT "as sliders" — the app has no raw `Slider`: numeric parameters are
+            // `EchoelValueField`s, and a parameter whose values have NAMES is a picker
+            // (filter mode, delay mode, and since 2026-07-29 the two harmony intervals).
             Button { showAllFX = true } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "slider.horizontal.3")
