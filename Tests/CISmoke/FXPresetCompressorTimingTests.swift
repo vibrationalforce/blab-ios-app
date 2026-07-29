@@ -150,13 +150,16 @@ final class FXPresetCompressorTimingTests: XCTestCase {
     }
 
     /// The LIMITER deliberately did NOT get these controls, and that is a decision rather than
-    /// an oversight. ⛔ THE REASON GIVEN HERE WAS WRONG and is corrected in place: it said a
-    /// user-slowed attack "would let material overshoot the ceiling". It would not —
-    /// `EchoelDynamics.swift`'s `if peak * g > ceilingLin { g = target }` is an unconditional
-    /// per-sample guard, so the ceiling holds at any attack. What a slowed attack costs is
-    /// waveform SHAPE: the guard then engages on most samples, which is algebraically the
-    /// zero-attack hard clipper #199 removed after the founder's "Es knistert". Aliasing, not
-    /// overshoot. Pinned so "finish the job" later is a deliberate act with a red test.
+    /// an oversight. ⛔ TWO WRONG REASONS STOOD HERE before the measured one — first "a slowed
+    /// attack would let material overshoot the ceiling", then "it would alias instead". Both
+    /// false. `EchoelLimiter.attackMs` has NO EFFECT on the output at all on the finite path:
+    /// the attack branch is only entered when `env` rose to `peak`, and on exactly those
+    /// samples the absolute guard `if peak * g > ceilingLin { g = target }` overwrites the
+    /// ballistics. Simulated over four signal classes and six orders of magnitude of
+    /// `attackMs`, the attack-branch count EQUALS the guard-fire count every time and the
+    /// output is bit-identical. So the row is withheld because it would be a LYING CONTROL
+    /// (#164, #227), not because of a risk. See `EchoelDynamics.swift` for the numbers.
+    /// Pinned so "finish the job" later is a deliberate act with a red test.
     func testTheLimiterTimingIsStillNotAPresetField() {
         let source = EchoelFXChain(sampleRate: 48000)
         source.limiter.attackMs = 40          // absurd for a brick wall

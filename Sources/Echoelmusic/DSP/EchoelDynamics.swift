@@ -28,14 +28,28 @@ public final class EchoelCompressor: @unchecked Sendable {
     /// deliberately NOT `releaseMs`. See `processStereo` for the measurement that picked it.
     ///
     /// ⚠️ WHAT #221 MEANS FOR THE BOTTOM OF THE RELEASE RANGE, stated before a listening pass
-    /// reports it as a bug: the two stages are in SERIES, so the audible recovery is roughly
-    /// their sum. Dialling `releaseMs` down to the UI's 10 ms floor therefore does not give a
-    /// 10 ms recovery — this envelope still has to fall, so the result is ~40-something ms and
-    /// the last stretch of the control's travel does very little. That is a real, deliberate
-    /// floor on how fast this compressor can let go, not a broken slider: the constant exists
-    /// because a detector that tracked `releaseMs` reintroduced the #198 ripple. If the founder
-    /// wants a genuinely faster release, the change is to this constant (with the #198
-    /// measurement redone), not to the row's range.
+    /// reports it as a broken slider. The two stages are in series, so this envelope adds an
+    /// OFFSET to the audible recovery — but the offset is level-dependent, not 40 ms flat,
+    /// because a `log10` and the ratio sit between them. Measured t63 of gain reduction
+    /// (bit-accurate sim of `processStereo`, against a null detector):
+    ///
+    ///     settings                       release 10 →  20 →  50 →  120 → 1000 ms
+    ///     thr −18, ratio 3, −6 dBFS        45     54    81    149    1023 ms
+    ///     thr −30, ratio 20, 0.9           94    104   131    193    1062 ms
+    ///     (null detector)                  10     20    50    119     994 ms
+    ///
+    /// So at the engine's defaults 10 ms dialled in recovers in ~45 ms, and under heavy
+    /// reduction closer to ~95 ms. The control keeps WORKING throughout — 10→20 ms still moves
+    /// t63 by 9 ms — it just cannot go below that floor.
+    ///
+    /// ⛔ AND THE FLOOR'S REASON, corrected: an earlier version of this note said a
+    /// `releaseMs`-tracking detector "reintroduced the #198 ripple". Backwards — the table in
+    /// `processStereo` measures that variant as having the LEAST ripple of the three (0.017 vs
+    /// this constant's 0.044 at 40 Hz); the #198 defect was the RAW detector, with no envelope
+    /// at all. The real reason is the one at "WHY 40 ms AND NOT `releaseMs`": coupling the two
+    /// makes them cascaded one-poles at the same time constant, and the stage then holds
+    /// reduction long after the peak that caused it (−9.73 dB still present at +100 ms, against
+    /// −6.16 dB here). Decoupling costs a little bass ripple; that is the trade, not a free win.
     private static let detectorReleaseMs: Float = 40
 
     private let sr: Float
@@ -229,9 +243,12 @@ public final class EchoelCompressor: @unchecked Sendable {
         // persists them, so a hand-edited or corrupted preset really can reach this function
         // with any Float. (Comment history, corrected — the version that stood here got it
         // wrong in a way worth pinning: it said two earlier versions "were each true when
-        // written and then went stale". Neither half holds. The FIRST was never true; #198
-        // deleted it precisely BECAUSE it claimed a preset could restore a release time when
-        // none could. The SECOND — #198's own — did not say nothing ever would; it said
+        // written and then went stale". Neither half holds. The FIRST was never true — #198's
+        // own note records deleting it BECAUSE it claimed a preset could restore a release time
+        // when none could. (That version never reached a commit: `git show d34161e` shows the
+        // pre-#198 function carried no comment at all, so #198's sentence is the only record of
+        // it. Believable, but it is testimony, not history.) The SECOND — #198's own — did not
+        // say nothing ever would; it said
         // "today", and called this "a guard against a FUTURE control, exactly like the
         // limiter's". It aged exactly as it said it would. So the lesson is narrower than
         // "comments go stale": a dated claim has to be RE-READ, not summarized from memory,
@@ -508,18 +525,40 @@ public final class EchoelLimiter: @unchecked Sendable {
         // ⚠️ STILL TRUE AFTER #221, and deliberately so — the compressor got Attack/Release
         // controls, the limiter did NOT.
         //
-        // ⛔ AND THE REASON MATTERS, because the first version of this note gave the wrong
-        // one: it said a user-slowed attack "would let material overshoot the ceiling". It
-        // would not. Line ~470 — `if peak * g > ceilingLin { g = target }` — is an
-        // UNCONDITIONAL per-sample guard, and `env >= peak` by the instant-rise detector, so
-        // `peak * target <= ceiling` holds no matter what the attack coefficient is. The
-        // ceiling is safe at any attack. What a slowed attack costs is WAVEFORM SHAPE: the
-        // smoother arrives late, so the absolute guard engages on far more samples, and a
-        // guard that snaps `g` to `target` every sample IS the zero-attack limiter this class
-        // stopped being in #199 — algebraically the hard clipper behind the founder's
-        // "Es knistert". So the risk of exposing it is aliasing, not overshoot. That
-        // distinction is load-bearing: the wrong reason would let a later session "fix" a
-        // crackle report by trusting a ceiling guarantee that was never in danger.
+        // ⛔ AND THE REASON MATTERS — TWO earlier versions of this note gave two different
+        // wrong ones, so here is the measured answer instead of a third guess.
+        //
+        //   v1: "a user-slowed attack would let material overshoot the ceiling."  FALSE.
+        //   v2: "it would not overshoot, it would alias — the guard then fires far more
+        //        often and is algebraically the pre-#199 hard clipper."           ALSO FALSE.
+        //
+        // THE TRUTH: `attackMs` HAS NO EFFECT ON THIS CLASS'S OUTPUT AT ALL, on the finite
+        // path. It is a dead parameter today.
+        //
+        // Why, structurally: the attack branch (`target < gain`) can only be entered when
+        // `env` ROSE this sample, and the detector's rise is instantaneous, so on exactly
+        // those samples `env == peak`. Then `g` lands strictly above `target`, hence
+        // `peak * g > peak * target == ceilingLin`, hence the absolute guard —
+        // `if peak * g > ceilingLin { g = target }`, and it is unconditional ON THE FINITE
+        // PATH; the non-finite bail near the top of `processStereo` skips it deliberately,
+        // see the class doc — fires and overwrites `g` with `target`. The ballistics is
+        // preempted every single time it would have mattered. (Sole exception: the sample
+        // after a `ceilingDb` write from the control thread, where `target` can drop while
+        // `env` is decaying.)
+        //
+        // Measured, bit-accurate Float32 simulation of `processStereo` as written, sweeping
+        // `attackMs` 0.01 → 10 000 ms over sine +12 dB, gated onsets, a 5 ms spike into a
+        // body, and noise: output BIT-IDENTICAL in every run (max |Δ| = 0.000e+00), and the
+        // attack-branch count EQUALS the guard-fire count exactly in every run — 427/427,
+        // 332/332, 12/12, 75/75. That equality is the proof, not the bit-identity.
+        //
+        // So the honest reason the limiter has no Attack row is not a risk at all: the row
+        // would be a LYING CONTROL, the class this repo already tracks (#164, #227). And v2
+        // had the algebra backwards besides — the pre-#199 clipper divided by the
+        // INSTANTANEOUS `|sample|` (flat top, H3 ≈ −10 dBc); this guard divides by the
+        // ENVELOPE, which scales the waveform instead (H3 ≈ −70 dBc). Different operation,
+        // ~60 dB apart. If a slow-attack limiter is ever actually wanted, the change is to
+        // the guard, not to a new row.
         //
         // (Also corrected: this is a SAMPLE-peak limiter with a −0.3 dB default ceiling, not
         // a "−1 dBFS true-peak" stage. True peak is measured in `EchoelMeter` and trimmed

@@ -420,11 +420,13 @@ struct EchoelFXView: View {
                     // GOOD values, the clamp is a range of SAFE ones, and they are not the
                     // same thing.
                     //
-                    // ⚠️ Expect the BOTTOM of Release to feel dead, and do not "fix" it here.
-                    // The detector's own envelope decays at a fixed 40 ms
-                    // (`EchoelCompressor.detectorReleaseMs`, in series with this), so 10 ms
-                    // dialled in still recovers in ~40-something. That constant is the #198
-                    // ripple fix; changing it is a measurement, not a range edit.
+                    // ⚠️ Release has a FLOOR, and it is not a bug in this row. The detector's
+                    // own envelope (`EchoelCompressor.detectorReleaseMs`, fixed, in series)
+                    // adds a level-dependent offset — ~35 ms at typical settings, more under
+                    // heavy reduction — so 10 ms dialled in recovers in ~45 ms, or ~95 ms at
+                    // extreme threshold/ratio. The control still moves throughout; it just
+                    // cannot go below that. Raising the floor is a measurement on that
+                    // constant (see its doc), not an edit to the range here.
                     field("Attack", $vm.compAttack, 0.1...100, unit: "ms", decimals: 1)
                     field("Release", $vm.compRelease, 10...1000, unit: "ms", decimals: 0)
                     field("Knee", $vm.compKnee, 0...24, unit: "dB", decimals: 1)
