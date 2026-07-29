@@ -106,12 +106,21 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         public var id: String { rawValue }
 
         /// Picker section header.
+        ///
+        /// ⛔ These four were GERMAN until 2026-07-29 ("Meditativ & Ambient", "Elektronisch &
+        /// Beats", "Rock & Energie", "Akustisch & Global") and shipped that way inside a bundle
+        /// whose `CFBundleDevelopmentRegion` is `en` — a top-level picker header in a language
+        /// the bundle does not claim to speak. Fixed to English BEFORE any String Catalog
+        /// exists, deliberately and in this order: the catalog extracts the base language as
+        /// the source text, so a German literal left here would have been frozen as the key
+        /// every other language translates FROM. German comes back as a real translation, not
+        /// as an accident.
         public var title: String {
             switch self {
-            case .meditative: return "Meditativ & Ambient"
-            case .electronic: return "Elektronisch & Beats"
-            case .rock:       return "Rock & Energie"
-            case .acoustic:   return "Akustisch & Global"
+            case .meditative: return "Meditative & Ambient"
+            case .electronic: return "Electronic & Beats"
+            case .rock:       return "Rock & Energy"
+            case .acoustic:   return "Acoustic & Global"
             }
         }
 

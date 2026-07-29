@@ -1946,7 +1946,7 @@ struct EchoelStudioView: View {
             HStack(spacing: 8) {
                 Image(systemName: "mappin.and.ellipse")
                     .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
-                TextField("Ort manuell (optional)", text: $locationNamer.manualPlace)
+                TextField("Place, entered manually (optional)", text: $locationNamer.manualPlace)
                     .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
@@ -2050,8 +2050,12 @@ struct EchoelStudioView: View {
                 // what it changes; 0 = off (no change), 1 = fully the weather. The two
                 // groups sit side by side in landscape / on iPad.
                 AdaptiveCardGrid {
-                    weatherMixGroup("Sound · Klang", params: WeatherMood.Param.allCases.filter { $0.domain == .sound })
-                    weatherMixGroup("Image · Bild", params: WeatherMood.Param.allCases.filter { $0.domain == .visual })
+                    // ⛔ These two read "Sound · Klang" and "Image · Bild" until 2026-07-29 —
+                    // the English word and its German gloss, side by side, in a bundle that
+                    // declares one language. A per-string bilingual gloss is not what
+                    // localization is; it is what localization REPLACES.
+                    weatherMixGroup("Sound", params: WeatherMood.Param.allCases.filter { $0.domain == .sound })
+                    weatherMixGroup("Image", params: WeatherMood.Param.allCases.filter { $0.domain == .visual })
                 }
 
                 // Apple WeatherKit attribution requirement.

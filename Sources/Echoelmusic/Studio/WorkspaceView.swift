@@ -761,7 +761,7 @@ private struct SessionNamePreviewLeaf: View {
                 .foregroundStyle(EchoelTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
             // The exact export/save filename, kept for reference but de-emphasised.
-            Text("Datei: \(session.sessionName(bpm: transport.tempo.rounded()))")
+            Text("File: \(session.sessionName(bpm: transport.tempo.rounded()))")
                 .font(EchoelTheme.font(10).monospacedDigit())
                 .foregroundStyle(EchoelTheme.dim)
                 .lineLimit(1)

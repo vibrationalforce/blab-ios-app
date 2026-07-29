@@ -983,8 +983,12 @@ private struct InstrumentHintOverlay: View {
         Group {
             if !seen {
                 VStack(spacing: 7) {
-                    Label("Finger auf die Kamera bringt es zum Leben", systemImage: "camera")
-                    Label("Berühre das Bild zum Spielen", systemImage: "hand.point.up.left")
+                    // ⛔ These two were GERMAN until 2026-07-29 — on the immersive visual, the
+                    // most-seen surface in the app, and the FIRST thing a new user reads.
+                    // English is the bundle's declared development region; German returns
+                    // through a String Catalog as a translation, not as a stray literal.
+                    Label("A finger on the camera brings it to life", systemImage: "camera")
+                    Label("Touch the image to play", systemImage: "hand.point.up.left")
                 }
                 .font(EchoelTheme.font(13, .medium))
                 .foregroundStyle(.white.opacity(0.92))
