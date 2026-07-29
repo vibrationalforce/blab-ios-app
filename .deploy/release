@@ -1,4 +1,4 @@
-build: v10.79.356 — Ultrasync, Loop-Takte bis 64, Abbruch der Aufnahme, und eine Szene für den Beamer
+build: v10.79.357 — ein Messgerät für das Knistern
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,110 +6,99 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der letzte Build auf Deinem Gerät ist 10.79.355. Dieser hier bringt Deine drei Wünsche
-  vom 28.7. — Ultrasync, Loop-Recording mit 2/4/8/16/32/64 Takten, und den Abbruch einer
-  verspielten Aufnahme — plus die erste Scheibe der Beamer-Ausgabe.
+  Der Vorgänger auf Deinem Gerät ist 10.79.356.
 
-  ── 1. ULTRASYNC: DAS TOUCH-INSTRUMENT IM TAKT ──────────────────────────────
+  ── DIESER BUILD ÄNDERT AM KLANG NICHTS ─────────────────────────────────────
 
-  Deine Formulierung war: „damit das Touch Instrument immer perfekt im Timing ist auch
-  microtime (somit wird ungeschicktes Spielen auch zum ästhetischen Ereignis)". Genau so
-  ist es gebaut.
+  Das ist keine Bescheidenheit, das ist die Ansage. Du hörst nach diesem Update genau
+  dasselbe wie vorher. Was dazukommt, ist eine Zeile pro Minute in der Diagnose-Datei.
 
-  Neu im Touch-Reiter: ein Regler „Sync" (0…1) und ein Menü „Grid" (1/4 bis 1/32).
-  Sync 0 = wie bisher, der Ton kommt sofort. Sync 1 = der Ton wartet auf das nächste
-  Rasterfeld. Alles dazwischen zieht ihn anteilig hin. STANDARD IST AUS, und ein Test hält
-  das fest — es ändert, WANN ein gespielter Ton klingt, und das ist das Intimste an einem
-  Instrument; das trifft man nicht durch ein Update überrascht.
+  ── WARUM ───────────────────────────────────────────────────────────────────
 
-  DAS ENTSCHEIDENDE DETAIL, DAMIT ES SICH NICHT TOT ANFÜHLT: nur der Ton wartet. Haptik,
-  Wasserring und Farbwolke feuern in dem Moment, in dem der Finger landet. Die Hand kriegt
-  sofort Antwort, nur die Note geht aufs Raster. Ohne diese Trennung fühlt sich jedes
-  Quantisieren nach Verzögerung an statt nach Groove.
+  Deine Meldung war: „Es knistert. Wie CPU overload bei Ableton oder so", mit dem Zusatz,
+  die Quelle zu FINDEN und nicht zu raten.
 
-  Das „microtime" reitet bewusst auf dem vorhandenen „Life"-Regler mit, statt einen dritten
-  Knopf aufzumachen. Life hat schon versprochen „zwei identische Tipper klingen nie
-  identisch" — Dein „auch microtime" ist dasselbe Versprechen, angewandt auf die Zeit.
+  Zwei Zyklen haben vorher geraten. Beide in dieselbe Richtung — Last senken: die Bildrate
+  fest auf 60 gepinnt, die teuren Mastering-Meter abgeschaltet, wenn keiner hinsieht. Beide
+  waren plausibel. Beide waren unbeweisbar. Und das Knistern kam wieder.
 
-  Was ich Dir dazu ehrlich sage, weil es Dein Ohr entscheidet: bei GESWUNGENEN GENRES zielt
-  das Raster auf das GERADE Raster, nicht auf den Swing. Auf Jazz mit starkem Swing kann
-  Sync 1 sich deshalb gegen die Musik stellen. Steht als Nacharbeit auf der Liste; ich
-  wollte es Dir nicht verschweigen, damit Du es nicht für einen Fehler hältst.
+  Der Grund, warum sich das im Kreis dreht: in dieser App misst NICHTS, ob der Audio-Weg
+  seine Frist verpasst. Ich kann Dir nach jeder Änderung sagen, dass ich Last gespart habe.
+  Ich kann Dir nicht sagen, ob das die Ursache war. Ohne eine Zahl bleibt jede weitere
+  Runde eine Vermutung mit einem Deploy dran.
 
-  ── 2. LOOP-RECORDING: 2/4/8/16/32/64 TAKTE — UND EINE EHRLICHE GRENZE ──────
+  ── WAS ES MISST ────────────────────────────────────────────────────────────
 
-  Die Taktlängen gehen jetzt bis 64 (vorher 16). Aber der wichtigere Teil ist der, den ich
-  Dir im letzten Deploy als offenen Fehler genannt habe:
+  Es hängt am Master-Abgriff, den es SOWIESO schon gibt — kein neuer Thread, kein neuer
+  Timer, keine Speicheranforderung, keine Sperre auf dem Audio-Weg. Zwei getrennte Zahlen:
 
-  „Keep last 16 bars" hat bei normalem Tempo NICHT funktioniert und es nicht gesagt. Der
-  Zwischenspeicher ist knapp 30 Sekunden lang; ein Takt bei 120 BPM sind 2 Sekunden. Du
-  hast getippt, und es passierte nichts — ohne Hinweis. Jetzt rechnet der Knopf mit Deinem
-  aktuellen Tempo und nennt die WAHRE Obergrenze, statt eine Länge anzubieten, die er nicht
-  halten kann. Bei 120 BPM ist das die 8; bei langsamem Tempo mehr, bei schnellem weniger.
-  Der Knopf ändert seine Beschriftung mit dem Tempo mit.
+  1. VERSPÄTUNG — kam ein Puffer später als die Hardware ihn erwartet hat? Gemessen mit
+     CoreAudios eigenem Zeitstempel des Render-Zyklus, nicht mit einer Uhr, die auch die
+     Wartezeit meines eigenen Code-Blocks mitzählen würde.
+  2. FRAME-DRIFT — wurde dabei tatsächlich Audio ÜBERSPRUNGEN, oder lief nur die Uhr weiter?
 
-  Das Rückwirkende ist damit ehrlich. Das „ab dem ersten Takt" — also mitschneiden ab jetzt
-  für N Takte — läuft über den normalen Aufnahme-Knopf.
+  Die Kombination ist die Diagnose, und deshalb stehen beide nebeneinander statt zu einer
+  Zahl verrechnet:
+  · Verspätung mit Drift 0 → der Graph hat schlicht nicht gerendert. Ein Stillstand.
+  · Verspätung mit Drift größer 0 → Audio wurde übersprungen. Der klassische Aussetzer.
+  · Beides klein → der Audio-Weg war pünktlich, und das Knistern kommt woanders her.
 
-  ── 3. DIE AUFNAHME LÄSST SICH ABBRECHEN ────────────────────────────────────
+  Eine Siri-Unterbrechung oder ein Kopfhörer-Wechsel wird separat gezählt und NICHT als
+  Überlast ausgegeben — sonst stünde nach jedem Telefonat eine Katastrophenzahl im Log.
 
-  „Es ist schon wichtig das man die Aufnahme dann auch abbrechen kann, wenn man sich
-  verspielt hat." Der Aufnahme-Knopf wird während der Aufnahme zum Abbruch-Knopf
-  („Stop and discard this take", Stop-Symbol). Ein Tipp: Transport aus, Datei gelöscht,
-  zurück auf Anfang. Es bleibt nichts liegen.
+  ── WAS ES NICHT SIEHT, UND DAS STEHT AUCH SO IN DER ZEILE ──────────────────
 
-  Zwei Dinge, die beim Bauen fast schiefgegangen wären und die ich benenne, weil sie genau
-  die Klasse Fehler sind, die man erst auf dem Gerät merkt: der Abbruch hätte den Knopf für
-  den Rest der Sitzung tot lassen können (die Aufnahme-Schicht ruft ihren Rückruf NICHT auf,
-  wenn gar nicht aufgenommen wird — der Export hätte ewig gewartet). Und der Knopf hätte
-  nach dem Abbruch weiter „Stop" angezeigt und Tipper ignoriert. Beides ist geschlossen.
-  Die Phase NACH dem Abbruchfenster — während die .wav geschrieben wird — ist bewusst nicht
-  abbrechbar; da ist die Aufnahme fertig, es wird nur noch gerechnet.
+  Knistern hat zwei mögliche Klassen. Dieses Gerät sieht nur die erste (Audio-Weg
+  verhungert). Die zweite — ein Klick im Signalweg bei perfekt pünktlichem Audio, etwa ein
+  Parameter, der springt statt zu gleiten, oder eine Stimme, die ohne Ausblendung
+  weggenommen wird — ist für dieses Gerät unsichtbar. Eine saubere Zeile heißt also NICHT
+  „das Knistern ist weg". Sie heißt „es liegt nicht an der Überlast" und halbiert damit den
+  Suchraum. Genau das steht wörtlich in der Log-Zeile, damit sie später niemand als
+  Entwarnung liest.
 
-  ── 4. EIN LEISER FEHLER IN DER KLANGFARBE DES BILDES ───────────────────────
+  ── WAS ICH VON DIR BRAUCHE ─────────────────────────────────────────────────
 
-  Aus Deinem Log 2472: fünf klingende Noten, alle mit Anschlagstärke 0. Die Musik meldete
-  „ich klinge" an Bild und Licht, obwohl niemand etwas hört. Ergebnis: Visual und Lampen
-  konnten auf eine Stille reagieren. Noten unterhalb der Hörschwelle zählen jetzt nicht mehr
-  als klingend. Die Diagnosezeile zeigt beide Zahlen (hörbar/aktiv), damit der Unterschied
-  nicht wieder unsichtbar wird.
+  Spiel, bis es knistert. Merk Dir ungefähr wann. Dann teil mir die Diagnose-Datei
+  (echoel_diag.log) — die Zeilen beginnen mit „audio timing:".
 
-  ── 5. BEAMER-AUSGABE, SCHEIBE 1 — UND WAS ICH VON DIR BRAUCHE ──────────────
+  Ideal wären zwei Situationen, weil sie unterschiedliche Antworten geben:
+  · einmal mit Kamera-Biofeedback und Visual an (die Last-Vermutung),
+  · einmal ohne beides, nur Klang. Wenn es DANN auch knistert, ist Last nicht die Ursache
+    und wir suchen sofort im Signalweg weiter.
 
-  Deine Frage: „Macht es Sinn so ein Bild in Bild Fenster … damit man das Bild für die
-  visuals für einen anderen Bildschirm, Beamer etc nutzen kann?" Antwort in kurz: Bild-in-
-  Bild ist das falsche Werkzeug — es hält ein Video über ANDEREN APPS auf DEMSELBEN Gerät
-  und erreicht per Definition keinen zweiten Bildschirm. Spiegeln (AirPlay/HDMI) geht heute
-  schon ohne jede Zeile Code, zeigt aber die ganze Bedienoberfläche mit. Du hast Dich für
-  die eigene Ausgabe-Szene entschieden, und die ist der einzige unterstützte Weg, auf dem
-  der Beamer etwas ANDERES zeigt als das Telefon, während das Telefon spielbar bleibt.
+  Ohne diese Zahlen wäre jede weitere Änderung wieder geraten, und ich möchte Dir keine
+  dritte Vermutung als Fix verkaufen.
 
-  ⚠ DIESE SCHEIBE ZEIGT ABSICHTLICH FAST NICHTS. Am Beamer erscheint schwarz mit dem Wort
-  ECHOEL. Das Visual kommt in Scheibe 2. Der Grund: das Risiko ist nicht der zweite
-  Bildschirm, sondern der START. Diese Änderung fasst den Startpfad an, und diese App hat
-  eine dokumentierte Schwarzbild-Geschichte. Ich will EINE Frage von Dir beantwortet haben,
-  bevor ich Metal auf die zweite Szene lege:
+  ── ARBEITSWEISE, DIE ICH OFFENLEGE, WEIL SIE DEN ZYKLUS GEKOSTET HAT ───────
 
-  STARTET DIE APP NORMAL — OHNE IRGENDETWAS ANGESCHLOSSEN? Ein einziger normaler Start
-  reicht mir. Wenn ja, baue ich das Visual drauf. Wenn nein, ist es ein Commit zum
-  Zurücknehmen.
+  Ein Diagnosewerkzeug, das selbstbewusst falsch meldet, ist schlimmer als keins — es
+  BEENDET die Suche, statt sie zu lenken. Deshalb ist dieses hier durch fünf Prüfrunden
+  gegangen, und jede einzelne fand einen echten Messfehler, den Du sonst als Befund
+  geglaubt hättest:
+  · die falsche Uhr (sie hätte gemessen, wann mein Code drankam, nicht wann Audio lief),
+  · die falsche Maßeinheit — ein einzelner ausgefallener Render-Zyklus, also genau ein
+    hörbares Knacken, wäre unter der Schwelle geblieben,
+  · eine Siri-Unterbrechung wäre als 1400-fache Überlast im Log gelandet,
+  · nach der Korrektur dafür das Gegenteil: der ECHTE Aussetzer wäre als „Pause, ignoriert"
+    abgelegt worden,
+  · und zuletzt eine Reihenfolge beim Fenster-Wechsel, die eine sich selbst widersprechende
+    Zeile hätte schreiben können („2 Ereignisse, schlimmstes 0,0-fach").
 
-  Nebenwirkung, die ich nenne, weil sie NICHT bestellt war: der Schalter dafür gilt app-weit,
-  und wir bauen auch für iPad. Auf einem iPad lässt sich damit nun ein ZWEITES App-Fenster
-  öffnen. Damit dessen Start nicht ein zweites Mal über die schon laufende Audio-Engine
-  fährt (genau die Form, die dem Startabsturz von Build 1363 zugeschrieben wird), läuft der
-  Startlauf jetzt garantiert nur einmal pro Prozess.
+  Fünf Runden für ein Werkzeug, das nichts hörbar ändert, klingt nach viel. Der Grund ist
+  einfach: die erste Zahl, die Du mir schickst, entscheidet die nächsten Zyklen. Sie muss
+  stimmen.
 
-  ── WAS NICHT GEPRÜFT IST ───────────────────────────────────────────────────
+  ── NOCH OFFEN AUS 10.79.356 (unverändert, bitte mit prüfen) ────────────────
 
-  Alles hier ist compile-verifiziert (beide echten Gates grün), NICHT geräteverifiziert.
-  Drei Dinge kann nur Dein Gerät beantworten:
-  · Der normale Start (siehe oben) — das ist die wichtigste.
-  · Ob Ultrasync sich musikalisch anfühlt oder nach Verzögerung. Ein hängengebliebener Ton
-    wäre ebenfalls hier zu sehen; die Review hat drei solche Fälle vorher gefunden und
-    geschlossen, aber CI kann eine hängende Note nicht fangen.
-  · Aus dem Vorgängerbuild noch offen: knistert der Limiter wirklich nicht mehr, und pumpt
-    dünnes Flow-Material?
+  · STARTET DIE APP NORMAL, ohne angeschlossenen Bildschirm? Ein einziger normaler Start
+    reicht. Davon hängt ab, ob das Visual auf die Beamer-Szene kommt oder der Commit
+    zurückgeht.
+  · Fühlt sich Ultrasync musikalisch an oder nach Verzögerung?
+  · Knistert der Limiter wirklich nicht mehr, und pumpt dünnes Flow-Material?
 
-  Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Thread weiterhin sperr- und
+  ── PRÜFSTAND ───────────────────────────────────────────────────────────────
+
+  Compile-verifiziert, beide echten Gates grün über alle sechs Commits. NICHT
+  geräteverifiziert — was dieses Messgerät auf Deinem Telefon ausgibt, kann hier niemand
+  sehen. Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
   allokationsfrei.
