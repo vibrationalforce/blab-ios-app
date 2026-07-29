@@ -42,7 +42,7 @@ _Last reviewed: 2026-06-26._
 ### Light/colour mapping — physically-derived (no third-party concept)
 - The immersive visual colours a tone by transposing it up whole octaves into the visible
   band and converting that **light wavelength → RGB via the CIE colour-matching functions**
-  (`MetalBioView.swift`, `wavelengthToRGB`/`toneWavelengthNm`). This is standard physics
+  (`MetalBioView.swift`, `wavelengthToRGB`/`toneColour`). This is standard physics
   (octave mathematics f × 2ⁿ + CIE 1931), not a third-party convention — no attribution
   required. (The earlier Hans Cousto "Cosmic Octave" colour-wheel and planetary-tone tunings
   were removed in 10.76.40.)

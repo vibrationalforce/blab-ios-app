@@ -24,6 +24,7 @@
 // execute Metal. Verifying those needs an eye on a device. Do not read a green run here as
 // "CPU and GPU agree"; read it as "the one part that could be checked, is checked".
 
+import Foundation
 import XCTest
 @testable import Echoelmusic
 
@@ -61,6 +62,14 @@ final class SpectralSeamTwinTests: XCTestCase {
     /// drift. Asserted against the physics they claim to be — one light octave anchored at
     /// 780 nm, with the pure-spectral span running from 640 nm to 420 nm.
     func testTheSeamBoundariesAreTheOctavePositionsOfTheSpectralEdges() {
+        // Compared against WRITTEN-OUT decimals, not against `log2(780/640)` recomputed here.
+        // Recomputing is character-for-character the initializer, so it can only catch an edit
+        // to the nm constants — never a wrong VALUE. These decimals were computed
+        // independently and pin the physics itself.
+        XCTAssertEqual(SpectralColor.tRed, 0.28540221886224837, accuracy: 1e-12)
+        XCTAssertEqual(SpectralColor.tViolet, 0.8930847960834881, accuracy: 1e-12)
+        // And they must still BE the octave positions of the two edges — the property above
+        // pins the number, this pins where it comes from.
         XCTAssertEqual(SpectralColor.tRed, Foundation.log2(780.0 / 640.0), accuracy: 1e-15)
         XCTAssertEqual(SpectralColor.tViolet, Foundation.log2(780.0 / 420.0), accuracy: 1e-15)
         // Ordered and strictly inside one octave, or the span/seam split in `toneLinearRGB`
@@ -89,12 +98,20 @@ final class SpectralSeamTwinTests: XCTestCase {
     /// response goes to zero and disappeared from the visual (founder, 2026-07-12 — "da fehlt
     /// jetzt gerade das F komplett als Farbe"). Swept finely enough to land inside the seam
     /// many times over, not just on the twelve equal-tempered classes.
+    ///
+    /// THE BAR IS 0.5, not something merely above zero. The measured floor across the whole
+    /// circle is 0.795 (at the 420 nm violet edge; 640 nm normalizes to 1.0, and the seam's
+    /// peak lift interpolates between the two, so it cannot dip under either). A bar of, say,
+    /// 0.05 would be true to this test's NAME and useless for its purpose: a regression that
+    /// dimmed the violet edge to 0.15 is a visibly near-black column on a dark field —
+    /// exactly what was reported — and would sail through. 0.5 keeps 37 % headroom under the
+    /// real floor while still catching a dimming regression.
     func testNoPitchInTheCircleRendersBlack() {
         for step in 0..<240 {
             let hz = 220.0 * pow(2.0, Double(step) / 240.0)      // one full octave, 240 points
             let c = SpectralColor.toneLinearRGB(forToneHz: hz)
-            XCTAssertGreaterThan(max(c.r, max(c.g, c.b)), 0.05,
-                                 "a tone at \(hz) Hz renders as good as black")
+            XCTAssertGreaterThan(max(c.r, max(c.g, c.b)), 0.5,
+                                 "a tone at \(hz) Hz renders too dark to read as a colour")
         }
     }
 }
