@@ -106,6 +106,34 @@ public final class MixerStore {
         Swift.min(1, Swift.max(genre, 0) * Swift.min(1, Swift.max(user, 0)))
     }
 
+    /// The finished note velocity: the composer's raw velocity carrying both the genre's
+    /// mix glue and the user's fader. This is THE mixing law — the primary take and the
+    /// secondary lanes each used to carry their own identical copy of it, which is how a
+    /// fix to one could silently leave the other on the old law.
+    ///
+    /// ⚠ IT MUST BE APPLIED TO THE COMPOSER'S RAW VELOCITY, NEVER TO AN ALREADY-MIXED ONE.
+    /// It is a multiplication, so a second application COMPOUNDS (0.5 twice = 0.25) — the
+    /// caller re-balancing a take that is already playing has to keep the raw bars and
+    /// re-derive from them (#174). A test in the blocking bundle pins exactly that.
+    ///
+    /// NON-FINITE INPUT, stated precisely because the halves differ and a blanket
+    /// "NaN-safe" claim here would be false:
+    /// · a non-finite VELOCITY leaves a silent note — the clamp is written `Swift.max(0, x)`,
+    ///   which returns 0 for NaN, where `Swift.max(x, 0)` would return NaN and poison the
+    ///   voice (this repo has shipped that permanent-silence bug before).
+    /// · a non-finite `genre` or `user` is treated as UNITY, not as zero, because
+    ///   `combined` uses the other argument order and `Swift.min(1, .nan)` returns 1.
+    ///   Neither is reachable today (genre levels are constants, the fader is persisted
+    ///   from a bounded field) and, more importantly, neither can escape: the result is
+    ///   provably in [0, 1] and never NaN for ANY input, so nothing non-finite reaches
+    ///   the audio thread. That invariant — not the argument order — is what the
+    ///   blocking-bundle test pins.
+    public nonisolated static func mixedVelocity(_ velocity: Float,
+                                                 genre: Float,
+                                                 user: Float) -> Float {
+        Swift.min(1, Swift.max(0, velocity * combined(genre: genre, user: user)))
+    }
+
     /// Reset every fader to unity (the genre's own balance).
     public func resetToUnity() {
         bass = 1.0; pad = 1.0; lead = 1.0; drums = 1.0

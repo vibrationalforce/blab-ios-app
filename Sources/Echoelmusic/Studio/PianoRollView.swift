@@ -598,6 +598,47 @@ public final class PianoRollModel {
         }
     }
 
+    /// Swap the arrangement's NOTES for the same notes at new LEVELS, without ever
+    /// cutting something that is sounding (#174 — the mixer re-bake).
+    ///
+    /// `loadArrangement(_:playing:)` cannot be reused for this, and the reason is a trap
+    /// worth naming: its `guard bars.count > 1` sends the SINGLE-bar case — the default
+    /// loop length, i.e. the common one — down `load(_:)`, which opens with
+    /// `allNotesOff()`. Re-balancing through it would therefore chop every sounding note
+    /// each time a fader settled, which is a worse artefact than the bug being fixed.
+    ///
+    /// The two branches deliberately differ, because the EXPORT reads a different array
+    /// in each case and #174 is ultimately about the export telling the truth:
+    /// · multi-bar — `arrangementBars` is both the cycle and `arrangementForExport()`'s
+    ///   source, so writing it makes the export correct at once; the sounding bar swaps
+    ///   at the next boundary through `pendingNotes` (consumed by `trigger` at
+    ///   `step == 0`), leaving the current bar's notes to release naturally.
+    /// · single bar — `arrangementForExport()` returns `(notes, 1)`, so `notes` IS the
+    ///   arrangement and is written directly. Safe mid-bar: a note already started keeps
+    ///   its voice (releases come from `active`, not from `notes`) and one whose
+    ///   `startStep` has passed cannot retrigger, so only notes still to come in this bar
+    ///   pick up the new level — which is what a level control should do. Staging it
+    ///   instead would have left an export taken within the same bar on the old levels.
+    ///
+    /// `playedBars` is never reset in either branch, and nothing here calls `allNotesOff`.
+    /// Stopped, there is nothing to cut and the ordinary load path (with its intro
+    /// attenuation) is exactly right.
+    public func rebakeArrangement(_ bars: [[Note]], playing: Bool) {
+        guard let firstBar = bars.first else { return }
+        guard playing else { loadArrangement(bars, playing: false); return }
+        // Generative path is phase-0 by definition (same reason as loadArrangement).
+        arrangementPhaseOffset = 0
+        if bars.count > 1 {
+            arrangementBars = bars
+            pendingNotes = bars[playedBars % bars.count]
+        } else {
+            // A one-bar arrangement is the classic loop: `arrangementBars` stays empty so
+            // `trigger`'s cycling branch is untouched, exactly as `load(_:)` leaves it.
+            arrangementBars = []
+            notes = firstBar
+        }
+    }
+
     /// Import externally-authored notes (e.g. a Standard MIDI File) onto the
     /// single-bar roll. The roll is one `stepCount`-step bar with a fixed pitch
     /// window, so we make an imported clip *comprehensible* rather than dropping

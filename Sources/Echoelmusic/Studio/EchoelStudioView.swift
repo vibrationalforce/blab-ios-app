@@ -314,6 +314,25 @@ struct EchoelStudioView: View {
     /// Debounce handle that coalesces rapid recompose requests (see scheduleGenerate).
     @State private var regenTask: Task<Void, Never>?
     @State private var startTask: Task<Void, Never>?
+    /// Debounce handle for a mixer re-balance (see scheduleRebalance).
+    @State private var rebalanceTask: Task<Void, Never>?
+    /// The current take EXACTLY as the composer produced it — before the genre mix glue
+    /// and before the user's faders — TOGETHER WITH the genre it was composed in. Kept so
+    /// moving a fader can re-bake THIS take (#174) instead of composing a different one.
+    /// nil until the first generate().
+    ///
+    /// The genre travels WITH the bars rather than being read from `style` at re-bake
+    /// time, and that pairing is load-bearing, not tidiness: `scheduleGenerate`'s window
+    /// runs up to ~2 s while `scheduleRebalance`'s is 120 ms, so a fader touched just
+    /// after a genre change would otherwise glue the OLD genre's notes with the NEW
+    /// genre's `mixLevels` — and a Stop landing in that window persists the mismatch into
+    /// the composer-owned clips, i.e. into the MIDI export. Same shape as `lastLaneRaw`,
+    /// which already carried its genre for the same reason.
+    @State private var lastRawTake: (genre: MusicStyle, bars: [[Note]])?
+    /// The same, per override-carrying secondary lane, with the genre each lane composes
+    /// in. Cleared whenever a generate finds no overrides, so a lane whose override the
+    /// user removed cannot be re-written from a stale take.
+    @State private var lastLaneRaw: [UUID: (genre: MusicStyle, notes: [Note])] = [:]
     /// Non-blocking watcher that re-seeds once the rPPG pulse first locks (see snapToLockWhenReady).
     @State private var lockSnapTask: Task<Void, Never>?
     /// When the last take was composed — the floor for automatic re-seeds.
@@ -1566,7 +1585,10 @@ struct EchoelStudioView: View {
                 laneVoiceRack.setBassMixLevel(mixer.bass)
                 setBassFX(.off)
                 setMelodicFX(.off)
-                recomposeIfRunning()
+                // Same law as a single fader (#174): "reset the balance" restores the
+                // genre's levels on the take you are listening to — it does not fetch a
+                // different take.
+                scheduleRebalance()
             } label: {
                 Text("Reset to genre balance")
                     .font(EchoelTheme.font(12, .medium))
@@ -1676,7 +1698,10 @@ struct EchoelStudioView: View {
                     // more place to forget when a fader is added.
                     subBass.mixLevel = mixer.bass
                     laneVoiceRack.setBassMixLevel(mixer.bass)
-                    recomposeIfRunning()
+                    // RE-BAKE, never recompose (#174): `recomposeIfRunning()` routes into
+                    // generate(), which advances the evolve cursor — so balancing a take
+                    // used to replace it with a different one.
+                    scheduleRebalance()
                 })
     }
 
@@ -3283,6 +3308,87 @@ struct EchoelStudioView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Per-genre MIX GLUE × the user's per-part MIXER level, applied to one bar of the
+    /// composer's RAW output. Genre glue nudges relative role levels so each genre sits
+    /// right (lead forward in synth genres, bass firmer in dub/heavy, pad back in dense
+    /// takes); the user's fader then trims on top. A pure velocity scale at the one point
+    /// all notes exist as an array — no audio-thread change.
+    ///
+    /// ONE copy for both paths: the primary take and the secondary lanes carried two
+    /// identical inline versions of this map until #174, and a fix to one would have left
+    /// the other on the old law. `genre` is a parameter because a secondary lane composes
+    /// in its own `genreOverride`.
+    private func mixGlued(_ raw: [Note], genre: MusicStyle) -> [Note] {
+        let mix = genre.mixLevels
+        return raw.map { n in
+            var m = n
+            let genreF: Float
+            switch n.role {
+            case .bass:    genreF = mix.bass
+            case .lead:    genreF = mix.lead
+            case .harmony: genreF = mix.harmony
+            }
+            m.velocity = MixerStore.mixedVelocity(n.velocity, genre: genreF,
+                                                  user: mixer.level(for: n.role))
+            return m
+        }
+    }
+
+    /// Re-bake the take that already exists at the CURRENT mixer levels — without
+    /// composing anything (#174).
+    ///
+    /// A fader is a level control, not a compositional one, and until now it was both.
+    /// While playing, `mixBinding` called `recomposeIfRunning()`, and `generate()` builds
+    /// its input with `advanceEvolution: true` — so every touch of a Mix fader handed the
+    /// listener a DIFFERENT piece while they were trying to balance the one they had.
+    /// While stopped, the opposite failure: nothing re-applied at all, so the stored take
+    /// and everything derived from it (the roll clip, `exportMIDI()`) kept whatever level
+    /// was baked at compose time. A fader pulled to 0 exported silence, permanently.
+    ///
+    /// The level stays baked into VELOCITY on purpose. `PianoRollView` reads velocity as
+    /// "is this note audible" in three places — `audibleVelocityFloor`, the felt-sub
+    /// decision and the `MusicalFrame` publish — so moving the user term to trigger time
+    /// would light the visual, the light output and the felt sub for notes nobody can
+    /// hear. That is exactly #205, and re-deriving from `lastRawTake` avoids it without
+    /// re-opening it.
+    private func rebalanceTake() {
+        guard let take = lastRawTake, !take.bars.isEmpty else { applySoundLive(); return }
+        // `take.genre`, NOT `style`: the take must be re-glued with the genre it was
+        // COMPOSED in, even if the user has since picked another one whose recompose has
+        // not landed yet (see `lastRawTake`).
+        let bars = take.bars.map { mixGlued($0, genre: take.genre) }
+        // `rebakeArrangement`, NOT `loadArrangement`: the latter routes a single-bar loop
+        // — the common case — through `load(_:)`, which begins with `allNotesOff()`, so
+        // every fader settle would chop the sounding notes. Playing → staged at the bar
+        // boundary, no cut; stopped → the ordinary load path.
+        pianoRoll.rebakeArrangement(bars, playing: running && beatPlayer.pattern.isPlaying)
+        // `createIfNeeded: false` — a level change must never invent a clip; it only
+        // rewrites the composer-owned one if it is already there.
+        syncPrimaryRollClip(bars: bars, createIfNeeded: false)
+        writeLaneTakes()
+        if !running { applySoundLive() }
+    }
+
+    /// Coalesce fader movement into one re-bake. A drag writes continuously and each
+    /// re-bake rewrites clip contents; 120 ms is short enough that a decisive move still
+    /// lands within the same bar (the roll swaps at the bar boundary anyway) and long
+    /// enough that dragging does not rewrite the clip store per pixel.
+    ///
+    /// DELIBERATELY NOT cancelled by `stopEverything` / `pausePlaybackKeepingSession`,
+    /// unlike `regenTask`. Those cancel WORK GENERATORS — a pending re-bake starts no
+    /// clock and arms no driver; it only makes the stopped take (and its MIDI export)
+    /// agree with the fader the user just moved, which is the whole point of #174. A
+    /// fader nudged just before Stop must not silently leave the old level baked in.
+    private func scheduleRebalance() {
+        rebalanceTask?.cancel()
+        rebalanceTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled else { return }
+            rebalanceTake()
+            rebalanceTask = nil
+        }
+    }
+
     /// Recompose if playing (key/tuning/tempo affect the notes); otherwise just
     /// refresh the live timbre so the change is reflected when playback begins.
     /// Debounced: one genre tap cascades through several @State changes
@@ -4303,38 +4409,15 @@ struct EchoelStudioView: View {
         fxCharacter.apply(to: synth.fxChain, bpm: tempo, genre: style)
         if let touchSynth { fxCharacter.apply(to: touchSynth.fxChain, bpm: tempo, genre: style) }   // same room for played notes
         applyDelaySync(bpm: tempo)   // keep the user's delay note value across re-seeds
-        // Per-genre MIX GLUE: nudge relative role levels so each genre sits right
-        // (lead forward in synth genres, bass firmer in dub/heavy, pad back in
-        // dense takes). Velocity scales each voice's amplitude, so this is a pure,
-        // audio-thread-safe level move at the one point all notes exist as an array.
-        let mix = style.mixLevels
-        // Turn one raw composed bar into final notes: the per-genre mix glue.
-        func finish(_ raw: [Note]) -> [Note] {
-            return raw.map { n in
-                var m = n
-                // Genre mix glue × the user's per-part MIXER level (Module 1). Unity
-                // mixer = the genre balance unchanged; the user can pull e.g. a shrill
-                // lead down. Still a pure velocity scale — no audio-thread change.
-                let genreF: Float
-                switch n.role {
-                case .bass:    genreF = mix.bass
-                case .lead:    genreF = mix.lead
-                case .harmony: genreF = mix.harmony
-                }
-                let f = MixerStore.combined(genre: genreF, user: mixer.level(for: n.role))
-                m.velocity = min(1, max(0, n.velocity * f))
-                return m
-            }
-        }
         // LOOP-CONFORM ARRANGEMENT (1b, founder: "je nachdem wie groß der Loop umgestellt
         // ist"): build `loopBars` distinct bars that the roll cycles through — a different
         // bar each loop. Every bar shares the STRUCTURE seed (cohesive — "same piece
         // breathing") but uses a per-bar DETAIL seed (distinct), so a 4-bar loop really is
         // four bars, not one repeated. bar 0 = the take just composed. barCount 1 = classic.
         let barCount = max(1, loopBars.rawValue)
-        var bars: [[Note]] = [finish(composition.notes)]
+        var rawBars: [[Note]] = [composition.notes]
         if barCount > 1 {
-            bars.reserveCapacity(barCount)
+            rawBars.reserveCapacity(barCount)
             for b in 1..<barCount {
                 var barInput = input
                 barInput.seed = evolvingSeed &+ UInt64(b)
@@ -4342,9 +4425,15 @@ struct EchoelStudioView: View {
                 // so a multi-bar Fläche moves through its progression WITHIN the loop
                 // (a different held chord per bar), not just across evolves.
                 barInput.progressionPhase = basePhase + b
-                bars.append(finish(BioComposer.compose(barInput).notes))
+                rawBars.append(BioComposer.compose(barInput).notes)
             }
         }
+        // Keep the composer's OWN bars, paired with the genre they were composed in
+        // (#174). Every downstream copy carries the mixer baked into its velocities, so
+        // re-balancing has to start again from here — see `rebalanceTake()` for why the
+        // level cannot simply move off velocity.
+        lastRawTake = (genre: style, bars: rawBars)
+        let bars = rawBars.map { mixGlued($0, genre: style) }
         // Playing → hot-swap at the seamless boundary (no cut); stopped → load bar 0 now so
         // it's present before playback starts. The cycler advances one bar per loop, in sync
         // with the transport's "bar N/M" indicator.
@@ -4482,28 +4571,34 @@ struct EchoelStudioView: View {
         let overrides = LaneComposerInput.composeLaneOverrides(base: input,
                                                                lanes: doc.lanes,
                                                                rollLane: rollLaneID)
-        guard !overrides.isEmpty else { return }
+        // Clearing on the empty case matters: a lane whose override the user has REMOVED
+        // must not keep being re-written from a take it no longer owns.
+        guard !overrides.isEmpty else { lastLaneRaw = [:]; return }
+        var raw: [UUID: (genre: MusicStyle, notes: [Note])] = [:]
+        for (laneID, notes) in overrides {
+            // THIS lane's genre (its override) so its roles balance like that style.
+            raw[laneID] = (genre: doc.lanes.first(where: { $0.id == laneID })?.genreOverride ?? style,
+                           notes: notes)
+        }
+        lastLaneRaw = raw
+        writeLaneTakes()
+    }
+
+    /// Bake the stored lane takes at the CURRENT mixer levels and write them into each
+    /// lane's composer-owned clip. Split out of `applyLaneOverrides` (#174) so a fader
+    /// move re-bakes the SAME lane notes instead of leaving the secondary lanes on
+    /// whatever level happened to be set when they were composed — otherwise the two
+    /// paths would end up obeying two different laws, which is the failure mode this
+    /// whole change exists to remove.
+    private func writeLaneTakes() {
+        guard !lastLaneRaw.isEmpty else { return }
         // The generative instrument cycles bars 0..<loopBars — the active window.
         let windowTicks = max(1, loopBars.rawValue) * TimelineTime.ticksPerBar
-        for (laneID, notes) in overrides {
-            // Same mix glue the primary take's finish() applies, but with THIS
-            // lane's genre (its override) so its roles balance like that style.
-            let genre = doc.lanes.first(where: { $0.id == laneID })?.genreOverride ?? style
-            let mix = genre.mixLevels
-            let glued = notes.map { n -> Note in
-                var m = n
-                let genreF: Float
-                switch n.role {
-                case .bass:    genreF = mix.bass
-                case .lead:    genreF = mix.lead
-                case .harmony: genreF = mix.harmony
-                }
-                let f = MixerStore.combined(genre: genreF, user: mixer.level(for: n.role))
-                m.velocity = min(1, max(0, n.velocity * f))
-                return m
-            }
+        for (laneID, take) in lastLaneRaw {
+            let glued = mixGlued(take.notes, genre: take.genre)
             var wrote = false
-            for region in doc.regions(in: laneID) where region.startTick < windowTicks {
+            for region in timelineStore.document.regions(in: laneID)
+            where region.startTick < windowTicks {
                 // Ownership guard lives in the store — a user clip returns false.
                 if clipStore.updateComposerMelody(id: region.clipID, notes: glued) {
                     wrote = true
@@ -4511,7 +4606,7 @@ struct EchoelStudioView: View {
             }
             if wrote {
                 log.log(.info, category: .audio,
-                        "Lane override take: \(glued.count) notes → lane \(laneID.uuidString.prefix(8)) (\(genre.rawValue))")
+                        "Lane override take: \(glued.count) notes → lane \(laneID.uuidString.prefix(8)) (\(take.genre.rawValue))")
             }
         }
     }
