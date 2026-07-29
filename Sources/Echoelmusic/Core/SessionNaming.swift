@@ -31,7 +31,7 @@ public enum SessionNaming {
         key: String,
         bpm: Double,
         a4Hz: Double,
-        calendar: Calendar = .current,
+        calendar: Calendar = SessionNaming.fileCalendar,
         place: String = ""
     ) -> String {
         let artistToken = sanitize(artist, fallback: "E~")
@@ -54,7 +54,7 @@ public enum SessionNaming {
         a4Hz: Double,
         part: String,
         ext: String,
-        calendar: Calendar = .current,
+        calendar: Calendar = SessionNaming.fileCalendar,
         place: String = ""
     ) -> String {
         let base = stem(artist: artist, date: date, key: key, bpm: bpm, a4Hz: a4Hz,
@@ -78,8 +78,43 @@ public enum SessionNaming {
 
     // MARK: - Formatting helpers
 
-    /// `yyyy-MM-dd` — sortable and unambiguous worldwide.
-    static func dateStamp(_ date: Date, calendar: Calendar = .current) -> String {
+    /// The calendar every filename is stamped with. **Gregorian on purpose, and this is the
+    /// one place the choice is made.**
+    ///
+    /// ⛔ IT USED TO BE `.current`, and that was a real defect rather than a style point:
+    /// `Calendar.current` is the user's PREFERRED calendar, not the world's shared one. In
+    /// Thailand the default is Buddhist and in Saudi Arabia it is Islamic Umm al-Qurā, so the
+    /// same take exported at the same moment came out as
+    ///
+    ///     Echoel_2026-07-29_Am_72bpm_A440.mid   (a German performer)
+    ///     Echoel_2569-07-29_Am_72bpm_A440.mid   (a Thai performer — Buddhist, year +543)
+    ///     Echoel_14XX-XX-XX_Am_72bpm_A440.mid   (a Saudi performer — Umm al-Qurā: a 15th-
+    ///                                            century Hijri year, and a different month
+    ///                                            and day, since the months are lunar)
+    ///
+    /// (The Hijri date is deliberately not spelled out. A first draft of this comment quoted a
+    /// specific one taken from an audit report; the year was wrong — 1 Muḥarram 1448 falls in
+    /// mid-June 2026, so this instant is 1448, not 1447. A fabricated example in a comment that
+    /// exists to explain a correctness bug is the same class of defect as the bug. The test
+    /// asserts only the century, which is what can be checked without a lunar table.)
+    ///
+    /// No production caller ever passed the argument, so every shipped filename took the
+    /// default. The file header promises a take that "already says … when" when it lands in
+    /// Ableton, and `dateStamp`'s own doc promised "sortable and unambiguous worldwide" — that
+    /// was the single claim in this file that was false, and false for exactly the users the
+    /// naming scheme exists to serve: collaborators comparing files across borders.
+    ///
+    /// `Calendar(identifier:)` keeps `TimeZone.current`, so the stamped day is still the
+    /// performer's LOCAL day — a take at 23:00 in Hamburg is not filed as tomorrow. Localised
+    /// dates belong in the UI, where `DateFormatter` already handles them
+    /// (`VideoLibraryPanel.title(for:)`); a filename is an interchange token, and interchange
+    /// tokens are Gregorian.
+    static let fileCalendar = Calendar(identifier: .gregorian)
+
+    /// `yyyy-MM-dd` in the Gregorian calendar — sortable and unambiguous worldwide, which is
+    /// only true because of `fileCalendar`; read its note before changing the default.
+    static func dateStamp(_ date: Date,
+                          calendar: Calendar = SessionNaming.fileCalendar) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         let y = c.year ?? 2000, m = c.month ?? 1, d = c.day ?? 1
         return String(format: "%04d-%02d-%02d", y, m, d)
