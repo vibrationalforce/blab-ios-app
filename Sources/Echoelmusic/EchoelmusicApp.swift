@@ -321,8 +321,20 @@ struct EchoelmusicApp: App {
                         // It does NOT blind the guard against the risky startup (graph
                         // build · voice attach · engine start) — that can only run once
                         // `mainContent` is built, and that path confirms itself at 4/4.
-                        // Same reasoning, same shape as the Safe-Mode branch above,
-                        // which already clears the counter from its own `.onAppear`.
+                        // The Safe-Mode branch above clears its counter from its own
+                        // `.onAppear` too, but the reasoning is NOT the same and review
+                        // was right to say so: there, nothing else will ever confirm and
+                        // the screen is deliberately one-shot. Here, `mainContent` runs
+                        // afterwards and NEEDS the protection back — which is what
+                        // `armForRiskyStartup()` in its startup task restores.
+                        //
+                        // A second window this opens, stated so nobody rediscovers it as
+                        // a bug: a crash loop WHILE onboarding is on screen is now never
+                        // counted, so Safe Mode can never catch it. Near-zero value lost —
+                        // Safe Mode works by skipping `mainContent` and its startup task,
+                        // and neither exists during onboarding, so such a crash comes from
+                        // `init()`, which runs in Safe Mode too. It would have shown a
+                        // recovery screen and still not let the user in.
                         LaunchGuard.confirmHealthy()
                     }
             }
@@ -459,6 +471,13 @@ struct EchoelmusicApp: App {
                     return
                 }
                 startupDone = true
+                // Re-arm the crash counter BEFORE the risky work below. A no-op on a
+                // normal launch (the counter is already ≥ 1); it matters only when
+                // onboarding just confirmed this launch healthy and `mainContent` is
+                // running its first-ever startup in the same process — see
+                // `LaunchGuard.armForRiskyStartup` for why that is the launch least able
+                // to afford losing the guard (#214, found by review).
+                LaunchGuard.armForRiskyStartup()
                 #if canImport(UIKit)
                 // THE EXTERNAL STAGE HAND-OFF (#206 slice 2), first thing and with no
                 // await in front of it: a beamer is usually plugged in BEFORE the app is

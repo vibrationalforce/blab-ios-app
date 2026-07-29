@@ -67,6 +67,28 @@ enum LaunchGuard {
         d.synchronize()
     }
 
+    /// Re-arm the counter for a risky startup that a UI-reached confirmation already
+    /// cleared. A no-op on a normal launch, where the counter is already ≥ 1.
+    ///
+    /// This exists because of an asymmetry review found in #214. Confirming healthy when
+    /// the ONBOARDING screen renders is right — the launch reached a UI, which is what
+    /// the counter measures — but onboarding differs from the Safe-Mode screen in one
+    /// decisive way: `mainContent` still runs afterwards, in the SAME process, and its
+    /// startup (graph build · voice attach · engine start) is exactly what the guard was
+    /// written for. Without re-arming, a crash there would be uncounted, and the launch
+    /// that loses the protection is the worst one to lose it on: the first-ever full
+    /// startup on a fresh install — cold caches, first permission prompts, the profile of
+    /// the build-1363 crash itself.
+    ///
+    /// Deliberately does NOT touch `cachedSafeMode`: this launch keeps the verdict it was
+    /// given, so the screen cannot change under a user mid-session.
+    static func armForRiskyStartup() {
+        let d = UserDefaults.standard
+        guard d.integer(forKey: countKey) == 0 else { return }
+        d.set(1, forKey: countKey)
+        d.synchronize()
+    }
+
     /// User chose to leave Safe Mode and try the full app again — clear the counter
     /// so we don't immediately re-enter it. (The cached `isSafeMode` for this
     /// process is unaffected; the caller flips its own state to render normally.)
@@ -75,4 +97,20 @@ enum LaunchGuard {
         d.set(0, forKey: countKey)
         d.synchronize()
     }
+
+    #if DEBUG
+    /// TEST ONLY — also clears the frozen per-process verdict. Never call from product
+    /// code: `reset()` deliberately leaves `cachedSafeMode` alone so the Safe-Mode screen
+    /// does not vanish under the user who is reading it.
+    ///
+    /// Tests need the stronger form because `cachedSafeMode` is process-global and the
+    /// blocking test bundle runs INSIDE the host app (`TEST_HOST`). A test that leaves it
+    /// `true` flips the live app to `SafeModeView` on the next body evaluation, tearing
+    /// down `WorkspaceView` and cancelling its startup task. Harmless while no test
+    /// observes the view tree — a trap for the next one that does.
+    static func resetForTesting() {
+        reset()
+        cachedSafeMode = false
+    }
+    #endif
 }

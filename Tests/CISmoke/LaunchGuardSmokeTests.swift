@@ -31,8 +31,16 @@ final class LaunchGuardSmokeTests: XCTestCase {
     // `LaunchGuard`'s counter lives in `UserDefaults.standard`, which under a TEST_HOST
     // build is the host app's own domain. Normalise on both sides so these tests neither
     // inherit a stale count nor leave one behind for whatever runs next.
-    override func setUp() async throws { LaunchGuard.reset() }
-    override func tearDown() async throws { LaunchGuard.reset() }
+    //
+    // `resetForTesting()`, not `reset()`: the product form deliberately leaves the
+    // process-global `cachedSafeMode` alone, and two tests below set it `true`. Since
+    // this bundle runs INSIDE the host app, leaving it set flips the LIVE app to
+    // `SafeModeView` on its next body evaluation — tearing down `WorkspaceView` and
+    // cancelling its startup task. Nothing here observes the view tree, so it is a trap
+    // for the next test added rather than a present failure. Review found it; closing it
+    // now is cheaper than debugging it later.
+    override func setUp() async throws { LaunchGuard.resetForTesting() }
+    override func tearDown() async throws { LaunchGuard.resetForTesting() }
 
     /// THE REGRESSION THIS FIX LEANS ON. One confirmed launch must leave the next one
     /// clean — that is the entire mechanism `OnboardingView.onAppear` now uses.
@@ -65,6 +73,39 @@ final class LaunchGuardSmokeTests: XCTestCase {
         LaunchGuard.reset()
         LaunchGuard.beginLaunch()
         XCTAssertFalse(LaunchGuard.isSafeMode, "Safe Mode is a speed bump, not a state")
+    }
+
+    // MARK: - Re-arming for the risky startup (review finding on #214)
+
+    /// THE ASYMMETRY THAT MAKES THE FIX SAFE. Onboarding confirms the launch healthy, and
+    /// `mainContent` then runs its first-ever startup IN THE SAME PROCESS. Without
+    /// re-arming, a crash in that startup would be uncounted — and it is the launch least
+    /// able to afford that: cold caches, first permission prompts, the profile of the
+    /// crash the guard was written for.
+    func testRiskyStartupIsReArmedAfterAUIConfirmation() {
+        LaunchGuard.beginLaunch()
+        LaunchGuard.confirmHealthy()        // what onboarding's .onAppear does
+        LaunchGuard.armForRiskyStartup()    // what mainContent's task does next
+        LaunchGuard.beginLaunch()           // the launch after a startup crash
+        XCTAssertTrue(LaunchGuard.isSafeMode,
+                      "a crash in the first post-onboarding startup must still escalate — "
+                      + "otherwise the fix trades a false positive for a missed real one")
+    }
+
+    /// And on every NORMAL launch it must change nothing, or it would double-count and
+    /// bring Safe Mode one launch too EARLY — the opposite failure.
+    func testReArmingIsANoOpOnANormalLaunch() {
+        LaunchGuard.beginLaunch()           // counter is 1, nothing confirmed it
+        LaunchGuard.armForRiskyStartup()    // must not touch it
+        LaunchGuard.beginLaunch()
+        XCTAssertTrue(LaunchGuard.isSafeMode, "two unconfirmed launches, unchanged")
+
+        LaunchGuard.resetForTesting()
+        LaunchGuard.beginLaunch()
+        LaunchGuard.armForRiskyStartup()
+        LaunchGuard.confirmHealthy()        // a healthy studio launch, confirmed at 4/4
+        LaunchGuard.beginLaunch()
+        XCTAssertFalse(LaunchGuard.isSafeMode, "a confirmed launch still leaves a clean slate")
     }
 
     /// The decision is frozen for the process at `beginLaunch()`. Confirming later must
