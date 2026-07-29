@@ -31,6 +31,32 @@ public final class LocationNamer: NSObject {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var manager: CLLocationManager?
     @ObservationIgnored private let geocoder = CLGeocoder()
+
+    /// The language the city token is resolved in — pinned, not the device's.
+    ///
+    /// ⛔ `reverseGeocodeLocation(_:)` without a locale answers in the DEVICE language, so the
+    /// same venue produced a different filename token for every performer standing in it:
+    /// a German phone in Munich got `München`, a Japanese one `ミュンヘン`, a Greek one `Μόναχο`.
+    /// `SessionNaming.sanitize` keeps `CharacterSet.alphanumerics`, which is Unicode-wide — so
+    /// those scripts survive into the filename rather than being stripped, and two collaborators
+    /// who played the same show cannot match their takes by name. That breaks the premise the
+    /// place token exists for.
+    ///
+    /// Same reasoning as `SessionNaming.fileCalendar`: a filename is an INTERCHANGE token, and
+    /// interchange tokens are pinned. Localised place names belong in the UI, not in the stem.
+    ///
+    /// This is deliberately not "English is the default culture" — a performer who wants their
+    /// own script in the name types it into `manualPlace`, which OVERRIDES this and is persisted
+    /// verbatim (founder 2026-07-14). The pinned value is only what the automatic lookup falls
+    /// back to. `en_US` and not `en_US_POSIX`: the POSIX variant is a date/number-formatting
+    /// stability locale, and I have no way to verify here that CLGeocoder accepts it rather than
+    /// quietly falling back to the device language — which would reintroduce the exact bug.
+    ///
+    /// Checked for a display regression: the only two places the token is shown are
+    /// `EchoelStudioView`'s "In the name: …" row and `WorkspaceView`'s filename preview. Both
+    /// exist to show what will END UP IN THE FILENAME, so they must show the pinned token —
+    /// a localised label there would have been the lie, not the fix.
+    @ObservationIgnored private static let placeNameLocale = Locale(identifier: "en_US")
     /// Receives the resolved token so every session/export name carries it.
     @ObservationIgnored private weak var session: SessionContext?
 
@@ -157,7 +183,8 @@ extension LocationNamer: CLLocationManagerDelegate {
             guard let self, self.enabled else { return }
             self.lastFix = location
             do {
-                let placemarks = try await self.geocoder.reverseGeocodeLocation(location)
+                let placemarks = try await self.geocoder.reverseGeocodeLocation(
+                    location, preferredLocale: Self.placeNameLocale)
                 // Locality (city) first; fall back to coarser admin area — never
                 // street-level detail in a filename.
                 let name = placemarks.first?.locality

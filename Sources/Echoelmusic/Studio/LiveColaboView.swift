@@ -277,7 +277,19 @@ private struct PeerBioRows: View {
     @Environment(MultipeerSession.self) private var colab
 
     var body: some View {
-        ForEach(colab.peerBio.keys.sorted(), id: \.self) { name in
+        // `String`'s `<` is Unicode CODEPOINT order, not collation: "Ärger" sorts after
+        // "Zoe" for a German reader, and any Cyrillic or CJK name lands in a block after
+        // every Latin one. These keys are peer DISPLAY NAMES — whatever the other performer
+        // called their device — so they are exactly the case where codepoint order is wrong.
+        // `localizedStandardCompare` is the Finder-style ordering people expect.
+        //
+        // Checked, not assumed: this is the only sort of user-authored text that reaches a
+        // view. The other `.sorted()` call sites on strings are `ModulationEngine`'s ASCII
+        // destination keys (no production consumer) and integer/slot sorts; the three preset
+        // stores rank by favourite and recency, never by name.
+        ForEach(colab.peerBio.keys.sorted {
+            $0.localizedStandardCompare($1) == .orderedAscending
+        }, id: \.self) { name in
             if let peek = colab.peerBio[name] {
                 bioLine(name: name, bpm: peek.bpm, coherence: peek.coherence, highlight: false)
             }

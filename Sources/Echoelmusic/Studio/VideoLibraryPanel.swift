@@ -204,8 +204,14 @@ struct VideoLibraryPanelContent: View {
     }
 
     static func subtitle(for clip: EchoelVideoClip) -> String {
-        let mb = Double(clip.bytes) / 1_048_576.0
-        return String(format: "%.1f MB · MP4 · visual + master mix", mb)
+        // ⛔ WAS `String(format: "%.1f MB · …", Double(clip.bytes) / 1_048_576.0)`, wrong twice
+        // over: `%.1f` writes a hardcoded "." decimal separator (a German reader expects
+        // "12,4"), and forcing the MB unit printed a 400 KB clip as "0.4 MB". `ByteCountFormatter`
+        // fixes both in one call — it picks the unit AND punctuates it in the reader's locale.
+        // The sibling `title(for:)` above already uses a locale-aware `DateFormatter`, so this
+        // line was the odd one out in its own file.
+        let size = ByteCountFormatter.string(fromByteCount: clip.bytes, countStyle: .file)
+        return "\(size) · MP4 · visual + master mix"
     }
 }
 #endif
