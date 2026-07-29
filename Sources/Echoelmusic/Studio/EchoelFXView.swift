@@ -59,6 +59,8 @@ final class FXViewModel {
         tremoloDepth = c.tremolo.depth; tremoloPan = c.tremolo.stereoPan
         compEnabled = c.compressorEnabled; compThreshold = c.compressor.thresholdDb
         compRatio = c.compressor.ratio; compMakeup = c.compressor.makeupDb
+        compAttack = c.compressor.attackMs; compRelease = c.compressor.releaseMs
+        compKnee = c.compressor.kneeDb
         limiterEnabled = c.limiterEnabled; limiterCeiling = c.limiter.ceilingDb
         saturationEnabled = c.saturationEnabled; saturationDrive = c.saturationDrive; saturationMix = c.saturationMix
         harmonizerEnabled = c.harmonizerEnabled; harmInterval1 = c.harmonizer.interval1
@@ -124,6 +126,14 @@ final class FXViewModel {
     var compThreshold: Float { didSet { chain.compressor.thresholdDb = compThreshold } }
     var compRatio: Float { didSet { chain.compressor.ratio = compRatio } }
     var compMakeup: Float { didSet { chain.compressor.makeupDb = compMakeup } }
+    /// ATTACK, RELEASE, KNEE — the three that decide whether a compressor BREATHES with the
+    /// material or just squashes it, and until now they were fixed constants with no writer
+    /// anywhere in the app (#221). Threshold/ratio/make-up say how MUCH; these say how it
+    /// MOVES, and a bio-driven take that swells and settles is exactly the material where
+    /// that difference is audible.
+    var compAttack: Float { didSet { chain.compressor.attackMs = compAttack } }
+    var compRelease: Float { didSet { chain.compressor.releaseMs = compRelease } }
+    var compKnee: Float { didSet { chain.compressor.kneeDb = compKnee } }
 
     // Limiter
     var limiterEnabled: Bool { didSet { chain.limiterEnabled = limiterEnabled } }
@@ -203,6 +213,8 @@ final class FXViewModel {
         tremoloDepth = c.tremolo.depth; tremoloPan = c.tremolo.stereoPan
         compEnabled = c.compressorEnabled; compThreshold = c.compressor.thresholdDb
         compRatio = c.compressor.ratio; compMakeup = c.compressor.makeupDb
+        compAttack = c.compressor.attackMs; compRelease = c.compressor.releaseMs
+        compKnee = c.compressor.kneeDb
         limiterEnabled = c.limiterEnabled; limiterCeiling = c.limiter.ceilingDb
         saturationEnabled = c.saturationEnabled; saturationDrive = c.saturationDrive; saturationMix = c.saturationMix
         harmonizerEnabled = c.harmonizerEnabled; harmInterval1 = c.harmonizer.interval1
@@ -399,6 +411,17 @@ struct EchoelFXView: View {
                 effectSection("Compressor", isOn: $vm.compEnabled) {
                     field("Threshold", $vm.compThreshold, -48...0, unit: "dB", decimals: 1)
                     field("Ratio", $vm.compRatio, 1...20, decimals: 1)
+                    // ATTACK / RELEASE / KNEE (#221). Threshold and ratio say how MUCH is
+                    // taken off; these say how it MOVES, and on a bio-driven take that swells
+                    // and settles that is the audible half. Ranges are the useful musical
+                    // spans, not the DSP's clamp: 0.1…100 ms attack covers "catch the
+                    // transient" to "let it through"; 10…1000 ms release covers snap to
+                    // breathe. The engine still clamps beyond these — a control is a range of
+                    // GOOD values, the clamp is a range of SAFE ones, and they are not the
+                    // same thing.
+                    field("Attack", $vm.compAttack, 0.1...100, unit: "ms", decimals: 1)
+                    field("Release", $vm.compRelease, 10...1000, unit: "ms", decimals: 0)
+                    field("Knee", $vm.compKnee, 0...24, unit: "dB", decimals: 1)
                     field("Make-up", $vm.compMakeup, 0...18, unit: "dB", decimals: 1)
                 }
 

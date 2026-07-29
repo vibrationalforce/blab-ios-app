@@ -108,6 +108,14 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     public var compThreshold: Float
     public var compRatio: Float
     public var compMakeup: Float
+    /// TIMING + KNEE (#221). Added AFTER presets were already savable, so they decode with
+    /// the engine's own defaults (10 ms / 120 ms / 6 dB) — a preset written before this
+    /// existed therefore loads sounding EXACTLY as it did, rather than snapping to some
+    /// new "neutral". That is the whole reason `f(...)`'s defaults have to match the
+    /// `EchoelCompressor` initial values and not merely look reasonable.
+    public var compAttack: Float
+    public var compRelease: Float
+    public var compKnee: Float
 
     // Limiter
     public var limiterEnabled: Bool
@@ -197,6 +205,11 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         compThreshold = f(.compThreshold, -18)
         compRatio = f(.compRatio, 3)
         compMakeup = f(.compMakeup, 0)
+        // Defaults = `EchoelCompressor`'s own initial values, so a pre-#221 preset is
+        // bit-identical after this change. Do not "tidy" these to round numbers.
+        compAttack = f(.compAttack, 10)
+        compRelease = f(.compRelease, 120)
+        compKnee = f(.compKnee, 6)
 
         limiterEnabled = b(.limiterEnabled, true)
         limiterCeiling = f(.limiterCeiling, -0.5)
@@ -222,6 +235,7 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         reverbEnabled: Bool, reverbRoomSize: Float, reverbDamping: Float,
         reverbMix: Float, reverbWidth: Float,
         compressorEnabled: Bool, compThreshold: Float, compRatio: Float, compMakeup: Float,
+        compAttack: Float = 10, compRelease: Float = 120, compKnee: Float = 6,
         limiterEnabled: Bool, limiterCeiling: Float
     ) {
         self.id = id; self.name = name; self.tags = tags; self.schema = schema
@@ -252,6 +266,7 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         self.reverbMix = reverbMix; self.reverbWidth = reverbWidth
         self.compressorEnabled = compressorEnabled; self.compThreshold = compThreshold
         self.compRatio = compRatio; self.compMakeup = compMakeup
+        self.compAttack = compAttack; self.compRelease = compRelease; self.compKnee = compKnee
         self.limiterEnabled = limiterEnabled; self.limiterCeiling = limiterCeiling
     }
 }
@@ -267,7 +282,7 @@ public extension FXPreset {
         tags: [String] = []
     ) -> FXPreset {
         FXPreset(
-            id: id, name: name, tags: tags, schema: 3,
+            id: id, name: name, tags: tags, schema: 4,
             fxEnabled: fxEnabled,
             filterEnabled: chain.filterEnabled,
             filterModeRaw: chain.filterL.mode.rawValue,
@@ -329,6 +344,9 @@ public extension FXPreset {
             compThreshold: chain.compressor.thresholdDb,
             compRatio: chain.compressor.ratio,
             compMakeup: chain.compressor.makeupDb,
+            compAttack: chain.compressor.attackMs,
+            compRelease: chain.compressor.releaseMs,
+            compKnee: chain.compressor.kneeDb,
             limiterEnabled: chain.limiterEnabled,
             limiterCeiling: chain.limiter.ceilingDb
         )
@@ -396,6 +414,9 @@ public extension FXPreset {
         chain.compressor.thresholdDb = compThreshold
         chain.compressor.ratio = compRatio
         chain.compressor.makeupDb = compMakeup
+        chain.compressor.attackMs = compAttack
+        chain.compressor.releaseMs = compRelease
+        chain.compressor.kneeDb = compKnee
         chain.limiterEnabled = limiterEnabled
         chain.limiter.ceilingDb = limiterCeiling
     }
@@ -471,7 +492,7 @@ public extension FXPreset {
         func B(_ a: Bool, _ b: Bool) -> Bool { t < 0.5 ? a : b }
         func S(_ a: String, _ b: String) -> String { t < 0.5 ? a : b }
         return FXPreset(
-            id: UUID(), name: "Morph", tags: [], schema: 3,
+            id: UUID(), name: "Morph", tags: [], schema: 4,
             fxEnabled: B(fxEnabled, other.fxEnabled),
             filterEnabled: B(filterEnabled, other.filterEnabled),
             filterModeRaw: S(filterModeRaw, other.filterModeRaw),
@@ -530,6 +551,9 @@ public extension FXPreset {
             compThreshold: L(compThreshold, other.compThreshold),
             compRatio: L(compRatio, other.compRatio),
             compMakeup: L(compMakeup, other.compMakeup),
+            compAttack: L(compAttack, other.compAttack),
+            compRelease: L(compRelease, other.compRelease),
+            compKnee: L(compKnee, other.compKnee),
             limiterEnabled: B(limiterEnabled, other.limiterEnabled),
             limiterCeiling: L(limiterCeiling, other.limiterCeiling)
         )

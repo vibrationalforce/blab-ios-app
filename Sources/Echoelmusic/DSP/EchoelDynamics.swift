@@ -214,12 +214,15 @@ public final class EchoelCompressor: @unchecked Sendable {
         // bound is the one that was missing: past ~700 s, `1 - expf(-1/t)` rounds to exactly
         // 0 in Float, the coefficient dies, and `grState` can never move back toward 0 —
         // whatever attenuation it held at that moment becomes permanent, which is the "fail
-        // to resting, never to silence" law. ⛔ Nothing writes `releaseMs` or `attackMs`
-        // today: `FXPreset` persists only threshold, ratio and makeup, and `EchoelFXView`
-        // exposes the same three. So this guards a FUTURE control, exactly like the limiter's
-        // — an earlier version of this comment claimed a saved preset could restore a release
-        // time, which is not true and would have been read as licence to skip the clamp
-        // elsewhere.
+        // to resting, never to silence" law. ⚠️ THIS CLAMP IS NOW LIVE, not a guard against a
+        // future control: as of #221 `EchoelFXView` exposes Attack/Release/Knee and `FXPreset`
+        // persists them, so a hand-edited or corrupted preset really can reach this function
+        // with any Float. (Two earlier versions of this comment were each true when written
+        // and then went stale — the first claimed a preset could restore a release time when
+        // none could, the second said nothing ever would. A "nothing writes this" note is a
+        // dated claim, so it has to be re-read whenever a control is added, and this is that
+        // re-read.) The UI's own range is 0.1…100 ms / 10…1000 ms; that is the range of GOOD
+        // values, this is the range of SAFE ones, and they are deliberately not the same.
         let t = Swift.min(Swift.max(0.01, ms), 10_000) * 0.001 * sr
         return 1.0 - expf(-1.0 / t)
     }
@@ -482,9 +485,16 @@ public final class EchoelLimiter: @unchecked Sendable {
         // past ~700 s, `1 - expf(-1/t)` rounds to exactly 0 in Float, the coefficient dies,
         // and the limiter latches at whatever attenuation it happened to hold — permanent
         // silence, the exact failure mode "fail to resting, never to silence" exists to
-        // forbid. No writer can reach that today (nothing sets attackMs/releaseMs), so this
-        // is a guard against a future control, not a live bug. 10 s is far beyond any
-        // musical release and still leaves the coefficient ~2e-6, comfortably normal.
+        // forbid. No writer can reach that today (nothing sets the LIMITER's attackMs/
+        // releaseMs), so this is a guard against a future control, not a live bug. 10 s is far
+        // beyond any musical release and still leaves the coefficient ~2e-6, comfortably
+        // normal.
+        //
+        // ⚠️ STILL TRUE AFTER #221, and deliberately so — the compressor got Attack/Release
+        // controls, the limiter did NOT. This one is the last stage and a brick wall: its job
+        // is the −1 dBFS true-peak guarantee, and a user-slowed attack would let material
+        // overshoot the ceiling it exists to hold. Exposing it is a different decision with a
+        // different risk, not the same slice with one more row.
         let t = Swift.min(Swift.max(0.01, ms), 10_000) * 0.001 * sr
         return 1.0 - expf(-1.0 / t)
     }
