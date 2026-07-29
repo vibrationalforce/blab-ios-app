@@ -305,7 +305,26 @@ struct EchoelmusicApp: App {
                 mainContent
             } else {
                 OnboardingView(isComplete: $hasCompletedOnboarding, shouldAutoPlay: $shouldAutoPlay)
-                    .onAppear { EchoelCrashLog.breadcrumb("ui branch: ONBOARDING (not yet completed)") }
+                    .onAppear {
+                        EchoelCrashLog.breadcrumb("ui branch: ONBOARDING (not yet completed)")
+                        // Confirm the launch healthy HERE too, or a brand-new user meets
+                        // a crash-recovery screen having never crashed. `beginLaunch()`
+                        // counts every launch; the only reset used to live in
+                        // `mainContent`'s startup task — and `mainContent` is not built
+                        // at all while onboarding is unfinished. So: install, open, get
+                        // interrupted before finishing the intro, come back → counter at
+                        // 2 → Safe Mode. On the SECOND launch of a fresh install, as a
+                        // first impression of the product.
+                        //
+                        // Rendering this screen is the proof the counter actually
+                        // measures: the launch reached a UI instead of a black screen.
+                        // It does NOT blind the guard against the risky startup (graph
+                        // build · voice attach · engine start) — that can only run once
+                        // `mainContent` is built, and that path confirms itself at 4/4.
+                        // Same reasoning, same shape as the Safe-Mode branch above,
+                        // which already clears the counter from its own `.onAppear`.
+                        LaunchGuard.confirmHealthy()
+                    }
             }
         }
     }
