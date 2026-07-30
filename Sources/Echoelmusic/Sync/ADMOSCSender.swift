@@ -196,10 +196,17 @@ public final class ADMOSCSender {
         }
         guard sourceTimestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = sourceTimestamp
-        // A frame whose channels are all still unmeasured produces NO addresses (#260).
-        // Return before the timestamp stamp, or the Sync activity dot reports traffic for
-        // a tick on which no datagram left the device — the same class of lie the gate
-        // above exists to remove, one layer up in the UI.
+        // A frame whose channels are all still unmeasured produces NO addresses (#260), so
+        // return before the stamp: `lastSentTimestamp` documents itself as "the last
+        // datagram sent" and would otherwise record a tick on which nothing left the
+        // device. Matches `OSCSender`'s `if sentAny`.
+        //
+        // ⚠️ This does NOT fix an indicator, and an earlier draft of this comment claimed it
+        // did. `lastSentTimestamp` has no reader anywhere in `Sources/`; the Patchbay dot
+        // (`PatchbayView`, `outputRow("ADM-OSC", active:)`) reads `isActive`, deliberately,
+        // because a low-frequency flag is freeze-safe. The honest statement of what remains:
+        // on a strap-only rig this arm can now send nothing for a whole session while that
+        // dot still reads "sending". That is a separate defect, not one this line closes.
         guard !messages.isEmpty else { return }
         for (address, value) in messages {
             send(address: address, floats: [value])
@@ -243,18 +250,27 @@ public final class ADMOSCSender {
     ///     hard left;
     ///   · unmeasured coherence ⇒ `1 - 0` ⇒ distance **1**, the object pushed to the far
     ///     end of the room.
-    /// A renderer cannot tell that apart from a performer who really is hard left and far
-    /// away, and `FaceExpressionBioPublisher` emits an all-zero frame that this arm is
-    /// allowed to forward, so it was reachable in a shipped configuration. Omitting the
-    /// address instead leaves the object wherever the renderer has it — ADM-OSC holds its
-    /// last value, which is exactly the behaviour a dropped sensor should produce.
+    /// A renderer cannot tell either apart from a performer who really is hard left and far
+    /// away.
+    ///
+    /// ⛔ AND BOTH OCCURRED ON SHIPPING HARDWARE, which is what makes this a defect rather
+    /// than a hypothetical. `PolarH10BioPublisher` publishes `breathRate: 0, breathPhase: 0`
+    /// on EVERY frame — the strap derives no respiration — and `.ble` is egress-allowed, so
+    /// a chest-strap session pinned `/position/azimuth` at exactly −180 for its whole
+    /// duration, every time. The camera is the same story one axis over: `coherence` stays 0
+    /// until 16 accepted RR intervals, and `CameraAnalyzer`'s RR series comes from a fixed
+    /// 10 s peak window (≈10 intervals at a resting rate), so `distance` sat at 1 for entire
+    /// takes. (An earlier draft of this comment blamed `FaceExpressionBioPublisher`'s
+    /// all-zero frame instead. That was WRONG and worth recording: the type has zero
+    /// instantiations in `Sources/` and sits behind `FeatureFlags.cameraExpression`, so no
+    /// `.faceCam` frame exists in a shipped build. The real path is stronger, not weaker.)
     ///
     /// ⚠️ Consequence to know before mapping: on a bio-only rig an address that is never
     /// measured never arrives, so the object keeps its initial position rather than being
     /// driven to a default. `distance` is the one most likely to stay absent for a whole
-    /// take — coherence needs 16 accepted RR intervals and a camera session may never
-    /// reach that (see `HRVCoherence.minIntervals` and the note in `OSCSender`).
-    public static func admMessages(for f: BioSampleFrame, object n: Int) -> [(String, Float)] {
+    /// take — see `HRVCoherence.minIntervals` and the note in `OSCSender`.
+    public nonisolated static func admMessages(for f: BioSampleFrame,
+                                               object n: Int) -> [(String, Float)] {
         let idx = max(1, n)
         let prefix = "/adm/obj/\(idx)"
         var msgs: [(String, Float)] = []
@@ -262,7 +278,12 @@ public final class ADMOSCSender {
         // breath phase [0..1] → azimuth [-180..180]: L↔R sweep with the breath.
         // Gated on `breathRate`, not on the phase: `breathPhase` has no unknown sentinel
         // (0 is a real position, exhale start), so it cannot answer for itself.
-        if f.hasMeasuredBreath {
+        // `isFinite` too, because this is the ONE axis whose gate a NaN can pass: the other
+        // two compare `> 0`, which is false for NaN, while `3...40` can hold a real rate
+        // beside a NaN phase. `clamp` here is not NaN-safe, so without this a NaN would go
+        // out as an azimuth — and even the NaN-safe form would land on −180, the very
+        // position this gate exists to stop asserting.
+        if f.hasMeasuredBreath, f.breathPhase.isFinite {
             msgs.append(("\(prefix)/position/azimuth",
                          clamp((f.breathPhase * 2 - 1) * 180, -180, 180)))
         }

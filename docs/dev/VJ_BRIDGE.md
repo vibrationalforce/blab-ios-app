@@ -80,8 +80,8 @@ Soundscape / FletcherMachine and any ADM-OSC renderer.
 > is measured**, so an object simply stops being driven on an axis rather than being driven
 > to a structural zero — which on two of the three axes is an extreme, not a neutral: an
 > unmeasured breath would read as hard left, an unmeasured coherence as maximum distance.
-> Your renderer holds the last value, so plan your scene to start from a sane position:
-> Echoel will not push the object to a default. `distance` is the axis most likely to stay
+> OSC has no "unset", so a renderer keeps the last value it received on that address — plan
+> your scene to start from a sane position: Echoel will not push the object to a default. `distance` is the axis most likely to stay
 > absent for a whole take (coherence needs ~16 beats, and a camera session may never reach
 > it). `/adm/obj/{n}/gain` is driven by the MUSIC arm from the master level; the bio arm
 > leaves it alone while nothing measures motion (#215).

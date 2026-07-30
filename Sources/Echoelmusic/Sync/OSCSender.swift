@@ -261,14 +261,19 @@ public final class OSCSender {
         // the receiver holds its last value, which is what a performer expects when the camera
         // blinks.
         //
-        // ⚠️ TWO EARLIER VERSIONS OF THIS COMMENT NAMED TRIGGERS THAT DO NOT EXIST, and both
-        // were removed from the test header before the source caught up — so this block and its
-        // own test disagreed about the same fact. Neither "before a publisher locks" nor "after
-        // a finger lifts" produces such a frame: `CameraRPPGBioPublisher.shouldPublish` requires
-        // `bpm > 0`, and `PolarH10BioPublisher` requires a plausible BPM. Nor is the "log 2476:
-        // ONE frame in 110 s" figure reproducible from anything in this repo. The REAL zero-pulse
-        // producer is `FaceExpressionBioPublisher`, which publishes an all-zero bio frame and IS
-        // egress-allowed — that one frame is what this gate silences.
+        // ⚠️ THREE EARLIER VERSIONS OF THIS COMMENT NAMED TRIGGERS THAT DO NOT EXIST. Neither
+        // "before a publisher locks" nor "after a finger lifts" produces such a frame:
+        // `CameraRPPGBioPublisher.shouldPublish` requires `bpm > 0`, and `PolarH10BioPublisher`
+        // requires a plausible BPM. Nor is the "log 2476: ONE frame in 110 s" figure reproducible
+        // from anything in this repo. And the third attempt — `FaceExpressionBioPublisher`, "the
+        // REAL zero-pulse producer" — is wrong too: that type has ZERO instantiations in
+        // `Sources/` and sits behind `FeatureFlags.cameraExpression` (default off, its front-
+        // camera permission string founder-gated), so no `.faceCam` frame exists in a shipped
+        // build. This gate is therefore DEFENSIVE, with no producer today; keep it, because a
+        // zero-pulse frame from a future publisher must not put an invented BPM on a lighting
+        // desk, and stop trying to name a trigger for it until one actually exists. What IS
+        // reachable on shipping hardware is the sentinel half below: a strap publishes no
+        // respiration at all, and coherence stays 0 for most of a camera take.
         if frame.hasMeasuredHeartRate {
             msgs.append(("/echoelmusic/bio/heart/bpm", [frame.heartRateBPM]))
         }

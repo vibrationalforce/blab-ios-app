@@ -51,7 +51,14 @@ public enum MusicMediaMap {
     ///   loudest note's pitch-class → azimuth (where it sits around you)
     ///   loudest note's height      → elevation (higher pitch lifts it)
     ///   master level               → distance (louder pulls it close) + gain
-    /// Pure; clamped to ADM-OSC v1.0 ranges. Mirrors `ADMOSCSender.admMessages(for:object:)`.
+    /// Pure; clamped to ADM-OSC v1.0 ranges.
+    ///
+    /// ⚠️ NO LONGER A MIRROR of `ADMOSCSender.admMessages(for:object:)`, though it shares the
+    /// address set — and the difference is deliberate, so do not "harmonize" them. This arm
+    /// sends all four addresses UNCONDITIONALLY, because it only runs while `isSounding` is
+    /// true: notes and a master level are, by construction, measured. The BIO arm sends each
+    /// address only while its own channel is measured (#260), because its inputs can be
+    /// structurally absent while the frame is otherwise valid.
     public static func admMessages(forMusic f: MusicalFrame, object n: Int) -> [(String, Float)] {
         let idx = Swift.max(1, n)
         let prefix = "/adm/obj/\(idx)"

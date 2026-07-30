@@ -11,12 +11,19 @@
 // Two extremes, asserted at 20 Hz, from channels nobody measured. A renderer cannot tell
 // that apart from a performer who really is hard left and far away.
 //
-// ⛔ AND IT WAS REACHABLE IN A SHIPPED CONFIGURATION, which is what makes it a defect and
-// not a hypothetical: `FaceExpressionBioPublisher` emits an all-zero bio frame and its
-// source is on `BioEgressPolicy`'s allow-list, so `sendIfFresh` forwards it. The camera and
-// strap publishers both require a plausible pulse before publishing, but neither guarantees
-// breath or coherence — coherence needs 16 accepted RR intervals and a camera take may
-// never reach that at all (`HRVCoherence.minIntervals`, and the note in `OSCSender`).
+// ⛔ AND BOTH EXTREMES OCCURRED ON SHIPPING HARDWARE, every session, which is what makes it
+// a defect and not a hypothetical:
+//   · `PolarH10BioPublisher` publishes `breathRate: 0, breathPhase: 0` on EVERY frame (the
+//     strap derives no respiration) and `.ble` is egress-allowed — so a chest-strap take
+//     pinned the azimuth at exactly −180 from the first frame to the last;
+//   · `CameraRPPGBioPublisher` publishes `coherence: 0` until 16 accepted RR intervals, and
+//     `CameraAnalyzer`'s RR series is a fixed 10 s window (≈10 intervals at a resting rate),
+//     so on a camera take the distance sat at 1 for the whole session.
+// (The first draft of this file blamed `FaceExpressionBioPublisher`'s all-zero frame. That
+// was wrong — the type has ZERO instantiations in `Sources/` and sits behind
+// `FeatureFlags.cameraExpression`, so no `.faceCam` frame reaches this arm in a shipped
+// build. Recorded rather than quietly swapped, because the corrected path is the stronger
+// one and the wrong one had already been copied from `OSCSender`.)
 //
 // THE RULE, identical to the OSC side: every address rides its OWN channel's measurement,
 // and silence means "not measured", never "measured as zero". ADM-OSC renderers hold their
@@ -33,6 +40,10 @@ import XCTest
 @testable import Echoelmusic
 
 final class ADMOSCAbsenceTests: XCTestCase {
+    // `ADMOSCSender` is `@MainActor`, but `admMessages` is `nonisolated static` — the same
+    // shape as `OSCSender.bioMessages` and `ADMOSCSender.motionGain`, and the reason this
+    // class needs no `@MainActor` of its own. If a future edit drops that annotation, this
+    // file stops compiling and takes the merge gate with it.
 
     private func frame(bpm: Float, hrv: Float = 0, breath: Float = 0,
                        phase: Float = 0, coherence: Float = 0) -> BioSampleFrame {
@@ -41,8 +52,17 @@ final class ADMOSCAbsenceTests: XCTestCase {
                        motionEnergy: 0, source: .cameraPPG)
     }
 
+    /// ⛔ POSITION ADDRESSES ONLY — and that filter is the point, not a convenience. This
+    /// file is about the three POSITION axes. `/gain` rides a different gate
+    /// (`ModSource.motion.hasProducer`, #215) which is false today and will one day be true;
+    /// an exact-match assertion over ALL addresses would then redden the BLOCKING bundle on
+    /// the commit that adds a motion sensor — punishing the right change for the wrong
+    /// reason. `OSCAbsenceTests` learned this one commit earlier; this file was written
+    /// without the lesson and is corrected here.
     private func addresses(_ f: BioSampleFrame) -> [String] {
-        ADMOSCSender.admMessages(for: f, object: 1).map { $0.0 }
+        ADMOSCSender.admMessages(for: f, object: 1)
+            .map { $0.0 }
+            .filter { $0.contains("/position/") }
     }
 
     /// ⛔ THE ASSERTION THE SLICE EXISTS FOR. This is the `FaceExpressionBioPublisher`
@@ -55,8 +75,10 @@ final class ADMOSCAbsenceTests: XCTestCase {
     }
 
     /// The three positions come from three DIFFERENT channels, so each must be able to
-    /// arrive alone. A strap that has locked a pulse and an HRV but no respiration lifts the
-    /// object without also panning it to the wall.
+    /// arrive alone: a respiration reading pans the object without also claiming a height,
+    /// and a strap that has locked a pulse and an HRV lifts it without panning it to the
+    /// wall — which is exactly the strap case, since `PolarH10BioPublisher` never reports
+    /// breath at all.
     func testEachChannelCarriesOnlyItsOwnAddress() {
         XCTAssertEqual(addresses(frame(bpm: 62, breath: 12, phase: 0.25)),
                        ["/adm/obj/1/position/azimuth"],
@@ -105,6 +127,21 @@ final class ADMOSCAbsenceTests: XCTestCase {
         XCTAssertFalse(addresses(frame(bpm: 62, breath: band.lowerBound, phase: 0.5)).isEmpty,
                        "the band's own edge is a reading, or the gate is stricter than the "
                        + "constant it claims to use")
+    }
+
+    /// ⛔ THE ONE AXIS A NaN CAN STILL REACH. `hrvNormalized > 0` and `coherence > 0` are
+    /// both false for NaN, so those two self-refuse; but `3...40` can hold a perfectly real
+    /// breath RATE beside a NaN PHASE, and this file's `clamp` is the `min(max(…))` form
+    /// that passes NaN straight through (CLAUDE.md's argument-order rule). A NaN azimuth on
+    /// the wire is not a position at all. Asserted on both signs of infinity too, which the
+    /// clamp does handle, so the two cases cannot be confused later.
+    func testANonFiniteBreathPhaseIsNotAPosition() {
+        XCTAssertEqual(addresses(frame(bpm: 62, breath: 12, phase: .nan)), [],
+                       "a NaN breath phase left the device as an azimuth")
+        XCTAssertEqual(addresses(frame(bpm: 62, breath: 12, phase: .infinity)),
+                       ["/adm/obj/1/position/azimuth"],
+                       "an infinite phase is clampable and must still be sent — it is the "
+                       + "NaN that has no position, not every non-finite value")
     }
 
     /// ANTI-VACUITY. Every assertion above is about ABSENCE, so a mapping that returned
