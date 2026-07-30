@@ -207,8 +207,10 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     ///
     /// WHY THIS EXISTS, and it is not tidiness. Fifty-seven flat rows is a wall, and the
     /// Genre picker two controls to the left in the SAME chrome strip has been grouped by
-    /// `Section(cat.title)` for weeks — so the scale row was the one place that strip was
-    /// inconsistent with itself.
+    /// `Section(cat.title)` for weeks — so the scale row was **the one long list still
+    /// flat**. (Not "the one inconsistency", which is what this said first: Tone system
+    /// and Note names are ungrouped too. At 12 and 3 entries flat is obviously right, so
+    /// the judgement held while the sentence did not.)
     ///
     /// But the reason it is worth a slice is #232: **a section header names the tradition
     /// without duplicating a pitch set.** The Maqām family is reachable today only under
@@ -218,7 +220,10 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     /// blocks exactly that, on purpose). A header does the job with no duplicate: the
     /// player from that tradition finds the shelf, and the row keeps its interop name.
     ///
-    /// ⚠️ THE ATTRIBUTIONS ARE 12-TET APPROXIMATIONS AND THE HEADERS SAY SO. A maqām's
+    /// ⚠️ THE ATTRIBUTIONS ARE 12-TET APPROXIMATIONS. The headers said so for exactly one
+    /// commit and no longer do — see `title` for why a truncated caveat is worse than an
+    /// unqualified shelf label. So the qualification lives HERE, and this is the only
+    /// place it is written down: A maqām's
     /// characteristic intervals are microtonal; a rāga is not a pitch set at all (see the
     /// note above the Indian cases). The app already carries the real thing on the OTHER
     /// control: `TuningSystem.library` ships Maqām Rāst, Bayātī and Ḥijāz, Sléndro, Pélog.
@@ -236,20 +241,44 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
 
         public var id: String { rawValue }
 
-        /// Picker section header. English, like every other header in this strip — the
-        /// String Catalog freezes the base language as the translation source, so a
-        /// literal in any other language here would become the key everyone translates
-        /// FROM (the mistake `MusicStyle.Category.title` had to be undone for).
+        /// Picker section header. English — but ⛔ NOT for the reason I first wrote here.
+        ///
+        /// I claimed the String Catalog would freeze a non-English literal as the source
+        /// key everyone translates FROM. That is true of `Text("literal")`; it is FALSE
+        /// here. `Section(_ title: S) where S: StringProtocol` builds `Text` through the
+        /// NON-localizing initializer — only string LITERALS bind to `LocalizedStringKey`.
+        /// These headers never enter `Localizable.xcstrings` at all (21 keys today, not one
+        /// Genre category title among them, and that picker has shipped grouped for weeks).
+        /// The real reason is simpler and worse: **as written these are not localizable,
+        /// so a German literal would ship untranslated German to every locale, forever.**
+        ///
+        /// ⚠️ BACKLOG for #232's translation half: `Family.title`, `Scale.displayName` and
+        /// `MusicStyle.Category.title` all need `String(localized:)` before any catalog can
+        /// reach them. Three whole pickers in the permanent chrome are currently outside
+        /// the localisation system, and nothing says so anywhere else.
+        ///
+        /// ⚠️ NO "(12-TET)" IN THE HEADERS, and that is a reversal. They read
+        /// "Middle Eastern (maqām, 12-TET)" etc. for one commit — 30 characters against a
+        /// 20-character longest header in the shipping Genre picker, inside chrome clamped
+        /// to `.accessibility1`. A `UIMenu` group title tail-truncates, so at AX1 the most
+        /// likely casualty was the parenthetical: the qualifier drops and the claim stays.
+        /// A truncated caveat is worse than a header that never claimed authenticity. The
+        /// qualification lives in this type's doc and, where the player can actually act on
+        /// it, on the Tone-system control one row away.
         public var title: String {
             switch self {
             case .modes:              return "Modes"
             case .minorAndAltered:    return "Minor & Altered"
             case .pentatonicAndBlues: return "Pentatonic & Blues"
             case .symmetric:          return "Symmetric"
-            case .europeanFolk:       return "European Folk & Classical"
-            case .middleEast:         return "Middle Eastern (maqām, 12-TET)"
-            case .eastAsia:           return "East & Southeast Asia (12-TET)"
-            case .india:              return "Indian (thāt & rāga, 12-TET)"
+            case .europeanFolk:       return "European Folk"
+            case .middleEast:         return "Maqām & Near East"
+            case .eastAsia:           return "East & Southeast Asia"
+            // NOT "thāt & rāga": `charukeshi` and `shanmukhapriya` are Carnatic
+            // mēḷakartā, and thāt is the Hindustani system — the header would have
+            // mis-filed two of its own seven rows. Naming both traditions is exact and
+            // no longer.
+            case .india:              return "Hindustani & Carnatic"
             }
         }
 
@@ -266,22 +295,54 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
             case .modes:
                 return [.major, .minor, .dorian, .phrygian, .lydian, .mixolydian, .locrian]
             case .minorAndAltered:
+                // The name undersells it: `harmonicMajor`, `bebopMajor` and `majorLocrian`
+                // are major-tonality. This is the jazz/altered shelf; "Minor & Altered"
+                // reads better in a picker than "Jazz & Altered" for a player who is not
+                // playing jazz, so the label stays and the mismatch is written down.
                 return [.harmonicMinor, .melodicMinor, .harmonicMajor, .lydianDominant,
                         .lydianAugmented, .altered, .majorLocrian, .bebopDominant, .bebopMajor]
             case .pentatonicAndBlues:
+                // `egyptian` is here and not on a cultural shelf ON PURPOSE, and it is the
+                // placement most likely to read as an oversight on a slice about cultural
+                // findability. The name is a Western catalogue misnomer: the set is a
+                // rotation of the major pentatonic with no Egyptian theoretical referent.
+                // Shelving it by what it IS beats shelving it by what it is called.
                 return [.pentatonicMajor, .pentatonicMinor, .bluesMajor, .bluesMinor, .egyptian]
             case .symmetric:
                 return [.chromatic, .wholeTone, .diminishedWholeHalf, .diminishedHalfWhole,
                         .augmented, .tritone, .messiaen3, .messiaen4, .messiaen5,
                         .messiaen6, .messiaen7]
             case .europeanFolk:
+                // `spanishEightTone` stays here while `phrygianDominant` — the other
+                // flamenco scale — sits on the Near East shelf. Both placements are
+                // defensible (the Spanish 8-tone is a flamenco-practice construct;
+                // Phrygian dominant is Ḥijāz), but splitting the pair across shelves
+                // without saying so would look accidental.
+                //
+                // ⛔ AND THE NIKRĪZ NOTE THAT USED TO STAND OPPOSITE WAS INVERTED. It said
+                // `hungarianMinor` is "often equated with Nikrīz" and called that
+                // contested. Backwards on both halves: **`romanianMinor` [0,2,3,6,7,9,10]
+                // is Nikrīz** (= Ukrainian Dorian / Misheberakh), and that equivalence is
+                // well established, not contested; `hungarianMinor` [0,2,3,6,7,8,11] reads
+                // as Nawa Athar. The DECISION to keep both here is unchanged and still
+                // right — a scale can only live on one shelf, and both are European folk
+                // material far more often than they are maqām — but the reason was wrong,
+                // and it was wrong in the sentence written to demonstrate restraint.
                 return [.hungarianMinor, .hungarianMajor, .romanianMinor, .neapolitanMinor,
                         .neapolitanMajor, .spanishEightTone, .enigmatic, .prometheus]
             case .middleEast:
-                // The three with a defensible maqām reading, and no more. `hungarianMinor`
-                // is often equated with Nikrīz and `romanianMinor` with others — those
-                // attributions are contested, so they stay on the European shelf rather
-                // than buy breadth with a claim a reader could falsify.
+                // TWO maqām readings, and one neighbour that is NOT one — the header says
+                // "Maqām & Near East" for exactly that reason.
+                //
+                // `doubleHarmonic` = Maqām Ḥijāz-kār and `phrygianDominant` = Maqām Ḥijāz
+                // are standard 12-TET readings. `persian` is NEITHER, and the first
+                // version of this comment called all three "the three with a defensible
+                // maqām reading" — false twice over. Persian classical music is not a
+                // maqām tradition at all; its system is dastgāh/radif, historically
+                // cognate but distinct. And `[0,1,4,5,6,8,11]` is not dastgāh theory
+                // either: it is the Western scale-catalogue "Persian scale". It stays on
+                // this shelf because that is where a player looks for that colour, and the
+                // header no longer claims it is a maqām.
                 return [.doubleHarmonic, .phrygianDominant, .persian]
             case .eastAsia:
                 return [.hirajoshi, .iwato, .insen, .yo, .inSakura, .kumoi, .pelog]

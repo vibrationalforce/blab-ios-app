@@ -744,7 +744,7 @@ struct CompositionHeaderStrip: View {
                 }
                 labeled("Scale") {
                     Picker("Scale", selection: edited($scale, posts: "scale")) {
-                        // Grouped, mirroring the Genre picker three controls to the left —
+                        // Grouped, mirroring the Genre picker two controls to the left —
                         // this row was the one place this strip was inconsistent with
                         // itself, and at 57 entries a flat list is a wall. The headers also
                         // do the #232 job the display names cannot: they name the tradition

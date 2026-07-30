@@ -11,10 +11,17 @@
 // asserted here, in `Tests/CISmoke` — the only bundle that can redden a merge (#208).
 //
 // It also pins the ONE cultural claim the grouping makes: `doubleHarmonic` and
-// `phrygianDominant` sit on the Middle Eastern shelf because they are the 12-TET readings
-// of Maqām Ḥijāz-kār and Ḥijāz. That was the point of the slice — those two were reachable
+// `phrygianDominant` sit on the Near East shelf because they are the 12-TET readings of
+// Maqām Ḥijāz-kār and Ḥijāz. That was the point of the slice — those two were reachable
 // only under Western names — so a later reshuffle that quietly moves them back is the
 // regression, not a cleanup.
+//
+// ⚠️ WHAT THIS FILE CANNOT GUARD, stated because the header above reads like a complete
+// contract and is not: nothing here proves the PICKER iterates families. Revert
+// `WorkspaceView` to `ForEach(Scale.allCases)` and every test below still passes. That is
+// inherent without a UI test, and the failure direction is the safe one (reverting
+// restores completeness rather than hiding a scale), so no machinery is built for it — but
+// do not read a green run as proof the grouping is still mounted.
 
 import Foundation
 import XCTest
@@ -39,7 +46,15 @@ final class ScaleFamilyTests: XCTestCase {
                       + "decode, but no family lists them, so the picker can never offer "
                       + "them. Add each to exactly one `Family.scales`.")
 
-        XCTAssertEqual(listed.count, Scale.allCases.count)
+        // No third `listed.count == allCases.count` assertion: once the two above pass it
+        // follows necessarily, so it could never fail on its own (#140's lesson).
+        //
+        // AND THE STAKE IS HIGHER THAN "one picker looks wrong": `git grep Scale.allCases`
+        // over Sources/ returns only a doc comment. `WorkspaceView`'s is the app's ONLY
+        // Scale door. A scale missing here is unreachable app-wide, with no second way in —
+        // and it degrades silently: no crash, the collapsed row just renders a blank value,
+        // the stored scale keeps driving composer, retune and MIDI export, and the player
+        // cannot get back to it because picking anything else is one-way.
     }
 
     /// Empty shelf = a header with nothing under it. The picker deliberately has no
@@ -66,30 +81,64 @@ final class ScaleFamilyTests: XCTestCase {
         }
     }
 
-    /// Raw values are the stable identity of a family. They are not persisted TODAY, and
-    /// this test says so rather than implying otherwise — but `Identifiable.id` is the raw
-    /// value and SwiftUI diffs `ForEach` on it, so a rename still re-identifies every
-    /// section at runtime.
-    func testFamilyRawValuesAreStable() {
-        XCTAssertEqual(Scale.Family.allCases.map(\.rawValue),
-                       ["modes", "minorAndAltered", "pentatonicAndBlues", "symmetric",
-                        "europeanFolk", "middleEast", "eastAsia", "india"])
+    /// SECTION ORDER, which is what a player actually sees — not the raw spellings.
+    ///
+    /// ⚠️ THIS PINNED `map(\.rawValue)` FIRST, and that was over-tight in one direction and
+    /// under-stated in the other. Family raw values are NOT persisted (verified: no
+    /// `Codable`, no `@AppStorage`, no encoder touches `Scale.Family` anywhere), so pinning
+    /// the spelling would have reddened a blocking merge over a rename with zero
+    /// user-visible effect. What genuinely matters is the ORDER `allCases` yields, because
+    /// that is the order the eight shelves appear in — Modes first because it is where most
+    /// players start, the cultural shelves last because they are destinations, not
+    /// defaults. Pinning the titles pins the order AND stays honest about which fact has a
+    /// consumer.
+    func testTheSectionOrderIsTheOneAPlayerReads() {
+        XCTAssertEqual(Scale.Family.allCases.map(\.title),
+                       ["Modes", "Minor & Altered", "Pentatonic & Blues", "Symmetric",
+                        "European Folk", "Maqām & Near East", "East & Southeast Asia",
+                        "Hindustani & Carnatic"])
+    }
+
+    /// Headers must stay short. They render inside chrome clamped to `.accessibility1`,
+    /// and a `UIMenu` group title tail-truncates — so an over-long header at AX1 silently
+    /// drops its own tail. That is not hypothetical here: these headers carried
+    /// "(maqām, 12-TET)" and "(thāt & rāga, 12-TET)" for exactly one commit, at 30
+    /// characters against a 20-character longest header in the shipping Genre picker. A
+    /// truncated qualifier is worse than none — it drops the caveat and keeps the claim.
+    func testHeadersStayShortEnoughNotToTruncateAtAccessibilitySizes() {
+        for family in Scale.Family.allCases {
+            XCTAssertLessThanOrEqual(family.title.count, 22,
+                                     "\"\(family.title)\" (\(family.title.count) chars) is "
+                                     + "longer than any header shipping today and will "
+                                     + "tail-truncate at accessibility text sizes")
+        }
     }
 
     /// The reason the grouping was worth doing. Both are the 12-TET reading of a maqām and
     /// neither display name says so; the shelf is what makes them findable by a player
     /// from that tradition. Pinned so a later "tidy the sections" edit has to be deliberate.
-    func testTheMaqamReadingsAreOnTheMiddleEasternShelf() {
-        let middleEast = Scale.Family.middleEast.scales
-        XCTAssertTrue(middleEast.contains(.doubleHarmonic),
+    func testTheMaqamReadingsAreOnTheNearEastShelf() {
+        let nearEast = Scale.Family.middleEast.scales
+        XCTAssertTrue(nearEast.contains(.doubleHarmonic),
                       "doubleHarmonic is Maqām Ḥijāz-kār and its label never says so")
-        XCTAssertTrue(middleEast.contains(.phrygianDominant),
+        XCTAssertTrue(nearEast.contains(.phrygianDominant),
                       "phrygianDominant IS Maqām Ḥijāz and its label never says so")
 
-        // And the restraint: the contested attributions stayed European. Widening this
-        // shelf buys breadth with a claim a reader could falsify.
-        XCTAssertFalse(middleEast.contains(.hungarianMinor))
-        XCTAssertFalse(middleEast.contains(.romanianMinor))
+        // `persian` is on the shelf and is NOT a maqām — which is why the header reads
+        // "Maqām & Near East" and not "Maqām". Persian classical music is dastgāh/radif,
+        // and [0,1,4,5,6,8,11] is a Western catalogue construct rather than dastgāh theory
+        // at all. It sits here because that is where a player looks for the colour.
+        XCTAssertTrue(nearEast.contains(.persian))
+        XCTAssertEqual(Scale.Family.middleEast.title, "Maqām & Near East",
+                       "the header must not narrow to \"Maqām\" while persian is on it")
+
+        // The restraint — but NOT for the reason first written here. `romanianMinor` IS
+        // Nikrīz (well established, not contested) and `hungarianMinor` reads as Nawa
+        // Athar; the earlier comment had the pair backwards and called the solid
+        // equivalence disputed. The decision stands anyway: a scale lives on one shelf,
+        // and both are European folk material far more often than they are maqām.
+        XCTAssertFalse(nearEast.contains(.hungarianMinor))
+        XCTAssertFalse(nearEast.contains(.romanianMinor))
     }
 
     /// The seven from #232 J stay together — a grouping that scattered them would undo the
