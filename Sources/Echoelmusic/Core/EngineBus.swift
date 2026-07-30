@@ -108,6 +108,28 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// instrument must still play.
     public var hrvForSound: Float { hrvNormalized > 0 ? Swift.min(hrvNormalized, 1) : 0.5 }
 
+    /// Whether this frame carries a REAL pulse, as opposed to the structural zero a
+    /// publisher emits before it locks (#245, and the hoist #244 asked for).
+    ///
+    /// `heartRateBPM > 0` was written out at five separate call sites before this existed
+    /// (`BioModulationMap`, `ModulationMatrix`, `BioTempoDirector`, `PolySynthVoice`, and
+    /// then `OSCSender`), which is how the sixth consumer — the OSC egress — came to be
+    /// written WITHOUT it and shipped a fabricated zero to other people's gear for months.
+    /// One predicate, one meaning, so a new consumer inherits the question instead of
+    /// having to think of it.
+    ///
+    /// ⛔ NOT a general "is this frame usable" flag. Freshness is a separate axis and lives
+    /// on the bus (`freshBio(maxAge:)`); a frame can carry a real pulse and still be too old
+    /// to act on. And a frame WITHOUT a pulse is not worthless — `breathRate` may still be
+    /// measured, which is exactly why the breath addresses ride their own gate below.
+    public var hasMeasuredHeartRate: Bool { heartRateBPM > 0 }
+
+    /// Whether this frame carries a REAL breath measurement (#245). Separate from the pulse
+    /// because the two are independently produced — and because `breathPhase` cannot gate
+    /// itself: 0 is a legitimate phase (the start of an inhale), so the only honest question
+    /// is whether the RATE that phase belongs to was measured at all.
+    public var hasMeasuredBreath: Bool { breathRate > 0 }
+
     /// Raw HRV as RMSSD in **milliseconds** — the un-normalized, instrument-grade
     /// value for display, logging, and OSC. `0` means the source does not provide
     /// a real RMSSD (e.g. HealthKit, which exposes SDNN only); UI should then fall

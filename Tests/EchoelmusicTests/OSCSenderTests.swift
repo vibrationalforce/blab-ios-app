@@ -128,7 +128,10 @@ final class OSCSenderTests: XCTestCase {
                            "no producer → the address must not appear at all, so its "
                            + "absence is visible in any OSC monitor")
         }
-        // The rest of the always-on frame is untouched by the gate.
+        // The rest of the core frame is untouched by the MOTION gate. ⚠️ "always-on" until #245:
+        // these five now ride measurement gates of their own (`hasMeasuredHeartRate` /
+        // `hasMeasuredBreath`) and are present here only because this fixture reports both.
+        // `Tests/CISmoke/OSCAbsenceTests` owns the absent case.
         for a in ["/echoelmusic/bio/heart/bpm", "/echoelmusic/bio/heart/hrv",
                   "/echoelmusic/bio/breath/rate", "/echoelmusic/bio/breath/phase",
                   "/echoelmusic/bio/coherence"] {
@@ -149,7 +152,8 @@ final class OSCSenderTests: XCTestCase {
         for a in ["/echoelmusic/bio/heart/rmssd", "/echoelmusic/bio/heart/sdnn", "/echoelmusic/bio/heart/pnn50"] {
             XCTAssertFalse(addrs.contains(a), "\(a) must not be sent with no source value")
         }
-        // The always-on core frame is still fully present.
+        // The core frame is still fully present — this fixture measures both pulse and breath,
+        // so the #245 gates pass. Their absent case lives in `Tests/CISmoke/OSCAbsenceTests`.
         XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/bpm"))
         XCTAssertTrue(addrs.contains("/echoelmusic/bio/heart/hrv"))
         XCTAssertTrue(addrs.contains("/echoelmusic/bio/coherence"))

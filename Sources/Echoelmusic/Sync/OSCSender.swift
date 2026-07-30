@@ -10,12 +10,18 @@
 //  This is the moment Echoelmusic stops being a closed app and
 //  becomes a peer in the wider live-performance toolchain.
 //
-//  OSC address space follows master prompt §2:
-//    /echoelmusic/bio/heart/bpm     float [40..200]
-//    /echoelmusic/bio/heart/hrv     float [0..1]
-//    /echoelmusic/bio/breath/rate   float [4..30]
-//    /echoelmusic/bio/breath/phase  float [0..1]
-//    /echoelmusic/bio/coherence     float [0..1]
+//  OSC address space follows master prompt §2. ⛔ EVERY BIO ADDRESS IS GATED ON ITS OWN
+//  MEASUREMENT (#245): silence means "not measured", never "measured as zero". A receiver
+//  holds its last value, which is what a performer expects when the camera blinks — sending
+//  a structural 0 instead collapsed a bound scale or slewed a lighting desk to black with no
+//  way to tell that apart from a real stop.
+//    /echoelmusic/bio/heart/bpm     float [40..200]  — only when a pulse is measured
+//    /echoelmusic/bio/heart/hrv     float [0..1]     — with the pulse (derived from it)
+//    /echoelmusic/bio/breath/rate   float [4..30]    — only when breath is measured
+//    /echoelmusic/bio/breath/phase  float [0..1]     — with the RATE, never gated on itself:
+//        0 is a legitimate phase (start of an inhale), so a value gate would drop real data
+//        once per breath cycle
+//    /echoelmusic/bio/coherence     float [0..1]     — with the pulse (derived from it)
 //    /echoelmusic/bio/motion        float [0..1]  — NOT SENT in this build (#215):
 //        nothing measures motion, so the address would carry a constant 0 that a
 //        receiver cannot tell apart from a motionless performer. It returns the day a
@@ -236,10 +242,25 @@ public final class OSCSender {
     /// source that provides SDNN but no beat-to-beat RR (HealthKit's native SDNN) still
     /// emits its SDNN even though it has no RMSSD/pNN50 (those are RR-derived).
     nonisolated static func bioMessages(for frame: BioSampleFrame) -> [(address: String, floats: [Float])] {
-        var msgs: [(address: String, floats: [Float])] = [
-            ("/echoelmusic/bio/heart/bpm", [frame.heartRateBPM]),
-            ("/echoelmusic/bio/heart/hrv", [frame.hrvNormalized]),
-        ]
+        var msgs: [(address: String, floats: [Float])] = []
+        // ⛔ #245: THESE TWO USED TO BE UNCONDITIONAL, and that was the same defect #215 fixed
+        // for `/bio/motion` one address further down — restated here because the fix and the
+        // defect lived eighteen lines apart in one function. Before a publisher locks, or after
+        // a finger lifts, `heartRateBPM` is a structural 0. On the wire a 0 is a VALUE: a VJ
+        // binding a scale to `/bio/heart/bpm` gets a hard collapse to zero, a lighting desk
+        // slews its Grand Master to black, and neither has any way to tell that apart from a
+        // measured stop. Not sending is the only form the protocol has for "I do not know" —
+        // the receiver holds its last value, which is what a performer expects when the camera
+        // blinks. And it is not hypothetical: log 2476 published ONE frame in 110 s of a locked
+        // pulse (#235), so the un-measured state is the COMMON one today, not the edge case.
+        if frame.hasMeasuredHeartRate {
+            msgs.append(("/echoelmusic/bio/heart/bpm", [frame.heartRateBPM]))
+            // HRV and coherence are both derived from the beat series, so a frame without a
+            // pulse cannot carry either — they ride the pulse gate rather than their own value.
+            // `hrvNormalized` additionally states in its own doc that 0 means NOT MEASURED and
+            // never "minimum variability"; sending it asserted the extreme it warns against.
+            msgs.append(("/echoelmusic/bio/heart/hrv", [frame.hrvNormalized]))
+        }
         // Beat-to-beat (RR-derived) time-domain metrics — only from a real RR source
         // (camera/Polar). Instrument-grade values for TouchDesigner / Resolume / Max.
         if frame.hrvRMSSDms > 0 {
@@ -255,9 +276,18 @@ public final class OSCSender {
         if frame.hrvSDNNms > 0 {
             msgs.append(("/echoelmusic/bio/heart/sdnn", [frame.hrvSDNNms]))
         }
-        msgs.append(("/echoelmusic/bio/breath/rate", [frame.breathRate]))
-        msgs.append(("/echoelmusic/bio/breath/phase", [frame.breathPhase]))
-        msgs.append(("/echoelmusic/bio/coherence", [frame.coherence]))
+        // Breath rides its OWN gate, not the pulse one: the two are independently produced, and
+        // a frame can carry breath without a lock. ⚠️ `breathPhase` is gated on the RATE and
+        // never on itself — 0 is a legitimate phase (the start of an inhale), so a `> 0` test on
+        // the phase would drop real data once per cycle, which is worse than the fabrication it
+        // would be trying to prevent.
+        if frame.hasMeasuredBreath {
+            msgs.append(("/echoelmusic/bio/breath/rate", [frame.breathRate]))
+            msgs.append(("/echoelmusic/bio/breath/phase", [frame.breathPhase]))
+        }
+        if frame.hasMeasuredHeartRate {
+            msgs.append(("/echoelmusic/bio/coherence", [frame.coherence]))
+        }
         // Motion rides a STRUCTURAL gate rather than a value one (#215). Every
         // `BioSampleFrame` construction site in `Sources/` hardcodes `motionEnergy: 0`
         // and the last CoreMotion provider went in the 2026-06-19 cleanup, so this
