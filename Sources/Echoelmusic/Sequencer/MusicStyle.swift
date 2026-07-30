@@ -637,6 +637,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // reason for going this low is the note pace and the drone's own stillness, nothing about
         // the echo. Closing a trap in one file and leaving it standing in another is worse than
         // not closing it, because the surviving copy reads as independent confirmation.
+        // (The `.whole` that provoked all of that is itself gone: the division is now
+        // `.half, .triplet`, the longest that resolves un-clamped across 40…58 — so at THIS floor
+        // the echo really is the longest in the product, 2.0 s, and it tracks tempo. What stays
+        // wrong is deriving a tempo window from an echo length; the window came first.)
         //
         // ⚠️ LISTENING ITEM, not a defect: `defaultMode` is `.flowFree`, so the clock is
         // `StudioCalculator.genreTempo(body, into:)`, whose octave fold flips direction at

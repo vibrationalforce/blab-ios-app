@@ -138,6 +138,23 @@ public struct GenreFXPreset: Sendable, Equatable {
 
     /// Delay-line capacity in the chain (EchoelDelay default). The synced time is
     /// clamped to this so a whole note at a slow tempo never overruns the buffer.
+    ///
+    /// ⛔ DO NOT RAISE THIS TO "FIX" A TRUNCATED SLOW-TEMPO ECHO. It was the obvious
+    /// candidate when the calm family was found sharing one echo time, and it is the wrong
+    /// move for two independent reasons, both checked rather than assumed:
+    ///  1. `PolySynthVoice.idleFrameThreshold` is 2.5 s and its own doc DERIVES that from this
+    ///     ceiling — the render may only sleep after a window LONGER than the maximum possible
+    ///     echo gap, or a sparse repeat is frozen mid-train and pops out on the next note-on.
+    ///     A 6 s ceiling forces a 6.5 s idle window, which on sparse ambient material means the
+    ///     voice essentially never sleeps: the P1 CPU saving is gone for exactly the genres that
+    ///     wanted the long echo.
+    ///  2. `EchoelDelayLine` rounds up to a power of two — 2.0 s at 48 kHz is 131 072 samples
+    ///     (512 KB/channel); 6.0 s is 524 288 (2 MB/channel), ×2 channels × every chain in
+    ///     `characterFXChains`, against a 200 MB budget.
+    /// The honest fix for a truncated echo is to author a division that RESOLVES inside the
+    /// genre's own tempo window — guarded by `Tests/CISmoke/GenreDelaySyncAudibilityTests`.
+    /// (That test reads the ceiling back through `apply` precisely because this is `private`;
+    /// it does not need to be widened.)
     private static let maxDelaySeconds: Float = 2.0
 
     /// Write this preset onto a live chain, resolving the synced delay time at
@@ -252,24 +269,36 @@ public extension MusicStyle {
         case .deepDrone:
             // #254 batch 2 — the DARKEST space in the product.
             //
-            // ⚠️ NOT the longest echo, and the first draft of this comment claimed it was: it said
-            // "the only WHOLE-note echo (≈6 s at 40 BPM)". A whole note IS 6.0 s at 40 BPM, but
-            // `apply(to:bpm:)` clamps the delay time to `maxDelaySeconds` = 2.0 s — the delay line
-            // is only that long. So at 40…58 BPM this resolves to exactly 2.0 s, and `.whole` is
-            // an intent, not an audible property. It is kept because it is the honest musical
-            // value and the only one that would lengthen if the buffer ever grew.
+            // THE LONGEST ECHO IN THE PRODUCT — and that is true only since the division was
+            // corrected. It shipped as `.whole`, which at 40…58 BPM is 6.0…4.14 s: past the
+            // 2.0 s `maxDelaySeconds` ceiling at EVERY tempo in its own window, so the clamp
+            // fired always and `.whole` was an intent that could never be heard. It also dragged
+            // this genre onto the exact same 2.0 s as two of its siblings — the collapse the
+            // founder hears as "die Genres klingen gleich".
             //
-            // ⛔ WORTH KNOWING BEFORE YOU DIFFERENTIATE ANY CALM PRESET ON DELAY TIME: at these
-            // tempos the 2.0 s ceiling is where several siblings land regardless of their stated
-            // division. selfObservation (half @58 = 2.069) and contemplation (dotted-half @52 =
-            // 3.46) are genuinely TRUNCATED; esotericMeditation (half @60) computes to exactly
-            // 2.0 so the clamp is a no-op and its intent survives — an earlier version of this
-            // note lumped it in with the truncated two, which was wrong. Only `drift`
-            // (dotted-quarter @60 = 1.5 s) sits clearly under the ceiling. Below ~120 BPM, delay
-            // time is a weak separation axis. Logged, not silently "fixed": changing shipped
-            // presets is a listening decision.
+            // `.half, .triplet` (1⅓ quarters) is the LONGEST division on the `TempoSyncOption`
+            // grid that resolves un-clamped across the WHOLE window: 2.0 s at 40 BPM, 1.379 s at
+            // 58, 1.667 s at the 48 default. Derived from the ceiling, not chosen by ear — the
+            // next grid value up (dotted quarter, 1.5) is 2.25 s at 40 and would clamp again.
+            // Now the echo also TRACKS tempo, so a body that slows genuinely lengthens the space.
             //
-            // So this preset separates on what SURVIVES the clamp: mode (tape, with wow), the
+            // ⛔ THE CEILING IS NOT THE THING TO RAISE — see `maxDelaySeconds`' own doc: 2.5 s
+            // `PolySynthVoice.idleFrameThreshold` is derived from it, and a 6 s buffer costs the
+            // idle-render saving on exactly this kind of sparse material. The invariant that
+            // keeps this class of defect out lives in
+            // `Tests/CISmoke/GenreDelaySyncAudibilityTests`: a division that is inaudible at
+            // every tempo the genre allows is a lie in the source.
+            //
+            // ⚠️ STILL TRUE AND STILL A LISTENING ITEM: `selfObservation` (half @58 = 2.069) is
+            // now the ONLY offered genre whose delay is clamped, and it is over by 3.5% — its
+            // echo is flat at 2.0 across the lower 44% of its window instead of tracking tempo.
+            // `esotericMeditation` (half @60) computes to exactly 2.0, so the clamp is a no-op
+            // and its intent survives. The two therefore still coincide at 2.0 s — by AUTHORSHIP
+            // (same division, near-identical default tempo), not by truncation, which is why
+            // this slice did not touch them. Retuning a preset that already sounds as authored is
+            // a founder decision.
+            //
+            // Beyond time, this preset separates on: mode (tape, with wow), the
             // darkest tone in the roster (0.14 < contemplation's 0.24), and the most DAMPED hall
             // in the roster (0.68; next is acidTechno 0.64). ⚠️ NOT the biggest — that claim stood
             // for one commit and is false: contemplation is 0.96 and drift 0.95 against this
@@ -279,7 +308,7 @@ public extension MusicStyle {
             // clear, low stack.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
-                delaySync: TempoSyncOption(.whole),
+                delaySync: TempoSyncOption(.half, .triplet),
                 delayMix: 0.30, delayFeedback: 0.42, delayTone: 0.14, delaySpread: 0.35,
                 delayWow: 0.28, delayDrive: 0.10,
                 saturation: 0.10,
@@ -292,8 +321,11 @@ public extension MusicStyle {
             // second one — in phase, never between. That is still the intended effect (each step
             // is reinforced by the previous one's tail, which is what thickens a sparse sequence)
             // but it is doubling, not syncopation. Say what it does. 0.706 s at 85 BPM is well
-            // under the 2.0 s clamp, so unlike its darker siblings this echo time is real and
-            // does change with tempo across the whole 78…92 window. Brightest tone of the family
+            // under the 2.0 s clamp, so this echo time is real and does change with tempo across
+            // the whole 78…92 window. ⚠️ It was NOT "unlike its darker siblings" for long — that
+            // clause shipped one commit and is now false: `deepDrone` and `contemplation` were
+            // re-authored to divisions that also resolve un-clamped, so only `selfObservation`
+            // still truncates. Brightest tone of the family
             // (0.58 > drift's 0.42) so the steps stay individually audible, a very slow chorus
             // for width, and a big but only lightly damped hall.
             return GenreFXPreset(
@@ -462,6 +494,15 @@ public extension MusicStyle {
             // tape, a touch of drive for warmth — blooming into a big, dark hall.
             // Feedback stays < 0.5 so the tail washes without ever building up;
             // the slow chorus keeps the pad's stereo width alive between echoes.
+            //
+            // ⚠️ THE ONE REMAINING CLAMPED GENRE, deliberately left alone. A half note is 2.069 s
+            // at 58 BPM — 3.5% over the 2.0 s ceiling — so the echo reads flat at 2.0 across the
+            // lower 44% of the 46…78 window (bpm ≤ 60) instead of tracking tempo, and it coincides
+            // there with `esotericMeditation` (half @60 = exactly 2.0, no clamp). Unlike the two
+            // genres fixed in this slice, the division IS audible over most of this window, so
+            // re-authoring it would change a preset that already sounds as written — a founder
+            // listening call, not a derivable one. `GenreDelaySyncAudibilityTests` allows exactly
+            // one such genre, so a second one cannot appear unnoticed.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
                 delaySync: TempoSyncOption(.half),
@@ -482,14 +523,32 @@ public extension MusicStyle {
                 chorusEnabled: true, chorusRate: 0.10, chorusDepth: 0.45, chorusMix: 0.30,
                 reverbEnabled: true, reverbMix: 0.46, reverbRoom: 0.95, reverbDamping: 0.35)
         case .contemplation:
-            // G2 grounded Fläche: the darkest, longest space of the family — a very
-            // long dotted-half TAPE echo with a dark tone and gentle wow, into the
-            // biggest hall but more DAMPED than drift (0.55 vs 0.35) so it reads warm
-            // and grounded, not airy. Feedback < 0.5 so the long tail washes, never
-            // builds. Distinct mode/sync/tone from the three sibling ambient presets.
+            // G2 grounded Fläche: warm and grounded rather than airy — a dark TAPE echo with
+            // gentle wow into the BIGGEST hall in the roster (0.96) but far more DAMPED than
+            // drift (0.55 vs 0.35). Feedback < 0.5 so the tail washes, never builds.
+            //
+            // ⚠️ IT IS NO LONGER "THE LONGEST SPACE OF THE FAMILY", and that phrase was doubly
+            // wrong while it stood here. It shipped as `.half, .dotted` (3 quarters) = 4.09…2.73 s
+            // across its own 44…66 window — over the 2.0 s `maxDelaySeconds` ceiling at EVERY
+            // tempo it can reach, so the clamp fired always, the notated dotted-half was
+            // inaudible, and the resulting flat 2.0 s was IDENTICAL to two siblings. A preset
+            // cannot be "the longest" by authoring a number the chain refuses.
+            //
+            // `.quarter` resolves un-clamped across the whole window (1.364 s at 44, 0.909 at 66,
+            // 1.154 at the 52 default) and is chosen over the longest-fitting `.half, .triplet`
+            // (1.818/1.212, the value `deepDrone` takes) on ONE derived ground: 1.538 s at the
+            // default would sit 2.5% from `drift`'s 1.5 s — trading a collision with the clamped
+            // pair for a collision with drift. At 1.154 s the nearest sibling is 30% away. The
+            // grounded reading now comes from the big damped hall, not from echo length; the
+            // longest echo in the family is `deepDrone`'s.
+            //
+            // The word "distinct sync" is also gone: this division is shared with `ambientPulse`
+            // and `classical`. Sharing a DIVISION is not sharing an echo — the resolved seconds
+            // differ by 60% because the tempo windows do. Pinned in
+            // `Tests/CISmoke/GenreDelaySyncAudibilityTests`.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
-                delaySync: TempoSyncOption(.half, .dotted),
+                delaySync: TempoSyncOption(.quarter),
                 delayMix: 0.32, delayFeedback: 0.40, delayTone: 0.24, delaySpread: 0.40,
                 delayWow: 0.20, delayDrive: 0.12,
                 chorusEnabled: true, chorusRate: 0.08, chorusDepth: 0.40, chorusMix: 0.28,
