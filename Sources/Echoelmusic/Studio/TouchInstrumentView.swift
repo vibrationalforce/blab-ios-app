@@ -571,6 +571,8 @@ final class TouchInstrumentUIView: UIView {
         // The bound cannot bite today — `touches` returns at most `FieldAutoPlay.maxVoices`
         // and there is one finger per that — but it is the index guard for an array, and the
         // two caps living in different files is exactly how those drift apart.
+        // Loop-invariant, so it is read once rather than per voice.
+        let cellSeconds = Double(Swift.max(1, quantizer.grid.tickSpan)) * now.secondsPerTick
         for (voice, t) in touches.enumerated() where voice < autoPlayFingers.count {
             let pitch = TouchPitchMap.pitch(normX: Double(t.x), normY: Double(t.y), key: key)
             let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
@@ -583,7 +585,6 @@ final class TouchInstrumentUIView: UIView {
             // does — the five travelling motions pass `nil` and keep ringing for
             // `staccatoSeconds`, unchanged). A fraction of ONE CELL, so a shorter grid gives
             // shorter notes and the rhythm's staccato stays staccato at any tempo.
-            let cellSeconds = Double(Swift.max(1, quantizer.grid.tickSpan)) * now.secondsPerTick
             let hold = t.gateFraction.map { Double($0) * cellSeconds }
             sound(pitch: pitch,
                   velocity: t.velocity * micro.velocityScale * even,
@@ -1049,10 +1050,21 @@ final class TouchInstrumentUIView: UIView {
     ///
     /// - Parameter holdSeconds: the caller's own length, or `nil` for `staccatoSeconds`. Clamped
     ///   to a floor because a rhythm's gate is a FRACTION of a cell and a fast grid makes that
-    ///   fraction tiny: `driving` at gate 0.8 is 0.36 of a cell, which on a 1/32 grid at 160 BPM
-    ///   is ~17 ms — shorter than the patch's own attack, so the note would read as a click or as
-    ///   nothing rather than as staccato. The ceiling is the other half: nothing may hold a note
-    ///   longer than a second here, or a stuck note becomes possible on a slow grid.
+    ///   fraction tiny: `driving` at gate 0.8 is 0.36 of a cell, and the fastest grid this app
+    ///   OFFERS is 1/16 triplets (`TouchQuantizer.Grid`), so at 160 BPM that is 0.36 × 62.5 ms
+    ///   ≈ 22 ms and at the transport's 300 BPM ceiling ≈ 12 ms — around the patch's own attack,
+    ///   where a note reads as a click rather than as staccato. (An earlier version of this note
+    ///   did the same arithmetic against a 1/32 grid, which does not exist in `Grid` — the numbers
+    ///   were right and the premise was invented.) The ceiling is the other half: nothing may hold
+    ///   a note longer than a second here, or a stuck note becomes possible on a slow grid.
+    ///
+    ///   ⚠️ THE FLOOR IS 15 ms AND NOT THE 40 ms THE FIRST VERSION USED, because a floor is also a
+    ///   KNEE in the future Gate dial (#253 A7) and 40 ms was far too high to be one: on the
+    ///   default 1/16 grid at 120 BPM (125 ms per cell) it flattened `driving` for every gate below
+    ///   0.71 — two thirds of the dial doing nothing, which is the lying-control failure this
+    ///   project keeps paying for (#164, #227). At 15 ms the knee sits below gate 0.27, so the dial
+    ///   is live across the range a player would actually use, and the floor still catches the
+    ///   genuinely extreme settings it exists for.
     private func scheduleSelfRelease(pitch: Int, holdSeconds: Double? = nil) {
         guard let voice = synth else { return }
         // No force-unwrap and no `isFinite` branch: `clamped(to:)` already maps NaN to the lower
@@ -1107,7 +1119,7 @@ final class TouchInstrumentUIView: UIView {
     /// every self-played note whose motion has no length opinion.
     private static let staccatoSeconds: Double = 0.18
     /// Bounds on a caller-supplied hold — see `scheduleSelfRelease(pitch:holdSeconds:)`.
-    private static let minSelfReleaseSeconds: Double = 0.04
+    private static let minSelfReleaseSeconds: Double = 0.015
     private static let maxSelfReleaseSeconds: Double = 1.0
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {

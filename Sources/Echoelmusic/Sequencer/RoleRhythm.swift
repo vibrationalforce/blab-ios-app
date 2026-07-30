@@ -46,11 +46,19 @@
 //  groove assertable in CI — a rhythm is precisely the kind of thing that reads correctly in code
 //  and sounds like a stumble on a device.
 //
-//  ⚠️ NO WRITER AND NO CONSUMER YET (#253 A1). Nothing in `Sources/` calls this: the role
-//  bindings are A2 (arp), A3 (bass), A4 (pad), A5 (lead), the bounded timbre/FX trim is A6 and
-//  the UI rows are A7. Writing that down is the rule this repo learned twice over — an
-//  unreachable core is honest, an unreachable core described as live is what plans get built on.
-//  When A2 lands, this paragraph must change with it.
+//  ✅ ONE CONSUMER SINCE #253 A2, and NO WRITER YET. The Field's `.arp` motion asks this type
+//  which cells sound, how hard and how long (`FieldAutoPlay.arpTouches` → `Params.arpRhythm`), and
+//  the sound reaches the ear through `TouchInstrumentUIView.autoPlayTick`. But nothing SETS the
+//  dials: there is no `StudioDefaultKeys` entry and no UI row, so the arp permanently plays the
+//  stored default (`.driving`, gate 0.8, evolve 0). The rows are A7; the other roles are A3
+//  (bass), A4 (pad), A5 (lead) and the bounded timbre/FX trim is A6.
+//
+//  ⚠️ "NO WRITER" IS NOT "NO EFFECT" — that default IS what the arp sounds like today, so editing
+//  it changes the shipped instrument with no UI involved. (The previous version of this paragraph
+//  said "NO WRITER AND NO CONSUMER YET" and asked to be updated when A2 landed. A2 landed in
+//  `06a43c2` and it was not — which would have told the next session this type is unreachable and
+//  invited either a duplicate binding or a deletion. That is the exact failure this repo keeps
+//  paying for, and it is why the note now names its consumer rather than promising to.)
 //
 //  ⚠️ ONE THING ONLY A DEVICE CAN SETTLE (A6/A7 listening item): `driving` and `dynamic` fire the
 //  SAME cells and differ in accent shape and note length (gate ×0.45 vs ×0.7). That is two
@@ -241,9 +249,19 @@ public enum RoleRhythm {
     /// A crash guard of the same family as `FieldAutoPlay.maxPeriodSteps`, not taste: `cellsPerBar`
     /// reaches integer arithmetic (`BreathArp.isActive`'s `cell * active`, and
     /// `Int((density · Float(cells)).rounded())` where `Float(Int.max) == 2^63` is out of `Int`'s
-    /// range) and a decoded or hand-edited value near `Int.max` would trap. 256 cells is 1/64
-    /// notes across four bars — far past any grid this app offers.
-    public static let maxCellsPerBar = 256
+    /// range) and a decoded or hand-edited value near `Int.max` would trap.
+    ///
+    /// ⚠️ IT DELIBERATELY EQUALS `FieldAutoPlay.maxPeriodSteps`, and that is the whole reason it is
+    /// 1024 rather than the 256 it shipped with in A1. `FieldAutoPlay.arpTouches` passes its
+    /// already-clamped `periodSteps` straight in as `cellsPerBar`, so a LOWER cap here would fold
+    /// it silently: at a traverse of 512 the rhythm would repeat twice inside one traverse and the
+    /// "beat" would be 64 rather than 128, making that file's "one traverse = one bar" and
+    /// "beat = periodSteps / 4" both false without a single test noticing. Two caps for one
+    /// quantity in two files is precisely the drift both files warn about. Widening is safe: at
+    /// 1024 cells `isActive`'s `cell * active` peaks near 10^6.
+    ///
+    /// A test asserts the two constants are equal so a future edit to either one fails loudly.
+    public static let maxCellsPerBar = 1024
 
     /// Slowest and fastest a note may be, as a fraction of its cell.
     ///

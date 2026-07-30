@@ -399,6 +399,29 @@ final class FieldAutoPlayArpTests: XCTestCase {
         XCTAssertNotNil(touches(0, arpParams()).first?.gateFraction)
     }
 
+    /// ⛔ THE TWO CAPS MUST BE EQUAL, and this test is the only thing that will say so. `arpTouches`
+    /// passes its already-clamped `periodSteps` straight in as `RoleRhythm`'s `cellsPerBar`, so a
+    /// smaller cap over there folds the traverse silently: the rhythm would repeat several times
+    /// inside one traverse and the "beat" it places accents against would be a quarter of the wrong
+    /// number. Nothing else in the suite would notice, because every other test uses a small
+    /// traverse. (It was 256 against 1024 when A2 was first written.)
+    func testTheRhythmsGridCapMatchesTheTraverseCap() {
+        XCTAssertEqual(RoleRhythm.maxCellsPerBar, FieldAutoPlay.maxPeriodSteps,
+                       "a traverse the Field allows must be a bar the rhythm allows")
+    }
+
+    /// The one place the new rhythm is NOT bit-identical to the old Euclidean rule, pinned so the
+    /// claim in `Params.arpRhythm` stays honest: `RoleRhythm.spread` floors the sounding count at
+    /// one, so a density too small to round up to a single cell now plays the downbeat instead of
+    /// nothing. The Density row offers two decimals, so this band is reachable, not theoretical.
+    func testAVeryLowDensityStillSoundsTheDownbeatWhereTheOldRuleWasSilent() {
+        let p = arpParams(density: 0.02, period: 16)
+        let sounded = (0..<16).filter { !touches($0, p).isEmpty }
+        XCTAssertEqual(sounded, [0], "the arp lost its one note at a density it must still play")
+        // And the OLD rule really would have been silent here — otherwise this test proves nothing.
+        XCTAssertEqual(Int((Float(0.02) * 16).rounded()), 0)
+    }
+
     /// A rhythm saved before A2 (or a payload with a corrupt one) loads the arp's default rhythm
     /// and keeps every neighbouring dial — the additive-decode law, one level down.
     func testAParamsWithNoStoredRhythmLoadsTheArpDefault() throws {

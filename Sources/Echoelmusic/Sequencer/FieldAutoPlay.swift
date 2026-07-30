@@ -118,9 +118,13 @@ public enum FieldAutoPlay {
         /// characters place their accents against is `periodSteps / 4`. It is therefore NOT a rate
         /// dial — the even-spread rule `(i · active) % period < active` with
         /// `active = round(density · period)` is scale-invariant in `period`, so at density 0.5 the
-        /// notes fall every second cell whether the traverse is 8, 16 or 32. Three characters
-        /// (`driving`, `dynamic`, `flowing`) keep exactly that; `sparse` and `syncopated` measure
-        /// against the beat, so for those two the traverse DOES change which cells sound.
+        /// notes fall every second cell whether the traverse is 8, 16 or 32. FOUR characters keep
+        /// exactly that — `driving`, `dynamic`, `hypnotic` (a rotation of a scale-invariant set is
+        /// still scale-invariant; an earlier version of this line miscounted it as three and left
+        /// `hypnotic` out) and `flowing` ONLY while `evolve == 0`, since above 0 it flips individual
+        /// cells and is no longer the plain spread. `sparse` and `syncopated` measure against the
+        /// beat, so for those two the traverse DOES change which cells sound: `syncopated` at
+        /// density 0.5 fires 4 of 8 cells at traverse 8 and 4 of 16 at traverse 16.
         ///
         /// One note per fired cell, never `voices` of them: an arpeggio is a chord played as a
         /// SEQUENCE. Stacking it would just be the chord, which the generative engine already
@@ -257,11 +261,31 @@ public enum FieldAutoPlay {
         /// but NOT YET HONOURED — see `arpTouches` for why displacing a generated onset is its own
         /// slice rather than a parameter pass.
         ///
-        /// Default `.driving` with `evolve: 0`, chosen so this slice does not re-voice the arp
-        /// behind the founder's back: `driving` fires the plain even spread, which is bit-for-bit
-        /// the Euclidean set `fires(cell:density:period:)` produced before — only the LEVEL curve
-        /// and the note length are new. `flowing` (the type's own default) would have flipped
-        /// cells at `evolve 0.2` and changed the figure on a slice that must not.
+        /// Default `.driving` with `evolve: 0`, chosen to keep this slice's change to the arp as
+        /// small as it can honestly be: `driving` fires the plain even spread, the same rule
+        /// `fires(cell:density:period:)` used. `flowing` (the type's own default) would have
+        /// flipped cells at `evolve 0.2` and changed the figure outright.
+        ///
+        /// ⚠️ "THE SAME RULE" IS NOT "THE SAME SET", and the first version of this line claimed
+        /// bit-for-bit identity, which is false in a reachable band. `RoleRhythm.spread` floors the
+        /// active count at 1 for any density above 0 (its own doc explains why: a dial reading "on"
+        /// that produces nothing is a lying control). The old `fires` returned `false` whenever
+        /// `round(density · period)` rounded to 0. So for `0 < density < 1/(2 · period)` — e.g.
+        /// traverse 16 at density 0.02, and the Density row does offer two decimals — the arp used
+        /// to be silent forever and now sounds cell 0 once per traverse. That is an improvement,
+        /// and the diff's own test encodes the floor; the identity claim was the untrue part.
+        ///
+        /// ⚠️ AND THE NOTE LENGTH IS THE BIG CHANGE, disclosed here with its magnitude because the
+        /// previous wording ("only the LEVEL curve and the note length are new") was true and told
+        /// nobody how much. Before A2 every arp note rang for a fixed `staccatoSeconds` = 180 ms.
+        /// Now it is `gate × gateScale` of a CELL: on the default 1/16 grid at 120 BPM (125 ms per
+        /// cell) that is `0.8 × 0.45 × 125` ≈ **45 ms** — about a quarter of the old length, and
+        /// `driving` cannot reach 180 ms at all (that would be 1.44 cells, i.e. the old behaviour
+        /// deliberately OVERLAPPED consecutive notes, which is what
+        /// `TouchInstrumentUIView.scheduleSelfRelease`'s token guard exists to survive). A crisp
+        /// detached arp is the musical intent of "treibend" and the reason the character exists —
+        /// but it is a real change to the shipped instrument with no UI involved, so it is
+        /// **NEEDS-FOUNDER-VERIFY**, not a silent default.
         public var arpRhythm: RoleRhythm.Params
 
         /// Format stamp (#189), same shape as `MoodPreset`: the ENCODER writes it; a future
@@ -410,13 +434,26 @@ public enum FieldAutoPlay {
         //
         // ⛔ IT BRANCHES ABOVE THE `fires` GUARD, and moving it there was the whole point of
         // #253 A2 rather than an accident of ordering. `RoleRhythm` decides which cells the arp
-        // sounds, and four of its six characters pick a DIFFERENT set than the plain Euclidean
-        // rule: `sparse` thins onto the beats, `syncopated` prefers the cells between them,
-        // `hypnotic` rotates by bar, `flowing` breathes cells in and out. Leaving the Euclidean
-        // guard above the branch would INTERSECT with all of that — the arp would only ever sound
-        // where BOTH rules agree, so a hypnotic arp would lose most of its rotation and a
-        // syncopated one would go nearly silent. The two guards above this (`voices`, `density`)
-        // stay where they are: both mean silence for every motion, arp included.
+        // sounds, and leaving the Euclidean guard above the branch would INTERSECT the two rules:
+        // the arp would only sound where BOTH agree.
+        //
+        // THE CASE THAT FORCES THE MOVE IS `hypnotic`, AND IT IS WORSE THAN "LOSES SOME ROTATION"
+        // (which is what the first version of this comment said). Its figure is the base spread
+        // ROTATED BY THE BAR INDEX: at density 0.5, traverse 16, bar `b` it wants the cells whose
+        // `(position − b)` is even. For every ODD bar that is the odd cells — and the Euclidean base
+        // is the even ones, so the intersection is EMPTY. The arp would go completely silent on
+        // every second bar. `sparse` (density 0.3, traverse 16: cells 8 and 12 drop out) and
+        // `flowing` with `evolve > 0` lose notes more mildly.
+        //
+        // ⚠️ AND THE OTHER EXAMPLE THAT USED TO STAND HERE WAS WRONG IN THE OPPOSITE DIRECTION:
+        // `syncopated` would NOT "go nearly silent". At density 0.5, traverse 16 its cells
+        // {2,6,10,14} are a SUBSET of the even base, so intersecting would change nothing at all;
+        // at density 0.75 it merely halves. Naming the mild case as the severe one and the severe
+        // one as mild is the kind of correction this file elsewhere calls worse than the claim it
+        // replaced, so both are stated as measured.
+        //
+        // The two guards above this (`voices`, `density`) stay where they are: both mean silence
+        // for every motion, arp included.
         if params.motion == .arp {
             return arpTouches(step: step, cell: cell, period: period, density: density,
                               y: y, params: params, seed: seed,
@@ -460,9 +497,14 @@ public enum FieldAutoPlay {
     /// rhythm's, not a curve's. The rate is still the Field's own Density dial — see
     /// `Params.arpRhythm` for why that copy's `density` is overwritten rather than read.
     ///
-    /// Cost: two passes over the traverse (≤ `maxPeriodSteps` = 1024 pure calls) per SOUNDED
-    /// cell — not per frame. The driver only calls in when the grid cell changes
-    /// (`TouchInstrumentUIView.autoPlayTick`), i.e. a handful of times a second.
+    /// Cost, stated properly because the first version understated it by half and mis-described the
+    /// work: `1 + 2 · period` calls to `RoleRhythm.hit` per SOUNDED cell — the guard once, then two
+    /// prefix passes — so up to ~2049 at `maxPeriodSteps`. And `hit` is not a cheap modulo test: it
+    /// builds a `SeededRNG` every time and on `dynamic` calls `sinf`, all to be compared against
+    /// `nil`. Still comfortably free at the real rates (the UI caps the traverse at 64 and the
+    /// fastest grid is 1/16 triplets, so ~4k calls a second at 300 BPM, on the main thread, only
+    /// when the grid CELL changes — never per frame). If a later slice makes the traverse big or
+    /// the grid finer, the fix is a `RoleRhythm` predicate that skips the accent maths, not a cache.
     ///
     /// Wrapping arithmetic on purpose: `traverse * firedPerTraverse` would TRAP for an absurd
     /// `step`, and a trap on the self-play path is the worst outcome available. A wrap merely
@@ -482,10 +524,10 @@ public enum FieldAutoPlay {
         rhythm.density = density
 
         guard let beat = RoleRhythm.hit(bar: traverse, cell: cell, cellsPerBar: period,
-                                       params: rhythm, seed: seed) else { return [] }
+                                        params: rhythm, seed: seed) else { return [] }
 
         let firedPerTraverse = arpFiredCount(before: period, bar: traverse,
-                                            rhythm: rhythm, period: period, seed: seed)
+                                             rhythm: rhythm, period: period, seed: seed)
         let firedBefore = arpFiredCount(before: cell, bar: traverse,
                                         rhythm: rhythm, period: period, seed: seed)
         let index = traverse &* firedPerTraverse &+ firedBefore
@@ -516,12 +558,22 @@ public enum FieldAutoPlay {
         // rather than a shortcut. A generated note's onset is owned by ULTRASYNC, and its plan is
         // computed from the cell's on-grid tick: `TouchQuantizer.plan` returns `.play` the moment
         // `offset == 0`, and `.play(atTick:)` sounds IMMEDIATELY. Handing it a pushed tick does
-        // NOT make the note late — a small push falls inside `latenessToleranceTicks` and plays
-        // on the grid anyway, and a large one takes the `.playThenEcho` branch, i.e. a DOUBLED
-        // note. So honouring `push` means giving the generated onset its own scheduled delay in
-        // `TouchInstrumentUIView`, with the cancellation discipline `pendingOn` already carries —
-        // its own slice (#253 A2b), not a parameter pass. Until then the arp's Push row must stay
-        // out of the UI (#164/#227): a dial is allowed to be absent, not to be inert.
+        // NOT make the note late — a 0.05 push on a 1/16 grid is 6 ticks, inside the ~12-tick
+        // `latenessToleranceTicks`, so it plays on the grid anyway; a 0.12 push is 14 ticks and
+        // takes the `.playThenEcho` branch, i.e. a DOUBLED note; a NEGATIVE push reads as "early"
+        // and gets pulled back onto the grid. (And at the shipped default `strength: 0` the whole
+        // function short-circuits to `.play`, so today Ultrasync is not even in the way — which
+        // makes the conclusion firmer, not softer.) Honouring `push` means giving the generated
+        // onset its own scheduled delay in `TouchInstrumentUIView`, with the cancellation
+        // discipline `pendingOn` already carries — its own slice (#253 A2b), not a parameter pass.
+        // Until then the arp's Push row must stay out of the UI (#164/#227): a dial is allowed to
+        // be absent, not to be inert.
+        //
+        // ⚠️ ONE HONEST EXCEPTION to "dropped": `push` is not entirely without effect, because
+        // `RoleRhythm.hit` gives the LENGTH back the room the push takes. On `flowing` (the only
+        // character with an unconditional bias) that caps the gate at 0.95 of a cell. So the
+        // accurate sentence is "the timing offset is dropped; it still limits `flowing`'s gate
+        // ceiling" — not "push does nothing".
     }
 
     /// How many cells in `0..<before` the ARP sounds, in this bar. The counterpart of the walk
