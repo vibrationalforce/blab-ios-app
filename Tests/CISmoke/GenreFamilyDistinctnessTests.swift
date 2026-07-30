@@ -92,8 +92,16 @@ final class GenreFamilyDistinctnessTests: XCTestCase {
 
         // Every axis the two new genres were designed to differ on. Each line is a claim the
         // design makes; if one flips, the pair has drifted toward each other.
+        // ⚠️ THIS AXIS IS ONLY HALF AUDIBLE, and saying so is the point of the comment.
+        // `deepHouse` genuinely skanks: non-arp + non-sustained reaches the chop branch of
+        // `composeHarmonic`, which reads the articulation. `acidTechno` does NOT stab —
+        // arpeggiated profiles take the arp branch, which never reads it, so acid's `.stab`
+        // is inert. The assertion is kept because the values differing is still the
+        // precondition for house's half being heard, and because if acid ever loses
+        // `arpeggiated` this axis wakes up. It is NOT evidence that the two differ rhythmically.
         XCTAssertNotEqual(acid.articulation, house.articulation,
-                          "acid stabs ON the beat, house skanks on the OFFBEAT — that was the point")
+                          "house skanks on the OFFBEAT and acid does not — that was the point "
+                          + "(acid's own articulation is inert while it stays arpeggiated)")
         XCTAssertNotEqual(acid.scale, house.scale)
         XCTAssertNotEqual(acid.chordTones, house.chordTones, "acid is a raw triad, house a lush 7th")
         XCTAssertNotEqual(acid.padOctave, house.padOctave, "acid sits low, house one octave up")
@@ -212,8 +220,10 @@ final class GenreFamilyDistinctnessTests: XCTestCase {
     /// it was `…IsCuratedAndContemplative`) used to assert that EVERY
     /// offered genre is drum-free or a sustained Fläche (founder 2026-07-24, "Die 6 ruhigen
     /// Genres"). This batch had to retire that loop: the founder asked on 2026-07-30 for
-    /// "verschiedenste Techno und House Stile … Trance, acid", and a techno genre cannot be a
-    /// sustained Fläche — the driving articulation IS the genre. The newer explicit ask wins.
+    /// "verschiedenste Techno und House Stile … Trance, acid", and sustaining an acid SEQUENCE or a
+    /// house OFFBEAT chord would make it not-acid and not-house — the convergence defect itself.
+    /// (⚠️ It is NOT that a techno genre cannot be sustained: `dubTechno` is one and is. The
+    /// stronger claim stood here for one commit; do not cite it in the next batch.)
     ///
     /// What survives is the part that actually carries the contemplative identity, and it belongs
     /// in the BLOCKING bundle because the suite that held the original lives behind

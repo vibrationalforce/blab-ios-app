@@ -51,9 +51,13 @@ final class MusicStyleTests: XCTestCase {
         // faithful reading of 2026-07-24 ("Die 6 ruhigen Genres"). On 2026-07-30 the founder asked
         // for the opposite in the same breath: "mehr Genres der elektronischen Musik benötigt,
         // verschiedenste Techno und House Stile aber auch Ambient und meditations Musik, Trance,
-        // acid etc". A techno or house genre cannot be a sustained Fläche — the driving
-        // articulation IS the genre — so the old loop and the new ask cannot both hold, and the
-        // founder's newer, explicit instruction wins over a test-encoded inference.
+        // acid etc". ⚠️ NOT because "a techno genre cannot be a sustained Fläche" — that was the
+        // first version of this note and it is false: `dubTechno` is a techno genre with
+        // `sustained: true` and it satisfied the old loop. What is incompatible is the loop with
+        // THESE TWO DESIGNS — an acid line is a sequence, a house chord lands on the offbeat, and
+        // sustaining either would make it not-acid and not-house, i.e. the very convergence the
+        // founder reported (#81, #125). So the choice was between the genres he named and a
+        // test-encoded inference from an earlier curation; the named genres win.
         //
         // Two further things make the old wording stale independently of that: since #166/#167
         // there are NO drums at all, so "drum-free" describes every genre and `isBeatDriven` now

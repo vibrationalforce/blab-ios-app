@@ -190,15 +190,17 @@ Tests/EchoelmusicTests/ ← 314 test files (`git ls-files 'Tests/EchoelmusicTest
                           2026-07-28 — heute 314. Die Workflow-Beschriftung ist founder-gated und
                           bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**39** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-07-30; am 2026-07-29 nachmittags stand hier „30", vormittags „21", und
-                          davor monatelang „1 Datei" — das ließ das EINZIGE Bundle, das einen Merge
-                          rot färben kann, kleiner aussehen als es ist. Das Bundle WÄCHST gerade
-                          schnell, weil jeder Ralph-Slice seinen Wächter hierher legt statt in die
-                          non-blocking Suite: **diese Zahl ist die am schnellsten veraltende in dieser
-                          Datei — führ sie mit dem Befehl nach, zitier sie nie ungeprüft**. Vier Stände
-                          in zwei Tagen, +9 an einem Tag: wer sie liest, ohne den Befehl daneben
-                          laufen zu lassen, liest eine Zahl von gestern).
+                          `Tests/CISmoke` (**41** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-07-30 nach #254; am selben Tag früher „39", am 2026-07-29 nachmittags
+                          „30", vormittags „21", und davor monatelang „1 Datei" — das ließ das EINZIGE
+                          Bundle, das einen Merge rot färben kann, kleiner aussehen als es ist. Das
+                          Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
+                          legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
+                          veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
+                          ungeprüft**. FÜNF Stände in zwei Tagen: wer sie liest, ohne den Befehl
+                          daneben laufen zu lassen, liest eine Zahl von gestern. Der Reviewer von
+                          #254 fand sie schon zwei Commits nach ihrer letzten Korrektur wieder falsch
+                          — genau deshalb steht hier der Befehl und nicht nur die Zahl).
                           Siehe KEY TESTS.
 docs/                  ← Website (GitHub Pages)
 .github/workflows/     ← CI/CD (testflight.yml is primary)

@@ -3,7 +3,9 @@
 //
 // ⭐ THIS FILE EXISTS TO STOP A DISCOVERY FROM ROTTING. On 2026-07-30, building #253 A5 (a rhythm
 // character for the lead, the fourth role in the founder's *"Alle Soundrubriken von Pads, Bass bis
-// arp etc."*), the row turned out to be unshippable: ALL 25 curated genres carry
+// arp etc."*), the row turned out to be unshippable: ALL curated genres carry
+// (27 today, 25 when this was written — the count is deliberately not repeated below, because
+// it drifts with every genre batch while the invariant does not)
 // `HarmonicProfile.leadDensity == 0`, nothing mutates it (`harmonicProfile` is a computed `var`
 // returning a fresh struct, so even a local copy could not leak), and the three bespoke melody
 // functions have no caller — of those, `trapMelody` and `ambientMelody` emit `.lead`, `dubMelody`

@@ -50,15 +50,30 @@ final class MusicStyleLeadTests: XCTestCase {
 
     func testLeadTimbresAreSpreadNotCollapsed() {
         // The core "klingen gleich" guard: lead-bearing genres must not pile onto one
-        // patch. Before 2026-07-20 nine shared "Soft Keys"; now each warm patch carries
-        // at most three, and at least five distinct patches are in play.
+        // patch. Before 2026-07-20 nine shared "Soft Keys".
+        //
+        // ⚠️ THE CEILING IS DERIVED, NOT THE LITERAL 3 THAT STOOD HERE, and the reason is
+        // arithmetic rather than taste. The old assertion was `maxShared <= 3`, which was
+        // simply a description of the spread at the time (17 lead-bearing genres over 6
+        // warm patches). #254 added two lead-bearing genres → 19, and 6 × 3 = 18, so
+        // "no more than three" became UNSATISFIABLE: every possible assignment fails it.
+        // A test that cannot pass is not a strict test, it is a broken one — and this
+        // suite is non-blocking (#208), so it would have gone red in silence.
+        //
+        // `ceil(count / patches)` is the pigeonhole floor: the smallest max any
+        // assignment can achieve. It evaluates to 3 at 17 genres (nothing was loosened
+        // to let #254 through) and 4 at 19, and it still forbids exactly what the guard
+        // exists for — a pile-up on one patch while others sit nearly empty.
         let leads = leadBearing.map(\.leadPatchName)
         XCTAssertFalse(leads.isEmpty, "there must be lead-bearing genres to guard")
 
         let counts = Dictionary(grouping: leads, by: { $0 }).mapValues(\.count)
         let maxShared = counts.values.max() ?? 0
-        XCTAssertLessThanOrEqual(maxShared, 3,
-            "no warm lead patch may be shared by more than 3 lead-bearing genres (got \(counts))")
+        let ceiling = Int(ceil(Double(leads.count) / Double(warmLeadSet.count)))
+        XCTAssertLessThanOrEqual(maxShared, ceiling,
+            "the leads are not spread as evenly as \(leads.count) genres over "
+            + "\(warmLeadSet.count) warm patches allows: no patch may carry more than "
+            + "\(ceiling), got \(counts)")
 
         XCTAssertGreaterThanOrEqual(Set(leads).count, 5,
             "lead-bearing genres must use at least 5 distinct warm leads (got \(Set(leads).sorted()))")
