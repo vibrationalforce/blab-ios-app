@@ -211,17 +211,20 @@ public enum FieldAutoPlay {
 
         // MARK: The arp dials — read ONLY when `motion == .arp` (#220 S3)
         //
-        // ⚠️ NO WRITER YET, and saying so is the house rule rather than a courtesy: nothing in
-        // `Sources/` sets these FOUR (`arpRhythm` joined them with #253 A2).
-        // `FloatingVisualWindow.fieldAutoPlay` builds `Params` without them and there are no
-        // `StudioDefaultKeys` for them, so today the arp always walks the stored defaults below.
-        // The keys and the rows are #220 S5 for the first three and #253 A7 for the rhythm. Read
-        // the doc comments as "what this dial WILL do", not as a control a player can reach.
+        // ⚠️ THREE OF THESE FOUR STILL HAVE NO WRITER, and saying which is the house rule rather
+        // than a courtesy. `arpRhythm` GAINED one with #253 A7 — four `StudioDefaultKeys` written by
+        // the Field panel's Rhythm / Note length / Accent / Evolve rows and folded back in by
+        // `FloatingVisualWindow.fieldAutoPlay`. `arpOrder`, `arpOctaves` and `arpChordDegrees` are
+        // still unreachable: nothing in `Sources/` sets them, so the arp always walks the stored
+        // defaults below. Their keys and rows are #220 S5. Read THOSE three doc comments as "what
+        // this dial WILL do", not as a control a player can reach.
         //
-        // ⚠️ THAT IS NOT THE SAME AS "NO EFFECT". These defaults are what the arp SOUNDS LIKE
-        // today, so changing one changes the shipped instrument with no UI involved — which is why
-        // `arpRhythm`'s default was picked to keep the fire pattern identical to the pre-A2
-        // Euclidean one rather than to be the type's own prettiest setting.
+        // ⚠️ AND THE DEFAULTS ARE LOAD-BEARING EVEN WHERE A WRITER EXISTS. These are what the arp
+        // SOUNDS LIKE for anyone who has not touched a row, so changing one changes the shipped
+        // instrument — which is why `arpRhythm`'s default was picked to keep the fire pattern
+        // identical to the pre-A2 Euclidean one rather than to be the type's own prettiest setting,
+        // and why `TouchSurfaceStorageKeysTests` pins the A7 keys against THIS default rather than
+        // against literals of its own.
 
         /// Which way the arp walks its chord.
         public var arpOrder: ArpFigure.Order

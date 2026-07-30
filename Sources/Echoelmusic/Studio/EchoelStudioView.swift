@@ -106,6 +106,14 @@ struct EchoelStudioView: View {
     private var fieldVoices = StudioDefaultKeys.fieldAutoPlayVoices.value
     @AppStorage(StudioDefaultKeys.fieldAutoPlayPeriod.key)
     private var fieldPeriod = StudioDefaultKeys.fieldAutoPlayPeriod.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmCharacter.key)
+    private var fieldArpCharacter: RoleRhythm.Character = StudioDefaultKeys.fieldArpRhythmCharacter.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmGate.key)
+    private var fieldArpGate = StudioDefaultKeys.fieldArpRhythmGate.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmAccent.key)
+    private var fieldArpAccent = StudioDefaultKeys.fieldArpRhythmAccent.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmEvolve.key)
+    private var fieldArpEvolve = StudioDefaultKeys.fieldArpRhythmEvolve.value
     @Environment(SubBassVoice.self) private var subBass
     /// S2-W1: the Multi-Roll slot voices — the Melodic insert must reach them
     /// too, or a secondary lane's "Sound & FX" edit changes nothing it plays.
@@ -2638,15 +2646,24 @@ struct EchoelStudioView: View {
         // gesture. Hidden rather than shown-and-ignored: this repo has paid four times for a
         // control that is visible and does nothing (#164, #227).
         if FieldAutoPlay.Motion(rawValue: fieldMotionRaw) == .arp {
-            // ⚠️ TWO CLAIMS WERE REMOVED FROM THIS STRING AFTER REVIEW, both false. "root, third,
-            // fifth" holds only in a seven-degree scale — in Chromatic those degrees are a
-            // whole-tone cluster, in Pentatonic Minor root/fourth/flat-seventh. And "Traverse
-            // sets its rate" was wrong for the arp: the Euclidean fire rule is scale-invariant in
-            // the traverse length, so only Density changes which cells sound (see the `.arp` case
-            // in FieldAutoPlay). Traverse moves the ACCENT, and that is what it now says.
-            Text("Arp walks upwards through chord degrees of your scale instead of travelling across the field. Density sets its rate, Band the register, Traverse where the accent falls.")
+            // ⚠️ THIS STRING HAS NOW BEEN CORRECTED TWICE, and the second correction UNDID part of
+            // the first — worth recording, because the underlying behaviour moved under it:
+            //   · #220 S3 review removed "root, third, fifth" (true only in a seven-degree scale —
+            //     in Chromatic those degrees are a whole-tone cluster, in Pentatonic Minor
+            //     root/fourth/flat-seventh) and replaced "Traverse sets its rate" with "Traverse
+            //     where the accent falls", because the Euclidean fire rule was scale-invariant in
+            //     the traverse length.
+            //   · #253 A7 replaced THAT, because the arp's bar is now a `RoleRhythm` bar: on
+            //     `sparse` and `syncopated` the rule divides the bar into four beats, so the
+            //     traverse length moves WHICH cells sound and not only where the weight lands.
+            //     "Where the accent falls" had become true of the default character and false of
+            //     two others.
+            // The lesson for the next edit: this caption describes a rule that lives in another
+            // file, so check `RoleRhythm.fires` before trusting either version.
+            Text("Arp walks upwards through chord degrees of your scale instead of travelling across the field. Density sets how many cells sound, Rhythm how they sit, Band the register. Traverse is the bar the rhythm counts in — it decides where its downbeats and accents fall.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+            fieldArpRhythmFields
         } else {
             EchoelValueField(label: "Voices", value: $fieldVoices,
                              range: 1...Double(FieldAutoPlay.maxVoices), unit: "", decimals: 0)
@@ -2681,6 +2698,97 @@ struct EchoelStudioView: View {
             Text("Band drift under about 0.35 moves the light on the field without changing the octave.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// THE ARP'S RHYTHM (#253 A7, founder 2026-07-30: *"Alle Soundrubriken … brauchen noch
+    /// verschiedene Rhythmus Regler. Verschiedene variablen die interessante, treibende,
+    /// hypnotische, dynamische etc. Rhythmus pattern machen"*). Its own builder for the same
+    /// structural reason `fieldSelfPlayFields` was split off this file's black-screen history:
+    /// small builders, not one growing aggregate type.
+    ///
+    /// **Four controls, not six.** `RoleRhythm.Params` carries six numbers and two of them are
+    /// deliberately absent here:
+    /// - `density` is the Field's OWN Density row above — `FieldAutoPlay.arpTouches` overwrites the
+    ///   stored copy with it, so a second row would be two dials over one musical dimension.
+    /// - `push` is carried by the generator but NOT yet honoured (#253 A2b owns moving a generated
+    ///   onset off the grid). A row for it today would be a control that does nothing (#164/#227).
+    @ViewBuilder private var fieldArpRhythmFields: some View {
+        HStack {
+            Text("Rhythm").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
+            Spacer()
+            // A Picker and NOT an `EchoelValueField`: these values have NAMES. The one-control law
+            // in CLAUDE.md governs NUMERIC parameters, and it says so in as many words — a named
+            // choice rendered as a number would be obeying its letter against its purpose.
+            Picker("Rhythm", selection: $fieldArpCharacter) {
+                ForEach(RoleRhythm.Character.allCases, id: \.rawValue) { c in
+                    Text(fieldArpRhythmLabel(c)).tag(c)
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .accessibilityLabel("Arp rhythm")
+        }
+        Text(fieldArpRhythmBlurb(fieldArpCharacter))
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+        EchoelValueField(label: "Note length", value: $fieldArpGate,
+                         range: Double(RoleRhythm.minGate)...1, unit: "", decimals: 2)
+        // Both halves of this sentence are floors the player would otherwise read as a broken dial:
+        // the character scales the gate (Driving ×0.45), and the release itself cannot go under
+        // `TouchInstrumentUIView.minSelfReleaseSeconds` = 15 ms. On the default 1/16 grid at 120 BPM
+        // (125 ms per cell) Driving reaches that floor at about 0.27, so the bottom quarter of the
+        // row is flat — and at 300 BPM it is the bottom two thirds. Tempo-dependent, so it is said
+        // rather than clipped out of the range.
+        Text("Note length is a fraction of one cell, scaled by the rhythm — Driving stays short even at 1. Below the instrument's 15 ms minimum nothing gets shorter, and the faster the tempo the sooner that floor is reached.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+        EchoelValueField(label: "Accent", value: $fieldArpAccent,
+                         range: 0...1, unit: "", decimals: 2)
+        // Not a hidden row, because the dial DOES move on all six — but on these two it moves by
+        // about 1 dB and 0.5 dB, which reads as broken unless you say it is the point.
+        if fieldArpCharacter == .hypnotic || fieldArpCharacter == .flowing {
+            Text("\(fieldArpRhythmLabel(fieldArpCharacter)) is nearly level by design — Accent barely cuts here. Dynamic or Driving give a strong one.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        // Hidden, not disabled, on the four characters that ignore it — `RoleRhythm.Character`
+        // exists to answer exactly this and its own doc requires the row to obey.
+        if fieldArpCharacter.usesEvolve {
+            EchoelValueField(label: "Evolve", value: $fieldArpEvolve,
+                             range: 0...1, unit: "", decimals: 2)
+        }
+    }
+
+    /// Player-facing names for the six rhythm characters. Kept out of `RoleRhythm` for the reason
+    /// `fieldMotionLabel` states: the core is pure Foundation, a display string is a UI decision.
+    private func fieldArpRhythmLabel(_ c: RoleRhythm.Character) -> String {
+        switch c {
+        case .driving:    return "Driving"
+        case .hypnotic:   return "Hypnotic"
+        case .dynamic:    return "Dynamic"
+        case .sparse:     return "Sparse"
+        case .syncopated: return "Syncopated"
+        case .flowing:    return "Flowing"
+        }
+    }
+
+    /// One line per character, so choosing one is a musical decision and not a guess. Each is a
+    /// plain-language restatement of that case's doc comment in `RoleRhythm.Character` — if the
+    /// engine's behaviour changes, both must move together.
+    private func fieldArpRhythmBlurb(_ c: RoleRhythm.Character) -> String {
+        switch c {
+        case .driving:
+            return "Straight and short, hard on the beat — machine time, with air between the notes for the pulse to be felt."
+        case .hypnotic:
+            return "Even and long with almost no accent, and the figure rotates a little every bar so it repeats without being repetitive."
+        case .dynamic:
+            return "The same notes as Driving, but the level contour moves — the bar breathes. This is where Evolve does the most."
+        case .sparse:
+            return "Fewer notes than Density asks for, only on the beats, held long. Wide."
+        case .syncopated:
+            return "Prefers the cells between the beats and accents them, a hair late — the pull that makes a line swing."
+        case .flowing:
+            return "Long, level, a hair behind the grid — it sits under everything else instead of competing with it."
         }
     }
 

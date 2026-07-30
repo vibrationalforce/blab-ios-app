@@ -161,6 +161,36 @@ public enum StudioDefaultKeys {
     /// Double because that is what `EchoelValueField` binds to; clamped on the way in.
     public static let fieldAutoPlayPeriod = StudioDefault(key: "field.autoPlay.period", value: 16.0)
 
+    /// ARP RHYTHM (#253 A7, founder 2026-07-30: *"Alle Soundrubriken von Pads, Bass bis arp etc.
+    /// brauchen noch verschiedene Rhythmus Regler. Verschiedene variablen die interessante,
+    /// treibende, hypnotische, dynamische etc. Rhythmus pattern machen"*).
+    ///
+    /// ⚠️ **EVERY DEFAULT HERE MUST EQUAL `FieldAutoPlay.Params.init`'s `arpRhythm` DEFAULT**, and
+    /// that is not tidiness — #253 A2 shipped that default as the arp's actual sound with no UI
+    /// involved. A default here that disagrees would silently re-voice the arp for everyone who
+    /// updates, in a slice whose entire purpose is to make the setting reachable. Pinned by
+    /// `TouchSurfaceStorageKeysTests` against the `Params` default itself, not against a literal.
+    ///
+    /// `density` is deliberately ABSENT: the Field's own Density row is the ONE rate control, and
+    /// `FieldAutoPlay.arpTouches` overwrites the stored copy with it. A second key for the same
+    /// musical dimension is the collision `RoleRhythm`'s header already decides.
+    ///
+    /// `push` is deliberately ABSENT TOO, for a different reason: `arpTouches` carries it but does
+    /// NOT yet honour it (#253 A2b owns displacing a generated onset). A row for it today would be
+    /// a lying control (#164/#227) — the key arrives with the behaviour, not before it.
+    public static let fieldArpRhythmCharacter = StudioDefault(key: "field.autoPlay.arpRhythm.character",
+                                                             value: RoleRhythm.Character.driving)
+    /// Note length as a fraction of one grid cell, before the character's own scaling.
+    public static let fieldArpRhythmGate = StudioDefault(key: "field.autoPlay.arpRhythm.gate",
+                                                        value: 0.8)
+    /// How far the accent pattern swings between soft and hard, 0 = flat.
+    public static let fieldArpRhythmAccent = StudioDefault(key: "field.autoPlay.arpRhythm.accent",
+                                                          value: 0.4)
+    /// Per-note variation — **only `dynamic` and `flowing` read it** (`Character.usesEvolve`), which
+    /// is why its row is hidden for the other four rather than shown and ignored.
+    public static let fieldArpRhythmEvolve = StudioDefault(key: "field.autoPlay.arpRhythm.evolve",
+                                                          value: 0.0)
+
     // MARK: midi.*
 
     /// Inbound Apple Network MIDI (RTP-MIDI, RFC 6295) — **OFF by default (#187,

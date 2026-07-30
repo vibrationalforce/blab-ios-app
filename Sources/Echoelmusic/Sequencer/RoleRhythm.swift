@@ -46,19 +46,26 @@
 //  groove assertable in CI — a rhythm is precisely the kind of thing that reads correctly in code
 //  and sounds like a stumble on a device.
 //
-//  ✅ ONE CONSUMER SINCE #253 A2, and NO WRITER YET. The Field's `.arp` motion asks this type
-//  which cells sound, how hard and how long (`FieldAutoPlay.arpTouches` → `Params.arpRhythm`), and
-//  the sound reaches the ear through `TouchInstrumentUIView.autoPlayTick`. But nothing SETS the
-//  dials: there is no `StudioDefaultKeys` entry and no UI row, so the arp permanently plays the
-//  stored default (`.driving`, gate 0.8, evolve 0). The rows are A7; the other roles are A3
-//  (bass), A4 (pad), A5 (lead) and the bounded timbre/FX trim is A6.
+//  ✅ ONE CONSUMER AND ONE WRITER, BOTH REACHABLE. The Field's `.arp` motion asks this type which
+//  cells sound, how hard and how long (`FieldAutoPlay.arpTouches` → `Params.arpRhythm`), and the
+//  sound reaches the ear through `TouchInstrumentUIView.autoPlayTick` (#253 A2). Since #253 A7 a
+//  PLAYER sets four of the dials: the Field panel's Rhythm row + Note length / Accent / Evolve
+//  (`EchoelStudioView.fieldArpRhythmFields`) write `StudioDefaultKeys.fieldArpRhythm*`, which
+//  `FloatingVisualWindow.fieldAutoPlay` folds back into `Params.arpRhythm`.
 //
-//  ⚠️ "NO WRITER" IS NOT "NO EFFECT" — that default IS what the arp sounds like today, so editing
-//  it changes the shipped instrument with no UI involved. (The previous version of this paragraph
-//  said "NO WRITER AND NO CONSUMER YET" and asked to be updated when A2 landed. A2 landed in
-//  `06a43c2` and it was not — which would have told the next session this type is unreachable and
-//  invited either a duplicate binding or a deletion. That is the exact failure this repo keeps
-//  paying for, and it is why the note now names its consumer rather than promising to.)
+//  TWO of the six numbers still have no writer, each for its own stated reason — `density` because
+//  the Field's own Density row is the one rate control and `arpTouches` overwrites the stored copy
+//  with it, and `push` because the generator carries it but does not yet honour it (A2b). The other
+//  ROLES have no writer at all yet: A3 (bass), A4 (pad), A5 (lead), A6 the bounded timbre/FX trim.
+//
+//  ⚠️ THE DEFAULT IS STILL LOAD-BEARING even now that a UI exists, because `StudioDefaultKeys`
+//  mirrors it: editing `Params`' default re-voices the arp for every user who has not touched a row.
+//  `TouchSurfaceStorageKeysTests` compares the two against each other for exactly that reason.
+//  (The first version of this paragraph said "NO WRITER AND NO CONSUMER YET" and asked to be
+//  updated when A2 landed. A2 landed in `06a43c2` and it was not — which would have told the next
+//  session this type is unreachable and invited either a duplicate binding or a deletion. That is
+//  the failure this repo keeps paying for, and it is why this note names its writer rather than
+//  promising to.)
 //
 //  ⚠️ ONE THING ONLY A DEVICE CAN SETTLE (A6/A7 listening item): `driving` and `dynamic` fire the
 //  SAME cells and differ in accent shape and note length (gate ×0.45 vs ×0.7). That is two

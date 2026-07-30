@@ -233,6 +233,16 @@ struct FloatingVisualWindow: View {
     private var fieldVoices = StudioDefaultKeys.fieldAutoPlayVoices.value
     @AppStorage(StudioDefaultKeys.fieldAutoPlayPeriod.key)
     private var fieldPeriod = StudioDefaultKeys.fieldAutoPlayPeriod.value
+    // The arp's rhythm (#253 A7). Four keys, not five: `density` stays the Field's own row (the
+    // generator overwrites the stored copy with it) and `push` has no key until it does something.
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmCharacter.key)
+    private var fieldArpCharacter: RoleRhythm.Character = StudioDefaultKeys.fieldArpRhythmCharacter.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmGate.key)
+    private var fieldArpGate = StudioDefaultKeys.fieldArpRhythmGate.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmAccent.key)
+    private var fieldArpAccent = StudioDefaultKeys.fieldArpRhythmAccent.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmEvolve.key)
+    private var fieldArpEvolve = StudioDefaultKeys.fieldArpRhythmEvolve.value
 
     /// Self-play as configured right now, or `nil` when it is off.
     ///
@@ -256,7 +266,16 @@ struct FloatingVisualWindow: View {
             // Doubles a user or a corrupt payload can set to anything, and `Int(...)` of a
             // huge or non-finite Double TRAPS in Swift before any generator sees it.
             voices: Int(fieldVoices.clamped(to: 1...Double(FieldAutoPlay.maxVoices))),
-            periodSteps: Int(fieldPeriod.clamped(to: 1...Double(FieldAutoPlay.maxPeriodSteps))))
+            periodSteps: Int(fieldPeriod.clamped(to: 1...Double(FieldAutoPlay.maxPeriodSteps))),
+            // `density` is NOT passed: `FieldAutoPlay.arpTouches` overwrites it with the Field's own
+            // Density above, so a value here could only ever be a second, contradicting rate dial.
+            // Clamped on the way in for the reason `RoleRhythm.Params.init(from:)` gives — the
+            // memberwise init deliberately does not clamp, `hit(...)` clamps at use, and these three
+            // arrive as Doubles off disk that a corrupt payload can set to anything.
+            arpRhythm: RoleRhythm.Params(character: fieldArpCharacter,
+                                         gate: Float(fieldArpGate.clamped(to: 0...1)),
+                                         accent: Float(fieldArpAccent.clamped(to: 0...1)),
+                                         evolve: Float(fieldArpEvolve.clamped(to: 0...1))))
     }
 
     /// Snap size, persisted so the window reopens the size you left it.

@@ -68,6 +68,58 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
         XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayBandDrift.key, "field.autoPlay.bandDrift")
         XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayVoices.key, "field.autoPlay.voices")
         XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayPeriod.key, "field.autoPlay.period")
+        // The arp's rhythm (#253 A7). Nested one level deeper than its siblings on purpose: these
+        // four belong to `RoleRhythm.Params`, which will be persisted per ROLE (pad, bass, lead)
+        // once A3–A5 land, and `field.autoPlay.arpRhythm.*` is the shape that extends to
+        // `role.pad.rhythm.*` without any of these keys having to move.
+        XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmCharacter.key,
+                       "field.autoPlay.arpRhythm.character")
+        XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmGate.key, "field.autoPlay.arpRhythm.gate")
+        XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmAccent.key, "field.autoPlay.arpRhythm.accent")
+        XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmEvolve.key, "field.autoPlay.arpRhythm.evolve")
+    }
+
+    /// ⭐ THE ONE ASSERTION THAT MAKES #253 A7 A UI SLICE AND NOT A RE-VOICING.
+    ///
+    /// A2 shipped the arp's rhythm with NO writer, so `FieldAutoPlay.Params.init`'s default *is*
+    /// what the instrument currently sounds like. A7 puts four rows in front of it — and if any
+    /// default here disagreed with that default, every existing user's arp would change the moment
+    /// they updated, in a slice whose whole point is to make the setting reachable. Nobody would
+    /// see it in the diff: two files, two plausible numbers.
+    ///
+    /// So this compares against the `Params` default ITSELF rather than against literals. Change
+    /// the arp's shipped sound and this goes red until both sides move together — which is the
+    /// only honest way to change it.
+    func testTheArpRhythmRowsStartOnExactlyWhatTheArpAlreadyPlays() {
+        let shipped = FieldAutoPlay.Params().arpRhythm
+        XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmCharacter.value, shipped.character)
+        XCTAssertEqual(Float(StudioDefaultKeys.fieldArpRhythmGate.value), shipped.gate)
+        XCTAssertEqual(Float(StudioDefaultKeys.fieldArpRhythmAccent.value), shipped.accent)
+        XCTAssertEqual(Float(StudioDefaultKeys.fieldArpRhythmEvolve.value), shipped.evolve)
+        // And the defaults must be inside the ranges the rows offer, so no dial starts on a value
+        // it cannot be returned to. Gate's floor is `minGate`, not 0 — a gate of 0 is a click.
+        XCTAssertGreaterThanOrEqual(Float(StudioDefaultKeys.fieldArpRhythmGate.value),
+                                    RoleRhythm.minGate)
+        XCTAssertLessThanOrEqual(Float(StudioDefaultKeys.fieldArpRhythmGate.value),
+                                 RoleRhythm.maxGate)
+        for v in [StudioDefaultKeys.fieldArpRhythmAccent.value,
+                  StudioDefaultKeys.fieldArpRhythmEvolve.value] {
+            XCTAssertGreaterThanOrEqual(v, 0)
+            XCTAssertLessThanOrEqual(v, 1)
+        }
+    }
+
+    /// The Evolve row is HIDDEN on the four characters that ignore it, and that decision is read
+    /// off `Character.usesEvolve` rather than hard-coded in the view. This pins the flag the view
+    /// asks — so a seventh character cannot arrive with a silently-`false` answer and a row that
+    /// does nothing (#164/#227). `RoleRhythmTests` proves the flag matches real output; this proves
+    /// the two characters the UI shows a row for are the two that use it.
+    func testTheEvolveRowIsOfferedForExactlyTheCharactersThatUseIt() {
+        let usesIt = RoleRhythm.Character.allCases.filter { $0.usesEvolve }
+        XCTAssertEqual(Set(usesIt), [.dynamic, .flowing])
+        // And the default character is NOT one of them, which is why a fresh install shows three
+        // rows and not four. Stated so the row count is a decision and not an accident.
+        XCTAssertFalse(StudioDefaultKeys.fieldArpRhythmCharacter.value.usesEvolve)
     }
 
     /// SELF-PLAY MUST BE OFF ON A FRESH INSTALL, and this is the assertion that gates it.
