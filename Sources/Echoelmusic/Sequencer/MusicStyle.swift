@@ -13,7 +13,7 @@
 //     • Ska · Rocksteady · Klezmer · Deep House (offbeat skank)  ·  Doom · Vaporwave · Sci-Fi (half-time)
 //   Drum-free by design:
 //     • Classical · Meditation · Self-Observation · Drift · Contemplation (breath-paced, sync-free)
-//     • Deep Drone · Ambient Pulse (#254 batch 2 — the two poles of the ambient family:
+//     • Still Drone · Ambient Pulse (#254 batch 2 — the two poles of the ambient family:
 //       an unmoving low quartal drone, and the family's only genre with MOTION)
 //
 // Genre subtitles are descriptive sound characters only — no artist, label, or
@@ -259,14 +259,19 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     ///   · **`pentatonicMinor`** — no genre in the roster uses a pentatonic scale. Five notes, no
     ///     semitone anywhere, so nothing in the drone can create tension; the six existing calm
     ///     genres are all seven-note modes (minor / lydian / dorian / mixolydian / major /
-    ///     phrygian) and every one of them has leading-tone pull somewhere.
+    ///     phrygian) and every one of them contains SEMITONES — natural minor has 2–3 and 7–8,
+    ///     dorian and mixolydian likewise. (An earlier version of this line said "leading-tone
+    ///     pull", which is wrong for three of the six: minor, dorian and mixolydian all have a
+    ///     flat seventh and therefore no leading tone at all. Semitone tension is the real
+    ///     contrast, and it is the one a pentatonic scale genuinely cannot produce.)
     ///   · **Quartal voicing** `[0, 3, 6]` — on a FIVE-note scale those degrees resolve (via
     ///     `MusicalKey.degree`, which wraps past the scale length) to root + fifth + minor tenth:
     ///     an open, wide, neither-major-nor-minor stack. Every other genre is a `[0,2,4]` triad or
     ///     a `[0,2,4,6]` seventh.
     ///   · **`padOctave: 2`** — the lowest of any offered genre (the rest sit at 3 or 4). Only the
-    ///     root is genuinely low; the spread puts the other two voices an octave above it, so this
-    ///     is a wide drone rather than a low mud cluster.
+    ///     root is genuinely low; the other two voices sit a fifth (+7) and a minor tenth (+15)
+    ///     above it — not "an octave above", which is what this line first said. The stack spans
+    ///     more than an octave, so it is a wide drone rather than a low mud cluster.
     ///   · **ONE frozen root** `[0]` — the only offered calm genre that does not travel at all.
     ///     `selfObservation` deliberately gained a i–VI–iv journey on 2026-07-11 ("es soll ja
     ///     weitergehen"); this genre is the other answer to the same question, kept because
@@ -335,7 +340,12 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .dubTechno:          return "Dub Techno"
         case .acidTechno:         return "Acid Techno"
         case .deepHouse:          return "Deep House"
-        case .deepDrone:          return "Deep Drone"
+        // ⚠️ "Still Drone", not "Deep Drone": `esotericMeditation`'s PATCH is already named
+        // "Deep Drone" (GenrePatches "DC"), and picking a genre writes its patch into the
+        // visible patch field — so a picker entry "Deep Drone" next to a patch field reading
+        // "Deep Drone" for a DIFFERENT genre is a real confusion. The genre is renamed rather
+        // than the shipped patch, because a user may have saved a copy under that patch name.
+        case .deepDrone:          return "Still Drone"
         case .ambientPulse:       return "Ambient Pulse"
         case .trap:               return "Trap"
         case .vaporwave:          return "Vaporwave"
@@ -374,7 +384,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .acidTechno:         return "Squelching resonant sequence · relentless phrygian pulse"
         case .deepHouse:          return "Warm minor 7ths · swung offbeat chord"
         case .deepDrone:          return "One low quartal drone · unmoving · very wide"
-        case .ambientPulse:       return "Slow hypnotic pentatonic sequence · calm motion"
+        // "hypnotic" removed: it is the closest thing in the roster to altered-state language,
+        // and this repo already keeps such words out of shipped strings (esotericMeditation is
+        // surfaced as the neutral "Deep Ambient"). The word stays in the internal docs, where
+        // it describes the sound accurately without making a claim to a user.
+        case .ambientPulse:       return "Slow pentatonic sequence · calm motion"
         case .trap:               return "Booming 808 sub-bass · crisp hats · dark pads"
         case .vaporwave:          return "Slowed · dreamy · nostalgic maj7 pads"
         case .eighties:           return "Bright analog keys · gated-reverb era"
@@ -616,7 +630,22 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // separated on articulation, scale, register, 7ths and swing, not on tempo.
         case .deepHouse:          return 120...126
         // #254 batch 2. deepDrone goes BELOW every offered genre (contemplation's 44 was the
-        // floor) — at 40 BPM a whole-note tape echo is 6 seconds, which is the point.
+        // floor).
+        // ⚠️ The first version of this line justified the 40 with "at 40 BPM a whole-note tape
+        // echo is 6 seconds, which is the point" — and the SAME COMMIT corrected that claim in
+        // `GenreFX`: the chain clamps any delay to 2.0 s, so a 6-second echo cannot happen. The
+        // reason for going this low is the note pace and the drone's own stillness, nothing about
+        // the echo. Closing a trap in one file and leaving it standing in another is worse than
+        // not closing it, because the surviving copy reads as independent confirmation.
+        //
+        // ⚠️ LISTENING ITEM, not a defect: `defaultMode` is `.flowFree`, so the clock is
+        // `StudioCalculator.genreTempo(body, into:)`, whose octave fold flips direction at
+        // √(2·lo·hi) = 68.1 BPM here. A resting pulse wandering across 68 therefore jumps the
+        // tempo between 58 and 40 (×1.45). Every calm genre has a sub-octave window and the same
+        // property (contemplation 76.2, drift 84.3, selfObservation 84.7, ambientPulse 119.8) —
+        // deepDrone's crossover is simply the lowest, so it sits inside a common resting band.
+        // Raising it above ~85 would need an upper bound past 90 BPM, which is no longer a drone.
+        // Left as-is deliberately: retuning four shipped windows is a founder listening call.
         case .deepDrone:          return 40...58
         // 78…92 is chosen for an ENGINE reason, not a feel: the arp's `arpStep` doubles only when
         // `tempoDensityScale(bpm) < 0.8` (above 110 BPM), so this whole window stays uncoarsened
@@ -770,13 +799,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // Every lead-bearing genre is now spread across the SIX approved warm patches as
         // evenly as the roster allows — guarded in `MusicStyleLeadTests` against the
         // DERIVED ceiling `ceil(leadBearing / warmPatches)`, not against a magic 3.
-        // ⚠️ It WAS a magic 3, and #254 proved why that was wrong: two new lead-bearing
-        // genres took the count from 17 to 19, and 6 patches × 3 = 18 makes "no more than
+        // ⚠️ It WAS a magic 3, and #254 proved why that was wrong: its batch 1 took the
+        // lead-bearing count from 17 to 19, and 6 patches × 3 = 18 makes "no more than
         // three" arithmetically IMPOSSIBLE — the test would have gone red on any
         // assignment whatsoever, which is a broken test rather than a broken design. The
-        // derived form yields exactly 3 at 17 genres (so nothing was loosened) and 4 at
-        // 19, and it forbids the thing the guard is actually for: a pile-up on one patch
-        // while others sit nearly empty. While every
+        // derived form yields exactly 3 at 17 genres (so nothing was loosened) and 4 from
+        // 19 on, and it forbids the thing the guard is actually for: a pile-up on one patch
+        // while others sit nearly empty. Batch 2 then added `ambientPulse` (non-sustained,
+        // so lead-bearing) → 20, and `deepDrone` (sustained, so NOT counted). At 20 the
+        // ceiling is still 4 and the roster sits exactly on it (Soft Keys 4, Warm Strings
+        // 4, the rest 3): ZERO HEADROOM. The next lead-bearing genre put on either of those
+        // two names fails the guard, so pick one of the 3s. While every
         // lead stays inside the warm set — no shrill "Bright Lead"/"Glass Bell"/"Vapor
         // Lead" and no plastic real-instrument emulation ever returns. Character now
         // reads distinctly per genre (a plucky rock'n'roll vs a reedy rock vs Rhodes

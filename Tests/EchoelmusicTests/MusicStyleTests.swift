@@ -142,10 +142,19 @@ final class MusicStyleTests: XCTestCase {
         // 2026-07-24 "erfinde noch passende dazu. Ambient-Meditation-drift-
         // contemplation") — new ambient-family genres are `.none`-beat Flächen, so
         // this set grows as they're added (see the offered-palette test comment).
+        // ⚠️ THIS LITERAL WENT STALE THE MOMENT #254 batch 2 ADDED TWO AMBIENT GENRES, and the
+        // comment above already anticipated growth ("this set grows as they're added") while the
+        // assertion was a hard list — so it reddened, in a suite that cannot fail a merge (#208).
+        // Extended rather than loosened: the invariant that matters is "drum-free == the
+        // contemplative family plus classical", and naming the members is what makes a new
+        // beat-driven genre sneaking into `.none` visible.
         let drumFree = MusicStyle.allCases.filter { !$0.isBeatDriven }
         XCTAssertEqual(Set(drumFree),
-                       [.classical, .esotericMeditation, .selfObservation, .drift, .contemplation],
-                       "drum-free = classical + meditation + self-observation + drift + contemplation, nothing else")
+                       [.classical, .esotericMeditation, .selfObservation, .drift, .contemplation,
+                        .deepDrone, .ambientPulse],
+                       "drum-free = classical + the contemplative family (meditation, "
+                       + "self-observation, drift, contemplation, deep drone, ambient pulse), "
+                       + "nothing else")
         // The two signature beats keep their hand-built builders.
         XCTAssertEqual(MusicStyle.dubTechno.beatArchetype, .signature)
         XCTAssertEqual(MusicStyle.trap.beatArchetype, .signature)

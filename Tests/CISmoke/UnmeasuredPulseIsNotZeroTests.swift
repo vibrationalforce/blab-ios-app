@@ -101,10 +101,12 @@ final class UnmeasuredPulseIsNotZeroTests: XCTestCase {
     /// THE READING MUST MATTER. For most genres a zero body and a resting body produce different
     /// tempi, which is the whole point; the window still contains the result in every case.
     ///
-    /// The bound is a LOWER bound, not an exact count, and deliberately so: seven of the
-    /// twenty-five windows are arranged such that both inputs fold to the same tempo
-    /// (dubTechno, eighties, disco, synthwave, esotericMeditation, punk, rocksteady — verified,
-    /// not guessed). On those the fix is a no-op, which is correct rather than a miss. Pinning an
+    /// The bound is a LOWER bound, not an exact count, and deliberately so: SOME windows are
+    /// arranged such that both inputs fold to the same tempo (dubTechno, eighties, disco,
+    /// synthwave, esotericMeditation, punk, rocksteady, and since #254 batch 2 also deepDrone,
+    /// whose 40…58 window maps both a zero body and a resting 70 to its 40 floor — verified, not
+    /// guessed). No totals are quoted: they moved twice in one day as genres were added, and the
+    /// lower bound is the claim that matters. On those the fix is a no-op, which is correct rather than a miss. Pinning an
     /// exact count would redden this gate the first time a genre is re-voiced for musical reasons.
     func testTheReadingMattersForMostGenresAndTheWindowAlwaysHolds() {
         var differ = 0

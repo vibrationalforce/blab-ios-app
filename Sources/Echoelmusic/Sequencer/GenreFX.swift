@@ -259,18 +259,21 @@ public extension MusicStyle {
             // an intent, not an audible property. It is kept because it is the honest musical
             // value and the only one that would lengthen if the buffer ever grew.
             //
-            // ⛔ WORTH KNOWING BEFORE YOU DIFFERENTIATE ANY CALM PRESET ON DELAY TIME: three of
-            // the four sibling ambient presets hit the same 2.0 s ceiling at their own tempos
-            // (selfObservation half @58 = 2.07, esotericMeditation half @60 = 2.0, contemplation
-            // dotted-half @52 = 3.46), so their comments' distinct echo lengths are NOT what a
-            // listener hears — only `drift` (dotted-quarter @60 = 1.5 s) is genuinely under the
-            // clamp. Below ~120 BPM, delay time is a near-useless separation axis. Logged as its
-            // own finding; not silently "fixed" here, because changing four shipped presets is a
-            // listening decision.
+            // ⛔ WORTH KNOWING BEFORE YOU DIFFERENTIATE ANY CALM PRESET ON DELAY TIME: at these
+            // tempos the 2.0 s ceiling is where several siblings land regardless of their stated
+            // division. selfObservation (half @58 = 2.069) and contemplation (dotted-half @52 =
+            // 3.46) are genuinely TRUNCATED; esotericMeditation (half @60) computes to exactly
+            // 2.0 so the clamp is a no-op and its intent survives — an earlier version of this
+            // note lumped it in with the truncated two, which was wrong. Only `drift`
+            // (dotted-quarter @60 = 1.5 s) sits clearly under the ceiling. Below ~120 BPM, delay
+            // time is a weak separation axis. Logged, not silently "fixed": changing shipped
+            // presets is a listening decision.
             //
             // So this preset separates on what SURVIVES the clamp: mode (tape, with wow), the
-            // darkest tone in the roster (0.14 < contemplation's 0.24), and the biggest and most
-            // damped hall (0.94 / 0.68). Feedback stays below 0.5 like the whole family so the
+            // darkest tone in the roster (0.14 < contemplation's 0.24), and the most DAMPED hall
+            // in the roster (0.68; next is acidTechno 0.64). ⚠️ NOT the biggest — that claim stood
+            // for one commit and is false: contemplation is 0.96 and drift 0.95 against this
+            // preset's 0.94. Damping is what makes it dark; size is shared with its siblings. Feedback stays below 0.5 like the whole family so the
             // tail washes and never builds. No chorus: the quartal voicing already spans an
             // octave, and width on top of that smears the one thing the genre has — a still,
             // clear, low stack.
@@ -283,9 +286,12 @@ public extension MusicStyle {
                 reverbEnabled: true, reverbMix: 0.44, reverbRoom: 0.94, reverbDamping: 0.68)
         case .ambientPulse:
             // #254 batch 2 — the SHORTEST echo of the calm family and the only straight quarter:
-            // at 85 BPM that is ~0.7 s, close enough to the sequence's own 8th-note step that the
-            // repeats interleave with it instead of answering it, which is what makes a slow
-            // sequence read as hypnotic rather than as a pad with delay. 0.706 s at 85 BPM is well
+            // 0.706 s at 85 BPM. ⚠️ "The repeats interleave BETWEEN the notes" is what this line
+            // first claimed, and it is backwards: `arpStep` is 4 sixteenths when calm (0.706 s)
+            // and 2 when busy (0.353 s), so the echo lands exactly ON the next note, or on every
+            // second one — in phase, never between. That is still the intended effect (each step
+            // is reinforced by the previous one's tail, which is what thickens a sparse sequence)
+            // but it is doubling, not syncopation. Say what it does. 0.706 s at 85 BPM is well
             // under the 2.0 s clamp, so unlike its darker siblings this echo time is real and
             // does change with tempo across the whole 78…92 window. Brightest tone of the family
             // (0.58 > drift's 0.42) so the steps stay individually audible, a very slow chorus

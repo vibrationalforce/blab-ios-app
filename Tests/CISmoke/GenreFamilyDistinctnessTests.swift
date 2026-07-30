@@ -186,9 +186,9 @@ final class GenreFamilyDistinctnessTests: XCTestCase {
     ///
     /// This asserts the tempo windows rather than calling the private composer, because the window
     /// is the thing a future edit would change: widening `ambientPulse` past ~106 would silently
-    /// halve its note count with no other symptom. The threshold is 110 BPM today; the test
-/// re-derives it from `tempoDensityScale` rather than hardcoding it, so a change to the
-/// curve moves the assertion with it instead of quietly invalidating it.
+        /// halve its note count with no other symptom. The threshold is 110 BPM today; the test
+    /// re-derives it from `tempoDensityScale` rather than hardcoding it, so a change to the
+    /// curve moves the assertion with it instead of quietly invalidating it.
     func testTheTwoArpGenresSitOnOppositeSidesOfTheArpCoarseningThreshold() {
         // The boundary, re-derived from the composer's own rule rather than hardcoded: the lowest
         // BPM at which `tempoDensityScale` drops under 0.8 and `arpStep` doubles.

@@ -19,16 +19,24 @@
 //   • `.esotericMeditation`— sustained, progression [0,1,4] → one section per take
 //   • `.psytrance`         — a one-chord progression [0]
 //   • `.doom`              — a one-chord progression [0]
+//   • `.deepDrone`         — a one-chord progression [0], sustained (#254 batch 2). It joined the
+//                            set the moment it was added, and THIS FILE'S PREMISE TEST IS WHAT
+//                            CAUGHT IT — the batch-2 commit turned the blocking pipeline red on
+//                            exactly this assertion. Working as designed: a genre whose harmony is
+//                            one frozen root is the case the anchor floor exists for, so a new
+//                            drone genre MUST be listed here rather than have the test relaxed.
 //
 // …and for every body below coherence 0.35. Camera rPPG reports coherence 0 until beats accrue;
 // HealthKit never measures coherence at all. So the uncovered case was not an exotic body state,
 // it was THE FIRST MINUTES OF EVERY SESSION on the default genre — which is where a new listener
 // decides whether this instrument has a sound of its own.
 //
-// ⚠️ That list said THREE until the premise test at the bottom of this file was run against the
-// real source: the sweep that found this defect named `.selfObservation`, `.esotericMeditation`
-// and `.psytrance`, and missed `.doom`. It is written down because it is the reason that test
-// exists — a header that names genres by hand is a claim, and a claim needs a check.
+// ⚠️ That list said THREE, then FOUR, and is now FIVE — and every correction came from the
+// premise test at the bottom of this file, never from a person reading the header. The sweep that
+// found the original defect named `.selfObservation`, `.esotericMeditation` and `.psytrance` and
+// missed `.doom`; `.deepDrone` was added by #254 batch 2 and the test failed the same hour. That
+// is the whole argument for keeping a hand-written list guarded: a header that names genres is a
+// claim about the source, and a claim needs a check that can fail.
 //
 // ⚠️ THE OLD CODE KNEW. Its comment said the floor guarantees an anchor "(k≥1 for n≥2)". The
 // parenthetical is accurate and the hole was left open. A documented hole is still a hole; this
@@ -161,15 +169,16 @@ final class GenreAnchorFloorTests: XCTestCase {
     // MARK: - The four profiles this actually changes
 
     /// Guards the PREMISE of the whole file: that exactly `.selfObservation`,
-    /// `.esotericMeditation`, `.psytrance` and `.doom` compose as one section.
+    /// `.esotericMeditation`, `.psytrance`, `.doom` and `.deepDrone` compose as one section.
     /// `composeHarmonic` derives the count as
     /// `(profile.sustained && progression.count > 2) ? 1 : max(1, progression.count)`.
     ///
-    /// ⛔ THIS TEST ALREADY EARNED ITS KEEP, before it ever ran in CI. The sweep that found the
-    /// defect listed three affected genres; running this check against the real source turned up
-    /// a FOURTH (`.doom`, progression `[0]`). A header that names genres by hand is a claim
-    /// about the source, and this is the only thing that keeps that claim honest as profiles
-    /// are re-voiced.
+    /// ⛔ THIS TEST HAS NOW EARNED ITS KEEP TWICE. Before it ever ran in CI it turned up a
+    /// FOURTH genre the defect sweep had missed (`.doom`). Then #254 batch 2 added `.deepDrone`
+    /// — progression `[0]`, sustained — and this assertion is what turned the blocking pipeline
+    /// red, hours before anyone would have noticed that a new drone genre was silently relying
+    /// on the shared journey for its only chord. A header that names genres by hand is a claim
+    /// about the source, and this is the only thing that keeps that claim honest.
     func testTheOneSectionProfilesAreStillTheOnesNamedInThisFile() {
         let oneSection = MusicStyle.allCases.filter { style in
             let p = style.harmonicProfile
@@ -180,10 +189,11 @@ final class GenreAnchorFloorTests: XCTestCase {
         XCTAssertEqual(Set(oneSection), Set<MusicStyle>([.selfObservation,
                                                          .esotericMeditation,
                                                          .psytrance,
-                                                         .doom]),
+                                                         .doom,
+                                                         .deepDrone]),
                        "The set of one-section genres changed to "
                        + "\(oneSection.map(\.rawValue).sorted()). That is not a failure by "
-                       + "itself — but this file's header names four genres, and the anchor "
+                       + "itself — but this file's header names the genres, and the anchor "
                        + "floor is the only thing giving them a harmonic identity at low "
                        + "coherence. Update both in the same commit.")
     }

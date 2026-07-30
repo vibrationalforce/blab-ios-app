@@ -1626,7 +1626,7 @@ struct EchoelStudioView: View {
                 // a shrill lead directly.
                 //
                 // ⛔ THE "Lead" FIELD BELOW IS INERT TODAY AND THE FOUNDER CAN SEE IT. Every curated
-                // genres set `leadDensity: 0`, so `BioComposer` composes no `.lead`-role note and
+                // genre sets `leadDensity: 0`, so `BioComposer` composes no `.lead`-role note and
                 // there is nothing for this fader to scale (`LeadRoleAbsenceTests`, blocking bundle;
                 // the whole finding is in `RoleRhythm.swift`'s A5 paragraph). It is a lying control
                 // by this repo's own #135/#164/#227 standard — LEFT IN DELIBERATELY, because the two
