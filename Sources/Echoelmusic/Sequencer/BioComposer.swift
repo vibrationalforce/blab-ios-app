@@ -209,6 +209,25 @@ public enum BioComposer {
         /// quarter-note 808 pedal are the genre's foundation, not a groove — see `appendBass`.
         public var bassRhythm: RoleRhythm.Character?
 
+        /// #253 A4 — the PAD's rhythm character, or `nil` for the genre's own articulation.
+        ///
+        /// Same Golden law as `bassRhythm` and for the same curated-genre reason: `nil` produces a
+        /// byte-identical take. Where the bass override reaches only the walking line, this one
+        /// reaches EVERY non-arpeggiated pad path — the `.sustained` heartbeat Fläche, the
+        /// skank/stab/comp chop grids and the single held chord — because all three are the same
+        /// thing to a listener: when the chord re-articulates.
+        ///
+        /// ⚠️ THE RATE STAYS THE GENRE'S. The density handed to `RoleRhythm` is COUNTED from what
+        /// `chordOnsets` would have played for this very section, so an even-spread character sounds
+        /// roughly the same number of chords and only their placement, length and level change.
+        /// Derived rather than guessed — guessing would have made this a second tempo control, and
+        /// re-deriving each articulation's grid by hand would have been a copy of `chordOnsets` that
+        /// drifts from it.
+        ///
+        /// ⚠️ IT DOES NOT TOUCH AN ARPEGGIATED PROFILE'S PITCH ORDER, only when its notes land: an
+        /// arpeggio is a pitch figure and re-voicing it is `ArpFigure`'s business, not a rhythm's.
+        public var padRhythm: RoleRhythm.Character?
+
         public init(
             heartRateBPM: Float = 70,
             hrvNormalized: Float = 0.5,
@@ -226,7 +245,8 @@ public enum BioComposer {
             voiceLeading: Bool = false,
             humanize: Bool = false,
             suggestJourney: Bool = false,
-            bassRhythm: RoleRhythm.Character? = nil
+            bassRhythm: RoleRhythm.Character? = nil,
+            padRhythm: RoleRhythm.Character? = nil
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -245,6 +265,7 @@ public enum BioComposer {
             self.humanize = humanize
             self.suggestJourney = suggestJourney
             self.bassRhythm = bassRhythm
+            self.padRhythm = padRhythm
         }
     }
 
@@ -675,6 +696,7 @@ public enum BioComposer {
                                     voiceLead: voiceLead,
                                     suggest: suggest,
                                     bassRhythm: input.bassRhythm,
+                                    padRhythm: input.padRhythm,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -705,6 +727,7 @@ public enum BioComposer {
                                     voiceLead: voiceLead,
                                     suggest: suggest,
                                     bassRhythm: input.bassRhythm,
+                                    padRhythm: input.padRhythm,
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
@@ -1671,6 +1694,80 @@ public enum BioComposer {
         return onsets
     }
 
+    /// #253 A4 — one chord section's onsets on a chosen `RoleRhythm.Character` instead of the
+    /// genre's own articulation grid. Returns `(start, len, level)` where `level` is a MULTIPLIER on
+    /// whatever velocity the caller had planned, never an absolute level: the composer keeps the
+    /// genre's mix balance and the body's energy, the character only shapes the contour.
+    ///
+    /// `chordOnsets` is left completely untouched — it is the well-tested definition of what each
+    /// genre plays, and this function is the alternative a player opts into, not a rewrite of it.
+    /// The two share the caller's section boundaries and nothing else.
+    ///
+    /// - Parameters:
+    ///   - density: fraction of a 16-cell bar that should sound. The CALLER derives it by counting
+    ///     what `chordOnsets` returned for this same section, so an even-spread character keeps the
+    ///     genre's rate — the reason this is a parameter and not computed here.
+    ///   - sectionIndex: the chord section's index, used ONLY as `hypnotic`'s rotation. It is folded
+    ///     against the section's own start cell for the reason `appendBass` states at length: at 16
+    ///     cells only `bar % 4` matters, so a raw index cancels against a 5-step section's offset and
+    ///     the rotation silently disappears.
+    ///
+    /// Pure and deterministic from `(seed, sectionIndex, cells)`. Never returns an empty list and
+    /// never returns a zero-length onset — a section must always SOUND, and the chord's downbeat is
+    /// the harmonic foundation exactly as it is for the bass.
+    static func roleRhythmOnsets(secStart: Int, secLen: Int, sectionIndex: Int,
+                                 character: RoleRhythm.Character, density: Float,
+                                 seed: UInt64) -> [(start: Int, len: Int, level: Float)] {
+        guard secLen > 0 else { return [] }
+        let cells = 16
+        let secEnd = secStart + secLen
+        // The three dials no role UI exposes are written out rather than inherited from
+        // `RoleRhythm.Params()` — same reason as `appendBass`: those defaults belong to the ARP's
+        // feel, and a re-tune there must not silently re-voice every pad.
+        let params = RoleRhythm.Params(character: character, density: clamp01(density),
+                                       gate: 0.8, accent: 0.4, evolve: 0.2)
+        let cellOfStart = ((secStart % cells) + cells) % cells
+        let rotation = cellOfStart + sectionIndex
+        var byStart: [Int: RoleRhythm.Hit] = [:]
+        var starts: [Int] = []
+        for step in secStart..<secEnd {
+            let cell = ((step % cells) + cells) % cells
+            guard let beat = RoleRhythm.hit(bar: rotation, cell: cell, cellsPerBar: cells,
+                                            params: params, seed: seed) else { continue }
+            byStart[step] = beat
+            starts.append(step)
+        }
+        // The section downbeat always sounds, and it sounds IN CHARACTER: probing at density 1 asks
+        // the character what it would have played on that cell (density decides only WHICH cells
+        // fire, never level/length/push). `sparse` off a quarter and `flowing` after an evolve flip
+        // can still decline, and then the caller's own planned shape stands — level 1, full room.
+        if byStart[secStart] == nil {
+            starts.insert(secStart, at: 0)
+            var probe = params
+            probe.density = 1
+            if let foundation = RoleRhythm.hit(bar: rotation, cell: cellOfStart, cellsPerBar: cells,
+                                               params: probe, seed: seed) {
+                byStart[secStart] = foundation
+            }
+        }
+        var onsets: [(start: Int, len: Int, level: Float)] = []
+        for (j, start) in starts.enumerated() {
+            let room = (j + 1 < starts.count ? starts[j + 1] : secEnd) - start
+            guard room > 0 else { continue }
+            let beat = byStart[start]
+            // Length measured against the room this onset actually has, so two chords can never
+            // overlap into a mud smear — and `min(room, …)` is what makes that structural rather
+            // than a hope (the bass shipped the `gap`-based version and it overlapped).
+            let len = max(1, min(room, Int((Float(room) * (beat?.gateFraction ?? 1)).rounded())))
+            // A ratio around `neutralVelocity`, NOT clamped here: `dynamic`'s accent legitimately
+            // goes above 1 (0.951 / 0.72 ≈ 1.32) and the caller clamps once it has applied its own
+            // level. Clamping twice would flatten every accent that rises.
+            let level = (beat?.velocity ?? RoleRhythm.neutralVelocity) / RoleRhythm.neutralVelocity
+            onsets.append((start, len, level))
+        }
+        return onsets
+    }
+
     /// Fold a lead pitch that has climbed into the piercing top octaves DOWN by whole
     /// octaves until it sits at/under `ceiling` (keeps the pitch class → always in key).
     /// Tames the "piepsig künstlich" high synth leads (founder 2026-07-11: "unangenehm
@@ -1691,6 +1788,7 @@ public enum BioComposer {
                                         voiceLead: VoiceLeadControl? = nil,
                                         suggest: ChordSuggestControl? = nil,
                                         bassRhythm: RoleRhythm.Character? = nil,
+                                        padRhythm: RoleRhythm.Character? = nil,
                                         rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
@@ -1930,14 +2028,72 @@ public enum BioComposer {
                 }
             }
 
-            if profile.arpeggiated {
+            // #253 A4: ONE chosen character replaces the pad's onset grid on every path below.
+            //
+            // Computed here rather than inside the four branches because all four are the same
+            // question to a listener — WHEN does the chord re-articulate — and because the four
+            // together are the most ear-tuned code in this file: a `nil` that reaches none of them
+            // is a Golden law that holds by construction instead of by four separate reviews.
+            //
+            // THE RATE IS COUNTED, NOT GUESSED — and it is counted from the path this override is
+            // about to REPLACE, which is not the same source on all four:
+            //   · arpeggiated → the arp's own `arpStep` grid. Asking `chordOnsets` here would be
+            //     asking the wrong question: an arp genre's articulation value describes a chord
+            //     grid it never plays, and on synthwave that answer is ~3× the arp's real rate —
+            //     the row would have tripled the note count and read as a tempo control.
+            //   · everything else → `chordOnsets`, which IS the definition of what the genre plays
+            //     there. Pure and RNG-free, so asking it costs nothing.
+            let arpStep = (busy > 0.6 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)
+            var padBeats: [(start: Int, len: Int, level: Float)] = []
+            if let character = padRhythm, !voiced.isEmpty {
+                // ONE seed per section, drawn once — the `flowing`/`dynamic` reproducibility rule
+                // `appendBass` states. Inside the `if let`, so the nil path touches no RNG and every
+                // later note in the take keeps its identity.
+                let padSeed = rng.next()
+                let genreRate = profile.arpeggiated
+                    ? (len + arpStep - 1) / max(1, arpStep)          // ceil: the arp's own onsets
+                    : Self.chordOnsets(secStart: secStart, secLen: len, energy: busy,
+                                       syncopation: mood.syncopation,
+                                       articulation: articulation).count
+                padBeats = Self.roleRhythmOnsets(
+                    secStart: secStart, secLen: len, sectionIndex: idx, character: character,
+                    density: Float(max(1, genreRate)) / Float(max(1, len)), seed: padSeed)
+            }
+            if !padBeats.isEmpty {
+                if profile.arpeggiated {
+                    // An arpeggiated profile keeps its PITCH figure (`voiced[t % count]`, the
+                    // cycling that makes it an arp) and only changes WHEN the notes land. Playing
+                    // the whole chord block here instead would have turned every arp genre into a
+                    // pad — a timbral rewrite hiding inside a rhythm control.
+                    for (t, beat) in padBeats.enumerated() {
+                        notes.append(Note(id: nextUUID(&rng),
+                                          pitch: voiced[t % voiced.count],
+                                          startStep: beat.start, lengthSteps: beat.len,
+                                          velocity: hVel(clamp01(padVelocity * beat.level), &rng)))
+                    }
+                } else {
+                    // Every non-arp path — the sustained heartbeat Fläche, the skank/stab/comp chop
+                    // and the single held chord — becomes the same thing: the full voicing on the
+                    // character's grid. `metricAccent` is deliberately NOT applied on top: it is the
+                    // genre grid's own accent shape and would fight the character's contour, which
+                    // is the one thing a player picked this row to hear.
+                    for pitch in voiced {
+                        for beat in padBeats {
+                            notes.append(Note(id: nextUUID(&rng), pitch: pitch,
+                                              startStep: beat.start, lengthSteps: beat.len,
+                                              velocity: hVel(clamp01(padVelocity * beat.level), &rng)))
+                        }
+                    }
+                }
+            } else if profile.arpeggiated {
                 // SOFT TRANCE (founder 2026-07-07: "Ton-Dichte runter … ich will
                 // angenehmen weichen Trance-Sound"). Arps were 16ths when busy, 8ths
                 // when calm — a machine-gun, unnatural top layer. Halved to 8ths /
                 // quarter-notes so the arp breathes instead of rattling.
                 // Coarsen the arp at fast tempo (densityScale < 0.8 ≈ >~106 BPM) so it
                 // breathes in quarters instead of rattling in 8ths — the anti-hectic move.
-                let arpStep = (busy > 0.6 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)
+                // `arpStep` is hoisted above the A4 block (it is also that block's rate source);
+                // the value and this branch's behaviour are unchanged.
                 var s = secStart
                 var t = 0
                 while s < secEnd {

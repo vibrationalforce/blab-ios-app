@@ -64,6 +64,14 @@ public enum StudioDefaultKeys {
     /// character cannot silently re-point every saved take.
     public static let bassRhythm = StudioDefault(key: "studio.bassRhythm", value: "")
 
+    /// #253 A4 — the rhythm character the PAD re-articulates in, or `""` meaning "the genre's own".
+    ///
+    /// ⚠️ Everything the `bassRhythm` note above says applies here word for word, and MORE sharply:
+    /// the pad is the genre's biggest audible surface (drums are gone since #166/#167), so a
+    /// non-empty default here would not merely flatten the basslines — it would make every genre
+    /// re-articulate its chords on ONE grid. `""` must stay the default.
+    public static let padRhythm = StudioDefault(key: "studio.padRhythm", value: "")
+
     // MARK: visual.* — immersive visual look + window
 
     public static let visualStyle = StudioDefault(key: "visual.style", value: 5)

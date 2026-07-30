@@ -110,6 +110,8 @@ struct EchoelStudioView: View {
     // (= the genre's own rhythm) is a real state the enum has no case for; see the key's doc.
     @AppStorage(StudioDefaultKeys.bassRhythm.key)
     private var bassRhythmRaw = StudioDefaultKeys.bassRhythm.value
+    @AppStorage(StudioDefaultKeys.padRhythm.key)
+    private var padRhythmRaw = StudioDefaultKeys.padRhythm.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmCharacter.key)
     private var fieldArpCharacter: RoleRhythm.Character = StudioDefaultKeys.fieldArpRhythmCharacter.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmGate.key)
@@ -3231,6 +3233,7 @@ struct EchoelStudioView: View {
             moodKnob("Syncopation", $mood.syncopation)
             moodKnob("Humanize", $mood.humanize)
             bassRhythmRow
+            padRhythmRow
             Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · bright ↔ dark · lush 7ths (romance) · odd leaps (weird). Blends with your live signal.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -3275,6 +3278,36 @@ struct EchoelStudioView: View {
             .onChange(of: bassRhythmRaw) { _, _ in recomposeIfRunning() }
             .accessibilityLabel("Bass rhythm")
             .accessibilityHint("Genre keeps the style's own bassline; the other choices override it")
+        }
+    }
+
+    /// #253 A4 — the PAD's rhythm character. Directly under the bass row, because the two answer the
+    /// same question for the two layers a listener actually hears, and reading them as a pair is how
+    /// a player builds "driving bass under a hypnotic pad" — the combination this whole task exists
+    /// for (founder 2026-07-30: *"Alle Soundrubriken von Pads, Bass bis arp etc."*).
+    ///
+    /// **"Genre" is the default and it is not a placeholder** — it keeps the articulation each style
+    /// was curated with. Overriding it is louder here than on the bass: the pad is the biggest
+    /// audible surface since the drums went (#166/#167), so this row is also the fastest way to make
+    /// every genre sound the same. That is the player's call to make, not a default to ship.
+    ///
+    /// ⚠️ WHERE IT REACHES, stated precisely because the bass row's first version was vague about it
+    /// and had to be corrected: EVERY non-arpeggiated pad path — the sustained heartbeat Fläche, the
+    /// skank/stab/comp chops AND the single held chord. On an ARPEGGIATED genre it changes only WHEN
+    /// the arp's notes land, never their pitch order. So unlike the bass row there is no genre where
+    /// it does nothing — which is the reason it needs no "may read as dead" caveat.
+    private var padRhythmRow: some View {
+        labeledRow("Pad rhythm") {
+            Picker("Pad rhythm", selection: $padRhythmRaw) {
+                Text("Genre").tag("")
+                ForEach(RoleRhythm.Character.allCases, id: \.rawValue) { c in
+                    Text(fieldArpRhythmLabel(c)).tag(c.rawValue)
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .onChange(of: padRhythmRaw) { _, _ in recomposeIfRunning() }
+            .accessibilityLabel("Pad rhythm")
+            .accessibilityHint("Genre keeps the style's own chord articulation; the other choices override it")
         }
     }
 
@@ -4848,7 +4881,8 @@ struct EchoelStudioView: View {
             suggestJourney: true,
             // #253 A3: nil (the stored default "") = the genre's own bass rhythm, byte-identical.
             // An unrecognised stored value also reads as nil, for the reason the key states.
-            bassRhythm: RoleRhythm.Character(rawValue: bassRhythmRaw)
+            bassRhythm: RoleRhythm.Character(rawValue: bassRhythmRaw),
+            padRhythm: RoleRhythm.Character(rawValue: padRhythmRaw)
         )
         return (input, frame, evolvingSeed, structureSeed, basePhase)
     }
