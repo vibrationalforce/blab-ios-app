@@ -8,10 +8,19 @@
 // would see in a diff. So `bassRhythm: nil` must produce a BYTE-IDENTICAL take, and that is asserted
 // against the whole note list rather than a summary of it.
 //
-// The rest guards the three promises the panel makes to the player: the character actually changes
-// the bass, it changes ONLY the bass, and the section downbeat survives every character (the
-// foundation contract `appendBass` states in its own doc — `syncopated` would otherwise start a bar
-// on air).
+// The rest guards what the panel actually promises: the character changes the bass, the section
+// downbeat survives every character, notes never overlap each other, and the rotation `hypnotic` is
+// named after really happens.
+//
+// ⚠️ EVERY TEST BELOW DEPENDS ON THE WALKING PATH BEING REACHED, and that gate has THREE parts, not
+// one: `appendBass` only consults `rhythm` when `!sustained` AND `motion > 0.32`
+// (`busy · 0.7 + (1 − calm) · 0.4` — so a SETTLED body ignores the Picker on every genre) AND
+// `len >= 4`. The `input(_:)` body below is chosen to clear all three; if a future change to the
+// arousal maths drops it under the threshold these tests do not silently pass, because
+// `testAtLeastOneCharacterChangesTheBass` fails the moment `rhythm` stops being read at all.
+// It also uses `BioComposer.Input`'s DEFAULTS for the H-switches (voiceLead / humanize /
+// suggestJourney), where the shipping call site in `EchoelStudioView` sets all three — deliberately,
+// so a failure here points at the rhythm binding and not at a change in those.
 
 import XCTest
 @testable import Echoelmusic
@@ -80,6 +89,13 @@ final class BassRhythmOverrideTests: XCTestCase {
     /// ungrounded. `syncopated` genuinely would: its rule skips every on-beat below density 0.85
     /// and this binding hands it 0.25 or 0.5. The prepended downbeat is what stops that, and this
     /// is what proves the prepend is still there.
+    ///
+    /// ⚠️ The prepend is not free of musical consequence and this is the place to record it: it
+    /// shifts the `j`-parity the walk uses to alternate root and fifth, and on a section whose
+    /// character fires exactly one late cell it makes that cell the "last" one — which is the
+    /// walk-up into the next chord's root. So the DEGREES the walk chooses can differ from the
+    /// unrotated grid's. That is a re-voicing of the walk, not a break of it, and it is exactly the
+    /// kind of thing only the founder's ear can accept or reject.
     func testEveryCharacterStillSoundsTheDownbeat() {
         for character in RoleRhythm.Character.allCases {
             let notes = bass(BioComposer.compose(input(character)).notes)
@@ -89,19 +105,104 @@ final class BassRhythmOverrideTests: XCTestCase {
         }
     }
 
-    /// The override must reach the BASS and nothing else. The harmony, the lead and the drum grid
-    /// are other roles' business, and a binding that disturbed them would mean the rhythm had leaked
-    /// into the shared RNG stream — the failure mode that makes a "bass" setting change the melody.
-    func testTheOverrideTouchesTheBassAndLeavesEveryOtherRoleAlone() {
-        let reference = BioComposer.compose(input(nil)).notes
-        let overridden = BioComposer.compose(input(.hypnotic)).notes
-        for role in [NoteRole.harmony, .lead] {
-            XCTAssertEqual(reference.filter { $0.role == role }.map(\.startStep),
-                           overridden.filter { $0.role == role }.map(\.startStep),
-                           "\(role) moved — the bass rhythm leaked out of its own role")
-            XCTAssertEqual(reference.filter { $0.role == role }.map(\.pitch),
-                           overridden.filter { $0.role == role }.map(\.pitch),
-                           "\(role) changed pitch — the bass rhythm consumed shared RNG")
+    /// ⛔ NO BASS NOTE MAY RUN INTO THE NEXT ONE. The bass is monophonic to the ear and feeds the
+    /// sub; two overlapping low notes are a mud smear, not a chord.
+    ///
+    /// This is the test the first version of the binding needed and did not have: the PREPENDED
+    /// foundation note took a `gap`-based length instead of the room it actually had, so on a
+    /// section where the character's first real hit landed one step later, the foundation ran four
+    /// steps into it. Now every length is measured against `room`.
+    func testNoBassNoteOverlapsTheNextOne() {
+        for character in RoleRhythm.Character.allCases {
+            let notes = bass(BioComposer.compose(input(character)).notes)
+                .sorted { $0.startStep < $1.startStep }
+            for (a, b) in zip(notes, notes.dropFirst()) {
+                XCTAssertLessThanOrEqual(a.startStep + a.lengthSteps, b.startStep,
+                                         "\(character): the note at \(a.startStep) runs into \(b.startStep)")
+            }
+        }
+    }
+
+    /// ⛔ `hypnotic` MUST ACTUALLY ROTATE — the bug this pins was silent and total.
+    ///
+    /// The binding first passed `bar: step / 16` to `RoleRhythm.hit`. Every step of a take is below
+    /// `BioComposer.stepCount == 16`, so that argument was ALWAYS 0 — and `hypnotic`'s whole
+    /// identity is `spread(position − bar)`, which at a frozen bar 0 is the plain even spread, i.e.
+    /// `driving`'s cells. The one character named after being a slowly-turning figure was the only
+    /// one that could not turn, and nothing in the diff or in a count assertion showed it. A take is
+    /// ONE bar here, so the thing that advances underneath the rhythm is the chord SECTION.
+    ///
+    /// Asserted on `startStep` alone and not on the whole note: `hypnotic` and `driving` differ in
+    /// gate and accent too, so comparing lengths or velocities would have passed with the bug in
+    /// place and pinned nothing.
+    func testHypnoticRotatesTheFigureAcrossSectionsInsteadOfRepeatingDrivingsGrid() {
+        let driving = bass(BioComposer.compose(input(.driving)).notes).map(\.startStep)
+        let hypnotic = bass(BioComposer.compose(input(.hypnotic)).notes).map(\.startStep)
+        XCTAssertNotEqual(driving, hypnotic,
+                          "hypnotic lands on driving's cells — the bar index handed to RoleRhythm is frozen")
+    }
+
+    /// ⛔ THE FOUNDATION PLAYS IN CHARACTER, not in the genre's shape.
+    ///
+    /// The prepended downbeat is a note `RoleRhythm` did not select, so it has no `Hit` — and the
+    /// first version simply gave it the genre's own length and level. `appendBass` now probes the
+    /// character at density 1 (density decides only WHICH cells fire, never the length or the level)
+    /// so the foundation carries the character's gate and downbeat accent.
+    ///
+    /// `syncopated` is the character that proves it: it ducks the on-beat (accent strength 0.3, the
+    /// inversion that IS its character) and holds notes for 0.6 of the player's gate, so its
+    /// foundation note must be shorter than the genre's own note in the same place. Without the
+    /// probe both were the full `gap`.
+    ///
+    /// The probe may legitimately come back nil — `sparse` refuses any cell that is not a quarter,
+    /// `flowing` can flip a cell out even at density 1 — and then the genre's shape is the right
+    /// fallback. So this asserts the character where the probe provably applies rather than
+    /// demanding all six.
+    func testTheForegroundedDownbeatTakesTheCharactersGateAndNotTheGenresLength() {
+        guard let plain = bass(BioComposer.compose(input(nil)).notes).first,
+              let syncopated = bass(BioComposer.compose(input(.syncopated)).notes).first else {
+            return XCTFail("no bass note at the top of the take — the walking path was not reached")
+        }
+        XCTAssertEqual(plain.startStep, 0)
+        XCTAssertEqual(syncopated.startStep, 0)
+        XCTAssertLessThan(syncopated.lengthSteps, plain.lengthSteps,
+                          "the prepended foundation note ignored the character's gate")
+    }
+
+    /// What the override may and may NOT do to the rest of the take.
+    ///
+    /// ⚠️ IT IS NOT TRUE THAT THE OTHER ROLES ARE UNTOUCHED, and the first version of this test
+    /// claimed exactly that. `BioComposer` runs ONE seeded stream for the whole take: the binding
+    /// draws a rhythm seed from it and then emits a different NUMBER of bass notes, each consuming
+    /// draws for its UUID and its humanised velocity — so every later note's detail shifts. (Nor did
+    /// the old assertion even test the half it claimed: `.disco` has `leadDensity: 0.0`, so its
+    /// `.lead` note list is empty and comparing two empty arrays passes for free.)
+    ///
+    /// What must hold is the STRUCTURE: choosing a bass rhythm is a re-roll of the take's detail,
+    /// never a change of its tempo, its length, or which roles are present. A binding that silenced
+    /// the pad or pushed a note past the loop end would be a real defect, and that is what this pins.
+    func testTheOverrideRerollsDetailButNeverTheTakesStructure() {
+        let reference = BioComposer.compose(input(nil))
+        // The two roles this genre actually sounds (`.disco` has `leadDensity: 0.0`, so asserting a
+        // lead here would assert nothing — which is precisely how the old version of this test
+        // passed while testing half of what it claimed).
+        for role in [NoteRole.bass, .harmony] {
+            XCTAssertTrue(reference.notes.contains { $0.role == role },
+                          "the reference take has no \(role) — this test cannot guard it")
+        }
+        for character in RoleRhythm.Character.allCases {
+            let overridden = BioComposer.compose(input(character))
+            XCTAssertEqual(overridden.suggestedTempo, reference.suggestedTempo,
+                           "\(character) changed the tempo — a rhythm character is not a tempo control")
+            for role in [NoteRole.bass, .harmony] {
+                XCTAssertTrue(overridden.notes.contains { $0.role == role },
+                              "\(character) silenced the whole \(role) part")
+            }
+            for note in bass(overridden.notes) {
+                XCTAssertGreaterThanOrEqual(note.startStep, 0)
+                XCTAssertLessThanOrEqual(note.startStep + note.lengthSteps, BioComposer.stepCount,
+                                         "\(character): a bass note leaves the 16-step loop")
+            }
         }
     }
 
@@ -141,5 +242,17 @@ final class BassRhythmOverrideTests: XCTestCase {
         XCTAssertEqual(StudioDefaultKeys.bassRhythm.value, "")
         XCTAssertNil(RoleRhythm.Character(rawValue: StudioDefaultKeys.bassRhythm.value))
         XCTAssertNil(RoleRhythm.Character(rawValue: "galloping"))
+    }
+
+    /// The divisor `appendBass` uses to turn an absolute `Hit.velocity` into a multiplier is a term
+    /// of `RoleRhythm`'s own velocity formula, and it lived in `BioComposer` as a bare `0.72` for one
+    /// commit. Pinned so a re-tune of the base level cannot silently make every bassline quieter:
+    /// a hit with no accent must come back at exactly this constant.
+    func testTheNeutralVelocityConstantIsTheLevelOfAnUnaccentedHit() {
+        let flat = RoleRhythm.Params(character: .driving, density: 1, accent: 0)
+        guard let hit = RoleRhythm.hit(bar: 0, cell: 3, cellsPerBar: 16, params: flat, seed: 7) else {
+            return XCTFail("density 1 fired no cell")
+        }
+        XCTAssertEqual(hit.velocity, RoleRhythm.neutralVelocity, accuracy: 1e-6)
     }
 }

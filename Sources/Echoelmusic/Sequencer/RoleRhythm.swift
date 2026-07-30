@@ -46,17 +46,27 @@
 //  groove assertable in CI — a rhythm is precisely the kind of thing that reads correctly in code
 //  and sounds like a stumble on a device.
 //
-//  ✅ ONE CONSUMER AND ONE WRITER, BOTH REACHABLE. The Field's `.arp` motion asks this type which
-//  cells sound, how hard and how long (`FieldAutoPlay.arpTouches` → `Params.arpRhythm`), and the
-//  sound reaches the ear through `TouchInstrumentUIView.autoPlayTick` (#253 A2). Since #253 A7 a
-//  PLAYER sets four of the dials: the Field panel's Rhythm row + Note length / Accent / Evolve
-//  (`EchoelStudioView.fieldArpRhythmFields`) write `StudioDefaultKeys.fieldArpRhythm*`, which
-//  `FloatingVisualWindow.fieldAutoPlay` folds back into `Params.arpRhythm`.
+//  ✅ TWO CONSUMERS AND TWO WRITERS, ALL REACHABLE.
+//    · ARP (#253 A2/A7) — the Field's `.arp` motion asks this type which cells sound, how hard and
+//      how long (`FieldAutoPlay.arpTouches` → `Params.arpRhythm`); the sound reaches the ear through
+//      `TouchInstrumentUIView.autoPlayTick`. A PLAYER sets four dials from the Field panel's
+//      Rhythm / Note length / Accent / Evolve rows (`EchoelStudioView.fieldArpRhythmFields` →
+//      `StudioDefaultKeys.fieldArpRhythm*` → `FloatingVisualWindow.fieldAutoPlay`).
+//    · BASS (#253 A3) — `BioComposer.appendBass` asks which steps the WALKING bass lands on
+//      (`Input.bassRhythm`, `nil` = the genre's own grid); the Mood panel's Bass rhythm Picker
+//      writes `StudioDefaultKeys.bassRhythm`. That consumer sets only `character` + `density`
+//      (the density is the genre's own rate) and takes the gate/accent/evolve DEFAULTS below —
+//      so the "editing a default re-voices the arp" warning further down now covers basslines too.
 //
-//  TWO of the six numbers still have no writer, each for its own stated reason — `density` because
-//  the Field's own Density row is the one rate control and `arpTouches` overwrites the stored copy
-//  with it, and `push` because the generator carries it but does not yet honour it (A2b). The other
-//  ROLES have no writer at all yet: A3 (bass), A4 (pad), A5 (lead), A6 the bounded timbre/FX trim.
+//  `push` still has no reader on EITHER consumer, and that is the one number this type promises and
+//  nothing honours: `arpTouches` drops it (A2b owns giving the generated onset its own scheduled
+//  delay) and `BioComposer.Note.startStep` is a whole 16th, which cannot express 0.12 of a cell at
+//  all. So `syncopated`'s late pull and `flowing`'s laid-back hair are computed, carried, and thrown
+//  away by both. No UI copy may promise them until A2b lands — the A7 review already had to strike
+//  exactly that promise out of two blurbs.
+//  `density` has no arp writer for its own stated reason (the Field's Density row is the one rate
+//  control and `arpTouches` overwrites the stored copy with it). The remaining ROLES have no writer:
+//  A4 (pad), A5 (lead), A6 the bounded timbre/FX trim.
 //
 //  ⚠️ THE DEFAULT IS STILL LOAD-BEARING even now that a UI exists, because `StudioDefaultKeys`
 //  mirrors it: editing `Params`' default re-voices the arp for every user who has not touched a row.
@@ -319,6 +329,18 @@ public enum RoleRhythm {
     /// clamp. A guard described as load-bearing when it is not is how the next slice removes the
     /// one that is.
     public static let minVelocity: Float = 0.05
+
+    /// The level of a hit with no accent at all — what `Hit.velocity` returns on every cell at
+    /// `accent == 0`.
+    ///
+    /// ⛔ IT IS PUBLIC BECAUSE A CONSUMER HAS TO DIVIDE BY IT. `Hit.velocity` is an ABSOLUTE level
+    /// around this neutral, but `BioComposer` already owns the bass's level (the genre's mix balance
+    /// times the body's energy) and only wants the accent SHAPE — so it multiplies its own velocity
+    /// by `beat.velocity / neutralVelocity`. That divisor was a bare `0.72` literal in `BioComposer`
+    /// for one commit, i.e. a private formula of this file copied into another file with no way for a
+    /// re-tune here to reach it: raising the base level would have silently made every bassline
+    /// quieter. Anyone changing the formula below changes this constant with it.
+    public static let neutralVelocity: Float = 0.72
 
     /// The furthest a note may sit from its grid cell. Below half a cell by construction — at
     /// exactly 0.5 a "late" note and the next cell's "early" note would land on the same instant

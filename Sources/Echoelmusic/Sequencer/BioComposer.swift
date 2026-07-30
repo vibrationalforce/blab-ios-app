@@ -1290,12 +1290,21 @@ public enum BioComposer {
     /// so spacious genres stay spacious. All tones resolve through
     /// `MusicalKey.degree` → always in key. `role: .bass` so the sub follows it.
     /// Deterministic given the seed.
+    ///
+    /// ⚠️ THE WALKING PATH IS NOT REACHED BY MOST TAKES, and `rhythm:` only reaches it — so any
+    /// claim about what a rhythm character does is conditional on all THREE parts of the guard
+    /// below: `!sustained` (the genre is not a Fläche), `motion > 0.32` (`busy · 0.7 +
+    /// (1 − calm) · 0.4`, so a SETTLED body fails it on every genre) and `len >= 4` (a five-chord
+    /// progression over 16 steps gives sections of 3). Saying only "sustained genres hold a root"
+    /// — which is what this doc used to say — reads as "every other genre walks", and a reader
+    /// would then take a resting-body take that ignores the Picker for a broken binding.
     private static func appendBass(into notes: inout [Note], key: MusicalKey,
                                    rootDegree: Int, nextRoot: Int, octave: Int,
                                    secStart: Int, len: Int, busy: Float, calm: Float,
                                    velocity: Float, sustained: Bool,
                                    quarterAnchor: Bool = false,
                                    alterations: [Int] = [],
+                                   sectionIndex: Int = 0,
                                    rhythm: RoleRhythm.Character? = nil,
                                    rng: inout SeededRNG) {
         // H2: semitone alteration of a chord tone (root / fifth) when the
@@ -1340,14 +1349,30 @@ public enum BioComposer {
         let gap = (motion > 0.62 && len >= 8) ? 2 : 4      // 8ths when driving, else quarters
         let secEndLocal = secStart + len
         var hitStarts: [Int] = []
-        // #253 A3: a chosen rhythm character replaces WHICH steps the walk lands on. `nil` skips
-        // this whole block and the even `gap` grid below runs byte-identically — the Golden law.
+        // #253 A3: a chosen rhythm character re-shapes the walk. `nil` skips this whole block and
+        // the even `gap` grid below runs byte-identically — the Golden law.
         //
         // The BODY still owns the rate: the density handed to `RoleRhythm` is derived from the very
         // same `motion`/`gap` decision the genre made (8ths → 0.5, quarters → 0.25 of a 16-step
-        // bar), so an even-spread character sounds the SAME NUMBER of notes as today and only their
-        // placement, level and length change. That is what keeps this an override of feel rather
-        // than a second tempo control fighting the biofeedback.
+        // bar), so an even-spread character sounds the SAME NUMBER of notes as today. That is what
+        // keeps this an override of FEEL rather than a second tempo control fighting the
+        // biofeedback — and it is also the reason the six characters do not all differ in the same
+        // dimension, which is worth stating precisely because the first version of this comment
+        // claimed the character "replaces WHICH steps the walk lands on" for all six:
+        //   · `driving` / `dynamic` / `flowing` select the SAME cells at these densities (all three
+        //     are the plain even spread) and are told apart by note LENGTH (gate ×0.45 / ×0.7 /
+        //     ×1.0) and by accent CONTOUR (hard-on-the-beat / a moving wave / nearly flat).
+        //   · `hypnotic` rotates the figure once per SECTION — see the `bar:` argument below.
+        //   · `syncopated` moves the walk off the beat (cells ≡ 2 mod 4 at the quarter grid).
+        //   · `sparse` squares the density, so it thins the walk down towards the foundation note.
+        // Three audible dimensions across six names; whether that is enough to hear as six
+        // RHYTHMS is a device question and is filed as such (#253 listening items).
+        //
+        // ⛔ AND `push` IS NOT ONE OF THE DIMENSIONS. `RoleRhythm` computes `syncopated`'s late pull
+        // and `flowing`'s laid-back hair, but `Note.startStep` is a whole 16th and cannot carry 0.12
+        // of a cell, so this consumer drops it exactly as `FieldAutoPlay.arpTouches` does (A2b owns
+        // the fix for both). No copy anywhere may promise the bass swings — the A7 review had to
+        // strike that same promise out of two arp blurbs.
         //
         // Counted on the composer's 16-step BAR and not on the section, using ABSOLUTE steps: the
         // characters that subdivide (`sparse`, `syncopated` read `beat = cells/4`) must land on real
@@ -1357,15 +1382,31 @@ public enum BioComposer {
         if let character = rhythm {
             let bar = 16
             let density: Float = gap == 2 ? 0.5 : 0.25
-            let params = RoleRhythm.Params(character: character, density: density)
+            // The three dials the bass has no row for are written out rather than inherited.
+            // `Params(character:density:)` silently took gate 0.8 / accent 0.4 / evolve 0.2 — real
+            // musical values arriving from the ARP's defaults, so a re-tune of the arp's feel would
+            // have re-voiced every bassline with nothing in the diff to see. These are the same
+            // three numbers, now owned here.
+            let params = RoleRhythm.Params(character: character, density: density,
+                                           gate: 0.8, accent: 0.4, evolve: 0.2)
             // ONE seed for the whole section, drawn once. Drawing per step would hand `RoleRhythm` a
             // different stream for every cell, which makes the two characters that consult the RNG
             // (`flowing`'s cell flips, `dynamic`'s level jitter) re-roll per call instead of being a
             // reproducible function of (bar, cell, seed) — the property this whole core is built on.
             let rhythmSeed = rng.next()
+            // THE SECTION INDEX IS THE BAR, and this is the fix for a real bug rather than a
+            // preference: the first version passed `bar: step / 16`, and since every step of a take
+            // is below `stepCount == 16` that was ALWAYS 0. `hypnotic`'s entire identity is its
+            // bar-to-bar rotation, which at a frozen bar 0 reduces to the plain even spread — i.e.
+            // to `driving`'s cells — so the one character named after being a slowly-turning figure
+            // was the only one that could not turn. A take is ONE bar here (`stepCount == 16`), so
+            // the thing that advances underneath a rhythm is the chord section, and `hit(bar:)` only
+            // ever uses it as a rotation/fold index. `syncopated` and `sparse` read `position`, not
+            // `bar`, so their quarter alignment is untouched by this.
+            let cellOfStart = ((secStart % bar) + bar) % bar
             for step in secStart..<secEndLocal {
                 let cell = ((step % bar) + bar) % bar
-                guard let beat = RoleRhythm.hit(bar: step / bar, cell: cell, cellsPerBar: bar,
+                guard let beat = RoleRhythm.hit(bar: sectionIndex, cell: cell, cellsPerBar: bar,
                                                 params: params, seed: rhythmSeed) else { continue }
                 rhythmHits[step] = beat
                 hitStarts.append(step)
@@ -1375,8 +1416,30 @@ public enum BioComposer {
             // characters would drop it: `syncopated` skips every on-beat below density 0.85 by
             // design, so at the 0.25/0.5 densities above its bar would start on air and the low end
             // would lose its grounding. Prepending costs one note and keeps the walk's degree logic
-            // (`j == 0` ⇒ root) exactly as it was.
-            if hitStarts.first != secStart { hitStarts.insert(secStart, at: 0) }
+            // (`j == 0` ⇒ root) intact.
+            if rhythmHits[secStart] == nil {
+                hitStarts.insert(secStart, at: 0)
+                // …AND IT PLAYS IN CHARACTER. Probing at density 1 asks the character what it WOULD
+                // play on this cell: `density` decides only `fires`, never the level, the length or
+                // the push, so the Hit that comes back is exactly the one it would have produced had
+                // the cell been selected. Without this the prepended note fell through to the
+                // genre's own length and level, and `sparse` — whose squared density fires roughly
+                // ONE cell of a 16-step bar — then produced a take byte-identical to no override at
+                // all on every section but the first. A Picker entry that does nothing.
+                // The probe consumes no shared RNG: `hit` derives its own stream from `rhythmSeed`.
+                var probe = params
+                probe.density = 1
+                if let foundation = RoleRhythm.hit(bar: sectionIndex, cell: cellOfStart,
+                                                   cellsPerBar: bar, params: probe,
+                                                   seed: rhythmSeed) {
+                    rhythmHits[secStart] = foundation
+                }
+                // The probe can legitimately come back nil, and both cases are the character being
+                // itself rather than a hole: `sparse` refuses any cell that is not a quarter
+                // whatever the density, and `flowing`'s evolve can flip a cell out even at density
+                // 1. Then the foundation keeps the genre's own shape — the right fallback, and the
+                // reason the loop below still needs its non-rhythm branch.
+            }
         } else {
             var s = secStart
             while s < secEndLocal { hitStarts.append(s); s += gap }
@@ -1390,7 +1453,12 @@ public enum BioComposer {
             if let beat = rhythmHits[start] {
                 noteLen = max(1, min(room, Int((Float(room) * beat.gateFraction).rounded())))
             } else {
-                noteLen = max(1, min(gap, secEndLocal - start))
+                // `room` and not `secEndLocal - start`. On the nil path the two are the same number
+                // (the grid is even, so every hit but the last has exactly `gap` of room) — but a
+                // prepended foundation note whose character-probe came back silent has a `room` of
+                // ONE step, and the old form handed it a whole `gap` and overlapped the hit that
+                // followed it. Byte-identical where the Golden law applies, correct where it did not.
+                noteLen = max(1, min(room, gap))
             }
             let isDown = (j == 0)
             let isLast = (j == hitStarts.count - 1)
@@ -1407,14 +1475,18 @@ public enum BioComposer {
                 alteration = (j % 2 == 1) ? alt(4) : alt(0)
             }
             // The character shapes the CONTOUR, the composer keeps the LEVEL. `RoleRhythm.Hit`
-            // velocities are absolute values around a neutral 0.72 (see its velocity maths), so
-            // dividing by that turns the accent pattern into a multiplier and the section's own
-            // `velocity` — which carries the genre's mix balance and the body's energy — still sets
-            // how loud the bass sits. Using the Hit's absolute value instead would have thrown the
-            // composer's level away and made every character equally loud.
+            // velocities are absolute values around `RoleRhythm.neutralVelocity`, so dividing by
+            // that turns the accent pattern into a multiplier and the section's own `velocity` —
+            // which carries the genre's mix balance and the body's energy — still sets how loud the
+            // bass sits. Using the Hit's absolute value instead would have thrown the composer's
+            // level away and made every character equally loud.
+            // The divisor is READ from `RoleRhythm` and not written as `0.72` here: it is a term of
+            // that type's private velocity formula, and a copy of it in this file could not be
+            // reached by a re-tune there — raising the base level would silently have made every
+            // bassline quieter, with no diff in this file to explain it.
             var vel = isDown ? velocity : velocity * 0.82
             if let beat = rhythmHits[start] {
-                vel = clamp01(velocity * (beat.velocity / 0.72))
+                vel = clamp01(velocity * (beat.velocity / RoleRhythm.neutralVelocity))
             }
             notes.append(Note(id: nextUUID(&rng),
                               pitch: key.degree(degree, octave: octave) + alteration,
@@ -1760,7 +1832,8 @@ public enum BioComposer {
                        octave: bassOct, secStart: secStart, len: len,
                        busy: busy, calm: calm, velocity: bassVelocity,
                        sustained: profile.sustained, quarterAnchor: quarterAnchor,
-                       alterations: secAlts, rhythm: bassRhythm, rng: &rng)
+                       alterations: secAlts, sectionIndex: idx,
+                       rhythm: bassRhythm, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for

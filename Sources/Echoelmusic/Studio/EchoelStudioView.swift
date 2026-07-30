@@ -3250,9 +3250,19 @@ struct EchoelStudioView: View {
     /// law as the arp's Rhythm row). Recomposes on change like every other row in this panel — it
     /// changes the notes, not the sound.
     ///
-    /// ⚠️ It has NO effect on a sustained-drone genre or on trap's 808 pedal, by design: those hold a
-    /// root as the harmonic foundation and have no walk to place. If a founder ever reads this row as
-    /// dead on Meditation or Trap, that is the reason — not a bug, and worth a caption then.
+    /// ⚠️ WHEN IT DOES NOTHING, and the first version of this note named only half of it. The walk
+    /// this row shapes exists only when ALL THREE parts of `appendBass`'s gate hold:
+    ///   · the genre is not a sustained drone (and trap's 808 pedal takes its own path),
+    ///   · `motion > 0.32` — a composite of `busy` and `calm`, so **a settled body ignores this row
+    ///     on EVERY genre**, which is the case a founder is most likely to meet,
+    ///   · the chord section is at least 4 steps (a 5-chord progression over 16 gives 3).
+    /// That is worth a caption if it ever confuses — but it is deliberately NOT hidden or disabled,
+    /// because the gate depends on the live body and a control that vanishes mid-performance is the
+    /// worse failure (the same call A7's Evolve caveat made).
+    ///
+    /// ⚠️ NO `MoodPreset` WRITES THIS, unlike the rows around it in this panel. Picking a mood preset
+    /// leaves the chosen bass rhythm in place — correct (it is a per-role rhythm, not a mood), but it
+    /// means the row does not "reset" with the rest of the panel and only "Genre" clears it.
     private var bassRhythmRow: some View {
         labeledRow("Bass rhythm") {
             Picker("Bass rhythm", selection: $bassRhythmRaw) {
