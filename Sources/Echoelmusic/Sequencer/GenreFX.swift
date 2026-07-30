@@ -216,6 +216,39 @@ public extension MusicStyle {
                 delayMix: 0.42, delayFeedback: 0.58, delayTone: 0.22, delaySpread: 0.45,
                 chorusEnabled: true, chorusRate: 0.35, chorusDepth: 0.5, chorusMix: 0.4,
                 reverbEnabled: true, reverbMix: 0.22, reverbRoom: 0.82, reverbDamping: 0.60)
+        case .acidTechno:
+            // #254 — THE RESONANT FILTER IS THE POINT, and it is the reason this preset does not
+            // look like psytrance's. First draft gave acid a ping-pong SIXTEENTH delay, which is
+            // character-for-character `psytrance`'s preset below — a new genre that copies a
+            // hidden one is the "more options that sound the same" defect (#81/#125), even though
+            // no test would have caught it (psytrance is not `offered`, so the distinctness sweep
+            // never compares them).
+            // acidTechno is now the ONLY genre that enables the chain FILTER at all: a resonant
+            // lowpass ON TOP of the patch's own resonance is the 303 squelch, and nothing else in
+            // the roster sounds like it. Resonance 0.62 sits well inside `EchoelSVFilter`'s
+            // 0.01…0.95 clamp (it is also NaN-guarded there), so it bites without ringing.
+            // The delay is a short straight-EIGHTH digital slap — deliberately NOT psytrance's
+            // rolling 16th ping-pong — plus real saturation (the 303's drive is half its sound)
+            // and a tiny room. No chorus: width would soften exactly what should bite.
+            return GenreFXPreset(
+                filterEnabled: true, filterMode: .lowpass,
+                filterCutoff: 1300, filterResonance: 0.62,
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth),
+                delayMix: 0.14, delayFeedback: 0.24, delayTone: 0.50, delaySpread: 0.20,
+                saturation: 0.48,
+                reverbEnabled: true, reverbMix: 0.10, reverbRoom: 0.34, reverbDamping: 0.64)
+        case .deepHouse:
+            // #254 — the warm counterpart: a dotted-eighth digital echo that answers the
+            // offbeat chord, a gentle chorus for the 7th's shimmer, and a big soft room. Low
+            // saturation, because the character here is space, not drive.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth, .dotted),
+                delayMix: 0.26, delayFeedback: 0.32, delayTone: 0.52, delaySpread: 0.38,
+                chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.42, chorusMix: 0.30,
+                saturation: 0.22,
+                reverbEnabled: true, reverbMix: 0.30, reverbRoom: 0.78, reverbDamping: 0.44)
         case .trap:
             // Mostly dry; just a short triplet slap for depth.
             return GenreFXPreset(

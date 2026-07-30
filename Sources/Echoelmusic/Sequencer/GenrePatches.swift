@@ -58,6 +58,29 @@ public extension MusicStyle {
                 cutoff: 720, res: 0.10, lfoAmt: 0.18, lfoRate: 0.12, lfoDepth: 0.30,
                 revMix: 0.58, revDecay: 5.5, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 8)                                  // subtle width on the dub stab
+        case .acidTechno:
+            // #254 — the squelch is RESONANCE, not brightness: a moderate cutoff with the
+            // highest filter resonance of any genre patch, a near-instant attack and a short
+            // decay so each sequence step plucks and closes. Brightness stays low (0.18) so it
+            // reads acid, not harsh — the founder's "einige Sounds stechen kalt aus dem mix
+            // raus" law forbids buying character with top end. Mono-ish (no unison) because a
+            // 303 is one oscillator; width would smear the sequence.
+            return patch("EC", "Acid Squelch",
+                a: 0.002, d: 0.28, s: 0.10, r: 0.35,
+                harm: 0.88, hl: 0.66, bright: 0.18, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 900, res: 0.46, lfoAmt: 0.30, lfoRate: 0.9, lfoDepth: 0.42,
+                revMix: 0.22, revDecay: 1.4, vibRate: 0, vibDepth: 0)
+        case .deepHouse:
+            // #254 — a warm electric-piano-ish chord bed: soft attack so the offbeat chord
+            // blooms instead of clicking, long-ish release so it overlaps its own skank, wide
+            // unison for the lush 7th, generous reverb. The deliberate opposite of the acid
+            // patch above (slow/wide/warm vs instant/mono/resonant).
+            return patch("ED", "House Chord",
+                a: 0.05, d: 1.1, s: 0.62, r: 2.6,
+                harm: 0.94, hl: 0.80, bright: 0.30, noise: 0.01, color: "Pink", shape: "Natural",
+                cutoff: 2200, res: 0.09, lfoAmt: 0.10, lfoRate: 0.14, lfoDepth: 0.22,
+                revMix: 0.54, revDecay: 3.4, vibRate: 0, vibDepth: 0,
+                uni: 3, det: 11)
         case .trap:
             return patch("D2", "Trap Keys",
                 a: 0.01, d: 1.0, s: 0.30, r: 2.4,

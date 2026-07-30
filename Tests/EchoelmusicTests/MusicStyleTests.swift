@@ -13,7 +13,7 @@ final class MusicStyleTests: XCTestCase {
         // exactly once (so every exhaustive switch + stored @AppStorage value stays
         // valid). NOTE: since the 2026-07-24 curation the picker shows only
         // `MusicStyle.offered`, NOT this full roster — this test guards the taxonomy,
-        // `testOfferedPaletteIsCuratedAndContemplative` guards what's offered.
+        // `testOfferedPaletteIsCuratedAndOpensContemplative` guards what's offered.
         let grouped = MusicStyle.Category.allCases.flatMap { $0.genres }
         XCTAssertEqual(Set(grouped), Set(MusicStyle.allCases),
                        "every genre must appear in some category")
@@ -30,7 +30,7 @@ final class MusicStyleTests: XCTestCase {
                        "meditative genres are listed first")
     }
 
-    func testOfferedPaletteIsCuratedAndContemplative() {
+    func testOfferedPaletteIsCuratedAndOpensContemplative() {
         // Founder 2026-07-24 "Genre is better you decide and curate something that
         // really fits the brand … Die 6 ruhigen Genres": the picker offers only a
         // curated, brand-fitting contemplative palette — decoupled from the full
@@ -44,13 +44,29 @@ final class MusicStyleTests: XCTestCase {
         // picker (the stored value would be a genre the user can't see).
         XCTAssertTrue(offered.contains(StudioDefaultKeys.genre.value),
                       "the default genre must be in the offered palette")
-        // Brand: the curated base is contemplative — every offered genre is drum-free
-        // OR a sustained-Flächen genre (calm identity). Relaxes automatically as the
-        // G2 ambient-family genres (which are .none-beat by design) are added.
-        for s in offered {
-            XCTAssertTrue(!s.isBeatDriven || MusicStyle.sustainedFlächen.contains(s),
-                          "\(s) is offered but is neither drum-free nor a sustained-Flächen genre")
-        }
+        // ⚠️ THE PER-GENRE "drum-free OR sustained" LOOP THAT STOOD HERE IS GONE, and it was not
+        // loosened to make a new commit pass — it was contradicted by a later founder ask.
+        //
+        // It asserted that EVERY offered genre is drum-free or a sustained Fläche. That was a
+        // faithful reading of 2026-07-24 ("Die 6 ruhigen Genres"). On 2026-07-30 the founder asked
+        // for the opposite in the same breath: "mehr Genres der elektronischen Musik benötigt,
+        // verschiedenste Techno und House Stile aber auch Ambient und meditations Musik, Trance,
+        // acid etc". A techno or house genre cannot be a sustained Fläche — the driving
+        // articulation IS the genre — so the old loop and the new ask cannot both hold, and the
+        // founder's newer, explicit instruction wins over a test-encoded inference.
+        //
+        // Two further things make the old wording stale independently of that: since #166/#167
+        // there are NO drums at all, so "drum-free" describes every genre and `isBeatDriven` now
+        // only means "the pad articulates rhythmically instead of holding"; and the brand line
+        // (immersive · bio-reactive · contemplative, NOT wellness) is carried by what the app OPENS
+        // with, not by forbidding a genre the founder named. So that is what is asserted instead:
+        let defaultGenre = StudioDefaultKeys.genre.value
+        XCTAssertTrue(!defaultGenre.isBeatDriven || MusicStyle.sustainedFlächen.contains(defaultGenre),
+                      "the DEFAULT genre (\(defaultGenre)) must be calm — a fresh install has to "
+                      + "open on a contemplative Fläche, whatever else the palette offers")
+        XCTAssertTrue(offered.contains(where: { MusicStyle.sustainedFlächen.contains($0) }),
+                      "the offered palette lost every sustained Fläche — the contemplative core "
+                      + "is the brand, and the electronic additions sit alongside it, not over it")
         // Each category's offeredGenres is a subset of its full genres (the filter is
         // honest — it never surfaces a genre outside its own taxonomy bucket).
         for cat in MusicStyle.Category.allCases {

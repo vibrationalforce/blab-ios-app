@@ -92,7 +92,19 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// immersive · bio-reactive · contemplative (NOT wellness), so the base leans
     /// ambient/drift/cinematic. New ambient-family genres (plan G2) are appended here
     /// as they are built. Reversible: widen or narrow this list, no enum change.
-    /// Guarded in MusicStyleTests (subset of allCases, default is offered, calm).
+    ///
+    /// ⚠️ THE PALETTE IS NO LONGER ALL-CALM, and the invariant that said so is retired.
+    /// Until #254 every offered genre was drum-free or a sustained Fläche, and
+    /// `MusicStyleTests` asserted exactly that. On 2026-07-30 the founder asked for the
+    /// opposite in the same sentence as the ambient ask: "mehr Genres der elektronischen Musik
+    /// benötigt, verschiedenste Techno und House Stile aber auch Ambient und meditations Musik,
+    /// Trance, acid etc". A techno or house genre cannot be a sustained Fläche — the driving
+    /// articulation IS the genre — so the old assertion and the ask cannot both hold, and the
+    /// newer explicit instruction wins. What is still guarded (and now in the BLOCKING bundle,
+    /// `Tests/CISmoke/GenreFamilyDistinctnessTests`, because the other suite cannot fail a
+    /// merge — #208): the DEFAULT genre is calm, so a fresh install still opens on a still
+    /// Fläche, and the calm family is not crowded out. Widening the palette is allowed;
+    /// replacing its centre is a founder call.
     ///
     /// "Reversible" is true for the CODE, not for a user's stored pick: `EchoelStudioView`'s
     /// onAppear snaps a persisted style that is no longer offered back to the default, and
@@ -100,7 +112,16 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// going forward, but cannot give an already-migrated user their old genre back.
     public static let offered: [MusicStyle] = [
         .selfObservation, .esotericMeditation, .drift, .contemplation,
-        .vaporwave, .sciFi, .classical, .dubTechno
+        .vaporwave, .sciFi, .classical, .dubTechno,
+        // #254 batch 1 (founder 2026-07-30: "mehr Genres der elektronischen Musik benötigt,
+        // verschiedenste Techno und House Stile … Trance, acid"). Added HERE and not only to the
+        // taxonomy on purpose: before this, ONE of the eight offered genres was electronic
+        // (`dubTechno`), so a new electronic genre left out of this list would be a doorless
+        // genre — built, categorised, and unreachable. That is the trap this repo keeps paying
+        // for. Seven older electronic genres (trap, psytrance, synthwave, earlySynth, eighties,
+        // disco, futuristic) stay OUT: they were curated out on 2026-07-24 by ear, and re-offering
+        // them is a listening decision, not a side effect of this batch.
+        .acidTechno, .deepHouse
     ]
 
     /// Logical genre groups the Genre picker sorts into (founder 2026-07-11: "Alles
@@ -140,8 +161,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             switch self {
             case .meditative: return [.selfObservation, .esotericMeditation, .drift, .contemplation,
                                       .vaporwave, .sciFi]
-            case .electronic: return [.dubTechno, .trap, .psytrance, .synthwave,
-                                      .earlySynth, .eighties, .disco, .futuristic]
+            case .electronic: return [.dubTechno, .acidTechno, .deepHouse, .trap, .psytrance,
+                                      .synthwave, .earlySynth, .eighties, .disco, .futuristic]
             case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
             case .acoustic:   return [.classical, .jazz, .klezmer, .oriental, .ska, .rocksteady]
             }
@@ -161,7 +182,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         switch self {
         case .selfObservation, .esotericMeditation, .drift, .contemplation, .vaporwave, .sciFi:
             return .meditative
-        case .dubTechno, .trap, .psytrance, .synthwave, .earlySynth, .eighties, .disco, .futuristic:
+        case .dubTechno, .acidTechno, .deepHouse, .trap, .psytrance, .synthwave, .earlySynth,
+             .eighties, .disco, .futuristic:
             return .electronic
         case .rock, .punk, .rocknroll, .heavyMetal, .doom:
             return .rock
@@ -171,6 +193,27 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     }
 
     case dubTechno
+    /// #254 batch 1 (founder 2026-07-30 "verschiedenste Techno und House Stile … acid"): the
+    /// relentless 303 pole — a fast, machine-straight phrygian SEQUENCE (arpeggiated, plain
+    /// triads, resonant squelch), stabbed on the beat. Deliberately the opposite of `dubTechno`,
+    /// the only electronic genre offered before it: that one is a sustained dorian Fläche at
+    /// ~124, this one an arpeggiated phrygian pulse at ~134.
+    ///
+    /// ⚠️ ITS REAL NEIGHBOUR IS `psytrance`, NOT `dubTechno`, and this is stated because no test
+    /// enforces it: psytrance is also phrygian, also arpeggiated, also four-on-the-floor, and it
+    /// is NOT in `offered`, so the distinctness sweep never compares the two. They are separated
+    /// deliberately on four axes — tempo (130…140 vs 140…150, disjoint), register (padOctave 3 vs
+    /// 2), chord count ([0,4] vs a single [0]) and FX (acid is the ONLY genre that enables the
+    /// resonant chain filter; psytrance rolls a 16th ping-pong). If psytrance is ever re-offered,
+    /// listen to them back to back before shipping both. Asserted where it can be:
+    /// `Tests/CISmoke/GenreFamilyDistinctnessTests`.
+    case acidTechno
+    /// #254 batch 1 (same ask, "House Stile"): the warm pole — swung, lush minor 7ths held in a
+    /// HIGH register and articulated on the OFFBEAT (the house chord "&"), where acid stabs on
+    /// the beat. See `beatArchetype` for why a house genre carries `.offbeat` rather than
+    /// `.fourOnFloor`: since #166/#167 the archetype's only audible consequence is the pad's
+    /// articulation, and the offbeat skank IS the house chord.
+    case deepHouse
     case trap
     case vaporwave
     case eighties
@@ -211,6 +254,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var displayName: String {
         switch self {
         case .dubTechno:          return "Dub Techno"
+        case .acidTechno:         return "Acid Techno"
+        case .deepHouse:          return "Deep House"
         case .trap:               return "Trap"
         case .vaporwave:          return "Vaporwave"
         case .eighties:           return "80s Synth-Pop"
@@ -243,6 +288,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var lineage: String {
         switch self {
         case .dubTechno:          return "Deep dub chords · tape echo · sub-bass"
+        case .acidTechno:         return "Squelching 303 sequence · relentless phrygian pulse"
+        case .deepHouse:          return "Warm minor 7ths · swung offbeat chord"
         case .trap:               return "Booming 808 sub-bass · crisp hats · dark pads"
         case .vaporwave:          return "Slowed · dreamy · nostalgic maj7 pads"
         case .eighties:           return "Bright analog keys · gated-reverb era"
@@ -288,7 +335,14 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         switch self {
         case .dubTechno, .trap:                                 return .signature
         case .disco, .eighties, .earlySynth, .futuristic,
-             .psytrance, .synthwave:                            return .fourOnFloor
+             .psytrance, .synthwave, .acidTechno:               return .fourOnFloor
+        // #254: deepHouse is four-to-the-floor MUSICALLY, but the archetype's only audible
+        // consequence since #166/#167 (no drum sounds) is `chordArticulation` — and a house
+        // chord lands on the OFFBEAT, which is `.skank`. Picking `.fourOnFloor` here would give
+        // it acid's on-beat `.stab` and erase the one axis that separates the two new genres.
+        // If drums ever return, revisit this line FIRST: the drum pattern would then be a ska
+        // upstroke, which is wrong for house.
+        case .deepHouse:                                        return .offbeat
         case .rock, .punk, .rocknroll, .heavyMetal,
              .jazz, .oriental:                                  return .backbeat
         case .ska, .rocksteady, .klezmer:                       return .offbeat
@@ -450,6 +504,13 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var tempoRange: ClosedRange<Double> {
         switch self {
         case .dubTechno:          return 118...128
+        // 130…140 keeps acid ENTIRELY below psytrance's 140…150. The two are close relatives
+        // (both phrygian, both arpeggiated, both four-on-the-floor) so every axis that can
+        // separate them should: tempo, register, chord count and the filter-vs-ping-pong FX.
+        case .acidTechno:         return 130...140
+        // Overlaps dubTechno's window on purpose — both really are ~124 genres. They are
+        // separated on articulation, scale, register, 7ths and swing, not on tempo.
+        case .deepHouse:          return 120...126
         case .trap:               return 130...150
         case .vaporwave:          return 60...80
         case .eighties:           return 108...120
@@ -500,6 +561,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var defaultTempo: Double {
         switch self {
         case .dubTechno:          return 124
+        case .acidTechno:         return 134
+        case .deepHouse:          return 122
         case .trap:               return 140
         case .vaporwave:          return 70
         case .eighties:           return 114
@@ -546,6 +609,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .trap:               return 0.12   // subtle hat/triplet lean
         case .oriental:           return 0.10
         case .dubTechno:          return 0.08   // near-straight, tiny push
+        case .deepHouse:          return 0.16   // the swung house shuffle — most of any genre
+        case .acidTechno:         return 0.0    // machine-straight; the 303 does not swing
         case .eighties:           return 0.06
         case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
              .esotericMeditation, .classical, .punk, .rock, .heavyMetal,
@@ -589,6 +654,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // device-tunable; the INVARIANT is: warm-set only + spread.
         switch self {
         case .dubTechno:          return "Pluck"         // sustained — unused
+        case .acidTechno:         return "Pluck"         // no lead exists at all (#255)
+        case .deepHouse:          return "Soft Keys"     // no lead exists at all (#255)
         case .trap:               return "Soft Keys"     // sustained — unused
         case .vaporwave:          return "Warm Strings"  // sustained — unused
         case .eighties:           return "Soft Keys"
@@ -627,6 +694,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var mixLevels: (bass: Float, harmony: Float, lead: Float) {
         switch self {
         case .dubTechno, .trap:                       return (1.18, 0.94, 0.88)
+        case .acidTechno:                             return (1.15, 0.90, 0.88)  // bass-led
+        case .deepHouse:                              return (1.06, 1.02, 0.90)  // chord-led
         case .ska, .rocksteady, .disco:               return (1.10, 0.96, 0.90)
         case .synthwave, .eighties, .vaporwave, .earlySynth:
                                                       return (1.00, 0.94, 0.90)
@@ -643,6 +712,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     public var scale: Scale {
         switch self {
         case .dubTechno:          return .dorian
+        case .acidTechno:         return .phrygian   // the ♭2 is the acid bite
+        case .deepHouse:          return .minor
         case .trap:               return .harmonicMinor
         case .vaporwave:          return .major
         case .eighties:           return .major
@@ -772,6 +843,31 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // Rockakkorde (founder 2026-07-11): crushing downtuned power chord.
             return HarmonicProfile(progression: [0], chordTones: [0, 4, 7],
                                    padOctave: 2, leadOctave: 3, arpeggiated: false, leadDensity: 0.0)
+        case .acidTechno:
+            // #254 batch 1 — THE SEQUENCE, not a pad. `arpeggiated: true` is the whole point: a
+            // 303 line is a rising figure, so the chord is broken into one, and PLAIN TRIADS
+            // (not 7ths) keep it raw where deepHouse below is lush. Low register, two roots
+            // only (i → v) so the relentlessness is the character. NOT sustained — it stabs.
+            return HarmonicProfile(progression: [0, 4], chordTones: [0, 2, 4],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: true,
+                                   leadDensity: 0.0)
+        case .deepHouse:
+            // #254 batch 1 — the opposite pole to acidTechno on every audible axis: HELD lush
+            // minor 7ths (not an arpeggio, not a triad) one octave HIGHER, over three roots so
+            // the harmony actually travels. NOT sustained — the offbeat skank articulation is
+            // what makes it house, and `sustained: true` would suppress that (it also kills the
+            // walking bass and the inner pulse — see `HarmonicProfile.sustained`).
+            //
+            // ⚠️ THE PROGRESSION IS i → VII → VI, NOT the i → VI → iv this first shipped as. That
+            // draft was note-for-note `selfObservation`'s progression AND chord tones AND scale —
+            // the flagship calm Fläche — leaving only articulation, register and tempo to tell the
+            // two apart. The distinctness sweep would still have passed it, and that is exactly
+            // the #81/#125 defect the founder has reported twice ("plötzlich klingt alles gleich"):
+            // a sweep that passes is not the same as two genres a listener can tell apart. The
+            // descending i–VII–VI vamp is also the more house-authentic figure.
+            return HarmonicProfile(progression: [0, 6, 5], chordTones: [0, 2, 4, 6],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0)
         case .dubTechno:
             // PURE FLÄCHE (founder 2026-07-09): NO lead, sustained — the bespoke
             // offbeat stabs are retired from the flow (see BioComposer.compose).
