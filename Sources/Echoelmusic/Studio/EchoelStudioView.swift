@@ -2658,13 +2658,9 @@ struct EchoelStudioView: View {
     /// Split from `fieldSelfPlaySection` for the same structural reason `touchSyncRows` was:
     /// this file has a black-screen history rooted in aggregate-type growth, and keeping a group
     /// of fields behind one child is the cheap habit. `fieldArpRhythmFields` is the same move one
-    /// level further down, which is why the arp's rhythm rows live in their own builder.
-    ///
-    /// ⚠️ THAT CHILD IS NOW AT **9 OF THE 10** VIEWS A `@ViewBuilder` ACCEPTS (#258 added two:
-    /// the Laid-back row and its caption). The next row added there does NOT fit — it needs a
-    /// `Group`, or a second split, the same way this one was split from its parent. Counted, not
-    /// estimated: HStack · blurb · Note length · its caption · Accent · Laid back · its caption ·
-    /// the optional caveat · the optional Evolve row.
+    /// level further down, which is why the arp's rhythm rows live in their own builder. THIS builder
+    /// sits at 7 of the 10; the capacity warning belongs to `fieldArpRhythmFields` and is written on
+    /// its own doc comment, where someone adding a row will actually read it.
     @ViewBuilder private var fieldSelfPlayFields: some View {
         EchoelValueField(label: "Density", value: $fieldDensity,
                          range: 0...1, unit: "", decimals: 2)
@@ -2745,7 +2741,15 @@ struct EchoelStudioView: View {
     /// `FieldAutoPlay.pushDelaySeconds` folds everything ≤ 0 to "on the grid" — the consumer
     /// delays an onset with a sleep, and a note that should have sounded EARLIER cannot be
     /// delayed into existence. The character's own bias (`syncopated` late off the beat,
-    /// `flowing` a hair behind) still applies and ADDS to whatever the row says.
+    /// `flowing` a hair behind) still applies and ADDS to whatever the row says — with the
+    /// consequences `fieldArpRhythmCaveat` now states to the player.
+    ///
+    /// ⚠️ **THIS BUILDER IS AT 9 OF THE 10 VIEWS A `@ViewBuilder` ACCEPTS** (#258 added two: the
+    /// Laid-back row and its caption). The next row added here does NOT fit — it needs a `Group`,
+    /// or a second split, the same way this builder was split from its parent. Counted, not
+    /// estimated: HStack · blurb · Note length · its caption · Accent · Laid back · its caption ·
+    /// the optional caveat · the optional Evolve row. (This warning stood on `fieldSelfPlayFields`
+    /// for one commit — the parent, which is at 7 — where nobody adding an arp row would read it.)
     @ViewBuilder private var fieldArpRhythmFields: some View {
         HStack {
             Text("Rhythm").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
@@ -2772,7 +2776,14 @@ struct EchoelStudioView: View {
         // (125 ms per cell) Driving reaches that floor at about 0.27, so the bottom quarter of the
         // row is flat — and at 300 BPM it is the bottom two thirds. Tempo-dependent, so it is said
         // rather than clipped out of the range.
-        Text("Note length is a fraction of one cell, scaled by the rhythm — Driving stays short even at 1. Below the instrument's 15 ms minimum nothing gets shorter, and the faster the tempo the sooner that floor is reached; a single note never rings longer than one second.")
+        //
+        // #258 added the THIRD limit named here, and it is a CEILING rather than a floor:
+        // `RoleRhythm.hit` computes push first and then caps the gate at `1 - push`, because a note
+        // that starts late and still fills its whole cell would ring into the next one. On the two
+        // characters whose `gateScale` is 1.0 (`sparse`, `flowing`) that cap binds as soon as Laid
+        // back leaves 0; on the others their own scale binds first. Left out of this sentence for
+        // one commit, which made the top of the Note length row go quietly flat.
+        Text("Note length is a fraction of one cell, scaled by the rhythm — Driving stays short even at 1. Below the instrument's 15 ms minimum nothing gets shorter, and the faster the tempo the sooner that floor is reached; a single note never rings longer than one second. A high Laid back also shortens the longest notes: one that starts late cannot fill its cell as well.")
             .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             .fixedSize(horizontal: false, vertical: true)
         EchoelValueField(label: "Accent", value: $fieldArpAccent,
@@ -2817,6 +2828,28 @@ struct EchoelStudioView: View {
     ///   cells sound, upstream of the multiply. The two cases cannot collide (`dynamic` is not
     ///   subtle), which is why this is a single chain and not two independent lines.
     private var fieldArpRhythmCaveat: String? {
+        // #258 FIRST, and deliberately ahead of the Accent case: `flowing` is `accentIsSubtle`, so
+        // anything after that branch is unreachable for the one character whose lean applies to
+        // EVERY note. This case is also the only one keyed to a value the player has just moved.
+        //
+        // ⛔ WHY IT EXISTS. The row is not the total. `RoleRhythm.hit` adds `pushBias` to it and
+        // clamps the SUM at `maxPush`, so on the two characters that carry a lean the top of the
+        // row is flat — `flowing` from about 0.40 (its lean applies everywhere), `syncopated` from
+        // about 0.33 on the off-beat cells that make the character. Said rather than clipped out of
+        // the `range:`, because the flat point is character-dependent and the range is not; a dial
+        // that silently stops responding is the #164/#227 shape the rest of this slice avoids.
+        // The two numbers are approximate ON PURPOSE — writing them exactly would duplicate
+        // `RoleRhythm.pushBias`'s private constants here and invite the two to drift.
+        if fieldArpPush > 0 {
+            switch fieldArpCharacter {
+            case .flowing:
+                return "Flowing already sits a hair behind on every note, and Laid back adds to it — the two together stop at the row's own ceiling, so above about 0.40 the timing no longer changes."
+            case .syncopated:
+                return "Syncopated already leans back on its off-beats, and Laid back adds to it — on those notes the two together stop at the row's ceiling, so above about 0.33 they no longer move."
+            case .driving, .hypnotic, .dynamic, .sparse:
+                break
+            }
+        }
         if fieldArpCharacter.accentIsSubtle {
             return "\(fieldArpRhythmLabel(fieldArpCharacter)) is nearly level by design — Accent barely cuts here. Dynamic or Driving give a strong one."
         }

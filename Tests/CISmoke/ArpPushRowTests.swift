@@ -74,6 +74,13 @@ final class ArpPushRowTests: XCTestCase {
     /// And the positive half must actually do something across the row's whole span, or the dial
     /// the player now sees is decoration. Monotone, because a range that is flat anywhere reads as
     /// a broken control even when the endpoints differ.
+    ///
+    /// ⚠️ THIS IS THE FOLD ONLY — IT IS NOT A CLAIM THAT THE ROW IS MONOTONE END TO END. Between
+    /// the row and this function sits `RoleRhythm.hit`, which ADDS the character's `pushBias` and
+    /// clamps the sum at `maxPush`: on `flowing` (+0.05 everywhere) the total saturates from about
+    /// 0.40, on `syncopated` (+0.12 off the beat) from about 0.33 on those cells. So the row DOES
+    /// have a flat top on two of six characters — stated in the panel's caveat rather than hidden,
+    /// and stated here because the failure message below reads as a general promise it cannot make.
     func testTheRowsWholeRangeProducesAStrictlyGrowingDelay() {
         let cell = 0.125
         var previous = FieldAutoPlay.pushDelaySeconds(0, cellSeconds: cell)
@@ -84,8 +91,10 @@ final class ArpPushRowTests: XCTestCase {
             let delay = FieldAutoPlay.pushDelaySeconds(push, cellSeconds: cell)
             XCTAssertGreaterThan(delay, previous,
                                  "push \(push) did not land later than the value below it "
-                                 + "(\(delay) s vs \(previous) s). A flat stretch inside the row's "
-                                 + "own range is a dial that stops responding halfway.")
+                                 + "(\(delay) s vs \(previous) s). The FOLD itself must stay strictly "
+                                 + "monotone — the character's own lean can flatten the top for two "
+                                 + "characters (see the doc above), but a flat stretch in this "
+                                 + "function would flatten the row for all six.")
             previous = delay
         }
         XCTAssertEqual(previous, Double(RoleRhythm.maxPush) * cell, accuracy: 1e-9,
@@ -107,11 +116,15 @@ final class ArpPushRowTests: XCTestCase {
                        + "the row's ceiling is no longer the engine's. Either the row is now too "
                        + "narrow to reach what the engine allows, or a stored value above it can "
                        + "push a note past its own cell.")
-        // ⚠️ NOT asserting `FieldAutoPlay.maxPushFraction == RoleRhythm.maxPush` — it is a
-        // TAUTOLOGY: that property is DEFINED as `RoleRhythm.maxPush`, so it cannot differ and the
-        // assertion could never fail. Written, then removed on reading the definition. The real
-        // cross-file risk is the one asserted above (view range vs engine clamp), and it is not
-        // reachable from here anyway; the view's `range:` argument is private to it.
+        // ⚠️ NOT asserting `FieldAutoPlay.maxPushFraction == RoleRhythm.maxPush` here — but the
+        // reason is DUPLICATION, not futility, and the first version of this note got that wrong.
+        // It said the assertion "could never fail". It can: `maxPushFraction` is declared as a
+        // MIRROR (`{ RoleRhythm.maxPush }`), and the edit worth catching is someone replacing that
+        // mirror with a literal. `FieldAutoPlayPushTests.testTheCeilingIsTheRhythmsOwnCeilingAndNot`
+        // `ASecondNumber` already guards exactly that, in this same blocking bundle, and says so in
+        // its own doc — two files giving opposite verdicts on one assertion is worse than either
+        // verdict. The risk THIS file is closest to (the view's `range:` vs the engine's clamp) is
+        // not reachable from a test at all; the argument is private to the view.
     }
 
     // MARK: - The stored value's own guard

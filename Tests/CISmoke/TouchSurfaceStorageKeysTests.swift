@@ -121,12 +121,17 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
     /// character deciding that is worth pinning here — it fails the moment someone moves the
     /// default to `.dynamic` or `.flowing` and quietly changes the panel.
     ///
-    /// ⚠️ THE COUNT CAME OUT OF THIS TEST'S NAME AND MESSAGE (#258). They said "three numeric rows,
-    /// not four" — which was already loose (the Rhythm `Picker` it counted is not numeric) and went
-    /// stale the moment the Laid-back row landed, without a single assertion changing. Nothing here
-    /// can count rows: `fieldArpRhythmFields` is `private` inside a view. So the name now states the
-    /// property that IS asserted. A number in a name that no assertion derives is the same class of
-    /// claim this file's other rationale was deleted for.
+    /// ⚠️ THE COUNT IS OUT OF THE NAME AND THE MESSAGE (#258, in two goes). They said "three numeric
+    /// rows, not four" and "the panel shows a fourth row" — already loose (the Rhythm `Picker` the
+    /// count included is not numeric) and stale the moment the Laid-back row landed, without a single
+    /// assertion changing. Nothing here can count rows: `fieldArpRhythmFields` is `private` inside a
+    /// view. So the name states the property that IS asserted.
+    ///
+    /// ⛔ AND THE FIRST ATTEMPT AT THIS PARAGRAPH IS ITSELF THE LESSON: `54db75b` rewrote the prose to
+    /// say "the name now states the property that IS asserted" while leaving the name and the message
+    /// untouched — a comment asserting its own fix, which the next reader would have trusted instead
+    /// of grepping. Caught by review. A number in a name that no assertion derives is bad; a note
+    /// claiming it was removed when it was not is worse.
     ///
     /// ⚠️ THE FIRST VERSION OF THIS TEST CLAIMED MORE THAN IT DELIVERS, and the claim is deleted
     /// rather than reworded down: it said `XCTAssertEqual(Set(usesIt), [.dynamic, .flowing])` stopped
@@ -138,9 +143,10 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
     /// and, for the accent dial, `testAccentIsSubtleDescribesTheMeasuredSpreadAndNotAnIntention`) —
     /// duplicating that pin here bought nothing except a rationale describing a defence it did not
     /// provide, which is the failure class this repo pays for most often.
-    func testTheArpPanelOpensWithThreeNumericRowsOnAFreshInstall() {
+    func testTheArpPanelHidesEvolveOnTheDefaultCharacter() {
         XCTAssertFalse(StudioDefaultKeys.fieldArpRhythmCharacter.value.usesEvolve,
-                       "the default character now uses Evolve — the panel shows a fourth row")
+                       "the default character now uses Evolve — the panel opens with one row more "
+                       + "than it did, which is a founder-visible change and not a side effect")
     }
 
     /// SELF-PLAY MUST BE OFF ON A FRESH INSTALL, and this is the assertion that gates it.
