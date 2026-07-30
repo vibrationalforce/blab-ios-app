@@ -44,28 +44,32 @@ final class BassRhythmOverrideTests: XCTestCase {
         notes.filter { $0.role == .bass }
     }
 
-    /// ⭐ THE GOLDEN LAW. Same shape as `voiceLeading` / `humanize` / `suggestJourney` before it:
-    /// the switch OFF must be indistinguishable from the switch not existing.
+    /// ⛔ THE GOLDEN LAW, AND WHAT ACTUALLY HOLDS IT — the first version of this test held nothing.
     ///
-    /// Compared as full note lists, not counts: a rhythm binding that happened to emit the same
-    /// NUMBER of notes at different steps, lengths or velocities would pass a count assertion and
-    /// still have changed every genre's bassline. The default path must also not touch the RNG —
-    /// which this catches for free, because a stolen draw would shift every later note's pitch and
-    /// velocity in the whole take, not only the bass.
-    func testTheDefaultTakeIsByteIdenticalToTheTakeBeforeThisFeatureExisted() {
-        let plain = BioComposer.compose(input(nil))
-        let explicitDefault = BioComposer.compose(
-            BioComposer.Input(heartRateBPM: 132, hrvNormalized: 0.3, coherence: 0.3,
-                              breathPhase: 0.25, breathDepth: 0.7,
-                              key: MusicalKey(root: 0, scale: .minor),
-                              style: .disco, mode: .studioLocked, lockedTempo: 132,
-                              seed: 0xA3B0))
-        XCTAssertEqual(plain.notes.count, explicitDefault.notes.count)
-        XCTAssertEqual(plain.notes.map(\.startStep), explicitDefault.notes.map(\.startStep))
-        XCTAssertEqual(plain.notes.map(\.pitch), explicitDefault.notes.map(\.pitch))
-        XCTAssertEqual(plain.notes.map(\.lengthSteps), explicitDefault.notes.map(\.lengthSteps))
-        XCTAssertEqual(plain.notes.map(\.velocity), explicitDefault.notes.map(\.velocity))
-        XCTAssertEqual(plain.suggestedTempo, explicitDefault.suggestedTempo)
+    /// It composed `Input(…, bassRhythm: nil)` against `Input(…)` with `bassRhythm` left to default:
+    /// **the same value twice**. It then claimed to catch a stolen RNG draw "for free". A test that
+    /// re-runs one input and compares it with itself catches nothing, and the shape came from the
+    /// `voiceLeading`/`humanize`/`suggestJourney` switches before it — so the law this repo leans on
+    /// hardest was asserted nowhere. It was copied into `PadRhythmOverrideTests` before it was
+    /// caught, and both are fixed in the same commit.
+    ///
+    /// Byte-identity is held by CONSTRUCTION, verified by reading: the `rng.next()` for the rhythm
+    /// seed lives inside `if let character = rhythm`, and the `else` branch is the pre-feature grid
+    /// unchanged. Asserting it would need a literal fixture captured from the pre-feature revision,
+    /// and there is no local toolchain here to capture one.
+    ///
+    /// What IS checkable is the realistic regression — someone dropping the `if let` so a character
+    /// applies unconditionally: the default take must be the genre's own even `gap` grid, which means
+    /// it must not equal ANY of the six characters' output.
+    func testTheDefaultTakeIsTheGenresOwnGridAndNotAnyCharacters() {
+        let plain = bass(BioComposer.compose(input(nil)).notes)
+        XCTAssertFalse(plain.isEmpty, "no bass at all — this take cannot test the default path")
+        let signature = plain.map { [$0.startStep, $0.lengthSteps] }
+        for character in RoleRhythm.Character.allCases {
+            let overridden = bass(BioComposer.compose(input(character)).notes)
+            XCTAssertNotEqual(signature, overridden.map { [$0.startStep, $0.lengthSteps] },
+                              "the DEFAULT take equals \(character)'s — a character is being applied unconditionally")
+        }
     }
 
     /// The row is not decoration: at least one character must audibly move the bass. Deliberately

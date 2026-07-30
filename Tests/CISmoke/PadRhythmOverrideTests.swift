@@ -36,27 +36,44 @@ final class PadRhythmOverrideTests: XCTestCase {
         notes.filter { $0.role == .harmony }
     }
 
-    /// ⭐ THE GOLDEN LAW, across all three pad paths at once. Compared as full note lists and not as
-    /// counts: a binding that emitted the same NUMBER of chords at different steps, lengths or levels
-    /// would pass a count assertion and still have re-articulated every genre. It also catches an
-    /// RNG leak for free — the seed draw must sit inside the `if let`, and a stolen draw would shift
-    /// every later note's pitch in the whole take, not just the pad's.
-    func testTheDefaultTakeIsByteIdenticalOnEveryPadPath() {
+    /// ⛔ THE GOLDEN LAW, AND AN HONEST ACCOUNT OF WHAT HOLDS IT — because the first version of this
+    /// test held NOTHING and said the opposite.
+    ///
+    /// It composed `Input(…, padRhythm: nil)` against `Input(…)` with `padRhythm` left to default,
+    /// i.e. **the same value twice**, and then claimed to catch an RNG leak "for free". That is a
+    /// tautology: it re-ran one input and compared it with itself. The shape was inherited from
+    /// `BassRhythmOverrideTests` (fixed there in the same commit), which inherited it from the
+    /// `voiceLeading`/`humanize`/`suggestJourney` switches before it — so the law this repo leans on
+    /// hardest has never actually been asserted anywhere.
+    ///
+    /// What genuinely holds byte-identity is CONSTRUCTION, verified by reading: `rng.next()` for the
+    /// rhythm seed sits inside `if let character = padRhythm`, `chordOnsets` is RNG-free, the
+    /// `arpStep` hoist is integer arithmetic, and the four legacy branches are untouched inside the
+    /// `else`. A test cannot check that without a literal fixture captured from the pre-feature
+    /// revision, and this repo has no local toolchain to capture one.
+    ///
+    /// So this test asserts the strongest thing that IS checkable and would catch the realistic
+    /// regression — someone dropping the `if let` and applying a character unconditionally: the
+    /// default take must be the GENRE'S OWN articulation, which means it must not equal ANY of the
+    /// six characters' output, and it must still carry the tresillo's 3-step hold that every gated
+    /// character shortens.
+    func testTheDefaultTakeIsTheGenresOwnArticulationAndNotAnyCharacters() {
         for style in [MusicStyle.disco, .dubTechno, .synthwave] {
-            let plain = BioComposer.compose(input(style, nil))
-            let explicitDefault = BioComposer.compose(
-                BioComposer.Input(heartRateBPM: 132, hrvNormalized: 0.3, coherence: 0.3,
-                                  breathPhase: 0.25, breathDepth: 0.7,
-                                  key: MusicalKey(root: 0, scale: .minor),
-                                  style: style, mode: .studioLocked, lockedTempo: 132,
-                                  seed: 0xA4B0))
-            XCTAssertEqual(plain.notes.count, explicitDefault.notes.count, "\(style)")
-            XCTAssertEqual(plain.notes.map(\.startStep), explicitDefault.notes.map(\.startStep), "\(style)")
-            XCTAssertEqual(plain.notes.map(\.pitch), explicitDefault.notes.map(\.pitch), "\(style)")
-            XCTAssertEqual(plain.notes.map(\.lengthSteps), explicitDefault.notes.map(\.lengthSteps), "\(style)")
-            XCTAssertEqual(plain.notes.map(\.velocity), explicitDefault.notes.map(\.velocity), "\(style)")
-            XCTAssertEqual(plain.suggestedTempo, explicitDefault.suggestedTempo, "\(style)")
+            let plain = pad(BioComposer.compose(input(style, nil)).notes)
+            XCTAssertFalse(plain.isEmpty, "\(style)")
+            let signature = plain.map { [$0.startStep, $0.lengthSteps] }
+            for character in RoleRhythm.Character.allCases {
+                let overridden = pad(BioComposer.compose(input(style, character)).notes)
+                XCTAssertNotEqual(signature, overridden.map { [$0.startStep, $0.lengthSteps] },
+                                  "\(style): the DEFAULT take equals \(character)'s — a character is being applied unconditionally")
+            }
         }
+        // The calm-Fläche signature: `heartbeatOnsets` groups a tresillo 3-3-2, and no character can
+        // produce that 3 at gate 0.8 × its scale (the longest, `sparse`/`flowing` at 1.0, rounds to 2
+        // from a room of 3). A held 3 therefore proves the untouched path ran.
+        let flaeche = pad(BioComposer.compose(input(.dubTechno, nil)).notes)
+        XCTAssertTrue(flaeche.contains { $0.lengthSteps >= 3 },
+                      "the sustained genre lost its held onset — the default path did not run")
     }
 
     /// ⛔ THE ROW IS NOT DEAD ON ANY PAD PATH. This is the assertion the bass row could NOT make —
@@ -91,6 +108,15 @@ final class PadRhythmOverrideTests: XCTestCase {
     /// ONE onset of that rate. ±1 and not equality because `round(density · 16)` is then sampled
     /// through a `len`-wide window — 3-in-5 genuinely lands 4 — and pretending otherwise would be a
     /// test that pins arithmetic noise instead of the contract.
+    /// ⚠️ WHAT THIS BUNDLE DOES *NOT* PIN, recorded rather than left to be discovered: nothing here
+    /// asserts WHICH source the caller counts the rate from — `chordOnsets` on the chord paths vs the
+    /// arp's own `arpStep` grid. Getting that wrong was the real bug in A4's first draft, and the
+    /// commit message claimed this next test would have caught it. It would not: it calls the core
+    /// with a hand-supplied density and never exercises the caller's choice. A discriminating test
+    /// needs a body state where the two sources actually differ, and they only do so in a narrow
+    /// window (`busy ≤ 0.6` while `busy + syncopation·0.15 ≥ 0.6`, i.e. arp rate 1 vs stab 2) that
+    /// cannot be hit from the public `Input` without pinning the arousal maths itself — which would
+    /// be a test of `musicalState`, not of this feature. Left unpinned on purpose, said out loud.
     func testTheDerivedDensityReproducesTheRateItWasDerivedFrom() {
         for (rate, len) in [(1, 4), (2, 5), (3, 5), (3, 6), (2, 8), (4, 8)] {
             let onsets = BioComposer.roleRhythmOnsets(secStart: 0, secLen: len, sectionIndex: 0,

@@ -46,7 +46,7 @@
 //  groove assertable in CI — a rhythm is precisely the kind of thing that reads correctly in code
 //  and sounds like a stumble on a device.
 //
-//  ✅ TWO CONSUMERS AND TWO WRITERS, ALL REACHABLE.
+//  ✅ THREE CONSUMERS AND THREE WRITERS, ALL REACHABLE.
 //    · ARP (#253 A2/A7) — the Field's `.arp` motion asks this type which cells sound, how hard and
 //      how long (`FieldAutoPlay.arpTouches` → `Params.arpRhythm`); the sound reaches the ear through
 //      `TouchInstrumentUIView.autoPlayTick`. A PLAYER sets four dials from the Field panel's
@@ -68,9 +68,18 @@
 //  all. So `syncopated`'s late pull and `flowing`'s laid-back hair are computed, carried, and thrown
 //  away by both. No UI copy may promise them until A2b lands — the A7 review already had to strike
 //  exactly that promise out of two blurbs.
+//    · PAD (#253 A4) — `BioComposer.roleRhythmOnsets`, called from `composeHarmonic`, decides when
+//      the CHORD re-articulates on every non-arpeggiated pad path and when an arp's notes land
+//      (never their pitch order); the Mood panel's Pad rhythm Picker writes
+//      `StudioDefaultKeys.padRhythm`. Like the bass it passes gate/accent/evolve explicitly.
+//      It does NOT govern the inner pulse layer, which keeps its own fixed grid.
+//
 //  `density` has no arp writer for its own stated reason (the Field's Density row is the one rate
 //  control and `arpTouches` overwrites the stored copy with it). The remaining ROLES have no writer:
-//  A4 (pad), A5 (lead), A6 the bounded timbre/FX trim.
+//  A5 (lead), A6 the bounded timbre/FX trim.
+//  (This block said "TWO consumers … A4 (pad) has no writer" for one commit — written in the commit
+//  that added the pad as the third. Twenty lines above, this same header spends a paragraph on
+//  exactly that failure with A2. Update it IN the diff that adds a consumer, not after.)
 //
 //  ⚠️ THE DEFAULT IS STILL LOAD-BEARING even now that a UI exists, because `StudioDefaultKeys`
 //  mirrors it: editing `Params`' default re-voices the arp for every user who has not touched a row.

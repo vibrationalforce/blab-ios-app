@@ -3296,6 +3296,12 @@ struct EchoelStudioView: View {
     /// skank/stab/comp chops AND the single held chord. On an ARPEGGIATED genre it changes only WHEN
     /// the arp's notes land, never their pitch order. So unlike the bass row there is no genre where
     /// it does nothing — which is the reason it needs no "may read as dead" caveat.
+    ///
+    /// ⚠️ WHAT IT DOES *NOT* REACH, so this row is not read as governing every harmonic event: the
+    /// inner PULSE layer (chord tones an octave up, `composeHarmonic`) keeps its own fixed 8th/quarter
+    /// grid. Choose `sparse` on a busy chop genre and the CHORD thins while the pulse carries on —
+    /// audible, correct, and not a bug. Whether the pulse should follow the same character is its own
+    /// decision (it is the layer that keeps a take moving) and is deliberately not made here.
     private var padRhythmRow: some View {
         labeledRow("Pad rhythm") {
             Picker("Pad rhythm", selection: $padRhythmRaw) {

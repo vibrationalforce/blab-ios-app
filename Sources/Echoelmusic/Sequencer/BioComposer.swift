@@ -217,15 +217,24 @@ public enum BioComposer {
         /// skank/stab/comp chop grids and the single held chord — because all three are the same
         /// thing to a listener: when the chord re-articulates.
         ///
-        /// ⚠️ THE RATE STAYS THE GENRE'S. The density handed to `RoleRhythm` is COUNTED from what
-        /// `chordOnsets` would have played for this very section, so an even-spread character sounds
+        /// ⚠️ THE RATE STAYS THE GENRE'S. The density handed to `RoleRhythm` is COUNTED from the path
+        /// this override is about to replace — `chordOnsets` on the three chord paths, and the arp's
+        /// own `arpStep` grid on an arpeggiated profile. Two sources, not one: an arp genre's
+        /// articulation value describes a chord grid it never plays, so counting `chordOnsets` there
+        /// would hand over a rate the ear never heard. (The first version of this doc said "counted
+        /// from what `chordOnsets` would have played" full stop — i.e. it documented the bug the same
+        /// commit fixed, in the one place a CALLER reads.) Either way an even-spread character sounds
         /// roughly the same number of chords and only their placement, length and level change.
-        /// Derived rather than guessed — guessing would have made this a second tempo control, and
-        /// re-deriving each articulation's grid by hand would have been a copy of `chordOnsets` that
-        /// drifts from it.
         ///
         /// ⚠️ IT DOES NOT TOUCH AN ARPEGGIATED PROFILE'S PITCH ORDER, only when its notes land: an
         /// arpeggio is a pitch figure and re-voicing it is `ArpFigure`'s business, not a rhythm's.
+        ///
+        /// ⚠️ AND IT DOES NOT REACH THE INNER PULSE. That layer is `.harmony` too by this repo's own
+        /// definition, and it keeps re-articulating chord tones an octave up on its fixed 8th/quarter
+        /// grid. So on a busy non-sustained genre, choosing `sparse` thins the PAD to one chord per
+        /// section while the pulse keeps its own rate — the row governs when the CHORD speaks, not
+        /// every harmonic event in the take. Bringing the pulse under the same character is a
+        /// separate decision (it is the layer that keeps a take moving) and deliberately not made here.
         public var padRhythm: RoleRhythm.Character?
 
         public init(
@@ -1712,9 +1721,13 @@ public enum BioComposer {
     ///     cells only `bar % 4` matters, so a raw index cancels against a 5-step section's offset and
     ///     the rotation silently disappears.
     ///
-    /// Pure and deterministic from `(seed, sectionIndex, cells)`. Never returns an empty list and
-    /// never returns a zero-length onset — a section must always SOUND, and the chord's downbeat is
-    /// the harmonic foundation exactly as it is for the bass.
+    /// Pure and deterministic from `(seed, sectionIndex, cells)`. For any `secLen > 0` it returns at
+    /// least one onset, starting ON `secStart` and never zero-length — a section must always SOUND,
+    /// and the chord's downbeat is the harmonic foundation exactly as it is for the bass. For
+    /// `secLen <= 0` it returns an EMPTY list (the guard below), which is what the caller's
+    /// `if !padBeats.isEmpty` routes on. The first version of this line said "never returns an empty
+    /// list", contradicted three lines later by its own guard and by the test that asserts it — and a
+    /// reader who believed it would read that caller-side gate as dead code.
     static func roleRhythmOnsets(secStart: Int, secLen: Int, sectionIndex: Int,
                                  character: RoleRhythm.Character, density: Float,
                                  seed: UInt64) -> [(start: Int, len: Int, level: Float)] {
@@ -1758,7 +1771,19 @@ public enum BioComposer {
             // Length measured against the room this onset actually has, so two chords can never
             // overlap into a mud smear — and `min(room, …)` is what makes that structural rather
             // than a hope (the bass shipped the `gap`-based version and it overlapped).
-            let len = max(1, min(room, Int((Float(room) * (beat?.gateFraction ?? 1)).rounded())))
+            //
+            // ⛔ A SOLE ONSET FILLS ITS SECTION — no gate. A gate exists to leave AIR BETWEEN notes;
+            // with nothing following it in the section, that air is not a rhythm, it is a hole. This
+            // is not a nicety: `heartbeatOnsets` returns ONE onset spanning the whole section when
+            // the body is calm ("calm = still", the Fläche the founder explicitly liked), and the
+            // meditative drones collapse to a SINGLE 16-step section — so gating that one onset gave
+            // `driving` a 6-step chord followed by ten steps of silence in a drone genre. The
+            // character still shapes its LEVEL there, and shapes length again the moment the section
+            // has more than one onset.
+            let sole = starts.count == 1
+            let len = sole
+                ? room
+                : max(1, min(room, Int((Float(room) * (beat?.gateFraction ?? 1)).rounded())))
             // A ratio around `neutralVelocity`, NOT clamped here: `dynamic`'s accent legitimately
             // goes above 1 (0.951 / 0.72 ≈ 1.32) and the caller clamps once it has applied its own
             // level. Clamping twice would flatten every accent that rises.
@@ -2039,8 +2064,13 @@ public enum BioComposer {
             // about to REPLACE, which is not the same source on all four:
             //   · arpeggiated → the arp's own `arpStep` grid. Asking `chordOnsets` here would be
             //     asking the wrong question: an arp genre's articulation value describes a chord
-            //     grid it never plays, and on synthwave that answer is ~3× the arp's real rate —
-            //     the row would have tripled the note count and read as a tempo control.
+            //     grid it never plays. The two answers diverge by up to 2× (a calm body coarsens
+            //     `arpStep` to 4 → arp rate 1 per 4-step section, while `.stab` still reports 2);
+            //     they happen to AGREE at the body state the tests use, which is exactly why the
+            //     bundle does not pin this choice — see the note in `PadRhythmOverrideTests`. The
+            //     first version of this comment claimed "~3×"; that number was invented, and it is
+            //     the number a future session would use to judge whether this ternary still earns
+            //     its keep.
             //   · everything else → `chordOnsets`, which IS the definition of what the genre plays
             //     there. Pure and RNG-free, so asking it costs nothing.
             let arpStep = (busy > 0.6 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)
