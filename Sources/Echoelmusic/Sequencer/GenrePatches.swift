@@ -81,6 +81,29 @@ public extension MusicStyle {
                 cutoff: 2200, res: 0.09, lfoAmt: 0.10, lfoRate: 0.14, lfoDepth: 0.22,
                 revMix: 0.54, revDecay: 3.4, vibRate: 0, vibDepth: 0,
                 uni: 3, det: 11)
+        case .upliftingTrance:
+            // #254 batch 3 — a PLUCKED SUS STAB, not a pad: fast attack with a short decay and a
+            // long-ish release so each on-beat stab plucks and then rings into the next. Bright
+            // enough to cut a four-on-the-floor mix (0.52) without going shrill — the founder's
+            // "einige Sounds stechen kalt aus dem Mix raus" law caps the top end. Unison + detune
+            // is the one place a supersaw-ish width belongs; the sus voicing has no third to smear.
+            return patch("F0", "Trance Pluck",
+                a: 0.004, d: 0.22, s: 0.28, r: 0.55,
+                harm: 0.72, hl: 0.52, bright: 0.52, noise: 0.0, color: "White", shape: "Bright",
+                cutoff: 3600, res: 0.24, lfoAmt: 0.14, lfoRate: 0.35, lfoDepth: 0.20,
+                revMix: 0.30, revDecay: 2.6, vibRate: 0, vibDepth: 0,
+                uni: 3, det: 12)
+        case .techHouse:
+            // #254 batch 3 — a DRY REEDY SHELL: the shortest release of any genre patch here so
+            // the stab stops before the next one lands (that gap IS the groove), a mid cutoff and
+            // almost no reverb in the patch itself — the space, such as it is, comes from the FX
+            // preset's tight damped room. Darker than the trance pluck above (0.34) so the two
+            // never read as the same stab at a different tempo.
+            return patch("F1", "House Shell",
+                a: 0.003, d: 0.16, s: 0.12, r: 0.18,
+                harm: 0.80, hl: 0.58, bright: 0.34, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 2400, res: 0.30, lfoAmt: 0.10, lfoRate: 1.2, lfoDepth: 0.16,
+                revMix: 0.10, revDecay: 0.9, vibRate: 0, vibDepth: 0)
         case .deepDrone:
             // #254 batch 2 — a BED, not a note: the slowest attack of any genre patch so the
             // drone swells rather than starts, the longest release so it never fully stops, and

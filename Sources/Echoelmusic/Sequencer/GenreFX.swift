@@ -338,6 +338,42 @@ public extension MusicStyle {
                 chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.42, chorusMix: 0.30,
                 saturation: 0.22,
                 reverbEnabled: true, reverbMix: 0.30, reverbRoom: 0.78, reverbDamping: 0.44)
+        case .upliftingTrance:
+            // #254 batch 3 — THE BIG BRIGHT SPACE, the opposite pole to techHouse below on every
+            // axis they could share. A dotted-8th digital ping (0.326 s at 138 BPM, resolving
+            // un-clamped across the whole 136…144 window — the division is shared with deepHouse,
+            // the space around it is not), wide, and the LEAST-DAMPED reverb of any offered genre:
+            // 0.30, just under drift's 0.35. The sus pad needs air above it or the suspension
+            // reads as mud. Chorus ON for supersaw-ish width. Saturation stays moderate (0.30):
+            // the lift comes from the space, not from drive.
+            //
+            // ⚠️ DO NOT reason about how this echo SOUNDS today — see `apply(to:bpm:)`: the delay
+            // TIME never reaches the audio (a picker value overwrites it). The other seven delay
+            // fields, the reverb and the chorus DO.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth, .dotted),
+                delayMix: 0.26, delayFeedback: 0.38, delayTone: 0.62, delaySpread: 0.55,
+                chorusEnabled: true, chorusRate: 0.35, chorusDepth: 0.40, chorusMix: 0.30,
+                saturation: 0.30,
+                reverbEnabled: true, reverbMix: 0.32, reverbRoom: 0.90, reverbDamping: 0.30)
+        case .techHouse:
+            // #254 batch 3 — DRY AND TIGHT, which is the whole contrast to `deepHouse`'s wash and
+            // to trance above. The shortest delay DIVISION of any offered genre (dotted 16th =
+            // 0.375 quarters, 0.177 s at 127 BPM) at a LOW mix, so it reads as slap rather than
+            // space — with the same ⚠️ as trance above: per `apply(to:bpm:)` the delay TIME never
+            // reaches the audio, so that is a source-level contract, not a sound.
+            // The room is the SECOND smallest and second-most damped of the offered roster
+            // (0.42 / 0.58) — only `acidTechno` is tighter and deader (0.34 / 0.64); every other
+            // offered genre sits at 0.78 room and up. No chorus at all, because width would blur
+            // the groove. Saturation 0.42 is where the punch comes from: above dubTechno (none)
+            // and deepHouse (0.22), still below acidTechno's 0.48.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.sixteenth, .dotted),
+                delayMix: 0.16, delayFeedback: 0.28, delayTone: 0.55, delaySpread: 0.30,
+                saturation: 0.42,
+                reverbEnabled: true, reverbMix: 0.12, reverbRoom: 0.42, reverbDamping: 0.58)
         case .deepDrone:
             // #254 batch 2 — the DARKEST space in the product.
             //
