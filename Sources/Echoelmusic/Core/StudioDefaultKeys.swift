@@ -200,9 +200,11 @@ public enum StudioDefaultKeys {
     /// `FieldAutoPlay.arpTouches` overwrites the stored copy with it. A second key for the same
     /// musical dimension is the collision `RoleRhythm`'s header already decides.
     ///
-    /// `push` is deliberately ABSENT TOO, for a different reason: `arpTouches` carries it but does
-    /// NOT yet honour it (#253 A2b owns displacing a generated onset). A row for it today would be
-    /// a lying control (#164/#227) — the key arrives with the behaviour, not before it.
+    /// `push` is still ABSENT, but the REASON changed with #253 A2b: `arpTouches` carries it and the
+    /// Field view now schedules the onset late (`FieldAutoPlay.pushDelaySeconds`), so a row would no
+    /// longer be a lying control (#164/#227) — it is simply not built. Adding this key is therefore
+    /// the FIRST half of A2c and must land in the same commit as its row, so the behaviour and the
+    /// control keep arriving together. What plays today is the character's own bias, undialled.
     ///
     /// Stored as the enum's raw string, so an unknown value from an older or newer build falls back
     /// to this default instead of refusing to load — same contract as `touchSyncGrid` above, and

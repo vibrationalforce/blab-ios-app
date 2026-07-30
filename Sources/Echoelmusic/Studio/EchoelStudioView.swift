@@ -2731,8 +2731,11 @@ struct EchoelStudioView: View {
     /// deliberately absent here:
     /// - `density` is the Field's OWN Density row above — `FieldAutoPlay.arpTouches` overwrites the
     ///   stored copy with it, so a second row would be two dials over one musical dimension.
-    /// - `push` is carried by the generator but NOT yet honoured (#253 A2b owns moving a generated
-    ///   onset off the grid). A row for it today would be a control that does nothing (#164/#227).
+    /// - `push` IS honoured now (#253 A2b: the arp's `Touch` carries `pushFraction` and the Field view
+    ///   schedules the onset late), so the reason this row is absent has CHANGED — it is no longer
+    ///   "it would do nothing", it is "it is not built yet" (#253 A2c: the row plus its persisted key,
+    ///   which `StudioDefaultKeys` still lacks). What the player hears today is the CHARACTER's own
+    ///   bias — `syncopated` late off the beat, `flowing` a hair behind — with no dial over it.
     @ViewBuilder private var fieldArpRhythmFields: some View {
         HStack {
             Text("Rhythm").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
@@ -2822,14 +2825,19 @@ struct EchoelStudioView: View {
     /// this slice a review HIGH. The first version was written as "a plain-language restatement of
     /// that case's doc comment in `RoleRhythm.Character`" — and the core's docs correctly describe
     /// `pushBias`, the small timing offset each character adds (`syncopated` +0.12 off the beat,
-    /// `flowing` +0.05). `FieldAutoPlay.arpTouches` **DROPS `pushFraction` ENTIRELY**; its `Touch`
-    /// carries x/y/velocity/gateFraction and nothing about when the note falls. So "a hair late" and
-    /// "a hair behind the grid" promised the one thing the arp provably cannot do — and this slice
-    /// kept the Push ROW out of the UI on exactly that reasoning, then re-introduced the promise as
-    /// prose. A claim in a caption is as much a lying control as a dial (#164/#227).
+    /// `flowing` +0.05). At the time, `FieldAutoPlay.arpTouches` **DROPPED `pushFraction` ENTIRELY** —
+    /// its `Touch` carried x/y/velocity/gateFraction and nothing about when the note falls. So "a hair
+    /// late" and "a hair behind the grid" promised the one thing the arp provably could not do, and
+    /// this slice kept the Push ROW out of the UI on exactly that reasoning, then re-introduced the
+    /// promise as prose. A claim in a caption is as much a lying control as a dial (#164/#227).
     ///
-    /// Restore the timing words only together with A2b (the scheduled onset offset), and until then
-    /// describe placement and level only: WHICH cells, HOW loud, HOW long.
+    /// ✅ **#253 A2b LANDED, so the timing words are now earned — for TWO of the six.** `Touch` carries
+    /// `pushFraction` and `TouchInstrumentUIView` schedules the onset late by
+    /// `FieldAutoPlay.pushDelaySeconds`. `pushBias` gives a bias to `syncopated` (+0.12 off the beat)
+    /// and `flowing` (+0.05 everywhere) and **exactly 0 to the other four** — `driving` is deliberately
+    /// dead straight and that is the point of it. So a timing word in `hypnotic`, `dynamic`, `sparse`
+    /// or `driving` would be the same lie this comment exists to prevent, A2b or no A2b. Verify against
+    /// `RoleRhythm.pushBias` before adding one, not against this paragraph.
     private func fieldArpRhythmBlurb(_ c: RoleRhythm.Character) -> String {
         switch c {
         case .driving:
@@ -2844,9 +2852,9 @@ struct EchoelStudioView: View {
         case .sparse:
             return "Fewer notes than Density asks for, only on the beats, held long. Wide."
         case .syncopated:
-            return "Prefers the cells between the beats and accents them, inverting the weight — the off-beats are the loud ones."
+            return "Prefers the cells between the beats and accents them, inverting the weight — the off-beats are the loud ones, and they land a touch late."
         case .flowing:
-            return "Long and level, filling the cell — it sits under everything else instead of competing with it."
+            return "Long and level, filling the cell and sitting a hair behind the beat — it stays under everything else instead of competing with it."
         }
     }
 

@@ -1410,11 +1410,15 @@ public enum BioComposer {
         // Three audible dimensions across six names; whether that is enough to hear as six
         // RHYTHMS is a device question and is filed as such (#253 listening items).
         //
-        // ⛔ AND `push` IS NOT ONE OF THE DIMENSIONS. `RoleRhythm` computes `syncopated`'s late pull
-        // and `flowing`'s laid-back hair, but `Note.startStep` is a whole 16th and cannot carry 0.12
-        // of a cell, so this consumer drops it exactly as `FieldAutoPlay.arpTouches` does (A2b owns
-        // the fix for both). No copy anywhere may promise the bass swings — the A7 review had to
-        // strike that same promise out of two arp blurbs.
+        // ⛔ AND `push` IS NOT ONE OF THE DIMENSIONS **HERE** — the qualifier is new and load-bearing.
+        // `RoleRhythm` computes `syncopated`'s late pull and `flowing`'s laid-back hair, and since
+        // #253 A2b the ARP honours them (`FieldAutoPlay.arpTouches` carries `pushFraction`; the Field
+        // view schedules the onset late). This consumer still cannot: `Note.startStep` is a whole
+        // 16th and cannot carry 0.12 of a cell AT ALL. So it is not "the fix hasn't arrived" — it is
+        // a model limit, and lifting it means sub-step note offsets in the take, which is a
+        // different slice with its own persistence and export consequences (`MIDIFileExporter`).
+        // No copy anywhere may promise the BASS or PAD swings — the A7 review had to strike that
+        // same promise out of two arp blurbs back when nothing honoured push at all.
         //
         // Counted on the composer's 16-step BAR and not on the section, using ABSOLUTE steps: the
         // characters that subdivide (`sparse`, `syncopated` read `beat = cells/4`) must land on real

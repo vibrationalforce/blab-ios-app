@@ -156,11 +156,29 @@ public enum FieldAutoPlay {
         /// against its own surface.
         public var gateFraction: Float?
 
-        public init(x: Float, y: Float, velocity: Float, gateFraction: Float? = nil) {
+        /// How much LATER than its cell's own tick the note should sound, as a fraction of ONE
+        /// GRID CELL — or `nil` for "this motion has no opinion, it lands on the grid".
+        ///
+        /// Positive only, in effect: negative would mean EARLIER than a moment that has already
+        /// arrived, and a generated note is created at its cell edge with no look-ahead, so there
+        /// is nothing to be early against. `pushDelaySeconds` therefore folds anything ≤ 0 to
+        /// "on the grid" rather than pretending. No writer can produce a negative today either —
+        /// the arp has no persisted `push` key and both character biases are positive
+        /// (`syncopated` +0.12, `flowing` +0.05) — but the type is public and the guard belongs
+        /// where the arithmetic is (#253 A2b).
+        ///
+        /// `nil` and not `0` for the same reason as `gateFraction`: the five travelling motions
+        /// have no timing opinion, and a reader must not be able to mistake "unchanged" for a
+        /// value that was chosen.
+        public var pushFraction: Float?
+
+        public init(x: Float, y: Float, velocity: Float,
+                    gateFraction: Float? = nil, pushFraction: Float? = nil) {
             self.x = x
             self.y = y
             self.velocity = velocity
             self.gateFraction = gateFraction
+            self.pushFraction = pushFraction
         }
     }
 
@@ -556,27 +574,23 @@ public enum FieldAutoPlay {
                                           bandCount: bands,
                                           band: baseBand)
         return [Touch(x: Float(point.x), y: Float(point.y),
-                      velocity: beat.velocity, gateFraction: beat.gateFraction)]
-        // ⚠️ `beat.pushFraction` IS DELIBERATELY DROPPED HERE, and the reason is a real finding
-        // rather than a shortcut. A generated note's onset is owned by ULTRASYNC, and its plan is
-        // computed from the cell's on-grid tick: `TouchQuantizer.plan` returns `.play` the moment
-        // `offset == 0`, and `.play(atTick:)` sounds IMMEDIATELY. Handing it a pushed tick does
-        // NOT make the note late — a 0.05 push on a 1/16 grid is 6 ticks, inside the ~12-tick
-        // `latenessToleranceTicks`, so it plays on the grid anyway; a 0.12 push is 14 ticks and
-        // takes the `.playThenEcho` branch, i.e. a DOUBLED note; a NEGATIVE push reads as "early"
-        // and gets pulled back onto the grid. (And at the shipped default `strength: 0` the whole
-        // function short-circuits to `.play`, so today Ultrasync is not even in the way — which
-        // makes the conclusion firmer, not softer.) Honouring `push` means giving the generated
-        // onset its own scheduled delay in `TouchInstrumentUIView`, with the cancellation
-        // discipline `pendingOn` already carries — its own slice (#253 A2b), not a parameter pass.
-        // Until then the arp's Push row must stay out of the UI (#164/#227): a dial is allowed to
-        // be absent, not to be inert.
+                      velocity: beat.velocity, gateFraction: beat.gateFraction,
+                      pushFraction: beat.pushFraction)]
+        // ✅ `beat.pushFraction` IS CARRIED NOW (#253 A2b). What it must NOT do is travel through
+        // ULTRASYNC, and that finding is why the value was dropped here for two slices rather than
+        // passed on: `TouchQuantizer.plan` is computed from the cell's on-grid tick and returns
+        // `.play` the moment `offset == 0`, and `.play(atTick:)` sounds IMMEDIATELY. Handing it a
+        // pushed tick does NOT make the note late — a 0.05 push on a 1/16 grid is 6 ticks, inside
+        // the ~12-tick `latenessToleranceTicks`, so it plays on the grid anyway; a 0.12 push is 14
+        // ticks and takes the `.playThenEcho` branch, i.e. a DOUBLED note. So the consumer gives
+        // the onset its OWN scheduled delay (`pushDelaySeconds` → `TouchInstrumentUIView`'s
+        // `pendingOn` discipline) and still hands Ultrasync the unpushed on-grid tick. A future
+        // reader who "simplifies" that into one tick offset reintroduces the flam.
         //
-        // ⚠️ ONE HONEST EXCEPTION to "dropped": `push` is not entirely without effect, because
-        // `RoleRhythm.hit` gives the LENGTH back the room the push takes. On `flowing` (the only
-        // character with an unconditional bias) that caps the gate at 0.95 of a cell. So the
-        // accurate sentence is "the timing offset is dropped; it still limits `flowing`'s gate
-        // ceiling" — not "push does nothing".
+        // ⚠️ THE LENGTH IS ALREADY DISCOUNTED FOR THE PUSH, so the consumer must not discount it
+        // twice: `RoleRhythm.hit` caps `gateFraction` at `1 - push` (on `flowing`, at 0.95). A
+        // pushed note therefore still ends inside its own cell when the consumer applies the delay
+        // and the gate independently — which is exactly how `TouchInstrumentUIView` does it.
     }
 
     /// How many cells in `0..<before` the ARP sounds, in this bar. The counterpart of the walk
@@ -637,6 +651,43 @@ public enum FieldAutoPlay {
         let per = Swift.max(1, ticksPerCell)
         let q = tick / per
         return (tick < 0 && tick % per != 0) ? q - 1 : q
+    }
+
+    /// Most of a cell a push may eat. Mirrors `RoleRhythm.maxPush` rather than restating it, so
+    /// the two cannot drift — a rhythm that can ask for 0.45 and a consumer that honours 0.30
+    /// would be a silently truncated groove nobody can see in either file.
+    ///
+    /// It is a SECOND ceiling and not a duplicate one: `Hit.pushFraction` arrives already clamped,
+    /// but `Touch.pushFraction` is a public field on a public struct and this function is `public`
+    /// too, so a caller can reach it without ever passing through `RoleRhythm`.
+    public static var maxPushFraction: Float { RoleRhythm.maxPush }
+
+    /// How long to hold a generated note-on back so it lands LATE by the rhythm's own amount
+    /// (#253 A2b). Seconds, because the consumer already knows its cell length and its clock;
+    /// a fraction is what travels between the two.
+    ///
+    /// Why every one of these cases is a fold to `0` — i.e. "sound it on the grid" — rather than
+    /// a `precondition`: this runs inside a performance, on a value a bio mapping may write. A
+    /// wrong number must make a note early, never end the take.
+    ///
+    /// • `nil` — the motion has no timing opinion (all five travelling motions). Today's behaviour
+    ///   exactly, and the reason this returns `0` instead of being optional itself: the caller then
+    ///   has ONE arithmetic path, and the immediate case is provably unchanged rather than a second
+    ///   branch that has to be kept identical by hand.
+    /// • Non-finite — NaN and ±infinity both mean "no usable offset". Note that the sign test
+    ///   below is written `> 0` and not `<= 0`: NaN fails BOTH, so it is the `guard` that catches
+    ///   it and not an `isNaN` special case (the argument-order law from CLAUDE.md, applied by
+    ///   structure instead of by comment).
+    /// • Negative — "early", which a generated onset cannot be: it is created at its own cell edge,
+    ///   with no look-ahead to be early against. Honouring it would need the generator to run a
+    ///   cell ahead, which is a different design (and would put the note in the PREVIOUS cell).
+    /// • `cellSeconds` not positive — a stopped or corrupt clock. Nothing to be a fraction of.
+    public static func pushDelaySeconds(_ pushFraction: Float?, cellSeconds: Double) -> Double {
+        guard let push = pushFraction, push.isFinite, push > 0,
+              cellSeconds.isFinite, cellSeconds > 0 else { return 0 }
+        // Strictly less than one cell BY CONSTRUCTION (`maxPushFraction` is 0.45), which is the
+        // property that keeps a pushed note inside its own cell and off the next one's onset.
+        return Double(Swift.min(push, maxPushFraction)) * cellSeconds
     }
 
     // MARK: - Pure pieces

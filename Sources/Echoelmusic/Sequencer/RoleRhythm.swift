@@ -65,12 +65,22 @@
 //      arp's feel, and a re-tune there must not silently re-voice every bassline.
 //      (This bullet said the opposite for one commit, in the same commit that made it explicit.)
 //
-//  `push` still has no reader on EITHER consumer, and that is the one number this type promises and
-//  nothing honours: `arpTouches` drops it (A2b owns giving the generated onset its own scheduled
-//  delay) and `BioComposer.Note.startStep` is a whole 16th, which cannot express 0.12 of a cell at
-//  all. So `syncopated`'s late pull and `flowing`'s laid-back hair are computed, carried, and thrown
-//  away by both. No UI copy may promise them until A2b lands — the A7 review already had to strike
-//  exactly that promise out of two blurbs.
+//  `push` now has EXACTLY ONE reader, and the asymmetry is structural rather than unfinished work.
+//    · ✅ THE ARP HONOURS IT (A2b): `arpTouches` carries `pushFraction` on its `Touch`, and
+//      `TouchInstrumentUIView` gives that onset its OWN scheduled delay
+//      (`FieldAutoPlay.pushDelaySeconds`) instead of passing a pushed tick to Ultrasync — a pushed
+//      tick would be corrected back onto the grid or answered with an echo, i.e. a flam. So
+//      `syncopated`'s late pull and `flowing`'s laid-back hair are audible on the Field.
+//    · ⛔ THE COMPOSER STILL CANNOT: `BioComposer.Note.startStep` is a whole 16th and cannot express
+//      0.12 of a cell AT ALL. That is not "A2b hasn't got there yet" — it is a different problem
+//      (sub-step note offsets in the take), and calling it A2b would hide a model change behind a
+//      shipped slice. So the BASS and PAD roles remain dead straight.
+//  Consequence for copy: timing words are allowed for the ARP's `syncopated`/`flowing` and remain
+//  forbidden for the bass/pad. The A7 review had to strike exactly that promise out of two arp
+//  blurbs when NOTHING honoured push; re-adding it elsewhere would repeat the mistake.
+//  ⚠️ The PLAYER's own `push` dial is still absent from the UI, and the reason CHANGED with A2b:
+//  it would no longer be inert, it is simply not built. That is A2c, and it needs a persisted key
+//  (`StudioDefaultKeys` has none) — do not read "push works" as "the row exists".
 //    · PAD (#253 A4) — `BioComposer.roleRhythmOnsets`, called from `composeHarmonic`, decides when
 //      the CHORD re-articulates on every non-arpeggiated pad path and when an arp's notes land
 //      (never their pitch order); the Mood panel's Pad rhythm Picker writes
@@ -121,9 +131,10 @@
 //  because the founder asked for the tone to follow the rhythm, not for a tone dial.
 //  Neutral when no character is chosen (`padRhythm == ""`), so a player who never opened that row
 //  hears the genre's patch bit-identically.
-//  Two non-role items remain open: **A2b** (make `push` actually late — see the paragraph above)
-//  and the **inner pulse layer**, which no character governs (`Input.padRhythm`'s doc states that
-//  deliberately). The Field/touch voice is deliberately NOT trimmed — it has its own character
+//  **A2b IS SHIPPED** — `push` is late on the arp; see the paragraph above for the one consumer it
+//  reaches and the one it structurally cannot. Two non-role items remain open: **A2c** (a
+//  player-facing Push row + its persisted key, now unblocked rather than inert) and the **inner
+//  pulse layer**, which no character governs (`Input.padRhythm`'s doc states that deliberately). The Field/touch voice is deliberately NOT trimmed — it has its own character
 //  (`fieldArpCharacter`) and belongs to a Field slice (#222/#224).
 //  (This block said "TWO consumers … A4 (pad) has no writer" for one commit — written in the commit
 //  that added the pad as the third. Twenty lines above, this same header spends a paragraph on

@@ -529,6 +529,11 @@ final class TouchInstrumentUIView: UIView {
 
     private func stopAutoPlay() {
         autoPlayProxy.stop()
+        // A generated note whose onset is held back for its rhythm's push (#253 A2b) must not
+        // arrive after the generator was switched off — that is the ONE-Stop law applied to a
+        // scheduled note. The clock stopping is not enough on its own: the task is already asleep
+        // with its own deadline and asks nothing further.
+        cancelGeneratedPending()
         // Not a "resume from where we were" — the transport moved on meanwhile. The next
         // start begins on the next cell edge it sees.
         lastFiredCell = nil
@@ -593,21 +598,104 @@ final class TouchInstrumentUIView: UIView {
             // `staccatoSeconds`, unchanged). A fraction of ONE CELL, so a shorter grid gives
             // shorter notes and the rhythm's staccato stays staccato at any tempo.
             let hold = t.gateFraction.map { Double($0) * cellSeconds }
-            sound(pitch: pitch,
-                  velocity: t.velocity * micro.velocityScale * even,
-                  cutoffScale: cutoff,
-                  finger: ObjectIdentifier(autoPlayFingers[voice]), index: index,
-                  autoRelease: true, onGridTick: onGridTick, holdSeconds: hold)
-            // The picture follows a generated note exactly as it follows a finger. Without
-            // this the field would play in visual silence — and `bandDrift` below its octave
-            // threshold, which the generator documents as "moves the light, not the pitch",
-            // would move nothing at all.
+            let id = ObjectIdentifier(autoPlayFingers[voice])
+            let note = GeneratedNote(pitch: pitch,
+                                     velocity: t.velocity * micro.velocityScale * even,
+                                     cutoffScale: cutoff,
+                                     finger: id, index: index,
+                                     onGridTick: onGridTick, holdSeconds: hold,
+                                     at: point(normX: Double(t.x), normY: Double(t.y)),
+                                     showVelocity: t.velocity)
+
+            // THE RHYTHM'S OWN LATENESS (#253 A2b). `syncopated` sits late on its off-beats and
+            // `flowing` a hair behind everywhere; until this slice both were computed, carried and
+            // thrown away, which made the dial a promise nothing kept.
             //
-            // ⚠️ That second half is true of the five TRAVELLING motions only. On `.arp` the
-            // generator returns the centre of a register, so a sub-threshold drift moves neither
-            // pitch nor light — by construction, not by omission (#220 S3).
-            showGeneratedNote(pitch: pitch, at: point(normX: Double(t.x), normY: Double(t.y)),
-                              velocity: t.velocity)
+            // Everything ABOVE is decided on the grid and only the SOUNDING waits — the same split
+            // `touchesBegan` makes for a finger (haptic and ripple immediate, note quantized). So
+            // the note's pitch, its Life variation and its `noteCounter` index are the ones its own
+            // cell would have given it; being late does not renumber it.
+            let pushSeconds = FieldAutoPlay.pushDelaySeconds(t.pushFraction,
+                                                             cellSeconds: cellSeconds)
+            guard pushSeconds > 0.002 else {         // straight, and bit-identical to before
+                soundGenerated(note)
+                continue
+            }
+            // Cancelled on REPLACE, so a stalled main actor cannot let cell N's held-back note
+            // land on top of cell N+1's. It cannot bite at the shipped ceiling — a push is at most
+            // 0.45 of a cell, so the wake is always inside its own cell — which is why this is one
+            // line of insurance and not a mechanism.
+            //
+            // ⚠️ `sound(...)`'s own `.delay` branch assigns `pendingOn[id]` WITHOUT cancelling,
+            // i.e. a replaced Ultrasync note still sounds. That is pre-existing and deliberately
+            // untouched here (it needs its own slice + a listening test), but it is the reason this
+            // line is explicit rather than assumed from the map's docs.
+            if let superseded = pendingOn.removeValue(forKey: id) { superseded.cancel() }
+            pendingOn[id] = Task { @MainActor [weak self] in
+                // `catch { return }`, never `try?`: a cancelled sleep throws, and swallowing that
+                // would sound a note Stop or a landing finger just revoked.
+                do { try await Task.sleep(for: .seconds(pushSeconds)) } catch { return }
+                // And the `catch` alone is not enough — once the deadline has passed the sleep
+                // returns successfully and `cancel()` is a no-op, so the continuation is merely
+                // queued. This guard is what closes that gap; nothing suspends after it.
+                guard let self, !Task.isCancelled else { return }
+                self.pendingOn.removeValue(forKey: id)
+                self.soundGenerated(note)
+            }
+        }
+    }
+
+    /// One generated note, decided at its cell edge and possibly sounded later (#253 A2b).
+    ///
+    /// A value type rather than a seven-argument closure capture, so the delayed path and the
+    /// immediate path provably sound the SAME note — the class of drift that #177 cost a ship.
+    private struct GeneratedNote: Sendable {
+        let pitch: Int
+        let velocity: Float
+        let cutoffScale: Float
+        let finger: ObjectIdentifier
+        let index: Int
+        let onGridTick: Int
+        let holdSeconds: Double?
+        let at: CGPoint
+        let showVelocity: Float
+    }
+
+    /// Sound a generated note and drop its light. The ONE place both timing paths go through.
+    private func soundGenerated(_ n: GeneratedNote) {
+        // `onGridTick` is the UNPUSHED cell tick even for a pushed note, and that is deliberate:
+        // Ultrasync exists to correct human lateness, and this note's lateness is the rhythm's own
+        // intent. Handing it a pushed tick would make it "correct" the groove away — or, past the
+        // tolerance, answer it with an echo (a flam). See `FieldAutoPlay.arpTouches`' note.
+        sound(pitch: n.pitch, velocity: n.velocity, cutoffScale: n.cutoffScale,
+              finger: n.finger, index: n.index,
+              autoRelease: true, onGridTick: n.onGridTick, holdSeconds: n.holdSeconds)
+        // The picture follows a generated note exactly as it follows a finger. Without
+        // this the field would play in visual silence — and `bandDrift` below its octave
+        // threshold, which the generator documents as "moves the light, not the pitch",
+        // would move nothing at all.
+        //
+        // ⚠️ That second half is true of the five TRAVELLING motions only. On `.arp` the
+        // generator returns the centre of a register, so a sub-threshold drift moves neither
+        // pitch nor light — by construction, not by omission (#220 S3).
+        //
+        // The light travels WITH the delay rather than firing on the grid: a pushed note is late
+        // on purpose, and a ring that arrived first would read as a dropped note. This is the
+        // opposite of the finger split above, and correctly so — there is no finger here whose
+        // own touch has to feel instant.
+        showGeneratedNote(pitch: n.pitch, at: n.at, velocity: n.showVelocity)
+    }
+
+    /// Drop every note-on still held back for a GENERATED voice.
+    ///
+    /// Safe by construction: a cancelled task sounds nothing, so there is no note-off to owe and
+    /// no stuck note — the direction that would be dangerous is cancelling a RELEASE, which this
+    /// never touches. Real fingers' pending notes are left alone; they are ended by their own lift.
+    private func cancelGeneratedPending() {
+        for finger in autoPlayFingers {
+            if let pending = pendingOn.removeValue(forKey: ObjectIdentifier(finger)) {
+                pending.cancel()
+            }
         }
     }
 
@@ -783,6 +871,15 @@ final class TouchInstrumentUIView: UIView {
     // MARK: - Touches
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // THE HAND ALWAYS WINS, and after #253 A2b that has to hold for a note already in flight
+        // too. `autoPlayTick`'s `held.isEmpty` guard only stops the NEXT cell; a push-delayed onset
+        // from the cell just before this touch would still speak up to 0.45 of a cell later —
+        // 900 ms on a 1/4 grid at 30 BPM. Cancelled here, so putting a finger down really is
+        // silence from the generator rather than nearly.
+        //
+        // ⚠️ Placed before the `maxTouches` guard on purpose: the hand has arrived either way, and
+        // a fifth finger that cannot claim a note must still not let the generator through.
+        if !touches.isEmpty { cancelGeneratedPending() }
         for touch in touches {
             guard held.count < Self.maxTouches else { break }
             let id = ObjectIdentifier(touch)
