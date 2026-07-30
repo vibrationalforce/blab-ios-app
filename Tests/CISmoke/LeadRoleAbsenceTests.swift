@@ -4,11 +4,13 @@
 // ⭐ THIS FILE EXISTS TO STOP A DISCOVERY FROM ROTTING. On 2026-07-30, building #253 A5 (a rhythm
 // character for the lead, the fourth role in the founder's *"Alle Soundrubriken von Pads, Bass bis
 // arp etc."*), the row turned out to be unshippable: ALL 25 curated genres carry
-// `HarmonicProfile.leadDensity == 0`, nothing mutates it, and the three bespoke melody functions
-// (`dubMelody`, `trapMelody`, `ambientMelody`) have no caller. So the `.lead` branch of
-// `composeHarmonic` — ~170 lines of motif contour, chord-tone anchoring, grace notes and octave
-// lifts — never runs, and no `.lead`-role note is ever composed. A "Lead rhythm" Picker would have
-// been a control that does nothing on every genre: the #135 / #164 / #227 defect class, added by
+// `HarmonicProfile.leadDensity == 0`, nothing mutates it (`harmonicProfile` is a computed `var`
+// returning a fresh struct, so even a local copy could not leak), and the three bespoke melody
+// functions have no caller — of those, `trapMelody` and `ambientMelody` emit `.lead`, `dubMelody`
+// emits harmony and bass; being callerless is the load-bearing half for all three. So the `.lead`
+// branch of `composeHarmonic` — ~120 lines of motif contour, chord-tone anchoring, grace notes and
+// octave lifts — never runs, and no `.lead`-role note is ever composed. A "Lead rhythm" Picker would
+// have been a control that does nothing on every genre: the #135 / #164 / #227 defect class, added by
 // the person who has been closing it.
 //
 // The founder removed those melodies himself on 2026-07-09 ("die Melodie in den Genres war zu laut
@@ -18,7 +20,7 @@
 //
 // ⚠️ IF THIS FILE FAILS, IT IS PROBABLY RIGHT AND YOU ARE PROBABLY MID-WAY THROUGH A GOOD CHANGE.
 // A failure means some genre grew a lead again. That is allowed — it is a founder call — but it
-// must be a DELIBERATE one, because it wakes four dormant code paths at once. Do not "fix" this
+// must be a DELIBERATE one, because it wakes FIVE dormant code paths at once. Do not "fix" this
 // file by loosening the assertion; re-read the checklist in the failure message, wire what it
 // names, then update this file to pin the new truth (which genres sing, which do not).
 //
@@ -46,24 +48,44 @@ final class LeadRoleAbsenceTests: XCTestCase {
         }
         XCTAssertTrue(singing.isEmpty, """
             A genre now asks for a lead melody: \(singing.joined(separator: ", ")).
-            That is a legitimate founder decision — and it wakes FOUR dormant paths that have had
-            nothing to act on. Check each before shipping:
-              1. The Mixer's LEAD fader (`MixerStore.lead`, the "Lead" EchoelValueField in
+            That is a legitimate founder decision (#255) — and it wakes FIVE dormant paths that have
+            had nothing to act on. Check each before shipping:
+              1. `leadVoice` — a LIVE PolySynthVoice(maxVoices: 3), attached to the audio engine and
+                 polling the bus every 100 ms since launch while receiving zero notes
+                 (EchoelmusicApp.swift). It is the voice that would actually sound, and the one #196
+                 (per-role output gain) and #243 (its FX chain) are really about. Start here.
+              2. The Mixer's LEAD fader (`MixerStore.lead`, the "Lead" EchoelValueField in
                  EchoelStudioView) — until now it scaled a role nothing emitted. It becomes live.
-              2. `IntroAttenuation.leadFactor` (0.72) softens bar 0 of the lead. Never yet heard.
-              3. `BioComposer.tameLeadPitch` folds leads above MIDI 84 down an octave — the founder's
+              3. `IntroAttenuation.leadFactor` (0.72) softens bar 0 of the lead. Never yet heard —
+                 and its own file header still describes the softening in the present tense.
+              4. `BioComposer.tameLeadPitch` folds leads above MIDI 84 down an octave — the founder's
                  "piepsig künstlich" fix from 2026-07-11, also never yet heard.
-              4. #253 A5, the Lead rhythm character, was BUILT and REVERTED on 2026-07-30 precisely
-                 because there was no lead. It becomes shippable; the diff is in that commit's body.
-            Then update THIS file to pin which genres sing and which do not.
+              5. #253 A5, the Lead rhythm character, was BUILT and REVERTED on 2026-07-30 precisely
+                 because there was no lead. It becomes shippable; the code is GONE (verified
+                 unrecoverable), the spec is scratchpads/PLAN_LEAD_RHYTHM_A5_2026-07-30.md.
+            Then update BOTH this file and its non-blocking twin
+            (Tests/EchoelmusicTests/MusicStyleTests) to pin which genres sing and which do not.
             """)
     }
 
     /// The fact as a LISTENER meets it: composing any genre, at any body state, yields no lead note.
     ///
-    /// Three bio states rather than one, so the result cannot be a lucky snapshot: the lead's note
-    /// count is a product of `leadDensity`, `liveliness`, `busy` and the tempo thinner, and only the
-    /// FIRST of those is zero. A future non-zero `leadDensity` would surface first at high arousal.
+    /// ⚠️ WHY THREE STATES, corrected — the first version of this note gave the wrong mechanism and
+    /// would have had a future reader reasoning from it. It said the note count is a product of
+    /// `leadDensity`, liveliness, `busy` and the tempo thinner so "a non-zero leadDensity would
+    /// surface FIRST at high arousal". It would not: the count is `max(3, …)`, so ANY
+    /// `leadDensity > 0` yields at least three lead notes at EVERY body state, and one state would
+    /// already be sufficient. The three are kept for a different and weaker reason — they make the
+    /// assertion independent of that particular floor surviving a future refactor.
+    ///
+    /// ⚠️ WHAT THE NAME OVERSTATES: "any body state" is three heart/coherence points, at one mode
+    /// (`.studioLocked`, though four genres default to `.flowFree`), one key, one seed and the default
+    /// mood. That is enough for THIS invariant, per the `max(3, …)` argument above; it would not be
+    /// enough for a claim about note CONTENT.
+    ///
+    /// The second assertion in the loop is a different invariant living under a lead-named test —
+    /// deliberate: a lead-absence test that passes on a composer returning nothing would be
+    /// worthless. Read its message, not the test name, if it is the one that fails.
     func testNoGenreComposesALeadNoteAtAnyBodyState() {
         let states: [(String, Float, Float)] = [
             ("settled", 54, 0.9),      // low arousal — the calm Flächen

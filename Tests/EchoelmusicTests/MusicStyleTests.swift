@@ -188,9 +188,16 @@ final class MusicStyleTests: XCTestCase {
         // extended (Council, same day) from the named 17-genre range to every
         // remaining melodic genre, so the invariant is uniform and not a partial
         // list a future genre could silently fall outside of. BioComposer gates
-        // its whole lead-generation path behind `leadDensity > 0`, so this is the
-        // single authoritative place asserting NO genre auto-generates a lead
-        // melody. The per-genre lead PATCH (leadPatchName) is untouched — a user
+        // its whole lead-generation path behind `leadDensity > 0`, so this asserts
+        // that NO genre auto-generates a lead melody.
+        // ⚠️ It is NO LONGER "the single authoritative place" (it said so until
+        // 2026-07-30): `Tests/CISmoke/LeadRoleAbsenceTests` now asserts the same
+        // invariant in the BLOCKING bundle, and carries the checklist of the five
+        // dormant paths that wake if a genre sings again. This copy is the
+        // non-blocking twin — it cannot fail a merge (#208), which is exactly how
+        // #253 A5 came to be built straight against an invariant already asserted
+        // here. Keep both; when the founder answers #255, update BOTH.
+        // The per-genre lead PATCH (leadPatchName) is untouched — a user
         // still plays their own melody on that genre's warm timbre.
         for style in MusicStyle.allCases {
             XCTAssertEqual(style.harmonicProfile.leadDensity, 0,

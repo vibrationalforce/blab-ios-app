@@ -2235,9 +2235,14 @@ public enum BioComposer {
         //    KEPT, not deleted: everything below is the founder's own 2026-07-11/07-20 tuning of how
         //    a lead should sing, and it is the starting point if one ever returns. The cost of
         //    keeping it is this comment; the cost of deleting it is re-deriving the tuning.
-        //    (`BioComposerTests.swift:360` has said "BioComposer never emits a .lead-role note"
-        //    since before this comment existed — in the NON-blocking bundle, where the fact could
-        //    not stop #253 A5 from being built against it. That is why the guard is in CISmoke.)
+        //    ⚠️ WHY A NEW GUARD WHEN THE FACT WAS ALREADY KNOWN — and the honest answer is NOT the
+        //    one I gave first ("it was only a comment"). It was ASSERTED, in three places:
+        //    `MusicStyleTests.swift` over `MusicStyle.allCases`, and `BioComposerTests.swift:122`
+        //    / `:160` on composed output; `:360` states it in prose too. The reason none of them
+        //    stopped #253 A5 from being built straight against the invariant is simply that the
+        //    WHOLE `EchoelmusicTests` suite is non-blocking (#208) — `full-tests.yml` masks it with
+        //    `continue-on-error` on both steps. So the fix was never "assert it", it was "assert it
+        //    somewhere that can turn a merge red". That is `Tests/CISmoke`, and nothing else.
         //
         //    a SINGING line, not an arpeggio (founder 2026-07-20
         //    "sicherstellen dass keine Melodien Melodien sind"): the line moves

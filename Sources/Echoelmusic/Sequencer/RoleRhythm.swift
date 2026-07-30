@@ -14,8 +14,11 @@
 //  (`MoodProfile` has EIGHT fields. An earlier version of this line said "the other three", which
 //  undercounted it by five and, worse, hid the three-way collision named in the next paragraph.)
 //
-//  ⚠️ THREE OF THESE FIVE NUMBERS OVERLAP AN EXISTING GLOBAL DIAL, and A2–A5 will bind both at
+//  ⚠️ THREE OF THESE FIVE NUMBERS OVERLAP AN EXISTING GLOBAL DIAL, and A2–A4 bind both at
 //  once, so the precedence is decided HERE rather than discovered per role:
+//  (It said "A2–A5" until 2026-07-30. A5 was rejected — see the paragraph 60 lines down — and this
+//  is the block a session reads BEFORE wiring a new role, so a stale range here would have sent one
+//  looking for a lead binding that will never exist.)
 //    · `density`   vs `MoodProfile.liveliness`  — RoleRhythm WINS for the roles it drives.
 //    · `push`/`syncopated` vs `MoodProfile.syncopation` — RoleRhythm WINS for those roles.
 //    · `accent`    vs `MoodProfile.humanize`    — they COMPOSE: `accent` is the deterministic
@@ -80,20 +83,33 @@
 //  ⛔ A5 (LEAD) IS REJECTED, NOT PENDING — and this is the paragraph that stops it being re-planned
 //  every few sessions. **There is no lead melody in this product.** All 25 curated genres carry
 //  `HarmonicProfile.leadDensity == 0`, nothing mutates it, and `dubMelody` / `trapMelody` /
-//  `ambientMelody` have no caller — so `composeHarmonic`'s ~170-line melody block never runs and no
-//  `.lead`-role note is ever composed. The absence is a FOUNDER DECISION (2026-07-09: "die Melodie
+//  `ambientMelody` have no caller — so `composeHarmonic`'s melody block (~120 lines,
+//  `BioComposer.swift` 2258–2380; an earlier version of this line said ~170) never runs and no
+//  `.lead`-role note is ever composed. Note that of the three callerless melody functions, only
+//  `trapMelody` and `ambientMelody` emit `.lead` at all — `dubMelody` emits harmony and bass. All
+//  three are unreachable, which is the load-bearing half for all of them.
+//  The absence is a FOUNDER DECISION (2026-07-09: "die Melodie
 //  in den Genres war zu laut und zu unnatürlich … besser wenn die komplett weg sind"), not a gap to
 //  fill. A5 was fully BUILT on 2026-07-30 — Input field, `roleRhythmOnsets` binding, gate-driven
 //  note lengths, accent-scaled velocity, a Mood-panel Picker — and then reverted in the same cycle,
-//  because a Picker that does nothing on every genre is the #135/#164/#227 lying-control defect. The
-//  diff is in that commit's body if the founder brings the lead back; `LeadRoleAbsenceTests` (BLOCKING
-//  bundle) fails the moment one does, and names the four dormant paths that wake with it.
+//  because a Picker that does nothing on every genre is the #135/#164/#227 lying-control defect.
+//  ⚠️ **THAT CODE IS GONE — not archived, not stashed, not in any commit.** The revert was a
+//  `git checkout --`, verified unrecoverable down to `git fsck --lost-found`. (This paragraph said
+//  "the diff is in that commit's body" for one commit, which was false and would have sent the next
+//  session hunting for prose — the exact failure this header spends four paragraphs warning about.)
+//  The DESIGN survives as a re-implementation spec in
+//  `scratchpads/PLAN_LEAD_RHYTHM_A5_2026-07-30.md` — ~60 lines, both non-obvious traps recorded.
+//  `LeadRoleAbsenceTests` (BLOCKING bundle) fails the moment a genre sings again, and names the FIVE
+//  dormant paths that wake with it.
 //  ⚠️ Do NOT read this as "the lead code is dead, delete it". `tameLeadPitch` and
 //  `IntroAttenuation.leadFactor` hold real founder tuning from 2026-07-07/07-11, and #196 is an open
 //  task on the lead's output gain. Dormant-and-documented, not deleted — that call is the founder's.
 //
-//  So ONE role is left genuinely open: A6, the bounded timbre/FX trim — and that one is not a fifth
-//  consumer of `hit`, it reads the CHARACTER to nudge a sound, so this list may well stay at three.
+//  So one ROLE is left open: A6, the bounded timbre/FX trim — and that one is not a fourth consumer
+//  of `hit`, it reads the CHARACTER to nudge a sound, so this list may well stay at three. Two
+//  non-role items are also still open and are named here so "one role left" is not read as "nothing
+//  else pending": **A2b** (make `push` actually late — see the paragraph above) and the **inner pulse
+//  layer**, which no character governs (`Input.padRhythm`'s doc states that deliberately).
 //  (This block said "TWO consumers … A4 (pad) has no writer" for one commit — written in the commit
 //  that added the pad as the third. Twenty lines above, this same header spends a paragraph on
 //  exactly that failure with A2. Update it IN the diff that adds a consumer, not after.)

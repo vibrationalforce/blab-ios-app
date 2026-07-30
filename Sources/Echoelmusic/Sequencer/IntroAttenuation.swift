@@ -1,4 +1,13 @@
 // IntroAttenuation.swift
+//
+// ⛔ READ THIS FIRST: EVERYTHING BELOW IS WRITTEN IN THE PRESENT TENSE AND DESCRIBES A BEHAVIOUR
+// THAT HAS NEVER OCCURRED. All 25 curated genres set `HarmonicProfile.leadDensity` to 0, so no
+// `.lead`-role note is ever composed and `apply` returns every take unchanged (pinned by
+// `LeadRoleAbsenceTests` in the blocking bundle; the full finding is in `RoleRhythm.swift`'s A5
+// paragraph). The paragraphs below are the DESIGN, kept because the softened entrance is a real
+// intent and this is where it belongs the moment a genre sings again — not a shipping description.
+// The "known scope limit" note at the bottom is a limit of a feature that does not run.
+//
 // Echoel — founder ear-feedback 2026-07-21 (task #77): "viele klingen am Anfang
 // etwas zu unruhig wegen lauter Melodie" (many genres sound a bit restless at the
 // start because of a loud melody). The lead melody plays at full genre-mix loudness
