@@ -111,24 +111,22 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// Whether this frame carries a REAL pulse, as opposed to the structural zero a
     /// publisher emits before it locks (#245, and the hoist #244 asked for).
     ///
-    /// `heartRateBPM > 0` was written out at five separate call sites before this existed
-    /// (`BioModulationMap`, `ModulationMatrix`, `BioTempoDirector`, `PolySynthVoice`, and
-    /// then `OSCSender`), which is how the sixth consumer — the OSC egress — came to be
-    /// written WITHOUT it and shipped a fabricated zero to other people's gear for months.
-    /// One predicate, one meaning, so a new consumer inherits the question instead of
-    /// having to think of it.
+    /// `heartRateBPM > 0` is written out at FOUR call sites (`BioModulationMap`,
+    /// `ModulationMatrix`, `BioTempoDirector`, `PolySynthVoice`), and `ModulationMatrix` asks
+    /// in as many words for them to be hoisted here. This is that hoist — the four are
+    /// converted in the same commit, because adding a THIRD spelling of one question is worse
+    /// than the two it was meant to replace.
+    ///
+    /// The consumer it was missing at is the OSC egress, which sent `/bio/heart/bpm 0` to other
+    /// people's gear as if it were a reading (#245).
     ///
     /// ⛔ NOT a general "is this frame usable" flag. Freshness is a separate axis and lives
     /// on the bus (`freshBio(maxAge:)`); a frame can carry a real pulse and still be too old
-    /// to act on. And a frame WITHOUT a pulse is not worthless — `breathRate` may still be
-    /// measured, which is exactly why the breath addresses ride their own gate below.
+    /// to act on. And it says nothing about HRV or coherence: both are derived from the beat
+    /// SERIES, so a locked pulse can sit next to `hrvNormalized == 0` for the first ~55 s of a
+    /// session while the spectrum fills. Those two carry their own sentinels — gate on the
+    /// value, not on this (`ModSource.isMeasured` answers it per channel).
     public var hasMeasuredHeartRate: Bool { heartRateBPM > 0 }
-
-    /// Whether this frame carries a REAL breath measurement (#245). Separate from the pulse
-    /// because the two are independently produced — and because `breathPhase` cannot gate
-    /// itself: 0 is a legitimate phase (the start of an inhale), so the only honest question
-    /// is whether the RATE that phase belongs to was measured at all.
-    public var hasMeasuredBreath: Bool { breathRate > 0 }
 
     /// Raw HRV as RMSSD in **milliseconds** — the un-normalized, instrument-grade
     /// value for display, logging, and OSC. `0` means the source does not provide

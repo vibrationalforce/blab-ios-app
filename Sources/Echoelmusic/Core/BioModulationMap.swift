@@ -85,7 +85,7 @@ public enum BioModulationMap {
         case .breath:    return frame.hasMeasuredBreath
         case .coherence: return frame.coherence > 0
         case .hrv:       return frame.hrvNormalized > 0
-        case .heartRate: return frame.heartRateBPM > 0
+        case .heartRate: return frame.hasMeasuredHeartRate
         }
     }
 

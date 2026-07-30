@@ -69,6 +69,9 @@ public struct BioTempoDirector: Sendable, Equatable, Codable {
         case .locked:
             return Self.clampTempo(lockedTempo)
         case .bioFollow:
+            // NOT `frame.hasMeasuredHeartRate`: this type takes a loose `heartRateBPM`
+            // parameter, not a `BioSampleFrame`, so the hoisted predicate is out of reach here.
+            // Left as the literal deliberately (#244) rather than widening the signature.
             let hr = Self.clampTempo(heartRateBPM > 0 ? heartRateBPM : lockedTempo)
             let c = Swift.min(Swift.max(coherence, 0), 1)
             let pulled = hr * (1 - c) + Self.resonanceBPM * c

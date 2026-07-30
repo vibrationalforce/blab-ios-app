@@ -677,6 +677,8 @@ public final class PolySynthVoice {
     /// `coherence` is exactly how a second caller would reintroduce it silently.
     private func applyEntrainment(neutralCoherence: Float, heartRateBPM: Float, motionEnergy: Float) {
         guard entrainmentEnabled else { return }
+        // Same as `BioTempoDirector`: a loose `Float` parameter, not a frame — the hoisted
+        // `BioSampleFrame.hasMeasuredHeartRate` cannot be reached from here (#244).
         let quality: Float = heartRateBPM > 0 ? clampUnit(1 - motionEnergy) : 0
         let target = BioEntrainmentDirector(manualBand: entrainmentManualBand)
             .target(coherence: clampUnit(neutralCoherence), quality: quality)

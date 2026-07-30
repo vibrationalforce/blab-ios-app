@@ -121,8 +121,11 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     /// Agrees with `BioModulationMap.isMeasured` (the display-side gate) on the four
     /// channels they share — heart rate, HRV, coherence, breath. It is a SECOND,
     /// independent switch, not a shared implementation, and nothing tests that the two
-    /// stay aligned: if you change either, change both, or hoist them onto
-    /// `BioSampleFrame`. Motion and the three face channels exist only here.
+    /// stay aligned: if you change either, change both. The HOIST this note asked for is
+    /// done for the two channels that have one — `hasMeasuredHeartRate` and
+    /// `hasMeasuredBreath` on `BioSampleFrame` — and deliberately NOT for `hrv`/`coherence`:
+    /// their gate is a bare sentinel on the field itself, and a named property would only
+    /// restate the field name. Motion and the three face channels exist only here.
     ///
     /// Breath is the channel whose gate reads a DIFFERENT field than its value:
     /// `breathPhase` has no unknown sentinel (0 is a real position, exhale start), so
@@ -138,7 +141,7 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     /// deferred today).
     public func isMeasured(in frame: BioSampleFrame) -> Bool {
         switch self {
-        case .heartRate:   return frame.heartRateBPM > 0
+        case .heartRate:   return frame.hasMeasuredHeartRate
         case .hrv:         return frame.hrvNormalized > 0
         case .coherence:   return frame.coherence > 0
         case .breathRate, .breathPhase: return frame.hasMeasuredBreath

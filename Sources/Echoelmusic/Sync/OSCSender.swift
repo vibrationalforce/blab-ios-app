@@ -15,13 +15,15 @@
 //  holds its last value, which is what a performer expects when the camera blinks — sending
 //  a structural 0 instead collapsed a bound scale or slewed a lighting desk to black with no
 //  way to tell that apart from a real stop.
-//    /echoelmusic/bio/heart/bpm     float [40..200]  — only when a pulse is measured
-//    /echoelmusic/bio/heart/hrv     float [0..1]     — with the pulse (derived from it)
-//    /echoelmusic/bio/breath/rate   float [4..30]    — only when breath is measured
+//    /echoelmusic/bio/heart/bpm     float [40..200]  — only with a measured pulse
+//    /echoelmusic/bio/heart/hrv     float [0..1]     — on its OWN sentinel, NOT the pulse:
+//        both live sensors publish a locked BPM with hrv 0 for the first ~55 s, until the
+//        RR record is long enough for a spectrum
+//    /echoelmusic/bio/breath/rate   float [4..30]    — on the plausibility band (3…40/min)
 //    /echoelmusic/bio/breath/phase  float [0..1]     — with the RATE, never gated on itself:
-//        0 is a legitimate phase (start of an inhale), so a value gate would drop real data
-//        once per breath cycle
-//    /echoelmusic/bio/coherence     float [0..1]     — with the pulse (derived from it)
+//        the phase has no unknown sentinel (0 = EXHALE start, 0.5 = inhale start), so a value
+//        gate would drop real data once per breath cycle
+//    /echoelmusic/bio/coherence     float [0..1]     — on its own sentinel, same as hrv
 //    /echoelmusic/bio/motion        float [0..1]  — NOT SENT in this build (#215):
 //        nothing measures motion, so the address would carry a constant 0 that a
 //        receiver cannot tell apart from a motionless performer. It returns the day a
@@ -255,10 +257,19 @@ public final class OSCSender {
         // pulse (#235), so the un-measured state is the COMMON one today, not the edge case.
         if frame.hasMeasuredHeartRate {
             msgs.append(("/echoelmusic/bio/heart/bpm", [frame.heartRateBPM]))
-            // HRV and coherence are both derived from the beat series, so a frame without a
-            // pulse cannot carry either — they ride the pulse gate rather than their own value.
-            // `hrvNormalized` additionally states in its own doc that 0 means NOT MEASURED and
-            // never "minimum variability"; sending it asserted the extreme it warns against.
+        }
+        // ⛔ HRV AND COHERENCE GATE ON THEIR OWN VALUE, NOT ON THE PULSE — and the first cut of
+        // this slice got that wrong in the direction that matters. Both are derived from the
+        // beat SERIES, not from a single beat: `PolarH10BioPublisher` and `CameraRPPGBioPublisher`
+        // both publish a locked BPM with `hrvNormalized: 0` and `coherence: 0` until enough RR
+        // has accumulated for a spectrum — roughly the first 55 s of every session, and again
+        // whenever the RR record is untrustworthy. Riding the pulse gate therefore let exactly
+        // the collapse-to-zero this slice exists to stop through, on the two addresses a
+        // lighting desk is most likely bound to. Both fields carry their own sentinel and their
+        // own docs say so ("0 means NOT MEASURED, not minimum variability"; "treat 0 as 'not
+        // available', not as 'incoherent'"), and `ModSource.isMeasured` already answers this
+        // per channel with precisely these predicates — the egress now agrees with it.
+        if frame.hrvNormalized > 0 {
             msgs.append(("/echoelmusic/bio/heart/hrv", [frame.hrvNormalized]))
         }
         // Beat-to-beat (RR-derived) time-domain metrics — only from a real RR source
@@ -276,16 +287,29 @@ public final class OSCSender {
         if frame.hrvSDNNms > 0 {
             msgs.append(("/echoelmusic/bio/heart/sdnn", [frame.hrvSDNNms]))
         }
-        // Breath rides its OWN gate, not the pulse one: the two are independently produced, and
-        // a frame can carry breath without a lock. ⚠️ `breathPhase` is gated on the RATE and
-        // never on itself — 0 is a legitimate phase (the start of an inhale), so a `> 0` test on
-        // the phase would drop real data once per cycle, which is worse than the fabrication it
-        // would be trying to prevent.
+        // Breath rides its OWN gate — `BioSampleFrame.hasMeasuredBreath`, which is the
+        // PLAUSIBILITY BAND (3…40/min) and not a bare `> 0`: you cannot breathe half a time a
+        // minute, so a value outside the band is an absence. (The first cut of this slice
+        // declared a second `hasMeasuredBreath` as `breathRate > 0` right next to the existing
+        // one — a redeclaration that did not compile, and would have admitted 0.5/min if it had.)
+        //
+        // ⚠️ A SEPARATE GATE, BUT NOT FOR THE REASON FIRST WRITTEN HERE. That said the two
+        // signals are "independently produced". They are not, on the only egress-allowed source
+        // that carries breath: `CameraRPPGBioPublisher` derives respiration from the RR series
+        // via RSA, so no pulse means no breath. HealthKit IS an independent respiration source
+        // and is network-blocked upstream (5.1.3). The separate gate is still correct — it is
+        // defensive against the day an independent producer arrives, and it costs nothing — but
+        // it buys no live case today, and saying otherwise overstated the slice.
+        //
+        // ⚠️ `breathPhase` is gated on the RATE and never on itself: the phase has NO unknown
+        // sentinel — 0 is a meaningful position (EXHALE start; 0.5 is inhale start, per the
+        // field's own doc) — so it cannot answer this question about itself. A `> 0` test there
+        // would drop real data once per breath cycle.
         if frame.hasMeasuredBreath {
             msgs.append(("/echoelmusic/bio/breath/rate", [frame.breathRate]))
             msgs.append(("/echoelmusic/bio/breath/phase", [frame.breathPhase]))
         }
-        if frame.hasMeasuredHeartRate {
+        if frame.coherence > 0 {
             msgs.append(("/echoelmusic/bio/coherence", [frame.coherence]))
         }
         // Motion rides a STRUCTURAL gate rather than a value one (#215). Every
