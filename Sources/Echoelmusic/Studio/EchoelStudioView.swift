@@ -106,6 +106,10 @@ struct EchoelStudioView: View {
     private var fieldVoices = StudioDefaultKeys.fieldAutoPlayVoices.value
     @AppStorage(StudioDefaultKeys.fieldAutoPlayPeriod.key)
     private var fieldPeriod = StudioDefaultKeys.fieldAutoPlayPeriod.value
+    // #253 A3 — the composed BASS's rhythm character. A raw String and not the enum, because ""
+    // (= the genre's own rhythm) is a real state the enum has no case for; see the key's doc.
+    @AppStorage(StudioDefaultKeys.bassRhythm.key)
+    private var bassRhythmRaw = StudioDefaultKeys.bassRhythm.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmCharacter.key)
     private var fieldArpCharacter: RoleRhythm.Character = StudioDefaultKeys.fieldArpRhythmCharacter.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmGate.key)
@@ -3226,9 +3230,41 @@ struct EchoelStudioView: View {
             moodKnob("Virtuosity", $mood.virtuosity)
             moodKnob("Syncopation", $mood.syncopation)
             moodKnob("Humanize", $mood.humanize)
+            bassRhythmRow
             Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · bright ↔ dark · lush 7ths (romance) · odd leaps (weird). Blends with your live signal.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// #253 A3 — the BASS's rhythm character, in the Mood panel because this panel is exactly
+    /// "Character of the composition" and a bassline's feel is character, not timbre or tempo.
+    ///
+    /// **"Genre" is the first option and the default, and it is not a placeholder** — it means the
+    /// bass keeps the rhythm the style was curated with. Every other option OVERRIDES that for all
+    /// genres at once, which is why the neutral choice has to be the one you land on and the one you
+    /// can always get back to (#81/#125: the founder tuned these genres by ear twice, and "plötzlich
+    /// klingt alles gleich" was the defect).
+    ///
+    /// A `Picker` and not an `EchoelValueField`: named values (the same reading of the one-control
+    /// law as the arp's Rhythm row). Recomposes on change like every other row in this panel — it
+    /// changes the notes, not the sound.
+    ///
+    /// ⚠️ It has NO effect on a sustained-drone genre or on trap's 808 pedal, by design: those hold a
+    /// root as the harmonic foundation and have no walk to place. If a founder ever reads this row as
+    /// dead on Meditation or Trap, that is the reason — not a bug, and worth a caption then.
+    private var bassRhythmRow: some View {
+        labeledRow("Bass rhythm") {
+            Picker("Bass rhythm", selection: $bassRhythmRaw) {
+                Text("Genre").tag("")
+                ForEach(RoleRhythm.Character.allCases, id: \.rawValue) { c in
+                    Text(fieldArpRhythmLabel(c)).tag(c.rawValue)
+                }
+            }
+            .pickerStyle(.menu).tint(EchoelTheme.text)
+            .onChange(of: bassRhythmRaw) { _, _ in recomposeIfRunning() }
+            .accessibilityLabel("Bass rhythm")
+            .accessibilityHint("Genre keeps the style's own bassline; the other choices override it")
         }
     }
 
@@ -4799,7 +4835,10 @@ struct EchoelStudioView: View {
             // statt Legacy-Progression — die KOHÄRENZ wählt die Spannung
             // (gesettelt → erwartete Fortsetzung, unruhig → Borrowings).
             // Rollback = dieses eine Wort auf false.
-            suggestJourney: true
+            suggestJourney: true,
+            // #253 A3: nil (the stored default "") = the genre's own bass rhythm, byte-identical.
+            // An unrecognised stored value also reads as nil, for the reason the key states.
+            bassRhythm: RoleRhythm.Character(rawValue: bassRhythmRaw)
         )
         return (input, frame, evolvingSeed, structureSeed, basePhase)
     }

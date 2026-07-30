@@ -188,6 +188,26 @@ public enum BioComposer {
         /// already on this Input (see `chordSuggestControl`). `false` (default)
         /// keeps today's path byte-identical (pinned in ChordSuggestTests).
         public var suggestJourney: Bool
+        /// #253 A3 — WHICH RHYTHM THE BASS WALKS IN (founder 2026-07-30: *"Alle Soundrubriken von
+        /// Pads, Bass bis arp etc. brauchen noch verschiedene Rhythmus Regler … interessante,
+        /// treibende, hypnotische, dynamische etc."*).
+        ///
+        /// **`nil` (default) = the genre's own bass rhythm, byte-identical** — the same Golden law
+        /// `voiceLeading` / `humanize` / `suggestJourney` above are held to, and here it is not
+        /// hygiene but the whole design. The founder CURATED these genres twice (#81, #125:
+        /// "erst eine individuelle Variation und dann klingt plötzlich alles gleich"), so a rhythm
+        /// character that applied itself by default would flatten Disco, Doom and Dub Techno onto
+        /// one bassline — the exact failure those two tasks fixed. This is an OVERRIDE a player
+        /// reaches for, never a new baseline.
+        ///
+        /// A `Character` and NOT a full `RoleRhythm.Params`, deliberately: the bass already gets its
+        /// rate, its level and its length from the BODY (`busy`/`calm` → the walking gap, the
+        /// section velocity). Four more dials would be four more ways to contradict the
+        /// biofeedback. The character chooses the SHAPE; the body keeps the scale.
+        ///
+        /// ⚠️ It only reaches the WALKING bass. A sustained profile's held root and trap's
+        /// quarter-note 808 pedal are the genre's foundation, not a groove — see `appendBass`.
+        public var bassRhythm: RoleRhythm.Character?
 
         public init(
             heartRateBPM: Float = 70,
@@ -205,7 +225,8 @@ public enum BioComposer {
             progressionPhase: Int = 0,
             voiceLeading: Bool = false,
             humanize: Bool = false,
-            suggestJourney: Bool = false
+            suggestJourney: Bool = false,
+            bassRhythm: RoleRhythm.Character? = nil
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -223,6 +244,7 @@ public enum BioComposer {
             self.voiceLeading = voiceLeading
             self.humanize = humanize
             self.suggestJourney = suggestJourney
+            self.bassRhythm = bassRhythm
         }
     }
 
@@ -652,6 +674,7 @@ public enum BioComposer {
                                     articulation: input.style.chordArticulation,
                                     voiceLead: voiceLead,
                                     suggest: suggest,
+                                    bassRhythm: input.bassRhythm,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -681,6 +704,7 @@ public enum BioComposer {
                                     articulation: input.style.chordArticulation,
                                     voiceLead: voiceLead,
                                     suggest: suggest,
+                                    bassRhythm: input.bassRhythm,
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
@@ -1271,7 +1295,9 @@ public enum BioComposer {
                                    secStart: Int, len: Int, busy: Float, calm: Float,
                                    velocity: Float, sustained: Bool,
                                    quarterAnchor: Bool = false,
-                                   alterations: [Int] = [], rng: inout SeededRNG) {
+                                   alterations: [Int] = [],
+                                   rhythm: RoleRhythm.Character? = nil,
+                                   rng: inout SeededRNG) {
         // H2: semitone alteration of a chord tone (root / fifth) when the
         // section's chord is a borrowed suggestion. Empty (legacy: always) ⇒ 0.
         func alt(_ tone: Int) -> Int {
@@ -1314,10 +1340,58 @@ public enum BioComposer {
         let gap = (motion > 0.62 && len >= 8) ? 2 : 4      // 8ths when driving, else quarters
         let secEndLocal = secStart + len
         var hitStarts: [Int] = []
-        var s = secStart
-        while s < secEndLocal { hitStarts.append(s); s += gap }
+        // #253 A3: a chosen rhythm character replaces WHICH steps the walk lands on. `nil` skips
+        // this whole block and the even `gap` grid below runs byte-identically — the Golden law.
+        //
+        // The BODY still owns the rate: the density handed to `RoleRhythm` is derived from the very
+        // same `motion`/`gap` decision the genre made (8ths → 0.5, quarters → 0.25 of a 16-step
+        // bar), so an even-spread character sounds the SAME NUMBER of notes as today and only their
+        // placement, level and length change. That is what keeps this an override of feel rather
+        // than a second tempo control fighting the biofeedback.
+        //
+        // Counted on the composer's 16-step BAR and not on the section, using ABSOLUTE steps: the
+        // characters that subdivide (`sparse`, `syncopated` read `beat = cells/4`) must land on real
+        // quarters. Feeding them a section length would make "the beat" whatever the section
+        // happens to be, and an 11-step mood splice would put their accents nowhere musical.
+        var rhythmHits: [Int: RoleRhythm.Hit] = [:]
+        if let character = rhythm {
+            let bar = 16
+            let density: Float = gap == 2 ? 0.5 : 0.25
+            let params = RoleRhythm.Params(character: character, density: density)
+            // ONE seed for the whole section, drawn once. Drawing per step would hand `RoleRhythm` a
+            // different stream for every cell, which makes the two characters that consult the RNG
+            // (`flowing`'s cell flips, `dynamic`'s level jitter) re-roll per call instead of being a
+            // reproducible function of (bar, cell, seed) — the property this whole core is built on.
+            let rhythmSeed = rng.next()
+            for step in secStart..<secEndLocal {
+                let cell = ((step % bar) + bar) % bar
+                guard let beat = RoleRhythm.hit(bar: step / bar, cell: cell, cellsPerBar: bar,
+                                                params: params, seed: rhythmSeed) else { continue }
+                rhythmHits[step] = beat
+                hitStarts.append(step)
+            }
+            // THE FOUNDATION IS NOT NEGOTIABLE. This function's contract — stated in its own doc
+            // and relied on by the sub — is that the section downbeat IS the chord root. Some
+            // characters would drop it: `syncopated` skips every on-beat below density 0.85 by
+            // design, so at the 0.25/0.5 densities above its bar would start on air and the low end
+            // would lose its grounding. Prepending costs one note and keeps the walk's degree logic
+            // (`j == 0` ⇒ root) exactly as it was.
+            if hitStarts.first != secStart { hitStarts.insert(secStart, at: 0) }
+        } else {
+            var s = secStart
+            while s < secEndLocal { hitStarts.append(s); s += gap }
+        }
         for (j, start) in hitStarts.enumerated() {
-            let noteLen = max(1, min(gap, secEndLocal - start))
+            // Length: to the next hit (or the section end), scaled by the character's gate — the
+            // same meaning gate has on the arp, a fraction of the space this note actually has.
+            // At least one step, so a note is never a zero-length click (the #205/#176 law).
+            let room = (j + 1 < hitStarts.count ? hitStarts[j + 1] : secEndLocal) - start
+            let noteLen: Int
+            if let beat = rhythmHits[start] {
+                noteLen = max(1, min(room, Int((Float(room) * beat.gateFraction).rounded())))
+            } else {
+                noteLen = max(1, min(gap, secEndLocal - start))
+            }
             let isDown = (j == 0)
             let isLast = (j == hitStarts.count - 1)
             let degree: Int
@@ -1332,7 +1406,16 @@ public enum BioComposer {
                 degree = (j % 2 == 1) ? rootDegree + 4 : rootDegree  // fifth / root alternation
                 alteration = (j % 2 == 1) ? alt(4) : alt(0)
             }
-            let vel = isDown ? velocity : velocity * 0.82
+            // The character shapes the CONTOUR, the composer keeps the LEVEL. `RoleRhythm.Hit`
+            // velocities are absolute values around a neutral 0.72 (see its velocity maths), so
+            // dividing by that turns the accent pattern into a multiplier and the section's own
+            // `velocity` — which carries the genre's mix balance and the body's energy — still sets
+            // how loud the bass sits. Using the Hit's absolute value instead would have thrown the
+            // composer's level away and made every character equally loud.
+            var vel = isDown ? velocity : velocity * 0.82
+            if let beat = rhythmHits[start] {
+                vel = clamp01(velocity * (beat.velocity / 0.72))
+            }
             notes.append(Note(id: nextUUID(&rng),
                               pitch: key.degree(degree, octave: octave) + alteration,
                               startStep: start, lengthSteps: noteLen,
@@ -1499,6 +1582,7 @@ public enum BioComposer {
                                         articulation: MusicStyle.ChordArticulation = .sustained,
                                         voiceLead: VoiceLeadControl? = nil,
                                         suggest: ChordSuggestControl? = nil,
+                                        bassRhythm: RoleRhythm.Character? = nil,
                                         rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
@@ -1676,7 +1760,7 @@ public enum BioComposer {
                        octave: bassOct, secStart: secStart, len: len,
                        busy: busy, calm: calm, velocity: bassVelocity,
                        sustained: profile.sustained, quarterAnchor: quarterAnchor,
-                       alterations: secAlts, rng: &rng)
+                       alterations: secAlts, rhythm: bassRhythm, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for

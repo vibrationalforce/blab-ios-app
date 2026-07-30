@@ -51,6 +51,18 @@ public enum StudioDefaultKeys {
     public static let lockedBPM = StudioDefault(key: "studio.lockedBPM", value: 70.0)
     public static let loudnessTarget = StudioDefault(key: "studio.loudnessTarget",
                                                      value: LoudnessTarget.streaming.rawValue)
+    /// #253 A3 — the rhythm character the BASS walks in, or `""` meaning "the genre's own".
+    ///
+    /// ⚠️ **`""` IS THE DEFAULT AND IT MUST STAY THE DEFAULT** until a founder says otherwise. The
+    /// genres were curated by ear, twice (#81, #125). A character stored here overrides the bass
+    /// rhythm for EVERY genre, so shipping any non-empty default would flatten Disco, Doom and Dub
+    /// Techno onto one bassline — precisely the "plötzlich klingt alles gleich" defect those two
+    /// tasks fixed. Same shape and same reasoning as `fieldAutoPlayMotion`: off is a real stored
+    /// state, and an unrecognised value reads as off rather than as some substituted character.
+    ///
+    /// Stored as `RoleRhythm.Character`'s raw string rather than an index, so inserting a seventh
+    /// character cannot silently re-point every saved take.
+    public static let bassRhythm = StudioDefault(key: "studio.bassRhythm", value: "")
 
     // MARK: visual.* — immersive visual look + window
 
