@@ -333,6 +333,10 @@ struct TouchInstrumentView: UIViewRepresentable {
     var autoPlay: FieldAutoPlay.Params?
     /// Makes `.drift` reproducible. Same value → same figure.
     var autoPlaySeed: UInt64 = 0
+    /// How the cell labels spell their notes (#232 E). Threaded in rather than read from
+    /// `UserDefaults` down in the UIKit view: a draw-time read would not know when to
+    /// redraw, and the setting has to take effect the moment it is chosen.
+    var noteNaming: NoteNaming = .english
 
     func makeUIView(context: Context) -> TouchInstrumentUIView {
         let v = TouchInstrumentUIView()
@@ -348,6 +352,7 @@ struct TouchInstrumentView: UIViewRepresentable {
         v.quantizer = quantizer
         v.musicalNow = musicalNow
         v.autoPlaySeed = autoPlaySeed
+        v.noteNaming = noteNaming
         // Set last so the seed is in place before the clock could ever look at it. The clock
         // does NOT start here — `startAutoPlay` requires a window and this view has none yet;
         // `didMoveToWindow` is what starts it. (An earlier comment on this line claimed the
@@ -369,12 +374,19 @@ struct TouchInstrumentView: UIViewRepresentable {
         uiView.quantizer = quantizer
         uiView.musicalNow = musicalNow
         uiView.autoPlaySeed = autoPlaySeed
+        uiView.noteNaming = noteNaming
         uiView.autoPlay = autoPlay
     }
 }
 
 /// UIKit view doing the actual multi-touch → notes + water rings.
 final class TouchInstrumentUIView: UIView {
+    /// How the cell labels spell their notes (#232 E). `setNeedsLayout` because the labels
+    /// are `CATextLayer`s written during the layout pass — without it the surface would keep
+    /// the old spelling until something else happened to move.
+    var noteNaming: NoteNaming = .english {
+        didSet { if noteNaming != oldValue { setNeedsLayout() } }
+    }
     weak var synth: PolySynthVoice? {
         didSet {
             if synth !== oldValue {
@@ -848,7 +860,7 @@ final class TouchInstrumentUIView: UIView {
         let bands = TouchPitchMap.octaveBands
         let cellW = rect.width / CGFloat(n)
         let cellH = rect.height / CGFloat(bands.count)
-        let names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+        let naming = noteNaming
         let labelSize: CGFloat = min(12, max(9, cellH * 0.16))
 
         for d in 0..<n {
@@ -879,7 +891,7 @@ final class TouchInstrumentUIView: UIView {
                 // pure tint was unreadable for dim colours); the note's colour
                 // stays on the field + border, so nothing is lost.
                 let label = CATextLayer()
-                label.string = names[((pitch % 12) + 12) % 12] + "\(pitch / 12 - 1)"
+                label.string = naming.name(pitchClass: pitch) + "\(pitch / 12 - 1)"
                 label.fontSize = labelSize
                 label.foregroundColor = UIColor.white.withAlphaComponent(isRoot ? 0.9 : 0.62).cgColor
                 label.alignmentMode = .left

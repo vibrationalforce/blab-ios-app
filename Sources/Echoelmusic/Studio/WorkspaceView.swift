@@ -699,7 +699,15 @@ struct CompositionHeaderStrip: View {
     // in `body`, so the ~10 Hz `transport.tempo` churn never subscribes this Picker host.
     @Environment(Transport.self) private var transport
 
-    private static let noteNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
+    /// How the Key picker spells its twelve names (#232 E). A LOW-frequency read (a user
+    /// setting), safe in this Picker-hosting body under the freeze law.
+    ///
+    /// This replaced a hard-coded English array. It was not a translation gap: in German,
+    /// Austrian and Scandinavian notation the natural above A♯ is **H**, and **B** means B♭ —
+    /// so this picker was offering a German reader the wrong note, on the control that
+    /// decides the key of everything the app generates.
+    @AppStorage(StudioDefaultKeys.noteNaming.key) private var noteNamingRaw = StudioDefaultKeys.noteNaming.value
+    private var noteNaming: NoteNaming { NoteNaming(stored: noteNamingRaw) }
 
     var body: some View {
         @Bindable var session = session
@@ -727,7 +735,9 @@ struct CompositionHeaderStrip: View {
                 }
                 labeled("Key") {
                     Picker("Key", selection: edited($rootIndex, posts: "key")) {
-                        ForEach(0..<12, id: \.self) { i in Text(Self.noteNames[i]).tag(i) }
+                        ForEach(0..<12, id: \.self) { i in
+                            Text(noteNaming.name(pitchClass: i)).tag(i)
+                        }
                     }
                     .pickerStyle(.menu).tint(EchoelTheme.text)
                     .accessibilityLabel("Key root")
@@ -745,6 +755,23 @@ struct CompositionHeaderStrip: View {
                     }
                     .pickerStyle(.menu).tint(EchoelTheme.text)
                     .accessibilityLabel("Tone system")
+                }
+                // Directly after "Tone system" on purpose: that row picks WHICH pitches
+                // exist, this one picks what they are CALLED. Together they are the whole
+                // "what musical culture am I reading in" question, and a player who needs
+                // one usually needs the other. A `Picker` and not an `EchoelValueField` —
+                // the values have names, which is the stated exception to the one-control
+                // law, not a violation of it.
+                labeled("Note names") {
+                    Picker("Note names", selection: $noteNamingRaw) {
+                        ForEach(NoteNaming.allCases, id: \.rawValue) { n in
+                            Text(n.displayName).tag(n.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .accessibilityLabel("Note name system")
+                    .accessibilityHint("Chooses how the twelve notes are spelled — "
+                                       + "international A B C, German A H C, or solfège Do Re Mi")
                 }
                 labeled("A4") {
                     // Concert pitch — number-pad entry, exact to 0.01 Hz (380–500),

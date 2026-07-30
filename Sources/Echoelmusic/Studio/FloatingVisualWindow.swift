@@ -113,6 +113,10 @@ struct FloatingVisualWindow: View {
     @Environment(\.touchSynth) private var touchSynth
     /// Position-morph amount for the play surface (shared key with the Studio panel).
     @AppStorage(StudioDefaultKeys.touchMorphDepth.key) private var touchMorphDepth = StudioDefaultKeys.touchMorphDepth.value
+    /// Note-name spelling for the Field's cell labels (#232 E). A user setting, so a
+    /// low-frequency read — but it is read HERE and passed down rather than read inside the
+    /// UIKit surface, because a draw-time `UserDefaults` read would not know when to redraw.
+    @AppStorage(StudioDefaultKeys.noteNaming.key) private var noteNamingRaw = StudioDefaultKeys.noteNaming.value
     // For a fitting MP4 name (founder: "Session Recording für video und auch passender
     // Name") — same convention as the WAV: Echoel_<date>_<Key>_<bpm>_A440_<Genre>.mp4.
     @Environment(SessionContext.self) private var session
@@ -619,7 +623,8 @@ struct FloatingVisualWindow: View {
                                         // different every launch, which is the opposite of
                                         // what a saved setting means.
                                         autoPlay: fieldAutoPlay,
-                                        autoPlaySeed: 0)
+                                        autoPlaySeed: 0,
+                                        noteNaming: NoteNaming(stored: noteNamingRaw))
                 }
                 #endif
                 #if canImport(AVFoundation)

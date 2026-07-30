@@ -275,6 +275,22 @@ public enum StudioDefaultKeys {
     /// this is a thing that accepts. Those are not the same consent.
     public static let networkMIDI = StudioDefault(key: "midi.networkSession", value: false)
 
+    // MARK: music.*
+
+    /// How pitch classes are SPELLED — `NoteNaming`'s raw value (#232 E, founder 2026-07-29
+    /// *"international für alle Kulturen und Hintergründe accessible"*).
+    ///
+    /// Stored as the raw STRING and not an index, for the reason the arp's motion key gives:
+    /// an index silently re-points if the cases are ever reordered, and here that would show a
+    /// German user English names (or worse, solfège) after an update, on the control that
+    /// decides the key. Read it back through `NoteNaming(stored:)`, never
+    /// `NoteNaming(rawValue:)!` — an unrecognised value must land on English, not crash.
+    ///
+    /// Default `.english`: it is the app's interop spelling and the one every existing
+    /// install already sees, so this key changes nothing until someone chooses.
+    public static let noteNaming = StudioDefault(key: "music.noteNaming",
+                                                 value: NoteNaming.english.rawValue)
+
     // MARK: weather.*
 
     public static let weatherEnabled = StudioDefault(key: "weather.enabled", value: false)
