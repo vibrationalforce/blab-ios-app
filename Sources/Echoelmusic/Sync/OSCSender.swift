@@ -258,33 +258,47 @@ public final class OSCSender {
         if frame.hasMeasuredHeartRate {
             msgs.append(("/echoelmusic/bio/heart/bpm", [frame.heartRateBPM]))
         }
-        // ⛔ HRV AND COHERENCE GATE ON THEIR OWN VALUE, NOT ON THE PULSE — and the first cut of
-        // this slice got that wrong in the direction that matters. Both are derived from the
-        // beat SERIES, not from a single beat: `PolarH10BioPublisher` and `CameraRPPGBioPublisher`
-        // both publish a locked BPM with `hrvNormalized: 0` and `coherence: 0` until enough RR
-        // has accumulated for a spectrum — roughly the first 55 s of every session, and again
-        // whenever the RR record is untrustworthy. Riding the pulse gate therefore let exactly
-        // the collapse-to-zero this slice exists to stop through, on the two addresses a
-        // lighting desk is most likely bound to. Both fields carry their own sentinel and their
-        // own docs say so ("0 means NOT MEASURED, not minimum variability"; "treat 0 as 'not
-        // available', not as 'incoherent'"), and `ModSource.isMeasured` already answers this
-        // per channel with precisely these predicates — the egress now agrees with it.
-        if frame.hrvNormalized > 0 {
+        // ⛔ HRV AND COHERENCE NEED **BOTH** HALVES, and this repo has now got it wrong in each
+        // direction once, on the same two addresses, in consecutive commits:
+        //
+        //   · PULSE ONLY (105d6ab) let the warm-up through. Both are derived from the beat
+        //     SERIES, not from a single beat: Polar and the camera publish a locked BPM with
+        //     `hrvNormalized: 0` / `coherence: 0` until enough RR has accumulated for a
+        //     spectrum — roughly the first 55 s of every session, and again whenever the RR
+        //     record is untrustworthy. Exactly the collapse-to-zero this slice exists to stop.
+        //   · SENTINEL ONLY (33876a0) let a MALFORMED frame through: a frame with no pulse
+        //     cannot carry HRV or coherence at all, so a non-zero value beside `bpm == 0` is
+        //     not a reading to forward — it is a bug at the publisher, and forwarding it puts
+        //     an invented number on someone else's lighting desk. CI caught this one.
+        //
+        // So: the pulse must be real AND the field's own sentinel must be non-zero. Both docs
+        // already say what their zero means ("0 means NOT MEASURED, not minimum variability";
+        // "treat 0 as 'not available', not as 'incoherent'"), and `ModSource.isMeasured` answers
+        // the sentinel half per channel — this is that answer plus the physiological precondition.
+        if frame.hasMeasuredHeartRate, frame.hrvNormalized > 0 {
             msgs.append(("/echoelmusic/bio/heart/hrv", [frame.hrvNormalized]))
         }
         // Beat-to-beat (RR-derived) time-domain metrics — only from a real RR source
         // (camera/Polar). Instrument-grade values for TouchDesigner / Resolume / Max.
-        if frame.hrvRMSSDms > 0 {
+        // Same conjunction as `/hrv`: these three are the MOST beat-derived quantities in the
+        // frame (RMSSD and pNN50 are statistics OVER successive NN intervals, SDNN over the NN
+        // series), so a non-zero value beside `bpm == 0` is a publisher bug in exactly the way
+        // the block above describes. They were left on a bare sentinel when `/hrv` and
+        // `/coherence` gained the precondition; three of five heart addresses obeying a
+        // different rule than the other two is how the next reader concludes the rule is
+        // arbitrary and "tidies" it back out.
+        if frame.hasMeasuredHeartRate, frame.hrvRMSSDms > 0 {
             msgs.append(("/echoelmusic/bio/heart/rmssd", [frame.hrvRMSSDms]))
             msgs.append(("/echoelmusic/bio/heart/pnn50", [frame.hrvPNN50]))
         }
-        // SDNN needs no beat-to-beat RR, so it rides its OWN gate rather than the RMSSD
+        // SDNN needs no beat-to-beat RR, so it rides its OWN sentinel rather than the RMSSD
         // one that used to hide it: an egress-allowed source supplying SDNN without RR
         // now emits it. (HealthKit IS such a source but its frames are network-blocked
         // upstream by BioEgressPolicy per App Store 5.1.3, so today the split only
         // matters for a future SDNN-only egress-allowed source — it is the honest
-        // per-metric gating regardless.)
-        if frame.hrvSDNNms > 0 {
+        // per-metric gating regardless.) It still needs a pulse: "no beat-to-beat RR"
+        // means no INTERVAL series, not no heartbeat.
+        if frame.hasMeasuredHeartRate, frame.hrvSDNNms > 0 {
             msgs.append(("/echoelmusic/bio/heart/sdnn", [frame.hrvSDNNms]))
         }
         // Breath rides its OWN gate — `BioSampleFrame.hasMeasuredBreath`, which is the
@@ -309,7 +323,8 @@ public final class OSCSender {
             msgs.append(("/echoelmusic/bio/breath/rate", [frame.breathRate]))
             msgs.append(("/echoelmusic/bio/breath/phase", [frame.breathPhase]))
         }
-        if frame.coherence > 0 {
+        // Same conjunction as `/hrv` above, and for the same two reasons.
+        if frame.hasMeasuredHeartRate, frame.coherence > 0 {
             msgs.append(("/echoelmusic/bio/coherence", [frame.coherence]))
         }
         // Motion rides a STRUCTURAL gate rather than a value one (#215). Every

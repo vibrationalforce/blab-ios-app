@@ -13,12 +13,17 @@
 // header named a mechanism that does not exist. It said "the frames a publisher emits before it
 // locks and after a finger lifts". Neither live pulse sensor emits those: `CameraRPPGBioPublisher`
 // requires `bpm > 0` to publish at all, and `PolarH10BioPublisher` requires a plausible BPM. The
-// two REAL cases are (a) `FaceExpressionBioPublisher`, which publishes an all-zero bio frame and
-// IS egress-allowed, and (b) the ~55 s at the start of every session where a LOCKED pulse sits
+// THREE REAL cases are (a) `FaceExpressionBioPublisher`, which publishes an all-zero bio frame
+// and IS egress-allowed; (b) the ~55 s at the start of every session where a LOCKED pulse sits
 // next to `hrvNormalized == 0` and `coherence == 0`, because both are derived from the beat
-// series and the RR record is not yet long enough for a spectrum. Case (b) is why those two
-// addresses gate on their own sentinel and not on the pulse — the first cut of this slice put
-// them on the pulse gate and let the exact collapse it exists to stop straight through.
+// series and the RR record is not yet long enough for a spectrum; and (c) a MALFORMED frame —
+// non-zero HRV or coherence beside `bpm == 0`, which is physically impossible and means a
+// publisher bug, not a reading to forward.
+//
+// ⛔ (b) AND (c) PULL IN OPPOSITE DIRECTIONS, and this file got it wrong in each direction once,
+// in consecutive commits. A pulse-only gate passes (c) and fails (b); a sentinel-only gate passes
+// (b) and fails (c) — CI caught the second one here. `/hrv` and `/coherence` therefore need BOTH:
+// a real pulse AND a non-zero sentinel. Neither half is redundant.
 //
 // ⚠️ WHAT THIS FILE DOES NOT COVER. It pins the pure message list, not the socket: whether a
 // datagram leaves the device, whether `BioEgressPolicy` allows the source, and whether the
@@ -32,10 +37,12 @@ import XCTest
 final class OSCAbsenceTests: XCTestCase {
 
     private func frame(bpm: Float, hrv: Float = 0.5, breath: Float, phase: Float = 0.25,
-                       coherence: Float = 0.7) -> BioSampleFrame {
+                       coherence: Float = 0.7, rmssd: Float = 0, sdnn: Float = 0,
+                       pnn50: Float = 0) -> BioSampleFrame {
         BioSampleFrame(timestamp: 0, heartRateBPM: bpm, hrvNormalized: hrv,
                        breathRate: breath, breathPhase: phase, coherence: coherence,
-                       motionEnergy: 0, source: .cameraPPG)
+                       motionEnergy: 0, source: .cameraPPG,
+                       hrvRMSSDms: rmssd, hrvSDNNms: sdnn, hrvPNN50: pnn50)
     }
 
     private func addresses(_ f: BioSampleFrame) -> Set<String> {
@@ -43,12 +50,28 @@ final class OSCAbsenceTests: XCTestCase {
     }
 
     /// ⛔ THE ASSERTION THE SLICE EXISTS FOR. No pulse → not one heart-derived address on the
-    /// wire. Written as a Set difference rather than a count so a future address added under the
-    /// same gate is covered automatically, and one added OUTSIDE it fails loudly.
+    /// wire, INCLUDING when the frame carries non-zero HRV/coherence/RMSSD/SDNN/pNN50 beside
+    /// `bpm == 0`.
+    ///
+    /// ⚠️ THAT LAST CLAUSE IS THE POINT, and CI had to teach it (`33876a0` went red here). The
+    /// fixture's defaults are hrv 0.5 / coherence 0.7, so this frame is MALFORMED: both are
+    /// derived from the beat series and cannot exist without a pulse. When the gates were briefly
+    /// sentinel-only, those two went out — an invented number on someone else's lighting desk,
+    /// sourced from a publisher bug. The fixture is left deliberately malformed rather than
+    /// "corrected", because a frame nobody should ever build is exactly what an egress must
+    /// refuse: the defensive half of the gate has no other way to be tested.
+    ///
+    /// All FIVE are asserted, not the three that were red. The time-domain trio was still on a
+    /// bare sentinel after `/hrv` and `/coherence` gained the precondition, and RMSSD/pNN50/SDNN
+    /// are the most beat-derived numbers in the frame — statistics over the NN series. A rule
+    /// that two of five heart addresses follow reads as arbitrary and gets tidied away.
     func testAFrameWithoutAPulseSendsNoHeartDerivedAddress() {
-        let sent = addresses(frame(bpm: 0, breath: 0))
+        let sent = addresses(frame(bpm: 0, breath: 0, rmssd: 42, sdnn: 55, pnn50: 0.3))
         for address in ["/echoelmusic/bio/heart/bpm",
                         "/echoelmusic/bio/heart/hrv",
+                        "/echoelmusic/bio/heart/rmssd",
+                        "/echoelmusic/bio/heart/pnn50",
+                        "/echoelmusic/bio/heart/sdnn",
                         "/echoelmusic/bio/coherence"] {
             XCTAssertFalse(sent.contains(address),
                            "\(address) went out on a frame with no measured pulse. On the wire "
@@ -59,7 +82,9 @@ final class OSCAbsenceTests: XCTestCase {
     }
 
     /// And the un-measured frame must be SILENT, not merely thinned — otherwise a receiver still
-    /// sees traffic and reads the missing addresses as "unchanged" rather than "absent".
+    /// sees traffic and reads the missing addresses as "unchanged" rather than "absent". Same
+    /// malformed fixture as above, for the same reason: with sentinel-only gates this produced
+    /// two messages and went red on CI, which is how the missing precondition was found.
     func testAFrameWithNothingMeasuredSendsNothingAtAll() {
         XCTAssertTrue(OSCSender.bioMessages(for: frame(bpm: 0, breath: 0)).isEmpty,
                       "a frame carrying no measurement at all still produced messages: "
@@ -102,9 +127,12 @@ final class OSCAbsenceTests: XCTestCase {
     /// silence bug. Pinned because every assertion above is about NOT sending, and a mistake that
     /// sends nothing at all would satisfy all of them.
     func testAFullyMeasuredFrameStillSendsTheWholeSet() {
-        let sent = addresses(frame(bpm: 62, breath: 11))
+        let sent = addresses(frame(bpm: 62, breath: 11, rmssd: 42, sdnn: 55, pnn50: 0.3))
         for address in ["/echoelmusic/bio/heart/bpm",
                         "/echoelmusic/bio/heart/hrv",
+                        "/echoelmusic/bio/heart/rmssd",
+                        "/echoelmusic/bio/heart/pnn50",
+                        "/echoelmusic/bio/heart/sdnn",
                         "/echoelmusic/bio/breath/rate",
                         "/echoelmusic/bio/breath/phase",
                         "/echoelmusic/bio/coherence"] {
