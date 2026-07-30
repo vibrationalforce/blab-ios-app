@@ -42,10 +42,12 @@
 //  the shape of a walk is exactly the kind of thing that reads correctly in code and sounds like
 //  a stuck note on a device, so it has to be assertable without an Apple UI stack.
 //
-//  ⚠️ NOT YET REACHABLE, and this file does not pretend otherwise: nothing calls it. The surface
-//  projection, the `FieldAutoPlay.Motion` case, the driver argument, the storage keys and the
-//  panel are separate slices (#220 S2…S6). A core with no door is honest as long as it is
-//  written down as one.
+//  ⚠️ NOT YET REACHABLE, and this file does not pretend otherwise: nothing in `Sources/` calls
+//  either half. The walk (S1) and the surface projection (S2, `surfacePoint`) are both here; the
+//  `FieldAutoPlay.Motion` case, the driver argument, the storage keys and the panel are still
+//  separate slices (#220 S3…S6). A core with no door is honest as long as it is written down as
+//  one — and this line is the only thing keeping "two shipped, unused functions" from reading as
+//  a feature.
 //
 
 import Foundation
@@ -210,6 +212,75 @@ public enum ArpFigure {
         }
     }
 
+    // MARK: - Projection onto the play surface
+
+    /// Where on the play surface a walk position must be touched for it to sound.
+    ///
+    /// Returns a normalized point in the same coordinates a FINGER uses — `x` 0…1 left→right,
+    /// `y` 0…1 bottom→top — so the caller feeds it into the one mapping that already ships
+    /// (`TouchPitchMap.pitch(normX:normY:key:)`, `TouchInstrumentView.swift:44-53`) and the arp
+    /// is quantised into the take's key by exactly the same code as a played note. No second
+    /// pitch path, so no second way to produce a wrong note.
+    ///
+    /// ⛔ WHY x LANDS IN THE MIDDLE OF THE DEGREE CELL, and this is the whole reason this
+    /// function exists instead of a one-line division at the call site: the consumer computes
+    /// its degree as `Int(x * n)` — it FLOORS. Handing it the cell's left EDGE (`d / n`) puts
+    /// the value exactly on a boundary where a representation error of one ulp decides between
+    /// degree `d` and degree `d − 1`, i.e. a wrong note some of the time and a correct one the
+    /// rest — the least debuggable class of musical defect there is. The centre `(d + 0.5) / n`
+    /// is half a cell from either boundary, so no accumulation of float error can move it.
+    ///
+    /// ⚠️ `bandCount` IS THE CONSUMER'S BAND COUNT, passed in rather than read.
+    /// `TouchPitchMap.octaveBands` has three entries today (`TouchInstrumentView.swift:39`), but
+    /// importing it here would drag `Studio/` into a file whose whole point is that it is pure
+    /// Foundation. The test pins the two together against the real `TouchPitchMap` instead —
+    /// which is the stronger check anyway, because it fails if EITHER side moves.
+    ///
+    /// ⚠️ THE TOP BAND SATURATES, and a caller that ignores this will hear it. The surface spans
+    /// `bandCount` registers and nothing else; `y` cannot express a fourth one, because the
+    /// consumer clamps the band it derives (`min(octaveBands.count - 1, …)`). So a walk started
+    /// at `band` with a span that reaches past the top plays its highest octaves TWICE at the
+    /// top instead of rising — audible as an arp that hits a ceiling. This function saturates
+    /// rather than folding downward (a fold would sound like a mistake, a ceiling sounds like a
+    /// range limit), and it deliberately does NOT quietly re-base the walk lower: moving the
+    /// register out from under the player's own finger is the worse surprise. The caller that
+    /// wants every octave audible passes a `band` with `band + octaves - 1 < bandCount`.
+    ///
+    /// - Parameters:
+    ///   - step: A position from `step(atIndex:…)`, or any `Step` a caller built itself.
+    ///     `degreeIndex` values at or beyond `degreesPerOctave` — a ninth, an eleventh — fold
+    ///     into the octave lift rather than running off the right edge of the surface, and
+    ///     negative ones fold downward the same way.
+    ///   - degreesPerOctave: Scale degrees per octave (`MusicalKey.degreesPerOctave`). Values
+    ///     below 1 are treated as 1; a scale with no notes is data corruption, not a request.
+    ///   - bandCount: Octave bands the surface spans. Below 1 is treated as 1.
+    ///   - band: The base band the walk starts in, 0 = lowest.
+    public static func surfacePoint(
+        _ step: Step,
+        degreesPerOctave: Int,
+        bandCount: Int,
+        band: Int
+    ) -> (x: Double, y: Double) {
+        let degrees = Swift.max(1, degreesPerOctave)
+        let bands = Swift.max(1, bandCount)
+
+        // A degree past the octave is an octave lift, not a position further right. `floorDiv`
+        // and `floorMod` are the same pair the walk uses, so degree 7 in a seven-note scale —
+        // the ninth, counting the root as 1 — becomes "the ROOT, one octave up" in both places.
+        // (It is the root and not the second: degree 7 is the eighth degree, i.e. the octave.)
+        let carry = floorDiv(step.degreeIndex, degrees)
+        let degreeInOctave = floorMod(step.degreeIndex, degrees)
+
+        // Saturating, because `degreeIndex` may come from decoded data: `floorDiv(Int.max, 1)`
+        // is `Int.max`, and `Int.max + band` would trap. The band is clamped to the surface
+        // immediately afterwards anyway, so saturation loses nothing real.
+        let lifted = saturatingSum(saturatingSum(band, step.octaveOffset), carry)
+        let targetBand = Swift.min(bands - 1, Swift.max(0, lifted))
+
+        return (x: (Double(degreeInOctave) + 0.5) / Double(degrees),
+                y: (Double(targetBand) + 0.5) / Double(bands))
+    }
+
     // MARK: - Pure pieces
 
     /// Drops negative degrees, collapses duplicates to their first occurrence (so `.asPlayed`
@@ -265,5 +336,19 @@ public enum ArpFigure {
         guard m > 0 else { return 0 }
         let q = a / m
         return (a % m != 0 && a < 0) ? q - 1 : q
+    }
+
+    /// Addition that pins at `Int.max`/`Int.min` instead of trapping.
+    ///
+    /// Not defensive decoration: `surfacePoint` adds a decoded `octaveOffset` to a carry derived
+    /// from a decoded `degreeIndex`, and Swift's `+` TRAPS on overflow — a corrupt stored value
+    /// would be a crash on the 60 Hz self-play path, which is the worst possible place for one.
+    /// `&+` would be wrong here in the other direction: it wraps, so `Int.max + 1` becomes
+    /// `Int.min` and a ludicrously HIGH octave would clamp to the LOWEST band. Saturating keeps
+    /// the sign of the intent, which is what the band clamp then reads.
+    static func saturatingSum(_ a: Int, _ b: Int) -> Int {
+        let (sum, overflow) = a.addingReportingOverflow(b)
+        guard overflow else { return sum }
+        return a > 0 ? Int.max : Int.min
     }
 }
