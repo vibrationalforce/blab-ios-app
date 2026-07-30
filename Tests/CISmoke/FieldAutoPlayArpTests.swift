@@ -25,11 +25,14 @@ final class FieldAutoPlayArpTests: XCTestCase {
     private func arpParams(density: Float = 1, period: Int = 8, band: Float = 0.5,
                            bandDrift: Float = 0, voices: Int = 1,
                            order: ArpFigure.Order = .up, octaves: Int = 1,
-                           chord: [Int] = [0, 2, 4]) -> FieldAutoPlay.Params {
+                           chord: [Int] = [0, 2, 4],
+                           rhythm: RoleRhythm.Params = RoleRhythm.Params(character: .driving,
+                                                                         evolve: 0)
+    ) -> FieldAutoPlay.Params {
         FieldAutoPlay.Params(motion: .arp, density: density, span: 0.6, centre: 0.5,
                              band: band, bandDrift: bandDrift, voices: voices,
                              periodSteps: period, arpOrder: order, arpOctaves: octaves,
-                             arpChordDegrees: chord)
+                             arpChordDegrees: chord, arpRhythm: rhythm)
     }
 
     private let bands = TouchPitchMap.octaveBands.count
@@ -297,29 +300,114 @@ final class FieldAutoPlayArpTests: XCTestCase {
 
     // MARK: - The helper the walk index rests on
 
-    /// The property the walk index rests on, stated INDEPENDENTLY of how `firedCount` is written:
-    /// over one whole traverse the Euclidean rule fires exactly `round(density · period)` cells.
-    /// (The first version of this test re-ran `firedCount`'s own loop and could only have failed
-    /// if the helper stopped calling `fires` — a tautology wearing a green tick.)
-    func testATraverseFiresExactlyTheEuclideanCount() {
+    /// The property the walk index rests on, stated INDEPENDENTLY of how `arpFiredCount` is
+    /// written: on the default `driving` character the rhythm sounds exactly
+    /// `max(1, round(density · period))` cells per traverse — the same even spread the Euclidean
+    /// rule produced before #253 A2, with `RoleRhythm`'s one added floor (any density above 0
+    /// sounds at least one cell).
+    ///
+    /// (The first version of this test re-ran the helper's own loop and could only have failed if
+    /// the helper stopped calling `fires` — a tautology wearing a green tick. It is stated against
+    /// the arithmetic instead.)
+    func testATraverseSoundsExactlyTheEvenSpreadCount() {
+        let rhythm = RoleRhythm.Params(character: .driving, evolve: 0)
         for period in [1, 3, 4, 8, 16, 32] {
             for density in [Float(0.1), 0.25, 0.5, 0.75, 0.9, 1] {
-                let expected = Int((density * Float(period)).rounded())
-                let counted = FieldAutoPlay.firedCount(before: period, density: density,
-                                                       period: period)
-                XCTAssertEqual(counted, expected, "period \(period) density \(density)")
+                var r = rhythm
+                r.density = density
+                let expected = Swift.max(1, Int((density * Float(period)).rounded()))
+                let counted = FieldAutoPlay.arpFiredCount(before: period, bar: 0, rhythm: r,
+                                                          period: period, seed: 7)
+                XCTAssertEqual(counted, Swift.min(period, expected),
+                               "period \(period) density \(density)")
                 // And it is a PREFIX count: monotone, and never more than the cells looked at.
                 for limit in 0...period {
-                    let partial = FieldAutoPlay.firedCount(before: limit, density: density,
-                                                           period: period)
+                    let partial = FieldAutoPlay.arpFiredCount(before: limit, bar: 0, rhythm: r,
+                                                              period: period, seed: 7)
                     XCTAssertTrue(partial <= counted && partial <= limit,
                                   "limit \(limit) counted \(partial) of \(counted)")
                 }
             }
         }
         // Degenerate limits do not crash and count nothing.
-        XCTAssertEqual(FieldAutoPlay.firedCount(before: 0, density: 1, period: 8), 0)
-        XCTAssertEqual(FieldAutoPlay.firedCount(before: -5, density: 1, period: 8), 0)
+        XCTAssertEqual(FieldAutoPlay.arpFiredCount(before: 0, bar: 0, rhythm: rhythm,
+                                                   period: 8, seed: 7), 0)
+        XCTAssertEqual(FieldAutoPlay.arpFiredCount(before: -5, bar: 0, rhythm: rhythm,
+                                                   period: 8, seed: 7), 0)
+    }
+
+    // MARK: - The rhythm the arp walks in (#253 A2)
+
+    /// ⛔ THE POINT OF A2. Six named characters must produce six audibly different arps — if two of
+    /// them give the same bar, one is a lie in a picker (#81/#125). Compared over a whole traverse
+    /// through the REAL generator, not through `RoleRhythm` in isolation, because the arp overrides
+    /// the rhythm's density and maps its own walk on top.
+    func testTheSixRhythmCharactersGiveTheArpSixDifferentBars() {
+        let bars = RoleRhythm.Character.allCases.map { character -> [FieldAutoPlay.Touch?] in
+            let p = arpParams(density: 0.5, period: 16,
+                              rhythm: RoleRhythm.Params(character: character, evolve: 0))
+            return (0..<16).map { touches($0, p).first }
+        }
+        for i in bars.indices {
+            for j in bars.indices where j > i {
+                XCTAssertNotEqual(bars[i], bars[j],
+                                  "\(RoleRhythm.Character.allCases[i]) and "
+                                  + "\(RoleRhythm.Character.allCases[j]) give the same arp")
+            }
+        }
+    }
+
+    /// The Field's own Density dial stays the ONE rate control: a rhythm stored with a contradicting
+    /// density must not win, because the dial the player can see would then be lying.
+    func testTheStoredRhythmDensityCannotOverrideTheFieldsOwnDial() {
+        var contradicting = RoleRhythm.Params(character: .driving, evolve: 0)
+        contradicting.density = 0            // "silence", if it were ever read
+        let p = arpParams(density: 1, period: 8, rhythm: contradicting)
+        let sounded = (0..<8).compactMap { touches($0, p).first }
+        XCTAssertEqual(sounded.count, 8, "the stored density silenced a full-density arp")
+    }
+
+    /// The note LENGTH now travels with the touch, and it is the character's — `driving` is the
+    /// short one, `flowing` fills its cell. The consumer turns this into seconds against its own
+    /// grid; here it must simply be present, in range, and different per character.
+    func testTheArpCarriesItsNoteLength() {
+        func gate(_ character: RoleRhythm.Character) -> Float? {
+            touches(0, arpParams(rhythm: RoleRhythm.Params(character: character, gate: 0.8,
+                                                           evolve: 0))).first?.gateFraction
+        }
+        guard let driving = gate(.driving), let flowing = gate(.flowing) else {
+            return XCTFail("the arp produced no note to measure")
+        }
+        XCTAssertTrue((RoleRhythm.minGate...RoleRhythm.maxGate).contains(driving))
+        XCTAssertTrue((RoleRhythm.minGate...RoleRhythm.maxGate).contains(flowing))
+        XCTAssertLessThan(driving, flowing, "driving is supposed to be the short one")
+    }
+
+    /// ⛔ AND THE FIVE TRAVELLING MOTIONS MUST HAVE NO OPINION ABOUT LENGTH. `nil` is what keeps
+    /// their notes ringing for the surface's own `staccatoSeconds` exactly as before this slice; a
+    /// defaulted `1` would silently re-time all five, which is not what A2 is allowed to change.
+    func testOnlyTheArpSaysHowLongItsNoteIs() {
+        for motion in FieldAutoPlay.Motion.allCases where motion != .arp {
+            let p = FieldAutoPlay.Params(motion: motion, density: 1, span: 0.6, centre: 0.5,
+                                         band: 0.5, bandDrift: 0.4, voices: 2, periodSteps: 8)
+            for step in 0..<8 {
+                for t in FieldAutoPlay.touches(atStep: step, params: p, seed: 7) {
+                    XCTAssertNil(t.gateFraction, "\(motion) grew a note length")
+                }
+            }
+        }
+        XCTAssertNotNil(touches(0, arpParams()).first?.gateFraction)
+    }
+
+    /// A rhythm saved before A2 (or a payload with a corrupt one) loads the arp's default rhythm
+    /// and keeps every neighbouring dial — the additive-decode law, one level down.
+    func testAParamsWithNoStoredRhythmLoadsTheArpDefault() throws {
+        let json = #"{"motion":"arp","density":0.4,"periodSteps":12,"arpOctaves":2}"#
+        let p = try JSONDecoder().decode(FieldAutoPlay.Params.self, from: Data(json.utf8))
+        XCTAssertEqual(p.arpRhythm, FieldAutoPlay.Params().arpRhythm)
+        XCTAssertEqual(p.arpRhythm.character, .driving)
+        XCTAssertEqual(p.arpOctaves, 2, "one absent field must not discard its neighbours")
+        XCTAssertEqual(p.periodSteps, 12)
     }
 
     /// An absurd `bandCount` must not trap either, and this one is a REAL trap that review found

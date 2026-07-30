@@ -579,11 +579,17 @@ final class TouchInstrumentUIView: UIView {
             let cutoff = morphScale(normY: Double(t.y)) * micro.cutoffScale
             let even = TouchPitchMap.levelCompensation(cutoffScale: cutoff, pitch: pitch,
                                                        referencePitch: surfaceReferencePitch)
+            // The note's LENGTH, when the motion has an opinion about it (#253 A2: only `.arp`
+            // does — the five travelling motions pass `nil` and keep ringing for
+            // `staccatoSeconds`, unchanged). A fraction of ONE CELL, so a shorter grid gives
+            // shorter notes and the rhythm's staccato stays staccato at any tempo.
+            let cellSeconds = Double(Swift.max(1, quantizer.grid.tickSpan)) * now.secondsPerTick
+            let hold = t.gateFraction.map { Double($0) * cellSeconds }
             sound(pitch: pitch,
                   velocity: t.velocity * micro.velocityScale * even,
                   cutoffScale: cutoff,
                   finger: ObjectIdentifier(autoPlayFingers[voice]), index: index,
-                  autoRelease: true, onGridTick: onGridTick)
+                  autoRelease: true, onGridTick: onGridTick, holdSeconds: hold)
             // The picture follows a generated note exactly as it follows a finger. Without
             // this the field would play in visual silence — and `bandDrift` below its octave
             // threshold, which the generator documents as "moves the light, not the pitch",
@@ -916,15 +922,20 @@ final class TouchInstrumentUIView: UIView {
     ///     difference from the grid is the human timing being corrected. A generated note
     ///     passes its cell's start tick, because it is on the grid by construction and the only
     ///     thing "now" would measure is how late the display link woke up.
+    ///   - holdSeconds: how long an `autoRelease` note rings, when the caller knows. `nil` means
+    ///     "use `staccatoSeconds`" — the value every caller used before #253 A2 and the value the
+    ///     five travelling self-play motions still use. Ignored without `autoRelease`, because a
+    ///     note with a finger on it is released by the lift and nothing else.
     private func sound(pitch: Int, velocity: Float, cutoffScale: Float,
                        finger id: ObjectIdentifier, index: Int,
-                       autoRelease: Bool = false, onGridTick: Int? = nil) {
+                       autoRelease: Bool = false, onGridTick: Int? = nil,
+                       holdSeconds: Double? = nil) {
         guard let now = musicalNow?(), now.secondsPerTick > 0 else {
             // Unreachable for a generated note today — `autoPlayTick` already required a
             // musical clock and there is no suspension point between the two reads. Kept
             // because `sound` is called from four places and must be correct for all of them.
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
-            if autoRelease { scheduleSelfRelease(pitch: pitch) }
+            if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
             return
         }
         // The echo tolerance is stored in TICKS, but "two onsets fuse into one" is a fact
@@ -938,7 +949,7 @@ final class TouchInstrumentUIView: UIView {
         switch q.plan(forTick: onGridTick ?? now.tick, index: index) {
         case .play:
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
-            if autoRelease { scheduleSelfRelease(pitch: pitch) }
+            if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
 
         case let .delay(toTick):
             // The hold is bounded by the quantizer (half a grid step) plus its microtiming
@@ -948,7 +959,7 @@ final class TouchInstrumentUIView: UIView {
             let seconds = Double(Swift.max(0, toTick - now.tick)) * now.secondsPerTick
             guard seconds > 0.002 else {                 // below the jitter floor: just play it
                 synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
-                if autoRelease { scheduleSelfRelease(pitch: pitch) }
+                if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
                 return
             }
             pendingOn[id] = Task { @MainActor [weak self] in
@@ -977,12 +988,12 @@ final class TouchInstrumentUIView: UIView {
                 // go by itself. Routed through `scheduleSelfRelease` rather than an inline
                 // sleep so BOTH unheld paths get the same ownership check; the inline version
                 // was pitch-keyed and would cut a newer note on the same pitch.
-                self.scheduleSelfRelease(pitch: pitch)
+                self.scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds)
             }
 
         case let .playThenEcho(_, echoTick, level):
             synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
-            if autoRelease { scheduleSelfRelease(pitch: pitch) }
+            if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
             let seconds = Double(Swift.max(0, echoTick - now.tick)) * now.secondsPerTick
             guard seconds > 0.002, let voice = synth else { return }
             // The echo is deliberately NOT tracked in `pendingOn`: a lift must not cancel
@@ -1035,15 +1046,26 @@ final class TouchInstrumentUIView: UIView {
     ///
     /// `isSounding` is still checked, for the other half: a finger that landed on this pitch
     /// meanwhile keeps its note — its own lift ends both.
-    private func scheduleSelfRelease(pitch: Int) {
+    ///
+    /// - Parameter holdSeconds: the caller's own length, or `nil` for `staccatoSeconds`. Clamped
+    ///   to a floor because a rhythm's gate is a FRACTION of a cell and a fast grid makes that
+    ///   fraction tiny: `driving` at gate 0.8 is 0.36 of a cell, which on a 1/32 grid at 160 BPM
+    ///   is ~17 ms — shorter than the patch's own attack, so the note would read as a click or as
+    ///   nothing rather than as staccato. The ceiling is the other half: nothing may hold a note
+    ///   longer than a second here, or a stuck note becomes possible on a slow grid.
+    private func scheduleSelfRelease(pitch: Int, holdSeconds: Double? = nil) {
         guard let voice = synth else { return }
+        // No force-unwrap and no `isFinite` branch: `clamped(to:)` already maps NaN to the lower
+        // bound (`Core/FloatingPointClamp.swift`), and ±infinity to the bounds by comparison.
+        let hold = (holdSeconds ?? Self.staccatoSeconds)
+            .clamped(to: Self.minSelfReleaseSeconds...Self.maxSelfReleaseSeconds)
         unheldTokenCounter &+= 1
         let token = unheldTokenCounter
         unheldOwner[pitch] = token
         Task { @MainActor [weak self, voice] in
             // `try?`, not `catch { return }`: before a note, cancellation must suppress it;
             // before a RELEASE, cancellation must not, or cancelling is how a note sticks.
-            try? await Task.sleep(for: .seconds(Self.staccatoSeconds))
+            try? await Task.sleep(for: .seconds(hold))
             if let self {
                 // A newer unheld note owns this pitch → it will end it. Ours is already gone,
                 // swallowed by that note's own `noteOn` on the same voice.
@@ -1081,8 +1103,12 @@ final class TouchInstrumentUIView: UIView {
     /// ghost rather than a second part, long enough to survive the patch's own attack.
     private static let echoGhostSeconds: Double = 0.28
     /// How long a note whose finger already lifted rings once it lands on the grid. A tap
-    /// the player cut short should read as short, not as a held note.
+    /// the player cut short should read as short, not as a held note. Also the fallback for
+    /// every self-played note whose motion has no length opinion.
     private static let staccatoSeconds: Double = 0.18
+    /// Bounds on a caller-supplied hold — see `scheduleSelfRelease(pitch:holdSeconds:)`.
+    private static let minSelfReleaseSeconds: Double = 0.04
+    private static let maxSelfReleaseSeconds: Double = 1.0
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         release(touches)

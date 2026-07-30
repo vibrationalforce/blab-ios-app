@@ -105,17 +105,22 @@ public enum FieldAutoPlay {
         /// an offset would produce a wrong note rather than a wider gesture. So on this motion
         /// `centre`, `span` and `voices` are not applied at all, and the panel hides those rows
         /// rather than leaving three dials that do nothing (`EchoelStudioView.fieldSelfPlayFields`).
-        /// `density` sets the RATE (which cells fire) and `band`/`bandDrift` the register.
+        /// `density` sets the RATE and `band`/`bandDrift` the register.
         ///
-        /// ⚠️ `periodSteps` DOES NOT set the arp's rate, and the first version of this line said it
-        /// did — a claim that then reached the player-facing caption. The fire rule
-        /// `(i · active) % period < active` with `active = round(density · period)` is
-        /// scale-invariant in `period`: at density 0.5 it fires every second cell whether the
-        /// traverse is 8, 16 or 32, so the note pattern in time is IDENTICAL. For the arp
-        /// `periodSteps` changes exactly one thing — where the accent falls
-        /// (`velocity(cell:period:)`, `beat = max(2, period / 4)`) — and at density 0.5 with
-        /// traverse 8 every fired cell is even, so it removes the accent altogether. A real rate
-        /// dial for the arp is the grid-based one in #253, not this.
+        /// ⚠️ SINCE #253 A2 THE ARP'S RHYTHM IS `Params.arpRhythm`, not a curve: which cells sound,
+        /// how hard and how long all come from `RoleRhythm` — six named characters (driving,
+        /// hypnotic, dynamic, sparse, syncopated, flowing), which is what the founder asked for.
+        /// `density` stays the ONE rate dial and is fed into that type rather than duplicated.
+        ///
+        /// ⚠️ WHAT `periodSteps` DOES FOR THE ARP, restated because the previous version of this
+        /// note is now half wrong. It is the arp's BAR: the rhythm's per-bar behaviour (`hypnotic`'s
+        /// rotation, `dynamic`'s contour, `evolve`) advances once per traverse, and the "beat" the
+        /// characters place their accents against is `periodSteps / 4`. It is therefore NOT a rate
+        /// dial — the even-spread rule `(i · active) % period < active` with
+        /// `active = round(density · period)` is scale-invariant in `period`, so at density 0.5 the
+        /// notes fall every second cell whether the traverse is 8, 16 or 32. Three characters
+        /// (`driving`, `dynamic`, `flowing`) keep exactly that; `sparse` and `syncopated` measure
+        /// against the beat, so for those two the traverse DOES change which cells sound.
         ///
         /// One note per fired cell, never `voices` of them: an arpeggio is a chord played as a
         /// SEQUENCE. Stacking it would just be the chord, which the generative engine already
@@ -132,11 +137,26 @@ public enum FieldAutoPlay {
         public var y: Float
         /// 0…1, as `TouchPitchMap.velocity` would have produced from a real contact.
         public var velocity: Float
+        /// How long the note should ring, as a fraction of ONE GRID CELL — or `nil` for
+        /// "this motion has no opinion, use the surface's own default".
+        ///
+        /// ⚠️ `nil` IS THE POINT, not laziness (#253 A2). The five TRAVELLING motions never had a
+        /// length: their notes ring for `TouchInstrumentUIView.staccatoSeconds` (0.18 s, a fixed
+        /// wall-clock value). Defaulting this to `1` instead of `nil` would silently re-time all
+        /// five — at 1/16 / 120 BPM a cell is 125 ms, so every travelling note would get SHORTER
+        /// than it is today, on a slice that is supposed to change only the arp. `nil` says
+        /// "unchanged" in a way a reader cannot mistake for a value.
+        ///
+        /// A fraction and not seconds, because this type never knows a tempo or a grid — the
+        /// consumer multiplies by its own cell length, exactly as it already does for `x`/`y`
+        /// against its own surface.
+        public var gateFraction: Float?
 
-        public init(x: Float, y: Float, velocity: Float) {
+        public init(x: Float, y: Float, velocity: Float, gateFraction: Float? = nil) {
             self.x = x
             self.y = y
             self.velocity = velocity
+            self.gateFraction = gateFraction
         }
     }
 
@@ -188,10 +208,16 @@ public enum FieldAutoPlay {
         // MARK: The arp dials — read ONLY when `motion == .arp` (#220 S3)
         //
         // ⚠️ NO WRITER YET, and saying so is the house rule rather than a courtesy: nothing in
-        // `Sources/` sets these three. `FloatingVisualWindow.fieldAutoPlay` builds `Params`
-        // without them and there are no `StudioDefaultKeys` for them, so today the arp always
-        // walks the stored defaults below. The keys and the rows are #220 S5. Read the doc
-        // comments as "what this dial WILL do", not as a control a player can reach.
+        // `Sources/` sets these FOUR (`arpRhythm` joined them with #253 A2).
+        // `FloatingVisualWindow.fieldAutoPlay` builds `Params` without them and there are no
+        // `StudioDefaultKeys` for them, so today the arp always walks the stored defaults below.
+        // The keys and the rows are #220 S5 for the first three and #253 A7 for the rhythm. Read
+        // the doc comments as "what this dial WILL do", not as a control a player can reach.
+        //
+        // ⚠️ THAT IS NOT THE SAME AS "NO EFFECT". These defaults are what the arp SOUNDS LIKE
+        // today, so changing one changes the shipped instrument with no UI involved — which is why
+        // `arpRhythm`'s default was picked to keep the fire pattern identical to the pre-A2
+        // Euclidean one rather than to be the type's own prettiest setting.
 
         /// Which way the arp walks its chord.
         public var arpOrder: ArpFigure.Order
@@ -215,6 +241,29 @@ public enum FieldAutoPlay {
         /// SILENCE, not a substituted root.
         public var arpChordDegrees: [Int]
 
+        /// WHICH RHYTHM the arp walks its chord in (#253 A2, founder 2026-07-30: *"Alle
+        /// Soundrubriken von Pads, Bass bis arp etc. brauchen noch verschiedene Rhythmus Regler …
+        /// interessante, treibende, hypnotische, dynamische"*).
+        ///
+        /// ⛔ ITS `density` IS IGNORED, and this is the one thing to know before touching it. The
+        /// Field already HAS a rate dial — `density` above, doored and persisted — and two controls
+        /// over one musical dimension is the collision `RoleRhythm`'s own header decides: the
+        /// per-role type wins for what it owns, and the rate stays the ONE existing dial. So
+        /// `arpTouches` overwrites this copy's `density` with the Field's before asking, and a
+        /// value stored here can never contradict what the player sees.
+        ///
+        /// What it DOES bring: the character (which cells fire and how the accent sits), the gate
+        /// (note length as a fraction of a cell), the accent depth and `evolve`. `push` is carried
+        /// but NOT YET HONOURED — see `arpTouches` for why displacing a generated onset is its own
+        /// slice rather than a parameter pass.
+        ///
+        /// Default `.driving` with `evolve: 0`, chosen so this slice does not re-voice the arp
+        /// behind the founder's back: `driving` fires the plain even spread, which is bit-for-bit
+        /// the Euclidean set `fires(cell:density:period:)` produced before — only the LEVEL curve
+        /// and the note length are new. `flowing` (the type's own default) would have flipped
+        /// cells at `evolve 0.2` and changed the figure on a slice that must not.
+        public var arpRhythm: RoleRhythm.Params
+
         /// Format stamp (#189), same shape as `MoodPreset`: the ENCODER writes it; a future
         /// migration that cannot be handled additively (a renamed dial, a changed unit) reads
         /// the file's own value into a local inside `init(from:)`. Stamping costs one line
@@ -233,7 +282,9 @@ public enum FieldAutoPlay {
                     centre: Float = 0.5, band: Float = 0.5, bandDrift: Float = 0.2,
                     voices: Int = 1, periodSteps: Int = 16,
                     arpOrder: ArpFigure.Order = .up, arpOctaves: Int = 1,
-                    arpChordDegrees: [Int] = [0, 2, 4]) {
+                    arpChordDegrees: [Int] = [0, 2, 4],
+                    arpRhythm: RoleRhythm.Params = RoleRhythm.Params(character: .driving,
+                                                                     evolve: 0)) {
             self.motion = motion
             self.density = density
             self.span = span
@@ -245,6 +296,7 @@ public enum FieldAutoPlay {
             self.arpOrder = arpOrder
             self.arpOctaves = arpOctaves
             self.arpChordDegrees = arpChordDegrees
+            self.arpRhythm = arpRhythm
         }
 
         /// Additive decode (law 9), so a Params saved before a dial existed loads with that
@@ -282,6 +334,9 @@ public enum FieldAutoPlay {
             // array from sitting in memory looking legitimate in the meantime.
             let chord = (try? c.decode([Int].self, forKey: .arpChordDegrees)) ?? d.arpChordDegrees
             arpChordDegrees = Array(chord.prefix(ArpFigure.maxChordTones))
+            // `RoleRhythm.Params` has its OWN additive, clamping `init(from:)`, so a nested
+            // `try?` here is only the absent-whole-object case — an arp saved before #253 A2.
+            arpRhythm = (try? c.decode(RoleRhythm.Params.self, forKey: .arpRhythm)) ?? d.arpRhythm
         }
     }
 
@@ -342,8 +397,6 @@ public enum FieldAutoPlay {
         // Fold negatives into the period so a caller may count from anywhere.
         let cell = ((step % period) + period) % period
 
-        guard fires(cell: cell, density: density, period: period) else { return [] }
-
         // Vertical wander on a DELIBERATELY different period (×3, prime-ish against the
         // horizontal one) so x and y do not trace a single diagonal — the visual and audible
         // tell of a lazy 2D generator.
@@ -353,12 +406,24 @@ public enum FieldAutoPlay {
 
         // The arp is not a curve, so it leaves the travel/span/centre path entirely — see the
         // `.arp` case's own note for why bending its x would be a wrong note rather than a wider
-        // gesture. It keeps `y` (register + its slow wander), the fire pattern and the accent.
+        // gesture. It keeps `y` (register + its slow wander) and brings its own rhythm.
+        //
+        // ⛔ IT BRANCHES ABOVE THE `fires` GUARD, and moving it there was the whole point of
+        // #253 A2 rather than an accident of ordering. `RoleRhythm` decides which cells the arp
+        // sounds, and four of its six characters pick a DIFFERENT set than the plain Euclidean
+        // rule: `sparse` thins onto the beats, `syncopated` prefers the cells between them,
+        // `hypnotic` rotates by bar, `flowing` breathes cells in and out. Leaving the Euclidean
+        // guard above the branch would INTERSECT with all of that — the arp would only ever sound
+        // where BOTH rules agree, so a hypnotic arp would lose most of its rotation and a
+        // syncopated one would go nearly silent. The two guards above this (`voices`, `density`)
+        // stay where they are: both mean silence for every motion, arp included.
         if params.motion == .arp {
             return arpTouches(step: step, cell: cell, period: period, density: density,
                               y: y, params: params, seed: seed,
                               degreesPerOctave: degreesPerOctave, bandCount: bandCount)
         }
+
+        guard fires(cell: cell, density: density, period: period) else { return [] }
 
         let span = clamp01(params.span)
         let centre = clamp01(params.centre)
@@ -376,7 +441,7 @@ public enum FieldAutoPlay {
 
     // MARK: - The arp
 
-    /// The ONE contact an arp cell plays, or none when the chord is empty.
+    /// The ONE contact an arp cell plays, or none when its rhythm rests or the chord is empty.
     ///
     /// ⛔ THE WALK ADVANCES PER SOUNDED NOTE, NOT PER CELL, and that is the whole reason this is
     /// not two lines inside `touches`. Using the cell index as the walk position looks right and
@@ -384,11 +449,19 @@ public enum FieldAutoPlay {
     /// one guarantee — every tone sounds exactly once per cycle — would be silently false, and an
     /// "up" figure would come out full of holes. What a player expects, and what hardware arps
     /// do, is one step of the pattern per RATE tick. So the index is the count of cells that have
-    /// FIRED: the ones before this cell in the traverse, plus a whole traverse's worth for each
+    /// SOUNDED: the ones before this cell in the traverse, plus a traverse's worth for each
     /// completed traverse.
     ///
-    /// Cost: two passes over the traverse (≤ `maxPeriodSteps` = 1024 cheap modulo tests) per
-    /// SOUNDED cell — not per frame. The driver only calls in when the grid cell changes
+    /// WHICH cells sound is `RoleRhythm`'s decision since #253 A2 — the founder asked for
+    /// *"verschiedene Rhythmus Regler … interessante, treibende, hypnotische, dynamische"* per
+    /// sound role, and the arp is the first role bound. That replaced the plain Euclidean
+    /// `fires(cell:density:period:)` here (the travelling motions still use it), and it also
+    /// brings the LEVEL and the note LENGTH: `Touch.velocity` and `Touch.gateFraction` are the
+    /// rhythm's, not a curve's. The rate is still the Field's own Density dial — see
+    /// `Params.arpRhythm` for why that copy's `density` is overwritten rather than read.
+    ///
+    /// Cost: two passes over the traverse (≤ `maxPeriodSteps` = 1024 pure calls) per SOUNDED
+    /// cell — not per frame. The driver only calls in when the grid cell changes
     /// (`TouchInstrumentUIView.autoPlayTick`), i.e. a handful of times a second.
     ///
     /// Wrapping arithmetic on purpose: `traverse * firedPerTraverse` would TRAP for an absurd
@@ -397,9 +470,24 @@ public enum FieldAutoPlay {
     static func arpTouches(step: Int, cell: Int, period: Int, density: Float, y: Float,
                            params: Params, seed: UInt64,
                            degreesPerOctave: Int, bandCount: Int) -> [Touch] {
-        let firedPerTraverse = firedCount(before: period, density: density, period: period)
-        let firedBefore = firedCount(before: cell, density: density, period: period)
+        // ONE traverse = one BAR for the rhythm, which is the honest mapping: `periodSteps` is
+        // "how many cells before the pattern comes round again", and that is what a bar is to a
+        // rhythm generator. It is also what makes `hypnotic`'s per-bar rotation and `dynamic`'s
+        // per-bar contour land on the traverse the player set rather than on some other unit.
         let traverse = ArpFigure.floorDiv(step, period)
+        // The Field's own Density dial is the ONE rate control (see `Params.arpRhythm`), so the
+        // stored copy's `density` is overwritten rather than consulted. Doing it here and not in
+        // the UI means a hand-edited or bio-written value cannot contradict the visible dial.
+        var rhythm = params.arpRhythm
+        rhythm.density = density
+
+        guard let beat = RoleRhythm.hit(bar: traverse, cell: cell, cellsPerBar: period,
+                                       params: rhythm, seed: seed) else { return [] }
+
+        let firedPerTraverse = arpFiredCount(before: period, bar: traverse,
+                                            rhythm: rhythm, period: period, seed: seed)
+        let firedBefore = arpFiredCount(before: cell, bar: traverse,
+                                        rhythm: rhythm, period: period, seed: seed)
         let index = traverse &* firedPerTraverse &+ firedBefore
 
         guard let walk = ArpFigure.step(atIndex: index,
@@ -423,13 +511,40 @@ public enum FieldAutoPlay {
                                           bandCount: bands,
                                           band: baseBand)
         return [Touch(x: Float(point.x), y: Float(point.y),
-                      velocity: velocity(cell: cell, period: period))]
+                      velocity: beat.velocity, gateFraction: beat.gateFraction)]
+        // ⚠️ `beat.pushFraction` IS DELIBERATELY DROPPED HERE, and the reason is a real finding
+        // rather than a shortcut. A generated note's onset is owned by ULTRASYNC, and its plan is
+        // computed from the cell's on-grid tick: `TouchQuantizer.plan` returns `.play` the moment
+        // `offset == 0`, and `.play(atTick:)` sounds IMMEDIATELY. Handing it a pushed tick does
+        // NOT make the note late — a small push falls inside `latenessToleranceTicks` and plays
+        // on the grid anyway, and a large one takes the `.playThenEcho` branch, i.e. a DOUBLED
+        // note. So honouring `push` means giving the generated onset its own scheduled delay in
+        // `TouchInstrumentUIView`, with the cancellation discipline `pendingOn` already carries —
+        // its own slice (#253 A2b), not a parameter pass. Until then the arp's Push row must stay
+        // out of the UI (#164/#227): a dial is allowed to be absent, not to be inert.
     }
 
-    /// How many cells in `0..<before` fire at this density. Pure counterpart of `fires`.
-    static func firedCount(before limit: Int, density: Float, period: Int) -> Int {
+    /// How many cells in `0..<before` the ARP sounds, in this bar. The counterpart of the walk
+    /// index: `ArpFigure` advances once per SOUNDED note, so this is what turns a cell index into
+    /// a walk position.
+    ///
+    /// ⚠️ NOT bar-invariant any more, and that difference is worth stating because the walk index
+    /// multiplies by it. Under the old Euclidean rule every traverse fired the same count, so
+    /// `traverse * firedPerTraverse` was exact. `RoleRhythm` keeps that for five of six
+    /// characters; `flowing` with `evolve > 0` fires a different number per bar by design. The
+    /// walk then ENTERS the next traverse on a different chord tone than a running total would
+    /// give — which is variation on the one character whose whole purpose is to breathe, not an
+    /// error. Within a traverse the walk is always consecutive, which is the property the figure
+    /// depends on.
+    ///
+    /// Cost: `limit` calls to a pure function per sounded cell, `limit <= maxPeriodSteps` = 1024.
+    /// The driver only calls in when the grid cell changes — a handful of times a second.
+    static func arpFiredCount(before limit: Int, bar: Int, rhythm: RoleRhythm.Params,
+                              period: Int, seed: UInt64) -> Int {
         var count = 0
-        for i in 0..<Swift.max(0, limit) where fires(cell: i, density: density, period: period) {
+        for i in 0..<Swift.max(0, limit)
+        where RoleRhythm.hit(bar: bar, cell: i, cellsPerBar: period,
+                             params: rhythm, seed: seed) != nil {
             count += 1
         }
         return count
