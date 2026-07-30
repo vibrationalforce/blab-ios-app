@@ -22,6 +22,13 @@
 import Foundation
 
 /// Softens the LEAD role only, for the opening bar of a take.
+///
+/// ⛔ **THIS HAS NEVER AUDIBLY DONE ANYTHING, and that is not a defect here.** All 25 curated genres
+/// set `HarmonicProfile.leadDensity` to 0, so `BioComposer` composes no `.lead`-role note and
+/// `apply` returns every take unchanged (pinned by `LeadRoleAbsenceTests` in the blocking bundle).
+/// Kept because the softened entrance is a real intent and this is where it belongs the moment a
+/// genre sings again — but do not cite this type as a shipping behaviour, and do not "fix" a
+/// too-loud opening bar by tuning `leadFactor`: today it would change nothing.
 public enum IntroAttenuation {
 
     /// How much the lead's velocity is pulled back on bar 0 (multiplicative).

@@ -2224,7 +2224,22 @@ public enum BioComposer {
             }
         }
 
-        // 3) Lead melody — a SINGING line, not an arpeggio (founder 2026-07-20
+        // 3) Lead melody — ⛔ UNREACHABLE IN THE SHIPPING APP, READ THIS BEFORE PLANNING ANYTHING
+        //    FROM THE PARAGRAPH BELOW. Every one of the 25 `MusicStyle` cases carries
+        //    `leadDensity: 0.0` and nothing mutates it, so the `if` on the next line is never
+        //    taken and NO `.lead`-role note is ever composed. The founder removed these melodies
+        //    on 2026-07-09 ("die Melodie in den Genres war zu laut und zu unnatürlich … besser
+        //    wenn die komplett weg sind — nur chillige mystische Flächen"), which is why
+        //    `dubMelody`/`trapMelody`/`ambientMelody` also sit callerless further up this file.
+        //    `LeadRoleAbsenceTests` (BLOCKING bundle) pins that and lists what wakes if it changes.
+        //    KEPT, not deleted: everything below is the founder's own 2026-07-11/07-20 tuning of how
+        //    a lead should sing, and it is the starting point if one ever returns. The cost of
+        //    keeping it is this comment; the cost of deleting it is re-deriving the tuning.
+        //    (`BioComposerTests.swift:360` has said "BioComposer never emits a .lead-role note"
+        //    since before this comment existed — in the NON-blocking bundle, where the fact could
+        //    not stop #253 A5 from being built against it. That is why the guard is in CISmoke.)
+        //
+        //    a SINGING line, not an arpeggio (founder 2026-07-20
         //    "sicherstellen dass keine Melodien Melodien sind"): the line moves
         //    STEPWISE through the scale (the motif deltas are scale steps → mostly
         //    2nds), and every metrically-STRONG note snaps to the nearest chord tone

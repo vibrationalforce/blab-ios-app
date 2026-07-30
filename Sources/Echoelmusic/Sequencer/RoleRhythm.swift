@@ -75,8 +75,25 @@
 //      It does NOT govern the inner pulse layer, which keeps its own fixed grid.
 //
 //  `density` has no arp writer for its own stated reason (the Field's Density row is the one rate
-//  control and `arpTouches` overwrites the stored copy with it). The remaining ROLES have no writer:
-//  A5 (lead), A6 the bounded timbre/FX trim.
+//  control and `arpTouches` overwrites the stored copy with it).
+//
+//  ⛔ A5 (LEAD) IS REJECTED, NOT PENDING — and this is the paragraph that stops it being re-planned
+//  every few sessions. **There is no lead melody in this product.** All 25 curated genres carry
+//  `HarmonicProfile.leadDensity == 0`, nothing mutates it, and `dubMelody` / `trapMelody` /
+//  `ambientMelody` have no caller — so `composeHarmonic`'s ~170-line melody block never runs and no
+//  `.lead`-role note is ever composed. The absence is a FOUNDER DECISION (2026-07-09: "die Melodie
+//  in den Genres war zu laut und zu unnatürlich … besser wenn die komplett weg sind"), not a gap to
+//  fill. A5 was fully BUILT on 2026-07-30 — Input field, `roleRhythmOnsets` binding, gate-driven
+//  note lengths, accent-scaled velocity, a Mood-panel Picker — and then reverted in the same cycle,
+//  because a Picker that does nothing on every genre is the #135/#164/#227 lying-control defect. The
+//  diff is in that commit's body if the founder brings the lead back; `LeadRoleAbsenceTests` (BLOCKING
+//  bundle) fails the moment one does, and names the four dormant paths that wake with it.
+//  ⚠️ Do NOT read this as "the lead code is dead, delete it". `tameLeadPitch` and
+//  `IntroAttenuation.leadFactor` hold real founder tuning from 2026-07-07/07-11, and #196 is an open
+//  task on the lead's output gain. Dormant-and-documented, not deleted — that call is the founder's.
+//
+//  So ONE role is left genuinely open: A6, the bounded timbre/FX trim — and that one is not a fifth
+//  consumer of `hit`, it reads the CHARACTER to nudge a sound, so this list may well stay at three.
 //  (This block said "TWO consumers … A4 (pad) has no writer" for one commit — written in the commit
 //  that added the pad as the third. Twenty lines above, this same header spends a paragraph on
 //  exactly that failure with A2. Update it IN the diff that adds a consumer, not after.)

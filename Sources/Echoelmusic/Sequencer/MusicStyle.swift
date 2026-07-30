@@ -37,6 +37,14 @@ public struct HarmonicProfile: Sendable, Equatable {
     /// Break chords into a rising arpeggio (true) or hold them as a pad (false).
     public var arpeggiated: Bool
     /// 0 = no lead (drone), 1 = a busy lead line.
+    ///
+    /// ⛔ **EVERY CURATED GENRE SETS THIS TO 0 TODAY** — all 25 of them, verified by
+    /// `LeadRoleAbsenceTests` in the blocking bundle. So `composeHarmonic`'s whole melody block is
+    /// unreachable and no `.lead`-role note is ever composed. The founder removed these melodies on
+    /// 2026-07-09 ("zu laut und zu unnatürlich"); this field is the switch that turned them off and
+    /// the switch that would turn them back on. Raising it on ANY genre is a founder decision that
+    /// wakes four dormant paths at once (the Lead mixer fader, `IntroAttenuation.leadFactor`,
+    /// `tameLeadPitch`, and #253 A5's reverted Lead-rhythm row) — the test names them.
     public var leadDensity: Float
     /// A TRUE sustained drone: hold ONE root and the full chord for the whole
     /// section — NO walking bass, NO inner 8th/16th pulse layer, regardless of the

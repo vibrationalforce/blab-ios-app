@@ -1624,6 +1624,17 @@ struct EchoelStudioView: View {
                 }
                 // Pad + Lead share the melodic FX bus → one strip. The melodic filter tames
                 // a shrill lead directly.
+                //
+                // ⛔ THE "Lead" FIELD BELOW IS INERT TODAY AND THE FOUNDER CAN SEE IT. All 25 curated
+                // genres set `leadDensity: 0`, so `BioComposer` composes no `.lead`-role note and
+                // there is nothing for this fader to scale (`LeadRoleAbsenceTests`, blocking bundle;
+                // the whole finding is in `RoleRhythm.swift`'s A5 paragraph). It is a lying control
+                // by this repo's own #135/#164/#227 standard — LEFT IN DELIBERATELY, because the two
+                // honest fixes are both founder calls: give a genre a lead again, or remove the
+                // field. Removing it silently would also delete the only door to a PERSISTED value
+                // (`MixerStore.lead` → `"mixer.lead"`), which is the #167 lesson.
+                // Do not add a caption or grey it out to "explain" it either — that ships an apology
+                // instead of a decision.
                 mixStripCard("Melodic · Pad + Lead") {
                     EchoelValueField(label: "Pad", value: mixBinding(\.pad),
                                      range: 0...1, unit: "", decimals: 2)   // see Bass Level
