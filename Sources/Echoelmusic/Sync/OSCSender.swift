@@ -16,14 +16,20 @@
 //  a structural 0 instead collapsed a bound scale or slewed a lighting desk to black with no
 //  way to tell that apart from a real stop.
 //    /echoelmusic/bio/heart/bpm     float [40..200]  — only with a measured pulse
-//    /echoelmusic/bio/heart/hrv     float [0..1]     — on its OWN sentinel, NOT the pulse:
-//        both live sensors publish a locked BPM with hrv 0 for the first ~55 s, until the
-//        RR record is long enough for a spectrum
-//    /echoelmusic/bio/breath/rate   float [4..30]    — on the plausibility band (3…40/min)
+//    /echoelmusic/bio/heart/hrv     float [0..1]     — pulse AND its own sentinel (both halves
+//        are required and neither is redundant — see the block at `bioMessages`)
+//    /echoelmusic/bio/heart/rmssd   float ms         — pulse AND its own sentinel
+//    /echoelmusic/bio/heart/pnn50   float [0..1]     — rides the RMSSD gate (same RR record)
+//    /echoelmusic/bio/heart/sdnn    float ms         — pulse AND its own sentinel
+//    /echoelmusic/bio/breath/rate   float [3..40]    — on the plausibility band (3…40/min)
 //    /echoelmusic/bio/breath/phase  float [0..1]     — with the RATE, never gated on itself:
 //        the phase has no unknown sentinel (0 = EXHALE start, 0.5 = inhale start), so a value
 //        gate would drop real data once per breath cycle
-//    /echoelmusic/bio/coherence     float [0..1]     — on its own sentinel, same as hrv
+//    /echoelmusic/bio/coherence     float [0..1]     — pulse AND its own sentinel, like hrv.
+//        ⚠️ This one is the most likely to stay SILENT for a whole session: coherence needs
+//        `HRVCoherence.minIntervals` = 16 accepted RR intervals, and the camera's RR series
+//        comes from a fixed 10 s peak window (`CameraAnalyzer.detectPeaks`) — about 10
+//        intervals at a resting heart rate. On the BLE strap it arrives after ~16 beats.
 //    /echoelmusic/bio/motion        float [0..1]  — NOT SENT in this build (#215):
 //        nothing measures motion, so the address would carry a constant 0 that a
 //        receiver cannot tell apart from a motionless performer. It returns the day a
@@ -240,21 +246,29 @@ public final class OSCSender {
     /// The bio-frame → OSC message list. Pure + `nonisolated` so the gating is
     /// unit-testable (like `ADMOSCSender.admMessages`) and shares one source of truth
     /// with `send(frame:)`. Each un-normalized HRV metric is gated on ITS OWN source
-    /// value (>0) so consumers never read a synthesized number — and, crucially, so a
-    /// source that provides SDNN but no beat-to-beat RR (HealthKit's native SDNN) still
-    /// emits its SDNN even though it has no RMSSD/pNN50 (those are RR-derived).
+    /// value (>0) **and on a measured pulse**, so consumers never read a synthesized
+    /// number — and, crucially, so a source that provides SDNN but no beat-to-beat RR
+    /// (HealthKit's native SDNN) still emits its SDNN even though it has no RMSSD/pNN50
+    /// (those are RR-derived). "No beat-to-beat RR" means no INTERVAL series, not no
+    /// heartbeat — hence the pulse half applies to SDNN too.
     nonisolated static func bioMessages(for frame: BioSampleFrame) -> [(address: String, floats: [Float])] {
         var msgs: [(address: String, floats: [Float])] = []
-        // ⛔ #245: THESE TWO USED TO BE UNCONDITIONAL, and that was the same defect #215 fixed
-        // for `/bio/motion` one address further down — restated here because the fix and the
-        // defect lived eighteen lines apart in one function. Before a publisher locks, or after
-        // a finger lifts, `heartRateBPM` is a structural 0. On the wire a 0 is a VALUE: a VJ
+        // ⛔ #245: THESE USED TO BE UNCONDITIONAL, and that was the same defect #215 fixed
+        // for `/bio/motion` further down this very function. On the wire a 0 is a VALUE: a VJ
         // binding a scale to `/bio/heart/bpm` gets a hard collapse to zero, a lighting desk
         // slews its Grand Master to black, and neither has any way to tell that apart from a
         // measured stop. Not sending is the only form the protocol has for "I do not know" —
         // the receiver holds its last value, which is what a performer expects when the camera
-        // blinks. And it is not hypothetical: log 2476 published ONE frame in 110 s of a locked
-        // pulse (#235), so the un-measured state is the COMMON one today, not the edge case.
+        // blinks.
+        //
+        // ⚠️ TWO EARLIER VERSIONS OF THIS COMMENT NAMED TRIGGERS THAT DO NOT EXIST, and both
+        // were removed from the test header before the source caught up — so this block and its
+        // own test disagreed about the same fact. Neither "before a publisher locks" nor "after
+        // a finger lifts" produces such a frame: `CameraRPPGBioPublisher.shouldPublish` requires
+        // `bpm > 0`, and `PolarH10BioPublisher` requires a plausible BPM. Nor is the "log 2476:
+        // ONE frame in 110 s" figure reproducible from anything in this repo. The REAL zero-pulse
+        // producer is `FaceExpressionBioPublisher`, which publishes an all-zero bio frame and IS
+        // egress-allowed — that one frame is what this gate silences.
         if frame.hasMeasuredHeartRate {
             msgs.append(("/echoelmusic/bio/heart/bpm", [frame.heartRateBPM]))
         }
@@ -262,10 +276,19 @@ public final class OSCSender {
         // direction once, on the same two addresses, in consecutive commits:
         //
         //   · PULSE ONLY (105d6ab) let the warm-up through. Both are derived from the beat
-        //     SERIES, not from a single beat: Polar and the camera publish a locked BPM with
-        //     `hrvNormalized: 0` / `coherence: 0` until enough RR has accumulated for a
-        //     spectrum — roughly the first 55 s of every session, and again whenever the RR
-        //     record is untrustworthy. Exactly the collapse-to-zero this slice exists to stop.
+        //     SERIES, not from a single beat, so a locked BPM sits next to a 0 for either of
+        //     them — exactly the collapse-to-zero this slice exists to stop.
+        //     ⚠️ THE "~55 s" THIS COMMENT USED TO CLAIM WAS BORROWED FROM A 64-BEAT COMMENT IN
+        //     `PolarH10BioPublisher` AND IS WRONG FOR BOTH FIELDS. HRV clears in about three
+        //     beats (`CameraAnalyzer` computes RMSSD at `rrIntervals.count >= 3`, and
+        //     `RRIntervalHygiene.canStateHRV` is a fraction test with no minimum count).
+        //     COHERENCE is the one that sits at 0, and its real threshold is a COUNT:
+        //     `HRVCoherence.minIntervals` = 16 accepted RR intervals. On the strap that is
+        //     ~16 beats; on the CAMERA it may never be reached, because the RR series comes
+        //     from a fixed 10 s peak window (`CameraAnalyzer.detectPeaks`) — about 10 intervals
+        //     at a resting heart rate. So on a camera session `/coherence` can stay silent for
+        //     the whole take, which makes the sentinel half load-bearing permanently, not for
+        //     a warm-up. That is a stronger argument than the one this comment used to make.
         //   · SENTINEL ONLY (33876a0) let a MALFORMED frame through: a frame with no pulse
         //     cannot carry HRV or coherence at all, so a non-zero value beside `bpm == 0` is
         //     not a reading to forward — it is a bug at the publisher, and forwarding it puts

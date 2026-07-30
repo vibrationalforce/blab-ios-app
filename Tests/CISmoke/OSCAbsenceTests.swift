@@ -2,23 +2,30 @@
 // Echoel — #245: on the wire, a 0 is a VALUE. Silence is the only form the protocol has for
 // "I do not know". BLOCKING bundle, because the other suite cannot fail a merge (#208).
 //
-// WHAT WENT WRONG. `/bio/heart/bpm`, `/hrv`, `/breath/rate`, `/breath/phase` and `/coherence`
-// were sent on EVERY frame, structural zeros included. Downstream that is not a gap, it is a
-// measurement: a VJ's bound scale collapses, a lighting desk slews its Grand Master to black,
-// and neither can tell that apart from a performer who really stopped. #215 had already decided
-// exactly this for `/bio/motion` — further down the SAME function, and the other five were
-// simply never revisited.
+// WHAT WENT WRONG. `/bio/heart/bpm`, `/hrv`, `/rmssd`, `/pnn50`, `/sdnn`, `/breath/rate`,
+// `/breath/phase` and `/coherence` were sent on EVERY frame, structural zeros included.
+// Downstream that is not a gap, it is a measurement: a VJ's bound scale collapses, a lighting
+// desk slews its Grand Master to black, and neither can tell that apart from a performer who
+// really stopped. #215 had already decided exactly this for `/bio/motion` — further down the
+// SAME function, and the rest were simply never revisited.
 //
 // ⚠️ WHICH FRAMES ACTUALLY TRIGGER IT — corrected in review, because the first version of this
 // header named a mechanism that does not exist. It said "the frames a publisher emits before it
 // locks and after a finger lifts". Neither live pulse sensor emits those: `CameraRPPGBioPublisher`
 // requires `bpm > 0` to publish at all, and `PolarH10BioPublisher` requires a plausible BPM. The
 // THREE REAL cases are (a) `FaceExpressionBioPublisher`, which publishes an all-zero bio frame
-// and IS egress-allowed; (b) the ~55 s at the start of every session where a LOCKED pulse sits
-// next to `hrvNormalized == 0` and `coherence == 0`, because both are derived from the beat
-// series and the RR record is not yet long enough for a spectrum; and (c) a MALFORMED frame —
-// non-zero HRV or coherence beside `bpm == 0`, which is physically impossible and means a
-// publisher bug, not a reading to forward.
+// and IS egress-allowed; (b) a LOCKED pulse sitting next to `coherence == 0`, because coherence
+// is derived from the beat SERIES; and (c) a MALFORMED frame — non-zero HRV or coherence beside
+// `bpm == 0`, which is physically impossible and means a publisher bug, not a reading to forward.
+//
+// ⛔ (b) WAS WRITTEN HERE AS "the ~55 s at the start of every session", AND THAT NUMBER IS WRONG
+// in a way that undersells the case. HRV is not 0 for 55 s — it clears in about three beats
+// (`CameraAnalyzer` computes RMSSD at `rrIntervals.count >= 3`). COHERENCE is the one that
+// sits at 0, and its threshold is a COUNT, not a duration: `HRVCoherence.minIntervals` = 16
+// accepted RR intervals. The strap reaches that in ~16 beats. The CAMERA may never reach it:
+// its RR series comes from a fixed 10 s peak window (`CameraAnalyzer.detectPeaks`), about 10
+// intervals at a resting heart rate — so on a camera session `/coherence` can stay silent for
+// the entire take. The sentinel half is therefore permanent, not a warm-up.
 //
 // ⛔ (b) AND (c) PULL IN OPPOSITE DIRECTIONS, and this file got it wrong in each direction once,
 // in consecutive commits. A pulse-only gate passes (c) and fails (b); a sentinel-only gate passes
@@ -30,6 +37,11 @@
 // ~10 Hz caller runs at all are separate paths with their own tests. Stated so "OSC is tested"
 // is not read into it.
 
+// `OSCSender` itself lives inside `#if canImport(Network)`, so this file carries the same
+// guard as its sibling `Tests/EchoelmusicTests/OSCSenderTests.swift`. It is a no-op on the
+// iOS test host that runs CISmoke today — it exists so the file can be moved into the
+// SwiftPM suite (or built on a platform without Network) without failing to compile.
+#if canImport(Network)
 import Foundation
 import XCTest
 @testable import Echoelmusic
@@ -83,8 +95,9 @@ final class OSCAbsenceTests: XCTestCase {
 
     /// And the un-measured frame must be SILENT, not merely thinned — otherwise a receiver still
     /// sees traffic and reads the missing addresses as "unchanged" rather than "absent". Same
-    /// malformed fixture as above, for the same reason: with sentinel-only gates this produced
-    /// two messages and went red on CI, which is how the missing precondition was found.
+    /// malformed DEFAULTS as above (hrv 0.5 / coherence 0.7 beside `bpm == 0`; this one leaves
+    /// the time-domain trio at 0): with sentinel-only gates it produced exactly those two
+    /// messages and went red on CI, which is how the missing precondition was found.
     func testAFrameWithNothingMeasuredSendsNothingAtAll() {
         XCTAssertTrue(OSCSender.bioMessages(for: frame(bpm: 0, breath: 0)).isEmpty,
                       "a frame carrying no measurement at all still produced messages: "
@@ -140,16 +153,29 @@ final class OSCAbsenceTests: XCTestCase {
                           "\(address) is missing from a frame where everything IS measured — "
                           + "the absence gate has turned into a silence bug")
         }
-        XCTAssertFalse(sent.contains("/echoelmusic/bio/motion"),
-                       "motion came back. Nothing measures it (#215); its gate is structural, "
-                       + "not value-based, and it stays off until a producer exists.")
+        // ⚠️ BRANCHED, not asserted flat — mirroring `OSCSenderTests`. Motion's gate is
+        // STRUCTURAL (#215): it is off because nothing produces motion, not because 0 is
+        // suspect. The day a CoreMotion provider lands, 0 becomes a real reading and must be
+        // sent — and a flat `XCTAssertFalse` here would redden the BLOCKING bundle for the
+        // wrong reason, on a commit that added a sensor.
+        if ModSource.motion.hasProducer {
+            XCTAssertTrue(sent.contains("/echoelmusic/bio/motion"),
+                          "a producer exists now, so 0 is a real reading — silence would drop "
+                          + "a motionless performer's channel mid-show")
+        } else {
+            XCTAssertFalse(sent.contains("/echoelmusic/bio/motion"),
+                           "motion came back with no producer. Its gate is structural, not "
+                           + "value-based, and it stays off until something measures it.")
+        }
     }
 
     /// ⭐ THE CASE THE FIRST CUT OF THIS SLICE MISSED, and the one that actually bites in a show:
     /// a LOCKED pulse with no HRV and no coherence yet. Both are derived from the beat SERIES, so
     /// `PolarH10BioPublisher` and `CameraRPPGBioPublisher` publish a real BPM alongside a 0 for
-    /// each of them for roughly the first 55 s of a session, and again whenever the RR record is
-    /// untrustworthy. Putting those two on the PULSE gate — which is what the first version did —
+    /// them at the start of a take, and again whenever the RR record is untrustworthy. For
+    /// COHERENCE that window is not short: `HRVCoherence.minIntervals` = 16 accepted RR
+    /// intervals, which the camera's fixed 10 s peak window may never supply at rest.
+    /// Putting those two on the PULSE gate — which is what the first version did —
     /// let the collapse-to-zero straight through on the two addresses a lighting desk is most
     /// likely bound to. Both fields carry their own sentinel and both of their docs say so.
     func testALockedPulseWithoutHRVSendsNeitherHRVNorCoherence() {
@@ -158,8 +184,8 @@ final class OSCAbsenceTests: XCTestCase {
                       "the pulse IS measured here and must still be sent")
         XCTAssertFalse(sent.contains("/echoelmusic/bio/heart/hrv"),
                        "hrv 0 went out next to a locked pulse. Its own doc says 0 means NOT "
-                       + "MEASURED, never 'minimum variability' — this is the first ~55 s of "
-                       + "EVERY session, not an edge case.")
+                       + "MEASURED, never 'minimum variability' — this is the opening of EVERY "
+                       + "session, not an edge case.")
         XCTAssertFalse(sent.contains("/echoelmusic/bio/coherence"),
                        "coherence 0 went out next to a locked pulse. Its own doc says treat 0 as "
                        + "'not available', not as 'incoherent'.")
@@ -182,3 +208,4 @@ final class OSCAbsenceTests: XCTestCase {
                        "60 breaths per minute passed the gate — the band has an upper bound too")
     }
 }
+#endif

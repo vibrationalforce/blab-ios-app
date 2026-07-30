@@ -16,14 +16,29 @@ and music can drive Resolume, TouchDesigner, OBS, lighting desks and spatial rig
 Connect **Body** (and/or **Music**) → **OSC Out** in the patchbay, then point the
 receiving app at the phone's IP (UDP). Default namespace:
 
+> ⛔ **Every bio address is sent only while its own channel is actually measured (#245).**
+> Silence means "not measured" — never "measured as zero" — and your receiver simply holds
+> its last value, which is what you want when a finger slips off the camera mid-set. A
+> structural 0 would instead collapse a bound scale or slew a Grand Master to black, with
+> nothing on the wire to tell that apart from a performer who really stopped.
+>
+> Two consequences worth knowing BEFORE you build a mapping:
+> · A channel-creating receiver (TouchDesigner's OSC In CHOP) will not create a channel that
+>   has never been sent. If an address is missing from your CHOP, the sensor has not measured
+>   it yet — it is not a connection fault.
+> · `/coherence` is the one most likely to stay absent for a whole take. It needs ≥16 accepted
+>   RR intervals; the chest strap reaches that after ~16 beats, but the **camera** derives its
+>   RR series from a fixed 10-second window (~10 intervals at a resting heart rate), so on a
+>   camera session it may never appear. Map coherence when you are on a strap.
+
 | Address | Range | Meaning |
 |---|---|---|
-| `/echoelmusic/bio/heart/bpm` | 40–200 | heart rate |
-| `/echoelmusic/bio/heart/hrv` | 0–1 | normalized HRV |
-| `/echoelmusic/bio/heart/rmssd` · `/sdnn` · `/pnn50` | ms / ms / % | HRV detail (trusted source) |
-| `/echoelmusic/bio/breath/rate` | 4–30 | breaths per minute |
-| `/echoelmusic/bio/breath/phase` | 0–1 | inhale→exhale phase (great for smooth motion) |
-| `/echoelmusic/bio/coherence` | 0–1 | HRV coherence |
+| `/echoelmusic/bio/heart/bpm` | 40–200 | heart rate — only with a measured pulse |
+| `/echoelmusic/bio/heart/hrv` | 0–1 | normalized HRV — needs a pulse AND a non-zero HRV |
+| `/echoelmusic/bio/heart/rmssd` · `/sdnn` · `/pnn50` | ms / ms / % | HRV detail (trusted source) — same rule: a pulse plus a real value |
+| `/echoelmusic/bio/breath/rate` | 3–40 | breaths per minute — sent only inside that plausibility band |
+| `/echoelmusic/bio/breath/phase` | 0–1 | inhale→exhale phase (great for smooth motion) — rides the RATE's gate, never its own value, because 0 is a real position |
+| `/echoelmusic/bio/coherence` | 0–1 | HRV coherence — see the note above; frequently absent |
 | `/echoelmusic/bio/motion` | 0–1 | body motion energy — **NOT SENT today** (#215): no CoreMotion provider exists, every publisher writes `motionEnergy: 0`. It used to arrive as a constant 0, which no receiver can tell apart from a performer standing still; now the address simply does not appear. It returns when a motion sensor does. |
 | `/echoelmusic/bio/event/heartbeat` | trigger | per-beat bang (flash on the beat) |
 | `/echoelmusic/bio/event/breath/inhale` · `/exhale` | trigger | breath onsets |

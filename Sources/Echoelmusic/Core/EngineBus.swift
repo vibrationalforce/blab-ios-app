@@ -122,10 +122,18 @@ public struct BioSampleFrame: Sendable, Equatable {
     ///
     /// ⛔ NOT a general "is this frame usable" flag. Freshness is a separate axis and lives
     /// on the bus (`freshBio(maxAge:)`); a frame can carry a real pulse and still be too old
-    /// to act on. And it says nothing about HRV or coherence: both are derived from the beat
-    /// SERIES, so a locked pulse can sit next to `hrvNormalized == 0` for the first ~55 s of a
-    /// session while the spectrum fills. Those two carry their own sentinels — gate on the
-    /// value, not on this (`ModSource.isMeasured` answers it per channel).
+    /// to act on. And on its own it does not answer HRV or coherence: both are derived from
+    /// the beat SERIES, so a locked pulse can sit next to a 0 for either of them — HRV for
+    /// about three beats, coherence until `HRVCoherence.minIntervals` = 16 RR intervals have
+    /// accumulated (on a camera session, possibly never: its RR series comes from a fixed
+    /// 10 s peak window). Those two carry their own sentinels.
+    ///
+    /// ⚠️ WHICH DOES NOT MEAN "use the sentinel INSTEAD of this" — the earlier wording said
+    /// exactly that, and it would tell a reader to undo the egress gate deliberately built on
+    /// top of it. `OSCSender.bioMessages` requires this AND the sentinel, because a non-zero
+    /// HRV beside `bpm == 0` is not a reading but a publisher bug, and forwarding it puts an
+    /// invented number on someone else's lighting desk. Value-gating ALONE stays correct for
+    /// in-app modulation (`ModSource.isMeasured`), where a malformed frame costs nothing.
     public var hasMeasuredHeartRate: Bool { heartRateBPM > 0 }
 
     /// Raw HRV as RMSSD in **milliseconds** — the un-normalized, instrument-grade
@@ -164,6 +172,15 @@ public struct BioSampleFrame: Sendable, Equatable {
     public var hasMeasuredBreath: Bool { Self.plausibleBreathRate.contains(breathRate) }
 
     /// Breath phase, [0..1]. 0 = exhale start, 0.5 = inhale start.
+    ///
+    /// ⚠️ THE CONTRACT IS A SAWTOOTH PHASE; THE CAMERA DOES NOT HONOUR IT. `BioEventGraph`
+    /// reads it as one (wrap 1→0 = exhale onset, upward 0.5 crossing = inhale onset), but
+    /// `CameraRPPGBioPublisher` writes `RespirationEstimator.amplitude` here — an ENVELOPE
+    /// (1 = inhale peak, 0.5 = no clear oscillation), which is neither monotonic nor wrapping.
+    /// So on the one egress-allowed breath source, `/echoelmusic/bio/breath/phase` does not
+    /// carry what this line promises and the wrap detector cannot fire. Pre-existing, tracked
+    /// separately — recorded here because #245's decision NOT to gate the phase on its own
+    /// value rests on "0 is a real position", and that reasoning must stay checkable.
     public let breathPhase: Float
 
     /// Coherence score, [0..1]. Real frequency-domain HRV coherence
