@@ -5,14 +5,18 @@
 // TransportBar, CompositionHeaderStrip — with `.dynamicTypeSize(...)`. Behind that clamp sit
 // Play/Stop, tempo, Genre, Key, Scale, Tone system and A4: the controls that are on screen at
 // all times. Until 2026-07-30 the ceiling was `.xxLarge`, the largest NON-accessibility size,
-// so a user on AX1…AX5 got no enlargement at all there — and neither did the app's own
-// pinch-to-zoom, because `StudioZoom` drives Dynamic Type and stopped at the same wall.
+// so a user on AX1…AX5 got no enlargement at all there.
+//
+// ⛔ THE FIRST VERSION OF THIS HEADER ALSO SAID the clamp capped the app's own pinch zoom.
+// FALSE: `StudioZoom` is applied inside `EchoelStudioView`, which mounts under `SurfaceHost`
+// — a SIBLING of the clamped Group, not a descendant — and `.dynamicTypeSize` only writes
+// downward. The pinch zoom never reached the chrome and still does not.
 //
 // The clamp existed for a real reason: the three bars were `.frame(height:)`, so bigger text
-// overran a box that could not grow. The fix removed the reason (heights are minimums now) and
-// then raised the ceiling. Both halves have to stay true together, which is what this file
-// checks — a fixed height reintroduced under a raised ceiling CROPS the chrome, and a lowered
-// ceiling under flexible heights silently takes the accessibility win back.
+// overflowed a box that could not grow. The fix removed the reason (heights are minimums now)
+// and then raised the ceiling. Three things must stay true together, which is what this file
+// checks: the ceiling is an accessibility size, no bar is pinned again, and each bar keeps the
+// `fixedSize` that stops it competing with the instrument for free space.
 //
 // ⚠️ WHY A SOURCE SCAN AND NOT A LAYOUT TEST. There is no simulator in this environment and
 // the blocking bundle is `Tests/CISmoke`; a SwiftUI layout assertion cannot run here. The
@@ -67,11 +71,21 @@ final class ChromeDynamicTypeTests: XCTestCase {
         "DynamicTypeSize.xxxLarge"
     ]
 
+    /// The other spelling of the same thing. `.environment(\.dynamicTypeSize, …)` is invisible
+    /// to a `.dynamicTypeSize(` grep and would silently re-cap the chrome while every
+    /// assertion below still passed — so it is banned outright in the chrome's own file
+    /// rather than parsed.
+    private static let clampByEnvironment = #"environment(\.dynamicTypeSize"#
+
     func testTheChromeCeilingIsAnAccessibilitySize() throws {
         let lines = try codeLines(Self.workspace)
+        XCTAssertFalse(lines.contains { $0.contains(Self.clampByEnvironment) },
+                       "the chrome sets the type size through `.environment(\\.dynamicTypeSize, …)`. "
+                       + "That is the same clamp under a name this file cannot read; use "
+                       + "`.dynamicTypeSize(...)` so there is one spelling to check.")
         let clamps = lines.filter { $0.contains(".dynamicTypeSize(") }
         XCTAssertEqual(clamps.count, 1,
-                       "expected exactly ONE Dynamic Type clamp in the chrome; found "
+                       "expected exactly ONE Dynamic Type clamp in WorkspaceView.swift; found "
                        + "\(clamps.count). A second clamp means two ceilings disagree and the "
                        + "lower one silently wins:\n\(clamps.joined(separator: "\n"))")
         let clamp = try XCTUnwrap(clamps.first)
@@ -85,19 +99,35 @@ final class ChromeDynamicTypeTests: XCTestCase {
         }
     }
 
-    /// The three chrome bars. Each pairs the bar's design height with the property that draws
-    /// it, so a failure message says WHICH bar regressed rather than only that one did.
-    private static let chromeBars = [(bar: "topBar", height: 50),
-                                     (bar: "TransportBar", height: 44),
-                                     (bar: "CompositionHeaderStrip", height: 40)]
+    /// The three chrome bars: the design height, and the token that proves the bar is still
+    /// MOUNTED. The token matters as much as the number — #251's lesson is that a guard which
+    /// stays green while the guarded thing is deleted is worse than no guard, and without it
+    /// removing `CompositionHeaderStrip()` from the Group would pass as long as some
+    /// `.frame(minHeight: 40)` survived anywhere in this 800-line file.
+    private static let chromeBars = [(bar: "topBar", height: 50, mount: "topBar"),
+                                     (bar: "TransportBar", height: 44, mount: "TransportBar()"),
+                                     (bar: "CompositionHeaderStrip", height: 40,
+                                      mount: "CompositionHeaderStrip()")]
 
     func testTheChromeBarsCanGrowWithTheirText() throws {
         let lines = try codeLines(Self.workspace)
         for spec in Self.chromeBars {
-            XCTAssertFalse(lines.contains { $0.contains(".frame(height: \(spec.height))") },
-                           "\(spec.bar) pins .frame(height: \(spec.height)) again. A fixed "
+            XCTAssertTrue(lines.contains { $0.contains(spec.mount) },
+                          "\(spec.bar) is no longer mounted (`\(spec.mount)` is gone). Every "
+                          + "other assertion here would still pass, which is exactly why this "
+                          + "one exists.")
+            // Both spellings that restore the pin: replacing the modifier, and ADDING a second
+            // one beside the surviving minHeight. The second is what someone actually writes
+            // when a row needs to line up again, and it is the one a naive check misses.
+            XCTAssertFalse(lines.contains { $0.contains(".frame(height: \(spec.height)") },
+                           "\(spec.bar) pins .frame(height: \(spec.height)…) again. A fixed "
                            + "height under the raised Dynamic Type ceiling does not shrink the "
-                           + "text — it CROPS it, which is worse than the clamp this replaced.")
+                           + "text — the text overflows and the next bar's opaque background "
+                           + "paints over it, which is worse than the clamp this replaced.")
+            XCTAssertFalse(lines.contains { $0.contains("maxHeight: \(spec.height)") },
+                           "\(spec.bar) caps at maxHeight: \(spec.height). Beside the surviving "
+                           + "minHeight that is the fixed height again, spelled so the other "
+                           + "assertions stay green.")
             XCTAssertTrue(lines.contains { $0.contains(".frame(minHeight: \(spec.height))") },
                           "\(spec.bar) no longer carries .frame(minHeight: \(spec.height)). If "
                           + "the bar was deliberately resized, update this expectation in the "
@@ -105,15 +135,66 @@ final class ChromeDynamicTypeTests: XCTestCase {
         }
     }
 
+    /// `fixedSize` is not cosmetic here and is not covered by the height checks: without it a
+    /// bar hosting an `EchoelValueField` reports infinite vertical flexibility (the scrub
+    /// layer is a bare `Rectangle`), and the VStack then splits free space between the bar and
+    /// the instrument — at the DEFAULT text size, for every user. Whoever deletes it will be
+    /// deleting a line that looks redundant.
+    func testEachChromeBarStaysInflexible() throws {
+        let lines = try codeLines(Self.workspace)
+        // Adjacency, not a count. A count would be wrong twice over: this file already had
+        // vertical `fixedSize` calls that have nothing to do with the chrome (a first version
+        // asserted `== 3` and would have gone red on arrival), and a count cannot see ORDER —
+        // `fixedSize` must sit BEFORE the frame, or the frame's proposal reaches the child
+        // first and the floor stops bounding anything. Whole-line comments are already
+        // dropped, so the two modifiers are neighbours in this list even with prose between
+        // them in the source.
+        for spec in Self.chromeBars {
+            let frame = ".frame(minHeight: \(spec.height))"
+            guard let i = lines.firstIndex(where: { $0.contains(frame) }), i > 0 else {
+                XCTFail("\(spec.bar): no `\(frame)` to anchor the fixedSize check against — "
+                        + "the height assertion above should have caught this first")
+                continue
+            }
+            XCTAssertTrue(lines[i - 1].contains(".fixedSize(horizontal: false, vertical: true)"),
+                          "\(spec.bar) lost the `.fixedSize(horizontal: false, vertical: true)` "
+                          + "directly above `\(frame)`. Without it the bar reports infinite "
+                          + "vertical flexibility (its EchoelValueField's scrub layer is a bare "
+                          + "Rectangle) and splits the screen with SurfaceHost — at the DEFAULT "
+                          + "text size, for every user. Line above was: \(lines[i - 1])")
+        }
+    }
+
     func testTheValueBoxIsAFloorAndNotACeiling() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/EchoelValueField.swift")
         XCTAssertTrue(lines.contains { $0.contains(".frame(minHeight: boxHeight)") },
                       "EchoelValueField pins its box height again. `boxHeight` means 'match "
-                      + "the neighbouring buttons' — a floor. As a ceiling it crops the number "
-                      + "the box exists to show, and the chrome's A4 field (104×30) is the "
-                      + "case that made it visible.")
+                      + "the neighbouring buttons' — a floor. As a ceiling the taller content "
+                      + "overflows the box that exists to show it, and the chrome's A4 field "
+                      + "(104×30) is the case that made it visible.")
         XCTAssertFalse(lines.contains { $0.contains(".frame(height: boxHeight)") },
                        "EchoelValueField still has the fixed-height spelling somewhere — two "
                        + "frames on one box means the stricter one decides.")
+        XCTAssertFalse(lines.contains { $0.contains("maxHeight: boxHeight") },
+                       "EchoelValueField caps at maxHeight: boxHeight. Beside the minHeight "
+                       + "that is the old pin restored in the one spelling both assertions "
+                       + "above would have let through.")
+    }
+
+    /// The WIDTH half. It is a separate defect from the height and it was introduced BY the
+    /// ceiling raise, so it belongs in the same guard: the number carries
+    /// `.minimumScaleFactor(0.5)` and the unit label does not, so in a box of fixed width the
+    /// growing unit steals width from the number until the number hits its floor and
+    /// truncates. Worst case in the app is Concert pitch A4 — `440.0000 Hz` in 104 pt — which
+    /// demands roughly 0.39 at `.accessibility1`, below the floor.
+    func testTheCompactBoxWidthGrowsWithTheText() throws {
+        let lines = try codeLines("Sources/Echoelmusic/Studio/EchoelValueField.swift")
+        XCTAssertTrue(lines.contains { $0.contains("@ScaledMetric(relativeTo: .body) private var compactWidthProbe") },
+                      "the compact `boxWidth` no longer scales with Dynamic Type. A fixed "
+                      + "width under the raised ceiling truncates the value it is there to "
+                      + "show — the height fix alone is half a fix.")
+        XCTAssertFalse(lines.contains { $0.contains(".frame(width: boxWidth ?? valueWidth)") },
+                       "the compact width is pinned again (`boxWidth ?? valueWidth`): "
+                       + "`valueWidth` scales, the literal beside it does not.")
     }
 }

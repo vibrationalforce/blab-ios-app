@@ -137,24 +137,37 @@ struct WorkspaceView: View {
                 // therefore clamped to `.xxLarge` so their text could not overrun the box
                 // it sits in. That clamp is the single largest accessibility defect in the
                 // app: it covers Play/Stop, tempo, Genre, Key, Scale, Tone system and A4 —
-                // the always-visible controls — and it capped them for BOTH the system
-                // text setting AND the app's own pinch zoom (`StudioZoom` drives Dynamic
-                // Type, so it too stopped here).
+                // the always-visible controls.
+                //
+                // ⛔ AN EARLIER VERSION OF THIS COMMENT ALSO BLAMED THE CLAMP FOR CAPPING
+                // THE APP'S OWN PINCH ZOOM. That was FALSE and worth correcting rather than
+                // deleting: `StudioZoom` is applied INSIDE `EchoelStudioView`
+                // (`EchoelStudioView.swift`), which mounts under `SurfaceHost` — a SIBLING
+                // of this Group, not a descendant. `.dynamicTypeSize` only writes downward,
+                // so the two never met. The pinch zoom has never reached the chrome and
+                // still does not; this change did not alter that either way.
                 //
                 // The heights below are now MINIMUMS, not fixed sizes, so the bars grow
-                // with the text instead of clipping it — which removes the reason the
-                // clamp existed. `EchoelValueField.boxHeight` became a minimum in the same
-                // commit for the same reason; without that the chrome's value boxes would
-                // still clip from the inside.
+                // with the text instead of overflowing — which removes the reason the clamp
+                // existed. `EchoelValueField.boxHeight` became a minimum in the same commit,
+                // and its compact `boxWidth` became Dynamic-Type-scaled in the follow-up:
+                // without the WIDTH half, raising the ceiling made the A4 field truncate at
+                // AX1 (the unit label does not shrink, the number does, and it hits its 0.5
+                // floor) — a new defect introduced by the fix, not an old one left alone.
                 //
-                // ⚠️ THE CEILING IS RAISED, NOT REMOVED, AND THE REASON IS HONEST: with
-                // three stacked bars, `.accessibility5` would put roughly 335 pt of chrome
-                // above an instrument that is the entire point of the app, and nobody has
-                // seen that on a device — this environment has no simulator. `.accessibility1`
-                // (~1.65× vs the old ~1.24×) is the largest step verifiable by reasoning
-                // alone. Raising it further is a founder device look, not a code question;
-                // the layout is ready for it. Do NOT read this line as "accessibility is
-                // done" — a user on AX4/AX5 still gets AX1 in the chrome.
+                // ⚠️ THE CEILING IS RAISED, NOT REMOVED, AND THE REASON IS HONEST: the
+                // chrome is 134 pt today (50 + 44 + 40). At `.accessibility5` a naive 3.12×
+                // gives 418 pt and a bottom-up estimate lands nearer 270 pt, because much of
+                // each bar is fixed-size children that never scale — three defensible
+                // numbers, which means the only honest statement is "somewhere between
+                // roughly 270 and 420 pt, unmeasured". This environment has no simulator.
+                // `.accessibility1` (~1.65× vs the old ~1.24×) is the largest step
+                // verifiable by reasoning alone. Raising it further is a founder device
+                // look, and it needs the fixed heights INSIDE the bars converted first
+                // (`HeaderMonitors.PulseMonitorMini` 30 pt, `BodyTempoField` 76×32) — those
+                // hold at AX1 and overflow from AX2 up, so "the layout is ready" is true
+                // only for the step actually taken. Do NOT read this as "accessibility is
+                // done": a user on AX4/AX5 still gets AX1 in the chrome.
                 //
                 // The instrument below (SurfaceHost) is deliberately NOT clamped at all.
                 // Group is layout-transparent in a VStack (no spacing/structure change),
@@ -290,9 +303,12 @@ struct WorkspaceView: View {
             }
         }
         .padding(.horizontal, 12)
+        // `fixedSize` BEFORE `minHeight`, and the order is load-bearing — see the shared
+        // note above `TransportBar`'s frame for why the pair is not optional.
+        .fixedSize(horizontal: false, vertical: true)
         // minHeight, not height: the bar keeps its 50 pt design size at every normal text
-        // size and GROWS instead of clipping at accessibility sizes (see the Dynamic Type
-        // note on the chrome Group in `body`).
+        // size and GROWS instead of overflowing at accessibility sizes (see the Dynamic
+        // Type note on the chrome Group in `body`).
         .frame(minHeight: 50)
         .background(EchoelTheme.bg)
     }
@@ -475,8 +491,26 @@ private struct TransportBar: View {
             TransportPositionView()
         }
         .padding(.horizontal, 12)
-        // minHeight — see `topBar`. 44 pt is also the HIG tap-target floor, so this one
-        // must never be allowed to shrink below it either.
+        // ⚠️ `fixedSize` + `minHeight` ARE A PAIR. `minHeight` alone would have been a
+        // regression for EVERY user, not only accessibility users, and the mechanism is
+        // worth stating once here for all three bars:
+        //
+        // `.frame(height: h)` reports `h` whatever the child does. `.frame(minHeight: h)`
+        // forwards the incoming proposal downward and reports `max(child, h)` — so it only
+        // preserves the old geometry if the subtree is vertically INFLEXIBLE. This subtree is
+        // not: `EchoelValueField`'s scrub layer is a bare `Rectangle()`, which accepts any
+        // proposed height (see the note at that Rectangle). In Loop mode the tempo control IS
+        // an `EchoelValueField`, so this bar would have started reporting ∞ — and its sibling
+        // `SurfaceHost` is `maxHeight: .infinity` too, so a VStack ranking both as infinitely
+        // flexible SPLITS the free space between them. The transport bar would have taken
+        // roughly half the screen at the DEFAULT text size.
+        //
+        // `.fixedSize(horizontal: false, vertical: true)` proposes nil downward, so the
+        // Rectangle falls back to its ideal and the bar takes its true content height; the
+        // `minHeight` then floors it at the design size. Flexibility is back to zero, which
+        // is what the old fixed height gave us — this time without capping the text.
+        // Removing either half re-opens the split. 44 pt is also the HIG tap-target floor.
+        .fixedSize(horizontal: false, vertical: true)
         .frame(minHeight: 44)
         .background(EchoelTheme.bg)
     }
@@ -750,10 +784,16 @@ struct CompositionHeaderStrip: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
         }
-        // minHeight — see `topBar`. This one sits on a HORIZONTAL ScrollView: the scroll
-        // axis is greedy, the cross axis (vertical, here) takes the content's ideal size,
-        // so a taller row at accessibility sizes makes the strip taller rather than
-        // cropping it.
+        // Same `fixedSize` + `minHeight` pair as `TransportBar` — read that note first.
+        //
+        // This one sits on a HORIZONTAL ScrollView, and the correction to my first comment
+        // here is worth keeping: a ScrollView's cross axis does NOT clamp to some intrinsic
+        // size, it takes the CONTENT's size under the proposal it passes through. So with a
+        // vertically greedy content (the A4 `EchoelValueField`) the ScrollView is greedy too
+        // and the strip would have grown to FILL, not "grown rather than cropped". The
+        // `fixedSize` is what actually bounds it; the ScrollView semantics were never the
+        // thing keeping this honest.
+        .fixedSize(horizontal: false, vertical: true)
         .frame(minHeight: 40)
         .background(EchoelTheme.bg)
     }

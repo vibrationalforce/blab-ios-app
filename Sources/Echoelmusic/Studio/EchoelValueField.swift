@@ -117,10 +117,28 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     // The value box + label grow with Dynamic Type / app zoom. Wide enough for a
     // 4-decimal value with a large integer part plus its unit ("18000.0000 Hz").
     @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 150
-    /// Optional fixed box width for COMPACT contexts (e.g. the transport bar's BPM),
-    /// where the default 150 is far wider than a short value needs. When nil the box
-    /// keeps the Dynamic-Type-scaled default. The one control still — just narrower.
+    /// Optional box width for COMPACT contexts (e.g. the transport bar's BPM), where the
+    /// default 150 is far wider than a short value needs. When nil the box keeps the
+    /// Dynamic-Type-scaled default. The one control still — just narrower.
+    ///
+    /// ⚠️ IT SCALES (see `compactWidthProbe`). It did not until 2026-07-30, and that was a
+    /// real defect the moment the chrome's Dynamic Type ceiling was raised: the number
+    /// carries `.minimumScaleFactor(0.5)` and the unit label does NOT, so in a fixed box the
+    /// growing unit steals width from the number until the number hits its floor and
+    /// TRUNCATES. Measured on the worst case in the app — Concert pitch A4, `440.0000 Hz` in
+    /// a 104 pt box — the shrink-to-fit demand at `.accessibility1` is ≈0.39, below the 0.5
+    /// floor. Giving the box the same growth factor as its text keeps the ratio, so the
+    /// number reads at the size the user asked for instead of being cut.
     var boxWidth: CGFloat? = nil
+
+    /// The factor Dynamic Type is currently applying to body text, obtained by scaling a
+    /// probe. `relativeTo: .body` matches `EchoelTheme.font`, which lays every label out
+    /// against `.body` — so the box grows exactly as fast as what is inside it.
+    ///
+    /// The base is 100 and not 1 ON PURPOSE: `@ScaledMetric` returns point values, and asking
+    /// it to scale a single point invites quantisation to land on 1 or 2 and turn a smooth
+    /// ratio into a step function. A 100 pt probe divided back out is stable.
+    @ScaledMetric(relativeTo: .body) private var compactWidthProbe: CGFloat = 100
     /// Optional fixed box HEIGHT for DENSE rows (e.g. the timeline lane strip, where the
     /// value box must read the SAME size as the neighbouring M/S/record buttons — founder
     /// 2026-07-15 "Die Felder sollen gleichgroß sein"). nil = the natural padded height.
@@ -236,21 +254,35 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
 
             // A transparent layer turns the value into a vertical fader: drag = adjust,
             // tap = open the keypad.
+            //
+            // ⚠️ A BARE `Rectangle()` ACCEPTS ANY PROPOSED HEIGHT, so this ZStack — and
+            // therefore the whole field — is vertically GREEDY. That was invisible while the
+            // dense callers pinned `.frame(height: boxHeight)`; it is not invisible now that
+            // the pin is a minimum. A parent VStack ranks children by flexibility, so a bar
+            // hosting this field would report ∞ and start splitting free space with the
+            // instrument below it. The three chrome bars therefore carry an explicit
+            // `.fixedSize(horizontal: false, vertical: true)` (`WorkspaceView`), which
+            // proposes nil downward and lets this Rectangle fall back to its ideal.
+            // Do not remove that without removing this greediness at the source.
             Rectangle().fill(Color.clear).contentShape(Rectangle())
                 .gesture(scrubGesture)
                 .onTapGesture { showPad = true }
         }
-        .frame(width: boxWidth ?? valueWidth)
+        .frame(width: boxWidth.map { $0 * compactWidthProbe / 100 } ?? valueWidth)
         // Dense rows pin the height (vertical padding shrinks) so the box matches its
         // neighbour buttons; default keeps the roomy 9 pt padding + natural height.
         .padding(.horizontal, 12).padding(.vertical, boxHeight == nil ? 9 : 3)
         // minHeight, NOT height. `boxHeight` says "match the neighbouring buttons", which is
         // a FLOOR — a dense row wants the box no SMALLER than its neighbours. As a fixed
-        // height it was also a ceiling, so at accessibility text sizes the number was cropped
-        // by the box that exists to display it. The chrome strip is the case that made this
+        // height it was also a ceiling, and at accessibility text sizes the taller content
+        // then OVERFLOWED it. (Overflowed, not clipped: a `.frame` does not clip, SwiftUI
+        // lets the child draw outside. What the eye reads as cropping is the next bar's
+        // opaque `.background(EchoelTheme.bg)` painting over the overspill, plus collision
+        // inside the bar. The wording matters — "clipped" sends the next reader looking for
+        // a `.clipped()` that does not exist.) The chrome strip is the case that made it
         // visible (its A4 field is 104×30 inside a bar that now grows with Dynamic Type), but
-        // the same crop applied to every dense caller. Nothing shrinks: at normal sizes the
-        // content is smaller than `boxHeight`, so the frame still decides.
+        // every dense caller carried the same latent overflow. Nothing shrinks: at normal
+        // sizes the content is smaller than `boxHeight`, so the frame still decides.
         .frame(minHeight: boxHeight)
         // BACKGROUND, not overlay, and that is a correctness choice rather than a taste one:
         // the value text turns `accent` while scrubbing, and the indicator's line is also
