@@ -110,6 +110,7 @@ final class NoteNamingTests: XCTestCase {
         XCTAssertEqual(NoteNaming.english.rawValue, "english")
         XCTAssertEqual(NoteNaming.german.rawValue, "german")
         XCTAssertEqual(NoteNaming.solfege.rawValue, "solfege")
+        XCTAssertEqual(NoteNaming.sargam.rawValue, "sargam")
         XCTAssertEqual(StudioDefaultKeys.noteNaming.value, NoteNaming.english.rawValue,
                        "the stored default must BE a valid case, or a fresh install decodes "
                        + "nothing and falls back by accident rather than by design")
@@ -170,12 +171,47 @@ final class NoteNamingTests: XCTestCase {
                 XCTAssertFalse(spoken.contains("♯"),
                                "VoiceOver cannot pronounce ♯ — \(naming) pitch \(pc) says "
                                + "\(spoken)")
-                XCTAssertEqual(spoken, seen.replacingOccurrences(of: "♯", with: " sharp"),
-                               "the spoken form must be the SEEN form with the sharp expanded, "
-                               + "not a second table that can drift from it")
+                XCTAssertFalse(spoken.contains("♭"),
+                               "VoiceOver cannot pronounce ♭ — \(naming) pitch \(pc) says "
+                               + "\(spoken)")
+                let expanded = seen
+                    .replacingOccurrences(of: "♯", with: " sharp")
+                    .replacingOccurrences(of: "♭", with: " flat")
+                XCTAssertEqual(spoken, expanded,
+                               "the spoken form must be the SEEN form with its accidentals "
+                               + "expanded, not a second table that can drift from it")
             }
         }
         XCTAssertEqual(NoteNaming.german.spokenName(pitchClass: 11), "H")
         XCTAssertEqual(NoteNaming.english.spokenName(pitchClass: 1), "C sharp")
+        // The arm that did not exist before sargam. Without it a blind Indian player hears
+        // "Re" for both Re♭ and Re — one name, two pitches, on the key control.
+        XCTAssertEqual(NoteNaming.sargam.spokenName(pitchClass: 1), "Re flat")
+        XCTAssertEqual(NoteNaming.sargam.spokenName(pitchClass: 6), "Ma sharp")
     }
-}
+
+    /// Sargam (#232 F, Indian third). The app grew seven Indian scales in #232 J and then
+    /// spelled their notes "D♯"; this is the alphabet those scales are read in.
+    func testSargamNamesTheSevenDegreesAndMarksTheAlteredOnes() {
+        let sargam = NoteNaming.sargam
+        // The seven śuddha degrees, in order, on the pitch classes of a major scale.
+        XCTAssertEqual([0, 2, 4, 5, 7, 9, 11].map { sargam.name(pitchClass: $0) },
+                       ["Sa", "Re", "Ga", "Ma", "Pa", "Dha", "Ni"])
+
+        // Sa and Pa are the fixed drone degrees and have no altered form in either the
+        // Hindustani or the Carnatic system. A table that produced "Sa♯" would mean the
+        // column had been filled mechanically from a Western one.
+        XCTAssertEqual(sargam.name(pitchClass: 0), "Sa")
+        XCTAssertEqual(sargam.name(pitchClass: 7), "Pa")
+
+        // Komal marked with ♭, tīvra Ma with ♯ — a DEPARTURE from the printed convention,
+        // which distinguishes them by case ("re" vs "Re", "Ma'"). Pinned here because the
+        // departure is the point: a case-only difference is invisible in a menu row and
+        // identical to a screen reader, which would defeat the setting's whole purpose.
+        // If someone "corrects" this to lowercase, this test is what stops it.
+        XCTAssertEqual(sargam.name(pitchClass: 1), "Re♭")
+        XCTAssertEqual(sargam.name(pitchClass: 6), "Ma♯")
+        XCTAssertEqual(sargam.name(pitchClass: 10), "Ni♭")
+        XCTAssertNotEqual(sargam.name(pitchClass: 1), sargam.name(pitchClass: 2),
+                          "komal and śuddha Re must be distinguishable by more than case")
+    }

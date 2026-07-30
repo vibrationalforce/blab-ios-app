@@ -50,6 +50,20 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// East Asia. Not movable-do: the syllable names the pitch, not the scale degree, which
     /// is why "Si" and not the English movable-do "Ti".
     case solfege
+    /// Sa Re Ga Ma Pa Dha Ni — Indian **sargam**, the reading across Hindustani and Carnatic
+    /// practice.
+    ///
+    /// Added because the app grew a shelf it could not spell. #232 J put seven Indian scales
+    /// in the key picker — Mārvā, Toḍī, Mālkauns, Cārukeśī and three more — and the play
+    /// surface then labelled every one of their notes "D♯". Offering the material of a
+    /// tradition while refusing its alphabet is a half-measure, and it is precisely the
+    /// gap #232 F names.
+    ///
+    /// ⚠️ THIS DOES NOT CLOSE #232 F, only its Indian third. F is "non-Western tunings carry
+    /// Western note names", and the maqām half needs something this type cannot express: an
+    /// Arabic degree name (Rāst, Dūkāh, Sīkāh …) belongs to a maqām, not to a pitch class,
+    /// so it cannot be a fixed twelve-entry column. Do not "finish" F by inventing one.
+    case sargam
 
     /// Player-facing label for the setting row. Each names the pair that actually differs, so
     /// the choice is legible without knowing the word "solfège" or "Anglophone".
@@ -58,6 +72,7 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
         case .english: return "A B C (International)"
         case .german:  return "A H C (Deutsch)"
         case .solfege: return "Do Re Mi (Solfège)"
+        case .sargam:  return "Sa Re Ga (Sargam)"
         }
     }
 
@@ -84,11 +99,32 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     private static let solfegeNames = ["Do", "Do♯", "Re", "Re♯", "Mi", "Fa", "Fa♯",
                                        "Sol", "Sol♯", "La", "La♯", "Si"]
 
+    // ⚠️ SARGAM DEPARTS FROM THE PRINTED CONVENTION, deliberately, and the reason is the
+    // reason this whole epic exists.
+    //
+    // Indian notation distinguishes the altered degrees by CASE: komal (flattened) Re is
+    // written "re", śuddha Re is "Re"; tīvra Ma is "Ma'". That is what a musician reads on
+    // paper — and it is unusable here. A case-only difference is invisible at a glance in a
+    // menu row, it survives no screen reader (VoiceOver says "re" and "Re" identically), and
+    // this setting exists to stop a player reading the wrong note. Marking komal with ♭ and
+    // tīvra with ♯ keeps every distinction audible AND visible, and it matches the marks the
+    // other three columns already use, so `spokenName` expands them the same way.
+    //
+    // This is the same shape of decision as the German column keeping international sharps
+    // instead of "Cis/Dis": follow the convention where it serves the reader, depart where
+    // it would defeat the purpose — and write down which was done.
+    //
+    // Sa and Pa have no altered form in either system (they are the fixed drone degrees), so
+    // there is no ♭/♯ on 0 or 7 — a table that produced "Sa♯" would be a red flag.
+    private static let sargamNames = ["Sa", "Re♭", "Re", "Ga♭", "Ga", "Ma", "Ma♯",
+                                      "Pa", "Dha♭", "Dha", "Ni♭", "Ni"]
+
     private var names: [String] {
         switch self {
         case .english: return Self.englishNames
         case .german:  return Self.germanNames
         case .solfege: return Self.solfegeNames
+        case .sargam:  return Self.sargamNames
         }
     }
 
@@ -108,16 +144,27 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
         return names[folded]
     }
 
-    /// The name as VoiceOver should SAY it: the same spelling, with the typographic sharp
-    /// expanded, because a screen reader announces "♯" as nothing useful.
+    /// The name as VoiceOver should SAY it: the same spelling, with the typographic
+    /// accidentals expanded, because a screen reader announces "♯" and "♭" as nothing useful.
     ///
-    /// Derived from `name(pitchClass:)` rather than kept as a fourth table, so a sighted and a
+    /// Derived from `name(pitchClass:)` rather than kept as its own table, so a sighted and a
     /// blind user cannot end up hearing and seeing different systems — which is exactly what
     /// happened before this existed: the play surface's spoken root was its own hard-coded
     /// English array, ten lines from the labels, and it kept saying "B" for the pitch the
     /// labels had already started calling H.
+    ///
+    /// ⚠️ THE FLAT ARM IS NOT DECORATION. Until sargam arrived no column contained ♭, so a
+    /// sharp-only expansion was complete. It stopped being complete the moment komal degrees
+    /// existed — and the failure would have been silent and cruel in the specific way this
+    /// epic exists to prevent: an Indian player using VoiceOver would hear "Re" for both Re♭
+    /// and Re, i.e. the same name for two different pitches, on the control that sets the
+    /// key. `NoteNamingTests.testTheSpokenNameMatchesTheSeenName` covers every naming × every
+    /// pitch class, so a fifth column that introduces a new mark fails there rather than on
+    /// someone's device.
     public func spokenName(pitchClass: Int) -> String {
-        name(pitchClass: pitchClass).replacingOccurrences(of: "♯", with: " sharp")
+        name(pitchClass: pitchClass)
+            .replacingOccurrences(of: "♯", with: " sharp")
+            .replacingOccurrences(of: "♭", with: " flat")
     }
 
     /// Decode a persisted raw value, falling back to `.english` for anything unrecognised —
