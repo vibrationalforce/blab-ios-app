@@ -71,10 +71,19 @@
 //      (`FieldAutoPlay.pushDelaySeconds`) instead of passing a pushed tick to Ultrasync — a pushed
 //      tick would be corrected back onto the grid or answered with an echo, i.e. a flam. So
 //      `syncopated`'s late pull and `flowing`'s laid-back hair are audible on the Field.
-//    · ⛔ THE COMPOSER STILL CANNOT: `BioComposer.Note.startStep` is a whole 16th and cannot express
-//      0.12 of a cell AT ALL. That is not "A2b hasn't got there yet" — it is a different problem
-//      (sub-step note offsets in the take), and calling it A2b would hide a model change behind a
-//      shipped slice. So the BASS and PAD roles remain dead straight.
+//    · ⛔ THE COMPOSER STILL DOES NOT — and the reason is PLAYBACK, not the model. (⚠️ The first
+//      version of this bullet said `Note.startStep` "cannot express 0.12 of a cell AT ALL" and
+//      called that "a model limit" with "export consequences". All three halves were false, and the
+//      review caught them: `Note.startTick` is the SOURCE OF TRUTH at `ticksPerStep = 120`
+//      (`Note.swift`), `startStep` is only a rounding ACCESSOR, there is a public tick-precise init
+//      labelled "for unquantized capture / sub-step editing", `BreathArp` ALREADY writes a swing
+//      offset straight into `startTick`, and both `Codable` and `MIDIFileExporter` are tick-faithful
+//      — so nothing about persistence or export would have to change. A 0.12 push is 14 ticks and
+//      the model carries it exactly.) The real blocker: playback is STEP-GRANULAR —
+//      `PatternEngine.onTick(step)` → `PianoRollModel.trigger(_:)` starts a note only where
+//      `startStep == step`, so a sub-step offset would be INAUDIBLE live while still showing up in
+//      an export. Honouring push for bass/pad is therefore a trigger-granularity slice, not a model
+//      change. Do not re-cite the old paragraph to declare it structurally closed; it is not.
 //  Consequence for copy: timing words are allowed for the ARP's `syncopated`/`flowing` and remain
 //  forbidden for the bass/pad. The A7 review had to strike exactly that promise out of two arp
 //  blurbs when NOTHING honoured push; re-adding it elsewhere would repeat the mistake.

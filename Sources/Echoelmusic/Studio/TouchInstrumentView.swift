@@ -529,10 +529,12 @@ final class TouchInstrumentUIView: UIView {
 
     private func stopAutoPlay() {
         autoPlayProxy.stop()
-        // A generated note whose onset is held back for its rhythm's push (#253 A2b) must not
-        // arrive after the generator was switched off — that is the ONE-Stop law applied to a
-        // scheduled note. The clock stopping is not enough on its own: the task is already asleep
-        // with its own deadline and asks nothing further.
+        // A generated note whose onset is held back for its rhythm's push (#253 A2b) must not arrive
+        // after the generator was switched off. ⚠️ THIS IS THE GENERATOR'S OWN OFF-SWITCH AND WINDOW
+        // TEARDOWN ONLY — a transport Stop does not reach this function (see the call sites; `autoPlay`
+        // comes from `@AppStorage`, nothing wires ■ to it). The Stop case is closed inside the task
+        // instead, by re-checking `musicalNow` after the sleep. Saying "the ONE-Stop law" here without
+        // that qualifier claimed a coverage this line does not have.
         cancelGeneratedPending()
         // Not a "resume from where we were" — the transport moved on meanwhile. The next
         // start begins on the next cell edge it sees.
@@ -617,19 +619,28 @@ final class TouchInstrumentUIView: UIView {
             // cell would have given it; being late does not renumber it.
             let pushSeconds = FieldAutoPlay.pushDelaySeconds(t.pushFraction,
                                                              cellSeconds: cellSeconds)
+            // Below the jitter floor there is nothing to schedule — same 2 ms threshold `sound(...)`
+            // uses for its own held-back notes, so the two agree. ⚠️ IT DOES SWALLOW A REAL PUSH at
+            // the extremes: `flowing`'s 0.05 needs a cell of at least 40 ms, which a 1/16-triplet
+            // grid (80 ticks) drops below above ~250 BPM. Named rather than hidden — at that tempo
+            // the offset is under a millisecond and inaudible, so discarding it is right; silently
+            // calling that "bit-identical to before" was not.
             guard pushSeconds > 0.002 else {         // straight, and bit-identical to before
                 soundGenerated(note)
                 continue
             }
-            // Cancelled on REPLACE, so a stalled main actor cannot let cell N's held-back note
-            // land on top of cell N+1's. It cannot bite at the shipped ceiling — a push is at most
-            // 0.45 of a cell, so the wake is always inside its own cell — which is why this is one
-            // line of insurance and not a mechanism.
+            // Cancelled on REPLACE, so a stalled main actor cannot let cell N's held-back note land
+            // on top of cell N+1's. INSURANCE, not a mechanism: a push is at most 0.45 of a cell, so
+            // the wake is always inside its own cell.
             //
-            // ⚠️ `sound(...)`'s own `.delay` branch assigns `pendingOn[id]` WITHOUT cancelling,
-            // i.e. a replaced Ultrasync note still sounds. That is pre-existing and deliberately
-            // untouched here (it needs its own slice + a listening test), but it is the reason this
-            // line is explicit rather than assumed from the map's docs.
+            // ⚠️ AND IT CAN ONLY EVER CANCEL ANOTHER PUSH TASK — the first version of this comment
+            // implied it might catch an Ultrasync `.delay` task and called that a knowingly-accepted
+            // regression. It cannot: `onGridTick` is always a grid multiple, so `plan` returns
+            // `.play` at `offset == 0` and `sound(...)` never enters `.delay`/`.playThenEcho` for a
+            // generated note. (Even if it did, that task's `noteOn` sits behind
+            // `guard !Task.isCancelled`, so cancelling drops the note-on and owes no note-off.) The
+            // pre-existing fact that `.delay` overwrites `pendingOn[id]` WITHOUT cancelling is real
+            // but unreachable from here — do not plan a fix for it off this line.
             if let superseded = pendingOn.removeValue(forKey: id) { superseded.cancel() }
             pendingOn[id] = Task { @MainActor [weak self] in
                 // `catch { return }`, never `try?`: a cancelled sleep throws, and swallowing that
@@ -640,6 +651,15 @@ final class TouchInstrumentUIView: UIView {
                 // queued. This guard is what closes that gap; nothing suspends after it.
                 guard let self, !Task.isCancelled else { return }
                 self.pendingOn.removeValue(forKey: id)
+                // ⛔ THE ONE-STOP LAW NEEDS THIS, and `stopAutoPlay()`'s cancel does NOT cover it.
+                // `stopAutoPlay()` is reached only from the generator's own on/off edge and from
+                // window teardown — a TRANSPORT Stop reaches neither. It makes `musicalNow` return
+                // nil (`Transport.currentTick` requires `isPlaying`), which skips the next CELL but
+                // says nothing to a task already asleep with its own deadline. Without this line a
+                // pushed onset could sound up to 0.45 of a cell AFTER the player pressed Stop — new
+                // audio after Stop, in a repo that has a named law against exactly that, and a
+                // window that did not exist before this slice.
+                guard self.musicalNow?() != nil else { return }
                 self.soundGenerated(note)
             }
         }
@@ -663,10 +683,14 @@ final class TouchInstrumentUIView: UIView {
 
     /// Sound a generated note and drop its light. The ONE place both timing paths go through.
     private func soundGenerated(_ n: GeneratedNote) {
-        // `onGridTick` is the UNPUSHED cell tick even for a pushed note, and that is deliberate:
-        // Ultrasync exists to correct human lateness, and this note's lateness is the rhythm's own
-        // intent. Handing it a pushed tick would make it "correct" the groove away — or, past the
-        // tolerance, answer it with an echo (a flam). See `FieldAutoPlay.arpTouches`' note.
+        // `onGridTick` is the UNPUSHED cell tick even for a pushed note, and the reason is
+        // unconditional: at `offset == 0` — which every generated note has, by construction —
+        // `TouchQuantizer.plan` returns `.play`, and `.play` sounds IMMEDIATELY whatever tick it
+        // carries. A pushed tick would therefore produce NO delay at any tempo, at any `strength`.
+        // (Below ~75 BPM it would additionally flam, because there the 12-tick default still
+        // dominates the 20 ms tolerance floor `sound(...)` applies. That was the reason the first
+        // version of this comment gave, and it was the weaker, tempo-dependent one.)
+        // See `FieldAutoPlay.arpTouches`' note.
         sound(pitch: n.pitch, velocity: n.velocity, cutoffScale: n.cutoffScale,
               finger: n.finger, index: n.index,
               autoRelease: true, onGridTick: n.onGridTick, holdSeconds: n.holdSeconds)

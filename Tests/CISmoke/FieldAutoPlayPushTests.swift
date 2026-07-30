@@ -1,10 +1,13 @@
 // FieldAutoPlayPushTests.swift
 // Echoel — #253 A2b: the rhythm's timing offset finally reaches a note, in the BLOCKING bundle.
 //
-// `RoleRhythm` has computed `pushFraction` since A1 and BOTH consumers threw it away: the composer
-// because `Note.startStep` is a whole 16th, the arp because handing a pushed tick to `TouchQuantizer`
-// does not make a note late (it gets corrected back onto the grid, or past the tolerance answered
-// with an echo — a doubled note). A2b gives the generated onset its OWN scheduled delay instead.
+// `RoleRhythm` has computed `pushFraction` since A1 and BOTH consumers threw it away. The arp's reason
+// is that handing a pushed tick to `TouchQuantizer` cannot delay anything: `plan` returns `.play` at
+// `offset == 0` — every generated note — and `.play` sounds immediately whatever tick it carries. A2b
+// gives the generated onset its OWN scheduled delay instead. (The composer's reason is PLAYBACK
+// granularity, not its data model — `Note.startTick` carries 14 ticks fine; see `BioComposer`'s own
+// note. The first version of this header said "`Note.startStep` is a whole 16th" and that a pushed
+// tick would flam; both were wrong, and both are corrected at their real sites.)
 //
 // ⚠️ WHAT IS WORTH PINNING HERE IS NOT "the number is in range". Three properties are:
 //
@@ -12,17 +15,27 @@
 //     delay to the driver. The cheap proof that nothing shifted is that those motions emit `nil`
 //     and `nil` folds to a delay of exactly 0 — asserted over the whole `Motion` set, not argued.
 //  2. **A pushed note must stay inside its own cell.** `RoleRhythm.hit` already discounts the gate
-//     by the push (`headroom = 1 - push`), so delay + length ≤ one cell. If a later change adds the
-//     push to the length instead of taking it from the length, THIS is what goes red — and on a
-//     device it would only show up as an arp that ties into itself.
+//     by the push (`headroom = 1 - push`), so delay + length ≤ one cell. On a device an inversion
+//     would only show up as an arp that ties into itself.
+//     ⚠️ DRIVEN AT `gate: 1` FOR A MEASURED REASON, and the first version at the default 0.8 could
+//     NOT fail: the largest `gateScale` is 1.0, so the product was at most 0.8 while `headroom` was
+//     at worst 0.95 — the cap never bound, and flipping `1 - push` to `1 + push` left ~19 ms of
+//     slack. At `gate: 1` `flowing` sits at exactly 0.95 + 0.05 and the inversion goes red.
+//     The BROADER guard is `RoleRhythmTests.testANoteCanNeverReachTheNextCell`, which sweeps
+//     gate × push at the `Hit` level. This one adds only the arp's own path — do not delete that
+//     one believing this replaces it.
 //  3. **Only two of the six characters may be late.** `pushBias` is 0 for `driving`, `hypnotic`,
 //     `dynamic` and `sparse` — `driving` deliberately dead straight. UI copy is written off this
 //     fact (the A7 review had to strike timing words out of two blurbs), so it is pinned here
 //     rather than left to a reader of `pushBias`.
 //
-// Everything under test is PURE. The scheduling half lives in `TouchInstrumentUIView` (UIKit, no
-// unit-test surface in this bundle) and is deliberately thin for that reason: it reads
-// `pushDelaySeconds` and stores one `Task` in the `pendingOn` map it already had.
+// Everything under test is PURE, and the honest limit is ACCESS CONTROL, not UIKit: this bundle IS
+// an iOS unit-test target with a `TEST_HOST`, but `autoPlayTick()` is `fileprivate` and
+// `cancelGeneratedPending`/`soundGenerated` are `private`. So cancel-on-stop, cancel-on-touch,
+// replace-cancel and the consumer's 2 ms floor have NO coverage here — that is the risky half, and
+// naming UIKit as the obstacle would have made it sound impossible rather than merely unexposed
+// (`FieldAutoPlayDriverTests` states the same limit for the driver). The consumer stays deliberately
+// thin for that reason: it reads `pushDelaySeconds` and stores one `Task` in the map it already had.
 
 import Foundation
 import XCTest
@@ -34,11 +47,13 @@ final class FieldAutoPlayPushTests: XCTestCase {
     private let cellSeconds = 0.125
 
     private func arpParams(character: RoleRhythm.Character,
-                           density: Float = 1, period: Int = 8) -> FieldAutoPlay.Params {
+                           density: Float = 1, period: Int = 8,
+                           gate: Float = 0.8) -> FieldAutoPlay.Params {
         FieldAutoPlay.Params(motion: .arp, density: density, span: 0.6, centre: 0.5,
                              band: 0.5, bandDrift: 0, voices: 1, periodSteps: period,
                              arpChordDegrees: [0, 2, 4],
-                             arpRhythm: RoleRhythm.Params(character: character, evolve: 0))
+                             arpRhythm: RoleRhythm.Params(character: character, gate: gate,
+                                                          evolve: 0))
     }
 
     // MARK: - The pure fold
@@ -49,7 +64,8 @@ final class FieldAutoPlayPushTests: XCTestCase {
     }
 
     func testANonFiniteOrNegativePushIsOnTheGrid() {
-        for bad: Float in [.nan, .infinity, -.infinity, -0.2, -0.45, 0] {
+        let bads: [Float] = [.nan, .infinity, -.infinity, -0.2, -0.45, 0]
+        for bad in bads {
             XCTAssertEqual(FieldAutoPlay.pushDelaySeconds(bad, cellSeconds: cellSeconds), 0,
                            "\(bad) must fold to the grid — a generated onset has no earlier moment to be early against")
         }
@@ -81,9 +97,27 @@ final class FieldAutoPlayPushTests: XCTestCase {
         }
     }
 
+    /// ⚠️ A MIRROR GUARD, and weak by construction: `maxPushFraction` is DECLARED as
+    /// `{ RoleRhythm.maxPush }`, so this can only fail if someone replaces the mirror with a literal
+    /// in the same edit. Kept because that is exactly the edit worth catching — a generator that may
+    /// ask for 0.45 against a consumer that honours less is a silently truncated groove — but it
+    /// carries no information about the current code and must not be read as coverage.
     func testTheCeilingIsTheRhythmsOwnCeilingAndNotASecondNumber() {
-        XCTAssertEqual(FieldAutoPlay.maxPushFraction, RoleRhythm.maxPush,
-                       "a generator that may ask for 0.45 and a consumer that honours less is a silently truncated groove")
+        XCTAssertEqual(FieldAutoPlay.maxPushFraction, RoleRhythm.maxPush)
+    }
+
+    /// The consumer discards anything under its 2 ms jitter floor, and at the grid extremes that is a
+    /// REAL push being dropped rather than a rounding artefact: `flowing`'s 0.05 needs a 40 ms cell,
+    /// which a 1/16-triplet grid (80 ticks) falls below above ~250 BPM. Pinned from the pure side
+    /// because the consumer's own guard has no test surface here (see the file header).
+    func testAtTheFastestGridTheSmallestPushFallsUnderTheConsumersJitterFloor() {
+        let secondsPerTick = 60.0 / (300.0 * 480.0)          // Transport's BPM ceiling
+        let tripletCell = 80.0 * secondsPerTick              // 1/16-triplet = 80 ticks ≈ 33 ms
+        XCTAssertLessThan(FieldAutoPlay.pushDelaySeconds(0.05, cellSeconds: tripletCell), 0.002,
+                          "flowing's push is sub-millisecond here — the consumer is right to drop it")
+        // …and at the shipped default grid the same push is comfortably ABOVE the floor, so the
+        // dropping is an extreme and not the normal case.
+        XCTAssertGreaterThan(FieldAutoPlay.pushDelaySeconds(0.05, cellSeconds: cellSeconds), 0.002)
     }
 
     // MARK: - What the arp actually carries
@@ -111,14 +145,17 @@ final class FieldAutoPlayPushTests: XCTestCase {
         let expectedLate: Set<RoleRhythm.Character> = [.syncopated, .flowing]
         for character in RoleRhythm.Character.allCases {
             let params = arpParams(character: character)
-            var maxPush: Float = 0
-            for cell in 0..<8 {
-                let push = FieldAutoPlay.touches(atStep: cell, params: params, seed: 3,
-                                                 degreesPerOctave: 7,
-                                                 bandCount: TouchPitchMap.octaveBands.count)
-                    .first?.pushFraction ?? 0
-                maxPush = Swift.max(maxPush, push)
+            // ⚠️ `compactMap`, NOT `.first?.pushFraction ?? 0`. Coalescing made a RESTING cell
+            // indistinguishable from a straight one, and that is not hypothetical: `sparse` fires only
+            // on the beats, so 4 of these 8 cells produce no touch at all and used to contribute a
+            // silent 0. A future `pushBias` that biased `sparse` off the beat would have kept this
+            // green while breaking the caption law it exists to protect.
+            let pushes: [Float] = (0..<8).compactMap {
+                FieldAutoPlay.touches(atStep: $0, params: params, seed: 3, degreesPerOctave: 7,
+                                      bandCount: TouchPitchMap.octaveBands.count).first?.pushFraction
             }
+            XCTAssertFalse(pushes.isEmpty, "\(character) sounded no cell at all — nothing was measured")
+            let maxPush = pushes.reduce(0) { Swift.max($0, $1) }
             if expectedLate.contains(character) {
                 XCTAssertGreaterThan(maxPush, 0, "\(character) is documented as laid back")
             } else {
@@ -132,7 +169,7 @@ final class FieldAutoPlayPushTests: XCTestCase {
         // The property that makes the delay and the gate independent in the consumer: `RoleRhythm.hit`
         // has ALREADY taken the push out of the gate ceiling, so the consumer must not discount twice.
         for character in RoleRhythm.Character.allCases {
-            let params = arpParams(character: character)
+            let params = arpParams(character: character, gate: 1)   // see the header: 0.8 cannot fail
             for cell in 0..<16 {
                 guard let t = FieldAutoPlay.touches(atStep: cell, params: params, seed: 11,
                                                     degreesPerOctave: 7,

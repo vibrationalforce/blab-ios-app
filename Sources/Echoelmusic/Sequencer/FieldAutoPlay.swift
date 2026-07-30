@@ -577,15 +577,21 @@ public enum FieldAutoPlay {
                       velocity: beat.velocity, gateFraction: beat.gateFraction,
                       pushFraction: beat.pushFraction)]
         // ✅ `beat.pushFraction` IS CARRIED NOW (#253 A2b). What it must NOT do is travel through
-        // ULTRASYNC, and that finding is why the value was dropped here for two slices rather than
-        // passed on: `TouchQuantizer.plan` is computed from the cell's on-grid tick and returns
-        // `.play` the moment `offset == 0`, and `.play(atTick:)` sounds IMMEDIATELY. Handing it a
-        // pushed tick does NOT make the note late — a 0.05 push on a 1/16 grid is 6 ticks, inside
-        // the ~12-tick `latenessToleranceTicks`, so it plays on the grid anyway; a 0.12 push is 14
-        // ticks and takes the `.playThenEcho` branch, i.e. a DOUBLED note. So the consumer gives
-        // the onset its OWN scheduled delay (`pushDelaySeconds` → `TouchInstrumentUIView`'s
-        // `pendingOn` discipline) and still hands Ultrasync the unpushed on-grid tick. A future
-        // reader who "simplifies" that into one tick offset reintroduces the flam.
+        // ULTRASYNC, and the reason is UNCONDITIONAL: `TouchQuantizer.plan` returns `.play` the
+        // moment `offset == 0` — which is every generated note, because the consumer hands it the
+        // cell's own on-grid tick — and `.play` sounds IMMEDIATELY whatever tick it carries. So a
+        // pushed tick could not delay anything at ANY tempo and at ANY `strength`. The consumer
+        // therefore gives the onset its OWN scheduled delay (`pushDelaySeconds` →
+        // `TouchInstrumentUIView`'s `pendingOn` discipline) and still hands Ultrasync the unpushed
+        // tick. A future reader who "simplifies" that into one tick offset gets silence, not groove.
+        //
+        // ⚠️ AND BELOW ~75 BPM IT WOULD ALSO FLAM — stated second, because the first version of this
+        // comment led with the flam and got the arithmetic wrong. It claimed a 0.12 push (14 ticks on
+        // a 1/16 grid) "takes the `.playThenEcho` branch, i.e. a DOUBLED note", ignoring that
+        // `sound(...)` raises the tolerance to 20 ms of real time: that is 19 ticks at 120 BPM, so 14
+        // stays INSIDE it and `plan` answers `.play`. The 12-tick default only dominates the 20 ms
+        // floor below ≈75 BPM, and only there would the echo actually fire. The conclusion never
+        // depended on it; leading with the conditional half made a weaker case look like the reason.
         //
         // ⚠️ THE LENGTH IS ALREADY DISCOUNTED FOR THE PUSH, so the consumer must not discount it
         // twice: `RoleRhythm.hit` caps `gateFraction` at `1 - push` (on `flowing`, at 0.95). A
@@ -674,10 +680,12 @@ public enum FieldAutoPlay {
     ///   exactly, and the reason this returns `0` instead of being optional itself: the caller then
     ///   has ONE arithmetic path, and the immediate case is provably unchanged rather than a second
     ///   branch that has to be kept identical by hand.
-    /// • Non-finite — NaN and ±infinity both mean "no usable offset". Note that the sign test
-    ///   below is written `> 0` and not `<= 0`: NaN fails BOTH, so it is the `guard` that catches
-    ///   it and not an `isNaN` special case (the argument-order law from CLAUDE.md, applied by
-    ///   structure instead of by comment).
+    /// • Non-finite — NaN and ±infinity both mean "no usable offset". ⚠️ THE `isFinite` CLAUSE BELOW
+    ///   IS REDUNDANT FOR NaN AND FOR −∞, and it stays for the one case it alone catches: `+∞`,
+    ///   which passes `> 0` and would otherwise reach the `Swift.min` cap (correctly, as it happens
+    ///   — but by luck rather than by the guard). Stated because the first version of this bullet
+    ///   claimed the opposite, that NaN was caught "by structure instead of by comment, not an
+    ///   `isNaN` special case", while the very next line reads `push.isFinite`.
     /// • Negative — "early", which a generated onset cannot be: it is created at its own cell edge,
     ///   with no look-ahead to be early against. Honouring it would need the generator to run a
     ///   cell ahead, which is a different design (and would put the note in the PREVIOUS cell).

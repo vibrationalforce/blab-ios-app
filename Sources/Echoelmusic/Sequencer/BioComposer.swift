@@ -1413,12 +1413,26 @@ public enum BioComposer {
         // ⛔ AND `push` IS NOT ONE OF THE DIMENSIONS **HERE** — the qualifier is new and load-bearing.
         // `RoleRhythm` computes `syncopated`'s late pull and `flowing`'s laid-back hair, and since
         // #253 A2b the ARP honours them (`FieldAutoPlay.arpTouches` carries `pushFraction`; the Field
-        // view schedules the onset late). This consumer still cannot: `Note.startStep` is a whole
-        // 16th and cannot carry 0.12 of a cell AT ALL. So it is not "the fix hasn't arrived" — it is
-        // a model limit, and lifting it means sub-step note offsets in the take, which is a
-        // different slice with its own persistence and export consequences (`MIDIFileExporter`).
-        // No copy anywhere may promise the BASS or PAD swings — the A7 review had to strike that
-        // same promise out of two arp blurbs back when nothing honoured push at all.
+        // view schedules the onset late). This consumer does not — and the blocker is PLAYBACK, not
+        // this file's data model.
+        //
+        // ⚠️ THE FIRST VERSION OF THIS PARAGRAPH GOT THAT BACKWARDS and the review caught it. It said
+        // `Note.startStep` "cannot carry 0.12 of a cell AT ALL", called it "a model limit", and
+        // budgeted "persistence and export consequences". The model carries it fine: `Note.startTick`
+        // is the source of truth at 120 ticks per 16th, `startStep` is a rounding accessor, `Note`
+        // has a public tick-precise init for exactly this, `BreathArp` already writes a swing offset
+        // into `startTick`, and `Note`'s `Codable` plus `MIDIFileExporter` are both tick-faithful.
+        // 0.12 of a cell is 14 ticks — expressible, persistable, exportable, today.
+        //
+        // What is NOT: `PianoRollModel.trigger(_ step:)`, driven by `PatternEngine.onTick(step)`,
+        // starts a note only where `startStep == step`. A pushed onset would therefore be silent
+        // live and audible only in an exported file — the worst of the two. So writing a sub-step
+        // `startTick` here would be a HALF feature, and the honest sequence is trigger granularity
+        // first. Naming the wrong blocker mattered because it made a call-site change look like a
+        // model + persistence + export epic, which is how a cheap slice stays unbuilt.
+        //
+        // Until then no copy anywhere may promise the BASS or PAD swings — the A7 review had to
+        // strike that same promise out of two arp blurbs back when nothing honoured push at all.
         //
         // Counted on the composer's 16-step BAR and not on the section, using ABSOLUTE steps: the
         // characters that subdivide (`sparse`, `syncopated` read `beat = cells/4`) must land on real
