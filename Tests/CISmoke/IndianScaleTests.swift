@@ -12,9 +12,14 @@
 //
 // ⚠️ WHY HERE AND NOT IN `Tests/EchoelmusicTests/MusicalKeyTests`. That suite already has
 // range/uniqueness checks and is the natural home — but it runs `continue-on-error: true`
-// (#208), so it cannot redden a merge. `Tests/CISmoke` is the only bundle that blocks. The
-// overlap with `testAllScalesNonEmptyAndInRange` is deliberate duplication of the checks
-// this slice depends on, not an oversight.
+// (#208), so it cannot redden a merge. `Tests/CISmoke` is the only bundle that blocks.
+//
+// PRECISELY WHAT IS DUPLICATED, because the first version of this note waved at
+// `testAllScalesNonEmptyAndInRange` as if the whole thing were copied: that test sweeps
+// `Scale.allCases` for non-empty · in-range · ascending · first == 0 · no repeated degree ·
+// non-empty name · non-empty tag. Reproduced here over `allCases`, in the blocking bundle:
+// the well-formedness sweep, the tag/name UNIQUENESS pair, and the ASCII rule (which has
+// no equivalent anywhere). Everything else here is new.
 
 import Foundation
 import XCTest
@@ -44,6 +49,13 @@ final class IndianScaleTests: XCTestCase {
 
     /// The structural claim behind the whole slice. Two rows in the key picker that produce
     /// the same notes are a lie about how much the instrument can do.
+    ///
+    /// ⚠️ THIS IS A POLICY, NOT A LAW — and it is a blocking gate, so say so out loud. It
+    /// forbids ever shipping "Bhairav" beside `doubleHarmonic` or "Kāfī" beside `dorian`,
+    /// which is the most obvious next step of this same epic (see the trade-off note in
+    /// `MusicalKey.swift`: an Indian reader currently sees three of ten thāts named). If
+    /// the founder decides those aliases should exist, the right shape is ONE case with a
+    /// per-tradition display name — and this test gets rewritten, not deleted quietly.
     func testNoTwoScalesShareAPitchSet() {
         var byPitchSet: [[Int]: [Scale]] = [:]
         for scale in Scale.allCases {
@@ -73,10 +85,26 @@ final class IndianScaleTests: XCTestCase {
             XCTAssertTrue(tag.allSatisfy { $0.isLetter || $0.isNumber },
                           "\(scale) tag \"\(tag)\" has a separator or punctuation character")
         }
+
+        // UNIQUENESS BELONGS HERE TOO, and the source comment in `MusicalKey.swift` used
+        // to point at `MusicalKeyTests` for it — a suite that runs continue-on-error and
+        // therefore guarantees nothing at a merge. The new tags are exactly the
+        // collision-prone kind: "malk", "charu", "hamsa", "shanmu" are truncations. Two
+        // keys sharing a tag means two different takes exporting under one filename.
+        XCTAssertEqual(Set(Scale.allCases.map(\.shortTag)).count, Scale.allCases.count,
+                       "two scales share a filename tag")
+        XCTAssertEqual(Set(Scale.allCases.map(\.displayName)).count, Scale.allCases.count,
+                       "two scales share a picker label, so one of them is unpickable")
     }
 
-    /// Raw values are PERSISTED in every saved project and session. Renaming a case silently
-    /// resets a user's key to the default the next time they open their own work.
+    /// Raw values are PERSISTED in every saved project and session (`SessionContext`,
+    /// `Project`, `@AppStorage`), and every decode site falls back to `.minor` — silently.
+    ///
+    /// ⚠️ WHAT THIS ACTUALLY GUARDS, corrected: NOT "renaming a case". A rename makes
+    /// `Scale.marwa` below a COMPILE error, so this test would never even run. It catches
+    /// the change that still compiles — someone attaching an explicit raw value
+    /// (`case marwa = "raga_marwa"`), after which every saved project silently reopens in
+    /// C Minor instead of the key it was written in.
     func testTheAddedRawValuesArePersistedAndStable() {
         XCTAssertEqual(Scale.marwa.rawValue, "marwa")
         XCTAssertEqual(Scale.purvi.rawValue, "purvi")
@@ -87,14 +115,21 @@ final class IndianScaleTests: XCTestCase {
         XCTAssertEqual(Scale.shanmukhapriya.rawValue, "shanmukhapriya")
     }
 
-    /// Pentatonic entries are the ones a degree-walking composer can trip over: `malkauns`
-    /// and `hamsadhwani` have five degrees where most neighbours have seven, and the arp /
-    /// chord builders index by degree. The generic guards live in the non-blocking suite;
-    /// this is the narrow one for the shapes this slice introduced.
-    func testTheAddedScalesAreWellFormedForDegreeWalking() {
-        for (scale, _, _) in Self.expected {
+    /// Every scale must be walkable by degree — the arp and chord builders index into
+    /// `intervals`, and `malkauns`/`hamsadhwani` have five degrees where most neighbours
+    /// have seven.
+    ///
+    /// ⚠️ IT SWEEPS `Scale.allCases`, NOT `Self.expected`, and the first version did the
+    /// latter — which made it a test that could not fail on its own. `Self.expected`'s
+    /// literals are already asserted to equal `scale.intervals` two methods up, and those
+    /// literals satisfy every property checked here by inspection, so the only world where
+    /// this failed was one where the other test had already gone red. Over `allCases` it
+    /// has its own failure mode AND brings the well-formedness sweep — which otherwise
+    /// exists only in the non-blocking suite — into the bundle that can stop a merge.
+    func testEveryScaleIsWellFormedForDegreeWalking() {
+        for scale in Scale.allCases {
             let iv = scale.intervals
-            XCTAssertEqual(iv.first, 0, "\(scale) must start on Sa")
+            XCTAssertEqual(iv.first, 0, "\(scale) must start on the root")
             XCTAssertEqual(iv, iv.sorted(), "\(scale) must ascend")
             XCTAssertEqual(Set(iv).count, iv.count, "\(scale) repeats a degree")
             XCTAssertTrue(iv.allSatisfy { (0...11).contains($0) },

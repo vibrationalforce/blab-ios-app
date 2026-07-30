@@ -77,9 +77,16 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     case messiaen5          // repeating 1-4-1 — 6 notes, stark
     case messiaen6          // repeating 2-2-1-1 — 8 notes
     case messiaen7          // repeating 1-1-1-2-1 — 10 notes, densest mode
-    // Indian classical (#232 J). Six Japanese pentatonics, the Maqām family and a
-    // Balinese approximation were already here; there was not ONE named Indian entry
-    // — the single most conspicuous hole in a list of fifty.
+    // Indian classical (#232 J). Six Japanese pentatonics and a Balinese approximation
+    // were already here under their own names; there was not ONE named Indian entry.
+    //
+    // ⛔ THE FIRST VERSION OF THIS PARAGRAPH ALSO CLAIMED "the Maqām family" was already
+    // named here. It is NOT, and the sentence applied two different standards in one
+    // breath: a "named in the picker" test to India and a "reachable somehow" test to the
+    // Arab world. There is no maqām-named `displayName` in this list at all —
+    // `doubleHarmonic` says "Maqam Hijaz-kar" in a source comment no user can see, and
+    // `phrygianDominant` IS Maqām Ḥijāz without saying so anywhere. That gap is real and
+    // unfixed; it is simply not this slice.
     //
     // Seven of the ten Hindustani thāts were in fact already reachable, but only under
     // a Western name: Bilāval = major, Khamāj = mixolydian, Kāfī = dorian, Āsāvarī =
@@ -87,7 +94,19 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     // aliases for those would put duplicate pitch sets in one picker, so what follows
     // is only what is genuinely ABSENT: the three remaining thāts, plus four rāgas whose
     // sets no existing entry produces. Checked against all fifty prior sets — no
-    // collisions, and `MusicalKeyTests` asserts displayName/shortTag stay unique.
+    // collisions, and `Tests/CISmoke/IndianScaleTests` asserts uniqueness of the pitch
+    // sets, the display names AND the tags in the BLOCKING bundle. (It cited
+    // `MusicalKeyTests` until a reviewer pointed out that suite runs
+    // `continue-on-error: true` (#208) and therefore guarantees nothing at a merge.)
+    //
+    // ⚠️ WHAT THAT TRADE-OFF LEAVES BEHIND, which the first version of this comment
+    // presented as a clean win: an Indian reader opening this picker sees Marwa, Purvi
+    // and Todi and can only conclude the app has no Bhairav, no Kāfī, no Bilāval, no
+    // Bhairavī. Three of the ten thāts are visible under their own name; seven are
+    // hidden under Western ones. Avoiding duplicate pitch sets is the right call for a
+    // flat picker — but on an ACCESSIBILITY epic, the cost is the half that matters to
+    // the person it is for. The honest fix, if it is ever wanted, is ONE case carrying a
+    // per-tradition display name, not a second case with the same notes.
     //
     // ⚠️ THE HONEST LIMIT, and it is the same one the `pelog` note above states for
     // gamelan: a rāga IS NOT a pitch-class set. Ārohaṇa/avarohaṇa (the ascent and
@@ -97,16 +116,22 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     // named after the tradition it comes from — which is worth more than the silence it
     // replaces, but is not the thing itself. Do not let a later doc claim otherwise.
     //
-    // ⚠️ AND THIS SLICE MAKES #232 F BIGGER, NOT SMALLER: these names are spelled in
-    // Western notation, so Malkauns will label its notes "D♯", never "ga". Seven more
-    // entries now sit on the wrong side of that gap.
+    // ⚠️ AND THIS SLICE MAKES #232 F BIGGER, NOT SMALLER. **#232 F** is the epic item
+    // "non-Western tunings carry Western note names" — Maqām Bayātī retunes correctly and
+    // then labels the result "C♯". Spelling it out because a `git grep` for "232 F"
+    // returns only this comment, so a reader in six months has no other definition.
+    // These seven are all 12-TET, so they add nothing to the TUNING half of F; they add
+    // seven rows to the NOTE-NAMING half. `TouchInstrumentView` builds every cell label
+    // from `NoteNaming`, which offers English, German and fixed-do solfège — three
+    // Western systems. Mālkauns will label its cells "D♯3", never "ga".
     case marwa              // Mārvā thāt — Lydian ♭2 (the rāga itself drops Pa)
     case purvi              // Pūrvī thāt — ♭2 ♯4 ♭6, evening colour
-    case todi               // Toḍī thāt — ♭2 ♭3 ♯4 ♭6
+    case todi               // Toḍī THĀT (Hindustani) — ♭2 ♭3 ♯4 ♭6. See displayName.
     case malkauns           // Rāga Mālkauns — pentatonic, no Re and no Pa
-    case charukeshi         // Cārukeśī (Carnatic mēḷa 26) — major top, ♭6 ♭7 below
-    case hamsadhwani        // Haṃsadhvani — pentatonic, no Ma and no Dha
-    case shanmukhapriya     // Ṣaṇmukhapriyā (mēḷa 56) — ♭3 ♯4 ♭6 ♭7
+    case charukeshi         // Cārukeśī (Carnatic mēḷa 26) — major lower tetrachord, ♭6 ♭7 above
+    case hamsadhwani        // Rāga Haṃsadhvani (Carnatic in origin, long since also
+                            // Hindustani) — pentatonic, no Ma and no Dha
+    case shanmukhapriya     // Ṣaṇmukhapriyā (Carnatic mēḷa 56) — ♭3 ♯4 ♭6 ♭7
 
     /// Ascending semitone offsets from the root, one octave.
     public var intervals: [Int] {
@@ -237,7 +262,16 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         // this slice exists to stop doing that.
         case .marwa:               return "Marwa"
         case .purvi:               return "Purvi"
-        case .todi:                return "Todi"
+        // ⚠️ THE ONE QUALIFIED NAME, and it breaks the rule directly above ON PURPOSE.
+        // "Todi" is a cross-tradition COLLISION: in Carnatic practice it means
+        // Hanumatōḍī (mēḷa 8) = [0,1,3,5,7,8,10] — which is already in this picker, as
+        // `phrygian`. A Carnatic-trained player choosing a bare "Todi" would get
+        // Śubhapantuvarālī instead: the wrong scale, on the control that decides the key
+        // of everything the app generates. That is the same defect class as #232 E (the
+        // German reader shown the wrong note), on the slice meant to fix exactly that.
+        // Hirajoshi, Kumoi and Pelog have no competing referent, so the bare-name rule
+        // fits them; it does not fit this one. Do not "harmonise" this back.
+        case .todi:                return "Todi (Hindustani)"
         case .malkauns:            return "Malkauns"
         case .charukeshi:          return "Charukeshi"
         case .hamsadhwani:         return "Hamsadhwani"
