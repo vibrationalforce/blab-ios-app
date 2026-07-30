@@ -744,7 +744,26 @@ struct CompositionHeaderStrip: View {
                 }
                 labeled("Scale") {
                     Picker("Scale", selection: edited($scale, posts: "scale")) {
-                        ForEach(Scale.allCases, id: \.self) { sc in Text(sc.displayName).tag(sc) }
+                        // Grouped, mirroring the Genre picker three controls to the left —
+                        // this row was the one place this strip was inconsistent with
+                        // itself, and at 57 entries a flat list is a wall. The headers also
+                        // do the #232 job the display names cannot: they name the tradition
+                        // (maqām, thāt/rāga) WITHOUT putting a duplicate pitch set in the
+                        // list. See `Scale.Family` for why the attributions are marked
+                        // 12-TET and where the real microtonal tunings live.
+                        //
+                        // No `if !family.scales.isEmpty` guard, unlike the Genre picker:
+                        // there every category can be emptied by curation, here every
+                        // family is a hand-written non-empty literal and the blocking
+                        // `ScaleFamilyTests` proves the partition is total. A guard would
+                        // silently hide a scale instead of failing.
+                        ForEach(Scale.Family.allCases) { family in
+                            Section(family.title) {
+                                ForEach(family.scales, id: \.self) { sc in
+                                    Text(sc.displayName).tag(sc)
+                                }
+                            }
+                        }
                     }
                     .pickerStyle(.menu).tint(EchoelTheme.text)
                     .accessibilityLabel("Scale")

@@ -203,6 +203,95 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     /// shows the right key. Ambiguous scales (chromatic, whole-tone: both thirds) report major.
     public var isMinorTonality: Bool { intervals.contains(3) && !intervals.contains(4) }
 
+    /// Which musical world a scale comes from — the picker's section grouping.
+    ///
+    /// WHY THIS EXISTS, and it is not tidiness. Fifty-seven flat rows is a wall, and the
+    /// Genre picker two controls to the left in the SAME chrome strip has been grouped by
+    /// `Section(cat.title)` for weeks — so the scale row was the one place that strip was
+    /// inconsistent with itself.
+    ///
+    /// But the reason it is worth a slice is #232: **a section header names the tradition
+    /// without duplicating a pitch set.** The Maqām family is reachable today only under
+    /// Western names — `doubleHarmonic` IS Maqām Ḥijāz-kār and `phrygianDominant` IS Maqām
+    /// Ḥijāz, and neither says so anywhere a player can see. Adding "Hijaz" as a second
+    /// case would put the same twelve notes in the picker twice (and `IndianScaleTests`
+    /// blocks exactly that, on purpose). A header does the job with no duplicate: the
+    /// player from that tradition finds the shelf, and the row keeps its interop name.
+    ///
+    /// ⚠️ THE ATTRIBUTIONS ARE 12-TET APPROXIMATIONS AND THE HEADERS SAY SO. A maqām's
+    /// characteristic intervals are microtonal; a rāga is not a pitch set at all (see the
+    /// note above the Indian cases). The app already carries the real thing on the OTHER
+    /// control: `TuningSystem.library` ships Maqām Rāst, Bayātī and Ḥijāz, Sléndro, Pélog.
+    /// Tone system picks WHICH pitches exist; Scale picks which of them are used. Placing a
+    /// scale on a cultural shelf is a pointer to a tradition, never a claim to be it.
+    public enum Family: String, CaseIterable, Identifiable, Sendable {
+        case modes
+        case minorAndAltered
+        case pentatonicAndBlues
+        case symmetric
+        case europeanFolk
+        case middleEast
+        case eastAsia
+        case india
+
+        public var id: String { rawValue }
+
+        /// Picker section header. English, like every other header in this strip — the
+        /// String Catalog freezes the base language as the translation source, so a
+        /// literal in any other language here would become the key everyone translates
+        /// FROM (the mistake `MusicStyle.Category.title` had to be undone for).
+        public var title: String {
+            switch self {
+            case .modes:              return "Modes"
+            case .minorAndAltered:    return "Minor & Altered"
+            case .pentatonicAndBlues: return "Pentatonic & Blues"
+            case .symmetric:          return "Symmetric"
+            case .europeanFolk:       return "European Folk & Classical"
+            case .middleEast:         return "Middle Eastern (maqām, 12-TET)"
+            case .eastAsia:           return "East & Southeast Asia (12-TET)"
+            case .india:              return "Indian (thāt & rāga, 12-TET)"
+            }
+        }
+
+        /// The scales on this shelf, in the order they should read.
+        ///
+        /// ⚠️ THIS IS THE SINGLE SOURCE — the picker iterates `Family.allCases` and then
+        /// `family.scales`, never `Scale.allCases`. A case missing from every family would
+        /// therefore become UNPICKABLE while still existing, persisting and decoding: the
+        /// exact "built but doorless" failure this repo keeps paying for. That is why
+        /// `Tests/CISmoke/ScaleFamilyTests` asserts the partition — every scale in exactly
+        /// one family, no duplicates, none left over — in the blocking bundle.
+        public var scales: [Scale] {
+            switch self {
+            case .modes:
+                return [.major, .minor, .dorian, .phrygian, .lydian, .mixolydian, .locrian]
+            case .minorAndAltered:
+                return [.harmonicMinor, .melodicMinor, .harmonicMajor, .lydianDominant,
+                        .lydianAugmented, .altered, .majorLocrian, .bebopDominant, .bebopMajor]
+            case .pentatonicAndBlues:
+                return [.pentatonicMajor, .pentatonicMinor, .bluesMajor, .bluesMinor, .egyptian]
+            case .symmetric:
+                return [.chromatic, .wholeTone, .diminishedWholeHalf, .diminishedHalfWhole,
+                        .augmented, .tritone, .messiaen3, .messiaen4, .messiaen5,
+                        .messiaen6, .messiaen7]
+            case .europeanFolk:
+                return [.hungarianMinor, .hungarianMajor, .romanianMinor, .neapolitanMinor,
+                        .neapolitanMajor, .spanishEightTone, .enigmatic, .prometheus]
+            case .middleEast:
+                // The three with a defensible maqām reading, and no more. `hungarianMinor`
+                // is often equated with Nikrīz and `romanianMinor` with others — those
+                // attributions are contested, so they stay on the European shelf rather
+                // than buy breadth with a claim a reader could falsify.
+                return [.doubleHarmonic, .phrygianDominant, .persian]
+            case .eastAsia:
+                return [.hirajoshi, .iwato, .insen, .yo, .inSakura, .kumoi, .pelog]
+            case .india:
+                return [.marwa, .purvi, .todi, .malkauns, .charukeshi, .hamsadhwani,
+                        .shanmukhapriya]
+            }
+        }
+    }
+
     /// Human label.
     public var displayName: String {
         switch self {

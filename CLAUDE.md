@@ -190,15 +190,15 @@ Tests/EchoelmusicTests/ ← 314 test files (`git ls-files 'Tests/EchoelmusicTest
                           2026-07-28 — heute 314. Die Workflow-Beschriftung ist founder-gated und
                           bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**55** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-07-30 nach #232-J; am selben Tag früher „54", „53", „52", „51", „50", „49", „48", „47", „46", „45", „41", „39", am
+                          `Tests/CISmoke` (**56** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-07-30 nach dem gruppierten Skalen-Picker; am selben Tag früher „55", „54", „53", „52", „51", „50", „49", „48", „47", „46", „45", „41", „39", am
                           2026-07-29 nachmittags „30", vormittags „21", und davor monatelang
                           „1 Datei" — das ließ das EINZIGE
                           Bundle, das einen Merge rot färben kann, kleiner aussehen als es ist. Das
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. FÜNFZEHN Stände in zwei Tagen (55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. SECHZEHN Stände in zwei Tagen (56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
