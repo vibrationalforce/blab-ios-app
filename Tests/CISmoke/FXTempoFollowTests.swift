@@ -76,10 +76,16 @@ final class FXTempoFollowTests: XCTestCase {
     func testAChangeTooSmallToSeeIsIgnored() {
         XCTAssertEqual(FXViewModel.tempoFollow(120, current: 120), .ignore)
         XCTAssertEqual(FXViewModel.tempoFollow(120.001, current: 120), .ignore)
-        XCTAssertEqual(FXViewModel.tempoFollow(120 + FXViewModel.tempoFollowFloor, current: 120),
-                       .adoptWhenQuiet,
-                       "the floor is the smallest change that alters the shown number, so it "
-                       + "must itself be adopted — not swallowed")
+        // ⚠️ 120.01, NOT `120 + tempoFollowFloor`. That expression is what CI failed on, and it
+        // deserves recording rather than quietly patching: `120 + 0.005` is not representable,
+        // so the difference comes back as 0.00499999999999545 — a hair BELOW the floor it was
+        // meant to sit exactly on. The policy was right; the assertion was testing binary
+        // floating-point representation instead. An epsilon boundary reached by adding to a
+        // large operand cannot be pinned exactly, so pin a change that is unambiguously above
+        // it — which is the property that actually matters.
+        XCTAssertEqual(FXViewModel.tempoFollow(120.01, current: 120), .adoptWhenQuiet,
+                       "a change large enough to alter the shown number must be adopted, "
+                       + "not swallowed by the floor")
     }
 
     /// ⛔ AND THE ONE THAT MATTERS BEYOND THE UI: `bpm` feeds `TempoSyncOption`'s division
