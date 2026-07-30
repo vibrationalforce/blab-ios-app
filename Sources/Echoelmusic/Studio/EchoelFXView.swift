@@ -124,6 +124,7 @@ final class FXViewModel {
         delayMix = c.delay.mix; delayTime = c.delay.timeSeconds
         delayFeedback = c.delay.feedback; delayTone = c.delay.tone
         delayWow = c.delay.wow; delayDrive = c.delay.drive
+        delaySpread = c.delay.spread
         chorusEnabled = c.chorusEnabled; chorusRate = c.chorus.rate
         chorusDepth = c.chorus.depth; chorusMix = c.chorus.mix
         flangerEnabled = c.flangerEnabled; flangerRate = c.flanger.rate
@@ -169,6 +170,13 @@ final class FXViewModel {
     var delayTone: Float { didSet { chain.delay.tone = delayTone } }
     var delayWow: Float { didSet { chain.delay.wow = delayWow } }
     var delayDrive: Float { didSet { chain.delay.drive = delayDrive } }
+    /// ⛔ #251: THIS MIRROR WAS MISSING WHILE THE VALUE SHIPPED. `delaySpread` reaches the audio
+    /// from three directions — a genre's `GenreFX` stamp, an `FXCharacter` stamp, and every
+    /// `FXPreset` load (#246 made it travel with the preset and the morph fader) — but there was
+    /// no row, so the one thing a user could not do with it was set it. Worse than invisible:
+    /// stamping a character silently replaced whatever stereo image the previous one had left,
+    /// with nothing on screen changing.
+    var delaySpread: Float { didSet { chain.delay.spread = delaySpread } }
 
     // Chorus
     var chorusEnabled: Bool { didSet { chain.chorusEnabled = chorusEnabled } }
@@ -278,6 +286,7 @@ final class FXViewModel {
         delayMix = c.delay.mix; delayTime = c.delay.timeSeconds
         delayFeedback = c.delay.feedback; delayTone = c.delay.tone
         delayWow = c.delay.wow; delayDrive = c.delay.drive
+        delaySpread = c.delay.spread
         chorusEnabled = c.chorusEnabled; chorusRate = c.chorus.rate
         chorusDepth = c.chorus.depth; chorusMix = c.chorus.mix
         flangerEnabled = c.flangerEnabled; flangerRate = c.flanger.rate
@@ -453,6 +462,11 @@ struct EchoelFXView: View {
                     field("Feedback", $vm.delayFeedback, 0...0.95)
                     field("Mix", $vm.delayMix, 0...1)
                     field("Tone", $vm.delayTone, 0...1)
+                    // #251: the stereo image. Every character stamp and every preset load has
+                    // been writing this since #246; this is the first time a user can see or
+                    // set it. Range is the stage's own declared domain (`EchoelDelay.spread`,
+                    // [0, 1] → the right tap offsets by up to 25 ms).
+                    field("Spread", $vm.delaySpread, 0...1)
                     if vm.delayMode == .tape {
                         field("Wow/Flutter", $vm.delayWow, 0...1)
                         field("Drive", $vm.delayDrive, 0...1)
