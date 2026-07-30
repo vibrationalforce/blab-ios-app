@@ -88,7 +88,7 @@
             <p class="date">Updated: February 2026</p>
             <span class="hero-badge">Privacy-First Design</span>
         </div>
-        <div class="subpage-summary"><strong>Local-first, and no servers.</strong> Echoelmusic stores and processes your data on your device, protected by Apple's on-device Data Protection. No accounts, no tracking, nothing sent to us. Biosignal values leave the device only over connections you switch on yourself &mdash; OSC, lighting output or nearby session sharing &mdash; and Apple Health data is excluded from those.</div>
+        <div class="subpage-summary"><strong>Local-first, and no servers.</strong> Echoelmusic stores and processes your data on your device, protected by Apple's on-device Data Protection. No accounts, no tracking, nothing sent to us. Biosignal values leave the device only over connections you switch on yourself &mdash; OSC/ADM-OSC, lighting output, or nearby session sharing &mdash; and Apple Health data is excluded from those. The first two are plain UDP and unencrypted by design; nearby sharing is encrypted device-to-device.</div>
 
         <section>
             <h2>Local-First Architecture</h2>
@@ -106,7 +106,7 @@
             <ul>
                 <li><strong>Apple Data Protection:</strong> On-device files are encrypted at rest by iOS Data Protection (hardware-backed), unlocked only while the device is.</li>
                 <li><strong>No servers:</strong> we operate none, so your data is never sent to us and there is no account or database to breach.</li>
-                <li><strong>What you switch on does travel:</strong> if you explicitly enable OSC / ADM-OSC output, Art-Net or sACN lighting, or nearby session sharing, biosignal values leave the device unencrypted to a destination you choose &mdash; that is the point of those features. Treat that network as you would any stage or studio LAN. Values read from Apple Health or Apple Watch are excluded and never leave.</li>
+                <li><strong>What you switch on does travel:</strong> if you explicitly enable OSC / ADM-OSC output or Art-Net / sACN lighting, biosignal values leave the device <strong>unencrypted</strong> to a destination you choose &mdash; plain UDP, because those open standards define no encryption, and that is the point of those features. Treat that network as you would any stage or studio LAN. <strong>Nearby session sharing is different:</strong> it runs device-to-device over Apple's MultipeerConnectivity with encryption <em>required</em>, so it is not on that list. In all cases, values read from Apple Health or Apple Watch are excluded and never leave.</li>
             </ul>
         </section>
 
@@ -151,7 +151,7 @@
             <p>No software is perfectly secure. While we follow security best practices, we cannot guarantee absolute security. Specifically:</p>
             <ul>
                 <li>Security depends on your device's OS version and security updates</li>
-                <li>Once you switch an output on, we cannot protect what you sent: OSC, ADM-OSC, Art-Net/sACN, virtual MIDI and nearby session sharing all travel in the clear because those open standards define no encryption, and anything on that network can read them. Choose the network accordingly</li>
+                <li>Once you switch an output on, we cannot protect what you sent — not the transport (see above: the local-network outputs are plain UDP by design), and not the receiving end. A lighting desk, a TouchDesigner patch or the other person's phone may log, forward or display your values; that is their software, not ours</li>
                 <li>Biometric sensor accuracy depends on hardware and conditions outside our control</li>
                 <li>We encourage you to keep your device updated and use strong device passcodes</li>
             </ul>

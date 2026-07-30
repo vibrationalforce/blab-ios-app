@@ -5,31 +5,50 @@
       "fonts": [
         {
           "font": "./fonts/SF-Pro-Display-Bold.otf",
-          "supported": ["en-US", "de-DE", "fr-FR", "es-ES", "it", "pt-BR"]
+          "supported": [
+            "en-US",
+            "de-DE",
+            "fr-FR",
+            "es-ES",
+            "it",
+            "pt-BR"
+          ]
         },
         {
           "font": "./fonts/NotoSansJP-Bold.otf",
-          "supported": ["ja"]
+          "supported": [
+            "ja"
+          ]
         },
         {
           "font": "./fonts/NotoSansKR-Bold.otf",
-          "supported": ["ko"]
+          "supported": [
+            "ko"
+          ]
         },
         {
           "font": "./fonts/NotoSansSC-Bold.otf",
-          "supported": ["zh-Hans"]
+          "supported": [
+            "zh-Hans"
+          ]
         },
         {
           "font": "./fonts/NotoSansArabic-Bold.otf",
-          "supported": ["ar"]
+          "supported": [
+            "ar"
+          ]
         },
         {
           "font": "./fonts/NotoSansDevanagari-Bold.otf",
-          "supported": ["hi"]
+          "supported": [
+            "hi"
+          ]
         },
         {
           "font": "./fonts/NotoSans-Bold.otf",
-          "supported": ["ru"]
+          "supported": [
+            "ru"
+          ]
         }
       ],
       "color": "#FFFFFF"
@@ -38,31 +57,50 @@
       "fonts": [
         {
           "font": "./fonts/SF-Pro-Display-Regular.otf",
-          "supported": ["en-US", "de-DE", "fr-FR", "es-ES", "it", "pt-BR"]
+          "supported": [
+            "en-US",
+            "de-DE",
+            "fr-FR",
+            "es-ES",
+            "it",
+            "pt-BR"
+          ]
         },
         {
           "font": "./fonts/NotoSansJP-Regular.otf",
-          "supported": ["ja"]
+          "supported": [
+            "ja"
+          ]
         },
         {
           "font": "./fonts/NotoSansKR-Regular.otf",
-          "supported": ["ko"]
+          "supported": [
+            "ko"
+          ]
         },
         {
           "font": "./fonts/NotoSansSC-Regular.otf",
-          "supported": ["zh-Hans"]
+          "supported": [
+            "zh-Hans"
+          ]
         },
         {
           "font": "./fonts/NotoSansArabic-Regular.otf",
-          "supported": ["ar"]
+          "supported": [
+            "ar"
+          ]
         },
         {
           "font": "./fonts/NotoSansDevanagari-Regular.otf",
-          "supported": ["hi"]
+          "supported": [
+            "hi"
+          ]
         },
         {
           "font": "./fonts/NotoSans-Regular.otf",
-          "supported": ["ru"]
+          "supported": [
+            "ru"
+          ]
         }
       ],
       "color": "#AAAAAA"
@@ -75,313 +113,91 @@
   },
   "data": [
     {
-      "filter": "01_BioReactiveAudio",
+      "filter": "01_Instrument",
       "keyword": {
         "en-US": "Bio-Reactive",
-        "de-DE": "Bio-Reaktiv",
-        "ja": "バイオリアクティブ",
-        "es-ES": "Bio-Reactivo",
-        "fr-FR": "Bio-Réactif",
-        "zh-Hans": "生物反应",
-        "ko": "바이오리액티브",
-        "pt-BR": "Bio-Reativo",
-        "it": "Bio-Reattivo",
-        "ru": "Биореактивный",
-        "ar": "تفاعلي حيوي",
-        "hi": "बायो-रिएक्टिव"
+        "de-DE": "Bio-reaktiv"
       },
       "title": {
-        "en-US": "Transform your biometrics into music",
-        "de-DE": "Verwandle Biometrie in Musik",
-        "ja": "バイオメトリクスを音楽に",
-        "es-ES": "Transforma biométricos en música",
-        "fr-FR": "Transformez vos données en musique",
-        "zh-Hans": "将生物特征转化为音乐",
-        "ko": "생체 데이터를 음악으로",
-        "pt-BR": "Transforme biometria em música",
-        "it": "Trasforma biometria in musica",
-        "ru": "Превратите биометрию в музыку",
-        "ar": "حول بياناتك الحيوية إلى موسيقى",
-        "hi": "बायोमेट्रिक्स को संगीत में बदलें"
+        "en-US": "Your heartbeat plays the instrument",
+        "de-DE": "Dein Herzschlag spielt das Instrument"
       }
     },
     {
-      "filter": "02_QuantumVisualization",
+      "filter": "02_Generative",
       "keyword": {
-        "en-US": "Quantum Visuals",
-        "de-DE": "Quanten-Visualisierung",
-        "ja": "量子ビジュアル",
-        "es-ES": "Visuales Cuánticos",
-        "fr-FR": "Visuels Quantiques",
-        "zh-Hans": "量子可视化",
-        "ko": "양자 시각화",
-        "pt-BR": "Visuais Quânticos",
-        "it": "Visual Quantici",
-        "ru": "Квантовые визуалы",
-        "ar": "مرئيات كمية",
-        "hi": "क्वांटम विजुअल्स"
+        "en-US": "Generative",
+        "de-DE": "Generativ"
       },
       "title": {
-        "en-US": "Sacred geometry meets quantum aesthetics",
-        "de-DE": "Heilige Geometrie trifft Quantenästhetik",
-        "ja": "神聖幾何学と量子美学の融合",
-        "es-ES": "Geometría sagrada y estética cuántica",
-        "fr-FR": "Géométrie sacrée et esthétique quantique",
-        "zh-Hans": "神圣几何与量子美学",
-        "ko": "신성한 기하학과 양자 미학",
-        "pt-BR": "Geometria sagrada e estética quântica",
-        "it": "Geometria sacra e estetica quantistica",
-        "ru": "Сакральная геометрия и квантовая эстетика",
-        "ar": "الهندسة المقدسة والجماليات الكمية",
-        "hi": "पवित्र ज्यामिति और क्वांटम सौंदर्यशास्त्र"
+        "en-US": "Harmonic, melodic and rhythmic loops from your body",
+        "de-DE": "Harmonische, melodische und rhythmische Loops aus deinem Körper"
       }
     },
     {
-      "filter": "03_OrchestraScoring",
+      "filter": "03_Visuals",
       "keyword": {
-        "en-US": "Orchestra",
-        "de-DE": "Orchester",
-        "ja": "オーケストラ",
-        "es-ES": "Orquesta",
-        "fr-FR": "Orchestre",
-        "zh-Hans": "管弦乐队",
-        "ko": "오케스트라",
-        "pt-BR": "Orquestra",
-        "it": "Orchestra",
-        "ru": "Оркестр",
-        "ar": "أوركسترا",
-        "hi": "ऑर्केस्ट्रा"
+        "en-US": "Visuals",
+        "de-DE": "Visuals"
       },
       "title": {
-        "en-US": "Cinematic scoring at your fingertips",
-        "de-DE": "Filmmusik auf Knopfdruck",
-        "ja": "映画音楽を指先で",
-        "es-ES": "Música cinematográfica al alcance",
-        "fr-FR": "Musique de film à portée de main",
-        "zh-Hans": "电影配乐触手可及",
-        "ko": "영화 음악을 손끝에서",
-        "pt-BR": "Trilha sonora na ponta dos dedos",
-        "it": "Colonne sonore a portata di mano",
-        "ru": "Киномузыка на кончиках пальцев",
-        "ar": "موسيقى سينمائية في متناول يدك",
-        "hi": "सिनेमाई स्कोरिंग आपकी उंगलियों पर"
+        "en-US": "GPU visuals driven live, flash-safe under 3 Hz",
+        "de-DE": "GPU-Visuals live gesteuert, blitzsicher unter 3 Hz"
       }
     },
     {
-      "filter": "04_ImmersiveExperience",
+      "filter": "04_Light",
       "keyword": {
-        "en-US": "Immersive",
-        "de-DE": "Immersiv",
-        "ja": "没入型",
-        "es-ES": "Inmersivo",
-        "fr-FR": "Immersif",
-        "zh-Hans": "沉浸式",
-        "ko": "몰입형",
-        "pt-BR": "Imersivo",
-        "it": "Immersivo",
-        "ru": "Иммерсивный",
-        "ar": "غامر",
-        "hi": "इमर्सिव"
+        "en-US": "Light",
+        "de-DE": "Licht"
       },
       "title": {
-        "en-US": "360° spatial audio experience",
-        "de-DE": "360° räumliches Audio-Erlebnis",
-        "ja": "360°空間オーディオ体験",
-        "es-ES": "Experiencia de audio espacial 360°",
-        "fr-FR": "Expérience audio spatiale 360°",
-        "zh-Hans": "360°空间音频体验",
-        "ko": "360° 공간 오디오 경험",
-        "pt-BR": "Experiência de áudio espacial 360°",
-        "it": "Esperienza audio spaziale 360°",
-        "ru": "360° пространственный звук",
-        "ar": "تجربة صوتية مكانية 360°",
-        "hi": "360° स्थानिक ऑडियो अनुभव"
+        "en-US": "Art-Net and sACN — your pulse drives the rig",
+        "de-DE": "Art-Net und sACN — dein Puls steuert die Anlage"
       }
     },
     {
-      "filter": "05_AIStudio",
+      "filter": "05_Sync",
       "keyword": {
-        "en-US": "AI Studio",
-        "de-DE": "KI-Studio",
-        "ja": "AIスタジオ",
-        "es-ES": "Estudio IA",
-        "fr-FR": "Studio IA",
-        "zh-Hans": "AI工作室",
-        "ko": "AI 스튜디오",
-        "pt-BR": "Estúdio IA",
-        "it": "Studio IA",
-        "ru": "ИИ Студия",
-        "ar": "استوديو الذكاء الاصطناعي",
-        "hi": "AI स्टूडियो"
+        "en-US": "Sync",
+        "de-DE": "Sync"
       },
       "title": {
-        "en-US": "Generate art and music with AI",
-        "de-DE": "Kunst und Musik mit KI generieren",
-        "ja": "AIでアートと音楽を生成",
-        "es-ES": "Genera arte y música con IA",
-        "fr-FR": "Générez art et musique avec l'IA",
-        "zh-Hans": "用AI生成艺术和音乐",
-        "ko": "AI로 예술과 음악 생성",
-        "pt-BR": "Gere arte e música com IA",
-        "it": "Genera arte e musica con IA",
-        "ru": "Создавайте искусство с ИИ",
-        "ar": "أنشئ الفن والموسيقى بالذكاء الاصطناعي",
-        "hi": "AI के साथ कला और संगीत बनाएं"
+        "en-US": "OSC, ADM-OSC and MIDI over open standards",
+        "de-DE": "OSC, ADM-OSC und MIDI über offene Standards"
       }
     },
     {
-      "filter": "06_Wellness",
+      "filter": "06_Export",
       "keyword": {
-        "en-US": "Wellness",
-        "de-DE": "Wellness",
-        "ja": "ウェルネス",
-        "es-ES": "Bienestar",
-        "fr-FR": "Bien-être",
-        "zh-Hans": "健康",
-        "ko": "웰니스",
-        "pt-BR": "Bem-estar",
-        "it": "Benessere",
-        "ru": "Велнес",
-        "ar": "العافية",
-        "hi": "कल्याण"
+        "en-US": "Export",
+        "de-DE": "Export"
       },
       "title": {
-        "en-US": "Meditation and breathing guidance",
-        "de-DE": "Meditation und Atemführung",
-        "ja": "瞑想と呼吸ガイダンス",
-        "es-ES": "Meditación y guía de respiración",
-        "fr-FR": "Méditation et guide respiratoire",
-        "zh-Hans": "冥想和呼吸指导",
-        "ko": "명상과 호흡 가이드",
-        "pt-BR": "Meditação e orientação respiratória",
-        "it": "Meditazione e guida respiratoria",
-        "ru": "Медитация и дыхательные упражнения",
-        "ar": "التأمل وتوجيه التنفس",
-        "hi": "ध्यान और सांस मार्गदर्शन"
+        "en-US": "Export .wav and MIDI to Ableton, Logic, FL Studio",
+        "de-DE": ".wav und MIDI für Ableton, Logic, FL Studio"
       }
     },
     {
-      "filter": "07_Streaming",
+      "filter": "07_Colabo",
       "keyword": {
-        "en-US": "Live Stream",
-        "de-DE": "Livestream",
-        "ja": "ライブ配信",
-        "es-ES": "En Vivo",
-        "fr-FR": "Direct",
-        "zh-Hans": "直播",
-        "ko": "라이브 스트림",
-        "pt-BR": "Ao Vivo",
-        "it": "Diretta",
-        "ru": "Стрим",
-        "ar": "بث مباشر",
-        "hi": "लाइव स्ट्रीम"
+        "en-US": "Nearby",
+        "de-DE": "In der Nähe"
       },
       "title": {
-        "en-US": "Professional streaming to any platform",
-        "de-DE": "Professionelles Streaming überall",
-        "ja": "あらゆるプラットフォームへプロ配信",
-        "es-ES": "Streaming profesional a cualquier plataforma",
-        "fr-FR": "Streaming professionnel partout",
-        "zh-Hans": "专业直播到任何平台",
-        "ko": "모든 플랫폼으로 전문 스트리밍",
-        "pt-BR": "Streaming profissional para qualquer plataforma",
-        "it": "Streaming professionale ovunque",
-        "ru": "Профессиональный стриминг везде",
-        "ar": "بث احترافي لأي منصة",
-        "hi": "किसी भी प्लेटफॉर्म पर प्रोफेशनल स्ट्रीमिंग"
+        "en-US": "Play together with a device next to you",
+        "de-DE": "Zusammen spielen mit einem Gerät nebenan"
       }
     },
     {
-      "filter": "08_Hardware",
+      "filter": "08_Sensors",
       "keyword": {
-        "en-US": "Hardware",
-        "de-DE": "Hardware",
-        "ja": "ハードウェア",
-        "es-ES": "Hardware",
-        "fr-FR": "Matériel",
-        "zh-Hans": "硬件",
-        "ko": "하드웨어",
-        "pt-BR": "Hardware",
-        "it": "Hardware",
-        "ru": "Оборудование",
-        "ar": "الأجهزة",
-        "hi": "हार्डवेयर"
+        "en-US": "Sensors",
+        "de-DE": "Sensoren"
       },
       "title": {
-        "en-US": "Connect 100+ professional devices",
-        "de-DE": "100+ professionelle Geräte verbinden",
-        "ja": "100以上のプロ機器に接続",
-        "es-ES": "Conecta 100+ dispositivos profesionales",
-        "fr-FR": "Connectez 100+ appareils professionnels",
-        "zh-Hans": "连接100+专业设备",
-        "ko": "100개 이상의 전문 장치 연결",
-        "pt-BR": "Conecte 100+ dispositivos profissionais",
-        "it": "Collega 100+ dispositivi professionali",
-        "ru": "Подключите 100+ устройств",
-        "ar": "اتصل بأكثر من 100 جهاز احترافي",
-        "hi": "100+ प्रोफेशनल डिवाइस कनेक्ट करें"
-      }
-    },
-    {
-      "filter": "09_Collaboration",
-      "keyword": {
-        "en-US": "Collaborate",
-        "de-DE": "Kollaboration",
-        "ja": "コラボレーション",
-        "es-ES": "Colaborar",
-        "fr-FR": "Collaborer",
-        "zh-Hans": "协作",
-        "ko": "협업",
-        "pt-BR": "Colaborar",
-        "it": "Collaborare",
-        "ru": "Коллаборация",
-        "ar": "تعاون",
-        "hi": "सहयोग"
-      },
-      "title": {
-        "en-US": "Create together worldwide",
-        "de-DE": "Weltweit gemeinsam kreieren",
-        "ja": "世界中で一緒に創作",
-        "es-ES": "Crea juntos en todo el mundo",
-        "fr-FR": "Créez ensemble dans le monde entier",
-        "zh-Hans": "全球共同创作",
-        "ko": "전 세계에서 함께 창작",
-        "pt-BR": "Crie junto ao redor do mundo",
-        "it": "Crea insieme in tutto il mondo",
-        "ru": "Создавайте вместе по всему миру",
-        "ar": "أنشئ معًا حول العالم",
-        "hi": "दुनिया भर में एक साथ बनाएं"
-      }
-    },
-    {
-      "filter": "10_Accessibility",
-      "keyword": {
-        "en-US": "Accessible",
-        "de-DE": "Barrierefrei",
-        "ja": "アクセシビリティ",
-        "es-ES": "Accesible",
-        "fr-FR": "Accessible",
-        "zh-Hans": "无障碍",
-        "ko": "접근성",
-        "pt-BR": "Acessível",
-        "it": "Accessibile",
-        "ru": "Доступность",
-        "ar": "سهولة الوصول",
-        "hi": "सुलभ"
-      },
-      "title": {
-        "en-US": "WCAG AAA for everyone",
-        "de-DE": "WCAG AAA für alle",
-        "ja": "すべての人にWCAG AAA",
-        "es-ES": "WCAG AAA para todos",
-        "fr-FR": "WCAG AAA pour tous",
-        "zh-Hans": "为每个人提供WCAG AAA",
-        "ko": "모두를 위한 WCAG AAA",
-        "pt-BR": "WCAG AAA para todos",
-        "it": "WCAG AAA per tutti",
-        "ru": "WCAG AAA для всех",
-        "ar": "WCAG AAA للجميع",
-        "hi": "सभी के लिए WCAG AAA"
+        "en-US": "Camera pulse, Bluetooth straps, Apple Health",
+        "de-DE": "Kamera-Puls, Bluetooth-Gurte, Apple Health"
       }
     }
   ]

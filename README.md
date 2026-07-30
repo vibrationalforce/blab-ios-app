@@ -2,7 +2,7 @@
 
 **Physical Computing · Biofeedback · Multimedial & Multidimensional.**
 
-An immersive, iPhone-first instrument and production platform for **Installation · Event · Content · Cinema · Theater · Performance · Live Broadcast.** A single app where every sound, modulation, visual, and light cue is driven by your live physiology — heart rate, HRV, breath, motion, brain rhythms — through a typed pub/sub bus that any external controller, DAW, or stage tool can subscribe to. What Loopy Pro, Bitwig, and TouchDesigner together cannot do.
+An immersive, iPhone-first instrument and production platform for **Installation · Event · Content · Cinema · Theater · Performance.** A single app where every sound, modulation, visual, and light cue is driven by your live physiology — heart rate, HRV, breath, motion, brain rhythms — through a typed pub/sub bus that any external controller, DAW, or stage tool can subscribe to. What Loopy Pro, Bitwig, and TouchDesigner together cannot do.
 
 [![iOS](https://img.shields.io/badge/iOS-18+-black.svg)](https://developer.apple.com/ios/)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
@@ -41,8 +41,11 @@ one-button generate flow and a **Tools** menu for the deeper editors.
 | **Well** | Coherence headline · resonance breath pacer · camera rPPG · immersive visual | Live |
 | **Tools** (menu) | ⛔ **Diese Zeile ist überholt (2026-07-27).** Das Tools-Menü selbst wurde 2026-07-02 entfernt; von den acht Einträgen sind *Piano Roll* (#178), *Clips* (#121 Slice 4) und *Drum Samples* (#166/#167 — Kit, Samples und Import gelöscht) auch als Code weg. Sound-Editor, Breathing Guide, Audio Input und Immersive Visual leben, aber hinter anderen Türen. MIDI-out ist Routing-gebunden, MPE hat keinen Schreiber. | ⛔ |
 
-*Roadmap (built but app-unwired, or not built): RTMP streaming, video capture/edit,
-multitrack audio, Clips/Arrangement UI. See `docs/dev/FEATURE_MATRIX.md`.*
+*⛔ **NOT PLANNED**, not roadmap — this line said "roadmap" and contradicted every
+public page (`docs/faq.html`, `overview`, `architecture`, `press`, `tools`): RTMP /
+live streaming, video editing, multitrack audio, and the Clips/Arrangement UI. Most
+were built and removed in July 2026; a broadcast stack is a second product. See
+`docs/dev/FEATURE_MATRIX.md`.*
 
 ---
 
