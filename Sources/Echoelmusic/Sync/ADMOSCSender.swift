@@ -19,15 +19,22 @@
 //    /adm/obj/{n}/position/distance    float     0 … 1     (normalized)
 //    /adm/obj/{n}/gain                 float     0 … 1     (linear, ≤ 1.0)
 //
-//  Default bio → object mapping (all four are existing BioSampleFrame fields):
-//    breath phase → azimuth    sound sweeps L↔R with the breath
-//    coherence    → distance   coherent = pulled close; scattered = far
-//    HRV          → elevation  calm lifts the object
+//  Default bio → object mapping (all four are existing BioSampleFrame fields). EVERY ONE
+//  of them is sent only while its own channel is actually measured (#260) — see
+//  `admMessages` for why, and note that two of these structural zeros are extremes, not
+//  neutral positions:
+//    breath phase → azimuth    sound sweeps L↔R with the breath — needs `hasMeasuredBreath`
+//    coherence    → distance   coherent = pulled close; scattered = far — needs a pulse
+//                              AND a non-zero coherence, which a camera take may never
+//                              reach (16 RR intervals)
+//    HRV          → elevation  calm lifts the object — needs a pulse AND a non-zero HRV
 //    motion       → gain       movement brings it forward — DORMANT in this build
 //                              (#215): nothing measures motion, so the BIO arm sends no
 //                              /gain at all rather than a constant. The MUSIC arm
 //                              (`MusicMediaMap.admMessages`) still drives /gain from the
 //                              master level whenever notes sound. See `motionGain`.
+//  Silence on an address means "not measured", never "measured as zero"; the renderer
+//  holds its last value, which is what a slipped finger should look like.
 //
 
 #if canImport(Network)
@@ -189,6 +196,11 @@ public final class ADMOSCSender {
         }
         guard sourceTimestamp != lastFrameTimestamp else { return }
         lastFrameTimestamp = sourceTimestamp
+        // A frame whose channels are all still unmeasured produces NO addresses (#260).
+        // Return before the timestamp stamp, or the Sync activity dot reports traffic for
+        // a tick on which no datagram left the device — the same class of lie the gate
+        // above exists to remove, one layer up in the UI.
+        guard !messages.isEmpty else { return }
         for (address, value) in messages {
             send(address: address, floats: [value])
         }
@@ -222,23 +234,51 @@ public final class ADMOSCSender {
     /// Maps a bio frame to the ADM-OSC (address, value) pairs for object `n`.
     /// Pure value-in/value-out — unit-tested without a socket, like `encode`.
     /// All values are clamped into their ADM-OSC v1.0 ranges.
+    ///
+    /// ⛔ EVERY ADDRESS RIDES THE MEASUREMENT OF ITS OWN CHANNEL (#260), the same rule
+    /// `OSCSender.bioMessages` follows since #245 — and here the stakes are higher than
+    /// on the OSC feed, because two of the three structural zeros are not neutral, they
+    /// are EXTREMES:
+    ///   · unmeasured breath ⇒ `breathPhase` 0 ⇒ azimuth **−180**, the object slammed
+    ///     hard left;
+    ///   · unmeasured coherence ⇒ `1 - 0` ⇒ distance **1**, the object pushed to the far
+    ///     end of the room.
+    /// A renderer cannot tell that apart from a performer who really is hard left and far
+    /// away, and `FaceExpressionBioPublisher` emits an all-zero frame that this arm is
+    /// allowed to forward, so it was reachable in a shipped configuration. Omitting the
+    /// address instead leaves the object wherever the renderer has it — ADM-OSC holds its
+    /// last value, which is exactly the behaviour a dropped sensor should produce.
+    ///
+    /// ⚠️ Consequence to know before mapping: on a bio-only rig an address that is never
+    /// measured never arrives, so the object keeps its initial position rather than being
+    /// driven to a default. `distance` is the one most likely to stay absent for a whole
+    /// take — coherence needs 16 accepted RR intervals and a camera session may never
+    /// reach that (see `HRVCoherence.minIntervals` and the note in `OSCSender`).
     public static func admMessages(for f: BioSampleFrame, object n: Int) -> [(String, Float)] {
         let idx = max(1, n)
         let prefix = "/adm/obj/\(idx)"
-        // breath phase [0..1] → azimuth [-180..180]: L↔R sweep with the breath
-        let azimuth = clamp((f.breathPhase * 2 - 1) * 180, -180, 180)
-        // coherence [0..1] → distance [0..1]: coherent pulls close (small distance)
-        let distance = clamp(1 - f.coherence, 0, 1)
-        // HRV [0..1] → elevation [-90..90]: calm lifts (use upper hemisphere 0..60)
-        let elevation = clamp(f.hrvNormalized * 60, -90, 90)
+        var msgs: [(String, Float)] = []
+
+        // breath phase [0..1] → azimuth [-180..180]: L↔R sweep with the breath.
+        // Gated on `breathRate`, not on the phase: `breathPhase` has no unknown sentinel
+        // (0 is a real position, exhale start), so it cannot answer for itself.
+        if f.hasMeasuredBreath {
+            msgs.append(("\(prefix)/position/azimuth",
+                         clamp((f.breathPhase * 2 - 1) * 180, -180, 180)))
+        }
+        // HRV [0..1] → elevation [-90..90]: calm lifts (upper hemisphere 0..60).
+        // Both halves, as on the OSC path: an HRV beside a pulse of 0 is a publisher bug,
+        // not a reading, and this arm must not put an invented number in someone's rig.
+        if f.hasMeasuredHeartRate, f.hrvNormalized > 0 {
+            msgs.append(("\(prefix)/position/elevation", clamp(f.hrvNormalized * 60, -90, 90)))
+        }
+        // coherence [0..1] → distance [0..1]: coherent pulls close (small distance).
+        if f.hasMeasuredHeartRate, f.coherence > 0 {
+            msgs.append(("\(prefix)/position/distance", clamp(1 - f.coherence, 0, 1)))
+        }
         // motion [0..1] → gain [0..1]: movement brings the object forward — WHEN
         // something measures motion. Today nothing does, so this arm asserts no gain at
         // all (#215); see `motionGain`.
-        var msgs: [(String, Float)] = [
-            ("\(prefix)/position/azimuth", azimuth),
-            ("\(prefix)/position/elevation", elevation),
-            ("\(prefix)/position/distance", distance)
-        ]
         if let gain = motionGain(motion: f.motionEnergy,
                                  hasProducer: ModSource.motion.hasProducer) {
             msgs.append(("\(prefix)/gain", gain))

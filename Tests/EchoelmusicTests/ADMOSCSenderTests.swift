@@ -5,9 +5,13 @@ import XCTest
 @MainActor
 final class ADMOSCSenderTests: XCTestCase {
 
+    /// ⚠️ FULLY MEASURED BY DEFAULT since #260. Every address now rides its own channel's
+    /// measurement, so a fixture that left `hrv`/`coherence` at 0 would silently delete the
+    /// very messages most of these tests then indexed into. The absence half is asserted in
+    /// the BLOCKING bundle (`ADMOSCAbsenceTests`); this file measures the mapping.
     private func frame(
-        hrv: Float = 0, breathPhase: Float = 0.5,
-        coherence: Float = 0, motion: Float = 0
+        hrv: Float = 0.5, breathPhase: Float = 0.5,
+        coherence: Float = 0.5, motion: Float = 0
     ) -> BioSampleFrame {
         BioSampleFrame(
             timestamp: 0, heartRateBPM: 60, hrvNormalized: hrv,
@@ -16,14 +20,20 @@ final class ADMOSCSenderTests: XCTestCase {
         )
     }
 
+    /// Look an address up by its suffix. Positional indexing broke with #260 — an omitted
+    /// channel shifts every later index — and it was always the more fragile form.
+    private func value(_ msgs: [(String, Float)], _ suffix: String) -> Float? {
+        msgs.first { $0.0.hasSuffix(suffix) }?.1
+    }
+
     // MARK: - Address namespace
 
     func testAdmMessages_addressesFollowAdmObjNamespace() {
         let msgs = ADMOSCSender.admMessages(for: frame(), object: 1)
         let addresses = msgs.map { $0.0 }
-        // The three POSITION addresses are unconditional and ordered. `/gain` rides the
-        // motion producer (#215) and is asserted separately below, so this stays true
-        // whichever side of that gate the build is on.
+        // A fully measured frame carries all three POSITION addresses, in this order.
+        // `/gain` rides the motion producer (#215) and is asserted separately below, so
+        // this stays true whichever side of that gate the build is on.
         XCTAssertEqual(Array(addresses.prefix(3)), [
             "/adm/obj/1/position/azimuth",
             "/adm/obj/1/position/elevation",
@@ -44,29 +54,35 @@ final class ADMOSCSenderTests: XCTestCase {
 
     // MARK: - Mapping correctness
 
-    func testAzimuth_breathPhaseSweepsFullLeftToRight() {
-        func azimuth(_ phase: Float) -> Float {
-            ADMOSCSender.admMessages(for: frame(breathPhase: phase), object: 1)[0].1
+    func testAzimuth_breathPhaseSweepsFullLeftToRight() throws {
+        func azimuth(_ phase: Float) throws -> Float {
+            try XCTUnwrap(value(ADMOSCSender.admMessages(for: frame(breathPhase: phase),
+                                                         object: 1), "/position/azimuth"))
         }
-        XCTAssertEqual(azimuth(0.0), -180, accuracy: 0.001)   // exhale start → hard left
-        XCTAssertEqual(azimuth(0.5),    0, accuracy: 0.001)   // center
-        XCTAssertEqual(azimuth(1.0),  180, accuracy: 0.001)   // hard right
+        XCTAssertEqual(try azimuth(0.0), -180, accuracy: 0.001)   // exhale start → hard left
+        XCTAssertEqual(try azimuth(0.5),    0, accuracy: 0.001)   // center
+        XCTAssertEqual(try azimuth(1.0),  180, accuracy: 0.001)   // hard right
     }
 
-    func testDistance_highCoherencePullsObjectClose() {
-        func distance(_ coh: Float) -> Float {
-            ADMOSCSender.admMessages(for: frame(coherence: coh), object: 1)[2].1
+    /// ⚠️ Only the OPEN end of the coherence range is a mapping question now: coherence 0
+    /// means "not measured yet" and sends nothing (#260), which is asserted in the blocking
+    /// bundle. What stays here is that a real coherence still pulls the object in.
+    func testDistance_highCoherencePullsObjectClose() throws {
+        func distance(_ coh: Float) throws -> Float {
+            try XCTUnwrap(value(ADMOSCSender.admMessages(for: frame(coherence: coh),
+                                                         object: 1), "/position/distance"))
         }
-        XCTAssertEqual(distance(0.0), 1, accuracy: 0.001)   // scattered → far
-        XCTAssertEqual(distance(1.0), 0, accuracy: 0.001)   // coherent → close
+        XCTAssertEqual(try distance(0.01), 0.99, accuracy: 0.001)   // barely coherent → far
+        XCTAssertEqual(try distance(1.0),  0,    accuracy: 0.001)   // coherent → close
     }
 
-    func testElevation_hrvLiftsObject() {
-        func elevation(_ hrv: Float) -> Float {
-            ADMOSCSender.admMessages(for: frame(hrv: hrv), object: 1)[1].1
+    func testElevation_hrvLiftsObject() throws {
+        func elevation(_ hrv: Float) throws -> Float {
+            try XCTUnwrap(value(ADMOSCSender.admMessages(for: frame(hrv: hrv),
+                                                         object: 1), "/position/elevation"))
         }
-        XCTAssertEqual(elevation(0.0), 0,  accuracy: 0.001)
-        XCTAssertEqual(elevation(1.0), 60, accuracy: 0.001)
+        XCTAssertEqual(try elevation(0.01), 0.6, accuracy: 0.001)
+        XCTAssertEqual(try elevation(1.0), 60,   accuracy: 0.001)
     }
 
     /// THE DECISION, tested on BOTH answers because the kernel takes the predicate as a
@@ -100,11 +116,15 @@ final class ADMOSCSenderTests: XCTestCase {
 
     // MARK: - Range safety (out-of-range bio values stay within ADM-OSC v1.0 spec)
 
-    func testAllValues_clampIntoAdmSpecRanges_evenForOutOfRangeInput() {
-        // Deliberately overdriven bio values (e.g. unnormalized sensor glitch).
-        let wild = frame(hrv: 5, breathPhase: 3, coherence: -2, motion: 9)
+    func testAllValues_clampIntoAdmSpecRanges_evenForOutOfRangeInput() throws {
+        // Deliberately overdriven bio values (e.g. unnormalized sensor glitch). Coherence
+        // is overdriven UPWARD (a negative one is an absence under #260 and would simply
+        // remove the address, proving nothing about the clamp).
+        let wild = frame(hrv: 5, breathPhase: 3, coherence: 4, motion: 9)
         let msgs = ADMOSCSender.admMessages(for: wild, object: 1)
-        let azimuth = msgs[0].1, elevation = msgs[1].1, distance = msgs[2].1
+        let azimuth = try XCTUnwrap(value(msgs, "/position/azimuth"))
+        let elevation = try XCTUnwrap(value(msgs, "/position/elevation"))
+        let distance = try XCTUnwrap(value(msgs, "/position/distance"))
         XCTAssertGreaterThanOrEqual(azimuth, -180); XCTAssertLessThanOrEqual(azimuth, 180)
         XCTAssertGreaterThanOrEqual(elevation, -90); XCTAssertLessThanOrEqual(elevation, 90)
         XCTAssertGreaterThanOrEqual(distance, 0); XCTAssertLessThanOrEqual(distance, 1)
@@ -119,12 +139,13 @@ final class ADMOSCSenderTests: XCTestCase {
 
     // MARK: - On-the-wire (reuses the audited OSC encoder)
 
-    func testAdmMessage_encodesAsValidOSCFloat() {
-        // Uses a POSITION address, which is unconditional: `/gain` now rides the motion
-        // producer (#215) and would make this test disappear rather than fail.
+    func testAdmMessage_encodesAsValidOSCFloat() throws {
+        // Looked up by address, not by index: `/gain` rides the motion producer (#215) and
+        // every position address rides its own channel's measurement (#260), so a
+        // positional read here would silently encode a different parameter.
         // breathPhase 1.0 → azimuth +180 → big-endian 0x43340000.
-        let azimuth = ADMOSCSender.admMessages(for: frame(breathPhase: 1.0), object: 1)[0]
-        XCTAssertEqual(azimuth.0, "/adm/obj/1/position/azimuth")
+        let msgs = ADMOSCSender.admMessages(for: frame(breathPhase: 1.0), object: 1)
+        let azimuth = try XCTUnwrap(msgs.first { $0.0 == "/adm/obj/1/position/azimuth" })
         let data = OSCSender.encode(address: azimuth.0, floats: [azimuth.1])
         XCTAssertEqual(Array(data.suffix(4)), [0x43, 0x34, 0x00, 0x00])
     }

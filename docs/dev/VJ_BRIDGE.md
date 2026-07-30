@@ -74,6 +74,18 @@ Connect **Music**/**Body** → **ADM-OSC (spatial)**. Echoel emits `/adm/obj/{n}
 immersive-object positions (pitch → azimuth, level → distance/gain) for L-ISA / d&b
 Soundscape / FletcherMachine and any ADM-OSC renderer.
 
+> ⛔ **The BIO arm follows the same measured-only rule as the OSC feed (#260).** While no
+> notes are sounding, the object is positioned from the body: breath phase → azimuth,
+> HRV → elevation, coherence → distance. Each of those is sent **only while its own channel
+> is measured**, so an object simply stops being driven on an axis rather than being driven
+> to a structural zero — which on two of the three axes is an extreme, not a neutral: an
+> unmeasured breath would read as hard left, an unmeasured coherence as maximum distance.
+> Your renderer holds the last value, so plan your scene to start from a sane position:
+> Echoel will not push the object to a default. `distance` is the axis most likely to stay
+> absent for a whole take (coherence needs ~16 beats, and a camera session may never reach
+> it). `/adm/obj/{n}/gain` is driven by the MUSIC arm from the master level; the bio arm
+> leaves it alone while nothing measures motion (#215).
+
 ## 4. MIDI / MPE out (+ thru)
 
 Connect **Music** → **MIDI Out** to play a DAW (Ableton/Logic) from the body-composed
