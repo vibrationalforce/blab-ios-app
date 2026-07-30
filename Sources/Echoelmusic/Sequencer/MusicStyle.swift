@@ -339,8 +339,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// are not in the picker). The separation is voicing, harmonic stasis, tempo and the dry chain.
     case minimalTechno
     /// #254 batch 4 — the SOULFUL pole, and the deliberate opposite of `minimalTechno` in the same
-    /// batch: where that one subtracts until only weight is left, this one is the roster's fullest
-    /// chord — and the only one of its size that is not the same seventh chord as all the others.
+    /// batch: where that one subtracts until only weight is left, this one is the only four-note
+    /// stack in the product that is not the same seventh chord as all the others.
     ///
     /// ⛔ "THE ROSTER'S RICHEST VOICING" STOOD HERE AND WAS FALSE. Nine genres voice four notes;
     /// this is a nine-way TIE on count, not a maximum. (The span is not a superlative either —
@@ -721,8 +721,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     ///
     /// ⚠️ SIX genres deliberately fall through to `.neutral` DESPITE SHARING AN ARCHETYPE WITH
     /// FLAVOURED SIBLINGS: `acidTechno`, `upliftingTrance`, `techHouse`, `minimalTechno` (all
-    /// `.fourOnFloor`), `detroitTechno` (`.backbeat`), and `deepHouse` (`.offbeat`, whose archetype
-    /// has no flavoured sibling at all). ⛔ THE SENTENCE SAID "FIVE" WHILE LISTING SIX, and the
+    /// `.fourOnFloor`), `detroitTechno` (`.backbeat`), and `deepHouse` (`.offbeat`, whose siblings
+    /// `ska`, `rocksteady` and `klezmer` ARE flavoured — ⛔ my correction wrote "no flavoured
+    /// sibling at all", which the inline comment 40 lines below flatly contradicts; I strengthened
+    /// an inherited parenthetical instead of checking it). ⛔ THE SENTENCE ALSO SAID "FIVE" WHILE
+    /// LISTING SIX, and the
     /// scope was missing too: 15 of the 33 genres return `.neutral` altogether. Those six are the
     /// only ones where it MATTERS, because they are the ones a listener could A/B against a
     /// flavoured genre on the same grid. That is not an
@@ -963,11 +966,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #254 batch 4. 0.04 is the smallest NON-ZERO swing of any genre in the file — minimal
         // needs the micro-shuffle to not read as a metronome, but anything more would stop being
         // minimal. That half is measured and pinned by `GenreBatchFourVoicingTests`.
-        // ⛔ "0.10 IS ITS OWN VALUE TOO" STOOD HERE AND WAS FALSE: `oriental` returns 0.10 sixteen
-        // lines above. Detroit SHARES it. Only the second half of that sentence survives — 0.10
-        // does sit between dubTechno's 0.08 and techHouse's 0.12, which is the separation that
-        // actually matters here (all three are electronic; oriental is not a genre anyone will
-        // A/B against this one). I had the sweep output in front of me and wrote the uniqueness
+        // ⛔ "0.10 IS ITS OWN VALUE TOO" STOOD HERE AND WAS FALSE: `oriental` returns 0.10 further
+        // up in this same switch. Detroit SHARES it. Only the second half of that sentence
+        // survives: 0.10 does sit between dubTechno's 0.08 and techHouse's 0.12, which is the
+        // separation that actually matters here (all three are electronic; oriental is not a genre
+        // anyone will A/B against this one). I had the sweep output in front of me and wrote it
         // anyway; that is the exact drift the deepHouse retraction two comments up already warns
         // about, so it is corrected in place rather than quietly deleted.
         case .minimalTechno:      return 0.04
@@ -1095,12 +1098,15 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// heraus … soll schön und entspannt sein") — the lead used to sit +5…+18%
     /// FORWARD in the synth genres; now it's tucked UNDER the pad (0.85–0.92)
     /// everywhere, so the melody supports the texture instead of blasting over it.
-    /// Bass/pad glue unchanged. Everything stays gentle (0.86–1.20), no clip.
-    /// ⚠️ THAT RANGE READ "0.85–1.18" UNTIL #254 BATCH 4 MOVED BOTH ENDS, and nothing caught it —
+    /// Bass/pad glue unchanged. Everything stays gentle (0.85–1.20), no clip.
+    /// ⚠️ THE HIGH END READ "1.18" UNTIL #254 BATCH 4, and nothing caught the drift —
     /// `MusicStyleSwingTests.testMixLevelsAreSaneForEveryGenre` bounds at 0.8…1.3, so a doc range
-    /// tighter than the tested one rots in silence. `minimalTechno` sets the new bass ceiling at
-    /// 1.20 (its dyad has no third to carry weight, so the bass does) and the new harmony floor at
-    /// 0.86. Re-derive this pair when a genre is added; do not quote it.
+    /// tighter than the tested one rots in silence. `minimalTechno` sets the new ceiling at 1.20
+    /// (its dyad has no third to carry weight, so the bass does).
+    /// ⛔ THE LOW END IS 0.85 AND ALWAYS WAS. My first correction wrote "0.86–1.20" — that is the
+    /// HARMONY floor, not the floor of "everything": the six calm genres sit at lead 0.85. So the
+    /// fix for a false claim briefly regressed a TRUE one. Per role, measured: bass 0.95…1.20 ·
+    /// harmony 0.86…1.08 · lead 0.85…0.90. Re-derive when a genre is added; do not quote it.
     public var mixLevels: (bass: Float, harmony: Float, lead: Float) {
         switch self {
         case .dubTechno, .trap:                       return (1.18, 0.94, 0.88)

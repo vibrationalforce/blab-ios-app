@@ -102,6 +102,17 @@ final class GenreBatchFourVoicingTests: XCTestCase {
     /// voice the IDENTICAL `[0, 2, 4, 6]` — root/third/fifth/seventh, the ordinary seventh chord.
     /// Detroit is the only four-note stack in the product that drops the fifth. Derived over
     /// `allCases`, so a batch-5 genre that copies the shape is caught here.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS TEST DID NOT GUARD THAT SENTENCE. It checked only
+    /// `!chordTones.contains(4)`, so a newcomer voicing `[0, 2, 4, 7]` would pass green while making
+    /// "all voice the IDENTICAL `[0, 2, 4, 6]`" false — a doc promising a case is caught, and a
+    /// body not catching it. Both halves are asserted now.
+    ///
+    /// ⛔ AND IT MEASURED DEGREES WHERE THIS FILE'S OWN PRINCIPLE (see `semitoneStack`) FORBIDS IT.
+    /// `contains(4)` means "has a fifth" ONLY on a 7-note mode; on `pentatonicMinor` degree 4 is
+    /// TEN semitones — a minor seventh. Harmless today because both pentatonic genres voice three
+    /// notes, but the counterexample this file already cites (`deepDrone`) is one `chordTones` edit
+    /// from making the check silently mean something else. The fifth is now checked in SEMITONES.
     func testDetroitIsTheOnlyFourNoteVoicingWithoutAFifth() {
         let fourNote = MusicStyle.allCases.filter { $0.harmonicProfile.chordTones.count == 4 }
         XCTAssertGreaterThan(fourNote.count, 1,
@@ -109,8 +120,10 @@ final class GenreBatchFourVoicingTests: XCTestCase {
                              + "anything")
         XCTAssertTrue(fourNote.contains(.detroitTechno))
 
+        // Half one: nobody else drops the fifth. Scale-proof — 7 semitones is a fifth in every
+        // mode, while degree 4 is one only in the seven-note ones.
         let othersWithoutAFifth = fourNote.filter {
-            $0 != .detroitTechno && !$0.harmonicProfile.chordTones.contains(4)
+            $0 != .detroitTechno && !semitoneStack(of: $0).contains(7)
         }
         XCTAssertTrue(othersWithoutAFifth.isEmpty,
                       "a second fifth-less four-note voicing appeared "
@@ -118,6 +131,19 @@ final class GenreBatchFourVoicingTests: XCTestCase {
                       + "a four-note stack is Detroit's whole separation from the eight ordinary "
                       + "seventh chords — if a newcomer wants it too, one of the two docs is now "
                       + "wrong.")
+
+        // Half two: and they are not merely fifth-BEARING, they are all the SAME chord. This is
+        // the sentence the doc actually makes, and without it a `[0, 2, 4, 7]` newcomer slips by.
+        let notThePlainSeventh = fourNote.filter {
+            $0 != .detroitTechno && $0.harmonicProfile.chordTones != [0, 2, 4, 6]
+        }
+        XCTAssertTrue(notThePlainSeventh.isEmpty,
+                      "\(notThePlainSeventh.map(\.rawValue).sorted()) now voice a four-note stack "
+                      + "that is neither Detroit's `[0, 2, 6, 8]` nor the plain `[0, 2, 4, 6]` "
+                      + "seventh the other eight share. That is not a defect by itself — but "
+                      + "Detroit's doc and this file both claim the four-note field is exactly two "
+                      + "shapes, so a third one means the claim has to be rewritten rather than "
+                      + "discovered later.")
     }
 
     /// Both voicings must stay NEW to the roster. Written as a sweep over `allCases` — including the

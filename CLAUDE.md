@@ -198,7 +198,9 @@ Tests/EchoelmusicTests/ ← 314 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. SIEBEN Stände in zwei Tagen: wer sie liest, ohne den Befehl
+                          ungeprüft**. SECHS Stände in zwei Tagen — „45" stand am 2026-07-30 auf der
+                          Platte, war aber nie in DIESER Zeile, und die erste Fassung dieser
+                          Korrektur zählte es mit: wer sie liest, ohne den Befehl
                           daneben laufen zu lassen, liest eine Zahl von gestern. ZWEI aufeinander
                           folgende #254-Reviewer fanden sie je einen Commit nach ihrer letzten
                           Korrektur wieder falsch — genau deshalb steht hier der Befehl und nicht

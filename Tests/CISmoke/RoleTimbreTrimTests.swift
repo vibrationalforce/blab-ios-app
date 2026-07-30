@@ -12,7 +12,7 @@
 //
 //   · NEUTRAL IS AN IDENTITY — a player who never opened the Pad rhythm row must hear the
 //     genre's patch bit-identically. That is the whole reason `padRhythm` defaults to `""`.
-//   · THE TRIM IS RELATIVE, SO GENRES STAY APART — swept over all 14 offered genres, per
+//   · THE TRIM IS RELATIVE, SO GENRES STAY APART — swept over all 16 offered genres, per
 //     character. This is the anti-convergence property and it is asserted on real patches,
 //     not argued in a comment. ⚠️ Do NOT read that sweep as clamp-edge coverage: across all 84
 //     combinations the only clamp any offered genre comes near is the attack floor (acidTechno
@@ -206,7 +206,7 @@ final class RoleTimbreTrimTests: XCTestCase {
         }
     }
 
-    /// The same property on the real roster: all 14 offered genres must remain mutually distinct
+    /// The same property on the real roster: all 16 offered genres must remain mutually distinct
     /// under every character. Swept rather than argued, because "relative therefore safe" is only
     /// true until a clamp flattens two patches onto the same edge.
     func testEveryCharacterKeepsAllOfferedGenresApart() {

@@ -28,7 +28,7 @@
 //   • `.minimalTechno`     — a one-chord progression [0], NOT sustained (#254 batch 4). ⛔ AND IT
 //                            CAUGHT THIS ONE TOO, for the second batch running: the batch-4 commit
 //                            went red here before a human noticed. Worth stating because it breaks
-//                            the pattern the four entries above set — every previous member is
+//                            the pattern the five entries above set — every previous member is
 //                            calm or drone-like, and it is tempting to read the anchor floor as a
 //                            CONTEMPLATIVE-genre guard. It is not. This is a 128 BPM dance genre
 //                            whose harmonic STASIS is its whole identity, so it needs its one root
@@ -55,7 +55,7 @@
 // which carries `continue-on-error: true` on both its build and its run step (#208). A guard
 // there cannot turn a merge red.
 //
-// WHAT THIS CANNOT PROVE: that the anchored harmony sounds better, or that the four genres are
+// WHAT THIS CANNOT PROVE: that the anchored harmony sounds better, or that the six genres are
 // now distinguishable BY EAR. It pins the arithmetic that decides whether the genre gets a vote.
 
 import Foundation
@@ -72,11 +72,12 @@ final class GenreAnchorFloorTests: XCTestCase {
         for coherence in [Float(0), 0.1, 0.2, 0.34, 0.349] {
             XCTAssertEqual(BioComposer.genreAnchorCount(sections: 1, coherence: coherence), 1,
                            "coherence \(coherence): a single-section take anchored 0 roots, so "
-                           + ".selfObservation (the default), .esotericMeditation, .psytrance "
-                           + "and .doom take their harmony wholesale from the shared journey "
-                           + "and stop sounding like themselves. Camera rPPG reports coherence "
-                           + "0 until beats accrue, so this is the state every session STARTS "
-                           + "in.")
+                           + "every one-section genre — .selfObservation (the default), "
+                           + ".esotericMeditation, .psytrance, .doom, .deepDrone and "
+                           + ".minimalTechno; the premise test at the bottom of this file owns "
+                           + "that list — takes its harmony wholesale from the shared journey and "
+                           + "stops sounding like itself. Camera rPPG reports coherence 0 until "
+                           + "beats accrue, so this is the state every session STARTS in.")
         }
     }
 
@@ -95,7 +96,7 @@ final class GenreAnchorFloorTests: XCTestCase {
     // MARK: - The crossfade that was already correct
 
     /// The clamp must be a NO-OP for every multi-section take — this fix is allowed to change
-    /// the four one-section genres and nothing else. `2 × 0.34 = 0.68` already rounded to 1.
+    /// the one-section genres and nothing else. `2 × 0.34 = 0.68` already rounded to 1.
     func testMultiSectionTakesAreUnchangedByTheFloor() {
         XCTAssertEqual(BioComposer.genreAnchorCount(sections: 2, coherence: 0), 1)
         XCTAssertEqual(BioComposer.genreAnchorCount(sections: 3, coherence: 0), 1)
@@ -175,7 +176,7 @@ final class GenreAnchorFloorTests: XCTestCase {
         XCTAssertEqual(BioComposer.genreAnchorCount(sections: -3, coherence: 1), 0)
     }
 
-    // MARK: - The four profiles this actually changes
+    // MARK: - The six profiles this actually changes
 
     /// Guards the PREMISE of the whole file: that exactly `.selfObservation`,
     /// `.esotericMeditation`, `.psytrance`, `.doom`, `.deepDrone` and `.minimalTechno` compose as
