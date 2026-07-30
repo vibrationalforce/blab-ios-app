@@ -682,6 +682,18 @@ over the vendored MIT pack at `.claude/skills/marketing/` (Corey Haines, 45
 skills). It enforces brand guardrails (no wellness/esoteric/overclaim, claim only
 what ships) and is **PIPELINE only — never shipped in-app, never touches `Sources/`**.
 
+**Short-form video content** (TikTok/Reels/Shorts, founder 2026-07-30) lives in
+`ContentPipeline/` — same PIPELINE-only rule. **Read `ContentPipeline/CLAIMS.md`
+BEFORE writing any script, caption or hashtag set**; it is the one list of what is
+true today and what is struck, with the reason. It exists because #158/#192 spent two
+whole cycles removing ONE false claim (AUv3) from the website and #184 removed twelve
+from the App Store text, where a false claim is a 2.3 rejection. A model asked for
+"bio-music app content" will reliably invent an AUv3 plugin and a meditation audience
+— Echoel is neither. Note two structural facts recorded in `ContentPipeline/README.md`:
+XcodeGen needs no exclusion (targets list explicit source paths, so a new top-level
+directory is never scanned), and `ContentPipeline/**` is in NO auto-merge path filter,
+so commits touching only it never reach `main` by automation (#252).
+
 ## ACTIVATION
 
 ```
