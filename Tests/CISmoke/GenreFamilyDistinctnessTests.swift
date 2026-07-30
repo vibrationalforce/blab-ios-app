@@ -126,7 +126,7 @@ final class GenreFamilyDistinctnessTests: XCTestCase {
     ///
     /// So the two are pinned apart on every axis the design uses, including the FX axis the sweep's
     /// fingerprint does not model. This test is scoped to ONE pair on purpose — a general
-    /// "all 27 cases must differ on FX too" rule would be a much bigger claim than the roster can
+    /// "every case must differ on FX too" rule would be a much bigger claim than the roster can
     /// currently honour, and asserting it would either fail today or have to be watered down.
     func testAcidTechnoIsNotPsytranceWithASecondChord() {
         XCTAssertNotEqual(fingerprint(.acidTechno), fingerprint(.psytrance))
@@ -176,16 +176,102 @@ final class GenreFamilyDistinctnessTests: XCTestCase {
                        + "flagship calm Fläche — change one of the three.")
     }
 
+    /// ⭐ #254 BATCH 2 — the ambient pair, and the one claim in this batch that is a MECHANISM
+    /// rather than a preference. `ambientPulse` and `acidTechno` are both arpeggiated, so neither
+    /// reads `chordArticulation` (that was batch 1's correction). What decides their audible note
+    /// RATE is `arpStep = (busy ? 2 : 4) * (tempoDensityScale(bpm) < 0.8 ? 2 : 1)`. The doubling
+    /// switches on above ~106 BPM. `ambientPulse`'s whole window must therefore stay under it and
+    /// `acidTechno`'s must stay over it — otherwise the two arp genres emit the same rate and the
+    /// slow one stops being slow.
+    ///
+    /// This asserts the tempo windows rather than calling the private composer, because the window
+    /// is the thing a future edit would change: widening `ambientPulse` past ~106 would silently
+    /// halve its note count with no other symptom. The threshold is 110 BPM today; the test
+/// re-derives it from `tempoDensityScale` rather than hardcoding it, so a change to the
+/// curve moves the assertion with it instead of quietly invalidating it.
+    func testTheTwoArpGenresSitOnOppositeSidesOfTheArpCoarseningThreshold() {
+        // The boundary, re-derived from the composer's own rule rather than hardcoded: the lowest
+        // BPM at which `tempoDensityScale` drops under 0.8 and `arpStep` doubles.
+        let threshold = (60...200).first { BioComposer.tempoDensityScale(bpm: Double($0)) < 0.8 }
+        XCTAssertNotNil(threshold, "tempoDensityScale never drops below 0.8 in 60…200 BPM — the "
+                        + "arp-coarsening rule this test is built on has changed")
+        guard let threshold else { return }
+
+        let pulse = MusicStyle.ambientPulse.tempoRange
+        XCTAssertLessThan(pulse.upperBound, Double(threshold),
+                          "ambientPulse's window reaches \(pulse.upperBound) BPM, at or past the "
+                          + "arp-coarsening threshold \(threshold). Above it `arpStep` doubles and "
+                          + "the slow hypnotic sequence silently becomes half as dense — the one "
+                          + "thing that distinguishes it from acidTechno. Keep the window below it.")
+        let acid = MusicStyle.acidTechno.tempoRange
+        XCTAssertGreaterThanOrEqual(acid.lowerBound, Double(threshold),
+                                    "acidTechno's window starts at \(acid.lowerBound), below the "
+                                    + "threshold \(threshold) — part of its range would now emit "
+                                    + "the same arp rate as ambientPulse.")
+        // Both are arpeggiated: that is the precondition for any of the above mattering.
+        XCTAssertTrue(MusicStyle.ambientPulse.harmonicProfile.arpeggiated)
+        XCTAssertTrue(MusicStyle.acidTechno.harmonicProfile.arpeggiated)
+    }
+
+    /// The ambient pair against the six calm genres that predate it. The sweep already forbids a
+    /// full fingerprint collision; this pins the DESIGN — each of the two was added because it
+    /// occupies territory no existing Fläche does, and if that stops being true the reason to have
+    /// them is gone.
+    func testTheAmbientAdditionsOccupyTerritoryNoFlaecheAlreadyHas() {
+        // Both use a pentatonic scale, and they are the only two genres in the roster that do.
+        // Every other genre is a 7-note mode, so no existing genre can be tension-free.
+        let pentatonic: Set<Scale> = [.pentatonicMinor, .pentatonicMajor]
+        let users = MusicStyle.allCases.filter { pentatonic.contains($0.scale) }
+        XCTAssertEqual(Set(users), Set([MusicStyle.deepDrone, .ambientPulse]),
+                       "the pentatonic scales are no longer exclusive to the ambient pair "
+                       + "(\(users.map { $0.rawValue })) — that exclusivity is why they read as a "
+                       + "different sound world rather than a seventh variation")
+
+        // deepDrone is the LOWEST offered genre and the only offered one that never travels.
+        let drone = MusicStyle.deepDrone.harmonicProfile
+        XCTAssertEqual(drone.progression.count, 1,
+                       "deepDrone gained a chord progression. Not moving at all is its identity — "
+                       + "selfObservation is already the calm genre that travels (i–VI–iv).")
+        for other in MusicStyle.offered where other != .deepDrone {
+            XCTAssertGreaterThan(other.harmonicProfile.padOctave, drone.padOctave,
+                                 "\(other.rawValue) now sits at or below deepDrone's register; "
+                                 + "being the lowest offered genre is part of what makes it a drone")
+        }
+        // Its quartal voicing is not a triad or a 7th — the two shapes every other genre uses.
+        XCTAssertFalse(drone.chordTones == [0, 2, 4] || drone.chordTones == [0, 2, 4, 6],
+                       "deepDrone's voicing collapsed onto the roster's standard triad/7th")
+
+        // ambientPulse is the calm family's only MOVING genre, and must not become a Fläche.
+        XCTAssertTrue(MusicStyle.ambientPulse.harmonicProfile.arpeggiated)
+        XCTAssertFalse(MusicStyle.ambientPulse.harmonicProfile.sustained,
+                       "ambientPulse became sustained — that flag suppresses the inner pulse and "
+                       + "the walking bass, i.e. it deletes the sequence that IS this genre")
+        XCTAssertFalse(MusicStyle.sustainedFlächen.contains(.ambientPulse))
+        XCTAssertTrue(MusicStyle.sustainedFlächen.contains(.deepDrone))
+
+        // Both are breath-paced, not grid-locked. `defaultMode` ends in `default: .studioLocked`,
+        // so this is the assertion that catches a new calm genre being silently grid-locked.
+        for style in [MusicStyle.deepDrone, .ambientPulse] {
+            XCTAssertEqual(style.defaultMode, .flowFree,
+                           "\(style.rawValue) defaults to a locked grid tempo. It is an ambient "
+                           + "genre; `defaultMode`'s `default:` arm is .studioLocked, so it has to "
+                           + "be listed explicitly.")
+            XCTAssertEqual(style.beatArchetype, .none, "\(style.rawValue) is drum-free by design")
+        }
+    }
+
     /// A new genre is worthless if the picker never shows it. This is the doorless-feature guard:
     /// the founder ASKED for these two, so being merely categorised is not enough.
     func testTheNewGenresAreReachableInThePicker() {
-        for style in [MusicStyle.acidTechno, .deepHouse] {
+        for style in [MusicStyle.acidTechno, .deepHouse, .deepDrone, .ambientPulse] {
             XCTAssertTrue(MusicStyle.offered.contains(style),
                           "\(style.rawValue) is built but not offered — a doorless genre")
             XCTAssertTrue(style.category.offeredGenres.contains(style),
                           "\(style.rawValue) is offered but its category does not list it, so the "
                           + "picker section it belongs to will not show it")
-            XCTAssertEqual(style.category, .electronic)
+            XCTAssertEqual(style.category,
+                           style == .deepDrone || style == .ambientPulse
+                               ? .meditative : .electronic)
         }
     }
 

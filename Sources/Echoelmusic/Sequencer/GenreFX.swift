@@ -249,6 +249,54 @@ public extension MusicStyle {
                 chorusEnabled: true, chorusRate: 0.30, chorusDepth: 0.42, chorusMix: 0.30,
                 saturation: 0.22,
                 reverbEnabled: true, reverbMix: 0.30, reverbRoom: 0.78, reverbDamping: 0.44)
+        case .deepDrone:
+            // #254 batch 2 — the DARKEST space in the product.
+            //
+            // ⚠️ NOT the longest echo, and the first draft of this comment claimed it was: it said
+            // "the only WHOLE-note echo (≈6 s at 40 BPM)". A whole note IS 6.0 s at 40 BPM, but
+            // `apply(to:bpm:)` clamps the delay time to `maxDelaySeconds` = 2.0 s — the delay line
+            // is only that long. So at 40…58 BPM this resolves to exactly 2.0 s, and `.whole` is
+            // an intent, not an audible property. It is kept because it is the honest musical
+            // value and the only one that would lengthen if the buffer ever grew.
+            //
+            // ⛔ WORTH KNOWING BEFORE YOU DIFFERENTIATE ANY CALM PRESET ON DELAY TIME: three of
+            // the four sibling ambient presets hit the same 2.0 s ceiling at their own tempos
+            // (selfObservation half @58 = 2.07, esotericMeditation half @60 = 2.0, contemplation
+            // dotted-half @52 = 3.46), so their comments' distinct echo lengths are NOT what a
+            // listener hears — only `drift` (dotted-quarter @60 = 1.5 s) is genuinely under the
+            // clamp. Below ~120 BPM, delay time is a near-useless separation axis. Logged as its
+            // own finding; not silently "fixed" here, because changing four shipped presets is a
+            // listening decision.
+            //
+            // So this preset separates on what SURVIVES the clamp: mode (tape, with wow), the
+            // darkest tone in the roster (0.14 < contemplation's 0.24), and the biggest and most
+            // damped hall (0.94 / 0.68). Feedback stays below 0.5 like the whole family so the
+            // tail washes and never builds. No chorus: the quartal voicing already spans an
+            // octave, and width on top of that smears the one thing the genre has — a still,
+            // clear, low stack.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.whole),
+                delayMix: 0.30, delayFeedback: 0.42, delayTone: 0.14, delaySpread: 0.35,
+                delayWow: 0.28, delayDrive: 0.10,
+                saturation: 0.10,
+                reverbEnabled: true, reverbMix: 0.44, reverbRoom: 0.94, reverbDamping: 0.68)
+        case .ambientPulse:
+            // #254 batch 2 — the SHORTEST echo of the calm family and the only straight quarter:
+            // at 85 BPM that is ~0.7 s, close enough to the sequence's own 8th-note step that the
+            // repeats interleave with it instead of answering it, which is what makes a slow
+            // sequence read as hypnotic rather than as a pad with delay. 0.706 s at 85 BPM is well
+            // under the 2.0 s clamp, so unlike its darker siblings this echo time is real and
+            // does change with tempo across the whole 78…92 window. Brightest tone of the family
+            // (0.58 > drift's 0.42) so the steps stay individually audible, a very slow chorus
+            // for width, and a big but only lightly damped hall.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.quarter),
+                delayMix: 0.34, delayFeedback: 0.44, delayTone: 0.58, delaySpread: 0.50,
+                chorusEnabled: true, chorusRate: 0.12, chorusDepth: 0.48, chorusMix: 0.28,
+                saturation: 0.12,
+                reverbEnabled: true, reverbMix: 0.34, reverbRoom: 0.86, reverbDamping: 0.44)
         case .trap:
             // Mostly dry; just a short triplet slap for depth.
             return GenreFXPreset(

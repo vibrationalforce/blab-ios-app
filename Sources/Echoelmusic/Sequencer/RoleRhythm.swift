@@ -81,7 +81,7 @@
 //  control and `arpTouches` overwrites the stored copy with it).
 //
 //  ⛔ A5 (LEAD) IS REJECTED, NOT PENDING — and this is the paragraph that stops it being re-planned
-//  every few sessions. **There is no lead melody in this product.** All 25 curated genres carry
+//  every few sessions. **There is no lead melody in this product.** Every curated genre carries
 //  `HarmonicProfile.leadDensity == 0`, nothing mutates it, and `dubMelody` / `trapMelody` /
 //  `ambientMelody` have no caller — so `composeHarmonic`'s melody block (~120 lines,
 //  `BioComposer.swift` 2258–2380; an earlier version of this line said ~170) never runs and no

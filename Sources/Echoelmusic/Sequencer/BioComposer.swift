@@ -2225,8 +2225,8 @@ public enum BioComposer {
         }
 
         // 3) Lead melody — ⛔ UNREACHABLE IN THE SHIPPING APP, READ THIS BEFORE PLANNING ANYTHING
-        //    FROM THE PARAGRAPH BELOW. Every one of the 27 `MusicStyle` cases carries (it was 25 until #254; the two
-        //    genres it added also carry 0)
+        //    FROM THE PARAGRAPH BELOW. EVERY `MusicStyle` case carries (no count: it rots on
+        //    every genre batch, the invariant does not)
         //    `leadDensity: 0.0` and nothing mutates it, so the `if` on the next line is never
         //    taken and NO `.lead`-role note is ever composed. The founder removed these melodies
         //    on 2026-07-09 ("die Melodie in den Genres war zu laut und zu unnatürlich … besser

@@ -81,6 +81,32 @@ public extension MusicStyle {
                 cutoff: 2200, res: 0.09, lfoAmt: 0.10, lfoRate: 0.14, lfoDepth: 0.22,
                 revMix: 0.54, revDecay: 3.4, vibRate: 0, vibDepth: 0,
                 uni: 3, det: 11)
+        case .deepDrone:
+            // #254 batch 2 — a BED, not a note: the slowest attack of any genre patch so the
+            // drone swells rather than starts, the longest release so it never fully stops, and
+            // a high sustain because there is nothing else to hear. Rich low harmonics (harm 0.98,
+            // hl 0.85) with the LOWEST brightness in the roster — the founder's "einige Sounds
+            // stechen kalt aus dem mix raus" law matters most here, where the whole character is
+            // warmth. Wide unison for a drone that fills the room without moving.
+            return patch("EE", "Drone Bed",
+                a: 1.8, d: 6.0, s: 0.88, r: 7.5,
+                harm: 0.98, hl: 0.85, bright: 0.10, noise: 0.02, color: "Pink", shape: "Dark",
+                cutoff: 620, res: 0.06, lfoAmt: 0.14, lfoRate: 0.05, lfoDepth: 0.26,
+                revMix: 0.62, revDecay: 8.5, vibRate: 0, vibDepth: 0,
+                uni: 4, det: 6)
+        case .ambientPulse:
+            // #254 batch 2 — the counterpart: each sequence step must have an ATTACK to be heard
+            // as motion, so a near-instant onset and a short-ish decay, but a long release so the
+            // steps overlap into the pad the drone genre holds outright. This is the same
+            // instant/short shape as the acid patch and the opposite intent — the difference is
+            // brightness (0.26 vs 0.18 with a much higher cutoff) and resonance (0.10 vs 0.46):
+            // acid squelches, this one rings.
+            return patch("EF", "Pulse Bell",
+                a: 0.01, d: 0.9, s: 0.25, r: 2.2,
+                harm: 0.92, hl: 0.72, bright: 0.26, noise: 0.01, color: "Pink", shape: "Natural",
+                cutoff: 3000, res: 0.10, lfoAmt: 0.12, lfoRate: 0.09, lfoDepth: 0.24,
+                revMix: 0.50, revDecay: 4.2, vibRate: 0, vibDepth: 0,
+                uni: 2, det: 7)
         case .trap:
             return patch("D2", "Trap Keys",
                 a: 0.01, d: 1.0, s: 0.30, r: 2.4,

@@ -1,7 +1,7 @@
 // IntroAttenuation.swift
 //
 // ⛔ READ THIS FIRST: EVERYTHING BELOW IS WRITTEN IN THE PRESENT TENSE AND DESCRIBES A BEHAVIOUR
-// THAT HAS NEVER OCCURRED. All 25 curated genres set `HarmonicProfile.leadDensity` to 0, so no
+// THAT HAS NEVER OCCURRED. Every curated genre sets `HarmonicProfile.leadDensity` to 0, so no
 // `.lead`-role note is ever composed and `apply` returns every take unchanged (pinned by
 // `LeadRoleAbsenceTests` in the blocking bundle; the full finding is in `RoleRhythm.swift`'s A5
 // paragraph). The paragraphs below are the DESIGN, kept because the softened entrance is a real
@@ -32,7 +32,7 @@ import Foundation
 
 /// Softens the LEAD role only, for the opening bar of a take.
 ///
-/// ⛔ **THIS HAS NEVER AUDIBLY DONE ANYTHING, and that is not a defect here.** All 25 curated genres
+/// ⛔ **THIS HAS NEVER AUDIBLY DONE ANYTHING, and that is not a defect here.** Every curated genre
 /// set `HarmonicProfile.leadDensity` to 0, so `BioComposer` composes no `.lead`-role note and
 /// `apply` returns every take unchanged (pinned by `LeadRoleAbsenceTests` in the blocking bundle).
 /// Kept because the softened entrance is a real intent and this is where it belongs the moment a

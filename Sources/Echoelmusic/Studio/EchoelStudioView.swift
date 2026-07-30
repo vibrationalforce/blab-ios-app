@@ -1625,7 +1625,7 @@ struct EchoelStudioView: View {
                 // Pad + Lead share the melodic FX bus → one strip. The melodic filter tames
                 // a shrill lead directly.
                 //
-                // ⛔ THE "Lead" FIELD BELOW IS INERT TODAY AND THE FOUNDER CAN SEE IT. All 25 curated
+                // ⛔ THE "Lead" FIELD BELOW IS INERT TODAY AND THE FOUNDER CAN SEE IT. Every curated
                 // genres set `leadDensity: 0`, so `BioComposer` composes no `.lead`-role note and
                 // there is nothing for this fader to scale (`LeadRoleAbsenceTests`, blocking bundle;
                 // the whole finding is in `RoleRhythm.swift`'s A5 paragraph). It is a lying control

@@ -270,7 +270,7 @@ extension EnvironmentValues {
 /// Studio can reach it for per-track FX. Same computed-default guard as TouchSynthKey.
 ///
 /// ⛔ IT RECEIVES NO NOTES TODAY. This doc said "the generated `.lead` notes play through it, so a
-/// 'Melodic' insert must cover it too" — present tense, and false: all 25 curated genres set
+/// 'Melodic' insert must cover it too" — present tense, and false: every curated genre sets
 /// `leadDensity: 0`, so `BioComposer` composes no `.lead` note and this voice is silent from launch
 /// to quit (pinned by `LeadRoleAbsenceTests`; the finding is in `RoleRhythm.swift`'s A5 paragraph).
 /// The FX conclusion still holds for the day a genre sings again — the voice is real, attached to the

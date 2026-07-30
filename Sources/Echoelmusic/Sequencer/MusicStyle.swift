@@ -13,6 +13,8 @@
 //     • Ska · Rocksteady · Klezmer · Deep House (offbeat skank)  ·  Doom · Vaporwave · Sci-Fi (half-time)
 //   Drum-free by design:
 //     • Classical · Meditation · Self-Observation · Drift · Contemplation (breath-paced, sync-free)
+//     • Deep Drone · Ambient Pulse (#254 batch 2 — the two poles of the ambient family:
+//       an unmoving low quartal drone, and the family's only genre with MOTION)
 //
 // Genre subtitles are descriptive sound characters only — no artist, label, or
 // film names anywhere user-facing (App Store-safe, no implied endorsement).
@@ -38,8 +40,9 @@ public struct HarmonicProfile: Sendable, Equatable {
     public var arpeggiated: Bool
     /// 0 = no lead (drone), 1 = a busy lead line.
     ///
-    /// ⛔ **EVERY CURATED GENRE SETS THIS TO 0 TODAY** — all 27 of them (25 until #254 added
-    /// acidTechno + deepHouse, both also 0), verified by
+    /// ⛔ **EVERY CURATED GENRE SETS THIS TO 0 TODAY** — no count is given here on purpose: the
+    /// number was "25" for weeks and went stale twice in one day as #254 added genres, while the
+    /// invariant itself never moved. Verified against `allCases` by
     /// `LeadRoleAbsenceTests` in the blocking bundle. So `composeHarmonic`'s whole melody block is
     /// unreachable and no `.lead`-role note is ever composed. The founder removed these melodies on
     /// 2026-07-09 ("zu laut und zu unnatürlich"); this field is the switch that turned them off and
@@ -80,7 +83,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// (guarded in MusicStyleTests).
     public static let sustainedFlächen: [MusicStyle] = [
         .selfObservation, .esotericMeditation, .vaporwave, .dubTechno, .trap, .sciFi, .drift,
-        .contemplation
+        .contemplation,
+        // #254 batch 2: `deepDrone` is the stillest of them all. `ambientPulse` is deliberately
+        // NOT here — it is the ambient genre that MOVES, and `sustained: true` would suppress
+        // exactly the slow sequence that is its whole identity (see `HarmonicProfile.sustained`).
+        .deepDrone
     ]
 
     /// The genres OFFERED in the picker — a curated, brand-fitting palette (founder
@@ -135,7 +142,12 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // for. Seven older electronic genres (trap, psytrance, synthwave, earlySynth, eighties,
         // disco, futuristic) stay OUT: they were curated out on 2026-07-24 by ear, and re-offering
         // them is a listening decision, not a side effect of this batch.
-        .acidTechno, .deepHouse
+        .acidTechno, .deepHouse,
+        // #254 batch 2 (same ask, "aber auch Ambient und meditations Musik"). Built SECOND on
+        // purpose: batch 1 shifted the palette toward driving genres, and this is the half of the
+        // founder's sentence that restores the contemplative centre rather than diluting it —
+        // offered calm goes from 7 of 10 to 8 of 12.
+        .deepDrone, .ambientPulse
     ]
 
     /// Logical genre groups the Genre picker sorts into (founder 2026-07-11: "Alles
@@ -174,7 +186,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         public var genres: [MusicStyle] {
             switch self {
             case .meditative: return [.selfObservation, .esotericMeditation, .drift, .contemplation,
-                                      .vaporwave, .sciFi]
+                                      .deepDrone, .ambientPulse, .vaporwave, .sciFi]
             case .electronic: return [.dubTechno, .acidTechno, .deepHouse, .trap, .psytrance,
                                       .synthwave, .earlySynth, .eighties, .disco, .futuristic]
             case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
@@ -194,7 +206,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// once; guarded in MusicStyleTests).
     public var category: Category {
         switch self {
-        case .selfObservation, .esotericMeditation, .drift, .contemplation, .vaporwave, .sciFi:
+        case .selfObservation, .esotericMeditation, .drift, .contemplation, .vaporwave, .sciFi,
+             .deepDrone, .ambientPulse:
             return .meditative
         case .dubTechno, .acidTechno, .deepHouse, .trap, .psytrance, .synthwave, .earlySynth,
              .eighties, .disco, .futuristic:
@@ -239,6 +252,47 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// `.fourOnFloor`: since #166/#167 the archetype's only audible consequence is the pad's
     /// articulation, and the offbeat skank IS the house chord.
     case deepHouse
+    /// #254 batch 2 (founder 2026-07-30 "aber auch Ambient und meditations Musik"): stillness
+    /// taken FURTHER than any Fläche already offered, and separated from all six of them on four
+    /// axes at once rather than on a different chord.
+    ///
+    ///   · **`pentatonicMinor`** — no genre in the roster uses a pentatonic scale. Five notes, no
+    ///     semitone anywhere, so nothing in the drone can create tension; the six existing calm
+    ///     genres are all seven-note modes (minor / lydian / dorian / mixolydian / major /
+    ///     phrygian) and every one of them has leading-tone pull somewhere.
+    ///   · **Quartal voicing** `[0, 3, 6]` — on a FIVE-note scale those degrees resolve (via
+    ///     `MusicalKey.degree`, which wraps past the scale length) to root + fifth + minor tenth:
+    ///     an open, wide, neither-major-nor-minor stack. Every other genre is a `[0,2,4]` triad or
+    ///     a `[0,2,4,6]` seventh.
+    ///   · **`padOctave: 2`** — the lowest of any offered genre (the rest sit at 3 or 4). Only the
+    ///     root is genuinely low; the spread puts the other two voices an octave above it, so this
+    ///     is a wide drone rather than a low mud cluster.
+    ///   · **ONE frozen root** `[0]` — the only offered calm genre that does not travel at all.
+    ///     `selfObservation` deliberately gained a i–VI–iv journey on 2026-07-11 ("es soll ja
+    ///     weitergehen"); this genre is the other answer to the same question, kept because
+    ///     stillness that genuinely does not move is a different experience, not a lesser one.
+    ///     Movement here comes only from the body, the slow evolve and the long tape space.
+    case deepDrone
+    /// #254 batch 2 (same ask): the ambient genre that MOVES — and the only calm genre that does.
+    /// A slow hypnotic pentatonic-major sequence, not a held pad.
+    ///
+    /// ⭐ WHY THIS IS NOT "acid but slower", which is the trap it would otherwise fall into: both
+    /// are `arpeggiated`, and an arp genre's audible rhythm is `arpStep` in `BioComposer`
+    /// (`(busy > 0.6 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)`), NOT `chordArticulation` — that was
+    /// the correction this batch's predecessor had to make. The doubling switches on when
+    /// `tempoDensityScale(bpm) < 0.8`, which is above **110 BPM** — solved numerically, not the
+    /// "≈ >~106 BPM" the composer's own comment at that line estimates (0.8014 at 109, 0.7952 at
+    /// 110). The difference does not matter for either genre here, but the accurate figure is the
+    /// one to reason from. This genre's WHOLE tempo window
+    /// 78…92 stays above 0.8 (0.925 at 92, 1.0 at ≤84), so it never coarsens: 8th notes when the
+    /// body is busy, quarters when it is calm. `acidTechno` at 130…139 is always past the switch
+    /// and always doubled. The two therefore differ in note RATE by a factor of two on top of
+    /// scale, voicing, register and FX — and that is a traceable consequence of the tempo window,
+    /// not an assertion about intent. Pinned in `Tests/CISmoke/GenreFamilyDistinctnessTests`.
+    ///
+    /// NOT `sustained`: that flag suppresses the inner pulse and the walking bass, which would
+    /// delete the sequence. So it is the one calm genre that is lead-BEARING (see `leadPatchName`).
+    case ambientPulse
     case trap
     case vaporwave
     case eighties
@@ -281,6 +335,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .dubTechno:          return "Dub Techno"
         case .acidTechno:         return "Acid Techno"
         case .deepHouse:          return "Deep House"
+        case .deepDrone:          return "Deep Drone"
+        case .ambientPulse:       return "Ambient Pulse"
         case .trap:               return "Trap"
         case .vaporwave:          return "Vaporwave"
         case .eighties:           return "80s Synth-Pop"
@@ -317,6 +373,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // file) bans product/artist names in user-facing subtitles. "Squelch" carries the sound.
         case .acidTechno:         return "Squelching resonant sequence · relentless phrygian pulse"
         case .deepHouse:          return "Warm minor 7ths · swung offbeat chord"
+        case .deepDrone:          return "One low quartal drone · unmoving · very wide"
+        case .ambientPulse:       return "Slow hypnotic pentatonic sequence · calm motion"
         case .trap:               return "Booming 808 sub-bass · crisp hats · dark pads"
         case .vaporwave:          return "Slowed · dreamy · nostalgic maj7 pads"
         case .eighties:           return "Bright analog keys · gated-reverb era"
@@ -378,7 +436,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              .jazz, .oriental:                                  return .backbeat
         case .ska, .rocksteady, .klezmer:                       return .offbeat
         case .doom, .vaporwave, .sciFi:                         return .halfTime
-        case .classical, .esotericMeditation, .selfObservation, .drift, .contemplation: return .none
+        case .classical, .esotericMeditation, .selfObservation, .drift, .contemplation,
+             .deepDrone, .ambientPulse:                         return .none
         }
     }
 
@@ -556,6 +615,16 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // Overlaps dubTechno's window on purpose — both really are ~124 genres. They are
         // separated on articulation, scale, register, 7ths and swing, not on tempo.
         case .deepHouse:          return 120...126
+        // #254 batch 2. deepDrone goes BELOW every offered genre (contemplation's 44 was the
+        // floor) — at 40 BPM a whole-note tape echo is 6 seconds, which is the point.
+        case .deepDrone:          return 40...58
+        // 78…92 is chosen for an ENGINE reason, not a feel: the arp's `arpStep` doubles only when
+        // `tempoDensityScale(bpm) < 0.8` (above 110 BPM), so this whole window stays uncoarsened
+        // (0.925 at 92) while `acidTechno` at 130…139 is always doubled (0.69 / 0.65). Widening
+        // this range past 110 would silently halve the note rate — check the case doc first.
+        // Pinned in `Tests/CISmoke/GenreFamilyDistinctnessTests`, which re-derives 110 from the
+        // curve rather than hardcoding it.
+        case .ambientPulse:       return 78...92
         case .trap:               return 130...150
         case .vaporwave:          return 60...80
         case .eighties:           return 108...120
@@ -608,6 +677,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .dubTechno:          return 124
         case .acidTechno:         return 134
         case .deepHouse:          return 122
+        case .deepDrone:          return 48
+        case .ambientPulse:       return 85
         case .trap:               return 140
         case .vaporwave:          return 70
         case .eighties:           return 114
@@ -664,7 +735,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .eighties:           return 0.06
         case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
              .esotericMeditation, .classical, .punk, .rock, .heavyMetal,
-             .doom, .selfObservation, .drift, .contemplation:
+             .doom, .selfObservation, .drift, .contemplation,
+             .deepDrone, .ambientPulse:
             return 0.0                          // straight / free — grid swing would hurt these
         }
     }
@@ -717,6 +789,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // both the honest spread choice (it left "Pluck" at 4 with 5 patches under-used)
         // and the musical one — a squelching low sequence, not a plucked string.
         case .acidTechno:         return "Deep Sub"      // no lead exists at all (#255)
+        case .deepDrone:          return "Deep Sub"      // sustained — unused
+        // #254 batch 2: ambientPulse is NOT sustained, so it IS lead-bearing and DOES count
+        // against the spread ceiling above. "Warm Strings" stood at 3 of a ceiling of 4.
+        case .ambientPulse:       return "Warm Strings"
         case .deepHouse:          return "Soft Keys"     // Rhodes-ish keys; no lead today (#255)
         case .trap:               return "Soft Keys"     // sustained — unused
         case .vaporwave:          return "Warm Strings"  // sustained — unused
@@ -765,7 +841,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .classical, .jazz, .klezmer, .oriental:  return (1.00, 1.00, 0.90)
         case .punk, .rock, .rocknroll, .heavyMetal, .doom:
                                                       return (1.10, 0.92, 0.90)
-        case .esotericMeditation, .selfObservation, .drift, .contemplation:
+        case .esotericMeditation, .selfObservation, .drift, .contemplation,
+             .deepDrone, .ambientPulse:
                                                       return (0.95, 1.05, 0.85)
         }
     }
@@ -776,6 +853,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .dubTechno:          return .dorian
         case .acidTechno:         return .phrygian   // the ♭2 is the acid bite
         case .deepHouse:          return .minor
+        // #254 batch 2 — the only two pentatonic genres in the roster. No semitone anywhere,
+        // so nothing in either can create tension; every other genre is a 7-note mode.
+        case .deepDrone:          return .pentatonicMinor
+        case .ambientPulse:       return .pentatonicMajor
         case .trap:               return .harmonicMinor
         case .vaporwave:          return .major
         case .eighties:           return .major
@@ -930,6 +1011,26 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             return HarmonicProfile(progression: [0, 6, 5], chordTones: [0, 2, 4, 6],
                                    padOctave: 4, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0)
+        case .deepDrone:
+            // #254 batch 2 — the quartal drone. `[0, 3, 6]` on the FIVE-note pentatonicMinor
+            // resolves through `MusicalKey.degree`'s octave wrap to root + fifth + minor tenth
+            // (intervals [0,3,5,7,10]: degree 0 → +0, degree 3 → +7, degree 6 → +3 +12 = +15).
+            // Deliberately NOT a triad or a 7th — those are what all six existing calm genres are.
+            // padOctave 2 puts the root at MIDI 36, the same floor psytrance/metal/doom already
+            // use, and the >1-octave spread keeps it open instead of muddy.
+            // ONE frozen root, sustained: this is the stillest genre in the product.
+            return HarmonicProfile(progression: [0], chordTones: [0, 3, 6],
+                                   padOctave: 2, leadOctave: 4, arpeggiated: false,
+                                   leadDensity: 0.0, sustained: true)
+        case .ambientPulse:
+            // #254 batch 2 — the calm family's ONLY moving genre. `[0, 2, 4]` on pentatonicMajor
+            // ([0,2,4,7,9]) is root + major third + major sixth: an open 6th colour, not the triad
+            // those same degrees would give on a 7-note mode. Two roots (degree 3 = +7, a fifth)
+            // so it travels once per section instead of holding.
+            // NOT sustained — see the case doc: that flag would delete the sequence.
+            return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 4],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: true,
+                                   leadDensity: 0.0)
         case .dubTechno:
             // PURE FLÄCHE (founder 2026-07-09): NO lead, sustained — the bespoke
             // offbeat stabs are retired from the flow (see BioComposer.compose).
@@ -1001,7 +1102,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// the heart (sync-free); everything else locks to a BPM for DAW handoff.
     public var defaultMode: ComposerMode {
         switch self {
-        case .selfObservation, .esotericMeditation, .drift, .contemplation: return .flowFree
+        // #254 batch 2: both ambient additions MUST be listed here. This switch ends in
+        // `default: .studioLocked`, so omitting them would have silently given two breath-paced
+        // genres a locked grid tempo — the kind of wrong default a compiler cannot catch.
+        case .selfObservation, .esotericMeditation, .drift, .contemplation,
+             .deepDrone, .ambientPulse:              return .flowFree
         default:                                     return .studioLocked
         }
     }
