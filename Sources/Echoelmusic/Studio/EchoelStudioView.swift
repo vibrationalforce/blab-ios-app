@@ -5291,9 +5291,20 @@ struct EchoelStudioView: View {
     /// stamping), and the fix is the same one: one inventory, not N sites.
     ///
     /// The trim is applied to a LOCAL COPY. `currentPatch` — what every control in the Sound
-    /// panel reads — is never written, so the player always sees the patch they chose rather
+    /// panel reads — is never written, so the player always sees the patch they CHOSE rather
     /// than the patch plus an invisible offset, and the multiply can never compound across
     /// pushes (see `RoleRhythm.TimbreTrim`'s own warning).
+    ///
+    /// ⚠️ NAME THE TRADEOFF RATHER THAN CALLING IT AN INVARIANT: once a character IS chosen, the
+    /// Brightness / Cutoff / Attack / Release rows display a value up to 12 % / 22 % away from
+    /// what the voice was handed. That is the mirror image of the rule `usesEvolve` and
+    /// `accentIsSubtle` exist to enforce (a dial that does nothing is worse than a missing one) —
+    /// here a dial's READOUT stops matching the engine, and today the only disclosure is the Pad
+    /// rhythm row's accessibility hint, which a sighted non-AT user never sees. It is bounded and
+    /// small, and writing the trim back would compound; but "every number in the Sound panel
+    /// stays honest" — which is how the shipping commit put it — is the wrong way round. If the
+    /// founder wants the readout to follow the sound, the fix is a visible per-row offset badge,
+    /// not writing into `currentPatch`.
     ///
     /// ⚠️ The touch surface is deliberately NOT trimmed here. `syncTouchSound()` follows
     /// either `currentPatch` or a dedicated touch patch, and the Field has its OWN rhythm

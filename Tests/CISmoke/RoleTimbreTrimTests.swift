@@ -14,7 +14,11 @@
 //     genre's patch bit-identically. That is the whole reason `padRhythm` defaults to `""`.
 //   · THE TRIM IS RELATIVE, SO GENRES STAY APART — swept over all 14 offered genres, per
 //     character. This is the anti-convergence property and it is asserted on real patches,
-//     not argued in a comment.
+//     not argued in a comment. ⚠️ Do NOT read that sweep as clamp-edge coverage: across all 84
+//     combinations the only clamp any offered genre comes near is the attack floor (acidTechno
+//     0.002 s, techHouse 0.003 s under the three brightening characters). The clamp edges are
+//     covered by the hand-built patch in `testExtremeAndNonFinitePatchesStayLegal`, and the
+//     commit that first shipped this file claimed otherwise.
 //   · THE BOUND IS DERIVED FROM THE TYPE'S OWN CONSTANTS, so widening a number without
 //     widening the declared bound turns red instead of quietly shipping a big trim.
 //   · THE DIRECTION IS DERIVED FROM `Character.accentIsSubtle`, so re-tuning one of the two
@@ -41,13 +45,49 @@ final class RoleTimbreTrimTests: XCTestCase {
     /// which resolves to no character, which resolves to `.neutral`. If that were not an exact
     /// identity, every existing user's sound would have changed the moment this slice shipped —
     /// silently, and on a surface (timbre) where they would blame the genre.
-    func testTheNeutralTrimChangesNothingAtAll() {
-        let p = base
-        let out = RoleRhythm.TimbreTrim.neutral.trimmed(p)
-        XCTAssertEqual(out, p,
-                       "the neutral trim is no longer an identity — a user who never touched the "
-                       + "Pad rhythm row would hear a different sound than before A6, which is "
-                       + "exactly the silent regression the `\"\"` default exists to prevent")
+    ///
+    /// ⛔ SWEPT OVER THE WHOLE ROSTER, AND THE FIRST VERSION WAS NOT. It asserted on `dubTechno`
+    /// alone and passed — while `acidTechno` (`a: 0.002`) FAILED the same claim, because the
+    /// original `trimmed(_:)` clamped to a fixed 0.003 s attack floor even at neutral. One genre
+    /// is not a guard for an all-genres promise; the reviewer found the counterexample inside a
+    /// sweep this very file already ran for a different reason.
+    func testTheNeutralTrimIsAnExactIdentityForEveryOfferedGenre() {
+        for style in MusicStyle.offered {
+            let p = style.synthPatch
+            XCTAssertEqual(RoleRhythm.TimbreTrim.neutral.trimmed(p), p,
+                           "the neutral trim changed \(style.rawValue)'s patch — a user who never "
+                           + "touched the Pad rhythm row would hear a different sound than before "
+                           + "A6, which is exactly the silent regression the `\"\"` default exists "
+                           + "to prevent")
+        }
+    }
+
+    /// ⛔ THE USER-REACHABLE HALF OF THE SAME DEFECT, and the audible one. The Sound panel's
+    /// Attack and Release rows start at 0 (`param("Attack", …, 0...5)` / `0...10`), so a player
+    /// may deliberately set a 20 ms release. A fixed 0.05 s floor turned that into 50 ms — MORE
+    /// than doubled — with no rhythm character chosen at all. Unlike the attack case (where the
+    /// engine floors the ramp at 3 ms anyway, making it inaudible) `EchoelDDSP` floors release at
+    /// ONE SAMPLE, so this one was a real change in the sound.
+    func testAHandSetSubFloorValueSurvivesTheNeutralTrim() {
+        var tiny = base
+        tiny.attack = 0.0
+        tiny.release = 0.02
+        let out = RoleRhythm.TimbreTrim.neutral.trimmed(tiny)
+        XCTAssertEqual(out.attack, 0.0, "neutral lengthened a deliberately instant attack")
+        XCTAssertEqual(out.release, 0.02, "neutral more than doubled a deliberately tiny release")
+    }
+
+    /// And a NON-neutral character may shorten such a value further, but must not LENGTHEN it:
+    /// a clamp bounds where the trim may push, never where the input was allowed to be.
+    func testACharacterNeverLengthensAValueThatWasAlreadyBelowTheFloor() {
+        var tiny = base
+        tiny.release = 0.02
+        for c in RoleRhythm.Character.allCases {
+            let out = RoleRhythm.timbreTrim(for: c).trimmed(tiny)
+            XCTAssertLessThanOrEqual(out.release, 0.02 * 1.25,
+                                     "\(c.rawValue) pushed a 20 ms release past its own declared "
+                                     + "bound by clamping it up to a fixed floor")
+        }
     }
 
     /// Purity: the input must be untouched. Value semantics make this true by construction today,
@@ -64,6 +104,12 @@ final class RoleTimbreTrimTests: XCTestCase {
     /// Every field of every character's trim must sit inside the constants the type itself
     /// declares. Derived, so widening a number without widening the bound fails here rather
     /// than shipping a trim that stops being "minimal".
+    ///
+    /// ⚠️ THE `1e-6` SLACK IS LOAD-BEARING, NOT DEFENSIVE ROUNDING — do not "tighten" it away.
+    /// `Float(1.12) - 1 == 0.120000005` while `Float(0.12) == 0.119999997`, so the exact
+    /// comparison is FALSE by ~8e-9. Same for `sparse`: `Float(1.22) - 1 == 0.22000003` against
+    /// `Float(0.22) == 0.219999999`. The slack is three orders of magnitude larger than the error
+    /// and still far smaller than any meaningful widening of the bound.
     func testEveryCharactersTrimStaysInsideTheDeclaredBound() {
         for c in RoleRhythm.Character.allCases {
             let t = RoleRhythm.timbreTrim(for: c)
@@ -199,8 +245,12 @@ final class RoleTimbreTrimTests: XCTestCase {
         let out = t.trimmed(hot)
         XCTAssertLessThanOrEqual(out.brightness, 1.0)
         XCTAssertLessThanOrEqual(out.filterCutoff, 18_000)
-        XCTAssertGreaterThanOrEqual(out.attack, 0.003, "a faster attack must not go below the "
-                                    + "click-safe 3 ms onset the articulation macro already keeps")
+        // The 3 ms is the ENGINE's click-safe onset (`EchoelDDSP` floors the attack ramp there);
+        // the articulation macro's own floor is 5 ms and merely stays above it. An earlier version
+        // of this line credited the macro with the constant.
+        XCTAssertGreaterThanOrEqual(out.attack, 0.003,
+                                    "a faster attack must not go below the engine's click-safe "
+                                    + "3 ms onset")
         XCTAssertGreaterThanOrEqual(out.release, 0.05)
 
         var bad = base

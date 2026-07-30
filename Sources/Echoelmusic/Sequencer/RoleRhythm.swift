@@ -109,9 +109,15 @@
 //  `timbreTrim(for:)`). As predicted it is NOT a fourth consumer of `hit`: it never asks which cells
 //  sound, it reads the CHARACTER and nudges a patch, so the consumer list above stays at three.
 //  Its ONE reader is `EchoelStudioView.applyTakeSound`, which trims a LOCAL COPY of `currentPatch`
-//  at push time and is reached from all three places the take voice gets a patch (the Sound panel,
-//  `generate()` and the open-project path — they were three duplicated `synth.apply` pairs and are
-//  now one helper). The WRITER is the Mood panel's existing **Pad rhythm** Picker: no new control,
+//  at push time and is reached from all three places IN THAT VIEW where the take voice gets a
+//  patch (the Sound panel, `generate()` and the open-project path — they were three duplicated
+//  `synth.apply` pairs and are now one helper).
+//  ⚠️ "IN THAT VIEW" IS THE WHOLE QUALIFIER, and the first version of this line dropped it. The
+//  same `PolySynthVoice` instance is also handed a patch from `EchoelmusicApp` — once at launch
+//  (the first stored patch, immediately superseded by the view's `onAppear` → `applySoundLive`,
+//  so a transient rather than a bug) and once via `rollPatchSink`, whose producer belongs to the
+//  timeline that #121 Slice 4 deleted. Neither is trimmed. Do not read "one inventory" as "one
+//  site in the app" — grep before trusting it. The WRITER is the Mood panel's existing **Pad rhythm** Picker: no new control,
 //  because the founder asked for the tone to follow the rhythm, not for a tone dial.
 //  Neutral when no character is chosen (`padRhythm == ""`), so a player who never opened that row
 //  hears the genre's patch bit-identically.
@@ -751,17 +757,58 @@ public extension RoleRhythm {
 
         /// The patch as this character would voice it. Pure: the input is untouched.
         ///
-        /// Every write is clamped, and each clamp is `Swift.min(upper, Swift.max(lower, v))`
-        /// rather than an `isFinite` branch — a non-finite value in a decoded patch must land on
-        /// a legal number, not propagate (CLAUDE.md's NaN-argument-order law, and the same
-        /// mechanism `clampRange` above already uses).
+        /// ⛔ THE CLAMPS MAY NOT MOVE A VALUE THE TRIM DID NOT PUSH, and the first version of
+        /// this method got that wrong in a way that made its own headline claim false. It clamped
+        /// to fixed legal ranges, so with `.neutral` — every factor 1, every shift 0 — an
+        /// `attack` of 0.002 s came back as 0.003 and a `release` of 0.02 s as 0.05. `acidTechno`
+        /// ships `a: 0.002` (`GenrePatches.swift`), and the Sound panel's own Attack/Release rows
+        /// start at 0, so BOTH halves were reachable: a player who had never opened the Pad
+        /// rhythm row could still have a hand-set 20 ms release silently more than doubled. The
+        /// docs, the commit and the test all promised a bit-identity that the code did not give,
+        /// and the test proving it happened to pick the one genre where it held.
+        ///
+        /// THE RULE NOW: a clamp bounds where the trim may PUSH a value, never where the input
+        /// was allowed to BE. So each range is widened to include the incoming value —
+        /// `min(lower, original)` / `max(upper, original)` — which makes `.neutral` an exact
+        /// identity for every finite patch by construction, and stops the trim from lengthening a
+        /// deliberately tiny release just because it happens to be shortening it.
+        ///
+        /// ⚠️ THE ONE `isFinite` BRANCH IS DELIBERATE, and it does NOT contradict `clampRange`'s
+        /// own warning 300 lines up. That warning is about substituting a bound FOR a non-finite
+        /// value, which sends `+infinity` to the bottom of the range. Here `isFinite` decides only
+        /// whether the incoming value may WIDEN the range; the clamp itself is still
+        /// `min(upper, max(lower, v))`, so `+inf` still lands on `upper` and `NaN` on `lower`. A
+        /// non-finite original must not be allowed to widen anything — that is how it would
+        /// propagate into the voice.
         public func trimmed(_ patch: SynthPatch) -> SynthPatch {
             var p = patch
-            p.brightness   = RoleRhythm.clamp01(patch.brightness + brightness)
-            p.filterCutoff = RoleRhythm.clampRange(patch.filterCutoff * cutoffFactor, 20, 18_000)
-            p.attack       = RoleRhythm.clampRange(patch.attack * attackFactor, 0.003, 10)
-            p.release      = RoleRhythm.clampRange(patch.release * releaseFactor, 0.05, 20)
+            p.brightness   = Self.push(patch.brightness + brightness,
+                                       from: patch.brightness, 0, 1)
+            p.filterCutoff = Self.push(patch.filterCutoff * cutoffFactor,
+                                       from: patch.filterCutoff, 20, 18_000)
+            p.attack       = Self.push(patch.attack * attackFactor,
+                                       from: patch.attack, 0.003, 10)
+            p.release      = Self.push(patch.release * releaseFactor,
+                                       from: patch.release, 0.05, 20)
             return p
+        }
+
+        /// Clamp `moved` into `lower…upper`, widened to include `original` when that is finite.
+        /// See `trimmed(_:)`'s rule — this is the whole mechanism that makes `.neutral` an
+        /// identity and keeps the trim from "fixing" a value it was not asked to touch.
+        ///
+        /// ⚠️ ONE CONSEQUENCE WORTH STATING, because it is a real semantic and not an oversight:
+        /// when `original` is ALREADY below `lower`, `original` becomes the floor — so a
+        /// shortening character can no longer shorten it. A 20 ms release stays 20 ms under
+        /// `syncopated` (×0.85) instead of becoming 17. Outside the legal range the trim declines
+        /// to push further out rather than picking a side; that is the conservative reading of
+        /// "minimal", and the alternative (letting it push below a floor the engine has for a
+        /// reason) is how a short release becomes a click.
+        private static func push(_ moved: Float, from original: Float,
+                                 _ lower: Float, _ upper: Float) -> Float {
+            let lo = original.isFinite ? Swift.min(lower, original) : lower
+            let hi = original.isFinite ? Swift.max(upper, original) : upper
+            return RoleRhythm.clampRange(moved, lo, hi)
         }
     }
 
@@ -770,8 +817,11 @@ public extension RoleRhythm {
     /// not follow it.
     static func timbreTrim(for character: Character) -> TimbreTrim {
         switch character {
-        // Speaks and gets out of the way. The brightest and snappiest of the six, because it is
-        // the only one with no push at all — machine time needs a transient to read as such.
+        // Speaks and gets out of the way. The brightest and snappiest of the six: machine time
+        // needs a transient to read as machine time. (⚠️ An earlier version of this line said
+        // "the only one with no push at all". FOUR of the six have no push — `pushBias` gives it
+        // only to `syncopated` and `flowing`. What is true is that driving is deliberately dead
+        // straight AND the shortest-gated, which is why it gets the largest brightening.)
         case .driving:
             return TimbreTrim(brightness: 0.05, cutoffFactor: 1.12,
                               attackFactor: 0.88, releaseFactor: 0.88)
