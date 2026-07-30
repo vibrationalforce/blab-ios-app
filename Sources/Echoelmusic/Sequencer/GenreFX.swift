@@ -341,8 +341,9 @@ public extension MusicStyle {
         case .upliftingTrance:
             // #254 batch 3 — THE BIG BRIGHT SPACE, the opposite pole to techHouse below on every
             // axis they could share. A dotted-8th digital ping (0.326 s at 138 BPM, resolving
-            // un-clamped across the whole 136…144 window — the division is shared with deepHouse,
-            // the space around it is not), wide, and the LEAST-DAMPED reverb of any offered genre:
+            // un-clamped across the whole 136…144 window — the division is shared with deepHouse
+            // among offered genres, and with eighties/synthwave/rock un-offered; the space around
+            // it is shared with nothing), wide, and the LEAST-DAMPED reverb of any offered genre:
             // 0.30, just under drift's 0.35. The sus pad needs air above it or the suspension
             // reads as mud. Chorus ON for supersaw-ish width. Saturation stays moderate (0.30):
             // the lift comes from the space, not from drive.
@@ -363,11 +364,16 @@ public extension MusicStyle {
             // 0.375 quarters, 0.177 s at 127 BPM) at a LOW mix, so it reads as slap rather than
             // space — with the same ⚠️ as trance above: per `apply(to:bpm:)` the delay TIME never
             // reaches the audio, so that is a source-level contract, not a sound.
-            // The room is the SECOND smallest and second-most damped of the offered roster
-            // (0.42 / 0.58) — only `acidTechno` is tighter and deader (0.34 / 0.64); every other
-            // offered genre sits at 0.78 room and up. No chorus at all, because width would blur
-            // the groove. Saturation 0.42 is where the punch comes from: above dubTechno (none)
-            // and deepHouse (0.22), still below acidTechno's 0.48.
+            // The ROOM is the second smallest of the offered roster (0.42 — only `acidTechno`'s
+            // 0.34 is tighter; every other offered genre sits at 0.78 and up). Its DAMPING is
+            // merely high, not extreme: 0.58 is fifth, behind deepDrone 0.68, acidTechno 0.64 and
+            // esotericMeditation/dubTechno 0.60. ⚠️ The first version of this line called it
+            // "second-most damped … only acidTechno is deader" — wrong on both halves, and room
+            // size and damping are separate axes that must be claimed separately.
+            // No chorus at all, because width would blur the groove. Saturation 0.42 is where the
+            // punch comes from: above deepHouse's 0.22 and dubTechno's 0.30 (which is the
+            // initializer DEFAULT, not "none" — an omitted `saturation:` still saturates), still
+            // below acidTechno's 0.48.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
                 delaySync: TempoSyncOption(.sixteenth, .dotted),

@@ -83,13 +83,17 @@ public extension MusicStyle {
                 uni: 3, det: 11)
         case .upliftingTrance:
             // #254 batch 3 — a PLUCKED SUS STAB, not a pad: fast attack with a short decay and a
-            // long-ish release so each on-beat stab plucks and then rings into the next. Bright
-            // enough to cut a four-on-the-floor mix (0.52) without going shrill — the founder's
-            // "einige Sounds stechen kalt aus dem Mix raus" law caps the top end. Unison + detune
-            // is the one place a supersaw-ish width belongs; the sus voicing has no third to smear.
+            // long-ish release so each on-beat stab plucks and then rings into the next. The cut
+            // comes from `brightness` 0.52 (which ties the roster maximum), NOT from the spectral
+            // shape: ⚠️ the first version of this patch passed `shape: "Bright"` (= "Boosted
+            // highs") while its own comment cited the founder's "einige Sounds stechen kalt aus
+            // dem Mix raus" law — it would have been the only "Bright" among 31 genre patches and
+            // it contradicts this file's own universal rule ("Natural/Dark spectral shapes").
+            // "Natural" keeps the top end honest and the cut survives. Unison + detune is the one
+            // place a supersaw-ish width belongs; the sus voicing has no third to smear.
             return patch("F0", "Trance Pluck",
                 a: 0.004, d: 0.22, s: 0.28, r: 0.55,
-                harm: 0.72, hl: 0.52, bright: 0.52, noise: 0.0, color: "White", shape: "Bright",
+                harm: 0.72, hl: 0.52, bright: 0.52, noise: 0.0, color: "White", shape: "Natural",
                 cutoff: 3600, res: 0.24, lfoAmt: 0.14, lfoRate: 0.35, lfoDepth: 0.20,
                 revMix: 0.30, revDecay: 2.6, vibRate: 0, vibDepth: 0,
                 uni: 3, det: 12)

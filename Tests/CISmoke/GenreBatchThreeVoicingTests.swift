@@ -9,10 +9,12 @@
 // register alone. So this file pins the two things each addition was actually built ON, in a form
 // that fails if a later "tidy-up" flattens them back into the shapes the roster already had:
 //
-//   · `upliftingTrance` — a SUS4 voicing `[0, 3, 4]` (root + fourth + fifth, NO THIRD) and a
-//     FOUR-root progression. Both are new to the whole roster.
-//   · `techHouse`       — a DOMINANT-7th SHELL `[0, 2, 6]` (root + third + ♭7, NO FIFTH), the
-//     first offered `mixolydian`, and its own swing value.
+//   · `upliftingTrance` — a SUS4 voicing `[0, 3, 4]` (root + fourth + fifth, NO THIRD), which is
+//     new to the whole roster, and a progression that visits FOUR DISTINCT roots, more than
+//     any other offered genre.
+//   · `techHouse`       — a DOMINANT-7th SHELL `[0, 2, 6]` (root + third + ♭7, NO FIFTH), also new
+//     to the roster; the only offered `mixolydian` that is a GROOVE rather than a sustained
+//     Fläche (`contemplation` shares the mode); and its own swing value among offered genres.
 //
 // ⚠️ WHAT THIS FILE DOES NOT CLAIM. Nothing here is about how either genre SOUNDS on a device —
 // that is a founder listening call, and one axis is not even wired: per `GenreFXPreset.apply`, the
@@ -107,32 +109,49 @@ final class GenreBatchThreeVoicingTests: XCTestCase {
 
     // MARK: - The secondary axes each genre's doc leans on
 
-    /// Trance's other claim: it TRAVELS. Four roots is more than any other offered genre, and that
-    /// is the difference between a vamp and a progression. Derived (a max over `offered`), not a
-    /// literal 4, so re-voicing another genre cannot make this quietly false.
-    func testTranceHasTheLongestProgressionOfAnyOfferedGenre() {
-        let trance = MusicStyle.upliftingTrance.harmonicProfile.progression.count
-        let others = MusicStyle.offered
-            .filter { $0 != .upliftingTrance }
-            .map(\.harmonicProfile.progression.count)
+    /// Trance's other claim: it TRAVELS. Measured in DISTINCT roots, not in progression LENGTH —
+    /// ⛔ length was the first version of this test and it was wrong: `classical`'s `[0, 3, 4, 0]`
+    /// is also four entries long, so a strict `>` on `.count` failed. But those four entries are
+    /// only THREE roots (it returns to the tonic), and "travels" is a claim about how many places
+    /// the harmony goes, not how many slots the array has. On distinct roots trance is a genuine
+    /// strict maximum at 4 — classical, selfObservation, esotericMeditation and deepHouse all sit
+    /// at 3. Derived (a max over `offered`), not a literal 4.
+    func testTranceTravelsThroughMoreDistinctRootsThanAnyOfferedGenre() {
+        func distinctRoots(_ style: MusicStyle) -> Int {
+            Set(style.harmonicProfile.progression).count
+        }
+        let trance = distinctRoots(.upliftingTrance)
+        let others = MusicStyle.offered.filter { $0 != .upliftingTrance }.map(distinctRoots)
         XCTAssertGreaterThan(trance, others.max() ?? 0,
-                             "trance no longer travels further than every other offered genre "
-                             + "(\(trance) roots vs a maximum of \(others.max() ?? 0)). That was "
+                             "trance no longer visits more distinct roots than every other offered "
+                             + "genre (\(trance) vs a maximum of \(others.max() ?? 0)). That was "
                              + "one of the two axes it was built on.")
     }
 
-    /// techHouse's other claims: the first OFFERED mixolydian, and its own swing between
-    /// `dubTechno`'s and `deepHouse`'s. Swing is one of very few axes that is audible on a held
-    /// chord without touching harmony, which is why it is pinned rather than left to taste.
-    func testTechHouseOwnsMixolydianAndItsOwnSwing() {
+    /// techHouse's other claims: mixolydian, and its own swing between `dubTechno`'s and
+    /// `deepHouse`'s. Swing is one of very few axes that is audible on a held chord without
+    /// touching harmony, which is why it is pinned rather than left to taste.
+    ///
+    /// ⛔ THE MODE IS NOT EXCLUSIVE, and the first version of this test claimed it was.
+    /// `contemplation` is an OFFERED mixolydian too — its own profile doc says so ("A low
+    /// mixolydian i → ♭VII rock") — so asserting `isEmpty` over `offered` failed. The real,
+    /// narrower claim is what techHouse was actually built on: it is the only offered mixolydian
+    /// that is NOT a sustained Fläche. contemplation holds the mode low (padOctave 3) and STILL;
+    /// techHouse stabs it on the beat. Same mode, opposite use.
+    func testTechHouseIsTheOnlyBeatDrivenOfferedMixolydian() {
         XCTAssertEqual(MusicStyle.techHouse.scale, .mixolydian)
-        let otherMixolydian = MusicStyle.offered.filter {
-            $0 != .techHouse && $0.scale == .mixolydian
+        let otherStabbedMixolydian = MusicStyle.offered.filter {
+            $0 != .techHouse && $0.scale == .mixolydian && !$0.harmonicProfile.sustained
         }
-        XCTAssertTrue(otherMixolydian.isEmpty,
-                      "mixolydian is no longer techHouse's alone among offered genres "
-                      + "(\(otherMixolydian.map(\.rawValue).sorted())) — that colour was the "
-                      + "reason it is not simply a faster deepHouse")
+        XCTAssertTrue(otherStabbedMixolydian.isEmpty,
+                      "mixolydian-as-a-groove is no longer techHouse's alone among offered genres "
+                      + "(\(otherStabbedMixolydian.map(\.rawValue).sorted())) — a second stabbed "
+                      + "mixolydian makes it hard to tell apart from this one, which is why the "
+                      + "claim is pinned")
+        XCTAssertTrue(MusicStyle.contemplation.harmonicProfile.sustained,
+                      "contemplation stopped being a sustained Fläche, so it now competes with "
+                      + "techHouse for the same mode in the same role — this test's whole "
+                      + "narrowing rests on that flag")
 
         let swing = MusicStyle.techHouse.swing
         XCTAssertGreaterThan(swing, MusicStyle.dubTechno.swing,
