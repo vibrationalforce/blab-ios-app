@@ -906,7 +906,11 @@ struct EchoelStudioView: View {
         .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
         .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
         .sheet(isPresented: $showAllFX) {
-            AnyView(EchoelFXView(chain: synth.fxChain, bpm: currentTempo,
+            // The ENGINE, not `currentTempo`: a Double handed over here is a snapshot taken
+            // at presentation time, and the sheet then computed every sync division at that
+            // frozen tempo for as long as it stayed open. `EchoelFXView` follows the clock
+            // itself now, in its own leaf.
+            AnyView(EchoelFXView(chain: synth.fxChain, pattern: beatPlayer.pattern,
                          fxEnabled: { synth.isFXEnabled },
                          setFXEnabled: { synth.setFXEnabled($0) })
                 .echoelSheetPanel())
