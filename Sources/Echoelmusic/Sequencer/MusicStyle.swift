@@ -332,12 +332,23 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     ///     take from reading as a metronome; `acidTechno` and `upliftingTrance` are the genres
     ///     that want a true 0.
     ///
-    /// `.stab` articulation, shared with `techHouse` and `upliftingTrance` — no claim is made on
-    /// that axis. The separation is voicing, harmonic stasis, tempo and the dry, clean chain.
+    /// `.stab` articulation — no claim is made on that axis. ⚠️ AND THIS LINE SAID "shared with
+    /// `techHouse` and `upliftingTrance`", which is too narrow: TEN genres map `.fourOnFloor` →
+    /// `.stab`. Those two are merely the ones it shares the axis with among genres where the stab
+    /// is LIVE and offered (acid is offered but arpeggiated, so its articulation is inert; the rest
+    /// are not in the picker). The separation is voicing, harmonic stasis, tempo and the dry chain.
     case minimalTechno
     /// #254 batch 4 — the SOULFUL pole, and the deliberate opposite of `minimalTechno` in the same
-    /// batch: where that one subtracts until only weight is left, this one is the roster's richest
-    /// chord.
+    /// batch: where that one subtracts until only weight is left, this one is the roster's fullest
+    /// chord — and the only one of its size that is not the same seventh chord as all the others.
+    ///
+    /// ⛔ "THE ROSTER'S RICHEST VOICING" STOOD HERE AND WAS FALSE. Nine genres voice four notes;
+    /// this is a nine-way TIE on count, not a maximum. (The span is not a superlative either —
+    /// `deepDrone` reaches 15 semitones to this one's 14.) What IS true, measured across all 33
+    /// arms and pinned by `GenreBatchFourVoicingTests`: the other EIGHT four-note genres all voice
+    /// the identical `[0, 2, 4, 6]` — root/third/fifth/seventh, the ordinary seventh chord. This is
+    /// the only four-note stack in the product that drops the fifth. That is the actual design and
+    /// it is a stronger claim than the false one it replaces.
     ///
     ///   · **`chordTones: [0, 2, 6, 8]`** — root, third, ♭7 and NINTH, with NO FIFTH. In dorian
     ///     that is semitones 0-3-10-14: a minor-ninth shell. New to the roster, and the richer
@@ -708,9 +719,13 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// no flavor" before batch 4. **Do not quote a count from here; derive it.** As of batch 4:
     /// TEN `.fourOnFloor` genres, six flavoured; SEVEN `.backbeat` genres, six flavoured.
     ///
-    /// ⚠️ FIVE genres now deliberately fall through to `.neutral`: `acidTechno`, `upliftingTrance`,
-    /// `techHouse`, `minimalTechno` (all `.fourOnFloor`), `detroitTechno` (`.backbeat`) — plus
-    /// `deepHouse` (`.offbeat`), where the archetype has no flavoured sibling either. That is not an
+    /// ⚠️ SIX genres deliberately fall through to `.neutral` DESPITE SHARING AN ARCHETYPE WITH
+    /// FLAVOURED SIBLINGS: `acidTechno`, `upliftingTrance`, `techHouse`, `minimalTechno` (all
+    /// `.fourOnFloor`), `detroitTechno` (`.backbeat`), and `deepHouse` (`.offbeat`, whose archetype
+    /// has no flavoured sibling at all). ⛔ THE SENTENCE SAID "FIVE" WHILE LISTING SIX, and the
+    /// scope was missing too: 15 of the 33 genres return `.neutral` altogether. Those six are the
+    /// only ones where it MATTERS, because they are the ones a listener could A/B against a
+    /// flavoured genre on the same grid. That is not an
     /// oversight and it costs nothing TODAY: the whole `GenreFlavor` output reaches no voice since
     /// #166/#167 removed the drums (`drumSteps` is read only by `Project` persistence and one
     /// `BioVariationMaze` metric). Inventing a hat texture and a ghost step for an inaudible track
@@ -947,7 +962,14 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .techHouse:          return 0.12
         // #254 batch 4. 0.04 is the smallest NON-ZERO swing of any genre in the file — minimal
         // needs the micro-shuffle to not read as a metronome, but anything more would stop being
-        // minimal. 0.10 is its own value too, between dubTechno's 0.08 and techHouse's 0.12.
+        // minimal. That half is measured and pinned by `GenreBatchFourVoicingTests`.
+        // ⛔ "0.10 IS ITS OWN VALUE TOO" STOOD HERE AND WAS FALSE: `oriental` returns 0.10 sixteen
+        // lines above. Detroit SHARES it. Only the second half of that sentence survives — 0.10
+        // does sit between dubTechno's 0.08 and techHouse's 0.12, which is the separation that
+        // actually matters here (all three are electronic; oriental is not a genre anyone will
+        // A/B against this one). I had the sweep output in front of me and wrote the uniqueness
+        // anyway; that is the exact drift the deepHouse retraction two comments up already warns
+        // about, so it is corrected in place rather than quietly deleted.
         case .minimalTechno:      return 0.04
         case .detroitTechno:      return 0.10
         case .upliftingTrance:    return 0.0
@@ -1073,7 +1095,12 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// heraus … soll schön und entspannt sein") — the lead used to sit +5…+18%
     /// FORWARD in the synth genres; now it's tucked UNDER the pad (0.85–0.92)
     /// everywhere, so the melody supports the texture instead of blasting over it.
-    /// Bass/pad glue unchanged. Everything stays gentle (0.85–1.18), no clip.
+    /// Bass/pad glue unchanged. Everything stays gentle (0.86–1.20), no clip.
+    /// ⚠️ THAT RANGE READ "0.85–1.18" UNTIL #254 BATCH 4 MOVED BOTH ENDS, and nothing caught it —
+    /// `MusicStyleSwingTests.testMixLevelsAreSaneForEveryGenre` bounds at 0.8…1.3, so a doc range
+    /// tighter than the tested one rots in silence. `minimalTechno` sets the new bass ceiling at
+    /// 1.20 (its dyad has no third to carry weight, so the bass does) and the new harmony floor at
+    /// 0.86. Re-derive this pair when a genre is added; do not quote it.
     public var mixLevels: (bass: Float, harmony: Float, lead: Float) {
         switch self {
         case .dubTechno, .trap:                       return (1.18, 0.94, 0.88)
@@ -1335,8 +1362,14 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // ([0,2,3,5,7,9,10]) is root + minor third (+3) + ♭7 (+10) + NINTH (+14, the second
             // degree an octave up — `MusicalKey.degree` wraps octaves, which is what makes a degree
             // above 6 expressible at all). NO FIFTH, for the same reason techHouse drops it: the
-            // fifth is what makes a four-note stack muddy. This is the richest voicing in the
-            // roster and the jazz-inflected chord IS the genre.
+            // fifth is what makes a four-note stack muddy. The jazz-inflected chord IS the genre.
+            //
+            // ⛔ "THE RICHEST VOICING IN THE ROSTER" STOOD HERE AND WAS FALSE — a reviewer swept
+            // all 33 arms and found NINE four-note genres, so this ties rather than leads. The
+            // true and sharper claim, now pinned in `GenreBatchFourVoicingTests`: the other eight
+            // are ALL the identical `[0, 2, 4, 6]` seventh chord, so this is the only four-note
+            // stack in the product that omits the fifth. Correcting it downward here matters
+            // because a batch-5 author reading "richest" would think the size was the design.
             //
             // `[0, 5, 3]` = i → VI → iv, three distinct roots. ⚠️ THREE AND NOT FOUR ON PURPOSE:
             // `upliftingTrance`'s "more distinct roots than any offered genre" is pinned by a

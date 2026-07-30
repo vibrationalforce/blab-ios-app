@@ -91,9 +91,33 @@ final class GenreBatchFourVoicingTests: XCTestCase {
         XCTAssertFalse(semitones.contains(7),
                        "a fifth appeared in the Detroit chord (\(semitones)) — it is a shell "
                        + "voicing precisely because it has none")
-        XCTAssertEqual(semitones.count, 4,
-                       "Detroit is the roster's richest voicing at four notes; \(semitones.count) "
-                       + "notes is a different chord")
+    }
+
+    /// ⛔ THE CLAIM THAT REPLACED A FALSE SUPERLATIVE AND A TAUTOLOGY. Detroit's doc said "the
+    /// roster's richest voicing"; a sweep found NINE four-note genres, so it ties rather than
+    /// leads. And the assertion under that message was `semitones.count == 4`, fully implied by the
+    /// exact-stack assertion two lines above it — it could never fail on its own.
+    ///
+    /// The true, sharper and genuinely failable claim is this: the other eight four-note genres all
+    /// voice the IDENTICAL `[0, 2, 4, 6]` — root/third/fifth/seventh, the ordinary seventh chord.
+    /// Detroit is the only four-note stack in the product that drops the fifth. Derived over
+    /// `allCases`, so a batch-5 genre that copies the shape is caught here.
+    func testDetroitIsTheOnlyFourNoteVoicingWithoutAFifth() {
+        let fourNote = MusicStyle.allCases.filter { $0.harmonicProfile.chordTones.count == 4 }
+        XCTAssertGreaterThan(fourNote.count, 1,
+                             "there must be other four-note genres for this comparison to mean "
+                             + "anything")
+        XCTAssertTrue(fourNote.contains(.detroitTechno))
+
+        let othersWithoutAFifth = fourNote.filter {
+            $0 != .detroitTechno && !$0.harmonicProfile.chordTones.contains(4)
+        }
+        XCTAssertTrue(othersWithoutAFifth.isEmpty,
+                      "a second fifth-less four-note voicing appeared "
+                      + "(\(othersWithoutAFifth.map(\.rawValue).sorted())). Dropping the fifth from "
+                      + "a four-note stack is Detroit's whole separation from the eight ordinary "
+                      + "seventh chords — if a newcomer wants it too, one of the two docs is now "
+                      + "wrong.")
     }
 
     /// Both voicings must stay NEW to the roster. Written as a sweep over `allCases` — including the
@@ -226,29 +250,60 @@ final class GenreBatchFourVoicingTests: XCTestCase {
 
     // MARK: - The constraint that FORCED the two patch names
 
+    /// The six warm lead patches the roster is allowed to use. A FIXED list, copied deliberately
+    /// from `MusicStyleLeadTests.warmLeadSet` (test-local there, so it cannot be imported) — see
+    /// the test below for why it must not be derived from the data.
+    private let warmLeadSet: Set<String> = [
+        "Soft Keys", "Warm Strings", "Pluck", "Hollow Reed", "Choir Vox", "Deep Sub"
+    ]
+
     /// ⛔ A MIRROR OF A NON-BLOCKING TEST, ON PURPOSE. `MusicStyleLeadTests
     /// .testLeadTimbresAreSpreadNotCollapsed` already guards this — but it lives in
     /// `Tests/EchoelmusicTests`, which runs behind `continue-on-error` (#208) and therefore goes red
     /// IN SILENCE. This constraint is what forced batch 4's two lead-patch names ("Deep Sub" and
     /// "Choir Vox" were the only names sitting below the ceiling), so a batch-5 author picking a
-    /// third name freely needs the failure to actually block. Duplication is the point here, not an
-    /// oversight — and it is a real constraint, not a tautology: the ceiling is derived from the
-    /// counts, and a fifth genre on any one name breaks it while the roster size stays put.
+    /// third name freely needs the failure to actually block.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS "MIRROR" WAS NOT ONE — it divided by `counts.count`, the
+    /// number of names ACTUALLY IN USE, which is derived from the very data being judged. Collapse
+    /// all 24 genres onto one lead name and that divisor becomes 1, the ceiling becomes 24, and
+    /// `24 <= 24` passes: a test called `…StaySpread…` would have gone GREEN on the maximally
+    /// collapsed roster — precisely the state the original was written to catch. It also dropped
+    /// the original's distinct-name floor. Both are restored here: a FIXED divisor of six, and the
+    /// `>= 5` floor. The lesson is general enough to state — a pigeonhole ceiling must divide by
+    /// the number of AVAILABLE slots, never by the number currently occupied.
     func testLeadTimbresStaySpreadInTheBlockingBundle() {
         let bearing = MusicStyle.allCases.filter { !$0.harmonicProfile.sustained }
-        var counts: [String: Int] = [:]
-        for style in bearing { counts[style.leadPatchName, default: 0] += 1 }
-        XCTAssertFalse(counts.isEmpty)
+        let leads = bearing.map(\.leadPatchName)
+        XCTAssertFalse(leads.isEmpty, "there must be lead-bearing genres to guard")
 
-        let ceiling = Int(ceil(Double(bearing.count) / Double(counts.count)))
+        // A name outside the approved set would silently enlarge the palette and make the
+        // fixed divisor below wrong — so it is caught here rather than diluting the ceiling.
+        for style in bearing {
+            XCTAssertTrue(warmLeadSet.contains(style.leadPatchName),
+                          "\(style.rawValue) uses lead patch \"\(style.leadPatchName)\", which is "
+                          + "not one of the six warm leads \(warmLeadSet.sorted()). Adding a "
+                          + "seventh name is a palette decision, not a per-genre one — and it "
+                          + "changes the spread ceiling this file and MusicStyleLeadTests share.")
+        }
+
+        var counts: [String: Int] = [:]
+        for name in leads { counts[name, default: 0] += 1 }
+        let ceiling = Int(ceil(Double(leads.count) / Double(warmLeadSet.count)))
         for (name, count) in counts.sorted(by: { $0.key < $1.key }) {
             XCTAssertLessThanOrEqual(count, ceiling,
-                                     "lead timbre \"\(name)\" is on \(count) of \(bearing.count) "
-                                     + "lead-bearing genres, over the derived ceiling of "
-                                     + "\(ceiling). Adding a genre means picking the name that is "
-                                     + "currently BELOW the ceiling, not the one that sounds "
-                                     + "nicest — measure before choosing.")
+                                     "lead timbre \"\(name)\" is on \(count) of \(leads.count) "
+                                     + "lead-bearing genres, over the pigeonhole ceiling of "
+                                     + "\(ceiling) that \(leads.count) genres over "
+                                     + "\(warmLeadSet.count) warm patches allows. Adding a genre "
+                                     + "means picking the name currently BELOW the ceiling, not "
+                                     + "the one that sounds nicest — measure before choosing.")
         }
+
+        XCTAssertGreaterThanOrEqual(Set(leads).count, 5,
+                                    "lead-bearing genres use only \(Set(leads).sorted()) — at "
+                                    + "least 5 of the 6 warm leads must be in play, or the "
+                                    + "ceiling above can be satisfied by a collapsed palette")
     }
 
     // MARK: - Completeness

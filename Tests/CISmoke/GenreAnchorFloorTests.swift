@@ -25,18 +25,27 @@
 //                            exactly this assertion. Working as designed: a genre whose harmony is
 //                            one frozen root is the case the anchor floor exists for, so a new
 //                            drone genre MUST be listed here rather than have the test relaxed.
+//   • `.minimalTechno`     — a one-chord progression [0], NOT sustained (#254 batch 4). ⛔ AND IT
+//                            CAUGHT THIS ONE TOO, for the second batch running: the batch-4 commit
+//                            went red here before a human noticed. Worth stating because it breaks
+//                            the pattern the four entries above set — every previous member is
+//                            calm or drone-like, and it is tempting to read the anchor floor as a
+//                            CONTEMPLATIVE-genre guard. It is not. This is a 128 BPM dance genre
+//                            whose harmonic STASIS is its whole identity, so it needs its one root
+//                            defended from the shared journey more than a drone does, not less.
 //
 // …and for every body below coherence 0.35. Camera rPPG reports coherence 0 until beats accrue;
 // HealthKit never measures coherence at all. So the uncovered case was not an exotic body state,
 // it was THE FIRST MINUTES OF EVERY SESSION on the default genre — which is where a new listener
 // decides whether this instrument has a sound of its own.
 //
-// ⚠️ That list said THREE, then FOUR, and is now FIVE — and every correction came from the
-// premise test at the bottom of this file, never from a person reading the header. The sweep that
-// found the original defect named `.selfObservation`, `.esotericMeditation` and `.psytrance` and
-// missed `.doom`; `.deepDrone` was added by #254 batch 2 and the test failed the same hour. That
-// is the whole argument for keeping a hand-written list guarded: a header that names genres is a
-// claim about the source, and a claim needs a check that can fail.
+// ⚠️ That list said THREE, then FOUR, then FIVE, and is now SIX — and every correction came from
+// the premise test at the bottom of this file, never from a person reading the header. The sweep
+// that found the original defect named `.selfObservation`, `.esotericMeditation` and `.psytrance`
+// and missed `.doom`; `.deepDrone` was added by #254 batch 2 and the test failed the same hour;
+// `.minimalTechno` was added by batch 4 and it failed again. That is the whole argument for keeping
+// a hand-written list guarded: a header that names genres is a claim about the source, and a claim
+// needs a check that can fail. **Do not count the entries from this sentence** — read the list.
 //
 // ⚠️ THE OLD CODE KNEW. Its comment said the floor guarantees an anchor "(k≥1 for n≥2)". The
 // parenthetical is accurate and the hole was left open. A documented hole is still a hole; this
@@ -169,16 +178,25 @@ final class GenreAnchorFloorTests: XCTestCase {
     // MARK: - The four profiles this actually changes
 
     /// Guards the PREMISE of the whole file: that exactly `.selfObservation`,
-    /// `.esotericMeditation`, `.psytrance`, `.doom` and `.deepDrone` compose as one section.
+    /// `.esotericMeditation`, `.psytrance`, `.doom`, `.deepDrone` and `.minimalTechno` compose as
+    /// one section.
     /// `composeHarmonic` derives the count as
     /// `(profile.sustained && progression.count > 2) ? 1 : max(1, progression.count)`.
     ///
-    /// ⛔ THIS TEST HAS NOW EARNED ITS KEEP TWICE. Before it ever ran in CI it turned up a
+    /// ⛔ THIS TEST HAS NOW EARNED ITS KEEP THREE TIMES. Before it ever ran in CI it turned up a
     /// FOURTH genre the defect sweep had missed (`.doom`). Then #254 batch 2 added `.deepDrone`
     /// — progression `[0]`, sustained — and this assertion is what turned the blocking pipeline
     /// red, hours before anyone would have noticed that a new drone genre was silently relying
-    /// on the shared journey for its only chord. A header that names genres by hand is a claim
-    /// about the source, and this is the only thing that keeps that claim honest.
+    /// on the shared journey for its only chord. Then batch 4 added `.minimalTechno` — progression
+    /// `[0]`, NOT sustained — and it caught that one the same way. A header that names genres by
+    /// hand is a claim about the source, and this is the only thing that keeps that claim honest.
+    ///
+    /// ⚠️ AND THE THIRD CATCH BROKE THE PATTERN OF THE FIRST FIVE, which is the reason to say more
+    /// than "added a name". Every earlier member is calm, drone-like or sustained, and after five
+    /// of them it is natural to read this set as "the contemplative genres". It is not: the shared
+    /// property is a ONE-SECTION harmony, and a 128 BPM dance genre built on harmonic stasis lands
+    /// in it just as squarely. Do not filter this expectation by mood, tempo or `isBeatDriven` —
+    /// the derivation above is the definition, and this literal is only its witness.
     func testTheOneSectionProfilesAreStillTheOnesNamedInThisFile() {
         let oneSection = MusicStyle.allCases.filter { style in
             let p = style.harmonicProfile
@@ -190,7 +208,8 @@ final class GenreAnchorFloorTests: XCTestCase {
                                                          .esotericMeditation,
                                                          .psytrance,
                                                          .doom,
-                                                         .deepDrone]),
+                                                         .deepDrone,
+                                                         .minimalTechno]),
                        "The set of one-section genres changed to "
                        + "\(oneSection.map(\.rawValue).sorted()). That is not a failure by "
                        + "itself — but this file's header names the genres, and the anchor "
