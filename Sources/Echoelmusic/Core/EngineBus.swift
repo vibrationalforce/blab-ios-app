@@ -111,11 +111,17 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// Whether this frame carries a REAL pulse, as opposed to the structural zero a
     /// publisher emits before it locks (#245, and the hoist #244 asked for).
     ///
-    /// `heartRateBPM > 0` is written out at FOUR call sites (`BioModulationMap`,
-    /// `ModulationMatrix`, `BioTempoDirector`, `PolySynthVoice`), and `ModulationMatrix` asks
-    /// in as many words for them to be hoisted here. This is that hoist — the four are
-    /// converted in the same commit, because adding a THIRD spelling of one question is worse
-    /// than the two it was meant to replace.
+    /// `heartRateBPM > 0` was written out at four call sites, and `ModulationMatrix` asked in
+    /// as many words for them to be hoisted here. This is that hoist — but only **two** of the
+    /// four were converted (`BioModulationMap`, `ModulationMatrix`), and this comment claimed
+    /// all four until #244 checked. The other two take a loose scalar, not a frame:
+    /// `BioTempoDirector.targetTempo(heartRateBPM:coherence:)` and
+    /// `PolySynthVoice.applyEntrainment(neutralCoherence:heartRateBPM:motionEnergy:)` — this
+    /// property is simply out of reach from there, and both say so at the literal.
+    ///
+    /// ⛔ Do NOT "finish" the hoist by widening those two signatures to take a `BioSampleFrame`.
+    /// `applyEntrainment` is render-adjacent; handing it a frame moves a struct read onto that
+    /// path to buy a spelling. The scalar boundary is the deliberate end of the hoist.
     ///
     /// The consumer it was missing at is the OSC egress, which sent `/bio/heart/bpm 0` to other
     /// people's gear as if it were a reading (#245).
