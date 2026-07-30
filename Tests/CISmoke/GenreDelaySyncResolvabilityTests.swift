@@ -12,7 +12,14 @@
 // sites that stamp a genre/character preset (`EchoelStudioView.applyFX()`, the re-seed path, the
 // open-take path) call `applyDelaySync(bpm:)` immediately afterwards over the SAME chain
 // inventory, and it writes the view's `@State delaySync` — the user's delay-division picker,
-// default dotted 1/8 — over `chain.delay.timeSeconds`. The picker is the last writer, always.
+// default dotted 1/8 — over `chain.delay.timeSeconds`.
+//
+// ⚠️ "The picker is the last writer, ALWAYS" stood here for one commit and is FALSE:
+// `EchoelFXView.applyCharacter` is a FOURTH stamp site with no `applyDelaySync` after it, so a
+// CHARACTER stamp from the FX panel wins instead (and writes only `synth.fxChain`, never
+// `touchSynth`'s). No genre preset is involved there — `.auto` is filtered out of that menu — so
+// the claim about GENRE divisions survives; the absolute did not. Correcting a false absolute
+// with another one is how this file got here.
 // That is the deliberate resolution of #240, guarded by `DelayReachesEveryChainTests` in this
 // same bundle, which states it plainly. Asserting the opposite two files away is exactly the
 // "a surviving copy reads as independent confirmation" failure this repo keeps paying for.
@@ -51,11 +58,19 @@ import XCTest
 
 final class GenreDelaySyncResolvabilityTests: XCTestCase {
 
-    /// One reusable chain for the whole test case. `apply` writes every field it owns
-    /// unconditionally, so reusing it is exactly equivalent to a fresh one — and a fresh
-    /// `EchoelFXChain` allocates ≥1 MB of delay-line buffers plus tape/chorus/flanger/harmonizer/
-    /// reverb lines. The sweeps below call `stamped` ~90 times; building 90 chains would churn
-    /// ~100 MB inside the bundle that gates every merge, for no added coverage.
+    /// One reusable chain per TEST METHOD (XCTest builds a fresh instance for each, which is
+    /// what makes this bleed-free across methods — the property does the sharing, not a static).
+    /// A fresh `EchoelFXChain` allocates ≥1 MB of delay-line buffers plus tape/chorus/flanger/
+    /// harmonizer/reverb lines, and the sweeps below call `stamped` ~90 times: 90 chains would
+    /// churn ~100 MB inside the bundle that gates every merge, for no added coverage.
+    ///
+    /// ⚠️ EQUIVALENT FOR WHAT THIS FILE READS, AND NOT IN GENERAL — the first version claimed
+    /// "exactly equivalent to a fresh one", which is only true of `delay.timeSeconds`, the single
+    /// field measured here (`apply` writes it unconditionally, and it is a plain stored property
+    /// with no smoothing on the read path). Reuse DOES carry over `EchoelDelay.timeSmoothed`, the
+    /// ring buffers, filter states and LFO phases, and the `delayEnabled` rising-edge reset now
+    /// fires only on the first `apply` because every genre preset sets it true. A sixth test that
+    /// calls `processStereo` or asserts on a settled value must build its own chain.
     private let chain = EchoelFXChain(sampleRate: 48000)
 
     /// The stamped delay time and the time the preset ASKED for, at one BPM.
@@ -82,7 +97,12 @@ final class GenreDelaySyncResolvabilityTests: XCTestCase {
     /// Swept over `allCases`, not `offered`: a genre curated out of the picker today can be
     /// re-offered tomorrow (seven of them are waiting), and it should not carry a dead division
     /// in when it comes.
-    func testNoGenresDelayDivisionFailsToResolveAtEveryTempoItAllows() {
+    /// ⚠️ NAMED POSITIVELY ON PURPOSE. It was `testNoGenresDelayDivisionIsInaudible…` and then
+    /// `…FailsToResolveAtEveryTempo…` — a double negative with a second, equally grammatical
+    /// reading ("every division resolves at every allowed tempo") that is FALSE and that test 3
+    /// explicitly permits. A name must not assert more than the body; that is why this file was
+    /// renamed, so the method name has to obey it too.
+    func testEveryGenresDivisionResolvesAtItsFastestAllowedTempo() {
         for style in MusicStyle.allCases {
             let preset = style.fxPreset
             guard preset.delayEnabled else { continue }
