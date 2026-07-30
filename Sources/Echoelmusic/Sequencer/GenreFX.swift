@@ -139,27 +139,72 @@ public struct GenreFXPreset: Sendable, Equatable {
     /// Delay-line capacity in the chain (EchoelDelay default). The synced time is
     /// clamped to this so a whole note at a slow tempo never overruns the buffer.
     ///
-    /// ⛔ DO NOT RAISE THIS TO "FIX" A TRUNCATED SLOW-TEMPO ECHO. It was the obvious
-    /// candidate when the calm family was found sharing one echo time, and it is the wrong
-    /// move for two independent reasons, both checked rather than assumed:
-    ///  1. `PolySynthVoice.idleFrameThreshold` is 2.5 s and its own doc DERIVES that from this
-    ///     ceiling — the render may only sleep after a window LONGER than the maximum possible
-    ///     echo gap, or a sparse repeat is frozen mid-train and pops out on the next note-on.
-    ///     A 6 s ceiling forces a 6.5 s idle window, which on sparse ambient material means the
-    ///     voice essentially never sleeps: the P1 CPU saving is gone for exactly the genres that
-    ///     wanted the long echo.
-    ///  2. `EchoelDelayLine` rounds up to a power of two — 2.0 s at 48 kHz is 131 072 samples
-    ///     (512 KB/channel); 6.0 s is 524 288 (2 MB/channel), ×2 channels × every chain in
-    ///     `characterFXChains`, against a 200 MB budget.
-    /// The honest fix for a truncated echo is to author a division that RESOLVES inside the
-    /// genre's own tempo window — guarded by `Tests/CISmoke/GenreDelaySyncAudibilityTests`.
-    /// (That test reads the ceiling back through `apply` precisely because this is `private`;
-    /// it does not need to be widened.)
+    /// ⛔ RAISING THIS DOES NOT DO WHAT THE FIRST VERSION OF THIS DOC CLAIMED, and getting the
+    /// attribution right matters more than the recommendation. That version gave two reasons not
+    /// to raise it and BOTH were attached to the wrong constant. There are THREE independent
+    /// `2.0` literals on this path and they are not linked:
+    ///
+    ///  · THIS one — a pure clamp inside `apply`. It allocates nothing.
+    ///  · `EchoelDelay.init(maxDelaySeconds: Float = 2.0)` (`EchoelDelay.swift`) — the one that
+    ///    SIZES the buffer, and the one `EchoelFXChain` uses (it constructs
+    ///    `EchoelDelay(sampleRate:)`, i.e. the default). `EchoelDelayLine` rounds up to a power
+    ///    of two: 2.0 s at 48 kHz wants 96 004 samples → 131 072 → 512 KB/channel; 6.0 s wants
+    ///    288 004 → 524 288 → 2 MB/channel, ×2 channels × every chain that exists (the
+    ///    `characterFXChains` inventory is only two of them — `leadSynth`, `bioVoice`,
+    ///    `FXCuratedLibrary` and `EchoelFXView` build their own).
+    ///  · `EchoelStudioView.applyDelaySync(bpm:)`, which hardcodes `0.001...2.0` for the USER's
+    ///    delay-division picker — and per the note below that is the ceiling a listener actually
+    ///    meets.
+    ///
+    /// TWO CONSEQUENCES the first version hid:
+    ///  1. Raising THIS constant costs no memory at all. `maxDelaySamples = capacity - 2` =
+    ///     131 070 = **2.7306 s** of usable line at 48 kHz, so anything up to ~2.73 s is already
+    ///     paid for. Past that, `EchoelDelayLine.read`'s own clamp catches it — a longer
+    ///     authored value would silently truncate one layer down instead of here.
+    ///  2. `PolySynthVoice.idleFrameThreshold` (2.5 s) derives from `EchoelDelay`'s ceiling, not
+    ///     from this one — the render may only sleep after a window longer than the longest
+    ///     possible echo gap, or a sparse repeat freezes mid-train and pops out on the next
+    ///     note-on. That coupling is real but UNENFORCED and already violated: `FXPreset`
+    ///     decodes `delayTime` with no bound (`FXPreset.swift`) and writes it straight to
+    ///     `chain.delay.timeSeconds`, so a hand-edited or community `.echoelfx` can produce a
+    ///     2.73 s gap today. Do not read the 2.5 s as a guaranteed invariant.
+    ///
+    /// The recommendation survives all of that: the honest fix for a truncated echo is to author
+    /// a division that RESOLVES inside the genre's own tempo window, because that keeps the echo
+    /// on the musical grid instead of flat — guarded by
+    /// `Tests/CISmoke/GenreDelaySyncResolvabilityTests`. (That test reads the ceiling back through
+    /// `apply` precisely because this is `private`; it does not need to be widened.) But if you
+    /// DO want a longer one, this constant up to ~2.73 s is the cheap move, and moving the other
+    /// two is a separate, bigger decision.
     private static let maxDelaySeconds: Float = 2.0
 
     /// Write this preset onto a live chain, resolving the synced delay time at
     /// `bpm`. Safe to call from the main actor; the chain reads are audio-thread
     /// atomic-width scalars.
+    ///
+    /// ⛔ THE `delaySync` LINE BELOW HAS NO AUDIBLE EFFECT IN THE APP TODAY, and every comment
+    /// in this file that reasons about "what a genre's echo sounds like" must be read against
+    /// that. All three sites that stamp a genre/character preset —
+    /// `EchoelStudioView.applyFX()`, the re-seed path and the open-take path — call
+    /// `applyDelaySync(bpm:)` IMMEDIATELY afterwards, over the SAME chain inventory, and it
+    /// writes the view's `@State delaySync` (the user's delay-division picker, default dotted
+    /// 1/8) over `chain.delay.timeSeconds`. So the picker is the last writer, always.
+    ///
+    /// That is DELIBERATE, not a bug to undo here: it is the resolution of #240, guarded by
+    /// `Tests/CISmoke/DelayReachesEveryChainTests` — a visible control must not display one
+    /// division while the chain plays another, and `delaySync` is not part of the saved
+    /// `Project`, so restoring a genre's division would be a schema change.
+    ///
+    /// The consequence is nonetheless a real, unfixed defect: **29 authored per-genre delay
+    /// divisions never reach the audio, and every genre shares whatever one division the picker
+    /// holds.** That is a far bigger delay-axis collapse than any preset-level tuning, and it is
+    /// tracked separately as a founder decision (the honest fix is for a genre change to SET
+    /// `delaySync` so the picker shows the genre's own division and then stamps it — making both
+    /// true instead of picking a winner).
+    ///
+    /// So the per-genre `delaySync` values are today a SOURCE-level contract: they must be
+    /// resolvable and they must be distinct, so that they are correct on the day the routing is
+    /// fixed. `GenreDelaySyncResolvabilityTests` guards exactly that and nothing more.
     public func apply(to chain: EchoelFXChain, bpm: Double) {
         chain.filterEnabled = filterEnabled
         chain.setFilter(mode: filterMode, cutoff: filterCutoff, resonance: filterResonance)
@@ -269,12 +314,27 @@ public extension MusicStyle {
         case .deepDrone:
             // #254 batch 2 — the DARKEST space in the product.
             //
-            // THE LONGEST ECHO IN THE PRODUCT — and that is true only since the division was
-            // corrected. It shipped as `.whole`, which at 40…58 BPM is 6.0…4.14 s: past the
-            // 2.0 s `maxDelaySeconds` ceiling at EVERY tempo in its own window, so the clamp
-            // fired always and `.whole` was an intent that could never be heard. It also dragged
-            // this genre onto the exact same 2.0 s as two of its siblings — the collapse the
-            // founder hears as "die Genres klingen gleich".
+            // ⚠️ TWO CLAIMS STOOD HERE FOR ONE COMMIT AND BOTH WERE WRONG. They were "THE
+            // LONGEST ECHO IN THE PRODUCT" and "it played a flat 2.0 s that the founder hears as
+            // 'die Genres klingen gleich'". Corrected, because this is the comment a session
+            // reads before differentiating a calm preset on delay time:
+            //  · NOT the longest. Its floor value IS 2.0 s (`.half, .triplet` at 40 BPM) — but
+            //    2.0 s is the CEILING, and three other genres reach it at their own slow ends:
+            //    selfObservation (half @46 = 2.61), esotericMeditation (half @50 = 2.40) and doom
+            //    (half @50 = 2.40), all three by the very truncation this slice condemns. Plus
+            //    `FXCharacter.dream` (dotted quarter) at 40 BPM. At DEFAULT tempos this genre is
+            //    not even in front: selfObservation 2.000, esotericMeditation 2.000, doom 1.935,
+            //    deepDrone 1.667. "Equal to the ceiling, shared with three genres" is the truth,
+            //    and it is not a differentiation axis to build on.
+            //  · NOT what anyone heard. See `apply(to:bpm:)`: `applyDelaySync` overwrites the
+            //    genre's delay TIME on all three stamp paths, so no genre's division reaches the
+            //    audio today. The old `.whole` never played 2.0 s and the new value will not play
+            //    1.667 s until that routing is fixed.
+            //
+            // What IS true and is why the value changed: `.whole` at 40…58 BPM is 6.0…4.14 s,
+            // past the 2.0 s `maxDelaySeconds` clamp at EVERY tempo in its own window. A notated
+            // division that cannot resolve anywhere is a lie in the source regardless of whether
+            // anything currently listens to it.
             //
             // `.half, .triplet` (1⅓ quarters) is the LONGEST division on the `TempoSyncOption`
             // grid that resolves un-clamped across the WHOLE window: 2.0 s at 40 BPM, 1.379 s at
@@ -282,12 +342,16 @@ public extension MusicStyle {
             // next grid value up (dotted quarter, 1.5) is 2.25 s at 40 and would clamp again.
             // Now the echo also TRACKS tempo, so a body that slows genuinely lengthens the space.
             //
-            // ⛔ THE CEILING IS NOT THE THING TO RAISE — see `maxDelaySeconds`' own doc: 2.5 s
-            // `PolySynthVoice.idleFrameThreshold` is derived from it, and a 6 s buffer costs the
-            // idle-render saving on exactly this kind of sparse material. The invariant that
+            // ⛔ WHICH CEILING TO RAISE, IF ANY, IS NOT OBVIOUS — read `maxDelaySeconds`' own doc
+            // before touching one: there are THREE unlinked `2.0` literals, only ONE of them
+            // sizes the buffer, and the usable line is 2.7306 s either way. The invariant that
             // keeps this class of defect out lives in
-            // `Tests/CISmoke/GenreDelaySyncAudibilityTests`: a division that is inaudible at
-            // every tempo the genre allows is a lie in the source.
+            // `Tests/CISmoke/GenreDelaySyncResolvabilityTests`: a division that cannot resolve at
+            // any tempo the genre allows is a lie in the source.
+            //
+            // ⚠️ 2.0 s at the 40 BPM floor lands EXACTLY on the ceiling — `min(2.0, 2.0)` does
+            // not clamp, so the "un-clamped across its whole window" guarantee holds with ZERO
+            // margin by construction. "The longest division that fits" means "fits exactly".
             //
             // ⚠️ STILL TRUE AND STILL A LISTENING ITEM: `selfObservation` (half @58 = 2.069) is
             // now the ONLY offered genre whose delay is clamped, and it is over by 3.5% — its
@@ -501,7 +565,7 @@ public extension MusicStyle {
             // there with `esotericMeditation` (half @60 = exactly 2.0, no clamp). Unlike the two
             // genres fixed in this slice, the division IS audible over most of this window, so
             // re-authoring it would change a preset that already sounds as written — a founder
-            // listening call, not a derivable one. `GenreDelaySyncAudibilityTests` allows exactly
+            // listening call, not a derivable one. `GenreDelaySyncResolvabilityTests` allows exactly
             // one such genre, so a second one cannot appear unnoticed.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
@@ -527,12 +591,15 @@ public extension MusicStyle {
             // gentle wow into the BIGGEST hall in the roster (0.96) but far more DAMPED than
             // drift (0.55 vs 0.35). Feedback < 0.5 so the tail washes, never builds.
             //
-            // ⚠️ IT IS NO LONGER "THE LONGEST SPACE OF THE FAMILY", and that phrase was doubly
-            // wrong while it stood here. It shipped as `.half, .dotted` (3 quarters) = 4.09…2.73 s
-            // across its own 44…66 window — over the 2.0 s `maxDelaySeconds` ceiling at EVERY
-            // tempo it can reach, so the clamp fired always, the notated dotted-half was
-            // inaudible, and the resulting flat 2.0 s was IDENTICAL to two siblings. A preset
-            // cannot be "the longest" by authoring a number the chain refuses.
+            // ⚠️ IT IS NO LONGER "THE LONGEST SPACE OF THE FAMILY". It shipped as `.half, .dotted`
+            // (3 quarters) = 4.09…2.73 s across its own 44…66 window — over the 2.0 s
+            // `maxDelaySeconds` clamp at EVERY tempo it can reach, so the notated dotted-half
+            // could not resolve anywhere and clamped to a flat 2.0 s, the same number two
+            // siblings clamp to. A preset cannot be "the longest" by authoring a number the
+            // chain refuses. (⚠️ "IDENTICAL to two siblings" was the first wording and it
+            // over-claimed: identical in what `apply` WRITES, yes — but `applyDelaySync`
+            // overwrites the delay time downstream on all three stamp paths, so no listener has
+            // ever heard any genre's division. See `apply(to:bpm:)`.)
             //
             // `.quarter` resolves un-clamped across the whole window (1.364 s at 44, 0.909 at 66,
             // 1.154 at the 52 default) and is chosen over the longest-fitting `.half, .triplet`
@@ -542,10 +609,13 @@ public extension MusicStyle {
             // grounded reading now comes from the big damped hall, not from echo length; the
             // longest echo in the family is `deepDrone`'s.
             //
-            // The word "distinct sync" is also gone: this division is shared with `ambientPulse`
-            // and `classical`. Sharing a DIVISION is not sharing an echo — the resolved seconds
-            // differ by 60% because the tempo windows do. Pinned in
-            // `Tests/CISmoke/GenreDelaySyncAudibilityTests`.
+            // The word "distinct sync" is also gone: this division is shared with THREE other
+            // offered genres — `ambientPulse`, `classical` AND `vaporwave` (the first version of
+            // this line named only the first two; `vaporwave` is `.quarter` too and is offered,
+            // it is just not drum-free, which is how it was missed). Sharing a DIVISION is not
+            // sharing an echo — the resolved seconds differ because the tempo windows do
+            // (vaporwave @70 = 0.857 s, 35% from this preset's 1.154 s). Pinned in
+            // `Tests/CISmoke/GenreDelaySyncResolvabilityTests`.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .tape,
                 delaySync: TempoSyncOption(.quarter),
