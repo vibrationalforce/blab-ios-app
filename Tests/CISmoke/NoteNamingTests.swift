@@ -3,8 +3,13 @@
 // 2026-07-30 the app knew only one of them.
 //
 // FOUNDER, 2026-07-29: *"international für alle Kulturen und Hintergründe accessible."*
-// The note-name audit (#232 E) found the twelve English names hard-coded in six live places,
-// including the Key picker in the permanent chrome. That is not a missing translation — it is
+// The note-name audit (#232 E) found the twelve English names hard-coded in six places. Three
+// of those six are LIVE — the Key picker in the permanent chrome, the play surface's cell
+// labels, and `MusicalKey` (display + filenames). The other three are not, and the first
+// version of this header called all six "live", which is the kind of inflation that makes the
+// next reader distrust the rest: `TuningDetector.keyName` and `TuningReference.noteName` have
+// zero production callers (tests only), and `PianoRollModel.name(forPitch:)` is reachable only
+// from `PianoRollView`, which nothing instantiates. That is not a missing translation — it is
 // the WRONG NOTE for a large part of Europe. In German, Austrian and Scandinavian notation the
 // natural above A♯ is called **H**, and the name **B** is taken: it means B♭. So a German
 // musician reading "B" in our Key picker reads a pitch one semitone below the one that sounds,
@@ -30,8 +35,9 @@ final class NoteNamingTests: XCTestCase {
 
     func testEveryNamingOffersTwelveDistinctNonEmptyNames() {
         for naming in NoteNaming.allCases {
+            // No `names.count == 12` assertion: it is a `(0..<12).map`, so it could not be
+            // anything else. The two below are the ones that can actually fail.
             let names = (0..<12).map { naming.name(pitchClass: $0) }
-            XCTAssertEqual(names.count, 12, "\(naming)")
             XCTAssertFalse(names.contains(where: \.isEmpty),
                            "\(naming) has an empty name: \(names)")
             XCTAssertEqual(Set(names).count, 12,
@@ -122,13 +128,54 @@ final class NoteNamingTests: XCTestCase {
 
     /// Display is a choice; the FILENAME is not. Two people sharing a take must produce the
     /// same tag for the same key whatever their picker says.
+    ///
+    /// ⚠️ IT SETS THE SETTING FIRST, and the first version did not — which made it a test that
+    /// could not fail. With the stored default at `.english`, asserting "shortName starts with
+    /// B" passes whether or not `shortName` consults `NoteNaming`, so it guarded nothing while
+    /// the file header claimed it did. The German setting has to be ACTIVE for the assertion
+    /// to mean "this path ignores the setting".
     func testTheFilenameTagIgnoresNaming() {
+        let key = StudioDefaultKeys.noteNaming.key
+        let previous = UserDefaults.standard.string(forKey: key)
+        addTeardownBlock {
+            if let previous { UserDefaults.standard.set(previous, forKey: key) }
+            else { UserDefaults.standard.removeObject(forKey: key) }
+        }
+        UserDefaults.standard.set(NoteNaming.german.rawValue, forKey: key)
+
         // Pitch class 11 is the B/H pair — the one place a leak would show.
-        let key = MusicalKey(root: 11, scale: .minor)
-        XCTAssertTrue(key.shortName.hasPrefix("B"),
-                      "the filename-safe tag must stay English (\(key.shortName)). If a naming "
-                      + "setting ever reaches this path, a German user's shared file stops "
-                      + "matching an English user's for the identical key.")
-        XCTAssertFalse(key.shortName.hasPrefix("H"))
+        let musicalKey = MusicalKey(root: 11, scale: .minor)
+        XCTAssertTrue(musicalKey.shortName.hasPrefix("B"),
+                      "the filename-safe tag must stay English (\(musicalKey.shortName)) even "
+                      + "with German selected. If a naming setting reaches this path, a German "
+                      + "user's shared file stops matching an English user's for the same key.")
+        XCTAssertFalse(musicalKey.shortName.hasPrefix("H"))
+
+        // `MusicalKey.name` is the DISPLAY twin and must move — pinning both here keeps the
+        // split visible in one place. The parameterless `name` stays English by definition.
+        XCTAssertEqual(musicalKey.name(naming: .german), "H Minor")
+        XCTAssertEqual(musicalKey.name, "B Minor",
+                       "the parameterless `name` is the interop spelling and must not follow "
+                       + "the setting — a display caller passes a naming explicitly")
+    }
+
+    /// A blind user and a sighted user must be in the same system. Before this existed the
+    /// play surface spoke its own hard-coded English root ten lines from the labels it
+    /// contradicted — the worst possible place for it, given the ask was accessibility.
+    func testTheSpokenNameMatchesTheSeenName() {
+        for naming in NoteNaming.allCases {
+            for pc in 0..<12 {
+                let seen = naming.name(pitchClass: pc)
+                let spoken = naming.spokenName(pitchClass: pc)
+                XCTAssertFalse(spoken.contains("♯"),
+                               "VoiceOver cannot pronounce ♯ — \(naming) pitch \(pc) says "
+                               + "\(spoken)")
+                XCTAssertEqual(spoken, seen.replacingOccurrences(of: "♯", with: " sharp"),
+                               "the spoken form must be the SEEN form with the sharp expanded, "
+                               + "not a second table that can drift from it")
+            }
+        }
+        XCTAssertEqual(NoteNaming.german.spokenName(pitchClass: 11), "H")
+        XCTAssertEqual(NoteNaming.english.spokenName(pitchClass: 1), "C sharp")
     }
 }

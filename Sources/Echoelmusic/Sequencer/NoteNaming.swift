@@ -22,8 +22,12 @@
 //      anything would be a bug.
 //  `Tests/CISmoke/NoteNamingTests.swift` pins both, in the blocking bundle.
 //
-//  ⚠️ SEQUENCER, NOT DSP. This file may not move into `DSP/`: that directory is compiled in
-//  isolation and must not reach `Core`/`Sequencer` types.
+//  ⚠️ SEQUENCER, NOT DSP — and the REASON matters, because the one I first wrote here was
+//  retired three weeks ago. `DSP/` is no longer compiled in isolation: the AUv3 extension
+//  target that mandated it was removed 2026-07-24, and `project.yml` says so in its own
+//  words. `DSP/` stays Foundation-only by HYGIENE now, not by a build constraint. The
+//  placement is still right and this file still may not move there — but do not repeat the
+//  dead justification to defend it.
 //
 
 import Foundation
@@ -36,7 +40,11 @@ import Foundation
 public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// C D E F G A B — the international/Anglophone default and the app's interop spelling.
     case english
-    /// C D E F G A **B(♭) H** — German, Austrian, Scandinavian, Czech, Polish, Hungarian.
+    /// C D E F G A **B(♭) H** — German-speaking and Central/Northern European practice.
+    ///
+    /// Deliberately not a country list: Sweden moved to B for pitch class 11 in music
+    /// education in the 1990s and H only persists there in practice, so naming Sweden would
+    /// be a claim a Swedish reader could falsify.
     case german
     /// Do Re Mi Fa Sol La Si — FIXED-do. Romance languages, and standard across much of
     /// East Asia. Not movable-do: the syllable names the pitch, not the scale degree, which
@@ -53,21 +61,34 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    /// The twelve names, index = pitch class 0…11 (0 = C).
-    ///
-    /// Sharps use the typographic ♯ (U+266F), matching every surface that already renders it.
-    /// The German column spells pitch class 10 as the FLAT "B" rather than "Ais", because that
-    /// is what German charts print and it is the half of the convention that actually causes
-    /// misreadings; pitch class 11 is "H".
+    // The twelve names, index = pitch class 0…11 (0 = C).
+    //
+    // Sharps use the typographic ♯ (U+266F), matching every surface that already renders it.
+    //
+    // ⚠️ THE GERMAN COLUMN IS DELIBERATELY MIXED, and the first version of this comment only
+    // owned up to half of it. Pitch class 10 is the FLAT-derived "B" (not "Ais") and 11 is
+    // "H" — that pair is the actual German convention and the one that causes misreadings.
+    // Pitch classes 1/3/6/8 keep the INTERNATIONAL "C♯ D♯ F♯ G♯" rather than the German
+    // "Cis Dis Fis Gis". That is a product decision, not the convention: the sharps read
+    // fine to a German musician while "Cis" would read as a foreign spelling to everyone
+    // else on the same picker, and the B/H pair is where the semitone error actually lived.
+    //
+    // `static let` and not a computed `var`: `name(pitchClass:)` is called inside the touch
+    // surface's grid rebuild, degrees × 3 bands per pass, and a computed array would allocate
+    // twelve fresh Strings every call. Layout path, never the audio thread — so this is a
+    // waste rather than a rule break, which is exactly the kind that survives unnoticed.
+    private static let englishNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯",
+                                       "G", "G♯", "A", "A♯", "B"]
+    private static let germanNames = ["C", "C♯", "D", "D♯", "E", "F", "F♯",
+                                      "G", "G♯", "A", "B", "H"]
+    private static let solfegeNames = ["Do", "Do♯", "Re", "Re♯", "Mi", "Fa", "Fa♯",
+                                       "Sol", "Sol♯", "La", "La♯", "Si"]
+
     private var names: [String] {
         switch self {
-        case .english:
-            return ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"]
-        case .german:
-            return ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "B", "H"]
-        case .solfege:
-            return ["Do", "Do♯", "Re", "Re♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯",
-                    "La", "La♯", "Si"]
+        case .english: return Self.englishNames
+        case .german:  return Self.germanNames
+        case .solfege: return Self.solfegeNames
         }
     }
 
@@ -76,11 +97,27 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// Callers pass MIDI note numbers and the results of interval arithmetic, not pre-clamped
     /// indices, so this folds rather than traps. The fold is the two-step `((x % 12) + 12) % 12`
     /// and not the naive `x % 12`: Swift's remainder keeps the sign of the dividend, so a
-    /// single `%` returns −1 for −13 and the subscript crashes the chrome. `Int.min` is handled
-    /// by taking the remainder BEFORE negating anything — `-Int.min` would overflow.
+    /// single `%` returns −1 for −13 and the subscript crashes the chrome.
+    ///
+    /// `Int.min` is safe, but NOT for the reason an earlier version of this comment gave (it
+    /// claimed something was being negated; nothing here is). `%` by a POSITIVE divisor cannot
+    /// overflow — the only trapping remainder in Swift is `Int.min % -1` — and the intermediate
+    /// `(x % 12) + 12` is bounded to 1…23, so the addition cannot overflow either.
     public func name(pitchClass: Int) -> String {
         let folded = ((pitchClass % 12) + 12) % 12
         return names[folded]
+    }
+
+    /// The name as VoiceOver should SAY it: the same spelling, with the typographic sharp
+    /// expanded, because a screen reader announces "♯" as nothing useful.
+    ///
+    /// Derived from `name(pitchClass:)` rather than kept as a fourth table, so a sighted and a
+    /// blind user cannot end up hearing and seeing different systems — which is exactly what
+    /// happened before this existed: the play surface's spoken root was its own hard-coded
+    /// English array, ten lines from the labels, and it kept saying "B" for the pitch the
+    /// labels had already started calling H.
+    public func spokenName(pitchClass: Int) -> String {
+        name(pitchClass: pitchClass).replacingOccurrences(of: "♯", with: " sharp")
     }
 
     /// Decode a persisted raw value, falling back to `.english` for anything unrecognised —

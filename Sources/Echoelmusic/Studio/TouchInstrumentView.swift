@@ -381,11 +381,18 @@ struct TouchInstrumentView: UIViewRepresentable {
 
 /// UIKit view doing the actual multi-touch → notes + water rings.
 final class TouchInstrumentUIView: UIView {
-    /// How the cell labels spell their notes (#232 E). `setNeedsLayout` because the labels
-    /// are `CATextLayer`s written during the layout pass — without it the surface would keep
-    /// the old spelling until something else happened to move.
+    /// How the cell labels spell their notes (#232 E).
+    ///
+    /// ⛔ `setNeedsGridRebuild()`, NOT `setNeedsLayout()`. The first version called the latter
+    /// and its comment claimed that was what made the labels respell — the exact opposite of
+    /// the truth. `layoutSubviews` rebuilds only `if gridDirty || gridBuiltForSize != bounds.size`,
+    /// and a settings change moves neither, so the `CATextLayer`s would have kept the English
+    /// strings until the key, the grid toggle or the view size happened to change. Every other
+    /// property that feeds the labels (`synth`, `key`, `showGrid`) already calls
+    /// `setNeedsGridRebuild()`, which sets the flag AND calls `setNeedsLayout()` — a strict
+    /// superset. The picker would have looked wired and done nothing.
     var noteNaming: NoteNaming = .english {
-        didSet { if noteNaming != oldValue { setNeedsLayout() } }
+        didSet { if noteNaming != oldValue { setNeedsGridRebuild() } }
     }
     weak var synth: PolySynthVoice? {
         didSet {
@@ -850,8 +857,10 @@ final class TouchInstrumentUIView: UIView {
         gridLayer.frame = bounds
         // VoiceOver knows the terrain even without the visual grid: key, layout,
         // and how the surface is organised (kept current on every key change).
-        let rootName = ["C", "C sharp", "D", "D sharp", "E", "F", "F sharp",
-                        "G", "G sharp", "A", "A sharp", "B"][((key.root % 12) + 12) % 12]
+        // Spoken through the SAME setting as the visible labels below (#232 E). It used to be
+        // its own hard-coded English array, so a German user saw H on the cells and heard "B"
+        // for the same pitch — on the surface whose accessibility work is the best in the repo.
+        let rootName = noteNaming.spokenName(pitchClass: key.root)
         accessibilityValue = "Root \(rootName), \(key.degreesPerOctave) notes per octave, three octave rows, low at the bottom"
         guard showGrid, bounds.width > 60, bounds.height > 60 else { return }
 

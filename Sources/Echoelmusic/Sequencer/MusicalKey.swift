@@ -267,11 +267,33 @@ public struct MusicalKey: Codable, Equatable, Sendable {
     private static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     /// e.g. "C Minor", "C♯ Minor", "A Pentatonic Minor". Uses the typographic sharp
-    /// (♯) so the spelled-out Tonart matches the key picker + piano roll, which already
-    /// render ♯ — the canonical `noteNames` array stays ASCII "#" for `shortName`'s
-    /// filename-safe id path (sharps fold to "s").
-    public var name: String {
-        "\(Self.noteNames[root].replacingOccurrences(of: "#", with: "♯")) \(scale.displayName)"
+    /// (♯) so the spelled-out Tonart matches the key picker, which already renders ♯ —
+    /// the canonical `noteNames` array stays ASCII "#" for `shortName`'s filename-safe id
+    /// path (sharps fold to "s").
+    ///
+    /// English. This is the INTEROP spelling and the default; a DISPLAY caller passes a
+    /// naming (see below). Both exist because they are different jobs, and conflating them
+    /// is how a shared take stops matching its own filename.
+    public var name: String { name(naming: .english) }
+
+    /// The spelled-out key in the reader's own note-name system (#232 E).
+    ///
+    /// ⚠️ THE SPLIT IS `name` = DISPLAY, `shortName` = FILENAME — and I got it wrong once, in
+    /// the commit that introduced `NoteNaming`: I wrote that `name` had to stay English
+    /// because it "stamps session names". It does not. The stamped name and every stem go
+    /// through `shortName` (`SessionContext`); `name` had exactly ONE caller in the app, the
+    /// readable session-name preview riding at the end of the same chrome strip as the Key
+    /// picker. So with German selected the picker said H and the line beside it said B —
+    /// the inconsistency the naming setting exists to remove, two controls apart.
+    ///
+    /// ⚠️ AND THE SPLIT IS NOT CLEAN IN THE CODEBASE, so do not "tidy" it on the strength of
+    /// this comment: `EchoelStudioView` and `LiveColaboView` both render `shortName` as
+    /// user-facing text ("Bm", "Csm"). That is pre-existing and it means someone could
+    /// reasonably conclude `shortName` is a display property and localise it. It is not, and
+    /// doing so would break share filenames across devices. `Tests/CISmoke/NoteNamingTests`
+    /// pins that with the German setting actually applied.
+    public func name(naming: NoteNaming) -> String {
+        "\(naming.name(pitchClass: root)) \(scale.displayName)"
     }
 
     /// Compact, filename-safe key tag, e.g. "Cm", "Csm" (C# minor), "Amaj",

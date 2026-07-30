@@ -888,17 +888,25 @@ struct CompositionHeaderStrip: View {
 private struct SessionNamePreviewLeaf: View {
     @Environment(SessionContext.self) private var session
     @Environment(Transport.self) private var transport
+    /// This leaf sits at the END of the same strip as the Key picker, so it has to spell the
+    /// key the same way (#232 E) — otherwise the picker offers H and the line two controls to
+    /// the right reads "B Minor". A user setting, so a low-frequency read.
+    @AppStorage(StudioDefaultKeys.noteNaming.key) private var noteNamingRaw = StudioDefaultKeys.noteNaming.value
 
     /// The name as READABLE fields in the founder's order (E · date · place ·
     /// key · BPM · Kammerton) instead of the raw underscore filename. Place is
     /// shown only once it resolves, so the line never carries an empty slot.
+    ///
+    /// READABLE is the operative word: this is a preview, not the stamped name. The name that
+    /// actually reaches a file goes through `key.shortName` in `SessionContext` and stays
+    /// English on every device — see the note on `MusicalKey.name(naming:)`.
     private var readableFields: [String] {
         var f: [String] = []
         let artist = session.artistName.trimmingCharacters(in: .whitespaces)
         f.append(artist.isEmpty ? "E~" : artist)                           // E~ (brand mark)
         f.append(Date().formatted(date: .abbreviated, time: .omitted))     // date
         if !session.placeToken.isEmpty { f.append(session.placeToken) }    // place
-        f.append(session.key.name)                                         // Tonart, spelled out
+        f.append(session.key.name(naming: NoteNaming(stored: noteNamingRaw)))  // Tonart, spelled out
         f.append("\(Int(transport.tempo.rounded())) BPM")                  // tempo
         f.append("\(Int(session.a4Hz.rounded())) Hz")                      // Kammerton
         return f
