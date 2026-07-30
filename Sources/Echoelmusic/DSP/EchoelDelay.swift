@@ -34,7 +34,9 @@ public final class EchoelDelay: @unchecked Sendable {
     /// Delay time in seconds [0.001, maxDelaySeconds].
     public var timeSeconds: Float = 0.375
 
-    /// Stereo time offset [0, 1] — right tap detunes up to ±25 ms for width.
+    /// Stereo time offset [0, 1] — right tap is delayed by up to +25 ms for width. One-sided:
+    /// `processStereo` computes `baseR = baseL + spread * 0.025 * sr` and the clamp holds
+    /// `spread` to [0, 1], so the right tap never LEADS the left.
     public var spread: Float = 0.0
 
     /// Feedback tone [0 = dark, 1 = bright].
@@ -109,9 +111,10 @@ public final class EchoelDelay: @unchecked Sendable {
         // (EchoelDelayLine.swift:56), so a wild value cannot trap or index out of bounds. The
         // reason is RECOVERABILITY. Until #246 the only writer was `GenreFXPreset.apply` with
         // hardcoded 0…0.6 literals; it now round-trips through `FXPreset`, whose decoder does not
-        // bound it, and there is still no UI row for it — so a hand-edited preset carrying 40
-        // would park the right tap at the far end of the buffer with nothing on screen able to
-        // dial it back. Every shipped value is inside the range: this is a no-op for all of them.
+        // bound it — so a hand-edited preset carrying 40 would park the right tap at the far end
+        // of the buffer. The Delay section's Spread row (#251) can dial it back, but only across
+        // [0, 1]: without this clamp the row could not reach a value it did not put there. Every
+        // shipped value is inside the range: this is a no-op for all of them.
         //
         // `clamped(to:)` and NOT `min(max(v, 0), 1)`: that idiom passes NaN straight through
         // (`max(NaN, 0)` is NaN — argument order decides), and a NaN here would reach the

@@ -2,10 +2,12 @@
 // Echoel — a preset whose sound depends on what came before it is not a preset. BLOCKING bundle.
 //
 // THE DEFECT (#246). `EchoelDelay.spread` offsets the RIGHT tap by `spread * 0.025 * sampleRate`
-// (EchoelDelay.swift:106-107) — at the 0.6 some characters stamp, 15 ms, which is the whole
-// difference between a centred echo and a wide one. Seven delay parameters round-tripped through
-// `FXPreset`. This eighth one did not: no property, no decode, no `capture`, no `apply`, no
-// `morphed`. Its only writer in the entire app was `GenreFXPreset.apply` (GenreFX.swift:156).
+// (`EchoelDelay.processStereo`, the `spreadSamples` line) — at the 0.6 some characters stamp,
+// 15 ms, which is the whole difference between a centred echo and a wide one. Seven delay
+// parameters round-tripped through `FXPreset`. This eighth one did not: no property, no decode,
+// no `capture`, no `apply`, no `morphed`. Its only writer in the entire app was
+// `GenreFXPreset.apply` (`chain.delay.spread = delaySpread` in GenreFX.swift). Since #251 the
+// Delay section carries a Spread row, so the user is a writer too.
 //
 // TWO CONSEQUENCES, and the second is the one that makes it a defect rather than a gap:
 //
@@ -145,7 +147,8 @@ final class FXPresetDelaySpreadTests: XCTestCase {
     /// ⛔ THE HAZARD THIS SLICE OPENED. Until now `spread`'s only writer was `GenreFXPreset.apply`
     /// with hardcoded 0…0.6 literals, so nothing bounded it and nothing needed to. It now decodes
     /// from a file, and `FXPreset`'s decoder does not clamp — a hand-edited `.echoelfx` delivers
-    /// any Float, and there is no UI row to dial it back with.
+    /// any Float. The #251 Spread row can dial it back, but only within [0, 1], which is exactly
+    /// why the render has to hold that domain: the row cannot reach a value it did not put there.
     ///
     /// ⚠️ NOT A CRASH TEST, and saying so matters because the obvious reading is wrong: the value
     /// cannot trap. `EchoelDelayLine.read` clamps to `1...maxDelaySamples` with the NaN-safe
@@ -170,7 +173,7 @@ final class FXPresetDelaySpreadTests: XCTestCase {
             delay.mix = 1                    // wet only, so the peak IS the tap
             delay.feedback = 0               // one echo, not a train
             delay.timeSeconds = 0.01         // 480 samples
-            delay.reset()                    // snap timeSmoothed to the target (EchoelDelay:188)
+            delay.reset()                    // snap timeSmoothed to the target (EchoelDelay.reset)
             delay.spread = spread
 
             var lIdx = 0, rIdx = 0

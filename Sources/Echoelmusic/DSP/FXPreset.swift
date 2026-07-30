@@ -206,14 +206,14 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
         //
         // ⚠️ BUT SAY THE REST OF IT, because "more deterministic" is not the whole truth and a
         // later reader deserves the honest version: this fix is NOT neutral for presets a user
-        // has ALREADY saved. Save a take while `dream` (spread 0.6, GenreFX.swift:510) or
-        // `blurry` (0.55, :526) is stamped and the JSON carries no spread key. Today, re-loading
-        // it under the same character keeps 0.6 and it sounds as saved; from now on it decodes 0
-        // and `apply` hard-writes 0, so the 15 ms right-tap offset collapses to centre. The
-        // change is one-directional — always toward narrower, never wider — and there is no UI
-        // row to dial it back yet. It is still the right fix, because the alternative is a
-        // preset whose stereo image depends on what was loaded before it; but it is a change to
-        // existing sounds, not merely a tightening.
+        // has ALREADY saved. Save a take while `FXCharacter.dream` (spread 0.6) or `.blurry`
+        // (0.55) is stamped and the JSON carries no spread key. Today, re-loading it under the
+        // same character keeps 0.6 and it sounds as saved; from now on it decodes 0 and `apply`
+        // hard-writes 0, so the 15 ms right-tap offset collapses to centre. The change is
+        // one-directional — always toward narrower, never wider — and since #251 the Delay
+        // section's Spread row can dial it back by hand. It is still the right fix, because the
+        // alternative is a preset whose stereo image depends on what was loaded before it; but
+        // it is a change to existing sounds, not merely a tightening.
         delaySpread = f(.delaySpread, 0)
 
         reverbEnabled = b(.reverbEnabled, false)
