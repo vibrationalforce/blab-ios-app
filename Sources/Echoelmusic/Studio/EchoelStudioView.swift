@@ -2605,7 +2605,10 @@ struct EchoelStudioView: View {
         // the musical clock, and `Transport.currentTick()` returns nothing while stopped — so
         // switching this on with the transport idle produces exact silence. Without the
         // sentence, the obvious reading of that silence is "the feature is broken".
-        Text("The field plays itself while the transport runs: a point travels the surface and strikes notes in your key. Press Play to hear it. Put a finger down and it stops instantly — your hand always wins. Its speed follows the Sync grid above, even with Sync itself off.")
+        // One string for all six motions, so it must be true of all six: five travel a point,
+        // Arp walks a chord. The old wording promised a travelling point unconditionally and was
+        // then contradicted by Arp's own caption thirty lines below.
+        Text("The field plays itself while the transport runs: a point travels the surface — or, on Arp, walks your chord — and strikes notes in your key. Press Play to hear it. Put a finger down and it stops instantly — your hand always wins. Its speed follows the Sync grid above, even with Sync itself off.")
             .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             .fixedSize(horizontal: false, vertical: true)
         HStack {
@@ -2635,7 +2638,13 @@ struct EchoelStudioView: View {
         // gesture. Hidden rather than shown-and-ignored: this repo has paid four times for a
         // control that is visible and does nothing (#164, #227).
         if FieldAutoPlay.Motion(rawValue: fieldMotionRaw) == .arp {
-            Text("Arp strikes the chord tones of your key — root, third, fifth, upwards — instead of travelling across the field. Density and Traverse set its rate; Band sets the register.")
+            // ⚠️ TWO CLAIMS WERE REMOVED FROM THIS STRING AFTER REVIEW, both false. "root, third,
+            // fifth" holds only in a seven-degree scale — in Chromatic those degrees are a
+            // whole-tone cluster, in Pentatonic Minor root/fourth/flat-seventh. And "Traverse
+            // sets its rate" was wrong for the arp: the Euclidean fire rule is scale-invariant in
+            // the traverse length, so only Density changes which cells sound (see the `.arp` case
+            // in FieldAutoPlay). Traverse moves the ACCENT, and that is what it now says.
+            Text("Arp walks upwards through chord degrees of your scale instead of travelling across the field. Density sets its rate, Band the register, Traverse where the accent falls.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         } else {

@@ -105,8 +105,17 @@ public enum FieldAutoPlay {
         /// an offset would produce a wrong note rather than a wider gesture. So on this motion
         /// `centre`, `span` and `voices` are not applied at all, and the panel hides those rows
         /// rather than leaving three dials that do nothing (`EchoelStudioView.fieldSelfPlayFields`).
-        /// `density` and `periodSteps` keep their exact meaning (which cells fire = the rate),
-        /// and `band`/`bandDrift` keep theirs (which register, and its slow wander).
+        /// `density` sets the RATE (which cells fire) and `band`/`bandDrift` the register.
+        ///
+        /// ⚠️ `periodSteps` DOES NOT set the arp's rate, and the first version of this line said it
+        /// did — a claim that then reached the player-facing caption. The fire rule
+        /// `(i · active) % period < active` with `active = round(density · period)` is
+        /// scale-invariant in `period`: at density 0.5 it fires every second cell whether the
+        /// traverse is 8, 16 or 32, so the note pattern in time is IDENTICAL. For the arp
+        /// `periodSteps` changes exactly one thing — where the accent falls
+        /// (`velocity(cell:period:)`, `beat = max(2, period / 4)`) — and at density 0.5 with
+        /// traverse 8 every fired cell is even, so it removes the accent altogether. A real rate
+        /// dial for the arp is the grid-based one in #253, not this.
         ///
         /// One note per fired cell, never `voices` of them: an arpeggio is a chord played as a
         /// SEQUENCE. Stacking it would just be the chord, which the generative engine already
@@ -163,6 +172,12 @@ public enum FieldAutoPlay {
         /// calls `showGeneratedNote`. Kept as a note because a doc promise about a SECOND
         /// subsystem is only true while that subsystem keeps its half — and the ripple is
         /// still skipped under Reduce Motion, which is correct and is not this promise.
+        ///
+        /// ⚠️ AND IT DOES NOT HOLD FOR `.arp` AT ALL (#220 S3). That motion's `y` comes from
+        /// `ArpFigure.surfacePoint`, which returns the CENTRE of its register — so the light sits
+        /// at one of `bandCount` fixed heights and a sub-threshold drift moves neither the octave
+        /// nor the visual. The panel says so in its own words for that motion; this doc is the
+        /// source of truth the panel is checked against, so the exception belongs here too.
         public var bandDrift: Float
         /// Simultaneous points — a chord under a hand that is not there.
         public var voices: Int
@@ -171,6 +186,12 @@ public enum FieldAutoPlay {
         public var periodSteps: Int
 
         // MARK: The arp dials — read ONLY when `motion == .arp` (#220 S3)
+        //
+        // ⚠️ NO WRITER YET, and saying so is the house rule rather than a courtesy: nothing in
+        // `Sources/` sets these three. `FloatingVisualWindow.fieldAutoPlay` builds `Params`
+        // without them and there are no `StudioDefaultKeys` for them, so today the arp always
+        // walks the stored defaults below. The keys and the rows are #220 S5. Read the doc
+        // comments as "what this dial WILL do", not as a control a player can reach.
 
         /// Which way the arp walks its chord.
         public var arpOrder: ArpFigure.Order
@@ -183,8 +204,13 @@ public enum FieldAutoPlay {
         /// the shipped three-band surface the condition for every octave to be audible is
         /// `baseBand + arpOctaves - 1 + the chord's own carry < 3`. The default 1 is inside it.
         public var arpOctaves: Int
-        /// The chord as SCALE-DEGREE indices, not semitones — so `[0, 2, 4]` is the triad of
-        /// whatever key the take is in and stays a triad in a pentatonic or maqam scale.
+        /// The chord as SCALE-DEGREE indices, not semitones — `[0, 2, 4]` means the 1st, 3rd and
+        /// 5th degrees of whatever key the take is in, so the walk is always in key.
+        ///
+        /// ⚠️ NOT "always a triad": that holds only in a seven-degree scale. In `chromatic` those
+        /// degrees are a whole-tone cluster, in `pentatonicMinor` root/fourth/flat-seventh. In key
+        /// either way, but do not describe it to a player as root-third-fifth.
+        ///
         /// Negatives are dropped and duplicates collapse inside `ArpFigure`; an empty result is
         /// SILENCE, not a substituted root.
         public var arpChordDegrees: [Int]
@@ -275,6 +301,14 @@ public enum FieldAutoPlay {
     /// 1024 cells is already ~64 bars of sixteenths — far past any musical traverse, and the
     /// exact reason the ceiling can be this generous and still be a real guard.
     public static let maxPeriodSteps = 1024
+
+    /// Ceiling on how many octave bands a caller may claim the surface has.
+    ///
+    /// A CRASH GUARD, found by review rather than by taste: `bandCount` is a public, defaulted
+    /// parameter, and the arp derives its base band with `Int(y * Float(bands))`. `Float(Int.max)`
+    /// rounds to 2^63 and converting that back to `Int` TRAPS. 16 is far past any surface anyone
+    /// would build (the shipped one has three) and still a real bound.
+    public static let maxSurfaceBands = 16
 
     // MARK: - The generator
 
@@ -374,10 +408,15 @@ public enum FieldAutoPlay {
                                         order: params.arpOrder,
                                         seed: seed) else { return [] }
 
-        // `y` is already clamped to 0…1 by a NaN-safe `clamp01`, so this `Int(...)` cannot trap —
-        // worth stating, because `Int(Float.nan)` DOES trap and this is the file's only
-        // float-to-int conversion.
-        let bands = Swift.max(1, bandCount)
+        // ⛔ TWO INPUTS DECIDE WHETHER THE `Int(...)` BELOW TRAPS, AND THE FIRST VERSION OF THIS
+        // COMMENT ONLY CHECKED ONE. `y` is fine: `clamp01` is NaN-safe, so it is always 0…1. But
+        // `bandCount` is a PUBLIC, DEFAULTED parameter that any caller may set — `Float(Int.max)`
+        // rounds to 2^63 and `Int(2^63 as Float)` TRAPS. No shipping caller can reach it today
+        // (`TouchPitchMap.octaveBands.count` is 3), which is exactly the kind of "cannot happen"
+        // this file already refuses to rely on for `periodSteps` and `voices`: the guard belongs
+        // where the arithmetic is. Ceiling rather than a precondition, for the same reason as
+        // `maxPeriodSteps` — a corrupt input should sound wrong, not crash a performance.
+        let bands = Swift.min(maxSurfaceBands, Swift.max(1, bandCount))
         let baseBand = Swift.min(bands - 1, Int(y * Float(bands)))
         let point = ArpFigure.surfacePoint(walk,
                                           degreesPerOctave: degreesPerOctave,

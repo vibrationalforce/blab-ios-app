@@ -15,8 +15,10 @@
 //
 //  ⚠️ SAY "PATTERN HALF", NOT "BreathArp", and the distinction is not pedantry — an earlier draft
 //  of this paragraph said `BreathArp`'s ONE production caller was `stampArp`, which is FALSE:
-//  `BreathArp.isActive` is live and reachable at `FieldAutoPlay.swift:310`, on the 60 Hz self-play
-//  path. A session reading the wrong version would have concluded the whole type is dead and
+//  `BreathArp.isActive` is live and reachable — `FieldAutoPlay.fires` calls it, on the 60 Hz
+//  self-play path. (Cited as `FieldAutoPlay.swift:310` here for two commits; that line is a
+//  comment. A line number in another file is stale the moment that file grows — name the
+//  function.) A session reading the wrong version would have concluded the whole type is dead and
 //  deleted it, taking the Field's Euclidean density rule with it. `BreathArp` is not dead; one of
 //  its two halves has no door.
 //
@@ -42,12 +44,20 @@
 //  the shape of a walk is exactly the kind of thing that reads correctly in code and sounds like
 //  a stuck note on a device, so it has to be assertable without an Apple UI stack.
 //
-//  ⚠️ NOT YET REACHABLE, and this file does not pretend otherwise: nothing in `Sources/` calls
-//  either half. The walk (S1) and the surface projection (S2, `surfacePoint`) are both here; the
-//  `FieldAutoPlay.Motion` case, the driver argument, the storage keys and the panel are still
-//  separate slices (#220 S3…S6). A core with no door is honest as long as it is written down as
-//  one — and this line is the only thing keeping "two shipped, unused functions" from reading as
-//  a feature.
+//  ✅ REACHABLE SINCE #220 S3, and this line was left saying the opposite for one commit — which
+//  is the more dangerous direction of the two. It read "NOT YET REACHABLE: nothing in `Sources/`
+//  calls either half", while `FieldAutoPlay.arpTouches` calls BOTH halves and the Field panel's
+//  motion picker offers `.arp` (it enumerates `Motion.allCases`, so the case IS the door). A
+//  false death certificate is exactly what nearly got `BreathArp` deleted — see the warning
+//  twenty lines up, in this same file.
+//
+//  Chain: Field chip → `EchoelStudioView.fieldSelfPlaySection` → `field.autoPlay.motion` = "arp"
+//  → `FloatingVisualWindow.fieldAutoPlay` → `TouchInstrumentView` → the 60 Hz display link →
+//  `FieldAutoPlay.touches` → `arpTouches` → `step(atIndex:)` + `surfacePoint`.
+//
+//  STILL OUTSTANDING: only the three arp DIALS (order, octaves, chord) have no storage keys and
+//  no rows yet (#220 S5), so today the walk is always the stored default. The motion itself is
+//  live.
 //
 
 import Foundation
@@ -86,9 +96,15 @@ public enum ArpFigure {
     /// One position in the walk: which chord tone, lifted by how many octaves.
     ///
     /// `degreeIndex` is a SCALE-degree index, not a semitone and not an index into the chord
-    /// array — so `[0, 2, 4]` is the triad in whatever scale the caller is in, and stays a triad
-    /// in a pentatonic or maqam scale where the semitone distances differ. Turning it into a
-    /// pitch is the next slice's job and needs the key; that is exactly why it is not done here.
+    /// array — so `[0, 2, 4]` means the 1st, 3rd and 5th DEGREES of whatever scale the caller is
+    /// in, and the walk stays inside that scale whatever its semitone distances are.
+    ///
+    /// ⚠️ THAT IS NOT THE SAME AS "stays a triad", which is what this line claimed for two
+    /// commits. Degrees 0/2/4 are a triad only in a SEVEN-degree scale. In `chromatic` they are
+    /// C–D–E, a whole-tone cluster; in `pentatonicMinor` (`[0,3,5,7,10]`) they are root, fourth
+    /// and flat seventh. Still in key, still musical — but a different chord shape, and telling a
+    /// player "root, third, fifth" would be false for roughly a third of the shipped scales.
+    /// Turning a degree into a pitch needs the key and is `surfacePoint`'s consumer's job.
     ///
     /// `Hashable` rather than only `Equatable` so a test can put a whole cycle in a `Set` and
     /// assert coverage — the walk-completeness property is the one worth pinning and it is
@@ -229,7 +245,8 @@ public enum ArpFigure {
     /// every legality test. The signature keeps them apart deliberately (`Sequencer/` does not
     /// name a `Studio/` type, and the geometry is testable without a key), so the ONE duty at the
     /// call site is: this `degreesPerOctave` must come from the same `MusicalKey` the pitch
-    /// mapping gets. S4 has exactly one call site and passes `key.degreesPerOctave`.
+    /// mapping gets. `FieldAutoPlay`'s one production caller (`TouchInstrumentView`) passes `key.degreesPerOctave`
+    /// of the key it maps with — wired in #220 S3, not S4 as an earlier version of this line said.
     ///
     /// ⛔ WHY x LANDS IN THE MIDDLE OF THE DEGREE CELL, and this is the whole reason this
     /// function exists instead of a one-line division at the call site: the consumer computes

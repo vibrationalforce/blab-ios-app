@@ -297,20 +297,52 @@ final class FieldAutoPlayArpTests: XCTestCase {
 
     // MARK: - The helper the walk index rests on
 
-    func testFiredCountMatchesTheFirePattern() {
-        for period in [1, 4, 8, 16] {
-            for density in [Float(0.25), 0.5, 0.75, 1] {
+    /// The property the walk index rests on, stated INDEPENDENTLY of how `firedCount` is written:
+    /// over one whole traverse the Euclidean rule fires exactly `round(density · period)` cells.
+    /// (The first version of this test re-ran `firedCount`'s own loop and could only have failed
+    /// if the helper stopped calling `fires` — a tautology wearing a green tick.)
+    func testATraverseFiresExactlyTheEuclideanCount() {
+        for period in [1, 3, 4, 8, 16, 32] {
+            for density in [Float(0.1), 0.25, 0.5, 0.75, 0.9, 1] {
+                let expected = Int((density * Float(period)).rounded())
                 let counted = FieldAutoPlay.firedCount(before: period, density: density,
                                                        period: period)
-                let byHand = (0..<period).filter {
-                    FieldAutoPlay.fires(cell: $0, density: density, period: period)
-                }.count
-                XCTAssertEqual(counted, byHand, "period \(period) density \(density)")
+                XCTAssertEqual(counted, expected, "period \(period) density \(density)")
+                // And it is a PREFIX count: monotone, and never more than the cells looked at.
+                for limit in 0...period {
+                    let partial = FieldAutoPlay.firedCount(before: limit, density: density,
+                                                           period: period)
+                    XCTAssertTrue(partial <= counted && partial <= limit,
+                                  "limit \(limit) counted \(partial) of \(counted)")
+                }
             }
         }
         // Degenerate limits do not crash and count nothing.
         XCTAssertEqual(FieldAutoPlay.firedCount(before: 0, density: 1, period: 8), 0)
         XCTAssertEqual(FieldAutoPlay.firedCount(before: -5, density: 1, period: 8), 0)
+    }
+
+    /// An absurd `bandCount` must not trap either, and this one is a REAL trap that review found
+    /// rather than a hypothetical: the arp derives its base band with `Int(y * Float(bands))`,
+    /// `Float(Int.max)` rounds to 2^63, and converting that back to `Int` traps. No shipping
+    /// caller can pass it (the surface has three bands) — which is exactly the argument this file
+    /// already refuses to accept for `periodSteps` and `voices`.
+    func testAnAbsurdBandCountDoesNotTrap() {
+        for bandCount in [Int.max, Int.min, 0, -3, 1, 10_000] {
+            let hits = FieldAutoPlay.touches(atStep: 0, params: arpParams(band: 1, bandDrift: 0),
+                                             seed: 7, degreesPerOctave: 7, bandCount: bandCount)
+            XCTAssertEqual(hits.count, 1, "bandCount \(bandCount)")
+            for t in hits {
+                XCTAssertTrue((0...1).contains(t.y), "bandCount \(bandCount) y \(t.y)")
+            }
+        }
+        // And the ceiling is the one the constant names, not an arbitrary number: at band 1.0 the
+        // point lands in the TOP band of `maxSurfaceBands`, not of the absurd request.
+        let top = FieldAutoPlay.touches(atStep: 0, params: arpParams(band: 1, bandDrift: 0),
+                                        seed: 7, degreesPerOctave: 7,
+                                        bandCount: Int.max).first?.y ?? -1
+        let bandsMax = Double(FieldAutoPlay.maxSurfaceBands)
+        XCTAssertEqual(Double(top), (bandsMax - 0.5) / bandsMax, accuracy: 1e-6)
     }
 
     /// An absurd step must not trap. `traverse * firedPerTraverse` is deliberately wrapping —

@@ -588,6 +588,10 @@ final class TouchInstrumentUIView: UIView {
             // this the field would play in visual silence — and `bandDrift` below its octave
             // threshold, which the generator documents as "moves the light, not the pitch",
             // would move nothing at all.
+            //
+            // ⚠️ That second half is true of the five TRAVELLING motions only. On `.arp` the
+            // generator returns the centre of a register, so a sub-threshold drift moves neither
+            // pitch nor light — by construction, not by omission (#220 S3).
             showGeneratedNote(pitch: pitch, at: point(normX: Double(t.x), normY: Double(t.y)),
                               velocity: t.velocity)
         }
