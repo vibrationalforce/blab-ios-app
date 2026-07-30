@@ -1304,7 +1304,11 @@ public enum BioComposer {
                                    velocity: Float, sustained: Bool,
                                    quarterAnchor: Bool = false,
                                    alterations: [Int] = [],
-                                   sectionIndex: Int = 0,
+                                   // NOT defaulted, deliberately: the bug this parameter fixes was
+                                   // "the rotation index was always 0", and a default of 0 would let
+                                   // a future second call site reproduce it by omission, with
+                                   // nothing in the diff to see. One caller — the cost is nil.
+                                   sectionIndex: Int,
                                    rhythm: RoleRhythm.Character? = nil,
                                    rng: inout SeededRNG) {
         // H2: semitone alteration of a chord tone (root / fifth) when the
@@ -1359,10 +1363,16 @@ public enum BioComposer {
         // biofeedback — and it is also the reason the six characters do not all differ in the same
         // dimension, which is worth stating precisely because the first version of this comment
         // claimed the character "replaces WHICH steps the walk lands on" for all six:
-        //   · `driving` / `dynamic` / `flowing` select the SAME cells at these densities (all three
-        //     are the plain even spread) and are told apart by note LENGTH (gate ×0.45 / ×0.7 /
-        //     ×1.0) and by accent CONTOUR (hard-on-the-beat / a moving wave / nearly flat).
-        //   · `hypnotic` rotates the figure once per SECTION — see the `bar:` argument below.
+        //   · `driving` and `dynamic` select the SAME cells at these densities (both are the plain
+        //     even spread) and are told apart by note LENGTH (gate ×0.45 vs ×0.7) and by accent
+        //     CONTOUR (hard-on-the-beat vs a moving wave).
+        //   · `flowing` starts from that same even spread but is NOT identical to it: at the
+        //     `evolve: 0.2` this call site passes, its per-cell coin flip adds or removes a cell
+        //     with ~3.6 % probability each — a note more or a note less, which is the point of it.
+        //     (An earlier version of this bullet listed `flowing` with the other two as "the SAME
+        //     cells", contradicted by the very fallback note further down that says its flip can
+        //     drop a cell even at density 1.)
+        //   · `hypnotic` rotates the figure once per SECTION — see the rotation index below.
         //   · `syncopated` moves the walk off the beat (cells ≡ 2 mod 4 at the quarter grid).
         //   · `sparse` squares the density, so it thins the walk down towards the foundation note.
         // Three audible dimensions across six names; whether that is enough to hear as six
@@ -1380,7 +1390,7 @@ public enum BioComposer {
         // happens to be, and an 11-step mood splice would put their accents nowhere musical.
         var rhythmHits: [Int: RoleRhythm.Hit] = [:]
         if let character = rhythm {
-            let bar = 16
+            let cells = 16                                  // the composer's bar, in 16th cells
             let density: Float = gap == 2 ? 0.5 : 0.25
             // The three dials the bass has no row for are written out rather than inherited.
             // `Params(character:density:)` silently took gate 0.8 / accent 0.4 / evolve 0.2 — real
@@ -1394,19 +1404,30 @@ public enum BioComposer {
             // (`flowing`'s cell flips, `dynamic`'s level jitter) re-roll per call instead of being a
             // reproducible function of (bar, cell, seed) — the property this whole core is built on.
             let rhythmSeed = rng.next()
-            // THE SECTION INDEX IS THE BAR, and this is the fix for a real bug rather than a
-            // preference: the first version passed `bar: step / 16`, and since every step of a take
-            // is below `stepCount == 16` that was ALWAYS 0. `hypnotic`'s entire identity is its
-            // bar-to-bar rotation, which at a frozen bar 0 reduces to the plain even spread — i.e.
-            // to `driving`'s cells — so the one character named after being a slowly-turning figure
-            // was the only one that could not turn. A take is ONE bar here (`stepCount == 16`), so
-            // the thing that advances underneath a rhythm is the chord section, and `hit(bar:)` only
-            // ever uses it as a rotation/fold index. `syncopated` and `sparse` read `position`, not
-            // `bar`, so their quarter alignment is untouched by this.
-            let cellOfStart = ((secStart % bar) + bar) % bar
+            // THE ROTATION INDEX, and getting it right took two attempts because both wrong answers
+            // look correct in a diff.
+            //   1. The first version passed `bar: step / 16`. Every step of a take is below
+            //      `stepCount == 16`, so that was ALWAYS 0 — and `hypnotic`'s entire identity is its
+            //      rotation, which at a frozen 0 reduces to the plain even spread, i.e. `driving`'s
+            //      cells. The one character named after a slowly-turning figure was the only one
+            //      that could not turn.
+            //   2. Passing the plain section INDEX fixed that and walked into a subtler version of
+            //      it. At `cells == 16` only `bar % 4` decides anything, and a 3-chord progression
+            //      gives 5-step sections, so `secStart = 5·idx ≡ idx (mod 4)` — the rotation
+            //      cancelled EXACTLY against the section's own start cell, every section fired on
+            //      its own downbeat, and `hypnotic`'s placement came out identical to the genre's
+            //      default grid. An override landing on the default grid is the #81/#125 defect
+            //      wearing a new name, and a test asserting only "≠ driving" cannot see it.
+            // So the rotation is measured FROM THE SECTION'S OWN DOWNBEAT: entry offset within the
+            // section = `sectionIndex` cells, whatever cell of the bar the section happens to begin
+            // on. `syncopated` and `sparse` read `position`, not `bar`, so their quarter alignment is
+            // untouched; `dynamic`'s jitter and `flowing`'s flips only re-derive a different (still
+            // reproducible) draw stream.
+            let cellOfStart = ((secStart % cells) + cells) % cells
+            let rotation = cellOfStart + sectionIndex
             for step in secStart..<secEndLocal {
-                let cell = ((step % bar) + bar) % bar
-                guard let beat = RoleRhythm.hit(bar: sectionIndex, cell: cell, cellsPerBar: bar,
+                let cell = ((step % cells) + cells) % cells
+                guard let beat = RoleRhythm.hit(bar: rotation, cell: cell, cellsPerBar: cells,
                                                 params: params, seed: rhythmSeed) else { continue }
                 rhythmHits[step] = beat
                 hitStarts.append(step)
@@ -1423,22 +1444,37 @@ public enum BioComposer {
                 // play on this cell: `density` decides only `fires`, never the level, the length or
                 // the push, so the Hit that comes back is exactly the one it would have produced had
                 // the cell been selected. Without this the prepended note fell through to the
-                // genre's own length and level, and `sparse` — whose squared density fires roughly
-                // ONE cell of a 16-step bar — then produced a take byte-identical to no override at
-                // all on every section but the first. A Picker entry that does nothing.
+                // genre's own length and level, which on `sparse` — whose squared density fires
+                // roughly ONE cell of a 16-step bar — left whole sections indistinguishable from no
+                // override at all. (Only where the section starts ON a quarter, i.e. progressions of
+                // 2 or 4 chords; a 3-chord genre starts sections at 5 and 10, `sparse` declines an
+                // off-quarter cell whatever the density, and those two sections are unchanged by
+                // this probe. Stated exactly, because "byte-identical on every section but the
+                // first" was the earlier wording and it is not true of the take the tests use.)
                 // The probe consumes no shared RNG: `hit` derives its own stream from `rhythmSeed`.
                 var probe = params
                 probe.density = 1
-                if let foundation = RoleRhythm.hit(bar: sectionIndex, cell: cellOfStart,
-                                                   cellsPerBar: bar, params: probe,
+                if let foundation = RoleRhythm.hit(bar: rotation, cell: cellOfStart,
+                                                   cellsPerBar: cells, params: probe,
                                                    seed: rhythmSeed) {
                     rhythmHits[secStart] = foundation
                 }
-                // The probe can legitimately come back nil, and both cases are the character being
-                // itself rather than a hole: `sparse` refuses any cell that is not a quarter
-                // whatever the density, and `flowing`'s evolve can flip a cell out even at density
-                // 1. Then the foundation keeps the genre's own shape — the right fallback, and the
-                // reason the loop below still needs its non-rhythm branch.
+                // The probe can legitimately come back nil, and every case is the character being
+                // itself rather than a hole: `sparse` refuses any cell that is not a quarter whatever
+                // the density, and `flowing`'s evolve can flip a cell out even at density 1. Then the
+                // foundation keeps the genre's own shape — the right fallback, and the reason the
+                // loop below still needs its non-rhythm branch.
+                // ⚠️ ONE CORNER where the probe is not literally "what it would have played":
+                // `flowing` at a cell the real density did NOT select but density 1 does, where the
+                // flip then inverts the probe's answer — so the probe declines while a real call
+                // would have fired. Harmless by construction: that is exactly the case in which the
+                // cell already fired and no prepend happened.
+                // ⚠️ AND ONE TRADE-OFF worth recording rather than discovering: on `syncopated` the
+                // probe hands the foundation that character's ON-BEAT DUCK (accent strength 0.3),
+                // so the grounding note lands ~1.5 dB UNDER the off-beat notes it grounds. That is
+                // the inversion which IS `syncopated`, but it is the opposite of the reason the
+                // prepend exists, and only a device listen can say whether the low end still reads
+                // as grounded.
             }
         } else {
             var s = secStart

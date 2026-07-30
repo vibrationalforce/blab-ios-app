@@ -135,11 +135,22 @@ final class BassRhythmOverrideTests: XCTestCase {
     /// Asserted on `startStep` alone and not on the whole note: `hypnotic` and `driving` differ in
     /// gate and accent too, so comparing lengths or velocities would have passed with the bug in
     /// place and pinned nothing.
-    func testHypnoticRotatesTheFigureAcrossSectionsInsteadOfRepeatingDrivingsGrid() {
+    ///
+    /// ⛔ AND IT MUST NOT LAND ON THE **GENRE'S** GRID EITHER — that second half is the one the first
+    /// version of this test was blind to, and it caught a second, subtler form of the same bug. With
+    /// the rotation index set to the plain section index, a 3-chord progression (5-step sections)
+    /// made `secStart = 5·idx ≡ idx (mod 4)`, the rotation cancelled against the section's own start
+    /// cell, and `hypnotic`'s placement came out IDENTICAL to the `nil` take — an override landing
+    /// exactly where an override must not land, while still satisfying "≠ driving". Both comparisons
+    /// are needed; neither alone is a pin.
+    func testHypnoticRotatesTheFigureAcrossSectionsInsteadOfRepeatingAnyoneElsesGrid() {
+        let genreOwn = bass(BioComposer.compose(input(nil)).notes).map(\.startStep)
         let driving = bass(BioComposer.compose(input(.driving)).notes).map(\.startStep)
         let hypnotic = bass(BioComposer.compose(input(.hypnotic)).notes).map(\.startStep)
         XCTAssertNotEqual(driving, hypnotic,
-                          "hypnotic lands on driving's cells — the bar index handed to RoleRhythm is frozen")
+                          "hypnotic lands on driving's cells — the rotation index is frozen")
+        XCTAssertNotEqual(genreOwn, hypnotic,
+                          "hypnotic lands on the genre's own grid — the rotation cancelled itself out")
     }
 
     /// ⛔ THE FOUNDATION PLAYS IN CHARACTER, not in the genre's shape.

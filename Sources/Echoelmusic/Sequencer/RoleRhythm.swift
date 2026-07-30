@@ -52,11 +52,15 @@
 //      `TouchInstrumentUIView.autoPlayTick`. A PLAYER sets four dials from the Field panel's
 //      Rhythm / Note length / Accent / Evolve rows (`EchoelStudioView.fieldArpRhythmFields` →
 //      `StudioDefaultKeys.fieldArpRhythm*` → `FloatingVisualWindow.fieldAutoPlay`).
-//    · BASS (#253 A3) — `BioComposer.appendBass` asks which steps the WALKING bass lands on
+//    · BASS (#253 A3) — `BioComposer.appendBass` asks how the WALKING bass is SHAPED: which steps
+//      it lands on for two of the six characters, and how hard and how long for all of them
 //      (`Input.bassRhythm`, `nil` = the genre's own grid); the Mood panel's Bass rhythm Picker
-//      writes `StudioDefaultKeys.bassRhythm`. That consumer sets only `character` + `density`
-//      (the density is the genre's own rate) and takes the gate/accent/evolve DEFAULTS below —
-//      so the "editing a default re-voices the arp" warning further down now covers basslines too.
+//      writes `StudioDefaultKeys.bassRhythm`. That consumer passes `character` + `density` + all
+//      THREE remaining dials EXPLICITLY (`gate: 0.8, accent: 0.4, evolve: 0.2`, written out at its
+//      own call site) — so the "editing a default re-voices" warning further down covers the ARP
+//      ONLY. The bass does not follow this file's defaults, deliberately: they arrive from the
+//      arp's feel, and a re-tune there must not silently re-voice every bassline.
+//      (This bullet said the opposite for one commit, in the same commit that made it explicit.)
 //
 //  `push` still has no reader on EITHER consumer, and that is the one number this type promises and
 //  nothing honours: `arpTouches` drops it (A2b owns giving the generated onset its own scheduled
@@ -104,8 +108,15 @@ public enum RoleRhythm {
         /// Straight, short, hard on the beat. The engine: no push at all, so it reads as machine
         /// time, and a short gate leaves air between the notes for the pulse to be felt.
         case driving
-        /// Even spread, long notes, almost no accent — and the pattern ROTATES slowly bar by bar,
-        /// which is what makes a repeating figure hypnotic instead of merely repetitive.
+        /// Even spread, long notes, almost no accent — and the pattern ROTATES slowly, one cell per
+        /// `bar` index, which is what makes a repeating figure hypnotic instead of merely repetitive.
+        ///
+        /// ⚠️ "PER BAR" IS THE CALLER'S WORD, not a musical promise this type can keep. The arp
+        /// advances `bar:` per traverse; `BioComposer` has only a single 16-step looping bar, so it
+        /// advances the index per CHORD SECTION instead (`appendBass`) — the figure enters at a
+        /// different cell of each section and then repeats with the loop. Both are legitimate
+        /// readings of "rotation", but a reader of this line must not conclude the bass never
+        /// settles: a one-bar loop always does.
         case hypnotic
         /// The loud/soft one: the same cells as `driving` but a contour that moves, so the bar
         /// breathes. This is the character `evolve` changes most.
@@ -333,13 +344,19 @@ public enum RoleRhythm {
     /// The level of a hit with no accent at all — what `Hit.velocity` returns on every cell at
     /// `accent == 0`.
     ///
+    /// It is the base term of the velocity formula in `hit(...)` and is READ there rather than
+    /// repeated as a literal — the first version of this constant left the `0.72` in the formula and
+    /// only documented that the two must be changed together, which is the same duplication one file
+    /// further in.
+    ///
     /// ⛔ IT IS PUBLIC BECAUSE A CONSUMER HAS TO DIVIDE BY IT. `Hit.velocity` is an ABSOLUTE level
     /// around this neutral, but `BioComposer` already owns the bass's level (the genre's mix balance
     /// times the body's energy) and only wants the accent SHAPE — so it multiplies its own velocity
     /// by `beat.velocity / neutralVelocity`. That divisor was a bare `0.72` literal in `BioComposer`
     /// for one commit, i.e. a private formula of this file copied into another file with no way for a
     /// re-tune here to reach it: raising the base level would have silently made every bassline
-    /// quieter. Anyone changing the formula below changes this constant with it.
+    /// quieter. `RoleRhythmTests` asserts an unaccented hit comes back at exactly this value, in the
+    /// BLOCKING bundle, so the two can no longer drift apart in silence either.
     public static let neutralVelocity: Float = 0.72
 
     /// The furthest a note may sit from its grid cell. Below half a cell by construction — at
@@ -399,7 +416,8 @@ public enum RoleRhythm {
         // how far apart loud and soft end up. At accent 0 every hit is 0.72 — a machine, which is
         // a legitimate musical choice and not a bug.
         let depth = clamp01(params.accent)
-        let velocity = clampRange(0.72 + depth * (strength - 0.5) * 0.55, minVelocity, 1)
+        let velocity = clampRange(neutralVelocity + depth * (strength - 0.5) * 0.55,
+                                  minVelocity, 1)
 
         // PUSH IS COMPUTED FIRST, because the gate's ceiling depends on it. A note that starts
         // 0.05 late and then fills its whole cell ends 5 % into the next one — which `gateScale`'s
@@ -443,10 +461,17 @@ public enum RoleRhythm {
             return spread(position, cells: cells, density: density)
 
         case .hypnotic:
-            // ROTATION is the whole character: the same figure, entering at a different cell each
-            // bar, so it never settles into "the same loop" for the ear. One cell per bar, so it
-            // takes a full cycle to come back — slow enough to be felt rather than heard as a
-            // change.
+            // ROTATION is the whole character: the same figure, entering at a different cell for
+            // each `bar` index, so it does not sit still. One cell per index, so it takes a full
+            // cycle to come back — slow enough to be felt rather than heard as a change.
+            //
+            // ⚠️ WHAT `bar` MEANS IS THE CALLER'S CHOICE and it decides whether this is audible at
+            // all. `BioComposer` advances it per chord section of a single looping bar, and a caller
+            // whose sections are 5 steps long must be careful: at `cells == 16` only `bar % 4`
+            // matters, so passing the plain section INDEX there cancels exactly against the
+            // section's own start cell (5·idx ≡ idx mod 4) and every section fires on its own
+            // downbeat — i.e. the caller's default grid, which is the one place an override must not
+            // land. `appendBass` therefore measures the rotation from the section's own downbeat.
             //
             // `&-` and not `-`: `bar` is an unbounded `Int` from the caller's clock, and
             // `0 - Int.min` TRAPS. A wrap merely picks a different rotation of the same figure,
