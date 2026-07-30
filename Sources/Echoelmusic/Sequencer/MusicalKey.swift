@@ -77,6 +77,36 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     case messiaen5          // repeating 1-4-1 — 6 notes, stark
     case messiaen6          // repeating 2-2-1-1 — 8 notes
     case messiaen7          // repeating 1-1-1-2-1 — 10 notes, densest mode
+    // Indian classical (#232 J). Six Japanese pentatonics, the Maqām family and a
+    // Balinese approximation were already here; there was not ONE named Indian entry
+    // — the single most conspicuous hole in a list of fifty.
+    //
+    // Seven of the ten Hindustani thāts were in fact already reachable, but only under
+    // a Western name: Bilāval = major, Khamāj = mixolydian, Kāfī = dorian, Āsāvarī =
+    // minor, Bhairavī = phrygian, Bhairav = doubleHarmonic, Kalyāṇ = lydian. Adding
+    // aliases for those would put duplicate pitch sets in one picker, so what follows
+    // is only what is genuinely ABSENT: the three remaining thāts, plus four rāgas whose
+    // sets no existing entry produces. Checked against all fifty prior sets — no
+    // collisions, and `MusicalKeyTests` asserts displayName/shortTag stay unique.
+    //
+    // ⚠️ THE HONEST LIMIT, and it is the same one the `pelog` note above states for
+    // gamelan: a rāga IS NOT a pitch-class set. Ārohaṇa/avarohaṇa (the ascent and
+    // descent differ), vādī/samvādī emphasis, characteristic phrases and time-of-day
+    // convention are the rāga; and Hindustani śruti intonation is not 12-TET, so even
+    // the pitches are an approximation. What this engine offers is the scale material,
+    // named after the tradition it comes from — which is worth more than the silence it
+    // replaces, but is not the thing itself. Do not let a later doc claim otherwise.
+    //
+    // ⚠️ AND THIS SLICE MAKES #232 F BIGGER, NOT SMALLER: these names are spelled in
+    // Western notation, so Malkauns will label its notes "D♯", never "ga". Seven more
+    // entries now sit on the wrong side of that gap.
+    case marwa              // Mārvā thāt — Lydian ♭2 (the rāga itself drops Pa)
+    case purvi              // Pūrvī thāt — ♭2 ♯4 ♭6, evening colour
+    case todi               // Toḍī thāt — ♭2 ♭3 ♯4 ♭6
+    case malkauns           // Rāga Mālkauns — pentatonic, no Re and no Pa
+    case charukeshi         // Cārukeśī (Carnatic mēḷa 26) — major top, ♭6 ♭7 below
+    case hamsadhwani        // Haṃsadhvani — pentatonic, no Ma and no Dha
+    case shanmukhapriya     // Ṣaṇmukhapriyā (mēḷa 56) — ♭3 ♯4 ♭6 ♭7
 
     /// Ascending semitone offsets from the root, one octave.
     public var intervals: [Int] {
@@ -131,6 +161,15 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .messiaen5:           return [0, 1, 5, 6, 7, 11]
         case .messiaen6:           return [0, 2, 4, 5, 6, 8, 10, 11]
         case .messiaen7:           return [0, 1, 2, 3, 5, 6, 7, 8, 9, 11]
+        // Sa is the root in every one of these; the comment gives the swaras so the
+        // set can be checked against a rāga reference without translating twice.
+        case .marwa:               return [0, 1, 4, 6, 7, 9, 11]   // S r G M♯ P D N
+        case .purvi:               return [0, 1, 4, 6, 7, 8, 11]   // S r G M♯ P d N
+        case .todi:                return [0, 1, 3, 6, 7, 8, 11]   // S r g M♯ P d N
+        case .malkauns:            return [0, 3, 5, 8, 10]         // S g m d n
+        case .charukeshi:          return [0, 2, 4, 5, 7, 8, 10]   // S R G m P d n
+        case .hamsadhwani:         return [0, 2, 4, 7, 11]         // S R G P N
+        case .shanmukhapriya:      return [0, 2, 3, 6, 7, 8, 10]   // S R g M♯ P d n
         }
     }
 
@@ -192,6 +231,17 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .messiaen5:           return "Messiaen 5"
         case .messiaen6:           return "Messiaen 6"
         case .messiaen7:           return "Messiaen 7"
+        // Bare names, no "Rāga …" prefix and no parenthetical: that is exactly how
+        // Hirajoshi, Iwato, Insen, Yo, Kumoi and Pelog already stand in this list.
+        // Decorating only the Indian entries would single them out in the one place
+        // this slice exists to stop doing that.
+        case .marwa:               return "Marwa"
+        case .purvi:               return "Purvi"
+        case .todi:                return "Todi"
+        case .malkauns:            return "Malkauns"
+        case .charukeshi:          return "Charukeshi"
+        case .hamsadhwani:         return "Hamsadhwani"
+        case .shanmukhapriya:      return "Shanmukhapriya"
         }
     }
 
@@ -248,6 +298,17 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
         case .messiaen5:           return "mes5"
         case .messiaen6:           return "mes6"
         case .messiaen7:           return "mes7"
+        // ASCII only, no diacritics: this tag is stamped into share-sheet FILENAMES.
+        // "Cārukeśī" would round-trip through a file system as anything from a
+        // decomposed NFD form to a mangled one, and two devices would stop agreeing
+        // on the name of the same take — the same reason `shortName` folds ♯ to "s".
+        case .marwa:               return "marwa"
+        case .purvi:               return "purvi"
+        case .todi:                return "todi"
+        case .malkauns:            return "malk"
+        case .charukeshi:          return "charu"
+        case .hamsadhwani:         return "hamsa"
+        case .shanmukhapriya:      return "shanmu"
         }
     }
 }
