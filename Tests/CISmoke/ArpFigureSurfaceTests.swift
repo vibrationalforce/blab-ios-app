@@ -95,6 +95,10 @@ final class ArpFigureSurfaceTests: XCTestCase {
         for root in 0..<12 {
             for scale in Scale.allCases {
                 let key = MusicalKey(root: root, scale: scale)
+                // Hoisted out of the inner loops: `MusicalKey.contains` rebuilds `pitchClasses`
+                // — a fresh array — on every call, and this is the heaviest test in the blocking
+                // bundle. Same predicate, one allocation per key instead of 172,800.
+                let classes = Set(key.pitchClasses)
                 for order in ArpFigure.Order.allCases {
                     for octaves in 1...ArpFigure.maxOctaves {
                         // 16 = the LONGEST cycle any combination here has: `.upDown` over three
@@ -110,7 +114,7 @@ final class ArpFigureSurfaceTests: XCTestCase {
                             let p = pitch(step, key: key)
                             XCTAssertTrue((0...127).contains(p),
                                           "root \(root) \(scale) \(order) oct \(octaves) → \(p)")
-                            XCTAssertTrue(key.contains(p),
+                            XCTAssertTrue(classes.contains(((p % 12) + 12) % 12),
                                           "root \(root) \(scale) \(order) → \(p) is out of key")
                             checked += 1
                         }
@@ -129,9 +133,9 @@ final class ArpFigureSurfaceTests: XCTestCase {
     /// `MusicalKey.degree`, which does its own octave wrapping, so this is an independent
     /// formulation rather than a re-run of the implementation's arithmetic.
     ///
-    /// The chord deliberately includes a NINTH (degree 7 in a seven-note scale) so the
-    /// degree-past-the-octave fold is covered: it must become "the root, one octave up", not a
-    /// position off the right edge of the surface.
+    /// The chord deliberately includes a degree PAST THE OCTAVE (degree 7, which in a seven-note
+    /// scale is the octave itself — the eighth degree, not a ninth) so the fold is covered: it
+    /// must become "the root, one octave up", not a position off the right edge of the surface.
     func testTheProjectedPitchIsTheOneTheKeyItselfWouldName() {
         let chord = [0, 2, 4, 7]
         var checked = 0
@@ -146,10 +150,17 @@ final class ArpFigureSurfaceTests: XCTestCase {
                             return XCTFail("a four-tone chord is not empty")
                         }
                         // Octaves = 1 and band 0, so `octaveOffset` is 0 and the only lift comes
-                        // from a degree past the octave — at most one band, which the three-band
-                        // surface can hold. No saturation, so equality is exact.
+                        // from a degree past the octave. That lift is ASSERTED to stay inside the
+                        // surface rather than guarded around: the smallest `degreesPerOctave` in
+                        // `Scale.allCases` is 5 and the chord's highest degree is 7, so the carry
+                        // can only ever be 1 — if a future scale with fewer degrees broke that,
+                        // this equality would silently stop being exact, and an assertion says so
+                        // where a `continue` would just quietly shrink the sweep.
                         let lift = step.degreeIndex / n
-                        guard lift < bandCount else { continue }
+                        XCTAssertLessThan(lift, bandCount,
+                                          "\(scale) has \(n) degrees — the chord's carry now "
+                                          + "reaches the band ceiling and the equality below is "
+                                          + "no longer exact")
                         let expected = key.degree(step.degreeIndex,
                                                   octave: TouchPitchMap.octaveBands[0])
                         XCTAssertEqual(pitch(step, key: key), expected,
@@ -159,7 +170,61 @@ final class ArpFigureSurfaceTests: XCTestCase {
                 }
             }
         }
-        XCTAssertGreaterThan(checked, 0, "the sweep never reached an assertion")
+        XCTAssertEqual(checked,
+                       12 * Scale.allCases.count * ArpFigure.Order.allCases.count * 12,
+                       "the sweep skipped iterations")
+    }
+
+    /// ⛔ THE COMBINATION NEITHER SWEEP ABOVE REACHES, and it is where a reviewer found the real
+    /// defect in this slice: a non-zero base `band` TOGETHER with a chord degree past the octave.
+    /// The default triad's carry is 0, so `carry` and `band` were only ever exercised separately.
+    ///
+    /// What this pins is the DOCUMENTED ceiling, stated as the audible consequence: degree 7 (the
+    /// octave) cannot rise above the top band, so it lands on the same pitch as the root and the
+    /// cycle plays the root twice. That is the honest behaviour of a three-register surface — and the
+    /// reason `surfacePoint`'s doc had to grow the carry term into the caller's condition, because
+    /// the first version of that condition said this configuration was safe.
+    func testABaseBandPlusACarryHitsTheCeilingTheDocNowNames() {
+        let key = MusicalKey(root: 0, scale: .major)             // 7 degrees
+        let root = ArpFigure.Step(degreeIndex: 0, octaveOffset: 0)
+        // Degree 7 is the OCTAVE, not the ninth — the first degree past a seven-note scale, i.e.
+        // the eighth degree. (A ninth would be degree 8. Naming it wrong is how the +12 below
+        // becomes a +14 in someone's head.)
+        let octaveUp = ArpFigure.Step(degreeIndex: 7, octaveOffset: 0)
+        // band 2 of 3 satisfies the OLD condition (band + octaves - 1 = 2 < 3) and still hits
+        // the ceiling, because degree 7 carries one band on its own.
+        XCTAssertEqual(pitch(octaveUp, key: key, band: 2), pitch(root, key: key, band: 2),
+                       "degree 7 must saturate onto the top band, i.e. collide with the root")
+        // One band lower, both are audible and exactly an octave apart: the same configuration is
+        // correct as soon as the carry fits, which is what the corrected condition expresses.
+        XCTAssertEqual(pitch(octaveUp, key: key, band: 1) - pitch(root, key: key, band: 1), 12)
+    }
+
+    /// And across every key: a non-zero band plus a carry may saturate, but it must never leave
+    /// the key or the MIDI range — the two things a fold-direction error would break.
+    func testANonZeroBandCombinedWithACarryStaysLegal() {
+        var checked = 0
+        for root in 0..<12 {
+            for scale in Scale.allCases {
+                let key = MusicalKey(root: root, scale: scale)
+                let classes = Set(key.pitchClasses)              // hoisted: `contains` allocates
+                for band in 0..<bandCount {
+                    for degree in [0, 2, 4, 7, 11, 14] {
+                        for offset in -1...2 {
+                            let p = pitch(.init(degreeIndex: degree, octaveOffset: offset),
+                                          key: key, band: band)
+                            XCTAssertTrue((0...127).contains(p),
+                                          "\(scale) band \(band) degree \(degree) → \(p)")
+                            XCTAssertTrue(classes.contains(((p % 12) + 12) % 12),
+                                          "\(scale) band \(band) degree \(degree) → \(p) "
+                                          + "is out of key")
+                            checked += 1
+                        }
+                    }
+                }
+            }
+        }
+        XCTAssertEqual(checked, 12 * Scale.allCases.count * bandCount * 6 * 4)
     }
 
     // MARK: - The shapes have to survive the projection
@@ -180,9 +245,11 @@ final class ArpFigureSurfaceTests: XCTestCase {
         XCTAssertEqual(up.count, cycle)
         XCTAssertEqual(up, up.sorted(), "the ascending walk did not ascend: \(up)")
         XCTAssertEqual(Set(up).count, cycle, "two positions of one cycle collapsed onto one pitch")
-        // `Array(...)` and not `up.reversed()`: `ReversedCollection<[Int]>` is a different type
-        // from `[Int]`, so the bare form does not compile — and with no local toolchain that
-        // costs a whole CI round.
+        // `Array(...)` spells the type out. (An earlier comment here claimed `up.reversed()`
+        // "does not compile" — that was an unverified guess, and wrong: `Sequence.reversed()`
+        // returns `[Element]` and the solver picks it when the other argument pins `[Int]`.
+        // `ArpFigureTests.swift:46` already relies on that. Keeping the explicit form, dropping
+        // the false claim about it.)
         XCTAssertEqual(pitches(.down), Array(up.reversed()),
                        "down is not the mirror after projection")
     }

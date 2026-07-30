@@ -218,9 +218,18 @@ public enum ArpFigure {
     ///
     /// Returns a normalized point in the same coordinates a FINGER uses — `x` 0…1 left→right,
     /// `y` 0…1 bottom→top — so the caller feeds it into the one mapping that already ships
-    /// (`TouchPitchMap.pitch(normX:normY:key:)`, `TouchInstrumentView.swift:44-53`) and the arp
-    /// is quantised into the take's key by exactly the same code as a played note. No second
-    /// pitch path, so no second way to produce a wrong note.
+    /// (`TouchPitchMap.pitch(normX:normY:key:)`, `TouchInstrumentView.swift:44-51`) and the arp
+    /// is quantised into the take's key by exactly the same code as a played note — one PITCH
+    /// path, so no second way to produce an out-of-key note.
+    ///
+    /// ⚠️ THAT IS NOT THE SAME AS "no way to produce a wrong note", and the first version of this
+    /// line claimed the stronger thing. `degreesPerOctave` here and the `key` the consumer is
+    /// handed are two independent arguments: pass a 5 while the consumer holds a 7-note key and
+    /// the result is a wrong DEGREE that is still in key and still in MIDI range — invisible to
+    /// every legality test. The signature keeps them apart deliberately (`Sequencer/` does not
+    /// name a `Studio/` type, and the geometry is testable without a key), so the ONE duty at the
+    /// call site is: this `degreesPerOctave` must come from the same `MusicalKey` the pitch
+    /// mapping gets. S4 has exactly one call site and passes `key.degreesPerOctave`.
     ///
     /// ⛔ WHY x LANDS IN THE MIDDLE OF THE DEGREE CELL, and this is the whole reason this
     /// function exists instead of a one-line division at the call site: the consumer computes
@@ -231,10 +240,18 @@ public enum ArpFigure {
     /// is half a cell from either boundary, so no accumulation of float error can move it.
     ///
     /// ⚠️ `bandCount` IS THE CONSUMER'S BAND COUNT, passed in rather than read.
-    /// `TouchPitchMap.octaveBands` has three entries today (`TouchInstrumentView.swift:39`), but
-    /// importing it here would drag `Studio/` into a file whose whole point is that it is pure
-    /// Foundation. The test pins the two together against the real `TouchPitchMap` instead —
-    /// which is the stronger check anyway, because it fails if EITHER side moves.
+    /// `TouchPitchMap.octaveBands` has three entries today (`TouchInstrumentView.swift:39`).
+    ///
+    /// ⚠️ AND THE REASON IS A LAYERING RULE, NOT AN IMPORT. The first version of this note said
+    /// reading `TouchPitchMap` here "would drag `Studio/` into a file whose whole point is that it
+    /// is pure Foundation" — which is simply not how Swift modules work: `TouchPitchMap` is in the
+    /// SAME module, needs no import statement, and is itself Foundation-only code sitting above
+    /// every `canImport` guard in its file. The real reasons are that `Sequencer/` should not name
+    /// a `Studio/` type (the surface is one consumer of this geometry, not its definition), and
+    /// that a parameter is testable at counts the shipped surface does not have. The test pins the
+    /// two together against the real `TouchPitchMap` — which catches the surface SHRINKING or
+    /// skipping an octave, but NOT it growing: a fourth band would go unused while every test
+    /// stayed green, because `maxOctaves` is 3.
     ///
     /// ⚠️ THE TOP BAND SATURATES, and a caller that ignores this will hear it. The surface spans
     /// `bandCount` registers and nothing else; `y` cannot express a fourth one, because the
@@ -243,8 +260,26 @@ public enum ArpFigure {
     /// top instead of rising — audible as an arp that hits a ceiling. This function saturates
     /// rather than folding downward (a fold would sound like a mistake, a ceiling sounds like a
     /// range limit), and it deliberately does NOT quietly re-base the walk lower: moving the
-    /// register out from under the player's own finger is the worse surprise. The caller that
-    /// wants every octave audible passes a `band` with `band + octaves - 1 < bandCount`.
+    /// register out from under the player's own finger is the worse surprise.
+    ///
+    /// ⛔ THE CALLER'S CONDITION, AND THE FIRST VERSION OF IT WAS WRONG IN A WAY THAT SOUNDS.
+    /// It said "pass a `band` with `band + octaves - 1 < bandCount`" — which ignores the CARRY
+    /// this same doc introduces two paragraphs down. A chord degree at or past the octave lifts a
+    /// band on its own, so the ceiling arrives earlier than that arithmetic promises. Worked
+    /// example, with the octave-tone the tests use: C major (7 degrees), chord `[0, 2, 4, 7]`,
+    /// `octaves: 1`, `band: 2`, `bandCount: 3`. The old condition holds (2 + 0 < 3), yet degree 7
+    /// carries to `lifted == 3`, clamps to 2, and sounds the ROOT of the top band — MIDI 72 where
+    /// the walk asked for 84. It then COLLIDES with degree 0 in the same band, so the cycle plays
+    /// the root twice instead of root-plus-ninth: audibly a stuck arp, the exact class the file
+    /// header warns about, and one that stays in key and in range so no legality sweep sees it.
+    ///
+    /// The honest condition adds the chord's own lift:
+    ///
+    ///     band + (octaves - 1) + max(floorDiv(degree, degreesPerOctave) for degree in chord)
+    ///         < bandCount
+    ///
+    /// For the default triad `[0, 2, 4]` the max carry is 0 and the two conditions coincide —
+    /// which is why this was easy to get wrong and easy to miss.
     ///
     /// - Parameters:
     ///   - step: A position from `step(atIndex:…)`, or any `Step` a caller built itself.
