@@ -561,7 +561,13 @@ final class TouchInstrumentUIView: UIView {
         // is precisely what the tolerance exists to prevent.
         let onGridTick = cell * Swift.max(1, quantizer.grid.tickSpan)
 
-        let touches = FieldAutoPlay.touches(atStep: cell, params: params, seed: autoPlaySeed)
+        // The two surface facts the `.arp` motion needs, from the ONE place that owns them: the
+        // key this very view maps with two lines below, and the surface's own band count. Read
+        // here rather than defaulted inside the generator, because a mismatch there would be a
+        // wrong DEGREE that still lands in the key — the kind no legality test can see.
+        let touches = FieldAutoPlay.touches(atStep: cell, params: params, seed: autoPlaySeed,
+                                            degreesPerOctave: key.degreesPerOctave,
+                                            bandCount: TouchPitchMap.octaveBands.count)
         // The bound cannot bite today — `touches` returns at most `FieldAutoPlay.maxVoices`
         // and there is one finger per that — but it is the index guard for an array, and the
         // two caps living in different files is exactly how those drift apart.

@@ -2629,16 +2629,29 @@ struct EchoelStudioView: View {
     @ViewBuilder private var fieldSelfPlayFields: some View {
         EchoelValueField(label: "Density", value: $fieldDensity,
                          range: 0...1, unit: "", decimals: 2)
-        EchoelValueField(label: "Voices", value: $fieldVoices,
-                         range: 1...Double(FieldAutoPlay.maxVoices), unit: "", decimals: 0)
+        // The arp is not a curve across the surface, so three of these dials do not apply to it
+        // (see `FieldAutoPlay.Motion.arp`): its x is a specific scale-degree cell, and Span,
+        // Centre or a second Voice would move it OFF that cell — a wrong note, not a wider
+        // gesture. Hidden rather than shown-and-ignored: this repo has paid four times for a
+        // control that is visible and does nothing (#164, #227).
+        if FieldAutoPlay.Motion(rawValue: fieldMotionRaw) == .arp {
+            Text("Arp strikes the chord tones of your key — root, third, fifth, upwards — instead of travelling across the field. Density and Traverse set its rate; Band sets the register.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            EchoelValueField(label: "Voices", value: $fieldVoices,
+                             range: 1...Double(FieldAutoPlay.maxVoices), unit: "", decimals: 0)
+        }
         // "Period" in cells of the Sync grid, so the two settings share one vocabulary rather
         // than the generator inventing a second time unit.
         EchoelValueField(label: "Traverse", value: $fieldPeriod,
                          range: 1...64, unit: "cells", decimals: 0)
-        EchoelValueField(label: "Span", value: $fieldSpan,
-                         range: 0...1, unit: "", decimals: 2)
-        EchoelValueField(label: "Centre", value: $fieldCentre,
-                         range: 0...1, unit: "", decimals: 2)
+        if FieldAutoPlay.Motion(rawValue: fieldMotionRaw) != .arp {
+            EchoelValueField(label: "Span", value: $fieldSpan,
+                             range: 0...1, unit: "", decimals: 2)
+            EchoelValueField(label: "Centre", value: $fieldCentre,
+                             range: 0...1, unit: "", decimals: 2)
+        }
         EchoelValueField(label: "Band", value: $fieldBand,
                          range: 0...1, unit: "", decimals: 2)
         EchoelValueField(label: "Band drift", value: $fieldBandDrift,
@@ -2646,9 +2659,20 @@ struct EchoelStudioView: View {
         // The threshold is stated because a control whose first third does nothing AUDIBLE
         // reads as broken unless you say what it is doing instead. `y` picks one of three
         // octave bands, so the wander has to span more than a third to cross a boundary.
-        Text("Band drift under about 0.35 moves the light on the field without changing the octave.")
-            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            .fixedSize(horizontal: false, vertical: true)
+        //
+        // Two sentences, because the arp behaves DIFFERENTLY here and the difference is not
+        // cosmetic: its note snaps to the middle of its register, so a sub-threshold drift moves
+        // neither the octave NOR the light. Reusing the travelling wording for it would have
+        // promised a visible effect that cannot happen.
+        if FieldAutoPlay.Motion(rawValue: fieldMotionRaw) == .arp {
+            Text("Band drift only changes the arp when it crosses into the next register — under about 0.35 it does nothing.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            Text("Band drift under about 0.35 moves the light on the field without changing the octave.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// Player-facing names for the motions. Kept out of `FieldAutoPlay` on purpose: that type
@@ -2661,6 +2685,7 @@ struct EchoelStudioView: View {
         case .pendulum: return "Pendulum"
         case .drift:    return "Drift"
         case .hold:     return "Hold"
+        case .arp:      return "Arp"
         }
     }
 

@@ -34,12 +34,19 @@
 //  This app has already paid for a parallel path once (the mixer faders that could not be heard
 //  because a second stage overwrote their amplitude, #177).
 //
-//  Not an arpeggiator, and the difference is the point. `BreathArp` walks the notes of a
-//  CHORD. This walks the SURFACE — x is a scale degree across one octave, y is the octave
-//  band — so what it plays is whatever the field would have played under a hand moving that
-//  way. The two are meant to become one control with a mode (founder: "Vielleicht ist der arp
-//  auch eine eigene Kategorie und könnte ein komplexes bedienelement werden"); keeping them
-//  as separate pure cores is what makes that merge a UI decision rather than a rewrite.
+//  Five of the six motions walk the SURFACE — x is a scale degree across one octave, y is the
+//  octave band — so what they play is whatever the field would have played under a hand moving
+//  that way. The SIXTH, `.arp`, walks a CHORD instead (#220 S3, founder: "Vielleicht ist der arp
+//  auch eine eigene Kategorie und könnte ein komplexes bedienelement werden"): the merge this
+//  paragraph used to describe as future work has happened, as ONE motion slot rather than a
+//  second self-play surface. The walk itself lives in `ArpFigure` (pure, its own tests), and this
+//  file only decides WHEN it steps and WHERE on the surface that lands.
+//
+//  ⚠️ Choosing `.arp` therefore turns the travelling OFF — one slot, one behaviour. Say that to
+//  a player rather than leaving them to discover it, and note that `centre`, `span` and `voices`
+//  do not apply on that motion at all (the panel hides those rows; see the `.arp` case).
+//  `BreathArp` is untouched and is NOT this: its live half is the Euclidean density rule that
+//  `fires` below reuses.
 //
 //  Pure, Foundation-only, deterministic from (step, params, seed). No audio, no state, no
 //  clock: the caller owns the tick. That is what makes the movement testable at all — the
@@ -88,6 +95,23 @@ public enum FieldAutoPlay {
         /// Does not travel. How a player parks on one note and shapes it with everything
         /// else. NOT a slow wander — exactly still.
         case hold
+        /// Walks the tones of a CHORD instead of a path across the surface (#220 S3, founder
+        /// 2026-07-29: *"Vielleicht ist der arp auch eine eigene Kategorie"*).
+        ///
+        /// ⚠️ IT IS A DIFFERENT KIND OF MOTION FROM THE OTHER FIVE, and pretending otherwise is
+        /// how it would become a lying control. The other five are CURVES: `travel` returns a
+        /// 0…1 position and `centre`/`span`/`voices` then place it. The arp has no curve — its
+        /// x is a specific scale-degree CELL, and nudging that cell off its centre by a span or
+        /// an offset would produce a wrong note rather than a wider gesture. So on this motion
+        /// `centre`, `span` and `voices` are not applied at all, and the panel hides those rows
+        /// rather than leaving three dials that do nothing (`EchoelStudioView.fieldSelfPlayFields`).
+        /// `density` and `periodSteps` keep their exact meaning (which cells fire = the rate),
+        /// and `band`/`bandDrift` keep theirs (which register, and its slow wander).
+        ///
+        /// One note per fired cell, never `voices` of them: an arpeggio is a chord played as a
+        /// SEQUENCE. Stacking it would just be the chord, which the generative engine already
+        /// plays.
+        case arp
     }
 
     /// A generated contact on the surface. Same three quantities a real finger supplies, in
@@ -146,6 +170,25 @@ public enum FieldAutoPlay {
         /// Clamped to `maxPeriodSteps` on both decode and use — see that constant.
         public var periodSteps: Int
 
+        // MARK: The arp dials — read ONLY when `motion == .arp` (#220 S3)
+
+        /// Which way the arp walks its chord.
+        public var arpOrder: ArpFigure.Order
+        /// Octave span of the arp walk, 1…`ArpFigure.maxOctaves`.
+        ///
+        /// ⚠️ THE SURFACE HAS A CEILING and this dial can reach it: `band` picks the base
+        /// register, and a span that lifts past the top band SATURATES there — the highest
+        /// octaves then repeat instead of rising (`ArpFigure.surfacePoint` documents why
+        /// saturating beats folding down, and why the walk is not quietly re-based lower). With
+        /// the shipped three-band surface the condition for every octave to be audible is
+        /// `baseBand + arpOctaves - 1 + the chord's own carry < 3`. The default 1 is inside it.
+        public var arpOctaves: Int
+        /// The chord as SCALE-DEGREE indices, not semitones — so `[0, 2, 4]` is the triad of
+        /// whatever key the take is in and stays a triad in a pentatonic or maqam scale.
+        /// Negatives are dropped and duplicates collapse inside `ArpFigure`; an empty result is
+        /// SILENCE, not a substituted root.
+        public var arpChordDegrees: [Int]
+
         /// Format stamp (#189), same shape as `MoodPreset`: the ENCODER writes it; a future
         /// migration that cannot be handled additively (a renamed dial, a changed unit) reads
         /// the file's own value into a local inside `init(from:)`. Stamping costs one line
@@ -157,9 +200,14 @@ public enum FieldAutoPlay {
         /// disk. Same reasoning as `MoodPreset.schemaVersion`.
         public private(set) var schemaVersion: Int = Params.currentSchemaVersion
 
+        /// The arp dials sit LAST and are defaulted, so every existing call site — the window's
+        /// `fieldAutoPlay`, every test — compiles and behaves byte-identically. Additive by
+        /// construction, and that is what makes this slice reversible.
         public init(motion: Motion = .pendulum, density: Float = 0.5, span: Float = 0.6,
                     centre: Float = 0.5, band: Float = 0.5, bandDrift: Float = 0.2,
-                    voices: Int = 1, periodSteps: Int = 16) {
+                    voices: Int = 1, periodSteps: Int = 16,
+                    arpOrder: ArpFigure.Order = .up, arpOctaves: Int = 1,
+                    arpChordDegrees: [Int] = [0, 2, 4]) {
             self.motion = motion
             self.density = density
             self.span = span
@@ -168,6 +216,9 @@ public enum FieldAutoPlay {
             self.bandDrift = bandDrift
             self.voices = voices
             self.periodSteps = periodSteps
+            self.arpOrder = arpOrder
+            self.arpOctaves = arpOctaves
+            self.arpChordDegrees = arpChordDegrees
         }
 
         /// Additive decode (law 9), so a Params saved before a dial existed loads with that
@@ -193,6 +244,18 @@ public enum FieldAutoPlay {
             // trap the first time something multiplied it.
             let steps = (try? c.decode(Int.self, forKey: .periodSteps)) ?? d.periodSteps
             periodSteps = Swift.min(FieldAutoPlay.maxPeriodSteps, Swift.max(1, steps))
+            // The arp dials (#220 S3). `arpOrder` gets the same `try?` as `motion` and for the
+            // same reason — it is a raw-value enum, so a stored case that a later build removes
+            // THROWS `dataCorrupted` rather than reading as absent.
+            arpOrder = (try? c.decode(ArpFigure.Order.self, forKey: .arpOrder)) ?? d.arpOrder
+            let octaves = (try? c.decode(Int.self, forKey: .arpOctaves)) ?? d.arpOctaves
+            arpOctaves = Swift.min(ArpFigure.maxOctaves, Swift.max(1, octaves))
+            // Capped at the boundary as well: a decoded array must never size an allocation
+            // inside `ArpFigure.permutation`, and a "chord" of thousands of tones is corruption
+            // rather than a request. `ArpFigure.sanitize` caps too — this stops the oversized
+            // array from sitting in memory looking legitimate in the meantime.
+            let chord = (try? c.decode([Int].self, forKey: .arpChordDegrees)) ?? d.arpChordDegrees
+            arpChordDegrees = Array(chord.prefix(ArpFigure.maxChordTones))
         }
     }
 
@@ -221,9 +284,17 @@ public enum FieldAutoPlay {
     ///   - step: grid cell index from the caller's clock. Negative values are folded, not
     ///     rejected — a caller counting from a bar boundary can legitimately go below zero.
     ///   - params: the dials.
-    ///   - seed: makes `.drift` reproducible. The other motions are fixed curves and ignore
-    ///     it, which is asserted rather than assumed.
-    public static func touches(atStep step: Int, params: Params, seed: UInt64) -> [Touch] {
+    ///   - seed: makes `.drift` and `.arp`'s `.random` order reproducible. The other motions are
+    ///     fixed curves and ignore it, which is asserted rather than assumed.
+    ///   - degreesPerOctave: scale degrees per octave of the key the CONSUMER will map with, and
+    ///     read ONLY by `.arp`. Defaulted so this slice touches no existing call site; the one
+    ///     production caller passes `key.degreesPerOctave` of the very key it then hands to
+    ///     `TouchPitchMap.pitch` (`TouchInstrumentView`). Passing a different number is not a
+    ///     crash, it is a wrong DEGREE that stays inside the key — the invisible kind.
+    ///   - bandCount: octave bands the surface spans, likewise `.arp`-only. The caller passes
+    ///     `TouchPitchMap.octaveBands.count`; the default matches the shipped surface.
+    public static func touches(atStep step: Int, params: Params, seed: UInt64,
+                               degreesPerOctave: Int = 7, bandCount: Int = 3) -> [Touch] {
         let voices = Swift.min(maxVoices, params.voices)
         guard voices > 0 else { return [] }
 
@@ -239,16 +310,25 @@ public enum FieldAutoPlay {
 
         guard fires(cell: cell, density: density, period: period) else { return [] }
 
-        let span = clamp01(params.span)
-        let centre = clamp01(params.centre)
-        let phase = travel(motion: params.motion, cell: cell, period: period, seed: seed)
-
         // Vertical wander on a DELIBERATELY different period (×3, prime-ish against the
         // horizontal one) so x and y do not trace a single diagonal — the visual and audible
         // tell of a lazy 2D generator.
         let bandPhase = triangle(Float(((step % (period * 3)) + period * 3) % (period * 3))
                                  / Float(period * 3))
         let y = clamp01(params.band + (bandPhase - 0.5) * clamp01(params.bandDrift))
+
+        // The arp is not a curve, so it leaves the travel/span/centre path entirely — see the
+        // `.arp` case's own note for why bending its x would be a wrong note rather than a wider
+        // gesture. It keeps `y` (register + its slow wander), the fire pattern and the accent.
+        if params.motion == .arp {
+            return arpTouches(step: step, cell: cell, period: period, density: density,
+                              y: y, params: params, seed: seed,
+                              degreesPerOctave: degreesPerOctave, bandCount: bandCount)
+        }
+
+        let span = clamp01(params.span)
+        let centre = clamp01(params.centre)
+        let phase = travel(motion: params.motion, cell: cell, period: period, seed: seed)
 
         return (0..<voices).map { voice in
             // Voices are offset ACROSS the span, so more than one is a chord rather than the
@@ -258,6 +338,62 @@ public enum FieldAutoPlay {
             let x = clamp01(centre + (phase - 0.5) * span + offset * span * 0.5)
             return Touch(x: x, y: y, velocity: velocity(cell: cell, period: period))
         }
+    }
+
+    // MARK: - The arp
+
+    /// The ONE contact an arp cell plays, or none when the chord is empty.
+    ///
+    /// ⛔ THE WALK ADVANCES PER SOUNDED NOTE, NOT PER CELL, and that is the whole reason this is
+    /// not two lines inside `touches`. Using the cell index as the walk position looks right and
+    /// is wrong: at density 0.5 the arp would then skip every second chord tone, so `ArpFigure`'s
+    /// one guarantee — every tone sounds exactly once per cycle — would be silently false, and an
+    /// "up" figure would come out full of holes. What a player expects, and what hardware arps
+    /// do, is one step of the pattern per RATE tick. So the index is the count of cells that have
+    /// FIRED: the ones before this cell in the traverse, plus a whole traverse's worth for each
+    /// completed traverse.
+    ///
+    /// Cost: two passes over the traverse (≤ `maxPeriodSteps` = 1024 cheap modulo tests) per
+    /// SOUNDED cell — not per frame. The driver only calls in when the grid cell changes
+    /// (`TouchInstrumentUIView.autoPlayTick`), i.e. a handful of times a second.
+    ///
+    /// Wrapping arithmetic on purpose: `traverse * firedPerTraverse` would TRAP for an absurd
+    /// `step`, and a trap on the self-play path is the worst outcome available. A wrap merely
+    /// lands on a different position of the same walk — `ArpFigure` folds any `Int` by flooring.
+    static func arpTouches(step: Int, cell: Int, period: Int, density: Float, y: Float,
+                           params: Params, seed: UInt64,
+                           degreesPerOctave: Int, bandCount: Int) -> [Touch] {
+        let firedPerTraverse = firedCount(before: period, density: density, period: period)
+        let firedBefore = firedCount(before: cell, density: density, period: period)
+        let traverse = ArpFigure.floorDiv(step, period)
+        let index = traverse &* firedPerTraverse &+ firedBefore
+
+        guard let walk = ArpFigure.step(atIndex: index,
+                                        chordDegrees: params.arpChordDegrees,
+                                        octaves: params.arpOctaves,
+                                        order: params.arpOrder,
+                                        seed: seed) else { return [] }
+
+        // `y` is already clamped to 0…1 by a NaN-safe `clamp01`, so this `Int(...)` cannot trap —
+        // worth stating, because `Int(Float.nan)` DOES trap and this is the file's only
+        // float-to-int conversion.
+        let bands = Swift.max(1, bandCount)
+        let baseBand = Swift.min(bands - 1, Int(y * Float(bands)))
+        let point = ArpFigure.surfacePoint(walk,
+                                          degreesPerOctave: degreesPerOctave,
+                                          bandCount: bands,
+                                          band: baseBand)
+        return [Touch(x: Float(point.x), y: Float(point.y),
+                      velocity: velocity(cell: cell, period: period))]
+    }
+
+    /// How many cells in `0..<before` fire at this density. Pure counterpart of `fires`.
+    static func firedCount(before limit: Int, density: Float, period: Int) -> Int {
+        var count = 0
+        for i in 0..<Swift.max(0, limit) where fires(cell: i, density: density, period: period) {
+            count += 1
+        }
+        return count
     }
 
     // MARK: - The clock decision
@@ -318,6 +454,11 @@ public enum FieldAutoPlay {
         case .fall:     return 1 - t
         case .pendulum: return triangle(t)
         case .hold:     return 0.5
+        // Never consulted: `touches` returns through `arpTouches` before this is called, because
+        // the arp's x is a degree CELL and not a position on a curve. The value exists only to
+        // keep the switch total — 0.5 (the centre, i.e. "no displacement") is the honest one to
+        // return if a future caller ever asks, rather than an arbitrary edge.
+        case .arp:      return 0.5
         case .drift:
             // A bounded walk recomputed from the cell index rather than carried in state:
             // this type is a pure function of (step, params, seed), so a caller may ask for
