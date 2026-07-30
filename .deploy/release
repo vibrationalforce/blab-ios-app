@@ -1,4 +1,4 @@
-build: v10.79.359 — der stumme App-Fehler, ein Start-Knopf, und das Tempo lief rückwärts
+build: v10.79.360 — Rhythmus-Charaktere, 16 Genres, der Arp auf der Fläche
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,122 +6,145 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.358.
+  Der Vorgänger auf Deinem Gerät ist 10.79.359.
 
-  Du hast gefragt, ob hier alles drin ist, was Du Dir gewünscht hast. NEIN — und ich sage
-  Dir zuerst, was fehlt, weil Du sonst danach suchst: der ARP als eigene Kategorie, die
-  Sample-Engine fürs Feld (laden/aufnehmen), das EINE Bedienelement statt neun Reglern für
-  die Visuals, und der große UX-Durchgang über das ganze Projekt sind NICHT drin. Die sind
-  gebaut-noch-nicht, nicht vergessen.
+  54 Commits. Das ist der größte Sprung seit Wochen, und der Schwerpunkt liegt da, wo Du
+  ihn gesetzt hast: Rhythmus für alle Klangkategorien und mehr elektronische Genres.
 
-  Was drin ist, sind vierzehn Änderungen — und darunter die vier Dinge, die Dich in den
-  letzten Tagen am meisten gestört haben.
+  ── ZUERST DER EINE TEST, DEN ICH NICHT MACHEN KANN ─────────────────────────
 
-  ── DER GRUND, WARUM ALLES STUMM WAR ────────────────────────────────────────
+  Öffne den LOOP-Modus (Tempo-Lock an) bei NORMALER Textgröße und sieh Dir die
+  Transportleiste an. Sieht sie normal aus, oder nimmt sie plötzlich einen großen Teil des
+  Bildschirms?
 
-  „Ich hab keinen Sound alles stumm." Gefunden, und es war kein Klangproblem.
+  Warum das ganz oben steht: ich habe in diesem Build die feste Höhe der drei oberen
+  Leisten in eine MINDESThöhe verwandelt, damit sehbehinderte Nutzer die Schrift endlich
+  vergrößern können (siehe unten). Ein Reviewer fand danach, dass eine Mindesthöhe den
+  Höhen-Vorschlag nach unten durchreicht — und die Scrub-Fläche im Zahlenfeld ist ein
+  Rechteck, das JEDE Höhe annimmt. Im Loop-Modus IST der Tempo-Regler so ein Zahlenfeld.
+  Ohne Gegenmaßnahme hätte die Transportleiste sich den freien Platz mit dem Instrument
+  GETEILT — bei normaler Textgröße, für jeden.
 
-  Die App stoppt die Audio-Engine, wenn sie im Hintergrund untätig ist — das ist
-  vorgeschrieben (Apple 2.5.4). Beim Zurückkommen sollte sie wieder anlaufen. Sie tat es
-  nicht: derselbe Merker, der das Selbstheilen unterdrückt, unterdrückte auch das
-  Wiederanlaufen. Die App war ab diesem Moment für den Rest der Sitzung stumm, und der
-  einzige Ausweg war ein Neustart. Es sind jetzt zwei getrennte Regeln, und ein Test hält
-  sie auseinander, weil sie AUSEINANDERGEHEN müssen — dass sie sich widersprechen, ist
-  genau der Punkt.
+  Die Gegenmaßnahme ist drin (`fixedSize` über jeder Mindesthöhe) und compile-verifiziert.
+  Aber SwiftUI-Layout ist erst auf einem Gerät bewiesen, und hier gibt es keinen Simulator.
+  Zehn Sekunden Deines Blicks ersetzen alles, was ich dazu schreiben kann.
 
-  ── DAS TEMPO LIEF RÜCKWÄRTS ────────────────────────────────────────────────
+  ── RHYTHMUS FÜR ALLE KLANGKATEGORIEN ───────────────────────────────────────
 
-  Das ist der schwerste Fehler in diesem Build, und er kehrte die eine Behauptung um, auf
-  der das ganze Produkt steht: dass Dein Körper spielt.
+  Dein Wunsch: „rhythm controls for all sound categories". Jetzt gebaut, als sechs
+  Rhythmus-Charaktere pro Klangrolle:
 
-  Ein Puls knapp ÜBER der Genre-Obergrenze wurde halbiert, rutschte unter die Untergrenze
-  und wurde dort festgeklemmt. Auf Contemplation (44–66 BPM): 66 ergab 66, aber 67 ergab
-  44. 80 ergab 44. 134 ergab 44. Der schnellere Körper machte die langsamere Musik.
-  Betroffen war ein großer Teil jedes Genrefensters — 41 % bei Contemplation, 47 % bei
-  Fläche, 90 % bei Psytrance — weil JEDES Genrefenster schmaler ist als eine Oktave.
+  · Der ARP läuft seinen Akkord in einem gewählten Rhythmus ab, nicht mehr in einem festen
+    Puls — und er läuft über die FLÄCHE, nicht nur über eine Tonleiter. Vier erreichbare
+    Regler statt einer versteckten Kurve.
+  · Der BASS kann laufen, in einem gewählten Rhythmus — standardmäßig tut er es NICHT, das
+    ist Absicht: der bisherige Klang bleibt der Ausgangspunkt.
+  · Der PAD-Akkord kann sich in einem gewählten Rhythmus neu anschlagen statt zu liegen.
+  · Der Rhythmus-Charakter formt jetzt auch den KLANG, minimal — nicht nur das Timing.
+  · „Laid back" hat einen echten Regler bekommen (den Push), und zwar nur seine ehrliche
+    Hälfte: was die Engine nicht umsetzt, verspricht die Zeile auch nicht.
 
-  Das ist mit hoher Wahrscheinlichkeit auch die 44 BPM aus Deinem Log 2475. Ich schreibe
-  „Wahrscheinlichkeit", weil ich es hergeleitet und nicht gemessen habe.
+  ⚠ EHRLICH: der Bass-Swing ist heute eine Trigger-Granularitäts-Scheibe. Sub-Takt-Versatz
+  steht korrekt in den Noten und im MIDI-Export, wird aber live noch auf das 16tel-Raster
+  gerundet. Notiert, nicht vergessen.
 
-  ── UND WARUM ALLES WIE CLASSIC KLANG ───────────────────────────────────────
+  ── 16 GENRES ──────────────────────────────────────────────────────────────
 
-  Deine Klage vom 22. Juli. Es gibt einen Anker, der die Harmonie auf die EIGENE Progression
-  des Genres zurückholt, damit nicht alle dieselbe geteilte Akkordreise spielen. Sein
-  Mindestwert rundete bei einem Ein-Sektions-Take auf NULL — also kein Anker, gar keiner.
+  Dein Wunsch: „more electronic genres". Vier Runden, als POLE gebaut und nicht als
+  Varianten voneinander — Acid Techno · Deep House · Deep Drone · Ambient Pulse ·
+  Uplifting Trance · Tech House · Minimal Techno · Detroit Techno, dazu die vorhandenen.
 
-  Betroffen: Selbstbeobachtung (das Standard-Genre), Meditation, Psytrance und Doom. Und
-  zwar bei jeder Kohärenz unter 0,35 — Kamera-Puls meldet 0, bis sich Schläge angesammelt
-  haben, und HealthKit misst Kohärenz überhaupt nie. Das waren die ersten Minuten JEDER
-  Sitzung auf dem Standard-Genre.
+  Der Punkt war nicht die Anzahl. Der Punkt war, dass „Techno" zwei Sachen heißt, und
+  Minimal und Detroit sind die beiden Enden davon. Wenn die für Dich gleich klingen, ist
+  die Arbeit nicht fertig, egal wie viele Namen in der Liste stehen.
 
-  ── EIN START-KNOPF ─────────────────────────────────────────────────────────
+  ── DAS FX-FENSTER FROR DAS TEMPO EIN ───────────────────────────────────────
 
-  Dein Screenshot: „3 Knöpfe zum Start drücken, könnte man das zu einem zusammenfassen?"
+  Es reichte, das FX-Fenster zu ÖFFNEN: ab da folgten die tempo-abhängigen Effekte nicht
+  mehr dem Tempo. Behoben. Und das Delay hat endlich einen Regler für sein Stereobild
+  („Spread") — der Wert reiste schon vorher in den Presets mit, es gab nur keine Zeile
+  dafür.
 
-  Es waren fünf. Drei sichtbare und zwei versteckte — die Pulse-Pille, das ▶, „Create from
-  Within", plus eine Zeile im Bio-Panel namens „Read pulse", die eine ganze Session startete
-  statt zu messen, und das lange Drücken auf die Pille. Geblieben ist der beschriftete.
+  ⚠ Weiter OFFEN und eine Entscheidung für Dich: 29 Genres notieren eine eigene
+  Delay-Teilung, die das Audio NIE erreicht — ein einziger Picker-Wert gilt für alle. Ich
+  habe das nicht heimlich geradegezogen, weil es den Klang von 29 Genres ändert.
 
-  Die Pille ist wieder ein reines Anzeigegerät (Antippen öffnet jetzt das Bio-Panel — das war
-  vorher nur per langem Drücken erreichbar). Das ▶ erscheint nur noch WÄHREND einer Session
-  und ist dort der Musik-Transport: Musik weglassen, ohne den Pulslock zu verlieren, der
-  ~20 s zum Wiederfinden braucht.
+  ── UND EINE ENTSCHEIDUNG, DIE ICH DIR NICHT ABNEHMEN KANN ──────────────────
 
-  Dabei habe ich einen Fehler gemacht und ihn selbst gefunden: ich hatte das ▶ mit der
-  Begründung behalten, es stoppe nur die Musik — und Dein eigenes Log widerlegte das
-  innerhalb einer Stunde (`stop source: transport-bar ■` bei 828.182, `stopEverything`
-  14 Millisekunden später). Ich habe die Begründung nicht schöngeredet, sondern den Satz
-  wahr gemacht.
+  Ich wollte dem Lead einen Rhythmus geben und stellte dabei fest: ES GIBT KEINE
+  LEAD-MELODIE. Der Lead-Fader im Mixer zeigt eine Stimme, die nie klingt. Ich habe die
+  Änderung gebaut und wieder zurückgenommen, statt einen Rhythmus für etwas zu bauen, das
+  stumm ist. Was soll der Lead sein — willst Du eine echte Leadstimme, oder soll der Fader
+  verschwinden?
 
-  ── „CLEAN (DRY)" WAR NIE TROCKEN ───────────────────────────────────────────
+  ── WAS ANDERE GERÄTE VON UNS BEKOMMEN ──────────────────────────────────────
 
-  Fünf der zwölf FX-Charaktere haben in JEDEM bisher ausgelieferten Build ein hörbares
-  Delay getragen, obwohl ihr Preset es ausschaltet: Clean, Telephone, Vinyl, Harmonizer und
-  Room. Eine Zeile schaltete es unmittelbar danach wieder ein. Der Delay-Schalter im
-  „Alle Parameter"-Panel konnte deshalb auch nicht aus bleiben — er sprang zurück.
+  Zwei Korrekturen, die niemand HÖRT und die trotzdem wichtig sind:
 
-  DAS HÖRST DU: diese fünf Charaktere klingen jetzt anders als in allem, was Du bisher
-  hattest. Trockener. Ob das besser ist, kann ich nicht beurteilen.
+  · Wir haben strukturelle Nullen als Messwerte verschickt. Ein Puls von 0, bevor die
+    Kamera greift, ging als „/bio/heart/bpm 0" auf fremdes Equipment — nicht als „noch
+    keine Messung", sondern als Zahl. Jede Bio-Adresse hat jetzt ein Tor.
+  · Beim immersiven Objekt (ADM-OSC) reitet jede Achse auf ihrer EIGENEN Messung. Vorher
+    hat ein Brustgurt, der keine Atmung liefert, das Objekt eine ganze Session lang auf
+    Azimut −180 festgenagelt.
 
-  ── FÜR MENSCHEN, DIE DIE APP NICHT SEHEN ───────────────────────────────────
+  ── FÜR MENSCHEN, DIE DIE SCHRIFT VERGRÖSSERN ───────────────────────────────
 
-  Das Zahlenfeld — 58 Stellen in der App — reagierte auf VoiceOver-Wischen mit einer
-  neuen, korrekt gesprochenen Zahl, die die Engine NIE erreichte. Der ganze Klang-Editor
-  hinter dem Sound-Chip war erreichbar und wirkungslos. Und zusätzlich: bei jedem Feld mit
-  ganzen Zahlen und einer Spannweite unter 25 war die Schrittweite kleiner als das Raster,
-  auf das gerundet wird — „Beats per bar", die Feld-Stimmen, FX-„Bits", beide
-  Harmonizer-Intervalle waren per VoiceOver überhaupt nicht verstellbar, während der
-  Hinweis „Swipe up or down to adjust" versprach. Beides ist dieselbe Sorte Lüge.
+  Die obere Leiste — Play/Stop, Tempo, Genre, Tonart, Skala, Tonsystem, A4 — war auf die
+  größte NICHT-Barrierefreiheits-Textgröße gedeckelt. Wer sein iPhone auf eine
+  Accessibility-Größe stellt, bekam dort NULL Vergrößerung, ausgerechnet an den Controls,
+  die immer sichtbar sind. Deckel angehoben, Leisten wachsen mit.
+
+  EHRLICH: nur EINE Stufe hoch (AX1). Wer AX4/AX5 eingestellt hat, bekommt weiterhin AX1.
+  Drei gestapelte Leisten bei AX5 wären grob 270–420 pt Chrome über dem Instrument — die
+  Spanne ist ungemessen, und das ist genau der Grund für die Zurückhaltung.
+
+  ── DIE WEBSITE UND DIE RECHTSSEITEN SAGEN JETZT DIE WAHRHEIT ───────────────
+
+  Streaming/Broadcast stand noch als Feature in den AGB und als „Roadmap" im README —
+  beides raus, es ist NICHT geplant. Die Screenshot-Untertitel für den App Store waren zu
+  zwölf Sprachen erfunden (u. a. „Professional streaming to any platform", „Sacred geometry
+  meets quantum aesthetics") — ersetzt durch acht wahre in Deutsch und Englisch. Und der
+  MIDI-Export, den die App KANN und den der Store-Text verkauft, wurde an sechs Stellen
+  geleugnet.
+
+  ── WAS NICHT DRIN IST ──────────────────────────────────────────────────────
+
+  Damit Du nicht danach suchst: die Sample-Engine fürs Feld (laden/aufnehmen), das EINE
+  Bedienelement statt neun Reglern für die Visuals, der große UX-Durchgang über das ganze
+  Projekt, und der Pegelausgleich beim durchgezogenen Finger auf der Fläche.
+  Gebaut-noch-nicht, nicht vergessen.
 
   ── WAS ICH VON DIR BRAUCHE ─────────────────────────────────────────────────
 
-  · IST ES NOCH STUMM? App in den Hintergrund, ein paar Minuten warten, zurückkommen,
-    spielen. Das ist der wichtigste Test in diesem Build.
-  · KLINGT DAS TEMPO JETZT WIE DEIN PULS? Ein bewusst schnellerer Herzschlag muss die Musik
-    SCHNELLER machen, nicht langsamer.
-  · Klingen Selbstbeobachtung, Meditation, Psytrance und Doom in den ersten Minuten
-    unterscheidbar — oder immer noch „alles wie classic"?
-  · Die fünf trockenen FX-Charaktere: Verlust oder Gewinn?
-  · Ein Start-Knopf: genug, oder fehlt Dir jetzt etwas?
-  · Weiter offen aus 358: spielt sich das Feld musikalisch selbst · klingen die sieben
-    Charaktere verschieden · knistert es (bitte `echoel_diag.log` ab „audio timing:") ·
-    startet die App ohne angeschlossenen Bildschirm.
+  · DIE LEISTE IM LOOP-MODUS (siehe ganz oben) — der einzige echte Risiko-Punkt.
+  · Klingen die 16 Genres verschieden? Besonders Minimal Techno vs. Detroit Techno.
+  · Hörst Du die Rhythmus-Charaktere? Bass und Pad sind standardmäßig AUS — Du musst sie
+    einschalten, sonst klingt es wie vorher, und das ist Absicht.
+  · „Laid back": macht der Push-Regler das, was das Wort verspricht?
+  · Das FX-Fenster: folgt das Delay jetzt dem Tempo, auch nachdem Du das Fenster geöffnet
+    hattest?
+  · Der Lead: echte Stimme oder Fader weg?
+  · Weiter offen aus 359: ist es noch stumm nach Hintergrund + Rückkehr · folgt das Tempo
+    Deinem Puls nach oben · sind Selbstbeobachtung/Meditation/Psytrance/Doom in den ersten
+    Minuten unterscheidbar · sind die fünf trockenen FX-Charaktere Verlust oder Gewinn.
 
   ── PRÜFSTAND ───────────────────────────────────────────────────────────────
 
-  Auf dem letzten Commit dieses Builds (62ed115) sind BEIDE echten Gates fertig und grün:
+  Auf dem letzten Commit dieses Builds (b92c3ee) sind BEIDE echten Gates fertig und grün:
   Xcode Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide fertig
-  gesehen habe — beim letzten Build hing eines noch in der Warteschlange und das stand
-  auch so da.
+  gesehen habe.
 
-  Vier von fünf Änderungen dieses Zyklus wurden vor dem Commit von einem Reviewer geprüft,
-  und JEDER fand etwas Echtes: die tote Delay-Zeile hätte das lügende Control nur eine
-  Zeile weiterwandern lassen; die VoiceOver-Reparatur war ohne die Schrittweite nur halb;
-  drei Zahlen in meinen eigenen Kommentaren waren falsch ergrept. Mein eigener Nachrechnen
-  fand zusätzlich eine falsche Testzusicherung von mir.
+  Jede substanzielle Änderung dieses Zyklus ging vor dem Commit durch einen Reviewer, und
+  fast jeder fand etwas Echtes. Das Muster, das sich durch diesen Build zieht und das ich
+  Dir nicht verschweige: VIERMAL war der Mechanismus richtig und meine BEGRÜNDUNG dafür
+  falsch — eine Schwelle, die die Rate nicht begrenzte; ein Auslöser ohne Aufrufer; ein Tor
+  strenger als sein eigener Kommentar; eine Kopplung zwischen Chrome und Pinch-Zoom, die es
+  nie gab. Alle vier stehen jetzt korrigiert im Code, nicht gelöscht, damit die nächste
+  Session nicht nach etwas sucht, das nicht existiert.
 
-  NICHT geräteverifiziert. Alles oben, was klingt oder sich anfühlt, entscheidet Dein Ohr.
-  Der Stumm-Fehler betrifft den Audio-Weg und ist damit ERST auf dem Gerät bewiesen.
+  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
+  Dein Ohr und Dein Auge.
 
   Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
   allokationsfrei.
