@@ -79,6 +79,23 @@ public enum StudioDefaultKeys {
 
     // MARK: visual.* — immersive visual look + window
 
+    /// Whether the immersive visual is the spectrum→visible DONUT renderer instead of the Metal
+    /// field. **Default `false`, and it used to be `true` (#227).**
+    ///
+    /// ⛔ WHY THE DEFAULT FLIPPED. `SpectralDonutView` is constructed at exactly ONE place —
+    /// inside `EchoelStudioView`'s `.fullScreenCover(isPresented: $showVisual)` — and `showVisual`'s
+    /// only setter was the deleted `openTool`, so that cover cannot be presented. The visual a
+    /// player can actually reach is `FloatingVisualWindow`, which never reads this key at all.
+    /// With the old default, a FRESH INSTALL showed a filled "Donuts" pill and a readout saying
+    /// "Donuts" while the one visible visual drew a Metal look — the #164/#227 lying control, on
+    /// first launch, before the player has touched anything. Worse, `true` also hid the Blend
+    /// controls (`if !spectralDonuts`) and skipped the launch look-snap, so the lie cost real
+    /// controls rather than only being cosmetic.
+    ///
+    /// The KEY STRING is deliberately unchanged: an existing install may have `true` stored, and
+    /// the launch normalisation in `EchoelStudioView` has to be able to FIND that value to clear it.
+    /// Renaming the key here would strand exactly the people the flip is for.
+    public static let visualSpectralDonuts = StudioDefault(key: "visual.spectralDonuts", value: false)
     public static let visualStyle = StudioDefault(key: "visual.style", value: 5)
     public static let visualStyleB = StudioDefault(key: "visual.styleB", value: 0)
     public static let visualBlend = StudioDefault(key: "visual.blend", value: 0.0)

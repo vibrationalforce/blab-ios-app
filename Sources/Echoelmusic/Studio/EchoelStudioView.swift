@@ -234,8 +234,12 @@ struct EchoelStudioView: View {
     @State private var showVideoLibrary = false
     /// Delivery loudness target (shared key with MasterLoudnessGrid's colour-coding).
     @AppStorage(StudioDefaultKeys.loudnessTarget.key) private var loudnessTargetRaw = StudioDefaultKeys.loudnessTarget.value
-    /// Immersive visual mode: the spectrum→visible donut visual (default) vs the bio rings.
-    @AppStorage("visual.spectralDonuts") private var spectralDonuts = true
+    /// Immersive visual mode: the spectrum→visible donut renderer vs the Metal field.
+    /// **Default is now `false` and there is no reachable control that turns it on** (#227) —
+    /// see `StudioDefaultKeys.visualSpectralDonuts` for why, and `normaliseUnreachableDonutMode()`
+    /// below for the one line that has to go when the donut renderer gets a door again.
+    @AppStorage(StudioDefaultKeys.visualSpectralDonuts.key)
+    private var spectralDonuts = StudioDefaultKeys.visualSpectralDonuts.value
     /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water
     /// · 4 Prism · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
     /// Default 5 (Aurora) — a richer look out of the box; MUST match FloatingVisualWindow.
@@ -773,6 +777,11 @@ struct EchoelStudioView: View {
             // active sequence so the slider is never stuck on an unreachable stop. Also
             // clear a stale blend onto a now-absent B-style (review L5) so the renderer
             // matches the slider immediately, not only after the first drag.
+            // #227: a stored `true` from before the pill was removed would leave that install with
+            // hidden Blend controls, a readout saying "Donuts", and NO control able to undo it —
+            // strictly worse than the lie it replaced. Cleared here, BEFORE the snap below, so the
+            // snap runs for those installs too.
+            normaliseUnreachableDonutMode()
             if !spectralDonuts, !sliderLooks.contains(visualStyle) {
                 visualStyle = sliderLooks.first ?? 3   // → first look (default Water)
                 visualStyleB = 0
@@ -3027,30 +3036,32 @@ struct EchoelStudioView: View {
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
     private var visualLookStrip: some View {
         // ALIGNED with the Visual window's top-bar slider (founder 2026-07-07: "das
-        // hauptmenü dementsprechend angleichen"): a Donuts pill (a different renderer) +
-        // a slider that scrubs the calm metal looks — SAME handling in both places, fewer
-        // buttons than the old labelled strip. The busy/technical looks (Rings/Cymatics/
-        // Prism/Lissajous/Scope/Fractal) stay in the shader (indices unchanged, reversible)
-        // but aren't surfaced here, so nobody has to tap past Prism to reach calm. Writes
-        // the shared visual.style / visual.spectralDonuts keys (single source of truth).
+        // hauptmenü dementsprechend angleichen"): one slider that scrubs the calm metal
+        // looks — SAME handling in both places, fewer buttons than the old labelled strip.
+        // The busy/technical looks (Rings/Cymatics/Prism/Lissajous/Scope/Fractal) stay in
+        // the shader (indices unchanged, reversible) but aren't surfaced here, so nobody
+        // has to tap past Prism to reach calm. Writes the shared `visual.style` key.
+        // (It said "a Donuts pill + a slider" and "visual.style / visual.spectralDonuts"
+        // until #227 removed the pill — see the block inside the HStack for why.)
         HStack(spacing: 10) {
-            Button { spectralDonuts = true } label: {
-                Text("Donuts")
-                    .font(EchoelTheme.font(12, .semibold))
-                    .foregroundStyle(spectralDonuts ? EchoelTheme.onPrimary : EchoelTheme.text)
-                    .padding(.horizontal, 12).padding(.vertical, 7)
-                    // Selected chips fill with .text (the app-wide menuChip law) —
-                    // accent stays exclusive to the LIVE BIO SIGNAL.
-                    .background(RoundedRectangle(cornerRadius: 8)
-                        .fill(spectralDonuts ? EchoelTheme.text : EchoelTheme.fill))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Donuts visual look")
-            .accessibilityAddTraits(spectralDonuts ? [.isSelected] : [])
-
+            // ⛔ THE "DONUTS" PILL STOOD HERE AND WAS REMOVED (#227). It set `spectralDonuts = true`,
+            // which the ONE visual a player can reach — `FloatingVisualWindow` — does not read at
+            // all: it renders from `visual.style`/`styleB`/`blend` only. `SpectralDonutView` is
+            // constructed at exactly one place, inside the `.fullScreenCover(isPresented:
+            // $showVisual)` further up this file, and `showVisual`'s only setter was the deleted
+            // `openTool`. So the pill filled, the readout to the right said "Donuts", and nothing
+            // on screen changed — and because the default was `true`, that was the state of a
+            // FRESH INSTALL. It also hid `visualBlendControls` (`if !spectralDonuts`) and skipped
+            // the launch look-snap, so it cost real controls rather than being merely cosmetic.
+            //
+            // The KEY, the cover's `if spectralDonuts` branch and `SpectralDonutView` all stay:
+            // the renderer is not the defect, the unreachable claim was. Bring the pill back in
+            // the SAME commit that gives `showVisual` a setter again — not before.
+            //
             // Dragging the slider morphs STUFENLOS between the looks (continuous crossfade
-            // via style/styleB/blend, mapping in LookBlendMap) AND turns Donuts off (see
-            // setter), so the two controls never both claim "active".
+            // via style/styleB/blend, mapping in LookBlendMap). Its setter still clears
+            // `spectralDonuts` — harmless now that nothing sets it, and correct again the
+            // day the pill returns.
             if LookBlendMap.maxPosition(for: sliderLooks) > 0 {
                 Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition(for: sliderLooks))
                     .tint(EchoelTheme.accent)
@@ -3058,7 +3069,9 @@ struct EchoelStudioView: View {
                     .accessibilityValue(currentLookName)
             }
 
-            Text(spectralDonuts ? "Donuts" : currentLookName)
+            // Unconditional (#227): the ternary that stood here could print "Donuts" while the
+            // visible visual drew a Metal look. The readout now names what is actually rendering.
+            Text(currentLookName)
                 .font(EchoelTheme.font(12, .medium))
                 .foregroundStyle(EchoelTheme.dim)
                 .lineLimit(1)
@@ -3132,6 +3145,24 @@ struct EchoelStudioView: View {
                 visualBlend = Double(m.frac)
             }
         )
+    }
+
+    /// ⛔ DELETE THIS TOGETHER WITH THE LINE THAT CALLS IT, IN THE SAME COMMIT THAT GIVES
+    /// `showVisual` A SETTER AGAIN (#227). It exists for exactly one reason and has an expiry
+    /// condition written into it, because a permanent forced-off would be its own lying control.
+    ///
+    /// #227 removed the only reachable control that could set `spectralDonuts` and flipped the
+    /// default to `false`. That leaves ONE group unserved: an install that already has `true`
+    /// stored. Without this, those players keep a readout that used to say "Donuts", keep
+    /// `visualBlendControls` HIDDEN (`if !spectralDonuts`), keep the launch look-snap skipped —
+    /// and now have no control at all able to undo it. That is strictly worse than the lie the
+    /// slice removes, which is why the flip and this line have to ship together.
+    ///
+    /// Deliberately NOT a "migration flag": there is nothing to remember. While no door exists,
+    /// the only truthful value is `false`, and re-asserting it every launch costs one comparison.
+    private func normaliseUnreachableDonutMode() {
+        guard spectralDonuts else { return }   // untouched for everyone already on `false`
+        spectralDonuts = false
     }
 
     /// Display name of the look nearest the slider position (no per-stop labels).
