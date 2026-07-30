@@ -200,11 +200,8 @@ public enum StudioDefaultKeys {
     /// `FieldAutoPlay.arpTouches` overwrites the stored copy with it. A second key for the same
     /// musical dimension is the collision `RoleRhythm`'s header already decides.
     ///
-    /// `push` is still ABSENT, but the REASON changed with #253 A2b: `arpTouches` carries it and the
-    /// Field view now schedules the onset late (`FieldAutoPlay.pushDelaySeconds`), so a row would no
-    /// longer be a lying control (#164/#227) — it is simply not built. Adding this key is therefore
-    /// the FIRST half of A2c and must land in the same commit as its row, so the behaviour and the
-    /// control keep arriving together. What plays today is the character's own bias, undialled.
+    /// `push` now HAS a key — see `fieldArpRhythmPush` below (#258 / A2c, landed with its row in
+    /// one commit, as this note demanded).
     ///
     /// Stored as the enum's raw string, so an unknown value from an older or newer build falls back
     /// to this default instead of refusing to load — same contract as `touchSyncGrid` above, and
@@ -222,6 +219,25 @@ public enum StudioDefaultKeys {
     /// is why its row is hidden for the other four rather than shown and ignored.
     public static let fieldArpRhythmEvolve = StudioDefault(key: "field.autoPlay.arpRhythm.evolve",
                                                           value: 0.0)
+    /// How far BEHIND its own grid cell a note lands, as a fraction of one cell (#258 / A2c).
+    ///
+    /// ⚠️ **THE ROW IS 0…`RoleRhythm.maxPush`, WHILE THE MODEL IS BIPOLAR (−0.45…0.45), AND THAT
+    /// ASYMMETRY IS DELIBERATE.** `FieldAutoPlay.pushDelaySeconds` folds every value ≤ 0 to "on the
+    /// grid" — the consumer schedules the onset LATE with a `Task.sleep`, and there is nothing to
+    /// sleep for a note that should have sounded EARLIER. Playing ahead of the grid needs look-ahead
+    /// (generate the cell one tick early and hold it), which does not exist. Offering the negative
+    /// half would therefore be a dial whose whole left side does nothing — the #164/#227 lying
+    /// control, in the one place where the engine's own range invites it. The bipolar range STAYS in
+    /// `RoleRhythm.Params.push` because the composer path and a future look-ahead will want it; only
+    /// the player-facing row is clamped.
+    ///
+    /// Default 0: the character's own bias (`syncopated` +0.12 off-beat, `flowing` +0.05) is what
+    /// plays until the player asks for more, so a fresh install sounds exactly as it did before this
+    /// key existed. Pinned in `TouchSurfaceStorageKeysTests` (the BLOCKING bundle) against
+    /// `FieldAutoPlay.Params().arpRhythm.push` rather than against the literal 0, so the day the
+    /// arp's shipped timing changes both sides have to move together.
+    public static let fieldArpRhythmPush = StudioDefault(key: "field.autoPlay.arpRhythm.push",
+                                                        value: 0.0)
 
     // MARK: midi.*
 

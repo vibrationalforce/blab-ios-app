@@ -190,8 +190,8 @@ Tests/EchoelmusicTests/ ← 314 test files (`git ls-files 'Tests/EchoelmusicTest
                           2026-07-28 — heute 314. Die Workflow-Beschriftung ist founder-gated und
                           bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**46** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-07-30 nach #254 Batch 4; am selben Tag früher „45", „41", „39", am
+                          `Tests/CISmoke` (**47** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-07-30 nach #258; am selben Tag früher „46", „45", „41", „39", am
                           2026-07-29 nachmittags „30", vormittags „21", und davor monatelang
                           „1 Datei" — das ließ das EINZIGE
                           Bundle, das einen Merge rot färben kann, kleiner aussehen als es ist. Das

@@ -120,6 +120,8 @@ struct EchoelStudioView: View {
     private var fieldArpAccent = StudioDefaultKeys.fieldArpRhythmAccent.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmEvolve.key)
     private var fieldArpEvolve = StudioDefaultKeys.fieldArpRhythmEvolve.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmPush.key)
+    private var fieldArpPush = StudioDefaultKeys.fieldArpRhythmPush.value
     @Environment(SubBassVoice.self) private var subBass
     /// S2-W1: the Multi-Roll slot voices — the Melodic insert must reach them
     /// too, or a secondary lane's "Sound & FX" edit changes nothing it plays.
@@ -2656,7 +2658,13 @@ struct EchoelStudioView: View {
     /// Split from `fieldSelfPlaySection` for the same structural reason `touchSyncRows` was:
     /// this file has a black-screen history rooted in aggregate-type growth, and keeping a group
     /// of fields behind one child is the cheap habit. `fieldArpRhythmFields` is the same move one
-    /// level further down, which is why the arp's four rows live in their own builder.
+    /// level further down, which is why the arp's rhythm rows live in their own builder.
+    ///
+    /// ⚠️ THAT CHILD IS NOW AT **9 OF THE 10** VIEWS A `@ViewBuilder` ACCEPTS (#258 added two:
+    /// the Laid-back row and its caption). The next row added there does NOT fit — it needs a
+    /// `Group`, or a second split, the same way this one was split from its parent. Counted, not
+    /// estimated: HStack · blurb · Note length · its caption · Accent · Laid back · its caption ·
+    /// the optional caveat · the optional Evolve row.
     @ViewBuilder private var fieldSelfPlayFields: some View {
         EchoelValueField(label: "Density", value: $fieldDensity,
                          range: 0...1, unit: "", decimals: 2)
@@ -2727,15 +2735,17 @@ struct EchoelStudioView: View {
     /// structural reason `fieldSelfPlayFields` was split off this file's black-screen history:
     /// small builders, not one growing aggregate type.
     ///
-    /// **Four controls, not six.** `RoleRhythm.Params` carries six numbers and two of them are
-    /// deliberately absent here:
-    /// - `density` is the Field's OWN Density row above — `FieldAutoPlay.arpTouches` overwrites the
-    ///   stored copy with it, so a second row would be two dials over one musical dimension.
-    /// - `push` IS honoured now (#253 A2b: the arp's `Touch` carries `pushFraction` and the Field view
-    ///   schedules the onset late), so the reason this row is absent has CHANGED — it is no longer
-    ///   "it would do nothing", it is "it is not built yet" (#253 A2c: the row plus its persisted key,
-    ///   which `StudioDefaultKeys` still lacks). What the player hears today is the CHARACTER's own
-    ///   bias — `syncopated` late off the beat, `flowing` a hair behind — with no dial over it.
+    /// **Five controls, not six.** `RoleRhythm.Params` carries six numbers and exactly ONE is
+    /// deliberately absent here: `density`, which is the Field's OWN Density row above —
+    /// `FieldAutoPlay.arpTouches` overwrites the stored copy with it, so a second row would be two
+    /// dials over one musical dimension.
+    ///
+    /// `push` was the other absentee until #258 (A2c) and is now the "Laid back" row below. Its
+    /// range is HALF the model's: 0…`RoleRhythm.maxPush`, not −0.45…0.45, because
+    /// `FieldAutoPlay.pushDelaySeconds` folds everything ≤ 0 to "on the grid" — the consumer
+    /// delays an onset with a sleep, and a note that should have sounded EARLIER cannot be
+    /// delayed into existence. The character's own bias (`syncopated` late off the beat,
+    /// `flowing` a hair behind) still applies and ADDS to whatever the row says.
     @ViewBuilder private var fieldArpRhythmFields: some View {
         HStack {
             Text("Rhythm").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
@@ -2767,6 +2777,16 @@ struct EchoelStudioView: View {
             .fixedSize(horizontal: false, vertical: true)
         EchoelValueField(label: "Accent", value: $fieldArpAccent,
                          range: 0...1, unit: "", decimals: 2)
+        // #258 (A2c). ⚠️ THE RANGE IS 0…maxPush AND NOT THE MODEL'S BIPOLAR −0.45…0.45 — see
+        // `StudioDefaultKeys.fieldArpRhythmPush`. `FieldAutoPlay.pushDelaySeconds` folds every
+        // value ≤ 0 to "on the grid" because the consumer delays an onset with a sleep and there
+        // is nothing to sleep for a note that should have sounded EARLIER. Offering the negative
+        // half would be a dial whose entire left side does nothing.
+        EchoelValueField(label: "Laid back", value: $fieldArpPush,
+                         range: 0...Double(RoleRhythm.maxPush), unit: "", decimals: 2)
+        Text("How far behind its own step a note lands, as a fraction of one step — 0 is dead on the grid. The rhythm adds its own on top (Syncopated leans back on the off-beats, Flowing everywhere), and the total can never push a note into the next step. Earlier-than-the-grid is not offered: the instrument can hold a note back, not see one coming.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
         if let caveat = fieldArpRhythmCaveat {
             Text(caveat)
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)

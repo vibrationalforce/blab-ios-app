@@ -233,8 +233,9 @@ struct FloatingVisualWindow: View {
     private var fieldVoices = StudioDefaultKeys.fieldAutoPlayVoices.value
     @AppStorage(StudioDefaultKeys.fieldAutoPlayPeriod.key)
     private var fieldPeriod = StudioDefaultKeys.fieldAutoPlayPeriod.value
-    // The arp's rhythm (#253 A7). Four keys, not five: `density` stays the Field's own row (the
-    // generator overwrites the stored copy with it) and `push` has no key until it does something.
+    // The arp's rhythm (#253 A7, + `push` with #258/A2c). FIVE keys, not six: `density` stays the
+    // Field's own row, because `FieldAutoPlay.arpTouches` overwrites the stored copy with it — a
+    // second key for that one dimension would be two controls for one musical quantity.
     @AppStorage(StudioDefaultKeys.fieldArpRhythmCharacter.key)
     private var fieldArpCharacter: RoleRhythm.Character = StudioDefaultKeys.fieldArpRhythmCharacter.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmGate.key)
@@ -243,6 +244,8 @@ struct FloatingVisualWindow: View {
     private var fieldArpAccent = StudioDefaultKeys.fieldArpRhythmAccent.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmEvolve.key)
     private var fieldArpEvolve = StudioDefaultKeys.fieldArpRhythmEvolve.value
+    @AppStorage(StudioDefaultKeys.fieldArpRhythmPush.key)
+    private var fieldArpPush = StudioDefaultKeys.fieldArpRhythmPush.value
 
     /// Self-play as configured right now, or `nil` when it is off.
     ///
@@ -276,10 +279,17 @@ struct FloatingVisualWindow: View {
             // length row offers. Both ends are already enforced inside `hit(...)`; having the two
             // sites state DIFFERENT floors (0.05 in the view, 0 here) was the shape that invites a
             // later reader to "fix" whichever one they find first.
+            // `push` is clamped to 0…maxPush and NOT to the model's bipolar −maxPush…maxPush:
+            // the row only offers the late half (see `StudioDefaultKeys.fieldArpRhythmPush` for
+            // why), so a negative value here could only come from a hand-edited or corrupt
+            // payload — and folding it to 0 matches exactly what `pushDelaySeconds` would do
+            // with it anyway. Same both-ends-enforced-twice pattern as gate/accent/evolve above.
             arpRhythm: RoleRhythm.Params(character: fieldArpCharacter,
                                          gate: Float(fieldArpGate.clamped(
                                              to: Double(RoleRhythm.minGate)...1)),
                                          accent: Float(fieldArpAccent.clamped(to: 0...1)),
+                                         push: Float(fieldArpPush.clamped(
+                                             to: 0...Double(RoleRhythm.maxPush))),
                                          evolve: Float(fieldArpEvolve.clamped(to: 0...1))))
     }
 

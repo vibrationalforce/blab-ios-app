@@ -87,9 +87,11 @@
 //  Consequence for copy: timing words are allowed for the ARP's `syncopated`/`flowing` and remain
 //  forbidden for the bass/pad. The A7 review had to strike exactly that promise out of two arp
 //  blurbs when NOTHING honoured push; re-adding it elsewhere would repeat the mistake.
-//  ⚠️ The PLAYER's own `push` dial is still absent from the UI, and the reason CHANGED with A2b:
-//  it would no longer be inert, it is simply not built. That is A2c, and it needs a persisted key
-//  (`StudioDefaultKeys` has none) — do not read "push works" as "the row exists".
+//  The PLAYER's own `push` dial SHIPPED with #258 (A2c): the "Laid back" row in the arp's rhythm
+//  panel, persisted as `StudioDefaultKeys.fieldArpRhythmPush`. ⚠️ ITS RANGE IS 0…`maxPush`, HALF
+//  of this type's — `FieldAutoPlay.pushDelaySeconds` folds ≤ 0 to "on the grid", so the negative
+//  half would be a dead dial. The bipolar range stays HERE for the composer path and a future
+//  look-ahead; do not "fix" the row to match the model.
 //    · PAD (#253 A4) — `BioComposer.roleRhythmOnsets`, called from `composeHarmonic`, decides when
 //      the CHORD re-articulates on every non-arpeggiated pad path and when an arp's notes land
 //      (never their pitch order); the Mood panel's Pad rhythm Picker writes
@@ -140,9 +142,10 @@
 //  because the founder asked for the tone to follow the rhythm, not for a tone dial.
 //  Neutral when no character is chosen (`padRhythm == ""`), so a player who never opened that row
 //  hears the genre's patch bit-identically.
-//  **A2b IS SHIPPED** — `push` is late on the arp; see the paragraph above for the one consumer it
-//  reaches and the one it structurally cannot. Two non-role items remain open: **A2c** (a
-//  player-facing Push row + its persisted key, now unblocked rather than inert) and the **inner
+//  **A2b AND A2c ARE SHIPPED** — `push` is late on the arp AND the player has a dial over it
+//  ("Laid back", `StudioDefaultKeys.fieldArpRhythmPush`, range 0…`maxPush`). See the paragraph
+//  above for the one consumer it reaches and the one it structurally cannot. ONE non-role item
+//  remains open: the **inner
 //  pulse layer**, which no character governs (`Input.padRhythm`'s doc states that deliberately). The Field/touch voice is deliberately NOT trimmed — it has its own character
 //  (`fieldArpCharacter`) and belongs to a Field slice (#222/#224).
 //  (This block said "TWO consumers … A4 (pad) has no writer" for one commit — written in the commit

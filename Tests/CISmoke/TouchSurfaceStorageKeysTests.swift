@@ -68,21 +68,23 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
         XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayBandDrift.key, "field.autoPlay.bandDrift")
         XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayVoices.key, "field.autoPlay.voices")
         XCTAssertEqual(StudioDefaultKeys.fieldAutoPlayPeriod.key, "field.autoPlay.period")
-        // The arp's rhythm (#253 A7). Nested one level deeper than its siblings on purpose: these
-        // four belong to `RoleRhythm.Params`, which will be persisted per ROLE (pad, bass, lead)
-        // once A3–A5 land, and `field.autoPlay.arpRhythm.*` is the shape that extends to
-        // `role.pad.rhythm.*` without any of these keys having to move.
+        // The arp's rhythm (#253 A7, + `push` with #258). Nested one level deeper than its siblings
+        // on purpose: these FIVE belong to `RoleRhythm.Params`, which will be persisted per ROLE
+        // (pad, bass, lead) once A3–A5 land, and `field.autoPlay.arpRhythm.*` is the shape that
+        // extends to `role.pad.rhythm.*` without any of these keys having to move.
         XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmCharacter.key,
                        "field.autoPlay.arpRhythm.character")
         XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmGate.key, "field.autoPlay.arpRhythm.gate")
         XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmAccent.key, "field.autoPlay.arpRhythm.accent")
         XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmEvolve.key, "field.autoPlay.arpRhythm.evolve")
+        XCTAssertEqual(StudioDefaultKeys.fieldArpRhythmPush.key, "field.autoPlay.arpRhythm.push")
     }
 
     /// ⭐ THE ONE ASSERTION THAT MAKES #253 A7 A UI SLICE AND NOT A RE-VOICING.
     ///
     /// A2 shipped the arp's rhythm with NO writer, so `FieldAutoPlay.Params.init`'s default *is*
-    /// what the instrument currently sounds like. A7 puts four rows in front of it — and if any
+    /// what the instrument currently sounds like. A7 put four rows in front of it and #258 a fifth
+    /// (Laid back) — and if any
     /// default here disagreed with that default, every existing user's arp would change the moment
     /// they updated, in a slice whose whole point is to make the setting reachable. Nobody would
     /// see it in the diff: two files, two plausible numbers.
@@ -96,6 +98,11 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
         XCTAssertEqual(Float(StudioDefaultKeys.fieldArpRhythmGate.value), shipped.gate)
         XCTAssertEqual(Float(StudioDefaultKeys.fieldArpRhythmAccent.value), shipped.accent)
         XCTAssertEqual(Float(StudioDefaultKeys.fieldArpRhythmEvolve.value), shipped.evolve)
+        // #258: the same law for the Push key. It matters MORE here than for the other four,
+        // because this row arrived AFTER people had been playing the arp — a non-zero default
+        // would have moved every existing user's timing on update, in a slice whose whole point
+        // is to make an existing behaviour reachable.
+        XCTAssertEqual(Float(StudioDefaultKeys.fieldArpRhythmPush.value), shipped.push)
         // And the defaults must be inside the ranges the rows offer, so no dial starts on a value
         // it cannot be returned to. Gate's floor is `minGate`, not 0 — a gate of 0 is a click.
         XCTAssertGreaterThanOrEqual(Float(StudioDefaultKeys.fieldArpRhythmGate.value),
@@ -110,9 +117,16 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
     }
 
     /// What the arp panel shows on a FRESH INSTALL, which is a founder-visible decision and not an
-    /// accident: three numeric rows, not four. The Evolve row is drawn only when the chosen character
-    /// uses it, so the default character deciding that is worth pinning here — it fails the moment
-    /// someone moves the default to `.dynamic` or `.flowing` and quietly changes the panel.
+    /// accident: the Evolve row is drawn only when the chosen character uses it, so the default
+    /// character deciding that is worth pinning here — it fails the moment someone moves the
+    /// default to `.dynamic` or `.flowing` and quietly changes the panel.
+    ///
+    /// ⚠️ THE COUNT CAME OUT OF THIS TEST'S NAME AND MESSAGE (#258). They said "three numeric rows,
+    /// not four" — which was already loose (the Rhythm `Picker` it counted is not numeric) and went
+    /// stale the moment the Laid-back row landed, without a single assertion changing. Nothing here
+    /// can count rows: `fieldArpRhythmFields` is `private` inside a view. So the name now states the
+    /// property that IS asserted. A number in a name that no assertion derives is the same class of
+    /// claim this file's other rationale was deleted for.
     ///
     /// ⚠️ THE FIRST VERSION OF THIS TEST CLAIMED MORE THAN IT DELIVERS, and the claim is deleted
     /// rather than reworded down: it said `XCTAssertEqual(Set(usesIt), [.dynamic, .flowing])` stopped
