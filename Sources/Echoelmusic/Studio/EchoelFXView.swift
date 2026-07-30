@@ -64,10 +64,22 @@ final class FXViewModel {
     /// · below `tempoFollowFloor` the two-decimal readout is byte-identical — a rebuild would
     ///   change nothing a user can see.
     /// · at or above `tempoFollowVisibleGap` the shown number is wrong enough to matter (2 BPM
-    ///   at 120 moves a quarter-note delay by ~8 ms), so it is worth one rebuild immediately.
-    ///   This branch also guarantees progress if the clock never goes quiet.
-    /// · everything between waits for quiet, which is the normal path: one rebuild per glide
-    ///   instead of forty, and the number that lands is the settled one.
+    ///   at 120 moves a quarter-note delay by ~8 ms), so it is adopted even while the clock is
+    ///   still moving. This branch is also what guarantees the sheet converges at all once the
+    ///   drift exceeds that gap — below it, convergence waits for the clock to stop.
+    /// · everything between waits for the clock to hold still, which is the normal path.
+    ///
+    /// ⛔ THE THRESHOLD IS NOT WHAT BOUNDS THE REBUILD RATE, and an earlier version of this
+    /// design believed it was. `PatternEngine`'s ease is proportional — `tempo += diff * 0.12`
+    /// twenty times a second — so while more than `tempoFollowVisibleGap / 0.12` ≈ 17 BPM
+    /// remain, EVERY single glide step clears the gap on its own and takes `.adoptNow`. A
+    /// 90→150 re-seed produced eleven consecutive rebuilds, ~0.55 s at the full 20 Hz: exactly
+    /// the churn this policy exists to prevent, arriving precisely when a re-seed is largest.
+    /// Raising the threshold cannot fix that — the first step's delta scales with the glide
+    /// distance, so ANY fixed magnitude is cleared by a big enough glide. The rate is bounded
+    /// instead by WHERE this is called from: `FXTempoFollower` polls at
+    /// `tempoFollowPollSeconds` rather than observing every step, so no glide, however large,
+    /// can rebuild the sheet faster than that.
     ///
     /// Non-finite is refused outright: `bpm` feeds `TempoSyncOption`'s division maths, and a
     /// NaN there would travel into a delay time.
@@ -84,9 +96,16 @@ final class FXViewModel {
     /// Gap at which the shown tempo is wrong enough to be worth an immediate rebuild.
     /// A chosen threshold, not a derived constant — see `tempoFollow`.
     nonisolated static let tempoFollowVisibleGap: Double = 2.0
-    /// How long the clock must hold still before a small change is adopted. Comfortably
-    /// longer than the 0.05 s glide-timer period, so "quiet" means the glide really ended.
-    nonisolated static let tempoFollowSettleSeconds: Double = 0.4
+    /// How often `FXTempoFollower` looks at the clock. This one constant carries BOTH jobs,
+    /// and they agree: it is the hard ceiling on how often the sheet can be rebuilt (2.5 Hz,
+    /// whatever the clock does), and it is the granularity at which "the clock has stopped
+    /// moving" is decided — a `.adoptWhenQuiet` change is taken only when two consecutive
+    /// looks read the same tempo. Comfortably longer than the 0.05 s stopped-glide period.
+    /// (While PLAYING the ease runs once per tick, which is 0.5 s at `Transport.minTempo` = 30
+    /// — slower than this poll — so at the very bottom of the tempo range a mid-glide value can
+    /// look "quiet" and be adopted early. It still converges, and the rate stays capped, so
+    /// this is a known imprecision rather than a defect.)
+    nonisolated static let tempoFollowPollSeconds: Double = 0.4
 
     init(chain: EchoelFXChain, bpm: Double = 120,
          masterEnabled: @escaping () -> Bool,
@@ -987,7 +1006,7 @@ private struct FXModRouteRow: View {
 
 // MARK: - Tempo follower
 
-/// Invisible leaf whose ONLY job is to observe the live clock for `EchoelFXView`.
+/// Invisible leaf whose ONLY job is to follow the live clock for `EchoelFXView`.
 ///
 /// The FX sheet must sync to the tempo that is running NOW — but it also hosts `Menu`s whose
 /// item labels are built from that tempo, and the clock GLIDES (a 20 Hz timer while stopped,
@@ -995,40 +1014,52 @@ private struct FXModRouteRow: View {
 /// rate and slam any open popover shut mid-pick: the same failure the app already paid for with
 /// a 10 Hz bio read in an ancestor body, one level up instead of one level down.
 ///
-/// So the read lives here. This view renders nothing, only IT churns, and `FXViewModel.tempoFollow`
-/// decides the far rarer moments at which the sheet is actually rebuilt. `.task(id:)` supplies the
-/// debounce for free — a new tempo cancels the pending adoption of the previous one, so a glide
-/// costs one rebuild at its end rather than one per step.
+/// So the read lives here, and it POLLS rather than observes.
+///
+/// ⛔ THE FIRST VERSION OBSERVED, VIA `.task(id: pattern.tempo)`, AND THAT DOES NOT BOUND
+/// ANYTHING. `PatternEngine` eases proportionally (`tempo += diff * 0.12`, 20×/s), so the
+/// opening steps of a large glide each clear `tempoFollowVisibleGap` on their own and each
+/// took the adopt-immediately branch: a 90→150 re-seed rebuilt the sheet eleven times in a
+/// row at the full glide rate — the exact freeze this type was written to prevent, at the
+/// worst possible moment. No threshold can fix that, because the step size scales with the
+/// glide distance. A poll can: nothing the clock does can rebuild the sheet more often than
+/// `tempoFollowPollSeconds`, and this view then observes nothing at all, so it never rebuilds
+/// either. Same shape as `LiveColaboView`'s bus poll, for the same reason.
+@MainActor
 private struct FXTempoFollower: View {
     let pattern: PatternEngine
-    /// The tempo the sheet is currently computing with. A closure, not a value: passing it in
-    /// would make this view's identity depend on it and defeat the debounce.
-    ///
-    /// Both are `@MainActor`: `.task`'s action is `@Sendable`, so a plain closure stored here
-    /// would make this struct non-Sendable and the capture of `self` illegal under Swift 6
-    /// strict concurrency. Isolating them is also simply true — both touch the view model.
+    /// The tempo the sheet is currently computing with, and the write-back. Closures rather
+    /// than a value + `Binding` so this view holds no state of its own and the policy stays
+    /// in one place. `@MainActor` because both touch the view model.
     let current: @MainActor () -> Double
     let adopt: @MainActor (Double) -> Void
 
     var body: some View {
         // A plain `Color.clear` rather than a zero `.frame`: as a background it is invisible
         // either way, but a normally-laid-out view is unambiguously alive, and this one is
-        // only worth having if its `.task` actually runs.
+        // only worth having if its `.task` actually runs. `.task` (no `id:`) starts once when
+        // the sheet appears and is cancelled when it goes away.
         Color.clear
             .allowsHitTesting(false)
             .accessibilityHidden(true)
-            .task(id: pattern.tempo) {
-                switch FXViewModel.tempoFollow(pattern.tempo, current: current()) {
-                case .ignore:
-                    return
-                case .adoptNow:
-                    adopt(pattern.tempo)
-                case .adoptWhenQuiet:
-                    try? await Task.sleep(for: .seconds(FXViewModel.tempoFollowSettleSeconds))
-                    guard !Task.isCancelled else { return }
-                    // Adopt what the clock reads NOW, not the value that started the wait —
-                    // the point of waiting is to land on where the glide actually ended.
-                    adopt(pattern.tempo)
+            .task {
+                var previous = pattern.tempo
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(FXViewModel.tempoFollowPollSeconds))
+                    if Task.isCancelled { return }
+                    let live = pattern.tempo
+                    switch FXViewModel.tempoFollow(live, current: current()) {
+                    case .ignore:
+                        break
+                    case .adoptNow:
+                        adopt(live)
+                    case .adoptWhenQuiet:
+                        // "Quiet" = the clock read the same on the previous look. A glide moves
+                        // on every one of its 0.05 s steps, so it cannot satisfy this until it
+                        // has finished — which is the point: small drift lands once, settled.
+                        if live == previous { adopt(live) }
+                    }
+                    previous = live
                 }
             }
     }

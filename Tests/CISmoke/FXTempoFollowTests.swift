@@ -15,7 +15,16 @@
 // would rebuild that body ~20×/s and tear an open popover down mid-pick — the freeze class this
 // app has already paid for twice with a 10 Hz bio read in an ancestor body. A fix for a stale
 // number that installs a freeze is not a fix. So `tempoFollow` decides WHEN to adopt, and the
-// live read is confined to a zero-size leaf (`FXTempoFollower`).
+// live read is confined to an invisible leaf (`FXTempoFollower`).
+//
+// ⛔ AND THE THRESHOLD IS NOT WHAT BOUNDS THE REBUILD RATE — the first cut of this slice, and
+// the first cut of this file, both said it was. The ease is PROPORTIONAL (`tempo += diff * 0.12`),
+// so while more than ~17 BPM remain, every single 0.05 s step clears the 2 BPM gap by itself and
+// takes the adopt-immediately branch: a 90→150 re-seed rebuilt the sheet eleven times in a row.
+// Raising the threshold cannot help, because the step size scales with the glide distance. The
+// bound comes from the CALLER instead: `FXTempoFollower` polls every `tempoFollowPollSeconds`
+// rather than observing, so no glide can rebuild the sheet faster than 2.5 Hz. What is asserted
+// below is the policy; the rate cap is a property of the poll, which no unit test here can see.
 //
 // BLOCKING bundle, because the other suite cannot fail a merge (#208).
 //
@@ -87,15 +96,35 @@ final class FXTempoFollowTests: XCTestCase {
                        + "false-y and silently freeze the follow again")
     }
 
-    /// The settle wait must be comfortably longer than the glide timer's own period, or
-    /// "quiet" would fire in the middle of a glide and reintroduce the churn it prevents.
-    /// `PatternEngine.startStoppedGlide` schedules at 0.05 s.
-    func testTheSettleWaitOutlastsAGlideStep() {
-        XCTAssertGreaterThan(FXViewModel.tempoFollowSettleSeconds, 0.05 * 4,
-                             "the wait must span several glide steps, otherwise it adopts "
-                             + "mid-ease and the sheet churns anyway")
-        XCTAssertLessThan(FXViewModel.tempoFollowSettleSeconds, 1.0,
+    /// ⭐ THE CONSTANT THAT ACTUALLY BOUNDS THE FREEZE RISK, which is why it is pinned from both
+    /// sides. It is the poll period, so `1 / it` is the hard ceiling on how often the FX sheet
+    /// can be rebuilt — no glide, however large, can beat it. It must span several 0.05 s
+    /// stopped-glide steps (`PatternEngine.startStoppedGlide`) so that "the clock read the same
+    /// twice" really means the ease has ended, and it must stay short enough that the shown BPM
+    /// does not visibly lag a settled clock.
+    func testThePollPeriodOutlastsAGlideStepWithoutLaggingTheUser() {
+        XCTAssertGreaterThan(FXViewModel.tempoFollowPollSeconds, 0.05 * 4,
+                             "the poll must span several glide steps, otherwise two consecutive "
+                             + "looks can both land mid-ease and be mistaken for a settled clock")
+        XCTAssertLessThan(FXViewModel.tempoFollowPollSeconds, 1.0,
                           "and it must not be so long that the shown BPM lags a settled clock "
                           + "by something a user would notice")
+    }
+
+    /// ⛔ THE REGRESSION GUARD FOR THE MISTAKE THIS SLICE ACTUALLY MADE. `PatternEngine` eases
+    /// PROPORTIONALLY — `tempo += diff * 0.12` at 20 Hz — so the opening step of a glide is
+    /// `remaining * 0.12`, and any glide with more than `tempoFollowVisibleGap / 0.12` ≈ 17 BPM
+    /// left produces a step that clears the gap ON ITS OWN and takes `.adoptNow`. That is not a
+    /// bug in the policy; it is why the policy alone cannot bound the rebuild rate, and why the
+    /// caller polls instead of observing. Asserted so nobody "simplifies" the follower back to
+    /// `.task(id: pattern.tempo)` believing the threshold protects them.
+    func testALargeGlideStepClearsTheThresholdOnItsOwn() {
+        let firstStep = 60.0 * 0.12          // a 90→150 re-seed, first ease step
+        XCTAssertGreaterThan(firstStep, FXViewModel.tempoFollowVisibleGap,
+                             "a single glide step already exceeds the visible gap, so an "
+                             + "observation-driven follower would adopt on EVERY step of a "
+                             + "large glide — 20 rebuilds a second, the freeze itself")
+        // …and a small glide's step does not, which is the case the threshold does cover.
+        XCTAssertLessThan(2.0 * 0.12, FXViewModel.tempoFollowVisibleGap)
     }
 }
