@@ -789,8 +789,15 @@ struct CompositionHeaderStrip: View {
                     }
                     .pickerStyle(.menu).tint(EchoelTheme.text)
                     .accessibilityLabel("Note name system")
+                    // The hint enumerates the options because a menu Picker speaks only the
+                    // CURRENT value until it is opened. It listed three while four shipped
+                    // for one commit — on the one control this whole epic exists to make
+                    // accessible, which is the worst possible place to undercount. Adding a
+                    // case to `NoteNaming` means editing this string too; there is no
+                    // compiler link between them.
                     .accessibilityHint("Chooses how the twelve notes are spelled — "
-                                       + "international A B C, German A H C, or solfège Do Re Mi")
+                                       + "international A B C, German A H C, solfège Do Re Mi, "
+                                       + "or Indian sargam Sa Re Ga")
                 }
                 labeled("A4") {
                     // Concert pitch — number-pad entry, exact to 0.01 Hz (380–500),

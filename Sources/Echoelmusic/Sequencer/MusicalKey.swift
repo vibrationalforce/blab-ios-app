@@ -122,8 +122,15 @@ public enum Scale: String, Codable, CaseIterable, Sendable {
     // returns only this comment, so a reader in six months has no other definition.
     // These seven are all 12-TET, so they add nothing to the TUNING half of F; they add
     // seven rows to the NOTE-NAMING half. `TouchInstrumentView` builds every cell label
-    // from `NoteNaming`, which offers English, German and fixed-do solfège — three
-    // Western systems. Mālkauns will label its cells "D♯3", never "ga".
+    // from `NoteNaming`, which offered English, German and fixed-do solfège — three
+    // Western systems — when this paragraph was written.
+    //
+    // ↑ THAT IS NO LONGER TRUE, and the correction belongs here rather than in a deleted
+    // line: `NoteNaming.sargam` shipped one commit later, so Mālkauns CAN label its cells
+    // "Sa Ga Ma Dha Ni". The naming half of F is answered for the Indian shelf. What is
+    // still open, and is the reason this paragraph survives at all: the sargam column is
+    // spelled against a FIXED Sa = C, while sargam is movable (Sa is the tonic wherever
+    // the drone sits). In key D the tonic cell reads "Re". That is its own slice.
     case marwa              // Mārvā thāt — Lydian ♭2 (the rāga itself drops Pa)
     case purvi              // Pūrvī thāt — ♭2 ♯4 ♭6, evening colour
     case todi               // Toḍī THĀT (Hindustani) — ♭2 ♭3 ♯4 ♭6. See displayName.

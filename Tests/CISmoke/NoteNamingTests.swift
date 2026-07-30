@@ -174,6 +174,22 @@ final class NoteNamingTests: XCTestCase {
                 XCTAssertFalse(spoken.contains("♭"),
                                "VoiceOver cannot pronounce ♭ — \(naming) pitch \(pc) says "
                                + "\(spoken)")
+
+                // The two assertions above name the two marks that exist TODAY, and that is
+                // exactly their weakness: a future column spelling "Ma'" (the printed tīvra
+                // convention), "B♮" or "E𝄫" passes both and reaches a screen reader as a
+                // symbol it announces as its Unicode name or not at all. This one is the
+                // general form — plain ASCII letters and spaces, nothing else — so any NEW
+                // mark fails on the day it is added rather than on a device months later.
+                // `spokenName`'s doc comment claims this guard exists; this is the line
+                // that makes the claim true.
+                let speakable = Set("abcdefghijklmnopqrstuvwxyz"
+                                    + "ABCDEFGHIJKLMNOPQRSTUVWXYZ ")
+                XCTAssertTrue(spoken.allSatisfy(speakable.contains),
+                              "\(naming) pitch \(pc) speaks \"\(spoken)\", which carries a "
+                              + "character that is neither an ASCII letter nor a space — "
+                              + "expand it in `spokenName` the way ♯ and ♭ are expanded")
+
                 let expanded = seen
                     .replacingOccurrences(of: "♯", with: " sharp")
                     .replacingOccurrences(of: "♭", with: " flat")
@@ -212,6 +228,24 @@ final class NoteNamingTests: XCTestCase {
         XCTAssertEqual(sargam.name(pitchClass: 1), "Re♭")
         XCTAssertEqual(sargam.name(pitchClass: 6), "Ma♯")
         XCTAssertEqual(sargam.name(pitchClass: 10), "Ni♭")
-        XCTAssertNotEqual(sargam.name(pitchClass: 1), sargam.name(pitchClass: 2),
-                          "komal and śuddha Re must be distinguishable by more than case")
+        // No `XCTAssertNotEqual(name(1), name(2))` here: the two equalities directly above
+        // already pin "Re♭" and "Re", so it could never fail on its own. An assertion that
+        // cannot fail independently reads as extra coverage and is none (#140's lesson).
     }
+
+    /// The one thing that links `NoteNaming` to the sentence a blind player HEARS.
+    ///
+    /// `WorkspaceView`'s note-name Picker carries an `.accessibilityHint` that ENUMERATES
+    /// the options, because a menu Picker speaks only its current value until it is opened.
+    /// That string is hand-written prose with no compiler link to this enum — add a case
+    /// and it silently undercounts, on the single control this epic exists to make
+    /// accessible. This test cannot read the string, so it does the next best thing: it
+    /// fails the moment the count changes, and says where to go.
+    func testAddingANamingSystemAlsoMeansEditingTheSpokenHint() {
+        XCTAssertEqual(NoteNaming.allCases.count, 4,
+                       "NoteNaming grew or shrank. Update the `.accessibilityHint` on the "
+                       + "\"Note names\" Picker in WorkspaceView so a VoiceOver user is told "
+                       + "about the same options a sighted user can see, then update this "
+                       + "number.")
+    }
+}

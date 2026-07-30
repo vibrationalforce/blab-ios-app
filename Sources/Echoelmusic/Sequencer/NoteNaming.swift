@@ -50,8 +50,23 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// East Asia. Not movable-do: the syllable names the pitch, not the scale degree, which
     /// is why "Si" and not the English movable-do "Ti".
     case solfege
-    /// Sa Re Ga Ma Pa Dha Ni — Indian **sargam**, the reading across Hindustani and Carnatic
-    /// practice.
+    /// Sa Re Ga Ma Pa Dha Ni — **Hindustani sargam**.
+    ///
+    /// ⛔ NOT "the reading across Hindustani AND Carnatic practice", which is what this said
+    /// first and is a Hindustani table wearing a pan-Indian label. The bare abbreviations
+    /// S R G M P D N are read in both, but Carnatic is a different system, not a spelling
+    /// variant: it writes **Ri**, not Re; it marks variants with numeric swarasthāna
+    /// suffixes (R1/R2/R3, G1/G2/G3, M1/M2, D1/D2/D3, N1/N2/N3), not by case; and it has
+    /// SIXTEEN names over twelve positions with deliberate overlap — pitch class 2 is Ri2
+    /// *or* Ga1, 3 is Ri3 *or* Ga2, 9 is Dha2 *or* Ni1, 10 is Dha3 *or* Ni2 — decided by the
+    /// mēḷa, not by the pitch class. A flat twelve-entry column structurally cannot express
+    /// that, so do not "add Carnatic" as a fifth case here.
+    ///
+    /// This matters concretely and this repo already knew it: `MusicalKey.charukeshi` and
+    /// `.shanmukhapriya` are Carnatic mēḷas 26 and 56, and a Carnatic musician reads them
+    /// `S R2 G2 M2 P D1 N2` — never as this table's spelling. Two commits ago the reviewer
+    /// made `Scale.todi` say "Todi (Hindustani)" for exactly this collision; smoothing it
+    /// over here would have undone that lesson in the same week.
     ///
     /// Added because the app grew a shelf it could not spell. #232 J put seven Indian scales
     /// in the key picker — Mārvā, Toḍī, Mālkauns, Cārukeśī and three more — and the play
@@ -59,10 +74,26 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// tradition while refusing its alphabet is a half-measure, and it is precisely the
     /// gap #232 F names.
     ///
-    /// ⚠️ THIS DOES NOT CLOSE #232 F, only its Indian third. F is "non-Western tunings carry
-    /// Western note names", and the maqām half needs something this type cannot express: an
-    /// Arabic degree name (Rāst, Dūkāh, Sīkāh …) belongs to a maqām, not to a pitch class,
-    /// so it cannot be a fixed twelve-entry column. Do not "finish" F by inventing one.
+    /// ⚠️ AND IT IS SPELLED AGAINST A FIXED Sa = C, WHICH SARGAM IS NOT. Sa is the tonic —
+    /// wherever the drone is set — and the syllables name degrees relative to it, exactly the
+    /// movable/fixed distinction this file already reasons about for `.solfege` two cases up
+    /// and then failed to carry across. So in the key of D the play surface labels the tonic
+    /// cell "Re", and the Key picker offers a root called "Ga♭", which is not a thing a
+    /// player chooses. That is the same shape as the German B/H bug that created this type.
+    /// It ships this way knowingly and it is written down rather than implied: making it
+    /// movable changes `name(pitchClass:)`'s contract and every call site, so it is its own
+    /// slice, not a silent widening of this one.
+    ///
+    /// ⚠️ THIS DOES NOT CLOSE #232 F, only its Hindustani third. F is "non-Western tunings
+    /// carry Western note names", and the maqām half needs something this type cannot
+    /// express — but NOT for the reason I first wrote here. I claimed an Arabic degree name
+    /// "belongs to a maqām, not to a pitch class"; that is backwards. Yakāh, ʿUshayrān,
+    /// Rāst, Dūkāh, Sīkāh, Nawā, Kirdān … name absolute positions of the general gamut
+    /// (ṣullam), independent of maqām — Maqām Rāst is named AFTER its tonic note, not the
+    /// other way round. The conclusion survives for two different reasons: the gamut is
+    /// 24 quarter-tones, so Sīkāh sits a quarter-tone below E and has no pitch class in this
+    /// type at all; and the names are register-specific (Rāst and Kirdān are an octave apart
+    /// and differently named), so it is not a pitch-CLASS table in the first place.
     case sargam
 
     /// Player-facing label for the setting row. Each names the pair that actually differs, so
@@ -102,20 +133,37 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     // ⚠️ SARGAM DEPARTS FROM THE PRINTED CONVENTION, deliberately, and the reason is the
     // reason this whole epic exists.
     //
-    // Indian notation distinguishes the altered degrees by CASE: komal (flattened) Re is
+    // HINDUSTANI notation distinguishes the altered degrees by CASE: komal (flattened) Re is
     // written "re", śuddha Re is "Re"; tīvra Ma is "Ma'". That is what a musician reads on
-    // paper — and it is unusable here. A case-only difference is invisible at a glance in a
-    // menu row, it survives no screen reader (VoiceOver says "re" and "Re" identically), and
-    // this setting exists to stop a player reading the wrong note. Marking komal with ♭ and
-    // tīvra with ♯ keeps every distinction audible AND visible, and it matches the marks the
-    // other three columns already use, so `spokenName` expands them the same way.
+    // paper.
     //
-    // This is the same shape of decision as the German column keeping international sharps
-    // instead of "Cis/Dis": follow the convention where it serves the reader, depart where
-    // it would defeat the purpose — and write down which was done.
+    // THE LOAD-BEARING REASON NOT TO USE IT IS VISUAL: a case-only difference is a
+    // single-channel cue. It is invisible at a glance in a menu row and it is destroyed
+    // outright by any all-caps or small-caps styling. On the one control whose purpose is to
+    // stop a player reading the wrong note, that is disqualifying on its own.
     //
-    // Sa and Pa have no altered form in either system (they are the fixed drone degrees), so
-    // there is no ♭/♯ on 0 or 7 — a table that produced "Sa♯" would be a red flag.
+    // ⛔ THE SCREEN-READER HALF OF THIS ARGUMENT WAS OVERSTATED and is corrected rather than
+    // deleted. I wrote that a case-only distinction "survives no screen reader". VoiceOver
+    // says "re" and "Re" identically only under its DEFAULT Speech → Capital Letters setting;
+    // a user can switch that to Speak Cap or Change Pitch, and braille output preserves case
+    // exactly. So the visual argument decides this, not the audible one. (And the departure
+    // was CHOSEN, not forced: the Carnatic convention R1/R2/R3 is neither case-only nor
+    // unspeakable — it is simply a different system, see the case doc.)
+    //
+    // Marking komal with ♭ and tīvra with ♯ keeps every distinction visible AND speakable.
+    // ♯ is already used by all three other columns; ♭ appears in NO other column, so
+    // `spokenName` had to grow an arm for it — the commit body of the same change says as
+    // much, and an earlier draft of this comment claimed both marks were shared. They are not.
+    //
+    // Same shape as the German column keeping international sharps instead of "Cis/Dis":
+    // follow the convention where it serves the reader, depart where it defeats them — and
+    // write down which was done.
+    //
+    // Sa and Pa carry no accidental in EITHER system because they are the *achal*
+    // (immovable) swaras — a table that produced "Sa♯" would mean the column had been filled
+    // mechanically from a Western one. Not "the drone degrees": the drone follows from being
+    // achal, and it is not always Sa+Pa — rāgas that drop Pa are tuned Sa+Ma, including
+    // Mālkauns and Mārvā, both added by this same epic.
     private static let sargamNames = ["Sa", "Re♭", "Re", "Ga♭", "Ga", "Ma", "Ma♯",
                                       "Pa", "Dha♭", "Dha", "Ni♭", "Ni"]
 
@@ -158,9 +206,15 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// existed — and the failure would have been silent and cruel in the specific way this
     /// epic exists to prevent: an Indian player using VoiceOver would hear "Re" for both Re♭
     /// and Re, i.e. the same name for two different pitches, on the control that sets the
-    /// key. `NoteNamingTests.testTheSpokenNameMatchesTheSeenName` covers every naming × every
-    /// pitch class, so a fifth column that introduces a new mark fails there rather than on
-    /// someone's device.
+    /// key.
+    ///
+    /// ⛔ THE GUARD THIS PARAGRAPH PROMISED DID NOT EXIST when it was written. It said a
+    /// fifth column introducing a new mark would "fail there rather than on someone's
+    /// device" — but the test only knew ♯ and ♭: it asserted their absence and then rebuilt
+    /// the expectation with exactly those two replacements, so a column spelling `Ma'`, `B♮`
+    /// or `E𝄫` passed every assertion silently. The test now also requires the spoken form
+    /// to be plain ASCII letters and spaces, which catches ANY unexpanded mark. The claim is
+    /// true now; it was a promise before.
     public func spokenName(pitchClass: Int) -> String {
         name(pitchClass: pitchClass)
             .replacingOccurrences(of: "♯", with: " sharp")
