@@ -132,14 +132,33 @@ struct WorkspaceView: View {
                 // full-width rules read as "banding"/venetian blinds, not front-tier). A
                 // SINGLE rule below separates the whole chrome from the timeline content.
                 //
-                // Dynamic Type (a11y): the chrome bars are FIXED-height (topBar 50 /
-                // TransportBar 44 / CompositionHeaderStrip 40 pt), so at Accessibility
-                // sizes their text overruns/clips. Clamp JUST this chrome Group to
-                // xxLarge (the largest non-accessibility size) — the instrument below
-                // (SurfaceHost) is deliberately NOT clamped and keeps FULL Dynamic Type
-                // for its EchoelValueField controls. Same fit-vs-unbounded tradeoff
-                // ArrangeTimelineView already accepted. Group is layout-transparent in a
-                // VStack (no spacing/structure change), adds no sheet, reads nothing.
+                // Dynamic Type (a11y). The three chrome bars used to be FIXED-height
+                // (topBar 50 / TransportBar 44 / CompositionHeaderStrip 40 pt) and were
+                // therefore clamped to `.xxLarge` so their text could not overrun the box
+                // it sits in. That clamp is the single largest accessibility defect in the
+                // app: it covers Play/Stop, tempo, Genre, Key, Scale, Tone system and A4 —
+                // the always-visible controls — and it capped them for BOTH the system
+                // text setting AND the app's own pinch zoom (`StudioZoom` drives Dynamic
+                // Type, so it too stopped here).
+                //
+                // The heights below are now MINIMUMS, not fixed sizes, so the bars grow
+                // with the text instead of clipping it — which removes the reason the
+                // clamp existed. `EchoelValueField.boxHeight` became a minimum in the same
+                // commit for the same reason; without that the chrome's value boxes would
+                // still clip from the inside.
+                //
+                // ⚠️ THE CEILING IS RAISED, NOT REMOVED, AND THE REASON IS HONEST: with
+                // three stacked bars, `.accessibility5` would put roughly 335 pt of chrome
+                // above an instrument that is the entire point of the app, and nobody has
+                // seen that on a device — this environment has no simulator. `.accessibility1`
+                // (~1.65× vs the old ~1.24×) is the largest step verifiable by reasoning
+                // alone. Raising it further is a founder device look, not a code question;
+                // the layout is ready for it. Do NOT read this line as "accessibility is
+                // done" — a user on AX4/AX5 still gets AX1 in the chrome.
+                //
+                // The instrument below (SurfaceHost) is deliberately NOT clamped at all.
+                // Group is layout-transparent in a VStack (no spacing/structure change),
+                // adds no sheet, reads nothing.
                 Group {
                     topBar
                     TransportBar()
@@ -150,7 +169,7 @@ struct WorkspaceView: View {
                     // visible, one thin row. A LEAF (low-frequency reads only).
                     CompositionHeaderStrip()
                 }
-                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 Divider().overlay(EchoelTheme.border)
                 // (The standalone Tempo row is gone — the tempo control moved UP into
                 //  the transport bar next to Play, founder 2026-07-15 "Das soll da oben
@@ -271,7 +290,10 @@ struct WorkspaceView: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 50)
+        // minHeight, not height: the bar keeps its 50 pt design size at every normal text
+        // size and GROWS instead of clipping at accessibility sizes (see the Dynamic Type
+        // note on the chrome Group in `body`).
+        .frame(minHeight: 50)
         .background(EchoelTheme.bg)
     }
 
@@ -453,7 +475,9 @@ private struct TransportBar: View {
             TransportPositionView()
         }
         .padding(.horizontal, 12)
-        .frame(height: 44)
+        // minHeight — see `topBar`. 44 pt is also the HIG tap-target floor, so this one
+        // must never be allowed to shrink below it either.
+        .frame(minHeight: 44)
         .background(EchoelTheme.bg)
     }
 
@@ -726,7 +750,11 @@ struct CompositionHeaderStrip: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
         }
-        .frame(height: 40)
+        // minHeight — see `topBar`. This one sits on a HORIZONTAL ScrollView: the scroll
+        // axis is greedy, the cross axis (vertical, here) takes the content's ideal size,
+        // so a taller row at accessibility sizes makes the strip taller rather than
+        // cropping it.
+        .frame(minHeight: 40)
         .background(EchoelTheme.bg)
     }
 

@@ -244,7 +244,14 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         // Dense rows pin the height (vertical padding shrinks) so the box matches its
         // neighbour buttons; default keeps the roomy 9 pt padding + natural height.
         .padding(.horizontal, 12).padding(.vertical, boxHeight == nil ? 9 : 3)
-        .frame(height: boxHeight)
+        // minHeight, NOT height. `boxHeight` says "match the neighbouring buttons", which is
+        // a FLOOR — a dense row wants the box no SMALLER than its neighbours. As a fixed
+        // height it was also a ceiling, so at accessibility text sizes the number was cropped
+        // by the box that exists to display it. The chrome strip is the case that made this
+        // visible (its A4 field is 104×30 inside a bar that now grows with Dynamic Type), but
+        // the same crop applied to every dense caller. Nothing shrinks: at normal sizes the
+        // content is smaller than `boxHeight`, so the frame still decides.
+        .frame(minHeight: boxHeight)
         // BACKGROUND, not overlay, and that is a correctness choice rather than a taste one:
         // the value text turns `accent` while scrubbing, and the indicator's line is also
         // `accent`, so drawn on TOP it struck straight through the digits in the same colour
