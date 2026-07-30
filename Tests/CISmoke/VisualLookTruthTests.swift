@@ -26,8 +26,8 @@ final class VisualLookTruthTests: XCTestCase {
     /// Normally a renamed key silently resets everyone to the default, which is bad. Here the
     /// default is where we WANT everyone, so a rename would look harmless. It is not: an install
     /// carrying a stored `true` is exactly who `normaliseUnreachableDonutMode()` exists for, and it
-    /// can only clear a value it can still find. Rename this and those players keep hidden Blend
-    /// controls forever, with no control able to undo it.
+    /// can only clear a value it can still find. Rename this and those installs keep the launch
+    /// look-snap skipped forever, with no reachable control able to undo it.
     func testThePersistedKeyIsStillTheOneOlderInstallsWroteTo() {
         XCTAssertEqual(StudioDefaultKeys.visualSpectralDonuts.key, "visual.spectralDonuts",
                        "the donut key moved — an install that stored `true` before #227 can no "
@@ -53,6 +53,13 @@ final class VisualLookTruthTests: XCTestCase {
     /// the sequence would be silently rewritten at first launch: the player would get a look nobody
     /// chose, and the "default 5 (Aurora) — a richer look out of the box" note in `StudioDefaultKeys`
     /// would quietly stop being true.
+    ///
+    /// ⚠️ THIS ONLY GUARDS THE SNAP BECAUSE THE VIEWS NOW DERIVE THEIR DEFAULT FROM
+    /// `defaultSequence`. In #227's first cut they each re-typed `"3,5,7"`, so this test asserted
+    /// against a constant the snap never read: change either literal and it stayed green while the
+    /// fresh install got snapped. Both declarations are `LookBlendMap.string(from:
+    /// LookBlendMap.defaultSequence)` now — if anyone re-types a literal there, this test goes
+    /// back to guarding nothing, and it will not tell you.
     func testTheDefaultLookIsOneTheSliderCanActuallyLandOn() {
         XCTAssertTrue(LookBlendMap.defaultSequence.contains(StudioDefaultKeys.visualStyle.value),
                       "the default visual style (\(StudioDefaultKeys.visualStyle.value)) is not in "

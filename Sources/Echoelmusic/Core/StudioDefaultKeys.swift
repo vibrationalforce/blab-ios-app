@@ -88,9 +88,16 @@ public enum StudioDefaultKeys {
     /// player can actually reach is `FloatingVisualWindow`, which never reads this key at all.
     /// With the old default, a FRESH INSTALL showed a filled "Donuts" pill and a readout saying
     /// "Donuts" while the one visible visual drew a Metal look — the #164/#227 lying control, on
-    /// first launch, before the player has touched anything. Worse, `true` also hid the Blend
-    /// controls (`if !spectralDonuts`) and skipped the launch look-snap, so the lie cost real
-    /// controls rather than only being cosmetic.
+    /// first launch, before the player has touched anything. It also skipped the launch look-snap
+    /// and the customizer's live re-snap (both guarded by `if !spectralDonuts` in
+    /// `EchoelStudioView`), so a persisted look that had fallen out of the slider sequence was
+    /// never repaired.
+    ///
+    /// ⛔ THIS NOTE ALSO CLAIMED, FOR ONE COMMIT, THAT `true` HID `visualBlendControls`. It did
+    /// not — that view has ZERO mount sites; the two places that once composed it are comments
+    /// recording its removal on 2026-07-07. Caught in review. An unreachable claim inside the
+    /// rationale of the commit that removes unreachable claims is the failure itself, and it would
+    /// have marked a genuinely doorless view as live.
     ///
     /// The KEY STRING is deliberately unchanged: an existing install may have `true` stored, and
     /// the launch normalisation in `EchoelStudioView` has to be able to FIND that value to clear it.

@@ -253,7 +253,15 @@ struct EchoelStudioView: View {
     /// as a compact "3,5,7" string, SHARED with FloatingVisualWindow, parsed by LookBlendMap.
     /// Same key + default in both views so an absent key resolves identically. Replaces the
     /// old fixed `calmMetalStyles` list — the surfaced looks are now whatever the user picks.
-    @AppStorage(LookBlendMap.storageKey) private var sliderLooksRaw = "3,5,7"
+    ///
+    /// ⛔ DERIVED FROM `LookBlendMap.defaultSequence`, NOT A LITERAL. Both this and
+    /// `FloatingVisualWindow`'s copy read `"3,5,7"` until #227's review: three independent
+    /// declarations of one default, none coupled, exactly the per-declaration-default bug this
+    /// repo built `StudioDefaultKeys` to end. It matters more since #227 — the launch look-snap
+    /// below is no longer skipped on a fresh install, so a drift between the shipped default look
+    /// and this sequence now silently rewrites the look before the player ever sees it.
+    @AppStorage(LookBlendMap.storageKey)
+    private var sliderLooksRaw = LookBlendMap.string(from: LookBlendMap.defaultSequence)
     private var sliderLooks: [Int] { LookBlendMap.sequence(from: sliderLooksRaw) }
 
     /// User-chosen tempo-synced delay note value ("studio calculator in the FX"),
@@ -2529,7 +2537,9 @@ struct EchoelStudioView: View {
             }
             .accessibilityLabel(floatingVisualVisible ? "Hide the floating visual window" : "Show the floating visual window")
             Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-            visualLookStrip
+            // `false`: this panel's visual is `FloatingVisualWindow`, which never reads
+            // `spectralDonuts` — so claiming donut state here is a claim about another surface.
+            visualLookStrip(showsDonutState: false)
             visualLookCustomizer
             // visualBlendControls REMOVED from the surface (founder 2026-07-07:
             // minimize — the A/B "mischend" mix was extra clicking). Still defined
@@ -3034,7 +3044,15 @@ struct EchoelStudioView: View {
     /// three physically/analytically grounded Metal fields (Rings = wave interference,
     /// Chladni = plate eigenmodes from the tone, Plasma = superposed waves). One strip
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
-    private var visualLookStrip: some View {
+    /// - Parameter showsDonutState: whether this mount can actually SHOW the donut renderer.
+    ///   `false` for the inline Field panel (whose visual is `FloatingVisualWindow`, which does not
+    ///   read `spectralDonuts` at all), `true` for the fullscreen VJ overlay — that overlay lives
+    ///   INSIDE the `.fullScreenCover` where `SpectralDonutView` is built, and still carries a
+    ///   working donut toggle in its top bar. #227's first cut made the readout unconditional at
+    ///   BOTH mounts, which fixed the inline lie and planted the mirror image of it in the overlay:
+    ///   the day `showVisual` gets a setter again, that overlay would print "Aurora" over a donut
+    ///   field. One parameter instead, so neither mount can drift into claiming the other's state.
+    private func visualLookStrip(showsDonutState: Bool) -> some View {
         // ALIGNED with the Visual window's top-bar slider (founder 2026-07-07: "das
         // hauptmenü dementsprechend angleichen"): one slider that scrubs the calm metal
         // looks — SAME handling in both places, fewer buttons than the old labelled strip.
@@ -3051,17 +3069,31 @@ struct EchoelStudioView: View {
             // $showVisual)` further up this file, and `showVisual`'s only setter was the deleted
             // `openTool`. So the pill filled, the readout to the right said "Donuts", and nothing
             // on screen changed — and because the default was `true`, that was the state of a
-            // FRESH INSTALL. It also hid `visualBlendControls` (`if !spectralDonuts`) and skipped
-            // the launch look-snap, so it cost real controls rather than being merely cosmetic.
+            // FRESH INSTALL. It also skipped the launch look-snap (the `if !spectralDonuts` in
+            // `.onAppear`) and the customizer's live re-snap, so a persisted look that had fallen
+            // out of the slider sequence was never repaired.
+            //
+            // ⛔ AND ONE THING THIS BLOCK CLAIMED FOR ONE COMMIT AND SHOULD NOT HAVE: that `true`
+            // also HID `visualBlendControls`. It did not. That view has ZERO mount sites — the two
+            // places that used to compose it are comments recording its removal on 2026-07-07. The
+            // guard `if !spectralDonuts` inside it protects something nobody can see either way.
+            // Writing an unreachable claim into the rationale of the commit that removes unreachable
+            // claims is the failure itself, and it would have taught the next reader that
+            // `visualBlendControls` is live — blocking a legitimate deletion.
             //
             // The KEY, the cover's `if spectralDonuts` branch and `SpectralDonutView` all stay:
             // the renderer is not the defect, the unreachable claim was. Bring the pill back in
-            // the SAME commit that gives `showVisual` a setter again — not before.
+            // the SAME commit that gives `showVisual` a setter again — and note what else that
+            // commit owes: the VJ overlay mounts this strip too, so it must pass
+            // `showsDonutState: true` (already the case) AND it has no `visualLookCustomizer`
+            // beneath it, so with a one-look sequence the slider disappears and the pill was the
+            // overlay's last look control. Restore it there, not only inline.
             //
             // Dragging the slider morphs STUFENLOS between the looks (continuous crossfade
             // via style/styleB/blend, mapping in LookBlendMap). Its setter still clears
-            // `spectralDonuts` — harmless now that nothing sets it, and correct again the
-            // day the pill returns.
+            // `spectralDonuts` — harmless now that nothing REACHABLE sets it true (the word
+            // matters: the overlay's own toggle and this setter are both still writers), and
+            // correct again the day the pill returns.
             if LookBlendMap.maxPosition(for: sliderLooks) > 0 {
                 Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition(for: sliderLooks))
                     .tint(EchoelTheme.accent)
@@ -3069,9 +3101,9 @@ struct EchoelStudioView: View {
                     .accessibilityValue(currentLookName)
             }
 
-            // Unconditional (#227): the ternary that stood here could print "Donuts" while the
-            // visible visual drew a Metal look. The readout now names what is actually rendering.
-            Text(currentLookName)
+            // #227: at a mount that cannot show donuts this names what is actually rendering.
+            // The old unconditional ternary printed "Donuts" over a Metal look in the inline panel.
+            Text(showsDonutState && spectralDonuts ? "Donuts" : currentLookName)
                 .font(EchoelTheme.font(12, .medium))
                 .foregroundStyle(EchoelTheme.dim)
                 .lineLimit(1)
@@ -3153,10 +3185,12 @@ struct EchoelStudioView: View {
     ///
     /// #227 removed the only reachable control that could set `spectralDonuts` and flipped the
     /// default to `false`. That leaves ONE group unserved: an install that already has `true`
-    /// stored. Without this, those players keep a readout that used to say "Donuts", keep
-    /// `visualBlendControls` HIDDEN (`if !spectralDonuts`), keep the launch look-snap skipped —
-    /// and now have no control at all able to undo it. That is strictly worse than the lie the
-    /// slice removes, which is why the flip and this line have to ship together.
+    /// stored. Without this, those players keep the launch look-snap skipped and the customizer's
+    /// live re-snap skipped — and now have no reachable control at all able to undo it. That is
+    /// strictly worse than the lie the slice removes, which is why the flip and this line have to
+    /// ship together. (This note said "keep `visualBlendControls` HIDDEN" for one commit. That view
+    /// has no mount sites at all, so nothing was hidden — see `StudioDefaultKeys` for the full
+    /// retraction. The remaining reasons stand on their own.)
     ///
     /// Deliberately NOT a "migration flag": there is nothing to remember. While no door exists,
     /// the only truthful value is `false`, and re-asserting it every launch costs one comparison.
@@ -3231,7 +3265,9 @@ struct EchoelStudioView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // Pick the visual LOOK (engine), then the scene preset (parameters).
                     Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-                    visualLookStrip
+                    // `true`: this overlay IS inside the cover that builds `SpectralDonutView`, and
+                    // its top bar still toggles donut mode — here the state is real and worth naming.
+                    visualLookStrip(showsDonutState: true)
                     // visualBlendControls REMOVED here too (founder 2026-07-07 minimize) —
                     // the fullscreen VJ overlay mirrors the inline panel, so both drop the
                     // A/B blend. SAME definitions as the inline panel (visualPresetRow +
