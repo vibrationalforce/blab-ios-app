@@ -105,11 +105,20 @@
 //  `IntroAttenuation.leadFactor` hold real founder tuning from 2026-07-07/07-11, and #196 is an open
 //  task on the lead's output gain. Dormant-and-documented, not deleted — that call is the founder's.
 //
-//  So one ROLE is left open: A6, the bounded timbre/FX trim — and that one is not a fourth consumer
-//  of `hit`, it reads the CHARACTER to nudge a sound, so this list may well stay at three. Two
-//  non-role items are also still open and are named here so "one role left" is not read as "nothing
-//  else pending": **A2b** (make `push` actually late — see the paragraph above) and the **inner pulse
-//  layer**, which no character governs (`Input.padRhythm`'s doc states that deliberately).
+//  ✅ A6 IS SHIPPED — the bounded timbre trim, at the bottom of this file (`TimbreTrim` +
+//  `timbreTrim(for:)`). As predicted it is NOT a fourth consumer of `hit`: it never asks which cells
+//  sound, it reads the CHARACTER and nudges a patch, so the consumer list above stays at three.
+//  Its ONE reader is `EchoelStudioView.applyTakeSound`, which trims a LOCAL COPY of `currentPatch`
+//  at push time and is reached from all three places the take voice gets a patch (the Sound panel,
+//  `generate()` and the open-project path — they were three duplicated `synth.apply` pairs and are
+//  now one helper). The WRITER is the Mood panel's existing **Pad rhythm** Picker: no new control,
+//  because the founder asked for the tone to follow the rhythm, not for a tone dial.
+//  Neutral when no character is chosen (`padRhythm == ""`), so a player who never opened that row
+//  hears the genre's patch bit-identically.
+//  Two non-role items remain open: **A2b** (make `push` actually late — see the paragraph above)
+//  and the **inner pulse layer**, which no character governs (`Input.padRhythm`'s doc states that
+//  deliberately). The Field/touch voice is deliberately NOT trimmed — it has its own character
+//  (`fieldArpCharacter`) and belongs to a Field slice (#222/#224).
 //  (This block said "TWO consumers … A4 (pad) has no writer" for one commit — written in the commit
 //  that added the pad as the third. Twenty lines above, this same header spends a paragraph on
 //  exactly that failure with A2. Update it IN the diff that adds a consumer, not after.)
@@ -667,5 +676,131 @@ public enum RoleRhythm {
     /// map NaN itself before calling, and `hit` does.
     static func clampRange(_ v: Float, _ lower: Float, _ upper: Float) -> Float {
         Swift.min(upper, Swift.max(lower, v))
+    }
+}
+
+// MARK: - A6: the bounded timbre trim
+
+public extension RoleRhythm {
+
+    /// A SMALL, bounded nudge to a sound's timbre, derived from the rhythm character that is
+    /// playing it (#253 A6, founder 2026-07-30: *"Die Sound Charakter werden dadurch auch minimal
+    /// beeinflusst für mehr organisches Sound Design"*).
+    ///
+    /// WHY THIS EXISTS AT ALL. A real player does not keep one timbre and change only the
+    /// rhythm — a short, hard, on-the-beat figure is played with a brighter, snappier sound than
+    /// a long legato one, and that agreement between groove and tone is most of what "organic"
+    /// means. This type is that agreement, and nothing more.
+    ///
+    /// ⛔ "MINIMAL" IS THE WHOLE SPECIFICATION, not a hedge. The two most expensive bugs this
+    /// project has had are #81 and #125 — every genre converging on one sound. A trim that pulled
+    /// each genre toward a per-character target would reintroduce exactly that, six targets
+    /// instead of one. So the numbers below are deliberately tiny (≤ 0.05 on a 0…1 brightness,
+    /// ≤ ±12 % on cutoff, ≤ ±22 % on a time) and they are RELATIVE to whatever patch arrives:
+    /// two genres a semitone apart in brightness stay a semitone apart after the trim.
+    /// `GenreFamilyDistinctnessTests`' premise is untouched by construction, and
+    /// `RoleTimbreTrimTests` asserts the bound rather than trusting this paragraph.
+    ///
+    /// ⚠️ THE DIRECTION IS NOT FREE — it follows the character's own gate and accent, so the
+    /// trim can never contradict the rhythm it came from:
+    ///   · `driving` / `dynamic` / `syncopated` — short gates, strong accents → BRIGHTER, more
+    ///     open filter, faster attack, shorter release. The note has to speak and then get out
+    ///     of the way.
+    ///   · `hypnotic` / `sparse` / `flowing` — long gates, subtle accents → DARKER, softer
+    ///     filter, slower attack, longer release. These characters work by blurring into
+    ///     themselves.
+    /// That split is exactly `Character.accentIsSubtle`, and the test derives it from this table
+    /// rather than restating it — so re-tuning one without the other turns red.
+    ///
+    /// ⛔ NOT IDEMPOTENT, AND THAT IS WHY IT MUST NEVER BE STORED. `trimmed(_:)` MULTIPLIES, so
+    /// feeding its own output back in compounds (0.88² = 0.77, well outside the stated bound).
+    /// The one caller therefore applies it to a LOCAL COPY at the moment the patch is pushed to
+    /// the voice (`EchoelStudioView.applyTakeSound`) and never writes it back into
+    /// `currentPatch` — which also keeps every number in the Sound panel honest: the player sees
+    /// the patch they chose, not the patch plus an invisible offset. If a later slice ever wants
+    /// to persist a trimmed patch, it must trim the BASE once, not the current value.
+    struct TimbreTrim: Equatable, Sendable {
+        /// Added to `brightness` (0…1), then clamped.
+        public var brightness: Float
+        /// Multiplies `filterCutoff`, then clamped to the live Sound panel's own 20…18000 Hz.
+        public var cutoffFactor: Float
+        /// Multiplies `attack`, then floored at the click-safe 3 ms onset the articulation macro
+        /// already respects — a faster attack must not become a knack.
+        public var attackFactor: Float
+        /// Multiplies `release`, then floored at 50 ms.
+        public var releaseFactor: Float
+
+        /// The widest any field may move, asserted in CI. Written here rather than in the test so
+        /// the bound lives with the numbers it bounds.
+        public static let maxBrightnessShift: Float = 0.05
+        public static let maxCutoffFactorDeviation: Float = 0.12
+        public static let maxTimeFactorDeviation: Float = 0.22
+
+        /// The identity — every field neutral. This is what "no character chosen" resolves to,
+        /// and `trimmed(_:)` with it returns its input unchanged (asserted).
+        public static let neutral = TimbreTrim(brightness: 0, cutoffFactor: 1,
+                                              attackFactor: 1, releaseFactor: 1)
+
+        public init(brightness: Float, cutoffFactor: Float,
+                    attackFactor: Float, releaseFactor: Float) {
+            self.brightness = brightness
+            self.cutoffFactor = cutoffFactor
+            self.attackFactor = attackFactor
+            self.releaseFactor = releaseFactor
+        }
+
+        /// The patch as this character would voice it. Pure: the input is untouched.
+        ///
+        /// Every write is clamped, and each clamp is `Swift.min(upper, Swift.max(lower, v))`
+        /// rather than an `isFinite` branch — a non-finite value in a decoded patch must land on
+        /// a legal number, not propagate (CLAUDE.md's NaN-argument-order law, and the same
+        /// mechanism `clampRange` above already uses).
+        public func trimmed(_ patch: SynthPatch) -> SynthPatch {
+            var p = patch
+            p.brightness   = RoleRhythm.clamp01(patch.brightness + brightness)
+            p.filterCutoff = RoleRhythm.clampRange(patch.filterCutoff * cutoffFactor, 20, 18_000)
+            p.attack       = RoleRhythm.clampRange(patch.attack * attackFactor, 0.003, 10)
+            p.release      = RoleRhythm.clampRange(patch.release * releaseFactor, 0.05, 20)
+            return p
+        }
+    }
+
+    /// The trim for one character. Exhaustive on purpose: a seventh character forces a decision
+    /// here instead of silently inheriting a neutral trim and shipping a rhythm whose tone does
+    /// not follow it.
+    static func timbreTrim(for character: Character) -> TimbreTrim {
+        switch character {
+        // Speaks and gets out of the way. The brightest and snappiest of the six, because it is
+        // the only one with no push at all — machine time needs a transient to read as such.
+        case .driving:
+            return TimbreTrim(brightness: 0.05, cutoffFactor: 1.12,
+                              attackFactor: 0.88, releaseFactor: 0.88)
+        // Same cells as driving, moving contour. Less extra brightness precisely BECAUSE its
+        // accent already carries the movement (≈ 5.8 dB, the roster's widest) — doubling the
+        // emphasis in the timbre would make the loud notes shrill rather than louder.
+        case .dynamic:
+            return TimbreTrim(brightness: 0.03, cutoffFactor: 1.06,
+                              attackFactor: 0.90, releaseFactor: 0.94)
+        // Off the beat, and the shortest release of the six: an offbeat that rings into the next
+        // beat stops reading as offbeat at all.
+        case .syncopated:
+            return TimbreTrim(brightness: 0.04, cutoffFactor: 1.09,
+                              attackFactor: 0.90, releaseFactor: 0.85)
+        // Rotating figure, long notes, almost no accent. Darker and slower so the repetition
+        // blurs into itself — that blur IS what makes a repeating figure hypnotic.
+        case .hypnotic:
+            return TimbreTrim(brightness: -0.04, cutoffFactor: 0.93,
+                              attackFactor: 1.10, releaseFactor: 1.16)
+        // Few notes, held long. Gets the LONGEST release of the six: with fewer onsets the tail
+        // is what fills the bar, and this is the character whose whole point is space.
+        case .sparse:
+            return TimbreTrim(brightness: -0.03, cutoffFactor: 0.95,
+                              attackFactor: 1.06, releaseFactor: 1.22)
+        // Legato, level, a hair late. The darkest and slowest — this is how a pad sits UNDER
+        // everything else instead of competing with it, which is the character's own doc.
+        case .flowing:
+            return TimbreTrim(brightness: -0.05, cutoffFactor: 0.90,
+                              attackFactor: 1.18, releaseFactor: 1.14)
+        }
     }
 }

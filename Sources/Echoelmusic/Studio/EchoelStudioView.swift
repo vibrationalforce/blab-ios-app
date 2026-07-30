@@ -3324,7 +3324,12 @@ struct EchoelStudioView: View {
             .pickerStyle(.menu).tint(EchoelTheme.text)
             .onChange(of: padRhythmRaw) { _, _ in recomposeIfRunning() }
             .accessibilityLabel("Pad rhythm")
-            .accessibilityHint("Genre keeps the style's own chord articulation; the other choices override it")
+            // The tone half is stated because it IS what the founder asked for (#253 A6) and
+            // because an unannounced timbre change reads as the genre having changed. It says
+            // "slightly" on purpose: the trim is bounded to ≤0.05 brightness and ≤12 % cutoff
+            // (`RoleRhythm.TimbreTrim`), and a hint promising more than that would be the same
+            // overclaim as a dial that does nothing.
+            .accessibilityHint("Genre keeps the style's own chord articulation; the other choices override it and also shape the sound slightly — short rhythms brighter, long ones darker")
         }
     }
 
@@ -4931,8 +4936,7 @@ struct EchoelStudioView: View {
         let composition = BioComposer.compose(input)
         // Honor the user's concert pitch + live timbre on the next notes.
         applyConcertPitch(session.a4Hz)
-        synth.apply(currentPatch)
-        syncTouchSound()
+        applyTakeSound(currentPatch)
         // TEMPO — bio-reactive but never jumpy. The body seeds the tempo once the pulse is
         // trustworthy, then the beat GENTLY CONVERGES toward the body's live trend on each
         // evolve tick (founder circled "98 bpm vs Puls 66": the first seed captured an elevated
@@ -5274,8 +5278,47 @@ struct EchoelStudioView: View {
     /// recomposing. Safe to call at any time; the audio thread fans the patch
     /// across every voice in its render drain.
     private func applySoundLive() {
-        synth.apply(currentPatch)
+        applyTakeSound(currentPatch)
+    }
+
+    /// The ONE place the take voice is handed a patch (#253 A6).
+    ///
+    /// ⛔ WHY A HELPER AND NOT THREE CALL SITES. Before this there were three
+    /// `synth.apply(…)` + `syncTouchSound()` pairs — here, in `generate()` and on the
+    /// open-project path — and A6 had to reach all three or the rhythm's tone would follow
+    /// the Sound panel but not a generated or a re-opened take. That is #240 exactly (the
+    /// delay that reached one of two chains because two call sites each did their own
+    /// stamping), and the fix is the same one: one inventory, not N sites.
+    ///
+    /// The trim is applied to a LOCAL COPY. `currentPatch` — what every control in the Sound
+    /// panel reads — is never written, so the player always sees the patch they chose rather
+    /// than the patch plus an invisible offset, and the multiply can never compound across
+    /// pushes (see `RoleRhythm.TimbreTrim`'s own warning).
+    ///
+    /// ⚠️ The touch surface is deliberately NOT trimmed here. `syncTouchSound()` follows
+    /// either `currentPatch` or a dedicated touch patch, and the Field has its OWN rhythm
+    /// character (`fieldArpCharacter`) — trimming it with the PAD's character would be the
+    /// wrong character on the wrong voice. Giving the Field its own trim is a Field slice
+    /// (#222/#224), not this one.
+    private func applyTakeSound(_ patch: SynthPatch) {
+        let trim = takeRhythmCharacter.map(RoleRhythm.timbreTrim(for:))
+            ?? RoleRhythm.TimbreTrim.neutral
+        synth.apply(trim.trimmed(patch))
         syncTouchSound()
+    }
+
+    /// The character whose tone the take voice follows, or `nil`-as-neutral.
+    ///
+    /// ⛔ NEUTRAL WHEN NOTHING IS CHOSEN, and that is load-bearing: `StudioDefaultKeys.padRhythm`
+    /// defaults to `""` meaning "the genre's own grid", and a founder who has never opened the
+    /// Pad rhythm row must hear the genre's patch EXACTLY as before this slice. `TimbreTrim.neutral`
+    /// makes `trimmed(_:)` an identity, asserted in `RoleTimbreTrimTests`.
+    ///
+    /// It reads the PAD character rather than the bass one because `synth` is the polyphonic
+    /// chord voice — the pad IS this patch's sound. The bass has its own voice and its own
+    /// character, and coupling one to the other's tone would be a lie in the UI.
+    private var takeRhythmCharacter: RoleRhythm.Character? {
+        RoleRhythm.Character(rawValue: padRhythmRaw)
     }
 
     /// Keep the play surface's voice in sync with the take sound — unless the user
@@ -5491,8 +5534,7 @@ struct EchoelStudioView: View {
         session.adopt(key: p.key)
         session.a4Hz = p.a4Hz
         applyConcertPitch(p.a4Hz)
-        synth.apply(p.patch)
-        syncTouchSound()
+        applyTakeSound(p.patch)
         pianoRoll.load(p.notes)
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
