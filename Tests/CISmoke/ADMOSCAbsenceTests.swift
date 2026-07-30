@@ -129,19 +129,27 @@ final class ADMOSCAbsenceTests: XCTestCase {
                        + "constant it claims to use")
     }
 
-    /// ⛔ THE ONE AXIS A NaN CAN STILL REACH. `hrvNormalized > 0` and `coherence > 0` are
-    /// both false for NaN, so those two self-refuse; but `3...40` can hold a perfectly real
-    /// breath RATE beside a NaN PHASE, and this file's `clamp` is the `min(max(…))` form
-    /// that passes NaN straight through (CLAUDE.md's argument-order rule). A NaN azimuth on
-    /// the wire is not a position at all. Asserted on both signs of infinity too, which the
-    /// clamp does handle, so the two cases cannot be confused later.
+    /// ⛔ THE ONE AXIS A CORRUPT VALUE CAN STILL REACH. `hrvNormalized > 0` and
+    /// `coherence > 0` are both false for NaN, so those two self-refuse; but `3...40` can
+    /// hold a perfectly real breath RATE beside a corrupt PHASE, and this file's `clamp` is
+    /// the `min(max(…))` form that passes NaN straight through (CLAUDE.md's argument-order
+    /// rule). So the azimuth gate carries an explicit `isFinite`.
+    ///
+    /// ⚠️ `isFinite` REFUSES BOTH NaN AND ±INFINITY, and the first version of this test got
+    /// that wrong — it asserted that an infinite phase "is clampable and must still be
+    /// sent", which is what CI failed on. Recorded rather than quietly corrected, because
+    /// the mistake was reading my own gate as `!isNaN`: an infinite breath phase is not a
+    /// clamped reading, it is a corrupt one, and the honest answer for a corrupt input on
+    /// this arm is the same as for an absent one — say nothing.
     func testANonFiniteBreathPhaseIsNotAPosition() {
-        XCTAssertEqual(addresses(frame(bpm: 62, breath: 12, phase: .nan)), [],
-                       "a NaN breath phase left the device as an azimuth")
-        XCTAssertEqual(addresses(frame(bpm: 62, breath: 12, phase: .infinity)),
-                       ["/adm/obj/1/position/azimuth"],
-                       "an infinite phase is clampable and must still be sent — it is the "
-                       + "NaN that has no position, not every non-finite value")
+        for bad: Float in [.nan, .infinity, -.infinity] {
+            XCTAssertEqual(addresses(frame(bpm: 62, breath: 12, phase: bad)), [],
+                           "breath phase \(bad) left the device as an azimuth")
+        }
+        // …and the same rate with a REAL phase still positions, or the loop above would
+        // pass for the wrong reason (a breath gate that stopped working entirely).
+        XCTAssertEqual(addresses(frame(bpm: 62, breath: 12, phase: 0.75)),
+                       ["/adm/obj/1/position/azimuth"])
     }
 
     /// ANTI-VACUITY. Every assertion above is about ABSENCE, so a mapping that returned

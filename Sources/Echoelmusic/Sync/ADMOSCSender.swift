@@ -278,11 +278,14 @@ public final class ADMOSCSender {
         // breath phase [0..1] → azimuth [-180..180]: L↔R sweep with the breath.
         // Gated on `breathRate`, not on the phase: `breathPhase` has no unknown sentinel
         // (0 is a real position, exhale start), so it cannot answer for itself.
-        // `isFinite` too, because this is the ONE axis whose gate a NaN can pass: the other
-        // two compare `> 0`, which is false for NaN, while `3...40` can hold a real rate
-        // beside a NaN phase. `clamp` here is not NaN-safe, so without this a NaN would go
-        // out as an azimuth — and even the NaN-safe form would land on −180, the very
-        // position this gate exists to stop asserting.
+        // `isFinite` too, because this is the ONE axis whose gate a corrupt value can pass:
+        // the other two compare `> 0`, which is false for NaN, while `3...40` can hold a
+        // real rate beside a corrupt phase. `clamp` here is not NaN-safe, so without this a
+        // NaN would go out as an azimuth — and even the NaN-safe form would land on −180,
+        // the very position this gate exists to stop asserting. `isFinite` also refuses
+        // ±infinity, deliberately: an infinite phase would clamp to a legal-looking ±180
+        // that is nonetheless not a reading, and this arm's whole rule is that it asserts
+        // only what was measured.
         if f.hasMeasuredBreath, f.breathPhase.isFinite {
             msgs.append(("\(prefix)/position/azimuth",
                          clamp((f.breathPhase * 2 - 1) * 180, -180, 180)))
