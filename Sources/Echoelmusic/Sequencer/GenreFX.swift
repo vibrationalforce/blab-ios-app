@@ -380,6 +380,49 @@ public extension MusicStyle {
                 delayMix: 0.16, delayFeedback: 0.28, delayTone: 0.55, delaySpread: 0.30,
                 saturation: 0.42,
                 reverbEnabled: true, reverbMix: 0.12, reverbRoom: 0.42, reverbDamping: 0.58)
+        case .minimalTechno:
+            // #254 batch 4 — THE CLEANEST CHAIN OF THE BEAT-DRIVEN OFFERED GENRES. `saturation:
+            // 0.14` sits under `deepHouse`'s 0.22, which held that floor. ⚠️ SCOPED, and the scope
+            // is the point: `deepDrone` and `classical` are at 0.10, so this is NOT the roster
+            // minimum — a superlative stated one notch too wide is the mistake this file has had to
+            // correct three times already.
+            // A dry small room (0.36, between `acidTechno`'s 0.34 and `techHouse`'s 0.42 — no
+            // superlative available or needed) with high damping, and a LOW-mix HIGH-feedback delay:
+            // 0.44 feedback is the longest tail of the four-on-floor offered genres, but at mix 0.20
+            // it is a repeating shadow rather than an effect. That asymmetry — a long tail you have
+            // to listen for — is what minimal techno is made of.
+            // ⚠️ The delay DIVISION is inert (#257: `apply(to:bpm:)`'s time is overwritten before it
+            // reaches the audio), so it is a source-level contract only. What you actually hear from
+            // this delay is mix, feedback, tone and spread.
+            // No chorus: width would fill exactly the space this genre is about leaving empty.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth, .dotted),
+                delayMix: 0.20, delayFeedback: 0.44, delayTone: 0.42, delaySpread: 0.45,
+                saturation: 0.14,
+                reverbEnabled: true, reverbMix: 0.10, reverbRoom: 0.36, reverbDamping: 0.66)
+        case .detroitTechno:
+            // #254 batch 4 — WARM AND WIDE, the batch's other pole. `.tape` rather than `.digital`:
+            // the analogue smear is the genre's warmth, and it is the mode the calm family already
+            // uses (`deepDrone`, `vaporwave`, `sciFi`, `selfObservation`, `contemplation`) — no
+            // uniqueness is claimed, it is simply the right colour.
+            // Chorus ON, for the string-machine shimmer the Detroit chord is inseparable from.
+            // ⛔ THE FIRST VERSION OF THIS COMMENT CLAIMED "no other offered techno/house genre has
+            // it" AND WAS FALSE — a sweep before commit found `dubTechno` (0.58 feedback, chorus on)
+            // and `deepHouse` chorused too, alongside `upliftingTrance`. The true split is: chorused
+            // = dubTechno, deepHouse, upliftingTrance, detroitTechno; dry = acidTechno, techHouse,
+            // minimalTechno. So chorus is the axis separating this one from the two DRY stab genres
+            // it is nearest in tempo (techHouse, minimal above) — not a roster-wide superlative.
+            // A medium hall (room 0.66, an unclaimed value between `techHouse`'s 0.42 and
+            // `deepHouse`'s 0.78) with low damping so the ninth chord keeps its top. Saturation 0.34
+            // is tape warmth, not drive — above dubTechno's 0.30 default and below techHouse's 0.42.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .tape,
+                delaySync: TempoSyncOption(.quarter, .dotted),
+                delayMix: 0.24, delayFeedback: 0.34, delayTone: 0.58, delaySpread: 0.60,
+                chorusEnabled: true, chorusRate: 0.28, chorusDepth: 0.34, chorusMix: 0.26,
+                saturation: 0.34,
+                reverbEnabled: true, reverbMix: 0.22, reverbRoom: 0.66, reverbDamping: 0.40)
         case .deepDrone:
             // #254 batch 2 — the DARKEST space in the product.
             //

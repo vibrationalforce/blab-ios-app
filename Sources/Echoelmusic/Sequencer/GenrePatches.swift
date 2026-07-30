@@ -108,6 +108,32 @@ public extension MusicStyle {
                 harm: 0.80, hl: 0.58, bright: 0.34, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 2400, res: 0.30, lfoAmt: 0.10, lfoRate: 1.2, lfoDepth: 0.16,
                 revMix: 0.10, revDecay: 0.9, vibRate: 0, vibDepth: 0)
+        case .minimalTechno:
+            // #254 batch 4 — A CLICK WITH WEIGHT. Short everywhere so the dyad punctuates rather
+            // than sounds, low brightness (0.24) because minimal techno is defined by what is not
+            // there, and a low cutoff with moderate resonance so the fifth reads as body. Almost no
+            // patch reverb: the FX preset's dry 0.36 room is the whole space this genre gets.
+            // Deliberately DARKER than the house shell above (0.34) — the two are neighbours in
+            // tempo and both stab, so brightness is one of the few axes left to tell them apart.
+            return patch("F2", "Minimal Stab",
+                a: 0.002, d: 0.12, s: 0.10, r: 0.14,
+                harm: 0.62, hl: 0.70, bright: 0.24, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 1900, res: 0.34, lfoAmt: 0.06, lfoRate: 0.8, lfoDepth: 0.10,
+                revMix: 0.06, revDecay: 0.7, vibRate: 0, vibDepth: 0)
+        case .detroitTechno:
+            // #254 batch 4 — A WARM CHORD, not a stab: a slower attack than any other genre in this
+            // family so the ninth chord SWELLS into the comp, a long-ish release so the syncopation
+            // leaves a tail, and high sustain because the chord is the subject. Rich low harmonics
+            // with a mid-high cutoff so the 9th on top stays audible without turning cold — the
+            // founder's "einige Sounds stechen kalt aus dem Mix raus" law is the reason the
+            // brightness stops at 0.44 and the shape stays Natural rather than Bright.
+            // Unison gives the string-machine width the genre lives on; the FX chorus adds the rest.
+            return patch("F3", "Detroit Keys",
+                a: 0.018, d: 0.30, s: 0.46, r: 0.62,
+                harm: 0.88, hl: 0.66, bright: 0.44, noise: 0.0, color: "White", shape: "Natural",
+                cutoff: 3100, res: 0.18, lfoAmt: 0.12, lfoRate: 0.5, lfoDepth: 0.18,
+                revMix: 0.22, revDecay: 1.8, vibRate: 0, vibDepth: 0,
+                uni: 3, det: 9)
         case .deepDrone:
             // #254 batch 2 — a BED, not a note: the slowest attack of any genre patch so the
             // drone swells rather than starts, the longest release so it never fully stops, and

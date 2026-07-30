@@ -147,6 +147,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // plus a second House style. Offered from the start for the same reason batch 1 was — a
         // new electronic genre left only in the taxonomy is a doorless genre.
         .upliftingTrance, .techHouse,
+        // #254 batch 4 (same founder sentence): the two techno styles the word most often means.
+        // Offered from the start for the same reason batches 1 and 3 were — a new electronic genre
+        // left only in the taxonomy is a doorless genre.
+        .minimalTechno, .detroitTechno,
         // #254 batch 2 (same ask, "aber auch Ambient und meditations Musik"). Built SECOND on
         // purpose: batch 1 shifted the palette toward driving genres, and this is the half of the
         // founder's sentence that restores the contemplative centre rather than diluting it —
@@ -194,7 +198,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             case .meditative: return [.selfObservation, .esotericMeditation, .drift, .contemplation,
                                       .deepDrone, .ambientPulse, .vaporwave, .sciFi]
             case .electronic: return [.dubTechno, .acidTechno, .deepHouse, .upliftingTrance,
-                                      .techHouse, .trap, .psytrance,
+                                      .techHouse, .minimalTechno, .detroitTechno,
+                                      .trap, .psytrance,
                                       .synthwave, .earlySynth, .eighties, .disco, .futuristic]
             case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
             case .acoustic:   return [.classical, .jazz, .klezmer, .oriental, .ska, .rocksteady]
@@ -217,6 +222,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              .deepDrone, .ambientPulse:
             return .meditative
         case .dubTechno, .acidTechno, .deepHouse, .upliftingTrance, .techHouse,
+             .minimalTechno, .detroitTechno,
              .trap, .psytrance, .synthwave, .earlySynth,
              .eighties, .disco, .futuristic:
             return .electronic
@@ -305,6 +311,58 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     ///     deepHouse swing note below had to learn). The rolling shuffle is half the genre and it
     ///     is a real audible axis, not a preset knob.
     case techHouse
+    /// #254 batch 4 (founder 2026-07-30: "verschiedenste Techno und House Stile"). The roster had
+    /// three techno styles (dub, acid, tech-house-adjacent) and none of the two the word "techno"
+    /// most often means. This is the STATIC pole.
+    ///
+    ///   · **`chordTones: [0, 4]`** — a bare open fifth, root and fifth, NO THIRD. The only
+    ///     TWO-NOTE voicing in the whole roster (checked against all 33 arms, not just the offered
+    ///     ones): everything else is a three- or four-note stack. Minimal techno's chord is weight
+    ///     rather than harmony, and a dyad is what that actually is — it reads neither major nor
+    ///     minor, like trance's sus4, but by subtraction instead of substitution.
+    ///   · **`progression: [0]`** — one chord for the whole take. ⚠️ NOT unique: `deepDrone`,
+    ///     `psytrance` and `doom` also have a single root. What separates it from `deepDrone` (the
+    ///     only offered one of those three) is every OTHER field — not sustained, beat-driven,
+    ///     `minor` vs `pentatonicMinor`, padOctave 4 vs 2, 128 BPM vs 48.
+    ///   · **The cleanest FX of the beat-driven offered genres** — `saturation: 0.14`, under
+    ///     `deepHouse`'s 0.22, which held that floor. ⚠️ SCOPED: `deepDrone` and `classical` sit at
+    ///     0.10, so this is not the roster minimum. Minimal is defined by what is absent.
+    ///   · **`swing: 0.04`** — its own value; the smallest non-zero swing of any genre. Present
+    ///     rather than zero because the micro-shuffle is the one thing that keeps a one-chord
+    ///     take from reading as a metronome; `acidTechno` and `upliftingTrance` are the genres
+    ///     that want a true 0.
+    ///
+    /// `.stab` articulation, shared with `techHouse` and `upliftingTrance` — no claim is made on
+    /// that axis. The separation is voicing, harmonic stasis, tempo and the dry, clean chain.
+    case minimalTechno
+    /// #254 batch 4 — the SOULFUL pole, and the deliberate opposite of `minimalTechno` in the same
+    /// batch: where that one subtracts until only weight is left, this one is the roster's richest
+    /// chord.
+    ///
+    ///   · **`chordTones: [0, 2, 6, 8]`** — root, third, ♭7 and NINTH, with NO FIFTH. In dorian
+    ///     that is semitones 0-3-10-14: a minor-ninth shell. New to the roster, and the richer
+    ///     cousin of `techHouse`'s `[0, 2, 6]` — same idea (drop the fifth, the note that makes a
+    ///     stack muddy), one degree further. The jazz-inflected chord IS Detroit techno.
+    ///   · **`.comp` articulation, via `.backbeat`** — the only ELECTRONIC genre that comps.
+    ///     Detroit chords are played syncopated, not stabbed on the beat, and `.comp` is the
+    ///     articulation that does that ("emphasis on beats 2 & 4 with syncopation when aroused").
+    ///     ⚠️ THE ARCHETYPE IS CHOSEN FOR THE ARTICULATION, NOT FOR A BEAT — exactly the
+    ///     precedent `deepHouse` set when it took `.offbeat` while being musically
+    ///     four-to-the-floor: since #166/#167 removed the drums, `beatArchetype`'s only audible
+    ///     consequence is `chordArticulation`. Its drum-grid side effect reaches no voice (only
+    ///     `Project` persistence and one `BioVariationMaze` metric). Do not "fix" this to
+    ///     `.fourOnFloor`: that would give it techHouse's on-beat stab and erase the one axis
+    ///     separating it from three siblings.
+    ///   · **`dorian`** — the bittersweet mode, minor with a lifted sixth. ⚠️ NOT unique and not
+    ///     even unique among offered: `dubTechno` and `drift` are dorian too. Stated so nobody
+    ///     writes the claim this file has already had to retract twice for other genres. What
+    ///     separates it from `dubTechno` — the sibling it shares the mode with — is articulation
+    ///     (`.comp` vs `.sustained`), voicing (`[0,2,6,8]` vs `[0,2,4,6]`), register (padOctave 4
+    ///     vs 3), and that dub holds one submerged chord while this one moves through three roots.
+    ///   · **`progression: [0, 5, 3]`** — i → VI → iv, three distinct roots. Deliberately NOT four:
+    ///     `upliftingTrance`'s four-distinct-root claim is pinned by a blocking test, and Detroit's
+    ///     canonical loops are two- and three-chord anyway, so there was nothing to give up.
+    case detroitTechno
     /// #254 batch 2 (founder 2026-07-30 "aber auch Ambient und meditations Musik"): stillness
     /// taken FURTHER than any Fläche already offered, and separated from all six of them on four
     /// axes at once rather than on a different chord.
@@ -397,6 +455,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .deepHouse:          return "Deep House"
         case .upliftingTrance:    return "Uplifting Trance"
         case .techHouse:          return "Tech House"
+        case .minimalTechno:      return "Minimal Techno"
+        case .detroitTechno:      return "Detroit Techno"
         // ⚠️ "Still Drone", not "Deep Drone": `esotericMeditation`'s PATCH is already named
         // "Deep Drone" (GenrePatches "DC"), and picking a genre writes its patch into the
         // visible patch field — so a picker entry "Deep Drone" next to a patch field reading
@@ -444,6 +504,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // generic theory terms and describe what is actually voiced.
         case .upliftingTrance:    return "Suspended fourths · four-on-the-floor lift"
         case .techHouse:          return "Dry shell stabs · rolling shuffle groove"
+        // #254 batch 4. No product or artist names (this file's own rule) and no city — "Detroit"
+        // is the genre's own established name, which is why it survives in `displayName`, but the
+        // subtitle describes the SOUND: what is voiced and how it is played.
+        case .minimalTechno:      return "Bare open fifths · one chord · barely a shuffle"
+        case .detroitTechno:      return "Syncopated ninth-chord comp · bittersweet mode"
         case .deepDrone:          return "One low quartal drone · unmoving · very wide"
         // "hypnotic" removed: it is the closest thing in the roster to altered-state language,
         // and this repo already keeps such words out of shipped strings (esotericMeditation is
@@ -503,7 +568,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              // #254 batch 3. For these TWO the `.stab` articulation this maps to is LIVE (unlike
              // acid above): neither is arpeggiated, so `composeHarmonic` routes them through
              // articulation instead of the arp path. On-beat chord stabs are the point of both.
-             .upliftingTrance, .techHouse:                      return .fourOnFloor
+             .upliftingTrance, .techHouse,
+             // #254 batch 4: minimal stabs its dyad on the beat. `detroitTechno` deliberately does
+             // NOT come here — see its case doc for why it takes `.backbeat`/`.comp` instead.
+             .minimalTechno:                                    return .fourOnFloor
         // #254: deepHouse is four-to-the-floor MUSICALLY, but the archetype's only audible
         // consequence since #166/#167 (no drum sounds) is `chordArticulation` — and a house
         // chord lands on the OFFBEAT, which is `.skank`. Picking `.fourOnFloor` here would give
@@ -511,8 +579,16 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // If drums ever return, revisit this line FIRST: the drum pattern would then be a ska
         // upstroke, which is wrong for house.
         case .deepHouse:                                        return .offbeat
+        // #254 batch 4: `detroitTechno` sits with the ROCK/JAZZ family here and that is deliberate,
+        // not a filing error. The archetype's only audible consequence since #166/#167 is
+        // `chordArticulation`, and `.backbeat` → `.comp` is the syncopated chord comp Detroit chords
+        // are actually played with — the same reasoning `deepHouse` used to take `.offbeat` while
+        // being musically four-to-the-floor. It is the only ELECTRONIC genre that comps, which is
+        // the axis separating it from techHouse/trance/minimal (all `.stab`).
+        // ⚠️ IF DRUMS EVER RETURN, revisit this line together with deepHouse's: the drum grid would
+        // then be a rock backbeat, which is wrong for techno. Today it reaches no voice.
         case .rock, .punk, .rocknroll, .heavyMetal,
-             .jazz, .oriental:                                  return .backbeat
+             .jazz, .oriental, .detroitTechno:                  return .backbeat
         case .ska, .rocksteady, .klezmer:                       return .offbeat
         case .doom, .vaporwave, .sciFi:                         return .halfTime
         case .classical, .esotericMeditation, .selfObservation, .drift, .contemplation,
@@ -626,25 +702,27 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
 
     /// The genre's rhythmic fingerprint (see `GenreFlavor`). Declared here next to
     /// `beatArchetype` so the per-genre character lives with the rest of the genre
-    /// identity. SIX `.fourOnFloor` genres (Slice A) and the six `.backbeat` genres (Slice B —
-    /// rock family) carry a distinct flavor; every other genre returns `.neutral` (no behaviour
-    /// change). ⚠️ "six of the SEVEN four-on-floor genres" is what this line said until #254
-    /// batch 3: there are NINE `.fourOnFloor` genres now and THREE of them have no flavor
-    /// (acidTechno, upliftingTrance, techHouse). A count in a doc comment goes stale the moment a
-    /// case is added — re-derive it from `beatArchetype` rather than quoting this.
+    /// identity. EIGHTEEN genres carry a distinct flavor; every other genre returns `.neutral` via
+    /// the `default` arm (no behaviour change). ⚠️ THIS LINE HAS BEEN WRONG THREE TIMES — it said
+    /// "six of the SEVEN four-on-floor genres" before #254 batch 3, then "NINE … THREE of them have
+    /// no flavor" before batch 4. **Do not quote a count from here; derive it.** As of batch 4:
+    /// TEN `.fourOnFloor` genres, six flavoured; SEVEN `.backbeat` genres, six flavoured.
     ///
-    /// ⚠️ #254's `acidTechno` (`.fourOnFloor`) and `deepHouse` (`.offbeat`) are the two that
-    /// deliberately fall through to `.neutral`. That is not an oversight and it costs nothing
-    /// TODAY — the whole `GenreFlavor` output reaches no voice since #166/#167 removed the drums
-    /// (`drumSteps` is read only by `Project` persistence and one `BioVariationMaze` metric).
-    /// Inventing a hat texture and a ghost step for an inaudible track would be fiction dressed
-    /// as design. But it means the "unique perc-ghost step" invariant below no longer covers the
-    /// whole roster: if drums ever return, these two are the ONLY genres without a fingerprint,
-    /// and giving them one is the first thing to do.
+    /// ⚠️ FIVE genres now deliberately fall through to `.neutral`: `acidTechno`, `upliftingTrance`,
+    /// `techHouse`, `minimalTechno` (all `.fourOnFloor`), `detroitTechno` (`.backbeat`) — plus
+    /// `deepHouse` (`.offbeat`), where the archetype has no flavoured sibling either. That is not an
+    /// oversight and it costs nothing TODAY: the whole `GenreFlavor` output reaches no voice since
+    /// #166/#167 removed the drums (`drumSteps` is read only by `Project` persistence and one
+    /// `BioVariationMaze` metric). Inventing a hat texture and a ghost step for an inaudible track
+    /// would be fiction dressed as design. But it means the "unique perc-ghost step" invariant below
+    /// no longer covers the whole roster: if drums ever return, those are the genres without a
+    /// fingerprint, and giving them one is the first thing to do. `detroitTechno` additionally
+    /// breaks the "all six backbeat steps are collision-free by construction" note below — a
+    /// seventh backbeat genre needs its own step chosen against those six, not merely appended.
     public var beatFlavor: GenreFlavor {
         switch self {
-        // The six four-on-floor genres WITH A FLAVOR (three more have none — acidTechno,
-        // upliftingTrance, techHouse; see the property doc): each gets its own hat texture + a
+        // The six four-on-floor genres WITH A FLAVOR (four more have none — acidTechno,
+        // upliftingTrance, techHouse, minimalTechno; see the property doc): each gets its own hat texture + a
         // unique
         // perc-ghost step so they stop sharing one loop. Ghost steps are all off
         // the kick beats (0/4/8/12), the claps (4/12) and the seeded perc (7/15).
@@ -654,10 +732,12 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic: return GenreFlavor(hatDensityBias:  0.0, percGhostStep: 11, kickPushEnabled: true,  hatRate: .sixteenth, kickCell: 10)
         case .psytrance:  return GenreFlavor(hatDensityBias:  0.7, percGhostStep: 13, kickPushEnabled: true,  hatRate: .sixteenth, kickCell: 6)
         case .synthwave:  return GenreFlavor(hatDensityBias: -0.7, percGhostStep:  1, kickPushEnabled: false, hatRate: .sparse)
-        // The six backbeat genres (rock family): the perc track is free in this
-        // archetype, so each genre's ghost step is collision-free by construction;
-        // all six steps are distinct AND off the snare backbeat (4/12) and the
-        // kick anchors (0/8/10/6). Hat bias tilts the driving 8th-hat texture:
+        // The six FLAVOURED backbeat genres (rock family; `detroitTechno` is a seventh
+        // `.backbeat` genre and has NO flavour — see the property doc): the perc track is
+        // free in this archetype, so each of these six ghost steps is collision-free by
+        // construction; all six are distinct AND off the snare backbeat (4/12) and the
+        // kick anchors (0/8/10/6). ⚠️ "all six" is now a statement about THESE SIX, not
+        // about every backbeat genre. Hat bias tilts the driving 8th-hat texture:
         // punk/metal drive to 16ths, jazz/oriental breathe. kickPush adds an extra
         // syncopated kick into the "1" for the two most aggressive genres only.
         case .rock:       return GenreFlavor(hatDensityBias:  0.0, percGhostStep:  6, kickPushEnabled: false, hatRate: .driving)
@@ -707,6 +787,13 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // dubTechno both have two roots, so that axis does not distinguish that pair.
         case .upliftingTrance:    return 136...144
         case .techHouse:          return 124...130
+        // #254 batch 4. Both windows overlap siblings, as every window in this family already
+        // does: 125…132 meets `techHouse` (124…130) and `acidTechno` (130…139); 126…134 meets
+        // `techHouse`, `acidTechno` and `upliftingTrance` (136…144) nowhere but touches acid over
+        // 130…134. These are ~128 and ~130 genres; disjoint windows would put them at wrong tempos
+        // to satisfy a test. Separation is voicing, articulation, swing and FX.
+        case .minimalTechno:      return 125...132
+        case .detroitTechno:      return 126...134
         // #254 batch 2. deepDrone goes BELOW every offered genre (contemplation's 44 was the
         // floor).
         // ⚠️ The first version of this line justified the 40 with "at 40 BPM a whole-note tape
@@ -796,6 +883,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .deepHouse:          return 122
         case .upliftingTrance:    return 138
         case .techHouse:          return 127
+        case .minimalTechno:      return 128
+        case .detroitTechno:      return 130
         case .deepDrone:          return 48
         case .ambientPulse:       return 85
         case .trap:               return 140
@@ -856,6 +945,11 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // of the few axes audible on a held chord without touching harmony. Trance stays straight:
         // a shuffle would kill the four-on-the-floor lift.
         case .techHouse:          return 0.12
+        // #254 batch 4. 0.04 is the smallest NON-ZERO swing of any genre in the file — minimal
+        // needs the micro-shuffle to not read as a metronome, but anything more would stop being
+        // minimal. 0.10 is its own value too, between dubTechno's 0.08 and techHouse's 0.12.
+        case .minimalTechno:      return 0.04
+        case .detroitTechno:      return 0.10
         case .upliftingTrance:    return 0.0
         case .eighties:           return 0.06
         case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
@@ -933,6 +1027,18 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // of those, or the guard in `MusicStyleLeadTests` goes red.
         case .upliftingTrance:    return "Pluck"
         case .techHouse:          return "Hollow Reed"
+        // #254 batch 4: these two names are FORCED, not chosen freely — and they also happen to be
+        // the musical picks. Measured before writing: at 22 lead-bearing genres the derived ceiling
+        // is 4, Soft Keys / Warm Strings / Pluck / Hollow Reed are ALL at 4, and only "Deep Sub"
+        // and "Choir Vox" sat at 3. Two new lead-bearing genres make 24, where the ceiling is
+        // STILL 4 — so any other assignment puts a name at 5 and reddens
+        // `MusicStyleLeadTests.testLeadTimbresAreSpreadNotCollapsed`. A bare open fifth wants the
+        // sub; a syncopated ninth-chord comp wants the vox.
+        // ⚠️ AFTER THIS BATCH ALL SIX NAMES ARE AT 4 AND THE CEILING IS 4 — the next lead-bearing
+        // genre makes 25, where the ceiling rises to 5, so it is free again. Re-derive; do not
+        // quote this.
+        case .minimalTechno:      return "Deep Sub"
+        case .detroitTechno:      return "Choir Vox"
         case .trap:               return "Soft Keys"     // sustained — unused
         case .vaporwave:          return "Warm Strings"  // sustained — unused
         case .eighties:           return "Soft Keys"
@@ -975,6 +1081,10 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .deepHouse:                              return (1.06, 1.02, 0.90)  // chord-led
         case .upliftingTrance:                        return (1.08, 1.06, 0.88)  // chord-led, big low end
         case .techHouse:                              return (1.14, 0.96, 0.88)  // bass-led groove
+        // #254 batch 4: the two poles of the batch read in these numbers too — minimal is the most
+        // bass-led and thinnest-padded of the family, Detroit the most chord-led.
+        case .minimalTechno:                          return (1.20, 0.86, 0.88)
+        case .detroitTechno:                          return (1.04, 1.08, 0.88)
         case .ska, .rocksteady, .disco:               return (1.10, 0.96, 0.90)
         case .synthwave, .eighties, .vaporwave, .earlySynth:
                                                       return (1.00, 0.94, 0.90)
@@ -1000,6 +1110,12 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // OFFERED mixolydian (disco and rocknroll have it; neither is offered): major with a ♭7.
         case .upliftingTrance:    return .minor
         case .techHouse:          return .mixolydian
+        // #254 batch 4. Minimal takes plain natural minor (shared with deepHouse, trance,
+        // selfObservation) — its identity is the dyad, not the mode. Detroit takes dorian, shared
+        // with dubTechno and drift; the lifted sixth is the bittersweet colour, and no uniqueness
+        // is claimed on either.
+        case .minimalTechno:      return .minor
+        case .detroitTechno:      return .dorian
         // #254 batch 2 — the only two pentatonic genres in the roster. No semitone anywhere,
         // so nothing in either can create tension; every other genre is a 7-note mode.
         case .deepDrone:          return .pentatonicMinor
@@ -1193,6 +1309,45 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // voicing are what make it a different genre, and saying so is more honest than
             // inventing a progression nobody plays to make a sweep look better.
             return HarmonicProfile(progression: [0, 3], chordTones: [0, 2, 6],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0)
+        case .minimalTechno:
+            // #254 batch 4 — THE DYAD. `[0, 4]` on a 7-note minor is root + fifth (+7) and NOTHING
+            // else: the only two-note voicing in the file (swept across all arms, not just the
+            // offered ones). No third means no major/minor colour at all — trance reaches the same
+            // ambiguity by SUBSTITUTING a fourth for the third; this one reaches it by leaving the
+            // third out. Weight instead of harmony, which is what a minimal chord is.
+            //
+            // ONE root for the whole take. ⚠️ NOT unique — `deepDrone`, `psytrance` and `doom` also
+            // have `[0]`, and only the first of those is offered. The separation from deepDrone is
+            // everything else: beat-driven vs sustained, minor vs pentatonicMinor, padOctave 4 vs 2,
+            // 128 BPM vs 48. Harmonic stasis is the POINT here, so `progression` cannot be the axis
+            // that distinguishes it and is not claimed as one.
+            //
+            // NOT arpeggiated and NOT sustained: `.fourOnFloor` → `.stab`, live because the profile
+            // is non-arpeggiated (the same reason trance's stab is live and acid's is inert).
+            return HarmonicProfile(progression: [0], chordTones: [0, 4],
+                                   padOctave: 4, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0)
+        case .detroitTechno:
+            // #254 batch 4 — THE NINTH SHELL, and the batch's deliberate opposite: minimal is two
+            // notes and one chord, this is four notes and three roots. `[0, 2, 6, 8]` on dorian
+            // ([0,2,3,5,7,9,10]) is root + minor third (+3) + ♭7 (+10) + NINTH (+14, the second
+            // degree an octave up — `MusicalKey.degree` wraps octaves, which is what makes a degree
+            // above 6 expressible at all). NO FIFTH, for the same reason techHouse drops it: the
+            // fifth is what makes a four-note stack muddy. This is the richest voicing in the
+            // roster and the jazz-inflected chord IS the genre.
+            //
+            // `[0, 5, 3]` = i → VI → iv, three distinct roots. ⚠️ THREE AND NOT FOUR ON PURPOSE:
+            // `upliftingTrance`'s "more distinct roots than any offered genre" is pinned by a
+            // blocking test, and Detroit's canonical loops are two or three chords anyway — so
+            // nothing musical was given up to keep that claim true. Had it needed four, the honest
+            // move would have been to retire the claim, not to bend the music.
+            //
+            // NOT arpeggiated and NOT sustained. Its articulation is `.comp`, NOT `.stab` — see the
+            // case doc: `.backbeat` is chosen for the syncopated chord comp, exactly as `deepHouse`
+            // chose `.offbeat` for the skank, and the drum-grid side effect reaches no voice.
+            return HarmonicProfile(progression: [0, 5, 3], chordTones: [0, 2, 6, 8],
                                    padOctave: 4, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0)
         case .deepDrone:
