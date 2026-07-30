@@ -272,8 +272,13 @@ struct FloatingVisualWindow: View {
             // Clamped on the way in for the reason `RoleRhythm.Params.init(from:)` gives — the
             // memberwise init deliberately does not clamp, `hit(...)` clamps at use, and these three
             // arrive as Doubles off disk that a corrupt payload can set to anything.
+            // Gate clamps to `minGate` and not 0, so this bound matches the range the panel's Note
+            // length row offers. Both ends are already enforced inside `hit(...)`; having the two
+            // sites state DIFFERENT floors (0.05 in the view, 0 here) was the shape that invites a
+            // later reader to "fix" whichever one they find first.
             arpRhythm: RoleRhythm.Params(character: fieldArpCharacter,
-                                         gate: Float(fieldArpGate.clamped(to: 0...1)),
+                                         gate: Float(fieldArpGate.clamped(
+                                             to: Double(RoleRhythm.minGate)...1)),
                                          accent: Float(fieldArpAccent.clamped(to: 0...1)),
                                          evolve: Float(fieldArpEvolve.clamped(to: 0...1))))
     }

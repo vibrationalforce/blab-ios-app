@@ -2600,9 +2600,11 @@ struct EchoelStudioView: View {
     /// grow (black-screen law), and one more panel would be one more place to look for the
     /// same surface.
     ///
-    /// The dials only appear once a motion is chosen. That is not tidiness — seven numeric
-    /// fields under an "Off" setting are seven controls that provably do nothing, which is
-    /// the lying-control class this repo has an open task about.
+    /// The dials only appear once a motion is chosen. That is not tidiness — a screenful of
+    /// numeric fields under an "Off" setting is a screenful of controls that provably do
+    /// nothing, which is the lying-control class this repo has an open task about. (The count
+    /// used to be written out as "seven" here and in `fieldSelfPlayFields`; #253 A7 made both
+    /// wrong, and a number in a comment is either maintained or deleted.)
     @ViewBuilder private var fieldSelfPlaySection: some View {
         Text("Self-play").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             .padding(.top, 4)
@@ -2635,8 +2637,9 @@ struct EchoelStudioView: View {
     }
 
     /// Split from `fieldSelfPlaySection` for the same structural reason `touchSyncRows` was:
-    /// this file has a black-screen history rooted in aggregate-type growth, and seven fields
-    /// behind one child is the cheap habit.
+    /// this file has a black-screen history rooted in aggregate-type growth, and keeping a group
+    /// of fields behind one child is the cheap habit. `fieldArpRhythmFields` is the same move one
+    /// level further down, which is why the arp's four rows live in their own builder.
     @ViewBuilder private var fieldSelfPlayFields: some View {
         EchoelValueField(label: "Density", value: $fieldDensity,
                          range: 0...1, unit: "", decimals: 2)
@@ -2660,7 +2663,7 @@ struct EchoelStudioView: View {
             //     two others.
             // The lesson for the next edit: this caption describes a rule that lives in another
             // file, so check `RoleRhythm.fires` before trusting either version.
-            Text("Arp walks upwards through chord degrees of your scale instead of travelling across the field. Density sets how many cells sound, Rhythm how they sit, Band the register. Traverse is the bar the rhythm counts in — it decides where its downbeats and accents fall.")
+            Text("Arp walks upwards through chord degrees of your scale instead of travelling across the field. Density sets how many cells sound, Rhythm how they sit, Band the register. Traverse is the bar the rhythm counts in — on Sparse and Syncopated it also moves which cells sound, and on all six it sets where the accents fall.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             fieldArpRhythmFields
@@ -2739,15 +2742,13 @@ struct EchoelStudioView: View {
         // (125 ms per cell) Driving reaches that floor at about 0.27, so the bottom quarter of the
         // row is flat — and at 300 BPM it is the bottom two thirds. Tempo-dependent, so it is said
         // rather than clipped out of the range.
-        Text("Note length is a fraction of one cell, scaled by the rhythm — Driving stays short even at 1. Below the instrument's 15 ms minimum nothing gets shorter, and the faster the tempo the sooner that floor is reached.")
+        Text("Note length is a fraction of one cell, scaled by the rhythm — Driving stays short even at 1. Below the instrument's 15 ms minimum nothing gets shorter, and the faster the tempo the sooner that floor is reached; a single note never rings longer than one second.")
             .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             .fixedSize(horizontal: false, vertical: true)
         EchoelValueField(label: "Accent", value: $fieldArpAccent,
                          range: 0...1, unit: "", decimals: 2)
-        // Not a hidden row, because the dial DOES move on all six — but on these two it moves by
-        // about 1 dB and 0.5 dB, which reads as broken unless you say it is the point.
-        if fieldArpCharacter == .hypnotic || fieldArpCharacter == .flowing {
-            Text("\(fieldArpRhythmLabel(fieldArpCharacter)) is nearly level by design — Accent barely cuts here. Dynamic or Driving give a strong one.")
+        if let caveat = fieldArpRhythmCaveat {
+            Text(caveat)
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -2757,6 +2758,32 @@ struct EchoelStudioView: View {
             EchoelValueField(label: "Evolve", value: $fieldArpEvolve,
                              range: 0...1, unit: "", decimals: 2)
         }
+    }
+
+    /// The one thing about the current setting a player would otherwise read as a broken dial, or
+    /// `nil` when there is nothing to say. ONE optional string rather than two conditional `Text`s
+    /// so this builder stays well inside the ViewBuilder limit as more caveats are learned.
+    ///
+    /// Both cases are dials that move by too little to hear, which is the #164/#227 shape even
+    /// though neither control is strictly inert:
+    /// - **Accent on the three subtle characters.** Read off `Character.accentIsSubtle`, NOT a list
+    ///   written here. The first version of this row did hard-code the list, and got it wrong by
+    ///   omitting `sparse` — whose ≈1.3 dB spread is larger than `hypnotic`'s ≈1.0 dB and was the one
+    ///   left unexplained. That is exactly the drift `usesEvolve` exists to prevent, so the sibling
+    ///   dial now has its own engine-side flag.
+    /// - **Evolve on Dynamic at Accent 0.** `dynamic`'s evolve is a jitter added to the accent
+    ///   STRENGTH, and the velocity maths multiplies that by the accent depth — so at Accent 0 the
+    ///   bar is bit-identical whatever Evolve says. `flowing` is unaffected: its evolve flips which
+    ///   cells sound, upstream of the multiply. The two cases cannot collide (`dynamic` is not
+    ///   subtle), which is why this is a single chain and not two independent lines.
+    private var fieldArpRhythmCaveat: String? {
+        if fieldArpCharacter.accentIsSubtle {
+            return "\(fieldArpRhythmLabel(fieldArpCharacter)) is nearly level by design — Accent barely cuts here. Dynamic or Driving give a strong one."
+        }
+        if fieldArpCharacter == .dynamic && fieldArpAccent <= 0 {
+            return "On Dynamic, Evolve moves the accent — with Accent at 0 there is nothing for it to move."
+        }
+        return nil
     }
 
     /// Player-facing names for the six rhythm characters. Kept out of `RoleRhythm` for the reason
@@ -2772,9 +2799,20 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// One line per character, so choosing one is a musical decision and not a guess. Each is a
-    /// plain-language restatement of that case's doc comment in `RoleRhythm.Character` — if the
-    /// engine's behaviour changes, both must move together.
+    /// One line per character, so choosing one is a musical decision and not a guess.
+    ///
+    /// ⛔ THESE DESCRIBE WHAT **THE ARP** DOES, NOT WHAT `RoleRhythm` CAN DO, and the difference cost
+    /// this slice a review HIGH. The first version was written as "a plain-language restatement of
+    /// that case's doc comment in `RoleRhythm.Character`" — and the core's docs correctly describe
+    /// `pushBias`, the small timing offset each character adds (`syncopated` +0.12 off the beat,
+    /// `flowing` +0.05). `FieldAutoPlay.arpTouches` **DROPS `pushFraction` ENTIRELY**; its `Touch`
+    /// carries x/y/velocity/gateFraction and nothing about when the note falls. So "a hair late" and
+    /// "a hair behind the grid" promised the one thing the arp provably cannot do — and this slice
+    /// kept the Push ROW out of the UI on exactly that reasoning, then re-introduced the promise as
+    /// prose. A claim in a caption is as much a lying control as a dial (#164/#227).
+    ///
+    /// Restore the timing words only together with A2b (the scheduled onset offset), and until then
+    /// describe placement and level only: WHICH cells, HOW loud, HOW long.
     private func fieldArpRhythmBlurb(_ c: RoleRhythm.Character) -> String {
         switch c {
         case .driving:
@@ -2782,13 +2820,16 @@ struct EchoelStudioView: View {
         case .hypnotic:
             return "Even and long with almost no accent, and the figure rotates a little every bar so it repeats without being repetitive."
         case .dynamic:
-            return "The same notes as Driving, but the level contour moves — the bar breathes. This is where Evolve does the most."
+            // Two differences, not one: the level contour AND the length (gate ×0.7 vs Driving's
+            // ×0.45, so ~55% longer at the same Note length). The length is the more audible of the
+            // two, and naming only the contour invited the ear to miss it.
+            return "The same notes as Driving but longer, and the level contour moves — the bar breathes. This is where Evolve does the most."
         case .sparse:
             return "Fewer notes than Density asks for, only on the beats, held long. Wide."
         case .syncopated:
-            return "Prefers the cells between the beats and accents them, a hair late — the pull that makes a line swing."
+            return "Prefers the cells between the beats and accents them, inverting the weight — the off-beats are the loud ones."
         case .flowing:
-            return "Long, level, a hair behind the grid — it sits under everything else instead of competing with it."
+            return "Long and level, filling the cell — it sits under everything else instead of competing with it."
         }
     }
 

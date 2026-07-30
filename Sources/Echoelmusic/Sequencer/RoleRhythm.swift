@@ -130,6 +130,27 @@ public enum RoleRhythm {
             case .driving, .hypnotic, .sparse, .syncopated:  return false
             }
         }
+
+        /// Whether `Params.accent` can only ever make a SMALL difference on this character.
+        ///
+        /// ⛔ SAME PURPOSE AS `usesEvolve`, and it exists because the first version of the A7 UI
+        /// hard-coded `character == .hypnotic || character == .flowing` in the view — twenty lines
+        /// under a comment congratulating itself for reading `usesEvolve` off the engine instead of
+        /// duplicating it. That list was also WRONG: `sparse` spreads ≈ 1.3 dB at `accent == 1`,
+        /// MORE than `hypnotic`'s ≈ 1.0 dB, and it was the one left out. So on Sparse the Accent row
+        /// swept its whole range with nothing audible and nothing on screen explaining why.
+        ///
+        /// The split is not a judgement call — there is a 2.6× gap in the measured spreads
+        /// (`dynamic` 5.8 dB · `driving` 3.9 · `syncopated` 3.5 ‖ `sparse` 1.3 · `hypnotic` 1.0 ·
+        /// `flowing` 0.5). `RoleRhythmTests` derives the same split from real `hit(...)` velocities
+        /// and requires it to match this switch, so re-tuning `accentStrength` without revisiting
+        /// this flag turns red instead of silently mislabelling a row.
+        public var accentIsSubtle: Bool {
+            switch self {
+            case .sparse, .hypnotic, .flowing:      return true
+            case .driving, .dynamic, .syncopated:   return false
+            }
+        }
     }
 
     /// Everything a player can set per role.
@@ -161,10 +182,23 @@ public enum RoleRhythm {
         /// strong cells roughly twice the level of the weak ones.
         ///
         /// ⚠️ HOW MUCH IT CAN CUT IS THE CHARACTER'S CHOICE, not this dial's, and the spread at
-        /// `accent == 1` is far from uniform: `dynamic` ≈ 7 dB, `driving` ≈ 5 dB, `syncopated`
-        /// ≈ 4.5 dB, `sparse` ≈ 1.5 dB, `hypnotic` ≈ 1 dB, `flowing` ≈ 0.5 dB. The last two are
-        /// nearly flat BY DESIGN — an accent is a landmark and those two characters work by not
-        /// giving the ear one — so A7 must not present the row as equally effective on all six.
+        /// `accent == 1` is far from uniform: `dynamic` ≈ 5.8 dB, `driving` ≈ 3.9 dB, `syncopated`
+        /// ≈ 3.5 dB, `sparse` ≈ 1.3 dB, `hypnotic` ≈ 1.0 dB, `flowing` ≈ 0.5 dB. Three of them are
+        /// nearly flat BY DESIGN — an accent is a landmark and those characters work by not giving
+        /// the ear one — which is why `Character.accentIsSubtle` exists rather than a list in a view.
+        ///
+        /// ⚠️ THESE SIX NUMBERS WERE OVERSTATED IN THE FIRST VERSION (7 / 5 / 4.5 / 1.5 / 1 / 0.5),
+        /// and the top three were the wrong ones to get wrong: they are what a caption promising a
+        /// "strong accent" is measured against. `velocity = 0.72 + accent · (strength − 0.5) · 0.55`,
+        /// so at `accent == 1` the loudest and quietest cells of a bar are e.g. 0.951 / 0.489 for
+        /// `dynamic` — a ratio of 1.945, i.e. 5.8 dB, not 7. Corrected by measurement, and
+        /// `RoleRhythmTests` now derives the subtle/strong split from real `hit(...)` output so this
+        /// table cannot drift away from the code again.
+        ///
+        /// ⚠️ AND IT GATES `evolve` ON `dynamic`: that character's evolve is a jitter ADDED TO
+        /// `strength`, so the `accent ·` factor annihilates it at `accent == 0` — a bar is then
+        /// bit-identical at evolve 0 and evolve 1. `flowing` is unaffected (its evolve flips which
+        /// cells sound, upstream of this multiply). A UI offering both dials must say so.
         public var accent: Float
         /// Timing offset in cell fractions, −0.45…0.45. Negative = early, positive = laid back.
         /// The character adds its own on top; the sum is clamped so a note can never cross into

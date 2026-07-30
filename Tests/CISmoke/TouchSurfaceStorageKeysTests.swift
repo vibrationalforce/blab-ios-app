@@ -109,17 +109,24 @@ final class TouchSurfaceStorageKeysTests: XCTestCase {
         }
     }
 
-    /// The Evolve row is HIDDEN on the four characters that ignore it, and that decision is read
-    /// off `Character.usesEvolve` rather than hard-coded in the view. This pins the flag the view
-    /// asks — so a seventh character cannot arrive with a silently-`false` answer and a row that
-    /// does nothing (#164/#227). `RoleRhythmTests` proves the flag matches real output; this proves
-    /// the two characters the UI shows a row for are the two that use it.
-    func testTheEvolveRowIsOfferedForExactlyTheCharactersThatUseIt() {
-        let usesIt = RoleRhythm.Character.allCases.filter { $0.usesEvolve }
-        XCTAssertEqual(Set(usesIt), [.dynamic, .flowing])
-        // And the default character is NOT one of them, which is why a fresh install shows three
-        // rows and not four. Stated so the row count is a decision and not an accident.
-        XCTAssertFalse(StudioDefaultKeys.fieldArpRhythmCharacter.value.usesEvolve)
+    /// What the arp panel shows on a FRESH INSTALL, which is a founder-visible decision and not an
+    /// accident: three numeric rows, not four. The Evolve row is drawn only when the chosen character
+    /// uses it, so the default character deciding that is worth pinning here — it fails the moment
+    /// someone moves the default to `.dynamic` or `.flowing` and quietly changes the panel.
+    ///
+    /// ⚠️ THE FIRST VERSION OF THIS TEST CLAIMED MORE THAN IT DELIVERS, and the claim is deleted
+    /// rather than reworded down: it said `XCTAssertEqual(Set(usesIt), [.dynamic, .flowing])` stopped
+    /// "a seventh character arriving with a silently-`false` answer". It cannot — add a seventh case
+    /// returning `false` and the filtered set is unchanged and this stays green. What actually forces
+    /// that decision is the exhaustive `switch` in `Character.usesEvolve`, and a `false` seventh
+    /// character would produce a HIDDEN row, i.e. the correct behaviour. The flag's agreement with
+    /// real output is proved in `RoleRhythmTests` (`testEvolveChangesExactlyTheCharactersThatClaimToUseIt`
+    /// and, for the accent dial, `testAccentIsSubtleDescribesTheMeasuredSpreadAndNotAnIntention`) —
+    /// duplicating that pin here bought nothing except a rationale describing a defence it did not
+    /// provide, which is the failure class this repo pays for most often.
+    func testTheArpPanelOpensWithThreeNumericRowsOnAFreshInstall() {
+        XCTAssertFalse(StudioDefaultKeys.fieldArpRhythmCharacter.value.usesEvolve,
+                       "the default character now uses Evolve — the panel shows a fourth row")
     }
 
     /// SELF-PLAY MUST BE OFF ON A FRESH INSTALL, and this is the assertion that gates it.

@@ -178,6 +178,11 @@ public enum StudioDefaultKeys {
     /// `push` is deliberately ABSENT TOO, for a different reason: `arpTouches` carries it but does
     /// NOT yet honour it (#253 A2b owns displacing a generated onset). A row for it today would be
     /// a lying control (#164/#227) — the key arrives with the behaviour, not before it.
+    ///
+    /// Stored as the enum's raw string, so an unknown value from an older or newer build falls back
+    /// to this default instead of refusing to load — same contract as `touchSyncGrid` above, and
+    /// stated here too because this is the property that decides whether a REMOVED case degrades to
+    /// `.driving` or loses the setting.
     public static let fieldArpRhythmCharacter = StudioDefault(key: "field.autoPlay.arpRhythm.character",
                                                              value: RoleRhythm.Character.driving)
     /// Note length as a fraction of one grid cell, before the character's own scaling.

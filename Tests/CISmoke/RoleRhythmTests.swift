@@ -239,6 +239,61 @@ final class RoleRhythmTests: XCTestCase {
         }
     }
 
+    /// ⛔ THE SAME TEST FOR THE ACCENT DIAL (#253 A7 review). `Character.accentIsSubtle` is what the
+    /// panel reads to decide whether to warn the player that Accent barely cuts here, so it must
+    /// describe MEASURED output and not a guess — the first version of that decision was a list
+    /// hard-coded in the view, and it was wrong: it named `hypnotic` and `flowing` and left out
+    /// `sparse`, whose spread is the LARGER of the three.
+    ///
+    /// Measured at `accent == 1` over one bar, loudest cell / quietest cell:
+    /// `dynamic` 1.945 · `driving` 1.561 · `syncopated` 1.496 ‖ `sparse` 1.166 · `hypnotic` 1.126 ·
+    /// `flowing` 1.062. The 1.35 threshold sits in the 2.6× gap between the two groups, so it is not
+    /// a tuning knob — any re-tuning of `accentStrength` big enough to cross it is a character
+    /// changing group, which is exactly when the flag must be revisited.
+    func testAccentIsSubtleDescribesTheMeasuredSpreadAndNotAnIntention() {
+        for character in RoleRhythm.Character.allCases {
+            let hits = bar(params(character, density: 1, accent: 1)).compactMap { $0 }
+            XCTAssertFalse(hits.isEmpty, "\(character) sounded nothing at density 1")
+            guard let loud = hits.map(\.velocity).max(),
+                  let soft = hits.map(\.velocity).min(), soft > 0 else {
+                return XCTFail("\(character) produced no usable velocities")
+            }
+            let spread = loud / soft
+            if character.accentIsSubtle {
+                XCTAssertLessThan(spread, 1.35,
+                                  "\(character).accentIsSubtle is true but the accent spreads "
+                                  + "\(spread)x — the panel would suppress a warning it needs")
+            } else {
+                XCTAssertGreaterThan(spread, 1.35,
+                                     "\(character).accentIsSubtle is false but the accent spreads "
+                                     + "only \(spread)x — the panel promises a strong accent that "
+                                     + "is not there")
+            }
+        }
+    }
+
+    /// ⛔ AND THE CASE THE FLAG CANNOT SEE: on `dynamic`, `evolve`'s only effect is a jitter added to
+    /// the accent STRENGTH, which the velocity maths multiplies by the accent depth. So at
+    /// `accent == 0` the bar is bit-identical however far Evolve is pushed — the panel shows both
+    /// rows and one of them is inert. Pinned because `testEvolveChangesExactlyTheCharactersThatUseIt`
+    /// runs at `accent: 0.5` and therefore cannot catch it, and because `flowing` must NOT share the
+    /// behaviour (its evolve flips which cells sound, upstream of the multiply) — if it ever did,
+    /// the panel's caveat would be pointing at the wrong character.
+    func testOnDynamicTheEvolveDialNeedsSomeAccentToMove() {
+        for barIndex in 0..<4 {
+            XCTAssertEqual(bar(params(.dynamic, accent: 0, evolve: 0), bar: barIndex),
+                           bar(params(.dynamic, accent: 0, evolve: 1), bar: barIndex),
+                           "dynamic changed at accent 0 — the panel's Evolve caveat is now wrong")
+        }
+        var flowingDiffered = false
+        for barIndex in 0..<4 where bar(params(.flowing, accent: 0, evolve: 0), bar: barIndex)
+            != bar(params(.flowing, accent: 0, evolve: 1), bar: barIndex) {
+            flowingDiffered = true
+        }
+        XCTAssertTrue(flowingDiffered,
+                      "flowing's evolve must work without accent — it flips cells, not levels")
+    }
+
     /// ⛔ REGRESSION: `flowing`'s `evolve` must add or drop INDIVIDUAL notes, never invert the bar.
     ///
     /// The first version of `hit` folded only `(seed, bar)` into the draw stream, so every cell of
