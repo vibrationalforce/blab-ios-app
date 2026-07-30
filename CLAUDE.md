@@ -51,7 +51,7 @@ Capabilities (all routed through one typed bus): **bio-reactive synthesis** · *
   · **Correction to a claim I made about the roll:** presenting it is NOT what publishes `MusicalFrame`. That publish is in `PianoRollModel`'s tick handler (`PianoRollView.swift`) on the shared sequencer tick, installed once at app start (`pianoRoll.start(...)` in `EchoelmusicApp`) — so the visual/light output stage is lit whether or not the roll is open. The door is load-bearing for EDITING, not for the spine.
   · **NEEDS-FOUNDER-VERIFY:** launch (the +1 modifier vs the black-screen law) and the roll's Stop, which cascades the ONE-Stop law (the ONE-Stop cascade in `PianoRollView`) and ends the whole bio session rather than only playback.
   Music theory is fully in-house. The real remaining frontier is **P3 Video** (no recorder/trim/export yet) and **P4 Broadcast**. See `scratchpads/PLAN_REDOOR_CRAFT_TOOLS_2026-07-25.md`.
-- **Files:** **331** Swift under `Sources/` (`git ls-files 'Sources/**/*.swift' | wc -l`, 2026-07-29 — davor „330" am selben Tag, davor „326" (28.), davor „323" am selben Tag; VIER Stände in zwei Tagen, alle einmal als Beleg zitiert. **Schreib hier nie eine Zahl hin, ohne den Befehl danebenzustellen**, und lies sie nie ohne ihn nachzuführen), **ZERO Metal files** — corrected 2026-07-25; the old "~212 Swift + 1 Metal (`Video/Shaders/ChromaKey.metal`)" was stale twice over: the count was long out of date and `ChromaKey.metal` was DELETED by Slice 3 (video-cut removal) together with its directory. `MetalBioView` compiles its shader inline at runtime, so the app ships no `.metal` source at all. | **Swift 100%** | top-level dirs under `Sources/Echoelmusic/`: `Audio Bio Core DSP EchoelAI Resources Sequencer Stream Studio Sync Tools Video Views`, plus the two loose top-level files `EchoelmusicApp.swift` and `MicrophoneManager.swift`. NOTE: the "four pillars" (EchoelTools/Works/Sync/Well) referenced by older vision docs were **never built as modules** — `EngineBus` is the one real coupling spine; `Views/` now holds only `MetalBioView` + `OnboardingView` (its long deprecated list is gone).
+- **Files:** **333** Swift under `Sources/` (`git ls-files 'Sources/**/*.swift' | wc -l`, 2026-07-30 — davor „331" (29.), „330" am selben Tag, „326" (28.), „323" am selben Tag; FÜNF Stände in drei Tagen, alle einmal als Beleg zitiert. **Schreib hier nie eine Zahl hin, ohne den Befehl danebenzustellen**, und lies sie nie ohne ihn nachzuführen), **ZERO Metal files** — corrected 2026-07-25; the old "~212 Swift + 1 Metal (`Video/Shaders/ChromaKey.metal`)" was stale twice over: the count was long out of date and `ChromaKey.metal` was DELETED by Slice 3 (video-cut removal) together with its directory. `MetalBioView` compiles its shader inline at runtime, so the app ships no `.metal` source at all. | **Swift 100%** | top-level dirs under `Sources/Echoelmusic/`: `Audio Bio Core DSP EchoelAI Resources Sequencer Stream Studio Sync Tools Video Views`, plus the two loose top-level files `EchoelmusicApp.swift` and `MicrophoneManager.swift`. NOTE: the "four pillars" (EchoelTools/Works/Sync/Well) referenced by older vision docs were **never built as modules** — `EngineBus` is the one real coupling spine; `Views/` now holds only `MetalBioView` + `OnboardingView` (its long deprecated list is gone).
 
 ---
 
@@ -190,13 +190,15 @@ Tests/EchoelmusicTests/ ← 314 test files (`git ls-files 'Tests/EchoelmusicTest
                           2026-07-28 — heute 314. Die Workflow-Beschriftung ist founder-gated und
                           bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**30** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-07-29 nachmittags; am Vormittag desselben Tages stand hier „21", und
+                          `Tests/CISmoke` (**39** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-07-30; am 2026-07-29 nachmittags stand hier „30", vormittags „21", und
                           davor monatelang „1 Datei" — das ließ das EINZIGE Bundle, das einen Merge
                           rot färben kann, kleiner aussehen als es ist. Das Bundle WÄCHST gerade
                           schnell, weil jeder Ralph-Slice seinen Wächter hierher legt statt in die
                           non-blocking Suite: **diese Zahl ist die am schnellsten veraltende in dieser
-                          Datei — führ sie mit dem Befehl nach, zitier sie nie ungeprüft**).
+                          Datei — führ sie mit dem Befehl nach, zitier sie nie ungeprüft**. Vier Stände
+                          in zwei Tagen, +9 an einem Tag: wer sie liest, ohne den Befehl daneben
+                          laufen zu lassen, liest eine Zahl von gestern).
                           Siehe KEY TESTS.
 docs/                  ← Website (GitHub Pages)
 .github/workflows/     ← CI/CD (testflight.yml is primary)
@@ -378,7 +380,7 @@ Language-level notes that ARE still true and worth keeping:
 
 ---
 
-## KEY TESTS (314 files under `Tests/EchoelmusicTests/` — `git ls-files` 2026-07-29)
+## KEY TESTS (314 files under `Tests/EchoelmusicTests/` — `git ls-files` re-run 2026-07-30, unchanged)
 
 Run `swift test` (or rely on the CI gates) before ANY commit. Highest-value areas:
 DSP (`EchoelDDSPTests` · `DSPTests` · `VDSPTests`) · protected triad
