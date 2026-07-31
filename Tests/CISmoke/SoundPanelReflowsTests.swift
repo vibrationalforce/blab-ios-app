@@ -14,7 +14,11 @@
 // ⚠️ WHAT THIS FILE ACTUALLY GUARDS — three things, and the third is the one that will break.
 //   1. The grids exist in `soundPanel` at all.
 //   2. `AdaptiveCardGrid`'s spacing still DEFAULTS to 10, so the two card callers that predate
-//      this slice (`mixerPanel`, `sessionPanel`) are untouched by it.
+//      this slice (`mixerPanel`, `weatherRow`) are untouched by it. ⛔ The first version wrote
+//      `sessionPanel` here and in three other places — wrong: `sessionPanel` merely RENDERS
+//      `weatherRow` and contains no grid at all, so anyone acting on a failure message would
+//      have grepped it and found nothing. A guard that names the wrong file is a guard that
+//      sends its reader away from the code.
 //   3. THE COUPLING: `soundPanel` passes `spacing: 14` because 14 is `EchoelPanel`'s own content
 //      spacing. That is a COPIED CONSTANT. In one column `AdaptiveCardGrid` renders a `VStack`
 //      whose spacing REPLACES the panel's rhythm — so if `EchoelPanel` ever moves to, say, 12,
@@ -47,7 +51,15 @@ final class SoundPanelReflowsTests: XCTestCase {
     /// assertion describes that.
     func testEveryParameterGroupInTheSoundPanelReflows() throws {
         let body = try soundPanelBody()
-        let grids = body.filter { $0.contains("AdaptiveCardGrid(") }
+        // ⛔ NO OPENING PAREN IN THIS FRAGMENT, and the reason is the most likely regression
+        // this file will ever see. Both filters used to match `"AdaptiveCardGrid("` — so a
+        // seventh group written as the BARE `AdaptiveCardGrid { … }` (the form used twice
+        // elsewhere in this same file, i.e. exactly what copy-pasting from `mixerPanel`
+        // produces) was counted by NEITHER test. It would render portrait at 10 pt inside a
+        // 14 pt panel: the silent, single-surface, primary-surface drift this file exists to
+        // prevent, arriving by the most probable authoring route. Without the paren, the next
+        // test below now REQUIRES `spacing: 14` on every occurrence and the bare form fails.
+        let grids = body.filter { $0.contains("AdaptiveCardGrid") }
         XCTAssertGreaterThanOrEqual(grids.count, 6, """
         `soundPanel` has \(grids.count) `AdaptiveCardGrid` groups, expected at least 6 \
         (Tone · Unison · Filter · Envelope A/D/S/R · Space & vibrato · Sub/Bass).
@@ -62,8 +74,8 @@ final class SoundPanelReflowsTests: XCTestCase {
     /// it means someone changed the panel rhythm in one of the two places.
     func testTheGridsPassThePanelsOwnContentSpacing() throws {
         let body = try soundPanelBody()
-        let calls = body.filter { $0.contains("AdaptiveCardGrid(") }
-        XCTAssertFalse(calls.isEmpty, "no `AdaptiveCardGrid(` in `soundPanel` — see the test above")
+        let calls = body.filter { $0.contains("AdaptiveCardGrid") }
+        XCTAssertFalse(calls.isEmpty, "no `AdaptiveCardGrid` in `soundPanel` — see the test above")
         for call in calls {
             XCTAssertTrue(call.contains("spacing: \(Self.panelContentSpacing)"), """
             an `AdaptiveCardGrid` in `soundPanel` does not pass the panel's content spacing \
@@ -96,21 +108,65 @@ final class SoundPanelReflowsTests: XCTestCase {
     }
 
     /// ⚠️ THE DEFAULT MUST STAY 10, or this slice silently re-spaces the two callers that came
-    /// before it (`mixerPanel`, `sessionPanel`), which hold CARDS and were correct at 10.
+    /// before it (`mixerPanel`, `weatherRow`). Note the honest reason: it is NOT that "10 was
+    /// right for cards" — `mixerPanel`'s grid sits in `EchoelPanel`'s 14 pt stack and
+    /// `weatherRow`'s in a local 8 pt one, so neither matched 10 by design. They simply SHIPPED
+    /// at 10, and re-spacing two panels nobody asked about is not this slice's business.
     func testTheGridDefaultIsUnchangedForTheCardCallers() throws {
-        let lines = try codeLines(Self.studio)
-        let inits = lines.filter { $0.contains("init(spacing: CGFloat") }
-        XCTAssertEqual(inits.count, 1, "expected exactly one `AdaptiveCardGrid` init, found \(inits.count)")
+        let grid = try adaptiveCardGridBody()
+        let inits = grid.filter { $0.contains("init(spacing: CGFloat") }
+        XCTAssertEqual(inits.count, 1, """
+        expected exactly one `init(spacing:)` inside `AdaptiveCardGrid`, found \(inits.count)
+        """)
         for line in inits {
             XCTAssertTrue(line.contains("= 10"), """
             `AdaptiveCardGrid`'s spacing no longer defaults to 10: \
             \(line.trimmingCharacters(in: .whitespaces))
 
-            `mixerPanel` and `sessionPanel` call it WITHOUT a spacing argument and were laid \
-            out at 10 before #292 Slice 2 existed. Changing the default re-spaces two panels \
-            that nobody asked to change. Pass the new value at the new call site instead.
+            `mixerPanel` and `weatherRow` call it WITHOUT a spacing argument and shipped at 10 \
+            before #292 Slice 2 existed. Changing the default re-spaces two panels that nobody \
+            asked to change. Pass the new value at the new call site instead.
             """)
         }
+    }
+
+    /// ⛔ WITHOUT THIS, THE FILE DOES NOT GUARD ITS OWN HEADLINE CLAIM. The three tests above
+    /// prove the call sites pass 14 and that `EchoelPanel` uses 14 — and nothing proved the WIRE
+    /// between them. Change the grid's one-column branch back to a literal `VStack(spacing: 10)`
+    /// and every one of them stays green while every portrait row in `soundPanel` tightens to
+    /// 10: precisely the silent, portrait-only drift the header calls "THE COUPLING".
+    ///
+    /// The scan is deliberately scoped to `AdaptiveCardGrid`'s own body — a whole-file match on
+    /// `spacing: spacing` would pass on any unrelated forwarding elsewhere in 6000 lines.
+    func testTheSpacingArgumentActuallyReachesBothLayoutBranches() throws {
+        let grid = try adaptiveCardGridBody()
+        for fragment in ["VStack(alignment: .leading, spacing: spacing)", "count: columns), spacing: spacing)"] {
+            XCTAssertTrue(grid.contains { $0.contains(fragment) }, """
+            `AdaptiveCardGrid` no longer forwards its `spacing` argument to `\(fragment)`.
+
+            A hard-coded number in either branch makes the whole `spacing:` parameter \
+            decorative: callers keep passing 14, the tests keep passing, and the layout \
+            silently uses something else. The ONE-COLUMN branch is the dangerous one — that \
+            is iPhone portrait, the primary surface, and it does not reflow, so nothing else \
+            about it would look different enough to notice.
+            """)
+        }
+    }
+
+    /// Lines of the `AdaptiveCardGrid` declaration, from `private struct` to the next file-scope
+    /// declaration. Scoping the init search matters: a whole-file match on `init(spacing: CGFloat`
+    /// would redden the BLOCKING bundle if any other type in this file ever gained such an init —
+    /// a red gate for a non-regression, with a message naming the wrong type.
+    private func adaptiveCardGridBody() throws -> [String] {
+        let lines = try codeLines(Self.studio)
+        guard let start = lines.firstIndex(where: { $0.contains("private struct AdaptiveCardGrid") }) else {
+            XCTFail("`AdaptiveCardGrid` is gone from \(Self.studio) — it is the only reflow "
+                    + "primitive in the app. If it was renamed, move this guard with it.")
+            return []
+        }
+        let end = lines[(start + 1)...].firstIndex { $0.hasPrefix("private ") || $0.hasPrefix("struct ") }
+            ?? lines.endIndex
+        return Array(lines[start..<end])
     }
 
     /// Lines of `soundPanel`, from its declaration to the next member declaration. Scoping

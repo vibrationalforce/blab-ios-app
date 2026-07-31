@@ -4005,7 +4005,11 @@ struct EchoelStudioView: View {
             // a name with its number, and the drag target sits nowhere near its label. That
             // is the concrete defect behind "9 of 11 panels have no reflow" — NOT a narrow
             // column in empty space, which is what #292's first description got wrong.
-            // Two columns keep each row at a readable ~340 pt and use the width for MORE
+            // Two columns keep each row at a readable ~305 pt (landscape SE) to ~437 pt (16 Pro
+            // Max) — computed from the actual chrome: `menuPanelHost`'s 8 pt, its `.padding(2)`,
+            // `EchoelPanel`'s 14 pt and the grid's 10 pt gutter. The first version wrote a
+            // device-free "~340 pt" in a file whose culture is to put the command next to the
+            // number. It uses the width for MORE
             // parameters instead of more emptiness.
             // Headers and the explanatory `Text` blocks stay OUTSIDE the grid on purpose: a
             // section title in a grid cell would sit beside a parameter row and stop reading
@@ -4018,32 +4022,40 @@ struct EchoelStudioView: View {
                 knob("Harmonics", $currentPatch.harmonicity, 0...1)
                 knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
                 knob("Noise", $currentPatch.noiseLevel, 0...1)
-            }
-
-            // #286 — THE TWO NAMED TIMBRE CHOICES, ported from `PatchEditorView` for the same
-            // reason as the Unison rows below: that file has no door and is queued for
-            // deletion, and these were the only editors for two engine-consumed fields.
-            // `Picker`, not `EchoelValueField` — the app-wide numeric law is explicitly about
-            // NUMERIC parameters, and a spectral shape stops being a number to decode.
-            labeledRow("Shape") {
-                Picker("Spectral shape", selection: spectralShapeBinding) {
-                    ForEach(EchoelDDSP.SpectralShape.allCases, id: \.self) { shape in
-                        Text(shape.rawValue).tag(shape.rawValue)
+                // ⛔ THE TWO PICKERS BELONG IN THIS GRID, and leaving them out was the same
+                // defect one level down. The first version put them after it, so Tone rendered
+                // as two 2-up rows followed by two FULL-WIDTH picker rows — the exact ragged
+                // block `SoundPanelReflowsTests` condemns between groups, reproduced inside
+                // one. `labeledRow` is a `VStack` that already pins `maxWidth: .infinity`, so
+                // it tiles in a cell like any other row; there was never a technical reason.
+                // Six items now read as three clean rows.
+                //
+                // #286 — THE TWO NAMED TIMBRE CHOICES, ported from `PatchEditorView` for the
+                // same reason as the Unison rows below: that file has no door and is queued
+                // for deletion, and these were the only editors for two engine-consumed
+                // fields. `Picker`, not `EchoelValueField` — the app-wide numeric law is
+                // explicitly about NUMERIC parameters, and a spectral shape stops being a
+                // number to decode.
+                labeledRow("Shape") {
+                    Picker("Spectral shape", selection: spectralShapeBinding) {
+                        ForEach(EchoelDDSP.SpectralShape.allCases, id: \.self) { shape in
+                            Text(shape.rawValue).tag(shape.rawValue)
+                        }
                     }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .onChange(of: currentPatch.spectralShape) { _, _ in applySoundLive() }
+                    .accessibilityLabel("Spectral shape")
                 }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: currentPatch.spectralShape) { _, _ in applySoundLive() }
-                .accessibilityLabel("Spectral shape")
-            }
-            labeledRow("Noise colour") {
-                Picker("Noise colour", selection: noiseColorBinding) {
-                    ForEach(EchoelDDSP.NoiseColor.allCases, id: \.self) { colour in
-                        Text(colour.rawValue).tag(colour.rawValue)
+                labeledRow("Noise colour") {
+                    Picker("Noise colour", selection: noiseColorBinding) {
+                        ForEach(EchoelDDSP.NoiseColor.allCases, id: \.self) { colour in
+                            Text(colour.rawValue).tag(colour.rawValue)
+                        }
                     }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .onChange(of: currentPatch.noiseColor) { _, _ in applySoundLive() }
+                    .accessibilityLabel("Noise colour")
                 }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: currentPatch.noiseColor) { _, _ in applySoundLive() }
-                .accessibilityLabel("Noise colour")
             }
 
             // #281 — THE ENSEMBLE ROWS, ported here from `PatchEditorView` so retiring that
@@ -6453,17 +6465,26 @@ private struct ExportedFile: Identifiable {
 /// Layout-only: identical content, just columns.
 ///
 /// ⚠️ `spacing` EXISTS BECAUSE THE PORTRAIT PATH IS NOT A NO-OP. In one column this renders a
-/// `VStack`, so its spacing REPLACES whatever rhythm the caller's container had. The two
-/// original callers hold CARDS inside `EchoelPanel`, where 10 pt is right; wrapping a run of
-/// `EchoelValueField` ROWS in the same panel would silently tighten them from the panel's own
-/// 14 pt (`EchoelPanel.body`) to 10 — a visible change to the iPhone PORTRAIT surface, which is
-/// the primary one, in exchange for nothing. The default keeps those two callers byte-identical;
-/// a row caller passes the container's spacing. Rule for the next caller: pass the spacing the
-/// content already had, or check that 10 is what it had.
+/// `VStack`, so its spacing REPLACES whatever rhythm the caller's container had. Wrapping a run
+/// of `EchoelValueField` ROWS inside `EchoelPanel` without saying so would tighten them from the
+/// panel's own 14 pt (`EchoelPanel.body`) to 10 — a visible change to the iPhone PORTRAIT
+/// surface, which is the primary one, in exchange for nothing, because portrait does not reflow
+/// at all. Pass the spacing the content already had.
+///
+/// ⛔ THE FIRST VERSION OF THIS PARAGRAPH NAMED THE WRONG CALLER AND STATED A RULE ITS OWN
+/// EXAMPLE BREAKS. It said "the two original callers hold CARDS inside `EchoelPanel`, where 10 pt
+/// is right". The two bare callers are `mixerPanel` and **`weatherRow`** — NOT `sessionPanel`,
+/// which merely renders `weatherRow` and contains no grid at all; someone acting on that name
+/// would have grepped `sessionPanel` and found nothing. And only `mixerPanel`'s grid sits
+/// directly in `EchoelPanel`'s 14 pt stack: `weatherRow`'s sits in its own local
+/// `VStack(alignment: .leading, spacing: 8)`. So NEITHER matched 10 by design. The honest reason
+/// the default is 10 is narrower and sufficient: those two shipped at 10 and changing it would
+/// re-space two panels nobody asked to change.
 @MainActor
 private struct AdaptiveCardGrid<Content: View>: View {
     @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.verticalSizeClass) private var vSize
+    @Environment(\.dynamicTypeSize) private var typeSize
     private let spacing: CGFloat
     private let content: () -> Content
 
@@ -6472,18 +6493,36 @@ private struct AdaptiveCardGrid<Content: View>: View {
         self.content = content
     }
 
-    private var columns: Int { (hSize == .regular || vSize == .compact) ? 2 : 1 }
+    /// ⛔ ACCESSIBILITY SIZES GET ONE COLUMN, whatever the width. `EchoelValueField`'s value box
+    /// is a HARD `.frame(width:)` driven by `@ScaledMetric(relativeTo: .body) = 150`, and it
+    /// OVERFLOWS rather than clips (the field says so itself). `EchoelStudioView` is deliberately
+    /// not Dynamic-Type-clamped and `StudioZoom` reaches `.accessibility5`, so at the top sizes
+    /// that box alone wants more than half a landscape phone — two columns would draw over each
+    /// other. Halving the available width is exactly the wrong move for the user who most needs
+    /// the width. (Portrait already overflows at the top sizes today; that is a separate,
+    /// pre-existing defect of the fixed box width and is NOT fixed here — this only makes sure
+    /// this slice does not spend the extra landscape width that was masking it.)
+    private var columns: Int {
+        guard !typeSize.isAccessibilitySize else { return 1 }
+        return (hSize == .regular || vSize == .compact) ? 2 : 1
+    }
 
     var body: some View {
         if columns > 1 {
             // Column gap stays 10 regardless — it is a horizontal gutter, unrelated to the
             // vertical rhythm the caller is preserving.
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top),
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .topLeading),
                                      count: columns), spacing: spacing) {
                 content()
             }
         } else {
-            VStack(spacing: spacing) { content() }
+            // ⚠️ `.leading`, NOT the `VStack` default `.center`. Inert today — every child is an
+            // `EchoelValueField` with a label, which is horizontally greedy, so centre and
+            // leading coincide. It stops being inert the moment someone puts a non-greedy child
+            // in a grid (a bare `Text`, a `Button`): it would centre in PORTRAIT and sit leading
+            // everywhere else, i.e. a difference that only shows on one orientation. Matching
+            // `EchoelPanel`'s own `.leading` costs nothing and removes the trap.
+            VStack(alignment: .leading, spacing: spacing) { content() }
         }
     }
 }
