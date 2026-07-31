@@ -82,9 +82,17 @@ final class SaveDoorNamingTests: XCTestCase {
 
     /// The panel behind that door must agree with it. A door promising "Save" onto a panel
     /// headed "Export" is the same defect one step further in.
+    ///
+    /// ⛔ THE COMMA IS LOAD-BEARING, and leaving it out is how the first version of this file
+    /// went red in CI. `utilityRow` ends with `}   // panel("Save & Export")` — a
+    /// block-closing marker whose line does not START with `//`, so `codeLines` keeps it, and
+    /// it contains the bare prefix. The count was 2, not 1. Matching the CALL (title followed
+    /// by a comma, since `panel` always takes a subtitle) excludes the marker without having
+    /// to strip trailing comments, which cannot be done safely — `//` occurs inside string
+    /// literals.
     func testThePanelTitleAgreesWithTheDoor() throws {
         let lines = try codeLines(Self.studio)
-        let title = lines.filter { $0.contains(#"panel("Save & Export""#) }
+        let title = lines.filter { $0.contains(#"panel("Save & Export","#) }
         XCTAssertEqual(title.count, 1,
                        "the utility panel is no longer titled \"Save & Export\". If it was "
                        + "renamed deliberately, the transport-bar entry and the chip label "
