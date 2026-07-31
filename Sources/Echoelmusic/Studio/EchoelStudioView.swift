@@ -3996,11 +3996,29 @@ struct EchoelStudioView: View {
             // Every parameter is a scrubbable numeric value, one per row with its unit
             // shown after it (drag = fast/coarse or slow/fine to 0.0001; tap = type
             // exact). Pickers for character. No sliders.
+            // ⭐ #292 SLICE 2 — WHY THE ROWS ARE IN A GRID AND THE HEADERS ARE NOT.
+            // `EchoelValueField` is `HStack { label; Spacer(minLength: 8); valueBox }`, so it
+            // consumes whatever width it is offered — and `menuPanelHost` offers
+            // `maxWidth: .infinity`. In landscape (or any regular width) that puts the label
+            // at the far left edge and its own value box at the far right, with hundreds of
+            // points of nothing between them: the eye has to travel the whole screen to pair
+            // a name with its number, and the drag target sits nowhere near its label. That
+            // is the concrete defect behind "9 of 11 panels have no reflow" — NOT a narrow
+            // column in empty space, which is what #292's first description got wrong.
+            // Two columns keep each row at a readable ~340 pt and use the width for MORE
+            // parameters instead of more emptiness.
+            // Headers and the explanatory `Text` blocks stay OUTSIDE the grid on purpose: a
+            // section title in a grid cell would sit beside a parameter row and stop reading
+            // as a title, and the wrapping explanations want the full measure.
+            // Portrait is unchanged — one column, and `spacing: 14` is `EchoelPanel`'s own
+            // content spacing, so the rhythm the founder sees today is preserved exactly.
             groupHeader("Tone")
-            knob("Brightness", $currentPatch.brightness, 0...1)
-            knob("Harmonics", $currentPatch.harmonicity, 0...1)
-            knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
-            knob("Noise", $currentPatch.noiseLevel, 0...1)
+            AdaptiveCardGrid(spacing: 14) {
+                knob("Brightness", $currentPatch.brightness, 0...1)
+                knob("Harmonics", $currentPatch.harmonicity, 0...1)
+                knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
+                knob("Noise", $currentPatch.noiseLevel, 0...1)
+            }
 
             // #286 — THE TWO NAMED TIMBRE CHOICES, ported from `PatchEditorView` for the same
             // reason as the Unison rows below: that file has no door and is queued for
@@ -4034,22 +4052,26 @@ struct EchoelStudioView: View {
             // unison is the single biggest "thin → rich" lever the engine has
             // (`PolySynthVoice.apply` says so at its own default).
             groupHeader("Unison")
-            EchoelValueField(label: "Voices", value: unisonVoicesBinding,
-                             range: Float(1)...Float(EchoelPolyDDSP.maxUnison),
-                             decimals: 0, onChange: { applySoundLive() })
-            EchoelValueField(label: "Detune", value: unisonDetuneBinding,
-                             range: Float(0)...Float(50), unit: "cents",
-                             decimals: 0, onChange: { applySoundLive() })
+            AdaptiveCardGrid(spacing: 14) {
+                EchoelValueField(label: "Voices", value: unisonVoicesBinding,
+                                 range: Float(1)...Float(EchoelPolyDDSP.maxUnison),
+                                 decimals: 0, onChange: { applySoundLive() })
+                EchoelValueField(label: "Detune", value: unisonDetuneBinding,
+                                 range: Float(0)...Float(50), unit: "cents",
+                                 decimals: 0, onChange: { applySoundLive() })
+            }
             Text("Each note played as several slightly-detuned copies — the difference between one thin voice and an ensemble. 1 voice = off.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
 
             groupHeader("Filter")
-            knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
-            knob("Resonance", $currentPatch.filterResonance, 0...1)
-            knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1)
-            knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
-            knob("LFO depth", $currentPatch.filterLFODepth, 0...1)
+            AdaptiveCardGrid(spacing: 14) {
+                knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
+                knob("Resonance", $currentPatch.filterResonance, 0...1)
+                knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1)
+                knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
+                knob("LFO depth", $currentPatch.filterLFODepth, 0...1)
+            }
 
             groupHeader("Envelope")
             // Global articulation macro — one control that shapes the ONSET for EVERY
@@ -4063,35 +4085,44 @@ struct EchoelStudioView: View {
             Text("How each character speaks: 0 = slow swell (bowed strings, glass bowl) · 1 = struck / sharp onset (mallet, plucked, tuba stab). Sets touch response too; click-safe.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
-            param("Attack", $currentPatch.attack, 0...5, unit: "s")
-            param("Decay", $currentPatch.decay, 0...5, unit: "s")
-            param("Sustain", $currentPatch.sustain, 0...1)
-            param("Release", $currentPatch.release, 0...10, unit: "s")
+            // The Swell↔Strike macro and its explanation stay full-width ABOVE the grid: it
+            // WRITES the four fields below it, so pairing it beside one of them would read as
+            // a peer of A/D/S/R instead of the control that sets them.
+            AdaptiveCardGrid(spacing: 14) {
+                param("Attack", $currentPatch.attack, 0...5, unit: "s")
+                param("Decay", $currentPatch.decay, 0...5, unit: "s")
+                param("Sustain", $currentPatch.sustain, 0...1)
+                param("Release", $currentPatch.release, 0...10, unit: "s")
+            }
 
             groupHeader("Space & vibrato")
-            knob("Reverb mix", $currentPatch.reverbMix, 0...1)
-            knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
-            knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
-            knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
+            AdaptiveCardGrid(spacing: 14) {
+                knob("Reverb mix", $currentPatch.reverbMix, 0...1)
+                knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
+                knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
+                knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
+            }
 
             // The "Vibration" dimension: a dedicated sub-octave bass you can push to
             // FEEL the body's bass (sub / headphones / haptics). Silent at 0.
             groupHeader("Sub / Bass (felt)")
-            EchoelValueField(label: "Sub level", value: Binding(
-                get: { subBass.subGain },
-                set: { subBass.subGain = min(max($0, 0), 1) }
-            ), range: Float(0)...Float(1))
-            // Sub character (founder "sub culture" 2026-07-16, in-house SubCharacter
-            // DSP): presence = octave-harmonic read on small speakers; heat =
-            // loudness-compensated saturation. 0.50/0.50 = the previous fixed sound.
-            EchoelValueField(label: "Sub presence", value: Binding(
-                get: { subBass.subPresence },
-                set: { subBass.subPresence = min(max($0, 0), 1) }
-            ), range: Float(0)...Float(1))
-            EchoelValueField(label: "Sub heat", value: Binding(
-                get: { subBass.subHeat },
-                set: { subBass.subHeat = min(max($0, 0), 1) }
-            ), range: Float(0)...Float(1))
+            AdaptiveCardGrid(spacing: 14) {
+                EchoelValueField(label: "Sub level", value: Binding(
+                    get: { subBass.subGain },
+                    set: { subBass.subGain = min(max($0, 0), 1) }
+                ), range: Float(0)...Float(1))
+                // Sub character (founder "sub culture" 2026-07-16, in-house SubCharacter
+                // DSP): presence = octave-harmonic read on small speakers; heat =
+                // loudness-compensated saturation. 0.50/0.50 = the previous fixed sound.
+                EchoelValueField(label: "Sub presence", value: Binding(
+                    get: { subBass.subPresence },
+                    set: { subBass.subPresence = min(max($0, 0), 1) }
+                ), range: Float(0)...Float(1))
+                EchoelValueField(label: "Sub heat", value: Binding(
+                    get: { subBass.subHeat },
+                    set: { subBass.subHeat = min(max($0, 0), 1) }
+                ), range: Float(0)...Float(1))
+            }
             Text("Reinforces the bass an octave below — feel it on a sub, in headphones, or as haptics. Presence makes it read on small speakers (octaves only, always in key); heat saturates without getting louder.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -6420,22 +6451,39 @@ private struct ExportedFile: Identifiable {
 /// `ChannelRackView.rackColumns` (v170), which mixed the drum channels; that view is
 /// deleted (#167) and this is now the only place the rule lives.
 /// Layout-only: identical content, just columns.
+///
+/// ⚠️ `spacing` EXISTS BECAUSE THE PORTRAIT PATH IS NOT A NO-OP. In one column this renders a
+/// `VStack`, so its spacing REPLACES whatever rhythm the caller's container had. The two
+/// original callers hold CARDS inside `EchoelPanel`, where 10 pt is right; wrapping a run of
+/// `EchoelValueField` ROWS in the same panel would silently tighten them from the panel's own
+/// 14 pt (`EchoelPanel.body`) to 10 — a visible change to the iPhone PORTRAIT surface, which is
+/// the primary one, in exchange for nothing. The default keeps those two callers byte-identical;
+/// a row caller passes the container's spacing. Rule for the next caller: pass the spacing the
+/// content already had, or check that 10 is what it had.
 @MainActor
 private struct AdaptiveCardGrid<Content: View>: View {
     @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.verticalSizeClass) private var vSize
-    @ViewBuilder let content: () -> Content
+    private let spacing: CGFloat
+    private let content: () -> Content
+
+    init(spacing: CGFloat = 10, @ViewBuilder content: @escaping () -> Content) {
+        self.spacing = spacing
+        self.content = content
+    }
 
     private var columns: Int { (hSize == .regular || vSize == .compact) ? 2 : 1 }
 
     var body: some View {
         if columns > 1 {
+            // Column gap stays 10 regardless — it is a horizontal gutter, unrelated to the
+            // vertical rhythm the caller is preserving.
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top),
-                                     count: columns), spacing: 10) {
+                                     count: columns), spacing: spacing) {
                 content()
             }
         } else {
-            VStack(spacing: 10) { content() }
+            VStack(spacing: spacing) { content() }
         }
     }
 }
