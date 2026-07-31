@@ -46,7 +46,7 @@ final class SoundPanelReflowsTests: XCTestCase {
     /// existing in a test rather than only in two source files that never look at each other.
     private static let panelContentSpacing = "14"
 
-    /// ⭐ THE REFLOW ITSELF. One test for all six groups: a panel where only some groups
+    /// ⭐ THE REFLOW ITSELF. One test for every group: a panel where only some groups
     /// reflow is its own defect (a ragged half-width, half-full-width column), and no single
     /// assertion describes that.
     func testEveryParameterGroupInTheSoundPanelReflows() throws {
@@ -60,9 +60,9 @@ final class SoundPanelReflowsTests: XCTestCase {
         // prevent, arriving by the most probable authoring route. Without the paren, the next
         // test below now REQUIRES `spacing: 14` on every occurrence and the bare form fails.
         let grids = body.filter { $0.contains("AdaptiveCardGrid") }
-        XCTAssertGreaterThanOrEqual(grids.count, 6, """
-        `soundPanel` has \(grids.count) `AdaptiveCardGrid` groups, expected at least 6 \
-        (Tone · Unison · Filter · Envelope A/D/S/R · Space & vibrato · Sub/Bass).
+        XCTAssertGreaterThanOrEqual(grids.count, 7, """
+        `soundPanel` has \(grids.count) `AdaptiveCardGrid` groups, expected at least 7 \
+        (Tone · Unison · Filter · Envelope A/D/S/R · Space & vibrato · Level · Sub/Bass).
 
         A group left unwrapped renders full-width while its neighbours are two-up — a ragged \
         panel is worse than a consistently narrow one. If a group was deliberately removed or \

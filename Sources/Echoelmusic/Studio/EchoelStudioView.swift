@@ -455,9 +455,14 @@ struct EchoelStudioView: View {
     // (36a8468) deleted them as unreachable, which that doc does not itself discuss.
     // The patch editor the product definition KEEPS is `soundPanel` (Sound chip) —
     // that panel IS the live timbre editor, so it needs no sheet.
-    // ⚠️ THE CAVEAT BELOW IS ONLY PARTLY DISCHARGED — `PatchEditorView.swift` STILL CANNOT BE
-    // RETIRED. #281 ported TWO fields: `unisonVoices` / `unisonDetuneCents` now have rows in
-    // `soundPanel` under "Unison".
+    // ⚠️ THE CAVEAT BELOW IS NOW DISCHARGED FOR EVERY PERSISTED PARAMETER — and read the ⛔
+    // block under it before trusting that sentence, because it is the SECOND time this note has
+    // said something like it. #281 ported `unisonVoices` / `unisonDetuneCents` ("Unison"), #286
+    // ported `spectralShape` / `noiseColor` (Tone) and now `outputLevel` ("Level"). The
+    // difference from the first attempt is checkable rather than rhetorical: each of the five
+    // has a RENDERED row in `soundPanel` plus a CISmoke guard pinning it there
+    // (`UnisonRowDefaultsTests`), and each guard was written by grepping for the ROW, not for
+    // the field.
     //
     // ⛔ AND THE FIRST VERSION OF THIS NOTE DECLARED THE WHOLE CAVEAT DISCHARGED, on the claim
     // that `outputLevel` "never had a row at ALL — `PatchEditorView` declares an
@@ -471,20 +476,21 @@ struct EchoelStudioView: View {
     // `spectralShape` and `noiseColor` followed in #286 — Shape / Noise colour pickers in the
     // Tone group above, canonicalising through the enum (see `spectralShapeBinding`).
     //
-    // STILL REACHABLE ONLY FROM `PatchEditorView.swift`, and therefore STILL BLOCKING:
-    //   · `outputLevel` — its "Output" row (`levelBinding`); the only USER-FACING writer of the
-    //     field, and the engine applies it (`synth.patchOutputLevel`).
-    //     ⛔ "the only writer in `Sources/`" is what this said first, and it is false —
-    //     `SynthPatch.loudnessNormalized()` writes it for every factory patch. The bullet even
-    //     contradicted itself three lines down, where the auto-calibration is the reason the
-    //     port is a founder call. A reviewer who greps `outputLevel`, finds the second writer
-    //     and concludes this bullet is stale is one step from the deletion it exists to stop.
-    //   · the preview keyboard — the play surface arguably covers this one; a judgement call,
-    //     not a grep result.
-    // `outputLevel` is deliberately NOT ported: a manual output trim sits against
-    // `loudnessNormalized()`'s auto-calibration and against the per-role gain of #196, so
-    // adding one is a founder decision, not a side effect of a cleanup. Until it is made, this
-    // file cannot be deleted without losing a live parameter (#286).
+    // `outputLevel` followed too — an "Output" row under a "Level" header, next to Sub/Bass
+    // (see `outputLevelBinding`). ⛔ WHAT STOOD HERE — "`outputLevel` is deliberately NOT
+    // ported: a manual output trim sits against `loudnessNormalized()`'s auto-calibration …
+    // adding one is a founder decision" — WAS WRONG ON ITS FACTS, not merely overtaken.
+    // `loudnessNormalized()` runs exactly once, building the `static let factory` roster; it
+    // cannot overwrite a trim a user made, so the two never meet. And `SynthPatch.outputLevel`'s
+    // own doc had said "users can trim it in the editor" since the field shipped, quoting the
+    // founder ask ("Level pro Instrument") that created it. The port restores a door that was
+    // lost with `PatchEditorView`; it does not invent a control.
+    //
+    // WHAT `PatchEditorView.swift` STILL HOLDS ALONE — and it is no longer a persisted
+    // parameter, so it no longer BLOCKS the deletion (#132 Slice 6):
+    //   · the preview keyboard — the play surface covers this one. A judgement call, not a
+    //     grep result; recorded here as a call MADE, so the next reader does not re-open it as
+    //     an unknown.
     /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
     /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
     /// roll it imported into has no door any more either. Kept as a reusable slot on the
@@ -4115,6 +4121,22 @@ struct EchoelStudioView: View {
                 knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
             }
 
+            // #286 — THE LAST PORTED ROW, and the one that was held back longest. See
+            // `outputLevelBinding` for why the "sits against the auto-calibration" objection
+            // does not hold. One field in the grid renders as a half-width cell with an empty
+            // one beside it; that is already how "Sub / Bass (felt)" (3 items, 2 columns) has
+            // shipped, and it is the point of #292 — the row stays at a readable width instead
+            // of stretching its label and its value box to opposite screen edges.
+            groupHeader("Level")
+            AdaptiveCardGrid(spacing: 14) {
+                EchoelValueField(label: "Output", value: outputLevelBinding,
+                                 range: Float(0.3)...Float(1.5), decimals: 2,
+                                 onChange: { applySoundLive() })
+            }
+            Text("This sound's own loudness, so one instrument does not sit far above or below the others. 1.00 = unity. The built-in sounds arrive pre-matched; this trims from there.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+
             // The "Vibration" dimension: a dedicated sub-octave bass you can push to
             // FEEL the body's bass (sub / headphones / haptics). Silent at 0.
             groupHeader("Sub / Bass (felt)")
@@ -4228,6 +4250,38 @@ struct EchoelStudioView: View {
     private var unisonDetuneBinding: Binding<Float> {
         Binding(get: { currentPatch.unisonDetuneCents ?? 7 },
                 set: { currentPatch.unisonDetuneCents = $0.isFinite ? Swift.max(0, $0) : 0 })
+    }
+
+    /// #286 — the LAST field that only `PatchEditorView` could reach, and the reason that
+    /// doorless file could not be deleted (#132 Slice 6).
+    ///
+    /// ⭐ WHY THE OBJECTION THAT HELD THIS BACK DOES NOT HOLD. The note above `soundPanel`'s
+    /// declaration said a manual trim "sits against `loudnessNormalized()`'s auto-calibration",
+    /// so porting it was a founder call. Read the two together and they do not collide:
+    /// `loudnessNormalized()` is applied EXACTLY ONCE, building the `static let factory` roster
+    /// at type-init, and nothing re-runs it over a patch a user has touched. It sets the
+    /// STARTING point; this row trims from there. `SynthPatch.outputLevel`'s own doc has said
+    /// so since the field shipped — "The factory patches auto-calibrate this …; users can trim
+    /// it in the editor" — quoting a founder ask ("Level pro Instrument") that asked for this
+    /// control by name. What was lost in 2026-07-25 was its DOOR, not its mandate.
+    /// #196 (per-role output gain) is a different stage in series — patch level, then role
+    /// gain, then master — not a competing writer of this field.
+    ///
+    /// The fallback mirrors the engine exactly: `resolved()` un-boxes a nil `outputLevel` to
+    /// 1.0, so a genre or library patch (none of which set the field) sounds at unity and the
+    /// row must read 1.00. Factory patches DO carry an explicit calibrated value in 0.45…1.4,
+    /// which the row's 0.3…1.5 range encloses — so no shipped patch can display a number
+    /// outside its own control, the defect `unisonVoicesBinding` exists to prevent one field
+    /// over.
+    ///
+    /// The `isFinite` guard is the same non-decorative one as the unison rows:
+    /// `EchoelValueField` clamps with `min(max(…))`, which passes NaN straight through, and
+    /// this value is PERSISTED. `EchoelDDSP.patchOutputLevel` catches a NaN at the engine
+    /// boundary (#295), but only after it has been written into the saved patch — falling back
+    /// to unity keeps the poison out of the file, not just out of the render.
+    private var outputLevelBinding: Binding<Float> {
+        Binding(get: { currentPatch.outputLevel ?? 1.0 },
+                set: { currentPatch.outputLevel = $0.isFinite ? $0 : 1.0 })
     }
 
     /// A precise parameter row bound to a live patch field: a scrubbable numeric

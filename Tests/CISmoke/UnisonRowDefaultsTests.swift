@@ -18,7 +18,13 @@
 // environment. The realistic regression is textual and a textual check catches exactly it.
 // House pattern: `ChromeDynamicTypeTests`, `SaveDoorNamingTests`.
 //
-// ⛔ HONEST LIMIT: this proves the rows are WRITTEN and the two fallbacks match. It cannot
+// ⚠️ THE FILE NOW COVERS ALL FIVE PORTED ROWS, not the two its name mentions: #281's
+// `unisonVoices` / `unisonDetuneCents`, and #286's `spectralShape` / `noiseColor` /
+// `outputLevel`. They share the two helpers and guard one thing — a row that is the LAST
+// editor for an engine-consumed, persisted field. Renaming the file would be churn; leaving
+// the newest additions in a file nobody looks in would be worse.
+//
+// ⛔ HONEST LIMIT: this proves the rows are WRITTEN and the fallbacks match. It cannot
 // prove the panel renders them, that the chip reaches it, or that unison sounds right. That
 // is device-verified only.
 
@@ -95,6 +101,40 @@ final class UnisonRowDefaultsTests: XCTestCase {
                       + "ceiling moved or went away, the Sound panel's read-clamp has to move "
                       + "with it — otherwise the row starts hiding voices instead of inventing "
                       + "them, which is the same lie mirrored.")
+    }
+
+    /// ⭐ #286's LAST ROW, and the one whose absence kept `PatchEditorView.swift` alive. Both
+    /// halves are asserted together for the same reason as the unison pair: the row without the
+    /// engine-matching fallback is a readout that disagrees with the ear, and the fallback
+    /// without the row is a binding nothing renders.
+    ///
+    /// `?? 1.0` is not a guess — `ResolvedPatch` un-boxes a nil `outputLevel` to exactly 1.0,
+    /// and NO genre or library patch sets the field, so unity is what those patches actually
+    /// sound at. If that un-boxing ever changes, this row starts lying and only a cross-file
+    /// check like this one notices.
+    func testTheOutputRowIsMountedAndAgreesWithTheEnginesUnityFallback() throws {
+        let body = try soundPanelBody()
+        XCTAssertTrue(body.contains { $0.contains(#"label: "Output""#)
+                                   && $0.contains("outputLevelBinding") }, """
+        the Output row is gone from `soundPanel`. It is the ONLY editor for \
+        `SynthPatch.outputLevel` in the app — `PatchEditorView` is doorless and queued for \
+        deletion (#132 Slice 6), so removing this row does not leave a second way in. It was \
+        added by #286 precisely so that deletion stops being a capability loss.
+        """)
+
+        let studio = try codeLines(Self.studio)
+        XCTAssertTrue(studio.contains { $0.contains("currentPatch.outputLevel ?? 1.0") }, """
+        the Output row no longer falls back to unity. `SynthPatch.resolved()` un-boxes a nil \
+        `outputLevel` to 1.0, and no genre or library patch sets the field — so any other \
+        fallback makes the row display a level those sounds are not played at.
+        """)
+
+        let patch = try codeLines("Sources/Echoelmusic/DSP/SynthPatch.swift")
+        XCTAssertTrue(patch.contains { $0.contains("public var level: Float { outputLevel ?? 1.0 }") }, """
+        `SynthPatch`'s own unity fallback changed. Change the Sound panel's Output binding in \
+        the SAME commit — otherwise the row shows one number while the voice plays another, \
+        which is exactly the defect #281 fixed for the unison rows.
+        """)
     }
 
     /// Repo root, derived from this file's compile-time path (`Tests/CISmoke/…`, three levels

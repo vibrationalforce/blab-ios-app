@@ -361,12 +361,13 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// `pow(v, expo) * unisonGain` with `v` clamped to 0…1 and `unisonGain` ≤ 1), and
     /// `patchOutputLevel` has THREE doors, not one: `SynthPatch.loudnessNormalized` (0.45…1.4,
     /// and the only one that can exceed unity in a COMPILED-IN patch — no genre or library
-    /// patch sets `outputLevel` at all), the `PatchEditorView` "Output" row (0.3…1.5, doorless
-    /// today but explicitly retained as this field's only writer), and the `ddsp.amp.level`
-    /// automation lane (0…1, registry-clamped). So: **1.4 is the largest product anything
-    /// SHIPS**, 1.5 the largest a user could ever save. The ceiling sits well above both so a
-    /// future `outputLevel` row (#286) cannot silently hit it and become a lying control,
-    /// while +inf still cannot escape. The FLOOR is what matters for the bug:
+    /// patch sets `outputLevel` at all), the Sound panel's "Output" row (0.3…1.5 — REACHABLE
+    /// since #286 put it under the "Level" header; it was `PatchEditorView`'s doorless row when
+    /// this note was written), and the `ddsp.amp.level` automation lane (0…1,
+    /// registry-clamped). So: **1.4 is the largest product anything SHIPS**, 1.5 the largest a
+    /// user can save. The ceiling sits well above both, so the `outputLevel` row cannot
+    /// silently hit it and become a lying control, while +inf still cannot escape. The FLOOR is
+    /// what matters for the bug:
     /// `clamped(to:)` maps NaN to the lower bound, so a poisoned accumulator lands on 0 for
     /// one sample and then glides back up instead of latching there forever.
     ///
