@@ -1834,6 +1834,17 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// voice, so three fingers at three heights all got the LAST finger's filter — the
     /// opposite of MPE, and inaudible only because one finger is the common case.
     private var voiceCutoffScale: [Float]
+    /// PER-VOICE loudness trim for the expression above (#230). Recomputed at every writer of
+    /// this voice's pitch or cutoff — `spawnVoice`, `slideNote`, `setNoteCutoffScale` — and
+    /// then only READ in the render, so the block loop stays free of `pow`/`log2`.
+    ///
+    /// Why per-voice and not on the velocity, where it started: velocity is not addressable on
+    /// a sounding note, so a velocity-side trim evened the STRIKE and left the DRAG — the
+    /// gesture the surface exists for — exactly as uneven as before. See `ExpressionLevelTrim`.
+    ///
+    /// A voice keeps its trim through its release tail (nothing rewrites it after noteOff),
+    /// which is correct: a level jump at key-up would be a new defect, not a fix.
+    private var voiceLevelTrim: [Float]
     private var voiceAges: [Int]       // Age counter for voice stealing
     private var ageCounter: Int = 0
 
@@ -1900,6 +1911,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         }
         self.voiceNotes = [Int](repeating: -1, count: maxVoices)
         self.voiceCutoffScale = [Float](repeating: 1, count: maxVoices)
+        self.voiceLevelTrim = [Float](repeating: 1, count: maxVoices)
         self.voiceAges = [Int](repeating: 0, count: maxVoices)
         self.voicePans = [Float](repeating: 0, count: maxVoices)
 
@@ -2021,10 +2033,16 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // keeps the level it was struck at (same reasoning that already left `amplitude`
         // alone). This path is the touch surface, not the generated take, so no Mix fader is
         // waiting on it.
+        let slideScale = Self.clampExpressionScale(cutoffScale)
+        // A glide keeps its struck level (see above) — but the trim is not level, it is the
+        // correction for WHERE the note now sits. The pitch moves, so the trim must move with
+        // it, or a glide up an octave arrives 1.5 dB louder than the same note struck.
+        let slideTrim = expressionTrim(pitch: newNote, cutoffScale: slideScale)
         for i in 0..<maxVoices where voiceNotes[i] == oldNote {
             voices[i].frequency *= ratio        // smoothedFreq glides there per-sample
             voiceNotes[i] = newNote
-            voiceCutoffScale[i] = Self.clampExpressionScale(cutoffScale)
+            voiceCutoffScale[i] = slideScale
+            voiceLevelTrim[i] = slideTrim
             ageCounter += 1
             voiceAges[i] = ageCounter
             moved = true
@@ -2103,7 +2121,9 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note
-        voiceCutoffScale[voiceIdx] = Self.clampExpressionScale(cutoffScale)
+        let spawnScale = Self.clampExpressionScale(cutoffScale)
+        voiceCutoffScale[voiceIdx] = spawnScale
+        voiceLevelTrim[voiceIdx] = expressionTrim(pitch: note, cutoffScale: spawnScale)
         ageCounter += 1
         voiceAges[voiceIdx] = ageCounter
 
@@ -2173,9 +2193,39 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// than a wrong-voice write. Pure arithmetic on the audio thread: no allocation, no lock.
     public func setNoteCutoffScale(note: Int, scale: Float) {
         let s = Self.clampExpressionScale(scale)
+        // THE HALF #230 EXISTS FOR: this is the drag, and until now it wrote only the filter.
+        // The trim is recomputed from the CLAMPED scale — the filter the voice actually gets —
+        // so a corrected preset and the sounding timbre can never disagree.
+        let trim = expressionTrim(pitch: note, cutoffScale: s)
         for i in 0..<maxVoices where voiceNotes[i] == note {
             voiceCutoffScale[i] = s
+            voiceLevelTrim[i] = trim
         }
+    }
+
+    /// The pitch that gets NO expression level trim, or a negative value (the default) to
+    /// switch the trim off entirely — in which case every voice keeps `voiceLevelTrim == 1`
+    /// and the render is bit-identical to before #230.
+    ///
+    /// OFF BY DEFAULT ON PURPOSE. The generated take passes `cutoffScale: 1`, so only the
+    /// PITCH term would bite there — and it would quietly re-balance every generated note
+    /// against a reference nobody chose. The trim belongs to the play surface, which knows
+    /// its own middle band; `TouchInstrumentView` sets this and nothing else does.
+    ///
+    /// Written from the UI, read on the audio thread: `Int32`, atomic width, same discipline
+    /// as `portamentoCoeff` / `transposeSemitones`. A torn read is not possible, and a read
+    /// one block late only delays the trim by one buffer.
+    public var expressionTrimReferencePitch: Int32 = -1
+
+    /// The trim for one voice, or 1 when the feature is off. Called only from the note path
+    /// (spawn/slide/expression), never from the render loop — `pow`/`log2` per block per voice
+    /// is exactly the kind of arithmetic the render must not grow.
+    @inline(__always)
+    private func expressionTrim(pitch: Int, cutoffScale: Float) -> Float {
+        let ref = Int(expressionTrimReferencePitch)
+        guard ref >= 0 else { return 1 }
+        return ExpressionLevelTrim.gain(cutoffScale: cutoffScale, pitch: pitch,
+                                        referencePitch: ref)
     }
 
     /// One clamp for every writer of a per-note expression scale. NaN → 1 (resting), never
@@ -2397,9 +2447,15 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             let leftGain = cos(theta)
             let rightGain = sin(theta)
 
-            // Mix into stereo buffers (vDSP accelerated, zero allocation)
-            var lg = leftGain
-            var rg = rightGain
+            // Mix into stereo buffers (vDSP accelerated, zero allocation).
+            // The expression level trim (#230) folds into the pan gains rather than into the
+            // voice's `amplitude`: `amplitude` is owned by velocity and by the bio apply
+            // (#174/#177), and a second writer there would re-open exactly the overwrite bug
+            // those two closed. One multiply per voice per block, no branch, no arithmetic —
+            // the value was computed on the note path. 1 when the trim is off ⇒ bit-identical.
+            let trim = voiceLevelTrim[i]
+            var lg = leftGain * trim
+            var rg = rightGain * trim
 
             vDSP_vsmul(voiceBuffer, 1, &lg, &scaledBufferL, 1, vDSP_Length(frameCount))
             vDSP_vsmul(voiceBuffer, 1, &rg, &scaledBufferR, 1, vDSP_Length(frameCount))
@@ -2478,6 +2534,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             voices[i].reset()
             voiceNotes[i] = -1
             voiceAges[i] = 0
+            voiceLevelTrim[i] = 1
         }
         ageCounter = 0
         polyMakeupGain = 0.85   // back to single-voice full gain; render eases from here

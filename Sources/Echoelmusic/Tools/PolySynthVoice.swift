@@ -384,6 +384,21 @@ public final class PolySynthVoice {
         poly.setPortamento(seconds: seconds)
     }
 
+    /// Switch on the per-voice expression level trim (#230) and tell the engine which pitch is
+    /// its neutral point, or pass `nil` to switch it off (the default for every other voice).
+    ///
+    /// ONLY THE PLAY SURFACE SHOULD CALL THIS, and only with its own middle band. The trim
+    /// exists because that surface's vertical axis picks octave AND filter together; the
+    /// generated take has no such axis, so enabling it there would silently re-balance every
+    /// generated note against a reference nobody chose. See `ExpressionLevelTrim`.
+    ///
+    /// Atomic fan-out, not a queued note command: it is a setting, not an event, and a
+    /// setting that lands one block late is correct — the alternative (a queue slot per key
+    /// change) would compete with note-ons for a bounded queue.
+    public func setExpressionTrimReference(pitch: Int?) {
+        poly.expressionTrimReferencePitch = pitch.map { Int32(clamping: $0) } ?? -1
+    }
+
     // MARK: - Slide expression (touch-performance gesture)
 
     /// User depths for the slide gesture (set from the Play-surface-sound menu;

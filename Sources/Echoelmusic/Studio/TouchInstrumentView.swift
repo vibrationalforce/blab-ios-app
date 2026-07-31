@@ -133,113 +133,14 @@ public enum TouchPitchMap {
 
     // MARK: - Evenness (founder 2026-07-29: "die Sounds sind teilweise unterschiedlich laut")
 
-    /// THE DEFECT THIS FIXES, and the founder diagnosed it correctly: *"das liegt evtl.
-    /// daran, dass einige dunkler sind und gefiltert"*.
-    ///
-    /// The vertical axis of the play surface drives **two** things at once, and they stack in
-    /// the SAME direction:
-    ///   · `pitch(normX:normY:key:)` picks the octave band — bottom = lowest.
-    ///   · `morphCutoffScale(normY:depth:)` picks the filter — bottom = darkest.
-    /// At the default morph depth 0.6 the cutoff spans 0.66×…1.52×, i.e. **1.2 octaves of
-    /// filter**, on top of two octaves of pitch. So the bottom-left of the surface is the
-    /// lowest AND the most filtered note there is, and the top-right is the highest AND the
-    /// brightest. That is not a patch quirk — it is structural, and nothing anywhere in this
-    /// app compensated for it: there is no key tracking and no filter make-up gain.
-    ///
-    /// The morph is meant to be a COLOUR control. It was silently also a LOUDNESS control.
-    ///
-    /// ⚠️ TWO HONEST LIMITS on what this closes, both found in review:
-    ///   · The horizontal axis is in scope too, not just the vertical one. X spans a scale
-    ///     octave, so the pitch term also varies ACROSS a row — about 1 dB at these weights,
-    ///     with the tonic at the left edge the loudest note in its row. That may well be
-    ///     desirable; it is not what "vertical axis" implies, so it is written down.
-    ///   · **The continuous morph is NOT corrected.** A finger held on one degree and dragged
-    ///     bottom→top sweeps the full 1.2 octaves of cutoff through `setNoteCutoffScale`,
-    ///     which writes only the filter — velocity is not addressable on a sounding note. So
-    ///     this evens the STRIKE and leaves the DRAG exactly as uneven as before. Closing that
-    ///     needs a per-voice trim inside the engine, where the cutoff, the register and the
-    ///     velocity exponent are all known; that is the structurally correct home for this
-    ///     whole correction and a bigger slice. Do not report the defect as closed.
-    ///
-    /// **Direction: this only ever CUTS, never boosts, and that is a hard safety property.**
-    /// The obvious fix — lift the quiet notes — cannot work here: `velocity` tops out at 0.95
-    /// and Life multiplies it by up to 1.04, leaving 1.2 % of headroom before the engine's
-    /// clamp. Any real boost would pin every firm touch at the ceiling, which is exactly the
-    /// flat-fortissimo failure `microVariation`'s own comment records having already shipped
-    /// once. So the reference is the patch's neutral (`cutoffScale` 1, `referencePitch`):
-    /// brighter or higher notes are pulled DOWN toward the dark ones, and the dark ones — the
-    /// ones that sounded too quiet — keep their full level.
-    ///
-    /// ⚠️ **SAY THIS PLAINLY TO WHOEVER READS THE COMPLAINT NEXT: the notes the founder called
-    /// too quiet receive exactly 0 dB of help.** The surface is evened by lowering the loud
-    /// end onto them, which makes the surface as loud as its quietest note — a real answer to
-    /// "angleichen", but not the only possible one, and it costs overall level. The `touch.level`
-    /// control (a genuine gain on this voice, default 1.0) is where that comes back. Boosting
-    /// the dark end instead would need a static make-up on the VOICE, not a per-note velocity
-    /// factor, because per-note there is no headroom — that is the shape of the next slice if
-    /// the ear says the surface got too quiet.
-    ///
-    /// ⚠️ **THE CONSTANTS ARE ESTIMATES AND NEED AN EAR**, and the review of the first version
-    /// showed they were mis-apportioned rather than merely uncertain:
-    ///   · The filter term was 2.5 dB/oct. The voice is additive harmonics through a 2-pole
-    ///     (12 dB/oct) lowpass whose cutoff sits 4–40× above the fundamental for EVERY factory
-    ///     patch, so doubling the cutoff adds only a few percent of energy — well under
-    ///     1 dB/oct for harmonic-dominant patches. The app's own `SynthPatch.loudnessEstimate`
-    ///     agrees by omission: it has no `filterCutoff` term at all.
-    ///   · The pitch term was 1.5 dB/oct. ISO 226 across this surface's actual register
-    ///     (130…523 Hz) falls roughly 4–5 dB/octave. **Pitch is the dominant cause, not the
-    ///     filter** — the opposite of the first version's weighting.
-    /// The corner total is deliberately kept near 3 dB while the split is corrected, so the
-    /// shape and every safety property are unchanged and only the attribution moves.
-    ///
-    /// ⚠️ **WHAT THIS RETURNS IS A VELOCITY FACTOR, AND VELOCITY IS NOT AMPLITUDE.** The engine
-    /// applies `amplitude = pow(velocity, expo)` with `expo = 1 + percussiveness × 0.5`
-    /// (`EchoelPolyDDSP.spawnVoice`), and 19 of 21 factory patches are percussive enough to sit
-    /// at `expo` ≈ 1.2…1.5. So a −1.8 dB velocity trim DELIVERS about −1.8 dB on a slow pad and
-    /// up to −2.6 dB on a percussive patch. `evenness` is set against the percussive case
-    /// because that is the common one; the pad under-corrects slightly, which is the safer
-    /// direction. 0 = bit-identical to the old behaviour.
-    public static let filterLoudnessDbPerOctave: Double = 1.0
-    /// Perceptual tilt with PITCH — the DOMINANT term (ISO 226 across 130…523 Hz). Still under
-    /// the physical figure on purpose: bass sitting a little softer than treble is normal and
-    /// wanted in a mix, and only the part that reads as "different instrument loudness" is
-    /// being removed.
-    public static let pitchLoudnessDbPerOctave: Double = 3.0
-    /// How much of the computed imbalance is removed. Not 1.0 for two reasons: a surface where
-    /// every note is *exactly* as loud reads as synthetic, and the velocity→amplitude power
-    /// above means the delivered correction is already larger than this number suggests.
-    public static let evenness: Double = 0.5
-
-    /// A velocity multiplier in `(0, 1]` that takes the loudness side-effect out of the note's
-    /// brightness and register. Multiply the note's velocity by it.
-    ///
-    /// - Parameters:
-    ///   - cutoffScale: the note's filter scale, 1 = the patch's own cutoff.
-    ///   - pitch: MIDI note number.
-    ///   - referencePitch: the pitch that gets no trim. Defaults to 60 (C4), but callers on the
-    ///     play surface should pass the surface's OWN middle-band pitch: the band is
-    ///     `key.degree(d, octave: 4)`, which in A averages ~9 semitones above C — so a literal
-    ///     60 would make the whole surface about 1 dB quieter in A than in C, for no musical
-    ///     reason. The trim must depend on where a note sits ON THE SURFACE, not on the key.
-    public static func levelCompensation(cutoffScale: Float, pitch: Int,
-                                         referencePitch: Int = 60) -> Float {
-        guard evenness > 0 else { return 1 }
-        let s = Double(cutoffScale)
-        guard s.isFinite, s > 0 else { return 1 }
-        // How many dB this note is expected to sound ABOVE the reference. Negative for the
-        // dark, low notes — and those are then left alone by the `min(1, …)` below.
-        let aboveReferenceDb = filterLoudnessDbPerOctave * Foundation.log2(s)
-            + pitchLoudnessDbPerOctave * Double(pitch - referencePitch) / 12.0
-        guard aboveReferenceDb.isFinite else { return 1 }
-        let gain = pow(10.0, -(aboveReferenceDb * evenness) / 20.0)
-        // NaN-safe by argument order (`max(0, x)` returns 0 for NaN, `max(x, 0)` returns NaN)
-        // and cut-only. The 0.35 floor is a backstop for a corrupted preset or a future bio
-        // mapping: it is NOT reachable from the engine's own cutoff clamp (0.1…8 gives at most
-        // −1.5 dB through the filter term at these weights), only from an extreme cutoff and
-        // an extreme register together. The first version of this comment claimed the clamp
-        // alone reached the floor; that was arithmetic from the old, larger filter weight.
-        return Float(min(1.0, max(0.35, gain.isFinite ? gain : 1)))
-    }
+    // ⛔ `levelCompensation` AND ITS THREE CONSTANTS LIVED HERE AND MOVED INTO THE ENGINE
+    // (#230) — `DSP/ExpressionLevelTrim.swift`, applied per voice by `EchoelPolyDDSP`. Do not
+    // reintroduce a velocity-side copy: multiplying the note's velocity at note-on evened the
+    // STRIKE and left the DRAG — a finger held on one degree and pulled bottom→top through the
+    // full 1.2 octaves of cutoff — completely uncorrected, because velocity is not addressable
+    // on a sounding note. This surface now only tells the engine WHERE its neutral point is
+    // (`applyExpressionSettings` → `setExpressionTrimReference`); the correction itself belongs
+    // where the cutoff, the register and the velocity exponent are all known.
 }
 
 #if canImport(SwiftUI)
@@ -403,7 +304,10 @@ final class TouchInstrumentUIView: UIView {
         }
     }
     var key = MusicalKey(root: 0, scale: .minor) {
-        didSet { if key != oldValue { setNeedsGridRebuild() } }
+        // `applyExpressionSettings` too, not only the grid: the evenness trim's reference is
+        // derived from the key (#230), so a key change that did not push it would leave the
+        // engine trimming against the previous key's middle band.
+        didSet { if key != oldValue { setNeedsGridRebuild(); applyExpressionSettings() } }
     }
     var reduceMotion = false
     /// Position-morph amount for the vertical filter travel (0 = off).
@@ -429,6 +333,12 @@ final class TouchInstrumentUIView: UIView {
         synth?.slideVibratoDepth = Float(min(max(slideVibrato, 0), 1))
         synth?.slideChorusDepth = Float(min(max(slideChorus, 0), 1))
         synth?.setPortamento(seconds: Float(min(max(glideSeconds, 0), 0.6)))
+        // The evenness trim's neutral point (#230). Pushed from here — and from `key`'s
+        // `didSet` — because it MOVES with the key: the surface's middle band is
+        // `key.degree(d, octave: 4)`, ~9 semitones higher in A than in C, so a stale
+        // reference would make the whole surface about 1 dB quieter in one key than another
+        // for no musical reason. This is the only caller that switches the trim on.
+        synth?.setExpressionTrimReference(pitch: surfaceReferencePitch)
     }
     /// The fretboard grid — one field per playable note (columns = scale degrees,
     /// rows = octave bands), each tinted with ITS note's physical colour, exactly
@@ -612,8 +522,8 @@ final class TouchInstrumentUIView: UIView {
             let index = Int(truncatingIfNeeded: noteCounter)
             noteCounter &+= 1
             let cutoff = morphScale(normY: Double(t.y)) * micro.cutoffScale
-            let even = TouchPitchMap.levelCompensation(cutoffScale: cutoff, pitch: pitch,
-                                                       referencePitch: surfaceReferencePitch)
+            // No evenness factor on the velocity any more (#230) — the engine trims this note
+            // per voice from the same cutoff and pitch it is given below.
             // The note's LENGTH, when the motion has an opinion about it (#253 A2: only `.arp`
             // does — the five travelling motions pass `nil` and keep ringing for
             // `staccatoSeconds`, unchanged). A fraction of ONE CELL, so a shorter grid gives
@@ -621,7 +531,7 @@ final class TouchInstrumentUIView: UIView {
             let hold = t.gateFraction.map { Double($0) * cellSeconds }
             let id = ObjectIdentifier(autoPlayFingers[voice])
             let note = GeneratedNote(pitch: pitch,
-                                     velocity: t.velocity * micro.velocityScale * even,
+                                     velocity: t.velocity * micro.velocityScale,
                                      cutoffScale: cutoff,
                                      finger: id, index: index,
                                      onGridTick: onGridTick, holdSeconds: hold,
@@ -943,12 +853,12 @@ final class TouchInstrumentUIView: UIView {
             // touch with zero latency, and only the NOTE waits for the beat. That split
             // is what makes a held note playable instead of laggy.
             // EVENNESS: the vertical axis chooses colour and octave; it must not also choose
-            // loudness (founder 2026-07-29). Cut-only, so a firm touch can never be pushed
-            // into the engine's velocity clamp — see `levelCompensation`.
+            // loudness (founder 2026-07-29). The correction is NOT here any more — the engine
+            // holds it per voice and keeps it correct while the finger travels (#230), which
+            // the velocity-side version could not. `velocity` is honest again: what the finger
+            // pressed, nothing folded in.
             let cutoff = morphScale(at: p) * micro.cutoffScale
-            let even = TouchPitchMap.levelCompensation(cutoffScale: cutoff, pitch: pitch,
-                                                       referencePitch: surfaceReferencePitch)
-            sound(pitch: pitch, velocity: vel * micro.velocityScale * even,
+            sound(pitch: pitch, velocity: vel * micro.velocityScale,
                   cutoffScale: cutoff,
                   finger: id, index: noteIndex)
             hapticGenerator.impactOccurred(intensity: CGFloat(0.4 + 0.6 * Double(vel)))
@@ -1014,27 +924,22 @@ final class TouchInstrumentUIView: UIView {
                 let vel = velocity(of: touch)
                 if glideSeconds >= 0.005 {
                     // GLIDE (portamento on): the held voice keeps its envelope and
-                    // SLIDES to the new pitch — no retrigger, a singing legato.
-                    // Trimmed for consistency, but be clear about what it does: the engine
+                    // SLIDES to the new pitch — no retrigger, a singing legato. The engine
                     // KEEPS a glided note's struck level (`EchoelPolyDDSP.slideNote` never
                     // rewrites `amplitude`/`velocityGain` — legato by design), so this
-                    // `velocity:` is ignored on a real glide. It bites only in `slideNote`'s
-                    // `!moved` fallback, where the old voice is already gone and this becomes
-                    // a fresh note-on. An earlier version of this comment claimed it stopped a
-                    // level jump mid-slide; the engine cannot produce one.
+                    // `velocity:` bites only in `slideNote`'s `!moved` fallback, where the old
+                    // voice is already gone and this becomes a fresh note-on.
+                    // The evenness trim is NOT folded in here any more (#230): `slideNote`
+                    // recomputes it per voice from the new pitch, which is the one place it
+                    // can be right on a real glide — where this `velocity:` is ignored.
                     let cutoff = morphScale(at: p)
-                    synth?.slide(from: old, to: new,
-                                 velocity: vel * TouchPitchMap.levelCompensation(
-                                    cutoffScale: cutoff, pitch: new, referencePitch: surfaceReferencePitch),
-                                 cutoffScale: cutoff)
+                    synth?.slide(from: old, to: new, velocity: vel, cutoffScale: cutoff)
                 } else {
                     synth?.noteOff(pitch: old)
                     let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
                     noteCounter &+= 1
                     let cutoff = morphScale(at: p) * micro.cutoffScale
-                    let even = TouchPitchMap.levelCompensation(cutoffScale: cutoff, pitch: new,
-                                                               referencePitch: surfaceReferencePitch)
-                    synth?.noteOn(pitch: new, velocity: vel * micro.velocityScale * even,
+                    synth?.noteOn(pitch: new, velocity: vel * micro.velocityScale,
                                   cutoffScale: cutoff)
                 }
                 // Slides tick more softly than fresh strikes — a fret-crossing feel.
