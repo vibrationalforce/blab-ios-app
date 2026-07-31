@@ -10,8 +10,16 @@ entfernte zwölf falsche Behauptungen aus dem App-Store-Text — dort ist eine f
 Behauptung ein 2.3-Ablehnungsgrund („Accurate Metadata"). Ein Skript, das eine
 gestrichene Behauptung wieder einführt, macht diese Arbeit rückgängig.
 
-Stand: 2026-07-30, v10.79.360. **Vor jeder neuen Kampagne gegen `CLAUDE.md`
-„CURRENT STATE" und `docs/dev/FEATURE_MATRIX.md` gegenprüfen.**
+Stand: 2026-07-31. **Vor jeder neuen Kampagne gegen `CLAUDE.md` „CURRENT STATE" und
+`docs/dev/FEATURE_MATRIX.md` gegenprüfen.** (Die Versionsnummer stand hier früher
+daneben und veraltete schneller als der Inhalt — sie belegte nichts, was das Datum
+nicht besser belegt.)
+
+**Zwei Behauptungen dieser Datei sind maschinell gepinnt** (`Tests/CISmoke/ContentPipelineClaimsTests.swift`,
+im blockierenden Bundle): „Null externe Abhängigkeiten" und „kein AUv3". Beide sind
+Tatsachen über das Repo, keine Formulierungen — wer sie ändert, färbt das Gate rot und
+muss diese Datei im selben Commit mitziehen. Alles andere hier ist ungepinnt und lebt
+von der Gegenprüfung oben.
 
 ---
 
@@ -76,6 +84,66 @@ Alles entfernt oder nie gebaut (#166/#167 Drums, #121 Slice 3 Video-Schnitt;
 ### 6. MPE
 Aus dem I/O-Satz gestrichen — die Schalter haben seit dem Tools-Grid-Removal keinen
 Schreiber.
+
+### 7. Abo, „Pro", Paywall, „Monthly/Annual Access", MRR
+**v1.0 ist vollständig KOSTENLOS und zeigt KEINE Kauf-Oberfläche.** Das ist eine
+protokollierte Founder-Entscheidung (2026-07-10, zweite des Tages, sie hebt das
+Einmal-Pro desselben Tages auf) und steht wörtlich im Code über `WorkspaceView.body`:
+Umsatz kommt erst in **v1.1** als „Echoel Live"-Jahresabo (~29,99 €, weltweite
+SharePlay-Sessions) plus Event-Gebühr in v1.2. `ProUnlockView` / `EchoelStore` /
+`ProGate` kompilieren, werden aber **nirgends präsentiert** — sie liegen bereit, um
+dafür umgewidmet zu werden.
+Ein Preis in einer Caption ist keine Übertreibung, sondern eine **Falschangabe im
+App-Store-Sinn** (2.3 „Accurate Metadata") und enttäuscht jeden, der deshalb lädt.
+*Erlaubt: „kostenlos". Nicht erlaubt: irgendein Preis, „Pro-Version", „Abo", „Trial".*
+
+### 8. Tech-Stack-Behauptungen: „TCA", „RevenueCat", „SwiftData", „VideoToolbox", „HaishinKit"
+`Package.swift` hat ein **leeres `dependencies`-Array** — Echoel hat heute NULL externe
+Abhängigkeiten, und das steht oben in der ✅-Tabelle als eigene Behauptung.
+Konkret NICHT im Code: **TCA** (The Composable Architecture; wir sind SwiftUI +
+`@Observable`), **RevenueCat**, **SwiftData**, **VideoToolbox**, **HaishinKit**.
+Das klingt nach einem Entwickler-Detail, ist aber Marketing-Material, sobald ein
+Text über Architektur, Investoren oder Stellen spricht — und es ist die Sorte
+Behauptung, die man nicht mehr los wird, weil sie plausibel klingt.
+*Persistenz = `Codable` + JSON, Video-Encode = `AVAssetWriter`, StoreKit nativ.*
+
+### 9. „Biohacking"
+Gehört fachlich zu Punkt 2 und steht trotzdem hier, weil es dort **nicht** in der
+Aufzählung stand und deshalb durchrutschte. Es ist die Vokabel, die Echoel in genau
+die Ecke stellt, aus der die Marke ausdrücklich heraus ist: Optimierungs-Szene statt
+Instrument. **Nie in Skript, Caption, Hashtag oder Titel.**
+
+### 10. „Postet automatisch auf TikTok/YouTube/Instagram", „MCP in der App"
+Die App **veröffentlicht nichts**. Sie NIMMT auf und EXPORTIERT (`VisualRecorder`,
+Video-Panel mit mp4-Teilen, MIDI-Export) — die Verteilung passiert danach von Hand
+oder über diese Pipeline auf einem Rechner.
+Drei unabhängige Gründe, damit die Behauptung nicht in anderer Form wiederkommt:
+**MCP ist ein Agenten-Host-Protokoll, keine App-Fähigkeit** (es verbindet ein Modell
+mit Werkzeugen — eine iOS-App „macht" kein MCP); die **Posting-APIs der Plattformen
+sind gated** (eigener Review je Plattform, OAuth, Business-/Creator-Konten, bei TikTok
+ein bestandenes Audit — Privatkonten weitgehend gar nicht); und ein Multi-Plattform-
+Publisher wäre ein **zweites Produkt** neben dem Instrument.
+*Erlaubt: „das fertige Video teilen". Nicht erlaubt: „postet für Dich".*
+
+---
+
+## Woher die Punkte 7–10 kommen — und was das über diese Datei sagt
+
+Am **2026-07-31** legte der Founder ein durchdachtes Strategiepapier vor. Es enthielt
+in einem Dokument: ein **AUv3-Plugin** als Content- und Umsatzsäule (Punkt 1, seit
+2026-07-24 gelöscht), **TCA** und **RevenueCat** als bestehende Architektur (Punkt 8,
+null Codezeilen), **watchOS-Einbindung** als ausgelieferte Eigenschaft (Punkt 3, Embed
+in `project.yml` blockiert), **„Biohacking"** als Content-Fokus (Punkt 9) und ein
+**Abo-Modell** als nächsten Schritt (Punkt 7, gegen die eigene Entscheidung des
+Founders).
+
+Fünf Falschbehauptungen, gut geschrieben, plausibel — und **nur eine davon** (AUv3)
+stand vorher in dieser Datei. Die Lehre ist nicht „mehr Zeilen", sondern eine
+**zweite Achse**: bis hierhin listete die Datei nur FEATURES. Erfunden werden aber
+genauso zuverlässig **Tech-Stack**, **Preis/Geschäftsmodell** und **Vertriebswege**,
+weil ein Modell (oder ein Berater) sie aus dem Umfeld ähnlicher Apps ergänzt, wo sie
+üblich sind. Wer hier einen Punkt ergänzt, prüfe deshalb nicht nur „kann die App
+das?", sondern auch **„kostet sie das?", „ist das im Stack?", „geht das da raus?"**
 
 ---
 

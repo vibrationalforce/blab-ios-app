@@ -1,0 +1,108 @@
+// ContentPipelineClaimsTests.swift
+// Echoel — `ContentPipeline/CLAIMS.md` is the one list of what may be claimed in a script, a
+// caption or a store text. It exists because a false claim is expensive here: #158 and #192
+// each spent a whole cycle removing ONE of them (AUv3) from eight files of the website, and
+// #184 removed twelve from the App Store text, where a false claim is a 2.3 rejection.
+//
+// ⭐ THE PROBLEM THIS FILE SOLVES, which is the opposite of the usual one: the claims file
+// does not go wrong by being edited. It goes wrong by the REPO changing underneath it while
+// it stays still. Two of its entries are not opinions but facts about the build, and nothing
+// noticed when they drifted:
+//
+//   · ✅ "Null externe Abhängigkeiten, alles on-device" — true only while `Package.swift`
+//     declares no package dependency. The day someone adds one, a shipped marketing line
+//     becomes false and no test in this repo would have said so.
+//   · ⛔ "AUv3-Plugin darf NICHT behauptet werden" — a PROHIBITION, and prohibitions rot in
+//     the other direction. #191 recorded the founder's intent to ship Echoel AS an AUv3
+//     later; on that day this entry stops being true and has to be rewritten rather than
+//     obeyed. Failing loudly is how the rewrite gets remembered.
+//
+// ⚠️ WHAT THIS CANNOT DO. It cannot check a claim that is a judgement ("Wellness", "Biohacking",
+// the watch wording) — those have no machine-readable fact behind them and stay with the
+// human check the file's own header prescribes. It also cannot stop a script from making a
+// claim; it only keeps the reference honest. Do not read a green here as "the marketing is
+// true".
+//
+// ⚠️ It scans SOURCE TEXT: if the checkout is not at the path this file was compiled from it
+// SKIPS rather than passes — a silent pass on an unscanned tree is the `continue-on-error`
+// lie the `doctor` skill exists to catch.
+
+import Foundation
+import XCTest
+
+final class ContentPipelineClaimsTests: XCTestCase {
+
+    /// Repo root, derived from this file's compile-time path (`Tests/CISmoke/…`, three levels
+    /// up: CISmoke → Tests → repo).
+    private func repoRoot() throws -> URL {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath:
+                root.appendingPathComponent("Package.swift").path) else {
+            throw XCTSkip("repo root not present at \(root.path) — this test inspects source "
+                          + "text, so it SKIPS rather than reporting a green it did not earn")
+        }
+        return root
+    }
+
+    /// Lines of `path` that are not whole-line comments, in the given comment syntax.
+    ///
+    /// ⛔ THE COMMENT FILTER IS LOAD-BEARING FOR `project.yml` SPECIFICALLY, and forgetting it
+    /// would have made the AUv3 check fail on arrival: the removal is DOCUMENTED there in a
+    /// `#`-comment that names `EchoelmusicAUv3` twice ("The EchoelmusicAUv3 app-extension
+    /// target … are gone"). Matching that comment would report the target as present because
+    /// the file says it was deleted.
+    private func codeLines(_ path: String, comment: String) throws -> [String] {
+        let text = try String(contentsOf: try repoRoot().appendingPathComponent(path),
+                              encoding: .utf8)
+        return text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix(comment) }
+    }
+
+    /// ✅-Tabelle, Zeile "Null externe Abhängigkeiten".
+    func testTheZeroDependenciesClaimIsStillTrue() throws {
+        let manifest = try codeLines("Package.swift", comment: "//")
+        let declared = manifest.filter { $0.contains(".package(") }
+        XCTAssertTrue(declared.isEmpty,
+                      "Package.swift now declares a package dependency:\n"
+                      + declared.joined(separator: "\n")
+                      + "\n\nThat may well be the right call — but `ContentPipeline/CLAIMS.md` "
+                      + "lists \"Null externe Abhängigkeiten, alles on-device\" as claimable, "
+                      + "and §8 forbids naming any SDK we do not ship. Update BOTH in this "
+                      + "commit, or a caption keeps saying something the build no longer does.")
+    }
+
+    /// ⛔-Liste, Punkt 1: kein AUv3-Target, kein AUv3-Hosting.
+    func testTheNoAUv3ClaimIsStillTheTruthAndNotAStaleProhibition() throws {
+        let project = try codeLines("project.yml", comment: "#")
+        let auv3 = project.filter { $0.contains("EchoelmusicAUv3") }
+        XCTAssertTrue(auv3.isEmpty,
+                      "project.yml declares an AUv3 target again:\n"
+                      + auv3.joined(separator: "\n")
+                      + "\n\nIf that is #191 arriving (Echoel AS an AUv3), then "
+                      + "`ContentPipeline/CLAIMS.md` §1 has flipped from a true prohibition to "
+                      + "a false one — and it is the file every script, caption and store text "
+                      + "is written from. Rewrite that entry in the SAME commit; do not just "
+                      + "delete this assertion.")
+
+        let sources = try repoRoot().appendingPathComponent("Sources/EchoelmusicAUv3")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sources.path),
+                       "Sources/EchoelmusicAUv3 exists again. Same instruction as above — the "
+                       + "claims file is the thing that has to move with it.")
+    }
+
+    /// And the file itself has to be there to be read. Trivial, and it is the assertion that
+    /// catches the one failure the other two cannot: the reference being deleted or renamed,
+    /// after which every check above still passes over a repo with no claims list at all.
+    func testTheClaimsFileItselfIsStillWhereEveryPromptPointsAtIt() throws {
+        let claims = try repoRoot().appendingPathComponent("ContentPipeline/CLAIMS.md")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: claims.path),
+                      "ContentPipeline/CLAIMS.md is gone. CLAUDE.md instructs every content "
+                      + "session to read it BEFORE writing a script, and the marketing skill "
+                      + "routes through it. Without it the next \"bio-music app content\" "
+                      + "prompt reliably invents an AUv3 plugin and a meditation audience.")
+    }
+}
