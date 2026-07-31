@@ -184,12 +184,17 @@ final class FXPresetCompressorTimingTests: XCTestCase {
     /// `ceilingDb` write. If a future edit drops or reorders that, the limiter would keep
     /// clamping to the OLD ceiling and nothing else in this suite would notice.
     ///
-    /// This is also the one path on which the attack BRANCH is observable at all (the doc at
-    /// `EchoelLimiter.attackMs` names it): lowering the ceiling mid-stream makes `target` fall
-    /// while `env` is steady, which is the attack side. So the branch is kept, not dead.
+    /// ⛔ THIS TEST PINS THE CEILING REFRESH AND NOTHING ELSE. Its first version also claimed
+    /// to pin the attack BRANCH; the DSP review disproved that by simulation — with a DC
+    /// input `env == peak` on 100% of samples, which is exactly the condition under which the
+    /// absolute guard is guaranteed to preempt the ballistics. It passed bit-identically with
+    /// the attack branch DELETED. The branch now has its own test below, on a stimulus where
+    /// the branch can actually escape. Two other claims went with it: "drive it into limiting"
+    /// was false (0.9 < the default ceiling 0.966, so the guard fires zero times and `gain`
+    /// stays exactly 1.0 through the pre-roll), and the pre-roll only charges `env`.
     func testLoweringTheCeilingMidStreamStillReachesTheNewCeiling() {
         let lim = EchoelLimiter(sampleRate: 48000)
-        // Drive it into limiting and let the ballistics settle at the default ceiling.
+        // Charge the detector to 0.9. NOT limiting: 0.9 < the default ceiling (0.966).
         for _ in 0..<4800 { _ = lim.processStereo(0.9, 0.9) }
 
         lim.ceilingDb = -12
@@ -205,8 +210,52 @@ final class FXPresetCompressorTimingTests: XCTestCase {
                                  + "recalc() no longer refreshes ceilingLin")
         // Non-vacuity: the new ceiling really is below what the old one passed, so the
         // assertion above could fail. Without this a broken limiter outputting silence
-        // would also "pass".
+        // would also "pass". Simulated settled peak = 0.2511886, i.e. exactly the ceiling.
         XCTAssertGreaterThan(peak, ceiling * 0.5,
                              "the limiter went (near-)silent instead of settling at the ceiling")
+    }
+
+    /// THE ATTACK BALLISTICS IS LIVE ON EXACTLY ONE PATH, and this is it.
+    ///
+    /// With the ceiling CONSTANT the attack branch is entered only when `env` rose, and the
+    /// detector's rise is instantaneous, so `env == peak` there and the absolute guard
+    /// overwrites `g` every time. A `ceilingDb` write breaks that: it drops `target` WITHOUT
+    /// touching `env`. If the detector is then holding a decaying peak ABOVE the current
+    /// sample — 88.5% of samples on a sine, so the normal case, not a corner — `peak * g`
+    /// stays under the ceiling, the guard does not fire, and `attackCoeff` reaches the audio.
+    ///
+    /// Stimulus: 200 Hz at 48 kHz is exactly 240 samples per cycle, so sample 4800 is a zero
+    /// crossing by construction — `peak ≈ 0` while `env ≈ 0.873`. Simulated gain reduction one
+    /// sample after the write (bit-faithful Float32 replica of `processStereo`):
+    ///
+    ///     attack 0.5 ms (shipped)      −0.2562 dB
+    ///     attack branch DELETED        −0.0021 dB
+    ///     attack 0.01 ms               −8.4830 dB
+    ///     instant jump to target      ≈−10.8   dB
+    ///
+    /// The band below admits only the first. That is the point: the previous version of this
+    /// pin passed with the branch deleted, which is the opposite of a guard.
+    func testTheAttackBallisticsRideAMidStreamCeilingDrop() {
+        let sr: Float = 48000
+        let lim = EchoelLimiter(sampleRate: sr)
+        let w = 2 * Float.pi * 200 / sr
+        for i in 0..<4800 {
+            let s = 0.9 * sinf(w * Float(i))
+            _ = lim.processStereo(s, s)
+        }
+        XCTAssertEqual(lim.gainReductionDb, 0, accuracy: 1e-6,
+                       "precondition: 0.9 is under the default ceiling, so nothing limited yet")
+
+        lim.ceilingDb = -12
+        _ = lim.processStereo(0.9 * sinf(w * 4800), 0.9 * sinf(w * 4800))
+        let gr = lim.gainReductionDb
+
+        XCTAssertLessThan(gr, -0.10,
+                          "the gain barely moved (\(gr) dB) — the attack branch is gone and "
+                          + "the release coefficient is doing the work")
+        XCTAssertGreaterThan(gr, -1.0,
+                             "the gain jumped (\(gr) dB) far past one attack step — either the "
+                             + "coefficient changed or the guard is clamping a sample it must "
+                             + "not, at a zero crossing")
     }
 }

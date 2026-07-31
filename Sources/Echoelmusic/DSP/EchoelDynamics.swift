@@ -294,14 +294,22 @@ public final class EchoelCompressor: @unchecked Sendable {
 /// It fired constantly, not rarely: the poly engine's makeup gain lags a chord attack by
 /// ~250 ms, so every sparse→dense entry overshoots the ceiling already at velocity 0.47.
 ///
-/// THE FIX, and why it is this one and not lookahead. Two stages, both required:
-/// a PEAK-ENVELOPE detector (holds the peak between cycles) feeding a gain that moves
-/// toward its target with a finite ATTACK. Sustained loud material is then SCALED
-/// (waveform shape preserved) instead of flat-topped, and the aliasing goes with it. A
-/// final per-sample guard keeps the ceiling absolute, so it can still engage on a
-/// transient that rises faster than the attack — one brief clip instead of a continuous
-/// one. Skipping the detector and running the ballistics off the raw sample does NOT
-/// work; `processStereo` says why at the line that computes `env`.
+/// THE FIX, and why it is this one and not lookahead. The load-bearing stage is the
+/// PEAK-ENVELOPE detector (it holds the peak between cycles); the gain then follows its
+/// target and a final per-sample guard keeps the ceiling absolute. Sustained loud material
+/// is SCALED (waveform shape preserved) instead of flat-topped, and the aliasing goes with
+/// it. Skipping the detector and running the ballistics off the raw sample does NOT work;
+/// `processStereo` says why at the line that computes `env`.
+///
+/// ⛔ THIS USED TO READ "Two stages, both required: … a gain that moves toward its target
+/// with a finite ATTACK", and the second half was not true. Measured (#231, bit-faithful
+/// Float32 replica): replacing `attackCoeff` with `releaseCoeff` — deleting the attack half
+/// of the asymmetric one-pole outright — is BIT-IDENTICAL over sine 200 Hz +12 dB, sine
+/// 40 Hz +12 dB, gated 330 Hz, noise ×2.5 and spike→body (max |Δ| = 0.000e+00). On every
+/// normal-path signal this limiter is instant-attack-via-the-guard plus a one-pole release.
+/// That is a perfectly good design — but the doc credited a component that does not act on
+/// the material it was written about, which is how a later session "optimises" the wrong
+/// stage. The attack ballistics DOES act on one path; see `attackMs`.
 ///
 /// A lookahead delay line would remove even that residue, but it would put this chain
 /// ~1.3 ms behind `SubBassVoice`, which has no such chain — a real phase offset between
@@ -314,23 +322,38 @@ public final class EchoelLimiter: @unchecked Sendable {
     public var ceilingDb: Float = -0.3 { didSet { recalc() } }
     /// Attack time in milliseconds — how fast the gain may FALL.
     ///
-    /// ⛔ A CONSTANT SINCE #231, and it used to be a `public var`. Removing the setter IS the
-    /// fix: writing it changed nothing. Proof (bit-accurate Float32 simulation of
-    /// `processStereo` as written, sweeping 0.01 → 10 000 ms over sine +12 dB, gated onsets,
-    /// a 5 ms spike into a body, and noise): output bit-identical in every run, and the
-    /// attack-branch count EQUALS the absolute-guard fire count in every run — 427/427,
-    /// 332/332, 12/12, 75/75. That equality is the proof, not the bit-identity: the branch is
-    /// only entered when `env` ROSE, the detector's rise is instantaneous so `env == peak`
-    /// there, and the guard at the bottom of `processStereo` then overwrites `g` with
-    /// `target` every single time. A settable attack was therefore a LYING CONTROL — the
-    /// class this repo already tracks (#164, #227) — with no UI row and no preset field, so
-    /// only a developer could be misled, which is exactly who this file is written for.
+    /// ⛔ A CONSTANT SINCE #231, and it used to be a `public var`.
     ///
-    /// The BRANCH stays and is not dead: it is observable on the sample after a `ceilingDb`
-    /// write from the control thread, where `target` can drop while `env` is decaying.
-    /// `testLoweringTheCeilingMidStreamStillReachesTheNewCeiling` pins that path.
+    /// ⚠️ READ THE REASON, BECAUSE MY FIRST ONE WAS WRONG AND WAS DISPROVED BY MEASUREMENT.
+    /// I wrote "writing it changed nothing / it cannot change the output at all on the finite
+    /// path". FALSE. On **normal-path** material it is true — with the ceiling CONSTANT, the
+    /// attack branch is only entered when `env` ROSE, the detector's rise is instantaneous so
+    /// `env == peak` there, and the guard at the bottom of `processStereo` overwrites `g`
+    /// with `target` every time (measured: bit-identical over sine +12 dB, gated onsets, a
+    /// 5 ms spike into a body, and noise, sweeping 0.01 → 10 000 ms).
     ///
-    /// The value is unchanged at 0.5 ms, so this refactor is bit-identical by construction.
+    /// But that argument needs an invariant it never stated — `gain <= target` at the end of
+    /// every sample — and **a `ceilingDb` write breaks exactly that invariant**: it drops
+    /// `target` without touching `env`. If the detector is then holding a DECAYING peak above
+    /// the current sample (88.5% of samples on a 220 Hz sine, not a corner case), `peak * g`
+    /// stays under the ceiling, the guard does NOT fire, and the ballistics survives.
+    /// Measured on a decaying note with the ceiling fader dragged to −12 dB mid-decay:
+    /// **2.02 dB** of level difference between 0.5 ms and 50 ms, over ~1.1 ms. `ceilingDb`
+    /// has two real writers — the Ceiling field in `EchoelFXView` and `FXPreset.apply` — so
+    /// this is a fader drag, not a contrived input.
+    ///
+    /// THE HONEST REASON IT IS A CONSTANT, then, is not "it does nothing". It is: nothing in
+    /// `Sources/` ever wrote it, it has no UI row and no preset field, and the ONLY thing it
+    /// could shape is the transient after a ceiling change — which is not a musical control
+    /// anyone asked for. A settable knob reachable by no one, whose sole effect is a 1 ms
+    /// artefact of moving a different control, is the lying-control class this repo tracks
+    /// (#164, #227). The value is unchanged at 0.5 ms, so that transient is EXACTLY as it
+    /// shipped; this refactor is bit-identical by construction.
+    ///
+    /// The BRANCH therefore stays and is genuinely live on that one path.
+    /// `testTheAttackBallisticsRideAMidStreamCeilingDrop` pins it, and is built so that
+    /// deleting the branch turns it red.
+    ///
     /// If a slow-attack limiter is ever actually wanted, the change is to the guard, not to
     /// making this settable again.
     private static let attackMs: Float = 0.5
@@ -559,11 +582,14 @@ public final class EchoelLimiter: @unchecked Sendable {
         //   v2: "it would not overshoot, it would alias — the guard then fires far more
         //        often and is algebraically the pre-#199 hard clipper."           ALSO FALSE.
         //
-        // THE TRUTH: a settable attack would have NO EFFECT on this class's output at all, on
-        // the finite path. The full proof, the four measured branch/guard counts and the one
-        // path on which the attack branch IS observable now live at the `attackMs` declaration
-        // — one authority per fact, and #231 acted on it by removing the setter rather than
-        // documenting a knob that lies.
+        // THE TRUTH, and note it is narrower than a THIRD guess of mine claimed: a settable
+        // attack has no effect on the output while the CEILING IS CONSTANT — which is all of
+        // normal playback — but a `ceilingDb` write breaks the invariant that argument rests
+        // on, and there it is worth up to 2.02 dB. I first wrote "no effect at all on the
+        // finite path"; the DSP review disproved that by simulation. Do not restore the
+        // absolute form. The full statement, its measurement and the honest reason the
+        // parameter is a constant anyway live at the `attackMs` declaration — one authority
+        // per fact.
         //
         // v2 had the algebra backwards besides — the pre-#199 clipper divided by the
         // INSTANTANEOUS `|sample|` (flat top, H3 ≈ −10 dBc); this guard divides by the
