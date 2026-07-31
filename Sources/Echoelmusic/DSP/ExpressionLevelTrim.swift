@@ -33,12 +33,24 @@ import Foundation
 /// domain (the render's pan gains), so the delivered dB is the computed dB for every patch.
 ///
 /// **Direction: this only ever CUTS, never boosts, and that is a hard safety property.**
-/// Lifting the quiet notes cannot work: `velocity` tops out at 0.95 and Life multiplies it by
-/// up to 1.04, leaving ~1.2 % of headroom before the engine's clamp — any real boost would pin
-/// every firm touch at the ceiling, the flat-fortissimo failure `microVariation`'s own comment
-/// records having shipped once. So the reference is the patch's neutral (`cutoffScale` 1 at
-/// `referencePitch`): brighter/higher notes are pulled DOWN toward the dark ones, and the dark
-/// ones — the ones that sounded too quiet — keep their full level.
+///
+/// ⛔ THE REASON CHANGED WITH THE DOMAIN, and the first version of this file kept the OLD one
+/// verbatim — which is worse than saying nothing, because this is the paragraph a reader comes
+/// to for why cut-only is not negotiable. What it used to say: *"`velocity` tops out at 0.95
+/// and Life multiplies it by up to 1.04, leaving ~1.2 % of headroom before the engine's clamp,
+/// so any real boost would pin every firm touch at the ceiling."* Both premises are still true
+/// **about velocity** (`TouchPitchMap.velocity` clamps to 0.95; `microVariation` is ±4 %) — and
+/// completely beside the point here, because this gain no longer touches velocity. It rides on
+/// the render's pan gains, where the velocity clamp is not in the path at all.
+///
+/// THE REASON THAT ACTUALLY HOLDS IN THIS DOMAIN: the pan gains are equal-power, and the level
+/// arriving at them was already settled by velocity, the patch, and `polyMakeupGain` — which
+/// backs a dense chord off deliberately so the safety `tanh` is not the thing shaping the
+/// sound. A factor above 1 here would overshoot that agreement and push the mix INTO the
+/// limiter, quietly turning a colour control back into a loudness control in the other
+/// direction. So the reference is the patch's neutral (`cutoffScale` 1 at `referencePitch`):
+/// brighter/higher notes are pulled DOWN toward the dark ones, and the dark ones — the ones
+/// that sounded too quiet — keep their full level.
 ///
 /// ⚠️ **SAY THIS PLAINLY TO WHOEVER READS THE COMPLAINT NEXT: the notes the founder called too
 /// quiet receive exactly 0 dB of help.** The surface is evened by lowering the loud end onto

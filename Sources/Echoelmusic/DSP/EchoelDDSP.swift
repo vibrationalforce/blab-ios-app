@@ -1836,7 +1836,17 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     private var voiceCutoffScale: [Float]
     /// PER-VOICE loudness trim for the expression above (#230). Recomputed at every writer of
     /// this voice's pitch or cutoff — `spawnVoice`, `slideNote`, `setNoteCutoffScale` — and
-    /// then only READ in the render, so the block loop stays free of `pow`/`log2`.
+    /// then only READ in the per-sample loop, which therefore stays free of `pow`/`log2`.
+    ///
+    /// ⚠️ SAY WHAT THAT DOES AND DOES NOT BUY, because the first version of this comment let a
+    /// reader infer the stronger claim: all three of those writers run ON THE AUDIO THREAD
+    /// (they are called from the note-command drain inside the render block). The
+    /// transcendentals did not stay off the audio thread — they moved onto it, once per note
+    /// event, from the UIKit touch handler where the velocity-side version ran. That is
+    /// permitted (`sin`/`cos`/`pow`/`logf` are on the SAFE list in `swift-audio.md`, and
+    /// `spawnVoice` already calls `pow` two lines from here) and it is bounded by the event
+    /// rate, not the sample rate. What the precompute genuinely buys is that the cost does not
+    /// multiply by frames × voices every block.
     ///
     /// Why per-voice and not on the velocity, where it started: velocity is not addressable on
     /// a sounding note, so a velocity-side trim evened the STRIKE and left the DRAG — the
@@ -1845,6 +1855,22 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// A voice keeps its trim through its release tail (nothing rewrites it after noteOff),
     /// which is correct: a level jump at key-up would be a new defect, not a fix.
     private var voiceLevelTrim: [Float]
+
+    /// What the render actually multiplies — `voiceLevelTrim` eased toward, per block.
+    ///
+    /// ⛔ THE FIRST VERSION MULTIPLIED THE TARGET DIRECTLY, AND THAT WAS A CLICK. Review found
+    /// it: this is the first per-voice level scalar in this render that MOVES while a voice
+    /// sustains, and every other such value in this file is one-poled — `smoothedCutoff`,
+    /// `smoothedGain`, and `polyMakeupGain`, whose own comment records that the unsmoothed
+    /// version was "audible pumping on chord/arp changes". The drag was harmless (the view
+    /// gates cutoff events at 1 % and the filter term is 1.0 dB/oct, so ~0.007 dB a step), but
+    /// the GLIDE was not: `slideNote` re-derives the trim from the new pitch, and the pitch
+    /// term is 1.5 dB per octave applied at one block boundary — ~16 % of amplitude, stepped,
+    /// on a sustaining pad. A diagonal drag crossing two bands doubles it.
+    ///
+    /// SNAPPED, NOT EASED, ON SPAWN (`spawnVoice` writes both arrays): a fresh note must start
+    /// at its own trim, never fade in from whatever the recycled slot last held.
+    private var voiceLevelTrimSmoothed: [Float]
     private var voiceAges: [Int]       // Age counter for voice stealing
     private var ageCounter: Int = 0
 
@@ -1912,6 +1938,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         self.voiceNotes = [Int](repeating: -1, count: maxVoices)
         self.voiceCutoffScale = [Float](repeating: 1, count: maxVoices)
         self.voiceLevelTrim = [Float](repeating: 1, count: maxVoices)
+        self.voiceLevelTrimSmoothed = [Float](repeating: 1, count: maxVoices)
         self.voiceAges = [Int](repeating: 0, count: maxVoices)
         self.voicePans = [Float](repeating: 0, count: maxVoices)
 
@@ -2037,7 +2064,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // A glide keeps its struck level (see above) — but the trim is not level, it is the
         // correction for WHERE the note now sits. The pitch moves, so the trim must move with
         // it, or a glide up an octave arrives 1.5 dB louder than the same note struck.
-        let slideTrim = expressionTrim(pitch: newNote, cutoffScale: slideScale)
+        let slideTrim = Self.expressionTrim(pitch: newNote, cutoffScale: slideScale,
+                                            reference: Int(expressionTrimReferencePitch))
         for i in 0..<maxVoices where voiceNotes[i] == oldNote {
             voices[i].frequency *= ratio        // smoothedFreq glides there per-sample
             voiceNotes[i] = newNote
@@ -2062,12 +2090,17 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // 0 ⇒ bit-identical.
         let baseFreq = a4Hz * pow(2.0, (Float(note - 69) + transposeSemitones + (cents + detuneCents) / 100.0) / 12.0)
         let v = min(1, max(0, velocity))
+        // Snapshot ONCE for this whole note-on — see `expressionTrim`. Every voice this call
+        // spawns (unison stack + Oktaver) must share one reference, or the same note ends up
+        // with mismatched trims when the surface changes key mid-strike.
+        let trimRef = Int(expressionTrimReferencePitch)
 
         let u = min(max(unisonCount, 1), Self.maxUnison)
         if u == 1 {
             // OFF: spawn one voice with the original pan/amplitude behaviour (unchanged).
-            spawnVoice(note: note, frequency: baseFreq, velocity: v, unisonPan: nil, unisonGain: 1,
-                       cutoffScale: cutoffScale)
+            spawnVoice(note: note, soundingPitch: note, frequency: baseFreq, velocity: v,
+                       unisonPan: nil, unisonGain: 1,
+                       cutoffScale: cutoffScale, trimReference: trimRef)
         } else {
             // ON: stack `u` detuned voices, symmetric about the played pitch, panned
             // across the stereo field. Per-voice gain 1/√u keeps the summed loudness sane.
@@ -2077,8 +2110,9 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             for k in 0..<u {
                 let t = Float(k) / Float(u - 1) * 2 - 1      // -1 … +1
                 let detune = pow(2.0, (t * spread * 0.5) / 1200.0)
-                spawnVoice(note: note, frequency: baseFreq * detune, velocity: v,
-                           unisonPan: t * panSpread, unisonGain: gain, cutoffScale: cutoffScale)
+                spawnVoice(note: note, soundingPitch: note, frequency: baseFreq * detune,
+                           velocity: v, unisonPan: t * panSpread, unisonGain: gain,
+                           cutoffScale: cutoffScale, trimReference: trimRef)
             }
         }
 
@@ -2090,10 +2124,11 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         let oct = min(max(octaveDouble, -1), 1)
         let mix = octaveMix
         if oct != 0, mix.isFinite, mix > 0 {
-            spawnVoice(note: note, frequency: baseFreq * (oct > 0 ? 2 : 0.5), velocity: v,
+            spawnVoice(note: note, soundingPitch: note + 12 * oct,
+                       frequency: baseFreq * (oct > 0 ? 2 : 0.5), velocity: v,
                        unisonPan: Self.keyFollowPan(forNote: note + 12 * oct),
                        unisonGain: (u == 1 ? 1 : 1 / sqrt(Float(u))) * min(mix, 1),
-                       cutoffScale: cutoffScale)
+                       cutoffScale: cutoffScale, trimReference: trimRef)
         }
     }
 
@@ -2116,14 +2151,28 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// GLOBAL automation scale — so (a) every note-on dropped its finger's position and
     /// (b) the render's `cutoffScale * voiceCutoffScale[i]` SQUARED the automation value.
     /// Neither is a compiler warning, because an unused function parameter is legal Swift.
-    private func spawnVoice(note: Int, frequency freq: Float, velocity v: Float,
-                            unisonPan: Float?, unisonGain: Float, cutoffScale: Float) {
+    ///
+    /// `soundingPitch` is what the voice will actually be HEARD at, which is not always `note`:
+    /// the Oktaver spawns a voice an octave away while deliberately keeping the original note
+    /// number so `noteOff`/`slideNote` still find it. The trim must follow the sounding pitch —
+    /// ⛔ the first version passed `note` and therefore under-trimmed an octave-up doubling by
+    /// 1.5 dB (and over-trimmed an octave-down one by the same). The correct idiom was already
+    /// three lines away at the call site: `keyFollowPan(forNote: note + 12 * oct)` pans by the
+    /// sounding pitch for exactly this reason.
+    private func spawnVoice(note: Int, soundingPitch: Int, frequency freq: Float, velocity v: Float,
+                            unisonPan: Float?, unisonGain: Float, cutoffScale: Float,
+                            trimReference: Int) {
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note
         let spawnScale = Self.clampExpressionScale(cutoffScale)
         voiceCutoffScale[voiceIdx] = spawnScale
-        voiceLevelTrim[voiceIdx] = expressionTrim(pitch: note, cutoffScale: spawnScale)
+        let spawnTrim = Self.expressionTrim(pitch: soundingPitch, cutoffScale: spawnScale,
+                                            reference: trimReference)
+        voiceLevelTrim[voiceIdx] = spawnTrim
+        // SNAP, not ease: this slot may have just been stolen from a note with a very different
+        // trim, and a fresh note must start at its own level rather than sliding into it.
+        voiceLevelTrimSmoothed[voiceIdx] = spawnTrim
         ageCounter += 1
         voiceAges[voiceIdx] = ageCounter
 
@@ -2196,7 +2245,8 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // THE HALF #230 EXISTS FOR: this is the drag, and until now it wrote only the filter.
         // The trim is recomputed from the CLAMPED scale — the filter the voice actually gets —
         // so a corrected preset and the sounding timbre can never disagree.
-        let trim = expressionTrim(pitch: note, cutoffScale: s)
+        let trim = Self.expressionTrim(pitch: note, cutoffScale: s,
+                                       reference: Int(expressionTrimReferencePitch))
         for i in 0..<maxVoices where voiceNotes[i] == note {
             voiceCutoffScale[i] = s
             voiceLevelTrim[i] = trim
@@ -2217,15 +2267,21 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// one block late only delays the trim by one buffer.
     public var expressionTrimReferencePitch: Int32 = -1
 
-    /// The trim for one voice, or 1 when the feature is off. Called only from the note path
-    /// (spawn/slide/expression), never from the render loop — `pow`/`log2` per block per voice
-    /// is exactly the kind of arithmetic the render must not grow.
+    /// The trim for one voice, or 1 when `reference` is negative (the feature off). Called only
+    /// from the note path (spawn/slide/expression), never from the per-sample loop.
+    ///
+    /// `reference` is a PARAMETER rather than a property read, so every caller must snapshot
+    /// `expressionTrimReferencePitch` once. ⛔ That is not style: the first version read the
+    /// property inside this function, and `noteOn` calls `spawnVoice` up to four times for ONE
+    /// note (three unison + the Oktaver). A `@MainActor` write landing between two of them gave
+    /// voices of the same note different trims — an unison imbalance that nothing would heal
+    /// until the next slide. `slideNote` and `setNoteCutoffScale` already hoisted their
+    /// computation above their loops; this makes the discipline impossible to forget.
     @inline(__always)
-    private func expressionTrim(pitch: Int, cutoffScale: Float) -> Float {
-        let ref = Int(expressionTrimReferencePitch)
-        guard ref >= 0 else { return 1 }
+    private static func expressionTrim(pitch: Int, cutoffScale: Float, reference: Int) -> Float {
+        guard reference >= 0 else { return 1 }
         return ExpressionLevelTrim.gain(cutoffScale: cutoffScale, pitch: pitch,
-                                        referencePitch: ref)
+                                        referencePitch: reference)
     }
 
     /// One clamp for every writer of a per-note expression scale. NaN → 1 (resting), never
@@ -2394,6 +2450,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // (no cent-step tick on ringing release tails). Pure arithmetic, no
         // allocation; a lost update against a concurrent main-thread push is at
         // worst one block of slightly-stale depth (the accepted Float contract).
+        // Per-block ease for the expression level trim (#230). Same shape as the makeup
+        // gain's, block-size-independent, and hoisted out of the voice loop because it does
+        // not depend on the voice. τ = 40 ms: long enough that a 1.5 dB glide step is a ramp
+        // rather than a click, short enough that it still reads as the finger's own movement.
+        let trimCoeff = 1 - exp(-Float(frameCount) / sampleRate / 0.04)
+
         let decay = exp(-Float(frameCount) / sampleRate / 0.45)
         expressVibrato *= decay
         expressChorus *= decay
@@ -2451,9 +2513,18 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             // The expression level trim (#230) folds into the pan gains rather than into the
             // voice's `amplitude`: `amplitude` is owned by velocity and by the bio apply
             // (#174/#177), and a second writer there would re-open exactly the overwrite bug
-            // those two closed. One multiply per voice per block, no branch, no arithmetic —
-            // the value was computed on the note path. 1 when the trim is off ⇒ bit-identical.
-            let trim = voiceLevelTrim[i]
+            // those two closed. TWO multiplies per voice per block — one per channel — plus the
+            // one-pole step below, and no branch. (The first version of this line said "one
+            // multiply … no arithmetic", which contradicted itself inside one sentence; a
+            // multiply is arithmetic, and there are two of them.)
+            //
+            // The ease uses the SAME per-block coefficient the poly makeup gain does, derived
+            // from `frameCount`/`sampleRate` so the time constant is real seconds and not a
+            // buffer-size accident. τ is shorter than the makeup's 0.25 s because this must
+            // track a finger, not a chord: ~40 ms removes the step without smearing a glide.
+            // Both arrays hold 1 when the trim is off ⇒ still bit-identical.
+            voiceLevelTrimSmoothed[i] += trimCoeff * (voiceLevelTrim[i] - voiceLevelTrimSmoothed[i])
+            let trim = voiceLevelTrimSmoothed[i]
             var lg = leftGain * trim
             var rg = rightGain * trim
 
@@ -2535,6 +2606,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             voiceNotes[i] = -1
             voiceAges[i] = 0
             voiceLevelTrim[i] = 1
+            voiceLevelTrimSmoothed[i] = 1
         }
         ageCounter = 0
         polyMakeupGain = 0.85   // back to single-voice full gain; render eases from here

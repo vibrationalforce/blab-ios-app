@@ -392,6 +392,13 @@ public final class PolySynthVoice {
     /// generated take has no such axis, so enabling it there would silently re-balance every
     /// generated note against a reference nobody chose. See `ExpressionLevelTrim`.
     ///
+    /// ⚠️ AND THAT SEPARATION IS AN INJECTION FACT, NOT A TYPE BOUNDARY. `FloatingVisualWindow`
+    /// hands the surface `touchSynth ?? synth` — the second being the SHARED take voice. Today
+    /// `touchSynth` is always non-nil (`EchoelmusicApp` constructs and injects it
+    /// unconditionally), so the fallback cannot fire; but the guarantee above is one deleted
+    /// `.environment` line deep. If that fallback ever becomes reachable, this setter would run
+    /// on the take voice — which is the exact outcome the paragraph above forbids.
+    ///
     /// Atomic fan-out, not a queued note command: it is a setting, not an event, and a
     /// setting that lands one block late is correct — the alternative (a queue slot per key
     /// change) would compete with note-ons for a bounded queue.

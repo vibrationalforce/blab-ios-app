@@ -167,16 +167,36 @@ final class TouchEvennessSmokeTests: XCTestCase {
 
     /// OFF BY DEFAULT, AND OFF MEANS OFF. The generated take shares this engine and passes
     /// `cutoffScale: 1`, so a trim enabled there would silently re-balance every generated note
-    /// against a reference nobody chose. `expressionTrimReferencePitch` defaults to −1 and the
-    /// two renders below must be identical to the last bit.
+    /// against a reference nobody chose.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS TEST COULD NOT FAIL, and it is worth saying why because the
+    /// shape is a common one: it rendered TWO DEFAULT engines and asserted they matched. That
+    /// tests determinism, not off-ness — flip the default from −1 to 0 (trim ON, reference
+    /// C-1, every note crushed) and both engines still match. It is a comparison against the
+    /// ON state that carries the property, so that is what this does now.
     func testTheTrimIsOffUnlessASurfaceAsksForIt() {
         let plain = EchoelPolyDDSP(maxVoices: 4)
-        let alsoPlain = EchoelPolyDDSP(maxVoices: 4)
+        let asked = EchoelPolyDDSP(maxVoices: 4)
         XCTAssertEqual(plain.expressionTrimReferencePitch, -1, "the default must be OFF")
-        plain.noteOn(note: 84, velocity: 0.8, cutoffScale: 1.52)
-        alsoPlain.noteOn(note: 84, velocity: 0.8, cutoffScale: 1.52)
-        XCTAssertEqual(peak(plain), peak(alsoPlain), accuracy: 0,
-                       "two default engines must render bit-identically")
+        asked.expressionTrimReferencePitch = 60
+
+        let alsoPlain = EchoelPolyDDSP(maxVoices: 4)
+        for poly in [plain, asked, alsoPlain] {
+            poly.noteOn(note: 84, velocity: 0.8, cutoffScale: 1.52)
+        }
+        // `peak` ADVANCES the engine, so each of these is read exactly once.
+        let plainPeak = peak(plain)
+        let askedPeak = peak(asked)
+        let alsoPlainPeak = peak(alsoPlain)
+
+        // Non-vacuity first: a comparison between two silences would satisfy everything below.
+        XCTAssertGreaterThan(plainPeak, 0, "the engine rendered nothing — this test proves nothing")
+        // A bright note two octaves above the reference: the trim has real work to do here, so
+        // "unchanged" can only mean the default did not apply it.
+        XCTAssertLessThan(askedPeak, plainPeak,
+                          "asking for the trim changed nothing — the wiring does not reach the render")
+        XCTAssertEqual(plainPeak, alsoPlainPeak, accuracy: 0,
+                       "two default engines must still render bit-identically")
     }
 
     /// THE DEFECT #230 NAMES, AS A PROPERTY. A finger stays on one degree and travels upward:
@@ -198,7 +218,10 @@ final class TouchEvennessSmokeTests: XCTestCase {
         XCTAssertLessThan(after, before,
             "the drag reached the bright end with no correction — that IS the #230 defect")
         // …and it must not overcorrect into a hole. The computed trim at (1.52, 84) is the
-        // floor of what this may cost; anything below it means something else is scaling too.
+        // ASYMPTOTE of what this may cost; anything below it means something else is scaling
+        // too. Asymptote and not equality because the render eases the trim over ~40 ms
+        // (`voiceLevelTrimSmoothed` — an instant step here was a 1.5 dB click on a glide), so
+        // over these eight blocks the measured value sits ABOVE the target, never below it.
         let expected = trim(1.52, 84)
         XCTAssertGreaterThan(after, before * expected * 0.9,
             "the trimmed drag lost more level than the published gain accounts for")

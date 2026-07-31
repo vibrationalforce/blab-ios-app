@@ -131,8 +131,9 @@ public enum TouchPitchMap {
         return Float(pow(2.0, (y - 0.5) * 2.0 * d))
     }
 
-    // MARK: - Evenness (founder 2026-07-29: "die Sounds sind teilweise unterschiedlich laut")
-
+    // (No `MARK:` here any more — the evenness section has no code left in this type, and a
+    // MARK over an empty section is a navigator entry that leads nowhere.)
+    //
     // ⛔ `levelCompensation` AND ITS THREE CONSTANTS LIVED HERE AND MOVED INTO THE ENGINE
     // (#230) — `DSP/ExpressionLevelTrim.swift`, applied per voice by `EchoelPolyDDSP`. Do not
     // reintroduce a velocity-side copy: multiplying the note's velocity at note-on evened the
@@ -1246,6 +1247,12 @@ final class TouchInstrumentUIView: UIView {
             lastExprPos.removeAll()
             synth?.setCutoffScale(1)           // no lingering morph after dismissal
             synth?.clearSlideExpression()      // no lingering vibrato/ensemble either
+            // …and no lingering evenness trim (#230). Harmless today — the surface owns a
+            // dedicated voice — but `FloatingVisualWindow` falls back to the SHARED take voice
+            // if that dedicated one is ever absent, and then mounting the surface once would
+            // permanently re-balance the take. A setter with `nil` in its signature and no
+            // caller is also just a lie waiting to be believed.
+            synth?.setExpressionTrimReference(pitch: nil)
             TouchVisualEnergy.shared.reset()   // no lingering swell after dismissal
             TouchToneChannel.shared.reset()    // colour hands back to the bed
             TouchRippleChannel.shared.reset()  // water settles instantly too
