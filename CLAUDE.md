@@ -209,15 +209,18 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**59** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-07-31 nach `VisualEnergyTests.swift` (#228); am selben Tag früher „58" (Dateinamen-ASCII-Wächter) und „57", am 2026-07-30 „56", „55", „54", „53", „52", „51", „50", „49", „48", „47", „46", „45", „41", „39", am
+                          `Tests/CISmoke` (**60** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-07-31 nach `ResourceGovernorWarmupTests.swift` (#271) — der Commit,
+                          der sie anlegte (`fca5ae4`), führte DIESE Zeile nicht nach und der
+                          #271-Reviewer fand sie im selben Durchgang falsch, drei Absätze unter
+                          der Regel, die das verlangt; am selben Tag früher „59" (`VisualEnergyTests.swift`, #228), „58" (Dateinamen-ASCII-Wächter) und „57", am 2026-07-30 „56", „55", „54", „53", „52", „51", „50", „49", „48", „47", „46", „45", „41", „39", am
                           2026-07-29 nachmittags „30", vormittags „21", und davor monatelang
                           „1 Datei" — das ließ das EINZIGE
                           Bundle, das einen Merge rot färben kann, kleiner aussehen als es ist. Das
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. ACHTZEHN Stände in drei Tagen (58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. NEUNZEHN Stände in drei Tagen (59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
