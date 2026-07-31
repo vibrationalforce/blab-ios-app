@@ -1,4 +1,4 @@
-build: v10.79.361 — ein Regler für die Visuals, und die App schreibt Deine Zahlen
+build: v10.79.362 — Echoel gibt den Takt an, und fünf Regler sind wieder erreichbar
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,130 +6,167 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.360.
+  Der Vorgänger auf Deinem Gerät ist 10.79.361.
 
-  29 Commits. Zwei Schwerpunkte: die Visuals haben EIN Bedienelement bekommen statt neun
-  Reglern, und die App hört auf, Dir fremde Schreibweisen für Zahlen und Töne hinzulegen.
+  48 Commits. Der größte Brocken ist ein Feature, das es vorher gar nicht gab: Echoel kann
+  jetzt den Takt für andere Geräte vorgeben. Daneben sind fünf Klangregler wieder
+  erreichbar, die einen Monat lang keine Tür hatten, und vier Riegel im Synth gehen jetzt
+  auf, die genau dann klemmten, wenn sie es nicht durften.
 
-  ── DAS EINE BEDIENELEMENT FÜR DIE VISUALS ──────────────────────────────────
+  ── ECHOEL GIBT DEN TAKT AN (MIDI-Clock-Master) ─────────────────────────────
 
-  Das stand in der letzten Notiz unter „was nicht drin ist". Jetzt ist es drin.
+  Die ehrliche Antwort auf „kann ich das mit Ableton synchronisieren?" war bis zu diesem
+  Build: gar nichts. Echoel hat MIDI-Noten gesendet, aber nie eine Uhr — ein Empfänger
+  konnte nicht wissen, wie schnell und wann.
 
-  Im Field-Panel steht oben ein Regler: ENERGY. Links die ruhigste kuratierte Welt, rechts
-  die energischste. Die sechs Einzelparameter liegen darunter unter einer zugeklappten
-  Zeile „Fine tune" — weggeräumt, nicht gelöscht.
+  Jetzt sendet Echoel Start, Clock und Stop nach MIDI-Standard (24 Impulse pro Viertel).
+  Drückst Du ▶, läuft das Gegenüber mit. Ändert das Biofeedback das Tempo, folgt es.
 
-  Drei Dinge daran sind Absicht und fallen erst beim Benutzen auf:
+  Zwei Details, die beim Ausprobieren auffallen und Absicht sind:
 
-  · Der Regler hat KEINEN eigenen gespeicherten Wert. Er liest seine Stellung aus den
-    lebenden Werten ab und schreibt sie zurück. Ein Regler mit eigenem Gedächtnis würde in
-    dem Moment lügen, in dem Du unten etwas von Hand verstellst.
-  · Seine Endpunkte sind keine ausgedachten Zahlen, sondern Minimum und Maximum Deiner
-    fünf kuratierten Presets. Er kann die Welt, die Du eingestellt hast, nicht verlassen.
-  · Er bewegt Helligkeit und Bewegung — NICHT Detail und Spread. Warum, steht im nächsten
-    Absatz, und der ist die unangenehmere Hälfte.
+  · Der erste Impuls kommt eine Sechzehntel NACH dem Antippen, nicht sofort. Das klingt
+    falsch, ist aber richtig: Echoels eigener Sequencer spielt seinen ersten Schritt
+    ebenfalls eine Sechzehntel später. Käme die Uhr sofort, liefe das Gegenüber der App um
+    genau einen Schritt voraus.
+  · Beim Tempowechsel behält die Uhr ihre PHASE. Sie zählt aus, wie weit der laufende
+    Impuls schon ist, und setzt dort neu an, statt neu zu beginnen. Ohne das würde jeder
+    bio-getriebene Tempowechsel — und die kommen im Sekundentakt — die Uhr ausdünnen.
 
-  ── EIN REGLER, DER NICHTS TUT, SAGT DAS JETZT ──────────────────────────────
+  DAS BRAUCHT DEIN GERÄT: ich kann hier keinen Empfänger anschließen. Ob Ableton wirklich
+  im Takt mitläuft, ist der eine Punkt dieses Builds, den nur Du beantworten kannst.
 
-  Beim Aufräumen der neun ist mir aufgefallen: „Detail" tut in der ausgelieferten
-  Einstellung GAR NICHTS. Der Wert erreicht das Bild nur über den Rings-Look, und Rings ist
-  im Standard-Look-Set nicht enthalten. Du konntest den Regler von 8 auf 90 ziehen, und es
-  passierte nichts. Das gilt seit Wochen, nicht erst seit diesem Build.
+  ── FÜNF REGLER, DIE EINEN MONAT KEINE TÜR HATTEN ───────────────────────────
 
-  Zwei Konsequenzen:
+  Beim Abriss der DAW-Hälfte ist ein Patch-Editor türlos geworden. Fünf Klangparameter
+  waren damit gespeichert, wirksam — und nicht einstellbar. Sie stehen jetzt alle im
+  Sound-Panel:
 
-  · Detail liegt deshalb NICHT auf dem Energy-Regler. Ein Regler, dessen Wirkung von einer
-    Wahl in einer anderen Zeile abhängt, ist nicht das, was eine einzige Zahl bewegen soll.
-  · Unter der Detail-Zeile steht jetzt ein Satz — aber nur dann, wenn sie gerade
-    wirkungslos ist. Er nennt beide Schritte: Rings unter „Slider looks" dazuschalten UND
-    den Look-Slider daraufziehen.
+  · UNISON (Voices + Detune) — der größte „dünn → satt"-Hebel, den die Engine hat.
+  · SHAPE und NOISE COLOUR — die beiden benannten Klangcharaktere.
+  · OUTPUT — die Lautstärke dieses einen Klangs, damit ein Instrument nicht deutlich über
+    oder unter den anderen sitzt.
 
-  Nicht versteckt und nicht ausgegraut, mit Grund: die Bedingung kippt, WÄHREND Du den
-  Look-Slider ziehst. Eine Zeile, die dabei unter dem Finger auftaucht und verschwindet und
-  die vier Zeilen darunter mitverschiebt, wäre schlimmer als eine Zeile plus ein Satz.
+  Zwei davon zeigten im alten Editor sogar FALSCHE Werte an: die Unison-Zeile las „1 Stimme
+  / 0 Cent", während die Engine zwei Stimmen mit 7 Cent spielte, und die beiden
+  Auswahlfelder waren für jeden Werksklang schlicht leer. Beides ist mitrepariert — die
+  Zeilen zeigen jetzt das, was Du hörst.
 
-  „Spread" fehlt auf dem Regler aus einem anderen Grund: über Deine kuratierten fünf
-  Presets läuft es runter UND wieder rauf. Es folgt der Energie nicht, und ein monotoner
-  Regler darf nur monotone Parameter tragen.
+  ── DAS VIBRATO WAR NICHT GEFÄRBT, ES WAR GELÖSCHT ──────────────────────────
 
-  ── DIE APP SCHREIBT ZAHLEN UND TÖNE SO, WIE DU SIE SCHREIBST ───────────────
+  Jedes Preset bringt ein musikalisches Vibrato von etwa 4,5–5,5 Hz mit. Die
+  Bio-Modulation hat darauf nicht aufgesetzt, sondern absolut geschrieben — 0,05 bis 0,2 Hz,
+  also praktisch stehend. Zehnmal pro Sekunde. Der Körper hat das Vibrato Deiner Klänge
+  damit nicht moduliert, sondern ausradiert. Jetzt gibt es einen Anker: das Preset setzt den
+  Grundwert, das Biofeedback bewegt ihn darum herum.
 
-  · DEZIMALTRENNER: rund zwanzig Anzeigen druckten hart „0.50", auch auf einem deutschen
-    Gerät. Jetzt „0,50" — auch die Tempo-Zahl, die vorher ihren Trenner wechselte, sobald
-    Du das Tempo-Schloss angetippt hast.
-  · NOTENNAMEN sind wählbar: International (B/B♭) · Deutsch (H/B) · Solfège (Do/Ré/Mi). Ein
-    deutscher Leser bekam im Key-Picker vorher schlicht den falschen Ton angezeigt. Fläche,
-    VoiceOver und Session-Name folgen der Wahl; Dateinamen bleiben absichtlich englisch,
-    damit ein Export überall gleich heißt.
-  · SIEBEN INDISCHE SKALEN dazu, plus eine Sargam-Spalte. Die Skalenliste war eine flache
-    Wand aus 57 Zeilen und steht jetzt in acht Regalen, so dass die Maqāmat auffindbar sind,
-    ohne dieselbe Tonmenge doppelt zu führen.
-    EHRLICH: die Vierteltöne der Maqāmat fehlen noch, und „Sa" ist noch nicht beweglich.
+  ── VIER RIEGEL, DIE GENAU DANN KLEMMTEN, WENN SIE AUFGEHEN MUSSTEN ─────────
 
-  ── DER FLÄCHEN-KLANG BEIM ZIEHEN ───────────────────────────────────────────
+  Eine Klasse von Fehlern, die dieselbe Form hat: ein Wert im Synth, der sich selbst
+  fortschreibt, plus eine Sicherung „wenn kaputt, neu setzen" — die bei genau der einen
+  Sorte Schaden nicht auslöst, gegen die sie gebaut ist. Trifft es den Master-Pegel, ist die
+  Stimme für den Rest des App-Laufs still. Vier solcher Stellen sind zu, jede mit einem Test
+  im blockierenden Bundle, der Töne ZÄHLT statt Code zu lesen.
 
-  Der Pegelausgleich auf der Spielfläche hat bisher nur den ANSCHLAG korrigiert, nie das
-  ZIEHEN — beim durchgezogenen Finger lief er gegen nichts. Jetzt sitzt er pro Stimme in
-  der Engine und ist geglättet. Das war der letzte offene Punkt aus der 360er Liste
-  „was nicht drin ist".
+  Das ist der unsichtbarste Teil dieses Builds und wahrscheinlich der wichtigste: es sind
+  genau die Fehler, die als „plötzlich war alles still" ankommen und sich nicht
+  reproduzieren lassen.
 
-  ── AUFRÄUMEN, DAS DU NICHT SIEHST ──────────────────────────────────────────
+  ── DEIN BLUETOOTH-KOPFHÖRER BLEIBT NICHT MEHR IM TELEFON-CODEC HÄNGEN ──────
 
-  · Die Drums sind jetzt VOLLSTÄNDIG raus, nicht nur stumm: drei Dateien gelöscht, der
-    Kit-Pfad aus dem Stimmen-Rack entfernt. Eine alte Spur, die als Drum-Spur gespeichert
-    ist, fällt sauber auf eine spielbare Stimme zurück statt auf Stille.
-  · Der Limiter hatte einen Attack-Parameter, den niemand einstellen konnte und der nur
-    nach dem Verschieben eines ANDEREN Reglers für etwa eine Millisekunde etwas tat. Jetzt
-    eine Konstante. Am Klang ändert sich für Dich nichts.
-  · README und CLAUDE.md behaupteten Dateien, Frameworks und einen Branch, die es nicht
-    gibt. Korrigiert — das ist die Datei, aus der die nächste Session plant.
+  Drei Funktionen konnten das Mikrofon anfordern, und nur EINE hat die Anforderung je
+  zurückgenommen — die dann auch noch unbedingt, also den anderen beiden unter den Füßen weg.
+
+  Praktisch: sobald Echoel das Mikrofon anfasst, schaltet iOS einen verbundenen
+  Bluetooth-Kopfhörer systemweit auf den Telefon-Codec — 8 bzw. 16 kHz, mono. Jede parallel
+  laufende App klingt ab da blechern. Vorher blieb das System dort, bis Du Echoel beendet
+  hast. Jetzt gibt jede Funktion ihre Anforderung auf jedem Ausgang zurück, und gesenkt wird
+  erst, wenn keine mehr hält.
+
+  GERÄTE-VERIFY: braucht einen Bluetooth-Kopfhörer und eine zweite laufende App. Monitoring
+  an, wieder aus — klingt Spotify danach wieder normal?
+
+  ── DIE OBERFLÄCHE ──────────────────────────────────────────────────────────
+
+  · „Create from Within" steht jetzt ÜBER den Chips (Sound · Mix · FX · Mood · Field), und
+    Pulsmonitor und Playback-■ sind mit in diesen Block gezogen — ein Block, drei
+    Bedeutungen.
+  · Vier der sechs Einträge aus dem •••-Menü sind Chips geworden; die Leiste ist zum ersten
+    Mal sortiert und scrollt die aktive Auswahl ins Bild, statt sie am Rand zu verstecken.
+  · Das Panel, in dem Speichern, Öffnen und Aufnehmen liegen, hieß „Export". Heißt jetzt
+    „Save & Export" und öffnet aufgeklappt.
+  · Die App SPEICHERT DEINEN TAKE BEIM VERLASSEN. Die Autosaves stehen in einem eigenen
+    Abschnitt unter Deinen eigenen Saves, mit eigenem Löschpfad — sie schieben sich nicht
+    mehr über das, was Du selbst benannt hast.
+  · Das Sound-Panel nutzt im Querformat die Breite (zwei Spalten), statt Bezeichnung und
+    Zahl an gegenüberliegende Bildschirmränder zu schieben.
+  · Die Eingangs-Tür zeigt ein gerade eingestecktes Interface sofort, nicht erst beim
+    zweiten Öffnen.
+  · Das Visual: ein einzelner kalter Frame beim Start konnte die Qualitätsstufe festlegen
+    und das Bild einfrieren.
+
+  ── EINE ENTSCHEIDUNG, DIE ICH GETROFFEN HABE ───────────────────────────────
+
+  iPhone-only ist jetzt der ZUSTAND, nicht nur eine Behauptung — die Projektdatei lieferte
+  bis dahin still auch an iPad aus, weil ein Standardwert nie nachgelesen wurde. Grund ist
+  nicht das Layout, sondern der SENSOR: kein iPad hat eine rückseitige LED, und der
+  Finger-auf-Linse-Puls braucht sie. Das ist Reihenfolge, kein Verzicht — Dein Satz „das
+  gesamte Apple-Ökosystem, auch VR/XR und Wearables" steht jetzt als Ziel in CLAUDE.md, mit
+  einer Tabelle, was jede Plattform konkret noch braucht.
 
   ── WAS NICHT DRIN IST ──────────────────────────────────────────────────────
 
-  Damit Du nicht danach suchst: die Sample-Engine fürs Feld (laden/aufnehmen), der große
-  UX-Durchgang über das ganze Projekt, der ARP als eigene Kategorie mit einem komplexen
-  Bedienelement, und die professionelle Vertiefung der FX. Gebaut-noch-nicht, nicht
-  vergessen.
+  Unverändert offen, damit Du nicht suchst: die Sample-Engine fürs Feld (laden/aufnehmen),
+  der große UX-Durchgang über das ganze Projekt, der ARP als eigene Kategorie mit komplexem
+  Bedienelement, die professionelle Vertiefung der FX. Und die Vierteltöne der Maqāmat.
 
   ── WAS ICH VON DIR BRAUCHE ─────────────────────────────────────────────────
 
-  · DER ENERGY-REGLER: fühlt sich der Weg von links nach rechts wie EINE Welt an, die
-    heller und lebendiger wird — oder wie zwei Parameter, die zufällig zusammenlaufen? Das
-    ist der einzige echte Risiko-Punkt dieses Builds, weil Layout und Wirkung hier ohne
-    Gerät nicht prüfbar sind.
-  · Die Detail-Zeile: steht der Hinweissatz da, wo Du ihn erwartest, oder steht er im Weg?
-  · Stimmen die Notennamen für Dich (H statt B) und der Dezimaltrenner überall?
-  · Die Fläche: ist das Ziehen jetzt gleichmäßig laut, ohne Klick an den Übergängen?
-  · Weiter offen aus 360: die Transportleiste im LOOP-Modus bei normaler Textgröße ·
-    klingen Minimal Techno und Detroit Techno verschieden · hörst Du die
-    Rhythmus-Charaktere (Bass und Pad sind bewusst AUS) · macht „Laid back" das, was das
-    Wort verspricht · folgt das Delay im FX-Fenster dem Tempo · der Lead: echte Stimme oder
-    Fader weg.
-  · Und die eine Frage, an der eine Entscheidung hängt: war der Bass-Fader auf 0 hörbar?
+  Neu in diesem Build:
+
+  · MIDI-SYNC gegen einen echten Empfänger (Ableton): läuft er im Takt, und bleibt er es,
+    wenn das Biofeedback das Tempo zieht? Das ist der Punkt mit dem größten Risiko.
+  · BLUETOOTH: Monitoring an und wieder aus — klingt eine parallel laufende App danach
+    wieder normal?
+  · DAS VIBRATO: atmen die Klänge jetzt, statt starr zu stehen?
+  · Die Output-Zeile im Sound-Panel: sitzt sie an der richtigen Stelle, und macht sie das,
+    was Du erwartest?
+  · Der Querformat-Durchgang: liest sich das Sound-Panel in zwei Spalten besser?
+
+  Weiter offen aus 361 (nichts davon konnte ich ohne Gerät schließen):
+  der Energy-Regler für die Visuals · die Detail-Hinweiszeile · Notennamen und
+  Dezimaltrenner · das Ziehen auf der Fläche · die Transportleiste im LOOP-Modus ·
+  klingen Minimal Techno und Detroit Techno verschieden · die Rhythmus-Charaktere ·
+  „Laid back" · das Delay im FX-Fenster · der Lead: echte Stimme oder Fader weg ·
+  und die eine Frage, an der eine Entscheidung hängt: war der Bass-Fader auf 0 hörbar?
 
   ── PRÜFSTAND ───────────────────────────────────────────────────────────────
 
-  Auf dem letzten Commit dieses Builds (a95faa7) sind BEIDE echten Gates fertig und grün:
-  Xcode Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide fertig
-  gesehen habe. Die neuen Tests liegen im blockierenden Bundle — sie sind also nicht nur
-  kompiliert, sondern gelaufen.
+  Auf dem letzten Commit dieses Builds sind BEIDE echten Gates fertig und grün: Xcode
+  Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide FERTIG gesehen
+  habe — nicht laufend. Die neuen Wächter liegen im blockierenden Bundle, sind also nicht
+  nur kompiliert, sondern gelaufen.
 
-  Jede substanzielle Änderung ging vor dem Commit durch einen Reviewer, und fast jeder fand
-  etwas Echtes. Das Muster dieses Builds, unverblümt: FÜNFMAL war der Mechanismus richtig
-  und meine BEGRÜNDUNG dafür falsch. Ein „nicht löschen"-Kommentar mit erfundener
-  Persistenz-Begründung; eine Behauptung über einen toten Parameter, die eine Messung
-  widerlegt hat; zwei zu breite Begründungen dafür, was nicht auf den Energy-Regler gehört;
-  und eine Präzedenz, die ich zitiert habe, obwohl sie das Gegenteil sagt. Alle fünf stehen
-  jetzt MIT ihrer Widerlegung im Code statt stillschweigend getauscht — ein falscher Grund,
-  den die nächste Session nicht widerlegen kann, ist schlimmer als gar keiner.
+  Das blockierende Bundle ist in diesem Build von 60 auf 75 Dateien gewachsen. Das ist die
+  eigentliche Zahl hinter „grün": nur was dort liegt, kann einen Merge rot färben.
 
-  Der sechste war schlimmer und gehört hierher: der Hinweissatz unter „Detail" nannte
-  zuerst eine Reparatur, die nicht funktioniert — ausgerechnet in dem Feature, das gegen
-  Regler gebaut ist, die mehr versprechen als sie halten. Vom Reviewer gefunden, vor dem
-  Deploy korrigiert.
+  EIN EIGENER FEHLER GEHÖRT HIERHER, weil er genau die Lücke ausnutzt, die ich sonst
+  erkläre: einer meiner Commits hat das blockierende Bundle rot gemacht — in einer ANDEREN
+  Datei. Ein Wächter prüfte auf einen Codeausdruck, den derselbe Commit ersetzt hatte. Der
+  Compile-Check blieb dabei grün, weil er nur `Sources/` baut und Testdateien gar nicht
+  ansieht. Gefunden vom Pflicht-Reviewer, behoben, und der Reviewer des nächsten Slices hat
+  ausdrücklich nach derselben Fehlerklasse gesucht und keine mehr gefunden.
+
+  Das Muster dieses Builds, unverblümt: die Reviewer haben rund ZWANZIG falsche
+  BEGRÜNDUNGEN gefunden, bei durchweg richtigem Mechanismus. Ein Kommentar behauptete eine
+  Atem-Modulation ohne Produzenten; eine Schlagzeile stand auf einer Palette, die es nicht
+  gibt; ein Slogan („das wieder anzuschalten ist EINE Zeile") stand in vier Dateien und war
+  in jeder falsch; eine Testschleife maß nachweislich nichts. Und der teuerste: ein Vermerk,
+  der eine Aufräumarbeit einen Monat blockierte, mit einer Begründung, die in zwei Minuten
+  widerlegbar war. Alle stehen jetzt MIT ihrer Widerlegung im Code — ein falscher Grund, den
+  die nächste Session nicht widerlegen kann, ist schlimmer als gar keiner.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
-  Dein Ohr und Dein Auge.
+  Dein Ohr und Dein Auge. Der MIDI-Sync ist zusätzlich nur gegen ein zweites Gerät prüfbar.
 
   Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
   allokationsfrei.
