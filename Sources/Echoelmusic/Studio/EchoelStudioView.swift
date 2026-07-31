@@ -885,11 +885,20 @@ struct EchoelStudioView: View {
             // ⚠️ `.inactive` RATHER THAN `.background` BUYS EARLINESS, NOT SAFETY — the first
             // version claimed safety ("covers a call banner or Control Centre, which never
             // reach `.background`"). Those cases return to `.active` and cannot lose a take,
-            // so `.background` alone would have been just as safe. The cost is real: a full
-            // synchronous JSON encode and protected write on the main actor at every transient
-            // interruption, including every share sheet and file importer. Kept because the
-            // write is one small document and the earlier signal is the more conservative one
-            // — but kept for THAT reason.
+            // so `.background` alone would have been just as safe. The cost is a full
+            // synchronous encode of the WHOLE library plus a protected write, on the main
+            // actor, at every transient interruption — the app switcher, Control Centre, a
+            // call banner, Siri, a system permission alert.
+            //
+            // ⛔ AND THE COST WAS OVERSTATED IN THE FIRST VERSION, which added "including every
+            // share sheet and file importer". Those do NOT qualify: `scenePhase` mirrors the
+            // scene's activation state, and presenting a sheet, a share sheet or a document
+            // picker INSIDE this scene never leaves `foregroundActive`. Left as a claim it
+            // would invite the next session to "optimise" back to `.background` to remove
+            // writes that were never happening. UNVERIFIED ON DEVICE either way — the
+            // breadcrumb in `EchoelmusicApp`'s own scene-phase observer settles it in a minute.
+            // Kept because the write is one small document and the earlier signal is the more
+            // conservative one — but kept for THAT reason.
             if old == .active && phase != .active { autosaveTake() }
         }
         // Keep the screen awake while performing or projecting — an installation, a
@@ -5851,8 +5860,12 @@ struct EchoelStudioView: View {
     ///   is never set back to `false` anywhere, so opening a legacy take whose notes did not
     ///   survive the lossy decoder leaves it true over an EMPTY roll. The next departure then
     ///   wrote that empty take into the single slot and the good recovery point was gone —
-    ///   with no undo, because there is only one slot. The Save button's own doc says the
-    ///   same thing about `hasComposed` sixty lines up; I did not read it.
+    ///   with no undo, because there is only one slot. `exportMIDI()` already says the same
+    ///   thing about `hasComposed` at its own empty-notes guard; I did not read it.
+    ///   ⛔ That pointer first read "the Save button's own doc … sixty lines up". There is no
+    ///   such doc — the Save button is a bare `Button` with `.disabled(!hasComposed)` and no
+    ///   comment at all, so a reader following it would find nothing and conclude the
+    ///   precedent was invented. The real one is in `exportMIDI`.
     /// · The name carries `autosaveNamePrefix`, because a row the user did not create has to
     ///   say so in the one place they will meet it, which is the Open list.
     ///   ⛔ The first version justified the guard with "…and would sit above the take the user

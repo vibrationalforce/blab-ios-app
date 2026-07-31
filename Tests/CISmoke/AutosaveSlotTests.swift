@@ -31,16 +31,41 @@ import XCTest
 @MainActor
 final class AutosaveSlotTests: XCTestCase {
 
+    /// Every subdirectory this test case created, so `tearDown` can empty it again.
+    private var writtenSubdirectories: [String] = []
+
     /// A store on its own subdirectory, so a test never reads or writes the real library.
     ///
     /// ⛔ THE UUID IS NOT DECORATION, and leaving it out is a trap this file walked into: the
-    /// tag alone is stable across runs, and a simulator container is REUSED, so the second run
-    /// of `testAnAutosaveCannotOverwriteAUserSavedTake` loads the two rows the first run wrote
-    /// and its `count == 2` becomes 4. That failure would arrive on a commit that changed
-    /// nothing — the worst kind, because the first thing suspected is the innocent change.
+    /// tag alone is stable across runs and a SIMULATOR CONTAINER IS REUSED, so a second local
+    /// run of `testAnAutosaveCannotOverwriteAUserSavedTake` starts from the rows the first run
+    /// left behind and its `count == 2` reads 3. (⛔ The first version of this note said 4.
+    /// Walk it: the reserved row survives, `mine` is a fresh random id, so run two ends at
+    /// three rows and only run three reaches four. The trap is real; the arithmetic was not.)
+    /// It bites a DEVELOPER re-running locally, not CI — a GitHub Actions simulator is
+    /// ephemeral per job, so this could never have produced a red gate.
+    ///
+    /// The UUID alone would trade a stale directory for an endless supply of fresh ones, so
+    /// `tearDown` deletes what each run wrote.
     private func isolatedStore(_ tag: String = #function) -> ProjectStore {
-        ProjectStore(store: AppGroupStore(subdirectory:
-            "EchoelTests-autosave-\(tag)-\(UUID().uuidString)"))
+        let subdirectory = "EchoelTests-autosave-\(tag)-\(UUID().uuidString)"
+        writtenSubdirectories.append(subdirectory)
+        return ProjectStore(store: AppGroupStore(subdirectory: subdirectory))
+    }
+
+    /// `async throws` deliberately — that is the override form this bundle already proves
+    /// compiles inside a `@MainActor` XCTestCase (`LaunchGuardSmokeTests`).
+    ///
+    /// It removes the library FILE, not the directory: `AppGroupStore.directory()` is private
+    /// and this slice is not the place to widen its API for a test. An empty directory costs
+    /// nothing; a `projects.json` left in the container is the part that could be read again.
+    /// The name is the one `ProjectStore` persists under, and `AppGroupStore` appends its own
+    /// `.json` — so the file on disk really is `projects.json.json`.
+    override func tearDown() async throws {
+        for subdirectory in writtenSubdirectories {
+            AppGroupStore(subdirectory: subdirectory).delete(name: "projects.json")
+        }
+        writtenSubdirectories = []
     }
 
     private func take(named name: String, bpm: Double = 120) -> Project {
@@ -127,6 +152,13 @@ final class AutosaveSlotTests: XCTestCase {
     func testTheDepartureTriggerAndItsGuardAreStillWired() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
 
+        // ⚠️ THIS ONE IS SAME-LINE COUPLED, and that is a knowing trade-off rather than an
+        // oversight: both tokens must sit on ONE physical line. `autosaveTake()` appears twice
+        // in the file (call + declaration), so the tokens have to be paired to test the CALL
+        // rather than the definition, and a whole-file join would pair them across 5000 lines.
+        // The cost: splitting the one-liner at `:893` — which line-length pressure could do —
+        // turns the blocking gate red with the behaviour unchanged. If that happens the fix is
+        // to re-pair the tokens here, NOT to delete the assertion.
         XCTAssertTrue(lines.contains { $0.contains("autosaveTake()") && $0.contains("old == .active") },
                       "the autosave is no longer called from a scene DEPARTURE. Either it is "
                       + "not called at all (#273 is silently undone and nothing else here goes "
@@ -165,9 +197,16 @@ final class AutosaveSlotTests: XCTestCase {
         return root
     }
 
-    /// Every line of `path` that is not a whole-line comment. Comments are dropped because the
-    /// view QUOTES all four of these tokens in its own prose (that is where #273 explains
-    /// itself), and matching those would pass on the very removal this guards.
+    /// Every line of `path` that is not a whole-line comment.
+    ///
+    /// ⛔ WHY THE FILTER, stated PROSPECTIVELY because the first version of this doc justified
+    /// it with a claim about the current source that the source refutes: it said the view
+    /// "QUOTES all four of these tokens in its own prose". It does not — none of the four
+    /// spellings appears in a comment today, so deleting the filter would change no result
+    /// here. The reason to keep it is that #273 explains itself in prose sitting directly
+    /// beside every one of these lines, so the next edit can quote one verbatim without
+    /// noticing — and a guard that a comment can satisfy passes on the very removal it exists
+    /// to catch. That is #272's lesson, learned in a red gate.
     private func codeLines(_ path: String) throws -> [String] {
         let url = try repoRoot().appendingPathComponent(path)
         let text = try String(contentsOf: url, encoding: .utf8)
