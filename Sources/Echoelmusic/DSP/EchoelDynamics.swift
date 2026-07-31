@@ -312,9 +312,28 @@ public final class EchoelLimiter: @unchecked Sendable {
 
     /// Output ceiling in dBFS.
     public var ceilingDb: Float = -0.3 { didSet { recalc() } }
-    /// Attack time in milliseconds — how fast the gain may FALL. Short enough to catch a
-    /// note onset, long enough that the gain is a smooth signal rather than a step train.
-    public var attackMs: Float = 0.5 { didSet { recalc() } }
+    /// Attack time in milliseconds — how fast the gain may FALL.
+    ///
+    /// ⛔ A CONSTANT SINCE #231, and it used to be a `public var`. Removing the setter IS the
+    /// fix: writing it changed nothing. Proof (bit-accurate Float32 simulation of
+    /// `processStereo` as written, sweeping 0.01 → 10 000 ms over sine +12 dB, gated onsets,
+    /// a 5 ms spike into a body, and noise): output bit-identical in every run, and the
+    /// attack-branch count EQUALS the absolute-guard fire count in every run — 427/427,
+    /// 332/332, 12/12, 75/75. That equality is the proof, not the bit-identity: the branch is
+    /// only entered when `env` ROSE, the detector's rise is instantaneous so `env == peak`
+    /// there, and the guard at the bottom of `processStereo` then overwrites `g` with
+    /// `target` every single time. A settable attack was therefore a LYING CONTROL — the
+    /// class this repo already tracks (#164, #227) — with no UI row and no preset field, so
+    /// only a developer could be misled, which is exactly who this file is written for.
+    ///
+    /// The BRANCH stays and is not dead: it is observable on the sample after a `ceilingDb`
+    /// write from the control thread, where `target` can drop while `env` is decaying.
+    /// `testLoweringTheCeilingMidStreamStillReachesTheNewCeiling` pins that path.
+    ///
+    /// The value is unchanged at 0.5 ms, so this refactor is bit-identical by construction.
+    /// If a slow-attack limiter is ever actually wanted, the change is to the guard, not to
+    /// making this settable again.
+    private static let attackMs: Float = 0.5
     /// Release time in milliseconds — the time the GAIN takes to recover.
     public var releaseMs: Float = 60 { didSet { recalc() } }
 
@@ -337,7 +356,11 @@ public final class EchoelLimiter: @unchecked Sendable {
 
     private let sr: Float
     private var ceilingLin: Float = 1
-    private var attackCoeff: Float = 0
+    /// A `let`, not a `var` in `recalc()`: `attackMs` is a constant now, so there is nothing
+    /// for a control write to invalidate — and it is one fewer coefficient that could go
+    /// stale beside one `recalc()` just rewrote (the `EchoelSVFilter` lesson, same as
+    /// `envDecayFactor` below).
+    private let attackCoeff: Float
     private var releaseCoeff: Float = 0
     private var env: Float = 0       // peak envelope, ≥ 0
     private var gain: Float = 1.0    // ≤ 1
@@ -350,6 +373,8 @@ public final class EchoelLimiter: @unchecked Sendable {
         self.sr = sampleRate
         let t = Swift.max(0.01, Self.detectorReleaseMs) * 0.001 * sampleRate
         self.envDecayFactor = expf(-1.0 / t)
+        // Both `let` coefficients must be assigned before any method call on `self`.
+        self.attackCoeff = Self.coeff(ms: Self.attackMs, sr: sampleRate)
         recalc()
     }
 
@@ -507,7 +532,8 @@ public final class EchoelLimiter: @unchecked Sendable {
         // for a CONSTANT on every sample — ~200k needless transcendental calls per second
         // across the active chains.
         ceilingLin = powf(10.0, ceilingDb / 20.0)
-        attackCoeff = Self.coeff(ms: attackMs, sr: sr)
+        // `attackCoeff` is NOT recomputed here (#231): it derives from a constant, so it is a
+        // `let` assigned once in `init`. A `ceilingDb` write no longer rewrites it.
         releaseCoeff = Self.coeff(ms: releaseMs, sr: sr)
     }
 
@@ -517,10 +543,11 @@ public final class EchoelLimiter: @unchecked Sendable {
         // past ~700 s, `1 - expf(-1/t)` rounds to exactly 0 in Float, the coefficient dies,
         // and the limiter latches at whatever attenuation it happened to hold — permanent
         // silence, the exact failure mode "fail to resting, never to silence" exists to
-        // forbid. No writer can reach that today (nothing sets the LIMITER's attackMs/
-        // releaseMs), so this is a guard against a future control, not a live bug. 10 s is far
-        // beyond any musical release and still leaves the coefficient ~2e-6, comfortably
-        // normal.
+        // forbid. Reachable today ONLY through `releaseMs`, which is public and settable but
+        // has no production writer; `attackMs` is a `private static let` since #231 and can
+        // no longer reach here at all. So this is a guard against a future control, not a live
+        // bug. 10 s is far beyond any musical release and still leaves the coefficient ~2e-6,
+        // comfortably normal.
         //
         // ⚠️ STILL TRUE AFTER #221, and deliberately so — the compressor got Attack/Release
         // controls, the limiter did NOT.
@@ -532,29 +559,13 @@ public final class EchoelLimiter: @unchecked Sendable {
         //   v2: "it would not overshoot, it would alias — the guard then fires far more
         //        often and is algebraically the pre-#199 hard clipper."           ALSO FALSE.
         //
-        // THE TRUTH: `attackMs` HAS NO EFFECT ON THIS CLASS'S OUTPUT AT ALL, on the finite
-        // path. It is a dead parameter today.
+        // THE TRUTH: a settable attack would have NO EFFECT on this class's output at all, on
+        // the finite path. The full proof, the four measured branch/guard counts and the one
+        // path on which the attack branch IS observable now live at the `attackMs` declaration
+        // — one authority per fact, and #231 acted on it by removing the setter rather than
+        // documenting a knob that lies.
         //
-        // Why, structurally: the attack branch (`target < gain`) can only be entered when
-        // `env` ROSE this sample, and the detector's rise is instantaneous, so on exactly
-        // those samples `env == peak`. Then `g` lands strictly above `target`, hence
-        // `peak * g > peak * target == ceilingLin`, hence the absolute guard —
-        // `if peak * g > ceilingLin { g = target }`, and it is unconditional ON THE FINITE
-        // PATH; the non-finite bail near the top of `processStereo` skips it deliberately,
-        // see the class doc — fires and overwrites `g` with `target`. The ballistics is
-        // preempted every single time it would have mattered. (Sole exception: the sample
-        // after a `ceilingDb` write from the control thread, where `target` can drop while
-        // `env` is decaying.)
-        //
-        // Measured, bit-accurate Float32 simulation of `processStereo` as written, sweeping
-        // `attackMs` 0.01 → 10 000 ms over sine +12 dB, gated onsets, a 5 ms spike into a
-        // body, and noise: output BIT-IDENTICAL in every run (max |Δ| = 0.000e+00), and the
-        // attack-branch count EQUALS the guard-fire count exactly in every run — 427/427,
-        // 332/332, 12/12, 75/75. That equality is the proof, not the bit-identity.
-        //
-        // So the honest reason the limiter has no Attack row is not a risk at all: the row
-        // would be a LYING CONTROL, the class this repo already tracks (#164, #227). And v2
-        // had the algebra backwards besides — the pre-#199 clipper divided by the
+        // v2 had the algebra backwards besides — the pre-#199 clipper divided by the
         // INSTANTANEOUS `|sample|` (flat top, H3 ≈ −10 dBc); this guard divides by the
         // ENVELOPE, which scales the waveform instead (H3 ≈ −70 dBc). Different operation,
         // ~60 dB apart. If a slow-attack limiter is ever actually wanted, the change is to

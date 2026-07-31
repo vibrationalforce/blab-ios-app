@@ -152,17 +152,21 @@ final class FXPresetCompressorTimingTests: XCTestCase {
     /// The LIMITER deliberately did NOT get these controls, and that is a decision rather than
     /// an oversight. ⛔ TWO WRONG REASONS STOOD HERE before the measured one — first "a slowed
     /// attack would let material overshoot the ceiling", then "it would alias instead". Both
-    /// false. `EchoelLimiter.attackMs` has NO EFFECT on the output at all on the finite path:
-    /// the attack branch is only entered when `env` rose to `peak`, and on exactly those
-    /// samples the absolute guard `if peak * g > ceilingLin { g = target }` overwrites the
-    /// ballistics. Simulated over four signal classes and six orders of magnitude of
-    /// `attackMs`, the attack-branch count EQUALS the guard-fire count every time and the
-    /// output is bit-identical. So the row is withheld because it would be a LYING CONTROL
-    /// (#164, #227), not because of a risk. See `EchoelDynamics.swift` for the numbers.
-    /// Pinned so "finish the job" later is a deliberate act with a red test.
+    /// false. `attackMs` had NO EFFECT on the output at all on the finite path: the attack
+    /// branch is only entered when `env` rose to `peak`, and on exactly those samples the
+    /// absolute guard `if peak * g > ceilingLin { g = target }` overwrites the ballistics.
+    /// Simulated over four signal classes and six orders of magnitude, the attack-branch count
+    /// EQUALS the guard-fire count every time and the output is bit-identical.
+    ///
+    /// ⛔ THIS TEST USED TO SET `limiter.attackMs` — it cannot any more, and that IS #231's
+    /// fix: the property is a `private static let` since the measurement proved a settable one
+    /// would be a LYING CONTROL (#164, #227). Removing the setter is a stronger guarantee than
+    /// any assertion about it could be, so what is pinned here now is the half that survives
+    /// and is still settable: the limiter's RELEASE is real (it moves recovery time, #199) and
+    /// must still not cross a preset boundary.
     func testTheLimiterTimingIsStillNotAPresetField() {
         let source = EchoelFXChain(sampleRate: 48000)
-        source.limiter.attackMs = 40          // absurd for a brick wall
+        source.limiter.releaseMs = 400        // absurd for a brick wall
         let preset = FXPreset.capture(from: source, fxEnabled: true, name: "Limiter")
 
         let target = EchoelFXChain(sampleRate: 48000)
@@ -170,8 +174,39 @@ final class FXPresetCompressorTimingTests: XCTestCase {
 
         // Asserted as a TRANSFER that does not happen, not merely as a default that is still
         // the default — the second version would pass even if the preset did carry the field.
-        XCTAssertNotEqual(target.limiter.attackMs, 40,
-                          "the limiter's attack crossed a preset boundary; it must not")
-        XCTAssertEqual(target.limiter.attackMs, EchoelLimiter(sampleRate: 48000).attackMs)
+        XCTAssertNotEqual(target.limiter.releaseMs, 400,
+                          "the limiter's release crossed a preset boundary; it must not")
+        XCTAssertEqual(target.limiter.releaseMs, EchoelLimiter(sampleRate: 48000).releaseMs)
+    }
+
+    /// #231 turned `attackCoeff` into a `let` and took it OUT of `recalc()`. That is safe only
+    /// because `recalc()`'s remaining job — rewriting `ceilingLin` — still happens on a
+    /// `ceilingDb` write. If a future edit drops or reorders that, the limiter would keep
+    /// clamping to the OLD ceiling and nothing else in this suite would notice.
+    ///
+    /// This is also the one path on which the attack BRANCH is observable at all (the doc at
+    /// `EchoelLimiter.attackMs` names it): lowering the ceiling mid-stream makes `target` fall
+    /// while `env` is steady, which is the attack side. So the branch is kept, not dead.
+    func testLoweringTheCeilingMidStreamStillReachesTheNewCeiling() {
+        let lim = EchoelLimiter(sampleRate: 48000)
+        // Drive it into limiting and let the ballistics settle at the default ceiling.
+        for _ in 0..<4800 { _ = lim.processStereo(0.9, 0.9) }
+
+        lim.ceilingDb = -12
+        var peak: Float = 0
+        for _ in 0..<4800 {
+            let (l, r) = lim.processStereo(0.9, 0.9)
+            peak = Swift.max(peak, Swift.max(abs(l), abs(r)))
+        }
+
+        let ceiling = powf(10, -12.0 / 20.0)
+        XCTAssertLessThanOrEqual(peak, ceiling * 1.001,
+                                 "a mid-stream ceilingDb write did not reach the audio — "
+                                 + "recalc() no longer refreshes ceilingLin")
+        // Non-vacuity: the new ceiling really is below what the old one passed, so the
+        // assertion above could fail. Without this a broken limiter outputting silence
+        // would also "pass".
+        XCTAssertGreaterThan(peak, ceiling * 0.5,
+                             "the limiter went (near-)silent instead of settling at the ceiling")
     }
 }
