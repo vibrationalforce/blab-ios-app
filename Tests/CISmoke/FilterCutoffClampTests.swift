@@ -3,12 +3,24 @@
 //
 // ⭐ THE ONE PROPERTY THIS FILE EXISTS FOR: `EchoelDDSP.filterCutoff` is a PERSISTENT one-pole
 // accumulator (`filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03`, ~10×/s while bio
-// runs). It was the only bio mapping in `applyBioReactive` whose result feeds itself, and it was
-// the only one whose value was not clamped. That combination is the #22/#29 permanent-silence
-// class: one non-finite value and the accumulator is non-finite FOREVER — `inf * 0.97` is still
-// inf, `NaN * 0.97` is still NaN — with no recovery short of re-applying a patch, and no error
-// anywhere. The fix makes the accumulator self-healing; these tests are what stops a later
-// "simplification" from quietly taking that away again.
+// runs) that was fed unclamped. One non-finite value and it stays non-finite FOREVER —
+// `inf * 0.97` is still inf, `NaN * 0.97` is still NaN — with no recovery short of re-applying
+// a patch. The fix makes it self-healing; these tests stop a later "simplification" from
+// quietly taking that away.
+//
+// ⛔ TWO CLAIMS IN THE FIRST VERSION OF THIS HEADER WERE FALSE, both caught by the mandatory
+// reviewers within the hour, and both are the kind that survive because nothing executes them:
+//   1. "the only bio mapping whose result feeds itself" — `_smoothedBrightness` and
+//      `_smoothedAmplitude` are self-feeding one-poles in the same function. The load-bearing
+//      distinction is NOT self-feeding: it is that `filterCutoff` is a `public var` anyone can
+//      write, while those two are `private` and fed only from already-clamped locals. Get that
+//      wrong and a later session adding a PUBLIC smoothed parameter reads this as "safe
+//      because it is not the cutoff".
+//   2. "the #22/#29 permanent-silence class". The accumulator half was true, the CONSEQUENCE
+//      was not: the render clamp intercepted the value every sample, so pre-fix a NaN cutoff
+//      pinned the filter at 20 Hz (inaudible, but a dark filter, recoverable) and `+inf`
+//      opened it fully — audible and benign. The case the old text named as permanent silence
+//      was never silent. The fix prevents a MILDER failure than advertised.
 //
 // ⚠️ NO DEMONSTRATED PRODUCER, AND SAYING SO IS PART OF THE FINDING. Nothing shipped writes a
 // non-finite `SynthPatch.filterCutoff`: the Sound panel writes through an `EchoelValueField`
@@ -17,11 +29,15 @@
 // sanitised the bio INPUTS of the same function, also without a demonstrated producer). It is
 // NOT a tuning change and must never be reported as one.
 //
-// ⛔ WHY THE ASSERTIONS BELOW USE THE ANCHOR AND `apply(to:)` RATHER THAN POKING `filterCutoff`:
-// the poison has two doors, and the first version of this fix only saw one. Clamping
-// `targetCutoff` would leave the other wide open, because `ResolvedPatch.apply(to:)` writes the
-// raw patch cutoff straight into the accumulator one line before it sets the anchor. Both doors
-// are exercised here.
+// ⛔ AND THE HEADER LIED ABOUT THE FILE ITSELF. It said "the assertions below use the anchor and
+// `apply(to:)` rather than poking `filterCutoff`" — and the very next test pokes `filterCutoff`
+// directly, while `ResolvedPatch` appeared nowhere in the file. The claim that "both doors are
+// exercised" was true only by analogy. `testApplyDoorCannotLeaveAPoisonedAccumulator` below now
+// goes through the REAL production writer, so the sentence and the code agree.
+//
+// The two doors are real: the anchor, and `ResolvedPatch.apply(to:)`, which writes the raw patch
+// cutoff straight into the accumulator one line before it sets the anchor. Clamping
+// `targetCutoff` instead of the assignment would have left the second wide open.
 
 import Foundation
 import XCTest
@@ -58,7 +74,30 @@ final class FilterCutoffClampTests: XCTestCase {
         }
     }
 
+    /// The `apply(to:)` door, through the ACTUAL production writer rather than by analogy — the
+    /// header used to claim this existed before it did.
+    func testApplyDoorCannotLeaveAPoisonedAccumulator() {
+        var poisoned = SynthPatch.factory[0]
+        poisoned.filterCutoff = .nan
+        let synth = EchoelDDSP()
+        poisoned.resolved().apply(to: synth)
+        runBio(synth, frames: 1)
+        XCTAssertTrue(synth.filterCutoff.isFinite, """
+        a patch carrying a NaN cutoff went through `ResolvedPatch.apply(to:)` and left the \
+        accumulator at \(synth.filterCutoff) after a bio frame. `apply(to:)` writes the raw \
+        value into `filterCutoff` one line before it sets the anchor, so a clamp on \
+        `targetCutoff` alone would not catch this.
+        """)
+    }
+
     /// The second door: a non-finite ANCHOR, i.e. the value the bio target is built from.
+    ///
+    /// ⚠️ THIS ASSERTS `isFinite` AND NOT MORE, ON PURPOSE, AND THE LIMIT IS WORTH STATING: a
+    /// `+inf` anchor passes the `> 0` gate, so `targetCutoff` is `inf` on every frame and the
+    /// accumulator pins at exactly 18000 — finite, in range, and stuck at maximum brightness
+    /// with no recovery. That is bounded, not healed. Asserting recovery here would assert
+    /// something the code does not do; the honest place for that is the comment, and it is
+    /// there.
     func testNonFiniteAnchorCannotPoisonTheAccumulator() {
         for poison in [Float.nan, Float.infinity] {
             let synth = EchoelDDSP()
@@ -77,14 +116,26 @@ final class FilterCutoffClampTests: XCTestCase {
     /// ⚠️ THE HALF THAT IS EASY TO CLAIM AND EASY TO SKIP. A clamp added for a value nobody
     /// produces must be provably invisible to every value people DO produce.
     ///
-    /// The headroom is measured, not assumed: the highest cutoff in any shipped patch is 6500 Hz
-    /// and the largest bio factor is 1.3, so the target peaks at 8450 Hz — under half the
-    /// ceiling. This test re-derives that from the patches themselves, so it reddens if a future
-    /// preset is written close enough to the ceiling for the clamp to start biting silently.
+    /// ⛔ THE FIRST VERSION MULTIPLIED BY 1.3 AND WOULD HAVE REDDENED 12 % TOO LATE — in the one
+    /// test whose stated job is to redden BEFORE the clamp starts shaping. There is a second
+    /// live multiplier ahead of the bio one: `RoleRhythm.TimbreTrim.trimmed` scales the cutoff
+    /// by up to 1.12 (`.driving`) on `applyTakeSound`, i.e. on every Generate and every preset
+    /// recall, and THAT trimmed value is what becomes `bioBaseFilterCutoff`. The real chain is
+    /// 1.12 × 1.3 = 1.456, so the clamp starts biting at 18000 / 1.456 ≈ 12.4 kHz, not the
+    /// ~13.8 kHz the comment claimed. A 13 kHz preset would already have been clamped in the
+    /// app while this test stayed green.
+    ///
+    /// ⚠️ It also silently excluded `PatchLibrary`, which holds the highest cutoff in the repo
+    /// (8000 Hz, "Crystal") — above the 6500 Hz I called the maximum. It is doorless dead data
+    /// today (`git grep PatchLibrary -- Sources` finds only its own file), so nothing shipped
+    /// was mis-measured, but "any shipped patch" was the wrong claim and the blind spot was
+    /// free to close.
     func testNoShippedPatchComesNearTheClamp() {
+        /// `RoleRhythm` timbre trim (≤1.12) × the bio `cutoffFactor` rail (1.3).
+        let liveChain: Float = 1.12 * 1.3
         var worst: (label: String, hz: Float) = ("none", 0)
         for entry in shippedPatches {
-            let peak = entry.patch.filterCutoff * 1.3   // the largest `cutoffFactor`
+            let peak = entry.patch.filterCutoff * liveChain
             if peak > worst.hz { worst = (entry.label, peak) }
         }
         XCTAssertLessThan(worst.hz, EchoelDDSP.cutoffRange.upperBound, """
@@ -138,11 +189,14 @@ final class FilterCutoffClampTests: XCTestCase {
         """)
     }
 
-    /// Every patch the app can hand the engine without the user typing anything. Saved
-    /// `PatchStore` patches are deliberately out of scope — see `PatchVibratoAnchorTests`,
-    /// which carries the same caveat for the same reason.
+    /// Every `SynthPatch` compiled into the binary. `PatchLibrary` is included even though it is
+    /// doorless dead data today (zero consumers outside its own file) — it holds the repo's
+    /// highest cutoff, so leaving it out is how a preset drifts toward the ceiling unseen, and
+    /// including it costs nothing. Saved `PatchStore` patches remain out of scope; they are not
+    /// compiled in, and `PatchVibratoAnchorTests` carries the same caveat for the same reason.
     private var shippedPatches: [(label: String, patch: SynthPatch)] {
         SynthPatch.factory.map { (label: "factory “\($0.name)”", patch: $0) }
         + MusicStyle.offered.map { (label: "genre “\($0.rawValue)”", patch: $0.synthPatch) }
+        + PatchLibrary.all.map { (label: "library “\($0.patch.name)”", patch: $0.patch) }
     }
 }

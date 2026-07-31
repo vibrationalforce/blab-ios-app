@@ -289,13 +289,24 @@ public final class EchoelDDSP: @unchecked Sendable {
 
     /// The ONE audible domain of a filter cutoff in this engine, in Hz.
     ///
-    /// It existed as four separate hardcoded copies of `20` and `18000` — the render clamp
-    /// below, the bio target in `applyBioReactive`, `SoundPrompt`'s sanitiser and the Sound
-    /// panel's knob range. Copies of a domain drift; this file's history is mostly that lesson.
-    /// The two inside `EchoelDDSP` now read from here. The other two still hold their own
-    /// literals (`SoundPrompt.swift` and `EchoelStudioView.swift`) — folding a UI range and a
-    /// prompt sanitiser into a DSP constant is a separate errand, and `FilterCutoffClampTests`
-    /// asserts behaviourally that they still agree instead of leaving that to hope.
+    /// ⛔ THE FIRST VERSION OF THIS PARAGRAPH ASSERTED THE OPPOSITE OF THE BUG THE CONSTANT WAS
+    /// CREATED FOR, and it is the single most dangerous sentence I wrote in #294. It listed the
+    /// four pre-existing copies as "the render clamp below, **the bio target in
+    /// `applyBioReactive`**, `SoundPrompt`'s sanitiser and the Sound panel's knob range". The
+    /// bio target had NO clamp — that absence IS #294. A session reading only this doc would
+    /// conclude the bio path was already bounded and that this commit was pure de-duplication,
+    /// and it contradicted both the comment at the assignment itself and the guard's header.
+    ///
+    /// The four REAL pre-existing copies, verified: the render clamp below · `SoundPrompt.swift`
+    /// (`clamp(_:)`) · the Sound panel's knob range (`EchoelStudioView`) · and the one I missed
+    /// entirely, `RoleRhythm.swift`'s `TimbreTrim.trimmed` — which matters most of the four
+    /// because it is on the LIVE path (`applyTakeSound`, every Generate and every preset
+    /// recall) and multiplies the cutoff by up to 1.12 BEFORE the value ever becomes
+    /// `bioBaseFilterCutoff`. The render clamp now reads from here, and the bio assignment is
+    /// the new fifth site. `SoundPrompt` and the knob keep their literals — folding a UI range
+    /// and a prompt sanitiser into a DSP constant is a separate errand — and
+    /// `FilterCutoffClampTests` asserts the `SoundPrompt` agreement behaviourally. ⚠️ It does
+    /// NOT yet assert `RoleRhythm`'s; that copy is guarded by nothing but this paragraph.
     ///
     /// The doc on `filterCutoff` said "[20-20000 Hz]" while every clamp in the codebase used
     /// 18000. Nothing depended on the wrong upper bound, which is exactly why it survived.
@@ -1216,7 +1227,8 @@ public final class EchoelDDSP: @unchecked Sendable {
             // `max(20, min(x, 18000))` was already NaN-safe by ARGUMENT ORDER (min returns NaN,
             // then `NaN >= 20` is false so max returns 20), and the NaN-safe overload maps NaN to
             // the same lower bound. Identical for every finite input too. What it buys is the
-            // shared `cutoffRange` instead of a fourth copy of the two literals.
+            // shared `cutoffRange`. (The first version called this "a fourth copy of the two
+            // literals" — it was the FIRST copy; see the constant's own ⛔ block.)
             let modulatedCutoff = (filterCutoff * renderCutoffScale
                                    * (1.0 + lfoMod * lfoToFilterDepth)
                                    * brightBoost).clamped(to: Self.cutoffRange)
@@ -1573,17 +1585,40 @@ public final class EchoelDDSP: @unchecked Sendable {
             targetCutoff = 200 + coherence * 1600
         }
         // ⛔ THE CLAMP IS THE POINT OF #294, AND IT BELONGS ON THE ASSIGNMENT, NOT ON
-        // `targetCutoff`. This is the only bio mapping in this function whose result is a
-        // PERSISTENT one-pole accumulator: once `filterCutoff` is non-finite it stays
-        // non-finite forever (`inf * 0.97 + anything = inf`, `NaN * 0.97 = NaN`), with no
-        // recovery short of re-applying a patch — the #22/#29 permanent-silence class this
-        // repo has already paid for twice. Clamping the TARGET would not have fixed it: the
+        // `targetCutoff`. Once `filterCutoff` is non-finite it stays non-finite forever
+        // (`inf * 0.97 + anything = inf`, `NaN * 0.97 = NaN`), with no recovery short of
+        // re-applying a patch. Clamping the TARGET would not have fixed it: the
         // poison can arrive in the accumulator itself, because `ResolvedPatch.apply(to:)`
         // writes the raw patch cutoff straight into `filterCutoff` one line before it sets the
-        // anchor. Clamping the ASSIGNMENT makes the accumulator SELF-HEALING — one frame after
-        // a bad value it is back in range. `clamped(to:)` maps NaN to the lower bound (20 Hz:
+        // anchor. Clamping the ASSIGNMENT makes the accumulator SELF-HEALING for THAT door —
+        // one frame after a bad value it is back in range. ⚠️ Not for the other one: a `+inf`
+        // ANCHOR passes `> 0`, so `targetCutoff` is `inf` on EVERY frame and the accumulator
+        // pins at exactly 18000 forever. Finite and in range, but stuck at maximum brightness
+        // with no recovery — "bounded", not "healed", and the guard only asserts `isFinite`,
+        // so it green-lights that state. `clamped(to:)` maps NaN to the lower bound (20 Hz:
         // a dark filter, audible, recoverable) rather than letting it through, which is the
         // documented "fail quiet, never stuck-silent" rule of `FloatingPointClamp`.
+        //
+        // ⛔ WHAT THE FIRST VERSION OF THIS COMMENT CLAIMED, AND WHY IT WAS WRONG — the third
+        // "mechanism right, justification wrong" in this file in one day. It called the
+        // unclamped accumulator "the #22/#29 permanent-silence class … NaN samples poisoning
+        // filter/oscillator state". The accumulator half is true; the CONSEQUENCE half is not,
+        // because the render clamp intercepted the value on every single sample. Pre-fix:
+        // `filterCutoff = NaN` → `max(20, min(NaN, 18000))` = 20 → the SVF sat at a 20 Hz
+        // lowpass (inaudible, yes — but by a pinned-dark filter, recoverable by re-applying a
+        // patch, NOT by NaN samples spreading). `filterCutoff = +inf` → 18000 → the filter
+        // simply opened fully: audible and benign, i.e. the case the old text named explicitly
+        // as permanent silence was never silent at all. The fix is still right — the
+        // accumulator now recovers on its own, and the value the UI reads stops being a stuck
+        // non-finite — but it prevents a MILDER failure than advertised. Do not re-inflate it.
+        //
+        // ⛔ AND IT IS ONE INSTANCE OF A FIVE-INSTANCE CLASS, NOT THE CLASS. The same
+        // latch shape (`if x < 0 { x = seed }` never re-fires on NaN, because `NaN < 0` is
+        // false) sits on `smoothedGain` (#295, the severe one — no downstream clamp rescues
+        // it, and it survives note-off and patch re-apply), `smoothedNoiseLevel` (#296, whose
+        // `Swift.max(0, …)` has no UPPER bound two lines from the trio that got clamped),
+        // `vibratoPhase` (#297, the `> 0` gate screens NaN but admits +inf) and
+        // `smoothedHarmonicity` (#296). This one was the mildest of the five.
         //
         // ⚠️ AND IT IS A NO-OP FOR EVERYTHING THAT SHIPS — measured, not assumed. The highest
         // cutoff in any shipped patch is 6500 Hz (`SynthPatch.rawFactory`; `GenrePatches` tops
@@ -1655,8 +1690,13 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    ⚠️ The cutoff branch above used to be the exception — it multiplied its anchor
         //    UNCLAMPED into a persistent one-pole, so a non-finite anchor poisoned it forever.
         //    #294 closed that (the clamp sits on the ASSIGNMENT there, because that accumulator
-        //    can be poisoned by `apply(to:)` directly, not only through the anchor). The family
-        //    is symmetric again; do not re-open it by "simplifying" either clamp away.
+        //    can be poisoned by `apply(to:)` directly, not only through the anchor).
+        //    ⛔ "The family is symmetric again" stood here and was a completion claim this same
+        //    file refutes twice: the SENTINEL vibrato writes a few lines below are still
+        //    unclamped (the boundary-sanitisation comment at the top of this function says so),
+        //    and `noiseLevel`'s `Swift.max(0, …)` is a floor with no ceiling. Symmetric for the
+        //    ANCHORED branches only. Do not re-open those by "simplifying" a clamp away, and do
+        //    not read this as "the class is closed" — see the five-instance note above.
         //    ⚠️ The rate clamp also pins the upward half of the deviation for any patch at or
         //    above 9.6 Hz. No shipped patch exceeds 5.5 Hz, so this is dormant too.
         //    SENTINEL path (−1, the raw patch-less bio voice): the legacy absolute GENTLE drift,
