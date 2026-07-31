@@ -124,14 +124,14 @@ public struct ChannelInsertFX: Sendable, Equatable {
                 // cannot clear it: every comparison against NaN is false, and ±inf
                 // fails both bounds too.
                 //
-                // Defence-in-depth, not a fix for a known live bug. Of the four
-                // owners — `PolySynthVoice`, `SubBassVoice`, `DrumSynthVoice`,
-                // `SamplerVoice` — only `SamplerVoice` has an input that can
-                // actually arrive non-finite (user-imported audio, unchecked on the
-                // import path), and it already resets per trigger, so it would have
-                // recovered at the next hit. `DrumSynthVoice` cannot: its modal bank
-                // skips a poisoned mode rather than summing it, so the bank goes
-                // silent instead of emitting NaN. What this DOES change is
+                // Defence-in-depth, not a fix for a known live bug. Of the three
+                // owners — `PolySynthVoice`, `SubBassVoice`, `SamplerVoice` — only
+                // `SamplerVoice` has an input that can actually arrive non-finite
+                // (user-imported audio, unchecked on the import path), and it already
+                // resets per trigger, so it would have recovered at the next hit.
+                // (⛔ A fourth owner, `DrumSynthVoice`, was named here and could NOT
+                // recover; it was deleted with #167, founder 2026-07-27.)
+                // What this DOES change is
                 // `PolySynthVoice` and `SubBassVoice`, which reset only on an
                 // off→on FX transition — there a latched filter would have survived
                 // until the user toggled the effect off and back on.

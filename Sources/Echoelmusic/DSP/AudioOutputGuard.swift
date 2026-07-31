@@ -42,10 +42,10 @@ import Foundation
 ///   scratch IS the last write, so the sweep folds into it.
 /// * `SubBassVoice`, `MetronomeVoice`, `SessionEngine` — scalar form. No scratch;
 ///   they compute and write one sample at a time.
-/// * `DrumSynthVoice`, `SamplerVoice` — in-place form. Both DO use a scratch
-///   array, but they then run a per-channel insert FX over the hardware buffer
-///   afterwards, so the copy is not the last write and there is nothing left to
-///   fold into.
+/// * `SamplerVoice` — in-place form. It DOES use a scratch array, but then runs a
+///   per-channel insert FX over the hardware buffer afterwards, so the copy is not
+///   the last write and there is nothing left to fold into. (⛔ `DrumSynthVoice`
+///   shared this form and was deleted with #167, founder 2026-07-27.)
 ///
 /// THE INVARIANT IS EXACTLY THIS AND NO WIDER: every SOUNDING path of every
 /// render block of ours passes the samples IT WRITES through this guard. It says

@@ -35,9 +35,11 @@ final class ChannelInsertFXTests: XCTestCase {
         // A biquad is a recursive accumulator, so one bad sample stays in the state
         // forever unless it is cleared. The old denormal test could not clear it:
         // every comparison against NaN is false, and ±inf fails both bounds. This
-        // is the permanent-silence class this repo has shipped twice — and it bites
-        // hardest on DrumSynthVoice, which never calls reset() and has no idle
-        // detector, so a poisoned pad would stay dead until the app was relaunched.
+        // is the permanent-silence class this repo has shipped twice. (⛔ It used to bite
+        // hardest on `DrumSynthVoice`, which never called reset() and had no idle
+        // detector; that voice was deleted with #167, founder 2026-07-27. The remaining
+        // owners `PolySynthVoice`/`SubBassVoice` reset only on an off→on FX transition,
+        // so a latched filter still survives everything short of toggling the effect.)
         for poison: Float in [.nan, .infinity, -.infinity] {
             var fx = ChannelInsertFX(type: .lowPass, cutoffHz: 800, resonance: 0.707, drive: 0)
             // Warm up on real audio, then poison it.

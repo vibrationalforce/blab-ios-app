@@ -16,16 +16,22 @@
 // S2-W2-3 (dissolution, "Spur = Instrument"): the rack is now a FACADE over a
 // heterogeneous pool — behind FeatureFlags.voiceKindRouting (registration-ON
 // since 2026-07-17; dev-OFF override stays the rollback lever) it also
-// carries 1 LaneDrumKitVoice + 1 dedicated lane SubBassVoice + 1 lane
+// carries 1 dedicated lane SubBassVoice + 1 lane
 // SamplerVoice one-shot unit (S2-W3), and the pure
 // KindVoiceAllocator binds each rank slot's KIND to a physical voice. Rank slots
 // stay the authoritative contract everywhere else; only the routing INSIDE this
 // class changes meaning. Flag OFF ⇒ zero kind units ⇒ the allocator resolves every
 // slot to `.poly(slot)` ⇒ bit-identical to the S2-W1 rack.
 //
-// Guarded AVFoundation+Accelerate since S2-W2-3 (LaneDrumKitVoice/DrumSynthVoice
-// live behind Accelerate; every Apple platform has both, non-Apple CI compiles out
+// Guarded AVFoundation+Accelerate since S2-W2-3 (the kind units live behind
+// Accelerate; every Apple platform has both, non-Apple CI compiles out
 // either way) — the gate is the Xcode compile check + on-device verification.
+//
+// ⛔ THE DRUM KIT IS GONE (#167, founder 2026-07-27 "erstmal gar nicht mehr rein"). It was
+// already unreachable — `attachAll` stopped creating one with #166 — so `kits` was a
+// permanently empty array feeding switch arms that could not run. What is left of the drums
+// here is exactly one thing: `LaneVoiceKind.drums` still EXISTS as a persisted rawValue and
+// now resolves to `.poly` through the allocator's fallback. Do not remove that too.
 
 #if canImport(AVFoundation) && canImport(Accelerate)
 import Foundation
@@ -51,7 +57,6 @@ public final class LaneVoiceRack {
     /// Physical kind units — created in attachAll ONLY when
     /// FeatureFlags.voiceKindRouting is ON. Control-plane state: never read by
     /// SwiftUI bodies (leaf-body law), so observation is ignored throughout.
-    @ObservationIgnored public private(set) var kits: [LaneDrumKitVoice] = []
     @ObservationIgnored public private(set) var subs: [SubBassVoice] = []
     @ObservationIgnored public private(set) var samplers: [SamplerVoice] = []
     /// BodyVibe B1: lane BioReactiveSynthVoice units — REAL instances (each owns
@@ -102,14 +107,12 @@ public final class LaneVoiceRack {
         // audioEngine.start() (attach-before-start law). Flag OFF ⇒ none exist
         // ⇒ the allocator maps every slot to poly ⇒ bit-identical graph.
         if FeatureFlags.voiceKindRouting {
-            // NO DRUMS (founder 2026-07-26: "es soll keine Drums geben."). The lane drum kit
-            // was created here and attached to the graph. It is not any more, so `kits` stays
-            // empty and the allocator can never bind a slot to `.drums` — including for a
-            // project persisted BEFORE this build, which is the only way a drums lane could
-            // still exist (`TrackInstrument.voiceKind` now maps `.drums`/`.breakLoop` to
-            // `.poly`, so such a lane comes back as a melodic voice rather than silence).
-            // This flag is default-ON, so leaving the kit here would have kept a live drum
-            // path open behind the removed UI.
+            // NO DRUMS (founder 2026-07-26: "es soll keine Drums geben."; apparatus deleted
+            // #167). The lane drum kit was created here and attached to the graph. Neither
+            // the kit type nor the array exists any more — including for a project persisted
+            // BEFORE this build, which is the only way a drums lane could still exist
+            // (`TrackInstrument.voiceKind` maps `.drums`/`.breakLoop` to `.poly`, so such a
+            // lane comes back as a melodic voice rather than as silence).
             let sub = SubBassVoice()
             sub.attach(to: audioEngine)
             subs = [sub]
@@ -154,22 +157,15 @@ public final class LaneVoiceRack {
     /// while unattached (multiRoll OFF) — bit-identical then.
     public func setInsert(_ fx: TrackFX) {
         for v in voices { v.setInsert(fx) }
-        // Deliberately poly-only: kits/subs belong to the .drums/.bass BUS
-        // inserts, fanned in S2-W2-5 via setDrumsInsert/setBassInsert. The
-        // sampler unit has its own per-channel insert (configureInsertFX),
-        // un-fanned in slice 1 — no bus claims it yet.
+        // Deliberately poly-only: the subs belong to the .bass BUS insert, fanned in
+        // S2-W2-5 via setBassInsert. The sampler unit has its own per-channel insert
+        // (configureInsertFX), un-fanned in slice 1 — no bus claims it yet.
+        // (`setDrumsInsert` was the third of these and went with #167; it had no production
+        // caller even before the kit did, so nothing lost a path.)
     }
 
-    /// S2-W2-5: push the `.drums` bus insert (filter/drive) to every lane drum
-    /// kit — the mirror of the S2-W1 melodic fan for the kit voices. No-op while
-    /// unattached / voiceKindRouting OFF (kits is empty), so an un-dialed drums
-    /// bus stays bit-identical. Control-path only (kit.setInsert enqueues).
-    public func setDrumsInsert(_ fx: TrackFX) {
-        for k in kits { k.setInsert(fx) }
-    }
-
-    /// S2-W2-5: push the `.bass` bus insert to every dedicated lane sub — mirror
-    /// of setDrumsInsert. No-op while unattached / flag OFF (subs is empty).
+    /// S2-W2-5: push the `.bass` bus insert to every dedicated lane sub. No-op while
+    /// unattached / flag OFF (subs is empty).
     public func setBassInsert(_ fx: TrackFX) {
         for s in subs { s.setInsert(fx) }
     }
@@ -231,7 +227,7 @@ public final class LaneVoiceRack {
     private func rebindAll() {
         let ordered = kinds.keys.sorted().map { (slot: $0, kind: kinds[$0] ?? .poly) }
         let fresh = KindVoiceAllocator.allocate(ordered: ordered,
-                                                drumUnits: kits.count, subUnits: subs.count,
+                                                subUnits: subs.count,
                                                 samplerUnits: samplers.count,
                                                 bioUnits: bios.count)
         let touched = Set(bindings.keys).union(fresh.keys)
@@ -268,13 +264,6 @@ public final class LaneVoiceRack {
     /// panic is the last resort, and it must not depend on the bookkeeping it exists to
     /// recover from being correct.
     ///
-    /// One arm is a known no-op: `.drums` reaches `LaneDrumKitVoice.allNotesOff()`, an empty
-    /// body by design (modal strikes self-decay, there is no gate). Since the drum removal
-    /// (founder 2026-07-26) `kits` is also empty in Release — `attachAll` no longer creates a
-    /// kit; only the `#if DEBUG` install seam still can, which is what the tests below use.
-    /// Both facts are deliberate, so do not "fix" the empty arm — task #167 DELETES this arm
-    /// together with the rest of the drum apparatus.
-    ///
     /// It routes each voice through the private per-ref `allNotesOff(on:)` below rather than
     /// duplicating that switch, so the two can never disagree about how a kind is silenced.
     /// The residual risk is honest and worth naming: adding a new `PhysicalVoiceRef` case
@@ -282,7 +271,6 @@ public final class LaneVoiceRack {
     /// If you add a case, add its array to this sweep in the same edit.
     public func allNotesOff() {
         for i in voices.indices    { allNotesOff(on: .poly(i)) }
-        for i in kits.indices      { allNotesOff(on: .drums(i)) }
         for i in subs.indices      { allNotesOff(on: .subBass(i)) }
         for i in samplers.indices  { allNotesOff(on: .sampler(i)) }
         for i in bios.indices      { allNotesOff(on: .bio(i)) }
@@ -291,7 +279,6 @@ public final class LaneVoiceRack {
     private func allNotesOff(on ref: PhysicalVoiceRef) {
         switch ref {
         case .poly(let i):    if voices.indices.contains(i) { voices[i].allNotesOff() }
-        case .drums(let i):   if kits.indices.contains(i) { kits[i].allNotesOff() }
         case .subBass(let i): if subs.indices.contains(i) { subs[i].allNotesOff() }
         case .sampler(let i): if samplers.indices.contains(i) { samplers[i].silence() }
         case .bio(let i):     if bios.indices.contains(i) { bios[i].releaseNote() }
@@ -304,9 +291,6 @@ public final class LaneVoiceRack {
         switch binding(forSlot: slot) {
         case .poly:
             voice(slot: slot)?.noteOn(pitch: pitch, velocity: velocity)
-        case .drums(let i):
-            guard kits.indices.contains(i) else { return }
-            kits[i].noteOn(pitch: pitch, velocity: Self.midiVelocity(velocity))
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
             subs[i].noteOn(pitch: pitch + (transposeBySlot[slot] ?? 0))
@@ -346,9 +330,6 @@ public final class LaneVoiceRack {
         switch binding(forSlot: slot) {
         case .poly:
             voice(slot: slot)?.noteOff(pitch: pitch)
-        case .drums(let i):
-            guard kits.indices.contains(i) else { return }
-            kits[i].noteOff(pitch: pitch)
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
             subs[i].noteOff(pitch: pitch + (transposeBySlot[slot] ?? 0))
@@ -405,22 +386,19 @@ public final class LaneVoiceRack {
         voice(slot: slot)?.setOctaver(direction: direction)
     }
 
-    /// A SynthPatch shapes the poly engine — documented no-op for kit/sub (their
-    /// timbre comes from DrumNoteMap presets / the sub's fixed felt-band voice).
+    /// A SynthPatch shapes the poly engine — documented no-op for the sub (its
+    /// timbre comes from its fixed felt-band voice).
     public func applyPatch(slot: Int, _ patch: SynthPatch) {
         voice(slot: slot)?.apply(patch)
     }
 
     /// Lane gain per bound kind. All paths honor the lane-fader contract 0…2
-    /// (1 = unity; PolySynthVoice/LaneDrumKitVoice clamp internally); non-finite
+    /// (1 = unity; the voices clamp internally); non-finite
     /// fails SILENT (0) per app convention.
     public func setGain(slot: Int, _ gain: Float) {
         switch binding(forSlot: slot) {
         case .poly:
             voice(slot: slot)?.setGain(gain)
-        case .drums(let i):
-            guard kits.indices.contains(i) else { return }
-            kits[i].setGain(gain)
         case .subBass(let i):
             guard subs.indices.contains(i) else { return }
             subs[i].setGain(gain)   // encapsulated: clamps 0…2, attach-guarded
@@ -448,9 +426,6 @@ public final class LaneVoiceRack {
         switch binding(forSlot: slot) {
         case .poly:
             voice(slot: slot)?.setPan(pan)
-        case .drums(let i):
-            guard kits.indices.contains(i) else { return }
-            kits[i].setPan(pan)
         case .bio(let i):
             guard bios.indices.contains(i) else { return }
             bios[i].setPan(pan)   // encapsulated: clamps −1…1
@@ -514,11 +489,9 @@ public final class LaneVoiceRack {
     /// TEST SEAM (Debug-only): install kind units WITHOUT an engine so the Xcode
     /// gate can pin the S2-W2-3 facade routing (attachAll's unit creation is
     /// flag+engine-gated). Call AFTER installVoicesForTests.
-    internal func installKindUnitsForTests(kits testKits: [LaneDrumKitVoice],
-                                           subs testSubs: [SubBassVoice],
+    internal func installKindUnitsForTests(subs testSubs: [SubBassVoice],
                                            samplers testSamplers: [SamplerVoice] = [],
                                            bios testBios: [BioReactiveSynthVoice] = []) {
-        kits = testKits
         subs = testSubs
         samplers = testSamplers
         bios = testBios

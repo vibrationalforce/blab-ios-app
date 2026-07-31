@@ -159,8 +159,8 @@ public final class SubBassVoice {
     // MARK: - Engine attachment
 
     /// True once attached to an engine — gates the lazy-node-touching setters
-    /// (mirrors LaneDrumKitVoice, so seam-installed test voices never force
-    /// `sourceNode`). Control-plane only.
+    /// (so seam-installed test voices never force `sourceNode`). Control-plane
+    /// only. (⛔ "mirrors LaneDrumKitVoice" stood here; that type went with #167.)
     @ObservationIgnored
     private var attachedToEngine = false
 

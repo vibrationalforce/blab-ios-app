@@ -1,10 +1,14 @@
 // ModalMaterialReconfigureTests.swift
 // Echoel — the audio-thread contract of `EchoelModalBank.material`.
 //
-// `DrumRenderState.applyPendingRequests` assigns `material` FROM THE RENDER BLOCK on every
-// config-version bump, and `LaneDrumKitVoice.noteOn` bumps that version whenever a pitch maps
-// to different drum params — so a melodic tom/perc line reconfigured on nearly every note.
-// Two things make that assignment allocation-free, and both are invisible at the call site:
+// ⛔ The caller these tests were written FOR is gone: `DrumRenderState.applyPendingRequests`
+// assigned `material` FROM THE RENDER BLOCK on every config-version bump, and
+// `LaneDrumKitVoice.noteOn` bumped that version whenever a pitch mapped to different drum
+// params — so a melodic tom/perc line reconfigured on nearly every note. Both types were
+// DELETED with #167 (founder 2026-07-27). The CONTRACT they pin is a property of
+// `EchoelModalBank` itself and outlives them — `material` is still settable from a render
+// path, so these tests stay as the guard's specification for its next assigner.
+// Two things make such an assignment allocation-free, and both are invisible at the call site:
 // the didSet skips `applyMaterial` when the preset is unchanged, and the `.drum` mode-ratio
 // table is a `static let` instead of a per-call array literal.
 //

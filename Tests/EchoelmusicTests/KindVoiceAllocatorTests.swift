@@ -5,6 +5,13 @@
 // rank stability, first-rank-wins contention, poly fallback on exhaustion,
 // sampler → its unit when one exists (S2-W3), bioVoice → poly (documented v1),
 // zero units = the flag-OFF shape.
+//
+// ⛔ THE `.drums` TESTS CHANGED MEANING WITH #167, THEY WERE NOT DELETED. `PhysicalVoiceRef`
+// no longer HAS a `.drums` case, so nothing can assert `.drums(0)` any more — but
+// `LaneVoiceKind.drums` still exists as a persisted rawValue, and what a persisted drums lane
+// resolves to is now MORE worth pinning, not less: it must come back as a playable poly voice
+// and never as silence. The contention/stability laws moved onto `.subBass`, which still has a
+// physical unit and can therefore still lose one.
 
 import XCTest
 @testable import Echoelmusic
@@ -12,43 +19,45 @@ import XCTest
 final class KindVoiceAllocatorTests: XCTestCase {
 
     private func allocate(_ entries: [(Int, LaneVoiceKind)],
-                          drums: Int = 1, subs: Int = 1,
+                          subs: Int = 1,
                           samplers: Int = 1) -> [Int: PhysicalVoiceRef] {
         KindVoiceAllocator.allocate(ordered: entries.map { (slot: $0.0, kind: $0.1) },
-                                    drumUnits: drums, subUnits: subs,
-                                    samplerUnits: samplers)
+                                    subUnits: subs, samplerUnits: samplers)
     }
 
     // MARK: - The happy path: each kind gets its physical voice
 
     func testAllocate_bindsEachKindToItsPhysicalVoice() {
-        let map = allocate([(0, .poly), (1, .drums), (2, .subBass), (3, .poly)])
+        let map = allocate([(0, .poly), (1, .sampler), (2, .subBass), (3, .poly)])
         XCTAssertEqual(map[0], .poly(0))
-        XCTAssertEqual(map[1], .drums(0))
+        XCTAssertEqual(map[1], .sampler(0))
         XCTAssertEqual(map[2], .subBass(0))
         XCTAssertEqual(map[3], .poly(3))
+    }
+
+    /// #167: the kind survives its voice. A lane persisted as `.drums` must resolve to a
+    /// SOUNDING poly voice — the failure this pins is silence, which is what would happen if
+    /// someone "cleaned up" the `.drums` arm out of the fallback list.
+    func testAllocate_drumsKind_alwaysResolvesToPoly() {
+        XCTAssertEqual(allocate([(0, .drums)])[0], .poly(0))
+        XCTAssertEqual(allocate([(0, .drums), (1, .drums)])[1], .poly(1),
+                       "two drums lanes: both poly, neither silent")
     }
 
     func testAllocate_polySlotIndexIsTheRankSlot() {
         // Poly binding preserves the rank → the existing 4-voice rack addressing
         // (voice(slot:)) keeps working unchanged for poly lanes.
-        let map = allocate([(0, .drums), (1, .poly), (3, .poly)])
+        let map = allocate([(0, .subBass), (1, .poly), (3, .poly)])
         XCTAssertEqual(map[1], .poly(1))
         XCTAssertEqual(map[3], .poly(3))
     }
 
     // MARK: - Contention: first rank wins, rest fall back to poly (never silence)
 
-    func testAllocate_secondDrumsLane_fallsBackToPoly() {
-        let map = allocate([(0, .drums), (1, .drums)], drums: 1)
-        XCTAssertEqual(map[0], .drums(0), "first rank wins the single kit")
-        XCTAssertEqual(map[1], .poly(1), "the loser sounds like today (poly), never silence")
-    }
-
     func testAllocate_contentionIsByRank_notInputOrder() {
-        // Same entries, shuffled input — the LOWER rank must still win the kit.
-        let shuffled = allocate([(2, .drums), (0, .drums)], drums: 1)
-        XCTAssertEqual(shuffled[0], .drums(0))
+        // Same entries, shuffled input — the LOWER rank must still win the unit.
+        let shuffled = allocate([(2, .subBass), (0, .subBass)], subs: 1)
+        XCTAssertEqual(shuffled[0], .subBass(0))
         XCTAssertEqual(shuffled[2], .poly(2))
     }
 
@@ -86,7 +95,7 @@ final class KindVoiceAllocatorTests: XCTestCase {
 
     func testAllocate_zeroUnits_isAllPoly() {
         let map = allocate([(0, .drums), (1, .subBass), (2, .poly), (3, .sampler)],
-                           drums: 0, subs: 0, samplers: 0)
+                           subs: 0, samplers: 0)
         XCTAssertEqual(map[0], .poly(0))
         XCTAssertEqual(map[1], .poly(1))
         XCTAssertEqual(map[2], .poly(2))
@@ -96,7 +105,7 @@ final class KindVoiceAllocatorTests: XCTestCase {
     // MARK: - Determinism + stability
 
     func testAllocate_isDeterministic() {
-        let entries: [(Int, LaneVoiceKind)] = [(0, .drums), (1, .poly), (2, .subBass), (3, .drums)]
+        let entries: [(Int, LaneVoiceKind)] = [(0, .drums), (1, .poly), (2, .subBass), (3, .sampler)]
         let a = allocate(entries)
         for _ in 0..<10 {
             XCTAssertEqual(allocate(entries), a, "same input must always produce the same map")
@@ -106,17 +115,17 @@ final class KindVoiceAllocatorTests: XCTestCase {
     func testAllocate_addingAHigherRankLane_neverMovesLowerRankBindings() {
         // Reconcile stability: a NEW lane appended at a higher rank must not steal
         // or reshuffle what lower ranks already hold.
-        let before = allocate([(0, .drums), (1, .poly)])
-        let after = allocate([(0, .drums), (1, .poly), (2, .drums)])
+        let before = allocate([(0, .subBass), (1, .poly)])
+        let after = allocate([(0, .subBass), (1, .poly), (2, .subBass)])
         XCTAssertEqual(after[0], before[0])
         XCTAssertEqual(after[1], before[1])
-        XCTAssertEqual(after[2], .poly(2), "kit is taken by rank 0 — rank 2 falls back")
+        XCTAssertEqual(after[2], .poly(2), "the sub unit is taken by rank 0 — rank 2 falls back")
     }
 
     func testAllocate_duplicateSlots_firstEntryWins() {
         // Defensive: a malformed duplicate slot must not flip an established binding.
-        let map = allocate([(0, .drums), (0, .poly)])
-        XCTAssertEqual(map[0], .drums(0))
+        let map = allocate([(0, .subBass), (0, .poly)])
+        XCTAssertEqual(map[0], .subBass(0))
         XCTAssertEqual(map.count, 1)
     }
 

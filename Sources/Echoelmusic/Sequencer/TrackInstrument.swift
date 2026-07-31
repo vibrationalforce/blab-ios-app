@@ -5,8 +5,9 @@
 // Audio Inputs, Midi für Midi Input die Biofeedback Instrumente").
 //
 // PURE value model — no engine, no audio, no SwiftUI. It names the tracks after the
-// app's OWN instruments (the voices that already exist: DrumSynthVoice/BeatPlayer,
-// LoopCutter break, SamplerVoice, PolySynthVoice, SubBassVoice, BioReactiveSynthVoice)
+// app's OWN instruments (the voices that already exist: LoopCutter break, SamplerVoice,
+// PolySynthVoice, SubBassVoice, BioReactiveSynthVoice — ⛔ `DrumSynthVoice`/`BeatPlayer`
+// kit led this list until #167, founder 2026-07-27, and no longer sounds)
 // and derives each track's record INPUT source from its kind + instrument. The
 // per-lane capture engine (audio-in / MIDI-in / bio recorders) rides this rail next,
 // device-verified; this is the honest, Linux-CI-tested foundation + the visible menu.
@@ -16,7 +17,9 @@ import Foundation
 /// A built-in Echoel instrument a MIDI track plays. Raw values persist with the
 /// document (@Codable on TimelineLane) — keep them stable.
 public enum TrackInstrument: String, Codable, Sendable, CaseIterable, Equatable {
-    case drums          // EchoelDrums   — DrumSynthVoice / BeatPlayer kit
+    // ⛔ #167: the drum voices are DELETED — this kind makes no sound today. The CASE
+    //    must survive: it is a persisted rawValue and an unknown one discards the lane.
+    case drums          // EchoelDrums   — no voice left; persisted rawValue only
     case breakLoop      // EchoelBreak   — LoopCutter breakbeat re-slicing
     case sampler        // EchoelSampler — SamplerVoice one-shots / pitched
     case polySynth      // EchoelSynth   — PolySynthVoice (pad/harmony/lead)

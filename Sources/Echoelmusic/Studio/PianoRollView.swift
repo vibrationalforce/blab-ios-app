@@ -22,14 +22,12 @@ public protocol NoteVoice: AnyObject {
 }
 extension PolySynthVoice: NoteVoice {}
 // S2-W2-6: the rack kind voices also route the PRIMARY roll when its lane is a
-// drums / sub-bass instrument. Guarded on Accelerate (LaneDrumKitVoice's extra
-// dependency); SubBassVoice needs only AVFoundation, which this SwiftUI file
-// already requires (it stores a SubBassVoice). No Apple platform has SwiftUI
-// without both, so the flag-ON path compiles on every real target.
+// sub-bass instrument. SubBassVoice needs only AVFoundation, which this SwiftUI
+// file already requires (it stores a SubBassVoice).
+// ⛔ `extension LaneDrumKitVoice: NoteVoice {}` stood here behind an Accelerate guard and
+// went with #167. It was the last thing keeping the kit type reachable from the roll; the
+// `.drums` LANE KIND still exists (persisted rawValue) and now routes to a poly voice.
 extension SubBassVoice: NoteVoice {}
-#if canImport(Accelerate)
-extension LaneDrumKitVoice: NoteVoice {}
-#endif
 
 /// Editable polyphonic melodic pattern + its trigger logic.
 @MainActor
@@ -818,8 +816,10 @@ public final class PianoRollModel {
     @ObservationIgnored private var auditionOffTask: Task<Void, Never>?
 
     /// Preview ONE note through its output voice — the clip editor's
-    /// tap/draw feedback (H12: an EchoelDrums clip previews the KIT, not the
-    /// poly synth). Routed via `outputVoice(for:)`, so a session with no
+    /// tap/draw feedback. (H12 originally read "an EchoelDrums clip previews the
+    /// KIT, not the poly synth" — there is no kit any more since #167, so a
+    /// `.drums` lane previews the poly voice like every other kind.)
+    /// Routed via `outputVoice(for:)`, so a session with no
     /// bound voice stays silent (the honest-silent H11 editor for poly
     /// lanes, unchanged). Monophonic: a new audition releases the previous
     /// one first, so fast sketching never strands a held note. The note-off

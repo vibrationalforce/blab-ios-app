@@ -48,9 +48,10 @@ public enum FeatureFlags {
         /// it remains the one-line rollback lever if device-verify (CPU/mem, two dense
         /// tracks sound simultaneously) ever fails. NEVER delete the OFF branches.
         case multiRoll         = "feature.multiRoll"
-        /// S2-W2 ("Spur = Instrument"): heterogeneous rack voices — a drums lane
-        /// plays a LaneDrumKitVoice, a sub-bass lane a dedicated SubBassVoice,
-        /// bound at the rack boundary by the pure KindVoiceAllocator. DEFAULT-ON
+        /// S2-W2 ("Spur = Instrument"): heterogeneous rack voices — a sub-bass lane
+        /// plays a dedicated SubBassVoice (⛔ a drums lane played a LaneDrumKitVoice
+        /// until #167, founder 2026-07-27; it now allocates to poly like any other
+        /// unit-less kind), bound at the rack boundary by the pure KindVoiceAllocator. DEFAULT-ON
         /// since 2026-07-17 (registered true at EchoelmusicApp startup — founder
         /// verdict: the OFF-until-device-verify gate was a deadlock, since no UI
         /// exposes the flag; risk activates only through the explicit act of

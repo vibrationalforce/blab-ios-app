@@ -1784,9 +1784,10 @@ struct EchoelStudioView: View {
     // NO DRUMS (founder 2026-07-26): `drumsBinding`, `drumsCutoffBinding`,
     // `drumsDriveBinding` and `setDrumsFX(_:)` lived here. They were the only REACHABLE
     // writers of `trackFX.drums`, `BeatPlayer.masterLevel`/`setFX` and
-    // `laneVoiceRack.setDrumsInsert`. `BeatPlayer.setFX` and `BeatPlayer.masterLevel` are
-    // not symbols any more at all — #167 deleted the Channel Rack, then the mixer state,
-    // then the whole drum kit (2026-07-27). Do not grep for them. `trackFX.drums` still
+    // `laneVoiceRack.setDrumsInsert`. `BeatPlayer.setFX`, `BeatPlayer.masterLevel` and
+    // `setDrumsInsert` are not symbols any more at all — #167 deleted the Channel Rack,
+    // then the mixer state, then the whole drum kit (2026-07-27). Do not grep for them.
+    // `trackFX.drums` still
     // has one writer, `TrackFXStore.resetToClean()` (no production caller, one test
     // caller). Do not read this block as "the symbols have no writers" without grepping,
     // and grep names that still exist: two earlier versions of this line cited

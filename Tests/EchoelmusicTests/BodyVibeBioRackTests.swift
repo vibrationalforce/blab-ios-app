@@ -25,7 +25,7 @@ final class BodyVibeBioRackTests: XCTestCase {
     func testAllocator_bioVoice_bindsBioUnit() {
         let out = KindVoiceAllocator.allocate(
             ordered: [(slot: 0, kind: .bioVoice), (slot: 1, kind: .poly)],
-            drumUnits: 0, subUnits: 0, samplerUnits: 0, bioUnits: 1)
+            subUnits: 0, samplerUnits: 0, bioUnits: 1)
         XCTAssertEqual(out[0], .bio(0), "a bio lane must bind the bio unit")
         XCTAssertEqual(out[1], .poly(1))
     }
@@ -34,7 +34,7 @@ final class BodyVibeBioRackTests: XCTestCase {
         // Input order deliberately reversed — contention resolves by RANK.
         let out = KindVoiceAllocator.allocate(
             ordered: [(slot: 2, kind: .bioVoice), (slot: 0, kind: .bioVoice)],
-            drumUnits: 0, subUnits: 0, samplerUnits: 0, bioUnits: 1)
+            subUnits: 0, samplerUnits: 0, bioUnits: 1)
         XCTAssertEqual(out[0], .bio(0), "lowest rank takes the one bio unit")
         XCTAssertEqual(out[2], .poly(2), "exhausted kind falls back to poly — never silence")
     }
@@ -44,7 +44,7 @@ final class BodyVibeBioRackTests: XCTestCase {
         // a bio lane resolves to poly exactly as during the v1 deferral.
         let out = KindVoiceAllocator.allocate(
             ordered: [(slot: 0, kind: .bioVoice)],
-            drumUnits: 1, subUnits: 1, samplerUnits: 1)
+            subUnits: 1, samplerUnits: 1)
         XCTAssertEqual(out[0], .poly(0))
     }
 
@@ -54,7 +54,7 @@ final class BodyVibeBioRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: capacity)
         rack.installVoicesForTests((0..<capacity).map { _ in PolySynthVoice(maxVoices: 2) })
         let bio = BioReactiveSynthVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [], bios: [bio])
+        rack.installKindUnitsForTests(subs: [], samplers: [], bios: [bio])
         return (rack, bio)
     }
 
@@ -67,7 +67,7 @@ final class BodyVibeBioRackTests: XCTestCase {
     func testSetKind_bioVoice_withoutBioUnit_fallsBackPoly_andNoteOnIsSafe() {
         let rack = LaneVoiceRack(capacity: 1)
         rack.installVoicesForTests([PolySynthVoice(maxVoices: 2)])
-        rack.installKindUnitsForTests(kits: [], subs: [])   // zero bio units
+        rack.installKindUnitsForTests(subs: [])   // zero bio units
         rack.setKind(slot: 0, kind: .bioVoice)
         XCTAssertEqual(rack.bindingsForTests[0], .poly(0),
                        "no bio unit ⇒ poly fallback (the flag-OFF / pre-B1 sound)")

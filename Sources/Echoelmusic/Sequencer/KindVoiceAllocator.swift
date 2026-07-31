@@ -10,7 +10,12 @@
 // (S2-W2-3) will consult this allocator to route a slot's notes/params to:
 //   .poly(rank)   — the existing 4 PolySynthVoice slots (index == rank, so the
 //                   established voice(slot:) addressing is unchanged for poly)
-//   .drums(i)     — a LaneDrumKitVoice unit (S2-W2-2)
+//   (⛔ `.drums(i)` — a LaneDrumKitVoice unit — is GONE. The founder removed the drums
+//    2026-07-26 ("keine Drums") and the apparatus 2026-07-27 ("erstmal gar nicht mehr rein",
+//    #167). `LaneVoiceKind.drums` deliberately SURVIVES, because it is a persisted rawValue
+//    and dropping it would make an old lane fail to decode and be discarded — it now falls
+//    through to `.poly` like any other kind with no unit, which is what it already did in
+//    Release once `attachAll` stopped creating kits.)
 //   .subBass(i)   — a dedicated lane SubBassVoice (NOT the primary doubling sub)
 //   .sampler(i)   — a lane SamplerVoice one-shot unit (S2-W3, "EchoelSampler klingt")
 //   .bio(i)       — a lane BioReactiveSynthVoice unit (BodyVibe B1 — the last
@@ -26,9 +31,11 @@ import Foundation
 /// A physical voice in the heterogeneous rack pool (S2-W2). The associated index
 /// addresses the unit within its kind: `.poly(rank)` keeps rank == index so the
 /// existing PolySynthVoice slot array needs no re-mapping.
+/// ⛔ `.drums(Int)` was a case here and is GONE with #167. It is safe to delete where
+/// `LaneVoiceKind.drums` is not: this enum is an allocation RESULT, computed fresh on every
+/// rebind and never encoded — nothing on disk names it.
 public enum PhysicalVoiceRef: Equatable, Sendable, Hashable {
     case poly(Int)
-    case drums(Int)
     case subBass(Int)
     case sampler(Int)
     case bio(Int)
@@ -43,8 +50,6 @@ public enum KindVoiceAllocator {
     ///   - ordered: the (rank slot, kind) pairs to bind. Order does NOT matter —
     ///     contention is resolved by ascending RANK (first rank wins); a
     ///     duplicate slot keeps its first (lowest-position after sort) binding.
-    ///   - drumUnits: how many physical drum-kit units exist (0 = none → drums
-    ///     lanes fall back to poly; the flag-OFF shape).
     ///   - subUnits: how many dedicated lane sub-bass units exist (dito).
     ///   - samplerUnits: how many lane sampler one-shot units exist (dito; the
     ///     sample FILE a bound unit plays comes from the lane's `samplePath`,
@@ -56,20 +61,16 @@ public enum KindVoiceAllocator {
     ///   that cannot get its dedicated voice resolves to `.poly(slot)` — exactly
     ///   today's sound, so routing can only get MORE honest, never quieter.
     public static func allocate(ordered: [(slot: Int, kind: LaneVoiceKind)],
-                                drumUnits: Int, subUnits: Int,
+                                subUnits: Int,
                                 samplerUnits: Int,
                                 bioUnits: Int = 0) -> [Int: PhysicalVoiceRef] {
         var out: [Int: PhysicalVoiceRef] = [:]
-        var nextDrum = 0
         var nextSub = 0
         var nextSampler = 0
         var nextBio = 0
         for entry in ordered.sorted(by: { $0.slot < $1.slot }) {
             guard out[entry.slot] == nil else { continue }   // duplicate slot: first wins
             switch entry.kind {
-            case .drums where nextDrum < drumUnits:
-                out[entry.slot] = .drums(nextDrum)
-                nextDrum += 1
             case .subBass where nextSub < subUnits:
                 out[entry.slot] = .subBass(nextSub)
                 nextSub += 1
@@ -81,7 +82,8 @@ public enum KindVoiceAllocator {
                 nextBio += 1
             case .poly, .drums, .subBass, .sampler, .bioVoice:
                 // Poly by choice or by exhaustion (kind units taken by a lower
-                // rank). Never silence.
+                // rank). Never silence. `.drums` now ALWAYS lands here — see the
+                // header: the kind outlives its voice on purpose.
                 out[entry.slot] = .poly(entry.slot)
             }
         }

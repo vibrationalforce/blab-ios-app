@@ -1,12 +1,19 @@
 // PianoRollKindVoiceTests.swift
 // Echoel — S2-W2-6 ("Spur = Instrument"): the PRIMARY roll routes through its
-// lane's KIND voice when that lane is a drums kit / sub-bass. Pins the pure,
-// host-free parts: PianoRollModel.setKindVoice swap-release + idempotency, and
-// the LaneDrumKitVoice / SubBassVoice NoteVoice conformance + velocity mapping.
+// lane's KIND voice when that lane is a sub-bass. Pins the pure, host-free parts:
+// PianoRollModel.setKindVoice swap-release + idempotency, and the SubBassVoice
+// NoteVoice conformance + velocity handling.
 // The live trigger()/outputVoice routing itself is integration-level (private,
 // needs a full transport) exactly like the sibling slot sinks — its correctness
 // rides these pins + the two mandatory reviewers.
-// Guarded like the types it touches (PianoRollModel = SwiftUI; kit = Accelerate).
+// Guarded like the types it touches (PianoRollModel = SwiftUI; sub = Accelerate).
+//
+// ⛔ `testLaneDrumKitVoice_isANoteVoice_mapsFloatVelocityToTheKit` was DELETED with
+//    #167 (founder 2026-07-27, "erstmal gar nicht mehr rein"): it constructed
+//    `LaneDrumKitVoice` and asserted against `DrumNoteMap`, and both types are gone
+//    together with `DrumSynthVoice`. `LaneVoiceKind.drums` survives ONLY as a
+//    persisted rawValue and now always allocates to `.poly` — there is no kit voice
+//    left for a NoteVoice conformance to reach.
 
 #if canImport(SwiftUI) && canImport(AVFoundation) && canImport(Accelerate)
 import XCTest
@@ -37,19 +44,6 @@ final class PianoRollKindVoiceTests: XCTestCase {
         XCTAssertEqual(b.allOffCount, 0, "an unchanged binding must not re-release")
         roll.setKindVoice(nil)        // b → nil: clearing releases b
         XCTAssertEqual(b.allOffCount, 1, "clearing the kind voice releases it")
-    }
-
-    func testLaneDrumKitVoice_isANoteVoice_mapsFloatVelocityToTheKit() {
-        let kit = LaneDrumKitVoice()
-        let nv: any NoteVoice = kit                 // conformance compiles
-        nv.noteOn(pitch: 36, velocity: 1.0)         // Float path → MIDI 127 → kick strike
-        XCTAssertEqual(kit.appliedParamsForTests[DrumNoteMap.Pad.kick.rawValue],
-                       DrumNoteMap.params(forPitch: 36))
-        nv.noteOn(pitch: 38, velocity: 0.0)         // zero velocity still strikes (gain floor)
-        XCTAssertEqual(kit.appliedParamsForTests[DrumNoteMap.Pad.snare.rawValue],
-                       DrumNoteMap.params(forPitch: 38))
-        nv.noteOff(pitch: 36)                        // documented no-op — must not crash
-        nv.allNotesOff()
     }
 
     func testSubBassVoice_isANoteVoice_ignoresVelocityRoutesThePitch() {

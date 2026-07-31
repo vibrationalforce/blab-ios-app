@@ -51,7 +51,7 @@ final class LaneVoiceRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests([PolySynthVoice(maxVoices: 2), PolySynthVoice(maxVoices: 2)])
         let bio = BioReactiveSynthVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [], bios: [bio])
+        rack.installKindUnitsForTests(subs: [], samplers: [], bios: [bio])
         bio.playNote(frequency: 220)
         XCTAssertTrue(bio.isPlayingNote, "precondition: the bio voice must be holding a note")
 
@@ -69,8 +69,8 @@ final class LaneVoiceRackTests: XCTestCase {
     ///     silent — the release itself happens when the audio thread drains the queue.
     ///   · `.poly` / `.sampler` — enqueue a command the AUDIO thread drains, with no control-
     ///     plane seam, so a green run here does NOT prove they went silent.
-    ///   · `.drums` — a provable no-op: `LaneDrumKitVoice.allNotesOff()` is an empty body by
-    ///     design (self-decaying strikes, no gate). Nothing to observe, by construction.
+    /// (⛔ A fourth bullet here described `.drums` as "a provable no-op". It went with #167 —
+    ///  `LaneDrumKitVoice` no longer exists and the rack has no `.drums` arm to sweep.)
     /// What the rest of this test pins: the sweep is bounds-safe over every kind array, and
     /// panicking must not attach, vend or create voices as a side effect.
     func testAllNotesOff_isBoundsSafeAndReachesTheSub() {
@@ -81,8 +81,7 @@ final class LaneVoiceRackTests: XCTestCase {
 
         let rack = LaneVoiceRack(capacity: 3)
         rack.installVoicesForTests((0..<3).map { _ in PolySynthVoice(maxVoices: 2) })
-        rack.installKindUnitsForTests(kits: [LaneDrumKitVoice()],
-                                      subs: [SubBassVoice()],
+        rack.installKindUnitsForTests(subs: [SubBassVoice()],
                                       samplers: [SamplerVoice()],
                                       bios: [BioReactiveSynthVoice()])
         // Pre-stamp the seam so a MISSED .subBass arm reads as ("on", 33) rather than nil —
@@ -95,7 +94,6 @@ final class LaneVoiceRackTests: XCTestCase {
                        "rack panic did not reach the .subBass arm")
 
         XCTAssertEqual(rack.voices.count, 3, "panic changed the voice roster")
-        XCTAssertEqual(rack.kits.count, 1)
         XCTAssertEqual(rack.subs.count, 1)
         XCTAssertEqual(rack.samplers.count, 1)
         XCTAssertEqual(rack.bios.count, 1)
@@ -106,36 +104,36 @@ final class LaneVoiceRackTests: XCTestCase {
     func testSetKind_zeroUnits_isTheFlagOffShape_allPoly() {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests([PolySynthVoice(maxVoices: 2), PolySynthVoice(maxVoices: 2)])
-        rack.setKind(slot: 0, kind: .drums)      // no kit units installed
+        rack.setKind(slot: 0, kind: .sampler)    // no sampler units installed
         rack.setKind(slot: 1, kind: .subBass)    // no sub units installed
         XCTAssertEqual(rack.bindingsForTests[0], .poly(0), "no units ⇒ poly fallback (today's sound)")
         XCTAssertEqual(rack.bindingsForTests[1], .poly(1))
     }
 
-    func testSetKind_bindsKitAndSub_andNoteOnRoutesToTheKit() {
+    /// #167 (founder 2026-07-27) removed the kit half of this law. `.drums` no longer
+    /// HAS a unit array to bind to, so it is pinned here from the other side: a lane
+    /// persisted as drums must land on poly — audible, never silent — and it must not
+    /// steal or disturb the sub the neighbouring lane holds.
+    func testSetKind_bindsSub_andADrumsLaneFallsToPolyWithoutTouchingIt() {
         let rack = LaneVoiceRack(capacity: 3)
         rack.installVoicesForTests((0..<3).map { _ in PolySynthVoice(maxVoices: 2) })
-        let kit = LaneDrumKitVoice()
-        rack.installKindUnitsForTests(kits: [kit], subs: [SubBassVoice()])
+        rack.installKindUnitsForTests(subs: [SubBassVoice()])
         rack.setKind(slot: 0, kind: .drums)
         rack.setKind(slot: 1, kind: .subBass)
-        XCTAssertEqual(rack.bindingsForTests[0], .drums(0))
+        XCTAssertEqual(rack.bindingsForTests[0], .poly(0),
+                       "a persisted drums lane must fall back to poly, never to silence")
         XCTAssertEqual(rack.bindingsForTests[1], .subBass(0))
-        // Routing proof: a note-ON on the drums slot configures the kit's pad
-        // (the kit's per-pad preset cache is the observable), not the poly slot.
-        rack.noteOn(slot: 0, pitch: 36, velocity: 1.0)
-        XCTAssertEqual(kit.appliedParamsForTests[DrumNoteMap.Pad.kick.rawValue],
-                       DrumNoteMap.params(forPitch: 36))
         // Sub routing proof via the sub's command seam; poly path no-crash.
+        rack.noteOn(slot: 0, pitch: 36, velocity: 1.0)   // drums→poly, must not reach the sub
         rack.noteOn(slot: 1, pitch: 33, velocity: 0.8)
         XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.kind, "on")
         XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.pitch, 33)
         rack.noteOn(slot: 2, pitch: 60, velocity: 0.8)
         // Note-OFF routes to the CURRENT binding only (audio review MEDIUM on
         // 89814a2: a fan to all subs could cut a foreign lane's held note).
-        rack.noteOff(slot: 0, pitch: 36)   // drums-bound → kit no-op
+        rack.noteOff(slot: 0, pitch: 36)   // poly-bound → must not reach the sub
         XCTAssertEqual(rack.subs[0].noteCommandCountForTests, 1,
-                       "a drums slot's off must NOT reach the sub")
+                       "a poly slot's off must NOT reach the sub")
         rack.noteOff(slot: 1, pitch: 33)   // sub-bound → matching off
         XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.kind, "off")
         XCTAssertEqual(rack.subs[0].lastNoteCommandForTests?.pitch, 33)
@@ -155,7 +153,7 @@ final class LaneVoiceRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
         let sub = SubBassVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [sub])
+        rack.installKindUnitsForTests(subs: [sub])
         rack.setKind(slot: 0, kind: .subBass)
         rack.noteOn(slot: 0, pitch: 40, velocity: 0.9)
         XCTAssertEqual(sub.lastNoteCommandForTests?.kind, "on")
@@ -165,18 +163,21 @@ final class LaneVoiceRackTests: XCTestCase {
         XCTAssertEqual(rack.bindingsForTests[0], .poly(0))
     }
 
+    /// Contention was pinned on `.drums` until #167 took the kit units away; the law is
+    /// the allocator's, not the kit's, so it moves onto `.subBass` unchanged: one unit,
+    /// two claimants, lowest slot wins and the loser falls back to poly (never silence).
     func testSetKind_lowerRankWinsContention_andRebindRestoresPoly() {
         let rack = LaneVoiceRack(capacity: 3)
         rack.installVoicesForTests((0..<3).map { _ in PolySynthVoice(maxVoices: 2) })
-        rack.installKindUnitsForTests(kits: [LaneDrumKitVoice()], subs: [])
-        rack.setKind(slot: 2, kind: .drums)
-        XCTAssertEqual(rack.bindingsForTests[2], .drums(0), "sole drums lane takes the kit")
-        rack.setKind(slot: 0, kind: .drums)
-        XCTAssertEqual(rack.bindingsForTests[0], .drums(0), "lower rank claims the kit on rebind")
+        rack.installKindUnitsForTests(subs: [SubBassVoice()])
+        rack.setKind(slot: 2, kind: .subBass)
+        XCTAssertEqual(rack.bindingsForTests[2], .subBass(0), "sole sub lane takes the unit")
+        rack.setKind(slot: 0, kind: .subBass)
+        XCTAssertEqual(rack.bindingsForTests[0], .subBass(0), "lower rank claims the unit on rebind")
         XCTAssertEqual(rack.bindingsForTests[2], .poly(2), "outbid lane falls back to poly, never silence")
         rack.setKind(slot: 0, kind: .poly)
         XCTAssertEqual(rack.bindingsForTests[0], .poly(0))
-        XCTAssertEqual(rack.bindingsForTests[2], .drums(0), "freed kit returns to the remaining drums lane")
+        XCTAssertEqual(rack.bindingsForTests[2], .subBass(0), "freed unit returns to the remaining sub lane")
     }
 
     func testFacade_unattached_isSafeNoOp() {
@@ -196,7 +197,7 @@ final class LaneVoiceRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
         let sub = SubBassVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [sub])
+        rack.installKindUnitsForTests(subs: [sub])
         rack.setKind(slot: 0, kind: .subBass)
         XCTAssertEqual(rack.bindingsForTests[0], .subBass(0))
         rack.setTranspose(slot: 0, semitones: -12)
@@ -211,32 +212,23 @@ final class LaneVoiceRackTests: XCTestCase {
 
     // MARK: - S2-W2-5 bus-insert + tuning fans
 
+    /// ⛔ `setDrumsInsert` and its own fan-out test (`testSetDrumsInsert_fansToEveryKit`)
+    ///    were DELETED with #167 — the method had no production caller left once the kit
+    ///    voices went, so an insert fan with nothing to fan to is a lying control.
     func testBusFans_emptyRack_areSafeNoOps() {
-        // flag-OFF shape: no kits/subs ⇒ the .drums/.bass/tuning fans touch nothing.
+        // flag-OFF shape: no subs ⇒ the .bass/tuning fans touch nothing.
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests([PolySynthVoice(maxVoices: 2), PolySynthVoice(maxVoices: 2)])
-        rack.setDrumsInsert(TrackFX(filter: .lowPass, cutoffHz: 800, resonance: 1.0, drive: 0.2))
         rack.setBassInsert(TrackFX(filter: .lowPass, cutoffHz: 120, resonance: 0.8, drive: 0.1))
         rack.setTuning(a4Hz: 432)
-        XCTAssertTrue(rack.kits.isEmpty)
         XCTAssertTrue(rack.subs.isEmpty)
-    }
-
-    func testSetDrumsInsert_fansToEveryKit() {
-        let rack = LaneVoiceRack(capacity: 2)
-        rack.installVoicesForTests([PolySynthVoice(maxVoices: 2)])
-        let kit = LaneDrumKitVoice()
-        rack.installKindUnitsForTests(kits: [kit], subs: [])
-        let fx = TrackFX(filter: .highPass, cutoffHz: 300, resonance: 1.2, drive: 0.4)
-        rack.setDrumsInsert(fx)
-        XCTAssertEqual(kit.lastInsertForTests, fx, "drums bus insert must reach the kit")
     }
 
     func testSetBassInsert_andTuning_fanToEverySub() {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests([PolySynthVoice(maxVoices: 2)])
         let sub = SubBassVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [sub])
+        rack.installKindUnitsForTests(subs: [sub])
         let fx = TrackFX(filter: .lowPass, cutoffHz: 90, resonance: 0.7, drive: 0.15)
         rack.setBassInsert(fx)
         XCTAssertEqual(sub.lastInsertForTests, fx, "bass bus insert must reach the sub")
@@ -266,7 +258,7 @@ final class LaneVoiceRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
         let sampler = SamplerVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.installKindUnitsForTests(subs: [], samplers: [sampler])
         rack.setKind(slot: 0, kind: .sampler)
         XCTAssertEqual(rack.bindingsForTests[0], .sampler(0))
         // Routing proof: a note-ON on the sampler slot triggers the SAMPLER unit
@@ -289,7 +281,7 @@ final class LaneVoiceRackTests: XCTestCase {
     func testSetKind_sampler_withoutUnit_fallsBackToPoly() {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
-        rack.installKindUnitsForTests(kits: [], subs: [])   // zero sampler units
+        rack.installKindUnitsForTests(subs: [])   // zero sampler units
         rack.setKind(slot: 0, kind: .sampler)
         XCTAssertEqual(rack.bindingsForTests[0], .poly(0),
                        "no sampler unit ⇒ poly fallback, never silence")
@@ -303,7 +295,7 @@ final class LaneVoiceRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
         let sampler = SamplerVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.installKindUnitsForTests(subs: [], samplers: [sampler])
         rack.setKind(slot: 0, kind: .sampler)
         rack.setSample(slot: 0, url: url)
         XCTAssertTrue(sampler.isLoaded, "setSample must load into the bound sampler unit")
@@ -318,7 +310,7 @@ final class LaneVoiceRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
         let sampler = SamplerVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.installKindUnitsForTests(subs: [], samplers: [sampler])
         rack.setSample(slot: 0, url: url)                 // slot is poly (no kind yet)
         XCTAssertFalse(sampler.isLoaded, "an unbound slot's sample must not load yet")
         rack.setKind(slot: 0, kind: .sampler)             // rebind loads the memo
@@ -330,7 +322,7 @@ final class LaneVoiceRackTests: XCTestCase {
         let rack = LaneVoiceRack(capacity: 2)
         rack.installVoicesForTests((0..<2).map { _ in PolySynthVoice(maxVoices: 2) })
         let sampler = SamplerVoice()
-        rack.installKindUnitsForTests(kits: [], subs: [], samplers: [sampler])
+        rack.installKindUnitsForTests(subs: [], samplers: [sampler])
         rack.setKind(slot: 0, kind: .sampler)
         rack.setSample(slot: 0, url: URL(fileURLWithPath: "/nonexistent/nothing.wav"))
         XCTAssertFalse(sampler.isLoaded, "a failed load must not fake isLoaded")

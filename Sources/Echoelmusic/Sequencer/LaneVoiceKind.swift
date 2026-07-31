@@ -1,9 +1,10 @@
 // LaneVoiceKind.swift
 // Multi-Roll (B10) — the PURE decision layer: which concrete Echoel voice CLASS a
 // lane's built-in instrument plays through. The device LaneVoiceRack reads this to
-// instantiate the right voice per slot (PolySynthVoice / DrumSynthVoice / SamplerVoice
-// / SubBassVoice / BioReactiveSynthVoice) instead of always a PolySynthVoice. No
-// engine, no audio — a pure classifier, unit-tested on every platform.
+// instantiate the right voice per slot (PolySynthVoice / SamplerVoice / SubBassVoice /
+// BioReactiveSynthVoice) instead of always a PolySynthVoice. No engine, no audio —
+// a pure classifier, unit-tested on every platform.
+// (⛔ `DrumSynthVoice` was in that list until #167, founder 2026-07-27.)
 
 import Foundation
 
@@ -11,7 +12,11 @@ import Foundation
 /// the app already ships. Raw values are stable (may persist in routing state).
 public enum LaneVoiceKind: String, Sendable, CaseIterable, Equatable {
     case poly       // PolySynthVoice — pads / chords / lead
-    case drums      // DrumSynthVoice + BeatPlayer kit (incl. breakbeat re-slicing)
+    // ⛔ #167 (founder 2026-07-27, "erstmal gar nicht mehr rein"): the drum voices are
+    //    DELETED and `.drums` now allocates to poly like any unit-less kind. The CASE
+    //    must survive — it is a persisted rawValue, and an unknown one throws and
+    //    discards the whole lane (Timeline.swift decode). Do NOT remove it.
+    case drums      // (no voice of its own any more — allocator falls back to poly)
     case sampler    // SamplerVoice — one-shots / pitched samples
     case subBass    // SubBassVoice — mono sub
     case bioVoice   // BioReactiveSynthVoice — body-driven timbre

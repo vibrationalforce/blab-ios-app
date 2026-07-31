@@ -81,12 +81,16 @@ public final class EchoelModalBank: @unchecked Sendable {
     /// Active material preset.
     ///
     /// The equality guard is an AUDIO-THREAD requirement, not an optimisation.
-    /// `DrumRenderState.applyPendingRequests` (`Sequencer/DrumSynthVoice.swift`) assigns this
-    /// from the render block on every config-version bump, and `LaneDrumKitVoice.noteOn`
-    /// bumps that version whenever a pitch maps to different drum params — so a melodic
-    /// tom/perc line reconfigured on nearly every note. Without the guard, each of those
-    /// assignments ran the full `applyMaterial` (mode loop + normalisation) in the render
-    /// block for a material that had not changed.
+    /// ⛔ Its ORIGINAL caller is gone: `DrumRenderState.applyPendingRequests`
+    /// (`Sequencer/DrumSynthVoice.swift`) assigned this from the render block on every
+    /// config-version bump, and `LaneDrumKitVoice.noteOn` bumped that version whenever a
+    /// pitch mapped to different drum params — so a melodic tom/perc line reconfigured on
+    /// nearly every note. Without the guard, each of those assignments ran the full
+    /// `applyMaterial` (mode loop + normalisation) in the render block for a material that
+    /// had not changed. Both files were DELETED with #167 (founder 2026-07-27, no drums).
+    /// The guard STAYS: `material` is a plain settable property on a render-path type, so
+    /// the next render-side assigner inherits the same hazard — do not read the absence of
+    /// today's caller as licence to drop it.
     ///
     /// Skipping the re-apply is inaudible under ONE PRECONDITION, which is not automatic:
     /// the mode arrays must still hold this preset's values. `configureModes` derives them
