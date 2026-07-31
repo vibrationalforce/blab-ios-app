@@ -86,44 +86,58 @@ final class ContentPipelineClaimsTests: XCTestCase {
     func testTheZeroDependenciesClaimIsStillTrue() throws {
         let declared = try codeLines("Package.swift", comment: "//")
             .filter { $0.contains(".package(") }
-        XCTAssertTrue(declared.isEmpty,
-                      "Package.swift now declares a package dependency:\n"
-                      + declared.joined(separator: "\n")
-                      + "\n\nThat may well be the right call — but `ContentPipeline/CLAIMS.md` "
-                      + "lists \"Null externe Abhängigkeiten, alles on-device\" as claimable, "
-                      + "and §8 forbids naming any SDK we do not ship. Update BOTH in this "
-                      + "commit, or a caption keeps saying something the build no longer does.")
+        XCTAssertTrue(declared.isEmpty, """
+        Package.swift now declares a package dependency:
+        \(declared.joined(separator: "\n"))
+
+        That may well be the right call — but `ContentPipeline/CLAIMS.md` lists "Null externe \
+        Abhängigkeiten, alles on-device" as claimable, and §8 forbids naming any SDK we do not \
+        ship. Update BOTH in this commit, or a caption keeps saying something the build no \
+        longer does.
+        """)
 
         // XcodeGen's block is a TOP-LEVEL `packages:` key, so an exact trimmed match is both
         // precise and enough — a nested `packages:` under a target is `dependencies:` in
         // XcodeGen's schema, not this key.
         let xcodegen = try codeLines("project.yml", comment: "#")
             .filter { $0.trimmingCharacters(in: .whitespaces) == "packages:" }
-        XCTAssertTrue(xcodegen.isEmpty,
-                      "project.yml declares a `packages:` block. That is the manifest the "
-                      + "SHIPPED app is built from, so the dependency reaches the archive even "
-                      + "though `Package.swift` is still empty — and \"Null externe "
-                      + "Abhängigkeiten\" in CLAIMS.md becomes false. Same instruction: update "
-                      + "the claim in this commit.")
+        XCTAssertTrue(xcodegen.isEmpty, """
+        project.yml declares a `packages:` block. That is the manifest the SHIPPED app is built \
+        from, so the dependency reaches the archive even though `Package.swift` is still empty \
+        — and "Null externe Abhängigkeiten" in CLAIMS.md becomes false. Same instruction: \
+        update the claim in this commit.
+        """)
     }
 
     /// ⛔-Liste, Punkt 1: kein AUv3-Target, kein AUv3-Hosting.
+    ///
+    /// ⛔ EVERY FAILURE MESSAGE HERE IS A `"""` LITERAL, AND THAT IS NOT A STYLE CHOICE. The
+    /// first version wrote them as `+`-chains of five string literals wrapped around a
+    /// `joined(separator:)` call, inline in the `XCTAssertTrue(...)` argument. Swift's
+    /// type-checker gave up on exactly this one — *"the compiler is unable to type-check this
+    /// expression in reasonable time"*, a HARD error that turned the BLOCKING gate red. (The
+    /// sibling assertion below it was a 6-second warning; same defect, under the limit.) A
+    /// multi-line literal with interpolation is ONE expression and costs nothing. The irony is
+    /// the lesson: a guard whose whole purpose is to keep a claim honest cannot ship if its own
+    /// explanation is too expensive to compile.
     func testTheNoAUv3ClaimIsStillTheTruthAndNotAStaleProhibition() throws {
         let project = try codeLines("project.yml", comment: "#")
         let auv3 = project.filter { $0.contains("EchoelmusicAUv3") }
-        XCTAssertTrue(auv3.isEmpty,
-                      "project.yml declares an AUv3 target again:\n"
-                      + auv3.joined(separator: "\n")
-                      + "\n\nIf that is #191 arriving (Echoel AS an AUv3), then "
-                      + "`ContentPipeline/CLAIMS.md` §1 has flipped from a true prohibition to "
-                      + "a false one — and it is the file every script, caption and store text "
-                      + "is written from. Rewrite that entry in the SAME commit; do not just "
-                      + "delete this assertion.")
+        XCTAssertTrue(auv3.isEmpty, """
+        project.yml declares an AUv3 target again:
+        \(auv3.joined(separator: "\n"))
+
+        If that is #191 arriving (Echoel AS an AUv3), then `ContentPipeline/CLAIMS.md` §1 has \
+        flipped from a true prohibition to a false one — and it is the file every script, \
+        caption and store text is written from. Rewrite that entry in the SAME commit; do not \
+        just delete this assertion.
+        """)
 
         let sources = try repoRoot().appendingPathComponent("Sources/EchoelmusicAUv3")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: sources.path),
-                       "Sources/EchoelmusicAUv3 exists again. Same instruction as above — the "
-                       + "claims file is the thing that has to move with it.")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sources.path), """
+        Sources/EchoelmusicAUv3 exists again. Same instruction as above — the claims file is \
+        the thing that has to move with it.
+        """)
 
         // ⚠️ HALF A PIN, and CLAIMS.md now says so rather than letting the header imply more:
         // both checks are coupled to the literal name `EchoelmusicAUv3`, so a target returning
@@ -139,10 +153,10 @@ final class ContentPipelineClaimsTests: XCTestCase {
     /// after which every check above still passes over a repo with no claims list at all.
     func testTheClaimsFileItselfIsStillWhereEveryPromptPointsAtIt() throws {
         let claims = try repoRoot().appendingPathComponent("ContentPipeline/CLAIMS.md")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: claims.path),
-                      "ContentPipeline/CLAIMS.md is gone. CLAUDE.md instructs every content "
-                      + "session to read it BEFORE writing a script, and the marketing skill "
-                      + "routes through it. Without it the next \"bio-music app content\" "
-                      + "prompt reliably invents an AUv3 plugin and a meditation audience.")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: claims.path), """
+        ContentPipeline/CLAIMS.md is gone. CLAUDE.md instructs every content session to read it \
+        BEFORE writing a script, and the marketing skill routes through it. Without it the next \
+        "bio-music app content" prompt reliably invents an AUv3 plugin and a meditation audience.
+        """)
     }
 }
