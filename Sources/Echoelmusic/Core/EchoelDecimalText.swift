@@ -5,11 +5,14 @@
 //  Every adjustable number in this app is read and typed through ONE control
 //  (`EchoelValueField` + `EchoelNumberPad`, the app-wide law in CLAUDE.md).
 //
-//  `git grep -c "EchoelValueField(" -- Sources` → **62** call sites, of which **53** are
+//  `git grep -c "EchoelValueField(" -- Sources` → **66** call sites, of which **57** are
 //  reachable: 4 in `PatchEditorView` and 5 in `PianoRollView`, both doorless per CLAUDE.md.
 //  ⛔ This line first said "58 call sites", which is neither number and had no command
 //  beside it — in a repo whose CLAUDE.md spends a paragraph on exactly that failure. The
-//  command is here so the next reader re-runs it instead of quoting me.
+//  command is here so the next reader re-runs it instead of quoting me. It then said "62"
+//  and went stale anyway: 64 by the time #281 was written, 66 after it. Re-run the command;
+//  do not quote either number. Nothing asserts it, so it drifts silently — the count is
+//  context for the law, not the law itself.
 //
 //  Both of them printed `String(format: "%.Nf", …)`, which is C's `printf` and therefore
 //  hard-wired to a decimal POINT regardless of who is holding the phone. A German,

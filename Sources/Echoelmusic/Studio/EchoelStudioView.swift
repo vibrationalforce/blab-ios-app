@@ -451,16 +451,29 @@ struct EchoelStudioView: View {
     // (36a8468) deleted them as unreachable, which that doc does not itself discuss.
     // The patch editor the product definition KEEPS is `soundPanel` (Sound chip) —
     // that panel IS the live timbre editor, so it needs no sheet.
-    // ⛔ THE CAVEAT THAT STOOD HERE IS DISCHARGED, AND ONE THIRD OF IT WAS FALSE. It said
-    // three SynthPatch fields — `outputLevel`, `unisonVoices`, `unisonDetuneCents` — had no
-    // editor anywhere else and had to be ported before `PatchEditorView.swift` is retired.
-    // TWO of them did: their rows are now in `soundPanel` under "Unison" (#281). The THIRD
-    // never had a row at ALL — `PatchEditorView` declares an `outputLevelBinding` and no view
-    // ever uses it, so deleting that file loses nothing there and porting it would mean
-    // INVENTING a control, not preserving one. Whether a manual output trim should exist is a
-    // real question (it sits against `loudnessNormalized()`'s auto-calibration and against the
-    // per-role gain of #196) and it is a founder call, not a side effect of a cleanup.
-    // What remains genuinely unported is the preview keyboard, which the play surface covers.
+    // ⚠️ THE CAVEAT BELOW IS ONLY PARTLY DISCHARGED — `PatchEditorView.swift` STILL CANNOT BE
+    // RETIRED. #281 ported TWO fields: `unisonVoices` / `unisonDetuneCents` now have rows in
+    // `soundPanel` under "Unison".
+    //
+    // ⛔ AND THE FIRST VERSION OF THIS NOTE DECLARED THE WHOLE CAVEAT DISCHARGED, on the claim
+    // that `outputLevel` "never had a row at ALL — `PatchEditorView` declares an
+    // `outputLevelBinding` and no view ever uses it". BOTH HALVES ARE FALSE, and the mistake
+    // was mine: there is no symbol `outputLevelBinding` anywhere (it is `levelBinding`), and a
+    // rendered `section("Level")` row uses it. I grepped for the FIELD, saw a binding, and
+    // never looked for the row. Left standing, that sentence would have licensed exactly the
+    // deletion this caveat exists to prevent — the caveat destroyed by the commit that claimed
+    // to satisfy it.
+    //
+    // STILL REACHABLE ONLY FROM `PatchEditorView.swift`, verified by grep against `soundPanel`:
+    //   · `outputLevel`   — its "Output" row; the only writer of the field in `Sources/`.
+    //   · `spectralShape` — its "Shape" picker; zero hits in `EchoelStudioView.swift`.
+    //   · `noiseColor`    — its "Noise color" picker; likewise zero.
+    //   · the preview keyboard — the play surface arguably covers this one.
+    // The three fields are consumed by the engine (`EchoelDDSP` / `PolySynthVoice` /
+    // `GenrePatches`), so they are live parameters, not vestiges. Port them or have the
+    // founder write them off explicitly — a manual output trim in particular is a real
+    // question (it sits against `loudnessNormalized()`'s auto-calibration and the per-role
+    // gain of #196), which is why #281 deliberately did not invent one here.
     /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
     /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
     /// roll it imported into has no door any more either. Kept as a reusable slot on the
@@ -3845,25 +3858,45 @@ struct EchoelStudioView: View {
     /// `unisonVoices` is `Int?` and the row is a numeric field, so it needs its own binding.
     ///
     /// ⭐ THE FALLBACK IS 2, NOT 1, AND THAT IS THE POINT OF PORTING RATHER THAN COPYING.
-    /// `PolySynthVoice.apply` reads `patch.unisonVoices ?? 2` — a patch that does not specify
-    /// unison (every generative genre patch, every pre-2026-07 saved sound) is PLAYED with two
-    /// detuned voices. `PatchEditorView` displayed `?? 1`, so its row read "1 voice / 0 cents"
-    /// while the engine ran 2 / 7¢: a readout that disagrees with what you hear, and dragging
-    /// from that wrong start silently changed the sound before the number moved. Mirroring the
-    /// engine's own defaults here is what makes the row honest.
+    /// `PolySynthVoice.apply` reads `patch.unisonVoices ?? 2`, so a patch that does not specify
+    /// unison is PLAYED with two detuned voices. `PatchEditorView` displayed `?? 1`, so its row
+    /// read "1 voice / 0 cents" while the engine ran 2 / 7¢: a readout that disagrees with what
+    /// you hear, and dragging from that wrong start silently changed the sound before the
+    /// number moved. Mirroring the engine's own defaults here is what makes the row honest.
+    ///
+    /// ⛔ WHICH PATCHES THAT ACTUALLY COVERS — the first version of this note said "every
+    /// generative genre patch", and that is wrong by a wide margin: `GenrePatches` passes
+    /// explicit `uni:`/`det:` for 29 of its 33 patches (spread over 2–4 voices and 6–16¢).
+    /// The fallback governs the OTHER FOUR, plus blank and pre-2026-07 saved sounds. The fix
+    /// is unchanged — the two numbers still have to mirror — but a scope claim that large,
+    /// stated as a reason, is how a wrong mental model spreads into the next slice.
+    ///
+    /// ⛔ AND THE GETTER CLAMPS, which the first version did not. Two genre patches persist
+    /// `uni: 4` while `EchoelPolyDDSP.maxUnison` is 3 and `setUnison` clamps to it — so an
+    /// unclamped row displayed "4" while three voices sounded. That is the very defect this
+    /// binding exists to end, one field over, and the row's own range max would not have
+    /// caught it: `EchoelValueField` clamps on WRITE, never on display.
     ///
     /// ⚠️ Consequence to state rather than hide: the first edit of this row WRITES the value,
     /// so an unspecified patch becomes an explicit one. That is what makes an explicit mono `1`
     /// reachable at all — `apply` honours an explicit 1 and cannot honour a nil.
     private var unisonVoicesBinding: Binding<Float> {
-        Binding(get: { Float(currentPatch.unisonVoices ?? 2) },
-                set: { currentPatch.unisonVoices = Swift.max(1, Int($0.rounded())) })
+        Binding(get: { Float(Swift.min(currentPatch.unisonVoices ?? 2,
+                                       EchoelPolyDDSP.maxUnison)) },
+                // `isFinite` is not defensive decoration: `EchoelValueField` clamps with
+                // `min(max(raw, lo), hi)`, which passes NaN straight through (CLAUDE.md's own
+                // NaN law), and `Int(Float.nan.rounded())` is a hard TRAP, not a bad value.
+                set: { currentPatch.unisonVoices = $0.isFinite
+                        ? Swift.max(1, Int($0.rounded()))
+                        : currentPatch.unisonVoices })
     }
 
-    /// Same rule as `unisonVoicesBinding`: the engine's own fallback is 7¢, not 0.
+    /// Same rule as `unisonVoicesBinding`: the engine's own fallback is 7¢, not 0. No clamp on
+    /// read — `EchoelDDSP` clamps detune to 0…50, which is exactly the row's range, so no
+    /// stored value can display outside it.
     private var unisonDetuneBinding: Binding<Float> {
         Binding(get: { currentPatch.unisonDetuneCents ?? 7 },
-                set: { currentPatch.unisonDetuneCents = Swift.max(0, $0) })
+                set: { currentPatch.unisonDetuneCents = $0.isFinite ? Swift.max(0, $0) : 0 })
     }
 
     /// A precise parameter row bound to a live patch field: a scrubbable numeric

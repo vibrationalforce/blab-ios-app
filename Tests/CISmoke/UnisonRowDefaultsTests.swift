@@ -30,7 +30,30 @@ final class UnisonRowDefaultsTests: XCTestCase {
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
     private static let poly = "Sources/Echoelmusic/Tools/PolySynthVoice.swift"
 
-    /// Repo root, derived from this file's compile-time path (`Tests/CISmoke/…` → up two).
+    /// ⛔ THE OTHER HALF OF "the readout agrees with the ear", found in review AFTER the first
+    /// version of this file shipped without it. Two genre patches persist `uni: 4` while
+    /// `EchoelPolyDDSP.maxUnison` is 3 and `setUnison` clamps to it — and `EchoelValueField`
+    /// clamps on WRITE only, never on display. Without a clamp in the GETTER those patches
+    /// showed "4" while three voices played: the identical defect this slice set out to end,
+    /// one field over. The row's own `range:` does not catch it, which is why this is checked
+    /// separately from the row's existence.
+    func testTheVoicesRowCannotDisplayMoreVoicesThanTheEnginePlays() throws {
+        let studio = try codeLines(Self.studio)
+        XCTAssertTrue(studio.contains { $0.contains("Swift.min(currentPatch.unisonVoices ?? 2,") },
+                      "the Voices row no longer clamps its READ to the engine's maximum. Any "
+                      + "patch storing more than `EchoelPolyDDSP.maxUnison` voices — two genre "
+                      + "patches do — now displays a number the engine will not play.")
+        let engine = try codeLines("Sources/Echoelmusic/DSP/EchoelDDSP.swift")
+        XCTAssertTrue(engine.contains { $0.contains("unisonCount = min(max(count, 1), Self.maxUnison)") },
+                      "EchoelPolyDDSP no longer clamps `setUnison` to `maxUnison`. If the "
+                      + "ceiling moved or went away, the Sound panel's read-clamp has to move "
+                      + "with it — otherwise the row starts hiding voices instead of inventing "
+                      + "them, which is the same lie mirrored.")
+    }
+
+    /// Repo root, derived from this file's compile-time path (`Tests/CISmoke/…`, three levels
+    /// up: CISmoke → Tests → repo. The sibling files say "up two" and are off by one; the code
+    /// is right in all of them).
     private func repoRoot() throws -> URL {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent()   // CISmoke
@@ -80,6 +103,13 @@ final class UnisonRowDefaultsTests: XCTestCase {
 
     /// And the rows themselves. Without this the bindings could survive with nothing rendering
     /// them — a guard that stays green while the guarded thing is gone (#251's lesson).
+    ///
+    /// ⚠️ SAME-LINE COUPLED, stated as a trade-off rather than left to be discovered: the label
+    /// and the binding must sit on ONE physical line. Reflowing that call — a formatter, a
+    /// rename pushing it past a column limit — turns the blocking gate red with a message that
+    /// says the row was deleted. Pairing is still right: the label alone is too generic to
+    /// match ("Voices" could be any row) and the binding alone would pass on its declaration.
+    /// If this ever fires on a reflow, re-pair the tokens; do not delete the assertion.
     func testBothUnisonRowsAreMountedInTheSoundPanel() throws {
         let studio = try codeLines(Self.studio)
         for (label, binding) in [("Voices", "unisonVoicesBinding"),
