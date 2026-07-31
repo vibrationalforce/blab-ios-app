@@ -567,9 +567,16 @@ struct EchoelStudioView: View {
             // ⛔ A BARE "Save" WAS WRONG AND THE REVIEWER CAUGHT IT: three sibling alerts read
             // "Save project", "Save mood" and "Save sound", two of them reached from the Mood
             // and Sound chips. A chip saying only "Save" next to those invites exactly the
-            // wrong guess. The chip never appears in the standing strip (`studioChips` filters
+            // wrong guess. "Save/Export" names both halves, and the 44 pt tap floor makes the
+            // width a non-issue.
+            //
+            // ⛔ THE REST OF THAT NOTE IS NOW FALSE and is corrected rather than dropped. It
+            // read: "The chip never appears in the standing strip (`studioChips` filters
             // `.export` out) — only appended when this panel is the one on screen — so it can
-            // afford to echo the panel title, and the 44 pt tap floor makes width a non-issue.
+            // afford to echo the panel title." Since #290 `.export` IS in the standing strip,
+            // permanently. The conclusion survives — the two-word label is still the right one
+            // — but the premise it rested on is gone, and a label argument resting on "nobody
+            // sees this most of the time" would have licensed shortening it back to "Save".
             case .export:      return "Save/Export"
             case .field:       return "Field"
             case .video:       return "Video"
@@ -728,25 +735,29 @@ struct EchoelStudioView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .echoelSelectBioSource)) { note in
                     selectBioSource(note.object as? String)
                 }
-                // Chrome doors (shell v3): Master/Export open their dropdown;
-                // Live/Learn their existing sheets.
+                // Chrome doors: the header monitors and the "•••" overflow reach the plate
+                // without touching studio state directly.
+                //
+                // ⛔ FOUR CASES WERE DELETED HERE, NOT LEFT "just in case" (#290): "master",
+                // "export", "tempo" and "session". Those four panels are chips now, and a chip
+                // sets `activeMenu` directly — so the ONLY producers of those four strings
+                // were the "•••" entries that went away in the same commit. A `case` with no
+                // poster compiles silently and reads like a live hook; this file has been
+                // burned by exactly that shape more than once (the `toolsSection` catalogue,
+                // the `echoelToggleBio` wire). If a future chrome control needs one of them
+                // back, re-add the case TOGETHER with the control, never ahead of it.
+                //
+                // What that removal also carried off, recorded so it is not re-derived: the
+                // #272 note explaining why `showExport = true` must NOT be paired with the
+                // export door. It rested on `menuPanelHost` putting
+                // `.environment(\.echoelPanelForceOpen, true)` over `dropdownContent`, which
+                // makes `EchoelPanel`'s `isExpanded` binding unreachable for EVERY panel in
+                // this dropdown — so the panel already opens expanded and writing the key
+                // would only stamp `true` into a persisted value nothing honours. That is
+                // still true and still the reason the Video door below is not the precedent
+                // it looks like (`showVideoLibrary` is `@State`, not `@AppStorage`).
                 .onReceive(NotificationCenter.default.publisher(for: .echoelChromeDoor)) { note in
                     switch note.object as? String {
-                    case "master": activeMenu = .master
-                    // #272 — DO NOT ADD `showExport = true` HERE. The first cut of that slice
-                    // did, on the reasoning that `studio.showExport` persists as FALSE and
-                    // would hand the user a collapsed panel. Both halves were wrong, and the
-                    // refutation is worth more than the line: `menuPanelHost` puts
-                    // `.environment(\.echoelPanelForceOpen, true)` over `dropdownContent`, and
-                    // `EchoelPanel.body` takes an unconditional `VStack` branch under that
-                    // flag — the `isExpanded` binding is unreachable for EVERY panel in this
-                    // dropdown. The panel was already opening expanded. Writing the key would
-                    // only stamp `true` into a persisted value nothing honours, so the day
-                    // someone drops `forceOpen` the user gains a collapse control and a door
-                    // that silently undoes it. (The Video door below does pair the two — but
-                    // `showVideoLibrary` is `@State`, not `@AppStorage`, and its own doc says
-                    // the flag is inert in the dropdown. It is not the precedent it looks like.)
-                    case "export": activeMenu = .export
                     case "learn":  showLearn = true
                     #if canImport(MultipeerConnectivity)
                     case "live":   showLiveColabo = true
@@ -757,14 +768,9 @@ struct EchoelStudioView: View {
                     // slot reuse, no new modal).
                     case "video":   activeMenu = .video; showVideoLibrary = true
                     case "routing": showRouting = true
-                    // The header pulse monitor opens the Bio dropdown (B3).
+                    // The pulse monitor opens the Bio dropdown (B3). Since #289 that monitor
+                    // sits beside "Create from Within" rather than in the header.
                     case "bio":     activeMenu = .bio
-                    // Step 2b: the Comp chip fell — the residual tempo tools +
-                    // variation maze open through the transport "•••" door.
-                    case "tempo":   activeMenu = .composition
-                    // Step 2c: the Session chip fell — the name preview lives in
-                    // the header strip; place/weather open through this door.
-                    case "session": activeMenu = .session
                     default: break
                     }
                 }
@@ -1421,10 +1427,44 @@ struct EchoelStudioView: View {
     // reverse. Following
     // slices retire mix/effects/synth/sound as each function is verified reachable per-track,
     // then the bar goes entirely (PLAN_LEISTE_DISSOLVE_2026-07-20).
+    /// #290 — THE STRIP IS NOW AN EXPLICIT, ORDERED LIST, and both halves of that sentence
+    /// are the change (founder 2026-07-31, red circle around the "•••" overflow: *"Lässt
+    /// sich das alles intelligent unterbringen in der Reihe mit den ganzen Funktionen?
+    /// Sortiere intelligent"*).
+    ///
+    /// ⭐ WHY THIS IS A ONE-LINE CHANGE AND NOT A REBUILD, which is the whole reason it is
+    /// safe: FOUR of the six overflow entries — Master, Save/Export, Tempo, Session — were
+    /// already full `StudioMenu` cases with working panels (`masterPanel`, `utilityRow`,
+    /// `tempoToolsPanel`, `sessionPanel`). They were not missing from the app; they were
+    /// FILTERED OUT of this array and re-doored through a menu. So no surface is created, no
+    /// `.sheet` is added, and the presentation chain is untouched (black-screen law).
+    ///
+    /// THE ORDER IS THE SIGNAL CHAIN, then context, then what you do when the take is done:
+    ///   Sound → FX → Mix → Master   (the voice, what happens to it, the balance, the sum)
+    ///   Mood → Tempo                (what drives the generation: character, then time)
+    ///   Field                       (the surface you play with your fingers)
+    ///   Session → Save/Export       (what the world adds, then what you take away)
+    /// A performer scanning left-to-right walks the audio path in the order it exists. The
+    /// old order was not designed at all — it was `allCases` declaration order surviving a
+    /// filter, which is exactly how a UI ends up sorted by an implementation detail. Writing
+    /// the array out means a future case added to the enum does NOT silently appear in the
+    /// bar at whatever position it was declared: it has to be placed here deliberately.
+    ///
+    /// ⛔ NOT IN THE STRIP, and each for its own reason — do not "complete" this list without
+    /// reading them:
+    ///   · `.bio` reaches the plate from the pulse pill, which since #289 sits directly left
+    ///     of "Create from Within". A chip would be a second door to the same panel, one row
+    ///     under a door the user already found.
+    ///   · `.video` reaches it from the header clips tile, which also shows REC state — the
+    ///     tile carries information a chip cannot.
+    ///   · Live Colabo and Learn are NOT panels: they present full sheets (`showLiveColabo`,
+    ///     `showLearn`). A chip that opens a modal would be a lying tab in a strip whose
+    ///     grammar is "this chip selects what the plate shows", and it would put two more
+    ///     entries on the presentation chain's conscience. They stay in the "•••".
+    /// `visibleChips` still appends whichever of those is on screen, so the strip never shows
+    /// an unselected state while a panel is open.
     private static let studioChips: [StudioMenu] =
-        StudioMenu.allCases.filter { $0 != .master && $0 != .export && $0 != .bio
-                                     && $0 != .composition && $0 != .session
-                                     && $0 != .video }
+        [.sound, .effects, .mix, .master, .mood, .composition, .field, .session, .export]
 
     /// The tab strip: the five instrument tabs, PLUS whatever the plate currently shows if
     /// a chrome door selected one of the menus the strip normally hides (Master · Export ·

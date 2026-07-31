@@ -506,32 +506,30 @@ private struct TransportBar: View {
             // single "•••" frees the width for the tempo WITHOUT touching the brand
             // header — fully reversible). Each entry still posts its chrome-door
             // notification; the studio opens its dropdown/sheet.
+            // ⛔ FOUR OF THE SIX ENTRIES LEFT THIS MENU (#290, founder 2026-07-31, red circle
+            // around the open overflow: "Lässt sich das alles intelligent unterbringen in der
+            // Reihe mit den ganzen Funktionen?"). Master, Save/Export, Tempo and Weather &
+            // place are CHIPS now — they always were full `StudioMenu` cases with working
+            // panels, merely filtered out of the strip, so moving them cost no new surface and
+            // no new modal. Their `.echoelChromeDoor` cases in `EchoelStudioView` went with
+            // them; a case whose only poster was deleted is dead code that reads like a hook.
+            //
+            // ⛔ WHY THESE TWO STAYED, because the honest answer is not "they did not fit":
+            // Live Colabo and Learn are the only two that are NOT panels. They present full
+            // sheets (`showLiveColabo`, `showLearn`). The chip strip's grammar is "this chip
+            // selects what the plate shows" — a chip that opens a modal instead would be a
+            // lying tab, and it would add two entries to the presentation chain the
+            // black-screen law tells us not to grow. Two entries in an overflow is a small
+            // price for a strip where every chip means the same thing.
+            //
+            // The #272 lesson is carried into the Save/Export CHIP label rather than lost: the
+            // founder reported "Session speichern und Loops aufnehmen fehlt" about controls
+            // that were behind an entry named only "Export". And the #202/#59 lesson lives in
+            // `StudioMenu.session.fullName`, which names what weather DOES (it salts the
+            // harmonic skeleton and blends darkness/liveliness/tension into the composer's
+            // mood, plus hue/saturation/glow/movement in the visual) instead of calling it a
+            // naming gimmick.
             Menu {
-                doorMenuButton("Master — loudness, output", icon: "slider.vertical.3", door: "master")
-                // #272 — this string is the ONE discoverable place saving and recording are
-                // named before the panel opens, and it named neither. The founder's report
-                // "Session speichern und Loops aufnehmen fehlt" was about controls sitting
-                // behind this entry, under the word "Export".
-                doorMenuButton("Save, record & export", icon: "square.and.arrow.up", door: "export")
-                // Step 2b: the Comp chip fell; its tempo TOOLS (tap · metronome ·
-                // haptic beat) + the variation maze stay reachable through this
-                // door — same pattern as Master/Export (chrome-door-only panel).
-                doorMenuButton("Tempo and variations — tap, metronome, ideas",
-                               icon: "metronome", door: "tempo")
-                // Step 2c: the Session chip fell; the live name preview moved into
-                // the header CompositionHeaderStrip, and the place/weather toggles
-                // that FEED the name stay reachable through this door — same
-                // chrome-door-only pattern as Master/Export/Tempo. A Menu entry,
-                // not a modal (the studio's presentation chain is untouched).
-                // #202/#59 (founder 2026-07-28: "ansonsten fehlt mir das mit … weather,
-                // Standort"). Both were built, wired and reachable through THIS entry —
-                // what was missing is that this line described them as a NAMING feature.
-                // Weather salts the harmonic skeleton and blends darkness/liveliness/
-                // tension into the composer's mood, plus hue/saturation/glow/movement in
-                // the live visual. A founder reading "in the name" has no reason to open
-                // it. Same door, same panel, honest label.
-                doorMenuButton("Weather & place — weather shapes sound and image",
-                               icon: "cloud.sun", door: "session")
                 #if canImport(MultipeerConnectivity)
                 doorMenuButton("Live Colabo — play together nearby",
                                icon: "dot.radiowaves.left.and.right", door: "live")
@@ -550,7 +548,7 @@ private struct TransportBar: View {
             // bar's 12 pt spacing lets the hit area grow symmetrically (−6 → 42×44)
             // without overlapping the tempo field, matching the Play button's idiom.
             .contentShape(Rectangle().inset(by: -6))
-            .accessibilityLabel("More — Master; Save, record and export; Tempo; Weather and place; Live; Learn")
+            .accessibilityLabel("More — Live Colabo; Learn and news")
 
             Spacer(minLength: 0)
 
