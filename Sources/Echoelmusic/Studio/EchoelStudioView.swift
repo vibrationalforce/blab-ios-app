@@ -288,10 +288,14 @@ struct EchoelStudioView: View {
     @State private var moodAsName = ""
     @State private var showSavePatchAs = false
     @State private var patchSaveName = ""
-    /// #320 — what the player typed into the Sound panel's "Describe it" row. Held only
-    /// until it is applied; NOT persisted, because it is an instruction, not a setting —
-    /// the patch it produced is the state worth keeping.
-    @State private var soundPromptText = ""
+    /// #320 — the patch as it was immediately before the last prompt application, so a
+    /// shaping can be taken back in one tap. Nil = nothing to undo.
+    ///
+    /// ⚠️ THE TYPED TEXT IS DELIBERATELY *NOT* HERE. It lives in `SoundPromptRow`'s own
+    /// `@State`, because state on THIS view re-evaluates a ~500-line body on every keystroke.
+    /// This one is safe at root level for the opposite reason: it changes only when a prompt is
+    /// applied or undone — a tap, not a character.
+    @State private var patchBeforePrompt: SynthPatch?
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @AppStorage("studio.presetIndex") private var presetIndex = -1
 
@@ -4473,88 +4477,21 @@ struct EchoelStudioView: View {
     /// A prompt box needs no modal: it edits the patch every other row in this panel already
     /// edits, so it belongs beside them.
     ///
-    /// ⚠️ THE CHIPS ARE NOT SELF-EVIDENTLY SAFE, so say what actually holds them up. They are
-    /// `SoundPrompt.suggestions` verbatim, and `apply` drops out-of-vocabulary words SILENTLY
-    /// (an unknown word must never garble a patch). Four of the eight shipped phrases already
-    /// contain such a word — "pluck", "lead", "bell", "cinematic" — which is harmless only
-    /// because the rest of each phrase still resolves. A phrase where NOTHING resolved would be
-    /// a chip that does nothing at all when tapped: `SoundPromptHasADoorTests` is what forbids
-    /// that, not the fact that the list is curated. The hint line below is the other half —
-    /// it names what WILL be used, so a dropped word is visible rather than mysterious.
+    /// ⭐ A LEAF, AND THAT IS THE WHOLE POINT — see `SoundPromptRow`'s own header. The first
+    /// version of this slice put the `@State` text on `EchoelStudioView`, which re-evaluates
+    /// this ~500-line body (14 presentation modifiers, four `AnyView` branches) on EVERY
+    /// KEYSTROKE. `menuPanelHost`'s rule says it plainly: *"build it through `panel(...)`, or
+    /// keep every live read inside a leaf `View` struct."* Owning the text one level down means
+    /// `EchoelStudioView` holds no per-keystroke state at all.
     private var promptRow: some View {
-        labeledRow("Describe it") {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    TextField("warm lush pad", text: $soundPromptText)
-                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .submitLabel(.done)
-                        .onSubmit { applySoundPrompt() }
-                        .padding(.horizontal, 12).frame(height: 34)
-                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
-                        .accessibilityLabel("Describe the sound in words")
-
-                    Button { applySoundPrompt() } label: {
-                        Text("Shape").font(EchoelTheme.font(13, .semibold))
-                            .foregroundStyle(promptTerms.isEmpty ? EchoelTheme.dim : EchoelTheme.text)
-                            .padding(.horizontal, 14).frame(height: 34)
-                            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                                .strokeBorder(EchoelTheme.border, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(promptTerms.isEmpty)
-                    .accessibilityLabel("Shape the sound from the description")
-                }
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(SoundPrompt.suggestions, id: \.self) { phrase in
-                            Button {
-                                soundPromptText = phrase
-                                applySoundPrompt()
-                            } label: {
-                                Text(phrase).font(EchoelTheme.font(12))
-                                    .foregroundStyle(EchoelTheme.text)
-                                    .padding(.horizontal, 10).frame(height: 28)
-                                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 1)   // so the 1 pt border is not clipped by the scroll view
-                }
-
-                Text(promptHint)
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
+        SoundPromptRow(canUndo: patchBeforePrompt != nil,
+                       onShape: { applySoundPrompt($0) },
+                       onUndo: { undoSoundPrompt() })
     }
 
-    /// The words in the box the mapper actually understands. Cheap (a lowercase split over a
-    /// short string) and read only inside this panel's own rows, so it cannot churn the root
-    /// body — the freeze law is about HIGH-FREQUENCY publishers, not about computed reads.
-    private var promptTerms: [String] { SoundPrompt.recognizedTerms(in: soundPromptText) }
-
-    /// States only what WILL be used, so a word the mapper drops is visible BEFORE the player
-    /// wonders why nothing moved. `apply` ignores out-of-vocabulary words silently by design
-    /// (an unknown word must never garble a patch), and four of the eight shipped chips contain
-    /// one — this line is what keeps that from reading as a broken control. A `String` computed
-    /// outside the builder rather than a ternary inside `Text(…)`: same result, and this file's
-    /// type-checker budget is not somewhere to be casual.
-    private var promptHint: String {
-        if promptTerms.isEmpty {
-            return "Words like warm · bright · plucky · pad · evolving · huge shape the timbre from where it is now. \"very\" / \"slightly\" scale the next word."
-        }
-        return "Shapes: " + promptTerms.joined(separator: " · ")
-    }
-
-    /// Shape the CURRENT patch by the typed description, then push it to the voice.
+    /// Shape the CURRENT patch by a typed description, then push it to the voice.
     ///
-    /// ⚠️ TWO CONSEQUENCES NAMED RATHER THAN HIDDEN.
+    /// ⚠️ THREE CONSEQUENCES NAMED RATHER THAN HIDDEN.
     /// 1. `applySoundLive()`, NOT `applyArticulation()`. The Swell↔Strike macro WRITES
     ///    attack/decay/sustain/release; calling it here would erase exactly what "plucky" or
     ///    "pad" just set. So after a prompt that touched the envelope, that macro's displayed
@@ -4568,15 +4505,49 @@ struct EchoelStudioView: View {
     ///    so clearing it would trade "you come back to the factory sound you started from" for
     ///    "you come back to the genre patch" — no gain, one more moving part. "Save as new
     ///    sound…" is how a prompted timbre is actually kept.
+    /// 3. The `patchBeforePrompt` snapshot is taken per APPLICATION, so Undo is exactly one
+    ///    step. Deliberately not a stack: a deeper history would have to be invalidated by the
+    ///    seven other places that assign `currentPatch` wholesale, and an undo that silently
+    ///    points at a patch from before a preset load is worse than no undo.
     ///
-    /// Relative, not absolute: `apply` shifts the patch it is given, so prompting twice keeps
-    /// going in that direction. That is what makes the clamps in `SoundPrompt.clamp` load-
-    /// bearing rather than defensive.
-    private func applySoundPrompt() {
-        guard !promptTerms.isEmpty else { return }   // no recognised word = no silent no-op
-        currentPatch = SoundPrompt.apply(soundPromptText, to: currentPatch)
+    /// ⛔ VALIDITY IS NOT AUDIBILITY, and reading `SoundPrompt.clamp` as a safety net was my
+    /// mistake in the first version of this slice. `apply` is RELATIVE — it shifts the patch it
+    /// is given — and the chips invite repetition. "deep" multiplies `filterCutoff` by 0.70,
+    /// "dark" by 0.60, so the shipped chip "deep dark drone" multiplies it by **0.42 per tap**:
+    /// from 2000 Hz that is 840 → 353 → 148 → 62 → 26 → the core's 20 Hz floor. Six taps of one
+    /// chip and the instrument is inaudible with `brightness` pinned at 0. `clamp` guarantees a
+    /// VALID value, never an AUDIBLE one — precisely the confusion behind this repo's shipped
+    /// permanent-silence bugs. Hence a musical floor HERE rather than in the pure core: the
+    /// core's 20 Hz/18 kHz must keep agreeing with the engine's domain (`FilterCutoffClampTests`
+    /// pins that), while this floor is a property of the DOOR — a control a player can hold down
+    /// must not be able to walk the sound out of earshot. Not unit-tested, because it lives in a
+    /// private method of a `View`; said plainly rather than implied.
+    private func applySoundPrompt(_ text: String) {
+        guard !SoundPrompt.recognizedTerms(in: text).isEmpty else { return }
+        let previous = currentPatch
+        var shaped = SoundPrompt.apply(text, to: currentPatch)
+        shaped.filterCutoff = Swift.max(shaped.filterCutoff, Self.promptCutoffFloor)
+        shaped.brightness = Swift.max(shaped.brightness, Self.promptBrightnessFloor)
+        currentPatch = shaped
+        patchBeforePrompt = previous
         applySoundLive()
     }
+
+    /// One step back. Cheap insurance rather than a feature: without it the only ways out of an
+    /// over-shaped sound are Randomize and re-picking a character, neither of which reads as
+    /// "give me my sound back".
+    private func undoSoundPrompt() {
+        guard let previous = patchBeforePrompt else { return }
+        currentPatch = previous
+        patchBeforePrompt = nil
+        applySoundLive()
+    }
+
+    /// The musical floor the prompt path may not push past — see `applySoundPrompt`. 120 Hz is
+    /// very dark and still clearly present on a phone speaker; 0.05 keeps `brightness` off the
+    /// hard zero that reads as "broken" rather than "dark".
+    private static let promptCutoffFloor: Float = 120
+    private static let promptBrightnessFloor: Float = 0.05
 
     /// Load a patch from the library into the live sound. Keeps `presetIndex` in
     /// sync (factory index, else -1 = "custom") so the persisted quick-pick and
@@ -6995,5 +6966,161 @@ private struct HealthWriteOptInRow: View {
     }
 }
 #endif
+
+/// #320 — the door to `SoundPrompt`: describe the sound in words and the timbre moves.
+///
+/// ⭐ WHY THIS IS A LEAF `View` AND NOT A ROW ON `EchoelStudioView`. The first version of this
+/// slice put `@State private var soundPromptText` on the root view. Where a value is READ is
+/// what governs `@Observable` observation — it is NOT what governs `@State`: mutating `@State`
+/// invalidates the view that DECLARES it, and SwiftUI recomputes that view's body whole. So
+/// every keystroke re-evaluated `EchoelStudioView.body` (~500 lines, 14 presentation modifiers,
+/// four `AnyView` branches) plus all 22 children of `soundPanel` beneath it. `EchoelPanel`'s
+/// escaping builder does not save it either: on re-evaluation the parent hands it a freshly
+/// constructed, non-equatable closure. `menuPanelHost` states the rule this file lives by —
+/// *"build it through `panel(...)`, or keep every live read inside a leaf `View` struct."*
+///
+/// ⚠️ HONEST SCOPE: the specific documented harm (a 10 Hz read tearing down an open `.menu`
+/// Picker) is not reachable from here, because a menu popover and the keyboard cannot be up at
+/// once. Three root-`@State` `TextField`s already exist — but all three are inside `.alert`
+/// content, where nothing else is interactive. A text field in the always-evaluated front-plate
+/// flow was genuinely new, which is why it moved rather than being argued away.
+///
+/// ⚠️ AND THE CHIPS ARE NOT SELF-EVIDENTLY SAFE. They are `SoundPrompt.suggestions` verbatim,
+/// and `apply` drops out-of-vocabulary words SILENTLY (an unknown word must never garble a
+/// patch). Four of the eight shipped phrases contain such a word — "pluck", "lead", "bell",
+/// "cinematic" — harmless only because the rest of each phrase still resolves. A phrase where
+/// NOTHING resolved would be a chip that does nothing when tapped; `SoundPromptHasADoorTests`
+/// forbids that, not the fact that the list is curated. The hint line is the other half: it
+/// names what WILL be used, so a dropped word is visible instead of mysterious.
+private struct SoundPromptRow: View {
+    let canUndo: Bool
+    let onShape: (String) -> Void
+    let onUndo: () -> Void
+
+    @State private var text = ""
+
+    /// The words in the box the mapper actually understands — a lowercase split over a short
+    /// string, re-run only when this leaf rebuilds.
+    private var terms: [String] { SoundPrompt.recognizedTerms(in: text) }
+
+    /// Names the recognised DESCRIPTORS, so a word the mapper drops is visible before the player
+    /// wonders why nothing moved.
+    ///
+    /// ⛔ IT DOES NOT LIST INTENSITY WORDS, and the first version of this doc said "states only
+    /// what WILL be used" — which is wider than the truth in the one line whose whole job is to
+    /// stop the row reading as broken. `recognizedTerms` matches `vocabulary` only, so the
+    /// shipped chip "gentle clean bell" reads `Shapes: clean` — while `gentle` IS used
+    /// (`SoundPrompt.intensity` → ×0.5, halving `clean`). A player who trusts the line and
+    /// deletes `gentle` doubles the effect. The visible sentence below says so explicitly
+    /// ("scale the next word") rather than the list pretending to be exhaustive.
+    ///
+    /// A `String` computed outside the builder rather than a ternary inside `Text(…)`: same
+    /// result, and this file's type-checker budget is not somewhere to be casual.
+    private var hint: String {
+        if terms.isEmpty {
+            return "Words like warm · bright · plucky · pad · evolving · huge shape the timbre from where it is now. \"very\" / \"slightly\" scale the next word."
+        }
+        return "Shapes: " + terms.joined(separator: " · ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Describe it")
+                .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.dim)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    TextField("warm lush pad", text: $text)
+                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .onSubmit { onShape(text) }
+                        // 34 pt matches `presetRow`'s Menu directly above — a full-width field
+                        // is not the small-target case the 44 pt rule is about. The two SMALL
+                        // controls in this row carry the 44 pt hit frame instead.
+                        // `minHeight`, never `height`: `EchoelTheme.font` is `.custom(…,
+                        // relativeTo: .body)`, so it grows with Dynamic Type and a fixed box
+                        // clips the text at accessibility sizes — #262's finding, and CLAUDE.md
+                        // now calls a fixed frame "Ökosystem-Schuld" outright.
+                        .padding(.horizontal, 12).frame(minHeight: 34)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        // The hint rides on the FIELD, not only as a visual sibling below the
+                        // chips: it is the row's honesty mechanism, and a VoiceOver user would
+                        // otherwise reach it only by swiping past everything else.
+                        .accessibilityHint(hint)
+
+                    Button { onShape(text) } label: {
+                        // The `fill` + `contentShape` pair is not decoration: with only a
+                        // `strokeBorder`, hit-testing falls back to the glyphs plus a 1 pt
+                        // stroke and the padded space between them is dead.
+                        Text("Shape").font(EchoelTheme.font(13, .semibold))
+                            .foregroundStyle(terms.isEmpty ? EchoelTheme.dim : EchoelTheme.text)
+                            .padding(.horizontal, 14).frame(minHeight: 34)
+                            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                .fill(EchoelTheme.fill))
+                            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(terms.isEmpty)
+                    .accessibilityLabel("Shape the sound from the description")
+
+                    if canUndo {
+                        Button(action: onUndo) {
+                            Image(systemName: "arrow.uturn.backward")
+                                .font(.system(size: 14)).foregroundStyle(EchoelTheme.text)
+                                .frame(minWidth: 34, minHeight: 34)
+                                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                    .fill(EchoelTheme.fill))
+                                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Undo the last shaping")
+                    }
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(SoundPrompt.suggestions, id: \.self) { phrase in
+                            Button {
+                                text = phrase
+                                onShape(phrase)
+                            } label: {
+                                // 44 pt tap target with an explicit fill and `contentShape`,
+                                // the same rule `chipTapTarget` applies to the menu bar: the
+                                // 28 pt pill it replaced was 36 % under the HIG minimum AND
+                                // hit-tested only its glyphs, because a bare `strokeBorder`
+                                // leaves the space between text and border dead.
+                                Text(phrase).font(EchoelTheme.font(12))
+                                    .foregroundStyle(EchoelTheme.text)
+                                    .padding(.horizontal, 10).frame(minHeight: 28)
+                                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                                        .fill(EchoelTheme.fill))
+                                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Shapes the sound now")
+                        }
+                    }
+                }
+
+                Text(hint)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityHidden(true)   // already announced as the field's hint
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
 
 #endif

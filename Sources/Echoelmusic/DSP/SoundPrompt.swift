@@ -79,7 +79,13 @@ public enum SoundPrompt {
             if vocabulary.contains(word) {
                 shape(word, &p, pendingIntensity)
             }
-            pendingIntensity = 1.0   // a modifier only affects the next descriptor
+            // ⛔ "the next DESCRIPTOR" is what this said, and it is wrong in a way that
+            // matters now that a UI line describes the behaviour: the reset happens on the
+            // next TOKEN, known or not. So "very lovely warm" silently loses the ×1.6 on
+            // `warm`, because the unknown `lovely` consumed it. Behaviour deliberately
+            // unchanged (an unknown word must stay inert, and "swallow it" is one rule, not
+            // two) — only the sentence is corrected.
+            pendingIntensity = 1.0   // a modifier only affects the next TOKEN
         }
         clamp(&p)
         return p

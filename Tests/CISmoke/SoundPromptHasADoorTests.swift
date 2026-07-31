@@ -54,7 +54,7 @@ final class SoundPromptHasADoorTests: XCTestCase {
     /// itself rather than hard-coded, so moving the row and updating the doc stays green while
     /// moving the row alone goes red — which is the only failure worth having here.
     func testTheHeaderNamesTheFileThatReallyCallsIt() throws {
-        let (type, member) = try doorClaim()
+        guard let (type, member) = try doorClaim() else { return }
         let callers = try callerFiles()
         let named = callers.first { $0.hasSuffix("/\(type).swift") }
         XCTAssertNotNil(named, """
@@ -77,18 +77,47 @@ final class SoundPromptHasADoorTests: XCTestCase {
         file (name that instead). The point of the claim is that a reader can find the door \
         from the core file in one hop.
         """)
-        // "Placed" here means the name stands ALONE on a line, which in this codebase is how a
-        // `some View` member enters a parent `ViewBuilder` (`presetRow`, `randomizeButton`, and
-        // now `promptRow`). Deliberately narrower than "appears anywhere": the declaration line
-        // contains the name too, so a looser match would pass on a declared-but-unused row.
-        XCTAssertTrue(lines.contains { $0.trimmingCharacters(in: .whitespaces) == member }, """
-        `\(member)` is declared in \(file) but never placed into a parent view — the name \
-        appears on no line of its own.
+        // "Placed" here means the name opens a line of its own — how a `some View` member enters
+        // a parent `ViewBuilder` in this codebase (`presetRow`, `randomizeButton`, `promptRow`).
+        // Deliberately narrower than "appears anywhere": the declaration line carries the name
+        // too, so a looser match would pass on a declared-but-unused row.
+        //
+        // ⛔ TWO WAYS THE FIRST VERSION WENT FALSELY RED ON A CORRECT REFACTOR, both found in
+        // review, both about this one line:
+        //   · exact equality broke on `promptRow.padding(.top, 4)` — an ordinary layout tweak
+        //     reddening the BLOCKING bundle with a message accusing the author of an unplaced
+        //     row. Hence the `member + "."` prefix.
+        //   · and the whole check contradicts this file's own headline, which says any
+        //     production file may own the door: extract the row into its own `View` and the
+        //     honest claim becomes `SomeRow.body` — `var body` is found, but `body` never
+        //     stands alone anywhere. So the placement check is skipped for `body`, where the
+        //     thing that gets mounted is the TYPE and the caller test above already covers it.
+        if member != "body" {
+            let placed = lines.contains {
+                let t = $0.trimmingCharacters(in: .whitespaces)
+                return t == member || t.hasPrefix(member + ".")
+            }
+            XCTAssertTrue(placed, """
+            `\(member)` is declared in \(file) but never placed into a parent view — the name \
+            opens no line of its own.
 
-        A declared-but-unplaced row is precisely a doorless capability with extra steps: the \
-        call to `SoundPrompt` compiles, the guard above passes, and no player ever sees it. If \
-        the row is composed differently now (inside a container expression), widen this check \
-        rather than deleting it.
+            A declared-but-unplaced row is precisely a doorless capability with extra steps: the \
+            call to `SoundPrompt` compiles, the guard above passes, and no player ever sees it. \
+            If the row is composed differently now (inside a container expression), widen this \
+            check rather than deleting it.
+            """)
+        }
+
+        // ⭐ THE CHIPS MUST COME FROM THE VOCABULARY ITSELF. `testEverySuggestionChipShapesTheSound`
+        // vets `SoundPrompt.suggestions` — which proves nothing about the ROW if the row spells
+        // its own array. That substitution would leave both tests green while unvetted phrases
+        // shipped, and the door's doc comment rests on exactly this being verbatim.
+        XCTAssertTrue(lines.contains { $0.contains("SoundPrompt.suggestions") }, """
+        \(file) no longer renders `SoundPrompt.suggestions`.
+
+        The chip list must be the vocabulary's own, not a hand-written copy: the guard that \
+        every chip resolves to at least one known word tests `SoundPrompt.suggestions`, so a \
+        local array would be completely unvetted while every test here stayed green.
         """)
     }
 
@@ -133,31 +162,45 @@ final class SoundPromptHasADoorTests: XCTestCase {
 
     /// The `Type.member` the header's ⭐ THE DOOR line claims, read out of the RAW text (the
     /// claim is a comment, so `codeLines` would strip exactly what is being checked).
-    private func doorClaim() throws -> (type: String, member: String) {
+    ///
+    /// ⛔ RETURNS NIL AND FAILS, RATHER THAN THROWING `XCTSkip`. The first version paired
+    /// `XCTFail` with `throw XCTSkip`, and XCTest marks a throwing-skip test SKIPPED — whether a
+    /// failure recorded microseconds earlier still reddens `xcodebuild test`'s exit code is
+    /// version-dependent and unverifiable from here. This is the BLOCKING bundle, and the cases
+    /// guarded this way are exactly the #320 relapse ("the header stopped carrying a checkable
+    /// claim"), so they must not be able to report as skipped. `XCTSkip` stays only in
+    /// `repoRoot()`, where nothing failed and the tree genuinely is not there.
+    ///
+    /// The marker is `"⭐ THE DOOR"`, not `"THE DOOR"`: the bare phrase could match future prose
+    /// above it and this would then parse the wrong line's backticks.
+    private func doorClaim() throws -> (type: String, member: String)? {
         let header = try rawLines(Self.core)
-        guard let line = header.first(where: { $0.contains("THE DOOR") }) else {
+        guard let line = header.first(where: { $0.contains(Self.doorMarker) }) else {
             XCTFail("""
-            `SoundPrompt.swift` no longer carries a "⭐ THE DOOR" line naming its caller.
+            `SoundPrompt.swift` no longer carries a "\(Self.doorMarker)" line naming its caller.
 
             That line is the checkable half of the header. Without it the file is back to \
             describing a door in prose that nothing verifies — the #320 state.
             """)
-            throw XCTSkip("no door claim")
+            return nil
         }
         // The first backtick-quoted `Type.member` after the marker.
-        let after = line[(line.range(of: "THE DOOR")?.upperBound ?? line.startIndex)...]
+        let after = line[(line.range(of: Self.doorMarker)?.upperBound ?? line.startIndex)...]
         guard let open = after.firstIndex(of: "`"),
               let close = after[after.index(after: open)...].firstIndex(of: "`") else {
-            XCTFail("the \"THE DOOR\" line names no `Type.member` in backticks: \(line)")
-            throw XCTSkip("unparseable door claim")
+            XCTFail("the \"\(Self.doorMarker)\" line names no `Type.member` in backticks: \(line)")
+            return nil
         }
-        let parts = after[after.index(after: open)..<close].split(separator: ".")
+        let claim = after[after.index(after: open)..<close]
+        let parts = claim.split(separator: ".")
         guard parts.count == 2 else {
-            XCTFail("expected `Type.member` in the door claim, found: \(after[after.index(after: open)..<close])")
-            throw XCTSkip("unparseable door claim")
+            XCTFail("expected `Type.member` in the door claim, found: \(claim)")
+            return nil
         }
         return (String(parts[0]), String(parts[1]))
     }
+
+    private static let doorMarker = "⭐ THE DOOR"
 
     /// Every Swift file under `Sources/`, repo-relative.
     private func swiftSourcePaths() throws -> [String] {
@@ -197,9 +240,25 @@ final class SoundPromptHasADoorTests: XCTestCase {
         return text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
     }
 
-    /// Every non-empty line of `path` with comments removed — whole-line AND trailing. The
-    /// quote-parity check approximates "is this `//` inside a string literal"; a wrong cut can
-    /// only ever REMOVE text, i.e. cost a match, never invent one.
+    /// Every non-empty line of `path` with comments removed — whole-line AND trailing. Stripping
+    /// is the load-bearing part: a PROSE mention of `SoundPrompt` is exactly what #320 mistook
+    /// for a caller, and `EchoelDDSP.swift` carries seven of them.
+    ///
+    /// The quote-parity check approximates "is this `//` inside a string literal".
+    ///
+    /// ⛔ AND IT FAILS IN BOTH DIRECTIONS, which the first version of this doc denied — it said
+    /// "a wrong cut can only ever REMOVE text … never invent one", the comfortable half. Parity
+    /// counts RAW `"` characters, so an ESCAPED quote (`"a\"b"` — three raw quotes) or a `"""`
+    /// delimiter leaves odd parity, the trailing `//` is not cut, and the comment text stays.
+    /// That is inventing a match, not losing one.
+    ///
+    /// Measured rather than assumed, and the measurement corrected the review that raised it:
+    /// **six** lines in `Sources/` keep a `//` after stripping, not one — three community-mailto
+    /// `https://github.com/…` builders, the `rtmp://` placeholder in `BroadcastView`, a WeatherKit
+    /// attribution URL and the website URL in `WorkspaceView`. All six are `//` INSIDE a string
+    /// literal with correctly-odd parity, i.e. the check working, not failing. **None contains
+    /// `SoundPrompt.`** — which is the fact this file actually depends on. An unfalsifiable
+    /// reassurance is worse than a stated limit; a borrowed number is worse than a counted one.
     private func codeLines(_ path: String) throws -> [String] {
         try rawLines(path)
             .map { Self.stripComment($0) }
