@@ -38,8 +38,12 @@
 // .voiceKind` already returns `.poly` (`LaneVoiceKind.swift`), and `MultiRollFanout` is the
 // only production producer feeding `setKind` — so `LaneVoiceKind.drums` never reaches the
 // allocator in production at all. The allocator's `.drums` → `.poly` fallback is
-// belt-and-braces for any other producer. Both still matter: `LaneVoiceKind.drums` and
-// `TrackInstrument.drums` are persisted rawValues and removing either discards the lane.
+// belt-and-braces for any other producer.
+// ⚠️ "Both are persisted rawValues and removing either discards the lane" stood here and was
+// FALSE on both counts. `LaneVoiceKind` is not `Codable` at all. `TrackInstrument` IS, but
+// `TimelineLane`'s decoder wraps it in `try? … ?? nil` precisely so #167 is survivable — an
+// unknown case yields "no built-in instrument" and the lane survives intact. Each enum's own
+// case comment now carries its real (weaker) reason.
 
 #if canImport(AVFoundation) && canImport(Accelerate)
 import Foundation
@@ -294,7 +298,9 @@ public final class LaneVoiceRack {
     }
 
     /// Route a note-ON to the slot's bound physical voice. Velocity arrives in
-    /// the poly convention (0…1 Float); the kit takes MIDI 0…127.
+    /// the poly convention (0…1 Float) and every surviving arm takes it in that
+    /// convention. (⛔ "the kit takes MIDI 0…127" stood here — the kit is gone; the
+    /// conversion helper `midiVelocity` survives test-only, see its own note.)
     public func noteOn(slot: Int, pitch: Int, velocity: Float) {
         switch binding(forSlot: slot) {
         case .poly:
@@ -369,7 +375,8 @@ public final class LaneVoiceRack {
     /// Per-slot transpose: poly shifts render-side as today; the sub is pitched
     /// control-side at enqueue, so a CHANGE while sub-bound releases the mono
     /// sub first (a held note's OFF would arrive with the new shift and miss —
-    /// the off-matching law); a drum kit is unpitched — documented ignore.
+    /// the off-matching law). (⛔ "a drum kit is unpitched — documented ignore"
+    /// stood here; there is no kit arm left to ignore anything.)
     /// The bio unit is also pitched at enqueue, but its gate matches the RAW
     /// pitch (bioHeldPitchBySlot), so a mid-note transpose change cannot strand
     /// a held note — no release needed; the next noteOn carries the new shift.

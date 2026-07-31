@@ -28,7 +28,8 @@
 //
 //  ⚠️ WHAT "RHYTHM" CAN MEAN HERE, stated plainly because the founder's own earlier decision
 //  bounds it: there is NO DRUM KIT and no percussion instrument since #166/#167 ("erstmal gar
-//  nicht mehr rein") — `LaneDrumKitVoice` has no instantiation site and `BeatPlayer.attach(to:)`
+//  nicht mehr rein") — `LaneDrumKitVoice` does not EXIST any more (deleted, not merely
+//  uninstantiated — the earlier "has no instantiation site" is now too weak) and `BeatPlayer.attach(to:)`
 //  hangs only its preview voice. So a rhythm is made of the melodic roles — WHICH cells sound,
 //  HOW HARD, HOW LONG, and HOW FAR OFF the grid — and that is exactly what this type returns. A
 //  four-on-the-floor kick is not available and this file must not pretend otherwise.

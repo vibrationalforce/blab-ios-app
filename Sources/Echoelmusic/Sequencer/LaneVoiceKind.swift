@@ -13,10 +13,20 @@ import Foundation
 public enum LaneVoiceKind: String, Sendable, CaseIterable, Equatable {
     case poly       // PolySynthVoice — pads / chords / lead
     // ⛔ #167 (founder 2026-07-27, "erstmal gar nicht mehr rein"): the drum voices are
-    //    DELETED and `.drums` now allocates to poly like any unit-less kind. The CASE
-    //    must survive — it is a persisted rawValue, and an unknown one throws and
-    //    discards the whole lane (Timeline.swift decode). Do NOT remove it.
-    case drums      // (no voice of its own any more — allocator falls back to poly)
+    //    DELETED and `.drums` allocates to poly like any unit-less kind.
+    //    ⚠️ AN EARLIER VERSION OF THIS COMMENT SAID "it is a persisted rawValue, an unknown
+    //    one discards the whole lane — do NOT remove it". BOTH HALVES WERE FALSE, and a
+    //    "Do NOT remove" a future session cannot disprove is worse than no comment at all.
+    //    `LaneVoiceKind` is NOT `Codable` (see the declaration above — String-raw, but no
+    //    Codable conformance) and never reaches disk; `Timeline.swift` says so itself in the
+    //    schemaVersion doc. The ONE persisted lane enum carrying `.drums` is
+    //    `TrackInstrument`, in a different file.
+    //    THE TRUTH ABOUT THIS CASE: nothing in `Sources/` constructs it any more —
+    //    `TrackInstrument.drums.voiceKind` returns `.poly` (below), and `MultiRollFanout`
+    //    is the only production producer feeding `setKind`. It is a DEAD case, kept
+    //    pending an explicit decision (#167 follow-up), not protected by any rule.
+    //    Deleting it is safe and is a separate, gate-verified slice — not a reason to keep.
+    case drums      // dead: no voice, no producer; allocator falls back to poly
     case sampler    // SamplerVoice — one-shots / pitched samples
     case subBass    // SubBassVoice — mono sub
     case bioVoice   // BioReactiveSynthVoice — body-driven timbre
@@ -44,8 +54,9 @@ public extension TrackInstrument {
     /// lane audible as a melodic voice instead of silently dropping it — a visible change the
     /// user can hear and re-point, rather than a track that mysteriously stops sounding.
     ///
-    /// `LaneVoiceKind.drums` itself still exists (the enum is persisted in places) and
-    /// `LaneVoiceRack` no longer creates any kit, so nothing can bind to it.
+    /// ⛔ "the enum is persisted in places" stood here and is FALSE — `LaneVoiceKind` has no
+    /// `Codable` conformance and never reaches disk. `LaneVoiceKind.drums` still EXISTS, but
+    /// this switch is why nothing produces it: every `TrackInstrument` maps away from it.
     var voiceKind: LaneVoiceKind {
         switch self {
         case .polySynth: return .poly

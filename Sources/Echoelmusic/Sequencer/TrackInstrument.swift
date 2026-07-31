@@ -17,9 +17,19 @@ import Foundation
 /// A built-in Echoel instrument a MIDI track plays. Raw values persist with the
 /// document (@Codable on TimelineLane) — keep them stable.
 public enum TrackInstrument: String, Codable, Sendable, CaseIterable, Equatable {
-    // ⛔ #167: the drum voices are DELETED — this kind makes no sound today. The CASE
-    //    must survive: it is a persisted rawValue and an unknown one discards the lane.
-    case drums          // EchoelDrums   — no voice left; persisted rawValue only
+    // ⛔ #167: the drum voices are DELETED — this kind makes no sound today.
+    //    ⚠️ AN EARLIER VERSION SAID "an unknown one discards the lane". FALSE, and the
+    //    correction matters because that sentence was the whole argument for keeping it:
+    //    `TimelineLane`'s decoder wraps this in `try? c.decodeIfPresent(...) ?? nil`
+    //    (`Timeline.swift`) EXACTLY so #167 is survivable. An unknown case therefore
+    //    decodes to `nil` = "no built-in instrument"; the lane, its regions, its clips, its
+    //    mixer settings and its patch ALL survive. The "throw → Lossy<Lane> nil → whole
+    //    lane dropped" chain described there is the counterfactual WITHOUT that `try?`.
+    //    THE REAL, WEAKER REASON TO KEEP IT: deleting the case costs a legacy drums lane
+    //    its instrument CHOICE (it silently becomes "no instrument"), and the founder said
+    //    "erstmal" — for now. Keeping the case costs nothing and keeps a restore cheap.
+    //    That is a judgement call, not a law — it may be revisited.
+    case drums          // EchoelDrums   — no voice left; persisted rawValue, decode-safe
     case breakLoop      // EchoelBreak   — LoopCutter breakbeat re-slicing
     case sampler        // EchoelSampler — SamplerVoice one-shots / pitched
     case polySynth      // EchoelSynth   — PolySynthVoice (pad/harmony/lead)
@@ -44,7 +54,10 @@ public enum TrackInstrument: String, Codable, Sendable, CaseIterable, Equatable 
     /// A one-line description for the menu row (what the instrument is).
     public var subtitle: String {
         switch self {
-        case .drums:     return "Drum kit — pads + step sequencer"
+        // ⛔ #167: no pads and no step sequencer exist any more. This subtitle is only ever
+        //    read for a LEGACY lane (nothing can create a drums track — `addInstrumentTrack`
+        //    has no production caller), so it must not promise a surface that is gone.
+        case .drums:     return "Drums — retired, plays as a synth voice"
         case .breakLoop: return "Breakbeat — loop re-slicing"
         case .sampler:   return "Sampler — your own one-shots"
         case .polySynth: return "Polyphonic synth — pads, chords, lead"

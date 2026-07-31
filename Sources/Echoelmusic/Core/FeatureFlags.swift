@@ -55,9 +55,14 @@ public enum FeatureFlags {
         /// since 2026-07-17 (registered true at EchoelmusicApp startup — founder
         /// verdict: the OFF-until-device-verify gate was a deadlock, since no UI
         /// exposes the flag; risk activates only through the explicit act of
-        /// assigning a drums/sub instrument to a track). Sampler/bioVoice kinds
-        /// still resolve to poly (honest allocator fallback) until their units
-        /// ship. `FeatureFlags.set(.voiceKindRouting, false)` is the one-line
+        /// assigning a sub-bass instrument to a track — ⛔ "drums/sub" stood here;
+        /// no drums instrument can be assigned since #167).
+        /// ⛔ "Sampler/bioVoice kinds still resolve to poly until their units ship"
+        /// also stood here and is FALSE: `LaneVoiceRack.attachAll` creates both a
+        /// `SamplerVoice` and a `BioReactiveSynthVoice` under this same flag, and
+        /// `LaneVoiceRackTests`/`BodyVibeBioRackTests` pin the routing. The one kind
+        /// that always falls back to poly today is `.drums` — and only because its
+        /// voice was deleted. `FeatureFlags.set(.voiceKindRouting, false)` is the one-line
         /// rollback lever. NEVER delete the OFF branches.
         case voiceKindRouting  = "feature.voiceKindRouting"
         /// A5 BodyVibe camera modulator: front-camera facial-EXPRESSION tracking

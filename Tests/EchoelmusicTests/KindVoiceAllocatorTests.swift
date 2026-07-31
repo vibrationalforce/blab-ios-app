@@ -8,10 +8,12 @@
 //
 // ⛔ THE `.drums` TESTS CHANGED MEANING WITH #167, THEY WERE NOT DELETED. `PhysicalVoiceRef`
 // no longer HAS a `.drums` case, so nothing can assert `.drums(0)` any more — but
-// `LaneVoiceKind.drums` still exists as a persisted rawValue, and what a persisted drums lane
-// resolves to is now MORE worth pinning, not less: it must come back as a playable poly voice
-// and never as silence. The contention/stability laws moved onto `.subBass`, which still has a
-// physical unit and can therefore still lose one.
+// `LaneVoiceKind.drums` still exists, and what a drums lane resolves to is worth pinning:
+// it must come back as a playable poly voice and never as silence. The contention/stability
+// laws moved onto `.subBass`, which still has a physical unit and can therefore still lose one.
+// ⛔ "as a persisted rawValue" stood here and is FALSE — `LaneVoiceKind` has no `Codable`
+// conformance and never reaches disk (`Timeline.swift` says so; `TrackInstrument` is the one
+// persisted lane enum). The test earns its place on the never-silence law alone.
 
 import XCTest
 @testable import Echoelmusic
@@ -40,8 +42,11 @@ final class KindVoiceAllocatorTests: XCTestCase {
     /// someone "cleaned up" the `.drums` arm out of the fallback list.
     func testAllocate_drumsKind_alwaysResolvesToPoly() {
         XCTAssertEqual(allocate([(0, .drums)])[0], .poly(0))
-        XCTAssertEqual(allocate([(0, .drums), (1, .drums)])[1], .poly(1),
-                       "two drums lanes: both poly, neither silent")
+        // Both lanes asserted, not just the second: two drums lanes must land on their OWN
+        // poly slots. Checking only slot 1 would pass even if slot 0 vanished from the map.
+        let two = allocate([(0, .drums), (1, .drums)])
+        XCTAssertEqual(two[0], .poly(0), "two drums lanes: the first is poly, not silent")
+        XCTAssertEqual(two[1], .poly(1), "two drums lanes: the second gets its OWN poly slot")
     }
 
     func testAllocate_polySlotIndexIsTheRankSlot() {

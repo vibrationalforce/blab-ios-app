@@ -11,9 +11,10 @@
 // ⛔ `testLaneDrumKitVoice_isANoteVoice_mapsFloatVelocityToTheKit` was DELETED with
 //    #167 (founder 2026-07-27, "erstmal gar nicht mehr rein"): it constructed
 //    `LaneDrumKitVoice` and asserted against `DrumNoteMap`, and both types are gone
-//    together with `DrumSynthVoice`. `LaneVoiceKind.drums` survives ONLY as a
-//    persisted rawValue and now always allocates to `.poly` — there is no kit voice
-//    left for a NoteVoice conformance to reach.
+//    together with `DrumSynthVoice`. `LaneVoiceKind.drums` survives as a case that always
+//    allocates to `.poly` — there is no kit voice left for a NoteVoice conformance to reach.
+//    (⛔ "survives ONLY as a persisted rawValue" stood here and is FALSE: that enum is not
+//     `Codable`. See its own case comment for what actually keeps it.)
 
 #if canImport(SwiftUI) && canImport(AVFoundation) && canImport(Accelerate)
 import XCTest

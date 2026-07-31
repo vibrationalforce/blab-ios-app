@@ -12,10 +12,13 @@
 //                   established voice(slot:) addressing is unchanged for poly)
 //   (⛔ `.drums(i)` — a LaneDrumKitVoice unit — is GONE. The founder removed the drums
 //    2026-07-26 ("keine Drums") and the apparatus 2026-07-27 ("erstmal gar nicht mehr rein",
-//    #167). `LaneVoiceKind.drums` deliberately SURVIVES, because it is a persisted rawValue
-//    and dropping it would make an old lane fail to decode and be discarded — it now falls
-//    through to `.poly` like any other kind with no unit, which is what it already did in
-//    Release once `attachAll` stopped creating kits.)
+//    #167). `LaneVoiceKind.drums` still exists and falls through to `.poly` like any other
+//    kind with no unit, which is what it already did in Release once `attachAll` stopped
+//    creating kits.
+//    ⚠️ "because it is a persisted rawValue and dropping it would make an old lane fail to
+//    decode" stood here and is FALSE — `LaneVoiceKind` is not `Codable` and never reaches
+//    disk. See the case's own comment in `LaneVoiceKind.swift`: it is a DEAD case pending a
+//    decision, and this fallback arm is belt-and-braces, not a decode guarantee.)
 //   .subBass(i)   — a dedicated lane SubBassVoice (NOT the primary doubling sub)
 //   .sampler(i)   — a lane SamplerVoice one-shot unit (S2-W3, "EchoelSampler klingt")
 //   .bio(i)       — a lane BioReactiveSynthVoice unit (BodyVibe B1 — the last
