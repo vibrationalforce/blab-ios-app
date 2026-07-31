@@ -607,10 +607,16 @@ public struct ResolvedPatch: Sendable, Equatable {
         synth.bioBaseFilterCutoff = filterCutoff   // bio modulates AROUND this, never overwrites it (task #81)
         synth.filter.resonance = filterResonance
         synth.lfoToFilterDepth = lfoToFilterDepth
-        // Bio anchor (#279): the breath moves this AROUND the patch value instead of
-        // overwriting it ~10×/s. −1 stays "unset", so a voice that never got a patch keeps the
-        // legacy absolute mapping. A negative value out of a hand-edited/corrupt JSON therefore
-        // falls back to that legacy path rather than inverting the LFO — the safe direction.
+        // Bio anchor (#279): keeps this at the patch value instead of letting bio overwrite it
+        // ~10×/s. −1 stays "unset", so a voice that never got a patch keeps the legacy absolute
+        // mapping.
+        // ⛔ The first version added "so a negative from a corrupt JSON falls back to the legacy
+        // path rather than inverting the LFO — the safe direction". That guarantee does not
+        // exist: the line directly ABOVE writes the raw negative into the live render parameter
+        // unconditionally, and `1.0 + lfoMod * lfoToFilterDepth` in the render path does invert
+        // with it. The sentinel only decides what a LATER bio frame does; with bio off, or
+        // before the first frame, the negative simply stands. Clamping at decode is the real
+        // fix and is not this task's.
         synth.bioBaseLFOToFilterDepth = lfoToFilterDepth
         synth.filterLFO.rate = filterLFORate
         synth.filterLFO.depth = filterLFODepth

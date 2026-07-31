@@ -3,11 +3,17 @@
 //
 // ⭐ THE DEFECT THIS PINS, and its size is the reason it is worth a guard. `EchoelDDSP`
 // exposes `vibratoRate`, `vibratoDepth` and `lfoToFilterDepth`; `SynthPatch` stores all three;
-// the Sound panel (the live patch editor, ship-gate item 2) offers all three as editable rows;
-// and every shipped preset and genre patch sets them deliberately — a musical 4.5–5.5 Hz
-// vibrato, or an explicit `vibratoRate: 0, vibratoDepth: 0` for the ones that must not wobble
-// (`grep -c 'vibratoRate: 0, vibratoDepth: 0' Sources/Echoelmusic/DSP/SynthPatch.swift` → 3 on
-// 2026-07-31; no count is written here without the command that reproduces it).
+// the Sound panel (the live patch editor, ship-gate item 2) offers all three as editable rows.
+//
+// ⛔ WHAT THE FIRST VERSION OF THIS HEADER CLAIMED, AND HOW WRONG IT WAS. It said "every shipped
+// preset and genre patch sets them deliberately — a musical 4.5–5.5 Hz vibrato". Counted instead:
+// 11 of the 20 `rawFactory` presets ship NO vibrato (3 say so explicitly, 8 never mention it and
+// inherit the `= 0` default), and of the 16 offered genres exactly ONE — `classical`, 5.0 Hz —
+// has any. So ~26 of ~36 shipped patches have none, roughly the inverse of the claim, and the
+// claim sat in the paragraph whose job is to state the size of the bug. Recount with the
+// `rawFactory` block plus `grep 'vibRate:' Sources/Echoelmusic/Sequencer/GenrePatches.swift`
+// (that file holds 33 entries across ALL styles, not just the 16 offered — do not read its 8
+// non-zero hits as 8 offered genres).
 // Then `applyBioReactive` overwrote all three ~10×/s from raw physiology with ABSOLUTE values:
 // `vibratoRate = 0.05 + heartRate * 0.15`. That is 0.05–0.2 Hz. Against a preset's 5 Hz it is
 // not a modulation, it is a deletion — a factor of 25 to 100 — applied the moment biofeedback
@@ -38,14 +44,29 @@ import XCTest
 
 final class PatchVibratoAnchorTests: XCTestCase {
 
-    /// The neutral resting reading. Every `bioBase*` mapping is centred here, so a resting body
-    /// must reproduce the patch EXACTLY — that centring is the law being tested.
+    /// The reading every `bioBase*` mapping is centred on, so the patch must be reproduced
+    /// EXACTLY here — that centring is the law being tested.
+    ///
+    /// ⛔ IT IS NOT "REST", though the first version of this doc called it that. Both producers
+    /// normalise `clampUnit((heartRateBPM - 40) / 160)`, so `heartRate: 0.5` is 120 BPM; a
+    /// resting 60 BPM lands at 0.125 and plays ~81 % of the patch's designed vibrato. The test is
+    /// unaffected — it asserts the centring, which is what the code does — but do not read a
+    /// green result here as "a resting body plays the patch exactly".
     private func applyNeutralBio(to synth: EchoelDDSP) {
         synth.applyBioReactive(coherence: 0.5, hrvVariability: 0.5, heartRate: 0.5,
                                breathPhase: 0.5, breathDepth: 0.5)
     }
 
     /// Every patch the app can hand the engine without the user typing anything.
+    ///
+    /// ⚠️ AND THAT PHRASE IS THE COVERAGE HOLE, NOT A BOAST. It excludes exactly the patches that
+    /// CAN break the invariant asserted below: user/saved patches out of `PatchStore`, which
+    /// arrive through `Codable` with bare `decodeIfPresent ?? default` and no domain clamp. A
+    /// saved patch carrying `vibratoDepth > 1` or `vibratoRate > 12` hits the anchored path's
+    /// output clamp, so its live value stops equalling its stored value — and with bio OFF it
+    /// does not, because `apply(to:)` writes it raw. Shipped patches are all inside the domain,
+    /// so nothing here is failing today; the honest statement is that this guard covers the
+    /// built-ins and says nothing about hand-edited files.
     private var shippedPatches: [(label: String, patch: SynthPatch)] {
         SynthPatch.factory.map { (label: "factory “\($0.name)”", patch: $0) }
         + MusicStyle.offered.map { (label: "genre “\($0.rawValue)”", patch: $0.synthPatch) }

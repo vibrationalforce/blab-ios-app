@@ -1414,22 +1414,37 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// modulation. **−1 = "no patch anchor set"** → the legacy absolute path below, byte-identical.
     ///
     /// ⚠️ THE SENTINEL IS −1 HERE AND 0 FOR CUTOFF/BRIGHTNESS, AND THAT DIFFERENCE IS THE POINT.
-    /// A patch may legitimately ask for NO vibrato — shipped presets do, verbatim
-    /// `vibratoRate: 0, vibratoDepth: 0` (`grep -c` in `SynthPatch.swift` → 3 on 2026-07-31; the
-    /// guard finds them dynamically, so this number is orientation, not a dependency) — so 0
-    /// cannot mean "unset" for these three without
-    /// silently routing exactly those patches back into the absolute path that gives them a
-    /// vibrato they asked not to have. A filter cutoff of 0 Hz is not a musical value; a vibrato
-    /// depth of 0 is. Copying the 0-sentinel here would have been the plausible move and the
-    /// wrong one.
+    /// A patch may legitimately ask for NO vibrato — the MAJORITY of shipped patches do — so 0
+    /// cannot mean "unset" for these three without silently routing exactly those patches back
+    /// into the absolute path that gives them a vibrato they asked not to have. A filter cutoff
+    /// of 0 Hz is not a musical value; a vibrato depth of 0 is. Copying the 0-sentinel here would
+    /// have been the plausible move and the wrong one.
     ///
-    /// ⛔ WHAT THIS FIXES (#279), because the size of it is the argument for the change: without
-    /// an anchor, `applyBioReactive` overwrote all three ~10×/s from raw physiology. Every preset
-    /// ships a musical `vibratoRate` of 4.5–5.5 Hz; the absolute mapping wrote 0.05–0.2 Hz, i.e.
-    /// it did not "modulate" the patch's vibrato, it deleted it — a factor of 25–100 — the moment
-    /// biofeedback ran, which in a bio-reactive instrument is always. Meanwhile the Sound panel
-    /// kept offering "Vibrato rate", "Vibrato depth" and "LFO→filter" as editable rows. Three
-    /// lying controls, in the panel that IS the patch editor (ship-gate item 2).
+    /// ⛔ WHAT THIS FIXES (#279) — AND THE FIRST VERSION OF THIS PARAGRAPH GOT THE PALETTE
+    /// BACKWARDS, which matters because it is the paragraph that states the size of the bug.
+    /// It said "every preset ships a musical `vibratoRate` of 4.5–5.5 Hz". Measured instead of
+    /// assumed:
+    ///   · `SynthPatch.rawFactory` — 20 presets, 12 name `vibratoRate` (three of them 0, the rest
+    ///     4.5…5.5) and 8 never mention it and inherit the `= 0` default → **11 of 20 ship no
+    ///     vibrato**.
+    ///   · `MusicStyle.offered` — 16 genres, and **only `classical` (5.0 Hz) has any vibrato at
+    ///     all**; the other 15 ship `vibRate: 0, vibDepth: 0`. (`GenrePatches.swift` holds 33
+    ///     entries across ALL styles, 8 of them non-zero — do not read that 8 as "8 offered".)
+    /// So roughly 26 of ~36 shipped patches carry NO vibrato, and the true defect had two halves,
+    /// pulling in opposite directions:
+    ///   1. For the ~10 patches that DO ask for vibrato, the absolute mapping wrote 0.05–0.2 Hz
+    ///      over their 4.5–6.2 Hz — a factor of 25–100. It did not modulate their vibrato, it
+    ///      deleted it.
+    ///   2. For the ~26 that ask for none, it ADDED an unrequested 0.4–2.4 cent periodic drift at
+    ///      0.05–0.2 Hz. Anchoring REMOVES that from nearly the whole palette. `pitchDriftCents`
+    ///      still supplies an aperiodic wander, so those patches are not newly static — but this
+    ///      is a real change to how almost everything sounds and it needs an ear, not a test.
+    /// Both halves follow the one law (the patch you chose survives). Meanwhile the Sound panel
+    /// kept offering "Vibrato rate", "Vibrato depth" and "LFO→filter" as editable rows — three
+    /// lying controls in the panel that IS the patch editor (ship-gate item 2).
+    /// Recount before quoting any of this:
+    /// `grep -c 'vibRate: 0' Sources/Echoelmusic/Sequencer/GenrePatches.swift` and the
+    /// `rawFactory` block in `SynthPatch.swift`.
     ///
     /// ⚠️ FOR WHOEVER BINDS AN AUTOMATION ROUTE HERE. `EchoelParameterRegistry` already declares
     /// `ddsp.mod.vibratoRate` / `ddsp.mod.vibratoDepth`, and today NOTHING binds an apply-closure
@@ -1568,18 +1583,34 @@ public final class EchoelDDSP: @unchecked Sendable {
 
         // 3. Heart rate → VIBRATO — a deviation AROUND the patch's own vibrato, not a rewrite
         //    (#279; the bioBase* law, same as the cutoff/brightness/character lines around it).
-        //    ANCHORED path (a patch was applied): one MULTIPLICATIVE factor centred on 1.0 at the
-        //    neutral reading (HR 0.5), so a resting body plays exactly the patch's vibrato and
-        //    arousal makes it a touch faster AND a touch deeper together — which is how vibrato
-        //    intensifies on a real instrument. Multiplicative, not additive like the character
+        //    ANCHORED path (a patch was applied): one MULTIPLICATIVE factor centred on 1.0 at
+        //    heartRate 0.5, and arousal makes the vibrato a touch faster AND a touch deeper
+        //    together — which is how vibrato intensifies on a real instrument.
+        //    ⛔ heartRate 0.5 IS NOT "REST", AND THE FIRST VERSION OF THIS COMMENT SAID IT WAS —
+        //    in the sentence a future session would copy when it anchors the next parameter.
+        //    Both producers normalise `clampUnit((frame.heartRateBPM - 40) / 160)`
+        //    (`PolySynthVoice.swift:667`, `BioReactiveSynthVoice.swift:387`), so 0.5 is **120
+        //    BPM**. A genuinely resting 60 BPM gives 0.125 → factor 0.8125, i.e. the palette
+        //    plays ~81 % of its designed vibrato at rest and only reaches 1.0× at 120 BPM. That
+        //    is inside the deliberate ±25 % band and consistent with EVERY other bioBase* mapping
+        //    here (they all centre on 0.5), so it is not this task's bug to fix — but whether the
+        //    family's centre should be a resting heart rate rather than the middle of the
+        //    mappable range is a real open question affecting five mappings at once, and it must
+        //    be decided for all of them or none. Do not "fix" vibrato alone.
+        //    Multiplicative, not additive like the character
         //    lines below, for the same reason the cutoff is: these are a RATE and a DEPTH, and —
         //    decisively — a patch that asks for NO vibrato must GET no vibrato. An additive
         //    deviation would push `vibratoDepth` off 0 at any HR above rest and switch the
         //    vibrato oscillator ON (render gate: `vibratoRate > 0 && vibratoDepth > 0`) in a
         //    preset that deliberately has none. The products are clamped to the same domains
         //    `SoundPrompt` enforces (depth 0…1, rate 0…12 Hz), which also makes a non-finite
-        //    baseline out of a corrupted patch decode harmless — `clamped(to:)` is NaN-safe,
-        //    and the boundary sanitisation above only covers the bio INPUTS, not the anchor.
+        //    baseline out of a corrupted patch decode harmless. ⛔ BUT NOT BY THE MECHANISM THE
+        //    FIRST VERSION OF THIS SENTENCE NAMED: it credited the NaN-safe `clamped(to:)`, and a
+        //    NaN anchor never REACHES the clamp — `NaN >= 0` is false, so the guard below sends it
+        //    to the legacy branch. The clamp handles ±inf (`inf * 1.0` → 1.0 / 12). Two different
+        //    mechanisms for two different non-finite values; the guard is the one doing the NaN
+        //    work. (The boundary sanitisation at the top of this function covers only the bio
+        //    INPUTS, never the anchor, which is why either mechanism is needed at all.)
         //    ⚠️ Do NOT generalise that last sentence to the whole `bioBase*` family: the CUTOFF
         //    branch above multiplies its anchor UNCLAMPED into a persistent one-pole
         //    (`filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03`), so a non-finite
@@ -1590,7 +1621,10 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    ⚠️ The rate clamp also pins the upward half of the deviation for any patch at or
         //    above 9.6 Hz. No shipped patch exceeds 5.5 Hz, so this is dormant too.
         //    SENTINEL path (−1, the raw patch-less bio voice): the legacy absolute GENTLE drift,
-        //    byte-identical — ~0.4 cent at rest → ~2.4 cent active, 0.05 → 0.2 Hz.
+        //    byte-identical — 0.4 cent at heartRate 0 → 2.4 cent at 1, 0.05 → 0.2 Hz. (The
+        //    inherited wording said "at rest → active" for those endpoints while the paragraph
+        //    above called 0.5 the neutral reading: two different "rests" in one comment block.
+        //    These are the RAW endpoints of the normalised input, i.e. 40 BPM and 200 BPM.)
         if bioBaseVibratoDepth >= 0 && bioBaseVibratoRate >= 0 {
             let vibratoFactor: Float = (1.0 + (heartRate - 0.5) * 0.5).clamped(to: 0.75...1.25)
             vibratoDepth = (bioBaseVibratoDepth * vibratoFactor).clamped(to: 0...1)
