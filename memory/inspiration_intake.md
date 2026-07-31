@@ -564,3 +564,43 @@ Vision-Gate: trifft REPO-GEDÄCHTNIS + FOUNDER, nicht die App.
   Jahres-Wissen (EEG-Beispiel heute) ist der einzige echte SPOF. Ritual: jede erinnerte
   Alt-Planung sofort einwerfen → wird in Tasks + memory/ verankert (Tacit-Knowledge-Capture).
 - **REJECT:** „Company Brain" als Produkt-Pivot — off-vision, Scope-Creep. Echoel bleibt Instrument.
+
+### 2026-07-31 — DSPy (Founder-Einwurf: ein Wort, ohne Kontext)
+Vision-Gate. **Schon bewertet** — `inspiration.csv:132` (2026-07-10) hat DSPy als einen von
+zwölf Posten einer LLM/RAG-Stack-Liste mit REJECT geschlossen. Der Founder fragt es jetzt
+EINZELN, also bekommt es eine eigene Zeile statt eines Verweises auf eine Sammelablehnung.
+
+- **Tier: REJECT als Abhängigkeit · ALREADY-ADOPTED als Konzept.** Am Vier-Punkte-Tor
+  scheitert es sofort an Punkt 2 (iOS-nativ auf dem iPhone machbar): DSPy ist Python,
+  `Package.swift` hat `dependencies: []`, Prinzip 2 der Verfassung ist „open standards,
+  near-zero dependencies". Das ist keine Geschmacksfrage.
+- **Und der Pipeline-Ausweg trägt hier ausnahmsweise auch nicht** — was er sonst fast immer
+  tut. Zwei harte Gründe: (a) ein Optimierer optimiert gegen ein Modell, das er ANSTEUERN
+  kann; Apples On-Device-Foundation-Model ist aus Python nicht ansteuerbar, und gegen ein
+  Cloud-Modell kompilierte Instruktionen auf ein ~3B-Gerätemodell zu übertragen ist
+  unbelegbar. (b) DSPys ganzer Wert hängt an einer METRIK. Echoels tatsächliche Messlatte
+  ist „klingt professionell" / „wow" — die Metrik ist das Ohr des Founders. Ohne Metrik ist
+  ein Prompt-Optimierer nur ein langsamerer Prompt.
+- **Das Konzept läuft längst, in Swift.** `ParameterDescriptor` (keyPath · Anzeigename ·
+  min/max · Einheit · Wertelabels) IST eine typisierte Signatur; `ParameterToolCore` ist die
+  modellfreie Werkzeuglogik getrennt vom Modell; das ADR-Gesetz „das Modell schreibt NIE
+  direkt DSP-State" ist strenger als alles, was DSPy erzwingt. Die Trennung
+  Programm-Struktur ↔ Prompt-Text war die eigentliche Idee, und sie ist adoptiert.
+- **⛔ KORREKTUR AN DER ALTEN BEGRÜNDUNG (Zeile 132), und sie ist der Grund, warum dieser
+  Eintrag nicht bloss ein Verweis ist.** Dort stand: *„Echoel ist ein Zero-Dep-iPhone-
+  Instrument OHNE Server/LLM-Feature"*. Die erste Hälfte gilt unverändert. Die zweite wurde
+  **zwei Tage später falsch**: am 2026-07-12 landete EchoelAI N0–N4 (Registry + BrainBackend/
+  FoundationModelsBrain + ParameterToolCore). Das Urteil bleibt richtig, eine seiner beiden
+  Begründungen nicht — genau das Muster, das dieses Repo „Mechanismus richtig, Begründung
+  falsch" nennt. Nachgeprüft: `Sources/Echoelmusic/EchoelAI/` hat **null Produktions-
+  Aufrufer** ausserhalb sich selbst, `FeatureFlags.echoelAI` ist default AUS, und
+  `ParameterApplyRouter` hat keine gebundene Apply-Closure vom Modell her. Das LLM-Feature
+  ist Gerüst, nicht Funktion — deshalb ändert es am Urteil nichts.
+- **⭐ DER EINE ÜBERTRAGBARE GEDANKE, und er ist heute schon terminiert: BAU ZUERST DIE
+  METRIK.** DSPys Lehre ist nicht der Optimierer, sondern dass ohne messbares Ziel gar nicht
+  erst optimiert werden kann. Echoel hat genau eine Stelle, an der eine echte Metrik
+  ansteht und mit ZERO Deps baubar ist: **#313 Slice 2** (BS.1770-Messbank über
+  `EchoelLoudnessMeter` statt der Fünf-Skalar-Heuristik) — blockiert hinter **#316** (die
+  LUFS-Anzeige misst vor der Master-Kette, das Messgerät ist selbst falsch). Kein neuer
+  Task, keine neue Abhängigkeit: der Gedanke bestätigt eine Reihenfolge, die schon steht.
+**Kein App-Code-Impact. Kein neuer Task. Höchster Wert: Bestätigung von #316 vor #313.**
