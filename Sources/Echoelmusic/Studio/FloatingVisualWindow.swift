@@ -412,6 +412,15 @@ struct FloatingVisualWindow: View {
         // area so the toolbar (change-look / record / exit) never hides under the notch —
         // you must still be able to manipulate the visual (founder). Floating sizes: no bleed.
         .ignoresSafeArea(edges: windowSize.isFullscreen ? [.bottom, .horizontal] : [])
+        // ⚠️ NO LONGER THE THING THAT FADES, and left in place deliberately rather than
+        // deleted. Since #311 this window is never inserted or removed — `WorkspaceView`
+        // mounts it unconditionally and animates its `.opacity(...)` instead — so a
+        // transition, which only runs on insertion/removal, has nothing to run on. The
+        // show/hide fade the player sees comes from the two `withAnimation` blocks that
+        // toggle the visibility flag (the header monitor button and this window's own close
+        // button). Kept because it is the correct modifier the day anything conditionally
+        // mounts this window again, and because deleting it would read as "the fade was
+        // removed" when the fade is exactly where it was.
         .transition(.opacity)
         #if canImport(AVFoundation)
         .sheet(item: $recordedClip) { clip in ShareSheet(url: clip.url) }
@@ -538,7 +547,27 @@ struct FloatingVisualWindow: View {
     /// this file does not have.)
     @ViewBuilder
     private func visualLayer(_ wv: (hue: Double, saturation: Double, intensity: Double, motion: Double)) -> some View {
-        if ExternalStageBridge.shared.isConnected {
+        if !isPresented {
+            // ⭐ #311 — THE PICTURE IS OFF, THE WINDOW IS NOT. Since the founder's
+            // *"die arps soll immer hörbar sein und nicht nur, wenn das Visual Fenster auf
+            // ist"*, `WorkspaceView` no longer unmounts this window when the monitor button
+            // hides it — it only makes it transparent and inert — because unmounting took the
+            // `TouchInstrumentView` overlay (and with it the Field's self-play display link)
+            // down as well. See the ⭐ #311 block at that mount site for the full chain.
+            //
+            // That leaves ONE cost to pay here, and this branch is the payment: a
+            // `MetalBioView` behind an `.opacity(0)` would keep rendering at 60 fps for a
+            // picture nobody can see. So the hidden state renders NOTHING — not the
+            // stand-in below, which exists to explain where the picture WENT, and a hidden
+            // window has not sent its picture anywhere. `Color.clear` keeps the card's
+            // geometry (and therefore the play surface's normalized coordinates) exactly as
+            // they are when visible, so toggling the picture cannot move a generated note.
+            //
+            // The GPU law (ONE `MetalBioView` app-wide) is upheld more strictly than before,
+            // not less: hidden now costs zero renderers where it used to cost zero by
+            // teardown.
+            Color.clear
+        } else if ExternalStageBridge.shared.isConnected {
             // Not a placeholder for a missing feature — a deliberate statement of where
             // the picture went, so a performer who looks down does not think the visual
             // died. Solid fill, no animation: nothing here may flash (WCAG) and nothing

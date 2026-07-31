@@ -200,10 +200,32 @@ struct WorkspaceView: View {
             // cover the chrome too (true Vollbild). In the floating sizes it docks
             // bottom-trailing; its transparent area never blocks the header/transport (an
             // empty GeometryReader installs no hit target). One Metal path app-wide (GPU rule).
+            //
+            // ⭐ #311 — THE WINDOW IS NEVER UNMOUNTED, AND THAT IS A CORRECTNESS RULE, NOT A
+            // LAYOUT PREFERENCE. Founder 2026-07-31: *"die arps soll immer hörbar sein und
+            // nicht nur, wenn das Visual Fenster auf ist."* The Field's self-play generator
+            // (the arp) is driven by a `CADisplayLink` that lives inside
+            // `TouchInstrumentUIView`, and that view is an OVERLAY on this window's picture
+            // card. `startAutoPlay` requires `window != nil` and `didMoveToWindow` stops the
+            // link when the view leaves the hierarchy — so an `if floatingVisualVisible { … }`
+            // here took the AUDIO with the PICTURE. A view was driving the instrument.
+            //
+            // The same trap was already reasoned about once, for the external-screen case
+            // (#206, `FloatingVisualWindow.visualLayer`'s own doc): *"hiding the window takes
+            // the phone's PLAY SURFACE with it"*. The fix there was swap-the-layer,
+            // keep-the-window; this is the same fix for the other trigger, so the two now
+            // agree instead of contradicting each other.
+            //
+            // Hidden means INERT, not merely transparent: no hit target (`allowsHitTesting`),
+            // no VoiceOver element (`accessibilityHidden`), and — the expensive half — no
+            // renderer, because `visualLayer` drops `MetalBioView` entirely while
+            // `isPresented` is false. Keeping a 60 fps Metal layer alive behind an
+            // `.opacity(0)` would trade the founder's bug for a battery one.
             #if canImport(MetalKit) && canImport(UIKit)
-            if floatingVisualVisible {
-                FloatingVisualWindow(isPresented: $floatingVisualVisible)
-            }
+            FloatingVisualWindow(isPresented: $floatingVisualVisible)
+                .opacity(floatingVisualVisible ? 1 : 0)
+                .allowsHitTesting(floatingVisualVisible)
+                .accessibilityHidden(!floatingVisualVisible)
             #endif
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
