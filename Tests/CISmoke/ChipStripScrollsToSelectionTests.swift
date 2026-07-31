@@ -39,7 +39,12 @@ final class ChipStripScrollsToSelectionTests: XCTestCase {
     /// alone describes the defect.
     func testTheChipStripScrollsTheSelectedChipIntoView() throws {
         let body = try menuBarBody()
-        for fragment in ["ScrollViewReader", "onChange(of: displayedMenu)", "scrollTo("] {
+        // ⛔ NO CLOSING PAREN ON THE `onChange` FRAGMENT. The first version pinned
+        // `"onChange(of: displayedMenu)"` including it, so adding a perfectly benign
+        // `initial:`/`_:` argument would have reddened the BLOCKING bundle for no defect —
+        // a guard that fails on a non-regression is worse than no guard, because the next
+        // person deletes it instead of reading it.
+        for fragment in ["ScrollViewReader", "onChange(of: displayedMenu", "scrollTo("] {
             XCTAssertTrue(body.contains { $0.contains(fragment) }, """
             `menuBar` no longer contains `\(fragment)`. Without all three the selected chip \
             is not brought into view, and on a nine-chip strip that overflows a ~393 pt phone \

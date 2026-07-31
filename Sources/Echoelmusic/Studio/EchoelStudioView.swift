@@ -1323,15 +1323,31 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(17, .semibold))
                 .foregroundStyle(running ? EchoelTheme.text : .black)
                 // #291: the app's PRIMARY action must never read "Create from With…".
-                // Since #289 this button shares its row with the pulse pill (~90 pt) and,
-                // while running, the playback ■ (38 pt) plus 16 pt of spacing — so on a
-                // 393 pt phone it has roughly 240 pt for a 17 pt Atkinson Bold label. That
-                // is tight at the default text size and short at accessibility sizes, and
-                // this view is deliberately NOT Dynamic-Type-clamped (only the chrome is)
-                // and additionally scales with `StudioZoom`. One line, shrink before you
-                // truncate: a slightly smaller "Create from Within" still says what it
-                // does, an ellipsis does not. 0.75 is the floor at which the 17 pt face
-                // still clears the ~11 pt legibility bar the rest of the plate holds.
+                //
+                // ⛔ MY FIRST ARITHMETIC HERE WAS WRONG IN THE ALARMING DIRECTION and the
+                // reviewer refuted it; it is corrected rather than deleted, because a budget
+                // figure is exactly the kind of thing the next reader will reuse. It read:
+                // "shares its row with the pulse pill (~90 pt) and, while running, the
+                // playback ■ (38 pt) plus 16 pt of spacing — so on a 393 pt phone it has
+                // roughly 240 pt". Two errors. The ■ renders only inside
+                // `if bus.instrumentRunning`, i.e. only while `running` is true — which is
+                // precisely when this label is "Stop", not "Create from Within". The long
+                // label and the ■ are MUTUALLY EXCLUSIVE, so that sum paired the widest
+                // text with the narrowest box. And it omitted `startControlRow`'s own
+                // `.padding(.horizontal, 16)`, which is 32 pt and always there.
+                //
+                // The honest figure: 393 − 32 (row padding) − ~90 (pill; ~120 once the
+                // coherence readout is present) − 8 (spacing) ≈ 263 pt, against a label that
+                // measures ~205–215 pt at 17 pt Atkinson Bold with its symbol. So it FITS at
+                // the default text size — the truncation risk is Dynamic Type and
+                // `StudioZoom`, not a stock phone. This view is deliberately not
+                // Dynamic-Type-clamped (only the chrome is), so that risk is real, and one
+                // line plus shrink-before-truncate is the right treatment for it: a slightly
+                // smaller "Create from Within" still says what it does, an ellipsis does not.
+                // 0.75 is a deliberate stopping point, NOT a computed floor (17 × 0.75 =
+                // 12.75 pt, comfortably over the ~11 pt legibility bar the plate holds; the
+                // actual floor would be ≈0.65). Chosen to shrink visibly but never to a size
+                // that reads as a different control.
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 // Height comes from FloatingVisualLayout, not a literal. ⛔ The reason has
@@ -1592,8 +1608,21 @@ struct EchoelStudioView: View {
         // lookup would simply miss, forever, with no warning and no gate to catch it: a
         // silent no-op wearing the shape of a fix, which is the failure mode this file has
         // paid for repeatedly.
+        //
+        // ⛔ AND THE SCROLL IS DEFERRED BY ONE MAIN-ACTOR TURN, which the first version of
+        // this slice was not — the reviewer caught that the ONE path the whole fix is
+        // justified by is the one it would most likely miss. `visibleChips` appends `.bio`
+        // and `.video` in the SAME update in which `displayedMenu` becomes them, so a
+        // synchronous `scrollTo` inside `onChange` targets a row SwiftUI has not inserted
+        // yet. For the nine permanent chips it worked either way; for the pulse-pill path —
+        // rationale 1 above, the reason this exists — it was a coin flip. `Task { @MainActor }`
+        // is the house pattern for exactly this (CLAUDE.md's async-UI rule) and is safe here
+        // for the same reason the freeze law is not in play: this fires on a TAP, not on a
+        // clock. Never do this per frame from a 30 fps source — that is the other law.
         .onChange(of: displayedMenu) { _, menu in
-            withAnimation(.easeOut(duration: 0.18)) { proxy.scrollTo(menu.id, anchor: .center) }
+            Task { @MainActor in
+                withAnimation(.easeOut(duration: 0.18)) { proxy.scrollTo(menu.id, anchor: .center) }
+            }
         }
         // ⛔ NO `.onAppear` COMPANION, and the reason is worth writing down because the first
         // draft of this slice had one with a FALSE justification ("a restored `activeMenu`
