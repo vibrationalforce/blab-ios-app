@@ -18,8 +18,25 @@ nicht besser belegt.)
 **Zwei Behauptungen dieser Datei sind maschinell gepinnt** (`Tests/CISmoke/ContentPipelineClaimsTests.swift`,
 im blockierenden Bundle): „Null externe Abhängigkeiten" und „kein AUv3". Beide sind
 Tatsachen über das Repo, keine Formulierungen — wer sie ändert, färbt das Gate rot und
-muss diese Datei im selben Commit mitziehen. Alles andere hier ist ungepinnt und lebt
-von der Gegenprüfung oben.
+muss diese Datei im selben Commit mitziehen.
+
+⚠️ **Wie weit der Zaun WIRKLICH reicht** — die erste Fassung dieses Absatzes versprach
+mehr, als der Test hält, und ein zu weit versprochener Zaun ist schlimmer als keiner:
+- **Abhängigkeiten:** geprüft werden `Package.swift` UND der `packages:`-Block in
+  `project.yml` (die App wird über XcodeGen gebaut, nicht über SwiftPM — nur das
+  Manifest zu prüfen hätte die Hälfte offen gelassen).
+- **AUv3:** geprüft wird das TARGET, gebunden an den Namen `EchoelmusicAUv3`. Ein
+  Target unter anderem Namen rutscht durch — das wäre eine laute, gewollte Änderung,
+  aber der Test findet sie nicht. Und die HOSTING-Hälfte von §1 („kann keine fremden
+  Plugins laden") ist gar nicht gepinnt.
+- Alles andere hier ist **ungepinnt** und lebt von der Gegenprüfung oben. Urteilsfragen
+  (Wellness-Ton, Watch-Formulierung, §10) kann kein Test entscheiden.
+
+ℹ️ **Nebenwirkung, die man wissen muss:** #252 hält `ContentPipeline/**` bewusst aus
+JEDEM Auto-Merge-Pfadfilter heraus, damit reine Pipeline-Commits nie automatisch nach
+`main` wandern. Der Wächter liegt aber in `Tests/` — **ein Commit, der beide anfasst,
+zieht diese Datei mit nach `main` und löst TestFlight aus.** Wer nur an dieser Datei
+arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 
 ---
 
@@ -100,11 +117,23 @@ App-Store-Sinn** (2.3 „Accurate Metadata") und enttäuscht jeden, der deshalb 
 ### 8. Tech-Stack-Behauptungen: „TCA", „RevenueCat", „SwiftData", „VideoToolbox", „HaishinKit"
 `Package.swift` hat ein **leeres `dependencies`-Array** — Echoel hat heute NULL externe
 Abhängigkeiten, und das steht oben in der ✅-Tabelle als eigene Behauptung.
-Konkret NICHT im Code: **TCA** (The Composable Architecture; wir sind SwiftUI +
-`@Observable`), **RevenueCat**, **SwiftData**, **VideoToolbox**, **HaishinKit**.
 Das klingt nach einem Entwickler-Detail, ist aber Marketing-Material, sobald ein
 Text über Architektur, Investoren oder Stellen spricht — und es ist die Sorte
 Behauptung, die man nicht mehr los wird, weil sie plausibel klingt.
+
+Drei verschiedene Wahrheiten, und die Unterscheidung ist der Punkt:
+- **Gar nicht vorhanden:** TCA (The Composable Architecture — wir sind SwiftUI +
+  `@Observable`), RevenueCat, VideoToolbox. Null Vorkommen in `Sources/`.
+- **Nur als Prosa erwähnt:** SwiftData — eine einzige Kommentarzeile in
+  `SessionRecorder.swift`, die erklärt, dass wir es NICHT benutzen.
+- **Im Code, aber NICHT VERLINKT:** HaishinKit. ⛔ Die erste Fassung dieses Eintrags
+  schrieb „nicht im Code", und das ist mit einem `grep` widerlegbar:
+  `BroadcastPublisher.swift` enthält ein `import HaishinKit` hinter
+  `#if canImport(HaishinKit)`. Es ist ein Compile-Gerüst ohne Paket — die
+  Marketing-Folge (nie RTMP/Livestream behaupten) bleibt dieselbe, aber die
+  Begründung muss stimmen: **eine Datei, deren ganze Autorität darauf beruht, nicht
+  widerlegbar zu sein, darf keine widerlegbare Begründung tragen.**
+
 *Persistenz = `Codable` + JSON, Video-Encode = `AVAssetWriter`, StoreKit nativ.*
 
 ### 9. „Biohacking"
@@ -117,7 +146,9 @@ Instrument. **Nie in Skript, Caption, Hashtag oder Titel.**
 Die App **veröffentlicht nichts**. Sie NIMMT auf und EXPORTIERT (`VisualRecorder`,
 Video-Panel mit mp4-Teilen, MIDI-Export) — die Verteilung passiert danach von Hand
 oder über diese Pipeline auf einem Rechner.
-Drei unabhängige Gründe, damit die Behauptung nicht in anderer Form wiederkommt:
+Drei unabhängige Gründe, damit die Behauptung nicht in anderer Form wiederkommt
+(die beiden letzten sind Aussagen über FREMDE Plattformen, Stand 2026-07-31 — sie
+altern, ohne dass es hier jemand merkt; vor einer Kampagne kurz nachsehen):
 **MCP ist ein Agenten-Host-Protokoll, keine App-Fähigkeit** (es verbindet ein Modell
 mit Werkzeugen — eine iOS-App „macht" kein MCP); die **Posting-APIs der Plattformen
 sind gated** (eigener Review je Plattform, OAuth, Business-/Creator-Konten, bei TikTok
