@@ -1276,8 +1276,18 @@ final class TouchInstrumentUIView: UIView {
     ///     the MOUNT, one level up, and the fix is three modifiers plus one `visualLayer` branch.
     ///     The comment made the cheap fix look expensive, which is exactly how a real founder
     ///     complaint survives for weeks.
-    ///   · `PLAN_FIELD_SELFPLAY_WIRING` does not exist in this repo. A dangling pointer inside a
-    ///     false claim is worse than either alone: it reads as evidence that someone checked.
+    ///   · The pointer to `scratchpads/PLAN_FIELD_SELFPLAY_WIRING.md` is GOOD — that file exists,
+    ///     and its Council entry is where this limit was deliberately chosen (Option A over an
+    ///     app-level driver, "the mount-lifetime limitation is accepted and must be written into
+    ///     the code, not discovered later"). So the old paragraph was not careless: it was an
+    ///     honest record of a real decision that the founder has now overruled. It only became
+    ///     false on 2026-07-31, and it is corrected rather than blamed.
+    ///     ⛔ AND THE FIRST VERSION OF THIS VERY BLOCK SAID THE FILE "does not exist in this
+    ///     repo" — I took a reviewer's grep at face value and wrote it into the source without
+    ///     opening the path. In the same paragraph that calls a dangling pointer "worse than
+    ///     either alone". That is this repo's named failure mode (mechanism right, justification
+    ///     wrong) committed while describing it. `ls scratchpads/PLAN_FIELD_SELFPLAY_WIRING.md`
+    ///     is one command; a claim that a file is missing costs exactly that much to check.
     /// THE REMAINING TRUE LIMIT, stated without the overclaim: this driver dies if the view is
     /// genuinely removed from the hierarchy. Nothing in the shipping app does that any more, but
     /// anyone who re-introduces a conditional mount above this view is deciding about AUDIO, not

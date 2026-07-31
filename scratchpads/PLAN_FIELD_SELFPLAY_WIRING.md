@@ -1,6 +1,27 @@
 # PLAN — #224 Slice 2c: the Field actually plays itself
 
-**Status:** planned 2026-07-29, not yet implemented.
+> ⛔ **PARTLY SUPERSEDED 2026-07-31 (#311) — read this before quoting the Council entry below.**
+> This plan was implemented (Option A), and its central trade-off has since been **overruled by
+> the founder**: *"die arps soll immer hörbar sein und nicht nur, wenn das Visual Fenster auf
+> ist."* The verdict below — *"the mount-lifetime limitation is accepted and must be written into
+> the code, not discovered later"* — is history, not policy.
+>
+> **And the reason it was accepted turned out to be wrong.** Option B was costed here as "an
+> app-level driver and a second note path", i.e. the #177 defect class, and that estimate was
+> copied verbatim into `FieldAutoPlay.swift`'s header and `TouchInstrumentView.didMoveToWindow`.
+> Three files then agreed with each other, which reads as corroboration. The actual fix needed
+> **neither**: the lifetime bug was one level ABOVE the play surface — `WorkspaceView` mounted the
+> whole `FloatingVisualWindow` behind an `if`, so hiding the PICTURE unmounted the SURFACE. It is
+> now mounted unconditionally and merely made inert when hidden; the note path never moved.
+>
+> Option A vs B was therefore a false choice, and the Council did not see it because nobody
+> re-derived the cost of B — including the file that already contained the correct pattern for
+> exactly this failure (`FloatingVisualWindow.visualLayer`'s #206 doc: *"hiding the window takes
+> the phone's PLAY SURFACE with it"*). **Keep this document as the record of how that happened.**
+> Do not plan from its Option-B estimate.
+
+**Status:** planned 2026-07-29; Option A implemented; mount-lifetime trade-off overruled
+2026-07-31 (#311) — see the block above.
 **Founder ask:** *"Es soll auch eine Möglichkeit geben wie der Synth selbst spielt ohne das
 man Touch bedienen muss. Natürlich mit mehreren Parametern."*
 **Already shipped:** `Sequencer/FieldAutoPlay.swift` — the pure generator (positions, not

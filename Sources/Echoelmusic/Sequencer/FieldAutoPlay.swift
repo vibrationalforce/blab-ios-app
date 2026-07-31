@@ -63,10 +63,27 @@
 //  Default is OFF (`field.autoPlay.motion` == ""), and that is a stored state rather than the
 //  absence of one: a generator that runs unattended must not be inherited from an update.
 //
-//  ⚠️ ONE REAL LIFETIME LIMIT, written here because it is discovered otherwise: self-play runs
-//  only while the play surface is MOUNTED, i.e. while the floating visual window is on screen.
-//  Closing that window stops it. Making it survive a closed window means an app-level driver
-//  and a second note path — a separate decision, not a bug.
+//  ⚠️ THE LIFETIME RULE, REWRITTEN 2026-07-31 (#311). Self-play runs only while the play surface
+//  is IN A WINDOW. That half stands and should: it is what stops a generator ticking forever on
+//  a surface nobody can reach.
+//
+//  ⛔ WHAT THIS PARAGRAPH SAID UNTIL #311, AND WHY IT MATTERS THAT IT SAID IT IN THREE FILES AT
+//  ONCE. It read: *"self-play runs only while … the floating visual window is on screen. Closing
+//  that window stops it. Making it survive a closed window means an app-level driver and a second
+//  note path — a separate decision, not a bug."* The founder called it a bug on 2026-07-31
+//  (*"die arps soll immer hörbar sein und nicht nur, wenn das Visual Fenster auf ist"*), and the
+//  costed alternative turned out not to be the cost: it took NEITHER an app-level driver NOR a
+//  second note path. The defect was one level ABOVE the surface — `WorkspaceView` mounted the
+//  whole visual window behind an `if`, so hiding the picture unmounted the play surface. The fix
+//  is an unconditional mount plus an inert hidden state; the note path never moved.
+//
+//  THE LESSON IS ABOUT THE SHAPE, NOT THE FACT. This limit was decided honestly (Council entry in
+//  `scratchpads/PLAN_FIELD_SELFPLAY_WIRING.md`, Option A over Option B) and then written into
+//  THREE places — here, `TouchInstrumentView.didMoveToWindow`, and the plan — each stating the
+//  expensive alternative as though it had been measured. Three copies of an unmeasured cost read
+//  as corroboration. When the founder finally objected, every doc in the repo said the fix was
+//  big; it was three modifiers and one branch. Cost estimates in comments age worse than facts,
+//  because nothing ever re-derives them.
 //
 
 import Foundation
