@@ -20,11 +20,19 @@
 // inconsistency I would have missed and reported as done. That is the whole argument for
 // asserting over the set instead of over the one line you happen to be editing.
 //
+// ⭐ THIS IS A SEQUENCING GUARD, NOT AN EXCLUSION — read this before you read the assertion.
+// The founder's stated platform target (2026-07-31, verbatim) is *"Das gesamte Apple Ökosystem
+// soll langfristig unterstützt werden auch VR/XR und Waerables."* iPhone-first is the ORDER,
+// not the scope. This file exists so the door opens on purpose and with the prerequisite in
+// hand, not because a default flipped it — which is exactly how iPad got shipped unnoticed.
+// If you are here to widen it, that is a legitimate errand; see the readiness ladder in
+// CLAUDE.md for what each platform still needs.
+//
 // ⛔ HONEST LIMIT: this reads `project.yml`. It proves what XcodeGen will be TOLD, not what
 // the resulting .xcodeproj contains, and it says nothing about whether the app behaves well
-// on any device. Re-enabling iPad is legitimate — it needs a bio source that works there
-// (the BLE strap is built and wired) plus the adaptivity pass (#292). Do it deliberately:
-// change the two settings AND this test in the same commit.
+// on any device. Re-enabling iPad needs a bio source that works there (the BLE strap is built
+// and wired) plus the adaptivity pass (#292). Do it deliberately: change the settings AND
+// this test in the same commit.
 
 import Foundation
 import XCTest

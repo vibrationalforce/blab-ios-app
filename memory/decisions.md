@@ -1239,3 +1239,34 @@ Architectural and strategic decisions with context and rationale.
 - **Unchanged:** epic #121 Slices 4–6 continue exactly as planned (they remove workstation surfaces,
   which this decision confirms). Brand guardrails unchanged — biofeedback is science-based modulation,
   never wellness/therapy/healing.
+
+### 2026-07-31 Plattform-Ziel: das GESAMTE Apple-Ökosystem, inkl. VR/XR und Wearables
+
+**Founder wörtlich:** *„Das gesamte Apple Ökosystem soll langfristig unterstützt werden auch
+VR/XR und Waerables."* — gesagt Stunden nach der delegierten Entscheidung, v1.0 auf iPhone zu
+beschränken (#292, `afcf3aa`).
+
+- **Was das NICHT ändert:** v1.0 bleibt iPhone. Der Grund gegen iPad *heute* ist der Sensor,
+  nicht die Plattformstrategie — kein iPad hat eine rückseitige LED, und `CameraCapture`
+  koppelt die rPPG-Beleuchtung an `device.hasTorch`, also läuft der Finger-auf-Linse-Puls dort
+  ohne Licht (genau die Bedingung, die der 2026-06-18-Fix als Ursache fürs Nicht-Locken
+  identifiziert hat).
+- **Was das ändert — und es ist das Wichtigere:** die BEGRÜNDUNG. iPhone-first ist
+  **Reihenfolge, kein Umfang**. Die vorherige Formulierung („iPad / Mac / Vision deferred")
+  las sich als Ausschluss und hätte die nächste Session Fundamentarbeit als Politur einstufen
+  lassen. **Ab hier gilt: jeder feste `frame(width:/height:)` und jedes Panel ohne Reflow ist
+  Ökosystem-Schuld.** #292 ist Fundament, nicht Politur — heute reflowen 2 von 11 Panels, und
+  `EchoelTheme.Metrics` (der einzige size-class-adaptive Maßsatz, dessen Doc-Kommentar wörtlich
+  „so everything is visible on all devices" verspricht) hat NULL Aufrufer.
+- **Konkreteste Wearable-Lücke, nicht raten:** das Watch-Target existiert und ist ausgeliefert
+  (`"4"`), aber `EchoelWatchApp.swift` ist die *Consumer*-Hälfte — es LIEST Werte aus der
+  App-Gruppe. Die *Produzenten*-Hälfte (Handgelenk-HealthKit-HR → App Group → Telefon) ist im
+  Dateikopf selbst als „C7" markiert und nie gelandet. Harte Grenze bleibt: ~4–5 s Latenz →
+  Anzeige, Trend, langsame Modulation (HRV/Kohärenz), **niemals Beat-Sync**.
+- **Vision/XR:** kein Target; `visionOS` erscheint in `Sources/` nur in Plattform-Guards. Der
+  natürliche Sitz ist die AUSGABE-Stufe, die schon existiert (`ImmersiveStageView` — türlos und
+  absichtlich so, Ship-Gate 4 sagt „demonstrierbar, nicht erforderlich" —, ADM-OSC-Raum, das
+  Visual). Die Bio-Quelle bliebe dort Telefon oder BLE-Gurt.
+- Reifeleiter (was jede Plattform braucht, bevor sie angeht) steht als Tabelle in `CLAUDE.md`
+  unter TECH STACK; `decisions.csv`-Zeile zu #292 ist auf `amended` gesetzt, die neue Zeile
+  trägt die Richtung.
