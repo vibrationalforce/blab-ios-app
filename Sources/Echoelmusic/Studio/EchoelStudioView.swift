@@ -1322,6 +1322,18 @@ struct EchoelStudioView: View {
                   systemImage: running ? "stop.circle.fill" : "waveform.path.ecg")
                 .font(EchoelTheme.font(17, .semibold))
                 .foregroundStyle(running ? EchoelTheme.text : .black)
+                // #291: the app's PRIMARY action must never read "Create from With…".
+                // Since #289 this button shares its row with the pulse pill (~90 pt) and,
+                // while running, the playback ■ (38 pt) plus 16 pt of spacing — so on a
+                // 393 pt phone it has roughly 240 pt for a 17 pt Atkinson Bold label. That
+                // is tight at the default text size and short at accessibility sizes, and
+                // this view is deliberately NOT Dynamic-Type-clamped (only the chrome is)
+                // and additionally scales with `StudioZoom`. One line, shrink before you
+                // truncate: a slightly smaller "Create from Within" still says what it
+                // does, an ellipsis does not. 0.75 is the floor at which the 17 pt face
+                // still clears the ~11 pt legibility bar the rest of the plate holds.
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
                 // Height comes from FloatingVisualLayout, not a literal. ⛔ The reason has
                 // CHANGED and the old one is wrong now: it read "because the docked floating
                 // visual lifts itself by exactly this band to avoid covering this button (it
@@ -1475,7 +1487,13 @@ struct EchoelStudioView: View {
     /// Session · Video reach the plate through the header/transport, not through a chip)".
     /// Four of those six are chips now, two lines above — and a comment that names the
     /// strip's contents wrongly is exactly what makes the next reader "restore" a door that
-    /// already exists. Without this append, `displayedMenu` matches no chip, so all render
+    /// already exists.
+    ///
+    /// ⚠️ THE APPEND ALONE IS NOT ENOUGH SINCE #290, and saying so here is the point: it adds
+    /// the active menu as the TENTH chip, past the right edge of an already-overflowing strip.
+    /// `menuBar`'s `ScrollViewReader` (#291) is what actually brings it into view — the two are
+    /// one mechanism, and removing either leaves a strip that claims to be the selector while
+    /// showing no selection. Without this append, `displayedMenu` matches no chip, so all render
     /// inactive: a tab strip that claims to be the selector while showing no selection, and
     /// a VoiceOver tab list with no selected tab — with nothing on screen naming the panel
     /// the user is looking at. Harmless while the panel was a transient dropdown over a
@@ -1487,7 +1505,36 @@ struct EchoelStudioView: View {
             : Self.studioChips + [displayedMenu]
     }
 
+    /// ⭐ WHY THIS SCROLLS ITSELF (#291). #290 took the strip from five chips to nine, and
+    /// `visibleChips` can append a tenth. Nine chips at their real widths — the labels are
+    /// Atkinson Hyperlegible **Bold** (`EchoelTheme`), each in a 44 pt minimum tap frame
+    /// (`chipTapTarget`), 6 pt apart, plus 20 pt of row padding — measure roughly 590 pt.
+    /// A portrait iPhone is ~393 pt wide, and `EchoelStudioView` is deliberately NOT
+    /// Dynamic-Type-clamped (only the chrome is, in `WorkspaceView`) and additionally scales
+    /// with `StudioZoom`. So the strip OVERFLOWS, with `showsIndicators: false`.
+    ///
+    /// Two things broke silently at that moment, and neither shows up in a source-text guard:
+    ///   1. `visibleChips`' whole stated purpose. It appends the active menu so the strip
+    ///      never shows an unselected state — but it appends it LAST, i.e. off the right
+    ///      edge. Opening Bio from the pulse pill selected a chip the user could not see, so
+    ///      the strip still read as "nothing selected".
+    ///   2. `.export` is the ninth chip. #290 and #272 both argued a permanent chip names
+    ///      Save/Record more strongly than a buried "•••" entry — true only while the chip is
+    ///      ON SCREEN. Behind a hidden-indicator horizontal scroll it is *less* findable than
+    ///      the "•••" glyph it replaced, which is #272's own complaint one layer over.
+    ///
+    /// The fix is the smallest one that makes the claim true: a `ScrollViewReader` scrolls
+    /// whatever is selected into view. It does NOT re-sort the strip (the order is the signal
+    /// chain, a founder-facing decision) and it does NOT shorten any label.
+    ///
+    /// FREEZE LAW: `displayedMenu` changes on a TAP, not on a clock — this is nowhere near
+    /// the ~10 Hz reads the law is about. No `@Observable` is read here.
+    ///
+    /// ⛔ HONEST LIMIT: the ~590 pt is computed from the constants, not measured on a device.
+    /// What is certain is the direction (nine wide chips in one row on a 393 pt phone) and
+    /// that scrolling the selection into view is correct whether or not it overflows today.
     private var menuBar: some View {
+        ScrollViewReader { proxy in
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 // The "Notes" chip (the piano roll's door) is GONE — founder
@@ -1532,6 +1579,30 @@ struct EchoelStudioView: View {
         // `EchoelTheme.border` at 0.10 opacity — 1.16:1 on black, the decorative token —
         // so almost nothing was lost visually and the grammar was.
         // Uncodixfy: one border per object, not a border per stacked band.
+        // Bring the selected chip into view — see the ⭐ note above. `.center` rather than
+        // `.leading`: the selection is usually reached by tapping a NEIGHBOUR, and centring
+        // keeps its neighbours visible so the strip still reads as a strip. `ForEach` over
+        // `visibleChips` registers each row under its `Identifiable` **id** — so the anchor is
+        // `menu.id` (the `String` raw value), NOT the menu itself.
+        //
+        // ⛔ THE FIRST DRAFT PASSED THE ENUM and it would have compiled and done NOTHING.
+        // `StudioMenu` is a `String`-backed enum, so it is `Hashable` and `scrollTo(menu)`
+        // type-checks — but `ForEach` over `Identifiable` data registers each row under
+        // `element.id`, and `AnyHashable(StudioMenu.export) != AnyHashable("export")`. The
+        // lookup would simply miss, forever, with no warning and no gate to catch it: a
+        // silent no-op wearing the shape of a fix, which is the failure mode this file has
+        // paid for repeatedly.
+        .onChange(of: displayedMenu) { _, menu in
+            withAnimation(.easeOut(duration: 0.18)) { proxy.scrollTo(menu.id, anchor: .center) }
+        }
+        // ⛔ NO `.onAppear` COMPANION, and the reason is worth writing down because the first
+        // draft of this slice had one with a FALSE justification ("a restored `activeMenu`
+        // can already point off-screen at launch"). `activeMenu` is `@State`, not
+        // `@AppStorage` — nothing restores it — so at first appearance `displayedMenu` is
+        // always `.sound`, which is chip one and already at the left edge. The call would be
+        // a guaranteed no-op dressed as a safety net. If `activeMenu` ever becomes persisted,
+        // add it back THEN, together with that change.
+        }
     }
 
     /// Accessibility (founder axis "accessible", 2026-07-25): give a small chip the
