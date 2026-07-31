@@ -157,8 +157,12 @@ targets:
         # illumination on `device.hasTorch`; no iPad ships a rear LED, so on iPad the finger-
         # on-lens pulse runs WITHOUT the torch — exactly the condition the 2026-06-18 fix
         # identified as why it fails to lock. An iPad build would put the app's own premise
-        # ("your body plays it") on a device where the primary bio source is degraded, next
-        # to nine of eleven panels rendering as a narrow column in empty space. That is a
+        # ("your body plays it") on a device where the primary bio source is degraded — and
+        # nothing reads `isTorchActive` back, so the pulse UI would look like it is working
+        # while it silently never locks. Next to it, nine of eleven panels have no reflow at
+        # all: `menuPanelHost` sets `maxWidth: .infinity`, so their rows STRETCH ACROSS THE
+        # FULL WIDTH (this said "a narrow column in empty space" — wrong shape, and the wrong
+        # shape would have sent the adaptivity pass looking for the wrong defect). That is a
         # 2.1 rejection shape, not merely an ugly one.
         #
         # NOT a "never". The large surfaces are the future as OUTPUT — external display /
@@ -166,7 +170,17 @@ targets:
         # instrument surface it needs a bio source that works there (BLE strap is already
         # built and wired) and the adaptivity pass in #292; the pass happens anyway, because
         # iPhone alone spans 375–440 pt, allows landscape, and runs uncapped Dynamic Type.
-        # Re-enabling is this one line — deliberately, so the door stays cheap to open.
+        #
+        # RE-ENABLING IS FOUR SETTINGS + ONE GUARD, IN ONE COMMIT — not "this one line", which
+        # is what stood here and in three other places, while the guard the same commit
+        # installed said "change the settings AND this test in the same commit". Both cannot
+        # be true. The four: this target, EchoelmusicWidgets, EchoelmusicTests,
+        # EchoelmusicFullTests (a widget declaring a family its container app lacks is an App
+        # Store validation finding, so they move together). The guard:
+        # Tests/CISmoke/DeviceFamilyIsPhoneOnlyTests.swift — a hard equality in the BLOCKING
+        # bundle, so nothing merges until it is edited with the reason. Plus this comment
+        # block, which goes false the moment the value changes. Still cheap, and it still
+        # makes the intended point: the door is DELIBERATE, not expensive.
         #
         # Also unblocks the iPad half of #282 (no iPad screenshots required to submit).
         # `Resources/iOS/Info.plist` still carries `UISupportedInterfaceOrientations~ipad`;
