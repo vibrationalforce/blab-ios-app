@@ -46,7 +46,10 @@
 // "Re-enabling is this one line" stood in `project.yml`, in CLAUDE.md, in the commit body and
 // in `decisions.csv`, while the line right above says "change the settings AND this test".
 // The honest count is FOUR settings (`project.yml`: app, widget, both test bundles) + this
-// guard's equality at `:58` + the rationale block whose text goes false + the CLAUDE.md
+// guard's equality in `testEveryIOSTargetIsIPhoneOnly` (a SYMBOL, not a line number — `:58`
+// stood here and was already wrong in the commit that wrote it, inside the file whose whole
+// thesis is that an inert number goes stale; CLAUDE.md bans the habit by name)
+// + the rationale block whose text goes false + the CLAUDE.md
 // readiness row. That is still cheap and still makes the intended point — the door is
 // DELIBERATE, not expensive — so the slogan was not even buying anything. Whoever re-opens
 // iPad: plan from this paragraph, not from the slogan, and delete the slogan when you find it.
@@ -59,8 +62,7 @@ final class DeviceFamilyIsPhoneOnlyTests: XCTestCase {
     /// ⭐ EVERY iOS TARGET IN ONE TEST on purpose — a mismatch between them is its own
     /// defect, and no single assertion describes it.
     func testEveryIOSTargetIsIPhoneOnly() throws {
-        let families = try deviceFamilyValues()
-        let expected = try iOSTargetCount()
+        let (families, expected) = try iOSDeviceFamilies()
         let listing = families.joined(separator: "\n")
 
         // ⛔ THIS WAS A HARD-CODED `4`, AND THE HOLE IT LEFT IS THE ONE A NEW TARGET FALLS
@@ -81,8 +83,9 @@ final class DeviceFamilyIsPhoneOnlyTests: XCTestCase {
         \(listing)
 
         A target that does not declare it inherits Xcode's iOS default `"1,2"` and ships to \
-        iPad. Add the setting to the new target rather than relaxing this. (The Watch target \
-        legitimately declares "4" and is excluded from both sides of this comparison.)
+        iPad. Add the setting to the new target rather than relaxing this. (Non-iOS targets — \
+        the Watch, and any future visionOS one — are excluded from BOTH sides by their \
+        enclosing `platform:`, so neither side can drift without the other.)
         """)
         for value in families {
             XCTAssertEqual(value, "1", """
@@ -100,40 +103,59 @@ final class DeviceFamilyIsPhoneOnlyTests: XCTestCase {
         }
     }
 
-    /// The `TARGETED_DEVICE_FAMILY` values of every non-Watch target, in file order.
-    /// (This said "the two SHIPPING iOS targets" and returned four — both test bundles are
-    /// in here too, and `testEveryIOSTargetIsIPhoneOnly` requires them to be.)
+    /// ONE walk that returns both halves of the comparison: the `TARGETED_DEVICE_FAMILY`
+    /// values declared under a `platform: iOS` target, and how many such targets exist at all.
     ///
-    /// ⚠️ The Watch target's `"4"` is deliberately filtered out rather than counted — it is
-    /// a different platform and a legitimate value. Filtering on the value (not on a target
-    /// name) keeps this from breaking when the target list is reordered, which is the kind
-    /// of edit that has no business reddening the blocking bundle.
-    private func deviceFamilyValues() throws -> [String] {
-        try codeLines("project.yml")
-            .filter { $0.contains("TARGETED_DEVICE_FAMILY:") }
-            .compactMap { line -> String? in
-                guard let colon = line.firstIndex(of: ":") else { return nil }
-                // ⛔ THE `#`-STRIP IS NOT DECORATION. Without it a perfectly ordinary trailing
-                // YAML comment — `TARGETED_DEVICE_FAMILY: "1"  # phone only` — parses to
-                // `1"  # phone only` and reddens the BLOCKING bundle for a comment. Nobody
-                // would read that failure as intended, and the next person deletes the guard
-                // instead of the comment.
-                var value = String(line[line.index(after: colon)...])
-                if let hash = value.firstIndex(of: "#") { value = String(value[..<hash]) }
-                let raw = value
-                    .trimmingCharacters(in: .whitespaces)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
-                return raw == "4" ? nil : raw   // Watch — a different platform, not a widening
+    /// ⛔ THIS REPLACED TWO SEPARATE PASSES, AND THE SECOND OF THEM REOPENED — TWELVE LINES
+    /// BELOW THE COMMENT WARNING ABOUT IT — THE EXACT HAZARD THE FIRST HAD JUST CLOSED.
+    /// It matched `line.trimmed == "platform: iOS"` by raw equality, so `platform: iOS  # app`
+    /// or the perfectly legal `platform: "iOS"` dropped a target from the count and reddened
+    /// the BLOCKING bundle with a message about device families. Writing a normalizer and then
+    /// not using it in the function underneath is how that happens; one walk with one
+    /// normalizer is why it cannot happen again.
+    ///
+    /// ⚠️ THE WATCH IS EXCLUDED STRUCTURALLY NOW, NOT BY ITS VALUE. The old version dropped
+    /// any family that read `"4"`, which quietly assumed the only other Apple platform is the
+    /// Watch — and CLAUDE.md's platform target is the whole ecosystem, VR/XR included. The
+    /// first visionOS target (family `7`) would have reddened this guard with a message about
+    /// iPad torches. Keying on the enclosing `platform:` means a non-iOS target is simply not
+    /// this guard's business. The trade is deliberate and worth stating: a *watchOS* target
+    /// declaring `"1,2"` is no longer caught here. That is nonsense config, but it is not the
+    /// iOS app shipping to iPad, which is the only thing this file claims to prevent.
+    ///
+    /// Relies on `platform:` preceding its target's settings — true for all five targets
+    /// (`platform:` at project.yml 69/232/290/346/386, each setting after it). A
+    /// `targetTemplates:` block declaring `platform: iOS` would count as a target and give a
+    /// false red; none exists today, and if one is added it needs a scope check here.
+    private func iOSDeviceFamilies() throws -> (declared: [String], targets: Int) {
+        var declared: [String] = []
+        var targets = 0
+        var insideIOSTarget = false
+
+        for line in try codeLines("project.yml") {
+            let trimmed = stripTrailingComment(line).trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("platform:") {
+                insideIOSTarget = unquoted(trimmed.dropFirst("platform:".count)) == "iOS"
+                if insideIOSTarget { targets += 1 }
+                continue
             }
+            guard insideIOSTarget, trimmed.hasPrefix("TARGETED_DEVICE_FAMILY:") else { continue }
+            declared.append(unquoted(trimmed.dropFirst("TARGETED_DEVICE_FAMILY:".count)))
+        }
+        return (declared, targets)
     }
 
-    /// How many targets declare `platform: iOS`. The Watch target declares `platform: watchOS`
-    /// and is excluded by the exact match, which is why `deviceFamilyValues()` may drop its
-    /// `"4"` without the two sides disagreeing.
-    private func iOSTargetCount() throws -> Int {
-        try codeLines("project.yml")
-            .filter { $0.trimmingCharacters(in: .whitespaces) == "platform: iOS" }
-            .count
+    /// Everything before an unquoted `#`. No value in this file contains a literal `#`, so the
+    /// naive cut is exact here; if one ever does, this needs to become quote-aware (the
+    /// `literals(in:)` walk in `BaseLanguageIsEnglishTests` is the house pattern for that).
+    private func stripTrailingComment(_ line: String) -> String {
+        guard let hash = line.firstIndex(of: "#") else { return line }
+        return String(line[..<hash])
+    }
+
+    private func unquoted(_ value: Substring) -> String {
+        value.trimmingCharacters(in: .whitespaces)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
     }
 
     /// Repo root, derived from this file's compile-time path (`Tests/CISmoke/…`, three levels
