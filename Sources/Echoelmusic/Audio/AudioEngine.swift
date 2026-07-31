@@ -1350,7 +1350,15 @@ public final class AudioEngine {
         let base = Swift.min(Swift.max(inputMonitorGain, 0), 1)
         let factor: Float = duckDB > 0 ? powf(10, -duckDB / 20) : 1
         monitorMixer.outputVolume = base * factor
-        feedbackGuardActive = duckDB > 0
+        // ⚠️ GATED ON CHANGE, NOT ASSIGNED EVERY TICK (#298 Nachlese). `feedbackGuardActive` is
+        // a plain `@Observable` stored property, and **assigning an equal value still
+        // notifies** — the rule this file already states at `emitTimingWindowIfDue`. Assigning
+        // it unconditionally made every reader (today: `AudioInputPickerView.monitoringSection`,
+        // which hosts a draggable `EchoelValueField`) a ~15 Hz observer for the whole time
+        // monitoring runs. No `.menu` Picker lives in that sheet, so this was never the
+        // 10.76.50 freeze — but it is the same mechanism, and the fix is one compare.
+        let ducking = duckDB > 0
+        if ducking != feedbackGuardActive { feedbackGuardActive = ducking }
     }
     #endif
 

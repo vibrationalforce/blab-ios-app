@@ -11,20 +11,34 @@ import Combine   // NotificationCenter.publisher for AVAudioSession route change
 // knows before a take whether the route can monitor in real time.
 //
 // ⭐ WHY THIS VIEW REFRESHES THREE TIMES AND NOT ONCE (#298). `AVAudioSession.availableInputs`
-// returns nothing while the category is `.playback`, and `.playback` is Echoel's DEFAULT — the
-// session is only upgraded to `.playAndRecord` the moment the user turns monitoring on
-// (`AudioConfiguration.upgradeToPlayAndRecord`, called from `AudioEngine.setInputMonitoring`).
-// With `.onAppear` as the only refresh, the sequence a performer actually walks —
-// open the door, see the list — hits the session in `.playback` and shows an EMPTY list. The
-// interface they just plugged in is invisible until they close the sheet and open it again.
-// So: refresh on appear (route may have changed since last time), refresh right AFTER the
-// monitoring toggle (the category just changed underneath us), and refresh on any route change
-// (an interface plugged in while the sheet is open).
+// returns nothing while the category is `.playback`, and `.playback` is Echoel's DEFAULT. The
+// session is upgraded to `.playAndRecord` on any explicit mic action — monitoring is ONE of
+// five call sites (`AudioEngine.setInputMonitoring`, `MicrophoneManager` ×3,
+// `MultiTrackRecorder`), plus `AudioConfiguration.configureAudioSession` itself when
+// `recordingRouteNeeded`. ⛔ The first version of this paragraph said "only … when the user
+// turns monitoring on"; that is the sentence the user-facing empty state is built on, so its
+// looseness is not cosmetic.
 //
-// ⚠️ THE ROUTE-CHANGE OBSERVER IS SAFE HERE AND WOULD NOT BE ONE LEVEL UP. The freeze law
-// (CLAUDE.md 10.76.50) bans HIGH-FREQUENCY reads in an ancestor body — this is an event
-// publisher that fires when a cable moves, a handful of times per session, and it lives in a
-// leaf that only exists while the sheet is open. It is not a poll.
+// With `.onAppear` as the only refresh, the door opens against a `.playback` session and shows
+// an EMPTY list. ⛔ AND THE FIRST VERSION GOT THE CAUSALITY BACKWARDS: it said the interface is
+// "invisible until they close the sheet and open it again". Reopening re-runs `.onAppear`
+// against a session that is STILL `.playback` — it changes nothing. Reopening only ever helped
+// AFTER the toggle had already upgraded the category, which is exactly the second refresh point
+// below. Getting that inverted would send the next reader looking for a presentation bug.
+//
+// So: refresh on appear (the route may have changed since last time), refresh right after the
+// monitoring toggle (the ON path is the category change; the OFF path does NOT downgrade —
+// `setInputMonitoring(false)` only disconnects — but refresh is idempotent and one call site
+// beats two), and refresh on any route change (a cable moved while the sheet is open).
+//
+// ⚠️ THIS CLEARS THE OBSERVER, NOT THE WHOLE VIEW. The freeze law (CLAUDE.md 10.76.50) bans
+// HIGH-FREQUENCY reads in an ancestor body; the `.onReceive` below is an event publisher that
+// fires when a cable moves, in a leaf that only exists while the sheet is open — not a poll, no
+// violation. Separately and PRE-EXISTING: `monitoringSection` reads
+// `audioEngine.feedbackGuardActive`, which is assigned every guard tick (~15 Hz) while
+// monitoring runs, so this body already rebuilt at that rate. `AudioEngine` now gates that
+// assignment on change; there is no `.menu` Picker in this sheet either way, so it was never a
+// freeze here — but do not read the sentence above as a clean bill of health for the view.
 
 @MainActor
 struct AudioInputPickerView: View {

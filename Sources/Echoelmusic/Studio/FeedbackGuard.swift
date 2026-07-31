@@ -11,11 +11,19 @@
 //  It said: "The audio cycle applies them: Apple's Voice-Processing I/O for system AEC (the
 //  FaceTime echo canceller) + a notch biquad + the recommended duck in the FX chain."
 //  ONE of those three is real. Checked by grep over `Sources/`:
-//    • the DUCK is live — `AudioEngine.updateFeedbackGuard()` calls `gainReductionDB` from the
-//      ~15 Hz meter poll on the MainActor and scales `monitorMixer.outputVolume`. It ducks the
-//      MIC MONITOR only, never the music, and touches no audio thread and no tap.
-//    • the NOTCH is NOT wired — `ringingBin` has ZERO callers outside this file. No biquad
-//      anywhere consumes it.
+//    • the DUCK is live — `AudioEngine.updateFeedbackGuard()` calls `gainReductionDB` and
+//      scales `monitorMixer.outputVolume`. It ducks the MIC MONITOR only, never the music, and
+//      touches no audio thread and no tap. It runs on the MainActor from the **60 Hz** meter
+//      poll, gated to every 4th tick (`monitorPollTick % 4 == 0`), i.e. ~15 Hz. ⛔ The first
+//      version of this line called it "the ~15 Hz meter poll" — the poll is 60 Hz and the GATE
+//      makes it 15. Anyone budgeting work onto that poll from this sentence would be off by 4×.
+//    • the NOTCH is NOT wired — `ringingBin` has ZERO callers **in `Sources/`**. No biquad
+//      anywhere consumes it. ⛔ The first version said "outside this file", which is simply
+//      false: `Tests/EchoelmusicTests/FeedbackGuardTests.swift` calls it three times. In a
+//      header whose whole subject is claim precision, and which opens by convicting its
+//      predecessor of over-claiming, that one has to be exact. (The paired guard,
+//      `AudioInputDoorTests.symbolAppearsOutsideItsOwnFile`, scans `Sources/` only — so the
+//      corrected wording is also the one the test actually checks.)
 //    • the AEC is NOT wired — `setVoiceProcessingEnabled` appears NOWHERE in `Sources/`.
 //  This mattered more than a stale comment usually does: it is the file a session reads to
 //  decide whether feedback suppression still needs work, and as written it answered "already

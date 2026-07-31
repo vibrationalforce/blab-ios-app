@@ -48,16 +48,33 @@ final class AudioInputDoorTests: XCTestCase {
         the picker no longer refreshes on appear — the route can change between two openings \
         of this sheet, so the list would show whatever was true last time.
         """)
-        XCTAssertTrue(code.contains("routeChangeNotification"), """
+        // ⛔ BOUNDED, AND THE FIRST VERSION WAS NOT. It asserted `code.contains(
+        // "routeChangeNotification")` over the WHOLE file — which proves the notification is
+        // NAMED, not that anything happens when it fires. `.onReceive(…) { _ in }` with an
+        // empty body would have passed. This file's own doc comment demands bounding for the
+        // empty-state case eleven lines below and then failed to do it here.
+        let observer = slice(of: code, from: ".onReceive(", to: "#endif")
+        XCTAssertTrue(observer.contains("routeChangeNotification"), """
         the picker no longer observes `AVAudioSession.routeChangeNotification`. Plugging an \
         interface in WHILE this sheet is open is the normal case, not an edge case, and \
         without this the list silently keeps showing the old route.
         """)
+        XCTAssertTrue(observer.contains("inputs.refresh()"), """
+        the route-change observer exists but does not refresh the list — it names the \
+        notification and does nothing with it, which is worse than not observing at all \
+        because it reads as covered.
+        """)
+        XCTAssertTrue(observer.contains("receive(on:"), """
+        the route-change observer lost its main-actor hop. AVAudioSession posts this from its \
+        OWN thread, and `AudioInputManager` is `@MainActor` — but `onReceive`'s action \
+        inherits `@MainActor` from this `@MainActor` View, so the compiler ASSUMES main and \
+        emits no hop and no check. Removing `.receive(on:)` therefore buys a silent data race, \
+        not a compile error. (The other `onReceive` sites in this repo omit it correctly: they \
+        observe notifications Echoel itself posts from SwiftUI button actions.)
+        """)
         // The toggle's setter must refresh too. Bounded to the setter so a stray `refresh()`
         // elsewhere in the file cannot satisfy this.
-        let setter = try slice(of: code,
-                               from: "set: {",
-                               to: "))")
+        let setter = slice(of: code, from: "set: {", to: "))")
         XCTAssertTrue(setter.contains("inputs.refresh()"), """
         the monitoring toggle no longer refreshes the input list. Turning monitoring on is the \
         moment `AudioConfiguration.upgradeToPlayAndRecord` changes the session category, and \
@@ -82,9 +99,12 @@ final class AudioInputDoorTests: XCTestCase {
     /// user has something to do about it.
     ///
     /// ⚠️ BOUNDED TO `emptyStateText` ON PURPOSE. The obvious version asserted `#if os(iOS)`
-    /// against the WHOLE file — which this file now contains twice over anyway (the AVFoundation
-    /// import guard, the monitoring section), so it would have been green no matter what the
-    /// empty state said. A whole-file `contains` for a token the file is full of is not a guard.
+    /// against the WHOLE file — which contains that token **five** times (the import guard, the
+    /// nav-bar modifier, the route observer, `monitoringSection`, and this property), so it
+    /// would have been green no matter what the empty state said. ⛔ The first version of this
+    /// very sentence said "twice over": an undercounted count, in a paragraph about counting,
+    /// in a repo whose recurring defect is exactly that. A whole-file `contains` for a token
+    /// the file is full of is not a guard.
     func testTheEmptyStateExplainsWhyItIsEmptyOnIOS() throws {
         let code = try codeLines(Self.picker).joined(separator: "\n")
         let text = slice(of: code, from: "private var emptyStateText: String {", to: "\n    }")
@@ -175,9 +195,14 @@ final class AudioInputDoorTests: XCTestCase {
             .deletingLastPathComponent()
         let sources = root.appendingPathComponent("Sources/Echoelmusic")
         guard FileManager.default.fileExists(atPath: sources.path) else {
-            throw XCTSkip("source tree not present at \(sources.path) — this test inspects "
-                          + "source text, so it SKIPS rather than reporting a green it did "
-                          + "not earn")
+            // ⛔ ONE `"""` LITERAL, NOT A `+` CHAIN. `XCTSkip`'s message is
+            // `@autoclosure () -> String?` — optional injection stacked on `+` overload
+            // resolution, i.e. strictly MORE type-checker work than the plain `String`
+            // autoclosure that hard-errored the blocking gate on `3379bb3`.
+            throw XCTSkip("""
+            source tree not present at \(sources.path) — this test inspects source text, so it \
+            SKIPS rather than reporting a green it did not earn
+            """)
         }
         return root
     }
