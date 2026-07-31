@@ -39,7 +39,10 @@ public final class MIDIOutput {
     public var enabled = false {
         didSet {
             guard enabled != oldValue else { return }
-            if enabled { startIfNeeded() } else { allNotesOff() }
+            // Un-routing MIDI out must also stop the clock (#300), and it must send Stop
+            // (0xFC) while the port is still alive — otherwise a receiver keeps running on
+            // a clock that will never pulse again and has no way to learn that it ended.
+            if enabled { startIfNeeded() } else { stopClock(); allNotesOff() }
         }
     }
 
@@ -200,6 +203,114 @@ public final class MIDIOutput {
         send([0xB0, 101, 0])
         send([0xB0, 100, 6])
         send([0xB0, 6, UInt8(Self.mpeMemberChannels)])
+    }
+
+    // MARK: - Clock out (#300) — Echoel as the master clock
+
+    /// True while MIDI Clock is being emitted. Read-only; driven by the transport.
+    public private(set) var isSendingClock = false
+
+    /// The clock pulse timer. Main-queue `DispatchSourceTimer`, same pattern as
+    /// `PatternEngine`'s step timer and `AudioEngine`'s meter poll.
+    ///
+    /// ⚠️ DELIBERATELY ITS OWN TIMER, NOT A DIVISION OF THE STEP TICK, and this is the whole
+    /// musical argument of the slice. `PatternEngine` ticks 16ths and applies SWING — it
+    /// lengthens the gap after an even step and shortens the next one. Deriving clock pulses
+    /// from that tick would export the swing as a TEMPO WOBBLE: a receiver reading 24 PPQN
+    /// interprets uneven pulses as the tempo speeding up and slowing down twice per beat, and
+    /// would swing everything downstream a second time on top of its own groove. Swing is
+    /// note PLACEMENT, not clock. So the clock runs on straight tempo alone.
+    @ObservationIgnored nonisolated(unsafe) private var clockTimer: DispatchSourceTimer?
+
+    /// Begin clock output at `bpm`: Start (0xFA) once, then Clock (0xF8) at 24 PPQN.
+    /// No-op when MIDI out is not routed, or when a non-usable tempo is passed.
+    public func startClock(bpm: Double) {
+        guard enabled else { return }
+        guard let interval = UMPEncoder.clockInterval(bpm: bpm) else {
+            log.log(.warning, category: .system, "MIDI CLOCK: refused to start at bpm \(bpm)")
+            return
+        }
+        startIfNeeded()
+        stopClockTimer()                       // idempotent re-arm, no double timer
+        if !isSendingClock {
+            sendRealTime(.start)               // Start ONLY on a true start, not on a re-arm
+            isSendingClock = true
+        }
+        armClockTimer(interval: interval)
+        log.log(.info, category: .system, "MIDI CLOCK: on (\(bpm) bpm, 24 ppqn)")
+    }
+
+    /// Stop clock output and send Stop (0xFC). Safe to call when already stopped.
+    public func stopClock() {
+        stopClockTimer()
+        guard isSendingClock else { return }
+        isSendingClock = false
+        sendRealTime(.stop)
+        log.log(.info, category: .system, "MIDI CLOCK: off")
+    }
+
+    /// Re-arm the pulse interval for a new tempo WITHOUT emitting Start again — the body
+    /// moves the tempo continuously (the glide in `PatternEngine.advance`), so a Start per
+    /// tempo change would reset every receiver's song position several times a second.
+    public func setClockTempo(_ bpm: Double) {
+        guard isSendingClock, let interval = UMPEncoder.clockInterval(bpm: bpm) else { return }
+        stopClockTimer()
+        armClockTimer(interval: interval)
+    }
+
+    private func armClockTimer(interval: Double) {
+        #if canImport(CoreMIDI)
+        let t = DispatchSource.makeTimerSource(queue: .main)
+        // Leeway 0: the clock IS the timing product here. The meter poll can drift a
+        // millisecond and nobody hears it; a clock pulse that drifts is the jitter a
+        // drummer feels. This is still a main-queue timer, not a sample-accurate one —
+        // see the honesty note on `isSendingClock` in the tests.
+        t.schedule(deadline: .now() + interval, repeating: interval, leeway: .nanoseconds(0))
+        t.setEventHandler { [weak self] in
+            MainActor.assumeIsolated { self?.sendRealTime(.clock) }
+        }
+        clockTimer = t
+        t.resume()
+        #endif
+    }
+
+    /// `nonisolated` + thread-safe cancel so `deinit` below can reach it.
+    ///
+    /// ⛔ THE DEINIT IS NOT OPTIONAL, AND THE FIRST DRAFT OF THIS SLICE HAD NEITHER IT NOR AN
+    /// HONEST COMMENT — the comment already claimed a `deinit` that did not exist. An ACTIVE
+    /// `DispatchSourceTimer` is retained by the dispatch runtime, so dropping the last
+    /// reference to `MIDIOutput` does NOT stop it: `[weak self]` makes the handler a no-op
+    /// and the source goes on firing forever, unreachable and uncancellable. `PatternEngine`
+    /// carries the same `nonisolated(unsafe)` + `nonisolated deinit` pair for exactly this,
+    /// which is why the shape was copied — the reason has to be copied with it.
+    private nonisolated func stopClockTimer() {
+        clockTimer?.cancel()
+        clockTimer = nil
+    }
+
+    deinit {
+        // Same shape as `PatternEngine.deinit` (which this slice copied the timer from):
+        // a plain `deinit` on a `@MainActor` class is already nonisolated, and
+        // `DispatchSourceTimer.cancel()` is thread-safe. Written as the direct property
+        // access rather than a call to `stopClockTimer()` so it matches the proven form
+        // exactly — the toolchain here is the only compiler, so "reads equivalent" is not
+        // a reason to differ from the shape that is known to build.
+        clockTimer?.cancel()
+    }
+
+    private func sendRealTime(_ message: UMPEncoder.RealTime) {
+        #if canImport(CoreMIDI)
+        guard isReady else { return }
+        var word = UMPEncoder.systemRealTime(status: message.rawValue)
+        var eventList = MIDIEventList()
+        let packet = MIDIEventListInit(&eventList, ._1_0)
+        _ = MIDIEventListAdd(&eventList, MemoryLayout<MIDIEventList>.size, packet, 0, 1, &word)
+        _ = MIDIReceivedEventList(virtualSource, &eventList)
+        let destCount = MIDIGetNumberOfDestinations()
+        for i in 0..<destCount {
+            _ = MIDISendEventList(outputPort, MIDIGetDestination(i), &eventList)
+        }
+        #endif
     }
 
     // MARK: - CoreMIDI send

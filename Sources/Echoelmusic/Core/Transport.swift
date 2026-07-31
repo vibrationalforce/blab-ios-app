@@ -98,6 +98,8 @@ public final class Transport {
     private struct StepSub { let id: String; let priority: Int; let cb: (TransportPosition) -> Void }
     @ObservationIgnored private var stepSubs: [StepSub] = []
     @ObservationIgnored private var stopSubs: [String: () -> Void] = [:]
+    /// Play-edge subscribers (#300). See `addPlaySubscriber` for why stop had one first.
+    @ObservationIgnored private var playSubs: [String: () -> Void] = [:]
     @ObservationIgnored private var tempoSubs: [String: (Double) -> Void] = [:]
     @ObservationIgnored private var lastStep = 0
 
@@ -182,6 +184,7 @@ public final class Transport {
         // defines as "sound it now, uncorrected".
         lastStepAt = 0
         isPlaying = true
+        for cb in playSubs.values { cb() }
     }
 
     public func stop() {
@@ -284,12 +287,30 @@ public final class Transport {
         stopSubs[id] = cb
     }
 
-    /// Remove every subscription registered under `id` — step, stop AND tempo.
+    /// Subscribe to transport PLAY.
+    ///
+    /// ⚠️ WHY THIS DID NOT EXIST UNTIL #300, because the asymmetry is the interesting part:
+    /// stop needs a broadcast (every held note must be released, from anywhere), whereas
+    /// everything that had to ACT on play was already downstream of `PatternEngine.play()`,
+    /// which calls this and then drives its own tick. MIDI Clock is the first subscriber that
+    /// must emit at the instant of play and is NOT on the tick path — a clock master sends
+    /// Start (0xFA) once, before the first pulse, and there is no step to hang that on.
+    ///
+    /// Unlike `addStepSubscriber` there is no priority: play is a single edge, and inventing
+    /// an ordering nobody needs would be a second thing to get wrong.
+    public func addPlaySubscriber(_ id: String, _ cb: @escaping () -> Void) {
+        playSubs[id] = cb
+    }
+
+    /// Remove every subscription registered under `id` — step, stop, play AND tempo.
     /// Tempo is included deliberately: a caller doing the obvious teardown would
-    /// otherwise leak its tempo callback, since that one has its own remover.
+    /// otherwise leak its tempo callback, since that one has its own remover. Play was
+    /// added with #300 for the same reason — a new list that this method does not clear is
+    /// a leak nobody notices until a stale callback fires against a dead object.
     public func removeSubscriber(_ id: String) {
         stepSubs.removeAll { $0.id == id }
         stopSubs[id] = nil
+        playSubs[id] = nil
         tempoSubs[id] = nil
     }
 }

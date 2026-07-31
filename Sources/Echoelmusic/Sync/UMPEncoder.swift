@@ -51,6 +51,56 @@ public enum UMPEncoder {
                                  data1: UInt8(v & 0x7F), data2: UInt8((v >> 7) & 0x7F), group: group)
     }
 
+    // MARK: - System Real Time (message type 0x1 — one 32-bit word)
+
+    /// Pack a System Real Time message (Clock 0xF8, Start 0xFA, Continue 0xFB, Stop 0xFC)
+    /// into one 32-bit UMP word on `group`.
+    /// Layout: [mt 0x1 | group | status | 0 | 0].
+    ///
+    /// ⚠️ WHY THIS CANNOT GO THROUGH `midi1ChannelVoice` (#300). That builder emits message
+    /// type **0x2** and masks its data bytes to 7 bits. System Real Time is a different UMP
+    /// message type entirely (**0x1**) and carries NO data bytes — sending 0xF8 through the
+    /// channel-voice path produces a word a receiver decodes as a malformed channel message.
+    /// `MIDIOutput.send(_:)` also rejects it before that: it requires 2…3 bytes and every
+    /// real-time message is exactly ONE.
+    ///
+    /// Status is used verbatim, not masked: these have no channel nibble — 0xF8 IS the whole
+    /// message. Masking with `& 0x0F` (the reflex from every builder above) would turn Clock
+    /// into 0x08 and silently emit nothing a receiver recognises.
+    public static func systemRealTime(status: UInt8, group: UInt8 = 0) -> UInt32 {
+        (UInt32(0x1) << 28) | (UInt32(group & 0x0F) << 24) | (UInt32(status) << 16)
+    }
+
+    /// The System Real Time messages Echoel actually sends as a clock master.
+    ///
+    /// ⚠️ THREE CASES, NOT FIVE, AND THE OMISSIONS ARE DELIBERATE:
+    ///   • **Continue (0xFB) is absent because nothing could send it.** `Transport.play()`
+    ///     resets `position` to zero unconditionally, so every play edge in this app IS a
+    ///     start from the top — Start (0xFA) is the correct message every time. Declaring
+    ///     Continue would add a case with no producer, which is precisely the "lying
+    ///     vocabulary" this repo keeps deleting. Add it together with a resume-from-position
+    ///     transport, not before.
+    ///   • Active Sensing (0xFE) — a keep-alive some gear mishandles; not a transport signal.
+    ///   • System Reset (0xFF) — resets a receiver's entire state. Never on a clock.
+    public enum RealTime: UInt8 {
+        case clock = 0xF8   // 24 per quarter note
+        case start = 0xFA   // begin at position zero
+        case stop  = 0xFC
+    }
+
+    /// Seconds between two MIDI clock pulses at `bpm`, at the standard 24 PPQN.
+    ///
+    /// Pure and `nonisolated` so the timer path and the tests share ONE definition — the
+    /// same reason `PatternEngine.swingGap` is a static. Returns nil for a tempo that cannot
+    /// produce an interval (non-finite or ≤ 0), so a caller must decide rather than arm a
+    /// timer with NaN. ⚠️ NaN never reaches a comparison here by accident: `bpm > 0` is FALSE
+    /// for NaN, so the guard rejects it — the same positional property the repo's
+    /// `clamped(to:)` note depends on.
+    public static func clockInterval(bpm: Double, ppqn: Int = 24) -> Double? {
+        guard bpm.isFinite, bpm > 0, ppqn > 0 else { return nil }
+        return 60.0 / bpm / Double(ppqn)
+    }
+
     // MARK: - MIDI 2.0 (message type 0x4 — two 32-bit words)
 
     /// Generic MIDI 2.0 channel-voice builder → (most-significant word, least-significant word).

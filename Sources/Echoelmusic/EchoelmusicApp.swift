@@ -357,6 +357,16 @@ struct EchoelmusicApp: App {
         if g.hasEnabledRoute(toSink: "sacn.out") { sacn.start(subscribing: bus) } else { sacn.stop() }
         #endif
         midiOut.enabled = g.hasEnabledRoute(toSink: "midi.out")
+        // MIDI Clock rides the SAME `midi.out` route as the notes (#300) — one route, one
+        // meaning: "Echoel speaks MIDI to the outside world", exactly like a hardware synth
+        // that sends notes and clock down one cable. A second patchbay port would be a
+        // second thing to forget to switch on, for a signal nobody wants without the notes.
+        // Route ON while already playing → the clock must catch up here, because the play
+        // edge that would normally start it has long passed. `enabled`'s own `didSet` sends
+        // Stop when the route goes off.
+        if midiOut.enabled, transport.isPlaying {
+            midiOut.startClock(bpm: transport.tempo)
+        }
         #if canImport(CoreMIDI)
         midiPub.thruEnabled = g.hasEnabledRoute(from: "midi.in", to: "midi.out")  // MIDI thru
         #endif
@@ -614,6 +624,26 @@ struct EchoelmusicApp: App {
                 // Not a passive mirror: the click/haptics subscribe to Transport below,
                 // so this assignment is what makes them follow the tempo at all.
                 beatPlayer.pattern.transport = transport
+
+                // #300 — Echoel as MIDI clock master. All three edges ride Transport, the
+                // one authoritative clock, so this stays correct no matter what drives the
+                // tempo (body glide, automation, a future Link follow mode).
+                //
+                // ⚠️ THE TEMPO CALLBACK MUST NOT START THE CLOCK. `onTempoChange` fires
+                // IMMEDIATELY on subscribe with the current tempo (documented in Transport),
+                // and the body moves the tempo continuously while STOPPED too — a start
+                // there would emit MIDI Start with no transport running. `setClockTempo`
+                // therefore no-ops unless the clock is already sending.
+                transport.addPlaySubscriber("midi.clock") { [weak midiOut, weak transport] in
+                    guard let midiOut, let transport else { return }
+                    midiOut.startClock(bpm: transport.tempo)
+                }
+                transport.addStopSubscriber("midi.clock") { [weak midiOut] in
+                    midiOut?.stopClock()
+                }
+                transport.onTempoChange(id: "midi.clock") { [weak midiOut] bpm in
+                    midiOut?.setClockTempo(bpm)
+                }
                 // ONE BPM: the click FOLLOWS the authoritative clock instead of being
                 // pushed from the UI. The ~6 scattered `metronome.bpm` writes are gone,
                 // so this is now the ONLY writer — automation and the Body→Tempo route
