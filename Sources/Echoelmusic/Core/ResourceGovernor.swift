@@ -69,6 +69,29 @@ public final class ResourceGovernor {
     @ObservationIgnored private var smoothedFPS: Double = 0
     @ObservationIgnored private var lastFrameTime: CFTimeInterval = 0
 
+    /// #271 — THE FPS READING A TIER DECISION IS ALLOWED TO SEE. Separate from the raw
+    /// EMA on purpose: `0` means "no trustworthy reading yet", which is exactly the value
+    /// `AdaptiveQuality.settings(…measuredFPS:)` already documents as "ignore me".
+    ///
+    /// Why it exists (founder device log 2478, v10.79.361): the raw EMA is SEEDED FROM A
+    /// SINGLE FRAME (`smoothedFPS == 0 ? instantaneous : …`). The first frame after a mount
+    /// is the slowest one the renderer will ever produce — `MetalBioView` compiles its
+    /// shader at runtime and waits on the first drawable — so that one frame became the
+    /// whole estimate. A demotion then applies IMMEDIATELY (asymmetric hysteresis, by
+    /// design), while recovery needs a wider band plus a 4 s dwell. Net effect on the
+    /// founder's device: `redMot=1 detail=0.50` at 27 s and 32 s, back to `redMot=0
+    /// detail=0.70` at 37 s — the immersive visual sat FROZEN for about ten seconds every
+    /// time it was switched on, which is precisely the report "motion is tied to whether
+    /// the visual window is open; it should run when you turn it on".
+    @ObservationIgnored private var trustedFPS: Double = 0
+    /// Valid frames counted since the last cold start or stall.
+    @ObservationIgnored private var framesSinceDiscontinuity = 0
+    /// How many consecutive good frames a renderer must deliver before its FPS may move a
+    /// tier. 30 frames is half a second at the pinned 60 fps — long enough that a
+    /// shader-compile stall or a first-drawable wait cannot decide anything, short enough
+    /// that a genuinely overloaded GPU is still caught within a second.
+    private static let fpsWarmupFrames = 30
+
     public init() {
         readDeviceState()
         observeNotifications()
@@ -155,14 +178,26 @@ public final class ResourceGovernor {
     /// FPS estimate; a sustained drop demotes a tier on the next recompute. Cheap:
     /// only recomputes settings when the smoothed value crosses a threshold.
     public func recordFrame(timestamp: CFTimeInterval) {
-        guard lastFrameTime > 0 else { lastFrameTime = timestamp; return }
+        guard lastFrameTime > 0 else { beginWarmup(at: timestamp); return }
         let dt = timestamp - lastFrameTime
         lastFrameTime = timestamp
-        guard dt > 0, dt < 1 else { return }   // ignore stalls / first frame
+        // A stall is a DISCONTINUITY, not a slow frame: the window was hidden, the app was
+        // backgrounded, the scene changed. Restart the warm-up rather than resuming an
+        // estimate that describes a renderer which no longer exists. (Before #271 this
+        // branch only skipped the sample, so the frames right after a remount — the slow
+        // ones — went straight into a decision.)
+        guard dt > 0, dt < 1 else { beginWarmup(at: timestamp); return }
         let instantaneous = 1.0 / dt
         // Exponential smoothing (~1 s time constant at 60 fps).
         smoothedFPS = smoothedFPS == 0 ? instantaneous
                                        : smoothedFPS * 0.95 + instantaneous * 0.05
+        framesSinceDiscontinuity += 1
+        // #271 — WARM-UP GATE. Until the renderer has delivered enough consecutive frames,
+        // its FPS is not evidence of anything and `trustedFPS` stays 0, which
+        // `AdaptiveQuality` already treats as "no reading yet". Without this, the single
+        // slowest frame of the whole session (the first one after a mount) WAS the estimate.
+        guard framesSinceDiscontinuity >= Self.fpsWarmupFrames else { return }
+        trustedFPS = smoothedFPS
         // Only recompute if the smoothed FPS would change the demotion decision.
         let target = Double(settings.targetFPS)
         let nearFloor = smoothedFPS < target * 0.75
@@ -176,6 +211,21 @@ public final class ResourceGovernor {
         let before = settings.tier
         recompute()
         if settings.tier != before { lastFpsTierChangeAt = timestamp }
+    }
+
+    /// Drop every FPS reading and start counting again. Called for a cold start AND for a
+    /// stall, because both mean the same thing: whatever comes next is a renderer warming
+    /// up, and the numbers it produces while doing so describe the warm-up, not the device.
+    ///
+    /// `trustedFPS` is cleared too — otherwise a thermal or battery notification arriving
+    /// mid-warm-up would call `recompute()` and demote on a reading this method just
+    /// declared untrustworthy. That path does not go through `recordFrame` at all, which is
+    /// why gating only the call site would not have been enough.
+    private func beginWarmup(at timestamp: CFTimeInterval) {
+        lastFrameTime = timestamp
+        framesSinceDiscontinuity = 0
+        smoothedFPS = 0
+        trustedFPS = 0
     }
 
     /// Minimum seconds between FPS-feedback-driven tier changes — stops boundary flapping.
@@ -196,9 +246,10 @@ public final class ResourceGovernor {
             apply(AdaptiveQuality.settings(for: manualTier))   // pinned: immediate, no dwell
             return
         }
+        // `trustedFPS`, not the raw EMA (#271): 0 until the renderer has proven a rate.
         let raw = AdaptiveQuality.settings(thermal: thermal, lowPower: lowPower,
                                            batteryLevel: batteryLevel, charging: charging,
-                                           measuredFPS: smoothedFPS)
+                                           measuredFPS: trustedFPS)
         // ASYMMETRIC HYSTERESIS (founder "Visuals Zucken noch"). A DEMOTION (more
         // conservative) applies immediately — if the device is stressed, back off now.
         // A PROMOTION (more expensive: higher targetFPS/detail) must PERSIST for
