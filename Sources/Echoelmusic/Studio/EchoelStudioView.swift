@@ -862,8 +862,21 @@ struct EchoelStudioView: View {
             // the app startup already gave both voices the warm default).
             if !touchPatchID.isEmpty { syncTouchSound() }
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { old, phase in
             if phase == .active { handlePendingIntent(); updateKeepAwake() }
+            // #273 — AUTOSAVE ON THE WAY OUT. Until now `ProjectStore.save` had exactly two
+            // callers in `Sources/`, both explicit taps, and NEITHER `scenePhase` observer
+            // touched a store: backgrounding, a phone call or a crash lost the take. That is
+            // worse here than in a document app — a bio-generated take is not reproducible by
+            // repeating the inputs, so there is nothing to redo.
+            //
+            // `old == .active` is what makes this fire ONCE PER DEPARTURE. `.inactive` is also
+            // the first phase on the way BACK (background → inactive → active), so keying on
+            // `phase != .active` alone would write twice per round trip. Leaving on
+            // `.inactive` rather than `.background` is deliberate: it is the earliest signal
+            // and it also covers a call banner or Control Centre, which never reach
+            // `.background` at all.
+            if old == .active && phase != .active { autosaveTake() }
         }
         // Keep the screen awake while performing or projecting — an installation, a
         // projected immersive visual, or a hands-off guided session must NOT auto-lock
@@ -5808,6 +5821,32 @@ struct EchoelStudioView: View {
 
     private func saveProject() {
         projects.save(currentProject())
+    }
+
+    /// #273 — write the live take into the ONE reserved library slot as the app leaves the
+    /// foreground. Deliberately NOT a new store, a new file or a new timer: the same
+    /// `currentProject()` the Save button builds, through the same `ProjectStore`, so an
+    /// autosave and a manual save are byte-identical apart from their id and name.
+    ///
+    /// Three properties this depends on, all load-bearing:
+    /// · `Project.autosaveSlotID` is FIXED, and `ProjectStore.save` matches by id — so this
+    ///   replaces the previous autosave instead of adding a row per app switch, and it can
+    ///   never land on a take the user named and saved (those carry random ids).
+    /// · `hasComposed` gates it. Saving an empty pre-generate state would push a row into the
+    ///   library that recalls nothing, and — because the library is sorted newest-first —
+    ///   push it above the take the user actually made.
+    /// · The name carries `autosaveNamePrefix`, because a row the user did not create has to
+    ///   say so in the one place they will meet it, which is the Open list.
+    ///
+    /// It is a RECOVERY point, not a save: nothing here marks the take as saved, and the Save
+    /// button still writes its own row. Deliberate — "the app already saved it" is a claim
+    /// that would have to survive the founder deleting the autosave row.
+    private func autosaveTake() {
+        guard hasComposed else { return }
+        let base = saveName.isEmpty ? session.sessionName(bpm: beatPlayer.pattern.tempo) : saveName
+        var take = currentProject(named: Project.autosaveNamePrefix + base)
+        take.id = Project.autosaveSlotID
+        projects.save(take)
     }
 
     private func open(_ p: Project) {

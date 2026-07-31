@@ -43,6 +43,29 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     public var name: String
     public var savedAt: Date
 
+    /// #273 — THE ONE RESERVED SLOT THE AUTOSAVE WRITES TO, and the reason it is a fixed
+    /// constant rather than a fresh `UUID()`.
+    ///
+    /// Until this existed there was no autosave at all: `ProjectStore.save` had exactly two
+    /// callers in `Sources/`, both explicit taps, and neither `scenePhase` observer touched a
+    /// store. Backgrounding the app, taking a call or crashing lost the take — and a
+    /// body-generated take cannot be reproduced by repeating the inputs, so "lost" is final.
+    ///
+    /// `ProjectStore.save` matches by `id`, so a fixed one makes every autosave REPLACE the
+    /// previous one: one row in the library, not a row per app switch. It also guarantees the
+    /// autosave can never overwrite a take the user named and saved deliberately — those
+    /// carry their own random ids, and this value is not reachable through any other path.
+    ///
+    /// ⚠️ NEVER CHANGE THIS VALUE. An installation carrying an autosave written under the old
+    /// constant would keep it forever as an ordinary-looking library row that the next
+    /// autosave no longer replaces, and the user has no way to tell the two apart.
+    public static let autosaveSlotID = UUID(uuidString: "E0000000-0000-4000-8000-000000000A05")!
+
+    /// Prefix that marks the reserved row in the library list. Cosmetic — the `id` is what
+    /// makes the slot reserved — but a row the user did not create has to say so, or the
+    /// first thing they learn about the autosave is that "their" save renamed itself.
+    public static let autosaveNamePrefix = "Auto · "
+
     // Musical setup
     public var styleRaw: String        // MusicStyle.rawValue
     public var keyRoot: Int            // 0…11
