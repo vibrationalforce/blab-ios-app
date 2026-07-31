@@ -151,8 +151,22 @@ final class PatchVibratoAnchorTests: XCTestCase {
         """)
     }
 
-    /// Breath must still open and close the filter movement of a patch that asks for movement.
-    func testBreathStillMovesAnAnchoredFilterLFO() {
+    /// ⛔ THIS TEST PASSES OVER A FORMULA THE SHIPPED APP NEVER EXERCISES, AND SAYING SO IS THE
+    /// POINT OF KEEPING IT. `breathDepth` has NO producer: `BioSampleFrame` carries `breathRate`
+    /// and `breathPhase` and no depth field, and both call sites pass the literal `0.5`
+    /// (`PolySynthVoice.swift:680`, `BioReactiveSynthVoice.swift:399`). The values fed below (0
+    /// and 1) are therefore synthetic. The first version of this test asserted the same thing
+    /// while its comment claimed the breath "opens the filter movement" — a green result over a
+    /// dead input, which is the shape of defect this repo keeps paying for (#135, #215), and the
+    /// audio-thread reviewer caught it the same hour.
+    ///
+    /// It stays because the ANCHORING half is live and load-bearing: at the only breath value
+    /// production emits (0.5) the factor is exactly 1.0, so the patch's own `lfoToFilterDepth`
+    /// survives instead of being pinned to the legacy constant 0.20 — that property is pinned by
+    /// `testEveryShippedPatchKeepsItsVibratoUnderNeutralBio`. What THIS one pins is that the
+    /// mapping is not frozen, so the day a breath-depth producer is wired the parameter moves
+    /// rather than silently staying constant. Read it as a dormant-formula guard.
+    func testBreathDepthMovesTheAnchoredFilterLFO_dormantUntilAProducerExists() {
         let patch = firstShippedPatch { $0.lfoToFilterDepth > 0 }
         guard let patch else { return XCTFail("no shipped patch uses the filter LFO") }
 
@@ -164,8 +178,14 @@ final class PatchVibratoAnchorTests: XCTestCase {
                               breathPhase: 0.5, breathDepth: 1)
 
         XCTAssertGreaterThan(deep.lfoToFilterDepth, shallow.lfoToFilterDepth, """
-        the breath no longer opens the filter movement (\(shallow.lfoToFilterDepth) shallow vs \
-        \(deep.lfoToFilterDepth) deep) — the anchor froze the parameter instead of centring it.
+        the anchored LFO→filter mapping no longer responds to `breathDepth` \
+        (\(shallow.lfoToFilterDepth) at 0 vs \(deep.lfoToFilterDepth) at 1) — the anchor froze \
+        the parameter instead of centring it.
+
+        NOTE BEFORE YOU "FIX" THIS: nothing in the shipped app feeds a breath DEPTH today, so \
+        this assertion is about a dormant formula, not about audible behaviour. If it went red \
+        because the mapping was deliberately removed, delete this test with the mapping rather \
+        than propping it up.
         """)
     }
 

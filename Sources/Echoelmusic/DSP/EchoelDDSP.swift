@@ -1580,6 +1580,15 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    `SoundPrompt` enforces (depth 0…1, rate 0…12 Hz), which also makes a non-finite
         //    baseline out of a corrupted patch decode harmless — `clamped(to:)` is NaN-safe,
         //    and the boundary sanitisation above only covers the bio INPUTS, not the anchor.
+        //    ⚠️ Do NOT generalise that last sentence to the whole `bioBase*` family: the CUTOFF
+        //    branch above multiplies its anchor UNCLAMPED into a persistent one-pole
+        //    (`filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03`), so a non-finite
+        //    `bioBaseFilterCutoff` would poison it forever — the #22/#29 silence shape. No live
+        //    producer of a non-finite patch cutoff exists (the UI writes through a bounded
+        //    `EchoelValueField`, and JSON decode of a non-conforming float throws), so it is
+        //    reachable-in-principle only; the ASYMMETRY is the finding, and it predates #279.
+        //    ⚠️ The rate clamp also pins the upward half of the deviation for any patch at or
+        //    above 9.6 Hz. No shipped patch exceeds 5.5 Hz, so this is dormant too.
         //    SENTINEL path (−1, the raw patch-less bio voice): the legacy absolute GENTLE drift,
         //    byte-identical — ~0.4 cent at rest → ~2.4 cent active, 0.05 → 0.2 Hz.
         if bioBaseVibratoDepth >= 0 && bioBaseVibratoRate >= 0 {
@@ -1604,15 +1613,26 @@ public final class EchoelDDSP: @unchecked Sendable {
         // allocates and would click the tail per frame); the spatial character comes from
         // reverbMix, decay is set once via updateReverbDecay().
 
-        // 7. Breath depth → Filter LFO depth. The same anchored/sentinel split as the vibrato
-        //    above (#279): with a patch applied, the breath moves the patch's OWN
-        //    `lfoToFilterDepth` by a factor centred on 1.0 at neutral breath (0.5) — so a patch
-        //    that asks for a still filter (0) keeps a still filter, and one that asks for
-        //    movement keeps its designed amount and only breathes around it. Without a patch,
-        //    the legacy absolute mapping, byte-identical.
-        //    (Comment, not code: the parameter name says "phase", the value read is DEPTH —
-        //    `breathDepth` is what this line has always used, and depth is the musically right
-        //    input here. Only the stale header word was wrong.)
+        // 7. Filter LFO depth — the same anchored/sentinel split as the vibrato above (#279):
+        //    with a patch applied the value is a factor centred on 1.0 at neutral breath (0.5),
+        //    so a patch that asks for a still filter (0) keeps a still filter and one that asks
+        //    for movement keeps its designed amount. Without a patch, the legacy absolute
+        //    mapping, byte-identical.
+        //
+        //    ⛔ AND `breathDepth` HAS NO PRODUCER, so read the paragraph above as a shape, not a
+        //    behaviour. The first version of this comment said "the breath moves the patch's own
+        //    lfoToFilterDepth" — that is false today and the audio-thread reviewer caught it in
+        //    the same hour it was written. `BioSampleFrame` carries `breathRate` and
+        //    `breathPhase` and NO depth field; both call sites pass the literal `0.5`
+        //    (`PolySynthVoice.swift:680`, `BioReactiveSynthVoice.swift:399`), so `breathFactor`
+        //    is exactly 1.0 on every frame the shipped app can produce and this line reduces to
+        //    a constant restore of the patch value. That restore is STILL the fix worth having —
+        //    without it the legacy branch pinned every patch to `0.05 + 0.5*0.3 = 0.20`,
+        //    overwriting whatever the Sound panel's "LFO→filter" row was set to. But the
+        //    MODULATION half is dormant, tracked separately, and must not be claimed as live in
+        //    any user-facing copy. (`breathPhase` IS measured and does drive the amplitude swell
+        //    above; it is `breathDepth` specifically that nothing measures — same class as the
+        //    `motionEnergy: 0` absence CLAUDE.md documents.)
         if bioBaseLFOToFilterDepth >= 0 {
             let breathFactor: Float = (1.0 + (breathDepth - 0.5) * 0.6).clamped(to: 0.7...1.3)
             lfoToFilterDepth = (bioBaseLFOToFilterDepth * breathFactor).clamped(to: 0...1)
