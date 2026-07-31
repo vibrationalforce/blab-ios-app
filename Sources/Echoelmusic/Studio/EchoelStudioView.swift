@@ -599,6 +599,11 @@ struct EchoelStudioView: View {
     /// directly (founder: everything user-optimized; don't make the header the only way in).
     @AppStorage(StudioDefaultKeys.floatingVisualVisible.key) private var floatingVisualVisible = StudioDefaultKeys.floatingVisualVisible.value
     @State private var showVisualSettings = false
+    /// #228 — the six individual visual parameters, folded away under the ONE Energy
+    /// control. `@State`, not `@AppStorage`, on purpose: this is a "show me the detail
+    /// right now" gesture, not a setting, and a persisted expansion would quietly undo
+    /// the simplification for anyone who ever opened it once.
+    @State private var showVisualFineTune = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
     /// Last-picked immersive visual preset (persisted) — a launch point for the
@@ -3349,22 +3354,84 @@ struct EchoelStudioView: View {
         visualPresetID = p.id
     }
 
-    /// The six live visual adjust fields — ONE definition, used by BOTH the inline Visual
-    /// panel and the fullscreen VJ overlay so the controls are identical everywhere
-    /// (founder: "easy to understand/control" — no drift, one place to change). The energy
-    /// fields (Intensity/Detail/Motion/Spread) clear the preset selection on edit since they
-    /// then diverge from it; Hue/Saturation are palette-only and leave the preset intact.
+    /// #228 — THE ONE VISUAL CONTROL ("ein Bedienelement statt neun Reglern").
+    ///
+    /// A single Energy position, 0 = the calmest curated world, 1 = the most energetic one.
+    /// It carries **no state of its own**: `get` derives the position from the live values
+    /// and `set` writes them back (`VisualEnergy`, which is where the mapping and the
+    /// reasoning live). That is deliberate — a dial with its own stored position would
+    /// drift the moment someone edits a fine-tune row, and would then be telling the user
+    /// something false about the picture in front of them.
+    ///
+    /// One behaviour to state plainly rather than discover on device: after a hand edit that
+    /// puts Intensity and Motion at *different* positions on the curve, the dial shows their
+    /// centre, and the first drag pulls BOTH back onto the curve at the new position. That is
+    /// what a macro control is; it is not a bug. The individual values remain one tap away
+    /// under Fine tune.
+    private var visualEnergy: Binding<Double> {
+        Binding(
+            get: { VisualEnergy.position(matching: visualIntensity, motion: visualMotion) },
+            set: { t in
+                let l = VisualEnergy.look(at: t)
+                visualIntensity = l.intensity
+                visualMotion = l.motion
+                // Moving Energy diverges from whatever preset was tapped — same rule the
+                // individual energy fields already followed.
+                visualPresetID = ""
+            }
+        )
+    }
+
+    /// The ONE control plus, folded away, the six that were on the surface before it.
+    /// ONE definition, used by BOTH the inline Field panel and the fullscreen VJ overlay
+    /// so the controls are identical everywhere (founder: "easy to understand/control" —
+    /// no drift, one place to change).
+    ///
+    /// WHY THE SIX ARE FOLDED AND NOT DELETED — and the precise version, because the first
+    /// draft of this comment said "no other writer" and that is simply false: `applyVisualPreset`
+    /// writes Intensity/Detail/Motion/Spread on every preset tap, and Hue/Saturation too when
+    /// the preset carries a palette (only Vapor does today). What a preset CANNOT do is reach an
+    /// arbitrary value — it lands on one of five curated points, and four of the five leave
+    /// Hue/Saturation exactly where they were. So deleting these rows would strand whatever
+    /// value is already on disk with no way back to it. That is the Tools-grid lesson this repo
+    /// already paid for once: check what a UI block is the only route to before removing it.
+    ///
+    /// The energy fields clear the preset selection on edit since they then diverge from it;
+    /// Hue/Saturation are palette-only and leave the preset intact.
     @ViewBuilder private var visualAdjustFields: some View {
-        EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                         onChange: { visualPresetID = "" })
-        EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
-                         onChange: { visualPresetID = "" })
-        EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
-                         onChange: { visualPresetID = "" })
-        EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
-                         onChange: { visualPresetID = "" })
-        EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
-        EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
+        EchoelValueField(label: "Energy", value: visualEnergy, range: 0...1)
+        Text("Calm ↔ energetic, across the same range the presets span. Fine tune holds the individual parameters.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+        Button {
+            showVisualFineTune.toggle()
+        } label: {
+            HStack(spacing: 8) {
+                Text("Fine tune")
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+                Spacer(minLength: 8)
+                Image(systemName: showVisualFineTune ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Fine tune the visual")
+        .accessibilityHint("Shows or hides the individual visual parameters")
+        if showVisualFineTune {
+            EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
+                             onChange: { visualPresetID = "" })
+            EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
+                             onChange: { visualPresetID = "" })
+            EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
+                             onChange: { visualPresetID = "" })
+            EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
+                             onChange: { visualPresetID = "" })
+            EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
+            EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
+        }
     }
 
     // musicColourRow now lives in its OWN leaf (`MusicColourRowView`, end of file):

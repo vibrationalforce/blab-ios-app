@@ -1,0 +1,115 @@
+// VisualEnergy.swift
+// Echoel — #228 ("Ein Bedienelement statt neun Reglern für die Visuals").
+//
+// ONE number, 0…1, that walks the immersive visual from its calmest curated world to
+// its most energetic one. It is a PURE mapping, not a stored setting: the Field panel
+// binds it as a DERIVED binding over the live Intensity/Motion values, so there is no
+// second source of truth to drift, nothing new on disk, and no "the dial says 0.4 but
+// the picture is Zentrifuge" lie after a hand edit in the fine-tune rows.
+//
+// WHY THE ENDPOINTS ARE NOT INVENTED NUMBERS. They are read off `VisualPreset.factory`
+// — the set the founder curated down to five stops ("weniger ist mehr", 2026-07-08). So
+// t = 0 is exactly the calmest curated energy the app ships and t = 1 exactly the most
+// energetic one; the dial can never leave the world the presets already define, and it
+// cannot silently diverge from that set when a preset is retuned.
+//
+// ⚠️ THE HARD PART OF THIS FILE IS WHAT IS *NOT* ON THE DIAL. Two of the four energy
+// parameters were excluded on measured grounds, not taste — putting a weak or inert
+// parameter on the ONE control is exactly how a control starts lying:
+//
+//   · **Detail** (`ringDensity`) is inert on every look that ships by default. Traced
+//     2026-07-31: `MetalBioView.swift:1637` clamps it into the shader's `density`, and
+//     `styleField` (`:1591`) hands `density` to `fieldRings` — style 0 — and to NO other
+//     field function. The default primary style is 5 (Aurora) and the default slider
+//     sequence is `[3,5,7]` (Water · Aurora · Depth, `LookBlendMap.swift`), none of which
+//     is Rings. Out of the box, dragging Detail from 8 to 90 changes nothing on screen.
+//     That defect is real and tracked separately; until it is fixed, Detail must not be
+//     the thing a single dial moves.
+//   · **Spread** only softens the vignette frame — `vEdge = 0.9 + 0.5 * spread`
+//     (`MetalBioView.swift:1589`), and the comment there states the edge is always larger
+//     than the screen radius, so it can never do more than tighten a soft border. It also
+//     runs 1.35 · 1.35 · 1.20 · 1.00 · 1.20 across the curated set, which is ordered
+//     softest→most energetic: it goes DOWN and back UP. It does not track energy at all.
+//
+// Hue and Saturation are palette, deliberately orthogonal ("the colour is the heard
+// tone") — they were never energy and stay fine-tune rows.
+//
+// Nothing here imports SwiftUI or Metal: it is a value mapping, testable in the
+// blocking CISmoke bundle without a renderer.
+
+import Foundation
+
+/// The single-control mapping for the immersive visual's energy.
+public enum VisualEnergy {
+
+    /// One parameter's curated span, taken from `VisualPreset.factory`.
+    public struct Span: Sendable, Equatable {
+        public let lo: Double
+        public let hi: Double
+
+        /// Degenerate-input-safe construction: an empty or single-valued factory must not
+        /// produce a zero-width span — the inverse divides by that width.
+        init(lo: Double, hi: Double, fallbackLo: Double, fallbackHi: Double) {
+            let l = lo.isFinite ? lo : fallbackLo
+            let h = hi.isFinite ? hi : fallbackHi
+            if h - l > 1e-9 {
+                self.lo = l
+                self.hi = h
+            } else {
+                self.lo = fallbackLo
+                self.hi = fallbackHi
+            }
+        }
+
+        /// Value at position `t` (assumed already clamped to 0…1).
+        func value(at t: Double) -> Double { lo + (hi - lo) * t }
+
+        /// Position of `v` on this span, clamped — the exact inverse of `value(at:)`.
+        func position(of v: Double) -> Double {
+            let x = v.isFinite ? v : lo
+            return Swift.min(1, Swift.max(0, (x - lo) / (hi - lo)))
+        }
+    }
+
+    private static func span(_ pick: (VisualPreset) -> Float,
+                             fallbackLo: Double, fallbackHi: Double) -> Span {
+        let values = VisualPreset.factory.map { Double(pick($0)) }
+        return Span(lo: values.min() ?? fallbackLo, hi: values.max() ?? fallbackHi,
+                    fallbackLo: fallbackLo, fallbackHi: fallbackHi)
+    }
+
+    /// Brightness span — the factory's calmest…most energetic intensity.
+    /// Reaches the shader directly (`col *= u.intensity`).
+    public static let intensity = span({ $0.intensity }, fallbackLo: 0.8, fallbackHi: 1.4)
+
+    /// Pulse-speed span. This is the *requested* heartbeat rate multiplier; the renderer
+    /// still hard-caps the result at `FlashGuard.maxPulseRateHz`, so this dial can never
+    /// raise the safety ceiling — only approach it.
+    public static let motion = span({ $0.motion }, fallbackLo: 0.42, fallbackHi: 1.4)
+
+    /// The two live values for a dial position. NaN-safe: a non-finite `t` reads as the
+    /// calm end, never as an unclamped write into the renderer's uniforms.
+    public static func look(at t: Double) -> (intensity: Double, motion: Double) {
+        let c = clamp(t)
+        return (intensity.value(at: c), motion.value(at: c))
+    }
+
+    /// Where the dial sits for a given pair of live values — the inverse of `look(at:)`.
+    ///
+    /// Averaging the two per-parameter positions is what keeps the control honest after a
+    /// hand edit: they can disagree (that IS what "custom" means), and the dial then shows
+    /// their centre instead of pretending one of them is the truth. The round trip
+    /// `position(matching: look(at: t)) == t` holds exactly, because both agree whenever
+    /// the values came from this mapping.
+    public static func position(matching intensityValue: Double,
+                                motion motionValue: Double) -> Double {
+        let p = intensity.position(of: intensityValue) + motion.position(of: motionValue)
+        return clamp(p / 2)
+    }
+
+    private static func clamp(_ t: Double) -> Double {
+        // Argument order is deliberate (CLAUDE.md): `max(0, NaN)` returns 0, so a
+        // non-finite position degrades to the calm end instead of propagating.
+        Swift.min(1, Swift.max(0, t))
+    }
+}
