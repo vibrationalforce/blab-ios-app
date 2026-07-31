@@ -714,7 +714,7 @@ struct EchoelStudioView: View {
             // root body type, same discipline as menuBar. Reordering siblings does not change
             // the root VStack's child COUNT, so the aggregate generic type is the same size as
             // before — this is a move, not a fifth child.
-            AnyView(startButton
+            AnyView(startControlRow
                 .padding(.horizontal, 16)
                 .padding(.top, FloatingVisualLayout.startButtonTopPadding)
                 .padding(.bottom, FloatingVisualLayout.startButtonBottomPadding))
@@ -1268,6 +1268,45 @@ struct EchoelStudioView: View {
                           recomposeIfRunning()
                       })
             VisualMoodPadLeaf()
+        }
+    }
+
+    /// #289 — ONE control block: pulse · Create from Within · playback ■.
+    ///
+    /// Founder 2026-07-31, red circle around the header pulse pill and the transport ■:
+    /// *"Das was da rot markiert ist könnte ja alles in dem Create From within Button drin
+    /// sein oder? Führe intelligent zusammen."* This is the third answer to the same
+    /// complaint (2026-07-15 "zu viele Play Knöpfe", 2026-07-29 "3 Knöpfe zum Start", now
+    /// this) and the first that puts them in one place instead of deleting one of them.
+    ///
+    /// ⛔ WHAT "INTELLIGENT" HAD TO MEAN HERE, because the literal reading destroys two
+    /// things. Folding all three into one TAP TARGET would have:
+    ///   · Deleted the bio-source door. The pill's long-press is the ONLY producer of
+    ///     `.echoelSelectBioSource`, and `startBioSource` is the ONLY owner of the BLE
+    ///     strap's lifecycle (CLAUDE.md states this explicitly, after a previous session
+    ///     wired a second owner and killed the founder's strap mid-performance). As
+    ///     decoration inside a button label, that gesture is gone and so is the strap.
+    ///   · Re-opened #161. The ■ is a PLAYBACK-only stop: it drops the music and keeps the
+    ///     body, because ending the session costs the camera ~20 s to re-lock and a
+    ///     performer needs silence between two sections. One tap target cannot mean both
+    ///     "pause the music" and "end the session" without lying at the worst moment.
+    /// So: ONE ROW, one visual object, three hit areas whose meanings are unchanged. The
+    /// pill and the ■ are the SAME views as before — moved, not rebuilt.
+    ///
+    /// ⚠️ FREEZE LAW. Neither moved control is read in this body. `PulseMonitorMiniLive`
+    /// reads the ~10 Hz camera publisher inside its own body (that isolation is what fixed
+    /// 10.76.50), and `PlaybackToggleButton` reads `bus.instrumentRunning` /
+    /// `transport.isPlaying` inside its own. Inlining either one's state here would put a
+    /// subscription on `EchoelStudioView.body` — the body that hosts every `.menu` Picker
+    /// in the instrument. That is the whole reason both are `struct`s and not a few lines
+    /// of `HStack` content.
+    private var startControlRow: some View {
+        HStack(spacing: 8) {
+            #if canImport(AVFoundation)
+            PulseMonitorMiniLive()
+            #endif
+            startButton
+            PlaybackToggleButton()
         }
     }
 

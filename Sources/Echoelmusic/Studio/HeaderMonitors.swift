@@ -50,10 +50,18 @@ struct PulseTrace: View {
 
 /// Compact header pulse monitor: live EKG trace + BPM. Accessible as one element.
 ///
-/// MOUNTED in WorkspaceView.topBar between logo and title since 2026-07-12 (founder:
-/// "Der Pulsmonitor kommt nach oben zwischen Logo und Echoelmusic") — this SUPERSEDES
-/// the 2026-07-03 "eine BPM-Anzeige reicht" unmount. Do not remove it again without a
-/// fresh founder ask.
+/// MOUNTED in `EchoelStudioView.startControlRow`, immediately left of "Create from Within"
+/// (founder 2026-07-31, #289: red circle around this pill and the transport ■, "könnte ja
+/// alles in dem Create From within Button drin sein … Führe intelligent zusammen").
+///
+/// ⛔ It sat in `WorkspaceView.topBar` between logo and title from 2026-07-12 (founder: "Der
+/// Pulsmonitor kommt nach oben zwischen Logo und Echoelmusic"), and this doc used to end
+/// "Do not remove it again without a fresh founder ask" — because a 2026-07-03 unmount had
+/// already been reversed once. The 2026-07-31 instruction IS that fresh ask, from the same
+/// person, with a drawing; it is a MOVE, not an unmount, and the sentence is kept here in
+/// its new form so the third session to touch this does not have to reconstruct the history.
+/// The view itself is untouched: same leaf, same tap (Bio panel), same long-press (source
+/// picker).
 @MainActor
 struct PulseMonitorMini: View {
     let waveform: [Float]

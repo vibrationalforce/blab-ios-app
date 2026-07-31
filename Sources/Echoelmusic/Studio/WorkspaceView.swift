@@ -269,13 +269,19 @@ struct WorkspaceView: View {
                 // The centred title button already announces + opens the website —
                 // two adjacent VoiceOver stops for one action is noise (AX audit).
                 .accessibilityHidden(true)
-                // The live pulse monitor (trace + BPM), between logo and title
-                // (founder 2026-07-12: "Der Pulsmonitor kommt nach oben zwischen
-                // Logo und Echoelmusic"). A LEAF that reads the ~10 Hz publisher in
-                // its OWN body (freeze rule 10.76.50) — WorkspaceView stays still.
-                #if canImport(AVFoundation)
-                PulseMonitorMiniLive()
-                #endif
+                // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
+                // around this pill and the transport ■: "könnte ja alles in dem Create From
+                // within Button drin sein … Führe intelligent zusammen"). It now sits
+                // immediately left of "Create from Within" in `EchoelStudioView`, so the
+                // feedback appears ON the control that produces it instead of at the other
+                // end of the window.
+                //
+                // ⛔ This supersedes the founder's 2026-07-12 placement ("Der Pulsmonitor
+                // kommt nach oben zwischen Logo und Echoelmusic"), whose note in
+                // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
+                // This IS that ask, from the same person, with a drawing. The pill itself is
+                // unchanged — same leaf, same tap (Bio panel), same long-press (source
+                // picker) — only its address changed.
                 Spacer(minLength: 0)
                 // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
                 // (The former video-lane monitor tile was retired with the DAW video
@@ -338,85 +344,141 @@ struct WorkspaceView: View {
 /// tempo); the ~10 Hz position lives in its own `TransportPositionView` leaf so the
 /// buttons/field don't churn (freeze rule). Play/Stop drives PatternEngine — the clock that
 /// RELAYS into Transport — so the position/tempo shown stay authoritative.
+/// #289 — the playback ■/▶, EXTRACTED from `TransportBar` so it can sit in the studio's
+/// one control block beside "Create from Within" (founder 2026-07-31: the pulse pill and
+/// this button "könnte ja alles in dem Create From within Button drin sein … Führe
+/// intelligent zusammen").
+///
+/// ⭐ A LEAF, and that is the whole reason it is a separate `struct` rather than a few lines
+/// inlined into `EchoelStudioView.startControlRow`. It reads `bus.instrumentRunning` and
+/// `transport.isPlaying` in its OWN body. Inlined, those two reads would sit in
+/// `EchoelStudioView.body` — the body that hosts every `.menu` Picker in the instrument —
+/// and the freeze law (10.76.41/50) is about exactly that. Both are low-frequency today
+/// (they flip on start and on stop), so inlining would probably not freeze anything; "probably
+/// not" is not the standard this file is held to, and `Transport` also owns the ~10 Hz
+/// `position`, which is one careless `transport.position` away from being read here.
+///
+/// Behaviour is UNCHANGED from the transport bar — same gate, same pause intent, same
+/// breadcrumb. This is a relocation, not a redesign; the rationale below is #179's and is
+/// carried across whole because it is the reason this button is not merged INTO the hero
+/// button's tap target.
 @MainActor
-private struct TransportBar: View {
+struct PlaybackToggleButton: View {
     @Environment(Transport.self) private var transport
     @Environment(BeatPlayer.self) private var player
-    // ▶ is the INSTRUMENT's button and reads NOTHING from the timeline document
-    // (founder 2026-07-27). The `TimelineStore` / `ClipStore` / `TimelineRegionPlayer`
-    // reads that used to live here are gone — see toggle().
-    /// Read ONLY inside `toggle()` — a tap handler, never `body` — so the transport bar
-    /// subscribes to nothing (freeze rule). It carries the PAUSE INTENT: `PianoRollModel`
-    /// owns the one-shot flag the studio's transport observer consumes.
+    /// Read ONLY inside `toggle()` — a tap handler, never `body` — so this leaf subscribes
+    /// to nothing extra. It carries the PAUSE INTENT: `PianoRollModel` owns the one-shot
+    /// flag the studio's transport observer consumes.
     @Environment(PianoRollModel.self) private var pianoRoll
-    /// `instrumentRunning` is the Start/Stop-frequency chrome mirror — it changes twice per
-    /// session, so unlike a bio snapshot or the roll it is safe to read in this body, which
-    /// is what gates ▶ to sessions only (#234).
     @Environment(EngineBus.self) private var bus
 
     var body: some View {
-        HStack(spacing: 12) {
-            // ⛔ THE MUSIC TRANSPORT, AND ONLY WHILE A SESSION RUNS (founder 2026-07-29,
-            // screenshot: "Ich hab jetzt hier 3 Knöpfe zum Start … könnte man das zu
-            // einem zusammenfassen?"). Three controls began the same session: this ▶,
-            // the header pulse pill, and the full-width "Create from Within". The last
-            // one — labelled, unmissable, named after what the instrument does — is now
-            // the only way to START.
-            //
-            // Why this button SURVIVES instead of being deleted outright: it does a job
-            // the hero button cannot. "Stop" ends the whole session, and the camera pulse
-            // then needs ~20 s to re-acquire a lock. A performer who wants silence between
-            // two sections must be able to drop the music WITHOUT dropping the body — that
-            // is this ■, and it only makes sense while there is a session to drop out of.
-            // Hidden the rest of the time, so at the "how do I start?" moment exactly one
-            // button on screen starts anything.
-            //
-            // ⛔ THAT WAS NOT TRUE WHEN IT WAS FIRST WRITTEN, and the founder's own device
-            // log proved it within the hour (2475, second session):
-            //
-            //     828.182  stop source: transport-bar ■
-            //     828.196  stopEverything(transport-stopped): transport + all voices released
-            //
-            // `TransportTransition.decide` returns `.endSession` unless a playback-only stop
-            // was REQUESTED, and the only producer of that request was `PianoRollView`,
-            // whose door was removed on 2026-07-26. So this ■ ended the whole session — a
-            // second full Stop wearing a different glyph, i.e. exactly the duplicate the
-            // slice claimed to have removed. The rationale above is now honoured instead of
-            // repaired away: `toggle()` raises the pause intent, so the sentence describes
-            // what the button does. This is #179 decided as RESCUE rather than RETIRE —
-            // every piece (the flag, the pure decision, `pausePlaybackKeepingSession`,
-            // `resumeAfterPause`) was already built and tested and only lacked a caller.
-            //
-            // `instrumentRunning` is the start/stop chrome mirror — it changes twice per
-            // session, not per frame, so reading it in this body is freeze-safe. The
-            // layout only shifts on start and on stop, never mid-performance. (Reading
-            // `pianoRoll.notes` here instead would have been the exact 10 Hz-in-an-
-            // ancestor read the freeze law forbids — the roll changes on every generate.)
-            if bus.instrumentRunning {
-                Button { toggle() } label: {
-                    Image(systemName: transport.isPlaying ? "stop.fill" : "play.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
-                        .frame(width: 38, height: 32)
-                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                            .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit
-                // area fills the bar height (performance control, AX audit 2026-07-09).
-                .contentShape(Rectangle().inset(by: -6))
-                // `Text` on both ternary branches, as a forward guard — NOT a bug fix. Be
-                // precise, because the sibling comment in `OnboardingView` was written as if
-                // it were one: the non-generic `LocalizedStringKey` overload is preferred over
-                // the generic `StringProtocol` one, so two bare literals almost certainly
-                // localised already. Neither string is a catalog key today either, so nothing
-                // a user sees changes. What `Text` buys is that the question stops depending
-                // on overload ranking — worth one word on the only description a VoiceOver
-                // user gets of a control whose whole point is that it does NOT end the session.
-                .accessibilityLabel(transport.isPlaying ? Text("Stop the music") : Text("Play the music"))
-                .accessibilityHint(Text("Leaves the session and your pulse reading running."))
+        // ⛔ THE MUSIC TRANSPORT, AND ONLY WHILE A SESSION RUNS (founder 2026-07-29,
+        // screenshot: "Ich hab jetzt hier 3 Knöpfe zum Start … könnte man das zu einem
+        // zusammenfassen?"). Three controls began the same session: this ▶, the header
+        // pulse pill, and the full-width "Create from Within". The last one — labelled,
+        // unmissable, named after what the instrument does — is now the only way to START.
+        //
+        // Why this button SURVIVES instead of being folded into that one: it does a job the
+        // hero button cannot. "Stop" ends the whole session, and the camera pulse then needs
+        // ~20 s to re-acquire a lock. A performer who wants silence between two sections must
+        // be able to drop the music WITHOUT dropping the body — that is this ■, and it only
+        // makes sense while there is a session to drop out of. Hidden the rest of the time,
+        // so at the "how do I start?" moment exactly one button on screen starts anything.
+        //
+        // ⛔ THAT WAS NOT TRUE WHEN IT WAS FIRST WRITTEN, and the founder's own device log
+        // proved it within the hour (2475, second session):
+        //
+        //     828.182  stop source: transport-bar ■
+        //     828.196  stopEverything(transport-stopped): transport + all voices released
+        //
+        // `TransportTransition.decide` returns `.endSession` unless a playback-only stop was
+        // REQUESTED, and the only producer of that request was `PianoRollView`, whose door was
+        // removed on 2026-07-26. So this ■ ended the whole session — a second full Stop
+        // wearing a different glyph, i.e. exactly the duplicate the slice claimed to have
+        // removed. The rationale above is now honoured instead of repaired away: `toggle()`
+        // raises the pause intent, so the sentence describes what the button does. This is
+        // #179 decided as RESCUE rather than RETIRE — every piece (the flag, the pure
+        // decision, `pausePlaybackKeepingSession`, `resumeAfterPause`) was already built and
+        // tested and only lacked a caller.
+        //
+        // `instrumentRunning` is the start/stop chrome mirror — it changes twice per session,
+        // not per frame, so reading it here is freeze-safe. (Reading `pianoRoll.notes` instead
+        // would have been the exact 10 Hz read the freeze law forbids — the roll changes on
+        // every generate.)
+        if bus.instrumentRunning {
+            Button { toggle() } label: {
+                Image(systemName: transport.isPlaying ? "stop.fill" : "play.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
+                    .frame(width: 38, height: 32)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
             }
+            .buttonStyle(.plain)
+            // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit area is
+            // outset (performance control, AX audit 2026-07-09).
+            .contentShape(Rectangle().inset(by: -6))
+            // `Text` on both ternary branches, as a forward guard — NOT a bug fix. Be
+            // precise, because the sibling comment in `OnboardingView` was written as if it
+            // were one: the non-generic `LocalizedStringKey` overload is preferred over the
+            // generic `StringProtocol` one, so two bare literals almost certainly localised
+            // already. Neither string is a catalog key today either, so nothing a user sees
+            // changes. What `Text` buys is that the question stops depending on overload
+            // ranking — worth one word on the only description a VoiceOver user gets of a
+            // control whose whole point is that it does NOT end the session.
+            .accessibilityLabel(transport.isPlaying ? Text("Stop the music") : Text("Play the music"))
+            .accessibilityHint(Text("Leaves the session and your pulse reading running."))
+        }
+    }
+
+    private func toggle() {
+        if transport.isPlaying {
+            // T1 breadcrumb: name the finger BEFORE the stop cascades — the 2361 log's
+            // source-less "transport-stopped" burned a triage cycle proving it was a tap.
+            // PAUSE, not end-of-session. The flag is a one-shot consumed by the studio's
+            // transport observer in the SAME turn as the `isPlaying` flip below, and every
+            // other stop path clears it defensively (`stopEverything`), so it cannot latch
+            // and downgrade a later real Stop — the #161 trap. Raising it BEFORE
+            // `pattern.stop()` is required, not stylistic: the observer reads it as a
+            // consequence of that call.
+            //
+            // It also cannot be raised while no take is live, which is the other half of that
+            // trap: this button does not exist unless `bus.instrumentRunning` is true.
+            //
+            // ⛔ The breadcrumb still says "transport-bar ■" although the button now lives in
+            // the studio's control row (#289). Kept VERBATIM on purpose: it is the string the
+            // founder's device logs are read against, and renaming it would silently break
+            // every existing triage note that greps for it. The location changed; the identity
+            // of the finger did not.
+            EchoelCrashLog.breadcrumb("stop source: transport-bar ■ (playback only)")
+            pianoRoll.requestPlaybackOnlyStop()
+            player.pattern.stop()
+        } else {
+            // ▶ PLAYS THE INSTRUMENT. It does not consult the timeline document at all
+            // (founder 2026-07-27: "Der ganze DAW Quatsch der nicht funktioniert hat soll
+            // erstmal raus aus dem TestFlight"). The arrangement branch, the drum-grid
+            // condition and the UX-2 first-run branch that used to stand here are gone with
+            // #130/#166/#234 respectively; `TimelineRegionPlayer` is permanently inert
+            // (`transportStep` opens with `guard isPlaying`, and `play(document:)` — its only
+            // writer — has no production caller). #132 Slice 5 retires the model.
+            player.pattern.play(cause: .transportButton)
+        }
+    }
+}
+
+@MainActor
+private struct TransportBar: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            // ⬆ THE PLAYBACK ■/▶ MOVED OUT (#289, founder 2026-07-31: the pulse pill and
+            // this button "könnte ja alles in dem Create From within Button drin sein …
+            // Führe intelligent zusammen"). It now sits in `EchoelStudioView`'s one control
+            // row, beside "Create from Within", as `PlaybackToggleButton` — the leaf defined
+            // above this struct, which carries its full #179 rationale. Nothing about WHAT it
+            // does changed; it stopped being on the far side of the window from the control
+            // it belongs to.
 
             // (The transport pulse button is GONE — founder 2026-07-15 video: "zu viele
             //  Play Knöpfe, einer reicht." Its job moved to the header pulse pill, and
@@ -530,81 +592,11 @@ private struct TransportBar: View {
         }
     }
 
-    private func toggle() {
-        if transport.isPlaying {
-            // T1 breadcrumb: name the finger BEFORE the stop cascades — the 2361 log's
-            // source-less "transport-stopped" burned a triage cycle proving it was a tap.
-            // The old two-branch stop (timeline-follow vs pattern) is gone with the
-            // arrangement branch below: nothing can put `TimelineRegionPlayer` into
-            // `isPlaying` any more, so a branch on it would have been dead code that
-            // still reads like a live choice.
-            // PAUSE, not end-of-session. The flag is a one-shot consumed by the studio's
-            // transport observer in the SAME turn as the `isPlaying` flip below, and every
-            // other stop path clears it defensively (`stopEverything`), so it cannot latch
-            // and downgrade a later real Stop — the #161 trap. Raising it BEFORE
-            // `pattern.stop()` is required, not stylistic: the observer reads it as a
-            // consequence of that call.
-            //
-            // It also cannot be raised while no take is live, which is the other half of
-            // that trap: this button does not exist unless `bus.instrumentRunning` is true.
-            EchoelCrashLog.breadcrumb("stop source: transport-bar ■ (playback only)")
-            pianoRoll.requestPlaybackOnlyStop()
-            player.pattern.stop()
-        } else {
-            // ▶ PLAYS THE INSTRUMENT. It no longer consults the timeline document at all
-            // (founder 2026-07-27: "Der ganze DAW Quatsch der nicht funktioniert hat soll
-            // erstmal raus aus dem TestFlight").
-            //
-            // What it did, and why that had to go: the first branch here read the PERSISTED
-            // arrangement and, if it held any real region, played THAT instead of the
-            // instrument. On build 2469 that is exactly what happened — ▶ produced a
-            // breakbeat imported into the session weeks earlier. Slice 4 (#130) removed the
-            // arrangement UI, so since then the document has been invisible AND undeletable
-            // while still owning the one transport button: a control that answers to data
-            // the user can neither see nor reach. Removing the surface without removing its
-            // authority is what made it a trap rather than a leftover.
-            //
-            // The drum-grid condition went with it. `pattern.steps` can still come back
-            // non-empty from a pre-#166 project via `open(_:)`, and since the founder
-            // removed the drums it CANNOT make a sound — so it suppressed the universal
-            // Start below and delivered silence. A condition whose only remaining effect is
-            // to withhold sound is not a guard.
-            //
-            // The model (`TimelineStore`, `ClipStore`, `TimelineRegionPlayer`) is untouched
-            // as CODE, and #132 Slice 5 retires it. But be precise about what that means,
-            // because the first version of this comment got it wrong in the direction that
-            // blocks the deletion: I wrote that the player "still fans transport steps out
-            // to the secondary lane voices, which is live". It does NOT.
-            // `TimelineRegionPlayer.transportStep` opens with `guard isPlaying`, and
-            // `isPlaying` has ONE write site — inside `play(document:)`, which now has no
-            // production caller. So the per-tick relay from `PianoRollView` still fires and
-            // returns immediately: the secondary-lane fan-out, the audio-lane sink, the
-            // mixer/structure refresh and the timeline automation are ALL permanently inert.
-            // Nothing regressed — those lanes only ever sounded during arrangement playback,
-            // which is the thing being removed — but a future session must not read this
-            // block as "load-bearing, do not delete".
-            // The PRIMARY instrument is unaffected and that is the part that is live:
-            // `PianoRollModel.trigger(step)` runs from the same tick closure OUTSIDE any
-            // timeline guard, so roll → voices → `MusicalFrame` is untouched.
-            // One thing the deleted conditions used to carry, named so it is chosen rather
-            // than lost: `doc.regions.isEmpty` existed so a VIDEO-ONLY arrangement fell
-            // through to the loop instead of being handed generative music it never asked
-            // for — such a project now gets the instrument, which is right since video
-            // capture went with #121 Slice 3.
-            //
-            // The UX-2 branch that used to stand here is GONE with the same change that
-            // made this button session-only (#234). It read `pianoRoll.notes.isEmpty` and
-            // posted `.echoelToggleBio` so that a first-run ▶ would START the instrument
-            // instead of walking a playhead over silence. That was the right answer while ▶
-            // was on screen before anything ran; it is unreachable now, because the button
-            // only exists while `bus.instrumentRunning` is true — the very condition the
-            // branch required to be false. Left in place it would have been dead code that
-            // still reads like a live choice, which is the shape this file has been burned
-            // by twice. First-run silence is now answered where it belongs: by the one
-            // labelled "Create from Within" on the front plate.
-            player.pattern.play(cause: .transportButton)
-        }
-    }
+    // ⛔ `toggle()` IS GONE FROM HERE, not merely unused: it moved with the ■ into
+    // `PlaybackToggleButton` (#289). A private method with no caller compiles silently in
+    // Swift — no warning, no gate — so leaving it would have been a second, divergent copy
+    // of the playback-stop path waiting for someone to "restore" a button onto it. The four
+    // `@Environment` values it needed went with it for the same reason.
 }
 
 /// The moving playhead — bars.beats.sixteenths (1-based, DAW convention). Isolated in
