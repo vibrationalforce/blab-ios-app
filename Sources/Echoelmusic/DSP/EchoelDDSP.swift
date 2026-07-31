@@ -287,7 +287,21 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// LFO modulation depth on filter cutoff [0-1]
     public var lfoToFilterDepth: Float = 0.15     // Gentle filter sweep
 
-    /// Base filter cutoff (before modulation) [20-20000 Hz]
+    /// The ONE audible domain of a filter cutoff in this engine, in Hz.
+    ///
+    /// It existed as four separate hardcoded copies of `20` and `18000` — the render clamp
+    /// below, the bio target in `applyBioReactive`, `SoundPrompt`'s sanitiser and the Sound
+    /// panel's knob range. Copies of a domain drift; this file's history is mostly that lesson.
+    /// The two inside `EchoelDDSP` now read from here. The other two still hold their own
+    /// literals (`SoundPrompt.swift` and `EchoelStudioView.swift`) — folding a UI range and a
+    /// prompt sanitiser into a DSP constant is a separate errand, and `FilterCutoffClampTests`
+    /// asserts behaviourally that they still agree instead of leaving that to hope.
+    ///
+    /// The doc on `filterCutoff` said "[20-20000 Hz]" while every clamp in the codebase used
+    /// 18000. Nothing depended on the wrong upper bound, which is exactly why it survived.
+    public nonisolated static let cutoffRange: ClosedRange<Float> = 20...18000
+
+    /// Base filter cutoff (before modulation), in Hz — kept inside `cutoffRange`.
     public var filterCutoff: Float = 220.0     // Warm, dark start — opens with coherence
 
     /// External cutoff multiplier (1 = no change), e.g. driven by parameter
@@ -1198,7 +1212,14 @@ public final class EchoelDDSP: @unchecked Sendable {
             filterEnvValue *= filterEnvDecay
             if filterEnvValue < 1e-20 { filterEnvValue = 0 }   // floor: no denormal churn on held notes
             let brightBoost = 1.0 + filterEnvAmount * filterEnvValue * (0.4 + 0.6 * min(1, max(0, noteVelocity)))
-            let modulatedCutoff = max(20, min(filterCutoff * renderCutoffScale * (1.0 + lfoMod * lfoToFilterDepth) * brightBoost, 18000))
+            // `clamped(to:)` here is NOT a behaviour change: the previous
+            // `max(20, min(x, 18000))` was already NaN-safe by ARGUMENT ORDER (min returns NaN,
+            // then `NaN >= 20` is false so max returns 20), and the NaN-safe overload maps NaN to
+            // the same lower bound. Identical for every finite input too. What it buys is the
+            // shared `cutoffRange` instead of a fourth copy of the two literals.
+            let modulatedCutoff = (filterCutoff * renderCutoffScale
+                                   * (1.0 + lfoMod * lfoToFilterDepth)
+                                   * brightBoost).clamped(to: Self.cutoffRange)
             // One-pole smooth the target so bio/LFO cutoff steps don't zipper the SVF.
             // Seed on first sample to avoid a startup sweep. coeff ~0.01 ≈ a few-ms glide.
             if smoothedCutoff < 0 { smoothedCutoff = modulatedCutoff }
@@ -1551,7 +1572,27 @@ public final class EchoelDDSP: @unchecked Sendable {
         } else {
             targetCutoff = 200 + coherence * 1600
         }
-        filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03
+        // ⛔ THE CLAMP IS THE POINT OF #294, AND IT BELONGS ON THE ASSIGNMENT, NOT ON
+        // `targetCutoff`. This is the only bio mapping in this function whose result is a
+        // PERSISTENT one-pole accumulator: once `filterCutoff` is non-finite it stays
+        // non-finite forever (`inf * 0.97 + anything = inf`, `NaN * 0.97 = NaN`), with no
+        // recovery short of re-applying a patch — the #22/#29 permanent-silence class this
+        // repo has already paid for twice. Clamping the TARGET would not have fixed it: the
+        // poison can arrive in the accumulator itself, because `ResolvedPatch.apply(to:)`
+        // writes the raw patch cutoff straight into `filterCutoff` one line before it sets the
+        // anchor. Clamping the ASSIGNMENT makes the accumulator SELF-HEALING — one frame after
+        // a bad value it is back in range. `clamped(to:)` maps NaN to the lower bound (20 Hz:
+        // a dark filter, audible, recoverable) rather than letting it through, which is the
+        // documented "fail quiet, never stuck-silent" rule of `FloatingPointClamp`.
+        //
+        // ⚠️ AND IT IS A NO-OP FOR EVERYTHING THAT SHIPS — measured, not assumed. The highest
+        // cutoff in any shipped patch is 6500 Hz (`SynthPatch.rawFactory`; `GenrePatches` tops
+        // out at 3600), and the largest bio factor is 1.3, so the target peaks at 8450 Hz —
+        // less than half the ceiling. Only a hand-edited/saved patch above ~13.8 kHz, or a
+        // non-finite one, can reach this clamp at all. This is hardening with a precedent
+        // (#92 sanitised the bio INPUTS of this same function with no demonstrated producer
+        // either), not a tuning change, and it must not be reported as one.
+        filterCutoff = (filterCutoff * 0.97 + targetCutoff * 0.03).clamped(to: Self.cutoffRange)
 
         // Recalculate spectral envelope 10x/sec for snappier bio response
         _spectralUpdateCounter += 1
@@ -1611,13 +1652,11 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    mechanisms for two different non-finite values; the guard is the one doing the NaN
         //    work. (The boundary sanitisation at the top of this function covers only the bio
         //    INPUTS, never the anchor, which is why either mechanism is needed at all.)
-        //    ⚠️ Do NOT generalise that last sentence to the whole `bioBase*` family: the CUTOFF
-        //    branch above multiplies its anchor UNCLAMPED into a persistent one-pole
-        //    (`filterCutoff = filterCutoff * 0.97 + targetCutoff * 0.03`), so a non-finite
-        //    `bioBaseFilterCutoff` would poison it forever — the #22/#29 silence shape. No live
-        //    producer of a non-finite patch cutoff exists (the UI writes through a bounded
-        //    `EchoelValueField`, and JSON decode of a non-conforming float throws), so it is
-        //    reachable-in-principle only; the ASYMMETRY is the finding, and it predates #279.
+        //    ⚠️ The cutoff branch above used to be the exception — it multiplied its anchor
+        //    UNCLAMPED into a persistent one-pole, so a non-finite anchor poisoned it forever.
+        //    #294 closed that (the clamp sits on the ASSIGNMENT there, because that accumulator
+        //    can be poisoned by `apply(to:)` directly, not only through the anchor). The family
+        //    is symmetric again; do not re-open it by "simplifying" either clamp away.
         //    ⚠️ The rate clamp also pins the upward half of the deviation for any patch at or
         //    above 9.6 Hz. No shipped patch exceeds 5.5 Hz, so this is dormant too.
         //    SENTINEL path (−1, the raw patch-less bio voice): the legacy absolute GENTLE drift,
