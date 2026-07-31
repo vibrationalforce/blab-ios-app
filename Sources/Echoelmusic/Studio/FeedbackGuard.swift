@@ -6,10 +6,21 @@
 //  live mic/vocoder path. This file is the BRAIN only — no audio DSP here:
 //    • detect runaway level build-up  → recommend a gain duck (dB)
 //    • find the ringing frequency bin  → recommend a notch
-//  The audio cycle applies them: Apple's Voice-Processing I/O for system AEC
-//  (the FaceTime echo canceller) + a notch biquad + the recommended duck in the
-//  FX chain. Headphone/IEM monitoring remains the zero-feedback pro path; this
-//  protects speaker/PA use.
+//
+//  ⛔ WHAT THIS HEADER CLAIMED UNTIL 2026-07-31, AND WHAT IS ACTUALLY WIRED (#298).
+//  It said: "The audio cycle applies them: Apple's Voice-Processing I/O for system AEC (the
+//  FaceTime echo canceller) + a notch biquad + the recommended duck in the FX chain."
+//  ONE of those three is real. Checked by grep over `Sources/`:
+//    • the DUCK is live — `AudioEngine.updateFeedbackGuard()` calls `gainReductionDB` from the
+//      ~15 Hz meter poll on the MainActor and scales `monitorMixer.outputVolume`. It ducks the
+//      MIC MONITOR only, never the music, and touches no audio thread and no tap.
+//    • the NOTCH is NOT wired — `ringingBin` has ZERO callers outside this file. No biquad
+//      anywhere consumes it.
+//    • the AEC is NOT wired — `setVoiceProcessingEnabled` appears NOWHERE in `Sources/`.
+//  This mattered more than a stale comment usually does: it is the file a session reads to
+//  decide whether feedback suppression still needs work, and as written it answered "already
+//  done, three layers deep". Headphone/IEM monitoring remains the zero-feedback path — today
+//  it is the ONLY complete one; on a speaker the duck is the whole defence.
 //
 //  All functions are allocation-free over caller-provided buffers, so the audio
 //  thread can call them directly (Accelerate does the FFT upstream).
