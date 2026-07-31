@@ -392,6 +392,34 @@ struct FloatingVisualWindow: View {
     }
 
 
+    #if canImport(AVFoundation)
+    /// ⭐ #311 NACHLESE — THE ONE HAZARD THE FIRST VERSION OF THAT SLICE CREATED, and the reason
+    /// this wrapper exists rather than a plain `$binding`.
+    ///
+    /// `.opacity(0)` and `.allowsHitTesting(false)` do NOT suppress sheet presentation: a sheet
+    /// presents in its own UIKit context and does not care that its host is invisible. Before
+    /// #311, hiding the visual UNMOUNTED this window and took both share-sheet slots with it.
+    /// Now they are permanently armed — and both are driven by ASYNC completions that outlive the
+    /// hide (`recorder.stop()`, and the WAV export's `AVAssetExportSession`, seconds long).
+    ///
+    /// So this sequence became reachable, and was structurally impossible the day before: stop a
+    /// take → hide the visual → open any panel/modal on the instrument → the export finishes → an
+    /// INVISIBLE window presents a share sheet on top of it. That is the documented
+    /// "two modals true at once → invisible tap-blocking layer" hang, arrived at without the user
+    /// doing anything unusual. (`EchoelStudioView` also lowers this window's flag itself when it
+    /// raises a fullscreen cover, so a share sheet over a cover was reachable too.)
+    ///
+    /// HELD, NOT DROPPED — and that distinction is the whole design. Gating the sheet on
+    /// `isPresented` alone would silently swallow a finished export; returning `nil` for the ITEM
+    /// while leaving the `@State` intact means the share simply waits and presents when the
+    /// picture comes back. That is strictly better than the pre-#311 behaviour, where hiding
+    /// destroyed the `@State` and the export was lost with no way to reach the file.
+    private func heldWhileHidden(_ clip: Binding<RecordedClip?>) -> Binding<RecordedClip?> {
+        Binding(get: { isPresented ? clip.wrappedValue : nil },
+                set: { clip.wrappedValue = $0 })
+    }
+    #endif
+
     var body: some View {
         GeometryReader { geo in
             let full = windowSize.isFullscreen
@@ -423,8 +451,8 @@ struct FloatingVisualWindow: View {
         // removed" when the fade is exactly where it was.
         .transition(.opacity)
         #if canImport(AVFoundation)
-        .sheet(item: $recordedClip) { clip in ShareSheet(url: clip.url) }
-        .sheet(item: $wavClip) { clip in ShareSheet(url: clip.url) }
+        .sheet(item: heldWhileHidden($recordedClip)) { clip in ShareSheet(url: clip.url) }
+        .sheet(item: heldWhileHidden($wavClip)) { clip in ShareSheet(url: clip.url) }
         #endif
     }
 
@@ -535,10 +563,25 @@ struct FloatingVisualWindow: View {
     /// True when the phone has handed its renderer to an external screen and NO capture is
     /// already in flight — i.e. when starting a video recording would silently produce an
     /// empty file. Blocks the START only; a recording already running when the cable goes
-    /// in stays stoppable. Both reads are event-rate (a cable connect, a record tap), so
+    /// in stays stoppable. All reads are event-rate (a cable connect, a hide, a record tap), so
     /// this is not a freeze-law read.
+    ///
+    /// ⭐ `|| !isPresented` ADDED IN THE #311 NACHLESE, and the reason is that #311 created a
+    /// SECOND — and far more common — way for `visualLayer` to drop the capturing renderer: the
+    /// hidden branch. The rule this property encodes ("no renderer ⇒ no start, or you get a red
+    /// REC pill counting up over a writer session that never began", the lying-control class
+    /// #164) applied to that branch from the moment it existed, and the slice that added it did
+    /// not extend the guard. It was blocked in practice only BY ACCIDENT — `allowsHitTesting`
+    /// makes the button untappable while hidden — and a guard that holds by accident is exactly
+    /// the kind this repo has had to re-learn.
+    ///
+    /// ⛔ WHAT THIS STILL DOES NOT COVER, stated rather than implied: start a video recording,
+    /// THEN hide the picture. `recorder.isRecording` stays true, the badge keeps counting, and
+    /// the renderer is gone — the same gap the external-screen case has had since #206, now
+    /// reachable by one more route. Filed as its own slice; it needs a stop-or-pause decision,
+    /// not another boolean here.
     private var videoCaptureYielded: Bool {
-        ExternalStageBridge.shared.isConnected && !recorder.isRecording
+        (ExternalStageBridge.shared.isConnected || !isPresented) && !recorder.isRecording
     }
     #endif
 
@@ -555,13 +598,24 @@ struct FloatingVisualWindow: View {
             // `TouchInstrumentView` overlay (and with it the Field's self-play display link)
             // down as well. See the ⭐ #311 block at that mount site for the full chain.
             //
-            // That leaves ONE cost to pay here, and this branch is the payment: a
-            // `MetalBioView` behind an `.opacity(0)` would keep rendering at 60 fps for a
-            // picture nobody can see. So the hidden state renders NOTHING — not the
-            // stand-in below, which exists to explain where the picture WENT, and a hidden
-            // window has not sent its picture anywhere. `Color.clear` keeps the card's
-            // geometry (and therefore the play surface's normalized coordinates) exactly as
-            // they are when visible, so toggling the picture cannot move a generated note.
+            // A permanently mounted window has to PAY for the work it used to avoid by simply
+            // not existing, and this branch is the largest of those payments: a `MetalBioView`
+            // behind an `.opacity(0)` would keep rendering at 60 fps for a picture nobody can
+            // see. So the hidden state renders NOTHING — not the stand-in below, which exists
+            // to explain where the picture WENT, and a hidden window has not sent its picture
+            // anywhere. `Color.clear` keeps the card's geometry (and therefore the play
+            // surface's normalized coordinates) exactly as they are when visible, so toggling
+            // the picture cannot move a generated note. It is `Color.clear` and not
+            // `EmptyView()` on purpose: only a shape accepts the `maxWidth/maxHeight: .infinity`
+            // frame that the overlay measures itself against.
+            //
+            // ⛔ THE FIRST VERSION OF THIS BLOCK CALLED ITSELF "the ONE cost", AND THAT WAS
+            // WRONG THE DAY IT WAS WRITTEN. Two more sat one branch away and were found by the
+            // review, not by me: `MiniTransportView` kept rebuilding at the ~8 Hz step rate for
+            // an invisible readout (now `&& isPresented`), and the two share `.sheet(item:)`
+            // slots could present FROM a hidden window (now `heldWhileHidden`). Counting the
+            // costs of a lifetime change is the work; asserting there is only one is how the
+            // second and third stay invisible.
             //
             // The GPU law (ONE `MetalBioView` app-wide) is upheld more strictly than before,
             // not less: hidden now costs zero renderers where it used to cost zero by
@@ -794,7 +848,17 @@ struct FloatingVisualWindow: View {
             // never steals a touch from the play surface.
             // The position readout needs a little width to stay legible — show it from Medium
             // up (and fullscreen). On the Small window it would crowd the record/resize buttons.
-            if windowSize != .small {
+            // ⚠️ `&& isPresented` IS NOT REDUNDANT WITH THE `.opacity(0)` ABOVE THIS WINDOW, and
+            // leaving it out made the #311 commit's own justification false. `MiniTransportView`
+            // reads `transport.position`, which moves at the STEP rate (~8 Hz at 120 BPM). Since
+            // the window is mounted permanently, an ungated instance keeps rebuilding ~8×/s while
+            // playing, forever, to draw a capsule and two labels nobody can see — and because the
+            // instrument-home seed opens at `.fullscreen`, `windowSize != .small` is the DEFAULT
+            // state, so that was the common case and not an edge one. #311 argued "hidden costs no
+            // renderer" while shipping exactly that cost one branch away. Not a freeze (this
+            // window is a SIBLING of the instrument, not an ancestor — it cannot tear down a
+            // Picker below), but wasted work that is invisible in every test and screenshot.
+            if windowSize != .small && isPresented {
                 MiniTransportView()
                     .allowsHitTesting(false)
             }

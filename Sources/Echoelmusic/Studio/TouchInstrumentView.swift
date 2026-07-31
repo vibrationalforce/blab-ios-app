@@ -1259,10 +1259,29 @@ final class TouchInstrumentUIView: UIView {
         }
     }
 
-    /// Self-play follows the surface's own lifetime: it runs while the field is on screen and
-    /// stops when it leaves. That is a REAL LIMIT, not an oversight — closing the floating
-    /// visual stops the generator. Making it survive a closed window means an app-level driver
-    /// and a second note path, which is a separate decision (see `PLAN_FIELD_SELFPLAY_WIRING`).
+    /// Self-play follows the surface's own lifetime: it runs while this view is IN A WINDOW and
+    /// stops when it leaves. That rule is right and stays — it is what keeps a generator from
+    /// ticking forever on a surface nobody can reach.
+    ///
+    /// ⛔ WHAT THIS PARAGRAPH USED TO SAY, AND WHY IT WAS THE MOST DANGEROUS COMMENT IN THE FILE.
+    /// It read: *"That is a REAL LIMIT, not an oversight — closing the floating visual stops the
+    /// generator. Making it survive a closed window means an app-level driver and a second note
+    /// path, which is a separate decision (see `PLAN_FIELD_SELFPLAY_WIRING`)."* Every clause is
+    /// now false, and two were never true:
+    ///   · Hiding the floating visual NO LONGER stops the generator (#311, founder 2026-07-31:
+    ///     *"die arps soll immer hörbar sein und nicht nur, wenn das Visual Fenster auf ist"*).
+    ///     `WorkspaceView` mounts `FloatingVisualWindow` unconditionally now and only makes it
+    ///     inert; this view therefore never leaves the window on a hide.
+    ///   · It took NEITHER an app-level driver NOR a second note path — the lifetime bug was in
+    ///     the MOUNT, one level up, and the fix is three modifiers plus one `visualLayer` branch.
+    ///     The comment made the cheap fix look expensive, which is exactly how a real founder
+    ///     complaint survives for weeks.
+    ///   · `PLAN_FIELD_SELFPLAY_WIRING` does not exist in this repo. A dangling pointer inside a
+    ///     false claim is worse than either alone: it reads as evidence that someone checked.
+    /// THE REMAINING TRUE LIMIT, stated without the overclaim: this driver dies if the view is
+    /// genuinely removed from the hierarchy. Nothing in the shipping app does that any more, but
+    /// anyone who re-introduces a conditional mount above this view is deciding about AUDIO, not
+    /// about layout. `Tests/CISmoke/FieldSurvivesAHiddenPictureTests.swift` is the guard.
     ///
     /// Generated notes already sounding are NOT cut here: each carries its own release, so the
     /// worst case is one 0.18 s tail after dismissal. Cancelling them instead would need the
