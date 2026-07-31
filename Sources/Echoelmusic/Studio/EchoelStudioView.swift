@@ -1348,9 +1348,13 @@ struct EchoelStudioView: View {
                 // text with the narrowest box. And it omitted `startControlRow`'s own
                 // `.padding(.horizontal, 16)`, which is 32 pt and always there.
                 //
-                // The honest figure: 393 − 32 (row padding) − ~90 (pill; ~120 once the
-                // coherence readout is present) − 8 (spacing) ≈ 263 pt, against a label that
-                // measures ~205–215 pt at 17 pt Atkinson Bold with its symbol. So it FITS at
+                // The honest figure: 393 − 32 (row padding) − ~108 (pill; ~142 once the
+                // coherence readout is present) − 8 (spacing) ≈ 245 pt, against a label that
+                // measures ~205–215 pt at 17 pt Atkinson Bold with its symbol. (~90/~120 and
+                // ≈263 pt until #305 enlarged the pill on the founder's "etwas größere Anzeige
+                // für Analyse" — the derivation lives above `PulseMonitorMini.body`, and these
+                // two places have to move together or this budget silently becomes fiction for
+                // the second time.) So it FITS at
                 // the default text size — the truncation risk is Dynamic Type and
                 // `StudioZoom`, not a stock phone. This view is deliberately not
                 // Dynamic-Type-clamped (only the chrome is), so that risk is real, and one

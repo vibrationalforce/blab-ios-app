@@ -154,6 +154,61 @@ final class OneStartControlTests: XCTestCase {
                        + "do not leave the justification standing without the mechanism.")
     }
 
+    /// ⛔ #305 — THE ROW MAY CONTAIN EXACTLY ONE CLAIM OF "STOP", and for two days it contained
+    /// two. The test above proves the pause button HAS a producer; this one proves it does not
+    /// LOOK like the control it deliberately is not.
+    ///
+    /// Founder 2026-07-31, red circle around `startControlRow`: *"Einfaches start stop
+    /// Recording Taster und etwas größere Anzeige für Analyse ist besser."* The screenshot shows
+    /// a wide button reading "Stop" and, 8 pt to its right, a second ■ — same claim, different
+    /// effect. One ends the session and costs ~20 s of pulse re-lock; the other only drops the
+    /// music. `pause.fill` is now the glyph, and the VoiceOver label says "Pause the music"
+    /// instead of a second "Stop the music".
+    ///
+    /// WHY THIS IS A TEST AND NOT A COMMENT: it is the same failure shape as
+    /// `testThePlaybackOnlyStopHasAReachableProducer` above — a justification ("it drops the
+    /// music without dropping the body") that the shipped artefact quietly contradicted. That
+    /// one guards the MECHANISM; this one guards what the user is told about it. Both halves
+    /// have now been wrong once.
+    ///
+    /// ⚠️ WHAT THIS DELIBERATELY DOES NOT GUARD: the other half of the same founder message,
+    /// the enlarged analysis tile (`PulseMonitorMini`, 30 → 38 pt). Pinning a font size or a
+    /// frame literal would fire on every restyle while proving nothing about legibility, and a
+    /// guard that cries wolf gets deleted. Tile size is a device judgement; the glyph is a
+    /// contradiction, and only the second kind belongs here.
+    ///
+    /// Scoped to `WorkspaceView.swift` because `stop.fill` is CORRECT elsewhere —
+    /// `VideoLibraryPanel` (stop clip preview) and `LiveColaboView` (end the session) both use
+    /// it truthfully.
+    func testThePlaybackPauseDoesNotWearTheStopGlyph() throws {
+        let chrome = try sourceLines().filter { $0.file == "WorkspaceView.swift" }
+        XCTAssertFalse(chrome.isEmpty, """
+        WorkspaceView.swift produced no code lines — it was renamed, or the comment filter ate \
+        the file. Re-point this guard; a vacuous pass here is exactly the green this directory \
+        exists to prevent.
+        """)
+        XCTAssertTrue(chrome.contains { $0.text.contains("\"pause.fill\"") }, """
+        `PlaybackToggleButton` no longer draws `pause.fill`. It sits beside a full-width button \
+        labelled "Stop" that ends the whole bio session; this one only drops the music and \
+        keeps the pulse lock (~20 s to re-acquire). If it goes back to a stop glyph, the row \
+        presents the same claim twice with two different effects — the founder's 2026-07-31 \
+        "Einfaches start stop" complaint, which was the fourth about this cluster.
+        """)
+        let stops = chrome.filter { $0.text.contains("\"stop.fill\"") }
+        XCTAssertTrue(stops.isEmpty, """
+        `stop.fill` is back in WorkspaceView.swift at \
+        \(stops.map { "\($0.file):\($0.line)" }.joined(separator: ", ")). The only control that \
+        may claim "stop" on the instrument's front plate is `EchoelStudioView.startButton`, \
+        which actually ends the session. If a NEW control here genuinely stops something, give \
+        it a label that says what it stops and re-point this guard rather than raising it.
+        """)
+        XCTAssertTrue(chrome.contains { $0.text.contains("Pause the music") }, """
+        the playback toggle's VoiceOver label no longer says "Pause the music". A VoiceOver \
+        user gets the worse version of this confusion — two controls announced identically, no \
+        picture to tell them apart — so the label carries the distinction, not just the glyph.
+        """)
+    }
+
     // MARK: - Locating the repo
 
     /// Same walk-up — and the same SKIP — as the sibling `StringCatalogIsHonestTests`:

@@ -87,40 +87,65 @@ struct PulseMonitorMini: View {
     /// Show the strap status text: no lock, no camera cue competing for the slot.
     private var showStatus: Bool { !locked && !showCue && status != nil }
 
+    // #305 — "etwas größere Anzeige für Analyse ist besser" (founder 2026-07-31, red circle
+    // around the whole control row). The numbers below are the SECOND half of that ask; the
+    // first half is the `pause.fill` correction in `PlaybackToggleButton`.
+    //
+    // ⚠️ "etwas" IS THE SPECIFICATION, not a hedge, and the constraint that enforces it is
+    // WIDTH — this tile shares one row with the app's primary button. The arithmetic, because
+    // `EchoelStudioView.startButton` carries a budget comment that has already been wrong once
+    // and must stay in step with these constants:
+    //
+    //     before: 12 padding + 50 trace + 6 + 22 slot            =  90 pt (≈120 with coherence)
+    //     after:  16 padding + 60 trace + 6 + 26 slot            = 108 pt (≈142 with coherence)
+    //
+    // The two states are mutually exclusive in the worst direction, which is what makes the
+    // growth affordable: coherence only exists once a session runs, and while it runs the
+    // button reads "Stop" (~60 pt), not "Create from Within" (~205–215 pt). So the tight case
+    // is IDLE — no coherence, no ■ — and on the narrowest phone we ship to (375 pt): 375 − 32
+    // row padding − 108 − 8 spacing = 227 pt against a 205–215 pt label. It fits at the default
+    // text size, and `minimumScaleFactor(0.75)` covers Dynamic Type as it did before.
+    //
+    // A bigger jump than this would have to take the row to two lines. That is a real option
+    // and deliberately NOT taken here: it moves the primary button down the plate, which is a
+    // layout decision the founder has not asked for, on the one surface he has now redrawn
+    // four times. Height 38 also brings the tile within 6 pt of the HIG 44 pt target it never
+    // met as a 30 pt pill — the tap (Bio panel) was always undersized.
     var body: some View {
         HStack(spacing: 6) {
             PulseTrace(samples: waveform,
-                       color: locked ? EchoelTheme.accent : (showCue ? EchoelTheme.warning : EchoelTheme.dim))
-                .frame(width: 50, height: 24)
+                       color: locked ? EchoelTheme.accent : (showCue ? EchoelTheme.warning : EchoelTheme.dim),
+                       lineWidth: 1.8)
+                .frame(width: 60, height: 30)
             Group {
                 if locked && bpm > 0 {
                     Text("\(Int(bpm))")
-                        .font(EchoelTheme.font(11, .semibold)).monospacedDigit()
+                        .font(EchoelTheme.font(15, .semibold)).monospacedDigit()
                         .foregroundStyle(EchoelTheme.text)
                 } else if showCue, let cue {
                     Text(cue.shortLabel)
-                        .font(EchoelTheme.font(9, .semibold))
+                        .font(EchoelTheme.font(11, .semibold))
                         .foregroundStyle(EchoelTheme.warning)
                         .lineLimit(1).minimumScaleFactor(0.8)
                 } else if showStatus, let status {
                     Text(status.short)
-                        .font(EchoelTheme.font(9, .semibold))
+                        .font(EchoelTheme.font(11, .semibold))
                         .foregroundStyle(EchoelTheme.dim)
                         .lineLimit(1).minimumScaleFactor(0.8)
                 } else {
                     Text("—")
-                        .font(EchoelTheme.font(11, .semibold)).monospacedDigit()
+                        .font(EchoelTheme.font(15, .semibold)).monospacedDigit()
                         .foregroundStyle(EchoelTheme.dim)
                 }
             }
-            .frame(minWidth: 22, alignment: .leading)
+            .frame(minWidth: 26, alignment: .leading)
             if let coh = coherence {
                 Text(EchoelDecimalText.string(coh, decimals: 2))
-                    .font(EchoelTheme.font(10)).monospacedDigit()
+                    .font(EchoelTheme.font(12)).monospacedDigit()
                     .foregroundStyle(EchoelTheme.dim)
             }
         }
-        .padding(.horizontal, 6).frame(height: 30)
+        .padding(.horizontal, 8).frame(height: 38)
         .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,
@@ -148,7 +173,9 @@ struct PulseMonitorMini: View {
 /// to a 10 Hz signal, so the whole surface tree (including the active surface's Compose/
 /// Mood/Effects `.menu` Pickers) rebuilt 10×/s during biofeedback and tore down any open
 /// dropdown ("kann nicht mehr auswählen während Biofeedback", 10.76.50). Confining the
-/// reads here keeps WorkspaceView still; only this 30 pt monitor refreshes.
+/// reads here keeps WorkspaceView still; only this 38 pt monitor refreshes. (30 pt until
+/// #305 — the height is quoted because it is the whole cost of the churn, so it has to move
+/// with the constant.)
 @MainActor
 struct PulseMonitorMiniLive: View {
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG

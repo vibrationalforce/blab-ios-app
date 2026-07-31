@@ -164,7 +164,9 @@ struct WorkspaceView: View {
                 // `.accessibility1` (~1.65× vs the old ~1.24×) is the largest step
                 // verifiable by reasoning alone. Raising it further is a founder device
                 // look, and it needs the fixed heights INSIDE the bars converted first
-                // (`HeaderMonitors.PulseMonitorMini` 30 pt, `BodyTempoField` 76×32) — those
+                // (`BodyTempoField` 76×32; ⛔ `HeaderMonitors.PulseMonitorMini` stood here too
+                // and has not been chrome since #289 moved it into the instrument's
+                // `startControlRow` — it is no longer part of this ceiling's arithmetic) — those
                 // hold at AX1 and overflow from AX2 up, so "the layout is ready" is true
                 // only for the step actually taken. Do NOT read this as "accessibility is
                 // done": a user on AX4/AX5 still gets AX1 in the chrome.
@@ -406,9 +408,25 @@ struct PlaybackToggleButton: View {
         // not per frame, so reading it here is freeze-safe. (Reading `pianoRoll.notes` instead
         // would have been the exact 10 Hz read the freeze law forbids — the roll changes on
         // every generate.)
+        //
+        // ⛔ THE GLYPH WAS `stop.fill` UNTIL #305, AND IT LIED — in the one row where lying
+        // is most expensive. Founder 2026-07-31, red circle around that row: *"Einfaches
+        // start stop Recording Taster und etwas größere Anzeige für Analyse ist besser."*
+        // That is the FOURTH complaint about this cluster (2026-07-15 "zu viele Play Knöpfe",
+        // 2026-07-29 "3 Knöpfe zum Start", 2026-07-31 "Führe intelligent zusammen"), and the
+        // screenshot shows why it kept coming back: `startControlRow` presented a wide button
+        // reading "Stop" and, 8 pt to its right, a second ■. Two identical claims, two
+        // different effects — one ends the session (camera included, ~20 s to re-lock), the
+        // other only pauses the music. Nothing on screen distinguished them.
+        //
+        // `pause.fill` is the whole fix and it is not cosmetic: the paragraph above justifies
+        // this button's existence entirely on "drop the music WITHOUT dropping the body", and
+        // `toggle()` below does exactly that (`requestPlaybackOnlyStop()`). The glyph now
+        // states the behaviour the code already had. Exactly ONE control in that row means
+        // stop, and it is the labelled one. `OneStartControlTests` pins both halves.
         if bus.instrumentRunning {
             Button { toggle() } label: {
-                Image(systemName: transport.isPlaying ? "stop.fill" : "play.fill")
+                Image(systemName: transport.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
                     .frame(width: 38, height: 32)
@@ -428,7 +446,12 @@ struct PlaybackToggleButton: View {
             // changes. What `Text` buys is that the question stops depending on overload
             // ranking — worth one word on the only description a VoiceOver user gets of a
             // control whose whole point is that it does NOT end the session.
-            .accessibilityLabel(transport.isPlaying ? Text("Stop the music") : Text("Play the music"))
+            // "Pause", not "Stop" — the same #305 correction as the glyph. A VoiceOver user
+            // got the WORSE version of this confusion: two controls both announced as "Stop",
+            // with no picture to tell them apart and no way to discover that one of them keeps
+            // the pulse lock. The hint carried the real difference all along; now the label
+            // does too, so the distinction survives being read out one control at a time.
+            .accessibilityLabel(transport.isPlaying ? Text("Pause the music") : Text("Play the music"))
             .accessibilityHint(Text("Leaves the session and your pulse reading running."))
         }
     }
