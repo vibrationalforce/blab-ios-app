@@ -344,10 +344,12 @@ public final class EchoelDDSP: @unchecked Sendable {
 
     // MARK: - Vibrato (Bio-Driven)
 
-    /// Vibrato rate in Hz (bio: linked to heart rate)
+    /// Vibrato rate in Hz. Set by the patch; the heart rate then moves it AROUND that value
+    /// (`bioBaseVibratoRate`, #279). The old note here said only "bio: linked to heart rate",
+    /// which was accurate about the code and hid that the link OVERWROTE the patch.
     public var vibratoRate: Float = 0
 
-    /// Vibrato depth in semitones
+    /// Vibrato depth in semitones. Same anchored relationship as `vibratoRate`.
     public var vibratoDepth: Float = 0
 
     /// Analog pitch drift — peak micro-detune in CENTS (100 cents = 1 semitone).
@@ -1408,6 +1410,36 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// distinct spectral character instead of all collapsing to one brightness when the body
     /// calms. This is the second dynamic convergence vector after the cutoff (task #81).
     public var bioBaseBrightness: Float = 0
+    /// Patch-baseline VIBRATO RATE (Hz) / VIBRATO DEPTH (semitones) / FILTER-LFO DEPTH for bio
+    /// modulation. **−1 = "no patch anchor set"** → the legacy absolute path below, byte-identical.
+    ///
+    /// ⚠️ THE SENTINEL IS −1 HERE AND 0 FOR CUTOFF/BRIGHTNESS, AND THAT DIFFERENCE IS THE POINT.
+    /// A patch may legitimately ask for NO vibrato — shipped presets do, verbatim
+    /// `vibratoRate: 0, vibratoDepth: 0` (`grep -c` in `SynthPatch.swift` → 3 on 2026-07-31; the
+    /// guard finds them dynamically, so this number is orientation, not a dependency) — so 0
+    /// cannot mean "unset" for these three without
+    /// silently routing exactly those patches back into the absolute path that gives them a
+    /// vibrato they asked not to have. A filter cutoff of 0 Hz is not a musical value; a vibrato
+    /// depth of 0 is. Copying the 0-sentinel here would have been the plausible move and the
+    /// wrong one.
+    ///
+    /// ⛔ WHAT THIS FIXES (#279), because the size of it is the argument for the change: without
+    /// an anchor, `applyBioReactive` overwrote all three ~10×/s from raw physiology. Every preset
+    /// ships a musical `vibratoRate` of 4.5–5.5 Hz; the absolute mapping wrote 0.05–0.2 Hz, i.e.
+    /// it did not "modulate" the patch's vibrato, it deleted it — a factor of 25–100 — the moment
+    /// biofeedback ran, which in a bio-reactive instrument is always. Meanwhile the Sound panel
+    /// kept offering "Vibrato rate", "Vibrato depth" and "LFO→filter" as editable rows. Three
+    /// lying controls, in the panel that IS the patch editor (ship-gate item 2).
+    ///
+    /// ⚠️ FOR WHOEVER BINDS AN AUTOMATION ROUTE HERE. `EchoelParameterRegistry` already declares
+    /// `ddsp.mod.vibratoRate` / `ddsp.mod.vibratoDepth`, and today NOTHING binds an apply-closure
+    /// to them (`git grep` returns only the descriptor and one vocabulary entry). When one is
+    /// written it must set the ANCHOR, not the live parameter — a route that writes
+    /// `vibratoRate` directly is overwritten by the next bio frame and becomes exactly the lying
+    /// control this task removed.
+    public var bioBaseVibratoRate: Float = -1
+    public var bioBaseVibratoDepth: Float = -1
+    public var bioBaseLFOToFilterDepth: Float = -1
 
     public func applyBioReactive(
         coherence: Float,
@@ -1436,7 +1468,8 @@ public final class EchoelDDSP: @unchecked Sendable {
 
         // DEFENSE-IN-DEPTH (audio thread): sanitize the bio inputs at the boundary. The
         // one-pole accumulators below (_lfoPhase via lfoSpeed, _smoothedAmplitude via lfoValue)
-        // and the UNCLAMPED vibrato writes (vibratoDepth/Rate) ingest these BEFORE any clamp, so
+        // and the unclamped SENTINEL-path vibrato writes (vibratoDepth/Rate — the anchored path
+        // added by #279 clamps its product, this one still does not) ingest these BEFORE any clamp, so
         // a single non-finite reading (a bad rPPG frame, a divide-by-zero coherence) would
         // permanently poison that state → NaN vibrato samples and an amplitude one-pole that
         // sticks at NaN and clamps to 0 forever (the #22/#29 "alles ist still" permanent-silence
@@ -1533,10 +1566,30 @@ public final class EchoelDDSP: @unchecked Sendable {
         amplitude = (_smoothedAmplitude * (1.0 - swellDepth + swellDepth * breathSwell)
                      * velocityGain).clamped(to: 0...1)
 
-        // 3. Heart rate → Vibrato depth — GENTLE drift, not a wobble (founder: bio should be
-        //    subtle). ~0.4 cent at rest → ~2.4 cent when active, a fraction of the old range.
-        vibratoDepth = 0.004 + heartRate * 0.02
-        vibratoRate = 0.05 + heartRate * 0.15   // Very slow → moderate
+        // 3. Heart rate → VIBRATO — a deviation AROUND the patch's own vibrato, not a rewrite
+        //    (#279; the bioBase* law, same as the cutoff/brightness/character lines around it).
+        //    ANCHORED path (a patch was applied): one MULTIPLICATIVE factor centred on 1.0 at the
+        //    neutral reading (HR 0.5), so a resting body plays exactly the patch's vibrato and
+        //    arousal makes it a touch faster AND a touch deeper together — which is how vibrato
+        //    intensifies on a real instrument. Multiplicative, not additive like the character
+        //    lines below, for the same reason the cutoff is: these are a RATE and a DEPTH, and —
+        //    decisively — a patch that asks for NO vibrato must GET no vibrato. An additive
+        //    deviation would push `vibratoDepth` off 0 at any HR above rest and switch the
+        //    vibrato oscillator ON (render gate: `vibratoRate > 0 && vibratoDepth > 0`) in a
+        //    preset that deliberately has none. The products are clamped to the same domains
+        //    `SoundPrompt` enforces (depth 0…1, rate 0…12 Hz), which also makes a non-finite
+        //    baseline out of a corrupted patch decode harmless — `clamped(to:)` is NaN-safe,
+        //    and the boundary sanitisation above only covers the bio INPUTS, not the anchor.
+        //    SENTINEL path (−1, the raw patch-less bio voice): the legacy absolute GENTLE drift,
+        //    byte-identical — ~0.4 cent at rest → ~2.4 cent active, 0.05 → 0.2 Hz.
+        if bioBaseVibratoDepth >= 0 && bioBaseVibratoRate >= 0 {
+            let vibratoFactor: Float = (1.0 + (heartRate - 0.5) * 0.5).clamped(to: 0.75...1.25)
+            vibratoDepth = (bioBaseVibratoDepth * vibratoFactor).clamped(to: 0...1)
+            vibratoRate = (bioBaseVibratoRate * vibratoFactor).clamped(to: 0...12)
+        } else {
+            vibratoDepth = 0.004 + heartRate * 0.02
+            vibratoRate = 0.05 + heartRate * 0.15   // Very slow → moderate
+        }
 
         // 4-6. CHARACTER (harmonicity · reverb · noise) — modulate SUBTLY AROUND the patch's own
         //      values, never overwrite them (founder: "Biofeedback ändert dann nur subtil die
@@ -1551,8 +1604,21 @@ public final class EchoelDDSP: @unchecked Sendable {
         // allocates and would click the tail per frame); the spatial character comes from
         // reverbMix, decay is set once via updateReverbDecay().
 
-        // 7. Breath phase → Filter LFO depth (breathing modulates filter movement)
-        lfoToFilterDepth = 0.05 + breathDepth * 0.3  // Deeper breath = more filter movement
+        // 7. Breath depth → Filter LFO depth. The same anchored/sentinel split as the vibrato
+        //    above (#279): with a patch applied, the breath moves the patch's OWN
+        //    `lfoToFilterDepth` by a factor centred on 1.0 at neutral breath (0.5) — so a patch
+        //    that asks for a still filter (0) keeps a still filter, and one that asks for
+        //    movement keeps its designed amount and only breathes around it. Without a patch,
+        //    the legacy absolute mapping, byte-identical.
+        //    (Comment, not code: the parameter name says "phase", the value read is DEPTH —
+        //    `breathDepth` is what this line has always used, and depth is the musically right
+        //    input here. Only the stale header word was wrong.)
+        if bioBaseLFOToFilterDepth >= 0 {
+            let breathFactor: Float = (1.0 + (breathDepth - 0.5) * 0.6).clamped(to: 0.7...1.3)
+            lfoToFilterDepth = (bioBaseLFOToFilterDepth * breathFactor).clamped(to: 0...1)
+        } else {
+            lfoToFilterDepth = 0.05 + breathDepth * 0.3  // Deeper breath = more filter movement
+        }
 
         // HARMONIC-SERIES profile (opt-in; §1.2). Body drives the harmonic structure:
         // HRV opens the overtone richness (variability → harmonic spread). `.natural`

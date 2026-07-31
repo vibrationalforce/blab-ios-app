@@ -607,6 +607,11 @@ public struct ResolvedPatch: Sendable, Equatable {
         synth.bioBaseFilterCutoff = filterCutoff   // bio modulates AROUND this, never overwrites it (task #81)
         synth.filter.resonance = filterResonance
         synth.lfoToFilterDepth = lfoToFilterDepth
+        // Bio anchor (#279): the breath moves this AROUND the patch value instead of
+        // overwriting it ~10×/s. −1 stays "unset", so a voice that never got a patch keeps the
+        // legacy absolute mapping. A negative value out of a hand-edited/corrupt JSON therefore
+        // falls back to that legacy path rather than inverting the LFO — the safe direction.
+        synth.bioBaseLFOToFilterDepth = lfoToFilterDepth
         synth.filterLFO.rate = filterLFORate
         synth.filterLFO.depth = filterLFODepth
 
@@ -619,6 +624,12 @@ public struct ResolvedPatch: Sendable, Equatable {
 
         synth.vibratoRate = vibratoRate
         synth.vibratoDepth = vibratoDepth
+        // Bio anchor (#279) — set as a PAIR, and `applyBioReactive` requires BOTH to be ≥ 0
+        // before it takes the anchored path. Every preset ships a musical 4.5–5.5 Hz here while
+        // the absolute bio mapping wrote 0.05–0.2 Hz, so before this the body did not colour the
+        // patch's vibrato, it erased it.
+        synth.bioBaseVibratoRate = vibratoRate
+        synth.bioBaseVibratoDepth = vibratoDepth
 
         // Per-instrument loudness trim (founder 2026-07-11 "Level pro Instrument"). 1.0
         // = unity (bit-identical). Folded into the voice's master-gain smoother, so it
