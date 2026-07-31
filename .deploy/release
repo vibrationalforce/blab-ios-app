@@ -1,4 +1,4 @@
-build: v10.79.362 — Echoel gibt den Takt an, und fünf Regler sind wieder erreichbar
+build: v10.79.363 — der Arp hängt nicht mehr am Bild, und Du kannst den Klang beschreiben
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,167 +6,107 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.361.
+  Der Vorgänger auf Deinem Gerät ist 10.79.362.
 
-  48 Commits. Der größte Brocken ist ein Feature, das es vorher gar nicht gab: Echoel kann
-  jetzt den Takt für andere Geräte vorgeben. Daneben sind fünf Klangregler wieder
-  erreichbar, die einen Monat lang keine Tür hatten, und vier Riegel im Synth gehen jetzt
-  auf, die genau dann klemmten, wenn sie es nicht durften.
+  17 Commits, davon drei, die Du hörst oder siehst. Der wichtigste ist ein Fehler, den DU
+  gemeldet hast und dessen Ursache an einer Stelle lag, an der man sie nicht sucht.
 
-  ── ECHOEL GIBT DEN TAKT AN (MIDI-Clock-Master) ─────────────────────────────
+  ── DER ARP HING AM BILD ────────────────────────────────────────────────────
 
-  Die ehrliche Antwort auf „kann ich das mit Ableton synchronisieren?" war bis zu diesem
-  Build: gar nichts. Echoel hat MIDI-Noten gesendet, aber nie eine Uhr — ein Empfänger
-  konnte nicht wissen, wie schnell und wann.
+  Du hast es so beschrieben: der Arpeggiator läuft nur, während das Visual-Fenster offen
+  ist. Machst Du es zu, verstummt er.
 
-  Jetzt sendet Echoel Start, Clock und Stop nach MIDI-Standard (24 Impulse pro Viertel).
-  Drückst Du ▶, läuft das Gegenüber mit. Ändert das Biofeedback das Tempo, folgt es.
+  Das war kein Zufall und keine Timing-Laune. Der Arpeggiator wurde tatsächlich VON der
+  Bildschirmansicht angetrieben — sein Takt hing an der Bildwiederholung des Visuals. Kein
+  Bild, kein Takt. Eine Ansicht darf ein Instrument anzeigen; sie darf es nicht antreiben.
+  Der Antrieb sitzt jetzt dort, wo er hingehört: im Instrument selbst, unabhängig davon, ob
+  irgendetwas davon gerade zu sehen ist.
 
-  Zwei Details, die beim Ausprobieren auffallen und Absicht sind:
+  DAS BRAUCHT DEIN OHR: Arp an, Visual-Fenster zu — läuft er weiter? Und läuft er GLEICH
+  schnell, oder hat er beim Schließen einen Ruck?
 
-  · Der erste Impuls kommt eine Sechzehntel NACH dem Antippen, nicht sofort. Das klingt
-    falsch, ist aber richtig: Echoels eigener Sequencer spielt seinen ersten Schritt
-    ebenfalls eine Sechzehntel später. Käme die Uhr sofort, liefe das Gegenüber der App um
-    genau einen Schritt voraus.
-  · Beim Tempowechsel behält die Uhr ihre PHASE. Sie zählt aus, wie weit der laufende
-    Impuls schon ist, und setzt dort neu an, statt neu zu beginnen. Ohne das würde jeder
-    bio-getriebene Tempowechsel — und die kommen im Sekundentakt — die Uhr ausdünnen.
+  ── DU KANNST DEN KLANG JETZT BESCHREIBEN ───────────────────────────────────
 
-  DAS BRAUCHT DEIN GERÄT: ich kann hier keinen Empfänger anschließen. Ob Ableton wirklich
-  im Takt mitläuft, ist der eine Punkt dieses Builds, den nur Du beantworten kannst.
+  Im Sound-Panel steht eine neue Zeile: „Describe it". Du tippst „warm lush pad" oder
+  „bright glassy pluck", drückst Shape — und der laufende Klang wird in diese Richtung
+  geformt. Darunter liegen acht fertige Vorschläge zum Antippen.
 
-  ── FÜNF REGLER, DIE EINEN MONAT KEINE TÜR HATTEN ───────────────────────────
+  Vier Dinge, die dabei Absicht sind:
 
-  Beim Abriss der DAW-Hälfte ist ein Patch-Editor türlos geworden. Fünf Klangparameter
-  waren damit gespeichert, wirksam — und nicht einstellbar. Sie stehen jetzt alle im
-  Sound-Panel:
+  · Es rechnet auf dem Gerät. Kein Netz, kein Modell, keine Wartezeit — eine kuratierte
+    Wortliste (24 Begriffe, dazu Verstärker wie „very" oder „gently") auf Klangparameter.
+    Dasselbe Wort ergibt immer dasselbe Ergebnis.
+  · Unbekannte Wörter werden ignoriert, nie missverstanden. Unter der Zeile steht, welche
+    Wörter erkannt wurden — Du siehst also vorher, was passieren wird.
+  · Es formt, was gerade da ist. Das ist kein Preset-Sprung: „warm" macht DEINEN Klang
+    wärmer, nicht irgendeinen anderen.
+  · Neben Shape steht ein Rückgängig. Denn Formen stapeln sich — sechsmal „deep dark drone"
+    hintereinander macht einen Klang unhörbar dumpf. Zwei Untergrenzen fangen das ab, und
+    der letzte Schritt ist immer mit einem Tap zurückzunehmen.
 
-  · UNISON (Voices + Detune) — der größte „dünn → satt"-Hebel, den die Engine hat.
-  · SHAPE und NOISE COLOUR — die beiden benannten Klangcharaktere.
-  · OUTPUT — die Lautstärke dieses einen Klangs, damit ein Instrument nicht deutlich über
-    oder unter den anderen sitzt.
+  Ehrlicher Nachtrag, weil er zum Bild gehört: die Rechenlogik dafür lag seit einem Monat
+  fertig im Code. Ihr eigener Dateikopf beschrieb den Aufrufer im Präsens — den nie jemand
+  geschrieben hatte. Deshalb hat sie auch nie jemand vermisst. Ein Wächter im blockierenden
+  Bundle prüft ab jetzt, dass die im Kopf genannte Tür wirklich existiert.
 
-  Zwei davon zeigten im alten Editor sogar FALSCHE Werte an: die Unison-Zeile las „1 Stimme
-  / 0 Cent", während die Engine zwei Stimmen mit 7 Cent spielte, und die beiden
-  Auswahlfelder waren für jeden Werksklang schlicht leer. Beides ist mitrepariert — die
-  Zeilen zeigen jetzt das, was Du hörst.
+  ── DIE TRANSPORTLEISTE ─────────────────────────────────────────────────────
 
-  ── DAS VIBRATO WAR NICHT GEFÄRBT, ES WAR GELÖSCHT ──────────────────────────
-
-  Jedes Preset bringt ein musikalisches Vibrato von etwa 4,5–5,5 Hz mit. Die
-  Bio-Modulation hat darauf nicht aufgesetzt, sondern absolut geschrieben — 0,05 bis 0,2 Hz,
-  also praktisch stehend. Zehnmal pro Sekunde. Der Körper hat das Vibrato Deiner Klänge
-  damit nicht moduliert, sondern ausradiert. Jetzt gibt es einen Anker: das Preset setzt den
-  Grundwert, das Biofeedback bewegt ihn darum herum.
-
-  ── VIER RIEGEL, DIE GENAU DANN KLEMMTEN, WENN SIE AUFGEHEN MUSSTEN ─────────
-
-  Eine Klasse von Fehlern, die dieselbe Form hat: ein Wert im Synth, der sich selbst
-  fortschreibt, plus eine Sicherung „wenn kaputt, neu setzen" — die bei genau der einen
-  Sorte Schaden nicht auslöst, gegen die sie gebaut ist. Trifft es den Master-Pegel, ist die
-  Stimme für den Rest des App-Laufs still. Vier solcher Stellen sind zu, jede mit einem Test
-  im blockierenden Bundle, der Töne ZÄHLT statt Code zu lesen.
-
-  Das ist der unsichtbarste Teil dieses Builds und wahrscheinlich der wichtigste: es sind
-  genau die Fehler, die als „plötzlich war alles still" ankommen und sich nicht
-  reproduzieren lassen.
-
-  ── DEIN BLUETOOTH-KOPFHÖRER BLEIBT NICHT MEHR IM TELEFON-CODEC HÄNGEN ──────
-
-  Drei Funktionen konnten das Mikrofon anfordern, und nur EINE hat die Anforderung je
-  zurückgenommen — die dann auch noch unbedingt, also den anderen beiden unter den Füßen weg.
-
-  Praktisch: sobald Echoel das Mikrofon anfasst, schaltet iOS einen verbundenen
-  Bluetooth-Kopfhörer systemweit auf den Telefon-Codec — 8 bzw. 16 kHz, mono. Jede parallel
-  laufende App klingt ab da blechern. Vorher blieb das System dort, bis Du Echoel beendet
-  hast. Jetzt gibt jede Funktion ihre Anforderung auf jedem Ausgang zurück, und gesenkt wird
-  erst, wenn keine mehr hält.
-
-  GERÄTE-VERIFY: braucht einen Bluetooth-Kopfhörer und eine zweite laufende App. Monitoring
-  an, wieder aus — klingt Spotify danach wieder normal?
-
-  ── DIE OBERFLÄCHE ──────────────────────────────────────────────────────────
-
-  · „Create from Within" steht jetzt ÜBER den Chips (Sound · Mix · FX · Mood · Field), und
-    Pulsmonitor und Playback-■ sind mit in diesen Block gezogen — ein Block, drei
-    Bedeutungen.
-  · Vier der sechs Einträge aus dem •••-Menü sind Chips geworden; die Leiste ist zum ersten
-    Mal sortiert und scrollt die aktive Auswahl ins Bild, statt sie am Rand zu verstecken.
-  · Das Panel, in dem Speichern, Öffnen und Aufnehmen liegen, hieß „Export". Heißt jetzt
-    „Save & Export" und öffnet aufgeklappt.
-  · Die App SPEICHERT DEINEN TAKE BEIM VERLASSEN. Die Autosaves stehen in einem eigenen
-    Abschnitt unter Deinen eigenen Saves, mit eigenem Löschpfad — sie schieben sich nicht
-    mehr über das, was Du selbst benannt hast.
-  · Das Sound-Panel nutzt im Querformat die Breite (zwei Spalten), statt Bezeichnung und
-    Zahl an gegenüberliegende Bildschirmränder zu schieben.
-  · Die Eingangs-Tür zeigt ein gerade eingestecktes Interface sofort, nicht erst beim
-    zweiten Öffnen.
-  · Das Visual: ein einzelner kalter Frame beim Start konnte die Qualitätsstufe festlegen
-    und das Bild einfrieren.
-
-  ── EINE ENTSCHEIDUNG, DIE ICH GETROFFEN HABE ───────────────────────────────
-
-  iPhone-only ist jetzt der ZUSTAND, nicht nur eine Behauptung — die Projektdatei lieferte
-  bis dahin still auch an iPad aus, weil ein Standardwert nie nachgelesen wurde. Grund ist
-  nicht das Layout, sondern der SENSOR: kein iPad hat eine rückseitige LED, und der
-  Finger-auf-Linse-Puls braucht sie. Das ist Reihenfolge, kein Verzicht — Dein Satz „das
-  gesamte Apple-Ökosystem, auch VR/XR und Wearables" steht jetzt als Ziel in CLAUDE.md, mit
-  einer Tabelle, was jede Plattform konkret noch braucht.
+  · Die Pause trägt jetzt ein Pause-Symbol. Vorher war da dasselbe Zeichen wie für Stop.
+  · „Create from Within" ist als KNOPF verschwunden. Der Satz steht weiter über den Chips,
+    aber gestartet wird über das Play-Dreieck — wie in jeder Software, die Du kennst.
+  · Die Analyse-Anzeige und die BPM-Zahl können nicht mehr abgeschnitten werden, auch nicht
+    bei großer Schrift.
 
   ── WAS NICHT DRIN IST ──────────────────────────────────────────────────────
 
-  Unverändert offen, damit Du nicht suchst: die Sample-Engine fürs Feld (laden/aufnehmen),
-  der große UX-Durchgang über das ganze Projekt, der ARP als eigene Kategorie mit komplexem
-  Bedienelement, die professionelle Vertiefung der FX. Und die Vierteltöne der Maqāmat.
+  Absichtlich nicht angefasst, obwohl ich weiß, wo es klemmt: der Bass, die Genres, und der
+  langsame Bio-Schwenk in den Klängen. Ich habe die drei Stellen diesen Zyklus untersucht
+  und will sie NICHT blind mitschicken — bei jeder gibt es einen Verdacht, der noch nicht
+  bewiesen ist, und ein falsch geratener Klang-Fix ist teurer als ein fehlender.
+
+  Unverändert offen: die Sample-Engine fürs Feld, der große UX-Durchgang, der ARP als
+  eigene Kategorie, die professionelle Vertiefung der FX, die Vierteltöne der Maqāmat.
 
   ── WAS ICH VON DIR BRAUCHE ─────────────────────────────────────────────────
 
   Neu in diesem Build:
 
-  · MIDI-SYNC gegen einen echten Empfänger (Ableton): läuft er im Takt, und bleibt er es,
-    wenn das Biofeedback das Tempo zieht? Das ist der Punkt mit dem größten Risiko.
-  · BLUETOOTH: Monitoring an und wieder aus — klingt eine parallel laufende App danach
-    wieder normal?
-  · DAS VIBRATO: atmen die Klänge jetzt, statt starr zu stehen?
-  · Die Output-Zeile im Sound-Panel: sitzt sie an der richtigen Stelle, und macht sie das,
-    was Du erwartest?
-  · Der Querformat-Durchgang: liest sich das Sound-Panel in zwei Spalten besser?
+  · DER ARP: läuft er mit geschlossenem Visual-Fenster weiter, und gleich schnell?
+  · „DESCRIBE IT": ist es ein Werkzeug oder ein Spielzeug? Konkret — trifft „warm lush pad"
+    das, was Du beim Lesen erwartest? Und fehlt Dir ein Wort, das drin sein müsste?
+  · Das Play-Dreieck statt des Satzes: greifst Du jetzt intuitiv richtig?
 
-  Weiter offen aus 361 (nichts davon konnte ich ohne Gerät schließen):
-  der Energy-Regler für die Visuals · die Detail-Hinweiszeile · Notennamen und
-  Dezimaltrenner · das Ziehen auf der Fläche · die Transportleiste im LOOP-Modus ·
-  klingen Minimal Techno und Detroit Techno verschieden · die Rhythmus-Charaktere ·
-  „Laid back" · das Delay im FX-Fenster · der Lead: echte Stimme oder Fader weg ·
+  Weiter offen aus 362 (nichts davon konnte ich ohne Gerät schließen):
+  MIDI-Sync gegen Ableton · Bluetooth-Kopfhörer nach Monitoring · atmet das Vibrato jetzt ·
+  die Output-Zeile im Sound-Panel · das Sound-Panel im Querformat · der Energy-Regler ·
+  Notennamen und Dezimaltrenner · die Transportleiste im LOOP-Modus · klingen Minimal und
+  Detroit Techno verschieden · „Laid back" · das Delay im FX-Fenster · der Lead ·
   und die eine Frage, an der eine Entscheidung hängt: war der Bass-Fader auf 0 hörbar?
 
   ── PRÜFSTAND ───────────────────────────────────────────────────────────────
 
-  Auf dem letzten Commit dieses Builds sind BEIDE echten Gates fertig und grün: Xcode
+  Auf dem letzten Code-Commit dieses Builds sind BEIDE echten Gates fertig und grün: Xcode
   Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide FERTIG gesehen
-  habe — nicht laufend. Die neuen Wächter liegen im blockierenden Bundle, sind also nicht
-  nur kompiliert, sondern gelaufen.
+  habe — nicht laufend.
 
-  Das blockierende Bundle ist in diesem Build von 60 auf 75 Dateien gewachsen. Das ist die
-  eigentliche Zahl hinter „grün": nur was dort liegt, kann einen Merge rot färben.
+  Das blockierende Bundle ist von 75 auf 78 Dateien gewachsen. Nur was dort liegt, kann
+  einen Merge rot färben; die große Suite daneben kann es nicht.
 
-  EIN EIGENER FEHLER GEHÖRT HIERHER, weil er genau die Lücke ausnutzt, die ich sonst
-  erkläre: einer meiner Commits hat das blockierende Bundle rot gemacht — in einer ANDEREN
-  Datei. Ein Wächter prüfte auf einen Codeausdruck, den derselbe Commit ersetzt hatte. Der
-  Compile-Check blieb dabei grün, weil er nur `Sources/` baut und Testdateien gar nicht
-  ansieht. Gefunden vom Pflicht-Reviewer, behoben, und der Reviewer des nächsten Slices hat
-  ausdrücklich nach derselben Fehlerklasse gesucht und keine mehr gefunden.
+  DAS MUSTER DIESES BUILDS, unverblümt: bei „Describe it" waren vier meiner eigenen
+  Begründungen zu bequem, und der Pflicht-Reviewer hat alle vier zerlegt. Ich hatte die
+  Tippzeile direkt auf den Wurzel-Body gelegt und mit dem falschen Gesetz gerechtfertigt —
+  jeder Tastendruck hätte eine 500-Zeilen-Ansicht neu gebaut. Ich hatte behauptet, die
+  Wertegrenzen im Kern seien musikalisch ausreichend; sie sind es nicht, sie prüfen nur
+  Gültigkeit. Und ich hatte einen Wächter gebaut, der an genau dem Umbau rot geleuchtet
+  hätte, den dieselbe Datei als richtig empfiehlt. Alles behoben, alles mit der Widerlegung
+  im Code.
 
-  Das Muster dieses Builds, unverblümt: die Reviewer haben rund ZWANZIG falsche
-  BEGRÜNDUNGEN gefunden, bei durchweg richtigem Mechanismus. Ein Kommentar behauptete eine
-  Atem-Modulation ohne Produzenten; eine Schlagzeile stand auf einer Palette, die es nicht
-  gibt; ein Slogan („das wieder anzuschalten ist EINE Zeile") stand in vier Dateien und war
-  in jeder falsch; eine Testschleife maß nachweislich nichts. Und der teuerste: ein Vermerk,
-  der eine Aufräumarbeit einen Monat blockierte, mit einer Begründung, die in zwei Minuten
-  widerlegbar war. Alle stehen jetzt MIT ihrer Widerlegung im Code — ein falscher Grund, den
-  die nächste Session nicht widerlegen kann, ist schlimmer als gar keiner.
+  Dazu eine Löschung: der alte Patch-Editor ist weg. Er hatte seit einem Monat keine Tür,
+  und die fünf Regler aus Build 362 waren das Letzte, was noch in ihm steckte. Der lebende
+  Klang-Editor war die ganze Zeit das Sound-Panel.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
-  Dein Ohr und Dein Auge. Der MIDI-Sync ist zusätzlich nur gegen ein zweites Gerät prüfbar.
+  Dein Ohr und Dein Auge.
 
   Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
   allokationsfrei.
