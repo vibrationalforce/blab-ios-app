@@ -5,7 +5,7 @@
 An immersive, iPhone-first instrument for **Installation · Event · Content · Cinema · Theater · Performance.** Your body plays it: heart and breath drive sound, image, light and immersive space in real time, through a typed pub/sub bus that external controllers and stage tools can subscribe to.
 
 [![iOS](https://img.shields.io/badge/iOS-18+-black.svg)](https://developer.apple.com/ios/)
-[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+[![Swift](https://img.shields.io/badge/Swift-5.10%20tools%20%C2%B7%20strict%20concurrency-orange.svg)](https://swift.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > Shipping to TestFlight. Development happens on a feature branch — run `git branch --show-current` rather than trusting a name written here; the pinned literal in this file was wrong for months. Project doctrine, current state and the open-work ledger live in [`CLAUDE.md`](./CLAUDE.md).
@@ -14,12 +14,12 @@ An immersive, iPhone-first instrument for **Installation · Event · Content · 
 
 ## Positioning
 
-This is not a DAW, and catching one on its own axis is not possible solo. Echoelmusic is an **instrument**: it is about the sound being made *now*, not about arranging material over time. Timeline, clips, multitrack and video editing were built and then deliberately removed in July 2026 to keep that boundary sharp.
+This is not a DAW, and catching one on its own axis is not possible solo. Echoelmusic is an **instrument**: it is about the sound being made *now*, not about arranging material over time. The timeline, the clip/arrangement UI and video editing were built and then deliberately removed in July 2026 to keep that boundary sharp. Multitrack recording is a different case and worth stating precisely: it is *built*, but feature-flagged off with no door, so it is not part of the app you install.
 
 What it does have, structurally, is **biofeedback as a first-class modulation source on a typed bus**:
 
-- **Bio is input.** Heart rate, HRV (RMSSD normalized), breath rate + phase, and coherence (HRV spectrum) are published as `BioSampleFrame` onto `EngineBus`. Sources: HealthKit, camera rPPG (on-device), any BLE chest strap speaking standard Heart Rate Service (0x180D), plus a DEBUG simulator.
-- **MIDI is input.** CoreMIDI notes, per-channel pitch bend and CC 74 arrive as `ControllerEvent`. Full MPE (master/member disambiguation, RPN 6,6 zones, channel pressure) is *not* wired — see the header of `Sync/MIDIBusPublisher.swift`.
+- **Bio is input.** Heart rate, HRV (RMSSD normalized), breath rate + phase, and coherence (HRV spectrum) are published as `BioSampleFrame` onto `EngineBus`. Sources: HealthKit, camera rPPG (on-device), any BLE chest strap speaking standard Heart Rate Service (0x180D), plus a simulation you can pick by hand when you have no sensor.
+- **MIDI is input.** CoreMIDI notes, per-channel pitch bend, CC 74 and CC 21–31 (air controllers) arrive as `ControllerEvent`. Full MPE (master/member disambiguation, RPN 6,6 zones, channel pressure) is *not* wired — see the header of `Sync/MIDIBusPublisher.swift`.
 - **DSP, visuals, lighting and network out are subscribers.** Anything reading from the bus can be bio- or controller-modulated without point-to-point coupling.
 - **Science-only.** No "healing frequencies", no chakras, no Solfeggio mythology. Mappings reference peer-reviewed sources (Lehrer/Vaschillo HRV resonance frequency, Polar H10 validation, DELLY / Tracy bio-signal processing). Data is for self-observation, not medical diagnosis.
 
@@ -27,35 +27,36 @@ What it does have, structurally, is **biofeedback as a first-class modulation so
 
 ## One screen, one bus
 
-The app is **one** `EchoelStudioView` — not a TabView. A menu bar of chips opens one panel each, over a one-button bio-generative flow.
+The root view is `WorkspaceView` — brand header, transport bar, and one surface below it, `EchoelStudioView`. Not a TabView. The front plate carries the single **Create from Within** button: the bio-generative flow that writes in-key melody, harmony, rhythm and tempo from your body across curated genres. Everything else is a panel.
 
-| Surface | What it does |
+**Five chips render in the tab strip:**
+
+| Chip | What it does |
 |---|---|
-| **Compose** | Bio-generative one-button flow — in-key melody, harmony, rhythm and tempo from the body, across curated genres |
-| **Sound** | Patch editor — presets, tone/filter/envelope/space, randomize, save-as |
-| **FX** | EchoelFX chain — stamp a character, then per-stage panels; presets with search and favorites |
-| **Field** | Touch-playable surface, quantized with micro-timing; can also play itself (self-play + arpeggiator) |
+| **Sound** | Patch editor — presets, tone/filter/envelope/space and vibrato, randomize, save-as |
 | **Mix** | Level per part |
-| **Bio** | HR · HRV · Breath · Coherence, tap-to-learn, source picker, resonance breath pacer |
-| **Video** | Recorded clips from the immersive visual window — inline playback, mp4 share |
-| **Export** | Loop render to WAV, MIDI file export |
+| **FX** | EchoelFX chain — stamp a character, then per-stage panels; presets with search and favorites |
+| **Mood** | Production character |
+| **Field** | The immersive visual's look controls, plus the touch-playable surface below them — quantized with micro-timing, and able to play itself (self-play + arpeggiator) |
 
-Network routing (OSC · ADM-OSC · Art-Net · sACN · MIDI out) is a patchbay reached from the Master and Bio panels, not its own chip.
+**Six more panels open from the header or the transport overflow, not from a chip:** Bio (HR · HRV · Breath · Coherence with tap-to-learn), Video (recorded clips, inline playback, mp4 share), Export (WAV loop render and MIDI file export), Master, Tempo, Session. The bio *source* — camera, chest strap, Health, simulation — is chosen by touching and holding the pulse pill in the header, not inside the Bio panel.
 
-`BioStripView` lives inside the Bio panel, not as an always-on strip. That is deliberate: a ~10 Hz reading in an always-mounted ancestor rebuilds the whole view tree and tears down any open menu. See the freeze law in `CLAUDE.md`.
+Network routing (OSC · ADM-OSC · Art-Net · sACN · MIDI out) is a patchbay reached from the Master panel, the Bio panel and the header lighting tile.
 
-**Not planned, not roadmap** — RTMP / live streaming, video editing, multitrack audio, and the Clips/Arrangement UI. Most were built and removed in July 2026. A broadcast stack would be a second product. See [`docs/dev/FEATURE_MATRIX.md`](./docs/dev/FEATURE_MATRIX.md).
+`BioStripView` lives inside the Bio panel, not as an always-on strip. That is deliberate: a ~10 Hz reading in an always-mounted ancestor — `WorkspaceView` or any permanent header — rebuilds the whole view tree and tears down any open menu. See the freeze law in `CLAUDE.md`.
+
+**Not planned, not roadmap** — RTMP / live streaming, video editing, and the Clips/Arrangement UI. Most were built and removed in July 2026. A broadcast stack would be a second product. See [`docs/dev/FEATURE_MATRIX.md`](./docs/dev/FEATURE_MATRIX.md).
 
 ---
 
 ## What ships today
 
-- **`EngineBus`** (`Core/EngineBus.swift`) — hybrid isolation: `@MainActor @Observable` control plane for SwiftUI snapshots; lock-free `SPSCQueue` data plane for audio-thread consumers. Three typed topics: `bioFrames`, `controllerEvents`, `bioEvents`. Bio flows over the `latestBio` snapshot at 10 Hz; the SPSC queue is drained for MIDI.
+- **`EngineBus`** (`Core/EngineBus.swift`) — hybrid isolation: `@MainActor @Observable` control plane for SwiftUI snapshots; lock-free `SPSCQueue` data plane for audio-thread consumers. Three typed topics: `bioFrames`, `controllerEvents`, `bioEvents`. Bio flows over the `latestBio` snapshot polled at 10 Hz; `controllerEvents` is the queue that is drained and consumed (MIDI). `bioEvents` is drained only to discard a stale backlog, and `bioFrames` is never drained at all — the snapshot is the correct path for a slow signal.
 - **Bio publishers**, all pushing source-tagged `BioSampleFrame`:
   - `HealthKitBioPublisher` — polls `EchoelBioEngine.snapshot`.
   - `CameraRPPGBioPublisher` — on-device photoplethysmography from the rear camera; locks a pulse without extra hardware.
   - `PolarH10BioPublisher` — CoreBluetooth direct, no vendor SDK, parses BLE HR Measurement (0x180D / 0x2A37) including RR intervals.
-  - `BioSimulator` — DEBUG only; compiled out of Release, defers when a real source publishes.
+  - `BioSimulator` — a walk around 72 BPM, offered in the pulse pill's menu as "Play with the simulation" so the instrument is playable with no sensor at all. It ships in Release; only its *automatic* start is DEBUG-gated, and it defers the moment a real source publishes.
 - **Synthesis** — `EchoelDDSP` (harmonic + noise, bio-reactive), `PolySynthVoice`, `SubBassVoice`, `EchoelFX` chain, master `AutoMixChain` with true-peak trim.
 - **Output stage** — generative Metal visuals, Art-Net and sACN lighting, ADM-OSC immersive object positions, OSC bio egress, MIDI out and MIDI file export.
 - **Protected DSP triad** — `BioEventGraph`, `HilbertSensorMapper`, `BioSignalDeconvolver`. Read-only contracts under `.claude/skills/`; do not simplify.
@@ -66,15 +67,19 @@ Known gaps are tracked honestly in `CLAUDE.md` rather than implied here.
 
 ## Build
 
-Requires Xcode 26.2+ on macOS 15+. iPhone-only for v10 (other Apple platforms compile-clean but are not deliverables). Zero external dependencies.
+Requires Xcode 26.2 and a recent macOS (CI runs `macos-26`). iPhone-only for v10 (other Apple platforms compile-clean but are not deliverables). Zero external dependencies.
+
+**There is no `.xcodeproj` in the repository** — it is generated by [XcodeGen](https://github.com/yonaskolb/XcodeGen) from `project.yml`, so that step is not optional:
 
 ```bash
 git clone https://github.com/vibrationalforce/Echoelmusic.git
 cd Echoelmusic
-swift build                                              # SPM build
-xcodebuild -scheme Echoelmusic -sdk iphonesimulator      # Xcode build
-swift test                                               # test suite
+xcodegen generate --spec project.yml                     # required first
+xcodebuild -scheme Echoelmusic -sdk iphonesimulator      # the iOS app
+swift build                                              # SPM library only
 ```
+
+`swift test` builds `Tests/EchoelmusicTests`, which is the large exploratory suite and is *not* what gates a merge — no workflow runs it under SwiftPM, and it is allowed to be red. The blocking bundle is `Tests/CISmoke`, built and run by the `Echoelmusic CI/CD Pipeline` workflow through the Xcode scheme.
 
 TestFlight runs from `.github/workflows/testflight.yml`, two ways:
 
@@ -93,9 +98,10 @@ gh workflow run testflight.yml -f platform=ios -f build_only=false
 ```
 Sources/Echoelmusic/
   Core/          EngineBus, SPSCQueue, ProfessionalLogger, MemoryPressureHandler,
-                 FloatingPointClamp, EchoelDecimalText, ModulationEngine, EchoelStore
+                 FloatingPointClamp, EchoelDecimalText, ModulationEngine, EchoelStore,
+                 EchoelParameterRegistry, CloudSync
   Bio/           EchoelBioEngine (HealthKit), HealthKitBioPublisher,
-                 CameraRPPGBioPublisher, PolarH10BioPublisher, BioSimulator (DEBUG),
+                 CameraRPPGBioPublisher, PolarH10BioPublisher, BioSimulator,
                  BreathPacer, ResonanceFinder, HRVCoherence, HRVMetrics,
                  BioEventGraph / HilbertSensorMapper / BioSignalDeconvolver (protected)
   DSP/           EchoelDDSP, EchoelCellular, EchoelModalBank, EchoelVDSPKit,
@@ -107,14 +113,20 @@ Sources/Echoelmusic/
   Tools/         PolySynthVoice, SubBassVoice, BioReactiveSynthVoice, breath/vocal tools
   Video/         CameraCapture, CameraAnalyzer, RPPGConditioning (the rPPG path),
                  VideoRecorder, VisualRecorder, VideoMuxer  — capture only, no editing
-  Sync/          OSCSender, ADMOSCSender, ArtNetSender, SACNSender, CloudSync
-  Studio/        EchoelStudioView (root), WorkspaceView, BioStripView, EchoelFXView,
+  Sync/          OSCSender, ADMOSCSender, ArtNetSender, SACNSender, MIDIBusPublisher
+  Studio/        WorkspaceView (root), EchoelStudioView (the surface), BioStripView,
+                 EchoelFXView,
                  TouchInstrumentView, FloatingVisualWindow, PatchbayView, EchoelTheme
   Views/         MetalBioView, OnboardingView
-  EchoelAI/      Parameter registry + model-free tool logic (flag-gated off by default)
+  EchoelAI/      BrainBackend, FoundationModelsBrain, ParameterToolCore — three files,
+                 flag-gated off by default; the parameter registry itself lives in Core/
   Stream/        BroadcastPublisher — a compile guard only; HaishinKit is not a dependency
-Tests/CISmoke/          the blocking gate bundle
-Tests/EchoelmusicTests/ the full suite (runs non-blocking)
+  Resources/     bundled assets
+  (plus the two loose files EchoelmusicApp.swift and MicrophoneManager.swift)
+Sources/EchoelmusicWidgets/  WidgetKit extension, embedded in the app
+Sources/EchoelmusicWatch/    watchOS app — present but NOT embedded (dependency off in project.yml)
+Tests/CISmoke/               the blocking gate bundle
+Tests/EchoelmusicTests/      the large exploratory suite (runs non-blocking)
 ```
 
 See [`CLAUDE.md`](./CLAUDE.md) for project doctrine, current state and the open-work ledger, and [`docs/dev/FEATURE_MATRIX.md`](./docs/dev/FEATURE_MATRIX.md) for the per-feature shipping status.
