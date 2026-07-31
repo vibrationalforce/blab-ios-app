@@ -156,15 +156,28 @@ final class BaseLanguageIsEnglishTests: XCTestCase {
 
         // Non-vacuity: if the walk found nothing, the empty `offenders` proves nothing. This
         // repo has written that failure mode into three other test files after hitting it.
-        XCTAssertGreaterThan(scannedFiles, 250,
-                             "only \(scannedFiles) Swift files scanned — the walk failed, so a "
-                             + "green result here would be meaningless")
+        XCTAssertGreaterThan(scannedFiles, 250, """
+        only \(scannedFiles) Swift files scanned — the walk failed, so a green result here \
+        would be meaningless
+        """)
 
-        XCTAssertTrue(offenders.isEmpty,
-                      "German text in the English base bundle (\(offenders.count)):\n"
-                      + offenders.joined(separator: "\n")
-                      + "\n\nWrite the base string in English. German belongs in a String "
-                      + "Catalog translation, where a translator and a reviewer can see it.")
+        // ⛔ WHY THESE ARE `"""` LITERALS AND NOT `+`-CHAINS. Both messages here were exactly
+        // that, and the four-part one below mixed an interpolation, a `joined(separator:)` and
+        // three literals in ONE expression. That construct is what took the blocking bundle
+        // red on `f8f1fef`: the Swift type-checker hard-errored with "unable to type-check
+        // this expression in reasonable time" on a sibling file (#287, repaired in `3379bb3`,
+        // logged in HARNESS_LEDGER). It compiled HERE — but the difference between the two
+        // sites was chain length, not kind, and the warning form ("expression took NNNNms")
+        // is silent in this bundle. Converted before it costs a second cycle. The `joined`
+        // is hoisted to a local for the same reason.
+        let listing = offenders.joined(separator: "\n")
+        XCTAssertTrue(offenders.isEmpty, """
+        German text in the English base bundle (\(offenders.count)):
+        \(listing)
+
+        Write the base string in English. German belongs in a String Catalog translation, \
+        where a translator and a reviewer can see it.
+        """)
     }
 
     /// The scanner must be able to FAIL — a guard that cannot fire is decoration. Proves the
