@@ -56,7 +56,7 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **Universeller BLE-Herzgurt** (0x180D), z. B. Polar H10 | gebaut + verdrahtet, Geräte-Verify offen — **so kennzeichnen** |
 | **Apple Health** als Pulsquelle | `HealthKitBioPublisher` |
 | **Offene Standards, kein SDK-Lock-in** | OSC · ADM-OSC · MIDI · Art-Net/sACN · BLE HRS |
-| **Null externe Abhängigkeiten**, alles on-device | `Package.swift: dependencies: []` |
+| **Null externe Abhängigkeiten**, alles on-device | `Package.swift: dependencies: []` UND `project.yml` ohne `packages:`-Block — beide, siehe Zaun-Absatz oben |
 | **Barrierefrei spielbar**: Notennamen International/Deutsch/Solfège, VoiceOver auf der Spielfläche, Atkinson Hyperlegible | #232 C/E, `EchoelValueField` |
 
 ---
@@ -67,7 +67,12 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 **Das AUv3-Target wurde am 2026-07-24 ENTFERNT** (#121 Slice 1+2, Founder-Verdikt
 „reines Instrument"). Echoel ist eine eigenständige App und **kein Plugin**. Es kann
 auch keine fremden Plugins laden — das Hosting ging im selben Schritt.
-`project.yml:177` sagt es wörtlich. Ein AUv3-Claim ist doppelt falsch (Ziel + Host)
+`project.yml` sagt es wörtlich: *„AUv3 REMOVED 2026-07-24 (founder verdict: Echoelmusic
+= pure instrument, no AUv3)"*. (⛔ Hier stand `project.yml:177` — eine Zeilennummer.
+`CLAUDE.md` verbietet das Muster in dieser Datei-Familie ausdrücklich: eine zitierte
+Phrase überlebt jede Verschiebung, eine Nummer zeigt nach dem nächsten Einschub auf
+etwas anderes und behauptet dabei weiter, ein Beleg zu sein.)
+Ein AUv3-Claim ist doppelt falsch (Ziel + Host)
 und war exakt der Claim, den #158 aus der Website entfernt hat.
 *Wenn ein Bild eine DAW-Spur zeigt, ist es das falsche Bild.*
 
@@ -95,8 +100,29 @@ wahr, er braucht kein Zusatzgerät, und er sieht besser aus.
 Es gibt heute **nur TestFlight**. Erst nach der ersten Freigabe umstellen.
 
 ### 5. Drums, Beats, Sampler, Sample-Import, Video-Schnitt, RTMP-Livestream, Mehrspur-Recorder
-Alles entfernt oder nie gebaut (#166/#167 Drums, #121 Slice 3 Video-Schnitt;
-`BroadcastPublisher` ist ein Compile-Gerüst ohne verlinktes Backend).
+**Das VERBOT gilt unverändert — der Nutzer kann nichts davon aufrufen.** Die Begründung
+war falsch und ist der Grund, warum dieser Abschnitt jetzt drei Fälle unterscheidet
+statt einen: es stand hier *„Alles entfernt oder nie gebaut"*, und „nie gebaut" ist für
+zwei der sieben Einträge per `git grep` widerlegbar. Das ist exakt der Defekt, den
+derselbe Commit aus §8 entfernt hat: **eine widerlegbare Begründung entwertet ein
+richtiges Verbot** — wer sie prüft und kippen sieht, kippt das Verbot gleich mit.
+
+- **Gelöscht, existiert nicht mehr:** Drums/Beats (#166/#167 — `DrumSynthVoice`,
+  `LaneDrumKitVoice`, `DrumNoteMap` sind als Dateien weg), Sample-Import/Browser
+  (`SampleBrowserView` mit #167 gelöscht), Video-SCHNITT (#121 Slice 3).
+- **Im Code, aber nicht verlinkt:** RTMP — `BroadcastPublisher` ist ein
+  `#if canImport(HaishinKit)`-Gerüst, `Package.swift` hat `dependencies: []`.
+- **Gebaut und konstruiert, aber für den Nutzer TÜRLOS:** `MultiTrackRecorder`
+  (`Audio/MultiTrackRecorder.swift`, in `AudioEngine` bedingungslos angelegt;
+  durchgereicht nur hinter `FeatureFlags.audioLaneRecording`, und dieser Key wird nie
+  an `UserDefaults.register(defaults:)` übergeben — registriert sind nur `multiRoll`,
+  `voiceKindRouting`, `instrumentHome` —, löst also zu `false` auf. Offen als #204).
+  Ebenso `SamplerVoice` (in `BeatPlayer` und `LaneVoiceRack` angelegt) — es gibt eine
+  Sampler-Stimme, nur keine Oberfläche, die dem Nutzer Samples in die Hand gibt.
+
+**Für Content heißt das dasselbe wie vorher: nicht behaupten.** Der Unterschied liegt
+nicht im Verbot, sondern in seiner Haltbarkeit — und darin, dass „nie gebaut" eine
+Session dazu einlädt, etwas neu zu bauen, das schon da ist.
 
 ### 6. MPE
 Aus dem I/O-Satz gestrichen — die Schalter haben seit dem Tools-Grid-Removal keinen
