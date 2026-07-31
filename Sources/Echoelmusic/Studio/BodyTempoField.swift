@@ -55,6 +55,26 @@ struct BodyTempoField: View {
     /// What the unlocked display shows: the body rate, or the clock as honest fallback.
     private var followingValue: Double { liveBodyBPM > 0 ? liveBodyBPM : transport.tempo }
 
+    /// The FOLLOWING readout, formatted exactly the way the LOCKED one is.
+    ///
+    /// ⛔ These two states diverged for one commit and it was the worst artefact #232 G
+    /// produced. The locked state is an `EchoelValueField`, which #232 G localized; the
+    /// following state is a plain `Text(String(format: "%.4f"))`, which it did not. So a
+    /// German player tapping the lock watched the SAME number in the SAME 76 pt box change
+    /// its decimal separator — strictly worse than before the slice, where both read
+    /// "70.0000". The release note called the residual risk "a value field next to a
+    /// monitor"; this was not a neighbour, it was one tap apart inside one control.
+    private var followingText: String {
+        EchoelDecimalText.string(followingValue, decimals: 4)
+    }
+
+    /// The spoken form of the same number. Kept beside `followingText` so the two cannot
+    /// drift: `EchoelValueField.accessibleValue` already speaks the seen string, and the
+    /// following state has to match that or VoiceOver flips format on the same lock tap.
+    private var followingSpoken: String {
+        "\(EchoelDecimalText.string(followingValue, decimals: 1)) beats per minute"
+    }
+
     var body: some View {
         HStack(spacing: compact ? 6 : 10) {
             if lockBPM {
@@ -68,7 +88,7 @@ struct BodyTempoField: View {
             } else if compact {
                 // Following, compact: just the running number (no word labels) — a tap
                 // opens nothing (it follows the body); the lock beside it freezes it.
-                Text(String(format: "%.4f", followingValue))
+                Text(followingText)
                     .font(EchoelTheme.font(14, .semibold).monospacedDigit())
                     .foregroundStyle(liveBodyBPM > 0 ? EchoelTheme.accent : EchoelTheme.text)
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -78,7 +98,7 @@ struct BodyTempoField: View {
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Tempo, following your pulse")
-                    .accessibilityValue(String(format: "%.1f beats per minute", followingValue))
+                    .accessibilityValue(followingSpoken)
             } else {
                 // Following: the number runs along with the live biofeedback rate.
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -86,7 +106,7 @@ struct BodyTempoField: View {
                         .font(EchoelTheme.font(13, .medium))
                         .foregroundStyle(EchoelTheme.text)
                     Spacer(minLength: 8)
-                    Text(String(format: "%.4f", followingValue))
+                    Text(followingText)
                         .font(EchoelTheme.font(15, .semibold).monospacedDigit())
                         .foregroundStyle(liveBodyBPM > 0 ? EchoelTheme.accent : EchoelTheme.text)
                         .padding(.horizontal, 10).padding(.vertical, 6)
@@ -99,7 +119,7 @@ struct BodyTempoField: View {
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Tempo, following your pulse")
-                .accessibilityValue(String(format: "%.1f beats per minute", followingValue))
+                .accessibilityValue(followingSpoken)
             }
 
             Button { toggleLock() } label: {

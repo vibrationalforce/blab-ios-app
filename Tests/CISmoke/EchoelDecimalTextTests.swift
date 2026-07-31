@@ -10,6 +10,16 @@
 //
 // In `Tests/CISmoke` because that is the only bundle that can redden a merge (#208), and
 // because the format/parse pair is the kind of thing a later "tidy up" silently inverts.
+//
+// ⚠️ WHAT THIS FILE DOES NOT COVER, said plainly because the commit that added it claimed
+// "all three parts of the interactive path move together" and then tested ONE of them:
+// there is no coverage of `EchoelNumberPad`'s own paths — `pendingValue`, `displayString`,
+// `appendDecimal`, `setSign`, `deleteLast`, the 9-character cap — nor of
+// `EchoelValueField.numberString → accessibleValue`. Those are `private` members of SwiftUI
+// `View` structs and are not unit-testable without restructuring them, which this slice did
+// not do. The ASCII-buffer invariant that the whole design rests on is therefore asserted in
+// PROSE, not by a test. The helper is test-verified; the keypad and the field are
+// compile-verified only and need a device run.
 
 import Foundation
 import XCTest
@@ -39,15 +49,28 @@ final class EchoelDecimalTextTests: XCTestCase {
         XCTAssertEqual(EchoelDecimalText.string(20000, decimals: 2, locale: french), "20000,00")
     }
 
-    /// The minus stays ASCII in EVERY locale, including ones that print U+2212 in prose.
-    /// `EchoelNumberPad`'s sign key writes "-" and `Double.init` parses only "-", so a
-    /// prettier minus would render correctly and then fail to commit.
-    func testTheMinusSignStaysASCIIAndParsesBack() {
+    /// The minus stays ASCII on OUTPUT in every locale, and U+2212 is accepted on INPUT.
+    ///
+    /// ⚠️ The output half is near-tautological and is labelled as such rather than dressed
+    /// up: `string()` never touches the sign, so `hasPrefix("-")` asserts that a function
+    /// does not do something nobody wrote. It earns its place only as a REGRESSION PIN
+    /// against a future "let's localize the minus too", which would render beautifully and
+    /// then fail `Double.init`.
+    ///
+    /// The INPUT half is the one that can actually catch something, and it exists because
+    /// the header spent a paragraph on U+2212 while `ascii` did not handle it.
+    func testTheMinusSignStaysASCIIOnOutputAndU2212IsAcceptedOnInput() {
         for locale in [german, english, french, Locale(identifier: "sv_SE")] {
             let text = EchoelDecimalText.string(-12.5, decimals: 1, locale: locale)
             XCTAssertTrue(text.hasPrefix("-"),
                           "\(locale.identifier) rendered \(text) — a non-ASCII minus does not parse")
             XCTAssertEqual(Double(EchoelDecimalText.ascii(text, locale)), -12.5)
+
+            // A typographic minus reaching the parser must commit, not fall back to the
+            // initial value. `Double.init` rejects "−12,5" outright.
+            let typographic = "\u{2212}12" + EchoelDecimalText.separator(locale) + "5"
+            XCTAssertEqual(Double(EchoelDecimalText.ascii(typographic, locale)), -12.5,
+                           "U+2212 must normalize to ASCII \"-\" — \(locale.identifier)")
         }
     }
 
@@ -82,9 +105,11 @@ final class EchoelDecimalTextTests: XCTestCase {
     /// Universe, MIDI channel) would then print a character no locale asked for.
     func testZeroDecimalsPrintsNoSeparatorAtAll() {
         for locale in [german, english, french] {
-            let text = EchoelDecimalText.string(48000, decimals: 0, locale: locale)
-            XCTAssertEqual(text, "48000")
-            XCTAssertFalse(text.contains(EchoelDecimalText.separator(locale)))
+            // One assertion, not two: `XCTAssertFalse(text.contains(separator))` stood here
+            // and could not fail independently of the equality above it — if the string IS
+            // "48000" the absence of any separator follows necessarily. An assertion that
+            // cannot fail on its own reads as extra coverage and is none (#140's lesson).
+            XCTAssertEqual(EchoelDecimalText.string(48000, decimals: 0, locale: locale), "48000")
         }
         // Negative `decimals` cannot reach here from the UI, but a format string built from
         // an unclamped Int is the kind of thing that crashes in front of an audience.

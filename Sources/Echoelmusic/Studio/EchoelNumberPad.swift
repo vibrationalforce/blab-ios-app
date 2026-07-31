@@ -34,9 +34,13 @@ struct EchoelNumberPad: View {
 
     /// What the field will become if committed now (buffer if it parses, else the initial).
     ///
-    /// `EchoelDecimalText.ascii` replaces the hand-rolled `","→"."` swap that stood here: it
-    /// also normalizes a locale separator that is NEITHER "." nor "," (Arabic U+066B), which
-    /// the two-way swap silently dropped on the floor.
+    /// ⛔ THIS COMMENT CLAIMED THE PARSE "GOT WIDER" AND CONTRADICTED THE ONE 50 LINES BELOW.
+    /// It said the old hand-rolled `","→"."` swap "silently dropped on the floor" a separator
+    /// that is neither "." nor ",". Nothing was ever dropped: the buffer is ASCII throughout
+    /// (see `displayString`), so the old comma branch was already unreachable and the new
+    /// U+066B branch is equally unreachable. `EchoelDecimalText.ascii` is a better-documented
+    /// guard for a FUTURE caller, not a widening of live behaviour — and both statements
+    /// could not be true at once, which is how the contradiction was found.
     private var pendingValue: Double {
         let cleaned = EchoelDecimalText.ascii(buffer)
         if cleaned.isEmpty || cleaned == "-" || cleaned == "." || cleaned == "-." {
@@ -145,6 +149,13 @@ struct EchoelNumberPad: View {
         }
         // A bare separator glyph is announced by VoiceOver as its punctuation name, or —
         // for U+066B — often not at all. Name the key by what it does.
+        //
+        // ⚠️ AND IT IS IN `Localizable.xcstrings` (de: "Dezimaltrennzeichen"), which the first
+        // version was not. A string LITERAL binds to the `LocalizedStringKey` overload, so an
+        // uncatalogued literal ships as English — meaning this "fix" would have replaced a
+        // German user's own voice saying "Komma" with the English words "Decimal separator",
+        // on the comma locales that are this whole slice's audience. An i18n commit that adds
+        // an untranslated string is a regression wearing the right label.
         .accessibilityLabel("Decimal separator")
     }
 

@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Decimal separator" : {
+      "comment" : "VoiceOver label for the decimal key on the Echoel number pad. Its visible glyph is the reader's own separator, which VoiceOver announces as a punctuation name or, for U+066B, often not at all.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dezimaltrennzeichen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decimal separator"
+          }
+        }
+      }
+    },
     "Breathe, lock a key and BPM, and let your body compose. Export to your DAW." : {
       "comment" : "Onboarding, page 3 body.",
       "extractionState" : "manual",
