@@ -102,8 +102,8 @@ final class VisualLookTruthTests: XCTestCase {
     }
 
     /// And the predicate has to mirror the renderer, not approximate it: B is only evaluated
-    /// above the shader's own 0.001 blend threshold (`MetalBioView.swift:1650`), and below it
-    /// the A field IS the picture.
+    /// above the shader's own 0.001 blend threshold (`float2 fb = (blend > 0.001) ? … : fa`),
+    /// and below it the A field IS the picture.
     func testDetailReachMirrorsTheRenderersOwnBlendArithmetic() {
         let rings = LookBlendMap.ringsStyleIndex
         XCTAssertEqual(LookBlendMap.detailReach(style: rings, styleB: 5, blend: 0), 1, accuracy: 1e-9,
@@ -119,6 +119,18 @@ final class VisualLookTruthTests: XCTestCase {
                        1, accuracy: 1e-9, "Rings on both sides is still the whole picture")
         XCTAssertEqual(LookBlendMap.detailReach(style: 5, styleB: 7, blend: 0.5), 0, accuracy: 1e-9,
                        "no Rings anywhere ⇒ no reach")
+    }
+
+    /// The renderer CLAMPS the style before bucketing (`Float(min(max(style, 0), 9))`, then
+    /// `si < 0.5` selects Rings), so a negative persisted index draws as Rings. An `==` test
+    /// would call that "no reach" and show the caption over a working row. Close to
+    /// unreachable — the launch snap and the look slider only ever write library indices —
+    /// but the doc calls this a mirror, and a mirror has to hold at the edges too.
+    func testANegativePersistedStyleRendersAsRingsAndCountsAsReach() {
+        XCTAssertEqual(LookBlendMap.detailReach(style: -1, styleB: 5, blend: 0), 1, accuracy: 1e-9,
+                       "the shader clamps a negative style to 0 = Rings, so Detail DOES reach it")
+        XCTAssertEqual(LookBlendMap.detailReach(style: 5, styleB: -4, blend: 0.5),
+                       0.5, accuracy: 1e-9, "same on the B side, once actually blending")
     }
 
     /// Edge cases: a corrupted persisted blend must not make the caption flicker or the

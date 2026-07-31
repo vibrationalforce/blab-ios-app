@@ -47,28 +47,53 @@ enum LookBlendMap {
     /// because the number alone gives a reader no way to see why Detail is special.
     static let ringsStyleIndex = 0
 
-    /// #269 — HOW MUCH OF THE PICTURE THE "Detail" ROW CAN ACTUALLY SHAPE, 0…1.
+    /// True when the renderer would draw this style index AS Rings.
     ///
-    /// `visual.detail` → `ringDensity` → the shader's `density`, and `styleField`
-    /// (`MetalBioView.swift:1591`) passes `density` to `fieldRings` and to no other field
-    /// function. So Detail only reaches the screen through whatever share of the rendered
-    /// field comes from Rings. With the shipped defaults — primary style 5 (Aurora),
-    /// styleB 0, blend 0 — that share is ZERO, and dragging Detail does nothing visible.
+    /// Not `== ringsStyleIndex`, and the difference is the whole point of calling this a
+    /// mirror: the shader clamps first (`let s = Float(min(max(style, 0), 9))`) and then
+    /// buckets (`if (si < 0.5) field = fieldRings(...)`), so ANY index at or below 0 renders
+    /// as Rings. A negative persisted style is close to unreachable — the launch snap and
+    /// `lookScrub` only ever write library indices — but "close to unreachable" is not the
+    /// same as "mirrors the renderer", and the first version of this function claimed the
+    /// latter while doing the former.
+    private static func rendersAsRings(_ index: Int) -> Bool { index <= ringsStyleIndex }
+
+    /// #269 — HOW MUCH OF THE METAL FIELD THE "Detail" ROW CAN ACTUALLY SHAPE, 0…1.
     ///
-    /// This mirrors the renderer's own arithmetic rather than guessing at it:
-    /// `MetalBioView.swift:1650` evaluates the B field only above a 0.001 blend threshold
-    /// (below it `fb = fa`), and `:1653` mixes them with weight `blend`.
+    /// `visual.detail` → `ringDensity` → the shader's `density`, and `styleField` passes
+    /// `density` to `fieldRings(d, density, phase, coh)` and to no other field function. So
+    /// Detail only reaches the Metal picture through whatever share of the rendered field
+    /// comes from Rings. With the shipped defaults — primary style 5 (Aurora), styleB 0,
+    /// blend 0 — that share is ZERO, and dragging Detail does nothing visible.
     ///
-    /// It exists so the UI can say so honestly. It deliberately does NOT gate, disable or
-    /// hide the row: this repo has already decided (the Bass-rhythm row, A7's Evolve) that a
-    /// control which vanishes mid-performance is the worse failure. A caption is the fix.
+    /// ⚠️ "the Metal field", not "the screen", and the narrower wording is a correction:
+    /// `visual.detail` has a SECOND consumer, `SpectralDonutView(bandCount:)`, where it does
+    /// change the picture. That renderer is doorless today (its only mount sits behind a
+    /// cover with no setter), so nothing a player can reach contradicts the caption — but a
+    /// predicate that claims to cover "the screen" would be wrong the day it is re-doored.
+    ///
+    /// It mirrors the renderer's arithmetic rather than approximating it: the B field is
+    /// evaluated only above a 0.001 blend threshold (`float2 fb = (blend > 0.001) ? … : fa`)
+    /// and the two are mixed with weight `blend`. Both use a strict `>`, so they agree at
+    /// exactly 0.001.
+    ///
+    /// ⚠️ IT READS THE STORED BLEND, THE SHADER SEES AN EASED ONE (`tau: 0.3`). That does not
+    /// desynchronise the caption, and the reason is worth writing down rather than trusting:
+    /// every slider move that can flip this value between zero and non-zero is a change of the
+    /// (A, B) style PAIR, and a pair change SNAPS `uniforms.blend` to its target instead of
+    /// easing it (the "Grafikterror" fix). Within one pair the easing only lags across the
+    /// 0.001 boundary, i.e. within 0.1 % of an endpoint.
+    ///
+    /// It exists so the UI can say all this honestly. It deliberately does NOT gate, disable
+    /// or hide the row — see the caption's own comment for why, which is NOT the reason the
+    /// first draft gave.
     static func detailReach(style: Int, styleB: Int, blend: Double) -> Double {
         let b = blend.isFinite ? Swift.min(1, Swift.max(0, blend)) : 0
         let blending = b > 0.001                      // the shader's own threshold
         let aWeight = blending ? 1 - b : 1            // below the threshold, A is the picture
         let bWeight = blending ? b : 0
-        return (style == ringsStyleIndex ? aWeight : 0)
-            + (styleB == ringsStyleIndex ? bWeight : 0)
+        return (rendersAsRings(style) ? aWeight : 0)
+            + (rendersAsRings(styleB) ? bWeight : 0)
     }
 
     /// Display name for a style index (falls back gracefully for an unknown index).

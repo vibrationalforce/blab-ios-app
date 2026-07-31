@@ -3436,14 +3436,31 @@ struct EchoelStudioView: View {
                              onChange: { visualPresetID = "" })
             EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
                              onChange: { visualPresetID = "" })
-            // #269 — Detail only reaches the screen through the Rings look, and Rings is not
-            // in the shipped look set. Say so instead of letting the row read as broken. NOT
-            // hidden and NOT disabled: the same call the Bass-rhythm row made — a control that
-            // disappears mid-performance is the worse failure — and the condition is a plain
-            // read of three user-set values, no live-bio churn.
+            // #269 — Detail only reaches the Metal field through the Rings look, and Rings is
+            // not in the shipped look set. Say so instead of letting the row read as broken.
+            //
+            // NOT hidden and NOT disabled — and the reason is NOT the one the first draft
+            // gave. It cited "the Bass-rhythm row and A7's Evolve", and Evolve is the exact
+            // opposite: it IS hidden (`if fieldArpCharacter.usesEvolve`), because a character
+            // that ignores it can never use it — a structural fact about the engine. The
+            // Bass row's reason does not transfer either: it stays because ITS condition is
+            // live-body-driven, and this one is not. The real precedent is
+            // `fieldArpRhythmCaveat` — a caption for a dial that is live but inaudible — and
+            // the real reason to keep the row is that this condition flips as the LOOK SLIDER
+            // is dragged: a row that appears and vanishes under the finger mid-drag, taking
+            // the four rows below it up and down with it, is worse than a row plus a sentence.
+            //
+            // The condition is a plain read of three user-set values — no live-bio churn, and
+            // no invalidation source the body did not already have.
             if LookBlendMap.detailReach(style: visualStyle, styleB: visualStyleB,
                                         blend: visualBlend) < 0.001 {
-                Text("Detail shapes the Rings look only, and Rings is not on screen right now — add it in the Look row above to see this row do something.")
+                // TWO steps, and the first version said one. Adding Rings under "Slider looks"
+                // only re-snaps the visual when the CURRENT style fell out of the set
+                // (`!next.contains(visualStyle)`), which with the shipped default style 5 it
+                // does not — so the caption would still be here, having promised otherwise.
+                // Naming a fix that does not work, inside the fix for a control that promises
+                // more than it does, is the defect eating its own tail.
+                Text("Detail shapes the Rings look only. Add Rings under Slider looks above, then drag the look slider onto it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
