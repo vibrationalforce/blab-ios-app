@@ -14,11 +14,14 @@
 // before and after the fix. The property that actually distinguishes them is: after the bad
 // value goes away, does sound come BACK?
 //
-// The four members, and why `smoothedGain` was the severe one:
+// The four members. ⛔ The first version of this header ranked `smoothedGain` as "THE severest,
+// unlike the others" — wrong twice. Three of the four are equally severe and equally persistent:
 //   • `smoothedGain` (#295) — `sample = mixed * smoothedGain * envelopeValue`, so it zeroes
-//     EVERY sample, and unlike the others nothing downstream clamped it. It also survived
-//     note-off, note-on and a fresh patch apply, because `prepareForNote` resets only
-//     `smoothedFreq`. Permanent silence with no way back short of relaunching the app.
+//     EVERY sample. Permanent silence with no way back short of relaunching the app — but the
+//     two below zero the mix just as completely, and nothing downstream clamps any of the three.
+//     Persistence is shared too: `prepareForNote` resets `smoothedFreq`, `phases` and
+//     `smoothedAmplitudes`; `reset()` adds `noiseFilterState` and `vibratoPhase`. NONE of them
+//     clears the gain OR the two character smoothers.
 //   • `smoothedHarmonicity` + `smoothedNoiseLevel` (#296) — `harmonicity` is written RAW by
 //     `ResolvedPatch.apply` on the patch-only path, and `noiseLevel`'s bio line is
 //     `Swift.max(0, …)`, a floor with no ceiling that +inf walks straight through.
@@ -28,7 +31,7 @@
 // ⚠️ NO DEMONSTRATED PRODUCER — saying so is part of the finding, exactly as in
 // `FilterCutoffClampTests`. This is hardening with the same standing as #92 and #294, NOT a
 // tuning change, and must never be reported as one. The "nothing that ships is touched" half
-// is asserted at the bottom rather than asserted by assertion.
+// is asserted at the bottom rather than assumed.
 
 import Foundation
 import XCTest
@@ -154,23 +157,44 @@ final class GainLatchRecoveryTests: XCTestCase {
 
     /// The gate reads `vibratoRate > 0 && vibratoDepth > 0`, which screens NaN by position and
     /// lets +inf through — and an infinite phase cannot be wrapped back by subtracting 2π.
+    /// ⛔ `-Float.infinity` WAS IN THIS LOOP AND MEASURED NOTHING. The gate is
+    /// `vibratoRate > 0`, and `-inf > 0` is false — so the vibrato block never ran, before or
+    /// after the fix, and half the iterations were vacuous. The doc-comment above says why in
+    /// its own words ("screens NaN by position"); the same sentence screens −inf. A vacuous
+    /// iteration in the BLOCKING bundle is worse than no iteration: it reads as coverage.
     func testAnInfiniteVibratoDoesNotPoisonThePitch() {
-        for poison in [Float.infinity, -Float.infinity] {
-            let synth = voicing()
-            synth.vibratoDepth = 0.5
-            synth.vibratoRate = poison
-            XCTAssertGreaterThan(peak(synth, blocks: 4), 0, """
-            a \(poison) vibrato rate silenced the voice. The phase accumulates to infinity, \
-            `sin(inf)` is NaN, and the NaN reaches `currentFreq` — every partial's phase is \
-            poisoned from that sample on.
-            """)
-            synth.vibratoRate = 5                // an ordinary musical vibrato
-            XCTAssertGreaterThan(peak(synth, blocks: 8), 0, """
-            the voice stayed silent after the vibrato rate was healthy again — `vibratoPhase` \
-            is cleared only by `reset()`, never by `prepareForNote`, so a stuck phase outlives \
-            every note.
-            """)
-        }
+        let synth = voicing()
+        synth.vibratoDepth = 0.5
+        synth.vibratoRate = .infinity
+        XCTAssertGreaterThan(peak(synth, blocks: 4), 0, """
+        an infinite vibrato rate silenced the voice. The phase accumulates to infinity, \
+        `sin(inf)` is NaN, and the NaN reaches `currentFreq` — every partial's phase is \
+        poisoned from that sample on.
+        """)
+        synth.vibratoRate = 5                // an ordinary musical vibrato
+        XCTAssertGreaterThan(peak(synth, blocks: 8), 0, """
+        the voice stayed silent after the vibrato rate was healthy again — `vibratoPhase` \
+        is cleared only by `reset()`, never by `prepareForNote`, so a stuck phase outlives \
+        every note.
+        """)
+    }
+
+    /// ⭐ THE ONLY COVERAGE OF THE RE-SEED BRANCH ITSELF. The finite gate rejects ±inf outright,
+    /// so `if !vibratoPhase.isFinite { vibratoPhase = 0 }` is reachable ONLY from a large-but-
+    /// finite rate: the phase grows by `rate / 48000 * 2π` per sample and is never reduced below
+    /// that increment, so at `Float.greatestFiniteMagnitude` it overflows to inf after ~7,638
+    /// samples — block 15 of 512. Narrow, but not dead code, and nothing else exercises it.
+    func testAFiniteButHugeVibratoRateSurvivesThePhaseOverflow() {
+        let synth = voicing()
+        synth.vibratoDepth = 0.5
+        synth.vibratoRate = .greatestFiniteMagnitude
+        _ = peak(synth, blocks: 16)          // 8192 samples — past the overflow point
+        XCTAssertGreaterThan(peak(synth, blocks: 8), 0, """
+        the voice fell silent AFTER the vibrato phase overflowed. Without the re-seed the wrap \
+        test `> 2π` is true while `inf - 2π` is still inf, so `sin(inf)` is NaN from that sample \
+        on and every partial phase is poisoned for the life of the voice — with the rate still \
+        reading as a perfectly finite number.
+        """)
     }
 
     // MARK: - Nothing that ships is touched
