@@ -68,10 +68,16 @@ public final class Transport {
     public nonisolated static let maxTempo: Double = 300.0
     public nonisolated static let defaultTempo: Double = 120.0
 
-    /// Seconds of ONE step (a 16th) at `bpm` — the gap `PatternEngine` waits between
-    /// ticks, and therefore the gap between `play()` and the moment step 0 SOUNDS.
+    /// Seconds of ONE step (a 16th) at `bpm`, and therefore the gap between `play()` and the
+    /// moment step 0 SOUNDS.
     ///
-    /// ⭐ WHY THIS IS A SHARED STATIC AND NOT A THIRD COPY OF `60.0 / tempo / 4.0`
+    /// ⚠️ It is the BASE of the inter-tick gap, not the gap itself: `PatternEngine` feeds it
+    /// to `swingGap(afterStep:base:swing:)`, which lengthens the gap after an even step and
+    /// shortens the next one. The two are equal only while `swing == 0` — which is every
+    /// shipping path today (#278), but writing "the gap between ticks" would make this doc
+    /// false the day swing returns, in the file the timing is read from.
+    ///
+    /// ⭐ WHY THIS IS A SHARED STATIC AND NOT A FOURTH COPY OF `60.0 / tempo / 4.0`
     /// (#300 Nachlese). `play()` below fans out to `playSubs` IMMEDIATELY, but
     /// `PatternEngine.play()` then schedules its first `advance()` one whole step later —
     /// `play()`'s own comment explains why that asymmetry is deliberate and load-bearing

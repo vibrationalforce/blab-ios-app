@@ -295,6 +295,77 @@ final class MIDIClockTests: XCTestCase {
         """)
     }
 
+    /// ⭐ THERE ARE TWO PHASES, AND THE FIRST FIX ONLY PRESERVED ONE. Between `startClock`
+    /// and the first pulse, `lastPulseAt` is nil and the armed deadline is the DOWNBEAT —
+    /// a whole step out, not one pulse. The first version of the Nachlese fell back to
+    /// `interval` in that window, so any tempo relay landing there (and `PatternEngine.advance`
+    /// relays at step rate) pulled Start from ~125 ms back to ~21 ms and re-created the exact
+    /// offset the slice had just removed. This is the guard for the window, not the run.
+    func testTempoChangeBeforeTheFirstPulseKeepsTheDownbeat() throws {
+        let out = try codeLines("Sources/Echoelmusic/Audio/MIDIOutput.swift").joined(separator: "\n")
+        let reArm = slice(of: out, from: "public func setClockTempo(", to: "\n    }")
+        XCTAssertTrue(reArm.contains("nextPulseAt"), """
+        `setClockTempo` reads only `lastPulseAt`. Before the first pulse that is nil, so the \
+        pending DOWNBEAT deadline is replaced by one plain interval and Start lands a step \
+        early again — the defect this whole slice exists to remove, reintroduced by its own fix.
+        """)
+        let arm = slice(of: out, from: "private func armClockTimer(", to: "\n    }")
+        XCTAssertTrue(arm.contains("nextPulseAt = deadline"), """
+        `armClockTimer` no longer records the deadline it armed, so `setClockTempo` has \
+        nothing to preserve in the pre-first-pulse window.
+        """)
+    }
+
+    /// ⚠️ NO STOP WITHOUT A START. Deferring Start to the first pulse created an asymmetry:
+    /// press play and stop again inside the first step and the owed Start never went out —
+    /// but a bare 0xFC still did, and that stops a receiver running under ANOTHER master.
+    func testStopIsSuppressedWhenTheStartWasNeverSent() throws {
+        let out = try codeLines("Sources/Echoelmusic/Audio/MIDIOutput.swift").joined(separator: "\n")
+        let stop = slice(of: out, from: "public func stopClock() {", to: "\n    }")
+        XCTAssertFalse(stop.isEmpty, "`stopClock` is gone from MIDIOutput.swift")
+        XCTAssertTrue(stop.contains("pendingStart"), """
+        `stopClock` no longer looks at whether a Start was still owed. Stopping inside the \
+        first step then emits a Stop for a run the receiver was never told about.
+        """)
+        XCTAssertTrue(stop.contains("if !startWasOwed { sendRealTime(.stop) }"), """
+        `stopClock` sends Stop unconditionally again. Spec-legal, and exactly wrong for the \
+        one receiver that matters here: one already running under a different master.
+        """)
+    }
+
+    /// ⭐ ONE FORMULA. `Transport.stepDuration` only prevents drift if nothing else still
+    /// computes the step itself — and when it landed, THREE private copies survived in
+    /// `PatternEngine` alone (`play`, the `setTempo` re-arm, `advance`'s next gap).
+    func testTheStepFormulaExistsExactlyOnce() throws {
+        for path in ["Sources/Echoelmusic/Sequencer/PatternEngine.swift",
+                     "Sources/Echoelmusic/Audio/MIDIOutput.swift",
+                     "Sources/Echoelmusic/EchoelmusicApp.swift"] {
+            let text = try codeLines(path).joined(separator: "\n")
+            XCTAssertFalse(text.contains("60.0 / tempo / 4.0"), """
+            \(path) computes the step duration itself instead of calling \
+            `Transport.stepDuration(atTempo:)`. A private copy here is how the MIDI clock's \
+            Start and the first audible step drift apart with nothing failing.
+            """)
+        }
+    }
+
+    /// The runtime half of the same claim: with swing off — every shipping path today (#278) —
+    /// the gap the sequencer waits IS one `stepDuration`. Asserted rather than assumed,
+    /// because the consolidation above replaced the sequencer's own arithmetic with the helper.
+    func testTheSequencerGapWithoutSwingIsOneStepDuration() {
+        for bpm in [60.0, 120.0, 174.0, Transport.minTempo, Transport.maxTempo] {
+            let base = Transport.stepDuration(atTempo: bpm)
+            for step in 0..<4 {
+                XCTAssertEqual(PatternEngine.swingGap(afterStep: step, base: base, swing: 0),
+                               base, accuracy: 1e-12, """
+                at \(bpm) bpm the gap after step \(step) is not one step duration with swing \
+                off. The MIDI clock's one-step Start delay assumes it is; if this diverges, \
+                Start stops landing on the downbeat and nothing else reports it.
+                """)
+            }
+        }
+    }
+
     /// Un-routing MIDI out must stop the clock while the port is still alive.
     func testDisablingMIDIOutStopsTheClock() throws {
         let out = try codeLines("Sources/Echoelmusic/Audio/MIDIOutput.swift").joined(separator: "\n")

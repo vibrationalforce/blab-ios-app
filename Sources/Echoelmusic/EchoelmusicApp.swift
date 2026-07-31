@@ -645,6 +645,15 @@ struct EchoelmusicApp: App {
                     // `PatternEngine` sounds step 0 one 16th afterwards — so Start (0xFA)
                     // has to wait exactly that long or every slaved DAW sits a 16th ahead
                     // of Echoel for the whole take. See `Transport.stepDuration(atTempo:)`.
+                    //
+                    // ⚠️ THE DELAY IS COMPUTED FROM `transport.tempo`, THE SEQUENCER WAITS ON
+                    // ITS OWN `tempo` — and they are equal only because nothing else writes
+                    // either. Checked rather than assumed (#300 Nachlese): `Transport.setTempo`
+                    // has exactly SIX callers and all six are `PatternEngine` relaying its own
+                    // clamped value, the relay in `setTempo` sits BEFORE the no-change early
+                    // return, and `PatternEngine.defaultTempo` IS `Transport.defaultTempo`. If a
+                    // second writer to `Transport.setTempo` ever appears, this line silently
+                    // starts computing the wrong delay — read the engine's tempo then.
                     midiOut.startClock(bpm: transport.tempo,
                                        startingIn: Transport.stepDuration(atTempo: transport.tempo))
                 }

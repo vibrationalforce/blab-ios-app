@@ -274,7 +274,7 @@ public final class PatternEngine {
     /// If the engine is playing, the timer restarts at the new interval.
     public func setTempo(_ bpm: Double) {
         // NaN-safe: THIS is the type that computes the step interval
-        // (`60.0 / tempo / 4.0` in `scheduleNextTick`), so a NaN landing here does not
+        // (`Transport.stepDuration(atTempo:)`, fed to `swingGap`), so a NaN landing here does not
         // mis-time the sequencer — it silences it. (`DispatchTime + NaN` saturates to
         // `Int64.max`, so a tick is technically scheduled and then never fires.)
         // `Swift.min(Swift.max(bpm, lo), hi)` passes NaN through both clamps.
@@ -295,7 +295,7 @@ public final class PatternEngine {
         // would still fire at the OLD interval (one lagged step after a tempo
         // change / regenerate). scheduleTick invalidates the old timer first.
         if isPlaying {
-            let base = 60.0 / tempo / 4.0
+            let base = Transport.stepDuration(atTempo: tempo)
             // Between ticks `currentStep` is the NEXT step to play; the gap before
             // it is decided by the JUST-PLAYED step (currentStep − 1), exactly as
             // advance() schedules it. Passing `currentStep` here inverted the swing
@@ -434,7 +434,10 @@ public final class PatternEngine {
         transport?.play()
         // One step later, not now — see `Transport.play()`. Read from the shared helper
         // (#300 Nachlese) because the MIDI clock has to wait exactly this long before its
-        // Start, and two copies of `60.0 / tempo / 4.0` would let the two drift apart.
+        // Start, and a private copy of `60.0 / tempo / 4.0` here would let the two drift
+        // apart. (⛔ The first version of this comment said "two copies" while THREE more
+        // survived in this same file — `setTempo`'s re-arm and `advance`'s next-gap. Both
+        // now read the helper too; there is one formula in the app.)
         scheduleTick(after: Transport.stepDuration(atTempo: tempo))
     }
 
@@ -552,7 +555,7 @@ public final class PatternEngine {
         // (even step), delaying the off-beat; the following gap shortens to keep
         // each beat-pair the same total length (tempo preserved). Shared with the
         // setTempo re-arm via swingGap so the two paths can never diverge again.
-        let base = 60.0 / tempo / 4.0
+        let base = Transport.stepDuration(atTempo: tempo)
         scheduleTick(after: PatternEngine.swingGap(afterStep: step, base: base, swing: swing))
     }
 

@@ -238,6 +238,18 @@ public final class MIDIOutput {
     /// (a body-driven tempo) reaches the receiver as the tempo Echoel is playing.
     @ObservationIgnored private var lastPulseAt: DispatchTime?
 
+    /// The absolute deadline the timer is currently armed for.
+    ///
+    /// ⛔ THIS EXISTS BECAUSE THE FIRST VERSION OF THIS NACHLESE RE-BROKE ITS OWN FIX, and
+    /// the shape is worth remembering: `setClockTempo` re-armed from `lastPulseAt`, which is
+    /// nil until the FIRST pulse has gone out — and its `else` branch fell back to one
+    /// `interval`. But the pre-first-pulse deadline is not an interval, it is the DOWNBEAT
+    /// (`startClock`'s `startingIn`, a whole step). So a tempo relay landing in that window
+    /// — reachable, `PatternEngine.advance` relays at step rate — silently pulled Start
+    /// forward from ~125 ms to ~21 ms and reintroduced the very offset the slice removes.
+    /// Keeping the absolute deadline makes the re-arm phase-preserving in BOTH windows.
+    @ObservationIgnored private var nextPulseAt: DispatchTime?
+
     /// Start (0xFA) is owed but not yet sent — it goes out from the FIRST pulse, not from
     /// the play edge. See `startClock(bpm:startingIn:)`.
     @ObservationIgnored private var pendingStart = false
@@ -250,10 +262,13 @@ public final class MIDIOutput {
     /// immediately, but `PatternEngine.play()` schedules its first `advance()` one whole
     /// step later — so Echoel's own bar 1 SOUNDS one 16th after the play edge, deliberately
     /// (`Transport.play()`'s comment explains why). A receiver puts its beat 1 on Start and
-    /// advances on clocks, so emitting Start at the play edge left every slaved DAW 125 ms
-    /// (at 120 bpm) AHEAD of Echoel, permanently, from the first bar — a sync feature that
-    /// was out of sync. Start is therefore deferred to the first pulse and the first pulse
-    /// is armed for `startingIn` seconds from now: pass `Transport.stepDuration(atTempo:)`.
+    /// advances on clocks, so emitting Start at the play edge left every slaved DAW up to
+    /// 125 ms (at 120 bpm) AHEAD of Echoel, permanently, from the first bar — a sync feature
+    /// that was out of sync. ("Up to": a full 16th if the receiver begins on the Start byte,
+    /// one 16th minus one pulse ≈ 104 ms if it begins on the first Clock AFTER Start, which
+    /// is what the spec says. The fix is right under either reading; only the number moves.)
+    /// Start is therefore deferred to the first pulse and the first pulse is armed for
+    /// `startingIn` seconds from now: pass `Transport.stepDuration(atTempo:)`.
     public func startClock(bpm: Double, startingIn delay: TimeInterval = 0) {
         guard enabled else { return }
         guard let interval = UMPEncoder.clockInterval(bpm: bpm) else {
@@ -279,13 +294,22 @@ public final class MIDIOutput {
     }
 
     /// Stop clock output and send Stop (0xFC). Safe to call when already stopped.
+    ///
+    /// ⚠️ NO STOP WITHOUT A START. Deferring Start to the first pulse opened an asymmetry
+    /// that did not exist while Start rode the play edge: press play and stop again inside
+    /// the first step (or un-route MIDI out there) and the owed Start never went out, while
+    /// this method still sent a bare 0xFC. Spec-legal and ignored by most gear — but a
+    /// receiver already running under ANOTHER master is stopped by it, which is the one
+    /// case where a clock master must be silent rather than polite.
     public func stopClock() {
         stopClockTimer()
+        let startWasOwed = pendingStart
         pendingStart = false
         lastPulseAt = nil
+        nextPulseAt = nil
         guard isSendingClock else { return }
         isSendingClock = false
-        sendRealTime(.stop)
+        if !startWasOwed { sendRealTime(.stop) }
         log.log(.info, category: .system, "MIDI CLOCK: off")
     }
 
@@ -302,16 +326,33 @@ public final class MIDIOutput {
     /// pulses go MISSING at every tempo relay and the receiver reads a tempo lower than the
     /// one Echoel is playing, for the whole glide. Anchoring the next deadline to the last
     /// pulse that actually went out keeps the pulse train continuous across the change.
+    /// ⚠️ THERE ARE TWO PHASES TO PRESERVE, NOT ONE, and missing the second is how the first
+    /// version of this Nachlese undid its own headline fix. Before the first pulse
+    /// (`lastPulseAt == nil`) the pending deadline is not "one interval from the last pulse"
+    /// — it is the DOWNBEAT that `startClock(startingIn:)` scheduled. Falling back to
+    /// `interval` there pulls Start forward by nearly a whole step. So the deadline itself is
+    /// remembered (`nextPulseAt`) and honoured in that window.
     public func setClockTempo(_ bpm: Double) {
         guard isSendingClock, let interval = UMPEncoder.clockInterval(bpm: bpm) else { return }
         stopClockTimer()
-        // Distance from the last real pulse to the next one at the NEW interval. If that
-        // moment has already passed (a big slow-down, or a stall), fire immediately rather
-        // than scheduling into the past.
+        // Distance to the next pulse. If that moment has already passed (a big slow-down, or
+        // a stall), fire immediately rather than scheduling into the past — compared with
+        // `>` rather than subtracted, because `uptimeNanoseconds` is unsigned and a past
+        // deadline would wrap to ~584 years.
+        let nowNs = DispatchTime.now().uptimeNanoseconds
         let next: TimeInterval
         if let last = lastPulseAt {
-            let elapsed = Double(DispatchTime.now().uptimeNanoseconds &- last.uptimeNanoseconds) / 1e9
+            // Running: hold the existing pulse phase, only the spacing changes.
+            let elapsed = nowNs > last.uptimeNanoseconds
+                ? Double(nowNs - last.uptimeNanoseconds) / 1e9
+                : 0
             next = Swift.max(0, interval - elapsed)
+        } else if let pending = nextPulseAt {
+            // Pre-first-pulse: the downbeat is a fixed moment in time. A tempo change must
+            // not move it, only the spacing of what follows it.
+            next = pending.uptimeNanoseconds > nowNs
+                ? Double(pending.uptimeNanoseconds - nowNs) / 1e9
+                : 0
         } else {
             next = interval
         }
@@ -327,7 +368,9 @@ public final class MIDIOutput {
         // 120 bpm it wakes 48×/s and at `Transport.maxTempo` 120×/s, each fire doing
         // CoreMIDI destination lookups on the actor that hosts every SwiftUI menu. That
         // load is compile-verified only — it needs a device run with a Picker open.
-        t.schedule(deadline: .now() + firstAfter, repeating: interval, leeway: .nanoseconds(0))
+        let deadline = DispatchTime.now() + firstAfter
+        nextPulseAt = deadline
+        t.schedule(deadline: deadline, repeating: interval, leeway: .nanoseconds(0))
         t.setEventHandler { [weak self] in
             MainActor.assumeIsolated { self?.emitPulse() }
         }
@@ -345,6 +388,10 @@ public final class MIDIOutput {
         }
         sendRealTime(.clock)
         lastPulseAt = DispatchTime.now()
+        // The armed deadline has been consumed; from here `lastPulseAt` is the phase anchor.
+        // Clearing it keeps `setClockTempo`'s two branches mutually exclusive by CONSTRUCTION
+        // rather than by the reader trusting that the first branch always wins.
+        nextPulseAt = nil
     }
 
     /// Thread-safe cancel. Not `nonisolated`: every caller (`startClock`, `stopClock`,
@@ -368,9 +415,15 @@ public final class MIDIOutput {
         //
         // An ACTIVE `DispatchSourceTimer` is retained by the dispatch runtime, so dropping
         // the last reference does NOT stop it: `[weak self]` makes the handler a no-op and
-        // the source fires forever, unreachable. In THIS app `midiOut` is `@State` on the
-        // App struct and never deallocates, so this earns its keep in tests and previews
-        // rather than in production — worth having, not worth shouting about.
+        // the source fires forever, unreachable.
+        //
+        // ⛔ The first version justified this with "earns its keep in tests and previews".
+        // There are no such consumers: `EchoelmusicApp.swift` holds the ONE `MIDIOutput` in
+        // the app and it never deallocates, and no test constructs one with a running clock.
+        // The honest justification is the ordinary one — an owner that outlives the process
+        // is a fact of today's wiring, not a property of the class, and a leaked repeating
+        // main-queue timer is exactly the kind of thing that stops being free the moment
+        // that wiring changes.
         clockTimer?.cancel()
     }
 
