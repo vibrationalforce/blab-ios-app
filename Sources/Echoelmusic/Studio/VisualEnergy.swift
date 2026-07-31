@@ -17,19 +17,29 @@
 // parameters were excluded on measured grounds, not taste — putting a weak or inert
 // parameter on the ONE control is exactly how a control starts lying:
 //
-//   · **Detail** (`ringDensity`) is inert on every look that ships by default. Traced
-//     2026-07-31: `MetalBioView.swift:1637` clamps it into the shader's `density`, and
-//     `styleField` (`:1591`) hands `density` to `fieldRings` — style 0 — and to NO other
-//     field function. The default primary style is 5 (Aurora) and the default slider
-//     sequence is `[3,5,7]` (Water · Aurora · Depth, `LookBlendMap.swift`), none of which
-//     is Rings. Out of the box, dragging Detail from 8 to 90 changes nothing on screen.
-//     That defect is real and tracked separately; until it is fixed, Detail must not be
-//     the thing a single dial moves.
-//   · **Spread** only softens the vignette frame — `vEdge = 0.9 + 0.5 * spread`
-//     (`MetalBioView.swift:1589`), and the comment there states the edge is always larger
-//     than the screen radius, so it can never do more than tighten a soft border. It also
-//     runs 1.35 · 1.35 · 1.20 · 1.00 · 1.20 across the curated set, which is ordered
-//     softest→most energetic: it goes DOWN and back UP. It does not track energy at all.
+//   · **Detail** (`ringDensity`) does nothing on the look set that ships by default.
+//     Traced 2026-07-31: `MetalBioView.swift:1637` clamps it into the shader's `density`,
+//     and `styleField` (`:1591`) hands `density` to `fieldRings` — style 0 — and to no
+//     other field function. The default primary style is 5 (Aurora) and the default slider
+//     sequence is `[3,5,7]` (Water · Aurora · Depth, `LookBlendMap.defaultSequence`), none
+//     of which is Rings.
+//     ⛔ THE FIRST DRAFT OF THIS BULLET CALLED THAT "inert … a real defect", AND THAT IS
+//     TOO BROAD — the reviewer refuted it and the refutation checks out. `Rings` is in
+//     `LookBlendMap.library` (`:35`) and `visualLookCustomizer` can toggle it into the
+//     sequence from the row directly above this dial, at which point Detail is fully live.
+//     So Detail is CONDITIONAL, not broken. That is still disqualifying for a single dial —
+//     a control whose effect depends on a choice made in another row is not the thing one
+//     number should move — but the honest word is conditional. (`visualDetail` has a second
+//     consumer too, `SpectralDonutView(bandCount:)`, on a doorless path.)
+//   · **Spread** is NOT what its curated values suggest. ⛔ The first draft said "only
+//     softens the vignette frame", citing `vEdge = 0.9 + 0.5 * spread`
+//     (`MetalBioView.swift:1589`) — that is the only use inside `styleField`, but the same
+//     shader-local `spread` also scales `bloomEdge` (`:1681`) and the tone-cloud radius
+//     (`:1348` via `:1691`), and it is not even the user's raw value: `:1639` mixes it with
+//     breath. The surviving reason, which IS verified and is pinned by a test: across the
+//     curated set spread runs 1.35 · 1.35 · 1.20 · 1.00 · 1.20 while that set is ordered
+//     softest→most energetic. It goes DOWN and back UP; a monotonic dial may only carry
+//     monotonic parameters.
 //
 // Hue and Saturation are palette, deliberately orthogonal ("the colour is the heard
 // tone") — they were never energy and stay fine-tune rows.
@@ -79,7 +89,12 @@ public enum VisualEnergy {
     }
 
     /// Brightness span — the factory's calmest…most energetic intensity.
-    /// Reaches the shader directly (`col *= u.intensity`).
+    /// It reaches the shader (`col *= clamp(u.intensity, …)`, `MetalBioView.swift:1745`) but
+    /// NOT untouched: on the one reachable renderer it first passes the weather blend in
+    /// `FloatingVisualWindow.weatheredVisuals()` and then the renderer's easing. The word
+    /// "directly" stood here and was wrong — with weather on, this dial sets a base value
+    /// that is then mixed toward a sky target, and a reader who trusted "directly" would
+    /// stop looking exactly where the surprise lives.
     public static let intensity = span({ $0.intensity }, fallbackLo: 0.8, fallbackHi: 1.4)
 
     /// Pulse-speed span. This is the *requested* heartbeat rate multiplier; the renderer
@@ -99,8 +114,15 @@ public enum VisualEnergy {
     /// Averaging the two per-parameter positions is what keeps the control honest after a
     /// hand edit: they can disagree (that IS what "custom" means), and the dial then shows
     /// their centre instead of pretending one of them is the truth. The round trip
-    /// `position(matching: look(at: t)) == t` holds exactly, because both agree whenever
-    /// the values came from this mapping.
+    /// `position(matching: look(at: t)) == t` holds exactly **for t in 0…1**, because both
+    /// agree whenever the values came from this mapping. Outside 0…1 `look` clamps and the
+    /// identity necessarily fails — correct behaviour, and the scope the test covers.
+    ///
+    /// Because both positions are CLAMPED before averaging, values above a span's top read
+    /// identically: a hand-edited Intensity of 1.5 and of 1.4 both sit at position 1. Moving
+    /// the dial from such an off-curve state pulls both values back onto the curve, so a small
+    /// dial nudge can be a large parameter change. That is the macro-control contract rather
+    /// than a bug, and `VisualEnergyTests` pins the off-curve case so it stays deliberate.
     public static func position(matching intensityValue: Double,
                                 motion motionValue: Double) -> Double {
         let p = intensity.position(of: intensityValue) + motion.position(of: motionValue)

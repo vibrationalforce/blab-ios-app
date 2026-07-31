@@ -3373,11 +3373,16 @@ struct EchoelStudioView: View {
             get: { VisualEnergy.position(matching: visualIntensity, motion: visualMotion) },
             set: { t in
                 let l = VisualEnergy.look(at: t)
+                let changed = l.intensity != visualIntensity || l.motion != visualMotion
                 visualIntensity = l.intensity
                 visualMotion = l.motion
                 // Moving Energy diverges from whatever preset was tapped — same rule the
-                // individual energy fields already followed.
-                visualPresetID = ""
+                // individual energy fields already followed. GUARDED on an actual change,
+                // because `EchoelValueField.apply` writes its binding unconditionally after
+                // clamping: at the 0 or 1 end of the range a further drag (or a VoiceOver
+                // adjust) re-writes the same values, and an unguarded clear would drop the
+                // user's preset selection although nothing moved.
+                if changed { visualPresetID = "" }
             }
         )
     }
@@ -3415,10 +3420,16 @@ struct EchoelStudioView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(EchoelTheme.dim)
             }
+            // ≥44 pt tap target (#113, a11y) BEFORE `contentShape`, or the hit area would be
+            // the ~16 pt the 12 pt text and 10 pt chevron actually occupy.
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Fine tune the visual")
+        // Without a VALUE the two states sound identical to VoiceOver — the chevron carries
+        // the state visually only, which is exactly the gap #241 closed elsewhere.
+        .accessibilityValue(showVisualFineTune ? "Shown" : "Hidden")
         .accessibilityHint("Shows or hides the individual visual parameters")
         if showVisualFineTune {
             EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,

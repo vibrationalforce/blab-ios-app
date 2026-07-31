@@ -103,6 +103,31 @@ final class VisualEnergyTests: XCTestCase {
         XCTAssertLessThanOrEqual(p, 1)
     }
 
+    /// OFF-CURVE STATE — the case the reviewer found documented but unpinned. The fine-tune
+    /// Intensity row ranges to 1.5 while the curated span tops out at 1.4, so a hand edit can
+    /// put the values somewhere `look(at:)` can never produce. Two laws matter there:
+    /// the dial must still read a finite, in-range position (it must not refuse to show), and
+    /// values above the span top must NOT be distinguishable — they all sit at 1. Pinned so
+    /// that "a 1 % dial nudge can be a large parameter change from off-curve" stays a
+    /// deliberate macro-control property instead of turning into a bug report later.
+    func testAnOffCurveHandEditStillReadsAFinitePositionAndSaturatesAtTheSpanTop() {
+        let calmMotion = VisualEnergy.look(at: 0).motion
+        let atTop = VisualEnergy.position(matching: 1.4, motion: calmMotion)
+        let aboveTop = VisualEnergy.position(matching: 1.5, motion: calmMotion)
+        XCTAssertEqual(atTop, 0.5, accuracy: 1e-9,
+                       "intensity at the span top + motion at the bottom ⇒ the centre")
+        XCTAssertEqual(aboveTop, atTop, accuracy: 1e-9,
+                       "above the span top the position saturates — 1.5 and 1.4 read alike")
+
+        // And the first move from that off-curve state lands exactly on the curve: whatever
+        // the dial is set to, BOTH values come back as `look(at:)` of that position.
+        let target = 0.25
+        let l = VisualEnergy.look(at: target)
+        XCTAssertEqual(VisualEnergy.position(matching: l.intensity, motion: l.motion),
+                       target, accuracy: 1e-9,
+                       "after one move the state is back on the curve, so the dial is exact again")
+    }
+
     func testAMixedHandEditedLookReadsAsTheCentreOfItsParameters() {
         // Intensity at the hot end, motion at the calm end ⇒ (1 + 0)/2.
         let hot = VisualEnergy.look(at: 1)
