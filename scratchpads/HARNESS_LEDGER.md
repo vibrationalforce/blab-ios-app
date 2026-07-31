@@ -1262,3 +1262,60 @@ zufällig (es gibt eine echte Kante über den Generate-Pfad), die Begründung ni
 pro Tick laufenden Aufrufer. In diesem Repo sind mehrere Views absichtlich türlos — sie
 sehen im Graphen aus wie Konsumenten und sind keine. Dieselbe Falle wie bei
 „Slot + Setzer beweist keine Erreichbarkeit", nur eine Ebene höher.
+
+## 2026-07-31 — Drei Fallen aus #279/#294, alle vom Pflicht-Reviewer
+
+### DEAD-END: eine Sentinel-Wahl treffen, ohne die ausgelieferten Werte zu MESSEN
+
+Ich wollte die neuen Bio-Anker (`bioBaseVibratoRate`/`Depth`/`bioBaseLFOToFilterDepth`) mit
+`0` als „nicht gesetzt"-Sentinel bauen — so wie `bioBaseFilterCutoff`/`bioBaseBrightness` es
+tun. Die Messung sagte etwas anderes: **26 von ~36 ausgelieferten Patches liefern
+`vibratoRate: 0, vibratoDepth: 0` als LEGITIMEN Wert**. Mit `0` als Sentinel hätte genau die
+Mehrheit der Patches den Legacy-Pfad bekommen — der Fix hätte die Patches enteignet, die er
+schützen soll.
+
+**Die Regel:** Ein Sentinel ist nur dann frei wählbar, wenn er außerhalb der ausgelieferten
+Wertemenge liegt. Vor der Wahl die Palette zählen (`SynthPatch.factory` + `MusicStyle.offered`
++ `PatchLibrary.all`), nicht die Nachbarkonstante kopieren. Dass die Sentinel-Konventionen in
+`EchoelDDSP` sich unterscheiden (`0` hier, `-1` dort), ist deshalb **tragend, nicht schlampig**
+— wer sie „vereinheitlicht", baut diesen Bug ein.
+
+### DEAD-END: einen Kopfraum-Test gegen EINEN Multiplikator schreiben, wenn die Live-Kette zwei hat
+
+Der Test, dessen einzige Aufgabe es ist, rot zu werden BEVOR eine neue Klemme anfängt zu
+formen (statt nur Unmögliches zu fangen), rechnete `patch.filterCutoff * 1.3` — die Bio-Rail.
+Die echte Kette hat davor noch `RoleRhythm.TimbreTrim.trimmed` (≤1.12, läuft auf **jedem**
+Generate und jedem Preset-Recall), und genau dieser getrimmte Wert wird zum Anker. Real:
+1.12 × 1.3 = **1.456**. Der Test wäre 12 % zu spät rot geworden; ein 13-kHz-Preset wäre in der
+App längst geklemmt worden, während das Gate grün blieb.
+
+**Die Regel:** Ein „nichts Ausgeliefertes wird berührt"-Test muss die Kette vom persistierten
+Wert bis zur geklemmten Stelle vollständig ablaufen, nicht den letzten Faktor nehmen. Und er
+muss die vollständige Palette einschließen — meine erste Fassung ließ `PatchLibrary` weg, das
+den höchsten Cutoff im Repo hält (8000 Hz), obwohl es heute türlose tote Daten sind.
+
+### PLAYBOOK: der Kommentar, der das GEGENTEIL seines eigenen Bugs behauptet
+
+Der Doc-Kommentar der neuen Konstante `EchoelDDSP.cutoffRange` listete „das Bio-Ziel in
+`applyBioReactive`" als eine von vier bereits vorhandenen Kopien der Domäne. Das Bio-Ziel
+hatte **keine** Klemme — dieses Fehlen IST #294. Die gefährlichste Zeile des Zyklus stand im
+Commit, der den Bug fixte, und behauptete, es gäbe ihn nicht.
+
+**Der Mechanismus, warum das überlebt:** Prosa wird nicht ausgeführt. Ein falscher Satz in
+einem Kommentar hat keinen Gate, keinen Test und keinen Compiler gegen sich — nur einen
+Leser. In diesem Repo hat der Pflicht-Reviewer an EINEM Tag **zwölf** solcher Sätze über drei
+Commits gefunden, jeder neben einem korrekten Mechanismus.
+
+**Die Regel:** Wenn ein Kommentar eine Zählung, eine Palette oder eine Garantie behauptet,
+gehört der Befehl bzw. die `file:line`-Belegstelle daneben — und die Behauptung wird gegen die
+Änderung geprüft, die der Kommentar begleitet. Ein Kommentar, der beschreibt, wie es VOR dem
+Fix war, muss das sagen. Verwandt: „ein ‚NICHT löschen'-Kommentar mit falscher Begründung ist
+schlimmer als keiner — die nächste Session kann ihn nicht widerlegen" (CLAUDE.md, #167).
+
+### PLAYBOOK: `bioBase*`-Mappings zentrieren auf 0.5 — und 0.5 ist 120 BPM, nicht Ruhe
+
+`heartRate` erreicht `applyBioReactive` als `clampUnit((frame.heartRateBPM - 40) / 160)`
+(`PolySynthVoice.swift:667`, `BioReactiveSynthVoice.swift:387`). Alle fünf `bioBase*`-Mappings
+sind um 0.5 herum neutral, **also um 120 BPM**. Ein ruhender Puls von 60 BPM ergibt 0.125 und
+damit rund 0.81× — nicht 1.0. Wer „bei Ruhe passiert nichts" in einen Kommentar oder eine
+Test-Erwartung schreibt, liegt um ~19 % daneben.

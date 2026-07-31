@@ -8954,3 +8954,85 @@ gefangen hätte**: er suchte den Satz als bloßen Teilstring, und längere Absä
 **Offen:** #235 (`visual: bio=0` — braucht ein Log mit offenem Visual UND Lock im selben
 Fenster), #236 (dreimal `tempo=44` gegen „~72" im Kommentar), Founder-Entscheid ob ■ doch
 alles beenden soll, und der Vier-Bahnen-Sweep (Klang · UX · Authentizität · Marktwahrheit).
+
+---
+
+## 2026-07-31 (cron, 24h-Mandat + „ultracode ultrafuturecompatible ultradeploy") — #279 und #294: zwei Bio-Anker, zwölf falsche Begründungen
+
+**Branch-Wahrheit zuerst, weil der Heartbeat sie stündlich falsch nennt:** gearbeitet wird auf
+`claude/echoelmusic-neustart-auv3-6ri2ek`. Der Cron-Text nennt
+`claude/piano-roll-clip-view-wozlie-5kxnrl` und eine REIHENFOLGE 5→1→2→3→4, deren fünf Punkte
+entweder erledigt oder mit #121 entfernt sind. Nicht wechseln, nicht regressieren.
+
+**#279 — Bio LÖSCHTE das Vibrato jedes Patches, statt es zu färben.** `applyBioReactive`
+überschrieb `vibratoRate`/`vibratoDepth`/`lfoToFilterDepth` mit reinen Bio-Formeln; der Patch-Wert
+war ab dem ersten Bio-Frame weg. Fix nach dem bestehenden `bioBase*`-Ankergesetz (Bio moduliert UM
+den Patch-Wert herum), aber mit Sentinel `-1` statt `0` — denn `vibratoRate: 0, vibratoDepth: 0`
+sind **legitime** ausgelieferte Preset-Werte, `0` als „nicht gesetzt" hätte genau die Patches
+enteignet, die der Fix schützen soll. Drei Commits: `320a886` (Bau), `bf3cf95` + `c242bd2`
+(Reviewer-Nachlese, sechs Korrekturen).
+
+**#294 — der eine Anker, dessen Gift im Akkumulator hängen blieb.** `filterCutoff` ist ein
+persistenter Ein-Pol (`f = f*0.97 + target*0.03`, ~10×/s), der ungeklammert beschrieben wurde:
+`inf*0.97` bleibt inf, `NaN*0.97` bleibt NaN, ohne Ausweg außer erneutem Patch-Apply. `e71655d`
+(Bau: `EchoelDDSP.cutoffRange` + Klemme an der ZUWEISUNG, nicht am `targetCutoff` — sonst bliebe
+die zweite Tür `ResolvedPatch.apply(to:)` offen), `59ad96b` (sieben Korrekturen aus der Nachlese).
+
+**Alle vier gemessenen Gates grün** (Xcode Compile Check + CI/CD Pipeline auf `320a886`,
+`c242bd2`, `e71655d`, `59ad96b`; auf `bf3cf95` wurde der Compile Check vom Folge-Push gecancelt).
+Damit ist auch belegt, dass die beiden neuen CISmoke-Dateien kompilieren UND laufen — der Compile
+Check allein hätte das nicht bewiesen (Scheme `Echoelmusic` baut nur `Sources/`).
+
+### Die eigentliche Lehre des Tages: zwölf Mal Mechanismus richtig, Begründung falsch
+
+Beide Fixes waren technisch korrekt, als sie zuerst committet wurden. **Falsch waren die Sätze
+drumherum** — und jeder einzelne wurde vom Pflicht-Reviewer gefunden, keiner vom Compiler, weil
+Prosa nichts ausführt. Die schlimmsten:
+
+- „Jedes Preset liefert ein musikalisches Vibrato von 4.5–5.5 Hz" → gemessen: **26 von ~36
+  ausgelieferten Patches haben GAR KEIN Vibrato**. Der Defekt hatte zwei entgegengesetzte Hälften,
+  und die größere (26 Patches BEKAMEN ein aufgezwungenes Zittern) stand in meinem Commit-Text nicht.
+- „Ein ruhender Körper spielt exakt das Vibrato des Patches" → `heartRate 0.5` ist **120 BPM**
+  (`clampUnit((bpm-40)/160)`), 60 BPM ergibt 0.125 → 0.81×. Alle fünf `bioBase*`-Mappings zentrieren
+  auf 0.5, also auf 120 BPM.
+- „Der Atem bewegt das eigene `lfoToFilterDepth` des Patches" → **`breathDepth` hat keinen
+  Produzenten** (`BioSampleFrame` führt `breathRate`/`breathPhase`, keine Tiefe; beide Aufrufer
+  übergeben literal `0.5`). Der Faktor ist konstant 1.0. Daraus wurde #293.
+- „NaN-Sicherheit durch `clamped(to:)`" → ein NaN-Anker erreicht die Klemme nie (`NaN >= 0` ist
+  falsch → Sentinel-Zweig). Die `>= 0`-Wache macht die NaN-Arbeit, die Klemme fängt ±inf.
+- „Ein negativer Wert fällt auf den Legacy-Pfad zurück — die sichere Richtung" → es gibt diese
+  Garantie nicht; die Zeile darüber schreibt den rohen negativen Wert unbedingt in den Render-Parameter.
+- **Die gefährlichste:** der Doc-Kommentar der neuen `cutoffRange` zählte „das Bio-Ziel in
+  `applyBioReactive`" als eine von vier vorhandenen Kopien der Domäne — **das Bio-Ziel hatte gar
+  keine Klemme, genau das IST #294**. Der Kommentar behauptete das Gegenteil des Bugs, den sein
+  eigener Commit fixte.
+- „#22/#29-Dauerstille-Klasse" → die Render-Klemme fing jeden Sample ab: NaN → Filter auf 20 Hz
+  festgenagelt (dunkel, hörbar, erholbar), +inf → voll offen (hörbar, harmlos). Der Fix verhindert
+  ein **milderes** Versagen als beworben.
+- Der Kopfraum-Test multiplizierte nur mit 1.3 und hätte 12 % zu spät rot gemeldet — die echte
+  Live-Kette ist `RoleRhythm.TimbreTrim` (≤1.12, auf jedem Generate) × Bio-Rail (1.3) = **1.456**.
+  Ausgerechnet der Test, dessen Aufgabe es ist, VOR dem Klemmen rot zu werden.
+
+**Regel daraus, in einem Satz:** in diesem Repo ist der Pflicht-Reviewer, der die BEGRÜNDUNG statt
+den Mechanismus prüft, nicht die Ausnahme — er ist der Normalfall, und ohne ihn wären zwölf Sätze
+in die Historie gegangen, die die nächste Session in die Irre geführt hätten.
+
+**Neu gefilterte Aufgaben aus der Latch-Klasse** (persistenter Ein-Pol, dessen Re-Seed-Wache
+`if x < 0 { x = seed }` bei NaN nie feuert, weil `NaN < 0` falsch ist): #295 `smoothedGain`
+(**KRITISCH — keine Klemme stromabwärts, überlebt Note-Off und erneutes Patch-Apply, nullt danach
+jeden Sample**), #296 `smoothedNoiseLevel` + `smoothedHarmonicity`, #297 `vibratoPhase` (dessen
+`> 0`-Tor NaN abschirmt, aber +inf durchlässt). #294 war die mildeste Instanz und ist erledigt.
+
+**Founder-Direktive „ultradeploy"** hebt die stehende TestFlight-FREEZE auf. Sequenz, zu der ich
+mich festgelegt habe: erst der Befund der drei Agenten-Teams (Workflow `wf_eb774be3-13e`:
+FUTURE-COMPAT · RELEASE · AUDIO-DSP, 11 Agenten), dann #295, dann Gates, **dann** der
+`.deploy/release`-Bump. `Sources/` bleibt bis zum Team-Verdikt unangetastet — sonst auditieren sie
+ein bewegliches Ziel.
+
+**Offen an den Founder:** Monetarisierung · das Start-Knacksen · ob die angedockte Visual-Karte die
+~70-pt-Lücke schließen soll · Geräte-Verify #292 Slice 2 (Sound-Panel im Querformat) · und der
+#279-Hörtest **in zwei Richtungen** (`classical` bekommt sein Vibrato zurück; die 15 anderen Genres
+verlieren ein aufgezwungenes Zittern).
+
+**Report-only, founder-gated:** #252, #208, #210, `fastlane/Fastfile:245-255` (tote
+`screenshots_ipad`-Bahn).
