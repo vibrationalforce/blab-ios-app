@@ -1,4 +1,4 @@
-build: v10.79.360 — Rhythmus-Charaktere, 16 Genres, der Arp auf der Fläche
+build: v10.79.361 — ein Regler für die Visuals, und die App schreibt Deine Zahlen
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,142 +6,127 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.359.
+  Der Vorgänger auf Deinem Gerät ist 10.79.360.
 
-  54 Commits. Das ist der größte Sprung seit Wochen, und der Schwerpunkt liegt da, wo Du
-  ihn gesetzt hast: Rhythmus für alle Klangkategorien und mehr elektronische Genres.
+  29 Commits. Zwei Schwerpunkte: die Visuals haben EIN Bedienelement bekommen statt neun
+  Reglern, und die App hört auf, Dir fremde Schreibweisen für Zahlen und Töne hinzulegen.
 
-  ── ZUERST DER EINE TEST, DEN ICH NICHT MACHEN KANN ─────────────────────────
+  ── DAS EINE BEDIENELEMENT FÜR DIE VISUALS ──────────────────────────────────
 
-  Öffne den LOOP-Modus (Tempo-Lock an) bei NORMALER Textgröße und sieh Dir die
-  Transportleiste an. Sieht sie normal aus, oder nimmt sie plötzlich einen großen Teil des
-  Bildschirms?
+  Das stand in der letzten Notiz unter „was nicht drin ist". Jetzt ist es drin.
 
-  Warum das ganz oben steht: ich habe in diesem Build die feste Höhe der drei oberen
-  Leisten in eine MINDESThöhe verwandelt, damit sehbehinderte Nutzer die Schrift endlich
-  vergrößern können (siehe unten). Ein Reviewer fand danach, dass eine Mindesthöhe den
-  Höhen-Vorschlag nach unten durchreicht — und die Scrub-Fläche im Zahlenfeld ist ein
-  Rechteck, das JEDE Höhe annimmt. Im Loop-Modus IST der Tempo-Regler so ein Zahlenfeld.
-  Ohne Gegenmaßnahme hätte die Transportleiste sich den freien Platz mit dem Instrument
-  GETEILT — bei normaler Textgröße, für jeden.
+  Im Field-Panel steht oben ein Regler: ENERGY. Links die ruhigste kuratierte Welt, rechts
+  die energischste. Die sechs Einzelparameter liegen darunter unter einer zugeklappten
+  Zeile „Fine tune" — weggeräumt, nicht gelöscht.
 
-  Die Gegenmaßnahme ist drin (`fixedSize` über jeder Mindesthöhe) und compile-verifiziert.
-  Aber SwiftUI-Layout ist erst auf einem Gerät bewiesen, und hier gibt es keinen Simulator.
-  Zehn Sekunden Deines Blicks ersetzen alles, was ich dazu schreiben kann.
+  Drei Dinge daran sind Absicht und fallen erst beim Benutzen auf:
 
-  ── RHYTHMUS FÜR ALLE KLANGKATEGORIEN ───────────────────────────────────────
+  · Der Regler hat KEINEN eigenen gespeicherten Wert. Er liest seine Stellung aus den
+    lebenden Werten ab und schreibt sie zurück. Ein Regler mit eigenem Gedächtnis würde in
+    dem Moment lügen, in dem Du unten etwas von Hand verstellst.
+  · Seine Endpunkte sind keine ausgedachten Zahlen, sondern Minimum und Maximum Deiner
+    fünf kuratierten Presets. Er kann die Welt, die Du eingestellt hast, nicht verlassen.
+  · Er bewegt Helligkeit und Bewegung — NICHT Detail und Spread. Warum, steht im nächsten
+    Absatz, und der ist die unangenehmere Hälfte.
 
-  Dein Wunsch: „rhythm controls for all sound categories". Jetzt gebaut, als sechs
-  Rhythmus-Charaktere pro Klangrolle:
+  ── EIN REGLER, DER NICHTS TUT, SAGT DAS JETZT ──────────────────────────────
 
-  · Der ARP läuft seinen Akkord in einem gewählten Rhythmus ab, nicht mehr in einem festen
-    Puls — und er läuft über die FLÄCHE, nicht nur über eine Tonleiter. Vier erreichbare
-    Regler statt einer versteckten Kurve.
-  · Der BASS kann laufen, in einem gewählten Rhythmus — standardmäßig tut er es NICHT, das
-    ist Absicht: der bisherige Klang bleibt der Ausgangspunkt.
-  · Der PAD-Akkord kann sich in einem gewählten Rhythmus neu anschlagen statt zu liegen.
-  · Der Rhythmus-Charakter formt jetzt auch den KLANG, minimal — nicht nur das Timing.
-  · „Laid back" hat einen echten Regler bekommen (den Push), und zwar nur seine ehrliche
-    Hälfte: was die Engine nicht umsetzt, verspricht die Zeile auch nicht.
+  Beim Aufräumen der neun ist mir aufgefallen: „Detail" tut in der ausgelieferten
+  Einstellung GAR NICHTS. Der Wert erreicht das Bild nur über den Rings-Look, und Rings ist
+  im Standard-Look-Set nicht enthalten. Du konntest den Regler von 8 auf 90 ziehen, und es
+  passierte nichts. Das gilt seit Wochen, nicht erst seit diesem Build.
 
-  ⚠ EHRLICH: der Bass-Swing ist heute eine Trigger-Granularitäts-Scheibe. Sub-Takt-Versatz
-  steht korrekt in den Noten und im MIDI-Export, wird aber live noch auf das 16tel-Raster
-  gerundet. Notiert, nicht vergessen.
+  Zwei Konsequenzen:
 
-  ── 16 GENRES ──────────────────────────────────────────────────────────────
+  · Detail liegt deshalb NICHT auf dem Energy-Regler. Ein Regler, dessen Wirkung von einer
+    Wahl in einer anderen Zeile abhängt, ist nicht das, was eine einzige Zahl bewegen soll.
+  · Unter der Detail-Zeile steht jetzt ein Satz — aber nur dann, wenn sie gerade
+    wirkungslos ist. Er nennt beide Schritte: Rings unter „Slider looks" dazuschalten UND
+    den Look-Slider daraufziehen.
 
-  Dein Wunsch: „more electronic genres". Vier Runden, als POLE gebaut und nicht als
-  Varianten voneinander — Acid Techno · Deep House · Deep Drone · Ambient Pulse ·
-  Uplifting Trance · Tech House · Minimal Techno · Detroit Techno, dazu die vorhandenen.
+  Nicht versteckt und nicht ausgegraut, mit Grund: die Bedingung kippt, WÄHREND Du den
+  Look-Slider ziehst. Eine Zeile, die dabei unter dem Finger auftaucht und verschwindet und
+  die vier Zeilen darunter mitverschiebt, wäre schlimmer als eine Zeile plus ein Satz.
 
-  Der Punkt war nicht die Anzahl. Der Punkt war, dass „Techno" zwei Sachen heißt, und
-  Minimal und Detroit sind die beiden Enden davon. Wenn die für Dich gleich klingen, ist
-  die Arbeit nicht fertig, egal wie viele Namen in der Liste stehen.
+  „Spread" fehlt auf dem Regler aus einem anderen Grund: über Deine kuratierten fünf
+  Presets läuft es runter UND wieder rauf. Es folgt der Energie nicht, und ein monotoner
+  Regler darf nur monotone Parameter tragen.
 
-  ── DAS FX-FENSTER FROR DAS TEMPO EIN ───────────────────────────────────────
+  ── DIE APP SCHREIBT ZAHLEN UND TÖNE SO, WIE DU SIE SCHREIBST ───────────────
 
-  Es reichte, das FX-Fenster zu ÖFFNEN: ab da folgten die tempo-abhängigen Effekte nicht
-  mehr dem Tempo. Behoben. Und das Delay hat endlich einen Regler für sein Stereobild
-  („Spread") — der Wert reiste schon vorher in den Presets mit, es gab nur keine Zeile
-  dafür.
+  · DEZIMALTRENNER: rund zwanzig Anzeigen druckten hart „0.50", auch auf einem deutschen
+    Gerät. Jetzt „0,50" — auch die Tempo-Zahl, die vorher ihren Trenner wechselte, sobald
+    Du das Tempo-Schloss angetippt hast.
+  · NOTENNAMEN sind wählbar: International (B/B♭) · Deutsch (H/B) · Solfège (Do/Ré/Mi). Ein
+    deutscher Leser bekam im Key-Picker vorher schlicht den falschen Ton angezeigt. Fläche,
+    VoiceOver und Session-Name folgen der Wahl; Dateinamen bleiben absichtlich englisch,
+    damit ein Export überall gleich heißt.
+  · SIEBEN INDISCHE SKALEN dazu, plus eine Sargam-Spalte. Die Skalenliste war eine flache
+    Wand aus 57 Zeilen und steht jetzt in acht Regalen, so dass die Maqāmat auffindbar sind,
+    ohne dieselbe Tonmenge doppelt zu führen.
+    EHRLICH: die Vierteltöne der Maqāmat fehlen noch, und „Sa" ist noch nicht beweglich.
 
-  ⚠ Weiter OFFEN und eine Entscheidung für Dich: 29 Genres notieren eine eigene
-  Delay-Teilung, die das Audio NIE erreicht — ein einziger Picker-Wert gilt für alle. Ich
-  habe das nicht heimlich geradegezogen, weil es den Klang von 29 Genres ändert.
+  ── DER FLÄCHEN-KLANG BEIM ZIEHEN ───────────────────────────────────────────
 
-  ── UND EINE ENTSCHEIDUNG, DIE ICH DIR NICHT ABNEHMEN KANN ──────────────────
+  Der Pegelausgleich auf der Spielfläche hat bisher nur den ANSCHLAG korrigiert, nie das
+  ZIEHEN — beim durchgezogenen Finger lief er gegen nichts. Jetzt sitzt er pro Stimme in
+  der Engine und ist geglättet. Das war der letzte offene Punkt aus der 360er Liste
+  „was nicht drin ist".
 
-  Ich wollte dem Lead einen Rhythmus geben und stellte dabei fest: ES GIBT KEINE
-  LEAD-MELODIE. Der Lead-Fader im Mixer zeigt eine Stimme, die nie klingt. Ich habe die
-  Änderung gebaut und wieder zurückgenommen, statt einen Rhythmus für etwas zu bauen, das
-  stumm ist. Was soll der Lead sein — willst Du eine echte Leadstimme, oder soll der Fader
-  verschwinden?
+  ── AUFRÄUMEN, DAS DU NICHT SIEHST ──────────────────────────────────────────
 
-  ── WAS ANDERE GERÄTE VON UNS BEKOMMEN ──────────────────────────────────────
-
-  Zwei Korrekturen, die niemand HÖRT und die trotzdem wichtig sind:
-
-  · Wir haben strukturelle Nullen als Messwerte verschickt. Ein Puls von 0, bevor die
-    Kamera greift, ging als „/bio/heart/bpm 0" auf fremdes Equipment — nicht als „noch
-    keine Messung", sondern als Zahl. Jede Bio-Adresse hat jetzt ein Tor.
-  · Beim immersiven Objekt (ADM-OSC) reitet jede Achse auf ihrer EIGENEN Messung. Vorher
-    hat ein Brustgurt, der keine Atmung liefert, das Objekt eine ganze Session lang auf
-    Azimut −180 festgenagelt.
-
-  ── FÜR MENSCHEN, DIE DIE SCHRIFT VERGRÖSSERN ───────────────────────────────
-
-  Die obere Leiste — Play/Stop, Tempo, Genre, Tonart, Skala, Tonsystem, A4 — war auf die
-  größte NICHT-Barrierefreiheits-Textgröße gedeckelt. Wer sein iPhone auf eine
-  Accessibility-Größe stellt, bekam dort NULL Vergrößerung, ausgerechnet an den Controls,
-  die immer sichtbar sind. Deckel angehoben, Leisten wachsen mit.
-
-  EHRLICH: nur EINE Stufe hoch (AX1). Wer AX4/AX5 eingestellt hat, bekommt weiterhin AX1.
-  Drei gestapelte Leisten bei AX5 wären grob 270–420 pt Chrome über dem Instrument — die
-  Spanne ist ungemessen, und das ist genau der Grund für die Zurückhaltung.
-
-  ── DIE WEBSITE UND DIE RECHTSSEITEN SAGEN JETZT DIE WAHRHEIT ───────────────
-
-  Streaming/Broadcast stand noch als Feature in den AGB und als „Roadmap" im README —
-  beides raus, es ist NICHT geplant. Die Screenshot-Untertitel für den App Store waren zu
-  zwölf Sprachen erfunden (u. a. „Professional streaming to any platform", „Sacred geometry
-  meets quantum aesthetics") — ersetzt durch acht wahre in Deutsch und Englisch. Und der
-  MIDI-Export, den die App KANN und den der Store-Text verkauft, wurde an sechs Stellen
-  geleugnet.
+  · Die Drums sind jetzt VOLLSTÄNDIG raus, nicht nur stumm: drei Dateien gelöscht, der
+    Kit-Pfad aus dem Stimmen-Rack entfernt. Eine alte Spur, die als Drum-Spur gespeichert
+    ist, fällt sauber auf eine spielbare Stimme zurück statt auf Stille.
+  · Der Limiter hatte einen Attack-Parameter, den niemand einstellen konnte und der nur
+    nach dem Verschieben eines ANDEREN Reglers für etwa eine Millisekunde etwas tat. Jetzt
+    eine Konstante. Am Klang ändert sich für Dich nichts.
+  · README und CLAUDE.md behaupteten Dateien, Frameworks und einen Branch, die es nicht
+    gibt. Korrigiert — das ist die Datei, aus der die nächste Session plant.
 
   ── WAS NICHT DRIN IST ──────────────────────────────────────────────────────
 
-  Damit Du nicht danach suchst: die Sample-Engine fürs Feld (laden/aufnehmen), das EINE
-  Bedienelement statt neun Reglern für die Visuals, der große UX-Durchgang über das ganze
-  Projekt, und der Pegelausgleich beim durchgezogenen Finger auf der Fläche.
-  Gebaut-noch-nicht, nicht vergessen.
+  Damit Du nicht danach suchst: die Sample-Engine fürs Feld (laden/aufnehmen), der große
+  UX-Durchgang über das ganze Projekt, der ARP als eigene Kategorie mit einem komplexen
+  Bedienelement, und die professionelle Vertiefung der FX. Gebaut-noch-nicht, nicht
+  vergessen.
 
   ── WAS ICH VON DIR BRAUCHE ─────────────────────────────────────────────────
 
-  · DIE LEISTE IM LOOP-MODUS (siehe ganz oben) — der einzige echte Risiko-Punkt.
-  · Klingen die 16 Genres verschieden? Besonders Minimal Techno vs. Detroit Techno.
-  · Hörst Du die Rhythmus-Charaktere? Bass und Pad sind standardmäßig AUS — Du musst sie
-    einschalten, sonst klingt es wie vorher, und das ist Absicht.
-  · „Laid back": macht der Push-Regler das, was das Wort verspricht?
-  · Das FX-Fenster: folgt das Delay jetzt dem Tempo, auch nachdem Du das Fenster geöffnet
-    hattest?
-  · Der Lead: echte Stimme oder Fader weg?
-  · Weiter offen aus 359: ist es noch stumm nach Hintergrund + Rückkehr · folgt das Tempo
-    Deinem Puls nach oben · sind Selbstbeobachtung/Meditation/Psytrance/Doom in den ersten
-    Minuten unterscheidbar · sind die fünf trockenen FX-Charaktere Verlust oder Gewinn.
+  · DER ENERGY-REGLER: fühlt sich der Weg von links nach rechts wie EINE Welt an, die
+    heller und lebendiger wird — oder wie zwei Parameter, die zufällig zusammenlaufen? Das
+    ist der einzige echte Risiko-Punkt dieses Builds, weil Layout und Wirkung hier ohne
+    Gerät nicht prüfbar sind.
+  · Die Detail-Zeile: steht der Hinweissatz da, wo Du ihn erwartest, oder steht er im Weg?
+  · Stimmen die Notennamen für Dich (H statt B) und der Dezimaltrenner überall?
+  · Die Fläche: ist das Ziehen jetzt gleichmäßig laut, ohne Klick an den Übergängen?
+  · Weiter offen aus 360: die Transportleiste im LOOP-Modus bei normaler Textgröße ·
+    klingen Minimal Techno und Detroit Techno verschieden · hörst Du die
+    Rhythmus-Charaktere (Bass und Pad sind bewusst AUS) · macht „Laid back" das, was das
+    Wort verspricht · folgt das Delay im FX-Fenster dem Tempo · der Lead: echte Stimme oder
+    Fader weg.
+  · Und die eine Frage, an der eine Entscheidung hängt: war der Bass-Fader auf 0 hörbar?
 
   ── PRÜFSTAND ───────────────────────────────────────────────────────────────
 
-  Auf dem letzten Commit dieses Builds (b92c3ee) sind BEIDE echten Gates fertig und grün:
+  Auf dem letzten Commit dieses Builds (a95faa7) sind BEIDE echten Gates fertig und grün:
   Xcode Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide fertig
-  gesehen habe.
+  gesehen habe. Die neuen Tests liegen im blockierenden Bundle — sie sind also nicht nur
+  kompiliert, sondern gelaufen.
 
-  Jede substanzielle Änderung dieses Zyklus ging vor dem Commit durch einen Reviewer, und
-  fast jeder fand etwas Echtes. Das Muster, das sich durch diesen Build zieht und das ich
-  Dir nicht verschweige: VIERMAL war der Mechanismus richtig und meine BEGRÜNDUNG dafür
-  falsch — eine Schwelle, die die Rate nicht begrenzte; ein Auslöser ohne Aufrufer; ein Tor
-  strenger als sein eigener Kommentar; eine Kopplung zwischen Chrome und Pinch-Zoom, die es
-  nie gab. Alle vier stehen jetzt korrigiert im Code, nicht gelöscht, damit die nächste
-  Session nicht nach etwas sucht, das nicht existiert.
+  Jede substanzielle Änderung ging vor dem Commit durch einen Reviewer, und fast jeder fand
+  etwas Echtes. Das Muster dieses Builds, unverblümt: FÜNFMAL war der Mechanismus richtig
+  und meine BEGRÜNDUNG dafür falsch. Ein „nicht löschen"-Kommentar mit erfundener
+  Persistenz-Begründung; eine Behauptung über einen toten Parameter, die eine Messung
+  widerlegt hat; zwei zu breite Begründungen dafür, was nicht auf den Energy-Regler gehört;
+  und eine Präzedenz, die ich zitiert habe, obwohl sie das Gegenteil sagt. Alle fünf stehen
+  jetzt MIT ihrer Widerlegung im Code statt stillschweigend getauscht — ein falscher Grund,
+  den die nächste Session nicht widerlegen kann, ist schlimmer als gar keiner.
+
+  Der sechste war schlimmer und gehört hierher: der Hinweissatz unter „Detail" nannte
+  zuerst eine Reparatur, die nicht funktioniert — ausgerechnet in dem Feature, das gegen
+  Regler gebaut ist, die mehr versprechen als sie halten. Vom Reviewer gefunden, vor dem
+  Deploy korrigiert.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
   Dein Ohr und Dein Auge.
