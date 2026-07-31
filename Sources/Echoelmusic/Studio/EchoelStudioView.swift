@@ -1248,9 +1248,19 @@ struct EchoelStudioView: View {
     // Master/Export were already chrome-door-only.
     // Dissolving the bottom chip bar (founder 2026-07-20: "die untere Leiste komplett
     // auflösen … Video kann gelöscht werden"). S1: drop `.video` — the recordings library
-    // is founder-deleted from navigation; the immersive visual window stays reachable via
-    // the header monitor button. The `.video` case + videoPanel stay compiling (unreferenced
-    // now) so the removal is reversible; a later slice deletes the dead panel. Following
+    // is founder-deleted from THIS BAR; the immersive visual window stays reachable via
+    // the header monitor button.
+    //
+    // ⛔ AND THE REST OF THIS SENTENCE WENT STALE: it said the `.video` case + videoPanel
+    // are "unreferenced now" and that "a later slice deletes the dead panel". Both are
+    // false today — `EchoelClipsMonitorMini` (`HeaderMonitors.swift`) posts the
+    // `.echoelChromeDoor` "video" notification, this file's observer sets
+    // `activeMenu = .video` + `showVideoLibrary = true`, and `videoPanel` renders
+    // `VideoLibraryPanelContent` with mp4 share. **The library is LIVE; do not delete it as
+    // dead.** Filtering a case out of `studioChips` removes it from the BAR, never from the
+    // app — that is the whole point of the chrome doors, and it is exactly the
+    // "unreachable because I cannot see a caller" mistake CLAUDE.md warns about, made in
+    // reverse. Following
     // slices retire mix/effects/synth/sound as each function is verified reachable per-track,
     // then the bar goes entirely (PLAN_LEISTE_DISSOLVE_2026-07-20).
     private static let studioChips: [StudioMenu] =
