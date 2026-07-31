@@ -27,9 +27,17 @@ import Combine   // NotificationCenter.publisher for AVAudioSession route change
 // below. Getting that inverted would send the next reader looking for a presentation bug.
 //
 // So: refresh on appear (the route may have changed since last time), refresh right after the
-// monitoring toggle (the ON path is the category change; the OFF path does NOT downgrade —
-// `setInputMonitoring(false)` only disconnects — but refresh is idempotent and one call site
-// beats two), and refresh on any route change (a cable moved while the sheet is open).
+// monitoring toggle, and refresh on any route change (a cable moved while the sheet is open).
+//
+// ⛔ SINCE #299 BOTH TOGGLE DIRECTIONS CHANGE THE CATEGORY. What stood here — "the OFF path does
+// NOT downgrade, `setInputMonitoring(false)` only disconnects" — was true when it was written
+// and false one commit later: OFF now releases the record route, and when no recorder still
+// holds it the session drops back to `.playback`. USER-VISIBLE CONSEQUENCE, so it is written
+// down rather than discovered: turning monitoring off while this sheet is open empties the
+// input list, because iOS publishes no inputs under `.playback`. That is honest (the empty
+// state below says "Turn on live monitoring above to list the available inputs") and it is the
+// price of not leaving every other app's Bluetooth headset on the HFP mono codec — but it IS a
+// change, and a comment asserting it cannot happen is worse than no comment.
 //
 // ⚠️ THIS CLEARS THE OBSERVER, NOT THE WHOLE VIEW. The freeze law (CLAUDE.md 10.76.50) bans
 // HIGH-FREQUENCY reads in an ancestor body; the `.onReceive` below is an event publisher that

@@ -257,6 +257,19 @@ final class MicrophoneManager: NSObject {
         } catch {
             log.audio("❌ Failed to start recording: \(error.localizedDescription)", level: .error)
             self.isRecording = false
+            // ⭐ #299 Nachlese — THE ONE REACHABLE EXIT THAT CLAIMED WITHOUT RELEASING, and the
+            // sentence that let it through was in the design note: "a Set is idempotent in both
+            // directions, which makes the failure paths safe to write as a plain release". A Set
+            // makes a DUPLICATE release safe. It does nothing about a MISSING one — that leaks
+            // exactly like the refcount the note rejects. Note also that `claimRecordRoute` at
+            // the top of this `do` can itself throw and land HERE, so both a failed
+            // `audioEngine.start()` and a failed session upgrade strand `.microphoneManager` in
+            // the owner set: monitoring off afterwards would then find a non-empty set and never
+            // return the route to `.playback`. The other two owners avoid this by catching their
+            // claim locally; this one propagates, which is why it needs the release here.
+            #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+            try? AudioConfiguration.releaseRecordRoute(.microphoneManager)
+            #endif
         }
     }
 

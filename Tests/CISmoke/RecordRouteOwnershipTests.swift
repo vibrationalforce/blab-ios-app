@@ -45,10 +45,11 @@ final class RecordRouteOwnershipTests: XCTestCase {
 
     /// The set must START empty, or the first release would lower a route nobody raised.
     ///
-    /// ⚠️ Asserted against the DECLARATION, not against `recordRouteHolders` at runtime. The
-    /// set is process-wide static state, so a runtime emptiness check passes or fails on test
-    /// ORDER the moment any future test claims the route — and a blocking test that fails by
-    /// ordering is one that gets deleted rather than fixed.
+    /// ⚠️ Asserted against the DECLARATION, not against the live set. It is process-wide static
+    /// state, so a runtime emptiness check passes or fails on test ORDER the moment any future
+    /// test claims the route — and a blocking test that fails by ordering is one that gets
+    /// deleted rather than fixed. (#299 shipped a `recordRouteHolders` accessor to make that
+    /// runtime check possible; nothing used it, for this reason, so the Nachlese deleted it.)
     func testTheOwnerSetStartsEmpty() throws {
         XCTAssertTrue(try code("Sources/Echoelmusic/Audio/AudioConfiguration.swift")
             .contains("private static var recordRouteOwners: Set<RecordRouteOwner> = []"), """
@@ -60,7 +61,10 @@ final class RecordRouteOwnershipTests: XCTestCase {
 
     // MARK: - Every claim has a release
 
-    /// ⭐ THE ACTUAL REGRESSION GUARD. Before #299 this ratio was 3 claims : 1 release.
+    /// ⭐ THE ACTUAL REGRESSION GUARD. Before #299 there were FIVE upgrade call sites across
+    /// three features and exactly ONE downgrade. (An earlier version of this line said
+    /// "3 claims : 1 release" — that counted FEATURES and quietly dropped the two
+    /// permission-grant sites it discusses elsewhere as the exception.)
     func testInputMonitoringClaimsAndReleasesTheRoute() throws {
         let body = try slice(of: code("Sources/Echoelmusic/Audio/AudioEngine.swift"),
                              from: "func setInputMonitoring(", to: "\n    }")
@@ -79,16 +83,24 @@ final class RecordRouteOwnershipTests: XCTestCase {
         """)
     }
 
+    /// ⛔ THIS TEST HAD NO COUNT ASSERTION AND IT WAS THE ONE FILE THAT NEEDED IT. #299 shipped
+    /// with a claim in `startRecording`'s `do` block and NO release in its `catch` — the single
+    /// reachable exit — so a failed engine start (or a failed session upgrade, which throws into
+    /// the same catch) stranded `.microphoneManager` in the owner set forever. `contains` was
+    /// satisfied by the `stopRecording` release and reported the file as balanced.
     func testTheMicRecorderClaimsAndReleasesTheRoute() throws {
         let file = try code("Sources/Echoelmusic/MicrophoneManager.swift")
         XCTAssertTrue(slice(of: file, from: "func startRecording()", to: "\n    }\n")
             .contains("claimRecordRoute(.microphoneManager)"), """
         `MicrophoneManager.startRecording` no longer claims the route as an owner.
         """)
-        XCTAssertTrue(file.contains("releaseRecordRoute(.microphoneManager)"), """
-        `MicrophoneManager` lowers the route with a bare `downgradeToPlaybackAfterRecording` \
-        again. That call is unconditional — stopping the mic recorder then cuts the input \
-        monitor's mic mid-performance, which is the other half of #299.
+        // The start `catch` plus `stopRecording`.
+        XCTAssertEqual(file.components(separatedBy: "releaseRecordRoute(.microphoneManager)").count - 1, 2, """
+        `MicrophoneManager` no longer releases the route on BOTH paths that follow its claim \
+        (the `startRecording` catch, and `stopRecording`). Dropping the catch is how a failed \
+        start leaves a stale owner that blocks every later downgrade; dropping the stop one \
+        restores the bare unconditional `downgradeToPlaybackAfterRecording`, which cuts the \
+        input monitor's mic mid-performance — the two halves of #299, one on each side.
         """)
     }
 
@@ -110,7 +122,12 @@ final class RecordRouteOwnershipTests: XCTestCase {
     /// `requestPermission` upgrades on the permission GRANT, before any recording exists to own
     /// it. That is left as a bare upgrade on purpose — and it is safe precisely because an
     /// unowned raise is lowered again by the next release, instead of persisting.
-    func testTheOnlyRemainingBareUpgradeIsThePermissionGrant() throws {
+    ///
+    /// ⛔ The first version checked only `AudioEngine` and `MultiTrackRecorder` while its name
+    /// claimed to cover everything — leaving out `MicrophoneManager`, the ONE file where a new
+    /// bare upgrade is both easiest to add and most harmful, because it already contains two
+    /// legitimate ones. Bounding it to exactly TWO there is the assertion that matters.
+    func testTheOnlyRemainingBareUpgradesAreThePermissionGrant() throws {
         for path in ["Sources/Echoelmusic/Audio/AudioEngine.swift",
                      "Sources/Echoelmusic/Audio/MultiTrackRecorder.swift"] {
             XCTAssertFalse(try code(path).contains("upgradeToPlayAndRecord()"), """
@@ -119,6 +136,13 @@ final class RecordRouteOwnershipTests: XCTestCase {
             owned, or it cannot be handed back.
             """)
         }
+        let mic = try code("Sources/Echoelmusic/MicrophoneManager.swift")
+        XCTAssertEqual(mic.components(separatedBy: "upgradeToPlayAndRecord()").count - 1, 2, """
+        `MicrophoneManager` has a number of bare `upgradeToPlayAndRecord()` calls other than \
+        the two permission-grant sites (iOS 17+ and the older callback). A third one would \
+        raise the shared session with no owner from a path that is not "permission just \
+        granted" — the raise it cannot hand back.
+        """)
     }
 
     // MARK: - Helpers

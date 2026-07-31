@@ -85,12 +85,22 @@ final class AudioInputDoorTests: XCTestCase {
 
     /// The refresh points are worthless if the toggle stops upgrading the category — that is
     /// the other half of the same mechanism, and it lives in a different file.
+    ///
+    /// ⛔ THIS ASSERTION WAS ORPHANED BY #299 AND REDDENED THE BLOCKING BUNDLE. It matched the
+    /// literal `upgradeToPlayAndRecord`; #299 replaced that call with
+    /// `claimRecordRoute(.inputMonitoring)`, which upgrades via the owner set. Nothing about
+    /// monitoring changed — the guard was pinned to a spelling instead of to the mechanism,
+    /// so a rename of the mechanism read as a removal of it. Worth noting HOW it got through:
+    /// `Xcode Compile Check` builds `Sources/` only, so a green compile gate cannot see a
+    /// broken test assertion; only the CI/CD Pipeline runs this bundle.
     func testMonitoringStillUpgradesTheSessionCategory() throws {
         let code = try codeLines(Self.engine).joined(separator: "\n")
-        XCTAssertTrue(code.contains("upgradeToPlayAndRecord"), """
-        `AudioEngine` no longer upgrades the audio session when monitoring starts. The mic \
+        XCTAssertTrue(code.contains("claimRecordRoute(.inputMonitoring)"), """
+        `AudioEngine` no longer raises the audio session when monitoring starts. The mic \
         cannot be read in `.playback`: `inputNode` reports sampleRate 0 and monitoring silently \
-        refuses to engage.
+        refuses to engage. (Since #299 the raise goes through the record-route owner set, so \
+        the call to look for is `claimRecordRoute`, not `upgradeToPlayAndRecord` — and the \
+        balance of claims against releases is guarded in `RecordRouteOwnershipTests`.)
         """)
     }
 

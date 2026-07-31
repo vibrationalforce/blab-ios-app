@@ -178,7 +178,11 @@ enum AudioConfiguration {
     /// The three features that can put the SHARED session on `.playAndRecord`.
     ///
     /// ⭐ WHY A SET AND NOT A COUNTER, AND WHY IT EXISTS AT ALL. Before #299 the upgrade had
-    /// three callers and the downgrade had ONE: `MicrophoneManager.stopRecording`. So input
+    /// FIVE call sites across three features (`AudioEngine` 1, `MultiTrackRecorder` 1,
+    /// `MicrophoneManager` 3 — one in `startRecording`, two in `requestPermission`) and the
+    /// downgrade had ONE: `MicrophoneManager.stopRecording`. ("Three callers" stood here and
+    /// counted FEATURES while silently dropping the two permission sites that the same doc
+    /// discusses as the exception.) So input
     /// monitoring and `MultiTrackRecorder` could each raise the route and NEVER lower it — turn
     /// monitoring off and the whole system stayed on `.playAndRecord`, which is what pulls every
     /// OTHER app's Bluetooth headset down to the HFP mono call codec (see
@@ -189,19 +193,35 @@ enum AudioConfiguration {
     /// A refcount was considered and rejected: `AudioEngine.setInputMonitoring` has two failure
     /// paths that return AFTER the upgrade, and an unbalanced increment on either leaks the
     /// route forever with no way to notice. A set is idempotent in both directions — a double
-    /// claim and a double release are both harmless — which is what makes the failure paths
-    /// safe to write as a plain release.
+    /// claim and a double release are both harmless.
+    ///
+    /// ⚠️ AND THAT IS THE WHOLE OF WHAT IT BUYS. The first version of this note continued
+    /// "…which is what makes the failure paths safe to write as a plain release" — an
+    /// overstatement that the same commit then paid for: `MicrophoneManager.startRecording`'s
+    /// `catch` claimed and never released, and a Set does nothing whatsoever about a MISSING
+    /// release. It leaks exactly like the refcount this argument rejects. The Set removes ONE
+    /// failure mode (double-release / double-claim); every claim still needs a release on
+    /// every exit, and that is what `RecordRouteOwnershipTests` counts per file.
     enum RecordRouteOwner: String, CaseIterable, Sendable {
         case inputMonitoring
         case microphoneManager
         case multiTrackRecorder
     }
 
-    /// `nonisolated(unsafe)` for the same reason — and with the same honest caveat — as
-    /// `isSessionConfigured` and `recordingRouteNeeded` above: every real caller is
-    /// `@MainActor`, but two of `MicrophoneManager`'s permission callbacks land in a
-    /// `DispatchQueue.main.async` closure that Swift 6 does not treat as isolated, and adding
-    /// `@MainActor` here would change their isolation rather than this file's behaviour.
+    /// `nonisolated(unsafe)`, matching `isSessionConfigured` and `recordingRouteNeeded` above.
+    ///
+    /// ⛔ The first version justified this with "two of `MicrophoneManager`'s permission
+    /// callbacks land in a `DispatchQueue.main.async` closure … and `@MainActor` here would
+    /// change their isolation" — FALSE in both halves. There is ONE such closure (the other is
+    /// `await MainActor.run`, which IS isolated), and neither callback touches this set at all:
+    /// they call `upgradeToPlayAndRecord()`, which writes `recordingRouteNeeded`. Every one of
+    /// the seven real claim/release sites lives in a `@MainActor` type, so `@MainActor` here
+    /// would have compiled.
+    ///
+    /// The real reason is consistency of OWNERSHIP, not of compilation: the two flags above
+    /// genuinely ARE written from that non-isolated path (via `upgradeToPlayAndRecord`), and
+    /// `claim`/`release` must stay callable from exactly where those two functions are — so
+    /// isolating only the newest of the three would split the file's discipline for no gain.
     nonisolated(unsafe) private static var recordRouteOwners: Set<RecordRouteOwner> = []
 
     /// Register `owner` as needing the mic and raise the shared session to `.playAndRecord`.
@@ -225,8 +245,11 @@ enum AudioConfiguration {
         return true
     }
 
-    /// Read-only view for tests and diagnostics.
-    static var recordRouteHolders: Set<RecordRouteOwner> { recordRouteOwners }
+    // ⛔ A `recordRouteHolders` read-only accessor stood here "for tests and diagnostics" and
+    // had ZERO consumers — the test file that was supposed to use it explains at length why it
+    // deliberately does not (process-wide static state makes a runtime emptiness check
+    // order-dependent). Deleted rather than left: an unused accessor added "for tests" is this
+    // repo's doorless pattern in miniature, and the engineering rules ban dead code outright.
 
     /// Upgrade audio session from .playback to .playAndRecord when the user actually
     /// records or monitors the mic. No-op if already using .playAndRecord.
