@@ -209,6 +209,54 @@ final class OneStartControlTests: XCTestCase {
         """)
     }
 
+    /// ⛔ #307 — THE ONE START IS NOW A GLYPH, so nothing may still tell the user to press a
+    /// sentence. Founder 2026-07-31: *"Create from within can also weg, einfaches Menü mit
+    /// Playbutton etc wie bei Ableton reicht."*
+    ///
+    /// Removing a LABEL is not like removing a view: the label was quoted as an instruction in
+    /// two other places — the Bio panel's opening line and `BioStripView`'s VoiceOver hint —
+    /// and both would have kept telling people to press a button that is not on screen. Stale
+    /// copy that reads as help is worse than none, because the reader trusts it and hunts.
+    ///
+    /// ⚠️ SCOPED TO "Press", NOT TO THE PHRASE. "Create from Within" is the BRAND tagline and
+    /// legitimately survives in `AppIcon.swift` (the icon artwork), in `TrackInstrument`'s
+    /// bio-voice description, and across `docs/`. Banning the phrase outright would be this
+    /// repo's other recurring mistake — a guard that enforces more than the decision behind it.
+    /// The defect is specifically an INSTRUCTION to press it.
+    func testNothingTellsTheUserToPressAButtonThatWasRemoved() throws {
+        let liars = try sourceLines().filter {
+            $0.text.contains("Press") && $0.text.contains("Create from Within")
+        }
+        XCTAssertTrue(liars.isEmpty, """
+        \(liars.map { "\($0.file):\($0.line)" }.joined(separator: ", ")) still instructs the \
+        user to press "Create from Within". That button was replaced by an Ableton-style play \
+        triangle (#307) and no longer exists — the sentence now points at nothing. Name the \
+        control that IS on screen. (The phrase itself is fine as branding; only "press it" is \
+        the defect, which is why this matches the pair and not the phrase.)
+        """)
+    }
+
+    /// The positive half: with no label left, the START is carried entirely by its glyph and
+    /// its VoiceOver label. Both are asserted, because losing either leaves a control that
+    /// cannot be found by one of the two ways people find controls.
+    func testTheOneStartStillPresentsItselfAsATransport() throws {
+        let plate = try sourceLines().filter { $0.file == "EchoelStudioView.swift" }
+        XCTAssertFalse(plate.isEmpty, """
+        EchoelStudioView.swift produced no code lines — renamed, or the comment filter ate the \
+        file. Re-point this guard rather than letting it pass vacuously.
+        """)
+        XCTAssertTrue(plate.contains { $0.text.contains("\"play.fill\"") }, """
+        the front plate's primary control no longer draws `play.fill`. Since #307 removed its \
+        text label, that glyph IS the start button — there is nothing else on the plate that \
+        says the instrument can be started.
+        """)
+        XCTAssertTrue(plate.contains { $0.text.contains("accessibilityLabel") && $0.text.contains("Play") }, """
+        the primary control lost its VoiceOver label. A glyph-only button with no label is \
+        unusable with VoiceOver, and #307 traded the visible label away on the explicit \
+        understanding that the accessibility one carries it.
+        """)
+    }
+
     // MARK: - Locating the repo
 
     /// Same walk-up — and the same SKIP — as the sibling `StringCatalogIsHonestTests`:

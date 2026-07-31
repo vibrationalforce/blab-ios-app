@@ -87,40 +87,39 @@ struct PulseMonitorMini: View {
     /// Show the strap status text: no lock, no camera cue competing for the slot.
     private var showStatus: Bool { !locked && !showCue && status != nil }
 
-    // #305 — "etwas größere Anzeige für Analyse ist besser" (founder 2026-07-31, red circle
-    // around the whole control row). The numbers below are the SECOND half of that ask; the
-    // first half is the `pause.fill` correction in `PlaybackToggleButton`.
+    // #305 → #307 — "etwas größere Anzeige für Analyse ist besser", then "Create from within
+    // can also weg, einfaches Menü mit Playbutton etc wie bei Ableton reicht" (founder
+    // 2026-07-31, two consecutive messages about the same row).
     //
-    // ⚠️ "etwas" IS THE SPECIFICATION, not a hedge, and the constraint that enforces it is
-    // WIDTH — this tile shares one row with the app's primary button. The arithmetic, because
-    // `EchoelStudioView.startButton` carries a budget comment that has already been wrong once
-    // and must stay in step with these constants:
+    // ⛔ THE WIDTH BUDGET THAT STOOD HERE IS GONE, AND SO IS THE THING IT WAS BUDGETING
+    // AGAINST. #305 grew this tile from 90 to 108 pt by arithmetic, against the ~205–215 pt
+    // sentence "Create from Within" sharing the row. Hours later that sentence was removed:
+    // the primary control is a 64 pt ▶ now, so the constraint the whole calculation existed to
+    // respect no longer exists. Rather than publish a third edition of a sum about a deleted
+    // label, the tile simply TAKES the row — `maxWidth: .infinity`, which is both the honest
+    // expression of "there is no competitor for this space" and the largest possible answer to
+    // the founder's ask, without a single hard-coded width to go stale next time.
     //
-    //     before: 12 padding + 50 trace + 6 + 22 slot            =  90 pt (≈120 with coherence)
-    //     after:  16 padding + 60 trace + 6 + 26 slot            = 108 pt (≈142 with coherence)
-    //
-    // The two states are mutually exclusive in the worst direction, which is what makes the
-    // growth affordable: coherence only exists once a session runs, and while it runs the
-    // button reads "Stop" (~60 pt), not "Create from Within" (~205–215 pt). So the tight case
-    // is IDLE — no coherence, no ■ — and on the narrowest phone we ship to (375 pt): 375 − 32
-    // row padding − 108 − 8 spacing = 227 pt against a 205–215 pt label. It fits at the default
-    // text size, and `minimumScaleFactor(0.75)` covers Dynamic Type as it did before.
-    //
-    // A bigger jump than this would have to take the row to two lines. That is a real option
-    // and deliberately NOT taken here: it moves the primary button down the plate, which is a
-    // layout decision the founder has not asked for, on the one surface he has now redrawn
-    // four times. Height 38 also brings the tile within 6 pt of the HIG 44 pt target it never
-    // met as a 30 pt pill — the tap (Bio panel) was always undersized.
+    // What is still a real choice and not a consequence:
+    //   · height 48 (30 before #305, 38 after) — the first size at which this clears the HIG
+    //     44 pt target for its own tap (it opens the Bio panel), which it never did as a pill.
+    //   · the TRACE keeps a `minWidth` and flexes above it. A Canvas accepts any proposal, so
+    //     without a floor it would collapse to nothing the moment the numbers beside it grow
+    //     at accessibility text sizes — the readout must lose the fight for space, not the
+    //     waveform, because the waveform is what tells you the finger is placed right.
+    //   · the numbers stay LEFT-anchored next to the trace rather than pushed to the far edge:
+    //     a BPM 300 pt away from the pulse it belongs to is two readouts, not one.
     var body: some View {
         HStack(spacing: 6) {
             PulseTrace(samples: waveform,
                        color: locked ? EchoelTheme.accent : (showCue ? EchoelTheme.warning : EchoelTheme.dim),
                        lineWidth: 1.8)
-                .frame(width: 60, height: 30)
+                .frame(minWidth: 60, maxWidth: .infinity)
+                .frame(height: 34)
             Group {
                 if locked && bpm > 0 {
                     Text("\(Int(bpm))")
-                        .font(EchoelTheme.font(15, .semibold)).monospacedDigit()
+                        .font(EchoelTheme.font(17, .semibold)).monospacedDigit()
                         .foregroundStyle(EchoelTheme.text)
                 } else if showCue, let cue {
                     Text(cue.shortLabel)
@@ -134,18 +133,18 @@ struct PulseMonitorMini: View {
                         .lineLimit(1).minimumScaleFactor(0.8)
                 } else {
                     Text("—")
-                        .font(EchoelTheme.font(15, .semibold)).monospacedDigit()
+                        .font(EchoelTheme.font(17, .semibold)).monospacedDigit()
                         .foregroundStyle(EchoelTheme.dim)
                 }
             }
-            .frame(minWidth: 26, alignment: .leading)
+            .frame(minWidth: 28, alignment: .leading)
             if let coh = coherence {
                 Text(EchoelDecimalText.string(coh, decimals: 2))
                     .font(EchoelTheme.font(12)).monospacedDigit()
                     .foregroundStyle(EchoelTheme.dim)
             }
         }
-        .padding(.horizontal, 8).frame(height: 38)
+        .padding(.horizontal, 10).frame(maxWidth: .infinity).frame(height: 48)
         .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,

@@ -33,8 +33,12 @@ struct SharedEchoelProject: Transferable {
 // EchoelStudioView.swift
 // Echoel — a tab strip on a front plate, with ONE button under it.
 //
-// "Start — Create from Within" begins the biofeedback (camera pulse, or the demo
-// source where no camera exists). From the live HRV / heart / breath an individual,
+// The play triangle begins the biofeedback (camera pulse, or the demo
+// source where no camera exists). ⛔ It was a full-width button labelled "Start — Create
+// from Within" until #307; the founder replaced it with an Ableton-style transport
+// ("einfaches Menü mit Playbutton etc wie bei Ableton reicht"). The phrase survives as
+// the BRAND tagline — on the website, the app icon and the bio-voice description — and
+// none of those are the button. From the live HRV / heart / breath an individual,
 // seeded algorithm composes music that keeps evolving from the body while it runs.
 // The remaining controls are sliders that shape the sound in real time. Export the
 // loop to a .wav, save/open projects. No other buttons, no detours.
@@ -1318,73 +1322,96 @@ struct EchoelStudioView: View {
     /// subscription on `EchoelStudioView.body` — the body that hosts every `.menu` Picker
     /// in the instrument. That is the whole reason both are `struct`s and not a few lines
     /// of `HStack` content.
+    /// ⭐ #307 REORDERED IT INTO A TRANSPORT: controls left, readout right.
+    ///
+    /// Founder 2026-07-31: *"Create from within can also weg, einfaches Menü mit Playbutton
+    /// etc wie bei Ableton reicht."* Ableton's bar reads transport-then-meters, left to right,
+    /// and that ordering is the reason the row can now carry both halves of what he asked for
+    /// in two consecutive messages: dropping the sentence frees ~205 pt, and the analysis
+    /// display — which he wanted bigger — is the only flexible child, so it takes all of it.
+    /// The pill moved from first to last for that reason and no other; its behaviour, its tap
+    /// (Bio panel) and its long-press (bio source, the BLE strap's ONE owner) are untouched.
     private var startControlRow: some View {
         HStack(spacing: 8) {
+            startButton
+            PlaybackToggleButton()
             #if canImport(AVFoundation)
             PulseMonitorMiniLive()
             #endif
-            startButton
-            PlaybackToggleButton()
         }
     }
 
+    /// THE ONE START, and since #307 it is a TRANSPORT GLYPH rather than a sentence.
+    ///
+    /// Founder 2026-07-31, immediately after the #305 row fix: *"Create from within can also
+    /// weg, einfaches Menü mit Playbutton etc wie bei Ableton reicht."*
+    ///
+    /// ⛔ WHAT THAT OVERTURNS, stated plainly because the previous reasoning was good and is
+    /// now simply outranked. #234 kept THIS control out of three candidates precisely because
+    /// it was "labelled, unmissable, named after what the instrument does", and dropped the
+    /// pill's tap and the transport ▶ as starts on the grounds that a GLYPH cannot say what it
+    /// begins. That argument has not become wrong — it has been overruled by the person whose
+    /// instrument it is, twice in one day, in favour of a transport people already know. Do not
+    /// "restore" the label as a bug fix; if it comes back it comes back on a fresh founder ask.
+    ///
+    /// ⚠️ THE COST IS DISCOVERABILITY, AND IT IS PAID, NOT WAVED AWAY. A bare ▶ tells a
+    /// first-time user nothing about biofeedback. Three things carry that weight now, and all
+    /// three had to move in this same commit or the removal would leave a lie behind:
+    ///   · the VoiceOver label + hint below (the only description a blind user ever gets),
+    ///   · the Bio panel's opening line, which said *Press "Create from Within" to start* —
+    ///     an instruction naming a button that no longer exists,
+    ///   · `BioStripView`'s accessibility hint, which said the same thing.
+    /// `OneStartControlTests` now fails on any line that pairs "Press" with that phrase, so the
+    /// next rename cannot leave the instructions pointing at a ghost.
+    ///
+    /// The Ableton grammar this lands in: ▶ starts, ■ ends, and the ⏸ beside it drops only the
+    /// music. Three glyphs, three distinct meanings, no two of them claiming the same thing —
+    /// which is the #305 rule this row was just brought under, applied one step further.
     private var startButton: some View {
         Button { toggleBiofeedback() } label: {
-            Label(running ? "Stop" : "Create from Within",
-                  systemImage: running ? "stop.circle.fill" : "waveform.path.ecg")
-                .font(EchoelTheme.font(17, .semibold))
+            // `stop.fill` is CORRECT here and is the only place on the front plate that may
+            // wear it: this control genuinely ends the session, camera included. The twin
+            // guard in `OneStartControlTests` bans it from `WorkspaceView.swift`, where the
+            // button beside this one only pauses.
+            Image(systemName: running ? "stop.fill" : "play.fill")
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(running ? EchoelTheme.text : .black)
-                // #291: the app's PRIMARY action must never read "Create from With…".
+                // 64 pt wide is a CHOICE, not a fit: with the label gone there is no width
+                // pressure left in this row at all, so the number is set by what a primary
+                // transport target should feel like next to a 38 pt secondary — not by what
+                // is left over. The freed ~205 pt goes to the analysis display, which is what
+                // the founder asked for one message earlier ("etwas größere Anzeige für
+                // Analyse"): `PulseMonitorMiniLive` now takes the rest of the row.
                 //
-                // ⛔ MY FIRST ARITHMETIC HERE WAS WRONG IN THE ALARMING DIRECTION and the
-                // reviewer refuted it; it is corrected rather than deleted, because a budget
-                // figure is exactly the kind of thing the next reader will reuse. It read:
-                // "shares its row with the pulse pill (~90 pt) and, while running, the
-                // playback ■ (38 pt) plus 16 pt of spacing — so on a 393 pt phone it has
-                // roughly 240 pt". Two errors. The ■ renders only inside
-                // `if bus.instrumentRunning`, i.e. only while `running` is true — which is
-                // precisely when this label is "Stop", not "Create from Within". The long
-                // label and the ■ are MUTUALLY EXCLUSIVE, so that sum paired the widest
-                // text with the narrowest box. And it omitted `startControlRow`'s own
-                // `.padding(.horizontal, 16)`, which is 32 pt and always there.
-                //
-                // The honest figure: 393 − 32 (row padding) − ~108 (pill; ~142 once the
-                // coherence readout is present) − 8 (spacing) ≈ 245 pt, against a label that
-                // measures ~205–215 pt at 17 pt Atkinson Bold with its symbol. (~90/~120 and
-                // ≈263 pt until #305 enlarged the pill on the founder's "etwas größere Anzeige
-                // für Analyse" — the derivation lives above `PulseMonitorMini.body`, and these
-                // two places have to move together or this budget silently becomes fiction for
-                // the second time.) So it FITS at
-                // the default text size — the truncation risk is Dynamic Type and
-                // `StudioZoom`, not a stock phone. This view is deliberately not
-                // Dynamic-Type-clamped (only the chrome is), so that risk is real, and one
-                // line plus shrink-before-truncate is the right treatment for it: a slightly
-                // smaller "Create from Within" still says what it does, an ellipsis does not.
-                // 0.75 is a deliberate stopping point, NOT a computed floor (17 × 0.75 =
-                // 12.75 pt, comfortably over the ~11 pt legibility bar the plate holds; the
-                // actual floor would be ≈0.65). Chosen to shrink visibly but never to a size
-                // that reads as a different control.
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                // Height comes from FloatingVisualLayout, not a literal. ⛔ The reason has
-                // CHANGED and the old one is wrong now: it read "because the docked floating
-                // visual lifts itself by exactly this band to avoid covering this button (it
-                // once covered ~40 % of it, and since that card is the play surface, taps
-                // there played a note instead of starting biofeedback)". Since #288 the button
-                // is at the TOP of the studio and the docked card is at the bottom, so they
-                // cannot collide and this constant is no longer a collision guard — see the
-                // ⛔ block at the top of `FloatingVisualLayout`'s control-band section for what
-                // it does buy instead. It stays in the shared type because the size still
-                // belongs in one CI-tested place, not because the card depends on it.
-                .frame(maxWidth: .infinity)
+                // ⛔ THE WIDTH-BUDGET PARAGRAPH THAT STOOD HERE IS DELETED, NOT UPDATED. It
+                // computed how much room the sentence "Create from Within" had against the
+                // pulse pill, was wrong once in the alarming direction, was corrected, and was
+                // corrected AGAIN eight hours later when the pill grew. There is no sentence
+                // any more, so the arithmetic has no subject — keeping a "corrected" version
+                // of it would be the third edition of a calculation about something that does
+                // not exist. Height still comes from `FloatingVisualLayout` (see that file's
+                // control-band block) so the docked visual's lift and this control cannot
+                // drift apart; that dependency is real and CI-tested.
+                .frame(width: 64)
                 .frame(height: FloatingVisualLayout.startButtonHeight)
-                // Website CI: primary action = off-white fill, black label (.btn-primary).
-                // Green is reserved for live bio signal, not chrome. Stop = neutral fill.
+                // Website CI: primary action = off-white fill, black glyph (.btn-primary).
+                // Green is reserved for live bio signal, not chrome. Stop = neutral fill with
+                // a border, so the running state still reads as a raised control rather than
+                // dissolving into the plate.
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .fill(running ? EchoelTheme.fill : EchoelTheme.text))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(running ? EchoelTheme.borderStrong : Color.clear, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Starts biofeedback; your body composes and plays music. Tap again to stop.")
+        // Mandatory now that the label is gone — and deliberately NOT the same words as the
+        // pause button one place over, because the difference between them (this one takes
+        // the camera down with it, ~20 s to re-lock) is exactly what a VoiceOver user cannot
+        // see.
+        .accessibilityLabel(running ? Text("Stop") : Text("Play"))
+        .accessibilityHint(running
+            ? Text("Ends the session and the pulse reading. To drop only the music, use pause.")
+            : Text("Starts biofeedback; your body then composes and plays the music."))
     }
 
     /// Unmissable, on the hero path: when a non-standard tone system is active it
@@ -1819,7 +1846,13 @@ struct EchoelStudioView: View {
             // pill, behind a label promising a measurement. The one Start is the front
             // plate's own button, in this same view.
             BioStripView(measuring: running)
-            Text("Press \u{201C}Create from Within\u{201D} to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse pill in the header and pick \u{201C}Play with a Bluetooth strap — scans for one\u{201D}; Apple Watch feeds in through Health.")
+            // ⛔ THIS SENTENCE NAMED THE BUTTON, and #307 deleted the button. It read
+            // *Press “Create from Within” to start*. With the label gone that is an
+            // instruction pointing at a ghost — the worst kind of stale copy, because it
+            // reads as help. The play triangle is now the referent, and `OneStartControlTests`
+            // fails on any line that pairs "Press" with the old phrase so the next rename
+            // cannot re-open this.
+            Text("Press the play triangle to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse display and pick \u{201C}Play with a Bluetooth strap — scans for one\u{201D}; Apple Watch feeds in through Health.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             Button {

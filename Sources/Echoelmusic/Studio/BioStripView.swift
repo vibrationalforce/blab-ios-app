@@ -308,7 +308,10 @@ struct BioStripView: View {
                 .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
             .foregroundStyle(EchoelTheme.dim)
             .accessibilityLabel(Text("No body signal yet"))
-            .accessibilityHint(Text("Press Create from Within to start; your body then drives the sound."))
+            // #307: named "Create from Within" until the founder replaced that button with an
+            // Ableton-style play triangle. A VoiceOver hint that names a control which is no
+            // longer on screen is worse than no hint — it sends someone hunting.
+            .accessibilityHint(Text("Press Play to start; your body then drives the sound."))
     }
 
     /// The honest replacement for the dead end: camera access is off, and the
