@@ -33,8 +33,12 @@ struct EchoelNumberPad: View {
     private var allowsDecimal: Bool { decimals > 0 }
 
     /// What the field will become if committed now (buffer if it parses, else the initial).
+    ///
+    /// `EchoelDecimalText.ascii` replaces the hand-rolled `","→"."` swap that stood here: it
+    /// also normalizes a locale separator that is NEITHER "." nor "," (Arabic U+066B), which
+    /// the two-way swap silently dropped on the floor.
     private var pendingValue: Double {
-        let cleaned = buffer.replacingOccurrences(of: ",", with: ".")
+        let cleaned = EchoelDecimalText.ascii(buffer)
         if cleaned.isEmpty || cleaned == "-" || cleaned == "." || cleaned == "-." {
             return initial
         }
@@ -82,8 +86,13 @@ struct EchoelNumberPad: View {
     }
 
     /// The big readout: the typed buffer if any, otherwise the current value (dimmed).
+    ///
+    /// The buffer is mapped to the locale's separator for DISPLAY ONLY. It is stored in
+    /// ASCII throughout (see `appendDecimal`), which is what keeps `Double(cleaned)`,
+    /// `buffer.contains(".")` and `deleteLast()` literally correct — a buffer holding a
+    /// multi-scalar separator would let `removeLast()` strand half a character.
     private var displayString: String {
-        buffer.isEmpty ? fmt(initial) : buffer
+        buffer.isEmpty ? fmt(initial) : EchoelDecimalText.localized(buffer)
     }
 
     // MARK: - Keypad grid
@@ -125,11 +134,18 @@ struct EchoelNumberPad: View {
         }
     }
 
+    /// The key is LABELLED in the reader's locale ("," in German) while what it appends
+    /// stays ASCII ".". Label and buffer diverging is deliberate and is the whole trick: a
+    /// German player must not have to press a key marked "." to type the number they read
+    /// as "0,50", and the parser must not have to guess.
     private var decimalKey: some View {
         keyButton(action: { appendDecimal() }, enabled: allowsDecimal) {
-            Text(".").font(EchoelTheme.font(22, .medium))
+            Text(EchoelDecimalText.separator()).font(EchoelTheme.font(22, .medium))
                 .foregroundStyle(allowsDecimal ? EchoelTheme.text : EchoelTheme.dim.opacity(0.4))
         }
+        // A bare separator glyph is announced by VoiceOver as its punctuation name, or —
+        // for U+066B — often not at all. Name the key by what it does.
+        .accessibilityLabel("Decimal separator")
     }
 
     private var deleteKey: some View {
@@ -200,6 +216,10 @@ struct EchoelNumberPad: View {
         return (v * f).rounded() / f
     }
 
-    private func fmt(_ v: Double) -> String { String(format: "%.\(decimals)f", v) }
+    /// The pad's own readout and its "Range …–…" line. Same helper as `EchoelValueField`, so
+    /// the number cannot read one way in the field and another way in the pad that edits it.
+    private func fmt(_ v: Double) -> String {
+        EchoelDecimalText.string(v, decimals: decimals)
+    }
 }
 #endif

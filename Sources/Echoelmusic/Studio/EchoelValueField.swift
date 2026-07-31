@@ -429,6 +429,11 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// values, whose meaning is carried by the label.
     private var unitLabel: String { unit }
 
-    private var numberString: String { String(format: "%.\(decimals)f", Double(value)) }
+    /// Locale-aware since #232 G — a German player reads "0,50", not "0.50". Feeds BOTH the
+    /// drawn value and `accessibleValue`, so VoiceOver speaks the same string the eye sees
+    /// (a mismatch there is the #263 defect, one layer down).
+    private var numberString: String {
+        EchoelDecimalText.string(Double(value), decimals: decimals)
+    }
 }
 #endif
