@@ -1293,7 +1293,13 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// #289 — ONE control block: pulse · Create from Within · playback ■.
+    /// #289 → #307 — ONE control block, now a transport: ▶/■ · ⏸ · the analysis display.
+    ///
+    /// ⛔ This line read "pulse · Create from Within · playback ■" — the OLD order, naming the
+    /// OLD label — while the paragraph #307 appended below it described the new one. The summary
+    /// line of a doc block is what a reader trusts before scrolling, and #307 corrected the
+    /// paragraphs it was thinking about and left the headline alone. Same failure as the
+    /// mount-site doc in `HeaderMonitors`, one commit, two places.
     ///
     /// Founder 2026-07-31, red circle around the header pulse pill and the transport ■:
     /// *"Das was da rot markiert ist könnte ja alles in dem Create From within Button drin
@@ -1852,7 +1858,11 @@ struct EchoelStudioView: View {
             // reads as help. The play triangle is now the referent, and `OneStartControlTests`
             // fails on any line that pairs "Press" with the old phrase so the next rename
             // cannot re-open this.
-            Text("Press the play triangle to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse display and pick \u{201C}Play with a Bluetooth strap — scans for one\u{201D}; Apple Watch feeds in through Health.")
+            // ⛔ It first said "Press the play triangle", which names a SHAPE — and VoiceOver
+            // announces that control as the WORD "Play". A blind reader got a shape they cannot
+            // see for a control whose label says something else. `BioStripView`'s sibling hint
+            // had it right from the start; this now matches it.
+            Text("Press Play to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse display and pick \u{201C}Play with a Bluetooth strap — scans for one\u{201D}; Apple Watch feeds in through Health.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             Button {

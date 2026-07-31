@@ -429,15 +429,27 @@ struct PlaybackToggleButton: View {
                 Image(systemName: transport.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.text)
-                    .frame(width: 38, height: 32)
+                    // 44×48, was 38×32 until #307's Nachlese. TWO reasons, and the second is
+                    // the one that matters. (1) The commit that built this row called it an
+                    // "Ableton transport", and Ableton's transport strip is UNIFORM-height —
+                    // ours was 56 / 32 / 48 centred, so this chip floated 12 pt inside the row
+                    // on both edges and read as a stray control rather than part of the block.
+                    // A reviewer called the claim out and was right. (2) 44×48 clears the HIG
+                    // touch floor on its OWN geometry, so the hit area no longer has to be
+                    // faked by outsetting the shape into the 8 pt gaps between neighbours.
+                    .frame(width: 44, height: 48)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            // 44 pt touch target (HIG) — the visible chip stays 38×32, the hit area is
-            // outset (performance control, AX audit 2026-07-09).
-            .contentShape(Rectangle().inset(by: -6))
+            // ⛔ The outset is GONE (`inset(by: -6)`), and deliberately, not by oversight: it
+            // existed only to lift a 38×32 chip to the 44 pt HIG floor by borrowing 6 pt from
+            // each side — which meant this button's hit area reached into the gaps beside its
+            // neighbours. The chip is 44×48 now, so the floor is met by the control itself.
+            // A plain `contentShape` keeps the whole frame hit-testable (the background fill
+            // already covers it; this makes it explicit rather than implied).
+            .contentShape(Rectangle())
             // `Text` on both ternary branches, as a forward guard — NOT a bug fix. Be
             // precise, because the sibling comment in `OnboardingView` was written as if it
             // were one: the non-generic `LocalizedStringKey` overload is preferred over the

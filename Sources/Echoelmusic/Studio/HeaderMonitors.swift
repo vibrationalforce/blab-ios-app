@@ -50,9 +50,12 @@ struct PulseTrace: View {
 
 /// Compact header pulse monitor: live EKG trace + BPM. Accessible as one element.
 ///
-/// MOUNTED in `EchoelStudioView.startControlRow`, immediately left of "Create from Within"
-/// (founder 2026-07-31, #289: red circle around this pill and the transport ■, "könnte ja
-/// alles in dem Create From within Button drin sein … Führe intelligent zusammen").
+/// MOUNTED in `EchoelStudioView.startControlRow` (founder 2026-07-31, #289: red circle around
+/// this pill and the transport ■, "könnte ja alles in dem Create From within Button drin sein …
+/// Führe intelligent zusammen"). ⛔ This line said "immediately LEFT of 'Create from Within'"
+/// until #307, which both moved the tile to the RIGHT of the two transport glyphs and deleted
+/// the label it was positioning itself against — a mount-site doc that was wrong about the
+/// mount site in the same commit that changed it.
 ///
 /// ⛔ It sat in `WorkspaceView.topBar` between logo and title from 2026-07-12 (founder: "Der
 /// Pulsmonitor kommt nach oben zwischen Logo und Echoelmusic"), and this doc used to end
@@ -118,9 +121,18 @@ struct PulseMonitorMini: View {
                 .frame(height: 34)
             Group {
                 if locked && bpm > 0 {
+                    // ⛔ THESE TWO SHRINK MODIFIERS WERE MISSING FROM THE NUMBER BRANCHES WHILE
+                    // BOTH TEXT BRANCHES BELOW CARRIED THEM — and #305 raised this font 11 → 15
+                    // → 17 without noticing. This view is deliberately NOT Dynamic-Type-clamped
+                    // (only the chrome is), and `EchoelTheme.font` scales `relativeTo: .body`, so
+                    // at AX5 17 pt becomes ≈53 pt. Without a scale factor the app's single most
+                    // important number does not shrink — it TRUNCATES, and spills past the
+                    // rounded border this tile draws. 0.6 floors it at ≈10 pt at the default
+                    // size, which is still a legible three-digit readout.
                     Text("\(Int(bpm))")
                         .font(EchoelTheme.font(17, .semibold)).monospacedDigit()
                         .foregroundStyle(EchoelTheme.text)
+                        .lineLimit(1).minimumScaleFactor(0.6)
                 } else if showCue, let cue {
                     Text(cue.shortLabel)
                         .font(EchoelTheme.font(11, .semibold))
@@ -135,6 +147,7 @@ struct PulseMonitorMini: View {
                     Text("—")
                         .font(EchoelTheme.font(17, .semibold)).monospacedDigit()
                         .foregroundStyle(EchoelTheme.dim)
+                        .lineLimit(1).minimumScaleFactor(0.6)
                 }
             }
             .frame(minWidth: 28, alignment: .leading)
@@ -144,7 +157,12 @@ struct PulseMonitorMini: View {
                     .foregroundStyle(EchoelTheme.dim)
             }
         }
-        .padding(.horizontal, 10).frame(maxWidth: .infinity).frame(height: 48)
+        // `minHeight`, not `height` — the #262 idiom. A hard height with unclamped Dynamic Type
+        // makes ≈53 pt text spill past the border drawn one line below; a minimum lets the tile
+        // GROW instead. Safe here (and NOT the `TransportBar` hazard) because nothing in this
+        // subtree is vertically flexible: the trace is pinned at 34 and `Text` reports its ideal
+        // height, so this reports a finite `max(content, 48)` rather than ∞.
+        .padding(.horizontal, 10).frame(maxWidth: .infinity).frame(minHeight: 48)
         .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,
@@ -172,9 +190,11 @@ struct PulseMonitorMini: View {
 /// to a 10 Hz signal, so the whole surface tree (including the active surface's Compose/
 /// Mood/Effects `.menu` Pickers) rebuilt 10×/s during biofeedback and tore down any open
 /// dropdown ("kann nicht mehr auswählen während Biofeedback", 10.76.50). Confining the
-/// reads here keeps WorkspaceView still; only this 38 pt monitor refreshes. (30 pt until
-/// #305 — the height is quoted because it is the whole cost of the churn, so it has to move
-/// with the constant.)
+/// reads here keeps WorkspaceView still; only this monitor refreshes. ⛔ This line used to
+/// quote the height (30 pt, then 38) with the note "it has to move with the constant" — and
+/// then #307 changed the constant to 48 in the same file without moving it, one screen below
+/// the sentence declaring the invariant. The number is dropped rather than corrected a third
+/// time: what matters here is that the churn is CONFINED to this leaf, not how tall the leaf is.
 @MainActor
 struct PulseMonitorMiniLive: View {
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG

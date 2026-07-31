@@ -191,10 +191,11 @@ final class OneStartControlTests: XCTestCase {
     /// and one anchor assertion says where the struct lives. A move now produces ONE unambiguous
     /// failure — "it moved, re-point the absence check" — instead of two lying ones.
     ///
-    /// The ABSENCE check keeps its file scope, because `stop.fill` is CORRECT elsewhere:
-    /// `VideoLibraryPanel` (stop clip preview) and `LiveColaboView` (end the session) both use it
-    /// truthfully, and since #307 so does `EchoelStudioView.startButton`, which really does end
-    /// the session. ⚠️ Note what that means: this is a FILE-scoped proxy for a ROW-scoped
+    /// The ABSENCE check keeps its file scope, because `stop.fill` is CORRECT in all THREE other
+    /// places it appears: `VideoLibraryPanel` (stop clip preview), `LiveColaboView` (end the live
+    /// session) and — since #307 — `EchoelStudioView.startButton`, which really does end the bio
+    /// session. Count them when you edit this list; the first version said "elsewhere" and named
+    /// two of the three. ⚠️ Note what that means: this is a FILE-scoped proxy for a ROW-scoped
     /// invariant. It cannot see the other members of `startControlRow`, which live in a different
     /// file — so it cannot actually count the claims in that row, only keep the pause button out
     /// of the argument.
@@ -208,8 +209,9 @@ final class OneStartControlTests: XCTestCase {
         that scope to the struct's new home in the same commit.
         """)
         XCTAssertTrue(all.contains { $0.text.contains("\"pause.fill\"") }, """
-        `PlaybackToggleButton` no longer draws `pause.fill`. It sits beside a full-width button \
-        labelled "Stop" that ends the whole bio session; this one only drops the music and \
+        `PlaybackToggleButton` no longer draws `pause.fill`. It sits beside the ■ that ends the \
+        whole bio session (labelled "Stop" until #307 made it a glyph); this one only drops the \
+        music and \
         keeps the pulse lock (~20 s to re-acquire). If it goes back to a stop glyph, the row \
         presents the same claim twice with two different effects — the founder's 2026-07-31 \
         "Einfaches start stop" complaint, which was the fourth about this cluster.
@@ -239,8 +241,12 @@ final class OneStartControlTests: XCTestCase {
     /// copy that reads as help is worse than none, because the reader trusts it and hunts.
     ///
     /// ⚠️ SCOPED TO "Press", NOT TO THE PHRASE. "Create from Within" is the BRAND tagline and
-    /// legitimately survives in `AppIcon.swift` (the icon artwork), in `TrackInstrument`'s
-    /// bio-voice description, and across `docs/`. Banning the phrase outright would be this
+    /// legitimately survives in `AppIcon.swift` (the icon artwork) and across `docs/`.
+    /// ⛔ AND IT IS CASE-SENSITIVE, which is a REACH limit, not a tolerance: `TrackInstrument`'s
+    /// bio-voice description writes "Create from within" with a lowercase w, so this guard cannot
+    /// see it at all — if that line ever became "Press Create from within…", it would stay green.
+    /// The first version of this note listed it as something the guard "allows", which reads as
+    /// coverage it does not have. Banning the phrase outright would be this
     /// repo's other recurring mistake — a guard that enforces more than the decision behind it.
     /// The defect is specifically an INSTRUCTION to press it.
     func testNothingTellsTheUserToPressAButtonThatWasRemoved() throws {
@@ -270,15 +276,25 @@ final class OneStartControlTests: XCTestCase {
         file was renamed. The two assertions below are scoped to this file and would check the \
         wrong thing (or nothing) without it. Re-point them in the same commit.
         """)
-        XCTAssertTrue(plate.contains { $0.text.contains("\"play.fill\"") }, """
-        the front plate's primary control no longer draws `play.fill`. Since #307 removed its \
-        text label, that glyph IS the start button — there is nothing else on the plate that \
-        says the instrument can be started.
+        // ⛔ BOTH ASSERTIONS BELOW WERE WEAKER IN THEIR FIRST FORM, in opposite directions, and
+        // a reviewer caught both. The glyph one matched the bare token `"play.fill"` anywhere in
+        // a 5,300-line file — which a stray preview button would have satisfied. The label one
+        // required `accessibilityLabel` and `Play` on ONE PHYSICAL LINE, and the
+        // `.accessibilityHint` written three lines below it in the same commit is ALREADY
+        // wrapped across three lines: any formatter pass, or a maintainer matching that style,
+        // would have reddened the gate on a change with zero behavioural content. Both now match
+        // the exact EXPRESSION, which is what actually encodes the decision.
+        XCTAssertTrue(plate.contains { $0.text.contains("running ? \"stop.fill\" : \"play.fill\"") }, """
+        the front plate's primary control no longer switches between `play.fill` and `stop.fill`. \
+        Since #307 removed its text label, that glyph pair IS the start button — there is nothing \
+        else on the plate that says the instrument can be started, or that it is running.
         """)
-        XCTAssertTrue(plate.contains { $0.text.contains("accessibilityLabel") && $0.text.contains("Play") }, """
-        the primary control lost its VoiceOver label. A glyph-only button with no label is \
-        unusable with VoiceOver, and #307 traded the visible label away on the explicit \
-        understanding that the accessibility one carries it.
+        XCTAssertTrue(plate.contains { $0.text.contains("Text(\"Play\")") }, """
+        the primary control lost its VoiceOver label `Text("Play")`. A glyph-only button with no \
+        label is unusable with VoiceOver, and #307 traded the visible label away on the explicit \
+        understanding that the accessibility one carries it. Matched on the literal rather than \
+        on `accessibilityLabel` + `Play` sharing a line, because the neighbouring hint is already \
+        wrapped and a reformat would otherwise fail this for nothing.
         """)
     }
 
