@@ -446,7 +446,11 @@ private struct TransportBar: View {
             // notification; the studio opens its dropdown/sheet.
             Menu {
                 doorMenuButton("Master — loudness, output", icon: "slider.vertical.3", door: "master")
-                doorMenuButton("Export — WAV loop", icon: "square.and.arrow.up", door: "export")
+                // #272 — this string is the ONE discoverable place saving and recording are
+                // named before the panel opens, and it named neither. The founder's report
+                // "Session speichern und Loops aufnehmen fehlt" was about controls sitting
+                // behind this entry, under the word "Export".
+                doorMenuButton("Save, record & export", icon: "square.and.arrow.up", door: "export")
                 // Step 2b: the Comp chip fell; its tempo TOOLS (tap · metronome ·
                 // haptic beat) + the variation maze stay reachable through this
                 // door — same pattern as Master/Export (chrome-door-only panel).
@@ -484,7 +488,7 @@ private struct TransportBar: View {
             // bar's 12 pt spacing lets the hit area grow symmetrically (−6 → 42×44)
             // without overlapping the tempo field, matching the Play button's idiom.
             .contentShape(Rectangle().inset(by: -6))
-            .accessibilityLabel("More — Master, Export, Tempo, Weather and place, Live, Learn")
+            .accessibilityLabel("More — Master; Save, record and export; Tempo; Weather and place; Live; Learn")
 
             Spacer(minLength: 0)
 

@@ -529,7 +529,11 @@ struct EchoelStudioView: View {
             case .effects:     return "FX"
             case .master:      return "Master"
             case .mood:        return "Mood"
-            case .export:      return "Export"
+            // #272 — "Export" alone hid Save/Open/Record, which live in the SAME panel.
+            // "Save" leads because that is the word the founder searched for and did not
+            // find; the chip is 12 pt, so the export half is carried by the panel title
+            // ("Save & Export") and by `fullName` above rather than crammed in here.
+            case .export:      return "Save"
             case .field:       return "Field"
             case .video:       return "Video"
             }
@@ -551,7 +555,10 @@ struct EchoelStudioView: View {
             case .effects:     return "Effects"
             case .master:      return "Master"
             case .mood:        return "Mood"
-            case .export:      return "Export — WAV loop"
+            // #272: named only the export half for months, and the founder reported
+            // "Session speichern und Loops aufnehmen fehlt" about controls that are IN
+            // this panel. Save and Open go first because those are the two words he used.
+            case .export:      return "Save, record and export — sessions, WAV loop, MIDI"
             // Was "EchoelSynth — immersive visual window", which named the wrong half and
             // collided with the patch editor behind "Sound". This panel governs ONE thing
             // from two sides: the field's look, and the field's voice under your fingers.
@@ -661,7 +668,14 @@ struct EchoelStudioView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .echoelChromeDoor)) { note in
                     switch note.object as? String {
                     case "master": activeMenu = .master
-                    case "export": activeMenu = .export
+                    // #272 — `showExport` too, not just the menu. `studio.showExport`
+                    // persists and defaults to FALSE, so this door selected the plate and
+                    // then handed the user a collapsed row: the panel whose contents he was
+                    // looking for opened shut. The Video door two lines down already had to
+                    // pair the two for the same reason; this is that pattern, not a new one.
+                    // A door that lands on a closed panel is indistinguishable from a door
+                    // that does nothing.
+                    case "export": activeMenu = .export; showExport = true
                     case "learn":  showLearn = true
                     #if canImport(MultipeerConnectivity)
                     case "live":   showLiveColabo = true
@@ -4239,7 +4253,15 @@ struct EchoelStudioView: View {
     private var utilityRow: some View {
         // Subtitle names MIDI too (#188) — it is the only place the door is visible before
         // the panel is opened, and a restored feature nobody can find is a removed feature.
-        panel("Export", "WAV loop · MIDI for your DAW · keep what just played", isExpanded: $showExport) {
+        //
+        // #272 — AND THE TITLE HAD THE SAME DEFECT ONE LEVEL UP. It read "Export" while the
+        // panel holds Save, Open, Record and keep-last as well, so the founder reported
+        // "Session speichern und Loops aufnehmen fehlt" about four controls that were right
+        // here. Save leads now because that is the word he searched for; the subtitle names
+        // opening too, since a save nobody can reload is not a save.
+        panel("Save & Export",
+              "Save and open a session · record the loop as WAV · MIDI for your DAW · keep what just played",
+              isExpanded: $showExport) {
         VStack(spacing: 10) {
             if !hasComposed {
                 // The export/keep/save buttons below are disabled until there's a take —
@@ -4380,7 +4402,7 @@ struct EchoelStudioView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
         }
-        }   // panel("Export")
+        }   // panel("Save & Export")
     }
 
     // MARK: - Diagnostics
