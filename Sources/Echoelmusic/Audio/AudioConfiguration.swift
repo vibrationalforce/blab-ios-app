@@ -173,8 +173,68 @@ enum AudioConfiguration {
         [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker, .mixWithOthers]
     #endif
 
+    // MARK: - Who is holding the record route (#299)
+
+    /// The three features that can put the SHARED session on `.playAndRecord`.
+    ///
+    /// ⭐ WHY A SET AND NOT A COUNTER, AND WHY IT EXISTS AT ALL. Before #299 the upgrade had
+    /// three callers and the downgrade had ONE: `MicrophoneManager.stopRecording`. So input
+    /// monitoring and `MultiTrackRecorder` could each raise the route and NEVER lower it — turn
+    /// monitoring off and the whole system stayed on `.playAndRecord`, which is what pulls every
+    /// OTHER app's Bluetooth headset down to the HFP mono call codec (see
+    /// `configureAudioSession`'s doc: that downgrade is the single thing this file exists to
+    /// avoid). Meanwhile the one downgrade that DID exist was unconditional, so stopping the mic
+    /// recorder yanked the route out from under live monitoring.
+    ///
+    /// A refcount was considered and rejected: `AudioEngine.setInputMonitoring` has two failure
+    /// paths that return AFTER the upgrade, and an unbalanced increment on either leaks the
+    /// route forever with no way to notice. A set is idempotent in both directions — a double
+    /// claim and a double release are both harmless — which is what makes the failure paths
+    /// safe to write as a plain release.
+    enum RecordRouteOwner: String, CaseIterable, Sendable {
+        case inputMonitoring
+        case microphoneManager
+        case multiTrackRecorder
+    }
+
+    /// `nonisolated(unsafe)` for the same reason — and with the same honest caveat — as
+    /// `isSessionConfigured` and `recordingRouteNeeded` above: every real caller is
+    /// `@MainActor`, but two of `MicrophoneManager`'s permission callbacks land in a
+    /// `DispatchQueue.main.async` closure that Swift 6 does not treat as isolated, and adding
+    /// `@MainActor` here would change their isolation rather than this file's behaviour.
+    nonisolated(unsafe) private static var recordRouteOwners: Set<RecordRouteOwner> = []
+
+    /// Register `owner` as needing the mic and raise the shared session to `.playAndRecord`.
+    ///
+    /// The registration happens BEFORE the upgrade can throw, deliberately: over-holding the
+    /// route costs other apps their A2DP codec, while under-holding it cuts a live recording.
+    /// Of the two, the first is the recoverable one.
+    static func claimRecordRoute(_ owner: RecordRouteOwner) throws {
+        recordRouteOwners.insert(owner)
+        try upgradeToPlayAndRecord()
+    }
+
+    /// Drop `owner`'s claim and, only when NOBODY is left holding the mic, return the shared
+    /// session to `.playback`. Safe to call when `owner` never claimed.
+    /// - Returns: `true` when this call actually lowered the route.
+    @discardableResult
+    static func releaseRecordRoute(_ owner: RecordRouteOwner) throws -> Bool {
+        recordRouteOwners.remove(owner)
+        guard recordRouteOwners.isEmpty else { return false }
+        try downgradeToPlaybackAfterRecording()
+        return true
+    }
+
+    /// Read-only view for tests and diagnostics.
+    static var recordRouteHolders: Set<RecordRouteOwner> { recordRouteOwners }
+
     /// Upgrade audio session from .playback to .playAndRecord when the user actually
     /// records or monitors the mic. No-op if already using .playAndRecord.
+    ///
+    /// ⚠️ PREFER `claimRecordRoute(_:)`. Calling this directly raises the route with no owner,
+    /// so the next release by anyone else lowers it again. That is correct ONLY where the
+    /// upgrade is speculative — `MicrophoneManager.requestPermission`, which upgrades on the
+    /// permission grant itself, before any recording exists to own it.
     static func upgradeToPlayAndRecord() throws {
         #if os(macOS)
         return
@@ -197,6 +257,10 @@ enum AudioConfiguration {
     /// default category and clears `recordingRouteNeeded` so a later latency
     /// reconfigure stays on `.playback`. No-op on macOS / unconfigured / already
     /// `.playback`. The playback options mirror `configureAudioSession` exactly.
+    ///
+    /// ⚠️ PREFER `releaseRecordRoute(_:)`. This method is unconditional — it lowers the route
+    /// even if another feature is still reading the mic, which is exactly how stopping the mic
+    /// recorder used to cut live input monitoring (#299).
     static func downgradeToPlaybackAfterRecording() throws {
         #if os(macOS)
         return

@@ -1293,12 +1293,20 @@ public final class AudioEngine {
             // apps' Bluetooth audio to HFP call quality. Monitoring reads the mic,
             // so upgrade to .playAndRecord first — otherwise inputNode reports
             // sampleRate 0 and the format guard below bails.
-            do { try AudioConfiguration.upgradeToPlayAndRecord() }
+            // #299: CLAIM, don't just upgrade. Before this, monitoring raised the route and
+            // nothing ever lowered it — switching monitoring off left the whole system on
+            // `.playAndRecord`, i.e. every other app's Bluetooth headset stuck on the HFP mono
+            // call codec until Echoel was killed.
+            do { try AudioConfiguration.claimRecordRoute(.inputMonitoring) }
             catch { log.audio("Input monitoring: session upgrade failed (\(error))", level: .error) }
             let input = masterEngine.inputNode
             let inFmt = input.inputFormat(forBus: 0)
             guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else {
                 log.audio("Input monitoring: no valid input format (mic permission?)", level: .error)
+                // The claim is already registered — hand it back on the way out, or a denied
+                // mic permission leaves the route raised for the rest of the session. This is
+                // the failure path that made a refcount unsafe; with a set it is one line.
+                try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
                 return false
             }
             let wasRunning = masterEngine.isRunning
@@ -1316,6 +1324,7 @@ public final class AudioEngine {
                 catch {
                     log.audio("Input monitoring: engine restart failed (\(error))", level: .error)
                     masterEngine.disconnectNodeOutput(monitorMixer)
+                    try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)   // #299
                     return false
                 }
             }
@@ -1329,6 +1338,11 @@ public final class AudioEngine {
             masterEngine.disconnectNodeOutput(monitorMixer)
             isInputMonitoring = false
             feedbackGuardActive = false
+            // #299: the missing half. Monitoring off returns the route — but only if no
+            // recorder still holds it, which is why this goes through the owner set instead of
+            // calling `downgradeToPlaybackAfterRecording` directly.
+            do { try AudioConfiguration.releaseRecordRoute(.inputMonitoring) }
+            catch { log.audio("Input monitoring: session downgrade failed (\(error))", level: .warning) }
             log.audio("Input monitoring OFF")
             return true
         }

@@ -195,7 +195,10 @@ final class MicrophoneManager: NSObject {
             if !AudioConfiguration.isSessionConfigured {
                 try AudioConfiguration.configureAudioSession()
             }
-            try AudioConfiguration.upgradeToPlayAndRecord()
+            // #299: claim the route as an OWNER. The stop side used to lower it
+            // unconditionally, which cut live input monitoring; now the route only comes down
+            // when this recorder is the last holder.
+            try AudioConfiguration.claimRecordRoute(.microphoneManager)
             #endif
 
             // Create and configure the audio engine
@@ -276,9 +279,13 @@ final class MicrophoneManager: NSObject {
         // the old `setActive(false)` here tore it down under the master and cut ALL
         // app audio ("alles still" class, #22). The symmetric inverse of the
         // start-side `upgradeToPlayAndRecord` keeps output alive + restores A2DP.
+        //
+        // #299: released as an OWNER, not lowered outright. This unconditional downgrade was
+        // the one place that DID return the route — and because it was unconditional it also
+        // yanked it away from input monitoring running at the same time.
         #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
         do {
-            try AudioConfiguration.downgradeToPlaybackAfterRecording()
+            try AudioConfiguration.releaseRecordRoute(.microphoneManager)
         } catch {
             log.audio("Failed to downgrade audio session after recording: \(error.localizedDescription)", level: .warning)
         }

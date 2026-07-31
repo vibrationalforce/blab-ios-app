@@ -126,7 +126,10 @@ public final class MultiTrackRecorder {
         // audio to HFP). Recording needs the input hardware — upgrade to
         // .playAndRecord now, BEFORE reading inputNode's format (under .playback it
         // reports sampleRate 0 and the guard below would bail).
-        do { try AudioConfiguration.upgradeToPlayAndRecord() }
+        // #299: CLAIM. Nothing here ever lowered the route again — a single take left the
+        // whole system on `.playAndRecord`, and with it every other app's Bluetooth headset on
+        // the HFP mono call codec, for the rest of the app's life.
+        do { try AudioConfiguration.claimRecordRoute(.multiTrackRecorder) }
         catch { log.log(.error, category: .audio, "MultiTrackRecorder: session upgrade failed \(error)") }
         #endif
 
@@ -135,6 +138,9 @@ public final class MultiTrackRecorder {
         guard format.sampleRate > 0, format.channelCount > 0 else {
             lastError = .engineNotReady
             log.log(.error, category: .audio, "MultiTrackRecorder: invalid input format")
+            #if os(iOS)
+            try? AudioConfiguration.releaseRecordRoute(.multiTrackRecorder)   // #299 failure path
+            #endif
             return
         }
 
@@ -176,6 +182,9 @@ public final class MultiTrackRecorder {
         } catch {
             lastError = .fileCreationFailed
             log.log(.error, category: .audio, "MultiTrackRecorder: failed to start — \(error.localizedDescription)")
+            #if os(iOS)
+            try? AudioConfiguration.releaseRecordRoute(.multiTrackRecorder)   // #299 failure path
+            #endif
         }
     }
 
@@ -194,6 +203,13 @@ public final class MultiTrackRecorder {
         let closedFile = activeFile.pointee
         activeFile.pointee = nil
         isRecording = false
+
+        // #299: hand the mic back. This method never did — a take left the shared session on
+        // `.playAndRecord` forever. Released as an OWNER so a running input monitor keeps it.
+        #if os(iOS)
+        do { try AudioConfiguration.releaseRecordRoute(.multiTrackRecorder) }
+        catch { log.log(.error, category: .audio, "MultiTrackRecorder: session downgrade failed \(error)") }
+        #endif
 
         if let url = currentURL {
             trackURLs.append(url)
