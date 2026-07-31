@@ -288,6 +288,10 @@ struct EchoelStudioView: View {
     @State private var moodAsName = ""
     @State private var showSavePatchAs = false
     @State private var patchSaveName = ""
+    /// #320 — what the player typed into the Sound panel's "Describe it" row. Held only
+    /// until it is applied; NOT persisted, because it is an instruction, not a setting —
+    /// the patch it produced is the state worth keeping.
+    @State private var soundPromptText = ""
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @AppStorage("studio.presetIndex") private var presetIndex = -1
 
@@ -4050,6 +4054,7 @@ struct EchoelStudioView: View {
     private var soundPanel: some View {
         panel("Sound & texture", "Shape the timbre — exact to 0.0001", isExpanded: $showSound) {
             presetRow
+            promptRow
             randomizeButton
 
             // Every parameter is a scrubbable numeric value, one per row with its unit
@@ -4454,6 +4459,123 @@ struct EchoelStudioView: View {
                 .accessibilityLabel("Sound actions")
             }
         }
+    }
+
+    /// #320 — THE DOOR TO `SoundPrompt`, a finished "word → sound" capability that had ZERO
+    /// production callers and a file header claiming an editor that called it.
+    ///
+    /// Text, not a number, so a plain `TextField` is correct — the `EchoelValueField` law is
+    /// explicitly about NUMERIC parameters (the same reasoning as the manual-place field in the
+    /// Session panel, and as the `Shape` / `Noise colour` pickers in the Tone group).
+    ///
+    /// ⭐ WHY THIS IS A ROW AND NOT A SHEET. `EchoelStudioView.body` carries 14 presentation
+    /// modifiers and sits at the SwiftUI metadata-decoder limit (the 10.76.34 black screen).
+    /// A prompt box needs no modal: it edits the patch every other row in this panel already
+    /// edits, so it belongs beside them.
+    ///
+    /// ⚠️ THE CHIPS ARE NOT SELF-EVIDENTLY SAFE, so say what actually holds them up. They are
+    /// `SoundPrompt.suggestions` verbatim, and `apply` drops out-of-vocabulary words SILENTLY
+    /// (an unknown word must never garble a patch). Four of the eight shipped phrases already
+    /// contain such a word — "pluck", "lead", "bell", "cinematic" — which is harmless only
+    /// because the rest of each phrase still resolves. A phrase where NOTHING resolved would be
+    /// a chip that does nothing at all when tapped: `SoundPromptHasADoorTests` is what forbids
+    /// that, not the fact that the list is curated. The hint line below is the other half —
+    /// it names what WILL be used, so a dropped word is visible rather than mysterious.
+    private var promptRow: some View {
+        labeledRow("Describe it") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    TextField("warm lush pad", text: $soundPromptText)
+                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .onSubmit { applySoundPrompt() }
+                        .padding(.horizontal, 12).frame(height: 34)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        .accessibilityLabel("Describe the sound in words")
+
+                    Button { applySoundPrompt() } label: {
+                        Text("Shape").font(EchoelTheme.font(13, .semibold))
+                            .foregroundStyle(promptTerms.isEmpty ? EchoelTheme.dim : EchoelTheme.text)
+                            .padding(.horizontal, 14).frame(height: 34)
+                            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(promptTerms.isEmpty)
+                    .accessibilityLabel("Shape the sound from the description")
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(SoundPrompt.suggestions, id: \.self) { phrase in
+                            Button {
+                                soundPromptText = phrase
+                                applySoundPrompt()
+                            } label: {
+                                Text(phrase).font(EchoelTheme.font(12))
+                                    .foregroundStyle(EchoelTheme.text)
+                                    .padding(.horizontal, 10).frame(height: 28)
+                                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 1)   // so the 1 pt border is not clipped by the scroll view
+                }
+
+                Text(promptHint)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// The words in the box the mapper actually understands. Cheap (a lowercase split over a
+    /// short string) and read only inside this panel's own rows, so it cannot churn the root
+    /// body — the freeze law is about HIGH-FREQUENCY publishers, not about computed reads.
+    private var promptTerms: [String] { SoundPrompt.recognizedTerms(in: soundPromptText) }
+
+    /// States only what WILL be used, so a word the mapper drops is visible BEFORE the player
+    /// wonders why nothing moved. `apply` ignores out-of-vocabulary words silently by design
+    /// (an unknown word must never garble a patch), and four of the eight shipped chips contain
+    /// one — this line is what keeps that from reading as a broken control. A `String` computed
+    /// outside the builder rather than a ternary inside `Text(…)`: same result, and this file's
+    /// type-checker budget is not somewhere to be casual.
+    private var promptHint: String {
+        if promptTerms.isEmpty {
+            return "Words like warm · bright · plucky · pad · evolving · huge shape the timbre from where it is now. \"very\" / \"slightly\" scale the next word."
+        }
+        return "Shapes: " + promptTerms.joined(separator: " · ")
+    }
+
+    /// Shape the CURRENT patch by the typed description, then push it to the voice.
+    ///
+    /// ⚠️ TWO CONSEQUENCES NAMED RATHER THAN HIDDEN.
+    /// 1. `applySoundLive()`, NOT `applyArticulation()`. The Swell↔Strike macro WRITES
+    ///    attack/decay/sustain/release; calling it here would erase exactly what "plucky" or
+    ///    "pad" just set. So after a prompt that touched the envelope, that macro's displayed
+    ///    value no longer describes the envelope — the same desync that hand-editing the
+    ///    Attack row has always produced (the rows are documented as "editable for
+    ///    fine-tuning"). Touching the macro again overwrites, deliberately.
+    /// 2. `presetIndex` is left alone, exactly as `randomizeButton` leaves it. The persisted key
+    ///    has exactly ONE read in this file — `.onAppear`, where it chooses the starting patch —
+    ///    so writing it here would change nothing NOW and only alter what the next appearance
+    ///    restores. Neither value restores the prompted sound (`currentPatch` is not persisted),
+    ///    so clearing it would trade "you come back to the factory sound you started from" for
+    ///    "you come back to the genre patch" — no gain, one more moving part. "Save as new
+    ///    sound…" is how a prompted timbre is actually kept.
+    ///
+    /// Relative, not absolute: `apply` shifts the patch it is given, so prompting twice keeps
+    /// going in that direction. That is what makes the clamps in `SoundPrompt.clamp` load-
+    /// bearing rather than defensive.
+    private func applySoundPrompt() {
+        guard !promptTerms.isEmpty else { return }   // no recognised word = no silent no-op
+        currentPatch = SoundPrompt.apply(soundPromptText, to: currentPatch)
+        applySoundLive()
     }
 
     /// Load a patch from the library into the live sound. Keeps `presetIndex` in

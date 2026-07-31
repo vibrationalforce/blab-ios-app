@@ -3,10 +3,27 @@
 // deterministic, private — fits meditation). A curated vocabulary of sound
 // descriptors + intensity modifiers maps natural words onto SynthPatch
 // parameters (character, filter, envelope, space). Pure value logic so the
-// mapping is unit-tested; the editor calls `apply` and offers `suggestions`.
+// mapping is unit-tested.
 //
 // Example: "very warm lush pad" → darker/rounder timbre, more reverb, slow
 // attack + long release. Unknown words are ignored (never throws, never garbles).
+//
+// ⭐ THE DOOR (#320): `EchoelStudioView.promptRow` — the "Describe it" row in
+// `soundPanel`, behind the Sound chip. It renders `suggestions` as chips and calls
+// `apply` on the live patch. `Tests/CISmoke/SoundPromptHasADoorTests.swift` pins
+// that, because this file spent a month claiming a door it did not have:
+//
+// ⛔ The line that stood here said "the editor calls `apply` and offers
+// `suggestions`", and `git grep SoundPrompt -- Sources` returned nothing but
+// comment lines in `EchoelDDSP.swift`. The obvious suspect was `PatchEditorView`
+// (doorless since the 2026-07-02 Tools-grid removal, deleted by #132 Slice 6) —
+// but that is NOT what happened: its last revision contains zero occurrences of
+// "SoundPrompt" or even "prompt" (`git show 8d31c21^:…/PatchEditorView.swift`).
+// So this was not a door that rotted. **It was a caller that was never written**,
+// described in the present tense on the day the file landed. That is the worse
+// failure of the two: a rotted door leaves a grep trail, an imagined one leaves the
+// capability reading as WIRED to every session that opens the file — which is
+// exactly why nobody re-doored it. A header that names a caller must be checkable.
 
 import Foundation
 
