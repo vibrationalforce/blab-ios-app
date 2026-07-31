@@ -58,10 +58,10 @@ final class UnisonRowDefaultsTests: XCTestCase {
     func testTheNamedTimbreChoicesAreMountedAsPickers() throws {
         let body = try soundPanelBody()
         for binding in ["spectralShapeBinding", "noiseColorBinding"] {
-            XCTAssertTrue(body.contains { $0.contains(binding) },
-                          "\(binding) is no longer used inside `soundPanel`. "
-                          + "`PatchEditorView` is deleted (#132 Slice 6), so that row is the "
-                          + "only way to choose the value.")
+            XCTAssertTrue(body.contains { $0.contains(binding) }, """
+            \(binding) is no longer used inside `soundPanel`. `PatchEditorView` is deleted \
+            (#132 Slice 6), so that row is the only way to choose the value.
+            """)
         }
         XCTAssertEqual(body.filter { $0.contains(".pickerStyle(.menu)") }.count, 2,
                        "the Sound panel no longer holds exactly two menu Pickers. These choices "

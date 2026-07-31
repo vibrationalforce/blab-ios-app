@@ -93,7 +93,8 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
      Sources/Echoelmusic/Sequencer/MoodPreset.swift`; it said 8 for six weeks after the set
      grew, so cite the command, not the number — favorites/recents, App-Group JSON, community loop with seeded
      `Aurora Calm` + triage). Mood panel has the full preset bar. CI-verified (`MoodPresetTests`).
-   - ✅ **Sound & texture** — DONE, and this line was stale for weeks: `soundPanel`'s `presetRow`
+   - ✅ **Sound & texture** — DONE, and this line was stale (for how long is not checkable in a
+     shallow clone, so no duration is claimed): `soundPanel`'s `presetRow`
      already loads `patchStore.sortedPatches` (favorites first) plus `CommunityLibrary.patches`,
      and offers favourite / save / save-as / delete / submit. The "deep `PatchEditorView`" it was
      told to match is DELETED (#132 Slice 6, 2026-07-31) — it was a doorless duplicate, and the

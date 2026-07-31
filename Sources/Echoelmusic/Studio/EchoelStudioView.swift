@@ -491,10 +491,12 @@ struct EchoelStudioView: View {
     // surface covers auditioning a sound, so the keyboard was not ported. Recorded here as a
     // call MADE, so the next reader does not re-open it as an unknown.
     // Its OTHER half — the preset bar (load · favourite · save · save-as · delete · submit) —
-    // was never missing from `soundPanel`; `presetRow` has held all six the whole time. That
-    // was true by accident of history until the deletion, so `SoundPanelPresetBarTests` now
-    // pins it: those six are the reason the deletion cost nothing, and there is no duplicate
-    // left to fall back on if one of them is dropped.
+    // is NOT missing from `soundPanel`: `presetRow` holds all six today. (⛔ This note first
+    // said "has held all six the whole time". Unverifiable here — the working clone is SHALLOW,
+    // grafted at 24e9420, so `git log -S` on those call sites returns only the graft commit.
+    // The checkable claim is the present-tense one; that history is not in the repo.) Nothing
+    // pinned it until now, so `SoundPanelPresetBarTests` does: those six are why the deletion
+    // cost nothing, and there is no duplicate left to fall back on if one is dropped.
     /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
     /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
     /// roll it imported into has no door any more either. Kept as a reusable slot on the
