@@ -28,6 +28,18 @@ import Accelerate
 
 /// EchoelModalBank — Physics-Constrained Modal Resonator Bank Synthesizer
 /// Models vibrating objects as a bank of exponentially decaying sinusoidal modes
+///
+/// ⚠️ THE `@unchecked Sendable` CONTRACT — write it down or the next adopter inherits a
+/// promise nobody made. This class has ~10 public mutable `var`s (`frequency`, `amplitude`,
+/// `stiffness`, `damping`, `size`, `brightness`, `strikePosition`, `strikeVelocity`,
+/// `material`, …) and NO lock. The opt-out was earned by its only owner,
+/// `DrumRenderState` (itself `@unchecked Sendable`), which confined every instance to a
+/// SINGLE render thread. #167 deleted that owner, so today `Sources/` instantiates this
+/// class **nowhere** — it is test-only, and cannot race anything.
+/// **The contract any future adopter must satisfy: confine one instance to one thread.**
+/// Mutating it from two isolation domains is a data race the compiler has been told not to
+/// check. If a future owner cannot promise that, narrow this to an actor or add a lock
+/// rather than inheriting the opt-out silently.
 public final class EchoelModalBank: @unchecked Sendable {
 
     // MARK: - Configuration
@@ -88,9 +100,11 @@ public final class EchoelModalBank: @unchecked Sendable {
     /// nearly every note. Without the guard, each of those assignments ran the full
     /// `applyMaterial` (mode loop + normalisation) in the render block for a material that
     /// had not changed. Both files were DELETED with #167 (founder 2026-07-27, no drums).
-    /// The guard STAYS: `material` is a plain settable property on a render-path type, so
-    /// the next render-side assigner inherits the same hazard — do not read the absence of
-    /// today's caller as licence to drop it.
+    /// The guard STAYS, and be exact about why: `Sources/` instantiates this class NOWHERE
+    /// today (it is test-only), so the guard is DORMANT, not load-bearing. It is kept because
+    /// `material` is still a plain settable property and the next render-side assigner
+    /// inherits the identical hazard — do not read the absence of today's caller as licence
+    /// to drop it, and do not read its presence as proof something is calling it.
     ///
     /// Skipping the re-apply is inaudible under ONE PRECONDITION, which is not automatic:
     /// the mode arrays must still hold this preset's values. `configureModes` derives them
@@ -226,9 +240,13 @@ public final class EchoelModalBank: @unchecked Sendable {
     /// Membrane mode ratios for `.drum` (Bessel-function zeros): 1.00, 1.59, 2.14, 2.30,
     /// 2.65, 2.92, 3.16, 3.50, …
     ///
-    /// Hoisted out of `applyMaterial`'s `.drum` branch because that branch can run on the
+    /// Hoisted out of `applyMaterial`'s `.drum` branch because that branch COULD run on the
     /// AUDIO THREAD (`DrumRenderState.applyPendingRequests` → `material` didSet), where an
     /// array literal is a heap allocation. Same fix, same reason as `EchoelDDSP.formantBands`.
+    /// ⛔ That caller was deleted with #167 (founder 2026-07-27) — the `static let` stays for
+    /// the same reason the `material` equality guard does: it costs nothing and the hazard
+    /// returns with the next render-side adopter. Present tense here would send a session
+    /// looking for `Sequencer/DrumSynthVoice.swift`, which no longer exists.
     /// Read-only; indexing a stored array allocates nothing.
     private static let drumRatios: [Float] = [
         1.000, 1.593, 2.136, 2.296, 2.653, 2.917, 3.156, 3.500,

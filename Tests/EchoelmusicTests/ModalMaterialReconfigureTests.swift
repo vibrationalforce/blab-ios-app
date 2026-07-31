@@ -5,9 +5,12 @@
 // assigned `material` FROM THE RENDER BLOCK on every config-version bump, and
 // `LaneDrumKitVoice.noteOn` bumped that version whenever a pitch mapped to different drum
 // params — so a melodic tom/perc line reconfigured on nearly every note. Both types were
-// DELETED with #167 (founder 2026-07-27). The CONTRACT they pin is a property of
-// `EchoelModalBank` itself and outlives them — `material` is still settable from a render
-// path, so these tests stay as the guard's specification for its next assigner.
+// DELETED with #167 (founder 2026-07-27). Be exact about what is left: `Sources/` does not
+// instantiate `EchoelModalBank` ANYWHERE today, so there is no render path holding a bank —
+// an earlier version of this header said `material` "is still settable from a render path",
+// which was false. `material` remains a plain settable property on a render-CAPABLE type, so
+// these tests stay as the guard's specification for its next assigner, not as coverage of a
+// live path.
 // Two things make such an assignment allocation-free, and both are invisible at the call site:
 // the didSet skips `applyMaterial` when the preset is unchanged, and the `.drum` mode-ratio
 // table is a `static let` instead of a per-call array literal.

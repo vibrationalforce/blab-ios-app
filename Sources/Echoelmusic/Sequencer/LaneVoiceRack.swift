@@ -23,15 +23,23 @@
 // class changes meaning. Flag OFF ⇒ zero kind units ⇒ the allocator resolves every
 // slot to `.poly(slot)` ⇒ bit-identical to the S2-W1 rack.
 //
-// Guarded AVFoundation+Accelerate since S2-W2-3 (the kind units live behind
-// Accelerate; every Apple platform has both, non-Apple CI compiles out
-// either way) — the gate is the Xcode compile check + on-device verification.
+// Guarded AVFoundation+Accelerate since S2-W2-3 (every Apple platform has both, non-Apple CI
+// compiles out either way) — the gate is the Xcode compile check + on-device verification.
+// ⛔ The Accelerate half was justified by "the kind units live behind Accelerate", and the
+// Accelerate-dependent unit was exactly `LaneDrumKitVoice` → `DrumSynthVoice` →
+// `EchoelModalBank`. #167 deleted all three, so that rationale no longer holds and the guard
+// may now be wider than it needs to be. NOT narrowed here: narrowing a platform guard is a
+// compile-shape change and this slice is a deletion — it belongs in its own verified slice.
 //
 // ⛔ THE DRUM KIT IS GONE (#167, founder 2026-07-27 "erstmal gar nicht mehr rein"). It was
 // already unreachable — `attachAll` stopped creating one with #166 — so `kits` was a
-// permanently empty array feeding switch arms that could not run. What is left of the drums
-// here is exactly one thing: `LaneVoiceKind.drums` still EXISTS as a persisted rawValue and
-// now resolves to `.poly` through the allocator's fallback. Do not remove that too.
+// permanently empty array feeding switch arms that could not run.
+// What keeps a lane persisted as drums AUDIBLE is NOT this file: `TrackInstrument.drums
+// .voiceKind` already returns `.poly` (`LaneVoiceKind.swift`), and `MultiRollFanout` is the
+// only production producer feeding `setKind` — so `LaneVoiceKind.drums` never reaches the
+// allocator in production at all. The allocator's `.drums` → `.poly` fallback is
+// belt-and-braces for any other producer. Both still matter: `LaneVoiceKind.drums` and
+// `TrackInstrument.drums` are persisted rawValues and removing either discards the lane.
 
 #if canImport(AVFoundation) && canImport(Accelerate)
 import Foundation
@@ -349,8 +357,11 @@ public final class LaneVoiceRack {
         }
     }
 
-    /// Pure poly→MIDI velocity mapping for the kit path (0…1 Float → 0…127;
-    /// non-finite → 0 BEFORE clamping so NaN can't slip through min/max).
+    /// Pure poly→MIDI velocity mapping (0…1 Float → 0…127; non-finite → 0 BEFORE
+    /// clamping so NaN can't slip through min/max).
+    /// ⛔ Its one production caller was the `.drums` `noteOn` arm, deleted with #167 —
+    /// today only tests call it. Kept because the NaN-before-clamp order is the #176 law
+    /// and any future MIDI-velocity path should reuse it rather than re-derive it.
     internal static func midiVelocity(_ velocity: Float) -> Int {
         Int((Swift.max(0, Swift.min(1, velocity.isFinite ? velocity : 0)) * 127).rounded())
     }
