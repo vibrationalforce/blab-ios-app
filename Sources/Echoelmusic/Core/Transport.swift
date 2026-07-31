@@ -143,9 +143,12 @@ public final class Transport {
     /// The clamp is NaN-safe: `Swift.min(Swift.max(bpm, lo), hi)` — the form this used
     /// to have — passes NaN through BOTH clamps, because every comparison against NaN
     /// is false. This type owns no timer, so a NaN here does not stop anything by
-    /// itself; it poisons the value every subscriber and readout mirrors. (The timer
-    /// lives in `PatternEngine`, which computes `60.0 / tempo / 4.0` and is clamped
-    /// the same way for that harder reason.)
+    /// itself; it poisons the value every subscriber and readout mirrors. (The timer lives in
+    /// `PatternEngine`, which is clamped the same way for that harder reason. ⛔ This
+    /// parenthesis used to add "which computes `60.0 / tempo / 4.0`" — false since #300's
+    /// Nachlese 2, which routed all three of its sites through `stepDuration(atTempo:)`
+    /// twenty lines above. The commit that made the claim false edited this same file and
+    /// missed its own twin sentence.)
     public func setTempo(_ bpm: Double) {
         let clamped = bpm.clamped(to: Self.minTempo...Self.maxTempo)
         let moved = clamped != tempo

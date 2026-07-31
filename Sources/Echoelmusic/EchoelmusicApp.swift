@@ -647,13 +647,22 @@ struct EchoelmusicApp: App {
                     // of Echoel for the whole take. See `Transport.stepDuration(atTempo:)`.
                     //
                     // ⚠️ THE DELAY IS COMPUTED FROM `transport.tempo`, THE SEQUENCER WAITS ON
-                    // ITS OWN `tempo` — and they are equal only because nothing else writes
-                    // either. Checked rather than assumed (#300 Nachlese): `Transport.setTempo`
-                    // has exactly SIX callers and all six are `PatternEngine` relaying its own
-                    // clamped value, the relay in `setTempo` sits BEFORE the no-change early
-                    // return, and `PatternEngine.defaultTempo` IS `Transport.defaultTempo`. If a
-                    // second writer to `Transport.setTempo` ever appears, this line silently
-                    // starts computing the wrong delay — read the engine's tempo then.
+                    // ITS OWN `tempo`. Checked rather than assumed (#300 Nachlese):
+                    // `grep -rn "setTempo(" Sources/` → exactly SIX production callers of
+                    // `Transport.setTempo`, all `PatternEngine` relaying its own clamped value;
+                    // the relay in `setTempo` sits BEFORE the no-change early return; and
+                    // `PatternEngine.defaultTempo` IS `Transport.defaultTempo`. (Say "production"
+                    // and give the command: tests call `Transport.setTempo` directly, so a
+                    // whole-repo grep returns ~20 hits and cannot reproduce "six".)
+                    //
+                    // TWO ways this line starts computing the wrong delay, not one. A second
+                    // writer to `Transport.setTempo` is the obvious one. The other is ORDER:
+                    // `pattern.transport` is nil until it is wired a few lines above, and any
+                    // `PatternEngine.setTempo` before that moves the engine without reaching
+                    // Transport — permanently, since the relay re-syncs only on the NEXT call.
+                    // Nothing does that today (every writer is a UI or bio path that runs after
+                    // wiring), so it is latent, not a bug. Read the engine's tempo if either
+                    // condition breaks.
                     midiOut.startClock(bpm: transport.tempo,
                                        startingIn: Transport.stepDuration(atTempo: transport.tempo))
                 }

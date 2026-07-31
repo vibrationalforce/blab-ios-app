@@ -244,10 +244,20 @@ public final class MIDIOutput {
     /// the shape is worth remembering: `setClockTempo` re-armed from `lastPulseAt`, which is
     /// nil until the FIRST pulse has gone out — and its `else` branch fell back to one
     /// `interval`. But the pre-first-pulse deadline is not an interval, it is the DOWNBEAT
-    /// (`startClock`'s `startingIn`, a whole step). So a tempo relay landing in that window
-    /// — reachable, `PatternEngine.advance` relays at step rate — silently pulled Start
-    /// forward from ~125 ms to ~21 ms and reintroduced the very offset the slice removes.
-    /// Keeping the absolute deadline makes the re-arm phase-preserving in BOTH windows.
+    /// (`startClock`'s `startingIn`, a whole step). A tempo change landing in that window
+    /// silently pulled Start forward from ~125 ms to ~21 ms and reintroduced the very offset
+    /// the slice removes. Keeping the absolute deadline makes the re-arm phase-preserving in
+    /// BOTH windows.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS FIX NAMED THE WRONG TRIGGER — "reachable,
+    /// `PatternEngine.advance` relays at step rate". `advance()` CANNOT land in this window,
+    /// and the ordering that proves it is two lines of `PatternEngine.play()`: it calls
+    /// `transport?.play()` FIRST (which arms this clock at `now_a + step`) and arms its own
+    /// first tick only afterwards, at `now_b + step` with `now_b > now_a`. Same delay, later
+    /// capture ⇒ the first pulse always precedes the first `advance()`, so `lastPulseAt` is
+    /// non-nil by then. The window is genuinely reachable, just by DIRECT tempo writes inside
+    /// the first 16th — tap tempo, a preset load, the lock field. Same fix, honest trigger:
+    /// a justification that a future session can disprove is a fix it will delete.
     @ObservationIgnored private var nextPulseAt: DispatchTime?
 
     /// Start (0xFA) is owed but not yet sent — it goes out from the FIRST pulse, not from
@@ -289,6 +299,7 @@ public final class MIDIOutput {
             isSendingClock = true
         }
         lastPulseAt = nil                      // fresh phase; the first pulse anchors it
+        nextPulseAt = nil                      // …and no stale deadline survives the re-arm
         armClockTimer(interval: interval, firstAfter: Swift.max(0, delay))
         log.log(.info, category: .system, "MIDI CLOCK: on (\(bpm) bpm, 24 ppqn)")
     }
@@ -338,7 +349,14 @@ public final class MIDIOutput {
         // Distance to the next pulse. If that moment has already passed (a big slow-down, or
         // a stall), fire immediately rather than scheduling into the past — compared with
         // `>` rather than subtracted, because `uptimeNanoseconds` is unsigned and a past
-        // deadline would wrap to ~584 years.
+        // deadline would wrap to ~584 years (2^64 ns).
+        //
+        // Precise about WHERE that matters, since the first version implied it rescued the
+        // running branch: in the `lastPulseAt` branch the old `&-` was already harmless —
+        // `Swift.max(0, interval - elapsed)` clamped the wrapped result to 0, i.e. "fire now",
+        // which is the right answer anyway. The branch that genuinely needs the guard is the
+        // NEW pre-first-pulse one below: it has no `max(0, …)`, so an already-passed downbeat
+        // would otherwise be scheduled 584 years out.
         let nowNs = DispatchTime.now().uptimeNanoseconds
         let next: TimeInterval
         if let last = lastPulseAt {
@@ -354,6 +372,9 @@ public final class MIDIOutput {
                 ? Double(pending.uptimeNanoseconds - nowNs) / 1e9
                 : 0
         } else {
+            // Unreachable in production — `isSendingClock` is true, so either a pulse has
+            // fired (branch 1) or a deadline is armed (branch 2). Kept as the correct safe
+            // default, and said out loud so nobody "simplifies" three branches back to two.
             next = interval
         }
         armClockTimer(interval: interval, firstAfter: next)

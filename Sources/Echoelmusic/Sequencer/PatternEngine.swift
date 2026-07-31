@@ -273,10 +273,17 @@ public final class PatternEngine {
     /// Set tempo in BPM. Values outside [minTempo, maxTempo] are clamped.
     /// If the engine is playing, the timer restarts at the new interval.
     public func setTempo(_ bpm: Double) {
-        // NaN-safe: THIS is the type that computes the step interval
-        // (`Transport.stepDuration(atTempo:)`, fed to `swingGap`), so a NaN landing here does not
-        // mis-time the sequencer — it silences it. (`DispatchTime + NaN` saturates to
-        // `Int64.max`, so a tick is technically scheduled and then never fires.)
+        // NaN-safe, and this clamp is the FIRST of two guards, not the only one.
+        // ⛔ What stood here said "a NaN landing here silences the sequencer, because
+        // `DispatchTime + NaN` saturates to `Int64.max`". That was true of the INLINE
+        // `60.0 / tempo / 4.0` this line used to feed. It is false of what it feeds now:
+        // `Transport.stepDuration(atTempo:)` clamps its argument with the NaN-safe
+        // `clamped(to:)` first, so a NaN there yields the slowest legal step (0.5 s at 30 bpm),
+        // never an undefined deadline — `testStepDurationIsAlwaysSchedulable` pins exactly that.
+        // The correct statement: NEITHER outcome is reachable, because this clamp already
+        // turns a NaN into `minTempo` before the tempo is stored. A comment that names a
+        // function and then states the opposite of what it does is one substitution away from
+        // a session "restoring" the inline formula to get the behaviour the comment promises.
         // `Swift.min(Swift.max(bpm, lo), hi)` passes NaN through both clamps.
         // The live entry is the persisted `studio.lockedBPM` (an AppStorage Double);
         // parameter automation cannot deliver NaN — `AutomationTarget.value(forNormalized:)`

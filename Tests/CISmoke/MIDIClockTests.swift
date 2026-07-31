@@ -298,9 +298,14 @@ final class MIDIClockTests: XCTestCase {
     /// ⭐ THERE ARE TWO PHASES, AND THE FIRST FIX ONLY PRESERVED ONE. Between `startClock`
     /// and the first pulse, `lastPulseAt` is nil and the armed deadline is the DOWNBEAT —
     /// a whole step out, not one pulse. The first version of the Nachlese fell back to
-    /// `interval` in that window, so any tempo relay landing there (and `PatternEngine.advance`
-    /// relays at step rate) pulled Start from ~125 ms back to ~21 ms and re-created the exact
-    /// offset the slice had just removed. This is the guard for the window, not the run.
+    /// `interval` in that window, pulling Start from ~125 ms back to ~21 ms and re-creating
+    /// the exact offset the slice had just removed. This is the guard for the window.
+    ///
+    /// ⛔ It first justified itself with "`PatternEngine.advance` relays at step rate, so the
+    /// window is reachable" — false: `play()` arms this clock BEFORE it arms its own first
+    /// tick with the same delay, so the first pulse always precedes the first `advance()`.
+    /// The window is reached by DIRECT tempo writes inside the first 16th (tap tempo, preset
+    /// load, the lock field). The guard is right; only its stated trigger was wrong.
     func testTempoChangeBeforeTheFirstPulseKeepsTheDownbeat() throws {
         let out = try codeLines("Sources/Echoelmusic/Audio/MIDIOutput.swift").joined(separator: "\n")
         let reArm = slice(of: out, from: "public func setClockTempo(", to: "\n    }")
@@ -323,20 +328,31 @@ final class MIDIClockTests: XCTestCase {
         let out = try codeLines("Sources/Echoelmusic/Audio/MIDIOutput.swift").joined(separator: "\n")
         let stop = slice(of: out, from: "public func stopClock() {", to: "\n    }")
         XCTAssertFalse(stop.isEmpty, "`stopClock` is gone from MIDIOutput.swift")
-        XCTAssertTrue(stop.contains("pendingStart"), """
-        `stopClock` no longer looks at whether a Start was still owed. Stopping inside the \
-        first step then emits a Stop for a run the receiver was never told about.
-        """)
+        // ⛔ ONE assertion, not two. The first version also checked `stop.contains("pendingStart")`
+        // — which the PRE-fix `stopClock` already satisfied (it cleared the flag), so that half
+        // could not redden and only made the guard LOOK doubly strong.
         XCTAssertTrue(stop.contains("if !startWasOwed { sendRealTime(.stop) }"), """
         `stopClock` sends Stop unconditionally again. Spec-legal, and exactly wrong for the \
-        one receiver that matters here: one already running under a different master.
+        one receiver that matters here: one already running under a different master. The \
+        invariant that makes the suppression safe is that `pendingStart == true` implies ZERO \
+        pulses have gone out — `emitPulse` clears it before the very first Clock byte — so a \
+        receiver that was actually started can never have its Stop swallowed.
         """)
     }
 
-    /// ⭐ ONE FORMULA. `Transport.stepDuration` only prevents drift if nothing else still
-    /// computes the step itself — and when it landed, THREE private copies survived in
-    /// `PatternEngine` alone (`play`, the `setTempo` re-arm, `advance`'s next gap).
-    func testTheStepFormulaExistsExactlyOnce() throws {
+    /// ⭐ NO PRIVATE COPY OF THE STEP FORMULA IN THE THREE FILES THAT USED TO HAVE ONE.
+    /// `Transport.stepDuration` only prevents drift if nothing else still computes the step
+    /// itself — and when it landed, THREE private copies survived in `PatternEngine` alone
+    /// (`play`, the `setTempo` re-arm, `advance`'s next gap).
+    ///
+    /// ⚠️ Two limits, stated rather than implied by the name. (1) It cannot verify "exactly
+    /// once": the ONE real copy lives in `Transport.stepDuration` itself, spelled
+    /// `60.0 / bpm.clamped(to:…) / Double(stepsPerBeat)`, and that file is deliberately not in
+    /// the loop. (2) It matches one exact spelling — `60/tempo/4` or an unspaced variant would
+    /// slip through. It is a regression guard for the three known sites, not a proof of
+    /// uniqueness. (The `//`-strip in `codeLines` does NOT weaken it: the surviving mentions
+    /// are comment lines and are removed, while a reverted `let base = …` is a code line.)
+    func testNoPrivateCopyOfTheStepFormulaSurvives() throws {
         for path in ["Sources/Echoelmusic/Sequencer/PatternEngine.swift",
                      "Sources/Echoelmusic/Audio/MIDIOutput.swift",
                      "Sources/Echoelmusic/EchoelmusicApp.swift"] {
@@ -349,9 +365,15 @@ final class MIDIClockTests: XCTestCase {
         }
     }
 
-    /// The runtime half of the same claim: with swing off — every shipping path today (#278) —
-    /// the gap the sequencer waits IS one `stepDuration`. Asserted rather than assumed,
-    /// because the consolidation above replaced the sequencer's own arithmetic with the helper.
+    /// With swing off — every shipping path today (#278) — the gap the sequencer waits IS one
+    /// `stepDuration`. That identity is what the MIDI clock's one-step Start delay rests on.
+    ///
+    /// ⚠️ THIS DOES NOT GUARD THE CONSOLIDATION, and its first doc comment said it did. It
+    /// never touches `play` / `setTempo` / `advance`, so restoring a private
+    /// `60.0 / tempo / 4.0` at those three sites leaves it green — that is the test above.
+    /// What it DOES pin is the swing-gap law itself: it reddens the day a non-zero default
+    /// swing appears or the even/odd shaping changes, either of which would silently move
+    /// Start off the downbeat with nothing else reporting it.
     func testTheSequencerGapWithoutSwingIsOneStepDuration() {
         for bpm in [60.0, 120.0, 174.0, Transport.minTempo, Transport.maxTempo] {
             let base = Transport.stepDuration(atTempo: bpm)
