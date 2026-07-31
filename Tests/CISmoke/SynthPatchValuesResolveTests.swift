@@ -55,20 +55,30 @@ final class SynthPatchValuesResolveTests: XCTestCase {
         }
     }
 
-    /// The property the Sound panel's canonicalising getters exist for. If the shipped strings
-    /// were ever normalised to the enum's own spelling this test would go green trivially and
-    /// could be deleted — but until then it is the reason a `Picker` cannot bind to the raw
-    /// field, and stating it as an assertion stops that reason from being forgotten and the
-    /// bindings from being "simplified" away.
-    func testTheShippedSpellingsDoNotAllMatchTheEnumExactly() {
-        let exact = Set(EchoelDDSP.SpectralShape.allCases.map(\.rawValue))
-        let mismatched = shippedPatches.filter { !exact.contains($0.patch.spectralShape) }
-        XCTAssertFalse(mismatched.isEmpty,
-                       "every shipped patch now spells its spectralShape exactly as the enum "
-                       + "does. That is an improvement — but the Sound panel's canonicalising "
-                       + "bindings were justified by this mismatch, so either keep them with an "
-                       + "updated reason (a hand-edited or older saved patch can still differ) "
-                       + "or retire them deliberately. Do not let the justification rot.")
+    /// The property the Sound panel's canonicalising getters exist for, pinned where it CANNOT
+    /// rot: `SynthPatch`'s own defaults.
+    ///
+    /// ⛔ THE FIRST VERSION ASSERTED THIS OVER THE SHIPPED ROSTER — "not every patch spells it
+    /// exactly" — and that was a trap with a false premise. Review caught both halves. Normalising
+    /// the roster's literals would be a legitimate cleanup, and it would have reddened the
+    /// BLOCKING bundle with a message inviting someone to retire bindings that are still
+    /// load-bearing. Load-bearing because the lowercase lives in the type's API, not the roster:
+    /// `init`'s default parameter (`spectralShape: String = "dark"`) — which is what
+    /// `SynthPatch(name: "Init")`, this view's starting patch, gets — and the decoder's
+    /// `decodeIfPresent(...) ?? "dark"` for every older save. Normalise every literal in the app
+    /// and a default-constructed patch STILL needs canonicalising before a Picker can show it.
+    func testADefaultPatchDoesNotSpellItsValuesTheWayTheEnumDoes() {
+        let probe = SynthPatch(name: "probe")
+        let shapes = Set(EchoelDDSP.SpectralShape.allCases.map(\.rawValue))
+        let colours = Set(EchoelDDSP.NoiseColor.allCases.map(\.rawValue))
+        XCTAssertFalse(shapes.contains(probe.spectralShape),
+                       "a default-constructed SynthPatch now spells spectralShape "
+                       + "\"\(probe.spectralShape)\" exactly as the enum does. Good — but the "
+                       + "Sound panel's canonicalising bindings were justified by this "
+                       + "mismatch. Update their reason (older saves still decode to the old "
+                       + "spelling) rather than deleting them, and update this test with them.")
+        XCTAssertFalse(colours.contains(probe.noiseColor),
+                       "same for noiseColor \"\(probe.noiseColor)\".")
     }
 
     /// And the mechanism the whole scheme rests on. If `match` ever became case-SENSITIVE, the

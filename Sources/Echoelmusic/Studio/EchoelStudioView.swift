@@ -444,7 +444,11 @@ struct EchoelStudioView: View {
     // #121, Slice 4), so "opened from the lane-head doors" no longer describes anything.
     // ⚠ CORRECTED AGAIN 2026-07-26: the piano roll's door is gone for good (founder:
     // "Pianoroll soll raus"), and the one-slot `craftEditor` sheet went with it — the
-    // chain is 15 modifiers, not 16. `PianoRollModel` is NOT part of that removal; it
+    // chain is 14 modifiers (8 sheet + 2 fullScreenCover + 3 alert + 1 fileImporter), the
+    // count CLAUDE.md carries. ⛔ This said "15, not 16" and was stale by one after the
+    // sample-browser sheet went with #167 — on the ONE number that governs the black-screen
+    // law, where believing in headroom that does not exist is how the SIGSEGV comes back.
+    // `PianoRollModel` is NOT part of that removal; it
     // is the note engine behind every generated take. AudioClip / AUv3 /
     // Broadcast are deliberately NOT coming back (docs/dev/PRODUCT_DEFINITION.md CUT
     // column names all three); the automation editors are gone because Slice 4d
@@ -468,8 +472,13 @@ struct EchoelStudioView: View {
     // Tone group above, canonicalising through the enum (see `spectralShapeBinding`).
     //
     // STILL REACHABLE ONLY FROM `PatchEditorView.swift`, and therefore STILL BLOCKING:
-    //   · `outputLevel` — its "Output" row (`levelBinding`); the only writer of the field in
-    //     `Sources/`, and the engine applies it (`synth.patchOutputLevel`).
+    //   · `outputLevel` — its "Output" row (`levelBinding`); the only USER-FACING writer of the
+    //     field, and the engine applies it (`synth.patchOutputLevel`).
+    //     ⛔ "the only writer in `Sources/`" is what this said first, and it is false —
+    //     `SynthPatch.loudnessNormalized()` writes it for every factory patch. The bullet even
+    //     contradicted itself three lines down, where the auto-calibration is the reason the
+    //     port is a founder call. A reviewer who greps `outputLevel`, finds the second writer
+    //     and concludes this bullet is stale is one step from the deletion it exists to stop.
     //   · the preview keyboard — the play surface arguably covers this one; a judgement call,
     //     not a grep result.
     // `outputLevel` is deliberately NOT ported: a manual output trim sits against
@@ -3884,9 +3893,17 @@ struct EchoelStudioView: View {
     }
 
     /// #286 — CANONICALISING BINDINGS, and without them the ported pickers would be BLANK for
-    /// every sound in the app.
+    /// every FACTORY preset, for the `Init` default this view starts on, and for every patch
+    /// decoded from an older save.
     ///
-    /// `SynthPatch.spectralShape` / `.noiseColor` are `String`s, and the shipped values are
+    /// ⛔ The first version of this line said "blank for every sound in the app", which is too
+    /// wide by more than half: all 33 `GenrePatches` entries spell their values exactly as the
+    /// enum does ("Dark", "Pink") and would have displayed correctly. What is lowercase is
+    /// `SynthPatch.rawFactory`, the `init` default parameters (`spectralShape: String = "dark"`)
+    /// and the decoder's `decodeIfPresent(...) ?? "dark"` fallback — which is also why these
+    /// bindings stay necessary even if the roster were ever normalised.
+    ///
+    /// `SynthPatch.spectralShape` / `.noiseColor` are `String`s, and those values are
     /// lowercase ("dark", "pink") while the enum rawValues the picker lists are capitalised
     /// ("Dark", "Pink"). The engine does not care — `SynthPatch.match` compares
     /// case-INsensitively, which is why those patches sound correct today. A SwiftUI `Picker`

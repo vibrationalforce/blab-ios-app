@@ -39,18 +39,41 @@ final class UnisonRowDefaultsTests: XCTestCase {
     /// NUMERIC parameters, and CLAUDE.md warns in the same paragraph against "restoring" a
     /// named choice to a number field in the name of that law. Asserting the picker keeps
     /// anyone from doing it here.
+    /// ⛔ THREE WRONG-REASON RISKS IN THE FIRST VERSION, all found in review, all avoided here:
+    /// it scanned the WHOLE 6000-line file (so moving the row into a doorless helper would
+    /// still pass, while the failure text claimed it was gone from the Sound panel — the exact
+    /// "a slot proves nothing about reachability" trap CLAUDE.md warns about); it required the
+    /// title and the binding on ONE line, so a reflow would redden the blocking gate; and it
+    /// pinned the display string "Noise colour", so a US-spelling fix would fail as a deletion.
+    /// This version scopes to `soundPanel`'s own body and matches only the binding names, which
+    /// are code, not copy.
     func testTheNamedTimbreChoicesAreMountedAsPickers() throws {
-        let studio = try codeLines(Self.studio)
-        for (title, binding) in [("Spectral shape", "spectralShapeBinding"),
-                                 ("Noise colour", "noiseColorBinding")] {
-            XCTAssertTrue(studio.contains { $0.contains("Picker(\"\(title)\"")
-                                         && $0.contains(binding) },
-                          "the \(title) row is gone from the Sound panel, or is no longer a "
-                          + "Picker. `PatchEditorView` is doorless and queued for deletion "
-                          + "(#132 Slice 6), so this row is the only way to choose the value — "
-                          + "and the choice has NAMES, so a numeric field would be the wrong "
-                          + "control even if it reached the same field.")
+        let body = try soundPanelBody()
+        for binding in ["spectralShapeBinding", "noiseColorBinding"] {
+            XCTAssertTrue(body.contains { $0.contains(binding) },
+                          "\(binding) is no longer used inside `soundPanel`. "
+                          + "`PatchEditorView` is doorless and queued for deletion (#132 Slice "
+                          + "6), so that row is the only way to choose the value.")
         }
+        XCTAssertEqual(body.filter { $0.contains(".pickerStyle(.menu)") }.count, 2,
+                       "the Sound panel no longer holds exactly two menu Pickers. These choices "
+                       + "have NAMES, so an `EchoelValueField` would be the wrong control even "
+                       + "though it could reach the same field — CLAUDE.md says so in the same "
+                       + "paragraph as the numeric law.")
+    }
+
+    /// The lines of `soundPanel`'s body: from its declaration to the next member declaration.
+    /// Scoping matters — see the note above. Comments are already dropped, so the ⛔ prose
+    /// inside the panel cannot shift the boundary or satisfy a match.
+    private func soundPanelBody() throws -> [String] {
+        let lines = try codeLines(Self.studio)
+        guard let start = lines.firstIndex(where: { $0.contains("private var soundPanel") }) else {
+            XCTFail("`soundPanel` is gone from \(Self.studio) — that is the live patch editor "
+                    + "(the Sound chip's panel). If it was renamed, move this guard with it.")
+            return []
+        }
+        let end = lines[(start + 1)...].firstIndex { $0.hasPrefix("    private ") } ?? lines.endIndex
+        return Array(lines[start..<end])
     }
 
     /// ⛔ THE OTHER HALF OF "the readout agrees with the ear", found in review AFTER the first
