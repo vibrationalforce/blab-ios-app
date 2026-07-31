@@ -38,9 +38,25 @@ public struct TuningReference: Sendable, Equatable, Codable {
     }
 }
 
-/// Two-decimal display formatting for production values (BPM, Hz, ms).
+/// ⛔ NOT FOR DISPLAY ANY MORE (#232 G / #267). Both members are TEST-ONLY as of this
+/// commit — `git grep "Precision\.two\|Precision\.round2"` over `Sources/` returns nothing;
+/// the only callers left are `TuningReferenceTests`.
+///
+/// `two` was a second, older implementation of exactly what `Core/EchoelDecimalText` now
+/// does — its docstring even carried the same "no thousands grouping" reasoning — and it
+/// fed three rows of `EchoelFXView`, the same sheet that hosts four `EchoelValueField`s. So
+/// that one sheet showed "0,50" and "0.50" one above the other for a German reader. Those
+/// three call sites now go through `EchoelDecimalText`.
+///
+/// ⚠️ IT IS KEPT, NOT DELETED, AND IT IS NOT MOVED. `EchoelDecimalText` lives in `Core/`,
+/// and this file is in `DSP/`, which by house rule must not depend on `Core/` types. So
+/// `Precision` cannot simply be rewritten to delegate — the honest resolution is either to
+/// move the type into `Core/` or to delete it once the tests are re-pointed, and neither is
+/// this slice. **Do not add a new display caller in the meantime**: it would print an
+/// ASCII point beside a field that prints a comma.
 public enum Precision {
     /// e.g. 120.00, 75.50, 440.00 — always two decimals, no thousands grouping.
+    /// ALWAYS an ASCII point, in every locale. That is why it is no longer used for display.
     public static func two(_ value: Double) -> String {
         String(format: "%.2f", value)
     }

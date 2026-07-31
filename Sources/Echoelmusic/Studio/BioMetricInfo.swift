@@ -229,7 +229,7 @@ struct BioMetricsGuideView: View {
                                     .font(EchoelTheme.font(13, .semibold))
                                     .foregroundStyle(EchoelTheme.accent)
                                 Spacer(minLength: 4)
-                                Text(amount.map { String(format: "%.2f", $0) } ?? "—")
+                                Text(amount.map { EchoelDecimalText.string($0, decimals: 2) } ?? "—")
                                     .font(EchoelTheme.font(11, .semibold).monospacedDigit())
                                     .foregroundStyle(amount == nil ? EchoelTheme.dim : EchoelTheme.accent)
                             }

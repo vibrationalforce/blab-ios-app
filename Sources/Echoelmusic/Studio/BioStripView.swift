@@ -424,10 +424,10 @@ struct BioStripView: View {
         // and doesn't bounce. Music still uses the honest bus HR internally; other sources
         // (BLE/HealthKit) and the pre-lock phase fall back to the bus value.
         if cameraRPPG.isRunning, cameraRPPG.displayBPM > 0 {
-            return String(format: "%.0f", cameraRPPG.displayBPM)
+            return EchoelDecimalText.string(cameraRPPG.displayBPM, decimals: 0)
         }
         guard let v = bus.latestBio?.heartRateBPM else { return "—" }
-        return String(format: "%.1f", v)
+        return EchoelDecimalText.string(v, decimals: 1)
     }
 
     /// Physiologically plausible RMSSD window (ms). Camera rPPG's beat-to-beat
@@ -448,7 +448,7 @@ struct BioStripView: View {
             // readings keep one decimal — there the digit carries real information.
             return String(format: bio.hrvRMSSDms < 10 ? "%.1f" : "%.0f", bio.hrvRMSSDms)
         }
-        if bio.hrvRMSSDms == 0 && bio.hrvNormalized > 0 { return String(format: "%.3f", bio.hrvNormalized) }
+        if bio.hrvRMSSDms == 0 && bio.hrvNormalized > 0 { return EchoelDecimalText.string(bio.hrvNormalized, decimals: 3) }
         return "—"
     }
 
@@ -468,7 +468,7 @@ struct BioStripView: View {
     /// only because `RespirationEstimator` clamps to 4…30, which sits inside this window.
     private var breathString: String {
         guard let bio = bus.latestBio, bio.hasMeasuredBreath else { return "—" }
-        return String(format: "%.1f", bio.breathRate)
+        return EchoelDecimalText.string(bio.breathRate, decimals: 1)
     }
 
     /// Coherence is real only on sources with beat-to-beat RR (BLE / camera);
@@ -477,7 +477,7 @@ struct BioStripView: View {
     /// would read as "incoherent" rather than "not yet / not available").
     private var coherenceString: String {
         guard let bio = bus.freshBio(), bio.coherence > 0 else { return "—" }
-        return String(format: "%.2f", bio.coherence)
+        return EchoelDecimalText.string(bio.coherence, decimals: 2)
     }
 
     private func sourceLabel(_ source: BioSource) -> String {

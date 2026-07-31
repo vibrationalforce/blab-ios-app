@@ -118,13 +118,13 @@ struct MasterLoudnessGrid: View {
 
     /// "—" while at the meter floor (silence); else one decimal.
     private func lufsText(_ v: Float) -> String {
-        v <= EchoelLoudnessMeter.floorLUFS + 1 ? "—" : String(format: "%.1f", v)
+        v <= EchoelLoudnessMeter.floorLUFS + 1 ? "—" : EchoelDecimalText.string(v, decimals: 1)
     }
     private func dbText(_ v: Float) -> String {
-        v <= EchoelMeter.floorDb + 1 ? "—" : String(format: "%.1f", v)
+        v <= EchoelMeter.floorDb + 1 ? "—" : EchoelDecimalText.string(v, decimals: 1)
     }
     private func lraText(_ v: Float) -> String {
-        v <= 0.05 ? "—" : String(format: "%.1f", v)
+        v <= 0.05 ? "—" : EchoelDecimalText.string(v, decimals: 1)
     }
 }
 #endif

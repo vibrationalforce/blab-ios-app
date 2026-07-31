@@ -107,7 +107,7 @@ struct PulseMonitorMini: View {
             }
             .frame(minWidth: 22, alignment: .leading)
             if let coh = coherence {
-                Text(String(format: "%.2f", coh))
+                Text(EchoelDecimalText.string(coh, decimals: 2))
                     .font(EchoelTheme.font(10)).monospacedDigit()
                     .foregroundStyle(EchoelTheme.dim)
             }
@@ -127,7 +127,7 @@ struct PulseMonitorMini: View {
         if showStatus, let status { return status.full }
         guard locked && bpm > 0 else { return "No pulse lock" }
         if let coh = coherence {
-            return "\(Int(bpm)) beats per minute, coherence \(String(format: "%.2f", coh))"
+            return "\(Int(bpm)) beats per minute, coherence \(EchoelDecimalText.string(coh, decimals: 2))"
         }
         return "\(Int(bpm)) beats per minute"
     }

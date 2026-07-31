@@ -140,8 +140,8 @@ struct MeditationView: View {
             if let s = lastSummary, s.sampleCount > 0 {
                 VStack(spacing: 10) {
                     statRow("Duration", timeString(s.durationSeconds))
-                    statRow("Avg coherence", String(format: "%.2f", s.avgCoherence))
-                    statRow("Peak coherence", String(format: "%.2f", s.peakCoherence))
+                    statRow("Avg coherence", EchoelDecimalText.string(s.avgCoherence, decimals: 2))
+                    statRow("Peak coherence", EchoelDecimalText.string(s.peakCoherence, decimals: 2))
                     if s.avgHeartRate > 0 { statRow("Avg heart rate", "\(Int(s.avgHeartRate.rounded())) bpm") }
                 }
                 .padding(14)
@@ -176,11 +176,16 @@ struct MeditationView: View {
             Spacer()
             if abs(trend) >= 0.01 {
                 let up = trend > 0
-                Label(String(format: "%+.2f coherence", trend),
+                // `%+.2f` had no direct equivalent: `EchoelDecimalText` deliberately does not
+                // own the sign (see its header — a localized minus renders and then fails to
+                // parse, so signs stay the caller's business). The "+" is added here and only
+                // for the positive branch; a negative number already carries its own "-".
+                Label("\(up ? "+" : "")\(EchoelDecimalText.string(trend, decimals: 2)) coherence",
                       systemImage: up ? "arrow.up.right" : "arrow.down.right")
                     .font(EchoelTheme.font(12, .medium))
                     .foregroundStyle(up ? EchoelTheme.accent : EchoelTheme.dim)
-                    .accessibilityLabel(String(format: "coherence trend %@ %.2f", up ? "up" : "down", abs(trend)))
+                    .accessibilityLabel("coherence trend \(up ? "up" : "down") "
+                                        + EchoelDecimalText.string(abs(trend), decimals: 2))
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 8)

@@ -224,7 +224,7 @@ struct LiveColaboView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Session from \(from)")
                 .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-            Text("\(project.name) · \(project.style.displayName) · \(project.key.shortName) · \(String(format: "%.0f", project.bpm)) BPM")
+            Text("\(project.name) · \(project.style.displayName) · \(project.key.shortName) · \(EchoelDecimalText.string(project.bpm, decimals: 0)) BPM")
                 .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
@@ -308,7 +308,7 @@ private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool
         Text(name).font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             .lineLimit(1)
         Spacer(minLength: 8)
-        Text(bpm > 0 ? String(format: "%.0f bpm", bpm) : "— bpm")
+        Text(bpm > 0 ? "\(EchoelDecimalText.string(bpm, decimals: 0)) bpm" : "— bpm")
             .font(EchoelTheme.font(13, .medium).monospacedDigit())
             .foregroundStyle(EchoelTheme.text)
         Text(coherence > 0 ? String(format: "coh %.2f", coherence) : "coh —")
@@ -318,6 +318,6 @@ private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool
     .padding(.vertical, 6).padding(.horizontal, 10)
     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("\(name): \(bpm > 0 ? "\(Int(bpm)) beats per minute" : "no pulse yet"), coherence \(coherence > 0 ? String(format: "%.2f", coherence) : "not available")")
+    .accessibilityLabel("\(name): \(bpm > 0 ? "\(Int(bpm)) beats per minute" : "no pulse yet"), coherence \(coherence > 0 ? EchoelDecimalText.string(coherence, decimals: 2) : "not available")")
 }
 #endif

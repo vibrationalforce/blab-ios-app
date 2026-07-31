@@ -229,7 +229,7 @@ private struct SessionPaceLeaf: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.5)) { _ in
             VStack(spacing: 6) {
-                Text(String(format: "%.1f", session.currentPaceBpm))
+                Text(EchoelDecimalText.string(session.currentPaceBpm, decimals: 1))
                     .font(EchoelTheme.font(56, .semibold))
                     .foregroundStyle(EchoelTheme.text)
                     .monospacedDigit()

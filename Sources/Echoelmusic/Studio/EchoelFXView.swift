@@ -757,14 +757,14 @@ struct EchoelFXView: View {
                 } label: {
                     switch kind {
                     case .hertz:
-                        Text("\(opt.label)  ·  \(Precision.two(opt.hertz(bpm: vm.bpm))) Hz")
+                        Text("\(opt.label)  ·  \(EchoelDecimalText.string(opt.hertz(bpm: vm.bpm), decimals: 2)) Hz")
                     case .seconds:
-                        Text("\(opt.label)  ·  \(Precision.two(opt.milliseconds(bpm: vm.bpm))) ms")
+                        Text("\(opt.label)  ·  \(EchoelDecimalText.string(opt.milliseconds(bpm: vm.bpm), decimals: 2)) ms")
                     }
                 }
             }
         } label: {
-            Label("Sync · \(Precision.two(vm.bpm)) BPM", systemImage: "metronome")
+            Label("Sync · \(EchoelDecimalText.string(vm.bpm, decimals: 2)) BPM", systemImage: "metronome")
                 .font(EchoelTheme.font(12, .semibold))
                 .foregroundStyle(EchoelTheme.accent)
         }

@@ -4387,7 +4387,7 @@ struct EchoelStudioView: View {
                         Button { open(p); showOpen = false } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(p.name).font(.callout.weight(.medium)).foregroundStyle(EchoelTheme.text)
-                                Text("\(p.style.displayName) · \(p.key.shortName) · \(String(format: "%.0f", p.bpm)) BPM")
+                                Text("\(p.style.displayName) · \(p.key.shortName) · \(EchoelDecimalText.string(p.bpm, decimals: 0)) BPM")
                                     .font(.caption).foregroundStyle(EchoelTheme.dim)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
