@@ -57,26 +57,28 @@
 
 import Foundation
 
-//  WHAT STILL PRINTS A POINT — corrected, because the shipping commit's own "deliberately
-//  incomplete" disclosure got the split backwards and would have made the follow-up slice
-//  look half its size. `git grep -n 'String(format: "%\.[0-9]*f' -- Sources` returns 35
-//  MATCHES but only 32 code lines (one breadcrumb carries three, one hit is a comment):
+//  WHAT STILL PRINTS A POINT — and this paragraph is now a RECORD, not a to-do list. It was
+//  a to-do list for exactly one commit; #267 finished the sweep, and leaving it in the
+//  imperative would have handed the next reader work that is already done.
 //
-//  · 9 are logs, diagnostics or FILENAMES and must stay ASCII — `SessionNaming`,
-//    `EchoelCrashLog`, `CameraCapture`, `VideoRecorder`, `AudioConfiguration`,
-//    `SingleExport`, the `EchoelStudioView` generate-breadcrumb. A comma there is a defect.
-//  · 23 are user-visible READOUTS and should follow: `BioStripView` (5), `BodyTempoField`
-//    (4 — DONE, see that file), `MasterLoudnessGrid` (3), `LiveColaboView` (3),
-//    `HeaderMonitors` (2), `MeditationView` (2), `SessionView`, `BioMetricInfo`,
-//    `EchoelStudioView:4390`, `TuningReference`.
+//  ⛔ AND THE GREP IT WAS BUILT ON WAS THE WRONG GREP. `String(format: "%\.[0-9]*f'` only
+//  matches a LITERAL format string, so it could not see `String(format: cond ? "%.1f" :
+//  "%.0f", x)` — which is precisely how `BioStripView`'s RMSSD line survived a sweep that
+//  converted the line directly below it, and how five more display sites survived
+//  (`LiveColaboView`'s visible coherence three lines under its converted VoiceOver label,
+//  two in `MeditationView`, one in `BreathGuideView`, and `EchoelFXView.signed`). **Use
+//  `git grep -n 'String(format:' -- Sources/` — the narrow pattern is not sufficient.**
 //
-//  So "most are correctly untouched" was false — most are displays. And one of them is not
-//  a call site but a RIVAL: `Precision.two` (`DSP/TuningReference.swift`) is a second,
-//  older two-decimal display helper whose own docstring says "no thousands grouping" — i.e.
-//  an independent implementation of this file. It feeds three rows of `EchoelFXView`, the
-//  same sheet that hosts four `EchoelValueField`s, so that sheet currently shows "0,50" and
-//  "0.50" one above the other. The follow-up slice has to RECONCILE the two, not just sweep
-//  call sites. (#267)
+//  As of #267 no user-visible readout formats its own decimals. What deliberately still
+//  uses `printf` and must keep an ASCII point:
+//  · logs / diagnostics / breadcrumbs — `EchoelCrashLog`, `CameraCapture`, `CameraAnalyzer`,
+//    `VideoRecorder`, `AudioConfiguration`, `SingleExport`, `RenderGapDetector`,
+//    `ExternalDisplayScene`, the `EchoelStudioView` generate-breadcrumb.
+//  · FILENAMES — `SessionNaming`. A comma there is corruption, not a nicer number, and
+//    `Tests/CISmoke/FilenameNumbersStayASCIITests` pins it against this file.
+//  · `%d` forms (bar.beat.sixteenth, mm:ss) — integers carry no decimal separator.
+//  · `Precision.two` (`DSP/TuningReference.swift`) and `HRVCoherence.headline` — the first
+//    is test-only, the second has zero consumers. Both are documented where they live.
 //
 
 /// Locale-aware fixed-point number text for the one parameter control.
@@ -101,6 +103,27 @@ public enum EchoelDecimalText {
     /// caller should be guarding at its own boundary (`FloatingPointClamp`).
     public static func string(_ value: Double, decimals: Int, locale: Locale = .current) -> String {
         localized(String(format: "%.\(Swift.max(0, decimals))f", value), locale)
+    }
+
+    /// ⛔ THE OVERLOAD THAT WAS MISSING, AND ITS ABSENCE BROKE BOTH BLOCKING GATES.
+    ///
+    /// `String(format: "%.1f", x)` accepts a `Float` — C varargs promote it silently — so the
+    /// 23 readouts this replaced compiled for years while typed `Float`. Swift does NOT widen
+    /// `Float` to `Double` at a call site, so the first sweep produced 12 compile errors in
+    /// one commit. This repo's bio bus is `Float` end to end (`BioSampleFrame.heartRateBPM`,
+    /// `.hrvNormalized`, `.breathRate`, `.coherence`), as are the meters and
+    /// `BioSessionSummary`, so the next call site would have hit it again.
+    ///
+    /// WHY AN OVERLOAD AND NOT `Double(x)` AT EACH CALL: wrapping per site is a rule a human
+    /// has to remember, and the failure is a red gate every time they don't. Here it is the
+    /// type system's job. The concrete `Double` overload above still wins for literals and
+    /// for `.nan`/`.infinity`, so nothing becomes ambiguous.
+    ///
+    /// `Double(x)` from a `Float` is exact (widening), and it is the same promotion `printf`
+    /// performed — so every converted readout renders byte-identically in an ASCII locale.
+    public static func string<T: BinaryFloatingPoint>(_ value: T, decimals: Int,
+                                                      locale: Locale = .current) -> String {
+        string(Double(value), decimals: decimals, locale: locale)
     }
 
     /// Swap an ASCII-point string into the locale's reading. For display only.

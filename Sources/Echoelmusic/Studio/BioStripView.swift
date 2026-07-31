@@ -446,7 +446,12 @@ struct BioStripView: View {
             // narrowest surface in the app and the decimal was what pushed it into
             // "HRV 15.." truncation on small phones (founder video v173). Sub-10
             // readings keep one decimal — there the digit carries real information.
-            return String(format: bio.hrvRMSSDms < 10 ? "%.1f" : "%.0f", bio.hrvRMSSDms)
+            // The FORMAT is a ternary, not a literal — which is exactly why the #267 sweep
+            // missed this line while converting the one below it. A grep for
+            // `String(format: "%` structurally cannot see it, so the strip would have shown
+            // "HRV 8.4 ms" beside "coh 0,72". Use the same helper, choose the precision first.
+            return EchoelDecimalText.string(bio.hrvRMSSDms,
+                                            decimals: bio.hrvRMSSDms < 10 ? 1 : 0)
         }
         if bio.hrvRMSSDms == 0 && bio.hrvNormalized > 0 { return EchoelDecimalText.string(bio.hrvNormalized, decimals: 3) }
         return "—"

@@ -26,25 +26,39 @@ import XCTest
 
 final class FilenameNumbersStayASCIITests: XCTestCase {
 
-    /// The numbers that actually reach a filename: tempo (integral and fractional) and
-    /// concert pitch. `trimmed` is the one formatter on that path.
-    func testFilenameNumbersUseAnASCIIPointInEveryLocale() {
-        // A separator this app would render as "," / "٫" for a READOUT.
-        let commaLocales = ["de_DE", "fr_FR", "pt_BR", "ru_RU", "tr_TR", "sv_SE", "ar_EG"]
-        for id in commaLocales {
-            let sep = EchoelDecimalText.separator(Locale(identifier: id))
-            guard sep != "." else { continue }   // vacuous for a point locale, never false
+    /// The two formatters pinned AGAINST each other, on one explicit comma locale.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS TEST COULD NOT FAIL FOR THE BUG IT WAS WRITTEN TO CATCH,
+    /// and it looked like it could, which is worse than not existing. It looped over seven
+    /// locale identifiers and asserted against `SessionNaming.trimmed(_:)` — a function that
+    /// TAKES NO LOCALE. So if someone did the exact thing the header warns about and rewrote
+    /// `trimmed` to call `EchoelDecimalText.string(…)`, that call would use `locale:
+    /// .current`; no workflow in `.github/` sets `LANG`/`LC_ALL`, a macOS runner is en_US,
+    /// the output stays "442.42", and every assertion passes while the bug ships. The seven
+    /// identifiers manufactured an appearance of locale coverage that did not exist.
+    ///
+    /// This version pins the CONTRACT instead: the same number, through the two formatters,
+    /// must come out DIFFERENT — and the readout side names its locale explicitly, so it
+    /// cannot be neutralized by the runner's default. Merging the two implementations in
+    /// either direction now fails here.
+    func testTheTwoFormattersArePinnedToGoOppositeWays() {
+        let german = Locale(identifier: "de_DE")
+        XCTAssertEqual(EchoelDecimalText.separator(german), ",",
+                       "precondition: de_DE must read a comma, or the pin below proves nothing")
 
-            for value in [70.0, 123.5, 442.42, 432.0, 60.25] {
-                let stamped = SessionNaming.trimmed(value)
-                XCTAssertFalse(stamped.contains(sep),
-                               "\(id): \"\(stamped)\" carries \(sep) — a filename number must "
-                               + "stay ASCII. If this failed because someone routed "
-                               + "`SessionNaming.trimmed` through `EchoelDecimalText`, that is "
-                               + "the bug: readouts localize, filenames do not.")
-                XCTAssertFalse(stamped.contains(","),
-                               "\(id): \"\(stamped)\" carries a comma")
-            }
+        for value in [70.0, 123.5, 442.42, 60.25] {
+            let readout = EchoelDecimalText.string(value, decimals: 2, locale: german)
+            let filename = SessionNaming.trimmed(value)
+
+            XCTAssertTrue(readout.contains(","),
+                          "a German READOUT of \(value) must carry a comma, got \"\(readout)\"")
+            XCTAssertFalse(filename.contains(","),
+                           "\"\(filename)\" carries a comma. A filename number must stay ASCII: "
+                           + "it sorts differently, hosts and cloud syncs mangle it, and it "
+                           + "reads as corrupt beside yesterday's exports. If this failed "
+                           + "because `SessionNaming.trimmed` was routed through "
+                           + "`EchoelDecimalText`, THAT is the bug — readouts localize, "
+                           + "filenames do not.")
         }
     }
 

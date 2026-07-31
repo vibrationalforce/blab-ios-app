@@ -203,7 +203,7 @@ struct MeditationView: View {
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     Spacer()
                     Text(timeString(s.durationSeconds)).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
-                    Text(String(format: "coh %.2f", s.avgCoherence))
+                    Text(verbatim: "coh " + EchoelDecimalText.string(s.avgCoherence, decimals: 2))
                         .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.accent)
                         .frame(width: 72, alignment: .trailing)
                 }
@@ -230,7 +230,9 @@ struct MeditationView: View {
 
     private var coherenceReadout: some View {
         let c = bus.freshBio()?.coherence ?? 0
-        return Text(c > 0 ? String(format: "Coherence %.2f", c) : "Coherence —")
+        return Text(verbatim: c > 0
+                    ? "Coherence " + EchoelDecimalText.string(c, decimals: 2)
+                    : "Coherence —")
             .font(EchoelTheme.font(15, .semibold))
             .foregroundStyle(c > 0 ? EchoelTheme.accent : EchoelTheme.dim)
     }

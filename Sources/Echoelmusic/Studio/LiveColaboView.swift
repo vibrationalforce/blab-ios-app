@@ -311,7 +311,9 @@ private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool
         Text(bpm > 0 ? "\(EchoelDecimalText.string(bpm, decimals: 0)) bpm" : "— bpm")
             .font(EchoelTheme.font(13, .medium).monospacedDigit())
             .foregroundStyle(EchoelTheme.text)
-        Text(coherence > 0 ? String(format: "coh %.2f", coherence) : "coh —")
+        Text(verbatim: coherence > 0
+             ? "coh " + EchoelDecimalText.string(coherence, decimals: 2)
+             : "coh —")
             .font(EchoelTheme.font(12).monospacedDigit())
             .foregroundStyle(EchoelTheme.dim)
     }

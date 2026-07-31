@@ -947,7 +947,13 @@ private struct BioModContributionRow: View {
     private func signed(_ v: Float) -> String {
         let a = abs(v)
         let decimals = a >= 100 ? 0 : (a >= 10 ? 1 : 2)
-        return (v >= 0 ? "+" : "−") + String(format: "%.\(decimals)f", a)
+        // The bio-mod contribution row sits in the SAME sheet as the sync menu the #267
+        // sweep localized, so leaving it on a point printed "0,50 Hz" above "+0.30" — the
+        // exact side-by-side mismatch that sweep existed to remove.
+        //
+        // ⚠️ The "−" here is U+2212 and STAYS: this string is display-only and never parsed
+        // back (unlike `EchoelNumberPad`'s buffer, where an ASCII "-" is load-bearing).
+        return (v >= 0 ? "+" : "−") + EchoelDecimalText.string(a, decimals: decimals)
     }
 
     private var signalBar: some View {

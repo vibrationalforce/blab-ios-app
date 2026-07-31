@@ -48,12 +48,28 @@ public struct TuningReference: Sendable, Equatable, Codable {
 /// that one sheet showed "0,50" and "0.50" one above the other for a German reader. Those
 /// three call sites now go through `EchoelDecimalText`.
 ///
-/// ⚠️ IT IS KEPT, NOT DELETED, AND IT IS NOT MOVED. `EchoelDecimalText` lives in `Core/`,
-/// and this file is in `DSP/`, which by house rule must not depend on `Core/` types. So
-/// `Precision` cannot simply be rewritten to delegate — the honest resolution is either to
-/// move the type into `Core/` or to delete it once the tests are re-pointed, and neither is
-/// this slice. **Do not add a new display caller in the meantime**: it would print an
-/// ASCII point beside a field that prints a comma.
+/// ⚠️ IT IS KEPT, NOT DELETED, AND THE REASON HAS BEEN WRONG TWICE — first overstated, then
+/// overcorrected. Both versions are recorded here because each would misdirect a refactor.
+///
+/// 1. The first version said `DSP/` "by house rule must not depend on `Core/` types", stated
+///    as a hard constraint. It is real but WEAKER than that: `project.yml:179-180` — "DSP/
+///    stays Foundation-only by hygiene even though the isolated-AUv3-compile that mandated
+///    it is retired" (the AUv3 extension target was removed 2026-07-24). So it is hygiene
+///    with a dead rationale, not a compile boundary — `Package.swift` declares ONE target
+///    covering all of `Sources/Echoelmusic/`, and delegating here would compile fine.
+/// 2. The correction then swung to "there is no such rule", which is worse: the rule is
+///    written in `project.yml` and the founder's standing mandate repeats it verbatim
+///    ("DSP/-Dateien ohne Core/Sequencer-Typen"). Denying it would have made the next
+///    session tear out hygiene the founder asked for. That correction also claimed `DSP/`
+///    "already depends on `Core/` in fifteen files" — it is THREE (`EchoelDDSP`,
+///    `EchoelDelay`, `EchoelDelayLine`, 12 uses), and `clamped(to:)` is an extension on a
+///    stdlib protocol, not a `Core` TYPE, so it does not breach the rule as worded.
+///    Delegating to `EchoelDecimalText` — a `Core` enum — would be the first real breach.
+///
+/// The reason to keep it is smaller than either: deleting means re-pointing
+/// `TuningReferenceTests`, which is a different slice, and delegating would spend that first
+/// breach on a helper with zero display callers left. **Do not add a new display caller in
+/// the meantime** — it would print an ASCII point beside a field that prints a comma.
 public enum Precision {
     /// e.g. 120.00, 75.50, 440.00 — always two decimals, no thousands grouping.
     /// ALWAYS an ASCII point, in every locale. That is why it is no longer used for display.

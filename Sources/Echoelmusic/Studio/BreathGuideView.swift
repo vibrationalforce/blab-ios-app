@@ -115,7 +115,9 @@ struct BreathGuideView: View {
     private var coherenceReadout: some View {
         let c = bus.freshBio()?.coherence ?? 0
         return VStack(spacing: 4) {
-            Text(c > 0 ? String(format: "Coherence %.2f", c) : "Coherence —")
+            Text(verbatim: c > 0
+                 ? "Coherence " + EchoelDecimalText.string(c, decimals: 2)
+                 : "Coherence —")
                 .font(EchoelTheme.font(15, .semibold))
                 .foregroundStyle(c > 0 ? EchoelTheme.accent : EchoelTheme.dim)
             Text("Breathe with the circle. With a chest strap, watch coherence rise.")
