@@ -83,4 +83,56 @@ final class VisualLookTruthTests: XCTestCase {
                              "the default look sequence no longer spans a draggable range, so the "
                              + "look strip would render a label and nothing to drag")
     }
+
+    // MARK: - #269 — the "Detail" row's reach
+
+    /// THE FACT THAT MAKES THE CAPTION NECESSARY, and the one that would make it a lie if the
+    /// defaults ever change. `visual.detail` reaches the screen only through `fieldRings`, so
+    /// with the shipped defaults (primary style 5 = Aurora, styleB 0, blend 0) its reach is
+    /// exactly zero. If someone ships Rings as the default look, this test goes red and the
+    /// caption must be removed in the SAME commit — a caption saying "no visible effect" over
+    /// a row that now works is the same defect pointing the other way.
+    func testWithTheShippedDefaultsTheDetailRowCannotChangeThePicture() {
+        let reach = LookBlendMap.detailReach(style: StudioDefaultKeys.visualStyle.value,
+                                             styleB: StudioDefaultKeys.visualStyleB.value,
+                                             blend: StudioDefaultKeys.visualBlend.value)
+        XCTAssertEqual(reach, 0, accuracy: 1e-9,
+                       "the shipped defaults now DO give Detail a share of the picture — good "
+                       + "news, but the #269 caption in the Field panel is stale and must go")
+    }
+
+    /// And the predicate has to mirror the renderer, not approximate it: B is only evaluated
+    /// above the shader's own 0.001 blend threshold (`MetalBioView.swift:1650`), and below it
+    /// the A field IS the picture.
+    func testDetailReachMirrorsTheRenderersOwnBlendArithmetic() {
+        let rings = LookBlendMap.ringsStyleIndex
+        XCTAssertEqual(LookBlendMap.detailReach(style: rings, styleB: 5, blend: 0), 1, accuracy: 1e-9,
+                       "pure Rings ⇒ Detail shapes the whole picture")
+        XCTAssertEqual(LookBlendMap.detailReach(style: 5, styleB: rings, blend: 0), 0, accuracy: 1e-9,
+                       "Rings parked in the B slot at blend 0 is NOT on screen — the shader "
+                       + "skips the B field entirely below the threshold")
+        XCTAssertEqual(LookBlendMap.detailReach(style: 5, styleB: rings, blend: 0.25),
+                       0.25, accuracy: 1e-9, "a quarter-blend into Rings ⇒ a quarter of the reach")
+        XCTAssertEqual(LookBlendMap.detailReach(style: rings, styleB: 5, blend: 0.25),
+                       0.75, accuracy: 1e-9, "…and the complement when Rings is the A look")
+        XCTAssertEqual(LookBlendMap.detailReach(style: rings, styleB: rings, blend: 0.4),
+                       1, accuracy: 1e-9, "Rings on both sides is still the whole picture")
+        XCTAssertEqual(LookBlendMap.detailReach(style: 5, styleB: 7, blend: 0.5), 0, accuracy: 1e-9,
+                       "no Rings anywhere ⇒ no reach")
+    }
+
+    /// Edge cases: a corrupted persisted blend must not make the caption flicker or the
+    /// predicate return something outside 0…1.
+    func testDetailReachIsFiniteAndBoundedForAnyStoredBlend() {
+        for bad in [Double.nan, Double.infinity, -Double.infinity, -3, 42] {
+            let r = LookBlendMap.detailReach(style: LookBlendMap.ringsStyleIndex, styleB: 5, blend: bad)
+            XCTAssertTrue(r.isFinite, "reach must stay finite for a stored blend of \(bad)")
+            XCTAssertGreaterThanOrEqual(r, 0)
+            XCTAssertLessThanOrEqual(r, 1)
+        }
+        XCTAssertEqual(LookBlendMap.detailReach(style: LookBlendMap.ringsStyleIndex,
+                                                styleB: 5, blend: .nan),
+                       1, accuracy: 1e-9,
+                       "a NaN blend reads as 0 (no blending), so the A look is the whole picture")
+    }
 }

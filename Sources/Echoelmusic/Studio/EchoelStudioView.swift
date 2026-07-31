@@ -3436,6 +3436,17 @@ struct EchoelStudioView: View {
                              onChange: { visualPresetID = "" })
             EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
                              onChange: { visualPresetID = "" })
+            // #269 — Detail only reaches the screen through the Rings look, and Rings is not
+            // in the shipped look set. Say so instead of letting the row read as broken. NOT
+            // hidden and NOT disabled: the same call the Bass-rhythm row made — a control that
+            // disappears mid-performance is the worse failure — and the condition is a plain
+            // read of three user-set values, no live-bio churn.
+            if LookBlendMap.detailReach(style: visualStyle, styleB: visualStyleB,
+                                        blend: visualBlend) < 0.001 {
+                Text("Detail shapes the Rings look only, and Rings is not on screen right now — add it in the Look row above to see this row do something.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
                              onChange: { visualPresetID = "" })
             EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,

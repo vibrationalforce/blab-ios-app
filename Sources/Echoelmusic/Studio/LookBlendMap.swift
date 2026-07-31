@@ -42,6 +42,35 @@ enum LookBlendMap {
     /// The @AppStorage key both sliders read for the custom sequence.
     static let storageKey = "visual.sliderLooks"
 
+    /// Style index of the Rings look — the ONLY field function the shader hands `density`
+    /// (a.k.a. the "Detail" row) to. Named rather than spelled `0` at the three call sites,
+    /// because the number alone gives a reader no way to see why Detail is special.
+    static let ringsStyleIndex = 0
+
+    /// #269 — HOW MUCH OF THE PICTURE THE "Detail" ROW CAN ACTUALLY SHAPE, 0…1.
+    ///
+    /// `visual.detail` → `ringDensity` → the shader's `density`, and `styleField`
+    /// (`MetalBioView.swift:1591`) passes `density` to `fieldRings` and to no other field
+    /// function. So Detail only reaches the screen through whatever share of the rendered
+    /// field comes from Rings. With the shipped defaults — primary style 5 (Aurora),
+    /// styleB 0, blend 0 — that share is ZERO, and dragging Detail does nothing visible.
+    ///
+    /// This mirrors the renderer's own arithmetic rather than guessing at it:
+    /// `MetalBioView.swift:1650` evaluates the B field only above a 0.001 blend threshold
+    /// (below it `fb = fa`), and `:1653` mixes them with weight `blend`.
+    ///
+    /// It exists so the UI can say so honestly. It deliberately does NOT gate, disable or
+    /// hide the row: this repo has already decided (the Bass-rhythm row, A7's Evolve) that a
+    /// control which vanishes mid-performance is the worse failure. A caption is the fix.
+    static func detailReach(style: Int, styleB: Int, blend: Double) -> Double {
+        let b = blend.isFinite ? Swift.min(1, Swift.max(0, blend)) : 0
+        let blending = b > 0.001                      // the shader's own threshold
+        let aWeight = blending ? 1 - b : 1            // below the threshold, A is the picture
+        let bWeight = blending ? b : 0
+        return (style == ringsStyleIndex ? aWeight : 0)
+            + (styleB == ringsStyleIndex ? bWeight : 0)
+    }
+
     /// Display name for a style index (falls back gracefully for an unknown index).
     static func name(for index: Int) -> String {
         library.first { $0.index == index }?.name ?? "Look \(index)"
