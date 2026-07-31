@@ -210,39 +210,79 @@ public final class MIDIOutput {
     /// True while MIDI Clock is being emitted. Read-only; driven by the transport.
     public private(set) var isSendingClock = false
 
-    /// The clock pulse timer. Main-queue `DispatchSourceTimer`, same pattern as
-    /// `PatternEngine`'s step timer and `AudioEngine`'s meter poll.
+    /// The clock pulse timer. Main-queue `DispatchSourceTimer`, like `PatternEngine`'s step
+    /// timer and `AudioEngine`'s meter poll — but `repeating:`, where `PatternEngine`'s is
+    /// one-shot and re-schedules itself from `.now()` inside each `advance()`. That is a
+    /// real difference, not a detail: a self-rescheduling timer accumulates main-queue
+    /// latency as drift, a repeating one does not. So Echoel's own step grid and the clock
+    /// it exports drift apart over a long take, and nothing re-syncs them (no Song Position
+    /// Pointer, no re-Start). A tight rig should slave Echoel to hardware, not the reverse.
     ///
-    /// ⚠️ DELIBERATELY ITS OWN TIMER, NOT A DIVISION OF THE STEP TICK, and this is the whole
-    /// musical argument of the slice. `PatternEngine` ticks 16ths and applies SWING — it
-    /// lengthens the gap after an even step and shortens the next one. Deriving clock pulses
-    /// from that tick would export the swing as a TEMPO WOBBLE: a receiver reading 24 PPQN
-    /// interprets uneven pulses as the tempo speeding up and slowing down twice per beat, and
-    /// would swing everything downstream a second time on top of its own groove. Swing is
-    /// note PLACEMENT, not clock. So the clock runs on straight tempo alone.
+    /// ⚠️ ITS OWN TIMER, NOT A DIVISION OF THE STEP TICK. Two reasons hold unconditionally:
+    /// the step tick is 4 PPQ and 24 PPQN needs 6 sub-pulses per step regardless, and the
+    /// step gap is variable by design (`swingGap`, and the tempo glide moves it every tick).
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS COMMENT LEANED ON A THIRD REASON THAT IS INERT TODAY,
+    /// while calling it "the whole musical argument of the slice": that deriving pulses from
+    /// the step tick would export SWING as a tempo wobble. The mechanism is real
+    /// (`PatternEngine.swingGap` lengthens the gap after an even step), but `swing` is 0 in
+    /// every shipping path — it defaults to 0 and the one production caller of `setSwing` is
+    /// `EchoelStudioView`'s hardwired `setSwing(0)` (#278). So the wobble cannot occur in the
+    /// build that ships. Correct statement: deriving would work RIGHT NOW and break silently
+    /// the day swing returns. Kept as a reason, demoted from "the argument".
     @ObservationIgnored nonisolated(unsafe) private var clockTimer: DispatchSourceTimer?
+
+    /// Uptime of the last pulse that actually went out, so a tempo change can re-arm the
+    /// timer ON ITS EXISTING PHASE instead of restarting the interval from `.now()`.
+    /// See `setClockTempo` for why that distinction decides whether the headline feature
+    /// (a body-driven tempo) reaches the receiver as the tempo Echoel is playing.
+    @ObservationIgnored private var lastPulseAt: DispatchTime?
+
+    /// Start (0xFA) is owed but not yet sent — it goes out from the FIRST pulse, not from
+    /// the play edge. See `startClock(bpm:startingIn:)`.
+    @ObservationIgnored private var pendingStart = false
 
     /// Begin clock output at `bpm`: Start (0xFA) once, then Clock (0xF8) at 24 PPQN.
     /// No-op when MIDI out is not routed, or when a non-usable tempo is passed.
-    public func startClock(bpm: Double) {
+    ///
+    /// ⭐ `startingIn` IS WHAT MAKES THE FEATURE WORTH HAVING, AND THE FIRST VERSION OF THIS
+    /// SLICE DID NOT HAVE IT. `Transport.play()` fans out to its play subscribers
+    /// immediately, but `PatternEngine.play()` schedules its first `advance()` one whole
+    /// step later — so Echoel's own bar 1 SOUNDS one 16th after the play edge, deliberately
+    /// (`Transport.play()`'s comment explains why). A receiver puts its beat 1 on Start and
+    /// advances on clocks, so emitting Start at the play edge left every slaved DAW 125 ms
+    /// (at 120 bpm) AHEAD of Echoel, permanently, from the first bar — a sync feature that
+    /// was out of sync. Start is therefore deferred to the first pulse and the first pulse
+    /// is armed for `startingIn` seconds from now: pass `Transport.stepDuration(atTempo:)`.
+    public func startClock(bpm: Double, startingIn delay: TimeInterval = 0) {
         guard enabled else { return }
         guard let interval = UMPEncoder.clockInterval(bpm: bpm) else {
             log.log(.warning, category: .system, "MIDI CLOCK: refused to start at bpm \(bpm)")
             return
         }
         startIfNeeded()
+        // `startIfNeeded` can fail (port/source creation error) and `sendRealTime` guards on
+        // `isReady`, so claiming "on" before checking would make BOTH the published flag and
+        // the log line lie about a clock that emits nothing.
+        guard isReady else {
+            log.log(.warning, category: .system, "MIDI CLOCK: port not ready, not started")
+            return
+        }
         stopClockTimer()                       // idempotent re-arm, no double timer
         if !isSendingClock {
-            sendRealTime(.start)               // Start ONLY on a true start, not on a re-arm
+            pendingStart = true                // Start ONLY on a true start, not on a re-arm
             isSendingClock = true
         }
-        armClockTimer(interval: interval)
+        lastPulseAt = nil                      // fresh phase; the first pulse anchors it
+        armClockTimer(interval: interval, firstAfter: Swift.max(0, delay))
         log.log(.info, category: .system, "MIDI CLOCK: on (\(bpm) bpm, 24 ppqn)")
     }
 
     /// Stop clock output and send Stop (0xFC). Safe to call when already stopped.
     public func stopClock() {
         stopClockTimer()
+        pendingStart = false
+        lastPulseAt = nil
         guard isSendingClock else { return }
         isSendingClock = false
         sendRealTime(.stop)
@@ -252,49 +292,85 @@ public final class MIDIOutput {
     /// Re-arm the pulse interval for a new tempo WITHOUT emitting Start again — the body
     /// moves the tempo continuously (the glide in `PatternEngine.advance`), so a Start per
     /// tempo change would reset every receiver's song position several times a second.
+    ///
+    /// ⭐ THE RE-ARM PRESERVES PHASE, AND THAT IS THE WHOLE CORRECTNESS OF THIS METHOD.
+    /// `PatternEngine.advance()` relays `transport?.setTempo(tempo)` on EVERY tick while a
+    /// glide is in flight (~2 s, i.e. every 125 ms at 120 bpm), and `Transport.setTempo`
+    /// fires its subscribers on every real move — so this runs many times per second exactly
+    /// when the body is driving the tempo, which is the case the slice exists for. A re-arm
+    /// from `.now()` discards however much of the current interval had already elapsed, so
+    /// pulses go MISSING at every tempo relay and the receiver reads a tempo lower than the
+    /// one Echoel is playing, for the whole glide. Anchoring the next deadline to the last
+    /// pulse that actually went out keeps the pulse train continuous across the change.
     public func setClockTempo(_ bpm: Double) {
         guard isSendingClock, let interval = UMPEncoder.clockInterval(bpm: bpm) else { return }
         stopClockTimer()
-        armClockTimer(interval: interval)
+        // Distance from the last real pulse to the next one at the NEW interval. If that
+        // moment has already passed (a big slow-down, or a stall), fire immediately rather
+        // than scheduling into the past.
+        let next: TimeInterval
+        if let last = lastPulseAt {
+            let elapsed = Double(DispatchTime.now().uptimeNanoseconds &- last.uptimeNanoseconds) / 1e9
+            next = Swift.max(0, interval - elapsed)
+        } else {
+            next = interval
+        }
+        armClockTimer(interval: interval, firstAfter: next)
     }
 
-    private func armClockTimer(interval: Double) {
+    private func armClockTimer(interval: Double, firstAfter: Double) {
         #if canImport(CoreMIDI)
         let t = DispatchSource.makeTimerSource(queue: .main)
         // Leeway 0: the clock IS the timing product here. The meter poll can drift a
         // millisecond and nobody hears it; a clock pulse that drifts is the jitter a
-        // drummer feels. This is still a main-queue timer, not a sample-accurate one —
-        // see the honesty note on `isSendingClock` in the tests.
-        t.schedule(deadline: .now() + interval, repeating: interval, leeway: .nanoseconds(0))
+        // drummer feels. This is still a MAIN-QUEUE timer, not a sample-accurate one: at
+        // 120 bpm it wakes 48×/s and at `Transport.maxTempo` 120×/s, each fire doing
+        // CoreMIDI destination lookups on the actor that hosts every SwiftUI menu. That
+        // load is compile-verified only — it needs a device run with a Picker open.
+        t.schedule(deadline: .now() + firstAfter, repeating: interval, leeway: .nanoseconds(0))
         t.setEventHandler { [weak self] in
-            MainActor.assumeIsolated { self?.sendRealTime(.clock) }
+            MainActor.assumeIsolated { self?.emitPulse() }
         }
         clockTimer = t
         t.resume()
         #endif
     }
 
-    /// `nonisolated` + thread-safe cancel so `deinit` below can reach it.
-    ///
-    /// ⛔ THE DEINIT IS NOT OPTIONAL, AND THE FIRST DRAFT OF THIS SLICE HAD NEITHER IT NOR AN
-    /// HONEST COMMENT — the comment already claimed a `deinit` that did not exist. An ACTIVE
-    /// `DispatchSourceTimer` is retained by the dispatch runtime, so dropping the last
-    /// reference to `MIDIOutput` does NOT stop it: `[weak self]` makes the handler a no-op
-    /// and the source goes on firing forever, unreachable and uncancellable. `PatternEngine`
-    /// carries the same `nonisolated(unsafe)` + `nonisolated deinit` pair for exactly this,
-    /// which is why the shape was copied — the reason has to be copied with it.
-    private nonisolated func stopClockTimer() {
+    /// One clock pulse — and the owed Start, if this is the first pulse of a run, so Start
+    /// lands on the downbeat rather than one step early.
+    private func emitPulse() {
+        if pendingStart {
+            pendingStart = false
+            sendRealTime(.start)
+        }
+        sendRealTime(.clock)
+        lastPulseAt = DispatchTime.now()
+    }
+
+    /// Thread-safe cancel. Not `nonisolated`: every caller (`startClock`, `stopClock`,
+    /// `setClockTempo`) is already on the main actor, and `deinit` reaches the timer by the
+    /// direct property access below rather than through here. Keeping it isolated preserves
+    /// the property `PatternEngine`'s identical `nonisolated(unsafe)` storage relies on —
+    /// *written only on the main actor* — so the escape hatch stays a read-side one.
+    /// (⛔ The first version made this `nonisolated`, which compiles fine but silently voided
+    /// that argument while a comment three lines away still cited it.)
+    private func stopClockTimer() {
         clockTimer?.cancel()
         clockTimer = nil
     }
 
     deinit {
-        // Same shape as `PatternEngine.deinit` (which this slice copied the timer from):
-        // a plain `deinit` on a `@MainActor` class is already nonisolated, and
-        // `DispatchSourceTimer.cancel()` is thread-safe. Written as the direct property
-        // access rather than a call to `stopClockTimer()` so it matches the proven form
-        // exactly — the toolchain here is the only compiler, so "reads equivalent" is not
-        // a reason to differ from the shape that is known to build.
+        // Same shape as `PatternEngine.deinit` (`PatternEngine.swift`, which this slice
+        // copied the timer from): a plain `deinit` on a `@MainActor` class is already
+        // nonisolated, and `DispatchSourceTimer.cancel()` is thread-safe. Written as the
+        // direct property access rather than a call to `stopClockTimer()` because that
+        // method is main-actor isolated and a `deinit` is not.
+        //
+        // An ACTIVE `DispatchSourceTimer` is retained by the dispatch runtime, so dropping
+        // the last reference does NOT stop it: `[weak self]` makes the handler a no-op and
+        // the source fires forever, unreachable. In THIS app `midiOut` is `@State` on the
+        // App struct and never deallocates, so this earns its keep in tests and previews
+        // rather than in production — worth having, not worth shouting about.
         clockTimer?.cancel()
     }
 

@@ -432,7 +432,10 @@ public final class PatternEngine {
         // tempoGlideTarget) so starting playback mid-glide stays seamless, no snap.
         stopStoppedGlide()
         transport?.play()
-        scheduleTick(after: 60.0 / tempo / 4.0)
+        // One step later, not now — see `Transport.play()`. Read from the shared helper
+        // (#300 Nachlese) because the MIDI clock has to wait exactly this long before its
+        // Start, and two copies of `60.0 / tempo / 4.0` would let the two drift apart.
+        scheduleTick(after: Transport.stepDuration(atTempo: tempo))
     }
 
     /// Stop the timer and reset `currentStep` to 0. Safe to call while stopped.

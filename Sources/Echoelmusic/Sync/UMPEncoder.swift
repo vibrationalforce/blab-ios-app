@@ -75,11 +75,19 @@ public enum UMPEncoder {
     ///
     /// ⚠️ THREE CASES, NOT FIVE, AND THE OMISSIONS ARE DELIBERATE:
     ///   • **Continue (0xFB) is absent because nothing could send it.** `Transport.play()`
-    ///     resets `position` to zero unconditionally, so every play edge in this app IS a
-    ///     start from the top — Start (0xFA) is the correct message every time. Declaring
-    ///     Continue would add a case with no producer, which is precisely the "lying
-    ///     vocabulary" this repo keeps deleting. Add it together with a resume-from-position
-    ///     transport, not before.
+    ///     resets `position` to zero unconditionally, and the clock is emitted ONLY from
+    ///     that play edge — so every start in this app IS a start from the top and Start
+    ///     (0xFA) is the correct message every time. Declaring Continue would add a case
+    ///     with no producer, which is precisely the "lying vocabulary" this repo keeps
+    ///     deleting. Add it together with a resume-from-position transport, not before.
+    ///
+    ///     ⛔ AND THIS ARGUMENT WAS FALSIFIED BY ITS OWN CHANGESET, WHICH IS WHY THE SECOND
+    ///     CLAUSE IS NOW THERE. #300 shipped with a second start path — `applyRouting`
+    ///     called `startClock` when MIDI out was routed on mid-take — which is NOT a play
+    ///     edge and would have told the receiver to jump back to bar 1. The Nachlese removed
+    ///     that path rather than declaring Continue, because without a Song Position Pointer
+    ///     Continue would not have aligned anything either. A reason that only holds while
+    ///     nobody adds a caller has to be re-checked whenever a caller is added.
     ///   • Active Sensing (0xFE) — a keep-alive some gear mishandles; not a transport signal.
     ///   • System Reset (0xFF) — resets a receiver's entire state. Never on a clock.
     public enum RealTime: UInt8 {
@@ -93,9 +101,11 @@ public enum UMPEncoder {
     /// Pure and `nonisolated` so the timer path and the tests share ONE definition — the
     /// same reason `PatternEngine.swingGap` is a static. Returns nil for a tempo that cannot
     /// produce an interval (non-finite or ≤ 0), so a caller must decide rather than arm a
-    /// timer with NaN. ⚠️ NaN never reaches a comparison here by accident: `bpm > 0` is FALSE
-    /// for NaN, so the guard rejects it — the same positional property the repo's
-    /// `clamped(to:)` note depends on.
+    /// timer with NaN. (`bpm.isFinite` is the clause that rejects NaN; `bpm > 0` would also
+    /// reject it by position, but it is belt-and-braces here, not the mechanism.)
+    ///
+    /// `ppqn` defaults to 24 — the same constant as `Transport.ppqResolution`, pinned equal
+    /// by `MIDIClockTests` so the two cannot drift.
     public static func clockInterval(bpm: Double, ppqn: Int = 24) -> Double? {
         guard bpm.isFinite, bpm > 0, ppqn > 0 else { return nil }
         return 60.0 / bpm / Double(ppqn)

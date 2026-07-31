@@ -68,6 +68,30 @@ public final class Transport {
     public nonisolated static let maxTempo: Double = 300.0
     public nonisolated static let defaultTempo: Double = 120.0
 
+    /// Seconds of ONE step (a 16th) at `bpm` — the gap `PatternEngine` waits between
+    /// ticks, and therefore the gap between `play()` and the moment step 0 SOUNDS.
+    ///
+    /// ⭐ WHY THIS IS A SHARED STATIC AND NOT A THIRD COPY OF `60.0 / tempo / 4.0`
+    /// (#300 Nachlese). `play()` below fans out to `playSubs` IMMEDIATELY, but
+    /// `PatternEngine.play()` then schedules its first `advance()` one whole step later —
+    /// `play()`'s own comment explains why that asymmetry is deliberate and load-bearing
+    /// for `TouchQuantizer`. Anything that must line up with the FIRST AUDIBLE STEP rather
+    /// than with the play edge has to wait exactly this long, and the MIDI clock is the
+    /// first such subscriber: emitting Start (0xFA) on the play edge put a slaved DAW's
+    /// bar 1 one 16th (125 ms at 120 bpm) ahead of Echoel's, permanently, from the first
+    /// bar. Two independently-maintained copies of the formula would let that gap silently
+    /// reopen, so the sequencer and the clock read it from here.
+    ///
+    /// Non-optional on purpose: both callers schedule a timer with the result, and an
+    /// optional would push a `??` fallback (or a banned force-unwrap) into two scheduling
+    /// paths. The tempo is clamped to `[minTempo, maxTempo]` with the NaN-safe
+    /// `clamped(to:)` first — exactly what `PatternEngine.setTempo` and `Transport.setTempo`
+    /// already do to every tempo that reaches them — so a non-finite input becomes the
+    /// slowest legal step (0.5 s at 30 bpm), never an undefined scheduler deadline.
+    public nonisolated static func stepDuration(atTempo bpm: Double) -> TimeInterval {
+        60.0 / bpm.clamped(to: minTempo...maxTempo) / Double(stepsPerBeat)
+    }
+
     // MARK: - Observed control-plane state
 
     public private(set) var isPlaying = false
@@ -293,8 +317,14 @@ public final class Transport {
     /// stop needs a broadcast (every held note must be released, from anywhere), whereas
     /// everything that had to ACT on play was already downstream of `PatternEngine.play()`,
     /// which calls this and then drives its own tick. MIDI Clock is the first subscriber that
-    /// must emit at the instant of play and is NOT on the tick path — a clock master sends
-    /// Start (0xFA) once, before the first pulse, and there is no step to hang that on.
+    /// must LEARN of play and is NOT on the tick path — a clock master sends Start (0xFA)
+    /// once, before the first pulse, and there is no step to hang that on.
+    ///
+    /// ⚠️ "LEARN OF", NOT "EMIT AT". The first version of this sentence said the subscriber
+    /// must emit *at the instant of play*, and that reading is what put MIDI Start one 16th
+    /// early. This edge is when the transport DECIDES to play; step 0 SOUNDS one step later
+    /// (see `play()` and `stepDuration(atTempo:)`). A subscriber that has to line up with the
+    /// music, rather than with the decision, must delay itself by that step.
     ///
     /// Unlike `addStepSubscriber` there is no priority: play is a single edge, and inventing
     /// an ordering nobody needs would be a second thing to get wrong.

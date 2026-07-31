@@ -361,12 +361,17 @@ struct EchoelmusicApp: App {
         // meaning: "Echoel speaks MIDI to the outside world", exactly like a hardware synth
         // that sends notes and clock down one cable. A second patchbay port would be a
         // second thing to forget to switch on, for a signal nobody wants without the notes.
-        // Route ON while already playing → the clock must catch up here, because the play
-        // edge that would normally start it has long passed. `enabled`'s own `didSet` sends
-        // Stop when the route goes off.
-        if midiOut.enabled, transport.isPlaying {
-            midiOut.startClock(bpm: transport.tempo)
-        }
+        // ⛔ ROUTE ON WHILE ALREADY PLAYING DELIBERATELY STARTS NO CLOCK, and the first
+        // version of this slice got that wrong in a way worth writing down. It called
+        // `startClock` here so the clock could "catch up" after a missed play edge. It
+        // cannot catch up: Echoel sends no Song Position Pointer, so the only thing that
+        // goes out is Start (0xFA), which means "go to bar 1". Enabling the route at bar 37
+        // would have jumped the receiver back to its own bar 1 and left it misaligned for
+        // the rest of the take — worse than no clock, and silently so. It also falsified
+        // the deliberate omission of Continue argued in `UMPEncoder.RealTime`, in the same
+        // changeset that made the argument. The clock is a PLAY-EDGE feature: route it on,
+        // then press play. `enabled`'s own `didSet` still sends Stop when the route goes
+        // off, because ending a clock needs no position.
         #if canImport(CoreMIDI)
         midiPub.thruEnabled = g.hasEnabledRoute(from: "midi.in", to: "midi.out")  // MIDI thru
         #endif
@@ -636,7 +641,12 @@ struct EchoelmusicApp: App {
                 // therefore no-ops unless the clock is already sending.
                 transport.addPlaySubscriber("midi.clock") { [weak midiOut, weak transport] in
                     guard let midiOut, let transport else { return }
-                    midiOut.startClock(bpm: transport.tempo)
+                    // ONE STEP LATER, not now. This callback runs on the play EDGE, but
+                    // `PatternEngine` sounds step 0 one 16th afterwards — so Start (0xFA)
+                    // has to wait exactly that long or every slaved DAW sits a 16th ahead
+                    // of Echoel for the whole take. See `Transport.stepDuration(atTempo:)`.
+                    midiOut.startClock(bpm: transport.tempo,
+                                       startingIn: Transport.stepDuration(atTempo: transport.tempo))
                 }
                 transport.addStopSubscriber("midi.clock") { [weak midiOut] in
                     midiOut?.stopClock()
