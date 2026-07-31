@@ -73,13 +73,12 @@ final class OneStartControlTests: XCTestCase {
         let invokers = try sourceLines().filter {
             $0.text.contains("toggleBiofeedback()") && !$0.text.contains("func toggleBiofeedback")
         }
-        XCTAssertEqual(invokers.count, 1,
-                       "Expected exactly ONE control to start/stop the session, found "
-                       + "\(invokers.count): "
-                       + invokers.map { "\($0.file):\($0.line)" }.joined(separator: ", ")
-                       + ". The founder has asked twice for one Start button (2026-07-15, "
-                       + "2026-07-29). If a new control genuinely needs to begin a session, "
-                       + "that is a founder decision, not a merge.")
+        XCTAssertEqual(invokers.count, 1, """
+        Expected exactly ONE control to start/stop the session, found \(invokers.count): \
+        \(invokers.map { "\($0.file):\($0.line)" }.joined(separator: ", ")). The founder has \
+        asked three times for one Start button (2026-07-15, 2026-07-29, 2026-07-31). If a new \
+        control genuinely needs to begin a session, that is a founder decision, not a merge.
+        """)
     }
 
     /// The chrome→studio start WIRE is gone, not merely unused. `echoelToggleBio` let the
@@ -89,12 +88,12 @@ final class OneStartControlTests: XCTestCase {
     /// comment spells out — so this stays honest even where the symbol name is discussed.
     func testNoChromeNotificationCanStartTheSession() throws {
         let posts = try sourceLines().filter { $0.text.contains("echoel.toggleBio") }
-        XCTAssertTrue(posts.isEmpty,
-                      "`echoel.toggleBio` is back at "
-                      + posts.map { "\($0.file):\($0.line)" }.joined(separator: ", ")
-                      + ". Chrome that starts the session is what produced three Start "
-                      + "buttons; if a chrome control must start it again, re-add the "
-                      + "notification WITH that control, never ahead of it.")
+        XCTAssertTrue(posts.isEmpty, """
+        `echoel.toggleBio` is back at \
+        \(posts.map { "\($0.file):\($0.line)" }.joined(separator: ", ")). Chrome that starts \
+        the session is what produced three Start buttons; if a chrome control must start it \
+        again, re-add the notification WITH that control, never ahead of it.
+        """)
     }
 
     /// ⛔ THE CAPABILITY GUARD. The test above pins a SYMBOL — but every side door calls
@@ -117,12 +116,12 @@ final class OneStartControlTests: XCTestCase {
         let starts = try sourceLines().filter {
             $0.text.contains("startBiofeedback()") && !$0.text.contains("func startBiofeedback")
         }
-        XCTAssertEqual(starts.count, 3,
-                       "Expected exactly 3 session-start call sites, found \(starts.count): "
-                       + starts.map { "\($0.file):\($0.line)" }.joined(separator: ", ")
-                       + ". Every one of them must be either the one labelled button, a "
-                       + "no-UI automation path, or a control whose LABEL says the music "
-                       + "starts.")
+        XCTAssertEqual(starts.count, 3, """
+        Expected exactly 3 session-start call sites, found \(starts.count): \
+        \(starts.map { "\($0.file):\($0.line)" }.joined(separator: ", ")). Every one of them \
+        must be either the one labelled button, a no-UI automation path, or a control whose \
+        LABEL says the music starts.
+        """)
     }
 
     /// ⛔ THE OTHER REGRESSION GUARD, and it exists because the claim it protects was already
@@ -146,12 +145,12 @@ final class OneStartControlTests: XCTestCase {
         let producers = try sourceLines().filter {
             $0.text.contains("requestPlaybackOnlyStop()") && $0.file != "PianoRollView.swift"
         }
-        XCTAssertFalse(producers.isEmpty,
-                       "Nothing outside PianoRollView requests a playback-only stop, so the "
-                       + "transport ■ ends the whole bio session — camera included — and is a "
-                       + "duplicate of the front plate's Stop with a ~20 s pulse re-lock as "
-                       + "its hidden price. Either restore a producer or remove the button; "
-                       + "do not leave the justification standing without the mechanism.")
+        XCTAssertFalse(producers.isEmpty, """
+        Nothing outside PianoRollView requests a playback-only stop, so the pause button ends \
+        the whole bio session — camera included — and is a duplicate of the front plate's Stop \
+        with a ~20 s pulse re-lock as its hidden price. Either restore a producer or remove the \
+        button; do not leave the justification standing without the mechanism.
+        """)
     }
 
     /// ⛔ #305 — THE ROW MAY CONTAIN EXACTLY ONE CLAIM OF "STOP", and for two days it contained
@@ -177,24 +176,45 @@ final class OneStartControlTests: XCTestCase {
     /// guard that cries wolf gets deleted. Tile size is a device judgement; the glyph is a
     /// contradiction, and only the second kind belongs here.
     ///
-    /// Scoped to `WorkspaceView.swift` because `stop.fill` is CORRECT elsewhere —
-    /// `VideoLibraryPanel` (stop clip preview) and `LiveColaboView` (end the session) both use
-    /// it truthfully.
+    /// ⛔ THE FILE SCOPE IS A PROXY FOR A ROW, AND THE REVIEWER WAS RIGHT THAT THE FIRST
+    /// VERSION SPENT IT BADLY. It scoped ALL FOUR checks to `WorkspaceView.swift`. That file is
+    /// demonstrably in motion — #289 extracted `PlaybackToggleButton` out of `TransportBar` one
+    /// commit before this guard existed, and #307 argues the struct no longer belongs in the
+    /// chrome file at all, since it renders inside `EchoelStudioView.startControlRow`. Moving it
+    /// would have turned TWO assertions red with messages asserting a regression that did not
+    /// happen ("no longer draws pause.fill" — it does, one file over), while the third passed
+    /// VACUOUSLY. That is precisely the shape the #132-Slice-6 Nachlese one commit earlier was
+    /// written about: a guard that cries wolf at ordinary tidying gets deleted, and then it
+    /// covers nothing.
+    ///
+    /// So: the two PRESENCE checks match repo-wide on tokens that are unique enough to carry it,
+    /// and one anchor assertion says where the struct lives. A move now produces ONE unambiguous
+    /// failure — "it moved, re-point the absence check" — instead of two lying ones.
+    ///
+    /// The ABSENCE check keeps its file scope, because `stop.fill` is CORRECT elsewhere:
+    /// `VideoLibraryPanel` (stop clip preview) and `LiveColaboView` (end the session) both use it
+    /// truthfully, and since #307 so does `EchoelStudioView.startButton`, which really does end
+    /// the session. ⚠️ Note what that means: this is a FILE-scoped proxy for a ROW-scoped
+    /// invariant. It cannot see the other members of `startControlRow`, which live in a different
+    /// file — so it cannot actually count the claims in that row, only keep the pause button out
+    /// of the argument.
     func testThePlaybackPauseDoesNotWearTheStopGlyph() throws {
-        let chrome = try sourceLines().filter { $0.file == "WorkspaceView.swift" }
-        XCTAssertFalse(chrome.isEmpty, """
-        WorkspaceView.swift produced no code lines — it was renamed, or the comment filter ate \
-        the file. Re-point this guard; a vacuous pass here is exactly the green this directory \
-        exists to prevent.
+        let all = try sourceLines()
+        let workspaceLines = all.filter { $0.file == "WorkspaceView.swift" }
+        XCTAssertTrue(workspaceLines.contains { $0.text.contains("struct PlaybackToggleButton") }, """
+        `PlaybackToggleButton` is no longer declared in WorkspaceView.swift. That is allowed — by
+        #307's own argument it belongs nearer `EchoelStudioView.startControlRow` — but the
+        `stop.fill` absence check below is scoped to this file and would now pass vacuously. Move
+        that scope to the struct's new home in the same commit.
         """)
-        XCTAssertTrue(chrome.contains { $0.text.contains("\"pause.fill\"") }, """
+        XCTAssertTrue(all.contains { $0.text.contains("\"pause.fill\"") }, """
         `PlaybackToggleButton` no longer draws `pause.fill`. It sits beside a full-width button \
         labelled "Stop" that ends the whole bio session; this one only drops the music and \
         keeps the pulse lock (~20 s to re-acquire). If it goes back to a stop glyph, the row \
         presents the same claim twice with two different effects — the founder's 2026-07-31 \
         "Einfaches start stop" complaint, which was the fourth about this cluster.
         """)
-        let stops = chrome.filter { $0.text.contains("\"stop.fill\"") }
+        let stops = workspaceLines.filter { $0.text.contains("\"stop.fill\"") }
         XCTAssertTrue(stops.isEmpty, """
         `stop.fill` is back in WorkspaceView.swift at \
         \(stops.map { "\($0.file):\($0.line)" }.joined(separator: ", ")). The only control that \
@@ -202,7 +222,7 @@ final class OneStartControlTests: XCTestCase {
         which actually ends the session. If a NEW control here genuinely stops something, give \
         it a label that says what it stops and re-point this guard rather than raising it.
         """)
-        XCTAssertTrue(chrome.contains { $0.text.contains("Pause the music") }, """
+        XCTAssertTrue(all.contains { $0.text.contains("Pause the music") }, """
         the playback toggle's VoiceOver label no longer says "Pause the music". A VoiceOver \
         user gets the worse version of this confusion — two controls announced identically, no \
         picture to tell them apart — so the label carries the distinction, not just the glyph.
@@ -240,10 +260,15 @@ final class OneStartControlTests: XCTestCase {
     /// its VoiceOver label. Both are asserted, because losing either leaves a control that
     /// cannot be found by one of the two ways people find controls.
     func testTheOneStartStillPresentsItselfAsATransport() throws {
+        // Same anchor discipline the sibling guard above just learned: `play.fill` is NOT
+        // unique repo-wide (`PlaybackToggleButton`'s idle branch and `VideoLibraryPanel` both
+        // use it truthfully), so this one genuinely needs its file scope — and therefore needs
+        // to say out loud where the control lives, or a move makes it pass on the wrong file.
         let plate = try sourceLines().filter { $0.file == "EchoelStudioView.swift" }
-        XCTAssertFalse(plate.isEmpty, """
-        EchoelStudioView.swift produced no code lines — renamed, or the comment filter ate the \
-        file. Re-point this guard rather than letting it pass vacuously.
+        XCTAssertTrue(plate.contains { $0.text.contains("private var startButton") }, """
+        `startButton` is no longer declared in EchoelStudioView.swift — renamed, moved, or the \
+        file was renamed. The two assertions below are scoped to this file and would check the \
+        wrong thing (or nothing) without it. Re-point them in the same commit.
         """)
         XCTAssertTrue(plate.contains { $0.text.contains("\"play.fill\"") }, """
         the front plate's primary control no longer draws `play.fill`. Since #307 removed its \
