@@ -1,6 +1,7 @@
 // SoundPanelReflowsTests.swift
 // Echoel — #292 Slice 2. The Sound panel is the live timbre editor (the one behind the Sound
-// chip; `PatchEditorView` is the doorless near-duplicate) and the longest surface in the app.
+// chip; the doorless near-duplicate `PatchEditorView` is deleted, #132 Slice 6) and the
+// longest surface in the app.
 // Until this slice it was one column at ANY width.
 //
 // ⭐ THE DEFECT, STATED PRECISELY, because #292's first attempt stated it wrong and the wrong

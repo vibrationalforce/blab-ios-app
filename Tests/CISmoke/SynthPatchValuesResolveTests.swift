@@ -6,7 +6,8 @@
 //   1. The shipped values disagree on case. `SynthPatch.factory` writes "dark" / "pink";
 //      `GenrePatches` writes "Dark" / "Pink". Both sound right, because `match` does not care.
 //   2. A SwiftUI `Picker` DOES care — it matches its tag by `==`. Binding one straight to the
-//      stored string (which is what the doorless `PatchEditorView` does) leaves the control
+//      stored string (which is what the doorless `PatchEditorView` did, before #132 Slice 6
+//      deleted it) leaves the control
 //      blank for every patch spelled the other way. The Sound panel's ported rows therefore
 //      canonicalise through the enum before displaying.
 //

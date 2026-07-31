@@ -93,9 +93,12 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
      Sources/Echoelmusic/Sequencer/MoodPreset.swift`; it said 8 for six weeks after the set
      grew, so cite the command, not the number — favorites/recents, App-Group JSON, community loop with seeded
      `Aurora Calm` + triage). Mood panel has the full preset bar. CI-verified (`MoodPresetTests`).
-   - ⬜ **Sound & texture** — the in-studio `soundPanel` still only picks `SynthPatch.factory` via
-     `@AppStorage`; wire the existing `PatchStore` (saved user patches + favorites/recents +
-     community) into the panel so it matches the deep `PatchEditorView`. Low risk (store exists).
+   - ✅ **Sound & texture** — DONE, and this line was stale for weeks: `soundPanel`'s `presetRow`
+     already loads `patchStore.sortedPatches` (favorites first) plus `CommunityLibrary.patches`,
+     and offers favourite / save / save-as / delete / submit. The "deep `PatchEditorView`" it was
+     told to match is DELETED (#132 Slice 6, 2026-07-31) — it was a doorless duplicate, and the
+     panel it was benchmarked against had already overtaken it. `SoundPanelPresetBarTests` now
+     pins all six capabilities, so this cannot silently regress to the ⬜ state again.
 
 ### LATER (roadmap — gate before building; don't claim until shipping)
 9. **[Space/Light]** Multi-device installation sync (multicast/AirPlay + a shared clock; today OSC is single-target, no PTP). → audit §11–12.

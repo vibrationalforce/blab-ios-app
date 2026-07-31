@@ -366,7 +366,8 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// what stamps every factory entry. Only the GENRE roster leaves the field nil), the Sound
     /// panel's "Output" row (0.3…1.5 — REACHABLE
     /// since #286 put it under the "Level" header; it was `PatchEditorView`'s doorless row when
-    /// this note was written), and the `ddsp.amp.level` automation lane (0…1,
+    /// this note was written, and that file is now deleted, so the Sound panel is the only
+    /// hand-editable door left), and the `ddsp.amp.level` automation lane (0…1,
     /// registry-clamped). So: **1.4 is the largest product anything SHIPS**, 1.5 the largest a
     /// user can save. The ceiling sits well above both, so the `outputLevel` row cannot
     /// silently hit it and become a lying control, while +inf still cannot escape. The FLOOR is

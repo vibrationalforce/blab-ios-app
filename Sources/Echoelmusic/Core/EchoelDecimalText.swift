@@ -5,14 +5,16 @@
 //  Every adjustable number in this app is read and typed through ONE control
 //  (`EchoelValueField` + `EchoelNumberPad`, the app-wide law in CLAUDE.md).
 //
-//  `git grep -c "EchoelValueField(" -- Sources` → **66** call sites, of which **57** are
-//  reachable: 4 in `PatchEditorView` and 5 in `PianoRollView`, both doorless per CLAUDE.md.
+//  `git grep -c "EchoelValueField(" -- Sources` → **63** call sites, of which **58** are
+//  reachable: the 5 in `PianoRollView`, doorless per CLAUDE.md, are the only unreachable ones.
 //  ⛔ This line first said "58 call sites", which is neither number and had no command
 //  beside it — in a repo whose CLAUDE.md spends a paragraph on exactly that failure. The
 //  command is here so the next reader re-runs it instead of quoting me. It then said "62"
-//  and went stale anyway: 64 by the time #281 was written, 66 after it. Re-run the command;
-//  do not quote either number. Nothing asserts it, so it drifts silently — the count is
-//  context for the law, not the law itself.
+//  and went stale anyway: 64 by the time #281 was written, 66 after it, and 63 once #132
+//  Slice 6 deleted `PatchEditorView.swift` and its 4 fields with it — a count can fall as
+//  well as rise, so "it only ever grows" is not a safe shortcut either. Re-run the command;
+//  do not quote any of those numbers. Nothing asserts it, so it drifts silently — the count
+//  is context for the law, not the law itself.
 //
 //  Both of them printed `String(format: "%.Nf", …)`, which is C's `printf` and therefore
 //  hard-wired to a decimal POINT regardless of who is holding the phone. A German,

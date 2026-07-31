@@ -1,9 +1,11 @@
 // UnisonRowDefaultsTests.swift
 // Echoel — #281. `unisonVoices` / `unisonDetuneCents` are the engine's single biggest
 // thin→rich lever, and until this slice their only editor was `PatchEditorView.swift` — a
-// file with ZERO instantiation sites, queued for deletion by #132 Slice 6. Deleting it would
-// have removed the last way to reach two persisted parameters, which is a capability loss
-// wearing a cleanup's clothes. The rows now live in `soundPanel`, behind the Sound chip.
+// file with ZERO instantiation sites. Deleting it while they lived only there would have
+// removed the last way to reach two persisted parameters: a capability loss wearing a
+// cleanup's clothes. The rows now live in `soundPanel`, behind the Sound chip, and that file
+// is deleted as of #132 Slice 6 — so these guards are no longer a precaution. They are the
+// only thing standing between the five ported rows and a silent capability loss.
 //
 // ⭐ WHAT THIS FILE ACTUALLY PINS, and it is not "the rows exist". It is that TWO FILES AGREE
 // on one number. `PolySynthVoice.apply` plays an unspecified patch with `?? 2` voices at
@@ -58,8 +60,8 @@ final class UnisonRowDefaultsTests: XCTestCase {
         for binding in ["spectralShapeBinding", "noiseColorBinding"] {
             XCTAssertTrue(body.contains { $0.contains(binding) },
                           "\(binding) is no longer used inside `soundPanel`. "
-                          + "`PatchEditorView` is doorless and queued for deletion (#132 Slice "
-                          + "6), so that row is the only way to choose the value.")
+                          + "`PatchEditorView` is deleted (#132 Slice 6), so that row is the "
+                          + "only way to choose the value.")
         }
         XCTAssertEqual(body.filter { $0.contains(".pickerStyle(.menu)") }.count, 2,
                        "the Sound panel no longer holds exactly two menu Pickers. These choices "
@@ -130,9 +132,9 @@ final class UnisonRowDefaultsTests: XCTestCase {
         XCTAssertTrue(body.contains { $0.contains(#"label: "Output""#)
                                    && $0.contains("outputLevelBinding") }, """
         the Output row is gone from `soundPanel`. It is the ONLY editor for \
-        `SynthPatch.outputLevel` in the app — `PatchEditorView` is doorless and queued for \
-        deletion (#132 Slice 6), so removing this row does not leave a second way in. It was \
-        added by #286 precisely so that deletion stops being a capability loss.
+        `SynthPatch.outputLevel` in the app — `PatchEditorView` is deleted (#132 Slice 6), so \
+        removing this row does not leave a second way in. It was added by #286 precisely so \
+        that the deletion would not be a capability loss.
         """)
 
         // ⚠️ Whole-file, not `soundPanelBody()`, and that is forced rather than sloppy:
@@ -221,9 +223,8 @@ final class UnisonRowDefaultsTests: XCTestCase {
             XCTAssertTrue(studio.contains { $0.contains(#"label: "\#(label)""#)
                                          && $0.contains(binding) },
                           "the \(label) row is gone from the Sound panel. It is the ONLY editor "
-                          + "for its parameter in the app — `PatchEditorView` is doorless and "
-                          + "queued for deletion (#132 Slice 6), so removing this row does not "
-                          + "leave a second way in.")
+                          + "for its parameter in the app — `PatchEditorView` is deleted (#132 "
+                          + "Slice 6), so removing this row does not leave a second way in.")
         }
     }
 }

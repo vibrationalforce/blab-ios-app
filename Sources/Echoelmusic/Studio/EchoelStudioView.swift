@@ -486,11 +486,15 @@ struct EchoelStudioView: View {
     // founder ask ("Level pro Instrument") that created it. The port restores a door that was
     // lost with `PatchEditorView`; it does not invent a control.
     //
-    // WHAT `PatchEditorView.swift` STILL HOLDS ALONE — and it is no longer a persisted
-    // parameter, so it no longer BLOCKS the deletion (#132 Slice 6):
-    //   · the preview keyboard — the play surface covers this one. A judgement call, not a
-    //     grep result; recorded here as a call MADE, so the next reader does not re-open it as
-    //     an unknown.
+    // ✅ `PatchEditorView.swift` IS DELETED (#132 Slice 6). The last thing it held alone was
+    // its preview keyboard, and that was a judgement call rather than a grep result: the play
+    // surface covers auditioning a sound, so the keyboard was not ported. Recorded here as a
+    // call MADE, so the next reader does not re-open it as an unknown.
+    // Its OTHER half — the preset bar (load · favourite · save · save-as · delete · submit) —
+    // was never missing from `soundPanel`; `presetRow` has held all six the whole time. That
+    // was true by accident of history until the deletion, so `SoundPanelPresetBarTests` now
+    // pins it: those six are the reason the deletion cost nothing, and there is no duplicate
+    // left to fall back on if one of them is dropped.
     /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
     /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
     /// roll it imported into has no door any more either. Kept as a reusable slot on the
@@ -4037,9 +4041,9 @@ struct EchoelStudioView: View {
                 // Six items now read as three clean rows.
                 //
                 // #286 — THE TWO NAMED TIMBRE CHOICES, ported from `PatchEditorView` for the
-                // same reason as the Unison rows below: that file has no door and is queued
-                // for deletion, and these were the only editors for two engine-consumed
-                // fields. `Picker`, not `EchoelValueField` — the app-wide numeric law is
+                // same reason as the Unison rows below: that file had no door and has since
+                // been deleted (#132 Slice 6), and these were the only editors for two
+                // engine-consumed fields. `Picker`, not `EchoelValueField` — the numeric law is
                 // explicitly about NUMERIC parameters, and a spectral shape stops being a
                 // number to decode.
                 labeledRow("Shape") {
@@ -4064,8 +4068,8 @@ struct EchoelStudioView: View {
                 }
             }
 
-            // #281 — THE ENSEMBLE ROWS, ported here from `PatchEditorView` so retiring that
-            // file (#132 Slice 6) is a cleanup and not a silent capability loss. They were the
+            // #281 — THE ENSEMBLE ROWS, ported here from `PatchEditorView` so that retiring
+            // it (#132 Slice 6, now done) was a cleanup and not a silent capability loss. They were the
             // only editor for `unisonVoices` / `unisonDetuneCents` anywhere in the app, and
             // unison is the single biggest "thin → rich" lever the engine has
             // (`PolySynthVoice.apply` says so at its own default).
@@ -4181,10 +4185,13 @@ struct EchoelStudioView: View {
     /// does care: it matches its tag by `==`, so a patch storing "dark" would select none of
     /// the eight rows and show an empty control over a perfectly good sound.
     ///
-    /// ⛔ THAT IS A LIVE DEFECT IN `PatchEditorView`, not a hazard I invented: it binds
+    /// ⛔ THAT WAS A REAL DEFECT IN `PatchEditorView`, not a hazard I invented: it bound
     /// `$patch.spectralShape` straight to capitalised options, so its pickers read blank for
-    /// every factory patch. Doorless, so nobody has seen it — copying the row would have been
-    /// the first time a user did. The getter maps through the enum so the picker shows the
+    /// every factory patch. Doorless, so nobody ever saw it — copying the row unchanged would
+    /// have been the first time a user did. (That file is deleted as of #132 Slice 6, so the
+    /// defect is gone with it; the reasoning stays because the TRAP is still live — anyone
+    /// binding a Picker straight to `SynthPatch`'s stored strings re-creates it.)
+    /// The getter maps through the enum so the picker shows the
     /// case the engine will actually resolve; the setter writes the canonical rawValue, which
     /// also quietly migrates the stored string on first edit.
     ///
@@ -4253,7 +4260,8 @@ struct EchoelStudioView: View {
     }
 
     /// #286 — the LAST field that only `PatchEditorView` could reach, and the reason that
-    /// doorless file could not be deleted (#132 Slice 6).
+    /// doorless file could not be deleted. This row is what unblocked it; the file is gone
+    /// (#132 Slice 6), so this is now the only hand-editable door to `outputLevel`.
     ///
     /// ⭐ WHY THE OBJECTION THAT HELD THIS BACK DOES NOT HOLD. The note above `soundPanel`'s
     /// declaration said a manual trim "sits against `loudnessNormalized()`'s auto-calibration",

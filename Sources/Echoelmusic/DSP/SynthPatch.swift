@@ -81,9 +81,10 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     // laut oder zu leise … Level pro Instrument") — applied as a voice gain, NOT a
     // note-velocity change. The factory patches auto-calibrate this (see
     // `loudnessNormalized()`); users trim it from there in the Sound panel's "Output" row,
-    // under the "Level" header. (Naming the ROW matters: `section("Level")` in the doorless
-    // `PatchEditorView` is what a grep for "Level" finds first, and that file is queued for
-    // deletion — a pointer that survives #132 Slice 6 has to name "Output".)
+    // under the "Level" header. (Naming the ROW matters: while `PatchEditorView.swift` still
+    // existed, a grep for "Level" found ITS `section("Level")` first. That file is deleted
+    // (#132 Slice 6), so the ambiguity is gone — but the pointer keeps naming "Output" because
+    // "Level" is a group header here and headers move.)
     // The two do not fight: `loudnessNormalized()` is applied exactly once, building the
     // `static let factory` roster, and nothing re-runs it over a patch a user has touched.
     // That sentence is here because its absence cost the row its door for a month — the
