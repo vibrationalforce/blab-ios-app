@@ -132,7 +132,21 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// atomic-width, same discipline as `amplitude`); read per-sample and folded into
     /// the master-gain smoother so a patch switch GLIDES instead of clicking. 1.0 =
     /// bit-identical to before.
-    public var patchOutputLevel: Float = 1.0
+    ///
+    /// ⚠️ SANITISED AT THE DOOR (#295), because this is the ONE input to the master-gain
+    /// smoother that arrives raw. `SynthPatch.outputLevel` comes from `decodeIfPresent` on
+    /// a file the user could have edited or a save that was truncated, and `apply(to:)`
+    /// writes it here without a clamp. The smoother downstream has NO clamp of its own that
+    /// could rescue it — unlike the filter cutoff, whose render clamp caught the same class
+    /// of poison on every sample — so a non-finite value here multiplied every sample of
+    /// every voice for the lifetime of the app. The factory range is 0.45…1.4
+    /// (`loudnessNormalized`), so this substitution can only ever fire on data that was
+    /// already broken; a healthy patch is bit-identical.
+    public var patchOutputLevel: Float = 1.0 {
+        didSet {
+            if !patchOutputLevel.isFinite { patchOutputLevel = 1.0 }
+        }
+    }
 
     /// Analog-warmth drive (0 = clean, bit-identical). A gentle pre-filter soft-
     /// saturation that gives the pure additive SINE stack some harmonic body, so it
@@ -311,6 +325,27 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// The doc on `filterCutoff` said "[20-20000 Hz]" while every clamp in the codebase used
     /// 18000. Nothing depended on the wrong upper bound, which is exactly why it survived.
     public nonisolated static let cutoffRange: ClosedRange<Float> = 20...18000
+
+    /// Domain of the harmonic/noise character smoothers in `render` (#296). 0…1 because
+    /// that is what both `SoundPrompt` and `applyBioReactive`'s anchored branch already
+    /// enforce for `harmonicity` and `noiseLevel`; every shipped patch is inside it, so the
+    /// clamp is a boundary, not a tuning knob. Named rather than written as a literal twice
+    /// for the same reason `cutoffRange` is.
+    public nonisolated static let characterRange: ClosedRange<Float> = 0...1
+
+    /// Domain of the per-voice master-gain smoother (#295).
+    ///
+    /// ⚠️ THE CEILING IS MEASURED, NOT GUESSED — the ledger records a dead-end where a
+    /// sentinel was chosen without measuring the palette first. `amplitude` is ≤ 1 on both
+    /// of its two writers (`applyBioReactive` clamps to 0…1; the poly path is
+    /// `pow(v, expo) * unisonGain` with `v` clamped to 0…1 and `unisonGain` ≤ 1), and
+    /// `patchOutputLevel` is 1.0 by default or 0.45…1.4 from `SynthPatch.loudnessNormalized`.
+    /// The largest product anything ships is therefore **1.4**. The ceiling is set well
+    /// above that so a future `outputLevel` row (#286) cannot silently hit it and become a
+    /// lying control, while +inf still cannot escape. The FLOOR is what matters for the bug:
+    /// `clamped(to:)` maps NaN to the lower bound, so a poisoned accumulator lands on 0 for
+    /// one sample and then glides back up instead of latching there forever.
+    public nonisolated static let masterGainRange: ClosedRange<Float> = 0...4
 
     /// Base filter cutoff (before modulation), in Hz — kept inside `cutoffRange`.
     public var filterCutoff: Float = 220.0     // Warm, dark start — opens with coherence
@@ -1044,9 +1079,22 @@ public final class EchoelDDSP: @unchecked Sendable {
             var currentFreq = smoothedFreq
             var pitchModSemitones: Float = 0
             // Vibrato (bio: heart rate → vibrato rate) — periodic.
-            if vibratoRate > 0 && vibratoDepth > 0 {
+            // ⚠️ THE GATE SCREENS NaN BUT NOT +inf (#297) — `NaN > 0` is false, `inf > 0` is
+            // true. With an infinite rate the phase becomes inf, the wrap test `> 2π` is true
+            // but `inf - 2π` is still inf, so the subtraction cannot bring it back, and
+            // `sin(inf)` is NaN → `pitchModSemitones` NaN → `currentFreq` NaN for every
+            // remaining sample of the voice. `vibratoPhase` is cleared only by `reset()`,
+            // never by `prepareForNote`, so a new note inherits it. Both halves fixed: the
+            // gate now requires finite inputs (`ResolvedPatch.apply` writes both raw, and
+            // #279's 0…12 / 0…1 clamps only apply while bio runs AND the anchor is ≥ 0), and
+            // the wrap re-seeds the phase instead of leaving a value it cannot reduce.
+            if vibratoRate > 0 && vibratoDepth > 0 && vibratoRate.isFinite && vibratoDepth.isFinite {
                 vibratoPhase += vibratoRate / sampleRate * 2.0 * .pi
-                if vibratoPhase > 2.0 * .pi { vibratoPhase -= 2.0 * .pi }
+                if !vibratoPhase.isFinite {
+                    vibratoPhase = 0
+                } else if vibratoPhase > 2.0 * .pi {
+                    vibratoPhase -= 2.0 * .pi
+                }
                 pitchModSemitones += sin(vibratoPhase) * vibratoDepth
             }
             // Slide-expression vibrato (touch gesture) — fixed ~5.2 Hz, up to ~18
@@ -1167,10 +1215,29 @@ public final class EchoelDDSP: @unchecked Sendable {
 
             // One-pole smooth the harmonic/noise blend so bio/slider steps glide
             // instead of zippering. Seed on first sample to avoid a startup ramp.
+            // ⚠️ THE CLAMP ON THE ASSIGNMENT IS THE RE-SEED THAT WORKS (#296). The `< 0`
+            // sentinel check below CANNOT recover a poisoned accumulator, because `NaN < 0`
+            // is false — the guard that exists to re-seed is precisely the one that never
+            // fires when it is needed. Clamping the result is what makes these one-poles
+            // self-healing: a non-finite lands on the lower bound and the next sample glides
+            // back toward the (finite) target. Same shape and same reason as the filter
+            // cutoff's `.clamped(to: Self.cutoffRange)` (#294).
+            // Two entry points, both real: `harmonicity` is written RAW by
+            // `ResolvedPatch.apply` (the pure patch path, no bio running), and `noiseLevel`'s
+            // bio line is `Swift.max(0, …)` — a floor with no ceiling, so +inf walks straight
+            // through it. Bounds are 0…1 because that is the domain `SoundPrompt`'s own
+            // sanitiser enforces on both fields (`c01`), and `applyBioReactive`'s harmonicity
+            // line sits inside it at 0.05…0.98. It is deliberately NOT justified by
+            // `applyBioReactive`'s noise line, which has no ceiling at all — that missing
+            // ceiling IS the bug, and citing it as the precedent would be circular.
+            // `GainLatchRecoveryTests` asserts every shipped patch is inside these bounds, so
+            // this is hardening, not a tuning change.
             if smoothedHarmonicity < 0 { smoothedHarmonicity = harmonicity }
             if smoothedNoiseLevel < 0 { smoothedNoiseLevel = noiseLevel }
-            smoothedHarmonicity += 0.01 * (harmonicity - smoothedHarmonicity)
-            smoothedNoiseLevel  += 0.01 * (noiseLevel  - smoothedNoiseLevel) + antiDenormal
+            smoothedHarmonicity = (smoothedHarmonicity + 0.01 * (harmonicity - smoothedHarmonicity))
+                .clamped(to: Self.characterRange)
+            smoothedNoiseLevel = (smoothedNoiseLevel + 0.01 * (noiseLevel - smoothedNoiseLevel) + antiDenormal)
+                .clamped(to: Self.characterRange)
             // Mix harmonic + noise based on the smoothed harmonicity, PLUS a brief onset chiff
             // (pick/bow/breath transient) added on top — NOT gated by harmonicity, so even a
             // pure-tonal pluck gets the attack burst that makes it read as a real instrument.
@@ -1186,9 +1253,21 @@ public final class EchoelDDSP: @unchecked Sendable {
             // stepping the level (crackle). Seed on first sample to avoid a ramp-up.
             // Fold the per-patch loudness trim into the master-gain target so it glides
             // via the existing smoother (no click on a patch switch). 1.0 = unchanged.
+            // ⭐ THE SEVEREST MEMBER OF THE LATCH CLASS (#295), because nothing downstream
+            // could catch it. `sample = mixed * smoothedGain * envelopeValue`, so once this
+            // accumulator went non-finite EVERY sample did, the block's end-of-render guard
+            // zeroed the whole buffer, and — unlike every other member — it survived note-off,
+            // note-on and a fresh patch apply, since `prepareForNote` only resets
+            // `smoothedFreq`. Permanent silence with no way back except an app restart.
+            // Both halves are needed: the `< 0` re-seed never fires on NaN, and the clamp on
+            // the assignment is what lets a poisoned accumulator glide back. The target is
+            // sanitised at its own door (`patchOutputLevel`'s `didSet`) so the recovery has a
+            // finite value to converge ON — clamping only here would land at 0 and stay there
+            // while a corrupt patch level kept the target non-finite.
             let gainTarget = amplitude * patchOutputLevel
             if smoothedGain < 0 { smoothedGain = gainTarget }
-            smoothedGain += 0.01 * (gainTarget - smoothedGain) + antiDenormal
+            smoothedGain = (smoothedGain + 0.01 * (gainTarget - smoothedGain) + antiDenormal)
+                .clamped(to: Self.masterGainRange)
             var sample = mixed * smoothedGain * envelopeValue
             // Analog LEVEL drift (breath/bow-pressure instability) — same random-walk
             // pattern as the pitch drift above, but its own slower cadence/glide so the
@@ -1612,13 +1691,22 @@ public final class EchoelDDSP: @unchecked Sendable {
         // accumulator now recovers on its own, and the value the UI reads stops being a stuck
         // non-finite — but it prevents a MILDER failure than advertised. Do not re-inflate it.
         //
-        // ⛔ AND IT IS ONE INSTANCE OF A FIVE-INSTANCE CLASS, NOT THE CLASS. The same
-        // latch shape (`if x < 0 { x = seed }` never re-fires on NaN, because `NaN < 0` is
-        // false) sits on `smoothedGain` (#295, the severe one — no downstream clamp rescues
-        // it, and it survives note-off and patch re-apply), `smoothedNoiseLevel` (#296, whose
-        // `Swift.max(0, …)` has no UPPER bound two lines from the trio that got clamped),
-        // `vibratoPhase` (#297, the `> 0` gate screens NaN but admits +inf) and
-        // `smoothedHarmonicity` (#296). This one was the mildest of the five.
+        // ⛔ IT WAS ONE INSTANCE OF A FIVE-INSTANCE CLASS, NOT THE CLASS — and the other four
+        // are closed as of #295/#296/#297, in `render`. The shape is `if x < 0 { x = seed }`
+        // as a re-seed guard that never re-fires on NaN, because `NaN < 0` is false. Members:
+        // `smoothedGain` (#295, the severe one — no downstream clamp rescued it, and it
+        // survived note-off and patch re-apply), `smoothedHarmonicity` + `smoothedNoiseLevel`
+        // (#296, the latter's `Swift.max(0, …)` being a floor with no ceiling two lines from
+        // the trio that got clamped), `vibratoPhase` (#297, whose `> 0` gate screens NaN but
+        // admits +inf). This one was the mildest of the five. The fix is the same everywhere:
+        // clamp the ASSIGNMENT so the accumulator can heal, and sanitise whichever raw input
+        // feeds it so there is a finite value to heal toward.
+        //
+        // ⚠️ NOT A MEMBER, checked rather than assumed: `expressVibrato`/`expressChorus` look
+        // identical (a `> 0.0005` gate over a persistent phase) but their single writer
+        // already does `isFinite ? … : 0` and clamps to 0…1, so no non-finite can reach them.
+        // `smoothedFreq` also has the `< 0` shape, but `prepareForNote` sets it back to −1 on
+        // EVERY note, so its latch cannot outlive one note. Neither was quietly folded in.
         //
         // ⚠️ AND IT IS A NO-OP FOR EVERYTHING THAT SHIPS — measured, not assumed. The highest
         // cutoff in any shipped patch is 6500 Hz (`SynthPatch.rawFactory`; `GenrePatches` tops
