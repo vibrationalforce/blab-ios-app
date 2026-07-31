@@ -464,16 +464,18 @@ struct EchoelStudioView: View {
     // deletion this caveat exists to prevent — the caveat destroyed by the commit that claimed
     // to satisfy it.
     //
-    // STILL REACHABLE ONLY FROM `PatchEditorView.swift`, verified by grep against `soundPanel`:
-    //   · `outputLevel`   — its "Output" row; the only writer of the field in `Sources/`.
-    //   · `spectralShape` — its "Shape" picker; zero hits in `EchoelStudioView.swift`.
-    //   · `noiseColor`    — its "Noise color" picker; likewise zero.
-    //   · the preview keyboard — the play surface arguably covers this one.
-    // The three fields are consumed by the engine (`EchoelDDSP` / `PolySynthVoice` /
-    // `GenrePatches`), so they are live parameters, not vestiges. Port them or have the
-    // founder write them off explicitly — a manual output trim in particular is a real
-    // question (it sits against `loudnessNormalized()`'s auto-calibration and the per-role
-    // gain of #196), which is why #281 deliberately did not invent one here.
+    // `spectralShape` and `noiseColor` followed in #286 — Shape / Noise colour pickers in the
+    // Tone group above, canonicalising through the enum (see `spectralShapeBinding`).
+    //
+    // STILL REACHABLE ONLY FROM `PatchEditorView.swift`, and therefore STILL BLOCKING:
+    //   · `outputLevel` — its "Output" row (`levelBinding`); the only writer of the field in
+    //     `Sources/`, and the engine applies it (`synth.patchOutputLevel`).
+    //   · the preview keyboard — the play surface arguably covers this one; a judgement call,
+    //     not a grep result.
+    // `outputLevel` is deliberately NOT ported: a manual output trim sits against
+    // `loudnessNormalized()`'s auto-calibration and against the per-role gain of #196, so
+    // adding one is a founder decision, not a side effect of a cleanup. Until it is made, this
+    // file cannot be deleted without losing a live parameter (#286).
     /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
     /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
     /// roll it imported into has no door any more either. Kept as a reusable slot on the
@@ -3785,6 +3787,32 @@ struct EchoelStudioView: View {
             knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
             knob("Noise", $currentPatch.noiseLevel, 0...1)
 
+            // #286 — THE TWO NAMED TIMBRE CHOICES, ported from `PatchEditorView` for the same
+            // reason as the Unison rows below: that file has no door and is queued for
+            // deletion, and these were the only editors for two engine-consumed fields.
+            // `Picker`, not `EchoelValueField` — the app-wide numeric law is explicitly about
+            // NUMERIC parameters, and a spectral shape stops being a number to decode.
+            labeledRow("Shape") {
+                Picker("Spectral shape", selection: spectralShapeBinding) {
+                    ForEach(EchoelDDSP.SpectralShape.allCases, id: \.self) { shape in
+                        Text(shape.rawValue).tag(shape.rawValue)
+                    }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: currentPatch.spectralShape) { _, _ in applySoundLive() }
+                .accessibilityLabel("Spectral shape")
+            }
+            labeledRow("Noise colour") {
+                Picker("Noise colour", selection: noiseColorBinding) {
+                    ForEach(EchoelDDSP.NoiseColor.allCases, id: \.self) { colour in
+                        Text(colour.rawValue).tag(colour.rawValue)
+                    }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: currentPatch.noiseColor) { _, _ in applySoundLive() }
+                .accessibilityLabel("Noise colour")
+            }
+
             // #281 — THE ENSEMBLE ROWS, ported here from `PatchEditorView` so retiring that
             // file (#132 Slice 6) is a cleanup and not a silent capability loss. They were the
             // only editor for `unisonVoices` / `unisonDetuneCents` anywhere in the app, and
@@ -3853,6 +3881,43 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// #286 — CANONICALISING BINDINGS, and without them the ported pickers would be BLANK for
+    /// every sound in the app.
+    ///
+    /// `SynthPatch.spectralShape` / `.noiseColor` are `String`s, and the shipped values are
+    /// lowercase ("dark", "pink") while the enum rawValues the picker lists are capitalised
+    /// ("Dark", "Pink"). The engine does not care — `SynthPatch.match` compares
+    /// case-INsensitively, which is why those patches sound correct today. A SwiftUI `Picker`
+    /// does care: it matches its tag by `==`, so a patch storing "dark" would select none of
+    /// the eight rows and show an empty control over a perfectly good sound.
+    ///
+    /// ⛔ THAT IS A LIVE DEFECT IN `PatchEditorView`, not a hazard I invented: it binds
+    /// `$patch.spectralShape` straight to capitalised options, so its pickers read blank for
+    /// every factory patch. Doorless, so nobody has seen it — copying the row would have been
+    /// the first time a user did. The getter maps through the enum so the picker shows the
+    /// case the engine will actually resolve; the setter writes the canonical rawValue, which
+    /// also quietly migrates the stored string on first edit.
+    ///
+    /// The `?? .natural` / `?? .pink` fallback is only reachable for a value no shipped path
+    /// produces (`SynthPatchValuesResolveTests` proves every factory and genre patch resolves).
+    /// If one ever did, the engine's own rule is "unknown → leave the voice alone", so the
+    /// picker would be showing a guess — that is the honest cost of a control that must
+    /// display exactly one of its rows.
+    private var spectralShapeBinding: Binding<String> {
+        Binding(get: { (EchoelDDSP.SpectralShape.allCases.first {
+                            $0.rawValue.caseInsensitiveCompare(currentPatch.spectralShape) == .orderedSame
+                        } ?? .natural).rawValue },
+                set: { currentPatch.spectralShape = $0 })
+    }
+
+    /// Same rule as `spectralShapeBinding`.
+    private var noiseColorBinding: Binding<String> {
+        Binding(get: { (EchoelDDSP.NoiseColor.allCases.first {
+                            $0.rawValue.caseInsensitiveCompare(currentPatch.noiseColor) == .orderedSame
+                        } ?? .pink).rawValue },
+                set: { currentPatch.noiseColor = $0 })
     }
 
     /// `unisonVoices` is `Int?` and the row is a numeric field, so it needs its own binding.

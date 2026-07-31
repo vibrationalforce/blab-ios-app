@@ -30,6 +30,29 @@ final class UnisonRowDefaultsTests: XCTestCase {
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
     private static let poly = "Sources/Echoelmusic/Tools/PolySynthVoice.swift"
 
+    /// #286 — the two NAMED timbre choices ported in the same effort. They live here rather
+    /// than in their own file because they need the same two helpers and guard the same thing:
+    /// a row that was the last editor for an engine-consumed field. (The file name is now
+    /// narrower than its contents; renaming it would be churn for its own sake.)
+    ///
+    /// A `Picker`, not an `EchoelValueField` — the app-wide numeric law is explicitly about
+    /// NUMERIC parameters, and CLAUDE.md warns in the same paragraph against "restoring" a
+    /// named choice to a number field in the name of that law. Asserting the picker keeps
+    /// anyone from doing it here.
+    func testTheNamedTimbreChoicesAreMountedAsPickers() throws {
+        let studio = try codeLines(Self.studio)
+        for (title, binding) in [("Spectral shape", "spectralShapeBinding"),
+                                 ("Noise colour", "noiseColorBinding")] {
+            XCTAssertTrue(studio.contains { $0.contains("Picker(\"\(title)\"")
+                                         && $0.contains(binding) },
+                          "the \(title) row is gone from the Sound panel, or is no longer a "
+                          + "Picker. `PatchEditorView` is doorless and queued for deletion "
+                          + "(#132 Slice 6), so this row is the only way to choose the value — "
+                          + "and the choice has NAMES, so a numeric field would be the wrong "
+                          + "control even if it reached the same field.")
+        }
+    }
+
     /// ⛔ THE OTHER HALF OF "the readout agrees with the ear", found in review AFTER the first
     /// version of this file shipped without it. Two genre patches persist `uni: 4` while
     /// `EchoelPolyDDSP.maxUnison` is 3 and `setUnison` clamps to it — and `EchoelValueField`
