@@ -4267,12 +4267,23 @@ struct EchoelStudioView: View {
     /// #196 (per-role output gain) is a different stage in series — patch level, then role
     /// gain, then master — not a competing writer of this field.
     ///
-    /// The fallback mirrors the engine exactly: `resolved()` un-boxes a nil `outputLevel` to
-    /// 1.0, so a genre or library patch (none of which set the field) sounds at unity and the
-    /// row must read 1.00. Factory patches DO carry an explicit calibrated value in 0.45…1.4,
-    /// which the row's 0.3…1.5 range encloses — so no shipped patch can display a number
-    /// outside its own control, the defect `unisonVoicesBinding` exists to prevent one field
-    /// over.
+    /// The fallback mirrors the engine exactly: nil means "no trim stored", and
+    /// `SynthPatch.level` un-boxes it to 1.0 on the way to `resolved()` — so a patch without
+    /// the field sounds at unity and the row must read 1.00. ⛔ The first version justified that
+    /// with "a genre or library patch (none of which set the field)", and the LIBRARY half is
+    /// false: the library is `SynthPatch.factory + user patches`, and every factory patch sets
+    /// `outputLevel` via `loudnessNormalized()`. Only the genre half holds. The fallback is
+    /// about the NIL case; who else writes the field is beside the point, and saying otherwise
+    /// invites the "second writer found → this guard must be stale" read that the ⛔ block above
+    /// `soundPanel` exists to stop.
+    ///
+    /// The stored values that DO exist are enclosed: factory patches carry 0.45…1.4, inside the
+    /// row's 0.3…1.5. So no shipped patch can display a number outside its own control — the
+    /// defect `unisonVoicesBinding` exists to prevent one field over. No READ clamp is needed
+    /// here, and the difference from that case is worth naming: there the ENGINE clamped
+    /// narrower than storage (`maxUnison` 3 vs a stored 4). Here the engine's bound is
+    /// `EchoelDDSP.masterGainRange` (0…4), far WIDER than the row, so nothing can be shown that
+    /// is not also played.
     ///
     /// The `isFinite` guard is the same non-decorative one as the unison rows:
     /// `EchoelValueField` clamps with `min(max(…))`, which passes NaN straight through, and

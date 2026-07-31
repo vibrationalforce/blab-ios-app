@@ -108,10 +108,23 @@ final class UnisonRowDefaultsTests: XCTestCase {
     /// engine-matching fallback is a readout that disagrees with the ear, and the fallback
     /// without the row is a binding nothing renders.
     ///
-    /// `?? 1.0` is not a guess — `ResolvedPatch` un-boxes a nil `outputLevel` to exactly 1.0,
-    /// and NO genre or library patch sets the field, so unity is what those patches actually
-    /// sound at. If that un-boxing ever changes, this row starts lying and only a cross-file
-    /// check like this one notices.
+    /// `?? 1.0` is not a guess — it is `SynthPatch.level`'s own nil fallback, and `resolved()`
+    /// hands exactly that to the engine. If the un-boxing ever changes, this row starts lying
+    /// and only a cross-file check like this one notices.
+    ///
+    /// ⛔ THE FIRST VERSION JUSTIFIED IT WITH "NO genre or library patch sets the field", and
+    /// the library half is false: the library IS `SynthPatch.factory + user patches`
+    /// (`PatchStore`), and EVERY factory patch sets `outputLevel` through
+    /// `loudnessNormalized()`. A save-as from any preset persists it too. Only the GENRE half
+    /// holds. The wrong reason mattered because it stood in a failure MESSAGE — the text a
+    /// future session acts on — and it points at the same trap the picker test above was fixed
+    /// for: someone greps `outputLevel`, finds `loudnessNormalized` as a second writer, and
+    /// reads the guard as stale. The fallback is about **nil**, not about who writes.
+    ///
+    /// ⚠️ SAME-LINE COUPLED, like `testBothUnisonRowsAreMountedInTheSoundPanel` below: the label
+    /// and the binding must sit on ONE physical line, so a reflow of that call reddens the
+    /// blocking gate with a message that says the row was deleted. Re-pair the tokens if it
+    /// ever fires that way; do not delete the assertion.
     func testTheOutputRowIsMountedAndAgreesWithTheEnginesUnityFallback() throws {
         let body = try soundPanelBody()
         XCTAssertTrue(body.contains { $0.contains(#"label: "Output""#)
@@ -122,11 +135,16 @@ final class UnisonRowDefaultsTests: XCTestCase {
         added by #286 precisely so that deletion stops being a capability loss.
         """)
 
+        // ⚠️ Whole-file, not `soundPanelBody()`, and that is forced rather than sloppy:
+        // `outputLevelBinding` is declared BELOW the panel, so scoping to the panel would find
+        // nothing. The message therefore names the BINDING, not the row — the assertion above
+        // is the one that pins the row to the panel, and it IS scoped.
         let studio = try codeLines(Self.studio)
         XCTAssertTrue(studio.contains { $0.contains("currentPatch.outputLevel ?? 1.0") }, """
-        the Output row no longer falls back to unity. `SynthPatch.resolved()` un-boxes a nil \
-        `outputLevel` to 1.0, and no genre or library patch sets the field — so any other \
-        fallback makes the row display a level those sounds are not played at.
+        `outputLevelBinding` no longer falls back to unity. A nil `outputLevel` means "no trim \
+        stored", and `SynthPatch.level` un-boxes exactly that to 1.0 on the way to the engine — \
+        so any other fallback makes the row display a level the voice is not played at. This is \
+        about the NIL case; which patches happen to store a value is beside the point.
         """)
 
         let patch = try codeLines("Sources/Echoelmusic/DSP/SynthPatch.swift")

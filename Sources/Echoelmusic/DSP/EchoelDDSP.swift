@@ -360,8 +360,11 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// of its two writers (`applyBioReactive` clamps to 0…1; the poly path is
     /// `pow(v, expo) * unisonGain` with `v` clamped to 0…1 and `unisonGain` ≤ 1), and
     /// `patchOutputLevel` has THREE doors, not one: `SynthPatch.loudnessNormalized` (0.45…1.4,
-    /// and the only one that can exceed unity in a COMPILED-IN patch — no genre or library
-    /// patch sets `outputLevel` at all), the Sound panel's "Output" row (0.3…1.5 — REACHABLE
+    /// and the only one that can exceed unity in a COMPILED-IN patch — ⛔ this used to add "no
+    /// genre or library patch sets `outputLevel` at all", and the LIBRARY half is false: the
+    /// library is `SynthPatch.factory` plus user patches, and `loudnessNormalized` is exactly
+    /// what stamps every factory entry. Only the GENRE roster leaves the field nil), the Sound
+    /// panel's "Output" row (0.3…1.5 — REACHABLE
     /// since #286 put it under the "Level" header; it was `PatchEditorView`'s doorless row when
     /// this note was written), and the `ddsp.amp.level` automation lane (0…1,
     /// registry-clamped). So: **1.4 is the largest product anything SHIPS**, 1.5 the largest a
