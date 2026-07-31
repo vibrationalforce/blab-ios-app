@@ -1466,10 +1466,16 @@ struct EchoelStudioView: View {
     private static let studioChips: [StudioMenu] =
         [.sound, .effects, .mix, .master, .mood, .composition, .field, .session, .export]
 
-    /// The tab strip: the five instrument tabs, PLUS whatever the plate currently shows if
-    /// a chrome door selected one of the menus the strip normally hides (Master · Export ·
-    /// Bio · Tempo · Session · Video reach the plate through the header/transport, not
-    /// through a chip). Without this, `displayedMenu` matches no chip, so all five render
+    /// The tab strip: the nine chips above, PLUS whatever the plate currently shows if a
+    /// chrome door selected one of the two menus the strip does NOT carry — `.bio` (pulse
+    /// pill) and `.video` (header clips tile).
+    ///
+    /// ⛔ THIS SENTENCE WAS STALE THE MOMENT #290 LANDED and is corrected rather than
+    /// dropped: it read "the five instrument tabs … (Master · Export · Bio · Tempo ·
+    /// Session · Video reach the plate through the header/transport, not through a chip)".
+    /// Four of those six are chips now, two lines above — and a comment that names the
+    /// strip's contents wrongly is exactly what makes the next reader "restore" a door that
+    /// already exists. Without this append, `displayedMenu` matches no chip, so all render
     /// inactive: a tab strip that claims to be the selector while showing no selection, and
     /// a VoiceOver tab list with no selected tab — with nothing on screen naming the panel
     /// the user is looking at. Harmless while the panel was a transient dropdown over a
