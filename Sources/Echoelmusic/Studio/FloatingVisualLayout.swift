@@ -62,6 +62,25 @@ public enum FloatingVisualLayout {
 
     // MARK: The studio's bottom control band
     //
+    // ⛔ THE BUTTON IS NOT DOWN THERE ANY MORE (#288, founder 2026-07-31: "Create from within
+    // sollte über Sound, FX, Mood und Field sein"). It is now the FIRST child of
+    // `EchoelStudioView`'s root stack, above the chip bar. The three constants below are
+    // therefore NO LONGER a collision guard, and the paragraph that follows — kept because it
+    // is the whole reason this indirection exists — describes a hazard that has moved:
+    //
+    // What they still do, stated honestly so the next reader is not misled by the name:
+    //   · `startButtonHeight` + the two paddings still SIZE the button. That is unchanged and
+    //     still belongs in the pure, CI-tested type.
+    //   · `studioControlBandHeight` is still the lift `FloatingVisualWindow.defaultCenter`
+    //     applies to the docked card — but it now buys a bottom MARGIN, not clearance over a
+    //     control. The value is left exactly as it was so this slice moves ONE thing (the
+    //     button) and the docked visual does not silently jump on the founder's device in the
+    //     same build. Whether the card should now drop those ~70 pt is a look decision that
+    //     belongs to the founder, and it is filed rather than taken here.
+    //   · The name is now wider than the truth. NOT renamed on purpose: the rename would
+    //     touch `FloatingVisualWindow` and `FloatingVisualLayoutTests` in a UI-placement
+    //     commit, and a rename is exactly the kind of churn that hides a real change.
+    //
     // These three own the primary "Create from Within"/"Stop" button's vertical footprint,
     // and they live HERE — in the pure, CI-tested type — rather than as literals in the two
     // views that need them to AGREE. `EchoelStudioView` builds the button from them; this

@@ -690,6 +690,34 @@ struct EchoelStudioView: View {
             // dropdown (menu host — no new modal). The chrome-notification
             // receivers moved onto the menu bar (still an INNER row — the
             // root's modifier chain / metadata type is untouched).
+            // H1 (founder 2026-07-24: "nur das alte Interface mit create from within"):
+            // the signature generate control — tap it and the body composes and plays.
+            //
+            // ⬆ MOVED TO THE TOP, ABOVE THE CHIP BAR (#288, founder 2026-07-31, red line drawn
+            // between the Genre/Key/Scale strip and the Sound·Mix·FX·Mood·Field chips).
+            //
+            // ⛔ THIS OVERRIDES #157's REASONING, and that reasoning is left standing below in
+            // its own words rather than deleted, because it was not wrong — it was outvoted.
+            // #157 moved this button from BETWEEN the chips and the plate to BELOW the plate,
+            // for two stated reasons: a full-width primary button wedged between the chips and
+            // the panel they switch "cut that object in half", and the bottom is thumb reach on
+            // a one-handed phone. The first reason does not apply to the new position: ABOVE
+            // the chips the button is not between them and their panel, so the chip-bar +
+            // panel object stays whole. The second reason DOES still apply and is the real
+            // cost of this move — the primary action is now at the far end of the reach arc.
+            // The founder drew the line anyway; that is their call to make about their own
+            // instrument, and it is recorded here so nobody "restores" it as a bug fix.
+            //
+            // A plain Button: NO new .sheet (metadata/black-screen law — the modal chain is
+            // untouched), and it reads only `running` (discrete @State) — NOT a live 10 Hz bio
+            // observable, so the menu-freeze law holds. AnyView keeps its generics out of the
+            // root body type, same discipline as menuBar. Reordering siblings does not change
+            // the root VStack's child COUNT, so the aggregate generic type is the same size as
+            // before — this is a move, not a fifth child.
+            AnyView(startButton
+                .padding(.horizontal, 16)
+                .padding(.top, FloatingVisualLayout.startButtonTopPadding)
+                .padding(.bottom, FloatingVisualLayout.startButtonBottomPadding))
             AnyView(menuBar
                 // (The `.echoelToggleBio` receiver that stood here is gone with #234 — the
                 // header pill and the transport ▶ no longer start the session, so nothing
@@ -770,29 +798,18 @@ struct EchoelStudioView: View {
             // The count is what costs metadata; the position does not — but the ordinal
             // stood here as "FOURTH" and would have been read as the count.)
             AnyView(menuPanelHost)
-            // H1 (founder 2026-07-24: "nur das alte Interface mit create from within"):
-            // the signature generate control — tap it and the body composes and plays.
-            //
-            // MOVED BELOW THE PLATE (#157, founder 2026-07-27 "alles vereinfachen und
-            // schöner"). It used to sit BETWEEN the chip bar and the plate, which is what
-            // made the window read as "a menu bar, then a button, then a form": the chips
-            // and the panel they switch are one object, and a full-width primary button
-            // wedged between them cut that object in half. Below the plate it anchors the
-            // surface instead of splitting it — and lands in thumb reach on a phone held
-            // one-handed, which is how this instrument is actually played.
-            //
-            // A plain Button: NO new .sheet (metadata/black-screen law — the modal chain
-            // is untouched), and it reads only `running` (discrete @State) — NOT a live
-            // 10 Hz bio observable, so the menu-freeze law holds. AnyView keeps its
-            // generics out of the root body type, same discipline as menuBar. Reordering
-            // siblings does not change the root VStack's child COUNT, so the aggregate
-            // generic type is the same size as before — this is a move, not a fifth child.
-            // The two paddings come from FloatingVisualLayout for the same reason as the
-            // height above: together they are the control band the docked visual clears.
-            AnyView(startButton
-                .padding(.horizontal, 16)
-                .padding(.top, FloatingVisualLayout.startButtonTopPadding)
-                .padding(.bottom, FloatingVisualLayout.startButtonBottomPadding))
+            // #157's own words for why the button sat here, kept verbatim because they are
+            // the argument this move overrides, not a mistake it corrects:
+            //   "MOVED BELOW THE PLATE (#157, founder 2026-07-27 'alles vereinfachen und
+            //    schöner'). It used to sit BETWEEN the chip bar and the plate, which is what
+            //    made the window read as 'a menu bar, then a button, then a form': the chips
+            //    and the panel they switch are one object, and a full-width primary button
+            //    wedged between them cut that object in half. Below the plate it anchors the
+            //    surface instead of splitting it — and lands in thumb reach on a phone held
+            //    one-handed, which is how this instrument is actually played."
+            // The button is now the FIRST child (see the block above the chip bar). The
+            // splitting objection is answered by the new position; the thumb-reach one is
+            // not, and is the accepted cost of the founder's 2026-07-31 instruction.
         }
         // Pinch anywhere to zoom the whole interface (persists); honours the system
         // text size until the user explicitly zooms. For users who need larger text.
@@ -1260,12 +1277,16 @@ struct EchoelStudioView: View {
                   systemImage: running ? "stop.circle.fill" : "waveform.path.ecg")
                 .font(EchoelTheme.font(17, .semibold))
                 .foregroundStyle(running ? EchoelTheme.text : .black)
-                // Height comes from FloatingVisualLayout, not a literal, because the docked
-                // floating visual lifts itself by exactly this band to avoid covering this
-                // button (it once covered ~40 % of it, and since that card is the play
-                // surface, taps there played a note instead of starting biofeedback).
-                // Changing the number here now moves the card too, instead of silently
-                // re-creating the overlap.
+                // Height comes from FloatingVisualLayout, not a literal. ⛔ The reason has
+                // CHANGED and the old one is wrong now: it read "because the docked floating
+                // visual lifts itself by exactly this band to avoid covering this button (it
+                // once covered ~40 % of it, and since that card is the play surface, taps
+                // there played a note instead of starting biofeedback)". Since #288 the button
+                // is at the TOP of the studio and the docked card is at the bottom, so they
+                // cannot collide and this constant is no longer a collision guard — see the
+                // ⛔ block at the top of `FloatingVisualLayout`'s control-band section for what
+                // it does buy instead. It stays in the shared type because the size still
+                // belongs in one CI-tested place, not because the card depends on it.
                 .frame(maxWidth: .infinity)
                 .frame(height: FloatingVisualLayout.startButtonHeight)
                 // Website CI: primary action = off-white fill, black label (.btn-primary).
