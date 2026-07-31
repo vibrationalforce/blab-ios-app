@@ -864,18 +864,32 @@ struct EchoelStudioView: View {
         }
         .onChange(of: scenePhase) { old, phase in
             if phase == .active { handlePendingIntent(); updateKeepAwake() }
-            // #273 — AUTOSAVE ON THE WAY OUT. Until now `ProjectStore.save` had exactly two
-            // callers in `Sources/`, both explicit taps, and NEITHER `scenePhase` observer
-            // touched a store: backgrounding, a phone call or a crash lost the take. That is
-            // worse here than in a document app — a bio-generated take is not reproducible by
-            // repeating the inputs, so there is nothing to redo.
+            // #273 — AUTOSAVE ON THE WAY OUT. `ProjectStore.save` had THREE callers in
+            // `Sources/` (the Save alert, the peer receive, and `importProject`'s own
+            // `return save(p)` behind the live `.fileImporter`) — all three an explicit tap,
+            // and no `scenePhase` observer touched the PROJECT store. Backgrounding or the OS
+            // terminating a suspended app lost the take, and a bio-generated take is not
+            // reproducible by repeating the inputs.
+            //
+            // ⛔ TWO CORRECTIONS TO THE FIRST VERSION OF THIS COMMENT, both found in review:
+            // it said "exactly two callers" (three) and "neither observer touched a store" —
+            // `EchoelmusicApp`'s `.background` branch already calls
+            // `timelineStore.flushPendingSave()` for exactly this reason. That line is the
+            // HOUSE PRECEDENT for a lifecycle flush, and a reader sent looking for "no
+            // precedent" would never find it.
             //
             // `old == .active` is what makes this fire ONCE PER DEPARTURE. `.inactive` is also
             // the first phase on the way BACK (background → inactive → active), so keying on
-            // `phase != .active` alone would write twice per round trip. Leaving on
-            // `.inactive` rather than `.background` is deliberate: it is the earliest signal
-            // and it also covers a call banner or Control Centre, which never reach
-            // `.background` at all.
+            // `phase != .active` alone would write twice per round trip.
+            //
+            // ⚠️ `.inactive` RATHER THAN `.background` BUYS EARLINESS, NOT SAFETY — the first
+            // version claimed safety ("covers a call banner or Control Centre, which never
+            // reach `.background`"). Those cases return to `.active` and cannot lose a take,
+            // so `.background` alone would have been just as safe. The cost is real: a full
+            // synchronous JSON encode and protected write on the main actor at every transient
+            // interruption, including every share sheet and file importer. Kept because the
+            // write is one small document and the earlier signal is the more conservative one
+            // — but kept for THAT reason.
             if old == .active && phase != .active { autosaveTake() }
         }
         // Keep the screen awake while performing or projecting — an installation, a
@@ -5832,19 +5846,35 @@ struct EchoelStudioView: View {
     /// · `Project.autosaveSlotID` is FIXED, and `ProjectStore.save` matches by id — so this
     ///   replaces the previous autosave instead of adding a row per app switch, and it can
     ///   never land on a take the user named and saved (those carry random ids).
-    /// · `hasComposed` gates it. Saving an empty pre-generate state would push a row into the
-    ///   library that recalls nothing, and — because the library is sorted newest-first —
-    ///   push it above the take the user actually made.
+    /// · THE GUARD IS TWO CONDITIONS, and the second one was missing in the first cut.
+    ///   `hasComposed` alone is NOT enough: it is set `true` unconditionally by `open()` and
+    ///   is never set back to `false` anywhere, so opening a legacy take whose notes did not
+    ///   survive the lossy decoder leaves it true over an EMPTY roll. The next departure then
+    ///   wrote that empty take into the single slot and the good recovery point was gone —
+    ///   with no undo, because there is only one slot. The Save button's own doc says the
+    ///   same thing about `hasComposed` sixty lines up; I did not read it.
     /// · The name carries `autosaveNamePrefix`, because a row the user did not create has to
     ///   say so in the one place they will meet it, which is the Open list.
+    ///   ⛔ The first version justified the guard with "…and would sit above the take the user
+    ///   actually made". That reason is FALSE: the library is newest-first, so a NON-empty
+    ///   autosave sits on top too, on every app switch. The ordering question is real and
+    ///   separate (#285); the guard is about not storing a take that recalls nothing.
     ///
     /// It is a RECOVERY point, not a save: nothing here marks the take as saved, and the Save
     /// button still writes its own row. Deliberate — "the app already saved it" is a claim
     /// that would have to survive the founder deleting the autosave row.
+    ///
+    /// ⚠️ AND IT DOES NOT SURVIVE A CRASH, which the first version of this comment claimed it
+    /// did. A crash delivers no scene-phase transition at all; what this covers is
+    /// backgrounding, the app switcher, a call the user answers, and termination by the OS
+    /// while suspended. A foreground crash still loses everything since the last departure.
     private func autosaveTake() {
-        guard hasComposed else { return }
-        let base = saveName.isEmpty ? session.sessionName(bpm: beatPlayer.pattern.tempo) : saveName
-        var take = currentProject(named: Project.autosaveNamePrefix + base)
+        guard hasComposed, !pianoRoll.notes.isEmpty else { return }
+        // Built from `currentProject()` rather than re-deriving the default name: the first
+        // version duplicated `saveProject()`'s name expression verbatim, so a change there
+        // would have silently drifted the autosave's name away from the manual save's.
+        var take = currentProject()
+        take.name = Project.autosaveNamePrefix + take.name
         take.id = Project.autosaveSlotID
         projects.save(take)
     }

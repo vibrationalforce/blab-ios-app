@@ -46,10 +46,30 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     /// #273 — THE ONE RESERVED SLOT THE AUTOSAVE WRITES TO, and the reason it is a fixed
     /// constant rather than a fresh `UUID()`.
     ///
-    /// Until this existed there was no autosave at all: `ProjectStore.save` had exactly two
-    /// callers in `Sources/`, both explicit taps, and neither `scenePhase` observer touched a
-    /// store. Backgrounding the app, taking a call or crashing lost the take — and a
+    /// Until this existed there was no autosave at all: every `ProjectStore.save` caller in
+    /// `Sources/` was an explicit user action, and no `scenePhase` observer touched the
+    /// PROJECT store. Backgrounding the app or taking a call lost the take — and a
     /// body-generated take cannot be reproduced by repeating the inputs, so "lost" is final.
+    ///
+    /// ⛔ THREE THINGS THE FIRST VERSION OF THIS DOC CLAIMED THAT ARE FALSE, corrected here
+    /// rather than silently swapped, because each one would send the next reader looking for
+    /// something that is not there:
+    ///   1. "exactly two callers" — there are THREE (`saveCurrent`'s alert, the peer receive,
+    ///      and `importProject`'s own `return save(p)` behind the live `.fileImporter`).
+    ///      Counting them wrong is how one gets missed when the shape changes.
+    ///   2. "neither `scenePhase` observer touched a store" — `EchoelmusicApp` has flushed the
+    ///      TIMELINE store from its `.background` branch all along
+    ///      (`timelineStore.flushPendingSave()`). That is the house precedent this slice
+    ///      follows, not a novelty; only the PROJECT store was unserved.
+    ///   3. "or crashing" — this fixes NO crash. A crash delivers no scene-phase transition,
+    ///      so nothing runs. What it covers is an orderly departure: home button, app switch,
+    ///      incoming call.
+    ///
+    /// ⚠️ AND THE FORCE-UNWRAP IS KNOWINGLY BENT (`CLAUDE.md` bans them). It is pinned by a
+    /// blocking-bundle test that asserts this exact string, so a typo goes red in CI before it
+    /// ships. Worth naming anyway: were it ever to fail it would trap at the FIRST AUTOSAVE —
+    /// on the way out of the app, with the user's take in hand — not at launch where it would
+    /// be found in a second.
     ///
     /// `ProjectStore.save` matches by `id`, so a fixed one makes every autosave REPLACE the
     /// previous one: one row in the library, not a row per app switch. It also guarantees the
