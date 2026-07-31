@@ -533,7 +533,14 @@ struct EchoelStudioView: View {
             // "Save" leads because that is the word the founder searched for and did not
             // find; the chip is 12 pt, so the export half is carried by the panel title
             // ("Save & Export") and by `fullName` above rather than crammed in here.
-            case .export:      return "Save"
+            //
+            // ⛔ A BARE "Save" WAS WRONG AND THE REVIEWER CAUGHT IT: three sibling alerts read
+            // "Save project", "Save mood" and "Save sound", two of them reached from the Mood
+            // and Sound chips. A chip saying only "Save" next to those invites exactly the
+            // wrong guess. The chip never appears in the standing strip (`studioChips` filters
+            // `.export` out) — only appended when this panel is the one on screen — so it can
+            // afford to echo the panel title, and the 44 pt tap floor makes width a non-issue.
+            case .export:      return "Save/Export"
             case .field:       return "Field"
             case .video:       return "Video"
             }
@@ -668,14 +675,20 @@ struct EchoelStudioView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .echoelChromeDoor)) { note in
                     switch note.object as? String {
                     case "master": activeMenu = .master
-                    // #272 — `showExport` too, not just the menu. `studio.showExport`
-                    // persists and defaults to FALSE, so this door selected the plate and
-                    // then handed the user a collapsed row: the panel whose contents he was
-                    // looking for opened shut. The Video door two lines down already had to
-                    // pair the two for the same reason; this is that pattern, not a new one.
-                    // A door that lands on a closed panel is indistinguishable from a door
-                    // that does nothing.
-                    case "export": activeMenu = .export; showExport = true
+                    // #272 — DO NOT ADD `showExport = true` HERE. The first cut of that slice
+                    // did, on the reasoning that `studio.showExport` persists as FALSE and
+                    // would hand the user a collapsed panel. Both halves were wrong, and the
+                    // refutation is worth more than the line: `menuPanelHost` puts
+                    // `.environment(\.echoelPanelForceOpen, true)` over `dropdownContent`, and
+                    // `EchoelPanel.body` takes an unconditional `VStack` branch under that
+                    // flag — the `isExpanded` binding is unreachable for EVERY panel in this
+                    // dropdown. The panel was already opening expanded. Writing the key would
+                    // only stamp `true` into a persisted value nothing honours, so the day
+                    // someone drops `forceOpen` the user gains a collapse control and a door
+                    // that silently undoes it. (The Video door below does pair the two — but
+                    // `showVideoLibrary` is `@State`, not `@AppStorage`, and its own doc says
+                    // the flag is inert in the dropdown. It is not the precedent it looks like.)
+                    case "export": activeMenu = .export
                     case "learn":  showLearn = true
                     #if canImport(MultipeerConnectivity)
                     case "live":   showLiveColabo = true
@@ -4269,7 +4282,10 @@ struct EchoelStudioView: View {
                 // Name the REAL button (audit 2026-07-09: no "Generate" exists — first-run
                 // users hunted for it and read the greyed buttons as broken). Video
                 // recording lives in the floating visual window, not here.
-                Text("Start with the pulse button (next to Play) first — then you can export the loop as a WAV or as MIDI.")
+                // #272: named only exporting, inside a panel that now promises saving and
+                // recording as well — the one first-run string here, and it left out both
+                // words the founder searched for.
+                Text("Start with the pulse button (next to Play) first — then you can record the loop, save the session, or export a WAV or MIDI file.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
