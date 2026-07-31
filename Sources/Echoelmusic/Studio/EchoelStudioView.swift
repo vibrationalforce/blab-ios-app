@@ -450,11 +450,17 @@ struct EchoelStudioView: View {
     // column names all three); the automation editors are gone because Slice 4d
     // (36a8468) deleted them as unreachable, which that doc does not itself discuss.
     // The patch editor the product definition KEEPS is `soundPanel` (Sound chip) —
-    // that panel IS the live timbre editor, so it needs no sheet. Caveat for whoever
-    // retires PatchEditorView.swift: three SynthPatch fields (`outputLevel`,
-    // `unisonVoices`, `unisonDetuneCents`) and its preview keyboard have NO editor
-    // anywhere else — port those rows into `soundPanel` first, or the deletion is a
-    // silent capability loss, not a cleanup.
+    // that panel IS the live timbre editor, so it needs no sheet.
+    // ⛔ THE CAVEAT THAT STOOD HERE IS DISCHARGED, AND ONE THIRD OF IT WAS FALSE. It said
+    // three SynthPatch fields — `outputLevel`, `unisonVoices`, `unisonDetuneCents` — had no
+    // editor anywhere else and had to be ported before `PatchEditorView.swift` is retired.
+    // TWO of them did: their rows are now in `soundPanel` under "Unison" (#281). The THIRD
+    // never had a row at ALL — `PatchEditorView` declares an `outputLevelBinding` and no view
+    // ever uses it, so deleting that file loses nothing there and porting it would mean
+    // INVENTING a control, not preserving one. Whether a manual output trim should exist is a
+    // real question (it sits against `loudnessNormalized()`'s auto-calibration and against the
+    // per-role gain of #196) and it is a founder call, not a side effect of a cleanup.
+    // What remains genuinely unported is the preview keyboard, which the play surface covers.
     /// Would present a file picker to import a Standard MIDI File onto the roll. NOTHING
     /// SETS THIS — its only writer was `openTool`, deleted 2026-07-26 (`f371d27`), and the
     /// roll it imported into has no door any more either. Kept as a reusable slot on the
@@ -3766,6 +3772,22 @@ struct EchoelStudioView: View {
             knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
             knob("Noise", $currentPatch.noiseLevel, 0...1)
 
+            // #281 — THE ENSEMBLE ROWS, ported here from `PatchEditorView` so retiring that
+            // file (#132 Slice 6) is a cleanup and not a silent capability loss. They were the
+            // only editor for `unisonVoices` / `unisonDetuneCents` anywhere in the app, and
+            // unison is the single biggest "thin → rich" lever the engine has
+            // (`PolySynthVoice.apply` says so at its own default).
+            groupHeader("Unison")
+            EchoelValueField(label: "Voices", value: unisonVoicesBinding,
+                             range: Float(1)...Float(EchoelPolyDDSP.maxUnison),
+                             decimals: 0, onChange: { applySoundLive() })
+            EchoelValueField(label: "Detune", value: unisonDetuneBinding,
+                             range: Float(0)...Float(50), unit: "cents",
+                             decimals: 0, onChange: { applySoundLive() })
+            Text("Each note played as several slightly-detuned copies — the difference between one thin voice and an ensemble. 1 voice = off.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+
             groupHeader("Filter")
             knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
             knob("Resonance", $currentPatch.filterResonance, 0...1)
@@ -3818,6 +3840,30 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// `unisonVoices` is `Int?` and the row is a numeric field, so it needs its own binding.
+    ///
+    /// ⭐ THE FALLBACK IS 2, NOT 1, AND THAT IS THE POINT OF PORTING RATHER THAN COPYING.
+    /// `PolySynthVoice.apply` reads `patch.unisonVoices ?? 2` — a patch that does not specify
+    /// unison (every generative genre patch, every pre-2026-07 saved sound) is PLAYED with two
+    /// detuned voices. `PatchEditorView` displayed `?? 1`, so its row read "1 voice / 0 cents"
+    /// while the engine ran 2 / 7¢: a readout that disagrees with what you hear, and dragging
+    /// from that wrong start silently changed the sound before the number moved. Mirroring the
+    /// engine's own defaults here is what makes the row honest.
+    ///
+    /// ⚠️ Consequence to state rather than hide: the first edit of this row WRITES the value,
+    /// so an unspecified patch becomes an explicit one. That is what makes an explicit mono `1`
+    /// reachable at all — `apply` honours an explicit 1 and cannot honour a nil.
+    private var unisonVoicesBinding: Binding<Float> {
+        Binding(get: { Float(currentPatch.unisonVoices ?? 2) },
+                set: { currentPatch.unisonVoices = Swift.max(1, Int($0.rounded())) })
+    }
+
+    /// Same rule as `unisonVoicesBinding`: the engine's own fallback is 7¢, not 0.
+    private var unisonDetuneBinding: Binding<Float> {
+        Binding(get: { currentPatch.unisonDetuneCents ?? 7 },
+                set: { currentPatch.unisonDetuneCents = Swift.max(0, $0) })
     }
 
     /// A precise parameter row bound to a live patch field: a scrubbable numeric
