@@ -4728,35 +4728,62 @@ struct EchoelStudioView: View {
 
     // MARK: - Open projects sheet
 
+    /// #285 — THE AUTOSAVE HAD TAKEN OVER THE TOP OF THE LIBRARY. `ProjectStore` is
+    /// newest-first by contract (`save` does `insert(at: 0)`, `init` sorts by `savedAt`), and
+    /// since #273 the app writes one on the way out. So the one row the user never made sat
+    /// above the take they did make, and got a fresh timestamp on every departure — it could
+    /// not be pushed back down by anything short of saving again.
+    ///
+    /// ⛔ NOT "every time the app goes to the background", which is what this comment said
+    /// first and is exactly the kind of overclaim that gets planned from later. `autosaveTake()`
+    /// is guarded by `hasComposed, !pianoRoll.notes.isEmpty` — with nothing composed, no
+    /// autosave is written at all. The guard is what makes the FIRST section of this list
+    /// non-empty for a user who has only ever saved by hand; it does not change the ordering
+    /// problem for anyone who has composed, which is everyone this fix is for.
+    ///
+    /// The fix is in the LIBRARY VIEW, not the store: the ordering is right for a store (a
+    /// recovery slot IS the newest thing on disk) and wrong only for a list a human reads. The
+    /// autosave now has its own section, below the user's own saves, named so it reads as a
+    /// safety net rather than a document. Nothing about when it is written changed.
+    ///
+    /// ⚠️ EACH SECTION DELETES OUT OF ITS OWN ARRAY. The single list before this could map its
+    /// `IndexSet` straight into `projects.projects` because the ForEach covered the whole
+    /// array; two ForEaches over two slices cannot — an index from the lower section would
+    /// address the wrong project. That is the one way this split can silently destroy data, so
+    /// it is why the two arrays are computed once, above, and each handler indexes only its own.
     private var openSheet: some View {
-        NavigationStack {
+        let saved = projects.projects.filter { $0.id != Project.autosaveSlotID }
+        let autosaved = projects.projects.filter { $0.id == Project.autosaveSlotID }
+        return NavigationStack {
             List {
                 if projects.projects.isEmpty {
                     Text("No saved projects yet.").foregroundStyle(EchoelTheme.dim)
                 }
-                ForEach(projects.projects) { p in
-                    HStack(spacing: 8) {
-                        Button { open(p); showOpen = false } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(p.name).font(.callout.weight(.medium)).foregroundStyle(EchoelTheme.text)
-                                Text("\(p.style.displayName) · \(p.key.shortName) · \(EchoelDecimalText.string(p.bpm, decimals: 0)) BPM")
-                                    .font(.caption).foregroundStyle(EchoelTheme.dim)
+                // Guarded like the autosave section below it: a `Section` around an empty
+                // `ForEach` still draws its own inset block, so on a fresh install — where
+                // there is no user save yet but the first app switch has already written an
+                // autosave — an empty grey band would sit above the only row in the list.
+                if !saved.isEmpty {
+                    Section {
+                        ForEach(saved) { p in projectRow(p) }
+                            .onDelete { idx in
+                                idx.map { saved[$0].id }.forEach { projects.delete(id: $0) }
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        ShareLink(item: SharedEchoelProject(project: p),
-                                  preview: SharePreview(p.name)) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
-                                .frame(width: 44, height: 44)   // ≥44pt tap target (a11y)
-                                .contentShape(Rectangle())
-                        }
-                        .accessibilityLabel("Share \(p.name)")
                     }
                 }
-                .onDelete { idx in idx.map { projects.projects[$0].id }.forEach { projects.delete(id: $0) } }
+                if !autosaved.isEmpty {
+                    Section {
+                        ForEach(autosaved) { p in projectRow(p) }
+                            .onDelete { idx in
+                                idx.map { autosaved[$0].id }.forEach { projects.delete(id: $0) }
+                            }
+                    } header: {
+                        Text("Autosave").foregroundStyle(EchoelTheme.dim)
+                    } footer: {
+                        Text("Kept automatically when you leave the app. Overwritten each time.")
+                            .foregroundStyle(EchoelTheme.dim)
+                    }
+                }
             }
             .navigationTitle("Open project")
             #if os(iOS)
@@ -4778,6 +4805,33 @@ struct EchoelStudioView: View {
                 }
             }
             #endif
+        }
+    }
+
+    /// One library row. Extracted when #285 split the list in two so the two sections cannot
+    /// drift apart — a row that looked different in the autosave section would read as a
+    /// different KIND of thing, and it is the same project.
+    @ViewBuilder
+    private func projectRow(_ p: Project) -> some View {
+        HStack(spacing: 8) {
+            Button { open(p); showOpen = false } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(p.name).font(.callout.weight(.medium)).foregroundStyle(EchoelTheme.text)
+                    Text("\(p.style.displayName) · \(p.key.shortName) · \(EchoelDecimalText.string(p.bpm, decimals: 0)) BPM")
+                        .font(.caption).foregroundStyle(EchoelTheme.dim)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            ShareLink(item: SharedEchoelProject(project: p),
+                      preview: SharePreview(p.name)) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
+                    .frame(width: 44, height: 44)   // ≥44pt tap target (a11y)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Share \(p.name)")
         }
     }
 
