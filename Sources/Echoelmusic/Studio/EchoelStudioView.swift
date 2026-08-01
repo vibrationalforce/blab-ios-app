@@ -3094,16 +3094,27 @@ struct EchoelStudioView: View {
     /// It sits ABOVE "Look" deliberately: this is what the sound IS, the looks below are what
     /// it is rendered AS, and the reading order should follow that.
     ///
-    /// ⚠️ ONE PROPERTY, THREE ROWS, AND THAT IS STRUCTURAL, not taste. `panel(_:isExpanded:)`
+    /// ⚠️ ONE PROPERTY, FIVE ROWS, AND THAT IS STRUCTURAL, not taste. `panel(_:isExpanded:)`
     /// takes a `@ViewBuilder`, which caps a closure at TEN children. `visualPanel` already
     /// held nine; adding the heading, the trace and the caption inline would have made twelve
     /// and failed to compile — with the notoriously unhelpful "extra argument in call".
     /// The next row added to this panel must join a section like this one, not the top level.
+    /// Slice 2's spectrum went in HERE for exactly that reason, and the panel is still eight.
+    ///
+    /// The two views answer different questions on purpose and neither replaces the other:
+    /// the scope shows the WAVE (what shape, how loud, is it clipping), the spectrum shows
+    /// what is IN it (which partials, which note dominates). A performer checking whether the
+    /// take is too bright reads the second; one checking whether the master is squashed reads
+    /// the first.
     private var signalSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Signal").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
             AnalysisScopeView(reduceMotion: reduceMotion)
             Text("The master output, triggered on a rising edge so a steady tone stands still. It shows what is actually heard — timbre, overtones and the reverb tail — not the note grid.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            AnalysisSpectrumView(reduceMotion: reduceMotion)
+            Text("The same output by frequency, low on the left. Each band is tinted by the colour that frequency becomes in visible light — the same mapping the field uses — so the meter and the picture agree. The reading above names the loudest partial and how far it sits from the nearest note of your tuning.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
