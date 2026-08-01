@@ -37,8 +37,10 @@
 //     can close it. It is a deliberate trade: a standing "turn weather on" line in Field would
 //     be permanent chrome for every user, on the panel #365/#369 just trimmed.
 // (b) These do NOT all survive #359 step 3. That step deletes `sessionPanel` and the
-//     `.session` chip. `testThePlacePanelNoLongerCarriesWeather` will then SKIP (its window
-//     opening is gone) — silently green — while `testThePlaceChipSaysPlace` and
+//     `.session` chip. `testThePlacePanelNoLongerCarriesWeather` will then FAIL (its window
+//     opening is gone) — it used to SKIP silently, which the step-2 Nachlese fixed in
+//     `window(_:opening:closing:)`; that is a deliberate improvement, because a quiet green
+//     is exactly what this note was warning about — while `testThePlaceChipSaysPlace` and
 //     `testTheVoiceOverNameFollowsTheChip` will hard-FAIL (their windows survive, the case
 //     does not). Whoever ships step 3 must delete those three deliberately, in the same
 //     commit, and say so; two of them going quiet is not the same as them passing.
@@ -64,6 +66,23 @@ import XCTest
 final class WeatherIsAMoodRubricTests: XCTestCase {
 
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+
+    /// What ends a `window(...)` over a declaration in `EchoelStudioView.swift`.
+    ///
+    /// ⛔ `"private func "` WAS MISSING FROM THE `weatherRow` WINDOWS UNTIL THE #359-STEP-2
+    /// NACHLESE, and the omission got dangerous in the very commit that introduced its
+    /// danger. `weatherRow` ends well before the next `private var`, so the window ran 22
+    /// lines past it — through `turnLocationOnForWeather()` and into `weatherImageRow`'s doc
+    /// block. That was harmless while every assertion was POSITIVE ("this token appears").
+    /// Step 2 made two of them NEGATIVE ("this token does NOT appear"), so an
+    /// `AdaptiveCardGrid` placed in any `private func` down there would redden the only
+    /// blocking bundle with a failure message naming `weatherRow` — sending its reader to a
+    /// declaration that is innocent. Step 2's own NEW test already passed the three-element
+    /// list, so the asymmetry sat inside a single changeset.
+    ///
+    /// Hoisted to one constant rather than repeated: the two call sites that needed it had
+    /// drifted apart precisely because the list was written out by hand each time.
+    private static let declarationClosing = ["private var ", "private func ", "// MARK:"]
 
     private func repoRoot() throws -> URL {
         let here = URL(fileURLWithPath: #filePath)
@@ -93,7 +112,20 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
                         opening: String,
                         closing: [String]) throws -> [String] {
         guard let start = source.firstIndex(where: { $0.contains(opening) }) else {
-            throw XCTSkip("declaration '\(opening)' not found — the file was restructured")
+            // ⛔ THIS WAS `XCTSkip`, AND THAT MADE EVERY TEST HERE SELF-DISARMING. Delete
+            // `weatherImageRow` outright and `testTheImageRowStillBuildsTheVisualMixers` went
+            // silently GREEN. Same lesson the #367 Nachlese applied to its own helper hours
+            // earlier, in this same bundle: a source-text guard may SKIP when the TREE is
+            // absent — it has nothing to read — but never because the THING IT GUARDS moved.
+            // Deliberate consequence for #359 step 3, and an improvement: the three tests this
+            // file's header says will "go quiet" now FAIL instead, which is what the header
+            // already demanded ("two of them going quiet is not the same as them passing").
+            XCTFail("""
+                declaration '\(opening)' not found — it was renamed, reformatted or deleted. \
+                If that was deliberate, delete this test in the SAME commit and say so. Until \
+                then the surface it pins has no guard at all.
+                """)
+            return []
         }
         var end = source.count
         var i = start + 1
@@ -124,7 +156,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let mood = code(try window(source,
                                    opening: "private var moodPanel: some View {",
-                                   closing: ["private var ", "// MARK:"]))
+                                   closing: Self.declarationClosing))
         let hits = mood.filter { $0.contains("weatherRow") }
         XCTAssertEqual(hits.count, 1, """
             #359: moodPanel must build `weatherRow` exactly once. Found \(hits.count). \
@@ -137,7 +169,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let mood = code(try window(source,
                                    opening: "private var moodPanel: some View {",
-                                   closing: ["private var ", "// MARK:"]))
+                                   closing: Self.declarationClosing))
         guard let at = mood.firstIndex(where: { $0.contains("weatherRow") }) else {
             return XCTFail("no weatherRow in moodPanel — see the sibling test")
         }
@@ -159,7 +191,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let mood = code(try window(source,
                                    opening: "private var moodPanel: some View {",
-                                   closing: ["private var ", "// MARK:"]))
+                                   closing: Self.declarationClosing))
         let weatherAt = mood.firstIndex { $0.contains("weatherRow") }
         let captionAt = mood.firstIndex { $0.contains("Friendly ↔ scary (tension)") }
         guard let weatherAt, let captionAt else {
@@ -195,7 +227,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     func testTheWeatherRowStillCarriesItsSoundMixerGroup() throws {
         let row = code(try window(try lines(Self.studio),
                                   opening: "private var weatherRow: some View {",
-                                  closing: ["private var ", "// MARK:"]))
+                                  closing: Self.declarationClosing))
         XCTAssertTrue(row.contains(where: { $0.contains("weatherMixGroup(\"Sound\"") }), """
             #359: `weatherRow` no longer builds `weatherMixGroup("Sound"…)`. The founder asked \
             for weather as a rubric WITH SLIDERS; a row that only carries its on/off toggle \
@@ -224,7 +256,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     func testTheMoodPanelCarriesAOneTapPointerToField() throws {
         let row = code(try window(try lines(Self.studio),
                                   opening: "private var weatherRow: some View {",
-                                  closing: ["private var ", "// MARK:"]))
+                                  closing: Self.declarationClosing))
         XCTAssertTrue(row.contains(where: { $0.contains("activeMenu = .field") }), """
             #359 step 2: nothing in `weatherRow` carries the reader to the Field panel. The \
             four image mixers moved there; without a one-tap pointer this is exactly the \
@@ -239,7 +271,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let field = code(try window(source,
                                     opening: "private var visualPanel: some View {",
-                                    closing: ["private var ", "// MARK:"]))
+                                    closing: Self.declarationClosing))
         let hits = field.filter { $0.contains("weatherImageRow") }
         XCTAssertEqual(hits.count, 1, """
             #359 step 2: `visualPanel` (the Field chip) must build `weatherImageRow` exactly \
@@ -264,7 +296,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     func testTheImageRowStillBuildsTheVisualMixers() throws {
         let row = code(try window(try lines(Self.studio),
                                   opening: "private var weatherImageRow: some View {",
-                                  closing: ["private var ", "private func ", "// MARK:"]))
+                                  closing: Self.declarationClosing))
         XCTAssertTrue(row.contains(where: { $0.contains("weatherMixGroup(") }), """
             #359 step 2: `weatherImageRow` no longer builds a `weatherMixGroup(…)`. An empty \
             row satisfies `testTheFieldPanelCarriesTheWeatherImageRow`, which matches the \
@@ -290,7 +322,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let place = code(try window(source,
                                     opening: "private var sessionPanel: some View {",
-                                    closing: ["private var ", "// MARK:"]))
+                                    closing: Self.declarationClosing))
         let hits = place.filter { $0.contains("weatherRow") }
         XCTAssertTrue(hits.isEmpty, """
             #359: `weatherRow` is back in the Place panel as well. Two surfaces writing the \
@@ -325,7 +357,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         // declaration form the other three windows in this file already use.
         let names = code(try window(source,
                                     opening: "var fullName: String {",
-                                    closing: ["private var ", "// MARK:"]))
+                                    closing: Self.declarationClosing))
         guard let line = names.first(where: { $0.contains("case .session:") }) else {
             return XCTFail("the `.session` chip lost its VoiceOver name")
         }

@@ -180,7 +180,7 @@ final class SoundPanelReflowsTests: XCTestCase {
     }
 
     /// Lines of `soundPanel`, from its declaration to the next member declaration. Scoping
-    /// matters: `AdaptiveCardGrid` legitimately appears in two other panels in this
+    /// matters: `AdaptiveCardGrid` legitimately appears in one other panel in this
     /// 6000-line file, and a whole-file scan would pass on those while `soundPanel` itself
     /// had been reverted.
     private func soundPanelBody() throws -> [String] {

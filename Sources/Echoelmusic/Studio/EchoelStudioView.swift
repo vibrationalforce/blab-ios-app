@@ -2693,7 +2693,9 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// One titled block of weather mixers (Sound or Image), in the mix-strip look.
+    /// One titled block of weather mixers, in the mix-strip look. The two live titles are
+    /// "Sound" (in `weatherRow`, Mood) and "Weather" (in `weatherImageRow`, Field) — this line
+    /// said "(Sound or Image)" until #359 step 2, and "Image" is no longer a title anywhere.
     @ViewBuilder
     private func weatherMixGroup(_ title: String, params: [WeatherMood.Param]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -3202,15 +3204,20 @@ struct EchoelStudioView: View {
             // So: Preset sits directly above the fields it writes, and `MusicColourRowView`
             // moves down beside the colour caption that explains it (and Hue/Saturation).
             // Three sections instead of one dense stack — what it renders AS, how intense,
-            // where the colour comes from. Nothing is added or removed: the same eight
-            // children in this ViewBuilder, read in the order they are used. (The
+            // where the colour comes from. #369 added and removed nothing: the same children
+            // in this ViewBuilder, read in the order they are used. (It said "the same EIGHT"
+            // and stayed at eight after #359 step 2 made it nine — a present-tense count in a
+            // comment about a DIFFERENT change, which is how these go stale. The panel's
+            // children are enumerated once, in `signalSection`'s doc block; do not re-count
+            // them here.) (The
             // presentation-modifier ceiling is a different budget entirely — it counts the
             // `.sheet`/`.fullScreenCover` chain on `EchoelStudioView.body`, which panel
             // children never touched. An earlier draft of this note ran the two together.)
             //
             // NOT done here and worth naming: the colour pair still has no heading of its
-            // own, so "Look" and "Preset" head two of three sections. Adding a third would
-            // be a new child in a ViewBuilder that is at eight of ten.
+            // own, so "Look" and "Preset" head two of three sections. Adding a third would be
+            // another top-level child — see `signalSection`'s doc block for what that costs
+            // and what it does NOT cost.
             visualPresetRow
             visualAdjustFields
             MusicColourRowView()
@@ -3238,14 +3245,22 @@ struct EchoelStudioView: View {
     /// It sits ABOVE "Look" deliberately: this is what the sound IS, the looks below are what
     /// it is rendered AS, and the reading order should follow that.
     ///
-    /// ⚠️ ONE PROPERTY, FIVE ROWS, AND THAT IS STRUCTURAL, not taste. `panel(_:isExpanded:)`
-    /// takes a `@ViewBuilder`, which caps a closure at TEN children. `visualPanel` already
-    /// held nine; adding the heading, the trace and the caption inline would have made twelve
-    /// and failed to compile — with the notoriously unhelpful "extra argument in call".
-    /// The next row added to this panel must join a section like this one, not the top level.
-    /// Slice 2's spectrum went in HERE for exactly that reason, and the panel is NINE — the
-    /// ninth is `weatherImageRow` (#359 step 2), which earned a top-level slot rather than a
-    /// section because it must sit against the colour caption that explains its two first rows.
+    /// ⚠️ ONE PROPERTY, FIVE ROWS. Slice 2's spectrum went in HERE rather than at the top
+    /// level, and #359 step 2's `weatherImageRow` did not — those are the two decisions this
+    /// paragraph records. `visualPanel`'s top-level children today: the show/hide Button,
+    /// `signalSection`, the `Group`, `visualPresetRow`, `visualAdjustFields`,
+    /// `MusicColourRowView`, the colour caption, `weatherImageRow` (behind its `#if`), and
+    /// `touchSoundSection` — NINE, eight where WeatherKit is absent.
+    ///
+    /// ⛔ THE REASON GIVEN HERE UNTIL #359's STEP-2 NACHLESE WAS FALSE, and it is the sentence
+    /// a session reads before deciding whether it MAY append a child. It said `@ViewBuilder`
+    /// "caps a closure at TEN children" and that twelve "would have failed to compile". There
+    /// is no such cap on this toolchain: since SwiftUI's variadic-generics `buildPartialBlock`
+    /// the arity limit is gone, the deployment floor is iOS 18, and `moodPanel` passes
+    /// THIRTEEN children through this very same `panel(_:isExpanded:)` helper and ships. What
+    /// is real is type-checker COST, which grows with the count and is a budget, not a wall.
+    /// So the guidance survives — prefer a section over a tenth top-level row — but a session
+    /// that genuinely needs one is not blocked, and must not be told it is.
     ///
     /// The two views answer different questions on purpose and neither replaces the other:
     /// the scope shows the WAVE (what shape, how loud, is it clipping), the spectrum shows

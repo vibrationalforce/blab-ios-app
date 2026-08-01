@@ -60,13 +60,19 @@ acceptance line.
 >   now carries continuous per-parameter targets split SOUND (darkness/liveliness/tension →
 >   blended into `MoodProfile` before the composer Input) + IMAGE (hue/saturation/glow/motion →
 >   crossfaded into the `FloatingVisualWindow` visual). A `Param` enum (domain·label·explanation·
->   mixKey·`currentIntensity`) + pure `blend()`; the Session weather row is an explained,
->   grouped Klang/Bild mixer of `WeatherMixRow` leaves (each an `EchoelValueField` 0..1). Weather
+>   mixKey·`currentIntensity`) + pure `blend()`; the mixers are `WeatherMixRow` leaves (each an
+>   `EchoelValueField` 0..1), SPLIT BY DOMAIN since #359: the four sound influences sit in
+>   `moodPanel` under the weather toggle, the four image influences in `visualPanel` (the Field
+>   chip) as `weatherImageRow`. (Said "the Session weather row … grouped Klang/Bild mixer" until
+>   2026-08-01 — wrong panel since step 1, wrong structure since step 2.) Weather
 >   opt-in (default OFF); every mixer 0 = bit-identical. Fully unit-tested (pure), UI ui-state-reviewed.
 > - **Adaptive H/V layout (LIVE, v170/v173 — Regel überlebt, Quelle nicht)** — die Regel kam aus
 >   `ChannelRackView.rackColumns` (v170, gelöscht #167); sie lebt heute nur noch im
->   `AdaptiveCardGrid` leaf (v173) und reflowt master mix strips und weather
->   Klang/Bild groups to 2 columns in landscape / on iPad, 1 in portrait. Size-class read
+>   `AdaptiveCardGrid` leaf (v173) und reflowt heute NUR noch die master mix strips
+>   (`mixerPanel`) plus die sieben Gitter in `soundPanel` (#292 Slice 2) zu 2 Spalten im
+>   Querformat, 1 im Hochformat. Die weather Klang/Bild-Gruppen reflowen GAR NICHT mehr: #359
+>   Schritt 2 hat die Bild-Karte nach `visualPanel` gezogen, und ein Gitter mit einer Karte
+>   ordnet nichts an, also ist es mitgegangen. Size-class read
 >   confined to the leaf (render-safe); layout-only, revertible.
 > - **Timeline playback (PARTIAL, v169)** — `Sequencer/TimelineRegionPlayer.swift` rides the
 >   transport and plays the roll lane's **MIDI/drum** regions (opt-in "Play timeline", additive —
