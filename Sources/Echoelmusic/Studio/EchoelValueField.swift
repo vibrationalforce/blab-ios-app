@@ -256,15 +256,20 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
 
     // Drag state (incremental deltas, so the value never jumps mid-gesture).
     @State private var scrubbing = false
-    /// The value when this gesture began — the reference `onEnded` measures the commit against.
-    /// nil while no drag is in flight, EXCEPT after a cancelled one: the cancellation watcher
-    /// unlatches without nilling, on purpose (#377). Safe because the anchor branch re-seeds
-    /// this before anything reads it — `scrubbing` is the invariant that matters, not this.
+    /// The value when this gesture began — the reference `onEnded` measures the commit against,
+    /// and the value a cancelled gesture is put back to (#378).
+    ///
+    /// ⛔ IT OUTLIVES THE FALLING EDGE BY ONE MAIN-ACTOR TURN, AND THAT IS DELIBERATE. Everything
+    /// else a gesture latches is dropped synchronously when `dragActive` falls; this one is not,
+    /// because a normal `onEnded` delivered after the falling edge still has to measure `moved`
+    /// against it. Nilling it there is what would silently drop a legitimate `onCommit()`. The
+    /// deferred cancellation task nils it — but only on the branch where it has established that
+    /// no `onEnded` came and no new drag started, i.e. where nobody else owns it.
     @State private var scrubStartValue: V?
     /// The gesture's UN-SNAPPED running target (#376). The stored `value` is snapped to the
     /// display grid, so accumulating into it throws away everything finer than half a grid unit
-    /// on every event; this keeps the intent. nil while no drag is in flight — same cancellation
-    /// exception, and the same reason, as `scrubStartValue` above.
+    /// on every event; this keeps the intent. nil while no drag is in flight — cleared
+    /// synchronously at the falling edge, so a drag starting in the same turn cannot inherit it.
     @State private var scrubTarget: Double?
     @State private var lastY: CGFloat = 0
     @State private var lastX: CGFloat = 0
@@ -273,10 +278,29 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// never from a clock read, so it stays in step with the events it describes.
     @State private var lastTime: Date = .distantPast
 
-    /// Counts gestures so the deferred cancellation check (#378) can tell "this drag is still
-    /// the one I saw end" from "a new drag started in the meantime". Wraps deliberately — only
-    /// equality across one main-actor hop is ever asked of it.
+    /// Counts gestures. Stamped once per drag, in the anchor branch.
+    ///
+    /// ⛔ ITS FIRST VERSION COULD NOT FIRE IN THE WINDOW ITS OWN DOC CLAIMED TO COVER, and both
+    /// #378 reviewers found it independently. The stamp lives inside `if !scrubbing`, and that
+    /// commit's watcher left `scrubbing` standing until the deferred task ran — so a drag
+    /// starting inside the hop skipped the anchor branch, never bumped the counter, and the task
+    /// happily reverted the new drag's value under the user's finger. The guard was not weak, it
+    /// was unreachable. It works now because the falling edge unlatches `scrubbing`
+    /// SYNCHRONOUSLY: a drag starting in that turn re-anchors, bumps this, and the task sees a
+    /// number it does not recognise. Only equality across one main-actor hop is ever asked of it.
     @State private var gestureSeq: Int = 0
+
+    /// The `gestureSeq` of the last drag whose `onEnded` actually ran.
+    ///
+    /// ⭐ THIS IS WHAT REPLACED AN ORDERING ASSUMPTION WITH AN OBSERVATION. #378 first argued that
+    /// after one main-actor hop, `scrubbing` still being true "PROVES" `onEnded` did not run —
+    /// which is not a proof but a claim about SwiftUI's dispatch, and the penalty for it being
+    /// wrong had just grown from nothing to destructive (a late `onEnded` would find the value
+    /// already reverted, compute `moved == false`, and drop the user's finished edit). `onEnded`
+    /// now says so itself, first thing it does. The task asks a recorded fact instead of
+    /// inferring one, and both orders are correct again — the property `6046db7` established and
+    /// the first #378 gave away.
+    @State private var endedSeq: Int = 0
 
     /// True for exactly as long as SwiftUI considers a drag to be in flight (#377).
     ///
@@ -419,26 +443,35 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // surrounding ScrollView claims the drag, so this is the only place a cancelled
                 // gesture can be handled at all.
                 //
-                // ⛔ IT DEFERS BY ONE MAIN-ACTOR TURN, AND THAT HOP IS WHAT MAKES THE WHOLE
-                // THING DECIDABLE. The question this path must answer is "was this a cancel or a
-                // normal end", and it cannot be answered synchronously: the previous version
-                // claimed `onEnded` fires first and called it "idempotent by construction", but
-                // this repo holds the counter-evidence about the same wrapper —
-                // `TimelineAutomationRow.handleEnded` re-derives its hit test from
-                // `startLocation` precisely because "@GestureState may already be reset when
-                // onEnded runs". After one hop the current event's delivery is complete, so
-                // `scrubbing` still being true PROVES `onEnded` did not run and never will for
-                // this gesture. The ordering stops being something to trust and becomes
-                // something the code observes.
+                // ⛔ TWO HALVES, AND SPLITTING THEM IS THE WHOLE #378 NACHLESE. The falling edge
+                // must do two different things at two different times:
+                //
+                //   UNLATCH — synchronously, right here. `scrubbing` and `scrubTarget` are what a
+                //   NEXT drag would inherit, so they cannot be allowed to outlive this turn. The
+                //   first #378 deferred this too and thereby re-opened the very stale-latch window
+                //   #377 was written to close: a drag starting inside the hop skipped the anchor
+                //   branch and measured its first delta against the abandoned gesture's
+                //   translation — the #375/#376 teleport class, back again.
+                //
+                //   REVERT — one main-actor turn later, because "was this a cancel or a normal
+                //   end" genuinely cannot be answered synchronously. `onEnded` may be delivered
+                //   after this closure (`TimelineAutomationRow.handleEnded` documents the same
+                //   wrapper resetting before its callback), so a synchronous revert would undo an
+                //   edit the user finished.
+                //
+                // ⭐ THE HOP IS NOT THE ANSWER, `endedSeq` IS. What the deferred check asks is a
+                // recorded fact — did `onEnded` run for THIS gesture number — not an assumption
+                // about SwiftUI's dispatch order. The first #378 asked `scrubbing` instead and
+                // called that a proof; it is not, and being wrong would have cost a legitimate
+                // `onCommit()` silently and intermittently. The three guards, in order: a new drag
+                // took over (`gestureSeq`) · this gesture ended normally (`endedSeq`) · somebody
+                // else wrote the value while we hopped (`value == wrote`). Only when all three say
+                // no is this a cancellation nobody else has spoken for.
                 //
                 // ⚠️ ONE HOP PER GESTURE END, WHICH IS NOT THE THING THE LAW FORBIDS. CLAUDE.md
                 // bans `Task { @MainActor }` PER FRAME from a high-rate producer (10.76.48, the
-                // camera flood that starved the SwiftUI executor). This fires at most twice per
-                // drag — once at the falling edge, and the guard makes the second a no-op.
-                //
-                // `gestureSeq` covers the one window the hop opens: a new drag beginning between
-                // the falling edge and the Task. Without it that drag's own start value would be
-                // restored and its latch cleared under it.
+                // camera flood that starved the SwiftUI executor). `dragActive` has exactly one
+                // falling edge per gesture, so this is one task per drag.
                 //
                 // ⚠️ HONEST LIMIT (unchanged): if SwiftUI ever stops re-evaluating this view
                 // when it resets a `@GestureState` — documented behaviour, and this repo already
@@ -454,9 +487,12 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 .onChange(of: dragActive) { _, inFlight in
                     guard !inFlight, scrubbing else { return }
                     let seq = gestureSeq
+                    let start = scrubStartValue
+                    let wrote = value
+                    unlatchScrub()
                     Task { @MainActor in
-                        guard scrubbing, gestureSeq == seq else { return }
-                        cancelScrub()
+                        guard gestureSeq == seq, endedSeq != seq else { return }
+                        revertCancelled(to: start, lastWritten: wrote)
                     }
                 }
         }
@@ -678,10 +714,19 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // because the same file carries an "⚠️ HONEST LIMIT" about it and two tenses for
                 // one fact is how a doc starts lying: `dragActive` is a `@GestureState`, the one
                 // wrapper SwiftUI resets by itself on cancellation, and `.onChange(of:)` on the
-                // drag layer unlatches when it falls back to `false`, without committing. This
+                // drag layer unlatches when it falls back to `false` — and, one main-actor turn
+                // later, puts the value BACK unless this callback got there first (#378). This
                 // callback was ALWAYS the normal end only — what changed is that the cancelled
-                // case stopped having no handler at all. What neither path does is put the value
-                // back; that is #378, and the reasoning is on `resetScrubState`.
+                // case stopped having no handler at all. It must NOT restore anything itself:
+                // here the edit is finished.
+                //
+                // ⭐ THE STAMP IS THE FIRST STATEMENT, AND ITS ORDER IS THE POINT. It is the only
+                // record that this gesture ended legitimately, and the deferred cancellation task
+                // reads it. Written after `resetScrubState()` it would still be correct today,
+                // but the two lines below are about the commit and this one is about a different
+                // reader entirely — keeping it first makes it impossible for a later edit to slip
+                // an early `return` in front of it.
+                endedSeq = gestureSeq
                 let moved = scrubStartValue.map { $0 != value } ?? false
                 resetScrubState()
                 if moved { onCommit() }
@@ -704,17 +749,47 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// disagreeing, which is worse than either state alone. It does NOT fire `onCommit()` —
     /// nothing was finished.
     ///
-    /// ⚠️ IT RESTORES THIS FIELD'S NUMBER, NOT THE WORLD. Two of the ten `onChange` closures do
-    /// more than apply a value — `visualPresetID = ""` drops the chosen visual look and
-    /// `applyArticulation()` re-derives A/D/S/R — and re-running them with the original number
-    /// does not bring the preset name back. A cancelled drag on those rows still costs the
-    /// selection. Closing that needs an undo stack in the OWNER of those closures, not here.
-    private func cancelScrub() {
-        if let start = scrubStartValue, start != value {
+    /// ⛔ IT YIELDS TO ANY OTHER WRITER, AND THE FIRST VERSION DID NOT — which broke the rule the
+    /// commit one before it had just established. `544ac8f` is titled "die Geste darf ihr Ziel
+    /// nicht behalten, wenn ein anderer den Wert geschrieben hat" and added exactly this check to
+    /// the per-event branch. The revert needs it more, not less: `lastWritten` is what this
+    /// gesture last put on screen, so `value != lastWritten` means somebody else moved it during
+    /// the hop, and writing `start` there would undo THEIR edit. Real writers exist —
+    /// `AutomationPlayer` rewrites `masterVolume` and the tempo every tick, and `setTempo`
+    /// additionally cancels an in-flight glide.
+    ///
+    /// ⚠️ IT RESTORES THIS FIELD'S NUMBER, NOT THE WORLD. `EchoelStudioView` has 10 `onChange`
+    /// closures spread over 25 fields (two of the ten are the `param`/`knob` helpers, which fan
+    /// out to 17 rows), and some do more than apply a value. `applySoundLive()` and
+    /// `applyArticulation()` are pure functions of the restored number, so they come back with
+    /// it. `visualPresetID = ""` does not: it is `@AppStorage`, it is what re-applies the scene
+    /// on the next launch, and re-running the closure with the original number clears it just the
+    /// same — worse than before #378, because the numbers no longer visibly move, so the loss
+    /// leaves no trace. That is filed as #379 and belongs in those four rows (the same guard
+    /// `visualEnergy`'s setter already carries), not here.
+    private func revertCancelled(to start: V?, lastWritten: V) {
+        if let start, start != lastWritten, value == lastWritten {
             value = start
             onChange()
         }
-        resetScrubState()
+        // Safe unconditionally: the two guards at the call site have already established that no
+        // `onEnded` ran for this gesture and no new drag anchored, so nobody else owns it.
+        scrubStartValue = nil
+    }
+
+    /// Drops what a NEXT drag could inherit — and nothing else. Called synchronously at the
+    /// falling edge of `dragActive`.
+    ///
+    /// ⛔ `scrubStartValue` IS DELIBERATELY NOT IN HERE, AND THAT ASYMMETRY IS THE WHOLE FIX.
+    /// The anchor branch re-seeds every latch it needs the moment it finds `scrubbing == false`,
+    /// so clearing these two is enough to make a drag starting in the same turn clean. But
+    /// `onEnded` may still be delivered after this runs, and it measures `moved` against
+    /// `scrubStartValue` — nilling it here is what would silently drop a finished edit's
+    /// `onCommit()`. So: unlatch now, drop the reference only on the branch that proves nobody
+    /// else wants it.
+    private func unlatchScrub() {
+        scrubTarget = nil
+        scrubbing = false
     }
 
     /// The NORMAL end's cleanup: drops the two references a gesture holds and unlatches.
@@ -722,25 +797,19 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// ⛔ IT DOES NOT CLEAR EVERYTHING A GESTURE ACCRUES, and the first version of this doc said
     /// it did. Six things accrue — `scrubbing`, `scrubStartValue`, `scrubTarget`, `lastY`,
     /// `lastX`, `lastTime` — and this clears three. That is harmless for one reason worth
-    /// stating, because it is also what makes the cancellation path safe: THE ANCHOR BRANCH IS
-    /// THE AUTHORITY. `onChanged` re-seeds all six unconditionally whenever it finds
-    /// `scrubbing == false`, so nothing stale can ever be READ; clearing is hygiene, not
-    /// correctness. A future seventh latch belongs in the anchor branch first — if it is seeded
-    /// there, it needs nothing here.
+    /// stating: THE ANCHOR BRANCH IS THE AUTHORITY. `onChanged` re-seeds all six unconditionally
+    /// whenever it finds `scrubbing == false`, so nothing stale can ever be READ; clearing is
+    /// hygiene, not correctness. A future seventh latch belongs in the anchor branch first — if
+    /// it is seeded there, it needs nothing here.
     ///
-    /// ⚠️ TWO CALLERS, AND THE SECOND ONE ONLY BECAME SAFE WITH #378's HOP. For one commit the
-    /// cancellation path deliberately did NOT call this — it unlatched only — because nilling
-    /// `scrubStartValue` before `onEnded` runs would cost a legitimate commit if SwiftUI resets
-    /// the gesture state first, which `TimelineAutomationRow.handleEnded` documents as possible.
-    /// `cancelScrub` may call it because it runs one main-actor turn later, where `scrubbing`
-    /// still being true is proof that `onEnded` did not run. Do not move this call back into the
-    /// synchronous watcher body; the hop is what earns it.
-    ///
-    /// ⛔ AND THE PARAGRAPH THAT STOOD HERE FOR ONE COMMIT — "it does not restore
-    /// `scrubStartValue` into `value`, and that is a decision" — IS RETIRED BY #378, which made
-    /// the opposite decision. Restoring is `cancelScrub`'s job now; this one is the normal end,
-    /// where restoring would undo the user's finished edit. The two paths differ in exactly that
-    /// one respect, which is why they are two functions and not a flag.
+    /// ⚠️ ONE CALLER AGAIN. For one commit (#378's first version) the cancellation path called
+    /// this too, from inside a deferred task, justified by "after one hop, `scrubbing` still
+    /// being true is PROOF that `onEnded` did not run". That was not a proof but an assumption
+    /// about SwiftUI's dispatch, and if it were ever wrong the late `onEnded` would find
+    /// `scrubStartValue` already nil, compute `moved == false`, and drop a legitimate commit —
+    /// silently and intermittently. The cancellation path now unlatches synchronously
+    /// (`unlatchScrub`) and drops the reference itself only after `endedSeq` says no normal end
+    /// happened. Do not re-merge the two.
     private func resetScrubState() {
         scrubStartValue = nil
         scrubTarget = nil

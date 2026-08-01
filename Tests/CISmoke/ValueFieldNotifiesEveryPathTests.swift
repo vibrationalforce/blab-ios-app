@@ -97,10 +97,18 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     }
 
     /// A swipe at a range EDGE must notify nobody either — `apply` clamps, so the value is
-    /// unchanged, and two of the ten `onChange` closures are destructive with an unchanged
-    /// value: one clears the user's chosen visual preset, the other re-derives Attack/Decay/
-    /// Sustain/Release from an articulation that did not move. Swiping past the top must not
-    /// undo work.
+    /// unchanged, and one of `EchoelStudioView`'s ten `onChange` closures is destructive with an
+    /// unchanged value: `visualPresetID = ""` clears the user's chosen visual look, and it is
+    /// `@AppStorage`, so the loss survives the launch. Swiping past the top must not undo work.
+    ///
+    /// ⛔ THIS SAID "TWO", NAMING `applyArticulation()` AS THE SECOND, AND THAT WAS WRONG — found
+    /// in the #378 review. `applyArticulation()` is a pure function of `articulation`: re-running
+    /// it with an unchanged value re-derives the SAME A/D/S/R. What it overwrites is a hand-tuned
+    /// envelope, and it does that on every real articulation change too, which is a design
+    /// question about that row and not a phantom-edit bug this guard can speak to. The count
+    /// matters because it is the whole reason the guard exists — one destructive closure is still
+    /// one too many, but a second one that is not destructive is a reason a reader stops trusting
+    /// the paragraph.
     func testAClampedEdgeSwipeNotifiesNothing() throws {
         let closure = try closureBody(after: ".accessibilityAdjustableAction {", in: Self.field)
         let squashed = closure.components(separatedBy: .whitespacesAndNewlines).joined()
