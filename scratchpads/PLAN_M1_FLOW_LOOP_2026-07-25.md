@@ -36,9 +36,12 @@ bündelt die schon vorhandenen Flags. Ground-Truth: Explore a0b7fcc (alle `file:
   ~10-Hz-Bio/Playhead) → ein `@AppStorage`-gebundenes Segmented-Control passt hier sicher rein.
 - **Sheet-Decke:** EchoelStudioView-Root trägt ~11 Präsentations-Modifier (`:705-810`,
   Metadata-Limit) → **KEIN neues Modal**; der Schalter muss in-place (Chrome/Panel).
-- **Tote Schwester-UI als Warnung:** `beatModeRow` (`:1961`) ist ein voll gebautes Segmented-
-  Picker, das NIE gemountet wird und dessen Wert nie konsumiert wird (`silentBeat()`). „Control
-  existiert im Source" ≠ „Control ist live" — der Schalter muss WIRKLICH die zwei Hardcode-Sites speisen.
+- **Tote Schwester-UI als Warnung:** `beatModeRow` **war** ein voll gebautes Segmented-Picker,
+  das NIE gemountet wurde und dessen Wert nie konsumiert wurde (`silentBeat()`). „Control
+  existiert im Source" ≠ „Control ist live" — der Schalter muss WIRKLICH die zwei Hardcode-Sites
+  speisen. **Gelöscht mit #323 (2026-08-01)**; an seiner Stelle steht der Grabstein in
+  `EchoelStudioView.swift`. (Die Zeilennummer `:1961`, die hier stand, war schon vor der
+  Löschung falsch — die Lehre bleibt, der Zeiger war nie belastbar.)
 
 ## Council — proceed
 

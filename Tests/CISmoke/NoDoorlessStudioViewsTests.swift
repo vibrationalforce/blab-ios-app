@@ -66,26 +66,13 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     /// something must mount by name.
     private static let protocolRequirements: Set<String> = ["body"]
 
-    /// ⚠️ PRE-EXISTING ORPHANS (2026-08-01), each with its own decision to make. This list is
+    /// ⚠️ THE LIVE LIST — THREE orphans (2026-08-01), each with its own decision to make. It is
     /// declared, not silent, because a guard that quietly excuses what it finds is the same
     /// defect as a workflow step that swallows its exit status.
     ///
-    /// Three of the four were ALREADY documented as unmounted inside `EchoelStudioView.swift`
-    /// itself — which is the point: the file knew, and nothing enforced it, so they sat there.
+    /// All three are ALREADY documented as unmounted inside `EchoelStudioView.swift` itself —
+    /// which is the point: the file knew, and nothing enforced it, so they sat there.
     ///
-    ///   · `beatModeRow`             — RESOLVED AND DELETED (#323, 2026-08-01). It was the first
-    ///                                 entry this list retired, and the shape is the point: the
-    ///                                 row selected between three drum layers whose voices
-    ///                                 #166/#167 had already deleted, so "unmounted but
-    ///                                 reversible" had quietly become "unmountable". Removed
-    ///                                 from the set below — the rot test now FAILS if anyone
-    ///                                 re-adds the name without re-adding the property.
-    ///   · `visualBlendControls`     — RESOLVED AND DELETED (#324, 2026-08-01). The second A/B
-    ///                                 "Blend with" control; both surfaces dropped it 2026-07-07
-    ///                                 and a wrong note in `StudioDefaultKeys` (claiming the donut
-    ///                                 flag HID it) kept it alive by making it look reachable.
-    ///                                 Safe because the look SLIDER, not this strip, owns
-    ///                                 `visual.styleB`/`visual.blend` — the blend itself stayed.
     ///   · `nonStandardTuningBanner` — the file says "keeps the full explainer, unpresented". A
     ///                                 judgement call about a tuning warning, not cleanup. → #325
     ///   · `liveNarrationBanner`     — the EchoelAI live caption. The one record of where it was
@@ -104,6 +91,29 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     /// They are excused from the headline and pinned by `testTheKnownOrphanListDoesNotRot`, which
     /// fails if one is deleted, renamed, OR quietly mounted — so the list cannot outlive its
     /// entries in either direction.
+    ///
+    /// ⛔ RETIRED FROM THIS LIST — kept BELOW the set, not inside it, because the first version
+    /// of this block left two tombstone bullets mixed in with the live entries under a header
+    /// saying "three of the four": prose claiming four, five bullets, a set of three. The rot
+    /// test only reads the SET, so nothing would have caught it. A list whose own description
+    /// miscounts it is the failure this file is about, one level up.
+    ///
+    ///   · `beatModeRow`         — DELETED #323 (2026-08-01), first entry this list ever retired.
+    ///                             The row chose between drum layers whose VOICE #166/#167 had
+    ///                             deleted, so "unmounted but reversible" had become
+    ///                             "unmountable". (The pattern BUILDERS still exist — see the
+    ///                             tombstone in `EchoelStudioView.swift`; an earlier version of
+    ///                             this bullet implied otherwise.)
+    ///   · `visualBlendControls` — DELETED #324 (2026-08-01). The second A/B "Blend with"
+    ///                             control; both surfaces dropped it 2026-07-07 and no guard
+    ///                             existed until #322, so it sat for 25 days. Safe because the
+    ///                             look SLIDER, not this strip, owns `visual.styleB`/
+    ///                             `visual.blend`.
+    ///                             ⛔ This bullet first blamed "a wrong note in
+    ///                             `StudioDefaultKeys` … kept it alive by making it look
+    ///                             reachable". That note lived for ONE commit on 2026-07-30
+    ///                             (`99c9d13` → `4ef5e68`) and was caught in review — it cannot
+    ///                             have caused 25 days of anything. Plain doc rot did.
     private static let knownOrphans: Set<String> = [
         "nonStandardTuningBanner", "liveNarrationBanner", "moodPadsSection"
     ]

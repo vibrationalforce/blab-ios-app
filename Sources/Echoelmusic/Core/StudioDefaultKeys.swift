@@ -96,9 +96,15 @@ public enum StudioDefaultKeys {
     /// ⛔ THIS NOTE ALSO CLAIMED, FOR ONE COMMIT, THAT `true` HID `visualBlendControls`. It did
     /// not — that view had ZERO mount sites; the two places that once composed it were comments
     /// recording its removal on 2026-07-07. Caught in review. An unreachable claim inside the
-    /// rationale of the commit that removes unreachable claims is the failure itself, and this one
-    /// marked a genuinely doorless view as live for weeks before #324 finally deleted it. The A/B
+    /// rationale of the commit that removes unreachable claims is the failure itself — but the
+    /// damage stayed hypothetical: introduced and retracted the same day (`99c9d13` → `4ef5e68`,
+    /// 2026-07-30), caught in review. `visualBlendControls` is deleted as of #324, and the A/B
     /// blend state (`visualStyleB`/`visualBlend` below) is untouched and still slider-driven.
+    ///
+    /// ⛔ #324's commit message said this note "kept it alive for three weeks". It did not, and
+    /// the sentence four lines up ("FOR ONE COMMIT … Caught in review") already said so — the two
+    /// stood in the same file. What kept the view alive from 2026-07-07 to 2026-08-01 was the
+    /// ordinary failure: present-tense comments about a removal, and no guard.
     ///
     /// The KEY STRING is deliberately unchanged: an existing install may have `true` stored, and
     /// the launch normalisation in `EchoelStudioView` has to be able to FIND that value to clear it.

@@ -336,9 +336,11 @@ struct EchoelStudioView: View {
     // is exactly why the key is safe to strand rather than migrate: a leftover
     // `.pulse` in UserDefaults cannot make a drum appear. (The doctor rule this satisfies:
     // check what a deleted UI block writes as its SOLE writer before deleting it. Here the
-    // answer is "a value nothing reads".) `BeatMode` itself stays in `BioComposer.swift` —
-    // `shamanicBeat()`/`genreBeat()` still compile and are still tested; deciding their fate
-    // is a separate call, not a side effect of removing a doorless control.
+    // answer is "a value nothing reads".) `BeatMode` itself stays in `BioComposer.swift`
+    // (`:43`) together with `shamanicBeat()` and the six private genre-groove builders;
+    // deciding their fate is a separate call, not a side effect of removing a doorless
+    // control. (⛔ This line named a `genreBeat()` that does not exist — see the tombstone
+    // where the row used to be for the six real names and why the invention was dangerous.)
     /// Global articulation macro: 0 = pad (slow swell), 1 = pluck (struck/short). Owns
     /// the envelope for EVERY character (genre/preset = timbre, this = onset/dynamics).
     /// Persisted; re-imposed whenever a character or genre loads. Drives the per-note
@@ -2635,23 +2637,45 @@ struct EchoelStudioView: View {
 
     // ⛔ `beatModeRow` STOOD HERE AND IS DELETED (#323) — a three-way segmented Picker
     // (Off · Pulse · Genre) over the drum layer, plus a hint line promising "a deep, steady
-    // drum". Every word of it was false by the time it was deleted, and it stayed for
-    // twenty-four days because "unmounted but reversible" reads like a safe state.
+    // drum". The hint line and both non-Off labels were false by the time it was deleted
+    // ("Every word of it was false" stood here and was itself an overstatement — `Off`
+    // described exactly what generation did). It stayed 25 days because "unmounted but
+    // reversible" reads like a safe state.
     //
     // The chain, so nobody restores it from an older revision by mistake:
     //   2026-07-07  founder: "Schmeiß den Beat komplett raus" → the row was unmounted and
     //               `generate` switched to an unconditional `BioComposer.silentBeat()`.
     //   2026-07-26  #166 removed the drum voices from the signal path.
     //   2026-07-31  #167 deleted `DrumSynthVoice`, `LaneDrumKitVoice`, `DrumNoteMap`.
-    // So the control did not merely lack a door: two of its three options had no
-    // implementation left to select, and the third (Off) is what the app does anyway.
-    // Restoring it means rebuilding the drum apparatus first — and that is a founder call,
-    // not a UI one.
+    // So the control did not merely lack a door: neither non-Off option could produce a
+    // sound by any path. Restoring it means rebuilding the drum VOICE first — a founder
+    // call, not a UI one.
     //
-    // What is NOT deleted, deliberately: `BeatMode`, `BioComposer.shamanicBeat()` and
-    // `genreBeat()`. They compile, `ShamanicBeatTests` still covers the walk, and they are
-    // the seed of any future rhythm layer. A doorless CONTROL is debt; a tested pure
+    // ⛔ AND THE FIRST VERSION OF THAT SENTENCE WAS WRONG IN A WAY ITS OWN NEXT PARAGRAPH
+    // REFUTED, six lines apart. It read "two of its three options had no IMPLEMENTATION left
+    // to select" — while the paragraph below said the builders still compile and are still
+    // tested. Both cannot be true. The patterns are all still there: `shamanicBeat`
+    // (`BioComposer.swift:793`) and six private genre grooves — `fourOnFloorBeat` (`:835`),
+    // `backbeatBeat` (`:942`), `offbeatBeat` (`:982`), `halfTimeBeat` (`:1025`), `dubBeat`
+    // (`:1063`), `trapBeat` (`:1146`) — and `compose` still calls them. What #166/#167
+    // deleted is the VOICE that would have sounded those grids, and `generate` has fed
+    // `silentBeat()` unconditionally since 2026-07-07 regardless. Two independent reasons
+    // the control was mute; the first version named a third that was false.
+    //
+    // What is NOT deleted, deliberately: `BeatMode` (`BioComposer.swift:43`), the public
+    // `shamanicBeat()` and those six builders. A doorless CONTROL is debt; a tested pure
     // BUILDER is inventory.
+    //
+    // ⛔ THE FIRST VERSION CALLED THE SECOND HALF OF THAT PAIR `genreBeat()` — A FUNCTION
+    // THAT HAS NEVER EXISTED. It is the most expensive kind of tombstone error: a future
+    // session greps `genreBeat`, finds nothing, and concludes the builders were deleted
+    // too. A tombstone's whole job is to be checkable; an invented symbol makes it
+    // uncheckable in the direction that causes deletion. Names in a tombstone get grepped
+    // before they get written.
+    //
+    // "Still tested" is true and belongs qualified: `ShamanicBeatTests` lives in
+    // `Tests/EchoelmusicTests/`, the NON-blocking suite. It covers the walk; it cannot
+    // redden a merge.
 
     // (Step 2b: tuningRow / genrePicker / tonartRow / kammertonRow / tempoRow moved
     // verbatim into the chrome — CompositionHeaderStrip owns the Pickers/A4 field,
@@ -3517,10 +3541,19 @@ struct EchoelStudioView: View {
             // ⛔ AND ONE THING THIS BLOCK CLAIMED FOR ONE COMMIT AND SHOULD NOT HAVE: that `true`
             // also HID `visualBlendControls`. It did not — that view had ZERO mount sites, so
             // nothing was hidden. Writing an unreachable claim into the rationale of the commit
-            // that removes unreachable claims is the failure itself, and it did exactly the damage
-            // predicted: it marked a doorless view as live and blocked a legitimate deletion.
-            // That deletion has now happened (#324) — `visualBlendControls` is gone; the look
-            // slider still owns `visual.styleB`/`visual.blend`, so no capability went with it.
+            // that removes unreachable claims is the failure itself. It was introduced and
+            // retracted the SAME DAY (`99c9d13` → `4ef5e68`, 2026-07-30) and caught in review.
+            // `visualBlendControls` is deleted as of #324; the look slider still owns
+            // `visual.styleB`/`visual.blend`, so no reachable capability went with it.
+            //
+            // ⛔ AND #324's OWN TOMBSTONE THEN OVERSTATED THIS, which is why the retraction is
+            // spelled out with commit hashes now. It wrote that the note "did exactly the damage
+            // predicted … blocked a legitimate deletion", turning this paragraph's honest
+            // counterfactual ("it WOULD have marked a doorless view as live") into an assertion
+            // of damage that never occurred. The note existed for one commit on one day, two
+            // days before the deletion. What actually kept the view alive for 25 days is duller
+            // and worth knowing: two comments recording its removal in the PRESENT TENSE, and no
+            // guard enforcing them, until `NoDoorlessStudioViewsTests` (#322) surfaced it.
             //
             // The KEY, the cover's `if spectralDonuts` branch and `SpectralDonutView` all stay:
             // the renderer is not the defect, the unreachable claim was. Bring the pill back in
@@ -3652,20 +3685,40 @@ struct EchoelStudioView: View {
     // blend.
     //
     // It was removed from BOTH surfaces that ever showed it on 2026-07-07 (founder:
-    // minimize), and two comments a few hundred lines apart still recorded that removal in
-    // the present tense — so the file has said "ZERO mount sites" about this view for weeks
-    // while nothing enforced it. Worse, a note in `StudioDefaultKeys` briefly claimed the
-    // donut flag HID it, which read as "there is a live path here" and blocked the deletion
-    // once already; that retraction is still in that file and is the reason this tombstone
-    // spells the state out rather than pointing at prose.
+    // minimize) — attested by `scratchpads/SESSION_LOG.md` and by two in-source comments,
+    // NOT provable from git here: this clone is shallow-grafted at `24e9420` (2026-07-29),
+    // so `git log -S visualBlendControls` bottoms out before that date. Those two comments
+    // recorded the removal in the PRESENT TENSE a few hundred lines apart, and nothing
+    // enforced them. That — plain doc rot with no guard — is what kept a doorless view in
+    // the file for 25 days, until `NoDoorlessStudioViewsTests` (#322) surfaced it.
     //
-    // NOTHING IS STRANDED, and this is the check that made the deletion safe rather than
-    // merely tidy: `visual.styleB` and `visual.blend` are NOT written only here. The look
-    // SLIDER owns them — `LookBlendMap.position/nearest` reads and writes both, in this view
-    // AND in `FloatingVisualWindow`, and `ExternalDisplayScene` reads them. So the blend is
-    // still fully reachable and adjustable; what disappears is a redundant second control
-    // for state the primary control already owns. (Contrast #323, where the persisted key
-    // went too because nothing else read it.)
+    // ⛔ THIS TOMBSTONE'S FIRST VERSION BLAMED SOMETHING ELSE, and the commit message put it
+    // in the subject line: a note in `StudioDefaultKeys` claiming the donut flag HID this
+    // view, which supposedly "blocked the deletion once already" / kept it alive "three
+    // weeks". Pickaxe says otherwise — that note was introduced and retracted the SAME DAY
+    // (`99c9d13` → `4ef5e68`, 2026-07-30), two days before this deletion, and its own
+    // retraction says "FOR ONE COMMIT … Caught in review". A tidy causal story about a
+    // villain, invented on top of a boring true cause. The commit subject cannot be edited;
+    // this paragraph is the correction of record.
+    //
+    // NOTHING REACHABLE IS STRANDED, and this is the check that made the deletion safe
+    // rather than merely tidy: `visual.styleB` and `visual.blend` are NOT written only here.
+    // The look SLIDER owns them — `lookScrub`'s setter writes both through
+    // `LookBlendMap.blend(at:sequence:)`, here and in `FloatingVisualWindow`, and
+    // `LookBlendMap.position(a:b:frac:sequence:)` reads them back to place the slider;
+    // `ExternalDisplayScene` reads them too. (`LookBlendMap` is a pure `enum` of value
+    // maths and writes nothing — the first version of this line said "position/nearest
+    // reads and writes both", naming a `nearest` that does not exist (it is
+    // `nearestName(at:sequence:)`) and crediting a pure function with a side effect.)
+    //
+    // ⚠️ "REDUNDANT" WAS THE WRONG WORD, though the conclusion survives. `LookBlendMap.blend`
+    // can only emit pairs ADJACENT in the user's look sequence; this strip iterated the whole
+    // library and wrote `visualStyleB` independently of `visualStyle`. So non-adjacent and
+    // reverse-direction A/B pairs are expressible by the deleted code and not by the slider.
+    // No shipped capability is lost — with zero mount sites since 2026-07-07 no user could
+    // reach those states — but it is a reduction in what the code can express, not a
+    // duplicate being tidied away. (Contrast #323, where the persisted key went too because
+    // nothing else read it.)
 
     #if canImport(MetalKit) && canImport(UIKit)
     /// The hands-on VJ control panel that floats over the fullscreen visual: the four
