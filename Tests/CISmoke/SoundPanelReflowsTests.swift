@@ -14,12 +14,19 @@
 //
 // ⚠️ WHAT THIS FILE ACTUALLY GUARDS — three things, and the third is the one that will break.
 //   1. The grids exist in `soundPanel` at all.
-//   2. `AdaptiveCardGrid`'s spacing still DEFAULTS to 10, so the two card callers that predate
-//      this slice (`mixerPanel`, `weatherRow`) are untouched by it. ⛔ The first version wrote
-//      `sessionPanel` here and in three other places — wrong: `sessionPanel` merely RENDERS
-//      `weatherRow` and contains no grid at all, so anyone acting on a failure message would
+//   2. `AdaptiveCardGrid`'s spacing still DEFAULTS to 10, so the card caller that predates
+//      this slice — `mixerPanel` — is untouched by it. ⛔ The first version wrote
+//      `sessionPanel` here and in three other places — wrong: `sessionPanel` merely RENDERED
+//      `weatherRow` and contained no grid at all, so anyone acting on a failure message would
 //      have grepped it and found nothing. A guard that names the wrong file is a guard that
 //      sends its reader away from the code.
+//      ⚠️ AND THE CORRECTED VERSION HAS SINCE GONE STALE TOO, which is the more useful lesson:
+//      it said "the TWO card callers (`mixerPanel`, `weatherRow`)" and #359 step 2 removed
+//      `weatherRow`'s grid when its second card moved to `visualPanel`. One bare caller now.
+//      The ASSERTIONS below never named `weatherRow` — they count `init(spacing:)` and match
+//      `= 10` — so nothing went red and the prose aged silently. A guard can be correct and
+//      its explanation false at the same time; only the explanation is what the next reader
+//      acts on.
 //   3. THE COUPLING: `soundPanel` passes `spacing: 14` because 14 is `EchoelPanel`'s own content
 //      spacing. That is a COPIED CONSTANT. In one column `AdaptiveCardGrid` renders a `VStack`
 //      whose spacing REPLACES the panel's rhythm — so if `EchoelPanel` ever moves to, say, 12,
@@ -108,11 +115,13 @@ final class SoundPanelReflowsTests: XCTestCase {
         """)
     }
 
-    /// ⚠️ THE DEFAULT MUST STAY 10, or this slice silently re-spaces the two callers that came
-    /// before it (`mixerPanel`, `weatherRow`). Note the honest reason: it is NOT that "10 was
-    /// right for cards" — `mixerPanel`'s grid sits in `EchoelPanel`'s 14 pt stack and
-    /// `weatherRow`'s in a local 8 pt one, so neither matched 10 by design. They simply SHIPPED
-    /// at 10, and re-spacing two panels nobody asked about is not this slice's business.
+    /// ⚠️ THE DEFAULT MUST STAY 10, or this slice silently re-spaces the caller that came
+    /// before it: `mixerPanel`. Note the honest reason: it is NOT that "10 was right for cards"
+    /// — `mixerPanel`'s grid sits in `EchoelPanel`'s 14 pt stack, so it never matched 10 by
+    /// design. It simply SHIPPED at 10, and re-spacing a panel nobody asked about is not this
+    /// slice's business. (`weatherRow` was the second such caller until #359 step 2 moved its
+    /// Image card into `visualPanel`; a grid with one card left has nothing to arrange, so the
+    /// grid went with it. Its own 8 pt local stack is why it, too, never matched 10.)
     func testTheGridDefaultIsUnchangedForTheCardCallers() throws {
         let grid = try adaptiveCardGridBody()
         let inits = grid.filter { $0.contains("init(spacing: CGFloat") }
@@ -124,9 +133,9 @@ final class SoundPanelReflowsTests: XCTestCase {
             `AdaptiveCardGrid`'s spacing no longer defaults to 10: \
             \(line.trimmingCharacters(in: .whitespaces))
 
-            `mixerPanel` and `weatherRow` call it WITHOUT a spacing argument and shipped at 10 \
-            before #292 Slice 2 existed. Changing the default re-spaces two panels that nobody \
-            asked to change. Pass the new value at the new call site instead.
+            `mixerPanel` calls it WITHOUT a spacing argument and shipped at 10 before #292 \
+            Slice 2 existed. Changing the default re-spaces a panel that nobody asked to \
+            change. Pass the new value at the new call site instead.
             """)
         }
     }

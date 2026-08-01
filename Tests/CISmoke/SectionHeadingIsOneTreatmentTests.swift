@@ -135,11 +135,13 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
                 `.medium`, a weight this app cannot render — see the header.
                 """)
         }
-        // The Session panel's weather groups take their title as a parameter, so there is no
-        // literal to look for — pin the call instead.
+        // The weather groups take their title as a parameter, so there is no literal to look
+        // for — pin the call instead. (They sat in the Session panel when this was written,
+        // moved to Mood with #359 step 1, and split across Mood and Field with step 2. Only
+        // the LOCATION changed; `weatherMixGroup` itself is untouched and so is this claim.)
         XCTAssertTrue(joined.contains("groupHeader(title)"), """
-            `weatherMixGroup` no longer routes its title through `groupHeader`. Its two \
-            headings ("Sound" and "Image") were the 12 pt semibold third treatment.
+            `weatherMixGroup` no longer routes its title through `groupHeader`. Its headings \
+            ("Sound" in Mood, "Weather" in Field) were the 12 pt semibold third treatment.
             """)
     }
 

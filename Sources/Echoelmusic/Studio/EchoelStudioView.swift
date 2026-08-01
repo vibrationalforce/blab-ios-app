@@ -2609,16 +2609,39 @@ struct EchoelStudioView: View {
                 // Separate, individually-mixable influences (founder: "Klang und
                 // Bild aber getrennte und mehrere Parameter" + an intensity slider
                 // "damit man das Wetter rein und rausmischen kann"). Each row says
-                // what it changes; 0 = off (no change), 1 = fully the weather. The two
-                // groups sit side by side in landscape / on iPad.
-                AdaptiveCardGrid {
-                    // ⛔ These two read "Sound · Klang" and "Image · Bild" until 2026-07-29 —
-                    // the English word and its German gloss, side by side, in a bundle that
-                    // declares one language. A per-string bilingual gloss is not what
-                    // localization is; it is what localization REPLACES.
-                    weatherMixGroup("Sound", params: WeatherMood.Param.allCases.filter { $0.domain == .sound })
-                    weatherMixGroup("Image", params: WeatherMood.Param.allCases.filter { $0.domain == .visual })
+                // what it changes; 0 = off (no change), 1 = fully the weather.
+                //
+                // ⛔ This group read "Sound · Klang" until 2026-07-29 — the English word and
+                // its German gloss, side by side, in a bundle that declares one language. A
+                // per-string bilingual gloss is not what localization is; it is what
+                // localization REPLACES.
+                //
+                // #359 step 2: the IMAGE group left this row for `visualPanel` (the Field
+                // chip), where the picture it tints actually is. The `AdaptiveCardGrid` that
+                // held the two side by side left with it — a grid arranges CARDS, and one
+                // card has nothing to arrange. That is a real accounting change, not a
+                // tidy-up: `weatherRow` was one of only two bare `AdaptiveCardGrid` callers,
+                // so `mixerPanel` is now the only one, and every comment that named the pair
+                // is corrected in the same commit (`AdaptiveCardGrid`'s own doc block below,
+                // `SoundPanelReflowsTests`, CLAUDE.md's reflow count).
+                weatherMixGroup("Sound", params: WeatherMood.Param.allCases.filter { $0.domain == .sound })
+
+                // NOT a sentence pointing at another surface. This row's own history is the
+                // argument: the location prerequisite above used to name the other toggle and
+                // leave the user to hunt for it, and the fix was one tap. Moving the image
+                // mixers creates exactly that hazard for anyone who knew where they were, so
+                // the pointer carries the user rather than describing the destination.
+                Button { activeMenu = .field } label: {
+                    Text("Weather's image mixers — Hue, Saturation, Glow, Movement — are in Field")
+                        .font(EchoelTheme.font(11))
+                        .foregroundStyle(EchoelTheme.accent)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .accessibilityHint("Opens the Field panel, where the weather's four image influences are mixed.")
 
                 // Apple WeatherKit attribution requirement.
                 if let attributionURL = URL(string: "https://developer.apple.com/weatherkit/data-source-attribution/") {
@@ -2642,6 +2665,32 @@ struct EchoelStudioView: View {
     private func turnLocationOnForWeather() {
         guard !locationNamer.enabled else { return }
         locationNamer.enabled = true
+    }
+
+    /// The weather's IMAGE half, rendered in `visualPanel` (the Field chip) — #359 step 2,
+    /// founder 2026-08-01: "Weather könnte auch eine Rubrik mit slidern in mood, Sound und
+    /// Field sein oder?".
+    ///
+    /// Hue · Saturation · Glow · Movement are read by `FloatingVisualWindow`, so until now
+    /// four sliders that change the PICTURE lived on a panel that shows none of it, while the
+    /// panel that does had no idea they existed. The split follows the `Domain` enum that
+    /// `WeatherMood.Param` already declares — the code knew which half was which long before
+    /// the UI did.
+    ///
+    /// ⚠️ IT ADDS NO PERMANENT CHROME, deliberately. Weather is opt-in and default OFF, so a
+    /// standing "turn on weather" line here would be a row every Field user carries forever to
+    /// serve the minority who want it — on the one panel already under a chrome budget (#365,
+    /// #369). Discovery is covered from the other side: the Mood toggle's own label says
+    /// weather shapes "the music AND the image", and the pointer beside it walks you here.
+    /// If a device pass shows people never find these, the fix is a line in Mood, not here.
+    @ViewBuilder
+    private var weatherImageRow: some View {
+        if weatherEnabled {
+            // Titled "Weather", not "Image": in Mood the two groups had to be told apart from
+            // each other, so "Sound"/"Image" was the distinction that mattered. Here the whole
+            // panel IS the image, and the only thing worth naming is where these four come from.
+            weatherMixGroup("Weather", params: WeatherMood.Param.allCases.filter { $0.domain == .visual })
+        }
     }
 
     /// One titled block of weather mixers (Sound or Image), in the mix-strip look.
@@ -3168,6 +3217,13 @@ struct EchoelStudioView: View {
             Text("Colour defaults to the heard tone octave-transposed into visible light (its frequency doubled until it reaches the visible band, rendered via CIE 1931); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+            // #359 step 2 — directly under the colour caption, because Hue and Saturation are
+            // the two words that caption just used, and these four are the weather's pull on
+            // exactly those. Renders nothing while weather is off (the default), so the panel
+            // is unchanged for anyone who never turns it on.
+            #if canImport(WeatherKit) && canImport(CoreLocation)
+            weatherImageRow
+            #endif
             touchSoundSection
         }
     }
@@ -3187,7 +3243,9 @@ struct EchoelStudioView: View {
     /// held nine; adding the heading, the trace and the caption inline would have made twelve
     /// and failed to compile — with the notoriously unhelpful "extra argument in call".
     /// The next row added to this panel must join a section like this one, not the top level.
-    /// Slice 2's spectrum went in HERE for exactly that reason, and the panel is still eight.
+    /// Slice 2's spectrum went in HERE for exactly that reason, and the panel is NINE — the
+    /// ninth is `weatherImageRow` (#359 step 2), which earned a top-level slot rather than a
+    /// section because it must sit against the colour caption that explains its two first rows.
     ///
     /// The two views answer different questions on purpose and neither replaces the other:
     /// the scope shows the WAVE (what shape, how loud, is it clipping), the spectrum shows
@@ -7293,13 +7351,19 @@ private struct ExportedFile: Identifiable {
 ///
 /// ⛔ THE FIRST VERSION OF THIS PARAGRAPH NAMED THE WRONG CALLER AND STATED A RULE ITS OWN
 /// EXAMPLE BREAKS. It said "the two original callers hold CARDS inside `EchoelPanel`, where 10 pt
-/// is right". The two bare callers are `mixerPanel` and **`weatherRow`** — NOT `sessionPanel`,
-/// which merely renders `weatherRow` and contains no grid at all; someone acting on that name
-/// would have grepped `sessionPanel` and found nothing. And only `mixerPanel`'s grid sits
-/// directly in `EchoelPanel`'s 14 pt stack: `weatherRow`'s sits in its own local
+/// is right". The two bare callers WERE `mixerPanel` and `weatherRow` — NOT `sessionPanel`,
+/// which merely rendered `weatherRow` and contained no grid at all; someone acting on that name
+/// would have grepped `sessionPanel` and found nothing. And only `mixerPanel`'s grid sat
+/// directly in `EchoelPanel`'s 14 pt stack: `weatherRow`'s sat in its own local
 /// `VStack(alignment: .leading, spacing: 8)`. So NEITHER matched 10 by design. The honest reason
 /// the default is 10 is narrower and sufficient: those two shipped at 10 and changing it would
-/// re-space two panels nobody asked to change.
+/// re-space panels nobody asked to change.
+///
+/// ⚠️ SINCE #359 STEP 2 THERE IS ONLY ONE BARE CALLER: `mixerPanel`. `weatherRow`'s grid held the
+/// Sound and Image cards side by side; the Image card moved to `visualPanel` and a grid with one
+/// card left has nothing to arrange, so it went too. The default still may not change — but the
+/// reason is now a single panel, not two, and anyone reading "two callers" anywhere else in the
+/// repo is reading a sentence this commit invalidated.
 @MainActor
 private struct AdaptiveCardGrid<Content: View>: View {
     @Environment(\.horizontalSizeClass) private var hSize
