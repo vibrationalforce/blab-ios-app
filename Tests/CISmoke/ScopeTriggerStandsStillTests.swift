@@ -27,10 +27,19 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
     private static let bufferLength = 2048
     private static let windowLength = 512
 
-    // `Self.` and not a bare `bufferLength`: the unqualified form compiles here and is the
-    // only one of its kind in the repo, so it reads as a language trick rather than as a
-    // reference to the constant three lines up.
-    private func sine(phase: Double, length: Int = Self.bufferLength) -> [Float] {
+    // ⛔ THE TYPE NAME SPELLED OUT, and NOT `Self.` — which is what the first fix wrote and
+    // which took the blocking gate down: "error: covariant 'Self' type cannot be referenced
+    // from a default argument expression". Swift rejects `Self` in a default argument inside
+    // ANY class, `final` or not; the finality of this one is irrelevant to that rule.
+    //
+    // The original bare `bufferLength` was legal all along. It was changed for a purely
+    // cosmetic reason (a reviewer noted it is the only unqualified-static-in-default-argument
+    // in the repo) and that cosmetic change broke the build — the third parse-level trap in
+    // two days, and the only one that was self-inflicted on WORKING code. The lesson is not
+    // about `Self`: it is that a compiling line changed for readability alone still needs the
+    // gate, because "obviously equivalent" is a claim about the language, not about the code.
+    private func sine(phase: Double,
+                      length: Int = ScopeTriggerStandsStillTests.bufferLength) -> [Float] {
         (0..<length).map { Float(sin(2 * Double.pi * (Double($0) / Self.period) + phase)) }
     }
 
