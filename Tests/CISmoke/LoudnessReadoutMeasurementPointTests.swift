@@ -18,22 +18,40 @@
 //     job is to stop that peak from ever reaching the output.
 //
 // So #316 removed both verdict colours and put the measurement point on screen. This file
-// pins that the three moving parts can never drift apart:
+// pins that the moving parts can never drift apart:
 //
-//   · verdicts back while the tap is still pre-chain → the false-verdict trap above returns
-//   · tap moved but no verdicts → harmless, and deliberately NOT failed here (a correct
-//     measurement with neutral colours is honest; see `testTheVerdictFunctionsSurvive`)
-//   · tap still pre-chain but the on-screen disclosure gone → the numbers read as output
+//   · a verdict back while no post-chain measurement exists → the false-verdict trap returns
+//   · disclosure gone while no post-chain measurement exists → the numbers read as output
+//   · post-chain measurement exists but the colours stay neutral → harmless, deliberately
+//     NOT failed here (a correct measurement with neutral colours is honest; see
+//     `testTheVerdictFunctionsSurviveTheirCallerlessPeriod` for why the functions are kept)
+//
+// ⛔ THE FIRST DRAFT ASKED THE WRONG QUESTION, and review caught it before it could do harm.
+// It decided "pre-chain" by looking for `masterMixer.installTap(` in `AudioEngine.swift`.
+// But the fix `MasterLoudnessGrid`'s own header recommends is a SECOND tap on the limiter's
+// output — which LEAVES `masterMixer.installTap(` in place, deliberately, because
+// `_outputRing` (the FFT visual) and the #193 timing instrument must stay on that closure.
+// So the guard would have gone red on the correct fix while its failure message told the
+// author to perform it. A guard that fires on the right answer is worse than no guard.
+//
+// THE PREDICATE IS THEREFORE THE THING THAT ACTUALLY DECIDES THE VERDICT'S VALIDITY: does
+// `AudioEngine` publish a post-chain measurement at all? #316b must name that publisher with
+// a symbol containing `masterOutputLUFS`; the same contract is written at the bottom of
+// `MasterLoudnessGrid.swift`'s header. This cannot be satisfied by accident, which is the
+// point — the tap's LOCATION could be.
 //
 // ⚠️ WHAT THIS FILE CANNOT REACH, so the coverage is not overread: it cannot build the view,
 // cannot prove the caption is visible, and cannot observe a single sample. It reads SOURCE
 // TEXT for tokens. That is weaker than a behavioural test and stronger than nothing — and
 // with no local toolchain and an audio graph that only exists on a device, it is the only
 // level at which this pairing is checkable from here at all.
+//
+// No `@testable import Echoelmusic`: this file references no app symbol, and importing it
+// would couple a text guard to the app module building. Same shape as `NoDoorlessStudioViewsTests`
+// and `ContentPipelineClaimsTests`.
 
 import Foundation
 import XCTest
-@testable import Echoelmusic
 
 final class LoudnessReadoutMeasurementPointTests: XCTestCase {
 
@@ -41,46 +59,80 @@ final class LoudnessReadoutMeasurementPointTests: XCTestCase {
     private static let engine = "Sources/Echoelmusic/Audio/AudioEngine.swift"
     private static let target = "Sources/Echoelmusic/Studio/LoudnessTarget.swift"
 
-    /// TRUE while the meter tap still sits on the master chain's INPUT. The receiver is part
-    /// of the token on purpose: `installTap(` alone would also match a tap on the node the
-    /// fix is supposed to move to, so the guard would go quiet at exactly the moment it is
-    /// meant to open the door.
-    private func tapIsPreChain() throws -> Bool {
-        try source(Self.engine).contains("masterMixer.installTap(")
+    /// TRUE once `AudioEngine` publishes a loudness measured AFTER the master chain. Until
+    /// then every number this grid shows is the chain's input, and no target verdict on it
+    /// can be honest. See the ⛔ block above for why this is not a question about the tap.
+    private func hasPostChainMeasurement() throws -> Bool {
+        try source(Self.engine).contains("masterOutputLUFS")
     }
 
     func testATargetVerdictIsNotRenderedFromThePreChainSignal() throws {
         let code = try source(Self.grid)
-        // Receiver included for the same reason as above — the deletion tombstone in that
-        // file names the two functions, and a bare `compliance(` would match the prose that
-        // explains why they are gone.
+        // Receiver included on purpose — the deletion tombstone in that file names the two
+        // functions as `LoudnessTarget.compliance` (capital T), and a bare `compliance(`
+        // would match the prose that explains why they are gone.
         let judges = code.contains("target.compliance(") || code.contains("target.truePeakExceeds(")
-        let preChain = try tapIsPreChain()
+        let postChain = try hasPostChainMeasurement()
 
-        XCTAssertFalse(preChain && judges, """
+        XCTAssertFalse(!postChain && judges, """
             The loudness readout is colouring its numbers against the delivery target while \
-            the meter tap is still on `masterMixer` — the master chain's INPUT.
+            `AudioEngine` still has no post-chain measurement — so the verdict is computed \
+            on the master chain's INPUT.
             That verdict reports the deviation the chain is about to REMOVE: `AutoMixChain` \
-            reads the same pre-chain signal and applies `target − reading` (±6 dB), so a mix \
+            reads the same pre-chain tap and applies `target − reading` (±6 dB), so a mix \
             painted "too quiet" is exactly the one the auto-gain lifts ONTO target, and the \
-            true peak is judged before the limiter that removes it.
-            Either move the measurement to the chain's output first (#316b — note that this \
-            one tap is also the sole writer of `_outputRing` and the host of the #193 timing \
-            instrument, so re-pointing it moves two unrelated passengers), or leave the \
-            numbers uncoloured as #316 left them.
+            true peak is judged before the limiter that catches it.
+            Publish the post-chain reading first (#316b, symbol containing `masterOutputLUFS`), \
+            or leave the numbers uncoloured as #316 left them.
             """)
+    }
+
+    /// The verdict is not the only way to paint a lie. `readout`'s `color:` seam is kept
+    /// deliberately, so this pins that NOTHING hand-rolls a threshold into it either — an
+    /// inline `masterLUFSIntegrated > -13 ? danger : text` would pass the token test above
+    /// while re-introducing exactly what #316 removed.
+    func testEveryReadoutStaysNeutralUntilTheMeasurementMoves() throws {
+        // Hoisted rather than written `try !hasPostChainMeasurement()`: `try` in front of a
+        // prefix operator is the kind of parse this bundle cannot afford to get wrong — it
+        // is the only gate that compiles these files, and a red one costs a whole cycle.
+        let postChain = try hasPostChainMeasurement()
+        guard !postChain else { return }   // silent by design once the measurement is correct
+        // `.map(String.init)` before filtering: `Substring.contains(_: StringProtocol)` and
+        // `trimmingCharacters` both resolve through Foundation, and this bundle is the ONLY
+        // gate that compiles these files — a plain `String` costs nothing and removes the
+        // overload question entirely.
+        let calls = try source(Self.grid)
+            .split(separator: "\n")
+            .map(String.init)
+            .filter { $0.contains("readout(\"") }
+
+        XCTAssertFalse(calls.isEmpty, "no `readout(\"…\")` call found — did the grid change shape?")
+        for call in calls {
+            XCTAssertTrue(call.contains("EchoelTheme.text)"), """
+                A loudness readout is painted with something other than `EchoelTheme.text` \
+                while the measurement is still pre-chain: \(call.trimmingCharacters(in: .whitespaces))
+                Any colour here is a verdict, whether it comes from `LoudnessTarget` or from \
+                an inline threshold. Neutral until #316b moves the measurement point.
+                """)
+        }
     }
 
     func testThePreChainMeasurementPointIsStatedOnScreen() throws {
         let code = try source(Self.grid)
-        let discloses = code.contains("before the master chain")
+        // Anchored to the RENDERED string, not the bare phrase. A bare `contains` would be
+        // satisfied by any future tombstone comment mentioning "before the master chain" —
+        // and in a repo where every deletion leaves a tombstone, that is close to inevitable.
+        // The caption could then be deleted with the guard still green.
+        let discloses = code.contains("Text(\"Measured before the master chain")
+        let postChain = try hasPostChainMeasurement()
 
-        XCTAssertFalse(try tapIsPreChain() && !discloses, """
-            The meter tap is still on `masterMixer`, but nothing on screen says so any more.
-            Without that line the four numbers read as the loudness of what leaves the \
-            device, which is the exact claim the file header carried — and was false — until \
-            #316. If the caption was reworded, update the token in this test in the SAME \
-            commit; if the tap moved, this guard falls silent on its own.
+        XCTAssertFalse(!postChain && !discloses, """
+            The numbers are still measured at the master chain's input, but nothing on screen \
+            says so any more.
+            Without that line the four readouts read as the loudness of what leaves the \
+            device — the exact claim the file header carried, and that was false, until #316. \
+            If the caption was reworded, update the token in this test in the SAME commit; \
+            once a post-chain measurement exists this guard falls silent on its own.
             """)
     }
 

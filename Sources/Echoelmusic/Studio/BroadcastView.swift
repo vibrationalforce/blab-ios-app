@@ -69,7 +69,13 @@ struct BroadcastView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Loudness").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     MasterLoudnessGrid()
-                    Text("Most platforms target ≈ −14 LUFS integrated, true peak ≤ −1 dBTP.")
+                    // ⛔ Was "Most platforms target ≈ −14 LUFS integrated, true peak ≤ −1
+                    // dBTP." — on the one page about what leaves the device, printed under a
+                    // meter that measures the chain's input. #316 removed the machine's
+                    // verdict; leaving this would have asked the reader to make the same one
+                    // by eye. Doorless today (HaishinKit unlinked), fixed anyway so it does
+                    // not wake up wrong.
+                    Text("These numbers are the mix before the master chain, not the delivered stream.")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
                 }

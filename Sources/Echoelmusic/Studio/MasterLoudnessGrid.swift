@@ -34,17 +34,43 @@ import SwiftUI
 //   Target −14, raw mix −20: painted `dim` ("too quiet") while the auto-gain adds +6 and
 //   the output lands at ≈ −15. Raw mix −8: painted `danger` ("too loud") while the gain
 //   cuts 6 and the output lands at ≈ −15 again. Inside that ±6 dB window the colour raises
-//   an alarm exactly where the output has no deviation at all — and outside it, where the
-//   gain saturates and the output really is off, the colour understates by up to 6 dB.
+//   an alarm exactly where the output has no deviation at all.
 //   (I first wrote "anti-correlated" here. That overstates it — the sign of the RAW mix's
 //   deviation is reported correctly; what is wrong is that the raw mix is not the thing the
 //   target describes. The defect is a category error, not an inverted sign, and the weaker
 //   claim is the true one.) With "No target" chosen the compliance was already `.unknown`
 //   and the auto-gain already inert, so this only ever misfired with a target set — which
 //   is every fresh install, `.streaming` being the default.
+//   ⛔ AND THE SENTENCE THAT USED TO FOLLOW — "outside it, where the gain saturates, the
+//   colour understates by up to 6 dB" — was wrong three ways, all caught in review: a
+//   COLOUR is categorical and cannot understate a magnitude (outside the window its
+//   DIRECTION is simply right); the error is not symmetric; and it dropped the −1 dB trim
+//   the two examples above both apply. At target −14: raw −25 → gain +6 → output −20, the
+//   number sits 5 dB LOW; raw −3 → gain −6 → output −10, the number sits 7 dB HIGH.
+//   ⚠️ AND THE ARITHMETIC ABOVE IS A MODEL, NOT A DERIVATION. The auto-gain does not read
+//   the number being coloured. The grid colours `masterLUFSIntegrated` (gated, K-weighted
+//   EBU R128 from `EchoelLoudnessMeter`). `AutoMixChain.updateLUFS` builds its OWN
+//   `lufsReading` out of `masterLevel`, which is: left channel only; a peak-HELD envelope
+//   (`max(raw, previous × 0.92)` at 60 Hz, not a windowed RMS); saturated in the tap by
+//   `min(rms × 3, 1)`, so after the `/ 3.0` un-scaling it can never read above ≈ −9.6 dBFS
+//   — which caps the CUT side to ≈ 4.4 dB for the default −14 target rather than the
+//   nominal 6; and K-weighted by a flat −0.1 dB stand-in. The EQ is not unity either
+//   (−1.5 low shelf at 140 Hz, +1.5 presence, +2.5 air) and sits inside the same "after the
+//   measurement" bracket. Every one of those makes the two numbers diverge FURTHER, so they
+//   strengthen the conclusion while weakening the demonstration. Do not quote the ≈ −15
+//   figures as measurements; they are an illustration of the mechanism.
 // · TRUE PEAK. Measured before the brick-wall limiter — i.e. before the one stage whose
-//   entire job is to stop that peak from reaching the output. `danger` therefore fires on
-//   peaks that provably never leave the device.
+//   job is to stop that peak from reaching the output.
+//   ⛔ THIS SAID "peaks that PROVABLY never leave the device". Not provable, and false for
+//   one shipped target. (a) `LoudnessTarget.cinema`'s ceiling is −2 dBTP while the output
+//   ceiling after the limiter and the ×0.89 trim is ≈ −1 dBFS — a peak at −1.5 dBTP does
+//   leave the device and does exceed that ceiling, so the removed `danger` would have been
+//   RIGHT there. (b) The limiter is attached with no parameters configured at all, so it
+//   runs Apple's `PeakLimiter` defaults (~12 ms attack, no look-ahead) and bounds SAMPLE
+//   peak — while `masterTruePeakMaxDb` is oversampled INTER-SAMPLE true peak, which a
+//   sample-peak limiter does not bound. The supportable claim, and the one that justifies
+//   removing the verdict just as well: a pre-limiter dBTP over the ceiling is not evidence
+//   that the delivered signal exceeds it.
 //
 // So the numbers stay (with the measurement point now stated on screen) and the verdicts
 // go. That is this repo's #135/#164/#227 rule applied to a colour: a control or an
@@ -67,9 +93,21 @@ import SwiftUI
 // work. Either way it is an audio-graph change, and this one deliberately is not: nothing
 // below alters a sample.
 //
-// Restoring the verdicts is pinned to the tap move by
-// `Tests/CISmoke/LoudnessReadoutMeasurementPointTests.swift` — bring one back without the
-// other and the blocking bundle goes red.
+// ⭐ THE CONTRACT THE BLOCKING GUARD ACTUALLY KEYS ON, because the obvious version of it was
+// wrong: `Tests/CISmoke/LoudnessReadoutMeasurementPointTests.swift` does NOT test where the
+// tap sits. Its first draft did — it looked for `masterMixer.installTap(` — and review
+// showed that predicate fires RED on the very fix recommended two paragraphs up: a SECOND
+// tap on the limiter's output leaves `masterMixer.installTap(` in place, deliberately,
+// because `_outputRing` and the #193 instrument must stay there. A guard that goes red on
+// the correct fix is worse than none, so the predicate is now the thing that actually
+// matters: **does `AudioEngine` publish a POST-CHAIN measurement at all?**
+//
+// #316b MUST therefore name its post-chain publisher with a symbol containing
+// `masterOutputLUFS` (e.g. `masterOutputLUFSIntegrated`). Until that string exists in
+// `AudioEngine.swift` the guard requires: no target verdict anywhere in this file, every
+// `readout(` call painted `EchoelTheme.text`, and the on-screen disclosure present. Once it
+// exists the guard falls silent and the verdicts may come back — `LoudnessTarget`'s two
+// functions are kept callerless for exactly that.
 
 /// The master-volume parameter field in its OWN view so the read of
 /// `audioEngine.masterVolume` is confined here. That value is rewritten by the
@@ -100,8 +138,12 @@ struct MasterLoudnessGrid: View {
     // are per-declaration, never written to the store. Until 2026-07-27 this view fell back
     // to `.off` while the export path fell back to −14, so ONE unreadable stored string made
     // the readout claim "no target in effect" while the export still normalised. One key
-    // must not have two fallbacks. The remaining readers — the Master panel's picker and
-    // `AutoMixChain.resolvedTarget` — both fall back to `.streaming`; keep it that way.
+    // must not have two fallbacks. There are THREE remaining reader files, not the two an
+    // earlier version of this comment listed: `EchoelStudioView` (the Master panel's picker,
+    // plus its export resolve), `AutoMixChain` (auto-gain target), and `FloatingVisualWindow`
+    // (the export path — i.e. the very half the two-fallbacks lesson is about, and the one
+    // the first draft omitted). All three route through `LoudnessTarget.resolvedLUFS`, which
+    // falls back to `.streaming`; keep it that way.
 
     var body: some View {
         VStack(spacing: 10) {
@@ -122,9 +164,21 @@ struct MasterLoudnessGrid: View {
                 readout("Range", lraText(audioEngine.masterLRA), "LU", EchoelTheme.text)
             }
             // The measurement point, stated where the numbers are read rather than only in
-            // the file header (#316). It lives INSIDE the grid on purpose, so it travels with
-            // it — this view is used from the Master panel and from `BroadcastView`, and a
-            // caption written into one of those callers would leave the other unlabelled.
+            // the file header (#316). It lives INSIDE the grid on purpose, so any future
+            // caller inherits it instead of having to remember the caption.
+            // ⛔ THE FIRST VERSION JUSTIFIED THAT WITH A CALLER THAT DOES NOT EXIST: "this
+            // view is used from the Master panel and from `BroadcastView`". `BroadcastView`
+            // has ZERO instantiation sites in `Sources/` — it is doorless while HaishinKit is
+            // unlinked, which CLAUDE.md says plainly. The placement is still right; the
+            // reason was a comment describing a caller that cannot be opened, in a file whose
+            // whole subject is a comment that outlived its truth. (The commit message of
+            // 6a6bb81 leans on the same non-existent page and cannot be edited — recorded
+            // here instead.)
+            // ⚠️ LATENT, not introduced here: `.onAppear`/`.onDisappear` below flip GLOBAL
+            // metering state. Two simultaneously mounted grids would fight — the second to
+            // disappear silently freezes the first's numbers. Unreachable today precisely
+            // because there is only one caller; if #316b or a broadcast door ever mounts two,
+            // that ownership needs a refcount.
             Text("Measured before the master chain — EQ, auto-gain, limiter and the −1 dB trim come after.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)

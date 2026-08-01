@@ -2849,7 +2849,7 @@ struct EchoelStudioView: View {
         }
     }
 
-    // MARK: Panel — Master (output level + EBU R128 loudness)
+    // MARK: Panel — Master (master level + EBU R128 loudness)   // "output" struck, #316
 
     /// The mastering readout — master volume plus the live EBU R128 loudness numbers
     /// (short-term + gated-integrated LUFS, max true-peak in dBTP, loudness range in LU).
@@ -2885,8 +2885,14 @@ struct EchoelStudioView: View {
             // re-renders only this small grid, not the whole studio body.
             MasterLoudnessGrid()
 
+            // ⛔ THIS LINE USED TO READ "Streaming targets ≈ −14 LUFS integrated, true peak
+            // ≤ −1 dBTP." — and #316's first pass left it standing two lines under its own
+            // "measured before the master chain" caption. That is the removed verdict handed
+            // back to the reader as an instruction: take the number above, compare it to
+            // these figures yourself. Same claim, slower medium. It now says what the target
+            // actually governs (the auto-gain and the export), not what the numbers mean.
             HStack {
-                Text("Streaming targets ≈ −14 LUFS integrated, true peak ≤ −1 dBTP.")
+                Text("The Target above sets the auto-gain and the export; the numbers are the mix, not the delivered file.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)

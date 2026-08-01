@@ -85,7 +85,12 @@ Map all `try`/throws to `statusMessage` (honest failures). `stop()` → `try awa
 - Compile gate green WITH the dep (step 1 first, then step 3).
 - Device: enter a YouTube/Twitch ingest URL + key, Go Live, confirm the stream appears; confirm rPPG
   is stopped and BLE/HealthKit HR still drives bio; confirm `stop()` ends cleanly and re-enables rPPG.
-- Mastering: the `Master` loudness readout already shows what's going out (≈ −14 LUFS / ≤ −1 dBTP).
+- Mastering: ⛔ the line here used to say "the `Master` loudness readout already shows what's
+  going out (≈ −14 LUFS / ≤ −1 dBTP)". It does NOT (#316, 2026-08-01): the meter taps
+  `masterMixer`, the master chain's INPUT, so EQ, auto-gain, limiter and the −1 dB trim all
+  happen after it. Whoever executes this checklist must NOT use that readout to confirm what
+  the stream carries — that needs #316b (a post-chain measurement, symbol containing
+  `masterOutputLUFS`) or an external meter on the received stream.
 
 ## 5. Update on completion
 Flip `BroadcastView`'s "engine not installed" copy, mark Broadcast ✅ in `DMMW_ARCHITECTURE.md`

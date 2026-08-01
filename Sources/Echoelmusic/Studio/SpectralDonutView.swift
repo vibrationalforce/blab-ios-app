@@ -10,7 +10,7 @@ import SwiftUI
 // and lobe-count rising with frequency — so fundamentals, partials and overtones each
 // read as their own animated waveform rather than washing together.
 //
-// The spectrum is a REAL FFT of the master output: the audio tap memcpy's the live mix
+// The spectrum is a REAL FFT of the master MIX: the audio tap memcpy's the live mix
 // into a lock-free ring (AudioEngine), and this view pulls the newest window and runs
 // the FFT on the main thread (EchoelRealFFT) every frame — no DSP on the audio thread.
 // Each ring is eased so changes are smooth and motion is slow (no flashing; WCAG ≤3 Hz;
@@ -41,7 +41,11 @@ struct SpectralDonutView: View {
         let n = max(4, bandCount)
         state.ensure(count: n, fMin: Self.fMin, fMax: Self.fMax)
 
-        // Target spectrum from a REAL FFT of the master output. The audio tap
+        // Target spectrum from a REAL FFT of the master MIX. ⛔ Both this line and the
+        // file header said "master output" until #316. `_outputRing` is written inside
+        // `masterMixer.installTap` — the master chain's INPUT — so what this view draws is
+        // the mix BEFORE EQ, auto-gain, limiter and the −1 dB trim. Harmless for a shape,
+        // wrong as a word, and #316b will touch that same ring. The audio tap
         // memcpy's the live mix into a lock-free ring; we pull the newest window
         // and run the FFT HERE on the main thread (never on the audio thread). The
         // visual therefore reflects what is actually heard — timbre, overtones and
