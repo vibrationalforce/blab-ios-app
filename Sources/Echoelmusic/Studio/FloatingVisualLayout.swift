@@ -106,6 +106,155 @@ public enum FloatingVisualLayout {
         startButtonHeight + startButtonTopPadding + startButtonBottomPadding
     }
 
+    // MARK: - Chrome bar budget (#365)
+    //
+    // ⛔ THE WINDOW WAS ADAPTIVE ON ONE AXIS ONLY, and that is the whole bug the founder
+    // reported ("im großen Zustand nicht adaptiv sondern geht über den Rand hinaus. Man
+    // sieht Echoel Icon dann nicht mehr richtig"). `cardSize` above adapts the PICTURE to
+    // the container and is provably correct — every branch returns `w ≤ availW`, `h ≤
+    // availH`. The CHROME BAR was never measured by anything. It is an `HStack` of
+    // RIGID-width children ending in `.frame(maxWidth: .infinity)`, which clamps a bar UP
+    // to the proposal but never DOWN past its children — so the bar reports its own
+    // oversize width, the enclosing `VStack` adopts it, and the background, border and
+    // `.clipShape` are all drawn at that width. The outer `.frame(width:height:)` does not
+    // clip in SwiftUI, so the too-wide bar is then CENTRED and sticks out on both sides,
+    // past the card and past the screen. The logo is first in the row, so it goes first.
+    // Both halves of the founder's sentence fall out of that one cause.
+    //
+    // HOW BAD, computed with every `Text` assumed ZERO width — a bound no font metric can
+    // undercut. On a 393 pt portrait iPhone: small needs ≥248 pt for a 155 pt card,
+    // medium ≥302 for 243.5, fullscreen ≥491 for 393. Only the LARGE step (302 vs 346.9)
+    // can fit at all, and only while every label is empty. Re-derived independently on
+    // 375/393/440 pt widths — small, medium and fullscreen overflow on EVERY iPhone.
+    //
+    // ⚠️ THESE ARE RESERVES, NOT MEASUREMENTS, and that distinction is the honest limit of
+    // this type. Foundation cannot measure a `Text`, so the text-bearing items carry a
+    // conservative constant. Being conservative is the safe direction: it sheds one item
+    // too early rather than one too late, and shedding early is invisible while shedding
+    // late is the bug. Every constant is pinned by a source scan in the guard test, so the
+    // view and this file cannot drift apart silently.
+
+    /// Widths the chrome bar's items claim. Names match the view's controls one-to-one.
+    public enum ChromeCost {
+        /// `EchoelLogoMark`'s hit frame — also the drag handle. Never shed.
+        public static let logo: CGFloat = 40
+        /// Every icon-only toolbar button (`.frame(width: 28)`).
+        public static let iconButton: CGFloat = 28
+        /// `HStack(spacing: 8)`.
+        public static let gap: CGFloat = 8
+        /// `.padding(.horizontal, 10)`, both sides.
+        public static let horizontalPadding: CGFloat = 20
+        /// The look `Slider`'s `minWidth: 90` — rigid, it cannot compress below this.
+        public static let lookSlider: CGFloat = 90
+        /// "Studio" chip: symbol + label + 10 pt padding each side. Text reserve.
+        public static let studioChip: CGFloat = 83
+        /// `MiniTransportView`: capsule + spacing + two labels. Text reserve.
+        public static let miniTransport: CGFloat = 84
+        /// The WAV control while it shows a running time ("WAV 0:12"). Text reserve.
+        public static let wavRecording: CGFloat = 104
+    }
+
+    /// Which OPTIONAL chrome items survive at a given card width. The three that never
+    /// shed — logo, resize, close — are not represented: they are the identity of the bar
+    /// (brand + the two ways out) and their floor is 96 pt of content, which even the
+    /// smallest card (≈147 pt on a 375 pt phone) affords.
+    public struct ChromeFit: Equatable, Sendable {
+        public var lookSlider = false
+        public var studioChip = false
+        public var miniTransport = false
+        public var gridToggle = false
+        public var videoRecord = false
+        public var wavRecord = false
+        public init() {}
+    }
+
+    /// The shed ORDER, first to go. It is a product ranking, not an arbitrary list, and it
+    /// is stated here so a future change argues with it instead of quietly reordering:
+    /// a look slider and a "Studio" door are convenience; the transport readout is
+    /// information; the grid toggle is a display aid; the two RECORDERS are the only
+    /// items whose loss can cost a performer a take, so they shed last.
+    ///
+    /// - Parameters:
+    ///   - cardWidth: the card the bar must fit inside — `cardSize(...).width`, or the
+    ///     full bounds width in fullscreen.
+    ///   - isFullscreen: the slider and the Studio chip only exist in fullscreen; the
+    ///     budget can only take them away, never add them to a floating card.
+    ///   - showsTransport: the view already hides `MiniTransportView` at the small step
+    ///     and while nothing is presented. Pass that condition through rather than
+    ///     duplicating it here, so there is one owner of "may it appear at all".
+    ///   - wavBusy: the WAV control carries a running time, which roughly quadruples it.
+    ///   - videoBusy: a video capture is running.
+    ///
+    /// ⛔ A BUSY RECORDER IS PINNED, and finding that out is why the shed order alone was
+    /// not enough. The first version of this function shed by rank only, and the
+    /// simulation across three device widths showed the consequence immediately: at the
+    /// medium step with a WAV take running, the budget dropped the WAV control — **which
+    /// is the take's only STOP button**. A control that is the sole way to end an
+    /// in-progress action must never be the thing that disappears to make room; that is
+    /// worse than the overflow it was solving, because the overflow is ugly and this
+    /// loses a recording. Rank decides what goes; being the exit decides that it stays.
+    public static func chromeFit(cardWidth: CGFloat,
+                                 isFullscreen: Bool,
+                                 showsTransport: Bool,
+                                 wavBusy: Bool,
+                                 videoBusy: Bool) -> ChromeFit {
+        var fit = ChromeFit()
+        fit.lookSlider = isFullscreen
+        fit.studioChip = isFullscreen
+        fit.miniTransport = showsTransport
+        fit.gridToggle = true
+        fit.videoRecord = true
+        fit.wavRecord = true
+
+        // A degenerate width must not silently return "everything fits" — that is the
+        // failure this whole type exists to stop. Shed to the floor instead, but keep a
+        // running recorder even there: its stop button outranks a clean layout.
+        guard cardWidth.isFinite, cardWidth > 0 else {
+            var floor = ChromeFit()
+            floor.wavRecord = wavBusy
+            floor.videoRecord = videoBusy
+            return floor
+        }
+
+        func width(_ f: ChromeFit) -> CGFloat {
+            // Always present: logo, resize, close.
+            var total = ChromeCost.logo + 2 * ChromeCost.iconButton
+            var items = 3
+            if f.lookSlider    { total += ChromeCost.lookSlider;    items += 1 }
+            if f.studioChip    { total += ChromeCost.studioChip;    items += 1 }
+            if f.miniTransport { total += ChromeCost.miniTransport; items += 1 }
+            if f.gridToggle    { total += ChromeCost.iconButton;    items += 1 }
+            if f.videoRecord   { total += ChromeCost.iconButton;    items += 1 }
+            if f.wavRecord {
+                total += wavBusy ? ChromeCost.wavRecording : ChromeCost.iconButton
+                items += 1
+            }
+            // The `Spacer(minLength: 0)` contributes no width but still takes a gap on
+            // each side; counting one gap per item is the same total and is what the
+            // guard test re-derives, so keep the two spellings identical.
+            return total + ChromeCost.gap * CGFloat(items) + ChromeCost.horizontalPadding
+        }
+
+        var shed: [(inout ChromeFit) -> Void] = [
+            { $0.lookSlider = false },
+            { $0.studioChip = false },
+            { $0.miniTransport = false },
+            { $0.gridToggle = false }
+        ]
+        // The recorders shed only when they are IDLE. Busy, each one is its own take's
+        // stop button (`stop.circle.fill`) and is pinned — see the ⛔ note on the
+        // signature. Video sheds before WAV because a lost video take is a lost file,
+        // while a lost WAV take is a lost performance.
+        if !videoBusy { shed.append { $0.videoRecord = false } }
+        if !wavBusy   { shed.append { $0.wavRecord = false } }
+
+        for drop in shed {
+            if width(fit) <= cardWidth { return fit }
+            drop(&fit)
+        }
+        return fit
+    }
+
     /// Floor on the picture itself (NOT the card): below this a concentric visual has no
     /// room and the play surface is untappable. It is a floor, never an override — the
     /// lift is capped by what the available box can hold, so a container too small to

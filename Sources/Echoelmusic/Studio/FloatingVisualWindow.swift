@@ -756,7 +756,16 @@ struct FloatingVisualWindow: View {
     /// The only chrome: a drag handle + a size cycle + a close button. Deliberately no
     /// sliders (founder: fewer settings).
     private func handleBar(in bounds: CGSize, card: CGSize) -> some View {
-        HStack(spacing: 8) {
+        // #365: what actually FITS on this card, not what the size step would like to show.
+        // `card` was already a parameter here — it was only ever read as a drag fallback,
+        // so the bar has always known its own budget and never spent it.
+        let fit = FloatingVisualLayout.chromeFit(
+            cardWidth: card.width,
+            isFullscreen: windowSize.isFullscreen,
+            showsTransport: windowSize != .small && isPresented,
+            wavBusy: wavRecording || wavExporting,
+            videoBusy: recorderIsRecording)
+        return HStack(spacing: 8) {
             // Drag ONLY by this handle — NOT the whole bar. A DragGesture spanning the whole
             // bar competed with the buttons: a tap with the slightest finger move started a
             // drag and cancelled the button tap, so "die Farbpalette ist nicht anklickbar"
@@ -798,7 +807,7 @@ struct FloatingVisualWindow: View {
             // (the chrome stayed MOUNTED, no teardown). A FIRST-CLASS door, not the tiny
             // resize glyph. Shown only in fullscreen; in the floating sizes the DAW is
             // already on screen. Neutral tokens (accent green stays reserved for live bio).
-            if windowSize.isFullscreen {
+            if windowSize.isFullscreen, fit.studioChip {
                 Button { exitToStudio() } label: {
                     HStack(spacing: 5) {
                         Image(systemName: "rectangle.split.3x1")
@@ -834,7 +843,7 @@ struct FloatingVisualWindow: View {
             // Fullscreen only — that's where the bar has the width for a LONG slider.
             // A single-look sequence has no range to fade — guard against a degenerate
             // 0...0 Slider (founder's customizer can trim the sequence down to one look).
-            if windowSize.isFullscreen, LookBlendMap.maxPosition(for: sliderLooks) > 0 {
+            if windowSize.isFullscreen, fit.lookSlider, LookBlendMap.maxPosition(for: sliderLooks) > 0 {
                 Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition(for: sliderLooks))
                     .tint(EchoelTheme.accent)
                     .frame(minWidth: 90, maxWidth: 170)
@@ -858,22 +867,24 @@ struct FloatingVisualWindow: View {
             // renderer" while shipping exactly that cost one branch away. Not a freeze (this
             // window is a SIBLING of the instrument, not an ancestor — it cannot tear down a
             // Picker below), but wasted work that is invisible in every test and screenshot.
-            if windowSize != .small && isPresented {
+            if fit.miniTransport {
                 MiniTransportView()
                     .allowsHitTesting(false)
             }
             // Fretboard grid toggle — shows which note lives where on the play
             // surface (fields in each note's physical colour). Display-only aid.
-            Button { touchShowGrid.toggle() } label: {
-                Image(systemName: touchShowGrid ? "square.grid.3x3.fill" : "square.grid.3x3")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(touchShowGrid ? EchoelTheme.accent : EchoelTheme.text)
-                    .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
+            if fit.gridToggle {
+                Button { touchShowGrid.toggle() } label: {
+                    Image(systemName: touchShowGrid ? "square.grid.3x3.fill" : "square.grid.3x3")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(touchShowGrid ? EchoelTheme.accent : EchoelTheme.text)
+                        .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(touchShowGrid ? "Hide note grid" : "Show note grid")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(touchShowGrid ? "Hide note grid" : "Show note grid")
             #if canImport(AVFoundation)
-            wavRecordControl
+            if fit.wavRecord { wavRecordControl }
             // MP4 VIDEO capture. Distinct "video" glyph (vs. the WAV button's waveform)
             // so the two recorders are recognizable at a glance (founder: "Video
             // und wav Aufnahme muss … erkennbar sein").
@@ -888,21 +899,23 @@ struct FloatingVisualWindow: View {
             // external instance is its own slice (`AVAssetWriter` fixes its dimensions on
             // the first frame). The guard deliberately does NOT block a STOP: a recording
             // already running when the cable goes in must stay stoppable.
-            Button { toggleRecording() } label: {
-                Image(systemName: recorder.isRecording ? "stop.circle.fill" : "video.circle")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(recorder.isRecording
-                                     ? Color.red
-                                     : (videoCaptureYielded ? EchoelTheme.dim : EchoelTheme.text))
-                    .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
+            if fit.videoRecord {
+                Button { toggleRecording() } label: {
+                    Image(systemName: recorder.isRecording ? "stop.circle.fill" : "video.circle")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(recorder.isRecording
+                                         ? Color.red
+                                         : (videoCaptureYielded ? EchoelTheme.dim : EchoelTheme.text))
+                        .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
+                }
+                .buttonStyle(.plain)
+                .disabled(videoCaptureYielded)
+                .accessibilityLabel(recorder.isRecording
+                                    ? "Stop video recording"
+                                    : (videoCaptureYielded
+                                       ? "Video recording unavailable while the visual is on the external screen"
+                                       : "Record MP4 video"))
             }
-            .buttonStyle(.plain)
-            .disabled(videoCaptureYielded)
-            .accessibilityLabel(recorder.isRecording
-                                ? "Stop video recording"
-                                : (videoCaptureYielded
-                                   ? "Video recording unavailable while the visual is on the external screen"
-                                   : "Record MP4 video"))
             #endif
             Button { cycleSize() } label: {
                 // Cycles Small → Medium → Large → Fullscreen → Small. Shows a "contract"
@@ -928,7 +941,16 @@ struct FloatingVisualWindow: View {
         }
         .padding(.horizontal, 10)
         .frame(height: handleHeight)
-        .frame(maxWidth: .infinity)
+        // ⛔ WAS `.frame(maxWidth: .infinity)`, AND THAT IS THE STRUCTURAL HALF OF #365.
+        // `maxWidth: .infinity` clamps a view UP to the proposal and never DOWN past its
+        // own children — so an `HStack` of rigid items reports its oversize width, the
+        // enclosing `VStack` adopts it, and the background, the border and the
+        // `.clipShape` are all drawn at THAT width, outside the card and off the screen.
+        // Capping at the card makes the bar structurally incapable of reporting wider
+        // than the thing it sits in, whatever anyone adds to the row later. The budget
+        // above is what keeps the items INSIDE that cap; this line is the backstop for
+        // the day someone adds a control and forgets the budget.
+        .frame(maxWidth: card.width)
         .background(EchoelTheme.bg.opacity(0.92))
         // NOTE: the move-drag lives on the ≡ handle only (see above), NOT the whole bar, so it
         // can never swallow a toolbar-button tap.
@@ -960,14 +982,44 @@ struct FloatingVisualWindow: View {
 
     private func cycleSize() {
         resizeDip = true
+        // ⛔ THE TWO SMALL STEPS ARE SKIPPED WHILE A RECORDER RUNS, and that is a geometry
+        // consequence rather than a preference (#365). A running recorder PINS its own
+        // stop button (see `FloatingVisualLayout.chromeFit`), so the floor is logo 40 +
+        // the busy WAV control 104 + resize 28 + close 28, plus four gaps and the
+        // padding: ≈252 pt with nothing optional left to shed. The small card is
+        // ≈147–175 pt and the medium ≈232–275 pt, so BOTH are provably too narrow on a
+        // 375 and a 393 pt phone. Cycling therefore runs large ↔ fullscreen until the
+        // take ends, and every step is reachable again the moment it does.
+        //
+        // ⚠️ I NEARLY SHIPPED THIS SKIPPING ONLY `.small`. The medium case came out of
+        // simulating the budget across three device widths × four busy states, not out of
+        // reading the code — 252 vs 244 pt is an eight-point overflow that no amount of
+        // staring at the source reveals. Any change to the costs above must re-run that
+        // simulation; `ChromeBudgetFitsTests` is where it now lives.
+        let busy = wavRecording || wavExporting || recorderIsRecording
         // Two frames later: apply the snap while the content is dimmed, then ease
         // the picture back in. No frame animation ever touches the Metal view.
         DispatchQueue.main.async {
             var tx = Transaction()
             tx.disablesAnimations = true
-            withTransaction(tx) { sizeRaw = windowSize.next.rawValue }
+            withTransaction(tx) {
+                var next = windowSize.next
+                if busy, next == .small || next == .medium { next = .large }
+                sizeRaw = next.rawValue
+            }
             withAnimation(.easeOut(duration: 0.22)) { resizeDip = false }
         }
+    }
+
+    /// `recorder` only exists behind `canImport(AVFoundation)`; reading it through this
+    /// one accessor keeps `cycleSize` free of a second `#if` in the middle of a
+    /// transaction, where a mismatched branch is easy to introduce and hard to see.
+    private var recorderIsRecording: Bool {
+        #if canImport(AVFoundation)
+        return recorder.isRecording
+        #else
+        return false
+        #endif
     }
 
     #if canImport(AVFoundation)
