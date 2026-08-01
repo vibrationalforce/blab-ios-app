@@ -26,27 +26,43 @@
 //  TBME 48(11):1342–1347) are
 //      SD1² = ½·SDSD²          SD2² = 2·SDNN² − ½·SDSD²
 //  and the second one is an APPROXIMATION: SDNN is taken over all N intervals while the
-//  cloud has only N−1 points, so the two are not the same sample set. Measured over
-//  200 000 random series of 3–7 intervals with BOTH deviations population (÷n):
-//  `2·SDNN² − ½·SDSD²` came out NEGATIVE in **7.6 %** of them — a NaN under the square
-//  root, not the "few ulps" rounding case a clamp is for.
+//  cloud has only N−1 points, so the two are not the same sample set.
 //
-//  ⛔ AND THE DIVISORS ARE PART OF THAT CLAIM, which the first version of this header
-//  left out — it wrote "3–8-beat series, 7.5 %" with no divisor named, and the rate is
-//  strongly sensitive to both. Measured, same 200 000 trials each:
-//      SDNN ÷n,   SDSD ÷n    →  7.6 % negative  (3–7 intervals) · 6.3 % (3–8)
-//      SDNN ÷n,   SDSD ÷n−1  → 29.7 %           (3–7)
-//      SDNN ÷n−1, SDSD ÷n−1  → 13.6 %           (3–7)
-//      SDNN ÷n−1, SDSD ÷n    →  0.0 %           (3–7)
-//  A bare percentage with no divisor pairing and no N range is not a reproducible
-//  number, and this file is the one place in the app where a wrong physiological
-//  justification cannot be caught by a compiler.
+//  ⛔ TWO REASONS TO REJECT IT, AND THE FIRST VERSION OF THIS HEADER LED WITH THE WEAKER ONE.
+//  It headlined that `2·SDNN² − ½·SDSD²` goes NEGATIVE (a NaN under the square root) in ~8 %
+//  of short series. True — but that rate is almost entirely an N=3 effect and vanishes at the
+//  window lengths this file actually sees:
+//      N = 3 → 23 % · 4 → 8 % · 5 → 4 % · 6 → 1.7 % · 7 → 0.8 % · 8 → 0.3 % · 10 → 0.05 %
+//      N ≥ 20 → 0.00 %
+//  A Poincaré window here is dozens of beats, so **the NaN is not the production problem**.
+//  The real one does not shrink with N at all: the identity gives the WRONG ANSWER even when
+//  it is positive — 4.0406 where the truth is 0, on the series below. Systematic error, not
+//  a domain error, is why geometry wins.
+//
+//  ⛔ AND THE DIVISORS ARE PART OF THE CLAIM, which the first version left out entirely — it
+//  wrote "3–8-beat series, 7.5 %" with no divisor named, and the rate depends on both:
+//      SDNN ÷n,   SDSD ÷n    →  ~8 % negative  (3–7 intervals) · ~6 % (3–8)
+//      SDNN ÷n,   SDSD ÷n−1  → ~30 %           (3–7)
+//      SDNN ÷n−1, SDSD ÷n−1  → ~14 %           (3–7)
+//      SDNN ÷n−1, SDSD ÷n    →   0 %           (3–7) — and this row is a THEOREM, not a
+//          measurement: with both denominators equal to N−1 the sign is that of
+//          `4·Σ(xᵢ−x̄)² − Σ(dᵢ−d̄)²`, and `Σdᵢ² ≤ 4·Σ(xᵢ−x̄)²` holds for every series.
+//  ⛔ QUOTED TO THE NEAREST PERCENT ON PURPOSE. The second version of this header printed
+//  7.6 / 6.3 / 29.7 / 13.6 to one decimal from 200 000 Monte-Carlo trials, whose standard
+//  error is ~0.06 pp — so the last digit moved with the seed, and two of the four entries
+//  were on the wrong side of it (7.6 converges to 7.5; 13.6 to 13.7). A protocol that cannot
+//  support the precision it prints is the same defect as a number with no protocol at all,
+//  one decimal place smaller. Protocol, for anyone re-deriving: N uniform over the stated
+//  range, RR uniform 400–1400 ms, ≥1e7 trials for a second digit.
 //
 //  SD1 is unaffected by any of this: the perpendicular projection IS ±SDSD/√2, so the two
-//  routes are the SAME quantity analytically. (Numerically they differ in the last digits
-//  — up to 5.3e−13 relative on random series, from float summation order. The first
-//  version of this header said "agree to the last bit", which is false and is the sort of
-//  overstatement this file exists to stop.) Only SD2 was ever at stake.
+//  routes are the SAME quantity analytically. Numerically they differ in the last digits,
+//  from float summation order — order 1e−13 to 1e−12 relative depending on the series, and
+//  deliberately quoted as an order and not a figure: it is a maximum over random draws of a
+//  catastrophic-cancellation ratio, which is heavy-tailed and has no bound to quote. (The
+//  first version said "agree to the last bit", which is false; the second said "up to
+//  5.3e−13", which is a made-up ceiling — the same overstatement in a more convincing
+//  costume.) Only SD2 was ever at stake.
 //
 //  The cleanest demonstration is the alternating series 800, 840, 800, 840 … : every
 //  point is (800, 840) or (840, 800), so every point sums to 1640 and the cloud has
@@ -68,8 +84,31 @@
 //  pyHRV makes (`numpy.std`, ddof=0 by default). NeuroKit2 uses ddof=1 and therefore
 //  reads √(n/(n−1)) higher: +8.0 % at 7 pairs, +2.6 % at 20, converging away. So SD1 and
 //  SD2 are only comparable across tools when the divisor is stated — but the RATIO is
-//  divisor-invariant (the factor cancels; measured max relative difference 4.6e−16), and
-//  that is the number to quote against literature.
+//  divisor-invariant (the factor cancels; measured max relative difference ~1e−15), and that
+//  is the number to quote against literature — WITH the caveat in the next paragraph, which
+//  the first version of this line omitted while calling the ratio the safe one.
+//
+//  ⛔ HYGIENE PUTS A WALL INTO THE PICTURE, and this file is the one that has to say so.
+//  `RRIntervalHygiene` rejects any beat differing by more than 20 % from its predecessor
+//  (Malik). SD1 is the spread of exactly that quantity, so NO ACCEPTED POINT CAN LIE OUTSIDE
+//  A ±20 % WEDGE around the identity line — the filter is not only removing artifacts, it is
+//  bounding the shape. `RRIntervalHygiene`'s header admits the cost as an RMSSD number
+//  (~18 % understatement during slow resonance breathing); the consequence unique to DRAWING
+//  the cloud belongs here. Measured on a sinusoidal RSA series (mean 900 ms, 6 breaths/min):
+//      600 ms peak-to-peak swing → SD1, SD2 and the ratio all unchanged, acceptance 1.00
+//      800 ms swing              → SD1 −33 %, SD2 +12 %, **ratio −40 %**, acceptance 0.79
+//  So the ratio is the MOST biased of the three, not the safest, and the bias is phase-locked
+//  to the deep slow breathing this product is built to reward. The saving grace is that
+//  acceptance falls under `minAcceptedFractionForHRV` in that regime, so a view obeying the
+//  bar refuses to state the numbers at all. That is why the bar is load-bearing here and not
+//  merely tidy — and it is closer to luck than to design, which is the honest way to put it.
+//
+//  ⚠️ ONE MORE THING THE POOLING DOES. Perpendicular values pooled across segments are all
+//  real successive differences, so SD1 is clean. The ALONG axis is an absolute level, so a
+//  pooled SD2 across disjoint runs partly measures the offset BETWEEN them rather than
+//  variability within any of them (on the dirty test vector, SD2 is literally half the level
+//  difference between two unrelated two-beat runs). Defensible — it is what SDNN does — but
+//  it means SD2 and the ratio are not literature-comparable in a gappy record.
 //
 //  ⛔ GAPS ARE NOT CLOSED — the defect the first version of this file shipped, and the
 //  repo had already decided the question. It filtered implausible intervals into a
@@ -86,12 +125,20 @@
 //  from segments, at each of the 9 possible positions:
 //      −6.8 % … +11.5 % for seven of them · 0.0 % when the artifact lands at the very tail
 //      (nothing to join it to) · **+851 %** when it lands at the HEAD.
-//  Four dropouts in the same window: +14 749 %. The head case is not an outlier to
-//  discount — it is `RRIntervalHygiene`'s own documented hole (the first interval of a
-//  window is band-checked but never Malik-checked, because there is no anchor yet), so a
-//  head artifact survives hygiene AND gets a fabricated partner under compaction. Note
-//  also that compaction is not reliably an OVER-estimate: three positions read low. There
-//  is no correction factor to apply; the pairing has to be right.
+//  The head case is not an outlier to discount — it is `RRIntervalHygiene`'s own documented
+//  hole (the first interval of a window is band-checked but never Malik-checked, because
+//  there is no anchor yet), so a head artifact survives hygiene AND gets a fabricated
+//  partner under compaction. Note also that compaction is not reliably an OVER-estimate:
+//  three positions read low. There is no correction factor to apply; the pairing has to be
+//  right.
+//
+//  Four dropouts, same window, all 15 non-overlapping placements: the segmented path
+//  REFUSES TO ANSWER in 8 of them (fewer than two pairs survive), and across the 7 where
+//  both paths produce a number they differ by −12 % … +14 749 %. ⛔ An earlier version
+//  quoted only that maximum, bare — in the sentence right after declaring that a bare
+//  percentage is not a claim. And the maximum was the weaker half anyway: the point worth
+//  making is that at four dropouts compaction ALWAYS returns a confident number while the
+//  honest path usually returns none.
 //
 //  ⛔ AND THE JUSTIFICATION THAT WENT WITH IT IS STRUCK. The first header argued the plot
 //  doubles as a sensor check because "a missed or doubled beat throws a visible satellite
@@ -108,13 +155,18 @@
 //  Pure value maths, Foundation only, so the blocking bundle can test it without a
 //  sensor, a view or an audio graph.
 //
-//  ⛔ CONSUMER-FREE FOR ONE MORE CYCLE, said out loud because this repo keeps a shelf of
-//  doorless files and a new one is not automatically innocent. The view and its door are
-//  #347 Slice 3b. The split cost something real and it is recorded rather than glossed:
-//  both defects found in review were CONTRACTS between this core and its future view
-//  (which points get paired, what the plot is claimed to prove), so shipping the maths
-//  first froze the wrong shape into a tested file and this slice is the repair. If 3b
-//  does not land next, this file is a defect: delete it rather than let it sit.
+//  CONSUMER: `AnalysisPoincareView` (#347 Slice 3b), doored from the Field panel's "Body"
+//  section and guarded by `Tests/CISmoke/PoincareViewDoorTests.swift`.
+//
+//  ⛔ THE TWO HEADERS BEFORE THIS ONE BOTH PLEDGED "CONSUMER-FREE FOR (EXACTLY / ONE MORE)
+//  CYCLE", and the pledge was kept — 3b landed the very next commit — but the phrasing is
+//  worth recording as a trap rather than deleted as spent. "ONE MORE" is a promise that can
+//  be re-made verbatim forever, and re-making it is precisely how this repo grew its shelf of
+//  doorless files. A renewal has to be visibly a SECOND one, or it is not a renewal, it is a
+//  default. The split also cost something real: every defect review found in the core was a
+//  CONTRACT with the view that did not exist yet — which points get paired, what the plot is
+//  claimed to prove, whether the numbers may be stated — so shipping the maths alone froze
+//  the wrong shape into a tested file twice over.
 //
 
 import Foundation
@@ -155,7 +207,17 @@ enum PoincareMetrics {
     /// look entirely reasonable while doing it.
     struct Analysis: Equatable {
         let points: [Point]
-        let descriptors: Descriptors
+        /// `nil` when fewer than `minimumPairs` genuinely consecutive pairs survived.
+        ///
+        /// ⛔ THE OPTIONALITY IS HERE AND NOT ON `Analysis`, and the first version had it the
+        /// other way round — which broke the one thing this type exists for. `analyse` used to
+        /// return `nil` whenever the descriptors were unstatable, i.e. exactly when hygiene had
+        /// shredded the record into singletons, i.e. exactly when `acceptedFraction` was the
+        /// number worth showing. The view's fallback for "no analysis" is "Waiting for beats",
+        /// so a catastrophically dirty sensor and a sensor that is not running printed the SAME
+        /// SENTENCE, and the refusal machinery below was unreachable in the case it was built
+        /// for. Points and the fraction are always statable; only the summary is not.
+        let descriptors: Descriptors?
         /// Fraction of the RAW intervals that survived hygiene, 0…1. The honest sensor
         /// check (see the file header): compare against
         /// `RRIntervalHygiene.minAcceptedFractionForHRV` before showing SD1/SD2 as a
@@ -206,7 +268,16 @@ enum PoincareMetrics {
         out.reserveCapacity(segments.reduce(0) { $0 + max(0, $1.count - 1) })
         for segment in segments where segment.count >= 2 {
             for i in 0..<(segment.count - 1) {
-                out.append(Point(rr: segment[i], next: segment[i + 1]))
+                let a = segment[i]
+                let b = segment[i + 1]
+                // Non-finite cannot arrive through `segments(_:)` — hygiene rejects it — but
+                // this function is directly callable with a hand-built array, and a NaN
+                // coordinate in a `Canvas` loop reads as a rendering bug rather than a data
+                // one. The file's own doc says hostile input must never reach a coordinate;
+                // saying it only about the path that happens to be wired is not the same
+                // promise.
+                guard a.isFinite, b.isFinite else { continue }
+                out.append(Point(rr: a, next: b))
             }
         }
         return out
@@ -249,12 +320,23 @@ enum PoincareMetrics {
 
     /// THE entry point for a view: hygiene once, then the cloud and the numbers from the
     /// same segments, plus the acceptance fraction that says whether to trust them.
+    ///
+    /// `nil` ONLY when there was no input at all. Anything else — even a record hygiene
+    /// rejects entirely — comes back as an `Analysis` whose `descriptors` may be `nil`, so
+    /// the caller can tell "nothing is arriving" from "what arrives is unusable". See
+    /// `Analysis.descriptors`.
     static func analyse(rrMs: [Double]) -> Analysis? {
+        guard !rrMs.isEmpty else { return nil }
         let segs = segments(rrMs)
-        guard let d = descriptors(segments: segs) else { return nil }
+        // The fraction is derived from THESE segments rather than from a second
+        // `RRIntervalHygiene.accepted(rrMs:)` call, which would run the same gate again. Same
+        // answer today, but this method's whole claim is that its parts come from ONE pass —
+        // deriving one of them separately made that true by coincidence instead of by
+        // construction.
+        let survivors = segs.reduce(0) { $0 + $1.count }
         return Analysis(points: points(segments: segs),
-                        descriptors: d,
-                        acceptedFraction: RRIntervalHygiene.acceptedFraction(rrMs: rrMs))
+                        descriptors: descriptors(segments: segs),
+                        acceptedFraction: Double(survivors) / Double(rrMs.count))
     }
 
     /// Descriptors for a raw series. Convenience over `analyse(rrMs:)` for callers that

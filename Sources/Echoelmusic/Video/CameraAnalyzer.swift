@@ -40,8 +40,27 @@ final class CameraAnalyzer {
     var isFingerDetected: Bool = false
     /// Signal quality indicator (0–1)
     var signalQuality: Double = 0
-    /// Latest RR intervals in ms — for HRV calculation
+    /// Latest RR intervals in ms — for HRV calculation.
+    ///
+    /// ⚠️ TWICE COMPACTED, so it must NOT be used by anything that reads CONSECUTIVE pairs.
+    /// The producing loop `continue`s past any peak difference outside 0.3…1.5 s, and the
+    /// survivors are then IQR-filtered — both into a fresh array, which makes the two beats
+    /// either side of a removed one look adjacent. `RRIntervalHygiene`'s header calls that out
+    /// by name ("a compacted array makes the two beats either side of a removed one look
+    /// adjacent — manufacturing exactly the large successive difference the filter was meant to
+    /// remove") and points at this file. RMSSD as computed here averages over the window and
+    /// tolerates it; a Poincaré plot does not. Use `rawIntervalsMs` for that.
     var rrIntervals: [Double] = []
+
+    /// Every peak-to-peak difference of the newest window, in ms, with NOTHING removed —
+    /// including the impossible ones a dropped or doubled peak produces.
+    ///
+    /// It exists because rejection is only honest when the consumer can also see how much was
+    /// rejected: filtering upstream hands everyone a clean-looking series and makes
+    /// `RRIntervalHygiene.acceptedFraction` read near 1.0 on a broken contact. Consumers run
+    /// their own hygiene (`RRIntervalHygiene.acceptedSegments`) and get both the beats and the
+    /// honest survival rate.
+    var rawIntervalsMs: [Double] = []
     /// Calculated RMSSD from camera PPG
     var rmssd: Double = 0
 
@@ -544,11 +563,21 @@ final class CameraAnalyzer {
         guard newPeaks.count >= 3 else { fallbackBPM(auto); return }
 
         var intervals: [Double] = []
+        // The SAME differences before any rejection — `rawIntervalsMs`, for consumers that do
+        // their own hygiene. See that property's doc for why the `continue` below makes
+        // `intervals` unusable for anything that reads CONSECUTIVE pairs.
+        var raw: [Double] = []
         for j in 1..<newPeaks.count {
             let dt = signalTimestamps[startIdx + newPeaks[j]] - signalTimestamps[startIdx + newPeaks[j-1]]
+            raw.append(dt * 1000.0)
             guard dt > 0.3 && dt < 1.5 else { continue }
             intervals.append(dt)
         }
+        // Published unconditionally, BEFORE the window can bail out below: a window whose rate
+        // the lock refuses still contains real beat timings, and the consumer that filters them
+        // is exactly the one that should decide. Nothing downstream of here reads it, so this
+        // cannot move the lock.
+        rawIntervalsMs = raw
 
         guard intervals.count >= 2 else { fallbackBPM(auto); return }
 

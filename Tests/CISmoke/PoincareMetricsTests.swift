@@ -201,21 +201,50 @@ final class PoincareMetricsTests: XCTestCase {
     /// beats and label it with statistics from another. `analyse` is that call, and this
     /// pins that its two halves are computed from the same segments.
     func testAnalyseLabelsExactlyWhatItDraws() throws {
-        let raw = [820.0, 9999, 795, 810, .nan, 780, 830]
+        let raw: [Double] = [820, 9999, 795, 810, .nan, 780, 830]
         let a = try XCTUnwrap(PoincareMetrics.analyse(rrMs: raw))
 
-        XCTAssertEqual(a.points.count, a.descriptors.pairs, """
-            \(a.points.count) points drawn against \(a.descriptors.pairs) pairs measured. \
+        let d = try XCTUnwrap(a.descriptors)
+        XCTAssertEqual(a.points.count, d.pairs, """
+            \(a.points.count) points drawn against \(d.pairs) pairs measured. \
             One point IS one pair; a mismatch means the picture and the caption came from \
             different series.
             """)
         XCTAssertEqual(a.points, PoincareMetrics.points(segments: PoincareMetrics.segments(raw)))
-        XCTAssertEqual(a.descriptors, try XCTUnwrap(PoincareMetrics.descriptors(rrMs: raw)))
+        XCTAssertEqual(d, try XCTUnwrap(PoincareMetrics.descriptors(rrMs: raw)))
         // 5 of 7 raw intervals survived — below `minAcceptedFractionForHRV` (0.8), which
         // is what a view is meant to check before presenting SD1/SD2 as a body figure.
         XCTAssertEqual(a.acceptedFraction, 5.0 / 7.0, accuracy: 1e-12)
         XCTAssertLessThan(a.acceptedFraction, RRIntervalHygiene.minAcceptedFractionForHRV)
-        XCTAssertNil(PoincareMetrics.analyse(rrMs: [800, 810]))
+    }
+
+    /// ⭐ THE CASE THE FIRST VERSION THREW AWAY. When hygiene shreds the record into isolated
+    /// beats there are no pairs, so the descriptors are unstatable — but that is EXACTLY when
+    /// the surviving fraction is the number worth showing. `analyse` used to return `nil`
+    /// there, and the view's `nil` branch says "Waiting for beats", so a wrecked sensor and a
+    /// sensor that was never started printed the SAME SENTENCE and the refusal line was
+    /// unreachable in the one case it exists for.
+    func testAShreddedRecordStillReportsHowMuchSurvived() throws {
+        let raw: [Double] = [800, 9999, 810, 120, 820]
+        let a = try XCTUnwrap(PoincareMetrics.analyse(rrMs: raw), """
+            `analyse` returned nil for a series that HAS beats — three of five survived, they \
+            are simply not consecutive. Returning nil here loses `acceptedFraction`, which is \
+            the only thing a view can honestly say about this state.
+            """)
+        XCTAssertNil(a.descriptors, """
+            Three isolated beats carry no pair, so there is nothing to describe. A non-nil \
+            answer means spread was computed across a gap.
+            """)
+        XCTAssertTrue(a.points.isEmpty)
+        XCTAssertEqual(a.acceptedFraction, 3.0 / 5.0, accuracy: 1e-12)
+        XCTAssertLessThan(a.acceptedFraction, RRIntervalHygiene.minAcceptedFractionForHRV)
+
+        // Only an EMPTY input is nil — "nothing is arriving" as opposed to "what arrives is
+        // unusable". Two beats are clean but too few, so they come back statable-as-absent.
+        XCTAssertNil(PoincareMetrics.analyse(rrMs: []))
+        let thin = try XCTUnwrap(PoincareMetrics.analyse(rrMs: [800, 810]))
+        XCTAssertNil(thin.descriptors)
+        XCTAssertEqual(thin.acceptedFraction, 1.0, accuracy: 1e-12)
     }
 
     // MARK: - the edges

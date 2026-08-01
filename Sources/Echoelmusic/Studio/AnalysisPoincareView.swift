@@ -20,8 +20,12 @@ import SwiftUI
 // health state and no caller may add that reading.
 //
 // ONE SOURCE TODAY — THE CAMERA, said plainly because the omission would otherwise look like
-// an oversight. `CameraAnalyzer.rrIntervals` is observable, so a leaf that reads it redraws
-// when a beat lands. `PolarH10BioPublisher.rrIntervals` is `@ObservationIgnored` and appended
+// an oversight. `CameraAnalyzer.rawIntervalsMs` is observable, so a leaf that reads it redraws
+// when a beat lands. (`rawIntervalsMs` and NOT `rrIntervals`: the latter is twice-compacted —
+// a `continue` past out-of-band differences, then an IQR filter, both into fresh arrays — so
+// its neighbours are not neighbours. Reading it here reintroduced the fabricated-pair defect
+// one layer above the hygiene meant to prevent it; see that property's own doc.)
+// `PolarH10BioPublisher.rrIntervals` is `@ObservationIgnored` and appended
 // PER BEAT, and the studio root reads that publisher — un-ignoring it would make every beat
 // rebuild an ancestor body and tear down any open Picker (the 10.76.50 freeze law). The strap
 // is the more accurate source and it deserves this plot; it needs a snapshot published at the
@@ -80,7 +84,8 @@ struct AnalysisPoincareView: View {
         identity.addLine(to: CGPoint(x: originX + side, y: originY))
         ctx.stroke(identity, with: .color(EchoelTheme.border), lineWidth: 1)
 
-        guard let analysis = PoincareMetrics.analyse(rrMs: cameraRPPG.rrWindowMs) else { return }
+        guard let analysis = PoincareMetrics.analyse(rrMs: cameraRPPG.rrWindowMs),
+              !analysis.points.isEmpty else { return }
 
         // Centre and span. The centre is the cloud's own centroid; the half-span is scaled
         // from SD2 so a tight cloud still fills the box, with a floor so a nearly flat series
@@ -94,8 +99,12 @@ struct AnalysisPoincareView: View {
         let n = Double(analysis.points.count)
         let cx = sumX / n
         let cy = sumY / n
+        // The descriptors may be absent while points are not — one surviving pair draws a dot
+        // and has no spread. Then there is no ellipse and the span falls back to the floor;
+        // the dot is still the truth about that beat, and drawing it beats an empty box.
         let d = analysis.descriptors
-        let half = Swift.max(Self.minimumHalfSpanMs, 3.0 * Swift.max(d.sd1, d.sd2))
+        let spread = d.map { Swift.max($0.sd1, $0.sd2) } ?? 0
+        let half = Swift.max(Self.minimumHalfSpanMs, 3.0 * spread)
 
         let scale = Double(side) / (2 * half)
         let mid = Double(side) / 2
@@ -113,7 +122,7 @@ struct AnalysisPoincareView: View {
         // numbers in the caption, drawn. Sampled as a polyline rather than transformed with a
         // rotation matrix, because a rotated `Path` in a `Canvas` also rotates the stroke and
         // this repo has no need for either the transform stack or its surprises.
-        if d.sd2 > 0 || d.sd1 > 0 {
+        if let d, d.sd2 > 0 || d.sd1 > 0 {
             let root2 = 2.0.squareRoot()
             var ellipse = Path()
             for step in 0...Self.ellipseSteps {
@@ -176,6 +185,10 @@ private struct PoincareReadoutLabel: View {
 
     private func readout() -> String {
         let raw = cameraRPPG.rrWindowMs
+        // `nil` means nothing arrived AT ALL — not "what arrived was unusable". Keeping those
+        // two apart is the whole reason `analyse` stopped returning `nil` for the second case:
+        // a shredded record and a sensor that is off used to print the same sentence, so the
+        // refusal line below was unreachable exactly when it was warranted.
         guard let a = PoincareMetrics.analyse(rrMs: raw) else {
             return "Waiting for beats"
         }
@@ -185,10 +198,12 @@ private struct PoincareReadoutLabel: View {
             // is stated as absent, never rounded into a plausible one.
             return "SD1 — · SD2 — · only \(clean)% of beats usable"
         }
+        // Clean beats, just not enough of them yet — that is waiting, not refusing.
+        guard let d = a.descriptors else { return "Waiting for beats" }
         // #267: no user-visible readout formats its own decimals.
-        let sd1 = EchoelDecimalText.string(a.descriptors.sd1, decimals: 1)
-        let sd2 = EchoelDecimalText.string(a.descriptors.sd2, decimals: 1)
-        return "SD1 \(sd1) ms · SD2 \(sd2) ms · \(a.descriptors.pairs) beat pairs"
+        let sd1 = EchoelDecimalText.string(d.sd1, decimals: 1)
+        let sd2 = EchoelDecimalText.string(d.sd2, decimals: 1)
+        return "SD1 \(sd1) ms · SD2 \(sd2) ms · \(d.pairs) beat pairs"
     }
 }
 #endif

@@ -121,6 +121,40 @@ final class PoincareViewDoorTests: XCTestCase {
             """)
     }
 
+    /// ⭐ THE UPSTREAM HALF OF THE SEGMENT DISCIPLINE, and the one that was missed the first
+    /// time. `PoincareMetrics` routing through `RRIntervalHygiene` buys nothing if the series
+    /// it receives has ALREADY had intervals removed and the gaps closed — hygiene cannot see
+    /// a gap that is no longer there, so it emits one segment and the plot draws a transition
+    /// that never happened. `CameraAnalyzer.rrIntervals` is exactly that: a `continue` past
+    /// out-of-band peak differences, then an IQR filter, both into fresh compacted arrays.
+    /// The first version of `rrWindowMs` returned it under a doc comment asserting the
+    /// opposite ("RAW … no plausibility band, no ectopic rejection").
+    ///
+    /// It also breaks `acceptedFraction`: measured against a pre-filtered denominator it reads
+    /// near 1.0 on a broken contact, so the honest-sensor check the whole readout rests on
+    /// silently stops working.
+    func testTheBeatWindowIsTheUnfilteredSeries() throws {
+        let pub = Self.stripComments(try source("Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift"))
+        XCTAssertTrue(pub.contains("analyzer.rawIntervalsMs"), """
+            `rrWindowMs` no longer returns `rawIntervalsMs`. If it went back to \
+            `rrIntervals`, the consumer receives a series whose gaps are already closed — \
+            `RRIntervalHygiene` then cannot reject what it cannot see, and both the plot and \
+            the surviving-fraction readout become confident about beats that never followed \
+            one another.
+            """)
+        XCTAssertFalse(pub.contains("{ analyzer.rrIntervals }"), """
+            `rrWindowMs` reads `analyzer.rrIntervals` again — the twice-compacted array. See \
+            that property's own doc, and `RRIntervalHygiene`'s header, which has named this \
+            file as the bad example since July.
+            """)
+        let analyzer = try source("Sources/Echoelmusic/Video/CameraAnalyzer.swift")
+        XCTAssertTrue(analyzer.contains("var rawIntervalsMs"), """
+            `CameraAnalyzer.rawIntervalsMs` is gone. It is the only unfiltered view of the \
+            beat timings; without it there is no honest denominator for `acceptedFraction` \
+            anywhere in the camera path.
+            """)
+    }
+
     // MARK: - helpers
 
     /// Drops `//` line comments so a guard counts call sites and not the prose about them.

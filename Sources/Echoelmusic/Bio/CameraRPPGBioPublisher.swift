@@ -323,6 +323,18 @@ public final class CameraRPPGBioPublisher {
     /// unknowable. Filtering here would hand every caller a clean-looking series with no way
     /// to tell a perfect contact from a broken one.
     ///
+    /// ⛔ AND THE FIRST VERSION OF THIS PROPERTY SAID EXACTLY THAT WHILE RETURNING
+    /// `analyzer.rrIntervals`, WHICH IS FILTERED TWICE. That array's producing loop `continue`s
+    /// past every peak difference outside 0.3…1.5 s and then IQR-rejects the survivors, both
+    /// into fresh compacted arrays. So the beats either side of a removal arrived already
+    /// adjacent, `RRIntervalHygiene` could not see the gap, and the plot drew a transition that
+    /// never happened — the very defect the commit one before this one existed to remove,
+    /// reintroduced one layer upstream by a doc comment that asserted the opposite.
+    /// `RRIntervalHygiene`'s own header had flagged this file since July ("Do NOT read the
+    /// camera path as the good example … Its own slice"). Mechanism plausible, justification
+    /// false — this repo's named failure mode, in the sentence that told the next reader not to
+    /// worry about it. It now returns `rawIntervalsMs`, which is what the paragraph claims.
+    ///
     /// ⚠️ HIGH-FREQUENCY READ — the freeze law (10.76.50). `CameraAnalyzer.rrIntervals` is
     /// observable and changes on every accepted beat, so this must only ever be read inside a
     /// LEAF view. Reading it in `EchoelStudioView`/`WorkspaceView` — both of which already
@@ -333,7 +345,7 @@ public final class CameraRPPGBioPublisher {
     /// `@ObservationIgnored` and appended per beat, so exposing it the same way would notify
     /// nothing. See `AnalysisPoincareView`'s header for why that is a slice and not a
     /// one-liner.)
-    public var rrWindowMs: [Double] { analyzer.rrIntervals }
+    public var rrWindowMs: [Double] { analyzer.rawIntervalsMs }
 
     @ObservationIgnored private let capture = CameraCapture()
     @ObservationIgnored private let analyzer = CameraAnalyzer()
