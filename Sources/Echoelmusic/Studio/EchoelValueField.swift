@@ -298,9 +298,21 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// wrong had just grown from nothing to destructive (a late `onEnded` would find the value
     /// already reverted, compute `moved == false`, and drop the user's finished edit). `onEnded`
     /// now says so itself, first thing it does. The task asks a recorded fact instead of
-    /// inferring one, and both orders are correct again — the property `6046db7` established and
-    /// the first #378 gave away.
+    /// inferring one — for every order in which `onEnded` arrives BEFORE the deferred task. The
+    /// remaining order (task first, `onEnded` late) is covered by `revertedGesture` below, not by
+    /// this. Two mechanisms, because one of them cannot see the other's case.
     @State private var endedSeq: Int = 0
+
+    /// The receipt a deferred cancellation leaves: which gesture it reverted, the number it took
+    /// away (`from`), and the number it put back (`to`). `onEnded` tears it up — see the long
+    /// note at that call site. nil whenever no revert is outstanding.
+    ///
+    /// ⛔ IT EXISTS BECAUSE `endedSeq` IS ONLY HALF AN ANSWER, and the first #378 Nachlese said
+    /// otherwise ("both orders are correct again"). `endedSeq` can only be read if `onEnded`
+    /// already ran; for the order where it has NOT run yet, the task cannot distinguish "never
+    /// coming" from "not here yet", and no amount of guarding changes that. Making the revert
+    /// reversible is what removes the question instead of re-asking it.
+    @State private var revertedGesture: (seq: Int, from: V, to: V)?
 
     /// True for exactly as long as SwiftUI considers a drag to be in flight (#377).
     ///
@@ -720,13 +732,48 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // case stopped having no handler at all. It must NOT restore anything itself:
                 // here the edit is finished.
                 //
-                // ⭐ THE STAMP IS THE FIRST STATEMENT, AND ITS ORDER IS THE POINT. It is the only
-                // record that this gesture ended legitimately, and the deferred cancellation task
-                // reads it. Written after `resetScrubState()` it would still be correct today,
-                // but the two lines below are about the commit and this one is about a different
-                // reader entirely — keeping it first makes it impossible for a later edit to slip
-                // an early `return` in front of it.
+                // ⭐ THE STAMP IS THE FIRST STATEMENT. It is the only record that this gesture
+                // ended legitimately, and the deferred cancellation task reads it. Written after
+                // `resetScrubState()` it would still be correct today, but the lines below are
+                // about the commit and this one is about a different reader entirely.
+                // (⛔ An earlier version of this note claimed being first makes it "impossible"
+                // for a later edit to put an early `return` in front of it. Position is not a
+                // barrier — nothing prevents that, and no guard here checks it. Kept first
+                // because it is clearer, not because it is enforced.)
                 endedSeq = gestureSeq
+
+                // ⭐ THE UNDO OF AN UNDO — the last ordering assumption in this file, closed.
+                //
+                // Both #378 reviewers found the same residual hole and I could not talk it away:
+                // if the deferred task runs BEFORE a late `onEnded`, the revert has already put
+                // `start` on screen and nilled `scrubStartValue`, so the `moved` line below
+                // computes `false` and the user's FINISHED edit is dropped — reverted on screen,
+                // never committed. That is verbatim the failure `6046db7` refused in writing and
+                // the failure #378's Nachlese claimed to have removed. `endedSeq` alone does not
+                // remove it: it is only READABLE if `onEnded` got there first, which is the same
+                // dispatch assumption in a new coat.
+                //
+                // So the revert is no longer final. It leaves a receipt, and this callback tears
+                // it up: the gesture ended, therefore the cancellation was a misreading, therefore
+                // the number goes back to what the user actually dragged it to — and commits.
+                // `value == r.to` yields to anyone who wrote in between, same rule as the revert.
+                //
+                // ⚠️ HONEST SCOPE: neither reviewer could construct an interleaving on iOS that
+                // reaches this branch — a `Task` enqueued from the main actor drains after the
+                // current run-loop callout, and `onEnded` is delivered inside it. This is
+                // insurance against an assumption, not a fix for an observed bug. It is worth its
+                // twelve lines because the assumption is the one thing three commits in a row got
+                // wrong here, and because being wrong costs a finished edit silently.
+                if let r = revertedGesture, r.seq == gestureSeq, value == r.to {
+                    revertedGesture = nil
+                    value = r.from
+                    onChange()
+                    resetScrubState()
+                    onCommit()
+                    return
+                }
+                revertedGesture = nil
+
                 let moved = scrubStartValue.map { $0 != value } ?? false
                 resetScrubState()
                 if moved { onCommit() }
@@ -752,37 +799,62 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// ⛔ IT YIELDS TO ANY OTHER WRITER, AND THE FIRST VERSION DID NOT — which broke the rule the
     /// commit one before it had just established. `544ac8f` is titled "die Geste darf ihr Ziel
     /// nicht behalten, wenn ein anderer den Wert geschrieben hat" and added exactly this check to
-    /// the per-event branch. The revert needs it more, not less: `lastWritten` is what this
-    /// gesture last put on screen, so `value != lastWritten` means somebody else moved it during
-    /// the hop, and writing `start` there would undo THEIR edit. Real writers exist —
-    /// `AutomationPlayer` rewrites `masterVolume` and the tempo every tick, and `setTempo`
-    /// additionally cancels an in-flight glide.
+    /// the per-event branch. Real writers exist — `AutomationPlayer` rewrites `masterVolume` and
+    /// the tempo every tick, and the tempo write additionally cancels an in-flight glide.
+    ///
+    /// ⚠️ THE CHECK COVERS THE HOP, NOT THE GESTURE, and the first version of this doc claimed
+    /// more than that ("`lastWritten` is what this gesture last put on screen"). It is not: it is
+    /// simply `value` AT THE FALLING EDGE. If another writer moved the number DURING the drag,
+    /// `lastWritten` is already their number, the check passes, and the revert takes the field
+    /// back to `start` — undoing them. Narrowing that would mean tracking this gesture's own last
+    /// write; it is not tracked today, and the window it would close is a whole gesture rather
+    /// than one main-actor turn. Written down rather than fixed, so the next reader knows which.
     ///
     /// ⚠️ IT RESTORES THIS FIELD'S NUMBER, NOT THE WORLD. `EchoelStudioView` has 10 `onChange`
     /// closures spread over 25 fields (two of the ten are the `param`/`knob` helpers, which fan
-    /// out to 17 rows), and some do more than apply a value. `applySoundLive()` and
-    /// `applyArticulation()` are pure functions of the restored number, so they come back with
-    /// it. `visualPresetID = ""` does not: it is `@AppStorage`, it is what re-applies the scene
-    /// on the next launch, and re-running the closure with the original number clears it just the
-    /// same — worse than before #378, because the numbers no longer visibly move, so the loss
-    /// leaves no trace. That is filed as #379 and belongs in those four rows (the same guard
-    /// `visualEnergy`'s setter already carries), not here.
+    /// out to 17 rows), and TWO of them destroy user work when re-run with an unchanged number:
+    /// `visualPresetID = ""` (4 rows) drops the chosen visual look — `@AppStorage`, so the loss
+    /// survives the launch — and `applyArticulation()` re-derives Attack/Decay/Sustain/Release
+    /// from the macro, overwriting a hand-tuned envelope.
+    ///
+    /// ⛔ THE FIRST #378 NACHLESE "CORRECTED" THAT TWO TO ONE AND WAS ITSELF WRONG. Its argument
+    /// was that `applyArticulation()` is a pure function of the restored number and therefore
+    /// comes back with it. Pure it is — but its four outputs are INDEPENDENTLY EDITABLE rows
+    /// (`param("Attack", $currentPatch.attack, …)` and its three neighbours in `EchoelStudioView`),
+    /// so re-deriving them restores the macro's envelope, not the one the user shaped by hand.
+    /// One reviewer asked me to propagate the "one" to three more places; the other refuted the
+    /// "one" outright. The source settled it: two. The lesson is not "trust the second reviewer"
+    /// — it is that a retraction needs the same evidence a claim does, and mine had none.
+    ///
+    /// Both belong to #379, in the rows that own those closures, not here.
+    // The block below leaves a receipt (`revertedGesture`) that a late `onEnded` uses to undo
+    // this revert — see that call site. The note sits ABOVE the block on purpose: the guard in
+    // `ScrubNotifiesOnlyOnRealChangeTests` matches whitespace-squashed source that still contains
+    // comments, so an inline `//` inside a pinned block reddens the blocking gate for prose.
     private func revertCancelled(to start: V?, lastWritten: V) {
         if let start, start != lastWritten, value == lastWritten {
             value = start
             onChange()
+            revertedGesture = (seq: gestureSeq, from: lastWritten, to: start)
         }
         // Safe unconditionally: the two guards at the call site have already established that no
         // `onEnded` ran for this gesture and no new drag anchored, so nobody else owns it.
         scrubStartValue = nil
     }
 
-    /// Drops what a NEXT drag could inherit — and nothing else. Called synchronously at the
-    /// falling edge of `dragActive`.
+    /// Ends the gesture as far as a NEXT drag is concerned. Called synchronously at the falling
+    /// edge of `dragActive`.
     ///
-    /// ⛔ `scrubStartValue` IS DELIBERATELY NOT IN HERE, AND THAT ASYMMETRY IS THE WHOLE FIX.
-    /// The anchor branch re-seeds every latch it needs the moment it finds `scrubbing == false`,
-    /// so clearing these two is enough to make a drag starting in the same turn clean. But
+    /// ⭐ `scrubbing = false` IS THE CORRECTNESS-BEARING LINE; `scrubTarget = nil` IS HYGIENE.
+    /// (⛔ The first version of this doc said it "drops what a NEXT drag could inherit — and
+    /// nothing else", which is wrong in both halves and would mislead the next maintainer twice.
+    /// `lastY`/`lastX`/`lastTime` are equally inheritable and are NOT dropped here; and the
+    /// reason a hop-drag inherited anything at all was that `scrubbing` stayed true, so the
+    /// anchor branch was skipped. Clear `scrubbing` and the anchor branch re-seeds all six —
+    /// which is exactly what `resetScrubState`'s doc says, and the two must not teach opposite
+    /// rules about the same field. Do not "complete" this by moving the other three in.)
+    ///
+    /// ⛔ `scrubStartValue` IS DELIBERATELY NOT IN HERE, AND THAT ASYMMETRY IS THE POINT.
     /// `onEnded` may still be delivered after this runs, and it measures `moved` against
     /// `scrubStartValue` — nilling it here is what would silently drop a finished edit's
     /// `onCommit()`. So: unlatch now, drop the reference only on the branch that proves nobody

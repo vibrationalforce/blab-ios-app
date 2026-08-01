@@ -97,18 +97,20 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     }
 
     /// A swipe at a range EDGE must notify nobody either — `apply` clamps, so the value is
-    /// unchanged, and one of `EchoelStudioView`'s ten `onChange` closures is destructive with an
-    /// unchanged value: `visualPresetID = ""` clears the user's chosen visual look, and it is
-    /// `@AppStorage`, so the loss survives the launch. Swiping past the top must not undo work.
+    /// unchanged, and two of `EchoelStudioView`'s ten `onChange` closures are destructive with an
+    /// unchanged value: `visualPresetID = ""` (4 rows) clears the user's chosen visual look and is
+    /// `@AppStorage`, so the loss survives the launch; `applyArticulation()` re-derives A/D/S/R
+    /// from the macro. Swiping past the top must not undo work.
     ///
-    /// ⛔ THIS SAID "TWO", NAMING `applyArticulation()` AS THE SECOND, AND THAT WAS WRONG — found
-    /// in the #378 review. `applyArticulation()` is a pure function of `articulation`: re-running
-    /// it with an unchanged value re-derives the SAME A/D/S/R. What it overwrites is a hand-tuned
-    /// envelope, and it does that on every real articulation change too, which is a design
-    /// question about that row and not a phantom-edit bug this guard can speak to. The count
-    /// matters because it is the whole reason the guard exists — one destructive closure is still
-    /// one too many, but a second one that is not destructive is a reason a reader stops trusting
-    /// the paragraph.
+    /// ⛔ I CHANGED THAT "TWO" TO "ONE" AND HAD TO CHANGE IT BACK ONE COMMIT LATER — the retraction
+    /// is the mistake worth recording, not the original. My argument was that `applyArticulation()`
+    /// is a pure function of `articulation` and therefore comes back with the restored number.
+    /// Pure it is; irrelevant, because its four outputs are INDEPENDENTLY EDITABLE rows
+    /// (`param("Attack", $currentPatch.attack, …)` and its three neighbours), so re-deriving them
+    /// restores the macro's envelope over a hand-shaped one. One #378 reviewer asked me to spread
+    /// the "one" to three more places; the other refuted it outright. Reading the source settled
+    /// it in a minute. **A retraction needs the same evidence a claim does** — mine had none, and
+    /// it would have propagated a false count into four files.
     func testAClampedEdgeSwipeNotifiesNothing() throws {
         let closure = try closureBody(after: ".accessibilityAdjustableAction {", in: Self.field)
         let squashed = closure.components(separatedBy: .whitespacesAndNewlines).joined()

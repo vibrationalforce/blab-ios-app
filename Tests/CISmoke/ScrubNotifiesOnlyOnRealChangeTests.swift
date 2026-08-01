@@ -243,18 +243,27 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
     /// ⚠️ A SOURCE SCAN AGAIN, AND WEAKER HERE THAN ANYWHERE ELSE IN THIS FILE: it cannot show
     /// that SwiftUI re-evaluates the view when it resets a `@GestureState`, which is the entire
     /// mechanism. That is documented behaviour and a device question. What this holds is that
-    /// the wiring exists, that the cancellation path does NOT commit, and that the two cleanups
-    /// stay a deliberate PAIR rather than drifting apart — `resetScrubState` for the normal end,
-    /// `unlatchScrub` for the falling edge, differing in exactly one field.
+    /// the wiring exists, that the cancellation path does NOT commit on its own, and that the two
+    /// cleanups stay a deliberate PAIR rather than drifting apart — `resetScrubState` for the
+    /// normal end, `unlatchScrub` for the falling edge, differing in exactly one field
+    /// (`scrubStartValue`), which is the field a late `onEnded` still needs.
     ///
     /// ⛔ THAT LAST CLAUSE SAID "BOTH PATHS CLEAR THROUGH ONE FUNCTION" AND #378's NACHLESE
     /// RETIRED IT. One function was the right answer while both paths wanted the same three
-    /// fields cleared. They do not: the falling edge must drop what a NEXT drag could inherit
-    /// (`scrubbing`, `scrubTarget`) and must NOT drop `scrubStartValue`, because a normal
-    /// `onEnded` may still be delivered afterwards and measures its commit against it. #378's
-    /// first version merged them anyway — behind a deferred task justified by an ordering
-    /// assumption — and would have lost that commit silently whenever the assumption was wrong.
-    /// Two functions, one difference, and a guard on each half is the honest shape.
+    /// fields cleared. They do not: the falling edge must clear `scrubbing` — the anchor branch's
+    /// condition, and therefore the one line that decides whether a NEXT drag re-seeds itself —
+    /// while it must NOT drop `scrubStartValue`, because a normal `onEnded` may still be
+    /// delivered afterwards and measures its commit against it. #378's first version merged them
+    /// anyway, behind a deferred task justified by an ordering assumption, and would have lost
+    /// that commit silently whenever the assumption was wrong.
+    ///
+    /// ⛔ AND THIS PARAGRAPH ITSELF SAID "drop what a NEXT drag could inherit (`scrubbing`,
+    /// `scrubTarget`)" FOR ONE COMMIT, which is the wrong rule twice over: `lastY`, `lastX` and
+    /// `lastTime` are equally inheritable and are deliberately NOT dropped, and `scrubTarget`
+    /// is hygiene rather than correctness. A maintainer following the old wording would move
+    /// three more fields in for no reason, or conclude that dropping `scrubTarget` is what makes
+    /// the fix work. The single load-bearing field is `scrubbing`; everything else the anchor
+    /// branch re-seeds. Two functions, one difference, and a guard on each half is the shape.
     func testACancelledGestureHasAPathToClearItsLatches() throws {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent().deletingLastPathComponent()
@@ -300,9 +309,7 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             """)
 
         // #378: what a cancelled gesture DOES. Restore, tell the engine, yield to anyone else.
-        XCTAssertTrue(squashed.contains(
-            "ifletstart,start!=lastWritten,value==lastWritten{value=startonChange()}"
-        ), """
+        XCTAssertTrue(squashed.contains(SourceNeedles.revertBody), """
             `revertCancelled` changed shape. It must put the number back and re-fire \
             `onChange()` so the live-applies follow it (otherwise the screen and the sound \
             disagree, which is worse than either alone). `value == lastWritten` is not optional \
@@ -348,11 +355,23 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             NEW drag begins, because that is the only event the deferred cancel check can use to \
             recognise that the drag it saw end is no longer the drag in flight.
             """)
-        XCTAssertTrue(squashed.contains("endedSeq=gestureSeqletmoved=scrubStartValue"), """
-            `onEnded` no longer records that it ran, or records it after measuring the commit. \
-            `endedSeq` is the ONLY evidence the deferred cancellation task has that this gesture \
-            ended legitimately; without it that task falls back to inferring SwiftUI's dispatch \
-            order, which is what the #378 Nachlese removed.
+        XCTAssertTrue(squashed.contains("endedSeq=gestureSeq"), """
+            `onEnded` no longer records that it ran. `endedSeq` is the evidence the deferred \
+            cancellation task uses to recognise a gesture that ended legitimately; without it \
+            that task falls back to inferring SwiftUI's dispatch order.
+            """)
+        // The OTHER half of the same question, and the half `endedSeq` cannot answer: the task
+        // may run BEFORE a late `onEnded`, having already reverted and nilled `scrubStartValue`
+        // — then `moved` is false and a finished edit is dropped in silence. The revert leaves a
+        // receipt and this callback tears it up. Pinned as one block because the order matters:
+        // the undo must precede the `moved` measurement it would otherwise fall through to.
+        XCTAssertTrue(squashed.contains(SourceNeedles.undoOfARevert), """
+            The late-`onEnded` undo is gone or reshaped. Without it, the one interleaving \
+            `endedSeq` cannot see — deferred revert first, `onEnded` after — reverts the user's \
+            finished edit on screen AND drops its `onCommit()`, silently. That is the exact \
+            failure `6046db7` refused in writing and #378's first Nachlese wrongly declared \
+            closed. `value == r.to` is the same yield-to-another-writer rule the revert itself \
+            follows.
             """)
         XCTAssertTrue(squashed.contains("resetScrubState()ifmoved{onCommit()}"), """
             `onEnded` stopped clearing through `resetScrubState()`. Two hand-written cleanups \
@@ -386,8 +405,16 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
     /// string literal and not a `+` chain in an autoclosure — #287 took the blocking gate red
     /// with exactly that shape (`3379bb3`), and this is the position where the type-checker pays
     /// most.
+    ///
+    /// ⚠️ THESE MATCH WHITESPACE-SQUASHED SOURCE THAT STILL CONTAINS COMMENTS. An inline `//`
+    /// comment placed anywhere INSIDE either pinned block concatenates into the text and reddens
+    /// the only blocking gate for an edit that changes no behaviour. That is a real trip-wire in
+    /// a file this heavily annotated — put explanations ABOVE the block, which is where every
+    /// existing one already lives.
     private enum SourceNeedles {
         static let cancellationWatcher = ".onChange(of:dragActive){_,inFlightinguard!inFlight,scrubbingelse{return}letseq=gestureSeqletstart=scrubStartValueletwrote=valueunlatchScrub()Task{@MainActoringuardgestureSeq==seq,endedSeq!=seqelse{return}revertCancelled(to:start,lastWritten:wrote)}}"
+        static let undoOfARevert = "ifletr=revertedGesture,r.seq==gestureSeq,value==r.to{revertedGesture=nilvalue=r.fromonChange()resetScrubState()onCommit()return}revertedGesture=nil"
+        static let revertBody = "ifletstart,start!=lastWritten,value==lastWritten{value=startonChange()revertedGesture=(seq:gestureSeq,from:lastWritten,to:start)}"
     }
 
     /// Raw text of `private func <name>`'s body, from its declaration to the next declaration at
