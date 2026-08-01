@@ -585,7 +585,7 @@ struct EchoelStudioView: View {
             switch self {
             case .bio:         return "Bio"
             case .composition: return "Tempo"
-            case .session:     return "Session"
+            case .session:     return "Place"
             case .sound:       return "Sound"
             case .mix:         return "Mix"
             case .effects:     return "FX"
@@ -625,7 +625,7 @@ struct EchoelStudioView: View {
             // it salts the harmonic skeleton and blends darkness/liveliness/tension into
             // the composer's mood, and hue/saturation/glow/motion into the live visual.
             // The copy now names the effect; the naming is the smaller half.
-            case .session:     return "Weather and place — weather shapes the sound and the image; place names the session"
+            case .session:     return "Place — your city names the session and its export files"
             case .sound:       return "Sound and texture"
             case .mix:         return "Mix — level per part"
             case .effects:     return "Effects"
@@ -2443,26 +2443,27 @@ struct EchoelStudioView: View {
     // CLASS so nothing new goes unnoticed — but what it tells you to do is LOOK, not
     // re-door on suspicion.
 
-    // MARK: Panel 1b — Session (place · weather)
+    // MARK: Panel 1b — Place (the city that names the session)
 
-    /// The two opt-in toggles that FEED the session name (place token · weather
-    /// flavour). Step 2c: the live name preview itself (SessionNamePreviewLeaf)
-    /// moved into the header CompositionHeaderStrip — always visible, so the
-    /// city still shows itself in the name the moment it resolves. This panel
-    /// is chrome-door-only (transport "•••" → "Session"), the exact
-    /// Master/Export/Tempo pattern; its Session chip fell with it.
+    /// ONE opt-in toggle: the coarse place token in the session name. The live name
+    /// preview itself (SessionNamePreviewLeaf) sits in the header CompositionHeaderStrip,
+    /// always visible, so the city shows itself in the name the moment it resolves.
+    ///
+    /// ⛔ THE DOC BLOCK THAT STOOD HERE CLAIMED THIS PANEL IS "chrome-door-only … its
+    /// Session chip fell with it". Both halves were false, and `studioChips` says so three
+    /// screens up in THIS file: `.session` is in that array, so the chip never fell — it was
+    /// re-added and this comment was not. A doc that denies a door makes the next session
+    /// plan around a surface it thinks is unreachable.
+    ///
+    /// #359 (Founder 2026-08-01) moved `weatherRow` OUT of here and into `moodPanel`, where
+    /// the mood knobs it modulates live. What is left is exactly one thing, so the panel is
+    /// now titled after that one thing. This also settles filed task #284: a chip labelled
+    /// "Session" that saves no session, sitting next to a "Save & Export" panel that does.
     private var sessionPanel: some View {
-        // Titled by what it DOES, not by the internal door name. "Session" also
-        // collided with session SAVING — a different thing the founder asked for in
-        // the same breath (#189) — so the old title actively pointed at the wrong
-        // feature. Nothing structural changed: same door, same rows, same panel slot.
-        panel("Weather & place", "Weather shapes sound and image · place names the session",
+        panel("Place", "Your city names the session and its export files",
               isExpanded: $showSession) {
             #if canImport(CoreLocation)
             placeRow
-            #endif
-            #if canImport(WeatherKit) && canImport(CoreLocation)
-            weatherRow
             #endif
         }
     }
@@ -4249,6 +4250,14 @@ struct EchoelStudioView: View {
             moodKnob("Humanize", $mood.humanize)
             bassRhythmRow
             padRhythmRow
+            // #359 (Founder 2026-08-01, "Weather könnte auch eine Rubrik in mood … sein oder?").
+            // Weather is not a naming gimmick and never was: it blends darkness/liveliness/
+            // tension into the composer's mood. It therefore belongs among the mood knobs it
+            // modulates, not behind a chip about session names. The caption stays LAST — the
+            // house rule that headers and captions sit outside the reflow grid.
+            #if canImport(WeatherKit) && canImport(CoreLocation)
+            weatherRow
+            #endif
             Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · bright ↔ dark · lush 7ths (romance) · odd leaps (weird). Blends with your live signal.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
