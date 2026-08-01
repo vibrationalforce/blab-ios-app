@@ -279,10 +279,24 @@ public final class BioReactiveSynthVoice {
 
     /// Begin polling bus.latestBio at 10 Hz and forwarding fresh
     /// frames into synth.applyBioReactive(...). Idempotent.
+    ///
+    /// ⭐ MIDI DOES NOT WAIT FOR THIS LOOP ANY MORE (#317). Bio is a 10 Hz signal and a
+    /// 100 ms tick is right for it; a NOTE is an event and 100 ms is not a rate, it is a
+    /// delay — plus 100 ms of jitter, because where in the tick a note landed decided how
+    /// late it sounded. `bus.onControllerEventEnqueued` now drains as soon as an event is
+    /// published, and the tick's drain below STAYS as the backstop for anything enqueued
+    /// while nothing was subscribed. Two call sites, still ONE consumer (this object), both
+    /// on the main actor — the SPSC single-consumer contract is untouched.
     public func start(subscribing bus: EngineBus) {
         guard !isSubscribed else { return }
         self.bus = bus
         isSubscribed = true
+        // `[weak self, weak bus]`: the bus stores this closure, so a strong capture of
+        // either end would keep both alive forever. The voice is the consumer, not the owner.
+        bus.onControllerEventEnqueued = { [weak self, weak bus] in
+            guard let self, let bus else { return }
+            self.drainControllerEvents(from: bus)
+        }
         loop.start(interval: .milliseconds(100)) { [weak self] in
             guard let self, let bus = self.bus else { return }
             self.applyLatestIfFresh(from: bus)
@@ -372,6 +386,17 @@ public final class BioReactiveSynthVoice {
 
     public func stop() {
         loop.stop()
+        // Hand the drain hook back (#317). Leaving it installed would keep this voice
+        // consuming events after it stopped, and would make the next subscriber's `start`
+        // the SECOND setter of a single-consumer hook.
+        //
+        // Safe without an `isSubscribed` guard, and the reason is a property of this class
+        // rather than of its callers: `self.bus` is assigned in exactly ONE place,
+        // `start(subscribing:)`. A rack bio unit — which must never subscribe, and gets its
+        // frames through `applyBioFrame(from:)` where the bus is a PARAMETER and is not
+        // stored — therefore has a nil `bus` here, and this line is a no-op for it. It
+        // cannot reach past itself and clear the global voice's hook.
+        bus?.onControllerEventEnqueued = nil
         isSubscribed = false
     }
 

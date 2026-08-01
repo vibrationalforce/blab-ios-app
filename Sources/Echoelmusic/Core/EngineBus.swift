@@ -504,6 +504,32 @@ public final class EngineBus {
     @ObservationIgnored
     nonisolated(unsafe) public let bioEvents: SPSCQueue<BioEvent>
 
+    /// Called on the main actor immediately after a `ControllerEvent` is enqueued, so the
+    /// ONE consumer can drain right away instead of waiting for its next poll tick (#317).
+    ///
+    /// ⭐ WHY THIS EXISTS AT ALL — an external keyboard was 0–100 ms late, and the JITTER was
+    /// worse than the latency. `controllerEvents` has exactly one consumer,
+    /// `BioReactiveSynthVoice`, and it drained on a 100 ms `PollingLoop`. Where in that
+    /// window a note landed decided how late it sounded, so the same phrase played back
+    /// unevenly every time. Nothing was wrong with the parse or the queue; the note simply
+    /// sat there.
+    ///
+    /// ⚠️ IT ALSO DECOUPLES MIDI FROM A HAZARD THAT HAD NOT FIRED YET. That 100 ms loop is
+    /// the BIO loop — the same one `PollingRateCeiling` exists to slow down under thermal or
+    /// battery pressure (up to `slowestInterval`, 5 s). It is not opted in today, but the
+    /// day someone governs the bio loop (which is exactly what it is for) external MIDI
+    /// would silently inherit a multi-second delay. With this hook the note no longer
+    /// depends on that loop's rate at all.
+    ///
+    /// SINGLE-CONSUMER CONTRACT, UNCHANGED and the reason this is a single closure rather
+    /// than a broadcast list: only the subscriber that owns the drain may set it, and it
+    /// clears it on `stop()`. A second setter would be a second consumer stealing events —
+    /// the exact failure `BioReactiveSynthVoice.applyBioFrame`'s doc comment warns about.
+    /// The poll-tick drain STAYS as a backstop: an event enqueued while nothing is
+    /// subscribed is still picked up when a subscriber arrives.
+    @ObservationIgnored
+    public var onControllerEventEnqueued: (@MainActor () -> Void)?
+
     // MARK: - Init
 
     public init(
@@ -529,10 +555,20 @@ public final class EngineBus {
     }
 
     /// Publish a controller event.
+    ///
+    /// The main-actor hop is the one that was already here for `latestControllerEvent`; the
+    /// drain notification rides along inside it rather than adding a second (#317). That
+    /// matters — a per-event `Task { @MainActor }` flood from a fast source is a shipped
+    /// defect of this repo's own (#30, and again in `CameraRPPGBioPublisher`), so the rule is
+    /// to reuse an existing hop, never to open one.
     nonisolated public func publish(controller event: ControllerEvent) {
         controllerEvents.enqueue(event)
         Task { @MainActor [weak self] in
-            self?.latestControllerEvent = event
+            guard let self else { return }
+            self.latestControllerEvent = event
+            // AFTER the snapshot: a consumer that reads `latestControllerEvent` inside its
+            // drain must see this event, not the previous one.
+            self.onControllerEventEnqueued?()
         }
     }
 
