@@ -570,7 +570,7 @@ struct EchoelClipsMonitorMini: View {
                 EchoelTheme.fill
                 HStack(spacing: 4) {
                     if recorder.isRecording {
-                        Circle().fill(Color(red: 0.86, green: 0.22, blue: 0.20))
+                        Circle().fill(EchoelTheme.recording)
                             .frame(width: 7, height: 7)
                     }
                     Image(systemName: recorder.isRecording ? "record.circle" : "film")
@@ -582,7 +582,7 @@ struct EchoelClipsMonitorMini: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(recorder.isRecording
-                    ? Color(red: 0.86, green: 0.22, blue: 0.20).opacity(0.7)
+                    ? EchoelTheme.recording.opacity(0.7)
                     : EchoelTheme.border,
                     lineWidth: 1))
             // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids

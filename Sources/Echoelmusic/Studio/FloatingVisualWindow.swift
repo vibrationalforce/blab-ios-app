@@ -30,7 +30,7 @@ private struct RecordingBadge: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let elapsed = max(0, start.map { context.date.timeIntervalSince($0) } ?? 0)
             HStack(spacing: 5) {
-                Circle().fill(Color.red).frame(width: 7, height: 7)
+                Circle().fill(EchoelTheme.recording).frame(width: 7, height: 7)
                 Text("REC \(timeString(elapsed))")
                     .font(EchoelTheme.font(10, .semibold).monospacedDigit())
                     .foregroundStyle(.white)
@@ -471,7 +471,11 @@ struct FloatingVisualWindow: View {
                 // instead, in the one place the performer is already looking.
                 Text("WAV FAILED")
                     .font(EchoelTheme.font(10, .semibold))
-                    .foregroundStyle(Color.red)
+                    // `danger`, NOT `recording`: this is the one red in the bar that means
+                    // "something went wrong", and it sits two lines from the red that means
+                    // "a take is running". Same colour today, opposite messages — the token
+                    // names are what keep them separable if either is ever retuned.
+                    .foregroundStyle(EchoelTheme.danger)
             } else if wavRecording {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let elapsed = max(0, wavRecordStart.map { context.date.timeIntervalSince($0) } ?? 0)
@@ -487,7 +491,7 @@ struct FloatingVisualWindow: View {
             Button { toggleWavRecording() } label: {
                 Image(systemName: wavRecording ? "stop.circle.fill" : "waveform.circle")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(wavRecording ? Color.red : (wavExporting ? EchoelTheme.dim : EchoelTheme.text))
+                    .foregroundStyle(wavRecording ? EchoelTheme.recording : (wavExporting ? EchoelTheme.dim : EchoelTheme.text))
                     .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
             }
             .buttonStyle(.plain)
@@ -904,7 +908,7 @@ struct FloatingVisualWindow: View {
                     Image(systemName: recorder.isRecording ? "stop.circle.fill" : "video.circle")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(recorder.isRecording
-                                         ? Color.red
+                                         ? EchoelTheme.recording
                                          : (videoCaptureYielded ? EchoelTheme.dim : EchoelTheme.text))
                         .frame(width: 28, height: 44).contentShape(Rectangle().inset(by: -5))
                 }

@@ -1148,7 +1148,7 @@ struct EchoelStudioView: View {
                         } label: {
                             Image(systemName: visualRecorder.isRecording ? "stop.circle.fill" : "record.circle")
                                 .font(.title2)
-                                .foregroundStyle(visualRecorder.isRecording ? Color.red : .white.opacity(0.85))
+                                .foregroundStyle(visualRecorder.isRecording ? EchoelTheme.recording : .white.opacity(0.85))
                         }
                         .accessibilityLabel(visualRecorder.isRecording ? "Stop recording" : "Record video")
                     }

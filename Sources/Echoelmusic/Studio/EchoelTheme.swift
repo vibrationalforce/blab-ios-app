@@ -86,6 +86,30 @@ enum EchoelTheme {
     /// the inline `Color(red:0.90,0.62,0.20)` that meant "measuring" in the bio views.
     static let warning = Color(red: 0.90, green: 0.62, blue: 0.20)
 
+    /// A CAPTURE IS RUNNING — the REC dot, the running WAV/video glyph, the header
+    /// recording pip. Same components as `danger` today, and deliberately a DIFFERENT NAME
+    /// (#363).
+    ///
+    /// ⛔ THERE WERE THREE REDS FOR THIS ONE STATE, in three files that never sit on screen
+    /// together, which is exactly why nobody saw it: `Color.red` (the system red, which
+    /// Apple is free to move between OS versions) in `FloatingVisualWindow` and
+    /// `EchoelStudioView`; an inline `Color(red: 0.86, green: 0.22, blue: 0.20)` in
+    /// `HeaderMonitors`; and `danger` everywhere else that means red at all.
+    ///
+    /// WHY A SEPARATE NAME RATHER THAN JUST USING `danger`: "a take is running" and
+    /// "something is wrong" are different messages that happen to share a colour. If a later
+    /// pass retunes the error red — and error reds do get retuned — a shared token would
+    /// silently repaint every recording indicator in the app along with it. Two names, one
+    /// value, is the cheap way to keep that a decision instead of a side effect.
+    ///
+    /// WHY THIS VALUE: measured, not preferred. Against the app's black it reads 5.50:1 and
+    /// against `surface` 5.05:1; the retired header red reads 4.64 / 4.25. Both clear the
+    /// 3:1 WCAG 1.4.11 floor that actually governs a non-text pip, so the header red was not
+    /// FAILING — it was simply the weaker of two, and when the choice is free the stronger
+    /// one wins. (Saying it that way on purpose: calling it an accessibility fix would have
+    /// been the more satisfying sentence and the less true one.)
+    static let recording = Color(red: 0.90, green: 0.30, blue: 0.30)
+
     // MARK: Radii (≤ 12 per CLAUDE.md UI constraints)
     static let radiusSmall: CGFloat = 4
     static let radius:      CGFloat = 8

@@ -155,12 +155,34 @@ struct BioStripView: View {
         // never cure that. Strip-only modifiers must sit INSIDE the sheet attachments.
         .lineLimit(1)
         .minimumScaleFactor(0.6)
-        .font(.system(size: 12, weight: .medium, design: .monospaced))
+        // ⛔ WAS `.system(size: 12, weight: .medium, design: .monospaced)` — SF Mono, the one
+        // place in the app that showed a bio number in a face other than Atkinson (#363).
+        // The SAME heart rate appears in `HeaderMonitors` and `BodyTempoField` as
+        // `EchoelTheme.font(...).monospacedDigit()`, so a performer glancing between the
+        // header and this strip read one value in two typefaces. Atkinson Hyperlegible is
+        // bundled precisely because it is the accessibility-first face; opting the densest
+        // numeric readout in the app OUT of it was backwards.
+        //
+        // The per-value `.monospacedDigit()` in `metric(label:value:unit:)` is what actually
+        // stops the digits dancing — a tabular-figures request, which is the house idiom
+        // (`HeaderMonitors` does exactly this). A monospaced DESIGN was never needed for
+        // that; it also monospaced the labels and units, which nothing asked for.
+        //
+        // ⚠️ DEVICE-VISIBLE, and honestly so: Atkinson's advances are wider than SF Mono's at
+        // the same size, so this strip gets tighter. `.minimumScaleFactor(0.6)` already
+        // absorbs that, but "already absorbs it" is a claim about a layout engine, not a
+        // sighting — check the strip on a 375 pt phone with the four metrics filled.
+        .font(EchoelTheme.font(12))
         .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
         .sheet(isPresented: $showGuide) { BioMetricsGuideView() }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(red: 0.07, green: 0.07, blue: 0.09))
+        // ⛔ WAS an inline `Color(red: 0.07, green: 0.07, blue: 0.09)` — the app's SECOND
+        // panel grey, one step lighter than `EchoelTheme.surface` (0.055/0.055/0.070) and
+        // nowhere justified (#363). Two greys for "a panel's fill" is the kind of drift that
+        // reads as sloppiness without anyone being able to name what is wrong: the strip sat
+        // a shade proud of every panel it neighbours.
+        .background(EchoelTheme.surface)
         .foregroundStyle(EchoelTheme.text)
         .overlay(alignment: .bottom) {
             Rectangle()
