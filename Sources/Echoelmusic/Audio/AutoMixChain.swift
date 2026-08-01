@@ -10,13 +10,25 @@ import Observation
 /// Graph after install: masterMixer → EQ → gainNode → limiter → mainMixerNode
 ///
 /// The final stage is an always-on Apple PeakLimiter brick-wall: it stays
-/// engaged even when the tonal chain is bypassed, so summed voices (8 drums +
-/// bio synth + poly + sampler) can never hard-clip the output into harsh
-/// digital distortion. Transparent at normal levels — it only catches peaks.
+/// engaged even when the tonal chain is bypassed, so the summed voices can never
+/// hard-clip the output into harsh digital distortion. Transparent at normal
+/// levels — it only catches peaks.
+/// (⛔ This sentence used to enumerate them as "8 drums + bio synth + poly +
+/// sampler". The drums were removed in #166/#167 and make no sound at all today,
+/// so the example named a load this stage cannot receive. The claim does not
+/// depend on the count, so it is stated without one rather than re-counted —
+/// a number here would only go stale again.)
 ///
 /// Controls:
 /// - isEnabled: bypass the tonal chain (EQ); the safety limiter remains on
-/// - targetLUFS: auto-gain target (-14 streaming, -9 club, -23 broadcast)
+/// - targetLUFS: auto-gain target, resolved from the ONE stored loudness setting
+///   (`StudioDefaultKeys.loudnessTarget` → `LoudnessTarget`), NOT a free number:
+///   No target (nil, unity) · Streaming −14 · Podcast −16 · Broadcast EBU −23 ·
+///   Cinema −24 LUFS. The correction it applies is clamped to ±6 dB.
+///   (⛔ This line said "-14 streaming, -9 club, -23 broadcast". There is no club
+///   target and there never was a −9 case in `LoudnessTarget`; podcast and cinema
+///   were missing. It is the line a session reads before touching the target, and
+///   it named a value the picker cannot produce.)
 /// - preset: tonal character (balanced / warm / bright / transparent)
 @MainActor @Observable
 final class AutoMixChain {
