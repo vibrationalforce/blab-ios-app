@@ -14,10 +14,15 @@ import Observation
 /// hard-clip the output into harsh digital distortion. Transparent at normal
 /// levels — it only catches peaks.
 /// (⛔ This sentence used to enumerate them as "8 drums + bio synth + poly +
-/// sampler". The drums were removed in #166/#167 and make no sound at all today,
-/// so the example named a load this stage cannot receive. The claim does not
-/// depend on the count, so it is stated without one rather than re-counted —
-/// a number here would only go stale again.)
+/// sampler". #166/#167 removed the drum apparatus, so the example named a load
+/// this stage cannot receive: `PatternEngine.onStep` fires, but the only
+/// assignment to it repo-wide is `BeatPlayer`'s `pattern.onStep = nil`, and the
+/// three drum voice files are deleted. **No PERCUSSION can be produced.** Said
+/// that precisely rather than "the drums make no sound", which is refutable in
+/// two lines: `LaneVoiceKind` maps `case .drums` to `.poly`, so a persisted lane
+/// carrying the retired instrument deliberately still sounds — as a synth. The
+/// claim above does not depend on the count, so it is stated without one rather
+/// than re-counted; a number here would only go stale again.)
 ///
 /// Controls:
 /// - isEnabled: bypass the tonal chain (EQ); the safety limiter remains on
@@ -26,9 +31,13 @@ import Observation
 ///   No target (nil, unity) · Streaming −14 · Podcast −16 · Broadcast EBU −23 ·
 ///   Cinema −24 LUFS. The correction it applies is clamped to ±6 dB.
 ///   (⛔ This line said "-14 streaming, -9 club, -23 broadcast". There is no club
-///   target and there never was a −9 case in `LoudnessTarget`; podcast and cinema
-///   were missing. It is the line a session reads before touching the target, and
-///   it named a value the picker cannot produce.)
+///   target and no −9 case in `LoudnessTarget`; podcast and cinema were missing.
+///   It is the line a session reads before touching the target, and it named a
+///   value the picker cannot produce. Deliberately PRESENT TENSE: the first fix
+///   wrote "there never was a −9 case", and this is a shallow clone — `git log -S`
+///   cannot reach behind the graft, so the history half was unprovable. The same
+///   correction is made elsewhere in `CLAUDE.md`; an unbacked "always was" is the
+///   kind of sentence nobody can later refute.)
 /// - preset: tonal character (balanced / warm / bright / transparent)
 @MainActor @Observable
 final class AutoMixChain {
