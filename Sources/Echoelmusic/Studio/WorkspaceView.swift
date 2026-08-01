@@ -605,7 +605,7 @@ private struct TransportBar: View {
             // ⛔ FOUR OF THE SIX ENTRIES LEFT THIS MENU (#290, founder 2026-07-31, red circle
             // around the open overflow: "Lässt sich das alles intelligent unterbringen in der
             // Reihe mit den ganzen Funktionen?"). Master, Save/Export, Tempo and Weather &
-            // place are CHIPS now — they always were full `StudioMenu` cases with working
+            // place became CHIPS — they always were full `StudioMenu` cases with working
             // panels, merely filtered out of the strip, so moving them cost no new surface and
             // no new modal. Their `.echoelChromeDoor` cases in `EchoelStudioView` went with
             // them; a case whose only poster was deleted is dead code that reads like a hook.
@@ -618,13 +618,23 @@ private struct TransportBar: View {
             // black-screen law tells us not to grow. Two entries in an overflow is a small
             // price for a strip where every chip means the same thing.
             //
+            // ⛔ AND THE "Weather & place" CHIP IS GONE AGAIN (#359, 2026-08-01) — the whole
+            // `.session` case with it. This paragraph is left in the past tense rather than
+            // rewritten, because it is an argument about what #290 did, and #290 really did
+            // promote four entries. Where those four are TODAY: Master, Save/Export and Tempo
+            // are still chips; the weather half of the fourth moved into Mood (sound
+            // influences) and Field (image influences), and the place half into "Save &
+            // Export", one line above the Save button whose file name it shapes.
+            //
             // The #272 lesson is carried into the Save/Export CHIP label rather than lost: the
             // founder reported "Session speichern und Loops aufnehmen fehlt" about controls
-            // that were behind an entry named only "Export". And the #202/#59 lesson lives in
-            // `StudioMenu.session.fullName`, which names what weather DOES (it salts the
-            // harmonic skeleton and blends darkness/liveliness/tension into the composer's
-            // mood, plus hue/saturation/glow/movement in the visual) instead of calling it a
-            // naming gimmick.
+            // that were behind an entry named only "Export". And the #202/#59 lesson — name
+            // what weather DOES (it salts the harmonic skeleton and blends darkness/
+            // liveliness/tension into the composer's mood) instead of calling it a naming
+            // gimmick — now lives in `StudioMenu.mood.fullName`, which is the door that
+            // actually holds those knobs. It was in `.session.fullName` until #359 step 3
+            // deleted that case; this line was the only pointer to it in the repo, so it is
+            // corrected rather than dropped.
             Menu {
                 #if canImport(MultipeerConnectivity)
                 doorMenuButton("Live Colabo — play together nearby",

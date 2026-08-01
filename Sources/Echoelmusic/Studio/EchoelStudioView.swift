@@ -225,13 +225,24 @@ struct EchoelStudioView: View {
     /// compact header. Persisted so a user who opens a panel keeps it open.
     @AppStorage("studio.showComposition") private var showComposition = false
     @AppStorage("studio.showMix") private var showMix = false
-    // ⛔ `studio.showSession` WAS DELETED HERE (#359 step 3) AND ITS KEY IS DELIBERATELY
-    // LEFT BEHIND ON DISK. It was the disclosure state of a panel that no longer exists;
-    // every device that ever opened that panel carries a `true` for it and nothing will
-    // ever read it again. That is harmless — unlike the class CLAUDE.md warns about, this
-    // is not a persisted CONSENT (`locationNamer.enabled` is, and it survives untouched
-    // in `placeRow`, which moved into "Save & Export"). Naming the orphan is the point:
-    // a future `UserDefaults` sweep should know it is expected, not a leak.
+    // ⛔ `studio.showSession` WAS DELETED HERE (#359 step 3), AND THE FIRST VERSION OF THIS
+    // NOTE GAVE A REASON THAT IS FACTUALLY WRONG — corrected rather than dropped, because
+    // CLAUDE.md's own rule is that a wrong justification is worse than none: the next
+    // session cannot refute it. It said "every device that ever opened that panel carries a
+    // `true` for it". No device does. `sessionPanel` was rendered ONLY from
+    // `dropdownContent`, and `menuPanelHost` puts `.environment(\.echoelPanelForceOpen,
+    // true)` over that host; `EchoelPanel.body` then builds a plain `VStack` with NO
+    // `DisclosureGroup`, so the `isExpanded` binding is never mutated. The key was almost
+    // certainly never written at all. This file already documents that mechanism twice (the
+    // chrome-door `onReceive` block, and `SaveDoorNamingTests` for `showExport`) — I had
+    // both and reasoned from the general shape of an `@AppStorage` instead.
+    //
+    // The CONCLUSION is unchanged and is the part worth keeping: whatever is or is not on
+    // disk under that key, nothing will read it again, and it is not a persisted CONSENT
+    // (`locationNamer.enabled` is, and it survives untouched in `placeRow`, which moved into
+    // "Save & Export"). Naming the orphan is the point — a future `UserDefaults` sweep
+    // should know it is expected, and should not go hunting for a stored `true` that was
+    // never written.
     @AppStorage("studio.showExport") private var showExport = false
     @State private var showMood = false
     @State private var showSound = false
@@ -5535,6 +5546,20 @@ struct EchoelStudioView: View {
         // names it. It is the LAST clause because it is the smallest of the four and the
         // only optional one — a subtitle that leads with an opt-in naming detail would bury
         // the two words (#272) the founder actually searched for.
+        //
+        // ⛔ THE #359-STEP-3 REVIEWER RAISED A CEILING THAT DOES NOT EXIST, and it is written
+        // down here because this is the panel that keeps accreting controls (#188 MIDI, #216
+        // export-failure line, #272 keep-last, #359 place) and it is therefore where the
+        // claim will be raised again. The finding: "this `VStack` is now at exactly 10
+        // children, the `ViewBuilder.buildBlock` limit — the next control will not compile."
+        // The 10 is right; the limit is not. `buildPartialBlock` (iOS 16 SDK, and this app's
+        // floor is iOS 18) removed the arity cap — `moodPanel` ships THIRTEEN children
+        // through the very same `panel(_:_:isExpanded:)` helper and has compiled for weeks.
+        // The same false constraint was struck from `signalSection`'s doc in #359 step 2;
+        // it has now been asserted twice by two different readers, so: what is real is
+        // type-check COST, not an arity error, and 10 is nowhere near where that bites.
+        // The ceiling this file DOES have is the presentation-modifier chain (14) — that one
+        // is measured, has crashed a shipped build, and is a different thing entirely.
         panel("Save & Export",
               "Save and open a session · record the loop as WAV · MIDI for your DAW · keep what just played · put your city in the name",
               isExpanded: $showExport) {

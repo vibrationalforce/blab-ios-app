@@ -337,6 +337,19 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     // `.export`'s presence in `studioChips`, its chip label and its `fullName`. A second
     // file asserting the same door would be the two-surfaces defect in guard form.
 
+    /// ⛔ THESE THREE DO **NOT** USE `Self.declarationClosing`, and the exception is the point.
+    /// That list ends a window on `"// MARK:"` as well, matched on RAW lines. It is right for
+    /// the four short windows above; it is a trap here. `utilityRow` is now ten children over
+    /// ~170 lines with four multi-paragraph ⛔ blocks in it — by a wide margin the most likely
+    /// declaration in this file to acquire an internal `// MARK: - Naming` sub-heading. That
+    /// edit would truncate the window and, depending on where it landed, either drop
+    /// `placeRow` (accusing someone of deleting a row that is still there) or drop the Save
+    /// button (`XCTFail("utilityRow lost either …")`). Both messages send their reader to an
+    /// innocent line — the exact failure this file's own header documents at the `weatherRow`
+    /// window, ONE COMMIT before this one. Terminating only on the next member declaration
+    /// costs a few trailing comment lines in the window and cannot be tripped by prose.
+    private static let memberClosing = ["private var ", "private func "]
+
     /// The one claim from that group worth keeping, re-aimed at where the control went.
     /// Without it, `placeRow` could be dropped from `utilityRow` and every surviving test
     /// here stays green — the Mood/Field halves say nothing about Place.
@@ -344,7 +357,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let utility = code(try window(source,
                                       opening: "private var utilityRow: some View {",
-                                      closing: Self.declarationClosing))
+                                      closing: Self.memberClosing))
         let hits = utility.filter { $0.contains("placeRow") }
         XCTAssertEqual(hits.count, 1, """
             #359 step 3 / #284: `utilityRow` must build `placeRow` exactly once. Found \
@@ -371,7 +384,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let utility = code(try window(source,
                                       opening: "private var utilityRow: some View {",
-                                      closing: Self.declarationClosing))
+                                      closing: Self.memberClosing))
         let placeAt = utility.firstIndex { $0.contains("placeRow") }
         let saveAt = utility.firstIndex { $0.contains("saveName = session.sessionName(") }
         guard let placeAt, let saveAt else {
@@ -391,18 +404,35 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     /// And the door has to say so. The subtitle is the only text visible before the panel is
     /// opened; a control that moved into a panel whose description does not mention it is
     /// the exact defect #359 exists to undo (filed task #59: "es fehlt die Auffindbarkeit").
+    ///
+    /// ⛔ ANCHORED TO THE `panel(…)` CALL, not to the window. The first version joined every
+    /// code line in `utilityRow` and asked whether the phrase appeared ANYWHERE — which an
+    /// `accessibilityHint` on `placeRow`'s new position would satisfy just as well, keeping
+    /// this green after the subtitle had been shortened back to its pre-#359 form. The claim
+    /// is about the SUBTITLE; the assertion has to be about the subtitle.
+    /// `SaveDoorNamingTests.testThePanelTitleAgreesWithTheDoor` anchors the same way, and its
+    /// doc explains why the trailing `}   // panel("Save & Export")` marker cannot match: the
+    /// call carries a comma after the title, the marker does not.
     func testTheSaveExportSubtitleNamesTheCity() throws {
         let source = try lines(Self.studio)
         let utility = code(try window(source,
                                       opening: "private var utilityRow: some View {",
-                                      closing: Self.declarationClosing))
-        let joined = utility.joined(separator: " ")
-        XCTAssertTrue(joined.contains("city in the name"), """
-            #359 step 3: the "Save & Export" subtitle no longer names the city. The place \
-            toggle now lives inside this panel and nothing else advertises it — the chip that \
-            used to say "Place" is deleted. #272 is the precedent: the founder reported \
-            controls "missing" that were in this very panel, behind a title and subtitle that \
-            did not name them.
+                                      closing: Self.memberClosing))
+        guard let at = utility.firstIndex(where: { $0.contains("panel(\"Save & Export\",") }) else {
+            return XCTFail("""
+                `utilityRow` no longer opens with `panel("Save & Export", …)`. If the panel was \
+                retitled, move this guard and `SaveDoorNamingTests` in the SAME commit — a door \
+                and its panel disagreeing about their own name is #272 verbatim.
+                """)
+        }
+        // The subtitle is the SECOND argument and sits on its own continuation line.
+        let call = utility[at...].prefix(3).joined(separator: " ")
+        XCTAssertTrue(call.contains("city in the name"), """
+            #359 step 3: the "Save & Export" subtitle no longer names the city. Found: \
+            '\(call.trimmingCharacters(in: .whitespaces))'. The place toggle now lives inside \
+            this panel and nothing else advertises it — the chip that used to say "Place" is \
+            deleted. #272 is the precedent: the founder reported controls "missing" that were \
+            in this very panel, behind a title and subtitle that did not name them.
             """)
     }
 }
