@@ -2468,6 +2468,26 @@ struct EchoelStudioView: View {
                     Button { locationNamer.manualPlace = "" } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 14)).foregroundStyle(EchoelTheme.dim)
+                            // The GLYPH stays 14 pt; only the target grows — 14×14 to 36×36,
+                            // which is this row's own height (`.frame(height: 36)` below), so
+                            // the hit area fills the row vertically and takes 36 pt of its
+                            // width from the `TextField` beside it. `BioStripView` fixed the
+                            // identical pattern after the 2026-07-09 AX audit ("a bare 12 pt
+                            // glyph — nearly impossible to hit").
+                            //
+                            // ⛔ AN OUTSET WOULD HAVE BEEN THE WRONG IDIOM HERE, although it
+                            // is the one the transport bar uses two files over. There is NO
+                            // gap on the leading side — the `TextField` abuts this button
+                            // inside one `HStack` — so `inset(by: -6)` would have pushed the
+                            // hit area 6 pt INTO the text field's own tap area and stolen the
+                            // taps that place the caret at the end of the name. Growing the
+                            // frame moves the field's edge instead of overlapping it.
+                            //
+                            // Honest limit: 36 < the 44 pt HIG floor. Reaching 44 would make
+                            // this control taller than the row that contains it. 36×36 clears
+                            // WCAG 2.5.8 (24×24) and is ~6.6× the area it had.
+                            .frame(width: 36, height: 36)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Clear manual place")

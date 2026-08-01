@@ -132,6 +132,28 @@ struct BodyTempoField: View {
                         .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
+            // 44 pt HIG tap target — the SAME idiom as this control's immediate neighbour in
+            // the transport bar, the "•••" overflow (`WorkspaceView`, #113): the visible chip
+            // stays 30×32 and only the hit area grows, −6 → 42×44. Both numbers are honest:
+            // 42 is under the 44 pt floor in WIDTH, and that is the neighbour's compromise
+            // too, taken here for the same reason — the alternative is widening the visible
+            // chip, which unbalances a row whose whole point is that it reads as one block.
+            //
+            // ⛔ WHY THIS WAS MISSING AND WHY IT MATTERS THAT IT WAS. Its two neighbours were
+            // BOTH fixed for exactly this — the "•••" by #113, the playback ▶/⏸ by #307's
+            // Nachlese (grown to a real 44×48) — and this one sat between them untouched, so
+            // the row already contained the precedent, the rationale and a worked example.
+            // That is what makes it a founder-visible defect rather than a nitpick: it is the
+            // control that decides whether the tempo follows the body at all, and it had the
+            // smallest hit area of the three.
+            //
+            // THE OUTSET FITS WITHOUT OVERLAPPING, and the margins are tight enough to state
+            // rather than assume. LEFT: 6 pt to the value box (this view's own `HStack`
+            // spacing in compact mode), so the outset reaches exactly its edge — 0 pt into a
+            // control that is hit-testable only in the locked state. RIGHT: 12 pt to the
+            // "•••", which outsets 6 pt back, so the two meet at the midpoint. Neither
+            // overlaps. Shrinking either gap, or raising this inset past 6, breaks that.
+            .contentShape(Rectangle().inset(by: -6))
             .accessibilityLabel(lockBPM ? "Tempo locked — tap to follow your pulse again"
                                         : "Lock tempo at this value")
         }
