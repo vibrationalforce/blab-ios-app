@@ -143,10 +143,12 @@ final class BioDDSPMappingTests: XCTestCase {
     // MARK: - HRV → Brightness
 
     // #77 RESTORED: HRV variability adds a ±0.10 patch-relative deviation to brightness
-    // (centered on neutral HRV 0.5), on TOP of the coherence/HR/LFO drive and alongside
-    // HRV→reverbMix. Two fresh engines get the IDENTICAL call sequence so _lfoPhase advances
-    // identically and the LFO term cancels — only the HRV DC gap differs. 40 calls settle the
-    // α=0.92 one-pole. Direction/range asserts (the retired exact formula is gone).
+    // (centered on neutral HRV 0.5), on TOP of the coherence/HR drive and alongside
+    // HRV→reverbMix. Two fresh engines get the IDENTICAL call sequence, so only the HRV DC gap
+    // differs. 40 calls settle the one-pole. (This comment said the pair also made `_lfoPhase`
+    // advance identically "so the LFO term cancels"; #331 deleted that LFO — the cancellation
+    // argument is now moot, not wrong, and the assertions never depended on it.) Direction/range
+    // asserts (the retired exact formula is gone).
     func testHRV_high_producesBrightSpectrum() {
         let hi = EchoelDDSP(harmonicCount: 32, sampleRate: 48000)
         let lo = EchoelDDSP(harmonicCount: 32, sampleRate: 48000)

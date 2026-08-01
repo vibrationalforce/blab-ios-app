@@ -1537,8 +1537,13 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Smoothed bio parameters — prevent per-frame artifacts
     private var _smoothedBrightness: Float = 0.25
     private var _smoothedAmplitude: Float = 0.45
-    private var _spectralUpdateCounter: Int = 0
-    private var _lfoPhase: Float = 0  // Internal LFO for filter sweep
+    // ⛔ `_spectralUpdateCounter` and `_lfoPhase` STOOD HERE AND ARE DELETED (#331). Both existed
+    // only to serve a 60 Hz caller that has never existed — see the tombstones in
+    // `applyBioReactive`, which carry the evidence. The counter fired a DUPLICATE spectral
+    // rebuild every 6th call (the envelope was already rebuilt on every call by `brightness`'s
+    // own `didSet`, so deleting it changes no sample); the phase drove an LFO that needed
+    // 24–120 s per cycle and cannot be rescued by any divisor, because 0.5–2.5 Hz is above
+    // Nyquist for a ~1 Hz control stream.
     // coherenceTrend→morph change-gate (audio-thread review): remember the last morph
     // shape/position we actually applied so the 10 Hz mapping only calls setMorphPosition
     // (which rewrites the shared pre-allocated spectral buffer) on a REAL change — never
@@ -1642,7 +1647,9 @@ public final class EchoelDDSP: @unchecked Sendable {
         // =====================================================================
 
         // DEFENSE-IN-DEPTH (audio thread): sanitize the bio inputs at the boundary. The
-        // one-pole accumulators below (_lfoPhase via lfoSpeed, _smoothedAmplitude via lfoValue)
+        // one-pole accumulators below (_smoothedBrightness and _smoothedAmplitude, both via
+        // smoothCoeff — the `_lfoPhase via lfoSpeed, _smoothedAmplitude via lfoValue` named
+        // here until #331 deleted that LFO outright)
         // and the unclamped SENTINEL-path vibrato writes (vibratoDepth/Rate — the anchored path
         // added by #279 clamps its product, this one still does not) ingest these BEFORE any clamp, so
         // a single non-finite reading (a bad rPPG frame, a divide-by-zero coherence) would
@@ -1660,35 +1667,88 @@ public final class EchoelDDSP: @unchecked Sendable {
         let breathDepth = breathDepth.isFinite ? breathDepth : 0.5
         let coherenceTrend = coherenceTrend.isFinite ? coherenceTrend : 0
 
-        let smoothCoeff: Float = 0.92  // Slightly faster response than 0.95
+        // ⭐ THE SMOOTHING POLE, ON THE CLOCK THIS FUNCTION ACTUALLY RUNS AT (#331).
+        //
+        // It was `0.92  // Slightly faster response than 0.95` — a number chosen for a 60 Hz
+        // caller (τ = 0.200 s) that has NEVER existed. This function runs once per NEW bio
+        // frame, and every publisher in the repo emits ~1 Hz: `CameraRPPGBioPublisher` gates
+        // on `tick % 10` inside a 100 ms loop, `PolarH10BioPublisher` and `BioSimulator` both
+        // sleep a full second, HealthKit is slower still. The poll that feeds the audio thread
+        // (`PolySynthVoice.applyLatestIfFresh`) drops every frame whose timestamp is unchanged,
+        // so the enqueue rate IS the new-frame rate — its own comment saying "bio updates at
+        // ~10 Hz" is the same stale assumption, one order of magnitude out.
+        //
+        // At 1 Hz, α = 0.92 means τ = −1/ln(0.92) = 11.99 s. Step response, re-derived:
+        //
+        //            after 1 s   2 s    3 s    5 s    10 s
+        //   was 0.92     8 %    15 %   22 %   34 %    57 %
+        //   now 0.6065  39 %    63 %   78 %   92 %    99 %
+        //
+        // A change in the player's body was 8 % delivered after one second and barely half
+        // after ten. That is this instrument's premise — your body plays it — failing quietly,
+        // and it is a plausible contributor to "the genres all sound the same": every genre's
+        // bio-driven brightness and level converge over a twelve-second horizon no matter which
+        // genre it is. exp(−1/2) = 0.6065 gives τ = 2 s at the real rate.
+        //
+        // ZIPPER RISK IS NOT INTRODUCED: both consumers are smoothed AGAIN per sample
+        // downstream — the spectral amplitudes with α = 0.995 (≈ 4.2 ms) and `smoothedGain`
+        // with 0.01 (≈ 2.1 ms) — so a faster CONTROL rate cannot step the audio.
+        //
+        // If a device listen finds the body too twitchy, 0.75 (τ = 3.5 s) is the one-token
+        // revert. Do NOT go back to 0.92 without re-reading this block: that value is not
+        // "slower", it is a 60× unit error.
+        let smoothCoeff: Float = 0.6065
 
-        // 1. Heart rate → Filter LFO speed + filter cutoff range
-        //    Resting (0.0) = slow sweep through warm range
-        //    Active (1.0) = faster sweep through brighter range
-        let lfoSpeed: Float = 0.5 + heartRate * 2.0  // 0.5 Hz → 2.5 Hz
-        _lfoPhase += lfoSpeed / 60.0  // 60 Hz update rate
-        if _lfoPhase > 1.0 { _lfoPhase -= 1.0 }
-        let lfoValue = (1.0 + sinf(_lfoPhase * .pi * 2)) * 0.5 // 0-1 sine LFO
+        // 1. Heart rate → filter/brightness range.
+        //
+        // ⛔ AN LFO STOOD HERE AND IS DELETED, AND "FIX THE DIVISOR" IS NOT AN OPTION.
+        // It read `_lfoPhase += lfoSpeed / 60.0  // 60 Hz update rate`, sweeping 0.5–2.5 Hz.
+        // At the real ~1 Hz that is 24–120 SECONDS per cycle. Advancing by real elapsed time
+        // instead does not rescue it: 0.5…2.5 cycles per sample of a 1 Hz grid is above
+        // Nyquist, and 40 / 120 / 200 bpm map to exactly 0.5 cycles/sample, where sin(πk) = 0
+        // for every k — i.e. FROZEN at the very rates a heart most often sits at. A heart-rate
+        // tremolo belongs on the SAMPLE clock (`filterLFO`, ticked per sample), not here.
+        //
+        // Deleted rather than moved: nobody asked for a tremolo, and what this one actually
+        // produced was not one. Both its consumers were live — brightness (±0.075 around its
+        // centre) and amplitude (±0.06) — but each traced that swing over 24–120 SECONDS. That
+        // is a slow drift, not a wobble, and it is what disappears here: both consumers below
+        // now take the LFO's exact MEAN (0.5), so each centre is unchanged. If the take now
+        // feels too steady, that is a deliberate tremolo to design on the sample clock, not
+        // this constant to restore.
+        //
+        // ⛔ THE FIRST VERSION OF THIS TOMBSTONE CALLED THE LFO "half dead already — its
+        // brightness contribution reached the ear only through `updateSpectralEnvelope()`,
+        // which the counter below throttled to once per six seconds". That is false, and the
+        // proof is four lines below the brightness maths: `brightness` carries
+        // `didSet { updateSpectralEnvelope() }`, so the assignment `brightness =
+        // _smoothedBrightness` rebuilds the envelope on EVERY call. The brightness half was
+        // fully live. Writing it off as half-dead made the deletion sound cheaper than it is —
+        // this removes a real (if very slow) modulation, and that is the honest framing.
 
         // Brightness (spectral-shape exponent — read by computeShapeAmplitudes, so it DOES
         // carry patch character; the old "no patch character (A8)" note here was wrong). Like
         // the filter cutoff, the body must modulate AROUND the chosen patch, not overwrite it —
         // otherwise every genre's brightness collapses toward one absolute value when the body
-        // calms (the second dynamic convergence vector, task #81). Coherence/HR/HRV/LFO stay
+        // calms (the second dynamic convergence vector, task #81). Coherence/HR/HRV stay
         // audible as CENTERED deviations (0 at the neutral reading), so a resting body settles
-        // at ~the patch brightness and calm/arousal open/darken it around that.
+        // at ~the patch brightness and calm/arousal open/darken it around that. (This list read
+        // "Coherence/HR/HRV/LFO" until #331; the LFO term was `(lfoValue - 0.5) * 0.15`, already
+        // centered on 0 — dropping it leaves the anchor exactly where it was.)
         let targetBrightness: Float
         if bioBaseBrightness > 0 {
             let cohDev: Float = (coherence - 0.5) * 0.30       // calm opens, aroused darkens
             let hrDev: Float  = (heartRate - 0.5) * 0.20       // faster HR = a touch brighter
             let hrvDev: Float = (hrvVariability - 0.5) * 0.20  // more beat-to-beat variation = more open
-            let lfoDev: Float = (lfoValue - 0.5) * 0.15        // living wobble, centered on 0
-            targetBrightness = (bioBaseBrightness + cohDev + hrDev + hrvDev + lfoDev).clamped(to: 0.05...0.95)
+            targetBrightness = (bioBaseBrightness + cohDev + hrDev + hrvDev).clamped(to: 0.05...0.95)
         } else {
             // Legacy raw-bio voice (no patch anchor): unchanged absolute brightness path.
             let baseFilter: Float = 0.08 + coherence * 0.35  // 0.08-0.43 base
             let hrShift: Float = heartRate * 0.2               // +0.0-0.2 from HR
-            let lfoSweep: Float = lfoValue * 0.15              // ±0.15 LFO sweep
+            // Was `lfoValue * 0.15`; this is that term's exact MEAN (0.5 × 0.15), so the
+            // legacy path's brightness CENTRE is byte-unchanged and only the 24–120 s
+            // drift around it disappears (#331).
+            let lfoSweep: Float = 0.075
             let hrvBright: Float = (hrvVariability - 0.5) * 0.20
             targetBrightness = (baseFilter + hrShift + lfoSweep + hrvBright).clamped(to: 0.05...0.8)
         }
@@ -1774,16 +1834,39 @@ public final class EchoelDDSP: @unchecked Sendable {
         // either), not a tuning change, and it must not be reported as one.
         filterCutoff = (filterCutoff * 0.97 + targetCutoff * 0.03).clamped(to: Self.cutoffRange)
 
-        // Recalculate spectral envelope 10x/sec for snappier bio response
-        _spectralUpdateCounter += 1
-        if _spectralUpdateCounter >= 6 {
-            _spectralUpdateCounter = 0
-            updateSpectralEnvelope()
-        }
+        // ⛔ A THROTTLE STOOD HERE AND IS DELETED (#331) — AND IT WAS REDUNDANT, NOT A GATE.
+        // It read `_spectralUpdateCounter += 1 / if … >= 6 { updateSpectralEnvelope() }` under
+        // the comment "Recalculate spectral envelope 10x/sec for snappier bio response" (10 Hz
+        // is what every 6th call means at 60 Hz — the caller that has never existed; the real
+        // rate is ~1 Hz, so it fired once per six SECONDS).
+        //
+        // But the envelope was never stale, because it was never waiting on this counter:
+        // `brightness` carries `didSet { updateSpectralEnvelope() }`, and the assignment
+        // `brightness = _smoothedBrightness` above runs on EVERY call. Between that assignment
+        // and this point nothing that `updateSpectralEnvelope()` reads changes (`spectralShape`,
+        // `morphTarget`, `morphPosition`, `timbreBlend` are all untouched inside this function;
+        // only `filterCutoff` is written, and the envelope does not read it). So every 6th call
+        // rebuilt the identical spectrum a SECOND time. Deleting it removes one duplicated
+        // rebuild per six calls on the audio thread and one comment that misstated the rate by
+        // 60× — it does not change a single sample.
+        //
+        // ⛔ THE FIRST VERSION OF THIS TOMBSTONE CLAIMED THE OPPOSITE — "it rebuilt the spectrum
+        // once per SIX SECONDS, which is why `brightness` felt dead no matter how fast the pole
+        // above was made". That is the "mechanism right, justification wrong" failure this repo
+        // keeps paying for: the deletion is correct, the reason was invented, and it would have
+        // sent the next session hunting a staleness bug that the `didSet` had already closed.
+        // The unit error is real and lives in `smoothCoeff`; it never lived here.
 
-        // 2. Heart rate → Amplitude pulse (audible pump synced to pulse)
+        // 2. Bio → amplitude (coherence sets the level; the "audible pump synced to pulse"
+        //    this comment used to promise was the deleted LFO's ±0.06 over 24–120 s — never a
+        //    pulse, and never synced to one. A real per-beat pump belongs on the sample clock.)
         let ampBase: Float = 0.35 + coherence * 0.15     // Calm = fuller
-        let ampPulse: Float = ampBase + lfoValue * 0.12   // 0.35-0.62 range — gentler
+        // `+ 0.06` is the deleted `lfoValue * 0.12` term's exact MEAN, so the level CENTRE at any
+        // given coherence is unchanged. The RANGE is not, and saying otherwise would be the exact
+        // error this commit is fixing: the old line's "0.35-0.62" spanned coherence AND the LFO
+        // together, and coherence alone spans 0.41–0.56. What narrows is only the ±0.06 drift the
+        // LFO took 24–120 s to trace — coherence's own 0.15 span is untouched (#331).
+        let ampPulse: Float = ampBase + 0.06
         _smoothedAmplitude = _smoothedAmplitude * smoothCoeff + ampPulse * (1.0 - smoothCoeff)
         // Breath phase → amplitude swell (ALL profiles — the sound rises and falls with the
         // breath). Raised cosine: 0 at the exhale trough AND the phase wrap, 1 mid-breath — its

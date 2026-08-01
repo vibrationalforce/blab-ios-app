@@ -1862,7 +1862,8 @@ final class EchoelDDSPBioBrightnessAnchorTests: XCTestCase {
     // MARK: - Non-finite bio input (render-side robustness — #22/#29 "alles ist still")
 
     // applyBioReactive runs ON the audio render thread (AUv3 EchoelBodyVibe + the main app's
-    // BioReactiveSynthVoice). Its one-pole accumulators (_lfoPhase, _smoothedAmplitude) and the
+    // BioReactiveSynthVoice). Its one-pole accumulators (_smoothedBrightness, _smoothedAmplitude
+    // — `_lfoPhase` stood here too until #331 deleted it) and the
     // unclamped vibrato writes ingest the bio inputs BEFORE any clamp — so a single non-finite
     // reading (a bad rPPG frame, a divide-by-zero in a coherence calc) would poison that state:
     // vibratoDepth becomes NaN (→ NaN samples) and _smoothedAmplitude sticks at NaN so amplitude
