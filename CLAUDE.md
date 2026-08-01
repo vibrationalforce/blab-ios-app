@@ -238,8 +238,16 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
                           `Tests/CISmoke` (**108** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-01 nach `RefractoryFollowsTheMeasuredRateTests.swift` (#373),
-                          davor „107" nach `WebsitePagesAreFindableAndHonestTests.swift` (#371 — der
+                          2026-08-01 nach `RefractoryIsAskedInTimeTests.swift` (#374). ⛔ Der
+                          Kopf dieser Kette hieß Stunden zuvor `RefractoryFollowsTheMeasuredRateTests.swift`
+                          (#373) — #374 hat diese Datei GELÖSCHT und die neue angelegt, also EINE
+                          Löschung plus EINE Anlage bei gleichbleibender Zahl. Die Zahl allein hätte
+                          den Tausch nicht gezeigt: **eine unveränderte Zahl ist kein Beleg dafür,
+                          dass sich nichts geändert hat**, und der Name im Kopf ist hier der einzige
+                          Träger dieser Information. Umbenannt, weil der alte NAME eine Vorgehensweise
+                          beschrieb (Umrechnung in eine gemessene Sample-Rate), die der Code nicht
+                          mehr nimmt — genau die Stale-Name-Falle, die dieser Absatz an Zahlen schon
+                          zweimal bezahlt hat, davor „107" nach `WebsitePagesAreFindableAndHonestTests.swift` (#371 — der
                           erste Wächter in diesem Bundle, der nicht `Sources/` prüft, sondern die
                           veröffentlichte Seite unter `docs/`; die Begründung steht im Dateikopf),
                           davor „106" nach `FlashSlewIsPerSecondTests.swift` (#370),

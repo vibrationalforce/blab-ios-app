@@ -137,12 +137,12 @@ final class CameraAnalyzer {
     private let analyzeEveryNthFrame = 1
 
     /// Nominal starting rate before the one-time measured-rate correction.
-    /// `nonisolated` deliberately: `refractorySamples(autoBPM:sampleRate:)` is a pure
-    /// `nonisolated static` helper and reads this as its fallback. On a `@MainActor` type
-    /// Xcode's toolchain isolates even an immutable `static let` (SwiftPM's may not — the
-    /// two disagree on SE-0434 inference), so the marker has to be explicit or the Xcode
-    /// gate goes red on code SwiftPM accepted.
-    nonisolated private static let defaultSampleRate: Double = 15.0
+    // ⛔ #373 marked this `nonisolated` for a helper that #374 deleted hours later, with a
+    // comment explaining the SE-0434 toolchain split. The explanation was correct and the
+    // marker is now pointless: nothing `nonisolated` reads this any more. Left un-marked
+    // rather than kept "just in case" — a modifier whose stated reason no longer exists is
+    // the class of stale comment this file has already paid for twice today.
+    private static let defaultSampleRate: Double = 15.0
 
     /// Effective sample rate — starts at the nominal 15 Hz and is corrected ONCE to
     /// the true measured frame rate (so the bandpass is designed for reality, not an
@@ -552,12 +552,8 @@ final class CameraAnalyzer {
         // see refractorySeconds). Uses the autocorrelation fundamental set above; falls back
         // to 300 ms (≤200 bpm) when no plausible period is available.
         //
-        // Converted with `actualRate` — the rate MEASURED from this very window's timestamps
-        // twenty lines up — and not with the assumed `effectiveSampleRate` (#373). The two
-        // agree on a device that runs at the assumed 15 Hz, and diverge by up to 2× on the
-        // ones the device logs actually show; see `refractorySamples` for why that divergence
-        // is an octave error rather than a rounding detail.
-        let minPeakDistance = Self.refractorySamples(autoBPM: lastAutoBPM, sampleRate: actualRate)
+        // Asked in TIME, against the sample timestamps, never as a sample count (#374 — see
+        // `isWithinRefractory` for the two ways a count got this wrong within one day).
 
         // Find local maxima above threshold
         var newPeaks: [Int] = []
@@ -565,7 +561,10 @@ final class CameraAnalyzer {
             let val = window[i]
             guard val > threshold else { continue }
             if val > window[i-1] && val > window[i-2] && val > window[i+1] && val > window[i+2] {
-                if let last = newPeaks.last, (i - last) < minPeakDistance { continue }
+                if let last = newPeaks.last,
+                   Self.isWithinRefractory(previous: signalTimestamps[startIdx + last],
+                                           candidate: signalTimestamps[startIdx + i],
+                                           autoBPM: lastAutoBPM) { continue }
                 newPeaks.append(i)
             }
         }
@@ -870,40 +869,56 @@ final class CameraAnalyzer {
         return min(0.6, max(0.3, 0.5 * 60.0 / autoBPM))
     }
 
-    /// The same refractory expressed in SAMPLES, which is the unit the peak scan needs.
+    /// Whether a candidate peak falls inside the previous peak's refractory — asked in the
+    /// unit the refractory is actually DEFINED in: seconds between two timestamps.
     ///
-    /// ⚠️ WHY THIS EXISTS AT ALL — the conversion was being done with the wrong rate (#373).
-    /// `detectPeaks` used to write `Int(effectiveSampleRate * refractorySeconds(...))`, and
-    /// `effectiveSampleRate` is the ASSUMED 15 Hz corrected AT MOST ONCE: the re-tune at the
-    /// top of `processSample` sets `filterRateAdapted = true` unconditionally and only fires
-    /// when the first ~2 s deviate by more than 15 %. A device that starts near 15 Hz and
-    /// later settles to 7.5 (thermal, torch, exposure — the device logs show 7.5–15) keeps
-    /// the stale 15 forever.
+    /// ⛔ THIS REPLACES A SAMPLE-COUNT CONVERSION THAT I SHIPPED HOURS EARLIER (#373 → #374),
+    /// and the whole point is that the conversion should never have existed. The history is
+    /// kept because both wrong versions are instructive:
     ///
-    /// A refractory in samples derived from a rate that is twice the real one is twice as
-    /// long in real time, so real beats fall inside it and get dropped — the reading halves.
-    /// The mirror case (real rate above the assumed one) shortens it and lets the dicrotic
-    /// notch back through, which doubles the count. Both are octave errors, and they are the
-    /// exact failure this refractory was written to prevent. Meanwhile the window's TRUE rate
-    /// was already being measured a few lines above and handed to the autocorrelation — so
-    /// the correct number was in scope and simply not used here.
+    /// Originally the scan wrote `Int(effectiveSampleRate * refractorySeconds(...))`. That
+    /// rate is the ASSUMED 15 Hz, re-tuned at most once per acquisition (the re-tune sets
+    /// `filterRateAdapted = true` unconditionally and only fires if the first ~2 s deviate by
+    /// >15 %; `resetPulseState` re-arms it, so it is "until the next recovery or finger lift",
+    /// NOT "forever" — #373's commit message overstated that and is corrected here). On a
+    /// device delivering 7.5–15 Hz the count was therefore derived from the wrong rate.
     ///
-    /// ⚠️ TRUNCATION IS PRESERVED ON PURPOSE. `Int(rate × seconds)` rounds toward zero, so at
-    /// 15 Hz × 0.3 s this yields 4 samples (0.267 s), not 5. Rounding would arguably be more
-    /// correct — and would change the refractory on EVERY device, including the ones where
-    /// the two rates already agree, which would make the device look for this change
-    /// unreadable. That is a separate, defensible change; it is not this one.
+    /// #373 fixed the rate and kept the truncation, and a review caught what that combination
+    /// does — a defect neither half has on its own. Two accepted peaks can never be closer
+    /// than THREE indices: the local-maximum test compares against `i±1` and `i±2`, so a pair
+    /// at distance 1 or 2 would require `w[a] > w[b]` and `w[b] > w[a]`. A minimum distance of
+    /// 1, 2 or 3 therefore rejects NOTHING. With the true rate and truncation, 7.5–13.3 Hz
+    /// devices land exactly there — the refractory became a provable no-op on precisely the
+    /// hardware the fix was aimed at, admitting the dicrotic notch it exists to reject.
     ///
-    /// The rate is sanitised because it is now measurement-derived: `Int(Double.nan)` TRAPS
-    /// in Swift, and a zero or negative product would return a distance of 0 that disables
-    /// the refractory silently — the notch-doubling failure with no crash to notice it by.
-    /// Pure → Linux-testable.
-    nonisolated static func refractorySamples(autoBPM: Double, sampleRate: Double) -> Int {
-        let seconds = refractorySeconds(autoBPM: autoBPM)
-        // 240 Hz is far above any plausible capture rate; it exists so a corrupt timestamp
-        // span cannot turn into an enormous distance that swallows the whole window.
-        let rate = (sampleRate.isFinite && sampleRate > 0) ? Swift.min(sampleRate, 240) : defaultSampleRate
-        return Swift.max(1, Int(rate * seconds))
+    /// Comparing times removes the whole class. It is also immune to a second problem the
+    /// same review found: the window is NOT uniformly sampled — the saturation hold drops
+    /// samples while wall-clock time advances — so any window-wide rate under-reports exactly
+    /// when the signal is worst, while the local spacing around the beats is unchanged.
+    /// The timestamps are already right there; `detectPeaks` uses them three statements later
+    /// to compute the intervals themselves.
+    ///
+    /// ⚠️ THIS IS A DECLARED BEHAVIOUR CHANGE ON EVERY DEVICE, including ones that really run
+    /// at 15 Hz. The old count rejected gaps of ≤3 samples (≤0.2 s); asking in time rejects
+    /// everything under 0.3 s, i.e. also the 4-sample gap at 0.267 s. That gap is 225 bpm — not
+    /// a heartbeat under any circumstances, and the downstream interval filter (`dt > 0.3`)
+    /// already discarded it. The change is one-directional and small, but it is real and is
+    /// not being sold as a no-op.
+    ///
+    /// Fails OPEN on a non-finite timestamp (accepts the peak): rejecting everything would
+    /// zero the peak count, and a bpm=0 run is indistinguishable in the logs from "no finger".
+    /// A negative gap means the timestamps are out of order — corrupt, so the candidate is
+    /// refused rather than trusted.
+    ///
+    /// Pure arithmetic, but NOT Linux-testable: `CameraAnalyzer` sits inside
+    /// `#if canImport(AVFoundation)`, so the type does not exist there. (#373 repeated the
+    /// sibling helpers' inherited "Linux-testable" claim; it was never true for any of them.)
+    nonisolated static func isWithinRefractory(previous: TimeInterval,
+                                               candidate: TimeInterval,
+                                               autoBPM: Double) -> Bool {
+        let gap = candidate - previous
+        guard gap.isFinite else { return false }
+        return gap < refractorySeconds(autoBPM: autoBPM)
     }
 
     /// When discrete peak-counting fails (rounded/weak rPPG waveform → fewer than
