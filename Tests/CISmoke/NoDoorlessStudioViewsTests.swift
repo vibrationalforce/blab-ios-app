@@ -73,9 +73,13 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     /// Three of the four were ALREADY documented as unmounted inside `EchoelStudioView.swift`
     /// itself — which is the point: the file knew, and nothing enforced it, so they sat there.
     ///
-    ///   · `beatModeRow`             — the beat surface went 2026-07-07 ("Schmeiß den Beat weg")
-    ///                                 and the drums themselves with #166/#167. Nothing left to
-    ///                                 control; a deletion, not a decision. → #323
+    ///   · `beatModeRow`             — RESOLVED AND DELETED (#323, 2026-08-01). It was the first
+    ///                                 entry this list retired, and the shape is the point: the
+    ///                                 row selected between three drum layers whose voices
+    ///                                 #166/#167 had already deleted, so "unmounted but
+    ///                                 reversible" had quietly become "unmountable". Removed
+    ///                                 from the set below — the rot test now FAILS if anyone
+    ///                                 re-adds the name without re-adding the property.
     ///   · `visualBlendControls`     — the file says it plainly: "That view has ZERO mount sites",
     ///                                 and that a wrong note once protected it "blocking a
     ///                                 legitimate deletion". → #324
@@ -98,7 +102,7 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     /// fails if one is deleted, renamed, OR quietly mounted — so the list cannot outlive its
     /// entries in either direction.
     private static let knownOrphans: Set<String> = [
-        "beatModeRow", "visualBlendControls", "nonStandardTuningBanner", "liveNarrationBanner",
+        "visualBlendControls", "nonStandardTuningBanner", "liveNarrationBanner",
         "moodPadsSection"
     ]
 

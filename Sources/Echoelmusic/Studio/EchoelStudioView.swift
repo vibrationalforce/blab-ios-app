@@ -328,10 +328,17 @@ struct EchoelStudioView: View {
     // default. Still fully flexible (2/4/8/16/32) via the loop-length picker + free-longer
     // in the arrangement; this only sets the STARTING length for a fresh install.
     @AppStorage(StudioDefaultKeys.loopBars.key) private var loopBars: LoopBarLength = StudioDefaultKeys.loopBars.value
-    /// Drum layer: Off = pure Flächen (DEFAULT — founder 2026-07-07: "Tendenziell
-    /// alles eher ohne Beat und reine meditative Flächen"), Pulse = the deep
-    /// shamanic heartbeat drum (2026-07-06C), Genre = the style's archetypal groove.
-    @AppStorage("studio.beatMode") private var beatMode: BeatMode = .off
+    // ⛔ `@AppStorage("studio.beatMode")` STOOD HERE AND IS DELETED (#323). Its only readers
+    // were `beatModeRow`'s Picker and hint text, and that row has been unmounted since the
+    // founder's 2026-07-07 "Schmeiß den Beat komplett raus"; the drums it selected between
+    // were deleted outright by #166/#167. Generation calls `BioComposer.silentBeat()`
+    // unconditionally, so the stored value has had no effect on any sound for weeks — which
+    // is exactly why the key is safe to strand rather than migrate: a leftover
+    // `.pulse` in UserDefaults cannot make a drum appear. (The doctor rule this satisfies:
+    // check what a deleted UI block writes as its SOLE writer before deleting it. Here the
+    // answer is "a value nothing reads".) `BeatMode` itself stays in `BioComposer.swift` —
+    // `shamanicBeat()`/`genreBeat()` still compile and are still tested; deciding their fate
+    // is a separate call, not a side effect of removing a doorless control.
     /// Global articulation macro: 0 = pad (slow swell), 1 = pluck (struck/short). Owns
     /// the envelope for EVERY character (genre/preset = timbre, this = onset/dynamics).
     /// Persisted; re-imposed whenever a character or genre loads. Drives the per-note
@@ -2192,10 +2199,12 @@ struct EchoelStudioView: View {
     /// maze — reachable via the transport "•••" door (chrome door "tempo"),
     /// exactly like Master/Export. The full-width BodyTempoField row is NOT
     /// duplicated here (one tempo control app-wide, founder "einer reicht").
-    // (Historical, unchanged: beatModeRow removed 2026-07-07 "Schmeiß den Beat
-    // komplett raus" — stays defined below, unpresented, reversible. placeRow/
-    // weatherRow live in the Session dropdown — chrome-door "session" since
-    // step 2c; its name preview moved to the header strip.)
+    // (Historical: the beat control left this panel 2026-07-07 "Schmeiß den Beat komplett
+    // raus". It stayed DEFINED but unpresented until #323 deleted it outright — see the
+    // tombstone where it used to live for why "unpresented, reversible" stopped being true
+    // once #166/#167 removed the drums it selected between. placeRow/weatherRow live in the
+    // Session dropdown — chrome-door "session" since step 2c; its name preview moved to the
+    // header strip.)
     private var tempoToolsPanel: some View {
         panel("Tempo & variations", "Tap · metronome · haptic beat · ideas",
               isExpanded: $showComposition) {
@@ -2551,28 +2560,25 @@ struct EchoelStudioView: View {
     nonisolated private static let locationFixWaitSeconds = 6.0
     #endif
 
-    /// The drum layer, one segmented choice (founder: "Beat soll ausschaltbar sein
-    /// und tendenziell eher schamanisch ur-rhythmisch"). Off = pure Flächen; Pulse =
-    /// the deep, steady shamanic heartbeat drum (default); Genre = the style's own
-    /// groove. Takes musical effect at the next loop boundary (never a mid-bar cut).
-    private var beatModeRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            labeledRow("Beat") {
-                Picker("Beat", selection: $beatMode) {
-                    ForEach(BeatMode.allCases) { m in Text(m.label).tag(m) }
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: beatMode) { _, _ in recomposeIfRunning() }
-                .accessibilityLabel("Beat mode")
-                .accessibilityHint("Off is pure textures, Pulse is a deep steady heartbeat drum, Genre is the style's own rhythm")
-            }
-            if beatMode == .pulse {
-                Text("A deep, steady drum — it thins out as your body settles.")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
+    // ⛔ `beatModeRow` STOOD HERE AND IS DELETED (#323) — a three-way segmented Picker
+    // (Off · Pulse · Genre) over the drum layer, plus a hint line promising "a deep, steady
+    // drum". Every word of it was false by the time it was deleted, and it stayed for
+    // twenty-four days because "unmounted but reversible" reads like a safe state.
+    //
+    // The chain, so nobody restores it from an older revision by mistake:
+    //   2026-07-07  founder: "Schmeiß den Beat komplett raus" → the row was unmounted and
+    //               `generate` switched to an unconditional `BioComposer.silentBeat()`.
+    //   2026-07-26  #166 removed the drum voices from the signal path.
+    //   2026-07-31  #167 deleted `DrumSynthVoice`, `LaneDrumKitVoice`, `DrumNoteMap`.
+    // So the control did not merely lack a door: two of its three options had no
+    // implementation left to select, and the third (Off) is what the app does anyway.
+    // Restoring it means rebuilding the drum apparatus first — and that is a founder call,
+    // not a UI one.
+    //
+    // What is NOT deleted, deliberately: `BeatMode`, `BioComposer.shamanicBeat()` and
+    // `genreBeat()`. They compile, `ShamanicBeatTests` still covers the walk, and they are
+    // the seed of any future rhythm layer. A doorless CONTROL is debt; a tested pure
+    // BUILDER is inventory.
 
     // (Step 2b: tuningRow / genrePicker / tonartRow / kammertonRow / tempoRow moved
     // verbatim into the chrome — CompositionHeaderStrip owns the Pickers/A4 field,
@@ -6042,12 +6048,12 @@ struct EchoelStudioView: View {
         // evolution nonce) so the drum holds its walk across evolve re-seeds while
         // melody detail evolves above it; Genre = the style's archetypal groove.
         // BEAT REMOVED (founder 2026-07-07: "Schmeiß den Beat komplett raus"). The
-        // product is pure meditative Flächen — NO drum layer, ever, whatever the
-        // stored beatMode or the genre says. The BeatMode enum, the beatModeRow
-        // control and the shamanic/genre groove builders stay compiling (reversible),
-        // but generation is unconditionally silent. This also removes the shamanic
-        // pulse drum that a stale stored beatMode = .pulse was still playing under
-        // the Fläche (device log 1783426400).
+        // product is pure meditative Flächen — NO drum layer, ever, whatever the genre
+        // says. This also removed the shamanic pulse drum that a stale stored
+        // `beatMode = .pulse` was still playing under the Fläche (device log 1783426400).
+        // The `BeatMode` enum and the shamanic/genre groove BUILDERS stay compiling; the
+        // `beatModeRow` CONTROL and the `studio.beatMode` key are gone (#323, after
+        // #166/#167 deleted the voices those options selected between).
         let groove: (steps: [[Bool]], accents: [[Bool]]) = BioComposer.silentBeat()
         beatPlayer.pattern.loadAtBoundary(steps: groove.steps, accents: groove.accents)
         // BREATH SWELL (0.1 Hz medical coherence pacer): arm it for the sustained
