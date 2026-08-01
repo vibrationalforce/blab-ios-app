@@ -274,11 +274,10 @@ struct EchoelStudioView: View {
 
     /// Continuous mood/character controls that shape the composition (blend with bio).
     @State private var mood = MoodProfile()
-    /// The SOUND mood pad's position (persisted). X right = brighter (darkness = 1−x),
-    /// Y up = more movement (liveliness = y). Written on drag END only — one
-    /// invalidation + one coalesced recompose per gesture (ultraleichte Steuerung).
-    @AppStorage("mood.sound.x") private var soundMoodX = 0.5
-    @AppStorage("mood.sound.y") private var soundMoodY = 0.5
+    // The SOUND mood pad's persisted position ("mood.sound.x"/"y") moved into
+    // `SoundMoodPadLeaf` with #322 — same keys, same defaults, so an existing device
+    // keeps its position; it is simply no longer stored on the root, where a drag
+    // would have re-evaluated this whole body per move.
     /// Saved/curated moods (factory + user + community), same library pattern as FX/sound.
     @State private var moodStore = MoodPresetStore()
     /// Identity of the currently-loaded mood (nil = an unsaved "Custom" edit).
@@ -1272,31 +1271,33 @@ struct EchoelStudioView: View {
     /// kept compiling for reversibility, no body branch mounts it. The two mood
     /// pads, side by side — SOUND (composition mood; recomposes at the loop
     /// boundary on release) and VISUAL (palette + energy, live via its own leaf).
+    /// The two XY atmosphere pads (founder 2026-07-06D: "Ein XY Pad für den Sound,
+    /// damit man intuitiv die richtige Stimmung findet, und für visuals auch").
+    ///
+    /// ⛔ THIS HAD NO DOOR until #322, and the way it lost one is worth keeping: it was
+    /// never deleted and never disabled — it simply stopped being mounted, and because
+    /// every parameter it moves (darkness, liveliness, hue, motion, intensity) IS
+    /// reachable as a number elsewhere, nothing looked broken. What was missing was the
+    /// GESTURE and, more importantly, the LINK the founder asked for on 2026-07-07: one
+    /// finger moving sound and image together. A capability whose parts are all reachable
+    /// separately is exactly the kind that goes missing without a grep trail — which is
+    /// why `Tests/CISmoke/NoDoorlessStudioViewsTests.swift` now fails on ANY unmounted
+    /// `some View` in this file rather than on this block by name.
+    ///
+    /// Lives in `moodPanel` because this panel is literally "Character of the
+    /// composition": the pads are the fast way in, the knobs beneath them the fine tune
+    /// (the same ordering #228 chose for the visual Energy control).
     private var moodPadsSection: some View {
         HStack(alignment: .top, spacing: 12) {
-            MoodXYPad(title: "Sound",
-                      xCaption: "dark · bright",
-                      yCaption: "still · moving",
-                      live: false,
-                      x: $soundMoodX, y: $soundMoodY,
-                      // LINKED (founder 2026-07-07: "Xy Sound und visuals
-                      // verknüpfen"): while the finger moves, the VISUAL mood
-                      // follows live (hue/motion/intensity + the visual pad's
-                      // dot); the SOUND itself commits on release, at the loop
-                      // boundary — one gesture moves the whole atmosphere.
-                      onChanged: { x, y in
-                          VisualMoodMap.apply(x: x, y: y)
-                      },
-                      onEnded: { x, y in
-                          VisualMoodMap.apply(x: x, y: y)
-                          mood.darkness = Float(1 - x)
-                          mood.liveliness = Float(y)
-                          // A pad gesture is a custom edit — the loaded preset no
-                          // longer describes the sound (same rule as the mood editor).
-                          moodPresetID = nil
-                          moodPresetName = "Custom"
-                          recomposeIfRunning()
-                      })
+            SoundMoodPadLeaf { x, y in
+                mood.darkness = Float(1 - x)
+                mood.liveliness = Float(y)
+                // A pad gesture is a custom edit — the loaded preset no longer
+                // describes the sound (same rule as the mood editor).
+                moodPresetID = nil
+                moodPresetName = "Custom"
+                recomposeIfRunning()
+            }
             VisualMoodPadLeaf()
         }
     }
@@ -1917,30 +1918,14 @@ struct EchoelStudioView: View {
         }
     }
 
-    private var soundControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Essentials first, advanced (Mood) last — the view reads top-down from
-            // "what most people touch" to "deep tweaks". (Step 2b: the Composition
-            // panel dissolved — genre/key/scale/tuning/A4 live in the header
-            // CompositionHeaderStrip, its residue in tempoToolsPanel.)
-            tempoToolsPanel
-            sessionPanel
-            soundPanel
-            mixerPanel
-            effectsPanel
-            masterPanel
-            moodPanel
-            // visualPanel moved to the very bottom of the page (founder 2026-07-07:
-            // "Visual … das müsste ganz nach unten") — rendered after utilityRow.
-            // Entrainment now lives on the Bio page (its home) — not duplicated here.
-            // The EchoelAI live caption used to sit HERE — a bare paragraph wedged
-            // between the Mood and Export cards (founder 2026-07-07: "Das ist hier
-            // ungeschickt platziert"). It now lives at the TOP, right under the live
-            // bio (`liveNarrationBanner`), where a "what your body is doing to the
-            // sound" line belongs — paired with the numbers it explains, in a proper
-            // container instead of orphaned between two cards.
-        }
-    }
+    // ⛔ `soundControls` IS GONE (#322). It stacked all seven panels
+    // (tempoTools · session · sound · mixer · effects · master · mood) into one scroll —
+    // the pre-chip page layout. The chip strip replaced it: `dropdownContent` routes each
+    // `StudioMenu` case to the SAME seven panels, one at a time. Nothing was mounting this
+    // second copy, so the "top-down from what most people touch to deep tweaks" ordering it
+    // documented had not applied to anything for weeks; the live ordering is the chip strip's.
+    // Deleted rather than kept as a reference, because a stale layout comment reads as the
+    // current design to the next session — the exact failure the tombstone above describes.
 
     /// EchoelAI's narration of the live bio→sound mapping — ON REQUEST ONLY
     /// (founder 2026-07-09: "Echoel AI soll interaktiver werden und nicht
@@ -2293,55 +2278,20 @@ struct EchoelStudioView: View {
         }
     }
 
-    // MARK: - Entry rows (R2/R3 2026-07-10 — visible doors to existing sheets)
-
-    #if canImport(MultipeerConnectivity)
-    /// Live Colabo door: play together nearby — share the session, see each
-    /// person's own pulse side by side. Presents the EXISTING sheet slot.
-    private var liveColaboRow: some View {
-        entryRow("Live Colabo", "Play together, nearby — session share · pulse side by side",
-                 icon: "dot.radiowaves.left.and.right") { showLiveColabo = true }
-    }
-    #endif
-
-    /// Learn & News door: the school content plus the opt-in "News & live
-    /// events" push toggle (E4). Presents the EXISTING sheet slot.
-    private var learnRow: some View {
-        entryRow("Learn & News", "How it works · safety · stay in the loop",
-                 icon: "book") { showLearn = true }
-    }
-
-    /// Shared chrome for a full-width door row (matches the card look:
-    /// solid fill, 1 px border, chevron — Uncodixfy).
-    private func entryRow(_ title: String, _ subtitle: String, icon: String,
-                          action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 15))
-                    .foregroundStyle(EchoelTheme.dim)
-                    .frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(EchoelTheme.font(15, .semibold)).foregroundStyle(EchoelTheme.text)
-                    Text(subtitle)
-                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
-            }
-            .padding(14)
-            .contentShape(Rectangle())
-            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                .strokeBorder(EchoelTheme.border, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityHint(subtitle)
-    }
+    // ⛔ THE ENTRY ROWS ARE GONE (#322, and this tombstone matters more than the code did).
+    //
+    // `liveColaboRow` and `learnRow` (R2/R3, 2026-07-10) were full-width door cards, and
+    // `entryRow` was their shared chrome. All three sat here unmounted: the doors they
+    // opened MOVED to the chrome-door notification (`case "learn":` / `case "live":` in the
+    // `.echoelChromeDoor` receiver above), and nobody removed what they replaced. Both
+    // sheets are reachable today — the deletion costs the user nothing.
+    //
+    // WHY IT IS WRITTEN DOWN RATHER THAN JUST DELETED: they were found together with
+    // `moodPadsSection`, which looked exactly the same from a grep — an unmounted `some
+    // View` in this file — and was NOT dead code but an unreachable founder feature. Three
+    // of four were leftovers, one was a loss, and nothing in the source distinguished them.
+    // That is why `Tests/CISmoke/NoDoorlessStudioViewsTests.swift` now fails on the CLASS
+    // (any unmounted `some View` here) instead of trusting a future reader to look.
 
     // MARK: Panel 1b — Session (place · weather)
 
@@ -3850,6 +3800,7 @@ struct EchoelStudioView: View {
     private var moodPanel: some View {
         panel("Mood", "Character of the composition", isExpanded: $showMood) {
             moodPresetBar
+            moodPadsSection
             moodKnob("Liveliness", $mood.liveliness)
             moodKnob("Darkness", $mood.darkness)
             moodKnob("Tension", $mood.tension)

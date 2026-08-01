@@ -135,6 +135,45 @@ enum VisualMoodMap {
     }
 }
 
+/// The SOUND mood pad — a leaf for the same reason `VisualMoodPadLeaf` is one: it
+/// owns its own `mood.sound.x/y` storage, so a drag does not invalidate whichever
+/// body mounts it. The composition-side commit (darkness/liveliness, preset →
+/// "Custom", recompose) is handed back through `onCommit` because that state lives
+/// on the studio view and is deliberately NOT duplicated here.
+///
+/// ⚠️ HONEST LIMIT, because claiming a boundary this does not have is the failure
+/// this repo keeps paying for: the live link still writes `visual.hue`/`visual.motion`/
+/// `visual.intensity` through `VisualMoodMap.apply` on every (delta-gated) drag move,
+/// and `EchoelStudioView` declares `@AppStorage` on exactly those keys — so the studio
+/// body DOES re-evaluate during a drag. That is not new and not the freeze class: it is
+/// the same cost the Visual panel's own Energy field already pays, it is bounded by a
+/// deliberate gesture (~1 write per 1% of travel), and no Picker can be open while a
+/// finger is on the pad. What the leaf buys is that the pad's OWN position never
+/// touches the ancestor.
+struct SoundMoodPadLeaf: View {
+    @AppStorage("mood.sound.x") private var x = 0.5
+    @AppStorage("mood.sound.y") private var y = 0.5
+
+    /// Called on release with the committed (x, y) — one recompose per gesture.
+    let onCommit: (Double, Double) -> Void
+
+    var body: some View {
+        MoodXYPad(title: "Sound",
+                  xCaption: "dark · bright",
+                  yCaption: "still · moving",
+                  live: false,
+                  x: $x, y: $y,
+                  // LINKED (founder 2026-07-07: "Xy Sound und visuals verknüpfen"):
+                  // while the finger moves, the VISUAL mood follows live; the SOUND
+                  // commits on release — one gesture moves the whole atmosphere.
+                  onChanged: { VisualMoodMap.apply(x: $0, y: $1) },
+                  onEnded: { vx, vy in
+                      VisualMoodMap.apply(x: vx, y: vy)
+                      onCommit(vx, vy)
+                  })
+    }
+}
+
 /// The VISUAL mood pad — a self-contained leaf that owns the @AppStorage writes,
 /// so the floating visual follows the finger live while ancestors stay still.
 /// X sweeps the palette away from the physical-colour default (hue 0); Y sets
