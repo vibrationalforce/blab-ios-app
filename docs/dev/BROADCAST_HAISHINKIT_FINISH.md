@@ -85,12 +85,17 @@ Map all `try`/throws to `statusMessage` (honest failures). `stop()` → `try awa
 - Compile gate green WITH the dep (step 1 first, then step 3).
 - Device: enter a YouTube/Twitch ingest URL + key, Go Live, confirm the stream appears; confirm rPPG
   is stopped and BLE/HealthKit HR still drives bio; confirm `stop()` ends cleanly and re-enables rPPG.
-- Mastering: ⛔ the line here used to say "the `Master` loudness readout already shows what's
-  going out (≈ −14 LUFS / ≤ −1 dBTP)". It does NOT (#316, 2026-08-01): the meter taps
-  `masterMixer`, the master chain's INPUT, so EQ, auto-gain, limiter and the −1 dB trim all
-  happen after it. Whoever executes this checklist must NOT use that readout to confirm what
-  the stream carries — that needs #316b (a post-chain measurement, symbol containing
-  `masterOutputLUFS`) or an external meter on the received stream.
+- Mastering: the four `Master` R128 numbers **may** be used to confirm what the mix carries —
+  since #316b (2026-08-01) they are measured at `AutoMixChain.chainOutputNode`, after EQ,
+  auto-gain and the limiter, with the −1 dB output trim added back. The two LEVEL BARS in the
+  same panel are still pre-chain and are not a delivery check.
+  ⛔ History, because this bullet has said two opposite things: it first claimed the readout
+  "already shows what's going out", which #316 showed was false (the meter then tapped
+  `masterMixer`, the chain's INPUT), and #316 replaced it with a prohibition plus the
+  condition for lifting it — "needs a post-chain measurement, symbol containing
+  `masterOutputLUFS`". That condition is met; the prohibition is lifted. A stream still
+  carries its own encoder, so an external meter on the RECEIVED stream remains the only check
+  of what the viewer hears — that part was never about the measurement point.
 
 ## 5. Update on completion
 Flip `BroadcastView`'s "engine not installed" copy, mark Broadcast ✅ in `DMMW_ARCHITECTURE.md`

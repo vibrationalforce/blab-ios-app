@@ -152,19 +152,34 @@ public final class AudioEngine {
     /// A measured dB value carried down to the true output — EXCEPT when it is the meter's
     /// FLOOR sentinel, which is passed through untouched.
     ///
-    /// ⛔ THE NAIVE `value + trim` HAS A REAL EDGE, found while writing this rather than a
-    /// month later. The readouts print "—" for `v <= floor + 1`, so shifting a floor
-    /// sentinel down by 1.0122 dB still reads "—" (harmless), but a genuine value sitting
-    /// in the 1 dB band just above the floor would be pushed BELOW the threshold and
-    /// silently become "—" instead of a number. That band is silence-adjacent and nobody
-    /// would ever notice it was wrong, which is precisely why it is worth closing: the
-    /// sentinel is a marker, not a measurement, and arithmetic on it is a category error.
+    /// WHAT THIS GUARD IS FOR: the floor is a SENTINEL, not a measurement — "the meter has
+    /// nothing to report". Adding a gain to it would turn a marker into a slightly smaller
+    /// marker, which is a category error even where it happens to be invisible.
+    ///
+    /// ⛔ THE REASON FIRST WRITTEN HERE WAS OFF BY ONE BAND, and review caught it: it said
+    /// the naive `value + trim` would push "a genuine value sitting in the 1 dB band just
+    /// above the floor" below the display threshold. The readouts print "—" for
+    /// `v <= floor + 1`, so a value in `(floor, floor + 1]` ALREADY printed "—" before any
+    /// trim; nothing changes for it. The band that really flips from a number to a dash is
+    /// `(floor + 1, floor + 2.0122]`, and this guard does NOT cover it — it is a genuine
+    /// measurement about 1 dB above the display threshold, i.e. deep silence, and letting it
+    /// read "—" is right. Stated plainly because a precise, confident, wrong justification is
+    /// the exact defect the rest of this commit exists to remove.
     nonisolated static func trimmed(_ value: Float, floor: Float) -> Float {
         value <= floor ? floor : value + outputTrimDb
     }
 
     /// Held master sample-peak / true-peak in dBFS / dBTP, and momentary
     /// loudness in LUFS — published from the master tap (EchoelMix metering).
+    ///
+    /// ⚠️ THESE THREE ALSO MOVED WITH THE TAP (#316b) AND DELIBERATELY KEPT THEIR NAMES AND
+    /// THEIR MISSING TRIM, which is the opposite of what was done one declaration below —
+    /// so the inconsistency is a decision, not an oversight. They have ZERO readers outside
+    /// this file (`git grep` over `Sources/` + `Tests/` returns only these declarations and
+    /// their write site in the poll block), so there is no call site a rename would inform
+    /// and no display a trim would correct. Renaming them would be churn for its own sake.
+    /// The moment one of them acquires a reader, give it the `masterOutput…` treatment —
+    /// name AND `trimmed(_:floor:)` — rather than letting a second convention take root.
     var masterPeakDb: Float = EchoelMeter.floorDb
     var masterTruePeakDb: Float = EchoelMeter.floorDb
     var masterLUFS: Float = EchoelLoudnessMeter.floorLUFS
@@ -735,6 +750,11 @@ public final class AudioEngine {
         masterMixer.removeTap(onBus: 0)
         autoMixChain.chainOutputNode?.removeTap(onBus: 0)
         let meterNode: AVAudioNode = autoMixChain.chainOutputNode ?? masterMixer
+        // TRUE once the R128 meter really moved downstream, which is also the moment the
+        // level/RMS pair has to STAY upstream — see the long note at its write site. When
+        // the chain is not installed both live on `masterMixer` and there is one tap, as
+        // before: a node can hold only one tap per bus, so they cannot be split there.
+        let levelsComeFromPreChainTap = meterNode !== masterMixer
         let meterFormat = meterNode.outputFormat(forBus: 0)
         if meterFormat.sampleRate > 0 && meterFormat.channelCount > 0 {
             // Match the loudness windows to the real hardware rate. Safe to reassign
@@ -876,17 +896,28 @@ public final class AudioEngine {
                     meter.reset()
                     loudness.reset()
                 }
-                var rmsL: Float = 0
-                vDSP_rmsqv(channelData[0], 1, &rmsL, vDSP_Length(frameLength))
-                var rmsR: Float = 0
                 let stereo = buffer.format.channelCount > 1
-                if stereo {
-                    vDSP_rmsqv(channelData[1], 1, &rmsR, vDSP_Length(frameLength))
-                } else { rmsR = rmsL }
-                let scaledL = rmsL.isNaN ? Float(0) : Swift.min(rmsL * 3.0, 1.0)
-                let scaledR = rmsR.isNaN ? Float(0) : Swift.min(rmsR * 3.0, 1.0)
-                ptrL.pointee = scaledL
-                ptrR.pointee = scaledR
+                // ⭐ THE LEVEL/RMS PAIR IS NOT WRITTEN HERE WHEN THE METER MOVED (#316b review).
+                // `masterLevel` is not only the two bars: `AudioEngine.start()` hands it to
+                // `autoMixChain.connectMeter`, so it is the auto-gain's INPUT — and the
+                // auto-gain's own `gainNode` sits UPSTREAM of this node. Writing it from a
+                // post-chain tap closes that loop, and `steadyGainDB` is a proportional law
+                // with no integrator: its fixed point becomes `g = (target − Lᵢₙ)/2`, i.e.
+                // the stage would permanently deliver HALF the correction it computes and
+                // never reach the target anywhere inside its ±6 dB window. The Master volume
+                // fader (`masterMixer.outputVolume`, also upstream) would likewise keep half
+                // its authority and visibly creep back after a drag. The pre-chain tap below
+                // owns these two cells instead, which restores the control law byte-for-byte.
+                if !levelsComeFromPreChainTap {
+                    var rmsL: Float = 0
+                    vDSP_rmsqv(channelData[0], 1, &rmsL, vDSP_Length(frameLength))
+                    var rmsR: Float = 0
+                    if stereo {
+                        vDSP_rmsqv(channelData[1], 1, &rmsR, vDSP_Length(frameLength))
+                    } else { rmsR = rmsL }
+                    ptrL.pointee = rmsL.isNaN ? Float(0) : Swift.min(rmsL * 3.0, 1.0)
+                    ptrR.pointee = rmsR.isNaN ? Float(0) : Swift.min(rmsR * 3.0, 1.0)
+                }
 
                 // Peak / true-peak / LUFS — meters are confined to this thread;
                 // only the resulting Floats cross to the poll timer via pointers.
@@ -928,6 +959,48 @@ public final class AudioEngine {
                     if w == ringSize { w = 0 }
                 }
                 ringCountPtr.pointee = count + n
+            }
+        }
+
+        // ⭐ THE PRE-CHAIN LEVEL TAP (#316b review). Deliberately the ONLY thing that was
+        // duplicated, and it is the cheap half: two `vDSP_rmsqv` calls and two pointer
+        // writes per buffer. The commit that moved the meter argued against a second tap on
+        // CPU grounds and that argument still holds for what it was about — a second LUFS +
+        // oversampled true-peak + FFT-ring + timing block. It does not extend to an RMS.
+        //
+        // WHY IT EXISTS AT ALL: `masterLevel` has a consumer the move's consumer census
+        // missed. `start()` passes it to `autoMixChain.connectMeter`, making it the
+        // auto-gain's measurement — and the auto-gain acts through `gainNode`, upstream of
+        // the moved meter. Measuring a stage's own output with a proportional control law
+        // halves it permanently. Keeping this reading where it always was leaves the whole
+        // gain-staging chain bit-identical to before #316b, while the R128 readout keeps
+        // the honest post-chain measurement that was the point of the change.
+        //
+        // Installed AFTER the detailed tap so the `meterNode !== masterMixer` case is the
+        // only one that reaches here; in the fallback case the single tap above already
+        // owns these cells and a second `installTap` on the same bus would replace it.
+        if levelsComeFromPreChainTap {
+            let preFormat = masterMixer.outputFormat(forBus: 0)
+            if preFormat.sampleRate > 0 && preFormat.channelCount > 0 {
+                let ptrL = _rawMeterL
+                let ptrR = _rawMeterR
+                masterMixer.installTap(onBus: 0, bufferSize: 1024,
+                                       format: preFormat) { @Sendable buffer, _ in
+                    guard let channelData = buffer.floatChannelData else { return }
+                    let frameLength = UInt(buffer.frameLength)
+                    guard frameLength > 0 else { return }
+                    var rmsL: Float = 0
+                    vDSP_rmsqv(channelData[0], 1, &rmsL, vDSP_Length(frameLength))
+                    var rmsR: Float = 0
+                    if buffer.format.channelCount > 1 {
+                        vDSP_rmsqv(channelData[1], 1, &rmsR, vDSP_Length(frameLength))
+                    } else { rmsR = rmsL }
+                    // Same `* 3.0` scaling and NaN sentinel as the original single tap —
+                    // `AutoMixChain.updateLUFS` divides by exactly 3.0 to undo it, so this
+                    // constant is a contract between the two files, not a display choice.
+                    ptrL.pointee = rmsL.isNaN ? Float(0) : Swift.min(rmsL * 3.0, 1.0)
+                    ptrR.pointee = rmsR.isNaN ? Float(0) : Swift.min(rmsR * 3.0, 1.0)
+                }
             }
         }
     }

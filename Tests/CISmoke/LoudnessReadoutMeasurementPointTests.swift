@@ -1,9 +1,18 @@
 // LoudnessReadoutMeasurementPointTests.swift
 // Echoel — #316. Blocking bundle, because the other suite cannot fail a merge (#208).
 //
-// ⭐ THE ONE PAIRING THIS FILE EXISTS FOR: `MasterLoudnessGrid` shows EBU R128 numbers that
-// `AudioEngine.installMeterTap()` measures at `masterMixer` — the node `AutoMixChain.insert`
-// takes as its `from:`. Everything the master chain does happens AFTER that point:
+// ⭐ READ THIS FIRST — #316b MOVED THE MEASUREMENT, SO THE NEXT BLOCK IS HISTORY. The EBU
+// R128 tap now sits on `AutoMixChain.chainOutputNode` (the limiter's output) and the four
+// values are published as `masterOutput…` with the −1 dB trim added back. The LEVEL BARS
+// stay pre-chain, deliberately, because `masterLevel` is the auto-gain's input. The live
+// invariants are the last four tests in this file; the three pre-chain guards below now
+// only re-arm if the tap is reverted (`testTheDetailedMeterIsInstalledOnTheChainOutput`
+// exists because the name-only predicate does NOT notice such a revert on its own).
+//
+// ⭐ THE ONE PAIRING THIS FILE EXISTS FOR — as it stood before #316b: `MasterLoudnessGrid`
+// showed EBU R128 numbers that `AudioEngine.installMeterTap()` measured at `masterMixer` —
+// the node `AutoMixChain.insert` takes as its `from:`. Everything the master chain does
+// happened AFTER that point:
 //
 //     masterMixer ──[tap]──▶ EQ ▶ auto-gain ▶ PeakLimiter ▶ mainMixerNode (×0.89 ≈ −1 dB)
 //
@@ -160,12 +169,15 @@ final class LoudnessReadoutMeasurementPointTests: XCTestCase {
             — it understates a correct readout instead of overstating a wrong one, which is \
             no better: it invites someone to "fix" the measurement point a second time.
             """)
-        XCTAssertTrue(code.contains("Text(\"Measured at the output of the master chain"), """
+        XCTAssertTrue(code.contains("Text(\"The four numbers are measured at the output of the master chain"), """
             The post-chain measurement exists but the grid no longer states its measurement \
             point on screen. Four bare LUFS/dBTP numbers read as the loudness of what leaves \
             the device whether or not that is what they are — #316 put the sentence there for \
             exactly that reason and #316b changed which sentence is true, not whether one is \
             needed. If the wording was changed, update this token in the SAME commit.
+            The token says "The four numbers" on purpose: an earlier draft opened with a bare \
+            "Measured at the output of the master chain", which read as a claim about the \
+            whole panel and was wrong about the two level bars, which are pre-chain.
             """)
     }
 
@@ -174,13 +186,81 @@ final class LoudnessReadoutMeasurementPointTests: XCTestCase {
     /// is the same shape as the two one-pole literals #332 spent a slice merging, and the
     /// first version of `outputTrimDb` had it — caught while writing, pinned so it cannot
     /// come back.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS TEST PINNED ONLY ONE OF THE TWO ENDS, while its own
+    /// failure message named both. It asserted the dB derivation and said nothing about the
+    /// NODE GAIN — so re-typing `mainMixerNode.outputVolume = 0.89` produced exactly the
+    /// drift the message describes, with the test green. Both ends are asserted now.
     func testTheOutputTrimIsOneConstant() throws {
         let code = try source(Self.engine)
-        XCTAssertTrue(code.contains("log10f(outputTrimLinear)"), """
+        XCTAssertTrue(code.contains("= 20 * log10f(outputTrimLinear)"), """
             `outputTrimDb` no longer derives from `outputTrimLinear`. If it was re-typed as \
             a literal (`20 * log10f(0.89)`), the node gain and the meter offset can now drift \
             apart silently — the readout would claim a trim the output does not apply, or \
             miss one it does. Derive it.
+            Anchored on the `= ` so a tombstone comment quoting the old expression cannot \
+            satisfy this on its own; in a repo where every deletion leaves a tombstone, a \
+            bare code fragment is close to guaranteed to reappear as prose.
+            """)
+        XCTAssertTrue(code.contains("mainMixerNode.outputVolume = AudioEngine.outputTrimLinear"), """
+            The output trim is applied to `mainMixerNode` as a LITERAL again instead of from \
+            `outputTrimLinear`. That is the other end of the same pair: the readouts add \
+            `outputTrimDb` back on the assumption that this exact gain is what the graph \
+            applies. Two hand-written 0.89s that must agree is the defect, whichever side \
+            gets re-typed.
+            """)
+    }
+
+    /// ⭐ THE HOLE THE #316b REVIEW FOUND IN THIS FILE'S CENTRAL PREDICATE.
+    ///
+    /// `hasPostChainMeasurement()` keys on a SYMBOL NAME, and #316b's commit message claimed
+    /// the pre-chain guards "re-sharpen themselves the moment someone turns the tap back".
+    /// They do not: reverting `installMeterTap` to `masterMixer` leaves `masterOutputLUFS`
+    /// in the file (in code AND in prose), so the predicate stays true, all three fall
+    /// silent, and nothing goes red. The names and the tap could drift apart completely.
+    ///
+    /// This asserts the tap's NODE directly. That only became safe once #316b chose MOVE
+    /// over DUPLICATE — the objection in this file's ⛔ header (a `masterMixer.installTap(`
+    /// check fires red on the correct fix) killed the first draft of exactly such a guard.
+    /// Note it is still a live objection for the naive form: `masterMixer.installTap(` IS
+    /// present today, deliberately, for the cheap pre-chain LEVEL tap. So the assertion is
+    /// about which node the DETAILED meter reads, not about which nodes are tapped at all.
+    func testTheDetailedMeterIsInstalledOnTheChainOutput() throws {
+        let code = try source(Self.engine)
+        XCTAssertTrue(code.contains("autoMixChain.chainOutputNode ?? masterMixer"), """
+            `installMeterTap()` no longer resolves its node through \
+            `AutoMixChain.chainOutputNode`, so the EBU R128 readout is measuring the master \
+            chain's INPUT again while `AudioEngine` still publishes it under `masterOutput…` \
+            names and still adds the −1 dB trim. That combination is worse than the state \
+            #316 disclosed: the numbers would be pre-chain AND labelled as output.
+            """)
+        XCTAssertTrue(code.contains("meterNode.installTap("), """
+            The detailed meter tap is no longer installed on `meterNode`. Whatever it is \
+            installed on now, the pairing this file exists for — screen caption, property \
+            names, measurement point — is no longer decidable from here.
+            """)
+    }
+
+    /// The other half of that split, and the one with an audio consequence rather than a
+    /// documentation one: the cheap RMS pair must STAY on `masterMixer`, because
+    /// `masterLevel` is what `AutoMixChain.connectMeter` measures and the auto-gain acts
+    /// upstream of the moved meter. #316b briefly moved it and closed that loop — with a
+    /// proportional control law and no integrator, the stage then settles at half its
+    /// computed correction and never reaches the target anywhere inside its ±6 dB window.
+    func testTheLevelMetersStayUpstreamOfTheAutoGain() throws {
+        let code = try source(Self.engine)
+        XCTAssertTrue(code.contains("masterMixer.installTap("), """
+            The pre-chain level tap is gone. `masterLevel` feeds \
+            `autoMixChain.connectMeter` (the auto-gain's measurement) and the auto-gain's \
+            `gainNode` sits UPSTREAM of the R128 meter's node — so a `masterLevel` written \
+            from the moved tap makes that stage measure its own output. `steadyGainDB` is \
+            proportional, not integrating, so the error never closes: it delivers half.
+            Whatever replaced this, it must feed the auto-gain from BEFORE the chain.
+            """)
+        XCTAssertTrue(code.contains("levelsComeFromPreChainTap"), """
+            The flag that keeps the level meters and the R128 meter on different nodes is \
+            gone. Both readings then come from one tap again — which is only correct in the \
+            chain-not-installed fallback, where a single node cannot host two taps anyway.
             """)
     }
 

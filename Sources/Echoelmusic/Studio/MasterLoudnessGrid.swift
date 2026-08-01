@@ -10,11 +10,17 @@ import SwiftUI
 // ⭐ READ THIS FIRST — THE DEFECT THE REST OF THIS HEADER DESCRIBES IS FIXED (#316b,
 // 2026-08-01). The tap now sits on `AutoMixChain.chainOutputNode` (the limiter's output),
 // the four values are published as `masterOutput…` and carry `AudioEngine.outputTrimDb`
-// for the one gain still downstream. Everything below is the HISTORY of how the readout
-// came to be honest — kept because the analysis is what justifies the verdict colours
-// staying off until someone deliberately turns them back on, and because a header that
-// simply deleted its own diagnosis would leave the next reader unable to check it.
-// Read the tenses below as past tense; the property names it cites are the OLD ones.
+// for the one gain still downstream. The two LEVEL BARS are the exception and stay
+// pre-chain on purpose — `masterLevel` is the auto-gain's input, see the ⭐ note at the bars.
+//
+// Everything below is the HISTORY of how the readout came to be honest. Read the tenses as
+// past tense; the property names it cites are the OLD ones. Kept because a header that
+// deleted its own diagnosis would leave the next reader unable to check it — NOT because it
+// still justifies the verdict colours. It cannot: both of its arguments against a verdict
+// (the auto-gain reads the same signal, the true peak is read before the limiter) rest on
+// the pre-chain premise #316b removed. The colours stay off because turning them back on is
+// a decision nobody has taken, which is a weaker and more honest reason. Two paragraphs
+// below carry a `→` correction inline where a live INSTRUCTION, not just a tense, went stale.
 //
 // ⛔ THIS HEADER SAID "of the master OUTPUT" UNTIL 2026-08-01 (#316), AND THAT WAS FALSE
 // AT THE TIME. The numbers were then measured at the master chain's INPUT:
@@ -93,15 +99,26 @@ import SwiftUI
 // `masterVolume` didSet). `installTap(onBus:)` documents the node's output bus but not its
 // position relative to `outputVolume`, and there is no local toolchain to settle it — it
 // needs a device run. Do not write a comment here that claims to know.
+//   → SETTLED BY #316b, and the settlement is structural rather than empirical, which is
+//     why it is allowed to override the sentence above: the R128 meter now taps a node
+//     DOWNSTREAM of `masterMixer` entirely, so whatever `outputVolume` does at that node's
+//     output is inside what the four numbers see. The instruction was right for a tap ON
+//     `masterMixer` and is simply no longer the situation. The level BARS still are that
+//     situation, and for them the unknown stands unchanged.
 //
-// WHAT THIS DEFERS, and why it is a separate task (#316b) rather than this commit: moving
+// WHAT THIS DEFERRED, and why it was a separate task (#316b) rather than that commit: moving
 // the measurement to the true output. The obvious move — re-point `installMeterTap` at
 // `mainMixerNode` — drags two unrelated passengers with it, because that one tap is also
 // the SOLE writer of `_outputRing` (the FFT visual) and the host of the #193 audio-path
-// timing instrument. Tapping the limiter's output and applying the known ×0.89 in software
-// sidesteps the `outputVolume` unknown above, at the cost of a second tap's per-buffer
-// work. Either way it is an audio-graph change, and this one deliberately is not: nothing
-// below alters a sample.
+// timing instrument.
+//   → WHAT #316b ACTUALLY DID, because this paragraph guessed and the guess mattered: it
+//     MOVED the whole detailed tap to the limiter's output (passengers included — the ring
+//     is arguably better placed there) and duplicated only the cheap RMS pair back onto
+//     `masterMixer`. The split is not aesthetic: `masterLevel` is the AUTO-GAIN's input via
+//     `connectMeter`, and the auto-gain acts upstream of the new tap, so leaving it on the
+//     moved tap closed a control loop that has no integrator and permanently halved the
+//     stage's correction. That regression shipped for one commit and was caught in review.
+//     A second EBU/true-peak/FFT block was never needed; a second `vDSP_rmsqv` was.
 //
 // ⭐ THE CONTRACT THE BLOCKING GUARD ACTUALLY KEYS ON, because the obvious version of it was
 // wrong: `Tests/CISmoke/LoudnessReadoutMeasurementPointTests.swift` does NOT test where the
@@ -116,8 +133,20 @@ import SwiftUI
 // `masterOutputLUFS` (e.g. `masterOutputLUFSIntegrated`). Until that string exists in
 // `AudioEngine.swift` the guard requires: no target verdict anywhere in this file, every
 // `readout(` call painted `EchoelTheme.text`, and the on-screen disclosure present. Once it
-// exists the guard falls silent and the verdicts may come back — `LoudnessTarget`'s two
-// functions are kept callerless for exactly that.
+// exists those three fall silent and the verdicts MAY come back — `LoudnessTarget`'s two
+// functions are kept callerless for exactly that. "May", not "do": re-enabling them is a
+// separate decision, and the guard file grew live tests for the post-chain state instead of
+// going quiet (see its ⭐ block).
+//
+// ⛔ AND THE NAME-ONLY PREDICATE HAS A HOLE THE REVIEW OF #316b FOUND, recorded here because
+// this is where the contract is written down: `masterOutputLUFS` is a STRING in
+// `AudioEngine.swift`, and reverting `installMeterTap` to `masterMixer` does not remove it.
+// The three pre-chain guards would therefore NOT re-arm on such a revert, contrary to what
+// #316b's commit message claimed. The guard file now also asserts the tap's node directly —
+// which only became safe once #316b chose MOVE over DUPLICATE, i.e. the objection recorded
+// in the ⭐ block above (a `masterMixer.installTap(` check fires red on the correct fix) is
+// no longer live for the DETAILED tap. Note it still is for a bare `masterMixer.installTap(`
+// check, because the cheap level tap deliberately sits there.
 
 /// The master-volume parameter field in its OWN view so the read of
 /// `audioEngine.masterVolume` is confined here. That value is rewritten by the
@@ -158,14 +187,21 @@ struct MasterLoudnessGrid: View {
     var body: some View {
         VStack(spacing: 10) {
             // Instantaneous stereo mix level (L/R) — the moving meter every mixer has,
-            // complementing the R128 numbers. Reads the published meter levels, which come
-            // from the same tap as everything else here.
-            // ⛔ THIS SAID "the same PRE-CHAIN tap … so 'output' would have been the wrong
-            // word for these two bars as well". #316b moved that tap to the chain's output,
-            // and the sentence would otherwise have survived the move as a confident,
-            // specific, wrong statement about the very thing the move was about. The bars
-            // are post-chain now too — they just do not carry the −1 dB trim, because they
-            // are linear levels feeding a bar and not a dB readout.
+            // complementing the R128 numbers.
+            //
+            // ⭐ THESE TWO BARS ARE STILL PRE-CHAIN, and after #316b that is a DELIBERATE
+            // split rather than the leftover it looks like. `masterLevel` is not only a bar:
+            // `AudioEngine.start()` hands it to `AutoMixChain.connectMeter`, so it is the
+            // auto-gain's measurement — and the auto-gain acts upstream of where the R128
+            // meter now sits. Moving this reading too would have made that stage measure its
+            // own output through a proportional law and permanently deliver half its
+            // correction. So the R128 numbers moved and the levels stayed, each where it is
+            // right. The caption below says so; keep the two in step.
+            //
+            // ⛔ FOR ONE COMMIT THIS COMMENT CLAIMED THE BARS WERE POST-CHAIN. They briefly
+            // were, and that was the regression — recorded here rather than deleted, because
+            // "make the bars agree with the numbers" is exactly the tidy-up that would
+            // reintroduce it.
             VStack(spacing: 3) {
                 levelBar(audioEngine.masterLevel)
                 levelBar(audioEngine.masterLevelR)
@@ -194,14 +230,12 @@ struct MasterLoudnessGrid: View {
             // disappear silently freezes the first's numbers. Unreachable today precisely
             // because there is only one caller; if #316b or a broadcast door ever mounts two,
             // that ownership needs a refcount.
-            // #316b MOVED THE POINT, so this sentence had to move with it — and the LEVEL
-            // BARS are why it is two sentences and not one. The four R128 numbers now come
-            // from the chain's output; the bars above read `masterLevel`, which is written
-            // by the SAME tap and is therefore also post-chain now. Saying only "after the
-            // chain" would be right; saying nothing about the bars after #316 explicitly
-            // called them out as pre-chain would leave the earlier text half-alive on
-            // screen. The trim is the one gain still downstream, added in dB.
-            Text("Measured at the output of the master chain — after EQ, auto-gain and the limiter, with the −1 dB output trim included.")
+            // #316b MOVED THE POINT, so this sentence moved with it. It names the FOUR
+            // NUMBERS specifically, not "this panel", because the bars above are a separate
+            // measurement on purpose (see the ⭐ note at the bars). An earlier draft said
+            // "Measured at the output of the master chain" flat, which read as a claim about
+            // everything on screen and was wrong about half of it.
+            Text("The four numbers are measured at the output of the master chain — after EQ, auto-gain and the limiter, with the −1 dB output trim included. The bars above are the pre-chain mix level.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

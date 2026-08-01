@@ -41,11 +41,17 @@ struct SpectralDonutView: View {
         let n = max(4, bandCount)
         state.ensure(count: n, fMin: Self.fMin, fMax: Self.fMax)
 
-        // Target spectrum from a REAL FFT of the master MIX. ⛔ Both this line and the
-        // file header said "master output" until #316. `_outputRing` is written inside
-        // `masterMixer.installTap` — the master chain's INPUT — so what this view draws is
-        // the mix BEFORE EQ, auto-gain, limiter and the −1 dB trim. Harmless for a shape,
-        // wrong as a word, and #316b will touch that same ring. The audio tap
+        // Target spectrum from a REAL FFT of the master OUTPUT — and that word is finally
+        // correct. ⛔ THIS SENTENCE HAS NOW BEEN WRONG IN BOTH DIRECTIONS: it said "output"
+        // until #316 while `_outputRing` was written inside `masterMixer.installTap` (the
+        // chain's INPUT), then #316 corrected it to "mix … BEFORE EQ, auto-gain, limiter and
+        // the −1 dB trim" and predicted "#316b will touch that same ring". #316b did exactly
+        // that — it moved the whole detailed tap, ring included, onto
+        // `AutoMixChain.chainOutputNode` — and left this paragraph describing the old
+        // situation with the same confidence. Everything downstream of the limiter is now
+        // inside what this draws; only `mainMixerNode`'s −1 dB trim still is not, which for a
+        // normalised SHAPE is irrelevant. Lesson: a comment that names the exact commit that
+        // will invalidate it does not thereby survive that commit. The audio tap
         // memcpy's the live mix into a lock-free ring; we pull the newest window
         // and run the FFT HERE on the main thread (never on the audio thread). The
         // visual therefore reflects what is actually heard — timbre, overtones and

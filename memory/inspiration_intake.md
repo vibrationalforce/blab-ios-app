@@ -600,7 +600,9 @@ EINZELN, also bekommt es eine eigene Zeile statt eines Verweises auf eine Sammel
   METRIK.** DSPys Lehre ist nicht der Optimierer, sondern dass ohne messbares Ziel gar nicht
   erst optimiert werden kann. Echoel hat genau eine Stelle, an der eine echte Metrik
   ansteht und mit ZERO Deps baubar ist: **#313 Slice 2** (BS.1770-Messbank über
-  `EchoelLoudnessMeter` statt der Fünf-Skalar-Heuristik) — blockiert hinter **#316** (die
-  LUFS-Anzeige misst vor der Master-Kette, das Messgerät ist selbst falsch). Kein neuer
-  Task, keine neue Abhängigkeit: der Gedanke bestätigt eine Reihenfolge, die schon steht.
-**Kein App-Code-Impact. Kein neuer Task. Höchster Wert: Bestätigung von #316 vor #313.**
+  `EchoelLoudnessMeter` statt der Fünf-Skalar-Heuristik) — war blockiert hinter **#316** (die
+  LUFS-Anzeige maß vor der Master-Kette, das Messgerät war selbst falsch). **ENTBLOCKT am
+  2026-08-01 durch #316b**: der R128-Tap sitzt auf `AutoMixChain.chainOutputNode`, die vier
+  Werte tragen den −1-dB-Trim zurück. Die Reihenfolge hat gehalten; die Sperre ist weg.
+  Kein neuer Task, keine neue Abhängigkeit.
+**Kein App-Code-Impact. Kein neuer Task. Höchster Wert war: #316 vor #313 — erledigt.**
