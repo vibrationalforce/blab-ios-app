@@ -181,4 +181,56 @@ public enum FlashGuard {
         return Float(limitedLuminance(from: Double(lastDimmer), to: Double(mastered),
                                       maxDelta: maxDelta))
     }
+
+    // MARK: - The flash bound as a RATE, not a step (#370)
+
+    /// ⚠️ THE DEFECT THIS EXISTS TO CLOSE, stated plainly because it is a safety bound:
+    /// `slewedDimmer`'s `maxDelta` is a step PER CALL. Nothing in this file knows how often
+    /// it is called. The senders that call it set their own tick interval in two OTHER
+    /// files — `Sync/ArtNetSender.swift` and `Sync/SACNSender.swift` — and nothing binds
+    /// the two together. Speed a loop up and the flash rate rises with it, silently, with
+    /// no test anywhere going red. `BioPhaser` already learned this and says so at
+    /// `Sync/BioPhaser.swift:35-41`: a per-TICK cap lets a fast poll sneak extra flashes
+    /// through, so the guarantee has to live as a per-SECOND velocity.
+    ///
+    /// This slice is deliberately ADDITIVE ONLY. Nothing calls the function below yet, so
+    /// the app's light behaviour after it is unchanged. Wiring the two senders through it
+    /// is its own slice, because that one touches a shared colour path and deserves its own
+    /// guard rather than riding along here.
+    ///
+    /// ⛔ NOT NAMED `maxLuminancePerSecond`. `BioPhaser` already owns that name with the
+    /// value 0.5/s — nearly FIVE TIMES stricter than what the senders actually do. Two
+    /// constants with one name and a 4.8× gap is the kind of collision that gets "unified"
+    /// by a later reader who assumes they meant the same thing; unifying them would slow
+    /// every fixture fade to a fifth of its shipped speed, which is a visible product
+    /// change nobody asked for. If the two ever SHOULD agree, that is a founder decision
+    /// with a device look, not a tidy-up.
+    ///
+    /// The value is written as its derivation on purpose. Writing "2.42" by hand would
+    /// have made the wiring slice change behaviour by 0.17 % while its commit message
+    /// claimed bit-identity — a small lie of exactly the kind this file's history is full
+    /// of. Derived, the wiring slice is genuinely a no-op at the shipped tick rate.
+    public static let shippedTickDelta: Double = 0.08
+    /// The interval BOTH senders start their loop at today (`.milliseconds(33)`), in
+    /// seconds. If a sender changes its loop, it changes ITS constant — not this one; this
+    /// records what the 0.08 above was calibrated against.
+    public static let shippedTickSeconds: Double = 0.033
+    /// ≈ 2.4242 luminance units per second — today's per-tick step expressed as the
+    /// rate-invariant quantity, so a faster loop takes smaller steps instead of flashing
+    /// faster.
+    public static let senderLuminancePerSecond: Double = shippedTickDelta / shippedTickSeconds
+
+    /// The per-call step that realises a per-SECOND luminance velocity at the caller's
+    /// actual tick spacing.
+    ///
+    /// `dt` is sanitised the same way `BioPhaser.step` does it (`Sync/BioPhaser.swift:67`):
+    /// a non-finite or non-positive `dt` falls back to 0.1 s rather than to zero, and a
+    /// `dt` above one second is capped at one. The cap is the part that matters for safety
+    /// — after a stall or a clock jump, an uncapped `dt` would authorise an arbitrarily
+    /// large single luminance leap, which is precisely one flash edge.
+    public static func maxDelta(perSecond: Double, dt: Double) -> Double {
+        let safeDt = (dt.isFinite && dt > 0) ? Swift.min(dt, 1.0) : 0.1
+        let rate = perSecond.isFinite ? Swift.max(0, perSecond) : 0
+        return rate * safeDt
+    }
 }
