@@ -129,18 +129,26 @@ public final class PolySynthVoice {
     /// Pinned band, or `nil` for auto (bio-selected). Manual lets the user hold e.g. Theta.
     public var entrainmentManualBand: BrainwaveBand?
 
-    /// Last computed target — telemetry only. `@ObservationIgnored`: it changes ~10 Hz, so
-    /// reading it in a view body would be the "menus freeze while playing" class.
+    /// Last computed target — telemetry only. `@ObservationIgnored`: it changes on every
+    /// NEW bio frame, and reading it in a view body would be the "menus freeze while
+    /// playing" class. ⚠️ The rate used to be written here as "~10 Hz" and that is the POLL,
+    /// not the change rate: `applyLatestIfFresh` dedupes on `frame.timestamp`, and every
+    /// wired publisher emits at ~1 Hz (`CameraRPPGBioPublisher` `tick % 10` in a 100 ms
+    /// loop; Polar 1 s; simulator 1 s). Do NOT read the corrected figure as permission to
+    /// drop `@ObservationIgnored` — the poll is the CEILING, a faster publisher raises the
+    /// rate to it without touching this line, and 1 Hz in a root body is churn either way.
     @ObservationIgnored public private(set) var entrainmentTarget: BioEntrainmentTarget = .inactive
 
     // MARK: - Bus subscription state
 
     public private(set) var isSubscribed = false
 
-    /// Diagnostic frame counter, bumped ~10 Hz by the bio-modulation poll. MUST stay
-    /// `@ObservationIgnored`: as a tracked `@Observable` it would invalidate any view that
-    /// reads it 10×/s — the exact "menus freeze while playing" class. Nothing reads it for
-    /// UI; keep it non-observed.
+    /// Diagnostic counter, bumped once per NEW bio frame (~1 Hz today — the poll is 10 Hz
+    /// but `applyLatestIfFresh` dedupes on `frame.timestamp`, and every wired publisher
+    /// emits at ~1 Hz). MUST stay `@ObservationIgnored` regardless: as a tracked
+    /// `@Observable` it would invalidate any view that reads it on every frame — the exact
+    /// "menus freeze while playing" class — and the 10 Hz poll is the ceiling a faster
+    /// publisher would reach without this line changing. Nothing reads it for UI.
     @ObservationIgnored public private(set) var framesApplied: UInt64 = 0
 
     @ObservationIgnored
@@ -574,8 +582,10 @@ public final class PolySynthVoice {
     ///
     /// DELIBERATELY EXCLUDED (bio-contested / unsafe — see scratchpads/PLAN_DAW_EPIC):
     /// harmonicity · noiseLevel · reverbMix/decay · raw filter base · vibrato ·
-    /// brightness · raw amplitude — the bio loop overwrites them ~10 Hz (or the write
-    /// races a shared spectral table / is gated off), so automating them needs a
+    /// brightness · raw amplitude — the bio loop overwrites them on every new bio frame
+    /// (~1 Hz today, at most the 10 Hz poll rate; it was written "~10 Hz" here and that is
+    /// the poll, not the apply) or the write races a shared spectral table / is gated off.
+    /// The rate is not what disqualifies them — the OVERWRITE is — so automating them needs a
     /// separate automation×bio composition (write the `bioBase*` centers), not a
     /// direct write. `ddsp.amp.level` therefore targets the UNCONTESTED
     /// `patchOutputLevel` (which the render reads and neither bio nor noteOn touch),
@@ -755,7 +765,8 @@ public final class PolySynthVoice {
         // patch's `bioBase*` anchors are set before the body modulates around them, and
         // so each voice's spectral-envelope array rewrite happens on this one thread and
         // never races the render's read below. Drain to the latest queued frame (bio
-        // updates at ~10 Hz, so the queue is empty in almost every block — a cheap check).
+        // updates ~1 Hz — the poll is 10 Hz but dedupes on timestamp — so the queue is
+        // empty in almost every block; a cheap check, and cheaper than the old note said).
         // Runs even while silent so the timbre is current the instant a note arrives.
         var latestBio: PolyBioParams?
         while let p = bioCommands.dequeue() { latestBio = p }

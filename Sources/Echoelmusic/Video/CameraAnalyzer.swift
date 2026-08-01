@@ -223,9 +223,16 @@ final class CameraAnalyzer {
     func processExtractedRGB(avgR: Float, avgG: Float, avgB: Float, timestamp: TimeInterval) {
         frameCount += 1
 
-        // Frame skipping: process every 2nd frame at ~30fps = 15Hz effective sample rate.
-        // The bandpass filter coefficients are designed for effectiveSampleRate (15Hz).
-        // Without skipping, cutoff frequencies would be wrong → broken pulse detection.
+        // ⛔ THIS COMMENT SAID "process every 2nd frame at ~30fps = 15Hz effective sample
+        // rate … without skipping, cutoff frequencies would be wrong" — the exact opposite
+        // of what the file does and of what `analyzeEveryNthFrame`'s own doc block says ten
+        // lines up: skipping is what BROKE the lock (it assumed 30 fps, the camera delivers
+        // ~15, so it halved a real 15 Hz to 7.5 and pushed the 4 Hz low-pass past Nyquist).
+        // `analyzeEveryNthFrame = 1` since that fix; this guard is now a no-op kept as the
+        // single place a future rate decision would live. The filter is valid because
+        // `effectiveSampleRate` is corrected to the MEASURED rate, not because of skipping.
+        // Two contradictory explanations of the same constant stood in one file — the wrong
+        // one sat at the use site, where it is read.
         guard frameCount % analyzeEveryNthFrame == 0 else { return }
 
         brightness = (avgR + avgG + avgB) / 3.0

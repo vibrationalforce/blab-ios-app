@@ -480,8 +480,9 @@ public final class BioReactiveSynthVoice {
         // Apply any pending bio modulation HERE (audio thread) so the synth's
         // spectral-envelope array rewrite happens on this one thread and never
         // races the render's read below. Drain to the latest queued frame; the
-        // queue is empty in most blocks (params update at ~10 Hz), so this is a
-        // cheap check. Runs even while silent so the timbre is current when armed.
+        // queue is empty in most blocks (params update ~1 Hz — the poll is 10 Hz but
+        // dedupes on `frame.timestamp`, and every wired publisher emits at ~1 Hz), so this
+        // is a cheap check. Runs even while silent so the timbre is current when armed.
         var latestBio: BioParams?
         while let p = bioCommands.dequeue() { latestBio = p }
         if let p = latestBio {
