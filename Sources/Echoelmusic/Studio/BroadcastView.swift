@@ -62,9 +62,12 @@ struct BroadcastView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // What you're about to send out — check loudness before going live.
+                // The loudness of the mix before going live. ⛔ THE LABEL SAID "Output
+                // loudness" until #316 — the meter sits at the master chain's INPUT, so on a
+                // page about what leaves the device that word was the most misleading one
+                // available. The grid itself now names its measurement point.
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Output loudness").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    Text("Loudness").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     MasterLoudnessGrid()
                     Text("Most platforms target ≈ −14 LUFS integrated, true peak ≤ −1 dBTP.")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)

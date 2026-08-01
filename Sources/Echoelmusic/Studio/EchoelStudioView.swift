@@ -2851,13 +2851,23 @@ struct EchoelStudioView: View {
 
     // MARK: Panel — Master (output level + EBU R128 loudness)
 
-    /// The mastering readout — master volume plus the live EBU R128 loudness of the
-    /// output (short-term + gated-integrated LUFS, max true-peak in dBTP, loudness
-    /// range in LU). These numbers are what producers and broadcasters master to;
-    /// they were already computed on the master tap but never shown. Reset clears the
-    /// integration + peak hold to start a fresh measurement.
+    /// The mastering readout — master volume plus the live EBU R128 loudness numbers
+    /// (short-term + gated-integrated LUFS, max true-peak in dBTP, loudness range in LU).
+    /// These are what producers and broadcasters master to. Reset clears the integration +
+    /// peak hold to start a fresh measurement.
+    ///
+    /// ⛔ THIS SAID "loudness of the OUTPUT" until #316 (2026-08-01). It is measured at the
+    /// master chain's INPUT — before EQ, auto-gain, limiter and the −1 dB trim.
+    /// `MasterLoudnessGrid` now states that on screen and no longer colours the numbers
+    /// against the delivery target; its file header carries the reasoning. The Target picker
+    /// below is unaffected — it drives the auto-gain and the export, both of which are real.
     private var masterPanel: some View {
-        panel("Master", "Output level · EBU R128 loudness", isExpanded: $showMaster) {
+        // ⛔ The subtitle said "Output level · …" until #316. `MasterVolumeField` really is an
+        // output control (`masterMixer.outputVolume`), so the word was not wrong ABOUT IT —
+        // but it sat one line above a meter that does not measure the output, and a reader
+        // attaches a subtitle to whatever is under it. "Master level" is true of the control
+        // and makes no claim about the numbers.
+        panel("Master", "Master level · EBU R128 loudness", isExpanded: $showMaster) {
             // Master volume lives in its own view (MasterVolumeField) so an automation
             // lane rewriting audioEngine.masterVolume re-renders only that field, not the
             // menu-hosting studio body. (Was the remaining take-time Picker-freeze source.)
