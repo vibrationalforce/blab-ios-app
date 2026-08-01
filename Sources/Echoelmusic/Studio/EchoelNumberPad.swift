@@ -167,8 +167,24 @@ struct EchoelNumberPad: View {
         .accessibilityLabel("Delete")
     }
 
+    /// The one PRIMARY button on this keypad — and it fills with `EchoelTheme.text`
+    /// (off-white) over a black label, not with the bio-green `accent` (#364).
+    ///
+    /// ⛔ IT WAS GREEN, AND THAT IS THE ONE THING `EchoelTheme` FORBIDS BY NAME: "in-app
+    /// PRIMARY buttons fill with `.text`, NOT `.accent`. The bio-green `accent` is reserved
+    /// for the body's live signal … never as page chrome." A keypad confirm key is chrome —
+    /// it means "commit this number", which is true of a filter cutoff, a tempo and a pan
+    /// alike, and has nothing to do with the body. This keypad opens from EVERY
+    /// `EchoelValueField` in the app, so it was also the single most-seen green surface,
+    /// which is exactly how a reserved signal colour stops signalling anything.
+    ///
+    /// It reads MORE prominently now, not less: off-white on the 6 %-grey key field is a far
+    /// larger step than green was, and the label goes from 11.59:1 on green to 15.89:1 on
+    /// off-white. Both cleared the 4.5:1 floor, so this is a coherence fix, not an
+    /// accessibility one — saying otherwise would be the more flattering sentence and the
+    /// less true one.
     private var okKey: some View {
-        keyButton(action: { commit() }, tint: EchoelTheme.accent) {
+        keyButton(action: { commit() }, tint: EchoelTheme.text) {
             Text("OK").font(EchoelTheme.font(18, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
         }
         .accessibilityLabel("Confirm \(title)")

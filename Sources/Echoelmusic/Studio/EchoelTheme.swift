@@ -76,6 +76,29 @@ enum EchoelTheme {
     // `accent` is reserved for the body's live signal (HR/coherence, active/playing
     // state, sliders that shape bio-driven sound) — never as page chrome. Using
     // green as a hero fill is what made the UI read as a generic generated app.
+    //
+    // ⭐ WHAT THE RULE COVERS, EXACTLY (#364) — because a sweeping reading of it is wrong
+    // and I made that reading first. It governs a SOLID GREEN AREA BEHIND A LABEL: a
+    // filled button, a filled card, a hero band. It does NOT govern
+    //   · a control TINT (`Slider`/`Toggle`/`.tint`) — the switch that is on, the fader
+    //     that is being dragged; those ARE "active state", which the sentence above names;
+    //   · an ON/OFF foreground on a toggling glyph (grid on, chord-stamp armed);
+    //   · a SIGNAL BAR or meter fill (`liveBar`, `signalBar`, `EchoelValueField`'s fader) —
+    //     the value itself, which is what the colour is reserved FOR;
+    //   · a row-label colour inside a system `List`/`Form` (`EchoelFXView`'s
+    //     "Save current sound…", "Add bio modulation…"). In a list, colour is the ONLY
+    //     affordance that a row is tappable — repainting those to `.text` would obey the
+    //     rule's letter and cost five actions their handle, which is the same failure the
+    //     `EchoelValueField` "READ THE WORD NUMERIC" note in CLAUDE.md warns about.
+    //
+    // ⛔ THE AUDIT FINDING THIS PARAGRAPH ANSWERS WAS MOSTLY WRONG, and that is the point of
+    // writing it down. #364 was filed as "bio-green used as page chrome" from a grep of 113
+    // `accent` call sites. Reading the CONTAINERS, nearly all of them are the sanctioned
+    // cases above. The literal violation — solid green behind a label, on a reachable
+    // surface — was exactly ONE: `EchoelNumberPad`'s OK key, now `.text` (the other,
+    // `ProUnlockView`'s purchase button, is deliberately doorless until v1.1 and is left
+    // alone). Grepping a token and grepping its MEANING are different jobs; the first one
+    // produced a plan to repaint an app that was already following its own rule.
     static let accent  = Color(red: 0.30, green: 0.85, blue: 0.55)            // bio-green (signal only)
     static let onPrimary = Color.black                                         // label on a `.text`-filled button
     static let danger  = Color(red: 0.90, green: 0.30, blue: 0.30)
