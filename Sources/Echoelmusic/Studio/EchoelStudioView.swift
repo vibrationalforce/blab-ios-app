@@ -2618,7 +2618,7 @@ struct EchoelStudioView: View {
     @ViewBuilder
     private func weatherMixGroup(_ title: String, params: [WeatherMood.Param]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.dim)
+            groupHeader(title)
             ForEach(params) { param in
                 // The commit hook pushes the take patch again, so the WARMTH fader is audible
                 // while you move it instead of at the next generate. It fires for the image
@@ -3099,7 +3099,7 @@ struct EchoelStudioView: View {
             // is why it is a `Group` and not a `VStack`: a stack would impose its own spacing
             // and silently re-space three rows that were fine.
             Group {
-                Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+                groupHeader("Look")
                 // `false`: this panel's visual is `FloatingVisualWindow`, which never reads
                 // `spectralDonuts` — so claiming donut state here is a claim about another surface.
                 visualLookStrip(showsDonutState: false)
@@ -3144,7 +3144,7 @@ struct EchoelStudioView: View {
     /// the first.
     private var signalSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Signal").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            groupHeader("Signal")
             AnalysisScopeView(reduceMotion: reduceMotion)
             Text("The master output, triggered on a rising edge so a steady tone stands still. It shows what is actually heard — timbre, overtones and the reverb tail — not the note grid.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -3158,7 +3158,7 @@ struct EchoelStudioView: View {
             // tenth child of `visualPanel` — see the ⚠️ note above about the ten-child
             // ViewBuilder cap — but it gets its OWN heading, because a heart-rate picture
             // filed under "Signal" would read as another audio meter.
-            Text("Body").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            groupHeader("Body")
             AnalysisPoincareView()
             Text("Each heartbeat interval against the next one — the standard Poincaré plot. Spread ACROSS the diagonal (SD1) is beat-to-beat change, spread ALONG it (SD2) is the slower drift; the ellipse is those two numbers drawn. Descriptive statistics for self-observation, not a diagnosis.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -3184,10 +3184,12 @@ struct EchoelStudioView: View {
             // Typography copied from "Look" EXACTLY, and that is the whole fix: at 13 pt in
             // `EchoelTheme.text` this sat one point under the panel title in the same
             // colour, so on device it read as a SECOND panel title rather than a peer of the
-            // 10 pt dim heading it was supposed to pair with. Two headings that claim to be
-            // siblings must look like siblings.
-            Text("Voice").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-                .padding(.top, 4)
+            // dim heading it was supposed to pair with. Two headings that claim to be
+            // siblings must look like siblings. (#362 took that from "copy the spelling" to
+            // "share the builder" — both now call `groupHeader`, so they cannot drift apart
+            // again. The size named here was "10 pt"; it is 11 now, and the point of routing
+            // it through one helper is that this sentence never has to carry a number.)
+            groupHeader("Voice")
             Text("What your fingers sound like on the field. Take sound follows the generated music; pick a patch to give the field its own voice.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -3256,8 +3258,7 @@ struct EchoelStudioView: View {
     /// used to be written out as "seven" here and in `fieldSelfPlayFields`; #253 A7 made both
     /// wrong, and a number in a comment is either maintained or deleted.)
     @ViewBuilder private var fieldSelfPlaySection: some View {
-        Text("Self-play").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-            .padding(.top, 4)
+        groupHeader("Self-play")
         // Says what it does AND what it does not, in the user's own terms. The hand-wins rule
         // is the one thing a player must know before switching this on, because without it
         // "the field plays itself" reads as "the field takes over".
@@ -3902,7 +3903,7 @@ struct EchoelStudioView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 8) {
                     // Pick the visual LOOK (engine), then the scene preset (parameters).
-                    Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+                    groupHeader("Look")
                     // `true`: this overlay IS inside the cover that builds `SpectralDonutView`, and
                     // its top bar still toggles donut mode — here the state is real and worth naming.
                     visualLookStrip(showsDonutState: true)
@@ -4629,6 +4630,30 @@ struct EchoelStudioView: View {
                          onChange: { applySoundLive() })
     }
 
+    /// THE section heading — the only one. Every "a group of rows starts here" label in this
+    /// view goes through here, whichever panel it is in.
+    ///
+    /// ⛔ IT WAS THREE TREATMENTS, ONE PER PANEL FAMILY (#362), and the incoherence was
+    /// invisible to every per-file review because each panel was internally consistent. The
+    /// Sound panel used this helper (11 pt semibold, dim); the Visual, Bio and Field panels
+    /// spelled `font(10, .medium)` + `dim` inline; the Session panel's weather groups spelled
+    /// `font(12, .semibold)` + `dim`. Three sizes and three weights for one job, reachable in
+    /// three taps of the same chip strip.
+    ///
+    /// WHY 11 pt SEMIBOLD WON, rather than averaging: it was already the most-used (seven
+    /// call sites in `soundPanel` against five and two), and — the deciding half — `.semibold`
+    /// is one of the four weights `EchoelTheme.font` actually maps to the Bold face. `.medium`
+    /// is NOT: the app ships Regular, Bold and Italic only, so `font(10, .medium)` rendered as
+    /// 10 pt REGULAR (#361). The Field panel's own comment below already recorded the symptom —
+    /// a heading that "read as a second panel title rather than a peer" — without naming the
+    /// cause. Picking the treatment that renders what it says removes a class of bug, not just
+    /// a difference.
+    ///
+    /// ⚠️ NOT A ROW LABEL. `Text("Motion")`/`"Rhythm"`/`"Grid"` sit in an `HStack` beside a
+    /// `Picker` and are LABELS; the `maxWidth: .infinity` here would push their picker off the
+    /// row. My own first pass at #362 counted them among the "five heading treatments" — they
+    /// are a separate question (they read 12 pt against `EchoelValueField`'s 14 pt label two
+    /// rows up), and mixing the two would have produced a visibly broken panel.
     private func groupHeader(_ t: String) -> some View {
         Text(t).font(EchoelTheme.font(11, .semibold)).foregroundStyle(EchoelTheme.dim)
             .frame(maxWidth: .infinity, alignment: .leading)
