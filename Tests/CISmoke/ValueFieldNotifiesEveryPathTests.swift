@@ -97,10 +97,20 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     }
 
     /// A swipe at a range EDGE must notify nobody either — `apply` clamps, so the value is
-    /// unchanged, and two of `EchoelStudioView`'s ten `onChange` closures are destructive with an
-    /// unchanged value: `visualPresetID = ""` (4 rows) clears the user's chosen visual look and is
-    /// `@AppStorage`, so the loss survives the launch; `applyArticulation()` re-derives A/D/S/R
-    /// from the macro. Swiping past the top must not undo work.
+    /// unchanged, and `EchoelStudioView` has an `onChange` closure that is destructive with an
+    /// unchanged value: `applyArticulation()` re-derives A/D/S/R from the macro. Swiping past the
+    /// top must not undo work.
+    ///
+    /// It was TWO until #379. The other was `visualPresetID = ""` on the four visual energy rows —
+    /// an `@AppStorage` key, so that loss survived the launch. Those rows now go through
+    /// `visualPresetDiverged()`, which takes the cleared id into a memo and hands it straight back
+    /// when the four values still match the preset, so a write that moved nothing is a no-op by
+    /// CONSTRUCTION rather than by this guard. Pinned by `PresetSurvivesACancelledDragTests`.
+    ///
+    /// ⚠️ THAT IS A DIFFERENT KIND OF CLAIM FROM THE ONE RETRACTED BELOW, and the difference is
+    /// the point. The retraction was an ARGUMENT about `applyArticulation()` that source read
+    /// refuted. This is a changed code path with its own guard file. Do not read "the count went
+    /// from two to one" as the same mistake happening again — check which one you are looking at.
     ///
     /// ⛔ I CHANGED THAT "TWO" TO "ONE" AND HAD TO CHANGE IT BACK ONE COMMIT LATER — the retraction
     /// is the mistake worth recording, not the original. My argument was that `applyArticulation()`

@@ -699,6 +699,22 @@ struct EchoelStudioView: View {
     /// colour, so the science-first palette is always one tap away.
     @AppStorage("visual.preset") private var visualPresetID = "vapor"
 
+    /// #379 — what the last energy edit CLEARED out of `visualPresetID`, so an edit that
+    /// puts the numbers back can put the chip back. Deliberately NOT persisted: it only
+    /// has to survive one edit chain, and a memo that outlived a launch would restore a
+    /// selection whose values `onAppear` never re-applied.
+    ///
+    /// WHY A MEMO AND NOT A GUARD. `visualEnergy` already guarded its clear on "did anything
+    /// actually move", which covers a no-op write (a clamped drag at a range end, a VoiceOver
+    /// adjust past the bound) — but not the case #379 is about. A CANCELLED drag does move the
+    /// value first, so the chip is already gone by the time #378's revert puts the number back;
+    /// there is nothing left to guard, only something to restore. And since #378 that loss has
+    /// no symptom: the numbers read exactly as before while the one piece of visual state that
+    /// survives relaunch is gone. For an installation setup that is the worst shape a bug can
+    /// have. (`visualPresetID` is the ONLY thing `onAppear` re-applies — the four energy values
+    /// are not persisted individually.)
+    @State private var clearedVisualPresetID = ""
+
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
 
     /// The instrument's current tonic frequency (Hz) at the chosen Kammerton — fed to
@@ -3665,8 +3681,13 @@ struct EchoelStudioView: View {
                         // nicht mehr weg" — the Blend strip already toggles this way,
                         // the Preset strip was the one selection that never cleared.
                         Button {
-                            if selected { visualPresetID = "" }
-                            else { applyVisualPreset(preset) }
+                            if selected {
+                                visualPresetID = ""
+                                // #379 — a DELIBERATE deselect must not be undoable by a later
+                                // cancelled drag. `visualPresetDiverged` restores whatever it
+                                // itself cleared; this clear is the user's, so it leaves no memo.
+                                clearedVisualPresetID = ""
+                            } else { applyVisualPreset(preset) }
                         } label: {
                             Text(preset.name)
                                 .font(EchoelTheme.font(12))
@@ -4005,6 +4026,50 @@ struct EchoelStudioView: View {
         if let h = p.hue { visualHue = Double(h) }
         if let s = p.saturation { visualSaturation = Double(s) }
         visualPresetID = p.id
+        // A fresh pick has nothing to restore — forget whatever an earlier edit cleared,
+        // or a later cancelled drag could resurrect the PREVIOUS chip over this one.
+        clearedVisualPresetID = ""
+    }
+
+    /// Called by every control that moves one of the four ENERGY values a preset owns
+    /// (Intensity · Detail · Motion · Spread — and the Energy macro that writes two of them).
+    /// Hue/Saturation deliberately do not call it: they are palette-only and leave the
+    /// selection intact, which is the rule `visualAdjustFields` already documented.
+    ///
+    /// ONE rule, both directions: moving away from the selected preset clears the chip and
+    /// remembers it; landing back on exactly that preset's four values restores it. Written
+    /// as clear-then-try-restore rather than as two branches, because that makes a write that
+    /// changed NOTHING a provable no-op — the memo is taken and immediately given back — which
+    /// is the case `visualEnergy`'s `if changed` guard used to cover on its own.
+    ///
+    /// "Exactly" means the field's own 4-decimal display grid, not `==` on the raw Double, and
+    /// that is the difference between the fix working and looking like it works. A preset
+    /// writes `Double(Float)` — Aura's intensity lands on 0.800000011920929 — while every path
+    /// through `EchoelValueField.apply` snaps to the grid and produces a clean 0.8. Raw
+    /// equality would restore the chip after a CANCELLED drag (which puts the captured start
+    /// value back bit-for-bit) but never after the user typed the same number back in, for a
+    /// difference of one part in 10^8 that no display in the app can show.
+    private func visualPresetDiverged() {
+        if !visualPresetID.isEmpty { clearedVisualPresetID = visualPresetID }
+        visualPresetID = ""
+        guard let p = VisualPreset.factory.first(where: { $0.id == clearedVisualPresetID })
+        else { return }
+        // NaN cannot survive `rounded()` into an equality, so a poisoned value simply fails
+        // to restore rather than matching something.
+        guard sameOnDisplayGrid(visualIntensity, Double(p.intensity)),
+              sameOnDisplayGrid(visualDetail, Double(p.detail)),
+              sameOnDisplayGrid(visualMotion, Double(p.motion)),
+              sameOnDisplayGrid(visualSpread, Double(p.spread))
+        else { return }
+        visualPresetID = clearedVisualPresetID
+        clearedVisualPresetID = ""
+    }
+
+    /// Equal as far as any of these rows can SHOW — `EchoelValueField`'s default `decimals: 4`.
+    /// Detail's row is `decimals: 0`, i.e. a coarser grid, so comparing all four at 4 places is
+    /// the stricter test for it, never the looser one.
+    private func sameOnDisplayGrid(_ a: Double, _ b: Double) -> Bool {
+        (a * 10_000).rounded() == (b * 10_000).rounded()
     }
 
     /// #228 — THE ONE VISUAL CONTROL ("ein Bedienelement statt neun Reglern").
@@ -4026,16 +4091,18 @@ struct EchoelStudioView: View {
             get: { VisualEnergy.position(matching: visualIntensity, motion: visualMotion) },
             set: { t in
                 let l = VisualEnergy.look(at: t)
-                let changed = l.intensity != visualIntensity || l.motion != visualMotion
                 visualIntensity = l.intensity
                 visualMotion = l.motion
                 // Moving Energy diverges from whatever preset was tapped — same rule the
-                // individual energy fields already followed. GUARDED on an actual change,
-                // because `EchoelValueField.apply` writes its binding unconditionally after
-                // clamping: at the 0 or 1 end of the range a further drag (or a VoiceOver
-                // adjust) re-writes the same values, and an unguarded clear would drop the
-                // user's preset selection although nothing moved.
-                if changed { visualPresetID = "" }
+                // individual energy fields follow, and since #379 the same CALL. The
+                // `if changed` guard that stood here is folded into `visualPresetDiverged`,
+                // which is a no-op for a write that moved nothing (it takes the memo and
+                // gives it straight back) — the case that mattered, because
+                // `EchoelValueField.apply` writes its binding unconditionally after clamping,
+                // so a drag or VoiceOver adjust at either end of the range re-writes the same
+                // two values. What the old guard could NOT do is undo a clear that had already
+                // happened, which is the cancelled drag #379 is about.
+                visualPresetDiverged()
             }
         )
     }
@@ -4086,9 +4153,9 @@ struct EchoelStudioView: View {
         .accessibilityHint("Shows or hides the individual visual parameters")
         if showVisualFineTune {
             EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                             onChange: { visualPresetID = "" })
+                             onChange: { visualPresetDiverged() })
             EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
-                             onChange: { visualPresetID = "" })
+                             onChange: { visualPresetDiverged() })
             // #269 — Detail only reaches the Metal field through the Rings look, and Rings is
             // not in the shipped look set. Say so instead of letting the row read as broken.
             //
@@ -4118,9 +4185,9 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
-                             onChange: { visualPresetID = "" })
+                             onChange: { visualPresetDiverged() })
             EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
-                             onChange: { visualPresetID = "" })
+                             onChange: { visualPresetDiverged() })
             EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
             EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
         }

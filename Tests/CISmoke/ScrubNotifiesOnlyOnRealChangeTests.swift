@@ -12,8 +12,11 @@
 //    the field can show. The drag produces those deltas for as long as the finger moves.
 //  • AT A RANGE EDGE. A field already at its bound, dragged further that way, clamps.
 //
-// What ran anyway is not cosmetic. Of the ten `onChange` sites, `visualPresetID = ""` (4×) drops
+// What ran anyway is not cosmetic. Of the ten `onChange` sites, `visualPresetID = ""` (4×) dropped
 // the user's chosen visual look and `applyArticulation()` (1×) overwrites hand-tuned A/D/S/R.
+// (PAST TENSE for the first one since #379: those four rows call `visualPresetDiverged()`, which
+// restores the chip when the values land back on the preset — so the cancelled-drag case this file
+// created is closed at the OWNER, where it belonged. `applyArticulation()` is unchanged.)
 // Of the four `onCommit` sites, `moodKnob` commits `recomposeIfRunning()` — so a drag that moved
 // nothing RE-ROLLED THE COMPOSITION whenever the transport was running (the method name carries
 // that condition and an earlier draft of this line dropped it). A mood knob parked at 0 and
