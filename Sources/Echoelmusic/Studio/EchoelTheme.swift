@@ -145,6 +145,35 @@ enum EchoelTheme {
     // weight from the family — the correct face must be named explicitly). Falls
     // back to the system font automatically if the resource is ever missing.
     static let fontFamily = "Atkinson Hyperlegible"
+
+    /// ⭐ THIS PARAMETER HAS EXACTLY TWO OUTCOMES, not nine (#361). `Font.Weight` offers
+    /// ultraLight · thin · light · regular · medium · semibold · bold · heavy · black; the
+    /// switch below folds four of them onto the Bold face and EVERYTHING ELSE onto Regular.
+    /// A custom font does not synthesize an intermediate weight from the family — the face
+    /// has to be named, and this app bundles three faces (Regular, Bold, Italic;
+    /// `Resources/iOS/Info.plist` `UIAppFonts`). So a weight with no face is not "a bit
+    /// lighter than bold", it is byte-identical to writing nothing at all.
+    ///
+    /// ⛔ 62 CALL SITES WROTE `.medium` AND GOT REGULAR. Every one of them was a design
+    /// intention — a row label meant to sit a step above its value, a chip meant to read
+    /// slightly firmer — that never reached the screen, in an interface where the same file
+    /// often had a `.semibold` sibling two lines away. Nobody could see the bug by looking at
+    /// the app, because there was nothing to see: the difference the source asked for was
+    /// simply absent. They are now spelled without a weight, which renders identically and
+    /// says what actually happens. The ONE ternary among them
+    /// (`isOn ? .semibold : .medium`) became `isOn ? .semibold : .regular` — there the
+    /// contrast between the two branches was always Bold-vs-Regular.
+    ///
+    /// ⚠️ `.font(.system(size:weight: .medium))` IS NOT THIS BUG and must not be "cleaned up"
+    /// with it: SF ships a real medium and renders it. Those sites are a separate question
+    /// (they use the system face instead of the brand one at all); do not conflate the two.
+    ///
+    /// ⚠️ WHY THE SIGNATURE STILL TAKES `Font.Weight` rather than a two-case enum that could
+    /// not express the mistake: that is the stronger fix and it touches every call site in
+    /// the app including the ~80 correct ones, with no local compiler to catch a slip. The
+    /// guard (`Tests/CISmoke/TypeWeightsThatExistTests.swift`) buys the same protection for
+    /// the price of a source scan. If a future pass has a reason to open all of these files
+    /// anyway, take the type then.
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         let face: String
         switch weight {

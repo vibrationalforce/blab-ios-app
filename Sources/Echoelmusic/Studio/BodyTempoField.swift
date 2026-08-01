@@ -103,7 +103,7 @@ struct BodyTempoField: View {
                 // Following: the number runs along with the live biofeedback rate.
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("Tempo")
-                        .font(EchoelTheme.font(13, .medium))
+                        .font(EchoelTheme.font(13))
                         .foregroundStyle(EchoelTheme.text)
                     Spacer(minLength: 8)
                     Text(followingText)

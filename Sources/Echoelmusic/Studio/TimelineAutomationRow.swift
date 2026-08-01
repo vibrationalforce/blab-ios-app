@@ -212,7 +212,7 @@ struct TimelineAutomationHeadCell: View {
                         .font(.system(size: 8, weight: .semibold))
                         .foregroundStyle(EchoelTheme.dim)
                     Text(current?.displayName ?? "Automation")
-                        .font(EchoelTheme.font(10, .medium))
+                        .font(EchoelTheme.font(10))
                         .foregroundStyle(EchoelTheme.text)
                         .lineLimit(1)
                     Spacer(minLength: 0)

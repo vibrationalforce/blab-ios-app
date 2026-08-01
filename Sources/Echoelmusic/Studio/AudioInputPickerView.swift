@@ -160,7 +160,7 @@ struct AudioInputPickerView: View {
                     .foregroundStyle(EchoelTheme.dim).frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(input.name)
-                        .font(EchoelTheme.font(14, .medium)).foregroundStyle(EchoelTheme.text)
+                        .font(EchoelTheme.font(14)).foregroundStyle(EchoelTheme.text)
                     Text(input.latency.advice)
                         .font(EchoelTheme.font(11)).foregroundStyle(color(for: input.latency))
                         .fixedSize(horizontal: false, vertical: true)

@@ -172,7 +172,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
             } else {
                 HStack(spacing: 12) {
                     Text(label)
-                        .font(EchoelTheme.font(14, .medium))
+                        .font(EchoelTheme.font(14))
                         .foregroundStyle(EchoelTheme.text)
                         .lineLimit(1).minimumScaleFactor(0.7)
                     Spacer(minLength: 8)
@@ -245,7 +245,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
 
                 if !unitLabel.isEmpty {
                     Text(unitLabel)
-                        .font(EchoelTheme.font(13, .medium))
+                        .font(EchoelTheme.font(13))
                         .foregroundStyle(EchoelTheme.dim)
                         .lineLimit(1)
                         .accessibilityHidden(true)

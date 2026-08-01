@@ -91,7 +91,7 @@ struct SessionView: View {
                         Image(systemName: "slider.horizontal.3")
                             .font(.system(size: 12, weight: .semibold))
                         Text("Studio")
-                            .font(EchoelTheme.font(13, .medium))
+                            .font(EchoelTheme.font(13))
                     }
                     .foregroundStyle(EchoelTheme.dim)
                     .padding(.horizontal, 10)

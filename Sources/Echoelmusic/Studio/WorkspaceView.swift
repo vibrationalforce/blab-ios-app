@@ -710,7 +710,7 @@ private struct TransportPositionView: View {
             }
             VStack(alignment: .trailing, spacing: 1) {
                 Text(String(format: "%d.%d.%d", barInLoop + 1, pos.beat + 1, sixteenth + 1))
-                    .font(EchoelTheme.font(14, .medium).monospacedDigit())
+                    .font(EchoelTheme.font(14).monospacedDigit())
                     .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
                 Text("loop \(barInLoop + 1)/\(bars)")
                     .font(EchoelTheme.font(10).monospacedDigit())
@@ -930,7 +930,7 @@ struct CompositionHeaderStrip: View {
                                         @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 4) {
             Text(caption)
-                .font(EchoelTheme.font(11, .medium))
+                .font(EchoelTheme.font(11))
                 .foregroundStyle(EchoelTheme.dim)
             content()
         }
@@ -1019,7 +1019,7 @@ private struct SessionNamePreviewLeaf: View {
             // width jitter next to the strip's Pickers (layout wobble, not a
             // freeze — but visible). Fixed-width digits keep the row still.
             Text(readableFields.joined(separator: "  ·  "))
-                .font(EchoelTheme.font(13, .medium).monospacedDigit())
+                .font(EchoelTheme.font(13).monospacedDigit())
                 .foregroundStyle(EchoelTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
             // The exact export/save filename, kept for reference but de-emphasised.

@@ -82,7 +82,7 @@ struct ImmersiveStageView: View {
             }
             Spacer()
             Button("Done") { dismiss() }
-                .font(EchoelTheme.font(13, .medium))
+                .font(EchoelTheme.font(13))
                 .foregroundStyle(EchoelTheme.text)
                 .buttonStyle(.plain)
         }
@@ -137,7 +137,7 @@ struct ImmersiveStageView: View {
 
     private func orientationLabel(_ text: String, x: CGFloat, y: CGFloat) -> some View {
         Text(text)
-            .font(EchoelTheme.font(10, .medium))
+            .font(EchoelTheme.font(10))
             .foregroundStyle(EchoelTheme.dim)
             .position(x: x, y: y)
     }
@@ -189,7 +189,7 @@ struct ImmersiveStageView: View {
                     .foregroundStyle(highlighted ? EchoelTheme.onPrimary : EchoelTheme.text)
             }
             Text(lane.name)
-                .font(EchoelTheme.font(10, .medium))
+                .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.text)
                 .lineLimit(1)
                 .fixedSize()
@@ -230,7 +230,7 @@ struct ImmersiveStageView: View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(isOn: $sender.streamsScene) {
                 Text("Stream to renderer (ADM-OSC)")
-                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("Sends every track's spatial position to an external immersive renderer over the open ADM-OSC standard.")

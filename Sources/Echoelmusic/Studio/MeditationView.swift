@@ -78,14 +78,14 @@ struct MeditationView: View {
                 .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Duration").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                Text("Duration").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                 Picker("Duration", selection: $minutes) {
                     ForEach(Self.durations, id: \.self) { Text("\($0) min").tag($0) }
                 }.pickerStyle(.segmented)
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Breathing").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                Text("Breathing").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                 Picker("Breathing pattern", selection: patternSelection) {
                     ForEach(BreathPattern.curated) { Text($0.name).tag($0.id) }
                 }.pickerStyle(.segmented)
@@ -182,7 +182,7 @@ struct MeditationView: View {
                 // for the positive branch; a negative number already carries its own "-".
                 Label("\(up ? "+" : "")\(EchoelDecimalText.string(trend, decimals: 2)) coherence",
                       systemImage: up ? "arrow.up.right" : "arrow.down.right")
-                    .font(EchoelTheme.font(12, .medium))
+                    .font(EchoelTheme.font(12))
                     .foregroundStyle(up ? EchoelTheme.accent : EchoelTheme.dim)
                     .accessibilityLabel("coherence trend \(up ? "up" : "down") "
                                         + EchoelDecimalText.string(abs(trend), decimals: 2))
@@ -196,7 +196,7 @@ struct MeditationView: View {
 
     private var historyList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Recent sessions").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            Text("Recent sessions").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             ForEach(recorder.sessions.prefix(5)) { s in
                 HStack {
                     Text(s.date, format: .dateTime.month().day().hour().minute())
@@ -204,7 +204,7 @@ struct MeditationView: View {
                     Spacer()
                     Text(timeString(s.durationSeconds)).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     Text(verbatim: "coh " + EchoelDecimalText.string(s.avgCoherence, decimals: 2))
-                        .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.accent)
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.accent)
                         .frame(width: 72, alignment: .trailing)
                 }
                 .padding(.vertical, 6).padding(.horizontal, 10)

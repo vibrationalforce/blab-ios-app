@@ -76,7 +76,7 @@ private struct MiniTransportView: View {
                     .frame(width: 34 * max(0.02, loopFraction), height: 3)
             }
             Text(String(format: "%d.%d.%d", barInLoop + 1, pos.beat + 1, sixteenth + 1))
-                .font(EchoelTheme.font(10, .medium).monospacedDigit())
+                .font(EchoelTheme.font(10).monospacedDigit())
                 .foregroundStyle(.white)
             Text("\(barInLoop + 1)/\(bars)")
                 .font(EchoelTheme.font(9).monospacedDigit())
@@ -636,7 +636,7 @@ struct FloatingVisualWindow: View {
                     Image(systemName: "tv")
                         .font(.system(size: 22, weight: .regular))
                     Text("On external screen")
-                        .font(EchoelTheme.font(12, .medium))
+                        .font(EchoelTheme.font(12))
                 }
                 .foregroundStyle(EchoelTheme.dim)
             }
@@ -1238,7 +1238,7 @@ private struct InstrumentHintOverlay: View {
                           systemImage: "camera")
                     Label("Touch the image to play notes", systemImage: "hand.point.up.left")
                 }
-                .font(EchoelTheme.font(13, .medium))
+                .font(EchoelTheme.font(13))
                 .foregroundStyle(.white.opacity(0.92))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 11)

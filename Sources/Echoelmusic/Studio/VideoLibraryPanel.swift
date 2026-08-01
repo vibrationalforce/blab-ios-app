@@ -49,7 +49,7 @@ struct VideoLibraryPanelContent: View {
                 HStack(spacing: 8) {
                     Image(systemName: "record.circle")
                     Text("Record in the visual window")
-                        .font(EchoelTheme.font(13, .medium))
+                        .font(EchoelTheme.font(13))
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)

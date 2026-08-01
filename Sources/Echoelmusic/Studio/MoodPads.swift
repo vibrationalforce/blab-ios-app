@@ -39,7 +39,7 @@ struct MoodXYPad: View {
     var body: some View {
         VStack(spacing: 6) {
             Text(title)
-                .font(EchoelTheme.font(12, .medium))
+                .font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.text)
             GeometryReader { geo in
                 let w = max(1, geo.size.width)

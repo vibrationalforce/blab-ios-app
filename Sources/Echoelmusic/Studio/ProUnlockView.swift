@@ -116,7 +116,7 @@ struct ProUnlockView: View {
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(EchoelTheme.font(13, .medium))
+                    .font(EchoelTheme.font(13))
                     .foregroundStyle(EchoelTheme.text)
                 Text(detail)
                     .font(EchoelTheme.font(11))

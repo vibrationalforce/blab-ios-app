@@ -108,11 +108,11 @@ struct BioSourceView: View {
 
     private var routingSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Routing").font(EchoelTheme.font(11, .medium)).foregroundStyle(EchoelTheme.dim)
+            Text("Routing").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             Toggle(isOn: Binding(get: { synth.bioModulationEnabled },
                                  set: { synth.bioModulationEnabled = $0 })) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Body → sound").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    Text("Body → sound").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                     Text("HRV and pulse shape the synth timbre while you play")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
@@ -122,7 +122,7 @@ struct BioSourceView: View {
             Toggle(isOn: Binding(get: { synth.bioMappingHarmonic },
                                  set: { synth.bioMappingHarmonic = $0 })) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Harmonic mapping").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    Text("Harmonic mapping").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                     Text("The body drives the overtones directly — HRV opens the harmonic richness, breath swells the amplitude")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
@@ -151,14 +151,14 @@ struct BioSourceView: View {
             Toggle(isOn: Binding(get: { synth.entrainmentEnabled },
                                  set: { synth.entrainmentEnabled = $0 })) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Entrainment").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    Text("Entrainment").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                     Text("Body-driven brainwave stimulus (isochronic)")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
             }
             .tint(EchoelTheme.accent)
 
-            Text("Band").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            Text("Band").font(EchoelTheme.font(10)).foregroundStyle(EchoelTheme.dim)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     bandChip("Auto", nil)
@@ -173,7 +173,7 @@ struct BioSourceView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Text("Safety: not while driving or operating machinery; not under the influence of alcohol or drugs; coordinate any therapeutic use with your provider. For self-observation, not medical diagnosis. Max 3 Hz visual flash.")
-                .font(EchoelTheme.font(11, .medium)).foregroundStyle(.orange)
+                .font(EchoelTheme.font(11)).foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
@@ -203,7 +203,7 @@ struct BioSourceView: View {
         Button { showBreath = true } label: {
             HStack(spacing: 10) {
                 Image(systemName: "wind").font(.system(size: 14))
-                Text("Breath guide").font(EchoelTheme.font(13, .medium))
+                Text("Breath guide").font(EchoelTheme.font(13))
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
             }

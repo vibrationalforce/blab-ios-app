@@ -68,7 +68,7 @@ struct EchoelNumberPad: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(EchoelTheme.font(13, .medium))
+                .font(EchoelTheme.font(13))
                 .foregroundStyle(EchoelTheme.dim)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(displayString)
@@ -77,7 +77,7 @@ struct EchoelNumberPad: View {
                     .lineLimit(1).minimumScaleFactor(0.5)
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(EchoelTheme.font(15, .medium))
+                        .font(EchoelTheme.font(15))
                         .foregroundStyle(EchoelTheme.dim)
                 }
                 Spacer(minLength: 0)
@@ -123,7 +123,7 @@ struct EchoelNumberPad: View {
 
     private func digit(_ d: String) -> some View {
         keyButton(action: { append(d) }) {
-            Text(d).font(EchoelTheme.font(22, .medium)).foregroundStyle(EchoelTheme.text)
+            Text(d).font(EchoelTheme.font(22)).foregroundStyle(EchoelTheme.text)
         }
     }
 
@@ -144,7 +144,7 @@ struct EchoelNumberPad: View {
     /// as "0,50", and the parser must not have to guess.
     private var decimalKey: some View {
         keyButton(action: { appendDecimal() }, enabled: allowsDecimal) {
-            Text(EchoelDecimalText.separator()).font(EchoelTheme.font(22, .medium))
+            Text(EchoelDecimalText.separator()).font(EchoelTheme.font(22))
                 .foregroundStyle(allowsDecimal ? EchoelTheme.text : EchoelTheme.dim.opacity(0.4))
         }
         // A bare separator glyph is announced by VoiceOver as its punctuation name, or —

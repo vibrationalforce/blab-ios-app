@@ -2131,7 +2131,7 @@ struct EchoelStudioView: View {
                 scheduleRebalance()
             } label: {
                 Text("Reset generated parts to genre balance")
-                    .font(EchoelTheme.font(12, .medium))
+                    .font(EchoelTheme.font(12))
                     .foregroundStyle(EchoelTheme.accent)
             }
             .buttonStyle(.plain)
@@ -2360,7 +2360,7 @@ struct EchoelStudioView: View {
                 }
                 .frame(height: 6)
                 Text("\(pct)%")
-                    .font(EchoelTheme.font(12, isOn ? .semibold : .medium))
+                    .font(EchoelTheme.font(12, isOn ? .semibold : .regular))
                     .foregroundStyle(EchoelTheme.text)
                     .frame(width: 40, alignment: .trailing)
                 Image(systemName: isOn ? "checkmark.circle.fill" : "play.circle")
@@ -2447,7 +2447,7 @@ struct EchoelStudioView: View {
         return VStack(alignment: .leading, spacing: 4) {
             Toggle(isOn: $locationNamer.enabled) {
                 Text("Place in session name")
-                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("Stamps your city into session and export names. Used only for the city name and, if you enable weather, an Apple Weather lookup — never stored by Echoel.")
@@ -2535,7 +2535,7 @@ struct EchoelStudioView: View {
                 // "the music" undersold it by exactly half: the visual half is wired
                 // too (hue · saturation · glow · movement, read in FloatingVisualWindow).
                 Text("Weather shapes the music and the image")
-                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("One coarse weather lookup per session flavours sound and image. Each influence has its own intensity — mix it in or out. The body stays the main driver.")
@@ -2548,7 +2548,7 @@ struct EchoelStudioView: View {
                 if !locationNamer.enabled {
                     Button { turnLocationOnForWeather() } label: {
                         Text("Weather needs a coarse location — turn on \"Place in session name\"")
-                            .font(EchoelTheme.font(11, .medium))
+                            .font(EchoelTheme.font(11))
                             .foregroundStyle(EchoelTheme.accent)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
@@ -2846,7 +2846,7 @@ struct EchoelStudioView: View {
         @Bindable var metronome = metronome
         return VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $metronome.enabled) {
-                Text("Metronome (click)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                Text("Metronome (click)").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("A steady click at the current tempo to play in time")
@@ -2871,7 +2871,7 @@ struct EchoelStudioView: View {
     @ViewBuilder private var hapticsRow: some View {
         @Bindable var haptics = haptics
         Toggle(isOn: $haptics.isEnabled) {
-            Text("Haptic beat (feel)").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            Text("Haptic beat (feel)").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
         }
         .tint(EchoelTheme.accent)
         .accessibilityHint("Pulses the phone on each quarter-note so you can keep time eyes-free")
@@ -2896,7 +2896,7 @@ struct EchoelStudioView: View {
                 }
             } label: {
                 Label("Tap tempo", systemImage: "hand.tap")
-                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                     .frame(maxWidth: .infinity).frame(height: 40)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
@@ -2960,7 +2960,7 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
                 Button("Reset") { audioEngine.resetMastering() }
-                    .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
                     .accessibilityHint("Clear the integrated loudness and peak hold")
             }
 
@@ -2970,7 +2970,7 @@ struct EchoelStudioView: View {
             // The accessibility hint below always said "release"; the label now agrees.
             Button { panicAllNotesOff() } label: {
                 Label("Release all notes", systemImage: "speaker.slash")
-                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                     .frame(maxWidth: .infinity).frame(height: 40)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
@@ -3004,7 +3004,7 @@ struct EchoelStudioView: View {
                                   action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: icon)
-                .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
                 .frame(maxWidth: .infinity).frame(height: 34)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
@@ -3080,7 +3080,7 @@ struct EchoelStudioView: View {
                 HStack(spacing: 8) {
                     Image(systemName: floatingVisualVisible ? "eye.slash" : "eye")
                     Text(floatingVisualVisible ? "Hide visual window" : "Show visual window")
-                        .font(EchoelTheme.font(13, .medium))
+                        .font(EchoelTheme.font(13))
                     Spacer(minLength: 0)
                 }
                 .foregroundStyle(floatingVisualVisible ? EchoelTheme.onPrimary : EchoelTheme.text)
@@ -3592,7 +3592,7 @@ struct EchoelStudioView: View {
     private func touchPatchChip(name: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(name)
-                .font(EchoelTheme.font(12, .medium))
+                .font(EchoelTheme.font(12))
                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
                 .padding(.horizontal, 11).frame(height: 30)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -3621,7 +3621,7 @@ struct EchoelStudioView: View {
     /// hands-on play); a manual slider tweak clears the selection back to custom.
     private var visualPresetRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Preset").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            Text("Preset").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(VisualPreset.factory) { preset in
@@ -3636,7 +3636,7 @@ struct EchoelStudioView: View {
                             else { applyVisualPreset(preset) }
                         } label: {
                             Text(preset.name)
-                                .font(EchoelTheme.font(12, .medium))
+                                .font(EchoelTheme.font(12))
                                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
                                 .padding(.horizontal, 12).frame(height: 32)
                                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -3726,7 +3726,7 @@ struct EchoelStudioView: View {
             // #227: at a mount that cannot show donuts this names what is actually rendering.
             // The old unconditional ternary printed "Donuts" over a Metal look in the inline panel.
             Text(showsDonutState && spectralDonuts ? "Donuts" : currentLookName)
-                .font(EchoelTheme.font(12, .medium))
+                .font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.dim)
                 .lineLimit(1)
                 .frame(width: 54, alignment: .trailing)
@@ -3764,7 +3764,7 @@ struct EchoelStudioView: View {
                         } label: {
                             HStack(spacing: 5) {
                                 if let pos { Text("\(pos + 1)").font(EchoelTheme.font(10, .bold).monospacedDigit()) }
-                                Text(look.name).font(EchoelTheme.font(12, .medium))
+                                Text(look.name).font(EchoelTheme.font(12))
                             }
                             .foregroundStyle(on ? EchoelTheme.onPrimary : EchoelTheme.text)
                             .padding(.horizontal, 11).frame(height: 30)
@@ -3922,7 +3922,7 @@ struct EchoelStudioView: View {
                     // separate cycle.) Only shown while the panel is open, so it never
                     // appears in the projected image.
                     Label("Project: mirror to a screen via AirPlay", systemImage: "airplayvideo")
-                        .font(EchoelTheme.font(10, .medium))
+                        .font(EchoelTheme.font(10))
                         .foregroundStyle(EchoelTheme.dim)
                         .padding(.top, 2)
                         .accessibilityHint("Use Control Center Screen Mirroring to project this visual")
@@ -5027,7 +5027,7 @@ struct EchoelStudioView: View {
     private func labeledRow<Content: View>(_ label: String,
                                            @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.dim)
+            Text(label).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -5452,7 +5452,7 @@ struct EchoelStudioView: View {
     private var loopLengthSelector: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Loop length (Takt)")
-                .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             Picker("Loop length", selection: $loopBars) {
                 ForEach(LoopBarLength.allCases) { len in
                     Text(len.shortLabel).tag(len)
@@ -7330,7 +7330,7 @@ private struct MusicColourRowView: View {
                 .frame(width: 44, height: 28)
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(EchoelTheme.border, lineWidth: 1))
             VStack(alignment: .leading, spacing: 1) {
-                Text("Music → colour").font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.text)
+                Text("Music → colour").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
                 Text(sounding ? "Live chord, mapped by pitch" : "Plays when the music is sounding")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
@@ -7453,7 +7453,7 @@ private struct SoundPromptRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Describe it")
-                .font(EchoelTheme.font(12, .medium)).foregroundStyle(EchoelTheme.dim)
+                .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     TextField("warm lush pad", text: $text)

@@ -125,7 +125,7 @@ struct LiveColaboView: View {
 
     private var connectedSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Connected").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            Text("Connected").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             ForEach(colab.connectedPeerNames, id: \.self) { name in
                 HStack(spacing: 8) {
                     Image(systemName: "person.fill.checkmark").foregroundStyle(EchoelTheme.accent)
@@ -140,7 +140,7 @@ struct LiveColaboView: View {
 
     private var discoveredSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Nearby").font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+            Text("Nearby").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             if colab.discovered.isEmpty {
                 Text("Searching…").font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
             }
@@ -169,7 +169,7 @@ struct LiveColaboView: View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(isOn: $shareBio.animation(.easeInOut(duration: 0.15))) {
                 Text("Share my pulse (live)")
-                    .font(EchoelTheme.font(13, .medium)).foregroundStyle(EchoelTheme.text)
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("Streams your heart rate and coherence to connected peers while this screen is open. Everyone sees their own numbers side by side.")
@@ -309,7 +309,7 @@ private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool
             .lineLimit(1)
         Spacer(minLength: 8)
         Text(bpm > 0 ? "\(EchoelDecimalText.string(bpm, decimals: 0)) bpm" : "— bpm")
-            .font(EchoelTheme.font(13, .medium).monospacedDigit())
+            .font(EchoelTheme.font(13).monospacedDigit())
             .foregroundStyle(EchoelTheme.text)
         Text(verbatim: coherence > 0
              ? "coh " + EchoelDecimalText.string(coherence, decimals: 2)

@@ -104,7 +104,7 @@ struct BioMetricInfoView: View {
             }
 
             Text(metric.summary)
-                .font(EchoelTheme.font(15, .medium))
+                .font(EchoelTheme.font(15))
                 .foregroundStyle(EchoelTheme.text)
 
             Text(metric.detail)
