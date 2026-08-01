@@ -514,12 +514,18 @@ public final class EngineBus {
     /// unevenly every time. Nothing was wrong with the parse or the queue; the note simply
     /// sat there.
     ///
-    /// ⚠️ IT ALSO DECOUPLES MIDI FROM A HAZARD THAT HAD NOT FIRED YET. That 100 ms loop is
-    /// the BIO loop — the same one `PollingRateCeiling` exists to slow down under thermal or
-    /// battery pressure (up to `slowestInterval`, 5 s). It is not opted in today, but the
-    /// day someone governs the bio loop (which is exactly what it is for) external MIDI
-    /// would silently inherit a multi-second delay. With this hook the note no longer
-    /// depends on that loop's rate at all.
+    /// ⚠️ IT ALSO DECOUPLES MIDI FROM A HAZARD THAT HAD NOT FIRED YET — stated with the
+    /// numbers, because the first version of this paragraph overstated it ~25× and review
+    /// caught it. That 100 ms loop is the BIO loop, and `PollingRateCeiling` exists to slow
+    /// bio loops down under thermal or battery pressure. It is NOT opted in today (the only
+    /// `governedByBioCeiling: true` in `Sources/` is `OSCSender`), and the trigger is
+    /// specifically **adding that argument to `BioReactiveSynthVoice`'s `loop.start`** — not
+    /// "governing the bio loop" in general, which cannot reach this call site as written.
+    /// The cost if it were added: `ResourceGovernor` only ever publishes the four tier
+    /// values in `AdaptiveQuality` — 5, 10, 10, 15 Hz — so the worst SHIPPED ceiling is 5 Hz
+    /// = 200 ms, twice nominal. `slowestInterval` (5 s) needs a ceiling below 0.2 Hz, which
+    /// no tier produces. So: a real hazard, worth removing, but 200 ms and not seconds.
+    /// With this hook the note no longer depends on that loop's rate at all.
     ///
     /// SINGLE-CONSUMER CONTRACT, UNCHANGED and the reason this is a single closure rather
     /// than a broadcast list: only the subscriber that owns the drain may set it, and it
@@ -561,13 +567,37 @@ public final class EngineBus {
     /// matters — a per-event `Task { @MainActor }` flood from a fast source is a shipped
     /// defect of this repo's own (#30, and again in `CameraRPPGBioPublisher`), so the rule is
     /// to reuse an existing hop, never to open one.
+    ///
+    /// ⚠️ AND THE HOP THIS ONE REUSES IS ITSELF THE #30 SHAPE — INHERITED, NOT VETTED. Say it
+    /// here, because the rule one paragraph up will otherwise read as if this Task had been
+    /// examined and approved. It is a Task PER EVENT. It is much less dangerous than #30 was
+    /// (`MIDIInput` already batches a packet burst into ONE main-actor turn, and this enqueue
+    /// therefore already runs ON the main actor, so it is a main→main hop rather than
+    /// cross-actor contention), and its residual cost is one job turn against the 0–100 ms
+    /// #317 removes. FOLLOW-UP, cheaper than #317 was: coalesce the notification to once per
+    /// batch — a pending flag here, or let `MIDIInput.drainIncoming` trigger the drain once
+    /// after its loop. That collapses N tasks to one AND makes the hook non-redundant.
     nonisolated public func publish(controller event: ControllerEvent) {
         controllerEvents.enqueue(event)
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.latestControllerEvent = event
-            // AFTER the snapshot: a consumer that reads `latestControllerEvent` inside its
-            // drain must see this event, not the previous one.
+            // ⛔ THIS LINE'S ORIGINAL COMMENT CLAIMED AN ORDERING GUARANTEE THAT DOES NOT
+            // EXIST, and it is corrected rather than deleted because it is the kind of
+            // sentence a later session would build on. It said "AFTER the snapshot: a
+            // consumer that reads `latestControllerEvent` inside its drain must see this
+            // event". Both halves fail: NO consumer reads that snapshot (its only readers in
+            // the repo are two tests), and the guarantee is undeliverable anyway — for a
+            // burst of N events the FIRST task drains all N while the snapshot still holds
+            // e₁, so e₂…e_N would be applied against a stale one.
+            //
+            // WHAT ACTUALLY KEEPS NOTES CORRECT, and it is worth knowing because
+            // `MIDIInput` (#30) records that separate `Task { @MainActor }`s have no FIFO
+            // guarantee — "a note-off could overtake its note-on → hung note": the drain
+            // consumes the QUEUE, whose order the single producer preserves, and whichever
+            // task runs first drains the whole backlog in order. Task ordering can only
+            // perturb the snapshot, which nothing reads. That is the invariant; the
+            // statement order below is incidental.
             self.onControllerEventEnqueued?()
         }
     }

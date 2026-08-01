@@ -19,7 +19,10 @@
 //   1. the hook is DECLARED and actually INVOKED in `publish(controller:)`. A declared-but
 //      -uncalled hook is the worst outcome: the subscriber installs a closure that never
 //      runs, everything compiles, and the latency quietly comes back.
-//   2. EXACTLY ONE file in `Sources/` assigns it. `controllerEvents` is a single-producer/
+//   2. EXACTLY ONE file under `Sources/Echoelmusic` assigns it — the scan does NOT reach
+//      `Sources/EchoelmusicWatch` or `Sources/EchoelmusicWidgets`, which is harmless
+//      (neither can reach `EngineBus`) but is stated because "`Sources/`" would overclaim.
+//      `controllerEvents` is a single-producer/
 //      single-CONSUMER lock-free queue; a second assignment is a second consumer, and the
 //      two would STEAL events from each other — half the notes to one voice, half to the
 //      other. `BioReactiveSynthVoice.applyBioFrame`'s own doc comment warns about exactly
@@ -52,18 +55,31 @@ final class ControllerEventDrainIsPushedTests: XCTestCase {
         XCTAssertTrue(code.contains("self.\(Self.hook)?()"), """
             `EngineBus.\(Self.hook)` is declared but never invoked. That is worse than not \
             having it: the subscriber installs a drain closure, everything compiles, and \
-            notes silently wait for the poll tick again. It must be called inside \
-            `publish(controller:)`'s existing main-actor hop — and AFTER \
-            `latestControllerEvent` is assigned, so a consumer reading that snapshot during \
-            its drain sees this event and not the previous one.
+            notes silently wait for the poll tick again.
+            ⚠️ WHAT THIS ASSERTION ACTUALLY CHECKS is that the call exists SOMEWHERE in \
+            `EngineBus.swift` — not that it sits inside `publish(controller:)`. An earlier \
+            version of this message asserted the call site AND an ordering property relative \
+            to `latestControllerEvent`; both were untested here, and the ordering claim was \
+            false besides (nothing reads that snapshot, and a burst drains entirely against \
+            the first event's value). A message must not claim more than its assertion.
             """)
     }
 
     /// The single-consumer contract, expressed as the only thing a text guard can actually
     /// see: how many files assign the hook.
+    ///
+    /// ⛔ COMMENTS ARE STRIPPED FIRST, and that is not tidiness — both reviewers flagged the
+    /// bare version as a false-RED waiting to happen, from two different directions. (a) The
+    /// symbol is now surrounded by ~35 lines of prose ABOUT installing it; one future
+    /// tombstone writing `bus.onControllerEventEnqueued = nil` inside `EngineBus.swift`
+    /// would make this see two files and redden the BLOCKING gate over a comment. (b) Adding
+    /// a purely cosmetic `= nil` to the property declaration — which some linters suggest —
+    /// would do the same. `NoDoorlessStudioViewsTests` strips comments for exactly this
+    /// reason and pins that behaviour in a test of its own. A guard that goes red for a
+    /// change that broke nothing costs a whole cycle (#287 is the precedent).
     func testExactlyOneFileInstallsTheDrainHook() throws {
         let assigning = try swiftFilesUnderSources()
-            .filter { try String(contentsOf: $0, encoding: .utf8).contains("\(Self.hook) =") }
+            .filter { try Self.codeOnly(String(contentsOf: $0, encoding: .utf8)).contains("\(Self.hook) =") }
             .map(\.lastPathComponent)
             .sorted()
 
@@ -92,6 +108,17 @@ final class ControllerEventDrainIsPushedTests: XCTestCase {
     }
 
     // MARK: - helpers
+
+    /// Drop whole-line `//` comments. Deliberately NOT a Swift parser: it does not handle
+    /// trailing comments, `/* */`, or `//` inside a string literal — and it does not need to,
+    /// because the one thing it must never do is let PROSE about an assignment count as an
+    /// assignment. Whole-line comments are where prose lives in this repo.
+    private static func codeOnly(_ text: String) -> String {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
+    }
 
     private func repoRoot() throws -> URL {
         let here = URL(fileURLWithPath: #filePath)

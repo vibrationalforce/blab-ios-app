@@ -390,13 +390,21 @@ public final class BioReactiveSynthVoice {
         // consuming events after it stopped, and would make the next subscriber's `start`
         // the SECOND setter of a single-consumer hook.
         //
-        // Safe without an `isSubscribed` guard, and the reason is a property of this class
-        // rather than of its callers: `self.bus` is assigned in exactly ONE place,
-        // `start(subscribing:)`. A rack bio unit — which must never subscribe, and gets its
-        // frames through `applyBioFrame(from:)` where the bus is a PARAMETER and is not
-        // stored — therefore has a nil `bus` here, and this line is a no-op for it. It
-        // cannot reach past itself and clear the global voice's hook.
+        // ⛔ THE FIRST VERSION PROVED THE WRONG CASE. It argued that no `isSubscribed` guard
+        // was needed because `self.bus` is assigned in exactly ONE place
+        // (`start(subscribing:)`, still true), so a rack bio unit — which must never
+        // subscribe and gets its frames through `applyBioFrame(from:)`, where the bus is a
+        // PARAMETER and is not stored — has a nil `bus` and cannot clear the global voice's
+        // hook. That much holds. What it did NOT cover is the sequence its own next sentence
+        // set up: a voice that HAS subscribed and stopped kept a live `bus`, so a second
+        // `stop()` on it would unconditionally nil whatever hook was installed by then —
+        // possibly someone else's. Releasing the reference below makes the claim true by
+        // construction instead of by argument.
         bus?.onControllerEventEnqueued = nil
+        bus = nil
+        // ⚠️ AND THE HONEST FRAME: `BioReactiveSynthVoice.stop()` has ZERO production callers
+        // (`EchoelmusicApp` starts the one subscriber and never stops it). This is correct
+        // hygiene for a path nothing walks today — do not cite it as a live invariant.
         isSubscribed = false
     }
 
