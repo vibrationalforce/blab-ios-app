@@ -106,26 +106,50 @@ final class MixFaderRespondsBeforeThePersistTests: XCTestCase {
     /// a regex: these methods contain nested closures and `Task { }` blocks, and a
     /// line-count or non-greedy match would silently read the wrong span — a guard that
     /// reads the wrong text is the false-GREEN this bundle exists to prevent.
+    ///
+    /// ⛔ THREE HARDENINGS, all of them the reviewer's, all of them things the FIRST draft
+    /// got wrong while the hardened twin two files over already had them right
+    /// (`DelayReachesEveryChainTests:135`, `CleanIsDryTests:133`). Writing a third copy of a
+    /// helper and not copying its fixes is how a bundle grows a weak link:
+    /// 1. Whole-line comments are dropped BEFORE the brace arithmetic. One `// closes the {`
+    ///    in any of these methods would have desynced the depth and returned a body running
+    ///    to the end of a 5000-line file — which passes every `XCTAssertFalse` above for the
+    ///    wrong reason, and fails the ordering assertion for the wrong reason too.
+    /// 2. The signature must be UNIQUE. `range(of:)` silently takes the first hit, so an
+    ///    overload or a second declaration would point the guard at code nobody meant.
+    /// 3. A missing signature FAILS, it no longer SKIPS. A skip on a renamed method is a
+    ///    green this file did not earn — exactly the `continue-on-error` shape the `doctor`
+    ///    skill exists to catch, reproduced by hand.
+    ///
+    /// Remaining limit, stated rather than papered over: a brace inside a string literal
+    /// still counts. None of the three methods contains one, and the fix (a full lexer) would
+    /// be more code than the thing it guards.
     private func functionBody(named signature: String) throws -> String {
-        let code = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        guard let start = code.range(of: signature) else {
-            throw XCTSkip("""
-                `\(signature)` not found — the method was renamed or removed. Skipping \
-                rather than reporting a green this file did not earn; re-point the guard.
+        let lines = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+            .components(separatedBy: .newlines)
+        let matches = lines.indices.filter { lines[$0].contains(signature) }
+        guard let start = matches.first else {
+            XCTFail("""
+                `\(signature)` not found — the method was renamed or removed. Re-point this \
+                guard rather than deleting it; the split it protects is what makes a Mix \
+                fader audible before the JSON write.
                 """)
+            throw CocoaError(.fileNoSuchFile)
         }
+        XCTAssertEqual(matches.count, 1, """
+            `\(signature)` appears \(matches.count) times. This scan reads only the first, \
+            so the guard may be asserting against a method nobody meant.
+            """)
         var depth = 0
-        var seenOpen = false
-        var body = ""
-        for ch in code[start.upperBound...] {
-            if ch == "{" { depth += 1; seenOpen = true }
-            if seenOpen { body.append(ch) }
-            if ch == "}" {
-                depth -= 1
-                if depth == 0 { break }
-            }
+        var collected: [String] = []
+        for line in lines[start...] {
+            if line.trimmingCharacters(in: .whitespaces).hasPrefix("//") { continue }
+            collected.append(line)
+            depth += line.filter { $0 == "{" }.count
+            depth -= line.filter { $0 == "}" }.count
+            if depth == 0 && collected.count > 1 { break }
         }
-        return body
+        return collected.joined(separator: "\n")
     }
 
     private func source(_ path: String) throws -> String {
