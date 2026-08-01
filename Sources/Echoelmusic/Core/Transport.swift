@@ -281,23 +281,34 @@ public final class Transport {
     /// SWING IS NOT MODELLED, AND UNDER SWING THIS CLOCK IS WRONG ENOUGH TO MATTER.
     /// `PatternEngine.swingGap` makes an even step last `base × (1 + swing)` and the
     /// following odd step `base × (1 − swing)`; this map assumes both last the nominal
-    /// `60 / bpm / 4`. `MusicStyle.swing` ships real values — jazz 0.34, rock'n'roll
-    /// 0.28, rocksteady 0.22, klezmer 0.20, ska 0.18, vaporwave 0.15, disco 0.14,
-    /// trap 0.12 — so at jazz/120 BPM the LONG step lasts 167.5 ms and everything after
-    /// its first 125 ms reads as the same last tick, while the SHORT step lasts 82.5 ms
-    /// and ticks 80…119 of it are unreachable: a ~40-tick / ~42 ms error, not the "well
-    /// under one tick" an earlier version of this comment claimed.
+    /// `60 / bpm / 4`. `MusicStyle.swing` ships real values, so the LONG step overruns
+    /// the map and the SHORT one leaves its last ticks unreachable.
     ///
     /// The consequence is specific, which is why it is spelled out rather than hedged:
     /// `TouchQuantizer.latenessToleranceTicks` is 12, and on a short swung step this
-    /// clock UNDERSTATES lateness by up to a third — a touch 18 ticks late reads as 12
-    /// and falls inside the tolerance, so the echo silently does not fire. The two
-    /// halves of every swung pair are therefore judged by different rules. Separately,
-    /// only the grids that tile a step (`.sixteenth`, `.eighth`, `.quarter`) land on
-    /// real boundaries at all; the triplet grids never do.
+    /// clock UNDERSTATES lateness, so a touch that was late enough to be nudged can fall
+    /// inside the tolerance and the echo silently does not fire. The two halves of every
+    /// swung pair are therefore judged by different rules. Separately, only the grids that
+    /// tile a step (`.sixteenth`, `.eighth`, `.quarter`) land on real boundaries at all;
+    /// the triplet grids never do.
     ///
-    /// The correct fix is a swung grid on BOTH sides (clock and quantizer). No caller
-    /// needs it yet, so it is written down instead of guessed at.
+    /// ⚠️ THIS BECAME REACHABLE WITH #327 and the size changed with it. Until then the one
+    /// production caller of `PatternEngine.setSwing` passed a hardwired `0`, so none of the
+    /// above could occur; it now passes `style.swing`.
+    ///
+    /// ⛔ AND THE NUMBERS THAT STOOD HERE WERE THE WRONG ONES — not wrong arithmetic, wrong
+    /// GENRES. The worked example was jazz 0.34 (167.5/82.5 ms at 120 BPM, ~40 ticks, "up
+    /// to a third"), and the list led with jazz, rock'n'roll, rocksteady, klezmer, ska,
+    /// disco, trap. **None of those seven is in `MusicStyle.offered`** — a user cannot pick
+    /// any of them. The six that ARE reachable top out at deepHouse **0.16**, so the real
+    /// worst case is a ~16 % understatement, roughly half of what this comment claimed, and
+    /// a reader sizing the risk from the old text would have over-estimated it by 2×. The
+    /// lesson is the one this file keeps re-learning: an example picked for how clearly it
+    /// illustrates the mechanism is not the same as the worst case a user can actually
+    /// reach. Re-derive against `offered` rather than against the enum.
+    ///
+    /// The correct fix is a swung grid on BOTH sides (clock and quantizer) — #328. It is
+    /// confined to Field touch echo; the generated take does not consult this map.
     public func currentTick(at now: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()) -> Int? {
         guard isPlaying, lastStepAt > 0 else { return nil }
         return StepTickMath.tick(absoluteStep: position.absoluteStep,

@@ -6038,12 +6038,38 @@ struct EchoelStudioView: View {
         // `tempo` to the locked value above, so a locked take just glides to/holds it.
         beatPlayer.pattern.glideTempo(to: tempo)
         // GROOVE CYCLE 2: apply the genre's swing so odd 16ths land late for a
-        // rolling, human feel (jazz/rock'n'roll shuffle, reggae bounce, dance push,
-        // straight genres stay 0). Melody + any drums ride the same clock, so the
-        // whole take swings together instead of sitting dead-on-grid.
-        // Pulse/Off modes run STRAIGHT: the shamanic pulse must walk evenly (a swung
-        // ur-drum reads as a genre shuffle), and pure Flächen have nothing to swing.
-        beatPlayer.pattern.setSwing(0)   // no beat → nothing to swing (pure Flächen run straight)
+        // rolling, human feel (dance push, dragged vaporwave, straight genres stay 0).
+        // The melody rides this clock, so the whole take swings instead of sitting
+        // dead-on-grid.
+        //
+        // ⛔ THIS LINE READ `setSwing(0)` UNTIL #327, with the justification "no beat →
+        // nothing to swing (pure Flächen run straight)". Both halves were wrong, and the
+        // comment ABOVE it — unchanged since GROOVE CYCLE 2 — said so all along.
+        //
+        //  · "No beat" is true and irrelevant. A note's onset is decided by WHEN THE TICK
+        //    FIRES, and the melody rides the same tick: `pattern.onTick` is installed in
+        //    `PianoRollView`, from the unconditional `pianoRoll.start(pattern:…)` at app
+        //    start. Drums were never what carried the groove here — killing them (#166/#167)
+        //    did not remove anything this line depended on.
+        //  · "Pure Flächen run straight" is already what the DATA says: of the 16 genres in
+        //    `MusicStyle.offered`, TEN return `swing == 0` — every meditative and ambient
+        //    one. The hardwire did not protect them; it silenced the other six.
+        //
+        // The six that change, re-derived (do not quote — re-run against `offered`):
+        // deepHouse 0.16 · vaporwave 0.15 · techHouse 0.12 · detroitTechno 0.10 ·
+        // dubTechno 0.08 · minimalTechno 0.04. Jazz (0.34) and the shuffle family are NOT
+        // offered, so the reachable maximum is 0.16, not 0.34 — that matters for the
+        // collateral, see below.
+        //
+        // ⚠️ WHAT THIS TURNS FROM THEORETICAL INTO ACTIVE: `Transport`'s tick→time map
+        // assumes every step lasts the nominal `60/bpm/4`; under swing the odd step lasts
+        // `base × (1 − swing)`. That comment has spelled the consequence out for a while —
+        // `TouchQuantizer.latenessToleranceTicks` is 12, so on a shortened step the clock
+        // UNDERSTATES how late a Field touch was and an echo can silently not fire. It was
+        // unreachable while this line said 0. It is reachable now, bounded by the offered
+        // maximum: 16 %, not the third that comment's jazz example implies. Confined to
+        // Field touch echo — the generated take does not use that path. Filed as #328.
+        beatPlayer.pattern.setSwing(style.swing)
         // MULTITIMBRAL Step 2b: give the LEAD voice a genre-appropriate timbre so
         // the lead line reads as its own instrument (synth lead vs jazz Rhodes vs
         // klezmer clarinet) over the pad/bass. Falls back to "Bright Lead".
