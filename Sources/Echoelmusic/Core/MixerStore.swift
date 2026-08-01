@@ -15,6 +15,17 @@ import Observation
 public final class MixerStore {
 
     // User level per role, linear (1.0 = the genre's own balance, unchanged). Persisted.
+    //
+    // ⭐ NOTHING IN THE COMPOSE OR GENERATE PATH WRITES THESE, and it is worth stating
+    // because the opposite was believed and written down (#306). A device log showed
+    // `bass` at 0.00 across 37 of 49 generates, and I concluded the value was being
+    // re-rolled per generate. It is not: across all of `Sources/`, these four have exactly
+    // three writers — `init` (from UserDefaults), `resetToUnity()`, and the Mix panel's own
+    // `EchoelValueField` via `mixBinding`. Plus the one-off `mixer.lead = 1.0` that #255
+    // added when it deleted the Lead field, precisely so a doorless persisted value could
+    // not stay dialled down. A value that holds steady for a whole session is therefore a
+    // SETTING the user is looking at, never a generated one — and a role sitting at 0.00 is
+    // simply muted, with the Mix panel the one place that says so.
     public var bass:  Float { didSet { persist(Keys.bass,  bass)  } }
     public var pad:   Float { didSet { persist(Keys.pad,   pad)   } }   // harmony role
     public var lead:  Float { didSet { persist(Keys.lead,  lead)  } }

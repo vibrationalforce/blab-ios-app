@@ -6314,7 +6314,26 @@ struct EchoelStudioView: View {
         // hard 0.05 floor under it — so it could never print 0.000 and would have been a
         // number that cannot answer the question it was added for.
         let vMax = bars.first?.map(\.velocity).max() ?? 0
-        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), mix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead))")
+        // ⛔ THE LABEL IS `userMix`, NOT `mix`, AND THE RENAME IS THE WHOLE POINT (#306).
+        // Everything else on this line is COMPUTED BY THIS GENERATE — note count, transport
+        // state, the roll gain, the finished bar's peak velocity. These three are not: they
+        // are the persisted Mix-panel faders, unchanged by generating, printed here only so
+        // a low `vMax` can be attributed. `mix=` inside a line that begins `generate[…]`
+        // read as an output of the generate, and I diagnosed exactly that from device log
+        // 2479 — "the bass mix is re-rolled on every generate and lands on 0.00 in 37 of 49
+        // cases". It is not re-rolled. `mixer.bass` has ZERO assignments anywhere in
+        // `Sources/` outside `MixerStore` itself (`init` from UserDefaults, `resetToUnity`)
+        // and this view's `mixBinding` — i.e. the Mix panel's own field. The 37 zeroes were
+        // one persisted fader sitting at zero, and the twelve non-zero readings (0.78, 0.90
+        // ×3, 0.56, 0.33, 0.27 ×7) were a finger on that field.
+        //
+        // THE LESSON IS NOT "ADD A COMMENT" — the paragraph above this one already said a
+        // published 0.000 needs a user fader below 0.0118, and it was right. A breadcrumb is
+        // read in `echoel_diag.log`, pasted into a chat, with no source file beside it. Its
+        // own label is the entire explanation it gets, so the label has to carry the meaning
+        // the comment carries. Any value printed here that the caller did not compute needs
+        // a name that says so.
+        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), userMix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead))")
     }
 
     /// Per-lane composition fan-out (Slice A): compose each override-carrying
