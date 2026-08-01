@@ -66,8 +66,27 @@ final class LeadMixDoorAndNormalisationTests: XCTestCase {
 
     /// Unity must stay the value the normalisation writes AND the value a never-set install
     /// reads, or the two disagree and a fresh install differs from a normalised one.
-    func testAnUnsetLeadReadsAsUnity() {
-        let empty = UserDefaults(suiteName: "echoel.test.leadmix.\(UUID().uuidString)")!
+    ///
+    /// ⛔ `@MainActor` IS LOAD-BEARING, and its absence is what made the first version of this
+    /// file fail the blocking gate (`30677811229`). `MixerStore` is `@MainActor @Observable`, so
+    /// constructing it — and reading `.lead` — from a nonisolated test method is an isolation
+    /// error under `-swift-version 6`. Only THIS method touches the store; the two source-text
+    /// tests above stay nonisolated deliberately, rather than annotating the whole class, so the
+    /// isolation says exactly which assertion needs the main actor. The sibling pattern is
+    /// `AutosaveSlotTests` / `FXSpreadRowTests`, which annotate at class level because every one
+    /// of their methods touches an isolated type.
+    ///
+    /// And the wider lesson, because it cost a red gate: **a green Xcode Compile Check proves
+    /// nothing about a new test file.** That gate runs `xcodebuild build` on a scheme whose
+    /// build targets are `Sources/` only — `Tests/CISmoke` compiles solely in the CI/CD
+    /// Pipeline. CLAUDE.md says this in full; I pushed before it had reported.
+    @MainActor
+    func testAnUnsetLeadReadsAsUnity() throws {
+        // `try XCTUnwrap`, not `!` — force-unwrap is banned repo-wide, and a nil suite here
+        // would crash the whole bundle instead of failing one assertion.
+        let empty = try XCTUnwrap(
+            UserDefaults(suiteName: "echoel.test.leadmix.\(UUID().uuidString)"),
+            "could not create an isolated defaults suite")
         let store = MixerStore(defaults: empty)
         XCTAssertEqual(store.lead, 1.0, accuracy: 0.0001,
                        "a never-set lead level must read as unity — the genre's own balance")
