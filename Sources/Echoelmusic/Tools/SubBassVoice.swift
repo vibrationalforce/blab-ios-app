@@ -121,9 +121,15 @@ public final class SubBassVoice {
     /// The felt sub doubles the lowest sounding note an octave down, so its pitch
     /// CLASS is the melodic note's pitch class. Every melodic voice was retuned by
     /// `applyTuning()` and this one was not, so with any non-12-TET system selected
-    /// the sub droned plain 12-TET against a retuned pad — up to ±50 cents apart in
-    /// Maqām Bayātī or Gamelan Pélog, i.e. half a semitone of beating on the
-    /// fundamental. "Teilweise" is exactly right: 12-TET is the default and is
+    /// the sub droned plain 12-TET against a retuned pad — 100 cents apart in Maqām
+    /// Bayātī, 150 in Gamelan Pélog, and up to 300 (a whole minor third) in
+    /// Hirajōshi, whose five degrees leave 12-TET's leading tone that far from the
+    /// nearest one. ⛔ This sentence first said "±50 cents … half a semitone is the
+    /// worst case", which was wrong by 6× and named two systems that both exceed
+    /// it; the numbers here are computed from `TuningSystem.library` and pinned by
+    /// `testTheLibrarysWorstDeviationIsWhatTheCommentsClaim`, so the next system
+    /// added to the library fails a gate instead of silently ageing this line.
+    /// "Teilweise" is exactly right: 12-TET is the default and is
     /// unaffected, so the fault only appears once a system with non-zero degrees is
     /// chosen, and then only on the pitch classes that actually deviate.
     ///

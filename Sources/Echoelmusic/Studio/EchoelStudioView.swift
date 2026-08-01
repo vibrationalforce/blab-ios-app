@@ -2717,16 +2717,28 @@ struct EchoelStudioView: View {
         // it had been for the lead one sentence earlier. `SubBassVoice` doubles the lowest
         // sounding note an octave down, so it carries that note's PITCH CLASS — and it was
         // the one pitched voice still playing plain 12-TET while everything above it moved.
-        // In Maqām Bayātī or Gamelan Pélog that is up to ±50 cents of beating on the
-        // fundamental, which is where a sub is least forgiving. 12-TET (the default) is an
-        // all-zero table and stays bit-identical, so this fan is unconditional.
+        // In Maqām Bayātī that is 100 cents of beating on the fundamental, 150 in Gamelan
+        // Pélog and 300 — a whole minor third — in Hirajōshi, which is where a sub is least
+        // forgiving. (⛔ This said "up to ±50 cents … in Maqām Bayātī or Gamelan Pélog": wrong
+        // by 6×, and both named systems exceed it. The figures now come from evaluating
+        // `TuningSystem.centsDeviation(forSemitone:)` over `TuningSystem.library`, and a test
+        // in the blocking bundle recomputes the maximum so the next added system fails a gate
+        // instead of ageing this line.) 12-TET (the default) is an all-zero table and stays
+        // bit-identical, so this fan is unconditional.
         subBass.setTuningCents(cents)
         // STILL NOT FANNED, and this time with a reason that is about behaviour rather than
-        // API surface: `bioVoice` cannot sound at all (`BioReactiveSynthVoice.playNote` has
-        // no caller — task #277), and `laneVoiceRack`'s melodic pool DOES hold
-        // `PolySynthVoice`s that have the method, so a lane MIDI note is the same defect one
-        // level down. That is a separate slice against a separate surface, not a correctness
-        // claim about this one — do not read the absence here as approval.
+        // API surface: THIS VIEW's `bioVoice` instance never sounds — nothing calls `arm()`
+        // on it (task #277), so its notes stay in launch-silence. ⛔ The first version of this
+        // sentence said "`BioReactiveSynthVoice.playNote` has no caller", which is a claim
+        // about the TYPE and is false: `LaneVoiceRack.swift:331` calls it on every rack bio
+        // voice. `EchoelDDSP.swift:1932` already had the careful wording — "`bioVoice.playNote`
+        // has no caller in `Sources/`", the instance, not the method — and this line dropped
+        // the qualifier that was carrying the whole argument. It matters because the sentence
+        // exists to justify an omission: a type-level "no caller" would later read as proof
+        // that fanning tuning here can never be needed. And `laneVoiceRack` holds BOTH
+        // `PolySynthVoice`s (which have the method) and those sounding bio voices, so a lane
+        // note is the same defect one level down — #338, a separate slice against a separate
+        // surface, not a correctness claim about this one.
     }
 
     /// Push the concert pitch to every voice that has one. Split out of the three inline
