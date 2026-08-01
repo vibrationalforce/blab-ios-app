@@ -66,8 +66,16 @@ import Accelerate
 ///   / `nonisolated(unsafe)` mirror).
 ///
 /// Consequence: `updateSpectralEnvelope()`'s in-place rewrite of `harmonicAmplitudes`
-/// (every 6th `applyBioReactive`) happens on the ONE render thread that also reads it,
-/// so there is no longer a cross-thread array race / COW hazard on any path.
+/// (once per `applyBioReactive`, via `brightness`'s `didSet`) happens on the ONE render
+/// thread that also reads it, so there is no longer a cross-thread array race / COW hazard
+/// on any path.
+///
+/// ⛔ THIS LINE SAID "every 6th `applyBioReactive`" UNTIL #331, AND IT WAS ALREADY WRONG
+/// BEFORE #331 DELETED THAT COUNTER. `brightness` carries `didSet { updateSpectralEnvelope() }`
+/// and is assigned on every call, so the rebuild was never throttled; the counter only fired a
+/// duplicate. Corrected here rather than left as "harmlessly stale" because this is the FILE
+/// HEADER — the first thing a session reads about this class — and it is the one place a
+/// reader would learn the rebuild rate without reading `applyBioReactive` itself.
 public final class EchoelDDSP: @unchecked Sendable {
 
     // MARK: - Configuration
@@ -1671,12 +1679,19 @@ public final class EchoelDDSP: @unchecked Sendable {
         //
         // It was `0.92  // Slightly faster response than 0.95` — a number chosen for a 60 Hz
         // caller (τ = 0.200 s) that has NEVER existed. This function runs once per NEW bio
-        // frame, and every publisher in the repo emits ~1 Hz: `CameraRPPGBioPublisher` gates
+        // frame, and every WIRED publisher emits ~1 Hz: `CameraRPPGBioPublisher` gates
         // on `tick % 10` inside a 100 ms loop, `PolarH10BioPublisher` and `BioSimulator` both
         // sleep a full second, HealthKit is slower still. The poll that feeds the audio thread
         // (`PolySynthVoice.applyLatestIfFresh`) drops every frame whose timestamp is unchanged,
         // so the enqueue rate IS the new-frame rate — its own comment saying "bio updates at
         // ~10 Hz" is the same stale assumption, one order of magnitude out.
+        //
+        // "WIRED", not "in the repo", and the word is load-bearing: `FaceExpressionBioPublisher`
+        // sleeps 100 ms and publishes a frame every tick — 10 Hz. It has ZERO instantiations in
+        // `Sources/`, so it cannot drive the audio thread today and the reasoning below holds.
+        // But wiring it later would change this block's premise, and the first version of this
+        // sentence said "every publisher in the repo", which would have made that change look
+        // like it needed no thought here.
         //
         // At 1 Hz, α = 0.92 means τ = −1/ln(0.92) = 11.99 s. Step response, re-derived:
         //
@@ -1843,19 +1858,40 @@ public final class EchoelDDSP: @unchecked Sendable {
         // But the envelope was never stale, because it was never waiting on this counter:
         // `brightness` carries `didSet { updateSpectralEnvelope() }`, and the assignment
         // `brightness = _smoothedBrightness` above runs on EVERY call. Between that assignment
-        // and this point nothing that `updateSpectralEnvelope()` reads changes (`spectralShape`,
-        // `morphTarget`, `morphPosition`, `timbreBlend` are all untouched inside this function;
-        // only `filterCutoff` is written, and the envelope does not read it). So every 6th call
-        // rebuilt the identical spectrum a SECOND time. Deleting it removes one duplicated
-        // rebuild per six calls on the audio thread and one comment that misstated the rate by
-        // 60× — it does not change a single sample.
+        // and THIS POINT the only write is `filterCutoff`, which the envelope does not read —
+        // so every 6th call rebuilt the identical spectrum a SECOND time. Deleting it removes
+        // one duplicated rebuild per six calls on the audio thread and one comment that
+        // misstated the rate by 60×; it does not change a single sample.
+        //
+        // ⛔ THE FIRST VERSION OF THAT PROOF WAS WRONG, AND THE TRUE ONE IS STRONGER. It said
+        // "`spectralShape`, `morphTarget`, `morphPosition`, `timbreBlend` are all untouched
+        // inside this function". `morphTarget`/`morphPosition` are very much written inside
+        // this function — in the coherence-trend morph block further down, whose own comment
+        // calls itself "INTENTIONALLY THE LAST spectral write: it must win over the earlier
+        // brightness.didSet rebuild". That block sits BELOW where the counter stood, so a call
+        // here could never have observed those writes. The right scope is "between the
+        // assignment and this point", not "inside this function". (The full read set is larger
+        // than the four names too: `updateSpectralEnvelope` also reads `brightness`,
+        // `hasTimbreProfile`, `timbreBuffer`, and — on the `.formant` branch only —
+        // `frequency`. None is written in `applyBioReactive`; checked, not assumed.)
         //
         // ⛔ THE FIRST VERSION OF THIS TOMBSTONE CLAIMED THE OPPOSITE — "it rebuilt the spectrum
         // once per SIX SECONDS, which is why `brightness` felt dead no matter how fast the pole
         // above was made". That is the "mechanism right, justification wrong" failure this repo
         // keeps paying for: the deletion is correct, the reason was invented, and it would have
         // sent the next session hunting a staleness bug that the `didSet` had already closed.
-        // The unit error is real and lives in `smoothCoeff`; it never lived here.
+        // The unit error never lived in this counter.
+        //
+        // ⚠️ BUT DO NOT READ THAT AS "THE 60 Hz CLASS IS CLOSED" — #331 fixed ONE member of it.
+        // The `filterCutoff` one-pole a few lines above (`* 0.97 + targetCutoff * 0.03`) is the
+        // SAME per-call smoother with the SAME 60 Hz assumption, and its own comment still calls
+        // α = 0.97 "very slow smoothing … for silky transitions". At the real ~1 Hz that is
+        // τ = −1/ln(0.97) = 32.8 SECONDS — nearly three times slower than the 0.92 this slice
+        // just replaced, on the mapping the surrounding comments repeatedly call the main bio
+        // expression. It is deliberately NOT changed here (one slice, one measurable change, so
+        // the device listen can attribute what it hears) and is tracked as #332. An earlier
+        // draft of this paragraph ended at "it never lived here", which reads as a scope claim
+        // and would have retired a live defect sitting 80 lines away.
 
         // 2. Bio → amplitude (coherence sets the level; the "audible pump synced to pulse"
         //    this comment used to promise was the deleted LFO's ±0.06 over 24–120 s — never a
