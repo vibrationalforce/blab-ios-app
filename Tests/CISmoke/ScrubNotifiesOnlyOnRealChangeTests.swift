@@ -256,16 +256,30 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             which SwiftUI does NOT reset on cancellation — without this one there is no signal \
             that a drag was taken away, and the stale-latch class of #377 is open again.
             """)
-        XCTAssertTrue(squashed.contains(".updating($dragActive)"), """
-            `dragActive` is declared but never driven, so it is always false and the watcher \
-            below can never fire. A latch that cannot change is worse than none: it reads as \
-            cover.
+        // ⛔ THE CLOSURE BODY IS PART OF THE NEEDLE, and the first draft pinned only the call.
+        // `.updating($dragActive) { _, _, _ in }` would have passed it and produced exactly the
+        // state the message warns about: never true, never falling, cancellation path dead,
+        // blocking gate green. A guard whose own message describes the hole it leaves open is
+        // the worst kind.
+        XCTAssertTrue(squashed.contains(".updating($dragActive){_,active,_inactive=true}"), """
+            `dragActive` is declared but not driven to `true` on every event, so it can never \
+            fall back to `false` and the watcher below can never fire. A latch that cannot \
+            change is worse than none: it reads as cover.
             """)
-        XCTAssertTrue(squashed.contains("guard!active,scrubbingelse{return}resetScrubState()}"), """
-            The cancellation watcher changed shape. It must do exactly two things — fire only \
-            on the falling edge of a drag that is still latched, and clear WITHOUT committing. \
-            An `onCommit()` in this closure would let a scroll that stole a drag re-roll the \
-            composition, which is #375's defect re-entered through the cancellation door.
+        // The WHOLE closure, bound value included — three separate regressions live here and a
+        // partial needle catches none of them: rebinding to another value, adding an
+        // `onCommit()`, or restoring the `resetScrubState()` call that nils `scrubStartValue`.
+        XCTAssertTrue(squashed.contains(
+            ".onChange(of:dragActive){_,inFlightinguard!inFlight,scrubbingelse{return}scrubbing=false}"
+        ), """
+            The cancellation watcher changed shape. It must do exactly three things — watch \
+            `dragActive`, fire only on the falling edge of a drag that is still latched, and \
+            clear THE LATCH ONLY. Two failure modes it guards: an `onCommit()` here would let a \
+            scroll that stole a drag re-roll the composition (#375's defect through the \
+            cancellation door); and calling the full `resetScrubState()` here would nil \
+            `scrubStartValue`, so if SwiftUI resets the gesture state before `onEnded` runs — \
+            which `TimelineAutomationRow.handleEnded` documents as possible — every NORMAL \
+            drag's `onCommit()` would be lost, silently and intermittently.
             """)
         XCTAssertTrue(squashed.contains("resetScrubState()ifmoved{onCommit()}"), """
             `onEnded` stopped clearing through `resetScrubState()`. Two hand-written cleanups \
@@ -274,15 +288,21 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             """)
         // Whole trimmed LINES, not substrings — the declaration reads
         // `@State private var scrubbing = false` and a substring count would score it as a
-        // clear, making this assertion fail today and pass after someone "fixed" it by
-        // expecting two. Simulated before commit; it counted 2 on the first draft.
+        // clear. Simulated before commit both times: it counted 2 on the first draft for that
+        // reason, and it counts 2 again now for a DIFFERENT and deliberate one.
+        //
+        // TWO clear sites, and the number is the point: `resetScrubState()` (normal end, drops
+        // the references too) and the cancellation watcher (latch only, so the reset cannot
+        // race `onEnded` out of a commit). A THIRD would mean someone added a path that clears
+        // this latch without deciding which of those two semantics it wants.
         let clears = src.split(separator: "\n").filter {
             $0.trimmingCharacters(in: .whitespaces) == "scrubbing = false"
         }.count
-        XCTAssertEqual(clears, 1, """
-            `scrubbing` is cleared in \(clears) places. There must be exactly one, inside \
-            `resetScrubState()`, or the next latch added to this gesture will be cleared in \
-            some of them and not others.
+        XCTAssertEqual(clears, 2, """
+            `scrubbing` is cleared in \(clears) places, not 2. The two are `resetScrubState()` \
+            and the cancellation watcher, and they clear DIFFERENT amounts on purpose — the \
+            needles above pin which is which. A third site, or one fewer, means that \
+            distinction was collapsed.
             """)
     }
 }
