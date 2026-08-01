@@ -25,9 +25,15 @@
 //      bio poll. The genuine unconsumed candidate for `oscHz` is `ADMOSCSender`'s
 //      20 Hz object-out, which the minimal tier's 10 Hz would actually halve.
 //      Art-Net/sACN are the other two rate-capping candidates (not OSC at all), and
-//      they are the reason this is NOT a drive-by: both slew per TICK
-//      (`FlashGuard.slewedDimmer`, maxDelta per call), so capping their 30 Hz to
-//      10 Hz stretches a lighting fade threefold — show-visible, founder's call.
+//      they are the reason this is NOT a drive-by. ⛔ THE OLD REASON GIVEN HERE IS
+//      OUT OF DATE and is corrected rather than deleted, because it argued the wrong
+//      way round: it said both slew per TICK, so capping their 30 Hz to 10 Hz would
+//      stretch a fade threefold. Since #372 the step is derived from
+//      `FlashGuard.senderTickMilliseconds`, so lowering the rate THROUGH that constant
+//      keeps the fade DURATION and simply sends fewer, larger steps. The real cost of
+//      throttling them is therefore fade SMOOTHNESS (visible banding on a slow fade),
+//      not fade length — still show-visible, still the founder's call, but a different
+//      trade-off than the one written here for a month.
 //    · `allowSpectralDonuts` → nobody; `SpectralDonutView` has no reachable door.
 //
 //  @MainActor @Observable: it is pure control-plane state read by SwiftUI. It never

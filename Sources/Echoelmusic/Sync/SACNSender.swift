@@ -71,9 +71,10 @@ public final class SACNSender {
     @ObservationIgnored private var lastSentGrandMaster: Float = 1
     @ObservationIgnored private var lastSentBlackout = false
     /// Slew anchor for the flash guard (−1 = uninitialised → first frame lands
-    /// at target). Mirrors ArtNetSender: the mastered dimmer ramps ≤0.08/tick so
-    /// a Blackout release (or a Grand-Master jump) can never strobe physical
-    /// fixtures — the ≤3 Hz / W3C-WCAG flash hard law applies to sACN too.
+    /// at target). Mirrors ArtNetSender: the mastered dimmer ramps at
+    /// `FlashGuard.senderTickDelta` (a per-second velocity resolved at this loop's
+    /// interval, 0.08 today) so a Blackout release (or a Grand-Master jump) can never
+    /// strobe physical fixtures — the ≤3 Hz / W3C-WCAG flash hard law applies to sACN too.
     @ObservationIgnored private var lastDimmer: Float = -1
     /// Per-channel colour slew anchor (R,G,B in 0…1; empty = no history yet).
     @ObservationIgnored private var lastColour: [Float] = []
@@ -106,7 +107,9 @@ public final class SACNSender {
         self.bus = bus
         connect()
         isActive = true
-        loop.start(interval: .milliseconds(33)) { [weak self] in   // ~30 Hz, smooth
+        // Same shared constant as ArtNetSender (#372) — the interval and the flash cap
+        // are one fact now, so this loop cannot be sped up past the safety bound.
+        loop.start(interval: .milliseconds(FlashGuard.senderTickMilliseconds)) { [weak self] in
             guard let self, let bus = self.bus else { return }
             self.sendIfFresh(from: bus)
         }
@@ -199,14 +202,18 @@ public final class SACNSender {
         lastSentBlackout = blackout
         // Hard flash guarantee for PHYSICAL fixtures: slew-limit the dimmer so
         // even a Blackout release or a pathological jump ramps up from dark
-        // instead of snapping (~0.08/tick → full fade ≥0.4 s, ~1.2 Hz max). Same
-        // shared decision as ArtNetSender — identical guarantee on both protocols.
-        let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout)
+        // instead of snapping. The step is the per-SECOND velocity resolved at
+        // this loop's interval (#372) — 0.08 at today's 33 ms → full fade ≥0.4 s,
+        // ~1.2 Hz max. Same shared decision as ArtNetSender, and now literally the
+        // same number: both read it from FlashGuard rather than each holding one.
+        let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout,
+                                              maxDelta: FlashGuard.senderTickDelta)
         lastDimmer = limited
         ArtNetSender.applyDimmer(&channels, resolution: resolution, dimmer: limited)
         // Slew the COLOUR channels too (same shared guarantee as ArtNet — a fast
         // hue swing at high dimmer would otherwise strobe past 3 Hz, Law 6 gap).
-        ArtNetSender.applySlewedColour(&channels, resolution: resolution, last: &lastColour)
+        ArtNetSender.applySlewedColour(&channels, resolution: resolution, last: &lastColour,
+                                       maxDelta: FlashGuard.senderTickDelta)
         let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid, channels: channels)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)

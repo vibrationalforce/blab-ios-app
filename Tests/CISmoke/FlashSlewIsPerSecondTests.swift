@@ -12,11 +12,18 @@
 // down at `Sync/BioPhaser.swift:35-41` — a per-tick cap lets a fast poll sneak extra flashes
 // through, so the guarantee has to live as a per-SECOND velocity.
 //
-// ⚠️ WHAT THIS SLICE IS AND IS NOT. It adds the rate-correct primitive and NOTHING calls it yet:
-// the app's light output is unchanged. Wiring the senders through it is a separate slice, because
-// that one touches a colour path both protocols share and deserves its own guard. So a green here
-// means "the primitive is correct and derived from what ships", never "the senders are now
-// rate-safe" — they are not, yet.
+// ⛔ THE PARAGRAPH THAT STOOD HERE IS NOW FALSE AND IS KEPT AS A CORRECTION, not deleted. It read:
+// "It adds the rate-correct primitive and NOTHING calls it yet … a green here means the primitive
+// is correct, never that the senders are rate-safe — they are not, yet." That was true of #370 and
+// stopped being true with #372, which wired both senders through it. A file whose header still
+// says "nothing calls this" is exactly how a later reader concludes the wiring is still owed and
+// does it twice.
+//
+// ⚠️ WHAT A GREEN HERE MEANS NOW. Both senders build their loop interval from
+// `FlashGuard.senderTickMilliseconds` and cap with `FlashGuard.senderTickDelta` — the per-second
+// velocity resolved at that same interval — so the two cannot drift apart. The binding is to the
+// NOMINAL interval, not a measured one: a timer that fires late still gets the nominal step. That
+// residual is stated in `FlashGuard` and is NOT covered by anything below.
 //
 // ⛔ AND IT DOES NOT FIX THE KNOWN AMPLITUDE GAP, which is deliberately out of scope: a RATE cap
 // bounds ≤3 Hz only for flashes of amplitude ≳0.4, and `Sync/ArtNetSender.swift` records that
@@ -44,7 +51,7 @@ final class FlashSlewIsPerSecondTests: XCTestCase {
     /// repo keeps paying to undo.
     func testTheRateReproducesTheShippedPerTickStepExactly() {
         let step = FlashGuard.maxDelta(perSecond: FlashGuard.senderLuminancePerSecond,
-                                       dt: FlashGuard.shippedTickSeconds)
+                                       dt: FlashGuard.senderTickSeconds)
         XCTAssertEqual(step, FlashGuard.shippedTickDelta, accuracy: 1e-12, """
             The per-second rate no longer reproduces the shipped per-tick step at the shipped \
             tick interval. Wiring the senders through it would then change the fade speed while \
@@ -58,10 +65,126 @@ final class FlashSlewIsPerSecondTests: XCTestCase {
             `slewedDimmer`. These two must move together or the constant stops describing \
             anything real.
             """)
-        XCTAssertEqual(FlashGuard.shippedTickSeconds, 0.033, accuracy: 1e-12, """
-            `shippedTickSeconds` no longer records 0.033 s — the interval BOTH senders start \
-            their loop at (`.milliseconds(33)`).
+        XCTAssertEqual(FlashGuard.senderTickSeconds, 0.033, accuracy: 1e-12, """
+            `senderTickSeconds` no longer resolves to 0.033 s — the interval BOTH senders start \
+            their loop at. Since #372 this is the SOURCE of that interval, not a record of it, \
+            so changing it changes the shipped fade speed. That is a device-visible decision.
             """)
+        XCTAssertEqual(FlashGuard.senderTickMilliseconds, 33, """
+            The sender tick interval changed. Both senders read it, so this is not a constant \
+            edit — it is a change to how fast every fixture fades. Deliberate is fine; silent \
+            is not.
+            """)
+        XCTAssertEqual(FlashGuard.calibrationTickSeconds, 0.033, accuracy: 1e-12, """
+            `calibrationTickSeconds` moved. It is a FROZEN historical fact — the interval the \
+            0.08 was measured against — not the live interval. Moving it with the live one \
+            makes the rate cancel out and silently restores the per-tick behaviour. See the ⛔ \
+            note on the constant.
+            """)
+    }
+
+    // MARK: - The wiring (#372): interval and cap are ONE fact
+
+    /// The bit-identity claim the wiring commit makes. `senderTickDelta` is the rate resolved at
+    /// the shipped interval, so it must land back on the 0.08 the senders used before — otherwise
+    /// #372 changed the fade speed while its message said it changed nothing.
+    func testTheWiredStepIsTheShippedStepAtTheShippedInterval() {
+        XCTAssertEqual(FlashGuard.senderTickDelta, FlashGuard.shippedTickDelta, accuracy: 1e-12, """
+            The step both senders now pass to `slewedDimmer` is no longer the 0.08 they used \
+            before the rate wiring. Every fixture fade changed speed. If that is intended it is \
+            a product decision with a device look, not a refactor.
+            """)
+    }
+
+    /// The step must FOLLOW the interval. This is the whole defect: before #372 a halved interval
+    /// doubled the flash rate. Now it halves the step instead, and the fade takes the same
+    /// wall-clock time. Asserted against the arithmetic, not against a second hardcoded number.
+    func testHalvingTheIntervalHalvesTheStepInsteadOfDoublingTheFlashRate() {
+        let full = FlashGuard.maxDelta(perSecond: FlashGuard.senderLuminancePerSecond,
+                                       dt: FlashGuard.senderTickSeconds)
+        let half = FlashGuard.maxDelta(perSecond: FlashGuard.senderLuminancePerSecond,
+                                       dt: FlashGuard.senderTickSeconds / 2)
+        XCTAssertEqual(half, full / 2, accuracy: 1e-12, """
+            A halved tick no longer produces a halved step. The rate has stopped being \
+            rate-invariant, which returns the codebase to the exact defect #370/#372 closed: a \
+            faster send loop flashing faster.
+            """)
+        // Ticks-per-full-travel doubles, seconds-per-full-travel does not — that is the invariant
+        // a reader should carry away, so it is asserted rather than described.
+        let ticksAtFull = 1.0 / full
+        let ticksAtHalf = 1.0 / half
+        XCTAssertEqual(ticksAtHalf, ticksAtFull * 2, accuracy: 1e-9, """
+            A full 0→1 travel no longer takes twice as many ticks at half the interval, so the \
+            wall-clock fade duration is not preserved across a rate change.
+            """)
+    }
+
+    /// ⛔ THE MISTAKE THIS TEST EXISTS FOR, AND IT WAS MINE, CAUGHT BEFORE THE COMMIT. My first
+    /// #372 draft wrote `senderLuminancePerSecond = shippedTickDelta / senderTickSeconds` — the
+    /// LIVE interval. With that denominator the rate is not a rate: halve the interval and the
+    /// rate doubles, so `rate × interval` stays 0.08 and the flash rate doubles exactly as
+    /// before. The slice would have shipped a rate-shaped constant over the unchanged defect.
+    /// Both arithmetic tests above passed on it, because they vary `dt` while holding the rate
+    /// fixed — no runtime assertion can see this, since both constants are `let`. So the check
+    /// has to be on the DEFINITION, which is why this one reads source instead of running maths.
+    func testTheRateIsAnchoredToTheFrozenCalibrationNotTheLiveInterval() throws {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let path = root.appendingPathComponent("Sources/Echoelmusic/Studio/FlashGuard.swift")
+        guard let src = try? String(contentsOf: path, encoding: .utf8) else {
+            throw XCTSkip("FlashGuard.swift not readable at \(path.path) — source scan skipped")
+        }
+        let marker = "senderLuminancePerSecond: Double ="
+        guard let r = src.range(of: marker) else {
+            return XCTFail("""
+                `senderLuminancePerSecond` is no longer declared as a `Double` constant in \
+                FlashGuard.swift. If it became computed, this check must be rewritten to \
+                inspect the new form — deleting it re-opens the cancellation trap described \
+                above.
+                """)
+        }
+        let definition = String(src[r.upperBound...].prefix(120))
+        XCTAssertTrue(definition.contains("calibrationTickSeconds"), """
+            The luminance rate is no longer derived from `calibrationTickSeconds`: \
+            …\(definition.prefix(70))… If its denominator is the LIVE interval, the rate \
+            cancels and a faster loop flashes faster again with every other test still green.
+            """)
+        XCTAssertFalse(definition.contains("senderTickSeconds"), """
+            The luminance rate now references `senderTickSeconds` (the LIVE interval): \
+            …\(definition.prefix(70))… That is precisely the cancellation this slice was \
+            written to avoid.
+            """)
+    }
+
+    /// The structural half, and the one that actually rots: a sender could go back to writing its
+    /// own `.milliseconds(33)`. That compiles, passes every arithmetic test above, and silently
+    /// re-opens the split — the constant would then describe a loop nobody runs.
+    func testNeitherSenderHardcodesItsOwnTickInterval() throws {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        for name in ["ArtNetSender", "SACNSender"] {
+            let path = root.appendingPathComponent("Sources/Echoelmusic/Sync/\(name).swift")
+            guard let src = try? String(contentsOf: path, encoding: .utf8) else {
+                throw XCTSkip("\(name).swift not readable at \(path.path) — source scan skipped")
+            }
+            let starts = src.components(separatedBy: "loop.start(interval:")
+            XCTAssertGreaterThan(starts.count, 1, """
+                `\(name).swift` no longer starts a polling loop at all. If the sender moved to \
+                another timing mechanism, that mechanism needs its own binding to \
+                `FlashGuard.senderTickMilliseconds` — and this test needs rewriting to check it.
+                """)
+            for fragment in starts.dropFirst() {
+                let call = String(fragment.prefix(90))
+                XCTAssertTrue(call.contains("FlashGuard.senderTickMilliseconds"), """
+                    `\(name).swift` starts its loop from a literal instead of \
+                    `FlashGuard.senderTickMilliseconds`: …\(call.prefix(60))… The interval and \
+                    the flash cap are then two facts again, and speeding up this loop raises the \
+                    flash rate with nothing going red — the defect #372 exists to close.
+                    """)
+            }
+        }
     }
 
     /// ⛔ NOT `BioPhaser`'s 0.5/s. The two constants sit in different types, mean the same

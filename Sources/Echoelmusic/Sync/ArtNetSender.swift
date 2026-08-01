@@ -108,7 +108,9 @@ public final class ArtNetSender {
         self.bus = bus
         connect()
         isActive = true
-        loop.start(interval: .milliseconds(33)) { [weak self] in   // ~30 Hz, smooth fades
+        // The interval is FlashGuard's, not this file's (#372): the flash cap below is
+        // derived from the same constant, so a change here cannot outrun the safety bound.
+        loop.start(interval: .milliseconds(FlashGuard.senderTickMilliseconds)) { [weak self] in
             guard let self, let bus = self.bus else { return }
             self.sendIfFresh(from: bus)
         }
@@ -209,13 +211,18 @@ public final class ArtNetSender {
         lastSentBlackout = blackout
         // Hard flash guarantee for PHYSICAL fixtures: slew-limit the dimmer
         // (luminance) channel so even a pathological input jump can never strobe
-        // the lights. ~0.08/tick at 30 Hz → full fade ≥0.4 s (~1.2 Hz max).
-        let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout)
+        // the lights. The step is `FlashGuard.senderTickDelta` — a per-SECOND
+        // luminance velocity resolved at THIS loop's interval (#372), so halving
+        // the interval above halves the step instead of doubling the flash rate.
+        // At today's 33 ms that is the same 0.08 as before → full fade ≥0.4 s.
+        let limited = FlashGuard.slewedDimmer(from: lastDimmer, to: mastered, blackout: blackout,
+                                              maxDelta: FlashGuard.senderTickDelta)
         lastDimmer = limited
         Self.applyDimmer(&channels, resolution: resolution, dimmer: limited)
         // Slew the COLOUR channels too — a fast hue swing at high dimmer would
         // otherwise strobe even though the dimmer is rate-limited (Law 6 gap).
-        Self.applySlewedColour(&channels, resolution: resolution, last: &lastColour)
+        Self.applySlewedColour(&channels, resolution: resolution, last: &lastColour,
+                               maxDelta: FlashGuard.senderTickDelta)
         let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
         sequence = sequence == 255 ? 1 : sequence &+ 1   // 1...255, 0 = disabled
         send(packet)
@@ -323,9 +330,13 @@ public final class ArtNetSender {
     /// slew-RATE-limited values, closing the colour half of the flash gap. The
     /// dimmer alone was slewed before, so at a high dimmer a hard colour jump (e.g.
     /// red→cyan on a chord change, recomputed ~30 Hz) was an un-limited luminance
-    /// swing (W3C 2.3.1 / Law 6). Each colour channel now rides the SAME 0.08/tick
-    /// cap as the dimmer, which bounds a FULL swing to ~1.2 Hz (a large strobe is
-    /// impossible). Honest caveat (inherited from the shared slew primitive, not
+    /// swing (W3C 2.3.1 / Law 6). Each colour channel rides the SAME cap as the
+    /// dimmer, which bounds a FULL swing to ~1.2 Hz (a large strobe is
+    /// impossible). Since #372 `maxDelta` is PASSED IN rather than defaulted here:
+    /// this function is shared (`SACNSender` calls it), so a cap baked in locally
+    /// would be a second, invisible copy of the number the caller's loop interval
+    /// determines. The default keeps the two existing test call sites honest at the
+    /// shipped interval. Honest caveat (inherited from the shared slew primitive, not
     /// new here): a rate cap bounds ≤3 Hz only for flashes of amplitude ≳0.4 — a
     /// tiny-amplitude (0.1–0.2) reversal every 2–3 ticks could still exceed 3 Hz.
     /// That is unreachable with our sources (bio is sub-Hz; music colour changes
@@ -337,7 +348,8 @@ public final class ArtNetSender {
     /// The dimmer channel is left untouched (applyDimmer owns it). Shared by both
     /// ArtNet and sACN so both protocols get the identical flash-safe guarantee.
     static func applySlewedColour(_ channels: inout [UInt8], resolution: DMXResolution,
-                                  last: inout [Float]) {
+                                  last: inout [Float],
+                                  maxDelta: Double = FlashGuard.senderTickDelta) {
         if last.count != 3 { last = [-1, -1, -1] }
         let channelStride = resolution == .sixteenBit ? 2 : 1
         for c in 0..<3 {
@@ -346,13 +358,15 @@ public final class ArtNetSender {
             case .eightBit:
                 guard idx < channels.count else { return }
                 let target = Float(channels[idx]) / 255
-                let slewed = FlashGuard.slewedDimmer(from: last[c], to: target, blackout: false)
+                let slewed = FlashGuard.slewedDimmer(from: last[c], to: target, blackout: false,
+                                                     maxDelta: maxDelta)
                 last[c] = slewed
                 channels[idx] = byte(slewed)
             case .sixteenBit:
                 guard idx + 1 < channels.count else { return }
                 let target = Float(UInt16(channels[idx]) << 8 | UInt16(channels[idx + 1])) / 65535
-                let slewed = FlashGuard.slewedDimmer(from: last[c], to: target, blackout: false)
+                let slewed = FlashGuard.slewedDimmer(from: last[c], to: target, blackout: false,
+                                                     maxDelta: maxDelta)
                 last[c] = slewed
                 let w = word(slewed)
                 channels[idx] = w[0]; channels[idx + 1] = w[1]

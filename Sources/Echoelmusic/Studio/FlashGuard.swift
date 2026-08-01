@@ -174,6 +174,12 @@ public enum FlashGuard {
     ///   • no history (lastDimmer < 0) → the target (nothing to ramp from)
     ///   • otherwise       → the target, slew-limited to `maxDelta`/tick.
     /// `lastDimmer` is the anchor to update with the return value.
+    ///
+    /// ⚠️ The 0.08 DEFAULT is no longer what the app uses. Both senders pass
+    /// `senderTickDelta` explicitly (#372) — the rate resolved at their own interval,
+    /// which happens to equal 0.08 today. The default survives for the existing test
+    /// call sites and for any caller with a genuinely fixed tick; a new production
+    /// caller should pass a step derived from ITS interval, not inherit this one.
     public static func slewedDimmer(from lastDimmer: Float, to mastered: Float,
                                     blackout: Bool, maxDelta: Double = 0.08) -> Float {
         if blackout { return 0 }
@@ -182,21 +188,29 @@ public enum FlashGuard {
                                       maxDelta: maxDelta))
     }
 
-    // MARK: - The flash bound as a RATE, not a step (#370)
+    // MARK: - The flash bound as a RATE, not a step (#370 primitive, #372 wiring)
 
     /// ⚠️ THE DEFECT THIS EXISTS TO CLOSE, stated plainly because it is a safety bound:
     /// `slewedDimmer`'s `maxDelta` is a step PER CALL. Nothing in this file knows how often
-    /// it is called. The senders that call it set their own tick interval in two OTHER
-    /// files — `Sync/ArtNetSender.swift` and `Sync/SACNSender.swift` — and nothing binds
-    /// the two together. Speed a loop up and the flash rate rises with it, silently, with
-    /// no test anywhere going red. `BioPhaser` already learned this and says so at
+    /// it is called. The senders that call it USED TO set their own tick interval in two
+    /// OTHER files — `Sync/ArtNetSender.swift` and `Sync/SACNSender.swift` — with nothing
+    /// binding the two together: speed a loop up and the flash rate rose with it, silently,
+    /// with no test anywhere going red. `BioPhaser` already learned this and says so at
     /// `Sync/BioPhaser.swift:35-41`: a per-TICK cap lets a fast poll sneak extra flashes
     /// through, so the guarantee has to live as a per-SECOND velocity.
     ///
-    /// This slice is deliberately ADDITIVE ONLY. Nothing calls the function below yet, so
-    /// the app's light behaviour after it is unchanged. Wiring the two senders through it
-    /// is its own slice, because that one touches a shared colour path and deserves its own
-    /// guard rather than riding along here.
+    /// #372 closed it: both senders now start their loop from `senderTickMilliseconds` and
+    /// cap with `senderTickDelta`, which is that rate resolved at that same interval. Change
+    /// the interval and the step follows in the same expression — the two cannot drift apart
+    /// because they are no longer two facts.
+    ///
+    /// ⚠️ WHAT IS STILL NOT GUARANTEED, so nobody reads more into this than it says: the
+    /// binding is to the NOMINAL interval, not to a measured one. A timer that fires late
+    /// still gets the nominal step, so a stalled loop that catches up takes slightly larger
+    /// effective steps per real second. That residual is bounded by how far the loop can
+    /// drift and is much smaller than the file-split this replaced — but it is real, and
+    /// closing it means measuring dt at the sender (`maxDelta(perSecond:dt:)` already takes
+    /// one), which is a behaviour change with a device look, not a cleanup.
     ///
     /// ⛔ NOT NAMED `maxLuminancePerSecond`. `BioPhaser` already owns that name with the
     /// value 0.5/s — nearly FIVE TIMES stricter than what the senders actually do. Two
@@ -211,14 +225,36 @@ public enum FlashGuard {
     /// claimed bit-identity — a small lie of exactly the kind this file's history is full
     /// of. Derived, the wiring slice is genuinely a no-op at the shipped tick rate.
     public static let shippedTickDelta: Double = 0.08
-    /// The interval BOTH senders start their loop at today (`.milliseconds(33)`), in
-    /// seconds. If a sender changes its loop, it changes ITS constant — not this one; this
-    /// records what the 0.08 above was calibrated against.
-    public static let shippedTickSeconds: Double = 0.033
-    /// ≈ 2.4242 luminance units per second — today's per-tick step expressed as the
+    /// ⛔ THE CALIBRATION INTERVAL, AND IT MUST NOT BE `senderTickSeconds`. This is a frozen
+    /// historical fact: the interval the 0.08 above was measured against. My first draft of
+    /// #372 derived the rate from the LIVE interval instead, and that quietly cancelled the
+    /// entire slice — with `rate = 0.08 / live` the step comes back out as
+    /// `rate × live = 0.08` for EVERY interval, so halving the loop would have doubled the
+    /// flash rate exactly as before, now with a rate-shaped constant sitting on top of it
+    /// claiming otherwise. The two arithmetic tests written alongside it both passed,
+    /// because they varied `dt` while holding the rate fixed — they could not see it.
+    /// The rate is only rate-invariant if its denominator is frozen. Hence two constants
+    /// that hold the same number today and mean entirely different things.
+    public static let calibrationTickSeconds: Double = 0.033
+    /// The interval BOTH sender loops start at — and since #372 the SOURCE of it, not a
+    /// record of one: `ArtNetSender` and `SACNSender` build their `.milliseconds(…)` from
+    /// this. Changing it changes the loop rate AND, through `senderTickDelta` below, the
+    /// step size in the same breath.
+    public static let senderTickMilliseconds: Int = 33
+    /// The live interval in seconds, for the rate arithmetic.
+    public static let senderTickSeconds: Double = Double(senderTickMilliseconds) / 1000.0
+    /// ≈ 2.4242 luminance units per second — the per-tick step expressed as the
     /// rate-invariant quantity, so a faster loop takes smaller steps instead of flashing
-    /// faster.
-    public static let senderLuminancePerSecond: Double = shippedTickDelta / shippedTickSeconds
+    /// faster. Derived from the CALIBRATION pair (see the ⛔ above for why that word is
+    /// load-bearing) rather than hand-written, so the wiring came out bit-identical at the
+    /// shipped interval.
+    public static let senderLuminancePerSecond: Double = shippedTickDelta / calibrationTickSeconds
+    /// The step BOTH senders actually pass to `slewedDimmer` — the rate above, resolved at
+    /// the LIVE interval. Equals `shippedTickDelta` today only because the live interval
+    /// still equals the calibration interval; set `senderTickMilliseconds` to 16 and this
+    /// becomes ≈0.039, which is the entire point of routing through the rate.
+    public static let senderTickDelta: Double = maxDelta(perSecond: senderLuminancePerSecond,
+                                                        dt: senderTickSeconds)
 
     /// The per-call step that realises a per-SECOND luminance velocity at the caller's
     /// actual tick spacing.
