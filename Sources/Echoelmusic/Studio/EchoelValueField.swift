@@ -270,6 +270,17 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// never from a clock read, so it stays in step with the events it describes.
     @State private var lastTime: Date = .distantPast
 
+    /// True for exactly as long as SwiftUI considers a drag to be in flight (#377).
+    ///
+    /// ⛔ THE ONLY PIECE OF GESTURE STATE HERE THAT SURVIVES A CANCELLATION CORRECTLY, and that
+    /// is the whole reason it exists. SwiftUI does NOT call `onEnded` when a gesture is
+    /// cancelled — which is precisely what the surrounding `ScrollView` does when it decides a
+    /// drag was a scroll — so every `@State` latch above stays standing, and the NEXT drag skips
+    /// the anchor branch and inherits the abandoned gesture's references. `@GestureState` is the
+    /// one property wrapper SwiftUI resets by itself in that case; watching it fall back to
+    /// `false` is therefore the cancellation signal the gesture callbacks cannot give us.
+    @GestureState private var dragActive = false
+
     /// Drag distance (points) that covers the FULL range at normal speed — small, so
     /// the fader feels fast/direct (the old velocity-scrub felt stiff).
     private let fullRangePoints: Double = 200
@@ -395,6 +406,25 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
             // Do not remove that without removing this greediness at the source.
             Rectangle().fill(Color.clear).contentShape(Rectangle())
                 .gesture(scrubGesture)
+                // THE CANCELLATION PATH (#377). `onEnded` is not called when the surrounding
+                // ScrollView claims the drag, so this is the only place the latches can be
+                // cleared in that case. It deliberately does NOT commit: a gesture SwiftUI
+                // reassigned to the scroll view is not an edit the user finished.
+                //
+                // Idempotent by construction, because on a NORMAL end both paths run: `onEnded`
+                // fires first and clears `scrubbing`, so by the time the gesture state resets
+                // the guard below is already false. Never two commits, never a missed one.
+                //
+                // ⚠️ HONEST LIMIT: if SwiftUI ever stops re-evaluating this view when it resets
+                // a `@GestureState` — the documented behaviour, but not something a unit test in
+                // this repo can execute — this closure simply never runs and we are exactly
+                // where we were before, not worse. That is the reason to take this shape rather
+                // than restructure the whole gesture into `.updating`: the failure mode is the
+                // status quo, not a new one.
+                .onChange(of: dragActive) { _, active in
+                    guard !active, scrubbing else { return }
+                    resetScrubState()
+                }
                 .onTapGesture { showPad = true }
         }
         .frame(width: boxWidth.map { $0 * compactWidthProbe / 100 } ?? valueWidth)
@@ -502,6 +532,11 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         // keypad instead of being claimed as a near-zero scrub. Deliberate drags still
         // adjust. (The old 1 pt threshold made tap-to-type flaky.)
         DragGesture(minimumDistance: 8)
+            // The ONLY purpose of this `.updating` is that SwiftUI owns the reset (#377): it
+            // puts `dragActive` back to `false` on a normal end AND on a cancellation, and the
+            // cancellation is the case no gesture callback is called for. Nothing reads the
+            // value inside the gesture; the watcher on the drag layer does.
+            .updating($dragActive) { _, active, _ in active = true }
             .onChanged { g in
                 if !scrubbing {
                     scrubbing = true
@@ -601,19 +636,42 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // above would have built on it — teleporting the field and destroying any
                 // keypad or VoiceOver edit made in between. That half is contained AT THE POINT
                 // OF USE (the base check above re-seeds whenever the target no longer describes
-                // the screen), which is why this is a doc correction and not an open defect.
-                // What remains genuinely open is what a containment cannot reach: `scrubbing`
-                // itself, so a cancelled gesture's successor still skips the anchor branch and
-                // carries the old `lastY`/`lastX` (the long-standing first-event jump), and
-                // `scrubStartValue`, so THIS line can still judge the wrong span. The real cure
-                // is `@GestureState`, which SwiftUI resets on cancellation and would clear all
-                // three at once. That needs a device check, so it stays its own slice.
+                // the screen), which is why that was a doc correction and not an open defect.
+                //
+                // ✅ AND THE REST IS CLOSED TOO, ONE SLICE LATER: `dragActive` is a
+                // `@GestureState`, the one wrapper SwiftUI resets by itself on cancellation, and
+                // `.onChange(of: dragActive)` on the drag layer clears every latch when it falls
+                // back to `false` without a commit. This callback is now the NORMAL end only.
+                // What it does NOT do is put the value back — see `resetScrubState`.
                 let moved = scrubStartValue.map { $0 != value } ?? false
-                scrubStartValue = nil
-                scrubTarget = nil
-                scrubbing = false
+                resetScrubState()
                 if moved { onCommit() }
             }
+    }
+
+    /// Clears everything one gesture accrues, WITHOUT committing.
+    ///
+    /// Two callers on purpose — `onEnded` (normal end, which then decides about `onCommit`) and
+    /// the `dragActive` cancellation watcher. They were separate code once, and separate code is
+    /// how a latch gets forgotten in one of the two paths: #377 existed because the cancellation
+    /// path did not exist at all, and #376 then added a THIRD latch that the doc paragraph
+    /// describing #377 did not learn about for a commit. One function, one place to add the
+    /// fourth.
+    ///
+    /// ⚠️ IT DOES NOT RESTORE `scrubStartValue` INTO `value`, AND THAT IS A DECISION, NOT AN
+    /// OVERSIGHT. A cancelled drag has usually already moved the number — the events that ran
+    /// before SwiftUI reassigned the gesture wrote it — so "clear the latches" leaves that
+    /// movement standing, uncommitted. Putting it back would directly answer the founder's #360
+    /// report (four weather mixers found at 0.00, the signature of a scroll that scrubbed on its
+    /// way past) and is what a desktop DAW does on an Esc-cancel. It is NOT in this slice for
+    /// two reasons: an undo must also re-run `onChange()` so the engine hears the restored
+    /// value, or the screen and the sound disagree; and a legitimate drag that SwiftUI cancels
+    /// late would then silently discard real work. Both need a device to judge, and this slice
+    /// is deliberately the half that cannot regress anything.
+    private func resetScrubState() {
+        scrubStartValue = nil
+        scrubTarget = nil
+        scrubbing = false
     }
 
     /// Writes the clamped/snapped value and reports whether it actually MOVED.

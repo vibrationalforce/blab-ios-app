@@ -228,4 +228,61 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             that moved nothing must not commit.
             """)
     }
+
+    /// #377 — THE CANCELLED GESTURE. SwiftUI does not call `onEnded` when a parent `ScrollView`
+    /// claims a drag, and these fields sit in one, so without a second path every latch this
+    /// gesture sets stays standing and the NEXT drag inherits it. `@GestureState` is the one
+    /// wrapper SwiftUI resets by itself in that case; watching it fall back to `false` is the
+    /// cancellation signal the callbacks cannot give.
+    ///
+    /// ⚠️ A SOURCE SCAN AGAIN, AND WEAKER HERE THAN ANYWHERE ELSE IN THIS FILE: it cannot show
+    /// that SwiftUI re-evaluates the view when it resets a `@GestureState`, which is the entire
+    /// mechanism. That is documented behaviour and a device question. What this holds is that
+    /// the wiring exists, that the cancellation path does NOT commit, and that both paths clear
+    /// through ONE function — the last being the point, because #377 and #376 between them
+    /// showed exactly how a latch gets forgotten in one of two hand-written cleanups.
+    func testACancelledGestureHasAPathToClearItsLatches() throws {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let path = root.appendingPathComponent("Sources/Echoelmusic/Studio/EchoelValueField.swift")
+        guard let src = try? String(contentsOf: path, encoding: .utf8) else {
+            throw XCTSkip("EchoelValueField.swift not readable at \(path.path) — scan skipped")
+        }
+        let squashed = src.components(separatedBy: .whitespacesAndNewlines).joined()
+
+        XCTAssertTrue(src.contains("@GestureState private var dragActive"), """
+            The gesture no longer carries a `@GestureState`. Every other latch here is `@State`, \
+            which SwiftUI does NOT reset on cancellation — without this one there is no signal \
+            that a drag was taken away, and the stale-latch class of #377 is open again.
+            """)
+        XCTAssertTrue(squashed.contains(".updating($dragActive)"), """
+            `dragActive` is declared but never driven, so it is always false and the watcher \
+            below can never fire. A latch that cannot change is worse than none: it reads as \
+            cover.
+            """)
+        XCTAssertTrue(squashed.contains("guard!active,scrubbingelse{return}resetScrubState()}"), """
+            The cancellation watcher changed shape. It must do exactly two things — fire only \
+            on the falling edge of a drag that is still latched, and clear WITHOUT committing. \
+            An `onCommit()` in this closure would let a scroll that stole a drag re-roll the \
+            composition, which is #375's defect re-entered through the cancellation door.
+            """)
+        XCTAssertTrue(squashed.contains("resetScrubState()ifmoved{onCommit()}"), """
+            `onEnded` stopped clearing through `resetScrubState()`. Two hand-written cleanups \
+            are how a latch gets forgotten in one of them — which is the whole history of #376 \
+            and #377 in this file.
+            """)
+        // Whole trimmed LINES, not substrings — the declaration reads
+        // `@State private var scrubbing = false` and a substring count would score it as a
+        // clear, making this assertion fail today and pass after someone "fixed" it by
+        // expecting two. Simulated before commit; it counted 2 on the first draft.
+        let clears = src.split(separator: "\n").filter {
+            $0.trimmingCharacters(in: .whitespaces) == "scrubbing = false"
+        }.count
+        XCTAssertEqual(clears, 1, """
+            `scrubbing` is cleared in \(clears) places. There must be exactly one, inside \
+            `resetScrubState()`, or the next latch added to this gesture will be cleared in \
+            some of them and not others.
+            """)
+    }
 }
