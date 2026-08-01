@@ -3055,11 +3055,20 @@ struct EchoelStudioView: View {
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .accessibilityLabel(floatingVisualVisible ? "Hide the floating visual window" : "Show the floating visual window")
-            Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-            // `false`: this panel's visual is `FloatingVisualWindow`, which never reads
-            // `spectralDonuts` — so claiming donut state here is a claim about another surface.
-            visualLookStrip(showsDonutState: false)
-            visualLookCustomizer
+            signalSection
+            // `Group`, and it is NOT decorative: `panel(_:isExpanded:)` takes a `@ViewBuilder`,
+            // capped at TEN children, and `signalSection` (#347) took the last free slot. A
+            // `Group` collapses these three into one child while staying LAYOUT-TRANSPARENT —
+            // the enclosing stack still spaces them itself, so nothing moves on screen. That
+            // is why it is a `Group` and not a `VStack`: a stack would impose its own spacing
+            // and silently re-space three rows that were fine.
+            Group {
+                Text("Look").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+                // `false`: this panel's visual is `FloatingVisualWindow`, which never reads
+                // `spectralDonuts` — so claiming donut state here is a claim about another surface.
+                visualLookStrip(showsDonutState: false)
+                visualLookCustomizer
+            }
             // The A/B "Blend with" strip left this surface 2026-07-07 (founder: minimize —
             // the mix was extra clicking) and the view itself is DELETED as of #324. The
             // blend is not gone: the look SLIDER above owns `visual.styleB`/`visual.blend`,
@@ -3073,6 +3082,32 @@ struct EchoelStudioView: View {
                 .fixedSize(horizontal: false, vertical: true)
             touchSoundSection
         }
+    }
+
+    /// SIGNAL (#347 Slice 1, founder 2026-08-01: "Diesen Bereich nochmal erweitern durch
+    /// osciloscope, fft, spectrum, stereobild bzw spatial Analyse").
+    ///
+    /// A REAL oscilloscope of the master output — see `AnalysisScopeView`'s header for why
+    /// the shader's retired "Scope" look (style index 8) is NOT this and must not be
+    /// relabelled as it: that one is handed the note frequency, never audio.
+    ///
+    /// It sits ABOVE "Look" deliberately: this is what the sound IS, the looks below are what
+    /// it is rendered AS, and the reading order should follow that.
+    ///
+    /// ⚠️ ONE PROPERTY, THREE ROWS, AND THAT IS STRUCTURAL, not taste. `panel(_:isExpanded:)`
+    /// takes a `@ViewBuilder`, which caps a closure at TEN children. `visualPanel` already
+    /// held nine; adding the heading, the trace and the caption inline would have made twelve
+    /// and failed to compile — with the notoriously unhelpful "extra argument in call".
+    /// The next row added to this panel must join a section like this one, not the top level.
+    private var signalSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Signal").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            AnalysisScopeView(reduceMotion: reduceMotion)
+            Text("The master output, triggered on a rising edge so a steady tone stands still. It shows what is actually heard — timbre, overtones and the reverb tail — not the note grid.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// PLAY-SURFACE SOUND (founder 2026-07-08: "man soll auch Presets bzw. Sound-
