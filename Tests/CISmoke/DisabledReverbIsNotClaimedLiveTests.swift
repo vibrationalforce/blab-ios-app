@@ -45,7 +45,12 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
     func testThePageDoesNotSellAReverbThatCannotSound() throws {
         guard try convolutionReverbIsDisabled() else { return }   // silent once it is enabled
 
-        let claims = try source(Self.page)
+        // ⛔ SPACES NORMALISED FIRST, and the sibling guard is the reason: it hit exactly this
+        // and solved it, and the first version of THIS file regressed the fix. The page writes
+        // every tight pair as `48&nbsp;kHz`, `±6&nbsp;dB`, `Delta&nbsp;2`; one `&nbsp;` between
+        // "convolution" and "reverb" renders identically and would make the phrase invisible
+        // here — a green over an unfixed lie, or a red over nothing, depending which line moved.
+        let claims = Self.normalisingSpaces(try source(Self.page))
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)
             .filter { $0.lowercased().contains("convolution reverb") }
@@ -85,15 +90,46 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
 
     // MARK: - helpers
 
-    /// Whole-line `//` comments dropped before scanning for a writer. The flag is discussed in
-    /// prose in at least three files; a tombstone reading `// was useConvolutionReverb = true`
-    /// would otherwise convince this guard the stage is live and silence it — the failure that
-    /// costs most here, because a silent guard looks identical to a passing one.
+    /// Comments dropped before scanning for a writer — WHOLE-LINE, TRAILING **and** `/* … */`.
+    ///
+    /// ⛔ THE FIRST VERSION STRIPPED ONLY WHOLE-LINE `//`, and the commit message claimed
+    /// "comments are stripped" without that qualifier. Review showed the gap is a FALSE-GREEN,
+    /// which is the worst outcome this file can have: a trailing `// was useConvolutionReverb
+    /// = true` or any block comment containing that string makes `convolutionReverbIsDisabled`
+    /// return false, the test `return`s early, and the gate reports success while the page
+    /// keeps selling a stage that does not sound. A silent guard is indistinguishable from a
+    /// passing one — which is the exact defect the `doctor` skill exists for.
+    ///
+    /// Still not a Swift parser: `//` inside a string literal is stripped too. That direction
+    /// only ever ARMS the guard (a claimed writer disappears), so it fails safe.
     private static func codeOnly(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+        var out = ""
+        var rest = Substring(text)
+        while let open = rest.range(of: "/*") {
+            out += rest[..<open.lowerBound]
+            if let close = rest.range(of: "*/", range: open.upperBound..<rest.endIndex) {
+                rest = rest[close.upperBound...]
+            } else {
+                rest = rest[rest.endIndex...]      // unterminated: drop the tail
+            }
+        }
+        out += rest
+        return out.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> String in
+                guard let slashes = line.range(of: "//") else { return String(line) }
+                return String(line[..<slashes.lowerBound])
+            }
             .joined(separator: "\n")
+    }
+
+    /// HTML space entities → a plain space. Same helper, same reason, as the sibling guard
+    /// `AutoGainClampMatchesTheWebsiteTests`: the page encodes tight pairs as `&nbsp;`, and a
+    /// comparison that depends on which encoding was used is a guard about formatting, not
+    /// about the claim.
+    private static func normalisingSpaces(_ text: String) -> String {
+        text.replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&#160;", with: " ")
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
     }
 
     private func repoRoot() throws -> URL {

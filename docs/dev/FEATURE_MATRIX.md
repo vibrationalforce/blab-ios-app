@@ -148,7 +148,7 @@ acceptance line.
 - **TestFlight acceptance:** tapping play on `BioStripView` opens the envelope and produces sound; bio frames audibly modulate timbre.
 
 ### 2. EchoelFX — `PARTIAL` (deepened 2026-06-10; FX characters 2026-06-12)
-- **Code:** `DSP/EchoelDelayLine.swift`, `DSP/EchoelDelay.swift`, `DSP/EchoelModFX.swift`, `DSP/EchoelDynamics.swift`, `DSP/EchoelFXChain.swift` (insert chain, **stereo tone filter first stage**), `DSP/EchoelSVFilter.swift`, `DSP/EchoelLFO.swift`, `DSP/TempoSyncOption.swift`, `Sequencer/GenreFX.swift` (`GenreFXPreset` + `FXCharacter`), `EchoelConvolution` (reverb, in EchoelDDSP), `Audio/AutoMixChain.swift`, `DSP/EchoelVDSPKit.swift` · UI: `Studio/EchoelFXView.swift`
+- **Code:** `DSP/EchoelDelayLine.swift`, `DSP/EchoelDelay.swift`, `DSP/EchoelModFX.swift`, `DSP/EchoelDynamics.swift`, `DSP/EchoelFXChain.swift` (insert chain, **stereo tone filter first stage**), `DSP/EchoelSVFilter.swift`, `DSP/EchoelLFO.swift`, `DSP/TempoSyncOption.swift`, `Sequencer/GenreFX.swift` (`GenreFXPreset` + `FXCharacter`), `DSP/EchoelReverb.swift` (the algorithmic reverb that sounds); `EchoelConvolution` (in EchoelDDSP, disabled), `Audio/AutoMixChain.swift`, `DSP/EchoelVDSPKit.swift` · UI: `Studio/EchoelFXView.swift`
 - **Live:** **insert FX chain** (filter → modulation → delay → dynamics → safety limiter), driven from the `FX` panel (BioStripView) and applied to the melody voice on generate:
   - **Filter** — stereo Chamberlin SVF, low/high/band/notch, cutoff + resonance (the basis of muffled/lo-fi colours). Off by default.
   - **Delay** — fractional delay line (linear + allpass interpolation), digital / **tape** (wow+flutter+saturation) / **ping-pong**, one-pole feedback tone, stability-clamped feedback. **Tempo-synced** (studio calculator: note division → time at the live BPM).
@@ -159,7 +159,7 @@ acceptance line.
   - algorithmic reverb (`EchoelReverb`, enabled per genre preset), 4-band EQ + LUFS auto-gain (target from the Loudness picker — streaming −14, podcast −16, broadcast −23, cinema −24 or none; correction clamped to ±6 dB; 4 tonal presets), soft `tanh` saturation. `EchoelDDSP`'s convolution reverb is compiled but disabled (`useConvolutionReverb = false`) and makes no sound.
   - Audio-thread-safe (no alloc/locks in render; `audio-thread-reviewer`-audited each change); gated by `fxEnabled` (default off → bit-identical to prior builds until engaged).
 - **Roadmap:** **master-FX bus** (so the whole beat/loop, not just the melody, can go Underwater — needs an AVAudioUnit insert on the master mixer), analog (VCA/Opto/FET/VariMu/Tube) emulations, spatial/Atmos 3D panning, stereo synth voice, ring-mod.
-- **TestFlight acceptance:** FX panel toggles the insert chain audibly; filter/delay/chorus/flanger/phaser/tremolo/comp/limiter each change the sound; stamping **Underwater** muffles + adds watery movement, **Clean** resets to dry; export path applies AutoMix to −14 LUFS without clipping.
+- **TestFlight acceptance:** FX panel toggles the insert chain audibly; filter/delay/chorus/flanger/phaser/tremolo/comp/limiter each change the sound; stamping **Underwater** muffles + adds watery movement, **Clean** resets to dry; export path applies AutoMix to the SELECTED loudness target without clipping.
 
 ### 3. EchoelMix — `PARTIAL`
 - **Code:** `Audio/AudioEngine.swift`, `Audio/AutoMixChain.swift`, `Audio/SingleExport.swift`, `Audio/RetroCapture.swift`, `MicrophoneManager.swift`
