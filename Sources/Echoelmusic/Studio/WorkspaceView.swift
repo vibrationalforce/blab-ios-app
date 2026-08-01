@@ -484,7 +484,12 @@ struct PlaybackToggleButton: View {
                     .frame(width: 44, height: 48)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+                        // #367: idle used `border`, the DECORATIVE token whose own doc says
+                        // "Do not use it on anything tappable" (1.16:1). Its 30x32 neighbour, the
+                        // "•••" overflow 140 lines down, already used `borderStrong` — so the
+                        // primary transport control was the lowest-contrast control in the app,
+                        // outlined like a divider, next to a smaller sibling outlined like a button.
+                        .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.borderStrong, lineWidth: 1))
             }
             .buttonStyle(.plain)
             // ⛔ The outset is GONE (`inset(by: -6)`), and deliberately, not by oversight: it

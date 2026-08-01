@@ -55,11 +55,27 @@ enum EchoelTheme {
     /// compositing is the conservative choice, not a flattering one.
     ///
     /// Applied to: the front-plate tab chips, the Notes chip, `EchoelValueField` and its
-    /// fader capsule, `EchoelNumberPad`'s keys, the three always-on header tiles, the
-    /// header overflow-menu button, and `masterDoorButton`. NOT to panel-card outlines or
-    /// dividers — see `border`. (This list is the contract: an earlier version of it named
-    /// door buttons before they were converted, which is the exact drift class most of
-    /// CLAUDE.md's corrections are about.)
+    /// fader capsule, `EchoelNumberPad`'s keys, the always-on header tiles (Immersive, Lux,
+    /// Clips) AND the pulse monitor beside them, the header overflow-menu button,
+    /// `masterDoorButton`, and — since #367 — the primary transport Play/Pause
+    /// (`WorkspaceView`) and the tempo lock (`BodyTempoField`).
+    /// NOT to panel-card outlines or dividers — see `border`. (This list is the contract: an
+    /// earlier version of it named door buttons before they were converted, which is the
+    /// exact drift class most of CLAUDE.md's corrections are about.)
+    ///
+    /// ⚠️ #367 ALSO FIXED THIS LIST'S OWN BLIND SPOT — TWICE, and the second time caught me
+    /// mid-commit, which is why it is written out. "The three always-on header tiles" was one
+    /// phrase, so it READ as a settled fact. It was wrong in both directions at once: the
+    /// third of those tiles (Clips) was still on the decorative `border`, and a FOURTH
+    /// always-on element in the same file — `PulseMonitorMini` — was on `borderStrong` and
+    /// had never been listed here at all. I then repeated the same "three" in the fix's own
+    /// comment before counting the call sites.
+    ///
+    /// The lesson is narrower than "be careful": a contract that counts its members in prose
+    /// cannot be checked by READING it, only by counting call sites — and the count is the
+    /// part that rots, because every new control changes it and none of them come back here.
+    /// `ControlBoundaryIsInteractiveTests` does the counting now; that is the only reason a
+    /// number is allowed to stand in this paragraph.
     ///
     /// Why it exists: every control in the app declared itself with the 0.10 `border`, i.e.
     /// **1.16:1** — labels read at 15.9:1 while the boundaries were invisible. Worse, the

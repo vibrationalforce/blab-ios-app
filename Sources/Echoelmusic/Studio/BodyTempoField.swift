@@ -160,7 +160,12 @@ struct BodyTempoField: View {
                     .frame(width: compact ? 30 : 34, height: 32)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.border, lineWidth: 1))
+                        // #367: same correction as the transport button. Note what is NOT
+                        // changed: the two `border` strokes above (:129, :146) outline the
+                        // FOLLOWING tempo READOUT, and the comment there says why — "a tap opens
+                        // nothing (it follows the body)". A reading is ornament; this lock is a
+                        // control. That is the boundary, not "every stroke in the file".
+                        .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.borderStrong, lineWidth: 1))
             }
             .buttonStyle(.plain)
             // 44 pt HIG tap target — the SAME idiom as this control's immediate neighbour in

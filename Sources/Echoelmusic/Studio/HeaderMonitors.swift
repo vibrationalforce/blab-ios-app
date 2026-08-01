@@ -581,9 +581,13 @@ struct EchoelClipsMonitorMini: View {
             .frame(width: 38, height: 32)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8)
+                // #367: the idle branch used the decorative token while every other
+                // always-on chrome element in this file already used `borderStrong` —
+                // `PulseMonitorMini`, Immersive and Lux. This was the one outlined like a
+                // divider. No line numbers here on purpose: this edit moves them.
                 .strokeBorder(recorder.isRecording
                     ? EchoelTheme.recording.opacity(0.7)
-                    : EchoelTheme.border,
+                    : EchoelTheme.borderStrong,
                     lineWidth: 1))
             // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
             // horizontal growth); the 38×32 chip stays centred, no visible change.
