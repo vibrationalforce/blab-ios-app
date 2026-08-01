@@ -114,6 +114,31 @@ public final class SubBassVoice {
     @ObservationIgnored
     nonisolated(unsafe) private var a4Hz: Float = 440
 
+    /// Per-pitch-class (0=C…11=B) cent deviation from 12-TET — the SELECTED TONE
+    /// SYSTEM's intonation, the same table `EchoelPolyDDSP.setTuningCents` gets.
+    ///
+    /// ⭐ WHY THE SUB NEEDS IT AT ALL (#312, founder "Bass teilweise nicht in tune").
+    /// The felt sub doubles the lowest sounding note an octave down, so its pitch
+    /// CLASS is the melodic note's pitch class. Every melodic voice was retuned by
+    /// `applyTuning()` and this one was not, so with any non-12-TET system selected
+    /// the sub droned plain 12-TET against a retuned pad — up to ±50 cents apart in
+    /// Maqām Bayātī or Gamelan Pélog, i.e. half a semitone of beating on the
+    /// fundamental. "Teilweise" is exactly right: 12-TET is the default and is
+    /// unaffected, so the fault only appears once a system with non-zero degrees is
+    /// chosen, and then only on the pitch classes that actually deviate.
+    ///
+    /// ⛔ THE COMMENT IN `applyTuning()` USED TO CALL THIS ABSENCE CORRECT, on the
+    /// grounds that "`subBass`/`bioVoice`/`laneVoiceRack` have no such method". That
+    /// is a fact about the API, not a reason for a voice to play out of tune — the
+    /// missing method WAS the defect. Corrected there in the same commit.
+    ///
+    /// Fixed 12-element buffer, mutated IN PLACE and never reseated, so the audio
+    /// thread's read in `frequency(forMIDINote:)` can never race an ARC retain/release
+    /// on the backing storage — the same discipline `EchoelPolyDDSP.tuningCents`
+    /// documents. A torn read at worst mistunes a single note-on by one frame.
+    @ObservationIgnored
+    nonisolated(unsafe) private var tuningCents: [Float] = Array(repeating: 0, count: 12)
+
     @ObservationIgnored
     public lazy var sourceNode: AVAudioSourceNode = makeSourceNode()
 
@@ -219,6 +244,11 @@ public final class SubBassVoice {
     internal private(set) var lastInsertForTests: TrackFX?
     @ObservationIgnored
     internal private(set) var lastTuningForTests: Double?
+    /// TEST SEAM (Debug-only): the last accepted retune table, so the #312 fan can be
+    /// pinned — and, just as importantly, so the "wrong size is a no-op" branch is
+    /// observable rather than being a silent guard.
+    @ObservationIgnored
+    internal private(set) var lastTuningCentsForTests: [Float]?
     private func recordEnqueueForTests(_ kind: String, _ pitch: Int) {
         lastNoteCommandForTests = (kind, pitch)
         noteCommandCountForTests += 1
@@ -235,6 +265,22 @@ public final class SubBassVoice {
         #endif
     }
 
+    /// Install the tone system's 12-entry pitch-class retune table (#312). All zeros
+    /// (12-TET, the default) leaves playback bit-identical, so this is safe to fan
+    /// unconditionally. In-place element copy — the array reference is never swapped,
+    /// so it is safe to call while the audio thread reads `tuningCents`.
+    ///
+    /// No-op if the table is not exactly 12 entries: a short table would either trap
+    /// on the render thread or silently retune the wrong pitch classes, and both are
+    /// worse than staying at the last good tuning.
+    public func setTuningCents(_ cents: [Float]) {
+        guard cents.count == 12 else { return }
+        for i in 0..<12 { tuningCents[i] = cents[i] }
+        #if DEBUG
+        lastTuningCentsForTests = cents
+        #endif
+    }
+
     /// Install the per-bus insert FX (control thread). `.off`/passthrough removes it.
     /// Enqueued lock-free; applied on the audio thread at the next render block, so a
     /// knob drag never races the render. Off by default → bit-identical until dialed.
@@ -246,16 +292,34 @@ public final class SubBassVoice {
     }
 
     private nonisolated func frequency(forMIDINote note: Int32) -> Float {
+        Self.feltFrequency(forMIDINote: note, a4Hz: a4Hz, cents: tuningCents)
+    }
+
+    /// The felt sub's MIDI→Hz mapping, as a pure function so it can be checked
+    /// numerically without an engine (`SubBassFollowsTheToneSystemTests`). The
+    /// instance method above is the audio-thread caller and does nothing else.
+    ///
+    /// Pure arithmetic only — `powf`/`exp2f` are C math and array element reads are
+    /// index access, so this stays legal on the render thread (`.claude/rules/swift-audio.md`).
+    nonisolated static func feltFrequency(forMIDINote note: Int32,
+                                          a4Hz: Float,
+                                          cents: [Float]) -> Float {
+        // The tone system's retune, applied BEFORE the fold. Order matters: the fold
+        // moves by whole octaves and is therefore transparent to it, whereas folding
+        // first and retuning after could push a note that was just brought into the
+        // band back out of it. Reading the table by pitch class — and the sub's pitch
+        // class equals the doubled note's, because the caller hands it `note − 12`.
+        let deviation = cents.count == 12 ? cents[Int(((note % 12) + 12) % 12)] : 0
         // Octave-FOLD into the felt band rather than hard-clamping: a hard clamp to
         // 28/180 Hz forces an OFF-PITCH note (a wrong drone against the music — the
         // "komische Töne") whenever the octave-down bass lands outside the band.
         // Folding by whole octaves keeps the correct pitch CLASS (octaves are
         // musically transparent for a sub) and stays in the felt range.
-        var f = a4Hz * powf(2, (Float(note) - 69) / 12)
-        guard f.isFinite, f > 0 else { return Self.minHz }
-        while f > Self.maxHz { f *= 0.5 }
-        while f < Self.minHz { f *= 2 }
-        return min(max(f, Self.minHz), Self.maxHz)   // final safety only
+        var f = a4Hz * powf(2, (Float(note) - 69) / 12) * exp2f(deviation / 1200)
+        guard f.isFinite, f > 0 else { return minHz }
+        while f > maxHz { f *= 0.5 }
+        while f < minHz { f *= 2 }
+        return min(max(f, minHz), maxHz)   // final safety only
     }
 
     // MARK: - Source node (audio thread)

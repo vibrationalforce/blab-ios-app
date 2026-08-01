@@ -2705,13 +2705,28 @@ struct EchoelStudioView: View {
         // mapping reads this table, so the colour follows the SOUNDING pitch.
         touchSynth?.setTuningCents(cents)
         // ⛔ And the LEAD. This was missing until 2026-07-28 and it is the same defect as
-        // #114's concert-pitch gap, one function away: `setTuningCents` exists on exactly
-        // three reachable objects (all `PolySynthVoice` — `subBass`/`bioVoice`/`laneVoiceRack`
-        // have no such method, so their absence is correct), and the lead was the one left
-        // out. With any non-12-TET system selected, the generated melody played 12-TET
-        // against a retuned pad and touch surface — a larger error than the 32 cents of the
-        // A4 gap for a maqām or just table.
+        // #114's concert-pitch gap, one function away. With any non-12-TET system selected,
+        // the generated melody played 12-TET against a retuned pad and touch surface — a
+        // larger error than the 32 cents of the A4 gap for a maqām or just table.
         leadSynth?.setTuningCents(cents)
+        // ⛔ AND THE FELT SUB (#312, founder "Bass teilweise nicht in tune"). The line above
+        // used to end with "`setTuningCents` exists on exactly three reachable objects (all
+        // `PolySynthVoice` — `subBass`/`bioVoice`/`laneVoiceRack` have no such method, so
+        // their absence is correct)". That is a fact about the API being used as a reason,
+        // and it is the wrong kind of reason: the missing method WAS the defect, exactly as
+        // it had been for the lead one sentence earlier. `SubBassVoice` doubles the lowest
+        // sounding note an octave down, so it carries that note's PITCH CLASS — and it was
+        // the one pitched voice still playing plain 12-TET while everything above it moved.
+        // In Maqām Bayātī or Gamelan Pélog that is up to ±50 cents of beating on the
+        // fundamental, which is where a sub is least forgiving. 12-TET (the default) is an
+        // all-zero table and stays bit-identical, so this fan is unconditional.
+        subBass.setTuningCents(cents)
+        // STILL NOT FANNED, and this time with a reason that is about behaviour rather than
+        // API surface: `bioVoice` cannot sound at all (`BioReactiveSynthVoice.playNote` has
+        // no caller — task #277), and `laneVoiceRack`'s melodic pool DOES hold
+        // `PolySynthVoice`s that have the method, so a lane MIDI note is the same defect one
+        // level down. That is a separate slice against a separate surface, not a correctness
+        // claim about this one — do not read the absence here as approval.
     }
 
     /// Push the concert pitch to every voice that has one. Split out of the three inline
