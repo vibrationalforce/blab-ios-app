@@ -69,13 +69,29 @@ struct AnalysisSpectrumView: View {
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .frame(height: barsHeight)
-            // SCIENCE-FIRST: the number before the picture (Uncodixfy). Its own leaf, and
-            // its own slower clock — see the type's own note.
+            // ⛔ THIS WAS `.accessibilityElement(children: .combine)` ON THE WHOLE `VStack`,
+            // with the label and hint below it — and that is a regression I shipped in this
+            // very slice (#347 Slice 2 → #352), while the OSCILLOSCOPE one row up already
+            // carried a comment explaining why it must not be done that way. `.combine`
+            // folds the children into a single element and DISCARDS their labels; an
+            // explicit `.accessibilityLabel` on the same element then replaces whatever
+            // survived. So a VoiceOver user heard "Spectrum analyser" and NEVER
+            // "220.1 Hz · A2 +5 ct" — the one piece of actual data on the view, and the
+            // number the sighted layout puts front and centre under the science-first rule.
+            // The bars are the part that legitimately wants a summary label, because a
+            // Canvas has nothing readable in it; the readout beside them never did.
+            //
+            // LEHRE, weil sie sich von der üblichen unterscheidet: the correct pattern
+            // existed, in a sibling file, with a comment naming this exact mistake — and I
+            // reproduced the mistake anyway, one slice later, because I wrote the second
+            // view from the shape of the first rather than from its reasons.
+            .accessibilityElement()
+            .accessibilityLabel("Spectrum analyser")
+            .accessibilityHint("The frequencies present in the master output, low on the left, high on the right.")
+            // SCIENCE-FIRST: the number before the picture (Uncodixfy). Its own leaf, its
+            // own slower clock, and now its own accessibility element — see the type's note.
             SpectrumPeakLabel()
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Spectrum analyser")
-        .accessibilityHint("The frequencies present in the master output, low on the left, high on the right.")
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize, at date: Date) {
@@ -168,23 +184,38 @@ private struct SpectrumPeakLabel: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 0.25, paused: false)) { _ in
-            Text(readout())
+            // Computed ONCE per tick and used for both strings — the same reason
+            // `AnalysisPoincareView` hoists its readout: calling this again for the
+            // accessibility label would run a second 1024-point FFT four times a second
+            // purely to say the same thing differently.
+            let r = readout()
+            Text(r.display)
                 .font(EchoelTheme.font(11).monospacedDigit())
                 .foregroundStyle(EchoelTheme.dim)
+                // A SPOKEN variant, not the printed one. VoiceOver reads "·" as "middle dot"
+                // and U+2212 as "minus sign" mid-number, so the printed form arrives as
+                // "220.1 Hz middle dot A2 plus 5 ct" — technically the same characters, and
+                // not a sentence anybody can follow while playing. Sharp/flat is also the
+                // word a musician actually uses for the sign of a cent offset.
+                .accessibilityLabel(r.spoken)
         }
     }
 
-    private func readout() -> String {
+    /// `display` is what the panel prints; `spoken` is what VoiceOver says. They are built
+    /// together so they cannot drift — two functions reading the same FFT would be two places
+    /// to update when the format changes, and the silent-case wording is easy to fix in one.
+    private func readout() -> (display: String, spoken: String) {
         audioEngine.copyLatestOutputSamples(into: &state.samples, count: SpectrumReadoutState.fftSize)
         let (magnitudes, _) = state.fft.forward(state.samples)
         guard let peak = SpectrumReadout.peak(magnitudes, sampleRate: audioEngine.sampleRate) else {
-            return "No dominant tone"
+            // The one case where both strings are identical: it is already a sentence.
+            return ("No dominant tone", "No dominant tone")
         }
         let hz = EchoelDecimalText.string(peak.hz, decimals: 1)
         // The reference pitch is the session's, not 440 — a performer tuned to 432 must not
         // be told every note they play is 32 cents flat.
         guard let note = SpectrumReadout.nearestNote(hz: peak.hz, a4Hz: session.a4Hz) else {
-            return "\(hz) Hz"
+            return ("\(hz) Hz", "Loudest tone \(hz) hertz")
         }
         // Spelled in the reader's own system (#232 E): A/H/C, Do/Re/Mi or Sa/Re/Ga, the
         // same setting the Key picker two panels up obeys. A readout that spelled B where
@@ -193,7 +224,18 @@ private struct SpectrumPeakLabel: View {
         let name = naming.name(pitchClass: note.midi)
         let octave = note.midi / 12 - 1                     // MIDI 60 = C4, scientific pitch
         let cents = Int(note.cents.rounded())
-        return "\(hz) Hz · \(name)\(octave) \(cents >= 0 ? "+" : "−")\(abs(cents)) ct"
+        let display = "\(hz) Hz · \(name)\(octave) \(cents >= 0 ? "+" : "−")\(abs(cents)) ct"
+        // "sharp"/"flat" rather than "+"/"−", and the word "cents" rather than "ct". Exactly
+        // zero cents gets neither word: "A2, in tune" is what a musician says, and "A2 plus
+        // zero cents sharp" is what a naive sign test would produce.
+        let spoken: String
+        if cents == 0 {
+            spoken = "Loudest tone \(hz) hertz, \(name)\(octave), in tune"
+        } else {
+            let direction = cents > 0 ? "sharp" : "flat"
+            spoken = "Loudest tone \(hz) hertz, \(name)\(octave), \(abs(cents)) cents \(direction)"
+        }
+        return (display, spoken)
     }
 }
 
