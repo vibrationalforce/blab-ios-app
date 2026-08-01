@@ -837,7 +837,12 @@ struct FloatingVisualWindow: View {
                 // which no longer exists is worse than none — a blind user is told to expect
                 // something that cannot appear, with nothing on screen to correct them.
                 .accessibilityLabel("Studio")
-                .accessibilityHint("Leaves fullscreen and shows the instrument controls, with the field kept as a small floating picture")
+                // ⚠️ "small" WAS REMOVED FROM THIS SENTENCE ON PURPOSE (#366). The docked size
+                // is `.small` normally and `.large` while a take is recording, because the
+                // small card cannot hold the running recorder's stop button. A hint that
+                // names one of two outcomes is a hint that is wrong half the time, and the
+                // half it is wrong in is the one where the user is mid-performance.
+                .accessibilityHint("Leaves fullscreen and shows the instrument controls, with the field kept as a floating picture")
             }
             // Live LOOK slider, STUFENLOS (founder 2026-07-07: "langem slider, der durch
             // alle Modi stufenlos überblendet … während des Spielens"). Dragging morphs
@@ -968,18 +973,47 @@ struct FloatingVisualWindow: View {
     /// per-frame-changing aspect — the resize glitches. One snap = ONE drawable
     /// re-allocation; a brief content dip (see `resizeDip`) covers that single
     /// reconfiguration frame so the change reads soft, not raw.
-    /// PRODUCER DOOR action: leave fullscreen for the docked PiP (.small) so the full
-    /// DAW chrome — tight loops, video, WAV — is revealed, the visual kept as a small
-    /// floating picture. Uses the SAME stable dip as `cycleSize` (one drawable
-    /// re-allocation hidden behind a brief content dip, never the animated multi-frame
-    /// resize that glitched). The chrome stayed mounted beneath, so the running session
-    /// (bio + transport) is uninterrupted by the drop.
+    /// Sizes too narrow to hold a RUNNING recorder's stop button, widened to the first one
+    /// that fits. ONE owner for the #365 geometry rule, because it has two doors (#366).
+    ///
+    /// ⛔ IT HAD ONE OWNER AND TWO DOORS, WHICH IS THE SAME AS HAVING NONE. #365 taught
+    /// `cycleSize` to skip `.small` and `.medium` while a take runs — a running recorder
+    /// PINS its own stop button, so the floor is ≈252 pt with nothing optional left to shed,
+    /// against a ≈147–175 pt small card and a ≈232–275 pt medium one. `exitToStudio` sets a
+    /// size too, and it was left setting `.small` unconditionally. So the Studio chip walked
+    /// straight into the exact state the resize button refuses to enter: mid-take, the
+    /// toolbar overflows the card again and the logo goes first — the founder's original
+    /// "geht über den Rand hinaus", through the other door.
+    ///
+    /// ⚠️ AND IT MADE A SHIPPED TEST'S REASONING FALSE. `ChromeBudgetFitsTests` skips the
+    /// busy small/medium combinations on the stated ground that they are "unreachable rather
+    /// than broken". That was true of `cycleSize` and never true of this function. A guard
+    /// that documents WHY it does not test something has to be re-read whenever a second
+    /// writer appears — the assertions were still right, the sentence justifying their
+    /// absence was not.
+    private func sizeWideEnoughForARunningTake(_ size: WindowSize) -> WindowSize {
+        let busy = wavRecording || wavExporting || recorderIsRecording
+        guard busy, size == .small || size == .medium else { return size }
+        return .large
+    }
+
+    /// PRODUCER DOOR action: leave fullscreen for the docked PiP so the instrument controls
+    /// are revealed, the visual kept as a floating picture. Uses the SAME stable dip as
+    /// `cycleSize` (one drawable re-allocation hidden behind a brief content dip, never the
+    /// animated multi-frame resize that glitched). The chrome stayed mounted beneath, so the
+    /// running session (bio + transport) is uninterrupted by the drop.
+    ///
+    /// ⛔ THE OLD DOC PROMISED A SCREEN THAT NO LONGER EXISTS: "the full DAW chrome — tight
+    /// loops, video, WAV — is revealed". The DAW surfaces went with #121 Slice 4 and #167.
+    /// The same sentence, in user-facing form, was already corrected in this button's
+    /// `accessibilityHint` once (it used to name timeline, clips and tracks, in German) —
+    /// the comment version survived that pass because only the string was searched.
     private func exitToStudio() {
         resizeDip = true
         DispatchQueue.main.async {
             var tx = Transaction()
             tx.disablesAnimations = true
-            withTransaction(tx) { sizeRaw = WindowSize.small.rawValue }
+            withTransaction(tx) { sizeRaw = sizeWideEnoughForARunningTake(.small).rawValue }
             withAnimation(.easeOut(duration: 0.22)) { resizeDip = false }
         }
     }
@@ -1000,16 +1034,20 @@ struct FloatingVisualWindow: View {
         // reading the code — 252 vs 244 pt is an eight-point overflow that no amount of
         // staring at the source reveals. Any change to the costs above must re-run that
         // simulation; `ChromeBudgetFitsTests` is where it now lives.
-        let busy = wavRecording || wavExporting || recorderIsRecording
+        //
+        // ⛔ THE BUSY TEST USED TO BE INLINE HERE, and that is exactly how `exitToStudio`
+        // got to set `.small` mid-take (#366). The rule now lives in
+        // `sizeWideEnoughForARunningTake`, which BOTH size-setting paths call — a geometry
+        // law with two writers needs one owner, same reasoning as the single lifecycle owner
+        // per sensor.
+        //
         // Two frames later: apply the snap while the content is dimmed, then ease
         // the picture back in. No frame animation ever touches the Metal view.
         DispatchQueue.main.async {
             var tx = Transaction()
             tx.disablesAnimations = true
             withTransaction(tx) {
-                var next = windowSize.next
-                if busy, next == .small || next == .medium { next = .large }
-                sizeRaw = next.rawValue
+                sizeRaw = sizeWideEnoughForARunningTake(windowSize.next).rawValue
             }
             withAnimation(.easeOut(duration: 0.22)) { resizeDip = false }
         }

@@ -129,11 +129,21 @@ final class ChromeBudgetFitsTests: XCTestCase {
         ]
         // ⛔ SMALL AND MEDIUM ARE ABSENT ON PURPOSE, and the reason is the second defect in
         // the header: with a recorder pinned they provably cannot fit (≈252 pt needed
-        // against a 147–175 pt small card and a 232–275 pt medium one). `cycleSize` skips
-        // both while anything is recording, so those combinations are unreachable rather
-        // than broken. Testing them would pin a state the app refuses to enter — and, worse,
-        // would invite a future reader to "fix" the budget until they passed, which would
-        // mean shedding a stop button. Their IDLE cases are covered below.
+        // against a 147–175 pt small card and a 232–275 pt medium one). Every size-setting
+        // path skips both while anything is recording, so those combinations are unreachable
+        // rather than broken. Testing them would pin a state the app refuses to enter — and,
+        // worse, would invite a future reader to "fix" the budget until they passed, which
+        // would mean shedding a stop button. Their IDLE cases are covered below.
+        //
+        // ⛔ THIS SENTENCE WAS FALSE FOR ONE FULL SLICE, AND ONLY THE SENTENCE. It read
+        // "`cycleSize` skips both", naming ONE writer, while `exitToStudio` — the "Studio"
+        // chip in the same toolbar — set `.small` unconditionally. So the state this file
+        // called unreachable had a second, reachable door, and the assertions that are
+        // deliberately absent here were absent on a false premise. The fix (#366) gave the
+        // rule one owner; `testBothSizeDoorsGoThroughTheOneWidenRule` below is what keeps a
+        // third door from re-opening the hole. LESSON: a test that documents why it does NOT
+        // cover something is making a claim about the WHOLE codebase, not about the lines it
+        // touches — and nothing re-checks that claim when a new caller appears.
         for bounds in Self.devices {
             for step in steps {
                 let cw = cardWidth(bounds, fraction: step.fraction)
@@ -207,6 +217,54 @@ final class ChromeBudgetFitsTests: XCTestCase {
                 does not build.
                 """)
         }
+    }
+
+    // MARK: - Every door to a narrow size goes through the one rule
+
+    /// Source-text, because the rule lives in a `private` method on a `View` struct and the
+    /// defect it guards is "someone added a SECOND writer" — which no behavioural test on
+    /// the pure layout type can see. `sizeRaw` is the one stored size; every assignment to
+    /// it must be widened first.
+    func testBothSizeDoorsGoThroughTheOneWidenRule() throws {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let path = root.appendingPathComponent(
+            "Sources/Echoelmusic/Studio/FloatingVisualWindow.swift")
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw XCTSkip("""
+                source tree not present under \(root.path) — this case inspects source text, \
+                so it SKIPS rather than reporting a green it did not earn
+                """)
+        }
+        let code = try String(contentsOf: path, encoding: .utf8)
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+
+        // The `@AppStorage` DECLARATION also matches "sizeRaw =" and is not a write the rule
+        // applies to: it is the cold-launch default (`.small`), and nothing can be recording
+        // before the view exists. Excluding it by `var` keeps the check on assignments.
+        let writes = code.filter { $0.contains("sizeRaw =") && !$0.contains("var sizeRaw") }
+        XCTAssertFalse(writes.isEmpty, """
+            No assignment to `sizeRaw` found in FloatingVisualWindow. The stored window size \
+            was renamed; re-anchor this case in the same commit rather than letting it pass \
+            over an empty list.
+            """)
+        for write in writes {
+            XCTAssertTrue(write.contains("sizeWideEnoughForARunningTake("), """
+                A size is written without the running-take widen rule: \
+                \(write.trimmingCharacters(in: .whitespaces)). A card narrower than ≈252 pt \
+                cannot hold a running recorder's stop button (the whole subject of this \
+                file), so a raw write here strands a live take with no way to end it and \
+                overflows the card exactly as the founder first reported. This is the \
+                #366 defect: the rule was correct and had a second door around it.
+                """)
+        }
+        XCTAssertTrue(code.contains { $0.contains("private func sizeWideEnoughForARunningTake") }, """
+            The widen rule is gone. If the geometry changed so that every size can hold a \
+            running recorder, delete this case WITH it and say so in the commit — do not \
+            leave a rule with no owner and two callers.
+            """)
     }
 
     func testAWiderCardNeverKeepsLessThanANarrowerOne() {
