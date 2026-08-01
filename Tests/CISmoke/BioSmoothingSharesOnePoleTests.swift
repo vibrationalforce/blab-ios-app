@@ -36,13 +36,19 @@
 // invisible to it. A third member of the 60 Hz class written that way would pass silently
 // — named here and in `applyBioReactive`'s own tombstone rather than papered over.
 //
-// ⛔ ONE HOLE WAS REAL AND IS NOW CLOSED, and it is worth recording because the obvious
-// version of this guard had it: checking only `line.contains("smoothCoeff")` accepts
-// `x = x * 0.9 + smoothCoeff * y` — the shape matches, the word is present, and a private
-// literal rides along beside a legitimate mention. That is a false GREEN on precisely the
-// defect, which is the worst outcome a guard can have. The second condition (`* <digit>`
-// is forbidden on a pole line) closes it: the three real poles multiply by `smoothCoeff`
-// or by `(1.0 - smoothCoeff)`, and `* (` is not `* <digit>`.
+// ⛔ TWO FALSE-GREEN HOLES WERE REAL AND ARE NOW CLOSED. Both were found by review, both
+// in the first shipped version of this file, and both are recorded because a guard that
+// silently passes is worse than no guard at all:
+//  1. `line.contains("smoothCoeff")` alone accepts `x = x * 0.9 + smoothCoeff * y` — the
+//     shape matches, the word is present, and a private literal rides along beside a
+//     legitimate mention. Closed by the second condition: `* <digit>` is forbidden on a
+//     pole. The real poles multiply by `smoothCoeff` or by `(1.0 - smoothCoeff)`, and
+//     `* (` is not `* <digit>`.
+//  2. Matching per LINE inspected only the first line of the filter pole, which #332 split
+//     across two — so the half carrying `(1.0 - smoothCoeff)` was never checked at all.
+//     Closed by joining continuations into whole statements; see `onePoleStatements`.
+// Together they make the header's claim above ("fails if one of the existing three is
+// reverted to a literal") actually true. It was two of three when first written.
 
 import Foundation
 import XCTest
@@ -54,10 +60,7 @@ final class BioSmoothingSharesOnePoleTests: XCTestCase {
     func testEveryBioSmootherReadsTheOneSharedCoefficient() throws {
         let body = try Self.codeOnly(applyBioReactiveBody())
 
-        let poles = body
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-            .filter { Self.isSelfUpdatingOnePole($0) }
+        let poles = Self.onePoleStatements(in: body)
 
         // Fail LOUD if the detector went blind. A rename or a reformat that stops the
         // shape from matching would otherwise leave this file green while checking
@@ -74,11 +77,10 @@ final class BioSmoothingSharesOnePoleTests: XCTestCase {
             """)
 
         for pole in poles {
-            // TWO conditions, because `contains` alone had a false-GREEN hole that review
-            // found: `x = x * 0.9 + smoothCoeff * y` matches the shape AND contains the
-            // word, so a private literal could ride along beside a legitimate mention.
-            // `* <digit>` is the tell — the three real poles multiply by `smoothCoeff` or
-            // by `(1.0 - smoothCoeff)`, never by a bare number.
+            // TWO conditions on the WHOLE STATEMENT, because each half was a false-GREEN
+            // hole on its own (see the header). `* <digit>` is the tell — the real poles
+            // multiply by `smoothCoeff` or by `(1.0 - smoothCoeff)`, never by a bare
+            // number, on either line of a split statement.
             XCTAssertTrue(pole.contains("smoothCoeff"), Self.privateCoefficientMessage(pole))
             XCTAssertNil(pole.range(of: #"\*\s*[0-9]"#, options: .regularExpression),
                          Self.privateCoefficientMessage(pole))
@@ -112,6 +114,53 @@ final class BioSmoothingSharesOnePoleTests: XCTestCase {
         on a DIFFERENT clock (the per-sample one in `updateSpectralEnvelope` does), it \
         does not belong in this function's body.
         """
+    }
+
+    /// Every one-pole update in `code`, as WHOLE STATEMENTS — a matched line plus its
+    /// continuations, joined.
+    ///
+    /// ⛔ THE LINE-ONLY VERSION SHIPPED WITH A FALSE-GREEN HOLE THAT #332 ITSELF OPENED,
+    /// which is the sharpest possible demonstration of why this guard is worth its length.
+    /// #332 split the filter pole across two lines:
+    ///
+    ///     filterCutoff = (filterCutoff * smoothCoeff
+    ///                     + targetCutoff * (1.0 - smoothCoeff)).clamped(to: …)
+    ///
+    /// The detector sees line 1 and checked only line 1. Line 2 — which carries the OTHER
+    /// half of the coefficient pair — was never inspected. A later edit to
+    /// `+ targetCutoff * 0.03` would keep this file green while breaking the pole outright:
+    /// the coefficients would stop summing to 1, the steady state would fall to
+    /// 0.03/(1 − 0.6065) ≈ 0.076 × target, and the filter would pin at the 20 Hz clamp floor
+    /// forever — a permanent-dark failure, passing. The header claimed coverage of "the
+    /// existing three"; it was two of three. Continuations are joined here so the claim is
+    /// true.
+    ///
+    /// Continuation rule: keep appending while parentheses are unbalanced. That is exactly
+    /// what makes the split statement whole, and it leaves the two single-line poles
+    /// untouched (their parentheses balance on their own line).
+    private static func onePoleStatements(in code: String) -> [String] {
+        let lines = code.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var statements: [String] = []
+        for (index, line) in lines.enumerated() where isSelfUpdatingOnePole(line) {
+            var statement = line
+            var depth = parenDepth(of: line)
+            var next = index + 1
+            while depth > 0, next < lines.count {
+                statement += " " + lines[next].trimmingCharacters(in: .whitespaces)
+                depth += parenDepth(of: lines[next])
+                next += 1
+            }
+            statements.append(statement)
+        }
+        return statements
+    }
+
+    private static func parenDepth(of line: String) -> Int {
+        line.reduce(0) { depth, ch in
+            if ch == "(" { return depth + 1 }
+            if ch == ")" { return depth - 1 }
+            return depth
+        }
     }
 
     /// TRUE for `x = x * …` and `x = (x * …` — an accumulator multiplied by its own

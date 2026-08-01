@@ -51,17 +51,29 @@ import Accelerate
 ///   `AVAudioSourceNode` render block). Audio-thread-safe by construction —
 ///   pre-allocated buffers, vDSP only, zero runtime allocation, no lock/malloc/
 ///   ObjC/GCD.
-/// • `applyBioReactive()` now runs on the audio RENDER thread in ALL three owners
+/// • `applyBioReactive()` runs on the audio RENDER thread in BOTH owners
 ///   (corrected 2026-07-24 — the old note here still described a control-thread
 ///   caller and an open "KNOWN SMELL"; both were closed by tasks #83/#90/#94):
-///     - `BioReactiveSynthVoice` — enqueues on the 10 Hz control poll to an SPSC
+///     - `BioReactiveSynthVoice` — enqueues on the control poll to an SPSC
 ///       command queue, drains + applies inside its render block.
-///     - `PolySynthVoice` — same discipline: the main 10 Hz poll enqueues to
-///       `bioCommands` (SPSC), the render block drains to the latest frame and
-///       applies it there, AFTER the patch drain (see PolySynthVoice.swift).
-///     - AUv3 `EchoelmusicAudioUnit` — the 10 Hz KVO poll writes atomic-width
-///       Float mirrors (`BioMirror`); the render block reads those and applies
-///       render-side (throttled ~10 Hz). It never reads an AUParameter in render.
+///     - `PolySynthVoice` — same discipline: the poll enqueues to `bioCommands`
+///       (SPSC), the render block drains to the latest frame and applies it there,
+///       AFTER the patch drain (see PolySynthVoice.swift). ⚠️ It has a SECOND
+///       caller that is not a bio frame at all: `spawnVoice` applies the cached
+///       bio values to the voice it just allocated, so a voice's smoothers also
+///       advance once per NOTE-ON. That is what makes the τ figures in
+///       `applyBioReactive` ceilings rather than facts (#332).
+///   ⛔ A THIRD BULLET STOOD HERE — AUv3 `EchoelmusicAudioUnit`, "the 10 Hz KVO
+///   poll writes atomic-width Float mirrors (`BioMirror`)". That target was removed
+///   by #121 Slice 1; `git ls-files | grep -i auv3` returns one orphaned test and
+///   three scratchpads, no source. It mattered because this list is what a reader
+///   auditing "who calls this on the audio thread" works from — a phantom owner
+///   sends them hunting a render path that does not exist, and it inflated the
+///   apparent risk of every edit to this function.
+///   ⛔ AND THE "10 Hz" IN THE SURVIVING BULLETS WAS THE #315 UNIT ERROR ITSELF:
+///   the poll fires at 10 Hz but drops every frame whose timestamp is unchanged,
+///   and every wired publisher emits ~1 Hz. Said plainly here because the same
+///   stale rate belief is what cost #331 and #332 two separate slices.
 /// • Note / patch / master-gain updates use the same lock-free handoff (SPSC queue
 ///   / `nonisolated(unsafe)` mirror).
 ///
@@ -1854,17 +1866,36 @@ public final class EchoelDDSP: @unchecked Sendable {
         // brightness/amplitude pole and named this one in a ⚠️ block 35 lines below; it stayed
         // for one slice so the device listen could attribute what it heard. This is that slice.
         //
-        // It read `filterCutoff * 0.97 + targetCutoff * 0.03`. At the ~1 Hz this function is
-        // actually called at, α = 0.97 is τ = −1/ln(0.97) = 32.83 s. Step response, both poles:
+        // It read `filterCutoff * 0.97 + targetCutoff * 0.03`. At ~1 Hz, α = 0.97 is
+        // τ = −1/ln(0.97) = 32.83 s. Step response, both poles, PER CALL:
         //
-        //            after 1 s   2 s    5 s    10 s   30 s
-        //   was 0.97      3 %    6 %    14 %    26 %   60 %
-        //   now 0.6065   39 %   63 %    92 %    99 %  100 %
+        //          after 1 call  2    5     10    30
+        //   was 0.97        3 %  6 %  14 %  26 %  60 %
+        //   now 0.6065     39 % 63 %  92 %  99 % 100 %
         //
-        // So the mapping the comments around here repeatedly call the MAIN bio expression —
-        // "coherence opens the filter" — delivered 3 % of a change in the player's body after a
-        // second and needed half a minute to get past halfway. That is the instrument's premise
-        // failing quietly, in the one place a listener would look for it first.
+        // ⛔ THE AXIS IS CALLS, NOT SECONDS, AND THE FIRST VERSION OF THIS BLOCK WROTE
+        // SECONDS — the same "mechanism right, justification wrong" this repo keeps paying
+        // for, committed inside the slice that fixes an instance of it. Calls equal seconds
+        // only where a bio frame is the sole trigger: the mono/bio voice, and any poly voice
+        // holding a sustained note. There is a SECOND production caller. `spawnVoice` runs
+        // `if bioModulationEnabled { applyBioToVoice(voiceIdx) }` on EVERY note-on, so a
+        // voice's poles also advance once per note it receives. Consequences, both ways:
+        //  · the "32.8 s" indictment is an upper bound. On a busy poly part — say 4 note-ons
+        //    per second into one voice — the old α = 0.97 already behaved like τ ≈ 6.6 s.
+        //    Still far too slow, but "3 % after one second" was only ever true for sustained
+        //    material and for the mono voice.
+        //  · τ = 2 s is likewise a CEILING now, not a fact. Extra ticks converge toward the
+        //    same `targetCutoff`, so there is no overshoot and no oscillation — but two
+        //    voices on the same chord can sit at different cutoffs depending on how recently
+        //    each was retriggered, and that per-voice spread is ~39 % per note-on instead of
+        //    3 %. Converges, but it is a real transient the old constant hid. Listen to a
+        //    DENSE poly part on device, not only to a held pad.
+        //
+        // The mapping the comments around here repeatedly call the MAIN bio expression —
+        // "coherence opens the filter" — was, on sustained material, delivering 3 % of a
+        // change in the player's body after a second and needing half a minute to get past
+        // halfway. That is the instrument's premise failing quietly, in the one place a
+        // listener would look for it first.
         //
         // ⭐ AND THE POINT IS THE SHARED CONSTANT, NOT THE NUMBER. Typing 0.6065 here a second
         // time would fix the symptom and leave the structure that produced it: two one-poles on
@@ -1884,12 +1915,32 @@ public final class EchoelDDSP: @unchecked Sendable {
         // "driven in block-size jumps by `applyBioReactive`" as the hazard it absorbs.
         //
         // ⚠️ THIS IS A TUNING CHANGE AND MUST BE REPORTED AS ONE — unlike the clamp above it,
-        // which is a no-op for every shipped patch. It changes what the instrument sounds like,
-        // and the two paths are not affected equally: the ANCHORED path moves within 0.7…1.3 ×
-        // the patch's own cutoff, so the genre's character bounds the swing, while the SENTINEL
-        // path (patch-less bio voice) sweeps an absolute 200…1800 Hz and will now traverse that
-        // whole range in seconds. If a device listen finds either too twitchy, the fix is the
-        // shared constant above, not a private literal back here.
+        // which is a no-op for every shipped patch. It changes what the instrument sounds
+        // like, and the two paths are not affected equally.
+        //
+        // ANCHORED path (a patch was applied) — this is what an ordinary session hears, and
+        // it is the one that matters most. The factor is `(1 + (coherence − 0.5)·0.5)`
+        // clamped to 0.7…1.3, but the CLAMP IS NOT THE SWING: `coherenceForSound` yields
+        // (0, 1], so the factor only ever reaches **0.75…1.25 ×** the patch's own cutoff
+        // (≈ 0.74 octaves) and the clamp is unreachable belt-and-braces. Quoting the guard
+        // instead of the behaviour is its own small version of the error this slice fixes.
+        //
+        // SENTINEL path (no patch anchor) — an absolute 200…1800 Hz, 9× or ≈ 3.2 octaves,
+        // now traversed in seconds. ⛔ AND THE FIRST VERSION CALLED THIS "the patch-less bio
+        // voice", which points at the global `bioVoice` — a voice that CANNOT BE HEARD:
+        // `BioReactiveSynthVoice.playNote` is the only thing that flips `hasEverSounded`,
+        // and `bioVoice.playNote` has no caller in `Sources/` (attach/start/onPollTick/
+        // setTuning only), so its render block returns zeros. The sentinel voice that DOES
+        // sound is a different object: `LaneVoiceRack.bios`, one per rack, reached when a
+        // user assigns a track `TrackInstrument.bioVoice` under `FeatureFlags.multiRoll`.
+        // It never receives a patch (`applyPatch` routes to the poly slot, never to `bios`),
+        // so it takes the sentinel branch. The sentence was materially true and its
+        // reasoning was wrong — and the correction changes the RISK ORDER: the big sweep is
+        // behind a flag plus a deliberate user choice, while the modest 0.75…1.25 × change
+        // is what every session hears. Do not read the sentinel as the headline.
+        //
+        // If a device listen finds either too twitchy, the fix is the shared constant above,
+        // not a private literal back here.
         filterCutoff = (filterCutoff * smoothCoeff
                         + targetCutoff * (1.0 - smoothCoeff)).clamped(to: Self.cutoffRange)
 
