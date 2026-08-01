@@ -4585,6 +4585,15 @@ struct EchoelStudioView: View {
     /// ⚠️ Consequence to state rather than hide: the first edit of this row WRITES the value,
     /// so an unspecified patch becomes an explicit one. That is what makes an explicit mono `1`
     /// reachable at all — `apply` honours an explicit 1 and cannot honour a nil.
+    ///
+    /// ⛔ SINCE #375 THAT SENTENCE IS CONDITIONAL: `apply` skips the write when the number does
+    /// not move, so an edit landing on the DISPLAYED value no longer materialises the field. It
+    /// matters here and only here, because this is the one asymmetric binding in the file — the
+    /// getter clamps to `maxUnison` and the setter does not. On the two patches that persist
+    /// `uni: 4` against a max of 3, dragging to 3 used to canonicalise storage to 3; now the 4
+    /// stays on disk, and if `maxUnison` is ever raised those patches jump to four voices
+    /// without the user asking. Not worth a special case today (nothing else re-reads the
+    /// stored value), but it must not be found by surprise later.
     private var unisonVoicesBinding: Binding<Float> {
         Binding(get: { Float(Swift.min(currentPatch.unisonVoices ?? 2,
                                        EchoelPolyDDSP.maxUnison)) },

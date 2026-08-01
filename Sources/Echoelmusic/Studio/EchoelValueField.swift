@@ -98,18 +98,38 @@ enum ScrubPrecision {
     /// its ten `onChange` sites destroy user work with an unchanged value — `visualPresetID = ""`
     /// drops the chosen visual look and `applyArticulation()` overwrites hand-tuned A/D/S/R —
     /// and `onCommit` was worse still: `moodKnob` commits `recomposeIfRunning()`, so a drag that
-    /// moved nothing re-rolled the composition. A mood knob parked at 0 and dragged DOWNWARD —
-    /// the direction of a scroll — is exactly that gesture.
+    /// moved nothing re-rolled the composition (when the transport is running — the method name
+    /// says so and the first draft of this line dropped the condition). A mood knob parked at 0
+    /// and dragged DOWNWARD — the direction of a scroll — is exactly that gesture.
+    ///
+    /// ⚠️ THE BELOW-GRID CASE IS ONLY HALF FIXED, AND SAYING SO IS THE POINT. This commit makes
+    /// it SILENT; it does not make the control WORK. `lastY`/`lastX` re-anchor every event, so
+    /// `delta` is a per-event increment and the sub-grid remainder is discarded rather than
+    /// accumulated — a slow drag below the grid can never move the value, however long it lasts.
+    /// Measured at 60 Hz: a `0…1, decimals: 2` field (every FX row, master volume, the weather
+    /// mixers) needs ≈140 pt/s before it responds at all, and on a 120 Hz display that rises to
+    /// ≈195 — which also defeats the frame-rate independence the speed measurement below claims.
+    /// The cure is to carry an un-snapped scrub target across events; that is #376, not this
+    /// commit. Until then `ScrubPrecision.fineScale > 0` (pinned in `ScrubPrecisionSmokeTests`
+    /// as "a zero-travel control reads as broken") is satisfied in the arithmetic and not on the
+    /// screen.
     ///
     /// Pure so the landing rule is tested rather than reasoned about; the field's `apply`
     /// compares this result to the current value IN `V`'s OWN PRECISION, because a `Float` field
     /// holding 0.1 is not bit-equal to the `Double` 0.1 and comparing across the two would report
     /// a move on every single event.
     ///
-    /// Non-finite `raw` is passed through unchanged (NaN survives both comparisons and the
-    /// rounding), which is what the previous inline code did. Deliberately not "fixed" here: the
-    /// callers are a finite drag delta and a parsed keypad entry, and changing it silently would
-    /// be a second change riding along with this one.
+    /// ⛔ NON-FINITE INPUT, STATED CORRECTLY ON THE SECOND ATTEMPT. The first version of this
+    /// paragraph said "non-finite `raw` is passed through unchanged", which is wrong for the
+    /// infinities: with Swift's ordering (`max(x,y) = y >= x ? y : x`), `+∞` clamps to
+    /// `upperBound` and `−∞` to `lowerBound`, exactly as a finite out-of-range value would.
+    /// Only NaN survives — `lo >= NaN` and `hi < NaN` are both false, so it passes both
+    /// comparisons and `(NaN).rounded()` stays NaN. That behaviour is inherited from the
+    /// previous inline code and deliberately not changed here (a second change riding along),
+    /// but note what it costs `apply`: `next != value` is TRUE for NaN against anything,
+    /// including NaN, so a field that ever holds NaN reports "moved" on every event and the
+    /// guard this whole commit installs is defeated for it. The binding-level `isFinite` checks
+    /// are what keep that unreachable today.
     static func snapped(_ raw: Double, lowerBound: Double, upperBound: Double,
                         decimals: Int) -> Double {
         let clamped = Swift.min(Swift.max(raw, lowerBound), upperBound)
@@ -227,8 +247,9 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         // `apply(_:)` writes the binding and reports whether it moved — the WORK lives in the
         // caller's closures, and the two are not interchangeable: `onChange` is live-apply
         // (10 argument sites — 4× clearing the visual preset, 5× `applySoundLive()`,
-        // 1× `applyArticulation()`; two of those five are the `param`/`knob` helpers, which is
-        // how ~22 rendered rows are reached), `onCommit` is persist/settle (4 sites:
+        // 1× `applyArticulation()`; 8 of the 10 are a rendered row and 2 are the `param`/`knob`
+        // helpers, which render 17 more — `grep -c 'param("' / 'knob("' EchoelStudioView.swift`
+        // → 4 + 13 — so 25 rows carry one), `onCommit` is persist/settle (4 sites:
         // `recomposeIfRunning()` on every mood knob, the A4 `.echoelCompositionEdited` post,
         // the tempo lock, and the weather mixers' take re-push). This action called only
         // `onCommit`, so every VoiceOver
@@ -465,6 +486,19 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // "is this different from what you had". `recomposeIfRunning()` — every mood
                 // knob's commit — re-rolls the composition, so an unmoved drag was an unexplained
                 // new take. `nil` start means the anchor branch never ran, i.e. nothing moved.
+                //
+                // ⚠️ THE REFERENCE CAN BE STALE, AND THIS COMMIT DOES NOT CLOSE THAT (#377).
+                // SwiftUI does not call `onEnded` when a gesture is CANCELLED — which is exactly
+                // what a parent `ScrollView` claiming the drag does, and these fields live in
+                // one. `scrubbing` then stays true, the next gesture skips the anchor branch, and
+                // this line compares the NEW gesture's end against the OLD gesture's start. The
+                // latch is pre-existing (`lastY`/`lastX` go stale the same way, which is the
+                // long-standing first-event jump); what is new is that a stale reference can now
+                // produce a wrong COMMIT in either direction. Net effect is still strictly
+                // better than before — an unconditional commit was wrong on EVERY unmoved drag,
+                // this is wrong only after a cancelled one — but "strictly better" is not
+                // "correct", and the real cure is `@GestureState`, which SwiftUI resets on
+                // cancellation. That needs a device check, so it is its own slice.
                 let moved = scrubStartValue.map { $0 != value } ?? false
                 scrubStartValue = nil
                 scrubbing = false
@@ -479,12 +513,17 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// never equal to the `Double` 0.1 the snap produces, so a Double-space comparison would
     /// report a move on every event and this guard would be decorative.
     ///
-    /// Returning `false` also skips the write. That is not a micro-optimisation — every caller's
-    /// binding is `@State`, `@AppStorage` or a computed setter, so a redundant write is a
-    /// redundant persist and a redundant invalidation of whatever observes it.
-    // No `@discardableResult`: all three call sites consume the answer, and #374 spent a commit
-    // removing a modifier whose stated reason had gone away. If a fourth caller ever wants to
-    // ignore it, that caller is the one that has to justify it.
+    /// Returning `false` also skips the write, and the honest version of that sentence is longer
+    /// than "it saves a redundant persist". Some setters do ENGINE work, not storage:
+    /// `BodyTempoField.lockedBinding` calls `player.pattern.setTempo` (documented there as
+    /// cancelling an in-flight glide) and the mix bindings push gains. Skipping the write skips
+    /// those re-pushes too. Correct today — there is nothing to push when the number is the same
+    /// — but it is a behaviour change, not a pure saving, and one caller's comment is now
+    /// conditional because of it (`unisonVoicesBinding`, whose "the first edit WRITES the value"
+    /// note only holds for an edit that moves the number).
+    // No `@discardableResult`: all FOUR call sites consume the answer — two in the VoiceOver
+    // switch, one in the keypad, one in the drag, across three edit paths. (#374 spent a commit
+    // removing a modifier whose stated reason had gone away; this one has no reason to exist.)
     private func apply(_ raw: Double) -> Bool {
         let next = V(ScrubPrecision.snapped(raw,
                                             lowerBound: Double(range.lowerBound),

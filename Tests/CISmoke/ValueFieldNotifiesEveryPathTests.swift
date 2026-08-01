@@ -1,8 +1,11 @@
 // ValueFieldNotifiesEveryPathTests.swift
 // Echoel — every way of changing a value must notify the same way. BLOCKING bundle.
 //
-// `EchoelValueField` is THE numeric control — 58 call sites, the whole rule that Echoel has no
-// raw `Slider`. It offers three ways to change a value:
+// `EchoelValueField` is THE numeric control — the whole rule that Echoel has no raw `Slider`.
+// (This line said "58 call sites" until #375. That number is not one the repo ever measured:
+// `Core/EchoelDecimalText.swift` carries the counted figure next to its command and strikes "58"
+// by name. Read it there; do not re-copy a number here, because nothing asserts it.)
+// It offers three ways to change a value:
 //
 //   1. DRAG the box (fader) — `onChange()` per event, `onCommit()` on end.
 //   2. TAP to type on the `EchoelNumberPad` — `onChange()` then `onCommit()`, once.
@@ -10,10 +13,19 @@
 //
 // ⛔ THE DEFECT (found 2026-07-29). Path 3 called only `onCommit()`. That is not a smaller
 // version of the same notification — the two callbacks do different jobs, and `apply(_:)` itself
-// does neither. `apply` writes the binding; the WORK is in the caller's closures. `onChange` is
-// live-apply (7 argument sites — `applySoundLive()`, `applyArticulation()`, clearing a stale
-// visual preset — reaching ~22 rendered rows via the `param`/`knob` helpers); `onCommit` is
-// persist/settle (3 sites).
+// does neither. `apply` writes the binding and (since #375) reports whether the value MOVED; the
+// WORK is in the caller's closures. `onChange` is live-apply — 10 argument sites, 8 of them a
+// rendered row and 2 the `param`/`knob` helpers, which render 17 more, so 25 rows carry one;
+// `onCommit` is persist/settle (4 sites).
+//
+// ⛔ THOSE READ "7 … ~22 … 3" UNTIL #375, AND ALL THREE WERE WRONG. The counts:
+//   git grep -n "onChange:" -- 'Sources/**/*.swift'   → 10 sites (2 declarations + 1
+//       `SignalRouter.onChange` + 1 prose line are NOT sites)
+//   git grep -n "onCommit:" -- 'Sources/**/*.swift'   → 4 sites (5 further hits are declarations)
+//   grep -c 'param("' / 'knob("' EchoelStudioView.swift → 4 + 13 = 17 helper-rendered rows
+// The "~22" in particular was never measured — it was inherited verbatim through two rewrites of
+// the sibling comment in `EchoelValueField.swift`, which is the whole reason this block now
+// carries its commands. Re-run them; do not quote these numbers bare.
 //
 // So a VoiceOver user adjusting the timbre heard the number change and heard the instrument NOT
 // change. The patch editor behind the Sound chip is ship-gate item 2 — "Kontrolle" — and for a
@@ -85,14 +97,21 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     }
 
     /// A swipe at a range EDGE must notify nobody either — `apply` clamps, so the value is
-    /// unchanged, and two of the seven `onChange` closures are destructive with an unchanged
+    /// unchanged, and two of the ten `onChange` closures are destructive with an unchanged
     /// value: one clears the user's chosen visual preset, the other re-derives Attack/Decay/
     /// Sustain/Release from an articulation that did not move. Swiping past the top must not
     /// undo work.
     func testAClampedEdgeSwipeNotifiesNothing() throws {
         let closure = try closureBody(after: ".accessibilityAdjustableAction {", in: Self.field)
         let squashed = closure.components(separatedBy: .whitespacesAndNewlines).joined()
-        XCTAssertTrue(squashed.contains("guardvalue!=beforeelse{return}"),
+        // ⛔ THIS NEEDLE WAS `guardvalue!=beforeelse{return}` UNTIL #375, AND ITS BREAKING IS THE
+        // POINT OF THIS NOTE. #375 moved the "did it move" question into `apply`'s return value
+        // for ALL THREE paths, so this closure now reads `guard moved else { return }` — the same
+        // rule, asked one layer down. The author of #375 did not grep for existing guards on the
+        // file being changed and would have reddened the only blocking gate; the compile check
+        // builds `Sources/` only and would have stayed green. When you change a source line,
+        // `git grep` the literal in `Tests/CISmoke` BEFORE committing.
+        XCTAssertTrue(squashed.contains("guardmovedelse{return}"),
                       "The adjustment notifies unconditionally, so a swipe against the range "
                       + "limit fires the live-apply closures with a value that did not change. "
                       + "Closure was:\n\(closure)")
@@ -158,8 +177,15 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     /// call site has to. If `apply` ever starts calling the callbacks itself, the three paths
     /// would double-notify and this whole file is asking the wrong question — so it fails loudly
     /// rather than keeping a stale rationale alive.
+    ///
+    /// ⛔ THE MARKER DELIBERATELY STOPS BEFORE THE BRACE. It used to include `{`, and #375 —
+    /// which gave `apply` a `-> Bool` return so all three paths could ask "did it move" — moved
+    /// the brace and turned this into `XCTFail("Marker not found")`. A guard pinned to a
+    /// signature's punctuation fails on the change it was meant to survive. Matching the
+    /// parameter list alone is still unique (`git grep -c "private func apply(_ raw: Double)"
+    /// -- Sources` → 1) and survives a return type, an attribute or a reformat.
     func testApplyItselfStillNotifiesNobody() throws {
-        let body = try closureBody(after: "private func apply(_ raw: Double) {", in: Self.field)
+        let body = try closureBody(after: "private func apply(_ raw: Double)", in: Self.field)
         XCTAssertFalse(body.contains("onChange()") || body.contains("onCommit()"),
                        "`apply(_:)` now notifies on its own. That is defensible, but the three "
                        + "input paths all notify explicitly, so they would fire twice. Reconcile "
