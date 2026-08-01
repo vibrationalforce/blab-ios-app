@@ -169,28 +169,42 @@ final class TapTargetFloorTests: XCTestCase {
     /// frame: `contentShape` changes no layout, so the chip still reads as a peer of the
     /// 34-high preset menu beside it in the same row.
     ///
-    /// ⛔ WHY THE WINDOW IS FIVE LINES AND NOT THE WHOLE FILE. There are now two of these
-    /// outsets in `EchoelStudioView`, so a file-wide `contains` would pass with ONE of them
-    /// present and the other deleted — which is precisely the defect this whole file was
-    /// written for (the transport row where one member had the fix and its neighbour did not).
-    /// Each assertion has to see its OWN control.
+    /// ⛔ POSITION, NOT PRESENCE — AND THE FIRST DRAFT CHECKED PRESENCE, WHICH IS EXACTLY THE
+    /// DEFECT IT THEN FAILED TO CATCH. It scanned a five-line window above the
+    /// `accessibilityLabel`, so it was equally green with the modifier INSIDE the `Menu`'s
+    /// `label:` closure — where it is almost certainly a no-op, because a `Menu` installs its
+    /// press interaction over its OWN bounds and `contentShape` cannot change those from a
+    /// descendant. Both in-repo precedents (`WorkspaceView`'s "•••" #113, `BodyTempoField`'s
+    /// lock) close the label first and put the outset on the control. The commit that added
+    /// these two shipped the wrong level and asserted the effect as fact; a reviewer found it,
+    /// this guard could not. So it now pins the exact two lines: the outset must be the line
+    /// IMMEDIATELY above the `accessibilityLabel`, and a closing brace immediately above that.
+    ///
+    /// The five-line window is gone with it: a window is the right shape for "is it still
+    /// spelled", the wrong shape for "is it in the right place".
     func testBothPresetOverflowMenusCarryTheHitAreaOutset() throws {
         let studio = try codeLines(Self.studio)
         for label in ["Mood actions", "Sound actions"] {
             let anchor = "accessibilityLabel(\"\(label)\")"
             let hits = studio.indices.filter { studio[$0].contains(anchor) }
             XCTAssertEqual(hits.count, 1, """
-                `\(anchor)` is not unique in EchoelStudioView, so the window below cannot be \
-                trusted to scan the control this test names. Re-anchor before reading the \
-                assertion that follows as a pass or a fail.
+                `\(anchor)` is not unique in EchoelStudioView, so the lines below cannot be \
+                trusted to describe the control this test names. Re-anchor before reading the \
+                assertions that follow as a pass or a fail.
                 """)
-            guard let idx = hits.first else { continue }
-            let window = studio[max(0, idx - 5)..<idx]
-            XCTAssertTrue(window.contains { $0.contains(Self.outset6) }, """
-                The "\(label)" overflow menu lost its `\(Self.outset6)`. Its visible chip is \
-                34×34, which is 60 % of the HIG 44×44 floor by area, and it is the only door \
-                to save / favorite / delete / submit in that library — a missed tap there \
-                lands on the preset menu next to it and CHANGES the preset instead.
+            guard let idx = hits.first, idx >= 2 else { continue }
+            XCTAssertTrue(studio[idx - 1].contains(Self.outset6), """
+                The "\(label)" overflow menu lost its `\(Self.outset6)`, or it moved away from \
+                the line directly above the accessibility label. Its visible chip is 34×34, \
+                which is 60 % of the HIG 44×44 floor by area, and it is the only door to save / \
+                favorite / delete / submit in that library — a missed tap there lands on the \
+                preset menu next to it and CHANGES the preset instead.
+                """)
+            XCTAssertTrue(studio[idx - 2].trimmingCharacters(in: .whitespaces) == "}", """
+                The "\(label)" outset is no longer the first modifier after the Menu's `label:` \
+                closure. If it slid back INSIDE that closure it is a no-op: `contentShape` on a \
+                descendant does not widen what the Menu presents from, which is why #113 and \
+                BodyTempoField both close the label before outsetting.
                 """)
         }
     }
@@ -258,12 +272,17 @@ final class TapTargetFloorTests: XCTestCase {
             }
         }
 
+        // ⛔ COUNT, NOT `contains` — `EchoelPanel` has TWO content stacks (the force-open branch
+        // and the DisclosureGroup branch) and they must stay identical. A `contains` would stay
+        // green with one of them changed, which is this file's own founding defect one level up.
         let panelLines = try codeLines(Self.panel)
-        XCTAssertTrue(panelLines.contains { $0.contains("spacing: 14) { content() }") }, """
-            `EchoelPanel`'s content stack no longer spaces its rows by 14 pt. That gap is the \
-            VERTICAL clearance both overflow outsets were measured against (−6 into 14 leaves \
-            8). Every panel row in the app is affected, not just these two, so re-measure before \
-            changing it.
+        let contentStacks = panelLines.filter { $0.contains("spacing: 14) { content() }") }.count
+        XCTAssertEqual(contentStacks, 2, """
+            `EchoelPanel` has \(contentStacks) content stacks spaced by 14 pt, not 2. That gap is \
+            the VERTICAL clearance both overflow outsets were measured against (−6 into 14 leaves \
+            8), and the two branches — force-open and DisclosureGroup — must agree, or a panel \
+            spaces its rows differently depending on how it was opened. Every panel row in the \
+            app is affected, not just these two, so re-measure before changing either.
             """)
     }
 }
