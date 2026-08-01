@@ -8,7 +8,14 @@
 //
 // Three always-on chrome CONTROLS were drawn with the decorative token:
 //   · the primary transport Play/Pause (`WorkspaceView`) — 44×48, the biggest and most-used
-//     control in the app, sitting beside a 30×32 "•••" that already used `borderStrong`;
+//     control in the app. It renders in `EchoelStudioView.startControlRow` beside
+//     `startButton` and `PulseMonitorMiniLive`, and BOTH of those already used
+//     `borderStrong`. (⛔ The first version of this line, and the fix comment in
+//     `WorkspaceView` itself, named the 30×32 "•••" as its neighbour. That control lives in
+//     `TransportBar`, two rows and a divider above — the adjacency was read off the FILE,
+//     not off the screen. Same defect as the grid this session attributed to the wrong panel
+//     three times; being about a token instead of a layout did not make it a different
+//     mistake.);
 //   · the tempo lock (`BodyTempoField`);
 //   · the Clips tile (`HeaderMonitors`), whose two sibling tiles were already correct.
 // So the founder's chrome screenshot had, in one row, tiles outlined like buttons next to
@@ -88,9 +95,21 @@ final class ControlBoundaryIsInteractiveTests: XCTestCase {
     /// below, which this same file asserts must STAY decorative. Two of this file's own
     /// tests would have contradicted each other. Terminators are matched as a PREFIX of the
     /// trimmed line now, so they mean what they read as.
+    ///
+    /// ⛔ AND IT USED TO **SKIP** WHEN THE OPENING WAS NOT FOUND, which made the one test using
+    /// it self-disarming: rename `PlaybackToggleButton`, or merely reformat its declaration
+    /// line, and the guard went silently green forever. Two sibling tests in this same file
+    /// already used `XCTFail` for exactly that case — the right idiom was three screens away
+    /// and not applied here. A source-text guard may skip when the TREE is absent (it has
+    /// nothing to read); it must never skip because the THING IT GUARDS moved.
     private func declaration(_ source: [String], opening: String) throws -> [String] {
         guard let start = source.firstIndex(where: { $0.contains(opening) }) else {
-            throw XCTSkip("declaration '\(opening)' not found — the file was restructured")
+            XCTFail("""
+                declaration '\(opening)' not found — it was renamed or reformatted. Re-point \
+                this guard at the new spelling; do NOT delete the test. Until you do, the \
+                control it pins has no guard at all.
+                """)
+            return []
         }
         let terminators = ["struct ", "private struct ", "final class ", "extension ", "enum "]
         var end = source.count
@@ -115,8 +134,18 @@ final class ControlBoundaryIsInteractiveTests: XCTestCase {
         XCTAssertTrue(offenders.isEmpty, """
             #367: the app's primary Play/Pause is outlined with the DECORATIVE token again. \
             `EchoelTheme.border` is 1.16:1 and its own doc says "Do not use it on anything \
-            tappable"; the 30x32 "•••" beside it uses `borderStrong`. Offending line(s): \
+            tappable"; its two real on-screen neighbours in `startControlRow` — `startButton` \
+            and `PulseMonitorMiniLive` — both use `borderStrong`. Offending line(s): \
             \(offenders.map { $0.trimmingCharacters(in: .whitespaces) })
+            """)
+        // ⛔ THE ABSENCE ASSERT ALONE WAS THE ONLY VACUOUS TEST IN THIS FILE. Deleting the
+        // whole `.overlay(...)` — no outline at all — satisfied it. The other five assert
+        // COUNTS or a non-empty set and cannot be passed by removal. This one now says what
+        // it actually wants: not "no decorative stroke" but "an interactive stroke".
+        XCTAssertTrue(body.contains { $0.contains("EchoelTheme.borderStrong") }, """
+            #367: the primary Play/Pause has no `borderStrong` stroke. If the outline was \
+            removed rather than converted, the button reads as an unbounded glyph — which is \
+            not what "outline it as a control" asked for.
             """)
     }
 
@@ -197,7 +226,21 @@ final class ControlBoundaryIsInteractiveTests: XCTestCase {
         guard let at = doc.firstIndex(where: { $0.contains("static let borderStrong = Color(") }) else {
             return XCTFail("`borderStrong`'s declaration is gone from EchoelTheme")
         }
-        let contract = doc[max(0, at - 45)..<at].joined(separator: " ")
+        // ⛔ THIS WINDOW WAS `at - 45`, A MAGIC NUMBER, AND IT NEARLY BIT WITHIN ONE COMMIT.
+        // The three phrases sat ~24 lines inside it; the #367 Nachlese added a 16-line
+        // paragraph to `border`'s doc directly above, cutting the margin to 8. One more
+        // paragraph and this test goes RED because someone wrote a COMMENT — a false red on
+        // the blocking bundle, which is how a gate gets switched off. The contract is, by
+        // construction, everything between the two declarations; say that instead of guessing
+        // a distance.
+        guard let from = doc.firstIndex(where: { $0.contains("static let border  = Color(") }),
+              from < at else {
+            return XCTFail("""
+                `border`'s declaration is gone or moved below `borderStrong` — this window is \
+                defined as the span between them and no longer means anything. Re-point it.
+                """)
+        }
+        let contract = doc[from..<at].joined(separator: " ")
         for member in ["transport Play/Pause", "tempo lock", "pulse monitor"] {
             XCTAssertTrue(contract.contains(member), """
                 #367: `borderStrong`'s applied-to list no longer names "\(member)". That list \

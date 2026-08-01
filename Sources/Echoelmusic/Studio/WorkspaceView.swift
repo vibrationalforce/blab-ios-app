@@ -485,10 +485,22 @@ struct PlaybackToggleButton: View {
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         // #367: idle used `border`, the DECORATIVE token whose own doc says
-                        // "Do not use it on anything tappable" (1.16:1). Its 30x32 neighbour, the
-                        // "•••" overflow 140 lines down, already used `borderStrong` — so the
-                        // primary transport control was the lowest-contrast control in the app,
-                        // outlined like a divider, next to a smaller sibling outlined like a button.
+                        // "Do not use it on anything tappable" (1.16:1). This button renders in
+                        // `EchoelStudioView.startControlRow` — see the #289 note further down
+                        // THIS file — so its actual on-screen neighbours are `startButton` and
+                        // `PulseMonitorMiniLive`, and both were already on `borderStrong`. One
+                        // row, three controls, the biggest of them outlined like a divider.
+                        //
+                        // ⛔ THE FIRST VERSION OF THIS COMMENT CALLED THE "•••" ITS "30x32
+                        // NEIGHBOUR … 140 lines down". The 140 lines are right and the
+                        // neighbourhood is invented: the "•••" lives in `TransportBar`, two rows
+                        // and a divider above the studio, and the note at the top of that struct
+                        // says so in as many words. I derived adjacency from FILE ORDER — the
+                        // exact mistake CLAUDE.md had just been amended about, in the same
+                        // session, over a grid attributed to the wrong panel for the same reason.
+                        // It also called this "the lowest-contrast control in the app", which was
+                        // a ~46-way tie: `border` is ONE opacity. What was true, and is the whole
+                        // argument, is that it was the LARGEST control still at 1.16:1.
                         .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.borderStrong, lineWidth: 1))
             }
             .buttonStyle(.plain)

@@ -42,6 +42,20 @@ enum EchoelTheme {
     /// DECORATIVE boundary — hairlines, dividers, the outline of a panel card. 1.16:1
     /// against black, which is fine: WCAG 1.4.11 covers the boundary of a CONTROL, not
     /// ornament. Do not use it on anything tappable.
+    ///
+    /// ⚠️ READ THAT LAST SENTENCE AS A RULE, NOT AS A DESCRIPTION OF TODAY. #367 converted the
+    /// ALWAYS-ON CHROME and nothing else — three strokes. The token still has **105** argument
+    /// sites across `Sources/` (`git grep -c 'EchoelTheme\.border[,)]' -- Sources`), and a
+    /// backward-window scan puts **60** of them inside a `Button`/`Menu`/gesture. Some of those
+    /// sit in doorless files and cost nothing; many do not — the Field patch chip, Randomize,
+    /// tap-tempo, Export MIDI, `PatchbayView`, `VideoLibraryPanel`, `LearnView` are all reachable
+    /// in-panel controls still wearing the divider outline.
+    ///
+    /// That rollout is UNFINISHED, not sanctioned. The reason it is not a sweep is #364: a
+    /// finding built from a raw call-site count concluded the app was misusing a colour, and the
+    /// real violation count was one. The next pass has to judge each site, not grep them. Written
+    /// here because `borderStrong`'s "Applied to" list below reads like a complete inventory of
+    /// this app's controls, and without this paragraph a future session would believe it.
     static let border  = Color(red: 0.878, green: 0.878, blue: 0.878).opacity(borderOpacity)
 
     /// INTERACTIVE boundary — the outline that says "this is a control".
@@ -56,9 +70,12 @@ enum EchoelTheme {
     ///
     /// Applied to: the front-plate tab chips, the Notes chip, `EchoelValueField` and its
     /// fader capsule, `EchoelNumberPad`'s keys, the always-on header tiles (Immersive, Lux,
-    /// Clips) AND the pulse monitor beside them, the header overflow-menu button,
-    /// `masterDoorButton`, and — since #367 — the primary transport Play/Pause
-    /// (`WorkspaceView`) and the tempo lock (`BodyTempoField`).
+    /// Clips), the pulse monitor — which since #289 sits in the studio's control row, NOT in
+    /// the header (the first version of this line said "beside them", inventing an adjacency
+    /// from file order the way the paragraph below warns about) — the header overflow-menu
+    /// button, `masterDoorButton`, and, since #367, the primary transport Play/Pause
+    /// (`WorkspaceView`, rendered in that same control row) and the tempo lock
+    /// (`BodyTempoField`).
     /// NOT to panel-card outlines or dividers — see `border`. (This list is the contract: an
     /// earlier version of it named door buttons before they were converted, which is the
     /// exact drift class most of CLAUDE.md's corrections are about.)

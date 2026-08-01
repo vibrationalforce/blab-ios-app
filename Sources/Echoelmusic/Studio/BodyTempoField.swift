@@ -161,10 +161,16 @@ struct BodyTempoField: View {
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         // #367: same correction as the transport button. Note what is NOT
-                        // changed: the two `border` strokes above (:129, :146) outline the
-                        // FOLLOWING tempo READOUT, and the comment there says why — "a tap opens
-                        // nothing (it follows the body)". A reading is ornament; this lock is a
-                        // control. That is the boundary, not "every stroke in the file".
+                        // changed: the two `border` strokes in the FOLLOWING tempo READOUT — its
+                        // compact and its wide branch — stay decorative, and the comment there
+                        // says why: "a tap opens nothing (it follows the body)". A reading is
+                        // ornament; this lock is a control. That is the boundary, not "every
+                        // stroke in the file".
+                        //
+                        // (Those two were cited by LINE NUMBER here until the #367 Nachlese.
+                        // `HeaderMonitors`, edited in the SAME commit, says "no line numbers here
+                        // on purpose: this edit moves them" — and CLAUDE.md strikes the pattern
+                        // twice. Naming the branches costs nothing and survives an insertion.)
                         .strokeBorder(lockBPM ? EchoelTheme.accent : EchoelTheme.borderStrong, lineWidth: 1))
             }
             .buttonStyle(.plain)
