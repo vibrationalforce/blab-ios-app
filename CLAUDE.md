@@ -165,7 +165,7 @@ Zählweise: `git grep -ln "import <X>" -- Sources` — **und das zählt Kommenta
 |---|---|---|
 | **iPhone** | live | — (Instrument · Sensor · Ausgabe) |
 | **Watch** | Target existiert, `EchoelmusicWatch/EchoelWatchApp.swift` (95 Zeilen) liest App-Group-Werte | die **Produzenten-Hälfte** (Handgelenk-HealthKit-HR → App Group → Telefon). Im Dateikopf selbst als „C7" markiert und **nie gelandet** — das ist die konkreteste Wearable-Lücke. **Harte Grenze bleibt:** ~4–5 s Latenz → Anzeige, Trend, langsame Modulation (HRV/Kohärenz), **niemals Beat-Sync** |
-| **iPad** | **vier Einstellungen + ein Wächter, in EINEM Commit** (`TARGETED_DEVICE_FAMILY` an App · Widget · beiden Test-Bundles, dazu `Tests/CISmoke/DeviceFamilyIsPhoneOnlyTests.swift` — harte Gleichheit im BLOCKIERENDEN Bundle — **plus zwei Prosa-Blöcke**, die beim Ändern falsch werden: der `#`-Block über der Einstellung und die ⛔-Notiz unter dieser Tabelle) | eine dort funktionierende Bio-Quelle — kein iPad hat eine rückseitige LED, und `CameraCapture` koppelt die rPPG-Beleuchtung an `device.hasTorch`; der BLE-Gurt ist gebaut+verdrahtet, die Watch käme als zweite Quelle infrage — **plus** #292 (heute reflowen 2 von 11 Panels) |
+| **iPad** | **vier Einstellungen + ein Wächter, in EINEM Commit** (`TARGETED_DEVICE_FAMILY` an App · Widget · beiden Test-Bundles, dazu `Tests/CISmoke/DeviceFamilyIsPhoneOnlyTests.swift` — harte Gleichheit im BLOCKIERENDEN Bundle — **plus zwei Prosa-Blöcke**, die beim Ändern falsch werden: der `#`-Block über der Einstellung und die ⛔-Notiz unter dieser Tabelle) | eine dort funktionierende Bio-Quelle — kein iPad hat eine rückseitige LED, und `CameraCapture` koppelt die rPPG-Beleuchtung an `device.hasTorch`; der BLE-Gurt ist gebaut+verdrahtet, die Watch käme als zweite Quelle infrage — **plus** #292 (heute reflowen **3 von 11** Panels; Befehl siehe die Zeile „Kein ‚nie'" unter dieser Tabelle) |
 | **Vision / XR** | kein Target; `visionOS` kommt in `Sources/` nur in Plattform-Guards vor (`MicrophoneManager`, `AudioInputManager`, `SPSCQueue`, `MemoryPressureHandler`) | der natürliche Sitz ist die **Ausgabe-Stufe, die schon existiert**: `ImmersiveStageView` (türlos, absichtlich — Ship-Gate 4 sagt „demonstrierbar, nicht erforderlich"), ADM-OSC-Raum, das Visual. Bio-Quelle bliebe Telefon oder Gurt |
 | **Mac** | kein Target, kein Catalyst-Flag | offen |
 
@@ -177,7 +177,14 @@ Zählweise: `git grep -ln "import <X>" -- Sources` — **und das zählt Kommenta
 
 **Der entscheidende Grund ist der SENSOR, nicht das Layout, und er gehört hierher, weil aus dieser Zeile heraus über Plattformen geplant wird:** `CameraCapture` koppelt die rPPG-Beleuchtung an `device.hasTorch`, und kein iPad hat eine rückseitige LED. Auf iPad läuft der Finger-auf-Linse-Puls also ohne Licht — genau die Bedingung, die der 2026-06-18-Fix als Ursache fürs Nicht-Locken identifiziert hat. Ein iPad-Build stellt die eigene Prämisse („Dein Körper spielt es") auf ein Gerät, auf dem die Hauptquelle degradiert ist.
 
-**Kein „nie".** Die großen Flächen sind die Zukunft als **AUSGABE** — externer Bildschirm/Beamer (#206), ADM-OSC-Raum —, nicht als zweite App-Oberfläche. Kommt iPad als Instrumenten-Fläche zurück, braucht es eine dort funktionierende Bio-Quelle (der BLE-Gurt ist gebaut und verdrahtet) plus den Adaptivitäts-Durchgang #292. **Der Durchgang passiert ohnehin:** iPhone allein spannt 375–440 pt, erlaubt Querformat und läuft mit ungedeckeltem Dynamic Type — heute reflowen 2 von 11 Panels.
+**Kein „nie".** Die großen Flächen sind die Zukunft als **AUSGABE** — externer Bildschirm/Beamer (#206), ADM-OSC-Raum —, nicht als zweite App-Oberfläche. Kommt iPad als Instrumenten-Fläche zurück, braucht es eine dort funktionierende Bio-Quelle (der BLE-Gurt ist gebaut und verdrahtet) plus den Adaptivitäts-Durchgang #292. **Der Durchgang passiert ohnehin:** iPhone allein spannt 375–440 pt, erlaubt Querformat und läuft mit ungedeckeltem Dynamic Type — heute reflowen **3 von 11** Panels: `mixerPanel`, `sessionPanel`, `soundPanel` (letzteres mit sieben Gittern). Die anderen acht — `menuPanelHost`, `bioPanel`, `videoPanel`, `tempoToolsPanel`, `masterPanel`, `visualPanel`, `moodPanel`, `effectsPanel` — stapeln weiter starr.
+
+⛔ **Diese Zahl stand zweimal als „2 von 11" und war schon beim Schreiben falsch** — #292 Slice 2 hat `sessionPanel` mitgenommen, gezählt wurden nur `mixerPanel` + `soundPanel`. Die Namen stehen jetzt daneben, weil eine nackte Zahl hier nichts belegt: der Träger ist `AdaptiveCardGrid`, und wer nachführt, ordnet die Fundstellen ihrem Panel zu, statt sie zu zählen —
+```
+grep -n "AdaptiveCardGrid {\|AdaptiveCardGrid(spacing" Sources/Echoelmusic/Studio/EchoelStudioView.swift
+grep -n "private var \w*Panel\w*: some View" Sources/Echoelmusic/Studio/EchoelStudioView.swift
+```
+(jede Gitter-Zeile gehört zur letzten Panel-Deklaration darüber; die `private struct AdaptiveCardGrid`-Zeile selbst ist kein Treffer).
 
 ---
 
