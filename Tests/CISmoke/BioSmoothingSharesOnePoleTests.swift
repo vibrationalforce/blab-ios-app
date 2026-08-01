@@ -28,12 +28,21 @@
 // together, which is the only way "one bio response time" can mean anything.
 //
 // ⚠️ WHAT IT CANNOT DO, stated because a green here is narrower than it looks: it does not
-// run the DSP, does not know whether 1 Hz is still the real rate, and cannot see a
-// per-call smoother written in some other shape (an `exp()`-derived coefficient, a helper
-// call, an accumulator updated across two statements). It recognises exactly the textual
-// shape `x = x * … ` / `x = (x * … `. A third member of the 60 Hz class written differently
-// would pass this file silently — that risk is named in `applyBioReactive`'s own tombstone
-// rather than papered over here.
+// run the DSP, and it does not know whether ~1 Hz is still the real rate — if a publisher
+// is rewired faster, every constant here is wrong again and nothing in this file notices.
+// It recognises exactly the textual shape `x = x * …` / `x = (x * …`, so a per-call
+// smoother written differently (an `exp()`-derived coefficient, a helper call, an
+// accumulator updated across two statements, or the operand-swapped `x = coeff * x`) is
+// invisible to it. A third member of the 60 Hz class written that way would pass silently
+// — named here and in `applyBioReactive`'s own tombstone rather than papered over.
+//
+// ⛔ ONE HOLE WAS REAL AND IS NOW CLOSED, and it is worth recording because the obvious
+// version of this guard had it: checking only `line.contains("smoothCoeff")` accepts
+// `x = x * 0.9 + smoothCoeff * y` — the shape matches, the word is present, and a private
+// literal rides along beside a legitimate mention. That is a false GREEN on precisely the
+// defect, which is the worst outcome a guard can have. The second condition (`* <digit>`
+// is forbidden on a pole line) closes it: the three real poles multiply by `smoothCoeff`
+// or by `(1.0 - smoothCoeff)`, and `* (` is not `* <digit>`.
 
 import Foundation
 import XCTest
@@ -65,18 +74,14 @@ final class BioSmoothingSharesOnePoleTests: XCTestCase {
             """)
 
         for pole in poles {
-            XCTAssertTrue(pole.contains("smoothCoeff"), """
-                A bio smoother in `applyBioReactive` carries its own coefficient instead \
-                of the shared `smoothCoeff`:
-                \(pole.trimmingCharacters(in: .whitespaces))
-                That is exactly how #331 and #332 became two slices instead of one: two \
-                one-poles on the SAME ~1 Hz bio clock, each with a private literal, so \
-                fixing one left the other 32.8 s slow inside the same function with \
-                nothing to flag it. Use the `smoothCoeff` declared at the top of the \
-                function. If this smoother genuinely runs on a DIFFERENT clock (the \
-                per-sample one in `updateSpectralEnvelope` does), it does not belong in \
-                this function's body.
-                """)
+            // TWO conditions, because `contains` alone had a false-GREEN hole that review
+            // found: `x = x * 0.9 + smoothCoeff * y` matches the shape AND contains the
+            // word, so a private literal could ride along beside a legitimate mention.
+            // `* <digit>` is the tell — the three real poles multiply by `smoothCoeff` or
+            // by `(1.0 - smoothCoeff)`, never by a bare number.
+            XCTAssertTrue(pole.contains("smoothCoeff"), Self.privateCoefficientMessage(pole))
+            XCTAssertNil(pole.range(of: #"\*\s*[0-9]"#, options: .regularExpression),
+                         Self.privateCoefficientMessage(pole))
         }
 
         // One declaration, so a second local cannot re-open the split under the same name.
@@ -91,6 +96,23 @@ final class BioSmoothingSharesOnePoleTests: XCTestCase {
     }
 
     // MARK: - helpers
+
+    /// One message for both halves of the per-pole check, because they fail for the same
+    /// reason and a reader hitting either needs the same instruction.
+    private static func privateCoefficientMessage(_ pole: String) -> String {
+        """
+        A bio smoother in `applyBioReactive` carries its own coefficient instead of the \
+        shared `smoothCoeff`:
+        \(pole.trimmingCharacters(in: .whitespaces))
+        That is exactly how #331 and #332 became two slices instead of one: two one-poles \
+        on the SAME ~1 Hz bio clock, each with a private literal, so fixing one left the \
+        other 32.8 s slow inside the same function with nothing to flag it. Use the \
+        `smoothCoeff` declared at the top of the function — multiply by `smoothCoeff` and \
+        by `(1.0 - smoothCoeff)`, never by a bare number. If this smoother genuinely runs \
+        on a DIFFERENT clock (the per-sample one in `updateSpectralEnvelope` does), it \
+        does not belong in this function's body.
+        """
+    }
 
     /// TRUE for `x = x * …` and `x = (x * …` — an accumulator multiplied by its own
     /// previous value, which is what a one-pole is. The backreference is the whole point:
@@ -116,22 +138,46 @@ final class BioSmoothingSharesOnePoleTests: XCTestCase {
     }
 
     /// The body of `applyBioReactive`, from its declaration to whichever comes first: the
-    /// next member function at type indentation, or the next `// MARK:`. Deliberately not
-    /// a brace-counting parser — this function is ~420 lines of heavily commented code
-    /// containing braces inside string-free but comment-rich prose, and an over-clever
-    /// bound that silently returns an EMPTY slice is the false-GREEN this bundle keeps
-    /// paying for. The `XCTAssertGreaterThanOrEqual(poles.count, 3)` above is what catches
-    /// a bad bound: an empty or truncated body finds zero poles and reddens.
+    /// next member declaration at type indentation, or the next `// MARK:`. Deliberately
+    /// not a brace-counting parser — this function is ~470 lines of heavily commented code,
+    /// and an over-clever bound that silently returns an EMPTY slice is the false-GREEN
+    /// this bundle keeps paying for. The `XCTAssertGreaterThanOrEqual(poles.count, 3)`
+    /// above is what catches a bad bound: an empty or truncated body finds zero poles and
+    /// reddens.
+    ///
+    /// ⚠️ IT TAKES THE FIRST OF TWO MATCHES, and that is load-bearing rather than lucky.
+    /// `EchoelDDSP.swift` declares `applyBioReactive` TWICE: the voice's own (the three
+    /// smoothers) and, much further down, a poly wrapper that only forwards to
+    /// `voices[idx].applyBioReactive`. First-match picks the right one today. If the two
+    /// types are ever reordered this retargets the wrapper, finds zero poles, and reddens
+    /// on the count — safe, but with a message that blames the wrong thing. Re-anchor it
+    /// then rather than deleting the file.
+    ///
+    /// ⛔ AND IT DOES NOT `XCTSkip` ON A MISSING FUNCTION, which the first version did with
+    /// a message that literally said "rather than leaving it skipping quietly" — while
+    /// `XCTSkip` IS the quiet skip. A rename of `applyBioReactive` is the single most
+    /// likely way this guard gets de-pointed, and it would have disarmed itself with the
+    /// gate still green. That is the exact false-GREEN class this file was written against.
+    /// The tree-not-reachable skip further down stays a skip: that one is about the
+    /// harness, not the invariant.
     private func applyBioReactiveBody() throws -> String {
         let file = try source(Self.ddsp)
         guard let start = file.range(of: "public func applyBioReactive") else {
-            throw XCTSkip("""
-                `applyBioReactive` not found in \(Self.ddsp) — the function was renamed or \
-                moved. Re-point this guard rather than leaving it skipping quietly.
+            XCTFail("""
+                `applyBioReactive` not found in \(Self.ddsp) — renamed, moved, or its \
+                access level changed. Re-point this guard in the SAME commit; the \
+                invariant it protects (#331/#332: one bio clock, one shared smoothing \
+                coefficient) does not depend on the spelling.
                 """)
+            return ""
         }
         let tail = file[start.upperBound...]
-        let ends = ["\n    public func ", "\n    // MARK:"]
+        // Every member-declaration spelling at type indentation, not just `public func`.
+        // A `private func` added between this function and the next `// MARK:` would
+        // otherwise spill into the slice and a self-updating line inside it would fail the
+        // per-pole check — a false RED with a confusing message.
+        let ends = ["\n    public func ", "\n    private func ", "\n    internal func ",
+                    "\n    func ", "\n    // MARK:"]
             .compactMap { tail.range(of: $0)?.lowerBound }
         let end = ends.min() ?? tail.endIndex
         return String(tail[..<end])
