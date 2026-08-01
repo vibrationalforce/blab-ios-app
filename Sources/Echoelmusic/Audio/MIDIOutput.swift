@@ -222,14 +222,20 @@ public final class MIDIOutput {
     /// the step tick is 4 PPQ and 24 PPQN needs 6 sub-pulses per step regardless, and the
     /// step gap is variable by design (`swingGap`, and the tempo glide moves it every tick).
     ///
-    /// ⛔ AND THE FIRST VERSION OF THIS COMMENT LEANED ON A THIRD REASON THAT IS INERT TODAY,
-    /// while calling it "the whole musical argument of the slice": that deriving pulses from
-    /// the step tick would export SWING as a tempo wobble. The mechanism is real
-    /// (`PatternEngine.swingGap` lengthens the gap after an even step), but `swing` is 0 in
-    /// every shipping path — it defaults to 0 and the one production caller of `setSwing` is
-    /// `EchoelStudioView`'s hardwired `setSwing(0)` (#278). So the wobble cannot occur in the
-    /// build that ships. Correct statement: deriving would work RIGHT NOW and break silently
-    /// the day swing returns. Kept as a reason, demoted from "the argument".
+    /// ⭐ AND THE THIRD REASON IS LIVE AGAIN SINCE #327: deriving pulses from the step tick
+    /// would export SWING as a TEMPO WOBBLE to every slaved device. `PatternEngine.swingGap`
+    /// lengthens the gap after an even step and shortens the next; a receiver counting 24 PPQN
+    /// off that gap reads it as the tempo speeding up and slowing down twice per beat.
+    ///
+    /// ⛔ THE HISTORY IS KEPT BECAUSE IT IS THE REPO'S NAMED FAILURE MODE, TWICE OVER. The
+    /// FIRST version of this comment called the wobble "the whole musical argument of the
+    /// slice" — an overstatement, since the two reasons above hold on their own. The SECOND
+    /// version then demoted it with a fact that was true when written and is now false: that
+    /// `swing` is 0 in every shipping path, because the one production caller of `setSwing`
+    /// passed a hardwired `0` (#278). #327 replaced that literal with `style.swing`, so six of
+    /// the sixteen offered genres now swing (deepHouse 0.16 down to minimalTechno 0.04 —
+    /// re-derive against `MusicStyle.offered`, do not quote). The demotion note itself said
+    /// this would "break silently the day swing returns". That day was #327. Re-promoted.
     @ObservationIgnored nonisolated(unsafe) private var clockTimer: DispatchSourceTimer?
 
     /// Uptime of the last pulse that actually went out, so a tempo change can re-arm the

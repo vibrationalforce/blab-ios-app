@@ -365,8 +365,16 @@ final class MIDIClockTests: XCTestCase {
         }
     }
 
-    /// With swing off — every shipping path today (#278) — the gap the sequencer waits IS one
-    /// `stepDuration`. That identity is what the MIDI clock's one-step Start delay rests on.
+    /// With swing off, the gap the sequencer waits IS one `stepDuration`. That identity is
+    /// what the MIDI clock's one-step Start delay rests on.
+    ///
+    /// ⛔ "EVERY SHIPPING PATH TODAY (#278)" STOOD HERE AND IS NO LONGER TRUE — #327 replaced
+    /// the hardwired `setSwing(0)` with `style.swing`, and six of the sixteen offered genres
+    /// are non-zero. The test itself is unaffected: it passes `swing: 0` explicitly, so it
+    /// still pins the law it always pinned. What changed is that the law now has a REACHABLE
+    /// other branch — under a swung genre, Start lands one nominal step after play while the
+    /// first actual step is `base × (1 + swing)` away, i.e. up to 16 % early. That gap is
+    /// #328, and this file is not the place it gets closed.
     ///
     /// ⚠️ THIS DOES NOT GUARD THE CONSOLIDATION, and its first doc comment said it did. It
     /// never touches `play` / `setTempo` / `advance`, so restoring a private

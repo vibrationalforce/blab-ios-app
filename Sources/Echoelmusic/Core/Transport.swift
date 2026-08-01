@@ -73,9 +73,14 @@ public final class Transport {
     ///
     /// ⚠️ It is the BASE of the inter-tick gap, not the gap itself: `PatternEngine` feeds it
     /// to `swingGap(afterStep:base:swing:)`, which lengthens the gap after an even step and
-    /// shortens the next one. The two are equal only while `swing == 0` — which is every
-    /// shipping path today (#278), but writing "the gap between ticks" would make this doc
-    /// false the day swing returns, in the file the timing is read from.
+    /// shortens the next one. The two are equal only while `swing == 0`.
+    ///
+    /// ⛔ AND THAT USED TO BE EVERY SHIPPING PATH. This doc said so, added that writing "the
+    /// gap between ticks" would "make this doc false the day swing returns" — and then #327
+    /// made swing return (`setSwing(style.swing)`, six of sixteen offered genres non-zero)
+    /// without anyone coming back here. A comment that names the exact condition of its own
+    /// falsification is only worth something if the commit that meets that condition greps
+    /// for it. Ten straight genres still satisfy `swing == 0`; the other six do not.
     ///
     /// ⭐ WHY THIS IS A SHARED STATIC AND NOT A FOURTH COPY OF `60.0 / tempo / 4.0`
     /// (#300 Nachlese). `play()` below fans out to `playSubs` IMMEDIATELY, but
@@ -284,13 +289,19 @@ public final class Transport {
     /// `60 / bpm / 4`. `MusicStyle.swing` ships real values, so the LONG step overruns
     /// the map and the SHORT one leaves its last ticks unreachable.
     ///
-    /// The consequence is specific, which is why it is spelled out rather than hedged:
-    /// `TouchQuantizer.latenessToleranceTicks` is 12, and on a short swung step this
-    /// clock UNDERSTATES lateness, so a touch that was late enough to be nudged can fall
-    /// inside the tolerance and the echo silently does not fire. The two halves of every
-    /// swung pair are therefore judged by different rules. Separately, only the grids that
-    /// tile a step (`.sixteenth`, `.eighth`, `.quarter`) land on real boundaries at all;
-    /// the triplet grids never do.
+    /// The consequence is specific, which is why it is spelled out rather than hedged: on a
+    /// short swung step this clock UNDERSTATES lateness, so a touch that was late enough to
+    /// be nudged can fall inside `TouchQuantizer.latenessToleranceTicks` and the echo
+    /// silently does not fire. The two halves of every swung pair are therefore judged by
+    /// different rules. Separately, only the grids that tile a step (`.sixteenth`,
+    /// `.eighth`, `.quarter`) land on real boundaries at all; the triplet grids never do.
+    ///
+    /// ⚠️ THE TOLERANCE IS NOT 12 AT THE LIVE CALL SITE, and an earlier version of this
+    /// paragraph said it was. 12 is the struct's default; `TouchInstrumentUIView.sound`
+    /// raises it per note to `max(12, 20 ms / secondsPerTick)` — 19 ticks at 120 BPM,
+    /// 48 at 300 — because fusing two onsets is a fact about milliseconds, not ticks. The
+    /// defect is unchanged in kind (a bigger window absorbs more understated lateness, so
+    /// MORE echoes silently vanish, not fewer), but sizing it from 12 understates it.
     ///
     /// ⚠️ THIS BECAME REACHABLE WITH #327 and the size changed with it. Until then the one
     /// production caller of `PatternEngine.setSwing` passed a hardwired `0`, so none of the
@@ -307,8 +318,19 @@ public final class Transport {
     /// illustrates the mechanism is not the same as the worst case a user can actually
     /// reach. Re-derive against `offered` rather than against the enum.
     ///
-    /// The correct fix is a swung grid on BOTH sides (clock and quantizer) — #328. It is
-    /// confined to Field touch echo; the generated take does not consult this map.
+    /// The correct fix is a swung grid on BOTH sides (clock and quantizer) — #328.
+    ///
+    /// ⛔ AND ITS BLAST RADIUS IS TWO CONSUMERS, NOT ONE. "Confined to Field touch echo" is
+    /// what stood here, counted from the quantizer call in `TouchInstrumentUIView.sound`. The
+    /// same `musicalNow` closure (`FloatingVisualWindow`, the ONE producer, calls exactly this
+    /// method) also drives Field SELF-PLAY: `autoPlayTick` resolves `now.tick` through
+    /// `FieldAutoPlay.cell(forTick:ticksPerCell:)` on a 60 Hz display link, so under swing the
+    /// generator's cell edges sit on the same distorted grid — a long step's last ticks are
+    /// unreachable, a short step's overrun. That is the arp/motion walk drifting against the
+    /// take, which is audible where a dropped echo is merely absent. Still true: the generated
+    /// take does NOT consult this map (it rides `PatternEngine`'s own swung gap), and
+    /// `RecordController.currentTick` is unaffected — it derives from `position.absoluteStep`
+    /// and never interpolates within a step.
     public func currentTick(at now: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()) -> Int? {
         guard isPlaying, lastStepAt > 0 else { return nil }
         return StepTickMath.tick(absoluteStep: position.absoluteStep,

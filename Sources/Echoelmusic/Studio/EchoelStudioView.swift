@@ -6088,11 +6088,23 @@ struct EchoelStudioView: View {
         // ⚠️ WHAT THIS TURNS FROM THEORETICAL INTO ACTIVE: `Transport`'s tick→time map
         // assumes every step lasts the nominal `60/bpm/4`; under swing the odd step lasts
         // `base × (1 − swing)`. That comment has spelled the consequence out for a while —
-        // `TouchQuantizer.latenessToleranceTicks` is 12, so on a shortened step the clock
-        // UNDERSTATES how late a Field touch was and an echo can silently not fire. It was
-        // unreachable while this line said 0. It is reachable now, bounded by the offered
-        // maximum: 16 %, not the third that comment's jazz example implies. Confined to
-        // Field touch echo — the generated take does not use that path. Filed as #328.
+        // on a shortened step the clock UNDERSTATES how late a Field touch was, so a touch
+        // that earned a nudge falls inside `TouchQuantizer.latenessToleranceTicks` and the
+        // echo silently does not fire. It was unreachable while this line said 0. It is
+        // reachable now, bounded by the offered maximum: 16 %, not the third that comment's
+        // jazz example implies. Filed as #328.
+        //
+        // TWO CORRECTIONS TO THE FIRST VERSION OF THIS NOTE, both of which sized the damage
+        // too small:
+        //  · The tolerance is not "12". That is the struct default; the live call site
+        //    (`TouchInstrumentUIView.sound`) raises it per note to `max(12, 20 ms/tick)` —
+        //    19 ticks at 120 BPM. A wider window absorbs MORE understated lateness.
+        //  · It is not "confined to Field touch echo". The same `musicalNow` closure feeds
+        //    Field SELF-PLAY (`autoPlayTick` → `FieldAutoPlay.cell(forTick:)` on a 60 Hz
+        //    link), so the generator's cell edges ride the same distorted grid — an arp
+        //    drifting against the take, which is heard, not merely missing.
+        // Unchanged and still worth stating: the generated take does NOT use that map (it
+        // rides `PatternEngine`'s own swung gap), so this line's own output is correct.
         beatPlayer.pattern.setSwing(style.swing)
         // MULTITIMBRAL Step 2b: give the LEAD voice a genre-appropriate timbre so
         // the lead line reads as its own instrument (synth lead vs jazz Rhodes vs
