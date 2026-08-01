@@ -81,8 +81,14 @@ public final class BioReactiveSynthVoice {
 
     public private(set) var lastApplied: BioSampleFrame?
 
-    /// Diagnostic frame counter, bumped ~10 Hz. Kept `@ObservationIgnored` so it can never
-    /// invalidate an observing view 10×/s (the "menus freeze while playing" class).
+    /// Diagnostic counter, bumped once per NEW bio frame (~1 Hz today — the poll is 10 Hz
+    /// but the apply at `:415` dedupes on `frame.timestamp`, and every wired publisher emits
+    /// at ~1 Hz). The twin of `PolySynthVoice.framesApplied`, and it said "~10 Hz" for a
+    /// month AFTER that one was corrected, because #341 edited this file 400 lines below and
+    /// did not look up — the reviewer caught it. MUST stay `@ObservationIgnored` regardless
+    /// of the rate: as a tracked `@Observable` it would invalidate any view reading it on
+    /// every frame (the "menus freeze while playing" class), and the 10 Hz poll is a CEILING
+    /// a faster publisher would reach without this line changing.
     @ObservationIgnored public private(set) var framesApplied: UInt64 = 0
 
     @ObservationIgnored
