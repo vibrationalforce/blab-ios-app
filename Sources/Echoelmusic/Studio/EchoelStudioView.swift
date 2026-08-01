@@ -2012,8 +2012,10 @@ struct EchoelStudioView: View {
             // dropped — both are plain UserDefaults keys read with a fallback, so there was
             // never a decode to break. Neither is read for sound again (`mixer.drums` is
             // still WRITTEN by `resetToUnity()`, which is harmless and has no reader).
-            // Both strips reflow to 2 columns in landscape / iPad (leaf reads the size
-            // class, not the root body → render-safe).
+            // The strips reflow to 2 columns in landscape / iPad (leaf reads the size
+            // class, not the root body → render-safe). There are FOUR since #330 — Bass,
+            // Melodic, Field and Click — because the founder asked to see all the sounding
+            // layers at once, not because the grid needed filling.
             AdaptiveCardGrid {
                 mixStripCard("Bass") {
                     // range 0...1, NOT `MixerStore.range` (which runs to 1.5). Above unity
@@ -2055,7 +2057,50 @@ struct EchoelStudioView: View {
                     EchoelValueField(label: "Drive", value: melodicDriveBinding,
                                      range: TrackFXStore.driveRange, unit: "", decimals: 2)
                 }
+                // FIELD — the layer you play with your hands (#330, founder 2026-08-01:
+                // "Alles Sound Ebenen übersichtlich zu mixen?"). It was the largest hole in
+                // this board: the take's roles were here, the surface you actually perform on
+                // was two chips away in the Field panel, and nothing showed the two against
+                // each other. It is the SAME value and the SAME voice — `fieldLevelBinding`
+                // is the single owner, so a change here reaches the gain exactly as it does
+                // there. No second store, no mirror.
+                //
+                // Range 0…1.5, unlike the roles above: this is an output gain on a voice, not
+                // a velocity multiplier. The binding's doc says why the two cannot share a
+                // range without one of them lying.
+                mixStripCard("Field · your hands") {
+                    EchoelValueField(label: "Level", value: fieldLevelBinding,
+                                     range: 0...1.5, unit: "", decimals: 2)
+                }
+                // CLICK — on the board because it SOUNDS, and a board that omits an audible
+                // layer is not an overview. The toggle rides along on purpose: a level field
+                // for a click that is off would be the "adjustable but inaudible" control
+                // this repo keeps removing (#135/#164/#227). Both rows read and write the one
+                // `MetronomeVoice` instance, so this is a second DOOR, never a second copy —
+                // the Tempo panel's identical rows stay in step by construction.
+                mixStripCard("Click") {
+                    Toggle("Click", isOn: Binding(get: { metronome.enabled },
+                                                  set: { metronome.enabled = $0 }))
+                        .font(EchoelTheme.font(12))
+                        .tint(EchoelTheme.accent)
+                        .accessibilityHint("A steady click at the current tempo")
+                    EchoelValueField(label: "Level", value: Binding(
+                        get: { Double(metronome.level) },
+                        set: { metronome.level = Float($0) }),
+                        range: 0...1, unit: "", decimals: 2)
+                }
             }
+
+            // WHAT IS DELIBERATELY NOT ON THIS BOARD, said out loud rather than left to be
+            // discovered: the MASTER (loudness, limiter, output) has its own panel because it
+            // is the sum of everything here, not another layer beside them. The bio voice
+            // (breath → synth) is absent because it cannot be armed at all today — a strip
+            // for it would be a control for silence (#277). Secondary MIDI lanes went with
+            // the timeline (#121 Slice 4).
+            Text("Master level lives in the Master panel — it is the sum of these, not one of them.")
+                .font(EchoelTheme.font(11))
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 mixer.resetToUnity()
@@ -2074,13 +2119,41 @@ struct EchoelStudioView: View {
                 // different take.
                 scheduleRebalance()
             } label: {
-                Text("Reset to genre balance")
+                Text("Reset generated parts to genre balance")
                     .font(EchoelTheme.font(12, .medium))
                     .foregroundStyle(EchoelTheme.accent)
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Sets every part back to the genre's own balance")
+            // The label gained "generated parts" with #330, and that is a correctness fix,
+            // not wording: the board now also carries Field and Click, which have no genre
+            // balance to return to and which this button does not touch. "Reset to genre
+            // balance" on a board with four strips promises four and delivers two.
+            .accessibilityHint("Sets the generated bass, pad and lead back to the genre's own balance. Field and click are not changed.")
         }
+    }
+
+    /// The Field's output level — ONE owner for a value that now has TWO doors (the Field
+    /// panel and the Mix board, #330).
+    ///
+    /// ⚠️ THIS EXISTS TO PREVENT A BUG THIS FILE HAS ALREADY PAID FOR TWICE. The Field row
+    /// used to be a plain `$touchLevel` field with an `.onChange` fanning out to
+    /// `touchSynth?.setGain`. An `.onChange` fires only in the view that declares it, so a
+    /// second field bound to the same `@AppStorage` would have persisted the number and left
+    /// the voice at its old gain — the number moves, the sound does not. That is exactly the
+    /// split that made the Bass fader inert (`mixerPanel`'s reset button carries the same
+    /// warning) and the same class as `subBass.mixLevel`. A binding that performs the fan-out
+    /// in its own setter cannot be forgotten by a new door.
+    ///
+    /// The gain is a REAL output gain on the voice, not a velocity trim — `touch.level` runs
+    /// to 1.5 on purpose (see the Field row) whereas the composed roles cap at unity, because
+    /// there the multiplier would pin every note's velocity at 1.000 and flatten the dynamics
+    /// (`MixerStore.combined`). Two ranges, two different laws, deliberately not unified.
+    private var fieldLevelBinding: Binding<Double> {
+        Binding(get: { touchLevel },
+                set: { v in
+                    touchLevel = v
+                    touchSynth?.setGain(Float(v))
+                })
     }
 
     /// A per-part mix STRIP — a titled group (Level + its bus FX). The styling was inherited
@@ -2968,9 +3041,8 @@ struct EchoelStudioView: View {
             // by hand in July so played notes would cut through. Velocity is how HARD you
             // played; level is how loud the instrument is. Conflating them is what made
             // three other faders in this app lie (see MixerStore).
-            EchoelValueField(label: "Level", value: $touchLevel,
+            EchoelValueField(label: "Level", value: fieldLevelBinding,
                              range: 0...1.5, unit: "", decimals: 2)
-                .onChange(of: touchLevel) { _, v in touchSynth?.setGain(Float(v)) }
             EchoelValueField(label: "Position morph", value: $touchMorphDepth,
                              range: 0...1, unit: "", decimals: 2)
             // LIFE — per-note micro-variation so two identical taps never produce two
