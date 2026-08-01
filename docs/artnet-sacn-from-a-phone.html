@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Cache Control: never cache HTML in browser -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Cache Guardian: breaks stale SW/CDN cache loops -->
+    <script>
+    (function(){var V='10.21.0',K='echoel-nuke';try{
+    var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
+    fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];
+    if('caches' in window)p.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+    if(navigator.serviceWorker)p.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+    Promise.all(p).then(function(){window.location.reload()});}).catch(function(){});}catch(e){}})();
+    </script>
+
+    <title>Art-Net &amp; sACN from a phone — Echoelmusic</title>
+    <meta name="description" content="Art-Net broadcasts on UDP 6454, sACN streams on UDP 5568. What the two protocols are, when to use which, and how Echoel sends DMX from a phone with a 3 Hz flash ceiling.">
+    <meta name="theme-color" content="#000000">
+    <meta property="og:title" content="Art-Net &amp; sACN from a phone — Echoelmusic">
+    <meta property="og:description" content="Art-Net broadcasts on UDP 6454, sACN streams on UDP 5568. What the two protocols are, when to use which, and how Echoel sends DMX from a phone with a 3 Hz flash ceiling.">
+    <meta property="og:url" content="https://echoelmusic.com/artnet-sacn-from-a-phone.html">
+    <meta property="og:image" content="https://echoelmusic.com/og-cover.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="Echoelmusic">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Art-Net &amp; sACN from a phone — Echoelmusic">
+    <meta name="twitter:description" content="Art-Net broadcasts on UDP 6454, sACN streams on UDP 5568. What the two protocols are, when to use which, and how Echoel sends DMX from a phone with a 3 Hz flash ceiling.">
+    <meta name="twitter:image" content="https://echoelmusic.com/og-cover.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="favicon-512.png">
+    <link rel="canonical" href="https://echoelmusic.com/artnet-sacn-from-a-phone.html">
+    <link rel="alternate" hreflang="en" href="https://echoelmusic.com/artnet-sacn-from-a-phone.html">
+    
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://echoelmusic.com/"},{"@type":"ListItem","position":2,"name":"Art-Net and sACN from an iPhone","item":"https://echoelmusic.com/artnet-sacn-from-a-phone.html"}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Art-Net and sACN from an iPhone — how DMX over network works","description":"Art-Net broadcasts on UDP 6454, sACN streams on UDP 5568. What the two protocols are, when to use which, and how Echoel sends DMX from a phone with a 3 Hz flash ceiling.","inLanguage":"en-US","author":{"@type":"Organization","name":"Echoelmusic"},"publisher":{"@type":"Organization","name":"Echoelmusic"},"mainEntityOfPage":"https://echoelmusic.com/artnet-sacn-from-a-phone.html","datePublished":"2026-08-01"}</script>
+    <link rel="stylesheet" href="shared.css?v=10.14">
+    <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    <div class="nav">
+        <div class="nav-bar">
+            <a href="/" class="nav-logo" aria-label="Echoelmusic Home">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><text x="50" y="46" text-anchor="middle" font-family="'Atkinson Hyperlegible',sans-serif" font-weight="700" font-size="52" fill="#e0e0e0">E</text><g stroke="#e0e0e0" fill="none" stroke-width="3" stroke-linecap="round"><path d="M24,60 C29,54 37,54 42,60 C47,66 53,66 58,60 C63,54 71,54 76,60" opacity="0.8"/><path d="M24,70 C29,64 37,64 42,70 C47,76 53,76 58,70 C63,64 71,64 76,70" opacity="0.4"/><path d="M24,80 C29,74 37,74 42,80 C47,86 53,86 58,80 C63,74 71,74 76,80" opacity="0.2"/></g></svg>
+                <span>Echoelmusic</span>
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="overview.html">Overview</a>
+                <a href="tools.html">Tools</a>
+                <a href="brainstorming.html">Brainstorming</a>
+                <a href="architecture.html">Architecture</a>
+                <a href="faq.html">FAQ</a>
+                <a href="artist.html">Artist</a>
+                <a href="support.html">Support</a>
+                <span class="nav-cta nav-cta--soon" aria-disabled="true">Coming Soon</span>
+            </div>
+            <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+    <div class="menu-overlay" id="menuOverlay" role="dialog" aria-label="Navigation menu">
+        <nav>
+            <a href="/">Home</a>
+                <a href="overview.html">Overview</a>
+            <a href="tools.html">Tools</a>
+                <a href="brainstorming.html">Brainstorming</a>
+                <a href="architecture.html">Architecture</a>
+            <a href="faq.html">FAQ</a>
+                <a href="artist.html">Artist</a>
+            <a href="support.html">Support</a>
+        </nav>
+    </div>
+
+        <main id="main">
+        <h1>Art-Net and sACN from an iPhone</h1>
+        <p class="lead">Two protocols carry DMX over an ordinary network. They are not interchangeable, the difference is mostly about how packets are addressed, and the choice usually comes down to what the receiving end already speaks. Here is the short version, followed by what a phone can actually do with them.</p>
+
+        <h2>What Art-Net is</h2>
+        <p>Art-Net wraps DMX512 in UDP packets on <strong>port 6454</strong>. A single packet carries one universe — up to 512 channels — and senders typically repeat it continuously so a receiver that misses one still tracks the current state. By convention Art-Net is <strong>broadcast</strong>: the packet goes to every device on the subnet and each node picks out the universe it is patched to. That makes setup trivial (no addresses to configure) and it is why Art-Net is the usual first thing that works when someone plugs a node into a laptop.</p>
+        <p>Broadcast is also its cost. Every node processes every packet, and on a network shared with anything else — a video feed, a wireless access point — the traffic is unconditional. Most Art-Net implementations therefore also accept a directed target address, so you can send to one node instead of shouting at the room.</p>
+
+        <h2>What sACN is</h2>
+        <p>sACN — Streaming ACN, standardised as ANSI E1.31 — does the same job on <strong>port 5568</strong> with a stricter frame. Two differences matter in practice. First, each packet carries a <strong>priority</strong> field, so two consoles can send the same universe and the receiver resolves the conflict deterministically instead of by luck. Second, sACN is designed for <strong>multicast</strong>: universes map onto fixed multicast group addresses, so a switch that understands IGMP forwards a universe only to the ports that asked for it. On a large rig that is the difference between a network that scales and one that saturates.</p>
+        <p>sACN can also be sent as plain <strong>unicast</strong> to one receiver's IP address, which is what you do when the far end is a single node, a media server or a visualiser, and you do not want to think about switch configuration at all.</p>
+
+        <h2>Which one to use</h2>
+        <p>Ask the receiver, not the sender. Almost every modern node, dimmer and visualiser speaks both, and the practical rule is:</p>
+        <ul>
+            <li><strong>One node, one universe, a small network</strong> — either works. Art-Net broadcast is the fewest decisions.</li>
+            <li><strong>Several universes, a managed switch, a real rig</strong> — sACN multicast, because the switch can then keep universes off ports that do not need them.</li>
+            <li><strong>Sending into a visualiser or media server on a known IP</strong> — unicast, in either protocol. Nothing else on the network sees the traffic.</li>
+            <li><strong>Two sources for the same universe</strong> — sACN, for the priority field. Art-Net has no equivalent, and the result is whichever packet arrived last.</li>
+        </ul>
+
+        <h2>What Echoel sends</h2>
+        <p>Echoel is a bio-reactive instrument: your pulse and breath, measured with the phone's own camera, drive sound, image and light at the same time. The light half is a DMX source that runs on the phone, with no console and no computer in between.</p>
+        <ul>
+            <li><strong>Art-Net</strong> on UDP 6454, universe selectable, broadcast by default and directable at a single host.</li>
+            <li><strong>sACN</strong> on UDP 5568, universe selectable, <strong>unicast to a configured address</strong>. Multicast is not available, and the reason is worth stating exactly because it is not a shortcut: iOS gates multicast sending behind Apple's approval-only <code>com.apple.developer.networking.multicast</code> entitlement, which this app does not hold. E1.31 explicitly permits unicast, so this is a supported mode rather than a workaround — but if your rig expects to subscribe to a universe's multicast group, point Echoel at the receiver's address instead.</li>
+            <li><strong>Grand Master</strong> and <strong>Blackout</strong>. Blackout wins over everything and takes effect immediately; colour data keeps streaming underneath so releasing it is seamless rather than a re-fade from nothing.</li>
+        </ul>
+        <p>Both senders are built on Apple's own <code>Network</code> framework. There is no third-party SDK anywhere in the app, and nothing about a session leaves the device except the DMX and OSC packets you point at your own network.</p>
+
+        <h2>The flash ceiling, and why it is in the sender</h2>
+        <p>A light source driven by a heartbeat can, in principle, produce a strobe. WCAG 2.3.1 puts the general flash threshold at three per second, and that limit is not advice — for photosensitive epilepsy it is the boundary between a fixture and a hazard.</p>
+        <p>Echoel enforces it where the packets are made, not in the interface. Every dimmer value is slew-limited before it goes on the wire, so at the shipped send interval a full dark-to-light-to-dark cycle cannot complete faster than roughly 0.8 seconds — about 1.2 cycles per second, comfortably inside the three-per-second bound.</p>
+        <p>Two qualifications, because both are real and neither is visible from the outside. First, the cap is currently expressed as a maximum step <em>per packet</em>, and the send interval lives in a different file — so the guarantee holds at the interval that ships, and would loosen if that interval were shortened without the cap being recomputed. Rewriting it as a rate per second, which cannot drift that way, is work in progress rather than something already done. Second, a rate limit bounds the flash rate for flashes of meaningful contrast; very small, very fast luminance ripples are not covered by a velocity cap alone, and no claim is made here that they are.</p>
+
+        <h2>What this is not</h2>
+        <p>Echoel is not a lighting console. There is no patch, no fixture library, no cue stack and no tracking playback — those are the jobs of the desk you already own, and it does them better. What Echoel adds is a <strong>source</strong>: a live physiological signal, on open protocols, that a console or a node can consume like any other input. It is also not a plugin — it is a standalone app and cannot be loaded inside a DAW.</p>
+        <p>The same body signal is published simultaneously as <a href="overview.html">OSC</a> and as ADM-OSC objects for immersive audio, so a single performer's pulse can drive sound, light and spatial position from one device without a sensor rig, a receiver box or a cloud service.</p>
+
+        <div class="contact-box">
+            <h3>Building something with this?</h3>
+            <p>If you are integrating Echoel as a DMX or OSC source into a rig and something does not behave, tell us what the receiving end is — protocol, universe, and whether it expects unicast or multicast. That is usually the whole answer.</p>
+            <a href="mailto:echoel@tropicaldrones.com">echoel@tropicaldrones.com</a>
+        </div>
+    </main>
+
+    <footer>
+        <span class="footer-copy">&copy; 2026 Echoelmusic &middot; Concept in development</span>
+        <div class="footer-links">
+            <a href="overview.html">Overview</a>
+            <a href="tools.html">Tools</a>
+                <a href="brainstorming.html">Brainstorming</a>
+            <a href="architecture.html">Architecture</a>
+            <a href="faq.html">FAQ</a>
+            <a href="artist.html">Artist</a>
+            <a href="support.html">Support</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="health.html">Health</a>
+            <a href="security.html">Security</a>
+            <a href="accessibility.html">Accessibility</a>
+            <a href="impressum.html">Legal Notice</a>
+        </div>
+    </footer>
+
+<script src="shared.js?v=10.14"></script>
+</body>
+</html>
