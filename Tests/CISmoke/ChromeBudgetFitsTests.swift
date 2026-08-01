@@ -28,6 +28,17 @@
 // needs real SF Symbol advances, real Atkinson metrics and the user's Dynamic Type, i.e.
 // a device. Being conservative is the safe direction — it sheds one item too early rather
 // than one too late, and shedding early is invisible while shedding late is the bug.
+//
+// ⛔ CORRECTION TO THIS FILE'S OWN FIRST VERSION (found while working #351). The fullscreen
+// assertion below used to justify itself with "fullscreen is the app's HOME on every cold
+// launch". That is FALSE: the window's size is `@AppStorage("visual.floating.size")`
+// defaulting to `WindowSize.small`, so a cold launch shows the SMALL floating card and
+// fullscreen is only reached by cycling the resize button. I wrote it from a half-memory of
+// the CLAUDE.md line about the visual being a home surface — which is about the window being
+// VISIBLE (`visual.floating.visible` does default to true), not about its SIZE. The assertion
+// was right; its stated reason was invented. Nothing downstream depended on it, which is
+// exactly why it would have survived: a false sentence inside a PASSING test is invisible
+// until someone plans from it.
 
 import Foundation
 import XCTest
@@ -172,8 +183,8 @@ final class ChromeBudgetFitsTests: XCTestCase {
                                                          wavBusy: wavBusy, videoBusy: false)
                 XCTAssertLessThanOrEqual(barWidth(fit, wavBusy: wavBusy), bounds.width, """
                     Fullscreen on a \(Int(bounds.width))pt phone, wavBusy=\(wavBusy): the \
-                    chrome overflows. Fullscreen is the app's HOME on every cold launch, so \
-                    this is the state the founder sees first.
+                    chrome overflows. This is the widest state the bar ever has and the one \
+                    the founder's report named, so an overflow here is the original bug back.
                     """)
             }
         }

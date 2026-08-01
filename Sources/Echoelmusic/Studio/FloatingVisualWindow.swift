@@ -1179,8 +1179,26 @@ private struct InstrumentHintOverlay: View {
                     // most-seen surface in the app, and the FIRST thing a new user reads.
                     // English is the bundle's declared development region; German returns
                     // through a String Catalog as a translation, not as a stray literal.
-                    Label("A finger on the camera brings it to life", systemImage: "camera")
-                    Label("Touch the image to play", systemImage: "hand.point.up.left")
+                    //
+                    // ⛔ AND THE FIRST LINE WAS UNTRUE UNTIL #351. It read "A finger on the
+                    // camera brings it to life" — a promise the app cannot keep at the moment
+                    // it is shown. The camera has exactly ONE owner, `startBioSource()`, and
+                    // its only caller is the start path in `EchoelStudioView`; before the user
+                    // starts the music there is no capture session, so a finger on the lens
+                    // does nothing at all. The very first instruction the instrument gives is
+                    // the worst possible place for an instruction that does not work: a new
+                    // user who follows it and sees nothing concludes the app is broken, not
+                    // that they missed a step. Naming the precondition costs four words.
+                    //
+                    // The founder's law #1 quoted below ("app open, finger on camera, in 3
+                    // seconds it lives") is the INTENT, and it is not what ships — bio is
+                    // user-armed by design (silent until started). Making the promise true
+                    // would mean auto-starting capture at launch, which is a permission
+                    // dialog on first render and a behaviour change nobody asked for. So the
+                    // copy follows the code, not the other way round.
+                    Label("Start the music, then a finger on the back camera",
+                          systemImage: "camera")
+                    Label("Touch the image to play notes", systemImage: "hand.point.up.left")
                 }
                 .font(EchoelTheme.font(13, .medium))
                 .foregroundStyle(.white.opacity(0.92))
@@ -1191,7 +1209,12 @@ private struct InstrumentHintOverlay: View {
                 .opacity(visible ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Put a finger on the camera to bring it to life. Touch the image to play.")
+                // One-line literal on purpose: the sibling comment in `WorkspaceView` records
+                // that a bare literal here resolves to the `LocalizedStringKey` overload, and
+                // a String Catalog key is what carries this to the German build. A multi-line
+                // literal would still localise, but it makes the key harder to match by eye
+                // against the catalog — and this string has now been wrong once (#351).
+                .accessibilityLabel("Start the music, then put a finger on the back camera. Touch the image to play notes.")
                 .task {
                     // Show once, hold ~4.5 s, fade out, then mark seen so it never returns.
                     // No animation under Reduce Motion (a hard cut, still flash-safe).
