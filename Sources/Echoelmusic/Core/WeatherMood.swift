@@ -247,7 +247,8 @@ public enum WeatherMood {
     /// `MoodProfile.darkness`, and `darkness` is not a gradient anywhere in the engine — its
     /// only two readers are `mood.darkness > 0.6 ? -1 : 0` (`BioComposer`, twice: the ambient
     /// octave and the pad voicing). `MoodPreset.swift` already records this in its own comment
-    /// ("two moods can differ by 0.43 of darkness and produce the SAME notes"). So a weather
+    /// ("Two moods can therefore differ by 0.43 of darkness and produce the SAME notes" —
+    /// quoted exactly; an earlier draft tidied the sentence inside its quotation marks). So a weather
     /// nudge of a few hundredths did LITERALLY NOTHING unless it happened to cross 0.6, and
     /// then it moved a whole octave. Founder, 2026-08-01: "Wetter ist nicht bemerkbar bis
     /// jetzt oder?" — correct, and this is why.
@@ -304,8 +305,13 @@ public enum WeatherMood {
         let brightness = clampRange(shift, -maxToneBrightnessShift, maxToneBrightnessShift) * i
         // Cutoff follows brightness rather than carrying its own table: they are two views of
         // the same "how open is this" and letting them disagree is how a sound ends up bright
-        // and muffled at once. 1.8 maps the ±0.20 brightness bound onto the ±0.36 cutoff bound
-        // exactly, so one clamp governs both.
+        // and muffled at once. 1.8 is chosen so the ±0.20 brightness bound lands ON the ±0.36
+        // cutoff bound — which means this second clamp is UNREACHABLE today, by construction
+        // rather than by accident. It stays because the two bounds are independent constants
+        // that a later tune can move apart, and a clamp that only starts working then is
+        // cheaper than a defect that only appears then. (Not "exactly": in Float,
+        // `0.2 * 1.8 == 0.35999998`, a hair inside the bound. Nothing depends on the equality,
+        // but the earlier wording claimed a precision this arithmetic does not have.)
         let cutoff = clampRange(1 + brightness * 1.8,
                                 1 - maxToneCutoffDeviation, 1 + maxToneCutoffDeviation)
         return ToneTrim(brightness: brightness, cutoffFactor: cutoff)
@@ -313,6 +319,20 @@ public enum WeatherMood {
 
     /// The unscaled brightness offset for one sky, before any mixer.
     static func toneBrightnessShift(for w: WeatherSnapshot) -> Float {
+        // ⛔ SANITISE THE TEMPERATURE FIRST, and the reason is that the clamp below CANNOT do
+        // it. `clampRange` is `min(max(v, lo), hi)`, and Swift's `max(x, y)` is `y >= x ? y : x`
+        // — so `max(+inf, 0)` returns `+inf` and `min(+inf, 1)` then returns `1`. An INFINITE
+        // temperature is therefore saturated into a perfectly finite `t`, and the
+        // `shift.isFinite` guard in `toneTrim(fullBrightnessShift:intensity:)` never fires: the
+        // sky arrives with the MAXIMUM trim (±0.20 brightness, ×1.36 / ×0.82 cutoff) instead of
+        // neutral. NaN is the only non-finite the clamp passes through, so the first version of
+        // this file was NaN-safe and infinity-wrong — and its test asserted all three, which is
+        // how it was caught. Note `RoleRhythm.clampRange` has the OPPOSITE argument order and
+        // therefore the opposite behaviour (`+inf → upper`); the two must not be reasoned about
+        // interchangeably. A non-finite reading means "no usable temperature", and the honest
+        // answer to that is no tone at all — not the strongest one this table can produce.
+        guard w.temperatureC.isFinite else { return 0 }
+
         // Temperature is the PRIMARY term because the label names it first. Linear in °C
         // between −5 and 32 rather than reusing `temperatureBand` — the bands are five steps,
         // and a five-step staircase is the same "nothing happens, then a jump" defect one size

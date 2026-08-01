@@ -130,9 +130,20 @@ final class FilterCutoffClampTests: XCTestCase {
     /// today (`git grep PatchLibrary -- Sources` finds only its own file), so nothing shipped
     /// was mis-measured, but "any shipped patch" was the wrong claim and the blind spot was
     /// free to close.
+    ///
+    /// ⛔ AND IT HAPPENED AGAIN, in the shape the paragraph above was written to prevent. #349
+    /// added a THIRD live multiplier at the same site: `weatherToned` composes a
+    /// `WeatherMood.ToneTrim` into the very same `applyTakeSound` push, contributing up to
+    /// ×1.36 (`maxToneCutoffDeviation`). It did not redden — 8000 × 1.456 = 11.6 kHz was far
+    /// from the clamp — so nothing here failed; the number simply stopped describing the app.
+    /// The lesson is that this constant is a MIRROR of the push chain in
+    /// `EchoelStudioView.applyTakeSound`, and anything appended there belongs here in the same
+    /// commit. Headroom is now ~2.2 kHz instead of ~6.4, which is the honest reason a fourth
+    /// multiplier needs a decision rather than an edit.
     func testNoShippedPatchComesNearTheClamp() {
-        /// `RoleRhythm` timbre trim (≤1.12) × the bio `cutoffFactor` rail (1.3).
-        let liveChain: Float = 1.12 * 1.3
+        /// `RoleRhythm` timbre trim (≤1.12) × `WeatherMood.ToneTrim` (≤1.36, #349)
+        /// × the bio `cutoffFactor` rail (1.3). One mirror of `applyTakeSound`'s push chain.
+        let liveChain: Float = 1.12 * 1.36 * 1.3
         var worst: (label: String, hz: Float) = ("none", 0)
         for entry in shippedPatches {
             let peak = entry.patch.filterCutoff * liveChain

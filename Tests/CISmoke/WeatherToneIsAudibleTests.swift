@@ -7,7 +7,7 @@
 // was `MoodProfile.darkness`. `darkness` is not a gradient anywhere in the engine — its two
 // readers are both `mood.darkness > 0.6 ? -1 : 0` (`BioComposer`: the ambient octave and the
 // pad voicing), and `MoodPreset.swift` records the same finding in its own words ("two moods
-// can differ by 0.43 of darkness and produce the SAME notes"). So the few hundredths weather
+// can therefore differ by 0.43 of darkness and produce the SAME notes"). So the few hundredths weather
 // moved did nothing at all — unless they happened to cross 0.6, and then they moved a whole
 // octave. A control that is inaudible almost everywhere and enormous at one invisible point
 // is worse than one that does nothing, and the founder heard exactly that: nothing.
@@ -91,6 +91,18 @@ final class WeatherToneIsAudibleTests: XCTestCase {
     /// A sensor that hands back nonsense must not colour the sound. WeatherKit can and does
     /// return values this app never validated, and the trim is one multiplication away from the
     /// filter cutoff.
+    ///
+    /// ⛔ THIS ONE CAUGHT A REAL DEFECT, and the shape is worth keeping: the first version of
+    /// the code was NaN-safe and INFINITY-WRONG. `WeatherMood.clampRange` is
+    /// `min(max(v, lo), hi)`, and Swift's `max(x, y)` is `y >= x ? y : x` — so `max(+inf, 0)`
+    /// returns `+inf` and `min(+inf, 1)` then returns `1`. An infinite temperature was
+    /// SATURATED into a perfectly finite offset, sailing past the `shift.isFinite` guard and
+    /// producing the MAXIMUM trim (±0.20 brightness, ×1.36 / ×0.82 cutoff) — the exact inverse
+    /// of what its own doc promised. Only NaN survives that clamp as non-finite, so testing
+    /// NaN alone would have reported a green nobody earned. The fix sanitises the temperature
+    /// at the boundary, before any clamp can hide it. `RoleRhythm.clampRange` has the OPPOSITE
+    /// argument order and therefore the opposite behaviour; the two must never be reasoned
+    /// about interchangeably.
     func testANonFiniteSkyResolvesToNeutral() {
         for t in [Double.nan, .infinity, -.infinity] {
             let trim = WeatherMood.toneTrim(for: sky(t, .clear), intensity: 1)
@@ -166,9 +178,23 @@ final class WeatherToneIsAudibleTests: XCTestCase {
 
     // MARK: - bounds
 
-    /// Swept over every condition, a wide temperature range and the whole mixer. Asserted
-    /// against the type's OWN constants so raising a number without raising the declared bound
-    /// turns red — the same contract `RoleRhythm.TimbreTrim` keeps.
+    /// Swept over every condition, a wide temperature range and the whole mixer.
+    ///
+    /// ⛔ READ WHAT THIS DOES AND DOES NOT SHOW. An earlier version of this comment claimed it
+    /// was "asserted against the type's own constants, so raising a number without raising the
+    /// declared bound turns red — the same contract `RoleRhythm.TimbreTrim` keeps". That was
+    /// FALSE, and it is worth leaving the correction here rather than quietly rewriting: the
+    /// two constants ARE the clamp (`toneTrim` clamps brightness to ±`maxToneBrightnessShift`
+    /// and cutoff to 1 ± `maxToneCutoffDeviation`, and `toneBrightnessShift` clamps a third
+    /// time), so raising a `condShift` to −0.5 or the temperature slope to 3.0 leaves every
+    /// assertion below green. `RoleTimbreTrimTests` genuinely catches a widened number because
+    /// there the per-character table is independent of the bound; here it is not.
+    ///
+    /// What this test DOES prove is still worth having: that the clamp is present and reached
+    /// on every path — every condition, every daylight state, temperatures far outside the
+    /// mapped range, and three mixer settings. Delete a clamp and it goes red immediately.
+    /// `testTheTemperatureSlopeIsTheDocumentedOne` below is the one that catches a widened
+    /// table, and the two must be read together.
     func testNoSkyCanPushTheTrimPastItsDeclaredBound() {
         let maxBright = WeatherMood.maxToneBrightnessShift
         let maxCut = WeatherMood.maxToneCutoffDeviation
@@ -194,6 +220,33 @@ final class WeatherToneIsAudibleTests: XCTestCase {
                 }
             }
         }
+    }
+
+    /// ⭐ THE ONE THAT CATCHES A WIDENED TABLE. Everything in the bound test above is absorbed
+    /// by the clamp; this samples the mapping WELL INSIDE it, where the numbers themselves
+    /// decide the answer. 20 °C partly cloudy in daylight has no condition and no night term,
+    /// so its offset is purely the temperature slope: (25/37 − 0.5) × 0.30 = 0.0527027. Change
+    /// the slope, the span, or either endpoint and this goes red — which is exactly what the
+    /// bound test cannot do.
+    func testTheTemperatureSlopeIsTheDocumentedOne() {
+        let mild = WeatherMood.toneTrim(for: sky(20), intensity: 1).brightness
+        XCTAssertEqual(mild, 0.0527027, accuracy: 1e-5, """
+            20 °C partly cloudy in daylight now offsets brightness by \(mild), not 0.0527027. \
+            That point sits far inside every clamp, so the change is in the MAPPING: the −5…32 \
+            °C span, the 0.30 slope, or the partly-cloudy/daylight zero. Re-derive the numbers \
+            in the header of `WeatherMood.toneBrightnessShift` in the same commit.
+            """)
+        // The two bounds are not independent — 1.8 is chosen so the brightness bound lands on
+        // the cutoff bound. Moving one alone would either make the cutoff clamp start biting
+        // (a silent knee in the middle of the fader's travel) or leave it unreachable at a
+        // different place than documented.
+        let expectedCutoffBound = WeatherMood.maxToneBrightnessShift * 1.8
+        XCTAssertEqual(WeatherMood.maxToneCutoffDeviation, expectedCutoffBound, accuracy: 1e-6, """
+            `maxToneCutoffDeviation` (\(WeatherMood.maxToneCutoffDeviation)) no longer equals \
+            `maxToneBrightnessShift × 1.8` (\(expectedCutoffBound)). The two are coupled by the \
+            1.8 in `toneTrim`; change one and the cutoff clamp either starts biting mid-travel \
+            or moves somewhere the comment does not say it is.
+            """)
     }
 
     /// Brightness and cutoff are two views of one question ("how open is this sound"). If they

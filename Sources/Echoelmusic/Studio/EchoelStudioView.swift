@@ -2602,9 +2602,14 @@ struct EchoelStudioView: View {
             ForEach(params) { param in
                 // The commit hook pushes the take patch again, so the WARMTH fader is audible
                 // while you move it instead of at the next generate. It fires for the image
-                // mixers too and does nothing there — filtering by param would be a second
-                // place that has to know which influences are patch-side, and that list is
-                // already stated once in `weatherToned`.
+                // mixers too, where it does no HARM rather than nothing at all: releasing Hue
+                // or Glow re-runs `applyTakeSound(currentPatch)`, which re-enqueues the same
+                // patch on the voice and re-runs `syncTouchSound()`. Both are idempotent with
+                // identical input, so nothing is audible — but it is two engine pushes, not
+                // zero, and an earlier version of this comment said "does nothing there",
+                // which is a stronger claim than the code earns. Filtering by param would be a
+                // second place that has to know which influences are patch-side, and that list
+                // is already stated once in `weatherToned`.
                 WeatherMixRow(param: param) { applyTakeSound(currentPatch) }
             }
         }
@@ -6665,7 +6670,9 @@ struct EchoelStudioView: View {
     /// only wiring was `MoodProfile.darkness`, whose ONLY two readers in the whole engine are
     /// `mood.darkness > 0.6 ? -1 : 0` (`BioComposer`, the ambient octave and the pad voicing).
     /// A threshold, not a gradient — `MoodPreset.swift` records the same finding in its own
-    /// words ("two moods can differ by 0.43 of darkness and produce the SAME notes"). So the
+    /// words ("Two moods can therefore differ by 0.43 of darkness and produce the SAME
+    /// notes" — quoted exactly; three files carried a tidied-up version of this sentence
+    /// inside quotation marks, which is a small lie in the one place a reader trusts most). So the
     /// few hundredths weather moved did nothing at all unless they happened to cross 0.6, and
     /// then they moved a whole octave. Note also which word the label uses: TONE. The engine
     /// implemented REGISTER. This is the parameter the copy was always describing.
