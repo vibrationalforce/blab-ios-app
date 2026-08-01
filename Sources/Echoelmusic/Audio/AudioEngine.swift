@@ -172,16 +172,21 @@ public final class AudioEngine {
     /// Held master sample-peak / true-peak in dBFS / dBTP, and momentary
     /// loudness in LUFS — published from the master tap (EchoelMix metering).
     ///
-    /// ⚠️ THESE THREE ALSO MOVED WITH THE TAP (#316b) AND DELIBERATELY KEPT THEIR NAMES AND
-    /// THEIR MISSING TRIM, which is the opposite of what was done one declaration below —
-    /// so the inconsistency is a decision, not an oversight. They have ZERO readers outside
-    /// this file (`git grep` over `Sources/` + `Tests/` returns only these declarations and
-    /// their write site in the poll block), so there is no call site a rename would inform
-    /// and no display a trim would correct. Renaming them would be churn for its own sake.
-    /// The moment one of them acquires a reader, give it the `masterOutput…` treatment —
-    /// name AND `trimmed(_:floor:)` — rather than letting a second convention take root.
+    /// ⚠️ THESE MOVED WITH THE TAP (#316b) AND DELIBERATELY KEPT THEIR NAMES AND THEIR
+    /// MISSING TRIM, which is the opposite of what was done one declaration below — so the
+    /// inconsistency is a decision, not an oversight. They have ZERO readers outside this
+    /// file (`git grep` over `Sources/` + `Tests/` returns only these declarations and their
+    /// write site in the poll block), so there is no call site a rename would inform and no
+    /// display a trim would correct. Renaming them would be churn for its own sake. The
+    /// moment one of them acquires a reader, give it the `masterOutput…` treatment — name
+    /// AND `trimmed(_:floor:)` — rather than letting a second convention take root.
+    ///
+    /// ⭐ AND THAT IS EXACTLY WHAT HAPPENED to the third one (#347 Nachlese): the
+    /// oscilloscope needed a live peak, so `masterTruePeakDb` became
+    /// `masterOutputTruePeakDb` below, with the trim. The instruction above was written for
+    /// a case nobody expected to arrive; it arrived four days later. These two stay as they
+    /// are under the same rule — they still have no reader.
     var masterPeakDb: Float = EchoelMeter.floorDb
-    var masterTruePeakDb: Float = EchoelMeter.floorDb
     var masterLUFS: Float = EchoelLoudnessMeter.floorLUFS
     /// Full EBU R128 set at the OUTPUT of the master chain (#316b): short-term (3 s) +
     /// max-hold true-peak (dBTP) + gated integrated loudness (LUFS) + loudness range (LU).
@@ -198,6 +203,20 @@ public final class AudioEngine {
     /// have no way to tell which era they were looking at.
     var masterOutputLUFSShortTerm: Float = EchoelLoudnessMeter.floorLUFS
     var masterOutputTruePeakMaxDb: Float = EchoelMeter.floorDb
+    /// LIVE true peak (dBTP) at the master output — the SAME measurement point and the same
+    /// `outputTrimDb` as `…MaxDb` one line up, but the meter's decaying hold
+    /// (`EchoelMeter.holdDecay`, 0.85 per block) instead of a session max-hold. The two are
+    /// deliberately both here: the Master panel asks "did it EVER clip" (max-hold), a scope
+    /// asks "how loud is it RIGHT NOW" (decaying hold). A max-hold in a live readout sticks
+    /// at the loudest moment of the session and never comes down — which reads as a frozen
+    /// meter, the lying-control class.
+    ///
+    /// Measured on the audio thread over EVERY block, so unlike anything derived from
+    /// `copyLatestOutputSamples` it has no duty-cycle gap between UI ticks. And unlike
+    /// `masterLevel` it is a peak: `masterLevel` is `vDSP_rmsqv × 3.0` clamped to 1.0, a
+    /// meter-ballistics value with a contract to `AutoMixChain.updateLUFS` — reading it as
+    /// dBFS pins anything above ≈ −6.5 dBFS at "0.0" (#347 review).
+    var masterOutputTruePeakDb: Float = EchoelMeter.floorDb
     var masterOutputLUFSIntegrated: Float = EchoelLoudnessMeter.floorLUFS
     var masterOutputLRA: Float = 0
 
@@ -731,8 +750,11 @@ public final class AudioEngine {
         // heard, for which post-limiter is the better source, and the #193 instrument
         // measures `when.hostTime`/`sampleTime` deltas of the render cycle, which are the
         // same on any node. What decided it was checking the consumers: `masterPeakDb`
-        // and `masterTruePeakDb` have ZERO readers outside this file, and the four EBU
-        // values are read only by `MasterLoudnessGrid`. No behaviour hangs off the old
+        // and the held true peak had ZERO readers outside this file, and the four EBU
+        // values are read only by `MasterLoudnessGrid`. (The held true peak has one now —
+        // it became `masterOutputTruePeakDb` for the oscilloscope's readout, #347. That
+        // does not change the reasoning here; it is why the value carries the trim.)
+        // No behaviour hangs off the old
         // measurement point, so moving costs nothing a second tap would have bought —
         // and a second tap would have doubled a per-buffer block carrying LUFS,
         // oversampled true-peak, an FFT ring write and the timing instrument, against a
@@ -1254,7 +1276,6 @@ public final class AudioEngine {
                 // Peak / LUFS already carry their own hold/windowing in the meter;
                 // publish them straight through.
                 self.masterPeakDb = self._peakDb.pointee
-                self.masterTruePeakDb = self._truePeakDb.pointee
                 self.masterLUFS = self._lufs.pointee
                 // #316b: the tap sits at the chain output, which is upstream of the ONE
                 // remaining gain (`mainMixerNode.outputVolume`). Adding the trim in dB is
@@ -1268,6 +1289,8 @@ public final class AudioEngine {
                     AudioEngine.trimmed(self._lufsS.pointee, floor: EchoelLoudnessMeter.floorLUFS)
                 self.masterOutputTruePeakMaxDb =
                     AudioEngine.trimmed(self._tpMax.pointee, floor: EchoelMeter.floorDb)
+                self.masterOutputTruePeakDb =
+                    AudioEngine.trimmed(self._truePeakDb.pointee, floor: EchoelMeter.floorDb)
                 self.masterOutputLUFSIntegrated =
                     AudioEngine.trimmed(self._lufsI.pointee, floor: EchoelLoudnessMeter.floorLUFS)
                 self.masterOutputLRA = self._lra.pointee

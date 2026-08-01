@@ -30,9 +30,13 @@ struct AnalysisScopeView: View {
     @Environment(AudioEngine.self) private var audioEngine
     var reduceMotion: Bool = false
 
-    /// Samples drawn across the width. 512 at 48 kHz is ~10.7 ms — two cycles of a low
-    /// bass note, a few dozen of a lead. Wide enough to show the waveform's shape, short
-    /// enough that the trigger has room to search inside the 2048-sample capture.
+    /// Samples drawn across the width. 512 at 48 kHz is ~10.7 ms — ONE cycle of a 94 Hz
+    /// bass note, a few dozen of a lead. (The first version of this line said "two cycles
+    /// of a low bass note", which would put the fundamental at 187 Hz — an F♯3, not a bass
+    /// note. Corrected rather than deleted because the window length is picked FROM this
+    /// reasoning, so the next person to change 512 needs the arithmetic to be right.)
+    /// Wide enough to show the waveform's shape, short enough that the trigger has room to
+    /// search inside the 2048-sample capture.
     private static let windowLength = 512
     private static let captureLength = 2048
 
@@ -47,9 +51,17 @@ struct AnalysisScopeView: View {
         VStack(alignment: .leading, spacing: 6) {
             // 30 fps, not 60: the trace is phase-locked, so it does not move between frames
             // the way an untriggered one would — the extra 30 redraws buy nothing and cost
-            // battery in a panel the performer leaves open. Reduce Motion freezes it to a
-            // still frame (WCAG / the repo's motion law); a locked scope is already almost
-            // still, so the frozen version still shows the waveform, just not its evolution.
+            // battery in a panel the performer leaves open.
+            //
+            // REDUCE MOTION freezes it (WCAG / the repo's motion law). Say what that
+            // actually means, because the first version of this comment claimed the frozen
+            // version "still shows the waveform, just not its evolution" and that is only
+            // half true: `paused: true` stops the schedule, so the Canvas draws whenever
+            // SwiftUI next lays it out and then never again. What you get is ONE frame from
+            // an arbitrary instant — if the panel opened during silence it stays an empty
+            // axis until something else invalidates the view. That is an honest still, not
+            // a live-but-slow trace, and the caption below the picture is what carries the
+            // information in that mode.
             TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { _ in
                 Canvas { ctx, size in draw(ctx, size) }
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -57,14 +69,19 @@ struct AnalysisScopeView: View {
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .frame(height: traceHeight)
-            // SCIENCE-FIRST: the number before the picture (Uncodixfy). Peak is stated in
-            // dBFS because that is the unit the Master panel already uses, so the two
-            // surfaces can be compared without conversion in the reader's head.
+            // The PICTURE is one accessibility element; the NUMBER is its own. The first
+            // version put `.accessibilityElement(children: .combine)` on the whole VStack,
+            // which folds the children into one element and DISCARDS their labels — so a
+            // VoiceOver user heard "Oscilloscope" and never the peak value, i.e. exactly
+            // the science-first number the sighted layout puts front and centre. A picture
+            // a screen reader cannot read is the one element that legitimately wants a
+            // summary label; the readout beside it never did.
+            .accessibilityElement()
+            .accessibilityLabel("Oscilloscope")
+            .accessibilityHint("The master output waveform, triggered so a steady tone stands still.")
+            // SCIENCE-FIRST: the number before the picture (Uncodixfy).
             ScopePeakLabel()
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Oscilloscope")
-        .accessibilityHint("The master output waveform, triggered so a steady tone stands still.")
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize) {
@@ -95,35 +112,64 @@ struct AnalysisScopeView: View {
             if i == 0 { trace.move(to: p) } else { trace.addLine(to: p) }
         }
         // One solid stroke, no glow, no gradient (Uncodixfy: no glow effects, ≤8 pt shadow —
-        // here, none). Colour is the theme accent so the trace belongs to the app rather
-        // than announcing itself as an instrument panel.
+        // here, none). Colour is the theme's TEXT colour — not an accent, which is what this
+        // comment used to say while the code below said `EchoelTheme.text`. A trace drawn in
+        // the same ink as the labels around it belongs to the app rather than announcing
+        // itself as an instrument panel; an accent would do the opposite.
         ctx.stroke(trace, with: .color(EchoelTheme.text),
                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
     }
 }
 
-/// The peak readout, split into its OWN leaf on purpose: it reads `masterLevel`, which the
-/// meter timer updates at 60 Hz. Left inside `AnalysisScopeView.body` it would be harmless
-/// today (that body already redraws at 30 fps) — but the moment someone reuses this label
-/// elsewhere, the read travels with it. Keeping the observation boundary at the value, not
-/// at its current host, is what the 10.76.50 lesson actually asks for.
+/// The peak readout, split into its OWN leaf on purpose: it reads a value the meter timer
+/// updates at 60 Hz. Left inside `AnalysisScopeView.body` it would be harmless today (that
+/// body already redraws at 30 fps) — but the moment someone reuses this label elsewhere,
+/// the read travels with it. Keeping the observation boundary at the value, not at its
+/// current host, is what the 10.76.50 lesson actually asks for. (The trace is capped at
+/// 30 fps for battery; this leaf genuinely rebuilds at 60. That is a stated decision, not
+/// an oversight: it is one `Text`, and throttling it would mean sampling a peak with a
+/// duty cycle — a peak meter that only looks part of the time is not a peak meter.)
+///
+/// ⛔ WHAT THIS READ USED TO BE, and why it was the very defect the file above says it
+/// exists to avoid. The first version rendered
+/// `20·log10(max(masterLevel, masterLevelR))` as "Peak … dBFS". `masterLevel` is
+/// `vDSP_rmsqv(…) × 3.0` hard-clamped to 1.0 (`AudioEngine.swift`), measured on
+/// `masterMixer` BEFORE the master chain. Three separate errors compounded:
+///   · it is an RMS, not a peak — for a sine, 3 dB low before anything else;
+///   · the ×3 is a contract with `AutoMixChain.updateLUFS`, not a display scale, so the
+///     number is ~9.5 dB HIGH;
+///   · the clamp to 1.0 means everything above ≈ −6.5 dBFS renders as "0.0 dBFS" — a
+///     readout that pins at zero while the mix gets louder.
+/// At a real −20 dBFS peak it read −13.5. And the comment beside it claimed comparability
+/// with the Master panel, which shows dBTP from a POST-chain, trim-corrected value. That is
+/// #164/#227, the lying-control class, inside a commit whose whole thesis was "not a lying
+/// control" — which is the useful lesson: the claim in a header does not audit the code
+/// under it.
+///
+/// The value now is `masterOutputTruePeakDb` — the meter's own decaying true-peak hold,
+/// measured on the audio thread over every block at the chain output and carrying
+/// `outputTrimDb`. Same measurement point and same unit as the Master panel's "True peak";
+/// that one is the session MAX-hold ("did it ever clip"), this one falls back ("how loud
+/// right now"). Two different questions, deliberately both answered.
 @MainActor
 private struct ScopePeakLabel: View {
     @Environment(AudioEngine.self) private var audioEngine
 
     var body: some View {
-        let level = Swift.max(audioEngine.masterLevel, audioEngine.masterLevelR)
-        // −60 dBFS is the floor the Master panel already parks at when there is no signal;
-        // using the same floor keeps the two readouts saying the same thing about silence.
-        let db = level > 0.001 ? 20 * log10(level) : -60
-        return Text(level > 0.001
-                    ? String(format: "Peak %.1f dBFS", db)
-                    : "Silent")
+        let db = audioEngine.masterOutputTruePeakDb
+        // The same silence convention as `MasterLoudnessGrid.dbText` — a value within 1 dB
+        // of the −120 floor is not a measurement, it is the absence of one. That grid draws
+        // "—" inside a labelled table; here the label IS the sentence, so it says the word.
+        let silent = db <= EchoelMeter.floorDb + 1
+        // #267: no user-visible readout formats its own decimals. A German reader who sets
+        // a comma everywhere else must not meet a lone "−8.3" here.
+        let value = EchoelDecimalText.string(db, decimals: 1)
+        return Text(silent ? "Silent" : "Peak \(value) dBTP")
             .font(EchoelTheme.font(11).monospacedDigit())
             .foregroundStyle(EchoelTheme.dim)
-            .accessibilityLabel(level > 0.001
-                                ? String(format: "Peak %.1f decibels full scale", db)
-                                : "Silent")
+            .accessibilityLabel(silent
+                                ? "Silent"
+                                : "Peak \(value) decibels true peak")
     }
 }
 

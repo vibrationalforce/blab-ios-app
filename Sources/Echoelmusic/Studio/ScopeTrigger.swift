@@ -30,11 +30,21 @@ enum ScopeTrigger {
 
     /// Index in `samples` where a stable display window should begin.
     ///
-    /// Returns the first index `i` in the searchable range such that `samples[i-1]` sits
-    /// BELOW `level - hysteresis` and `samples[i]` is at or above `level` — a rising
-    /// crossing. Falls back to 0 when no crossing exists in range (silence, DC, or a
-    /// period longer than the search window), which is the honest fallback: an untriggered
-    /// scope draws from the buffer start rather than pretending to be locked.
+    /// Returns the first index `i` in the searchable range such that SOME earlier sample
+    /// fell below `level - hysteresis` (arming the trigger) and `samples[i]` is at or above
+    /// `level` — a rising crossing. Falls back to 0 when no crossing exists in range
+    /// (silence, DC, or a period longer than the search window), which is the honest
+    /// fallback: an untriggered scope draws from the buffer start rather than pretending to
+    /// be locked.
+    ///
+    /// ⛔ "SOME EARLIER SAMPLE", not `samples[i-1]`, and the difference is not pedantic —
+    /// the first version of this doc said the immediate predecessor must sit below the arm
+    /// band, and the primary test vector disproves it: a 64-sample sine has
+    /// `samples[64] = −2.4e-16`, which is above `−hysteresis`, yet index 65 is (correctly)
+    /// returned because the arm was set back at sample 33. Anyone who "fixed" the loop to
+    /// match the old wording would have moved every trigger by one whole period on a signal
+    /// that dwells near zero. The arm is STICKY until it fires or a non-finite sample
+    /// clears it; that is the contract.
     ///
     /// The search is bounded to `samples.count - windowLength` so the returned index plus
     /// the window always stays inside the buffer — the caller never has to clamp.
@@ -66,8 +76,17 @@ enum ScopeTrigger {
     ///
     /// Clamping and not normalising, deliberately: a scope whose vertical scale follows the
     /// signal cannot show you that the signal got louder, which is most of what a performer
-    /// wants from it. The master bus is already trimmed to −1 dBFS, so a clean take never
-    /// touches the rails and a clipped one visibly does.
+    /// wants from it. ±1 is therefore full scale, and a trace welded to the rails is a real
+    /// over.
+    ///
+    /// ⛔ NOT "the master bus is already trimmed to −1 dBFS, so a clean take never touches
+    /// the rails" — that is what this said and it is the wrong way round. The −1 dBFS trim
+    /// is `mainMixerNode.outputVolume`, which sits DOWNSTREAM of the tap that fills the ring
+    /// these samples come from (`AudioEngine`: the meter tap is on
+    /// `autoMixChain.chainOutputNode`). The window therefore carries the UNtrimmed chain
+    /// output, where full scale is full scale and the limiter is the only thing keeping it
+    /// off the rails. The picture is honest either way; the reasoning was not, and it is the
+    /// reasoning the next person would have re-used to size something else.
     ///
     /// Out-of-range requests return an all-zero window rather than trapping — this is
     /// called from a draw loop, where a crash is the one outcome worse than a blank frame.

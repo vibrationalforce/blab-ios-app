@@ -27,7 +27,10 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
     private static let bufferLength = 2048
     private static let windowLength = 512
 
-    private func sine(phase: Double, length: Int = bufferLength) -> [Float] {
+    // `Self.` and not a bare `bufferLength`: the unqualified form compiles here and is the
+    // only one of its kind in the repo, so it reads as a language trick rather than as a
+    // reference to the constant three lines up.
+    private func sine(phase: Double, length: Int = Self.bufferLength) -> [Float] {
         (0..<length).map { Float(sin(2 * Double.pi * (Double($0) / Self.period) + phase)) }
     }
 
@@ -46,10 +49,15 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
         for i in 0..<Self.windowLength { worst = Swift.max(worst, abs(wa[i] - wb[i])) }
 
         // 0.12 is the SAMPLE-QUANTISATION floor, not a slack tolerance: the trigger can only
-        // land on a sample boundary, so up to half a sample of phase error survives. At 64
-        // samples per cycle one sample is 2*pi/64 rad and the sine's slope near zero is 1,
-        // so the bound is ~0.098. Measured worst case is 0.067. If this ever fails it means
-        // the trigger stopped locking, not that the tolerance was too tight.
+        // land on a sample boundary, so up to a FULL sample of phase error survives — the
+        // two captures can round to adjacent samples in opposite directions. (The first
+        // version of this comment said "half a sample" and then did the arithmetic with a
+        // whole one. The arithmetic was right; the sentence above it was not, and the
+        // sentence is what a later reader would have used to justify tightening the bound.
+        // The measured residual for these two phases is 0.685 samples.) At 64 samples per
+        // cycle one sample is 2*pi/64 rad and the sine's slope near zero is 1, so the bound
+        // is ~0.098. Measured worst case is 0.067. If this ever fails it means the trigger
+        // stopped locking, not that the tolerance was too tight.
         XCTAssertLessThan(worst, 0.12, """
             Two captures of the same tone at different phases drew pictures differing by \
             \(worst). The scope no longer locks, so on device the trace will slide sideways \
@@ -72,10 +80,20 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
             The trigger fired at \(s[i]), below the level. It must fire on the sample that \
             reaches or crosses the level going UP.
             """)
-        // Somewhere before the trigger the signal must have gone below the arming band —
-        // that is what makes the crossing "rising" rather than merely "non-negative".
-        let armedSomewhere = s[0..<i].contains { $0 < -ScopeTrigger.hysteresis }
-        XCTAssertTrue(armedSomewhere, """
+        // THE crossing itself: the sample before the trigger must be negative and the
+        // trigger sample non-negative. This replaces an "did the signal go below the arm
+        // band ANYWHERE before i" check, which on a sine that spends half its time negative
+        // is satisfied by almost any index — it would have passed for a trigger landing on
+        // a FALLING edge, which is precisely the failure it was written to catch.
+        XCTAssertLessThan(s[i - 1], 0, """
+            The sample before the trigger is \(s[i - 1]), not negative — so index \(i) is \
+            not a rising zero crossing. The trace will lock to the wrong half of the cycle \
+            and the picture will read upside down against what the ear expects.
+            """)
+
+        // And the arm must still be what MADE it a crossing rather than a coincidence: the
+        // signal has to have been below the arming band at some earlier point.
+        XCTAssertTrue(s[0..<i].contains { $0 < -ScopeTrigger.hysteresis }, """
             The trigger fired without the signal ever dropping below the arming band, so it \
             latched onto the first non-negative sample rather than onto a crossing.
             """)
@@ -160,8 +178,9 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
     }
 
     /// THE DOOR. A scope nobody can open is worth nothing, and this repo has accumulated a
-    /// shelf of exactly that (`SpectralDonutView`, `SpectralDonutView`'s whole FFT, the VJ
-    /// overlay …). The view is mounted from `visualPanel`, which the Field chip opens.
+    /// shelf of exactly that (`SpectralDonutView`'s whole FFT behind a flag with no setter,
+    /// the VJ overlay, `ImmersiveStageView` …). The view is mounted from `visualPanel`,
+    /// which the Field chip opens.
     ///
     /// Source text, because `EchoelStudioView` is a SwiftUI view this bundle cannot build —
     /// the house pattern (`SoundPanelPresetBarTests`, `NoDoorlessStudioViewsTests`). It
@@ -179,12 +198,67 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
             ten-child cap — inlining its rows back into the panel is what makes that closure \
             fail to compile with "extra argument in call".
             """)
-        // Referenced, not merely declared: two occurrences = the declaration plus one mount.
-        let mounts = code.components(separatedBy: "signalSection").count - 1
+        // COMMENTS STRIPPED FIRST, the way `NoDoorlessStudioViewsTests` does it. The naive
+        // count found THREE occurrences — declaration, mount, and the prose above the
+        // declaration explaining why the section exists — so deleting the actual mount still
+        // left two and the guard still passed. A door test that survives the door being
+        // removed is worse than no door test: it reports a green nobody earned.
+        let mounts = Self.stripComments(code)
+            .components(separatedBy: "signalSection").count - 1
         XCTAssertGreaterThanOrEqual(mounts, 2, """
-            `signalSection` appears \(mounts) time(s) — it is declared but never mounted, \
-            which is the #322 orphan shape exactly. The Field panel must render it.
+            `signalSection` appears \(mounts) time(s) in the CODE (comments excluded) — it \
+            is declared but never mounted, which is the #322 orphan shape exactly. The \
+            Field panel must render it.
             """)
+    }
+
+    /// THE READOUT ABOVE THE PICTURE, pinned because it shipped wrong once and the failure
+    /// was invisible to every other gate: the first version printed
+    /// `20·log10(max(masterLevel, masterLevelR))` as "Peak … dBFS". `masterLevel` is an RMS
+    /// times three, hard-clamped to 1.0 and measured BEFORE the master chain — so it read
+    /// ~6.5 dB high at −20 dBFS and pinned at "0.0 dBFS" for everything above ≈ −6.5. It
+    /// compiled, it looked plausible, and only a human comparing it against the Master panel
+    /// would ever have caught it. Three separate properties are asserted because the defect
+    /// needed all three to be wrong at once.
+    func testThePeakReadoutIsAPeakAndNotTheRMSMeter() throws {
+        let code = try source("Sources/Echoelmusic/Studio/AnalysisScopeView.swift")
+
+        XCTAssertTrue(code.contains("audioEngine.masterOutputTruePeakDb"), """
+            The scope's readout no longer reads `masterOutputTruePeakDb` — the meter's own \
+            decaying true-peak hold, measured at the chain output with `outputTrimDb` \
+            applied. Whatever replaced it has to answer the same three questions: is it a \
+            PEAK (not an RMS), is it measured AFTER the master chain, and does it carry the \
+            output trim? If not, the number on screen is not the number the Master panel \
+            shows and the two surfaces disagree about the same signal.
+            """)
+        XCTAssertFalse(code.contains("audioEngine.masterLevel"), """
+            `masterLevel` is back in the scope's readout. It is `vDSP_rmsqv(…) × 3.0` \
+            clamped to 1.0 — a meter-ballistics value with a contract to \
+            `AutoMixChain.updateLUFS`, NOT a dBFS source. Rendering it as decibels pins \
+            everything above ≈ −6.5 dBFS at "0.0" while the mix keeps getting louder: a \
+            readout that stops responding exactly when it matters (#164/#227).
+            """)
+        XCTAssertFalse(code.contains("String(format:"), """
+            A `String(format:)` readout is back in the scope. #267 removed exactly this \
+            class app-wide: one surface printing "−8.3" while every other prints "−8,3" is \
+            the defect, and it is invisible to anyone testing in English.
+            """)
+        XCTAssertTrue(code.contains("EchoelDecimalText.string(db"), """
+            The peak value no longer goes through `EchoelDecimalText`. See #267 — the \
+            decimal separator is a setting, not a literal.
+            """)
+    }
+
+    /// Drops `//` line comments so a guard counts call sites and not the prose about them.
+    /// Deliberately line-comments only: this repo writes its explanations as `//` blocks,
+    /// and a half-working `/* */` stripper would be a new way to be wrong.
+    private static func stripComments(_ code: String) -> String {
+        code.components(separatedBy: .newlines)
+            .map { line -> String in
+                guard let r = line.range(of: "//") else { return line }
+                return String(line[line.startIndex..<r.lowerBound])
+            }
+            .joined(separator: "\n")
     }
 
     // MARK: - helpers
