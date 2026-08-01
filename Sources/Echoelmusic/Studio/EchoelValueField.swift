@@ -83,6 +83,40 @@ enum ScrubPrecision {
         return Swift.max(fiftieth, grid)
     }
 
+    /// Where a requested value actually LANDS: clamped into the range, then snapped to the
+    /// `10^-decimals` grid the field displays.
+    ///
+    /// ⛔ IT IS HOISTED HERE BECAUSE "the drag asked for a change" AND "the value changed" ARE
+    /// NOT THE SAME PREDICATE, and the field notified its callers on the first one (#375).
+    /// Two cases where a real, non-zero drag delta lands on the number it started at:
+    ///  • BELOW THE GRID. "Detail" is `8…90, decimals: 0`, so one point of finger travel is
+    ///    ~0.41 and a deliberately slow drag scales that to ~0.09 — a tenth of the smallest
+    ///    representable step. The number cannot move, and the drag can go on producing those
+    ///    deltas for as long as the finger does.
+    ///  • AT A RANGE EDGE. A field already at its maximum, dragged further up, clamps.
+    /// In both, `apply` wrote the same number back and the field then ran `onChange()`. Two of
+    /// its ten `onChange` sites destroy user work with an unchanged value — `visualPresetID = ""`
+    /// drops the chosen visual look and `applyArticulation()` overwrites hand-tuned A/D/S/R —
+    /// and `onCommit` was worse still: `moodKnob` commits `recomposeIfRunning()`, so a drag that
+    /// moved nothing re-rolled the composition. A mood knob parked at 0 and dragged DOWNWARD —
+    /// the direction of a scroll — is exactly that gesture.
+    ///
+    /// Pure so the landing rule is tested rather than reasoned about; the field's `apply`
+    /// compares this result to the current value IN `V`'s OWN PRECISION, because a `Float` field
+    /// holding 0.1 is not bit-equal to the `Double` 0.1 and comparing across the two would report
+    /// a move on every single event.
+    ///
+    /// Non-finite `raw` is passed through unchanged (NaN survives both comparisons and the
+    /// rounding), which is what the previous inline code did. Deliberately not "fixed" here: the
+    /// callers are a finite drag delta and a parsed keypad entry, and changing it silently would
+    /// be a second change riding along with this one.
+    static func snapped(_ raw: Double, lowerBound: Double, upperBound: Double,
+                        decimals: Int) -> Double {
+        let clamped = Swift.min(Swift.max(raw, lowerBound), upperBound)
+        let f = pow(10.0, Double(decimals))
+        return (clamped * f).rounded() / f
+    }
+
     /// Travel multiplier in `fineScale…1` for a finger speed in points per second.
     ///
     /// Non-finite input returns 1 (full travel), never 0 or a fine value: speed is
@@ -149,6 +183,9 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
 
     // Drag state (incremental deltas, so the value never jumps mid-gesture).
     @State private var scrubbing = false
+    /// The value when this gesture began — the reference `onEnded` measures the commit against.
+    /// nil while no drag is in flight.
+    @State private var scrubStartValue: V?
     @State private var lastY: CGFloat = 0
     @State private var lastX: CGFloat = 0
     /// Timestamp of the previous drag event — the basis for the speed measurement that
@@ -187,30 +224,42 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         .accessibilityValue(accessibleValue)
         .accessibilityHint("Swipe up or down to adjust, or double-tap to type")
         // ⛔ BOTH CALLBACKS, and `onChange` is the one that was missing (found 2026-07-29).
-        // `apply(_:)` writes the binding and nothing else — the WORK lives in the caller's
-        // closures, and the two are not interchangeable: `onChange` is live-apply (7 argument
-        // sites — `applySoundLive()`, `applyArticulation()`, clearing the visual preset —
-        // reaching ~22 rendered rows through the `param`/`knob` helpers), `onCommit` is
-        // persist/settle (3 sites). This action called only `onCommit`, so every VoiceOver
+        // `apply(_:)` writes the binding and reports whether it moved — the WORK lives in the
+        // caller's closures, and the two are not interchangeable: `onChange` is live-apply
+        // (10 argument sites — 4× clearing the visual preset, 5× `applySoundLive()`,
+        // 1× `applyArticulation()`; two of those five are the `param`/`knob` helpers, which is
+        // how ~22 rendered rows are reached), `onCommit` is persist/settle (4 sites:
+        // `recomposeIfRunning()` on every mood knob, the A4 `.echoelCompositionEdited` post,
+        // the tempo lock, and the weather mixers' take re-push). This action called only
+        // `onCommit`, so every VoiceOver
         // adjustment moved the number, saved it, and never reached the engine. The whole timbre
         // editor behind the Sound chip — ship-gate 2 — was therefore REACHABLE AND INERT for a
-        // non-sighted performer: the spoken value changed and the instrument did not. The drag
-        // path (`onChange` per event, `onCommit` on end) and the keypad path (both, once) were
-        // always correct; only this one was half-wired.
+        // non-sighted performer: the spoken value changed and the instrument did not.
         //
-        // (Those counts were "10 / 5 / 15" in the first draft. That was `grep -c` on
-        // `onChange:` / `onCommit:`, which also counts the two property declarations above, an
-        // unrelated `SignalRouter.onChange`, and one line of prose. Ergrepped, cited, wrong.)
+        // ⛔ AND THE SENTENCE THAT USED TO CLOSE THIS PARAGRAPH WAS WRONG: "the drag path and the
+        // keypad path were always correct; only this one was half-wired." They fired their
+        // closures on a NON-ZERO REQUEST rather than on a value that moved, which is a different
+        // and worse defect than the one this comment was written about — see
+        // `ScrubPrecision.snapped` (#375). Both are guarded the same way now. The lesson is the
+        // reason it is kept: this comment declared two sibling paths correct while auditing only
+        // the third, and being right about the third made the claim about the other two sound
+        // checked.
+        //
+        // (The counts above are argument sites verified line by line. The FIRST draft of this
+        // comment said "7 / 3" and the draft before that "10 / 5 / 15" from a bare `grep -c`,
+        // which also counts the two property declarations above, an unrelated
+        // `SignalRouter.onChange`, and a line of prose. Three attempts, three numbers — quote
+        // these only next to the grep that produced them.)
         //
         // Fires both ONCE, like the keypad — a swipe is a discrete completed edit — and only if
         // the value actually moved. (#232)
         .accessibilityAdjustableAction { dir in
             let step = ScrubPrecision.adjustmentStep(
                 span: Double(range.upperBound - range.lowerBound), decimals: decimals)
-            let before = value
+            let moved: Bool
             switch dir {
-            case .increment: apply(Double(value) + step)
-            case .decrement: apply(Double(value) - step)
+            case .increment: moved = apply(Double(value) + step)
+            case .decrement: moved = apply(Double(value) - step)
             // `return`, not `break`: an unhandled direction changed NOTHING, so announcing a
             // change and a commit for it would push a phantom edit through every live-apply and
             // persist closure. Falling through was harmless only while the value could not move
@@ -218,13 +267,15 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
             @unknown default: return
             }
             // Same principle one step further, and it is NOT cosmetic: at a range edge `apply`
-            // clamps, so the value is unchanged — and two of the seven closures do something
+            // clamps, so the value is unchanged — and two of the ten closures do something
             // destructive with an unchanged value. `visualPresetID = ""` drops the user's chosen
             // visual look, and `applyArticulation()` overwrites hand-tuned Attack/Decay/Sustain/
             // Release from an articulation that did not move. Swiping past the top must not undo
-            // work. (The drag path guards the requested delta rather than the snapped value, so
-            // it still has this hole — noted, not silently inherited.)
-            guard value != before else { return }
+            // work. (This was the ONLY guarded path until #375; the drag and keypad paths tested
+            // the requested delta rather than the landed value and are now guarded the same way,
+            // by `apply`'s return. The parenthetical that stood here — "the drag path … still has
+            // this hole — noted, not silently inherited" — is retired by that commit.)
+            guard moved else { return }
             onChange()
             onCommit()
         }
@@ -302,9 +353,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         .sheet(isPresented: $showPad) {
             EchoelNumberPad(title: label, initial: Double(value), decimals: decimals,
                             unit: unit, range: Double(range.lowerBound)...Double(range.upperBound)) { newVal in
-                apply(newVal)
-                onChange()
-                onCommit()
+                // Same rule as the other two paths (#375): confirming the number that was already
+                // there is not an edit. Typing 440 into a concert pitch that reads 440 used to
+                // post `.echoelCompositionEdited`, which re-tunes every voice and recomposes.
+                if apply(newVal) { onChange(); onCommit() }
             }
             .presentationDetents([.height(440), .large])
             .presentationDragIndicator(.visible)
@@ -375,6 +427,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
             .onChanged { g in
                 if !scrubbing {
                     scrubbing = true
+                    scrubStartValue = value        // what a commit at the end is measured against
                     lastY = g.translation.height   // anchor; no jump on the first move
                     lastX = g.translation.width
                     lastTime = g.time
@@ -399,19 +452,47 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 let scale = ScrubPrecision.scale(speedPointsPerSecond: abs(step) / dt)
 
                 let delta = ((step * scale) / fullRangePoints) * span
-                if delta != 0 {
-                    apply(Double(value) + delta)
-                    onChange()
-                }
+                // `apply` reports whether the number MOVED — the old guard was `delta != 0`,
+                // which is a different question (see `ScrubPrecision.snapped`). Below the grid
+                // and at a range edge a real delta lands on the same number, and firing
+                // `onChange()` there ran destructive live-applies for an edit that never
+                // happened. (#375)
+                if delta != 0, apply(Double(value) + delta) { onChange() }
             }
-            .onEnded { _ in scrubbing = false; onCommit() }
+            .onEnded { _ in
+                // The commit is judged over the WHOLE gesture, not per event: a drag can move
+                // the value away and back, and either way the question a commit closure asks is
+                // "is this different from what you had". `recomposeIfRunning()` — every mood
+                // knob's commit — re-rolls the composition, so an unmoved drag was an unexplained
+                // new take. `nil` start means the anchor branch never ran, i.e. nothing moved.
+                let moved = scrubStartValue.map { $0 != value } ?? false
+                scrubStartValue = nil
+                scrubbing = false
+                if moved { onCommit() }
+            }
     }
 
-    private func apply(_ raw: Double) {
-        let clamped = Swift.min(Swift.max(raw, Double(range.lowerBound)), Double(range.upperBound))
-        // Snap to the decimal grid so the displayed number is exact.
-        let f = pow(10.0, Double(decimals))
-        value = V((clamped * f).rounded() / f)
+    /// Writes the clamped/snapped value and reports whether it actually MOVED.
+    ///
+    /// The comparison happens in `V` — not in `Double` — for the reason spelled out on
+    /// `ScrubPrecision.snapped`: a `Float` field holding 0.1 widens to 0.10000000149…, which is
+    /// never equal to the `Double` 0.1 the snap produces, so a Double-space comparison would
+    /// report a move on every event and this guard would be decorative.
+    ///
+    /// Returning `false` also skips the write. That is not a micro-optimisation — every caller's
+    /// binding is `@State`, `@AppStorage` or a computed setter, so a redundant write is a
+    /// redundant persist and a redundant invalidation of whatever observes it.
+    // No `@discardableResult`: all three call sites consume the answer, and #374 spent a commit
+    // removing a modifier whose stated reason had gone away. If a fourth caller ever wants to
+    // ignore it, that caller is the one that has to justify it.
+    private func apply(_ raw: Double) -> Bool {
+        let next = V(ScrubPrecision.snapped(raw,
+                                            lowerBound: Double(range.lowerBound),
+                                            upperBound: Double(range.upperBound),
+                                            decimals: decimals))
+        guard next != value else { return false }
+        value = next
+        return true
     }
 
     private var accessibleValue: String {
