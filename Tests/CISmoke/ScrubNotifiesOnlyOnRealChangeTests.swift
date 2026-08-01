@@ -16,7 +16,11 @@
 // the user's chosen visual look and `applyArticulation()` (1×) overwrites hand-tuned A/D/S/R.
 // (PAST TENSE for the first one since #379: those four rows call `visualPresetDiverged()`, which
 // restores the chip when the values land back on the preset — so the cancelled-drag case this file
-// created is closed at the OWNER, where it belonged. `applyArticulation()` is unchanged.)
+// created is closed at the OWNER, where it belonged. `applyArticulation()` is unchanged.
+// ⛔ AND THE SEVERITY WAS OVERSTATED WHEN #379 SHIPPED, in six places including this one: it said
+// the chip is the only visual state surviving a relaunch. The four energy values are `@AppStorage`
+// too, so a relaunch restores the PICTURE regardless; what was lost is the scene's NAME. Real —
+// a strip denying the state it shows — but not a lost setup.)
 // Of the four `onCommit` sites, `moodKnob` commits `recomposeIfRunning()` — so a drag that moved
 // nothing RE-ROLLED THE COMPOSITION whenever the transport was running (the method name carries
 // that condition and an earlier draft of this line dropped it). A mood knob parked at 0 and

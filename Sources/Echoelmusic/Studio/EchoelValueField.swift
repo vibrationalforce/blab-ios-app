@@ -94,9 +94,11 @@ enum ScrubPrecision {
     ///    representable step. The number cannot move, and the drag can go on producing those
     ///    deltas for as long as the finger does.
     ///  • AT A RANGE EDGE. A field already at its maximum, dragged further up, clamps.
-    /// In both, `apply` wrote the same number back and the field then ran `onChange()`. Two of
-    /// its ten `onChange` sites destroy user work with an unchanged value — `visualPresetID = ""`
-    /// drops the chosen visual look and `applyArticulation()` overwrites hand-tuned A/D/S/R —
+    /// In both, `apply` wrote the same number back and the field then ran `onChange()`. One KIND
+    /// of its ten `onChange` sites destroys user work with an unchanged value:
+    /// `applyArticulation()` overwrites hand-tuned A/D/S/R. (There was a second until #379 —
+    /// `visualPresetID = ""` on four of the ten sites; those rows now go through
+    /// `visualPresetDiverged()`, which is a no-op for a write that moved nothing.)
     /// and `onCommit` was worse still: `moodKnob` commits `recomposeIfRunning()`, so a drag that
     /// moved nothing re-rolled the composition (when the transport is running — the method name
     /// says so and the first draft of this line dropped the condition). A mood knob parked at 0
@@ -371,7 +373,8 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         // ⛔ BOTH CALLBACKS, and `onChange` is the one that was missing (found 2026-07-29).
         // `apply(_:)` writes the binding and reports whether it moved — the WORK lives in the
         // caller's closures, and the two are not interchangeable: `onChange` is live-apply
-        // (10 argument sites — 4× clearing the visual preset, 5× `applySoundLive()`,
+        // (10 argument sites — 4× `visualPresetDiverged()` [the visual-preset chip; a bare
+        // `visualPresetID = ""` until #379], 5× `applySoundLive()`,
         // 1× `applyArticulation()`; 8 of the 10 are a rendered row and 2 are the `param`/`knob`
         // helpers, which render 17 more — `grep -c 'param("' / 'knob("' EchoelStudioView.swift`
         // → 4 + 13 — so 25 rows carry one), `onCommit` is persist/settle (4 sites:
@@ -413,11 +416,11 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
             @unknown default: return
             }
             // Same principle one step further, and it is NOT cosmetic: at a range edge `apply`
-            // clamps, so the value is unchanged — and two of the ten closures do something
-            // destructive with an unchanged value. `visualPresetID = ""` drops the user's chosen
-            // visual look, and `applyArticulation()` overwrites hand-tuned Attack/Decay/Sustain/
-            // Release from an articulation that did not move. Swiping past the top must not undo
-            // work. (This was the ONLY guarded path until #375; the drag and keypad paths tested
+            // clamps, so the value is unchanged — and one of the ten closures still does
+            // something destructive with an unchanged value: `applyArticulation()` overwrites
+            // hand-tuned Attack/Decay/Sustain/Release from an articulation that did not move.
+            // Swiping past the top must not undo work. (The other one, `visualPresetID = ""` on
+            // four sites, was closed at its owner by #379.) (This was the ONLY guarded path until #375; the drag and keypad paths tested
             // the requested delta rather than the landed value and are now guarded the same way,
             // by `apply`'s return. The parenthetical that stood here — "the drag path … still has
             // this hole — noted, not silently inherited" — is retired by that commit.)

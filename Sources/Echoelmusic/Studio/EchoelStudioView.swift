@@ -700,19 +700,32 @@ struct EchoelStudioView: View {
     @AppStorage("visual.preset") private var visualPresetID = "vapor"
 
     /// #379 — what the last energy edit CLEARED out of `visualPresetID`, so an edit that
-    /// puts the numbers back can put the chip back. Deliberately NOT persisted: it only
-    /// has to survive one edit chain, and a memo that outlived a launch would restore a
-    /// selection whose values `onAppear` never re-applied.
+    /// puts the numbers back can put the chip back.
     ///
     /// WHY A MEMO AND NOT A GUARD. `visualEnergy` already guarded its clear on "did anything
     /// actually move", which covers a no-op write (a clamped drag at a range end, a VoiceOver
     /// adjust past the bound) — but not the case #379 is about. A CANCELLED drag does move the
     /// value first, so the chip is already gone by the time #378's revert puts the number back;
     /// there is nothing left to guard, only something to restore. And since #378 that loss has
-    /// no symptom: the numbers read exactly as before while the one piece of visual state that
-    /// survives relaunch is gone. For an installation setup that is the worst shape a bug can
-    /// have. (`visualPresetID` is the ONLY thing `onAppear` re-applies — the four energy values
-    /// are not persisted individually.)
+    /// no symptom: the numbers read exactly as before while the named selection is gone.
+    ///
+    /// ⛔ WHAT THIS BUG IS NOT, and the first version of this note said otherwise IN SIX PLACES
+    /// (here, the guard file's header, its `@State` test's failure message, two sibling guards,
+    /// the commit message and the deploy note): it claimed the four energy values are not
+    /// persisted individually, so that a lost chip meant a lost picture. **They are.**
+    /// `visualIntensity` · `visualDetail` · `visualMotion` · `visualSpread` are `@AppStorage`
+    /// twenty-odd lines above this one (`StudioDefaultKeys.visual*`), and they have to be —
+    /// `FloatingVisualWindow` and `ExternalDisplayScene` read the same four keys. A relaunch
+    /// therefore restores the PICTURE regardless; what a cancelled drag lost is the chip's
+    /// highlight and its NAME. Still worth fixing — a strip that reads "nothing selected" over
+    /// values that are exactly a preset's is a lying control, the class this repo removed in
+    /// #135/#164 — but not "an installation setup". Found by the #379 reviewer, one commit
+    /// after the claim shipped. It is written out here rather than quietly deleted because the
+    /// false version was the STATED REASON the guard file exists.
+    ///
+    /// Deliberately NOT persisted, and the reason is the honest one: the memo is scoped to a
+    /// single edit chain. One that outlived a launch would put a chip back onto values the user
+    /// may have changed in between — a selection nobody made.
     @State private var clearedVisualPresetID = ""
 
     private var key: MusicalKey { MusicalKey(root: rootIndex, scale: scale) }
@@ -4026,8 +4039,14 @@ struct EchoelStudioView: View {
         if let h = p.hue { visualHue = Double(h) }
         if let s = p.saturation { visualSaturation = Double(s) }
         visualPresetID = p.id
-        // A fresh pick has nothing to restore — forget whatever an earlier edit cleared,
-        // or a later cancelled drag could resurrect the PREVIOUS chip over this one.
+        // Belt and braces: a fresh pick has nothing left to restore.
+        //
+        // ⛔ ITS FIRST RATIONALE DESCRIBED AN IMPOSSIBLE STATE — "a later cancelled drag could
+        // resurrect the PREVIOUS chip over this one". It cannot: the line above sets
+        // `visualPresetID = p.id`, so the next `visualPresetDiverged()` takes the NEW id into the
+        // memo before it ever looks at a restore. The line is harmless and stays; the reason it
+        // used to give was refutable, and this file's own rule is that such a comment is worse
+        // than none.
         clearedVisualPresetID = ""
     }
 
@@ -4035,6 +4054,22 @@ struct EchoelStudioView: View {
     /// (Intensity · Detail · Motion · Spread — and the Energy macro that writes two of them).
     /// Hue/Saturation deliberately do not call it: they are palette-only and leave the
     /// selection intact, which is the rule `visualAdjustFields` already documented.
+    ///
+    /// ⚠️ THE RESTORE COVERS FOUR OF THE FIVE CALLERS, NOT FIVE — named by the #379 reviewer
+    /// after the commit claimed the set was covered. The Energy macro binds a DERIVED value:
+    /// `EchoelValueField` captures its cancel-reference as `visualEnergy`'s getter output (a
+    /// single position `t`) and reverts by writing that number back, which runs
+    /// `VisualEnergy.look(at: t)` and lands both parameters ON the curve. But `position(matching:
+    /// motion:)` AVERAGES the two per-parameter positions, so the round trip is an identity only
+    /// when both already sit at the same position — true for `zentrifuge`, false for the other
+    /// four factory presets. A cancelled ENERGY drag therefore restores the dial position, not
+    /// the preset's pair, the four-value comparison below correctly refuses, and that chip stays
+    /// cleared.
+    ///
+    /// That is a property of the derived binding (the same "a small dial nudge can be a large
+    /// parameter change" contract `VisualEnergy.position` documents), not something this fix
+    /// introduced — and fixing it means memoing the pre-drag PAIR, which is its own slice. What
+    /// was wrong was claiming coverage that does not exist.
     ///
     /// ONE rule, both directions: moving away from the selected preset clears the chip and
     /// remembers it; landing back on exactly that preset's four values restores it. Written

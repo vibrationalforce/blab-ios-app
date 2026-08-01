@@ -101,8 +101,9 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     /// unchanged value: `applyArticulation()` re-derives A/D/S/R from the macro. Swiping past the
     /// top must not undo work.
     ///
-    /// There was a second KIND until #379: `visualPresetID = ""`, on FOUR of the ten sites — an
-    /// `@AppStorage` key, so that loss survived the launch. Those rows now go through
+    /// There was a second KIND until #379: `visualPresetID = ""`, on FOUR of the ten sites — the
+    /// NAME of the chosen visual scene, so the strip read "nothing selected" over values that
+    /// were exactly that preset's. Those rows now go through
     /// `visualPresetDiverged()`, which takes the cleared id into a memo and hands it straight back
     /// when the four values still match the preset, so a write that moved nothing is a no-op by
     /// CONSTRUCTION rather than by this guard. Pinned by `PresetSurvivesACancelledDragTests`.

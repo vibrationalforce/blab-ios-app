@@ -1,17 +1,33 @@
 // PresetSurvivesACancelledDragTests.swift
 // Echoel — the visual Preset chip is persisted state, so clearing it needs a way back.
 //
-// WHAT THIS GUARDS (#379). `visualPresetID` is `@AppStorage("visual.preset")` and it is the
-// ONLY visual state that survives a relaunch: the four energy values (Intensity · Detail ·
-// Motion · Spread) are not persisted individually, and `onAppear` restores the picture by
-// re-applying the NAMED preset. So every path that writes `visualPresetID = ""` is throwing
-// away a performance/installation setup, not a highlight.
+// WHAT THIS GUARDS (#379). `visualPresetID` is `@AppStorage("visual.preset")` — the NAME of the
+// visual scene the user picked. A cancelled drag on any energy row used to clear it, so the
+// preset strip read "nothing selected" over values that were exactly that preset's. A control
+// that denies the state it is showing is the lying-control class this repo removed in #135/#164.
 //
 // The shape of the bug is what makes it worth a guard. #376–#378 taught `EchoelValueField` to
 // put a value back when a drag is cancelled — a scroll stealing the gesture, a finger leaving
 // the screen. That fixed the NUMBER and, in doing so, removed the only SYMPTOM of the preset
 // loss: before, the numbers stayed visibly moved; now they read exactly as before while the
-// persisted selection is gone. A silent loss is strictly worse than a visible one.
+// selection is gone. A silent loss is strictly worse than a visible one.
+//
+// ⛔ THIS HEADER USED TO SAY SOMETHING FALSE, AND IT WAS THE FILE'S STATED REASON TO EXIST:
+// that `visualPresetID` is the only visual state surviving a relaunch, "the four energy values
+// are not persisted individually". They ARE — `visualIntensity`/`visualDetail`/`visualMotion`/
+// `visualSpread` are `@AppStorage` in `EchoelStudioView` (keys `StudioDefaultKeys.visual*`), and
+// they must be, because `FloatingVisualWindow` and `ExternalDisplayScene` read the same four
+// keys. A relaunch restores the PICTURE either way. The #379 reviewer found it one commit after
+// it shipped, in six places at once. Kept as a retraction rather than a silent edit: the bug is
+// real and the fix is unchanged, only its severity was overstated.
+//
+// ⚠️ SCOPE, TWICE OVER. (1) These tests scan ONE file. A second writer of two of the four keys
+// exists — `VisualMoodPadLeaf` in `MoodPads.swift` writes `visual.motion`/`visual.intensity`
+// without touching the chip — and is invisible here. It is parked (its only mount is a known
+// orphan), so today that is a latent lie, not a live one. (2) Of the five callers of
+// `visualPresetDiverged()`, the restore can only work for FOUR: the Energy macro binds a derived
+// value, so a cancelled drag there restores the dial position rather than the preset's pair.
+// The reason is written at `visualPresetDiverged` itself.
 //
 // The fix lives in the OWNER (`EchoelStudioView`), not in `EchoelValueField` — the field has
 // 62 call sites and no business knowing what a preset is. `visualPresetDiverged()` clears the
@@ -82,11 +98,11 @@ final class PresetSurvivesACancelledDragTests: XCTestCase {
     func testNoEnergyRowClearsThePresetWithoutTheMemo() throws {
         let squashed = try squashedCode(Self.studio)
         XCTAssertFalse(squashed.contains(#"onChange:{visualPresetID=""}"#), """
-            An `EchoelValueField` row clears `visualPresetID` directly again. That key is \
-            `@AppStorage` and is the ONLY visual state `onAppear` restores, so a cancelled \
-            drag (scroll steal, finger off-screen) now puts the NUMBER back while the \
-            persisted look is silently gone. Route the row through `visualPresetDiverged()`, \
-            which remembers what it cleared and restores it when the values come back.
+            An `EchoelValueField` row clears `visualPresetID` directly again. A cancelled drag \
+            (scroll steal, finger off-screen) then puts the NUMBER back while the chip stays \
+            unselected — a strip that denies the state it is showing. Route the row through \
+            `visualPresetDiverged()`, which remembers what it cleared and restores it when the \
+            values come back.
             """)
 
         let calls = try codeLines(Self.studio).filter {
@@ -155,6 +171,27 @@ final class PresetSurvivesACancelledDragTests: XCTestCase {
         }
     }
 
+    /// The comparison itself must still BE a comparison. Without this, replacing
+    /// `sameOnDisplayGrid`'s body with `true` leaves all the other assertions green while the
+    /// chip is restored on ANY energy edit — the lying control the test above names. The four
+    /// needles pin the call SHAPE; this one pins what the call does.
+    ///
+    /// The rounding is the design, not an implementation detail: a preset writes `Double(Float)`
+    /// (Aura's intensity lands on 0.800000011920929) while every path through
+    /// `EchoelValueField.apply` snaps to the 4-decimal display grid. Raw `==` would restore after
+    /// a cancelled drag but never after the same number was typed back in.
+    func testTheComparisonActuallyCompares() throws {
+        let squashed = try squashedCode(Self.studio)
+        XCTAssertTrue(squashed.contains("(a*10_000).rounded()==(b*10_000).rounded()"), """
+            `sameOnDisplayGrid` no longer rounds both sides onto the 4-decimal display grid. If \
+            it was widened (or replaced by something always-true) the chip comes back on edits \
+            that moved the picture away from the preset; if it was narrowed to raw `==`, the \
+            cancelled-drag case it exists for stops working for every preset whose value is a \
+            `Double(Float)`. Found by the #379 reviewer: the other five tests here stay green \
+            through both changes.
+            """)
+    }
+
     /// Two deliberate forgets. A fresh pick has nothing to restore, and a user's own deselect
     /// must not be undoable by the next cancelled drag.
     func testTheMemoIsForgottenOnAFreshPickAndOnADeliberateDeselect() throws {
@@ -173,9 +210,11 @@ final class PresetSurvivesACancelledDragTests: XCTestCase {
             """)
     }
 
-    /// The memo must NOT be persisted. It only has to survive one edit chain; a memo that
-    /// outlived a launch would restore a selection whose values `onAppear` never re-applied,
-    /// so the chip would name a look that is not on screen.
+    /// The memo must NOT be persisted. It is scoped to a single edit chain; one that outlived a
+    /// launch would put a chip back onto values the user may have changed in between — a
+    /// selection nobody made. (The FIRST version of this reason was the false-premise one: "a
+    /// selection whose values `onAppear` never re-applied". `onAppear` re-applies nothing the
+    /// four `@AppStorage` keys have not already restored. Same conclusion, honest reason.)
     func testTheMemoIsViewStateAndNotPersisted() throws {
         let lines = try codeLines(Self.studio).filter { $0.contains("var clearedVisualPresetID") }
         XCTAssertEqual(lines.count, 1, """
@@ -186,9 +225,9 @@ final class PresetSurvivesACancelledDragTests: XCTestCase {
             `clearedVisualPresetID` is no longer `@State`. Declaration was: \(decl)
             """)
         XCTAssertFalse(decl.contains("@AppStorage"), """
-            `clearedVisualPresetID` became persisted. It must not survive a launch: \
-            `onAppear` re-applies only the NAMED preset, so a memo restored from disk would \
-            put a chip back over values nothing had restored. Declaration was: \(decl)
+            `clearedVisualPresetID` became persisted. It must not survive a launch: the memo \
+            is scoped to ONE edit chain, and one restored from disk would put a chip back onto \
+            values the user may have changed in between. Declaration was: \(decl)
             """)
     }
 }
