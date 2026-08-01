@@ -4,7 +4,13 @@
 // eine Anzeige mit, die gesynct ist mit der Biofeedback-BPM-Rate. Vier Stellen nach dem
 // Komma und lockbar.")
 //
-// Styled like the Kammerton field (4 decimals):
+// PRECISION FOLLOWS MEANING (#368, founder 2026-08-01 — he circled `71,0000` in three
+// separate device screenshots): the LOCKED field keeps the four decimals he asked for above,
+// because there the number is a value he sets and edits. UNLOCKED it shows ONE, because
+// there it is a camera measurement and the other three digits were never information. The
+// full reasoning, including why this is not the format-divergence the ⛔ below forbids, sits
+// on `followingText`.
+//
 //   • UNLOCKED — the number RUNS ALONG with the live biofeedback BPM (trust-gated calm
 //     display value; falls back to the clock tempo when no pulse is live).
 //   • Tap the lock — the number FREEZES: the shown body value becomes the musical tempo
@@ -64,8 +70,33 @@ struct BodyTempoField: View {
     /// its decimal separator — strictly worse than before the slice, where both read
     /// "70.0000". The release note called the residual risk "a value field next to a
     /// monitor"; this was not a neighbour, it was one tap apart inside one control.
+    ///
+    /// ⭐ ONE DECIMAL, NOT FOUR (#368) — and the divergence from the LOCKED state that this
+    /// creates is deliberate, so read the paragraph above before "fixing" it back.
+    ///
+    /// The founder circled `71,0000` in the transport bar three times across three device
+    /// screenshots. The four decimals here were his own 2026-07-04 ask, quoted at the top of
+    /// this file — but they were asked for the LOCKABLE field, and this state is not that.
+    /// Unlocked, the number is a MEASUREMENT: `cameraRPPG.displayBPM`, derived from an
+    /// autocorrelation over a ~10 s window of camera frames. Nothing in that chain resolves
+    /// to 0.0001 BPM. Three of the four decimals were never information, and in the shipped
+    /// build they read `,0000` because the value arrives already rounded — a precision claim
+    /// the number cannot fill, in the narrowest row the app has.
+    ///
+    /// ⛔ THE APP ALREADY CONTRADICTED ITSELF ABOUT THIS NUMBER, which is what settles it:
+    /// `followingSpoken` right below has ALWAYS used one decimal. So a sighted user read
+    /// "71,0000" while VoiceOver said "71,0 beats per minute" — the same value, the same
+    /// instant, two precisions. The ⛔ above forbids the locked/following pair diverging in
+    /// FORMAT for no reason; it cannot also require the seen and spoken forms to diverge.
+    /// One decimal is the reading both now share.
+    ///
+    /// WHY THE LOCKED STATE KEEPS FOUR. Locking is the moment the number stops being a
+    /// reading and becomes a SETTING — `toggleLock` rounds to 1e-4 and persists it, and the
+    /// number pad edits it to that resolution. A format change there marks a change of
+    /// meaning, which is the opposite of the separator defect the ⛔ describes: that one
+    /// changed appearance while the meaning stayed identical.
     private var followingText: String {
-        EchoelDecimalText.string(followingValue, decimals: 4)
+        EchoelDecimalText.string(followingValue, decimals: 1)
     }
 
     /// The spoken form of the same number. Kept beside `followingText` so the two cannot
