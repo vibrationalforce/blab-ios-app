@@ -1,8 +1,10 @@
 // ChipStripScrollsToSelectionTests.swift
 // Echoel — #291. #290 took the front-plate chip strip from five chips to nine, and
-// `visibleChips` can append a tenth. Nine chips at their real widths (Atkinson Hyperlegible
-// Bold labels, each in a 44 pt minimum tap frame, 6 pt apart, 20 pt row padding) come to
-// roughly 590 pt against a ~393 pt portrait phone — and `EchoelStudioView` is deliberately
+// `visibleChips` can append one more; #359 step 3 dissolved the "Place" chip into
+// "Save & Export", so the standing strip is EIGHT. Nine chips at their real widths (Atkinson
+// Hyperlegible Bold labels, each in a 44 pt minimum tap frame, 6 pt apart, 20 pt row padding)
+// came to roughly 590 pt against a ~393 pt portrait phone; dropping one removes at least its
+// 44 pt frame plus 6 pt of spacing, so eight land at ~540 pt or less — and `EchoelStudioView` is deliberately
 // NOT Dynamic-Type-clamped and additionally scales with `StudioZoom`. The strip overflows,
 // with `showsIndicators: false`.
 //
@@ -12,7 +14,7 @@
 //      the active menu LAST, i.e. off the right edge. Opening Bio from the pulse pill then
 //      selects a chip nobody can see.
 //   2. #272/#290 argued a permanent "Save/Export" chip names saving and recording more
-//      strongly than the buried "•••" entry it replaced. `.export` is the ninth chip. Behind
+//      strongly than the buried "•••" entry it replaced. `.export` is the LAST chip. Behind
 //      a hidden-indicator horizontal scroll it is *less* findable than the "•••" glyph — the
 //      founder's original complaint ("Session speichern und Loops aufnehmen fehlt") one
 //      layer over.
@@ -47,9 +49,9 @@ final class ChipStripScrollsToSelectionTests: XCTestCase {
         for fragment in ["ScrollViewReader", "onChange(of: displayedMenu", "scrollTo("] {
             XCTAssertTrue(body.contains { $0.contains(fragment) }, """
             `menuBar` no longer contains `\(fragment)`. Without all three the selected chip \
-            is not brought into view, and on a nine-chip strip that overflows a ~393 pt phone \
+            is not brought into view, and on an eight-chip strip that overflows a ~393 pt phone \
             the app shows a tab strip with no visible selection — and hides "Save/Export", \
-            the ninth chip, behind a scroll gesture with no indicator (#272 all over again).
+            the LAST chip, behind a scroll gesture with no indicator (#272 all over again).
 
             If the strip was made to FIT instead (fewer chips, shorter labels, a wrapping \
             layout), delete this file in that commit — do not leave a guard for a mechanism \

@@ -94,9 +94,14 @@ final class DeviceFamilyIsPhoneOnlyTests: XCTestCase {
             If iPad is coming back, that is a real decision and it needs two things this \
             setting alone does not give it: a bio source that works there (no iPad has a \
             rear torch, and `CameraCapture` gates rPPG illumination on `device.hasTorch`), \
-            and the adaptivity pass in #292 — nine of eleven panels have no reflow, so on a \
-            wide screen their rows stretch across the FULL width (`menuPanelHost` sets \
-            `maxWidth: .infinity`); only `mixerPanel` and `sessionPanel` go two-column. \
+            and the adaptivity pass in #292 — most panels have no reflow, so on a wide \
+            screen their rows stretch across the FULL width (`menuPanelHost` sets \
+            `maxWidth: .infinity`); only `mixerPanel` and `soundPanel` go two-column. \
+            (This sentence named `sessionPanel` for a month and was wrong twice over: that \
+            panel never held a grid — it merely RENDERED `weatherRow`, which did — and \
+            #359 deleted it outright. No count is given here on purpose; CLAUDE.md carries \
+            the current one next to the `grep` that produces it, and a second copy in a \
+            failure message is a second thing to keep true.) \
             Change the setting AND this test in the same commit, with the reason, rather \
             than deleting the guard.
             """)

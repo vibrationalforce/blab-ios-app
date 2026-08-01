@@ -225,9 +225,13 @@ struct EchoelStudioView: View {
     /// compact header. Persisted so a user who opens a panel keeps it open.
     @AppStorage("studio.showComposition") private var showComposition = false
     @AppStorage("studio.showMix") private var showMix = false
-    /// R1 (2026-07-10): the Session card — place · weather (the name preview
-    /// moved to the header CompositionHeaderStrip in step 2c).
-    @AppStorage("studio.showSession") private var showSession = false
+    // ⛔ `studio.showSession` WAS DELETED HERE (#359 step 3) AND ITS KEY IS DELIBERATELY
+    // LEFT BEHIND ON DISK. It was the disclosure state of a panel that no longer exists;
+    // every device that ever opened that panel carries a `true` for it and nothing will
+    // ever read it again. That is harmless — unlike the class CLAUDE.md warns about, this
+    // is not a persisted CONSENT (`locationNamer.enabled` is, and it survives untouched
+    // in `placeRow`, which moved into "Save & Export"). Naming the orphan is the point:
+    // a future `UserDefaults` sweep should know it is expected, not a leak.
     @AppStorage("studio.showExport") private var showExport = false
     @State private var showMood = false
     @State private var showSound = false
@@ -578,14 +582,20 @@ struct EchoelStudioView: View {
         // (No line numbers in this comment on purpose: the commit that first wrote it cited
         // three, and shifted the file by +6 in the same diff. CLAUDE.md bans the pattern for
         // exactly that reason.)
-        case bio, composition, session, sound, mix, effects, master, mood, export, field, video
+        //
+        // ⭐ `session` WAS REMOVED (#359 step 3). Deleting a case from THIS enum is only safe
+        // because of the paragraph above — the raw value reaches no persisted store and no
+        // door string. The panel behind it held exactly one control after step 1 moved the
+        // weather out, and that control (`placeRow`) now sits in "Save & Export", directly
+        // above the Save button whose file name it shapes. This also closes filed task #284:
+        // a chip called "Session" that saved no session, one chip from a panel that does.
+        case bio, composition, sound, mix, effects, master, mood, export, field, video
         var id: String { rawValue }
         /// Short chip label (DAW-style small buttons — Uncodixfy 12 pt chips).
         var label: String {
             switch self {
             case .bio:         return "Bio"
             case .composition: return "Tempo"
-            case .session:     return "Place"
             case .sound:       return "Sound"
             case .mix:         return "Mix"
             case .effects:     return "FX"
@@ -619,22 +629,26 @@ struct EchoelStudioView: View {
             switch self {
             case .bio:         return "Bio — pulse, HRV, coherence, source"
             case .composition: return "Tempo and variations — tap tempo, metronome, haptic beat, variation ideas"
-            // #202/#59: the founder listed "weather, Standort" among the things he was
-            // MISSING while both were built, wired and reachable — because every string
-            // that advertises them said "in the name". Weather is not a naming gimmick:
-            // it salts the harmonic skeleton and blends darkness/liveliness/tension into
-            // the composer's mood, and hue/saturation/glow/motion into the live visual.
-            // The copy now names the effect; the naming is the smaller half.
-            case .session:     return "Place — your city names the session and its export files"
             case .sound:       return "Sound and texture"
             case .mix:         return "Mix — level per part"
             case .effects:     return "Effects"
             case .master:      return "Master"
-            case .mood:        return "Mood"
+            // #202/#59, INHERITED FROM THE DELETED `.session` CASE and not dropped with it.
+            // The founder listed "weather, Standort" among the things he was MISSING while
+            // both were built, wired and reachable — because every string that advertised
+            // them said "in the name". Weather is not a naming gimmick: it salts the
+            // harmonic skeleton and blends darkness/liveliness/tension into the composer's
+            // mood. Since #359 step 1 that is literally what this panel holds, so the
+            // sentence finally sits on the door it describes. (The picture half — hue,
+            // saturation, glow, movement — went to Field in step 2 and is named there.)
+            case .mood:        return "Mood — character, and the weather that colours it"
             // #272: named only the export half for months, and the founder reported
             // "Session speichern und Loops aufnehmen fehlt" about controls that are IN
             // this panel. Save and Open go first because those are the two words he used.
-            case .export:      return "Save, record and export — sessions, WAV loop, MIDI"
+            // #359 step 3 added the place toggle to this panel — it shapes the very file
+            // name the Save button writes — so the spoken name has to carry it too, or the
+            // control is once again behind a door that does not mention it.
+            case .export:      return "Save, record and export — sessions, WAV loop, MIDI, and the city in the name"
             // Was "EchoelSynth — immersive visual window", which named the wrong half and
             // collided with the patch editor behind "Sound". This panel governs ONE thing
             // from two sides: the field's look, and the field's voice under your fingers.
@@ -1546,11 +1560,15 @@ struct EchoelStudioView: View {
     //               control in the TransportBar; the residual tempo tools +
     //               variation maze open via the transport "•••" door ("tempo"),
     //               same chrome-door-only pattern as Master/Export.
-    //  · .session → chip REMOVED (step 2c, 2026-07-17): the live name preview
-    //               (SessionNamePreviewLeaf) rides at the end of the header
-    //               CompositionHeaderStrip; the place/weather toggles that feed
-    //               the name open via the transport "•••" door ("session") —
-    //               chrome-door-only, same pattern as Master/Export/Tempo.
+    //  · .session → chip REMOVED (step 2c, 2026-07-17), re-added by #290, and the CASE
+    //               ITSELF DELETED by #359 step 3 (2026-08-01). The three states are kept
+    //               in one line on purpose: this entry has been read as "the chip is gone"
+    //               while the chip was in `studioChips`, which is the mistake `sessionPanel`'s
+    //               own doc block had to retract. Today there is no case, no panel and no
+    //               chip. The live name preview (SessionNamePreviewLeaf) still rides at the
+    //               end of the header CompositionHeaderStrip; the place toggle moved into
+    //               "Save & Export" and the weather toggles into Mood (step 1) and Field
+    //               (step 2). Nothing here opens via the transport "•••" any more.
     // Master/Export were already chrome-door-only.
     // Dissolving the bottom chip bar (founder 2026-07-20: "die untere Leiste komplett
     // auflösen … Video kann gelöscht werden"). S1: drop `.video` — the recordings library
@@ -1574,18 +1592,23 @@ struct EchoelStudioView: View {
     /// sich das alles intelligent unterbringen in der Reihe mit den ganzen Funktionen?
     /// Sortiere intelligent"*).
     ///
-    /// ⭐ WHY THIS IS A ONE-LINE CHANGE AND NOT A REBUILD, which is the whole reason it is
+    /// ⭐ WHY THIS WAS A ONE-LINE CHANGE AND NOT A REBUILD, which is the whole reason it was
     /// safe: FOUR of the six overflow entries — Master, Save/Export, Tempo, Session — were
     /// already full `StudioMenu` cases with working panels (`masterPanel`, `utilityRow`,
     /// `tempoToolsPanel`, `sessionPanel`). They were not missing from the app; they were
     /// FILTERED OUT of this array and re-doored through a menu. So no surface is created, no
     /// `.sheet` is added, and the presentation chain is untouched (black-screen law).
+    /// (`sessionPanel` is named here as HISTORY — #359 step 3 deleted it, and its one
+    /// surviving control moved into `utilityRow`. Left in the sentence rather than edited
+    /// out, because the sentence is an argument about #290 and rewriting it to match today
+    /// would make it claim something #290 never did.)
     ///
     /// THE ORDER IS THE SIGNAL CHAIN, then context, then what you do when the take is done:
     ///   Sound → FX → Mix → Master   (the voice, what happens to it, the balance, the sum)
     ///   Mood → Tempo                (what drives the generation: character, then time)
     ///   Field                       (the surface you play with your fingers)
-    ///   Session → Save/Export       (what the world adds, then what you take away)
+    ///   Save/Export                 (what you take away — including the city in the name,
+    ///                                which is why the Place chip beside it could go)
     /// A performer scanning left-to-right walks the audio path in the order it exists. The
     /// old order was not designed at all — it was `allCases` declaration order surviving a
     /// filter, which is exactly how a UI ends up sorted by an implementation detail. Writing
@@ -1606,9 +1629,9 @@ struct EchoelStudioView: View {
     /// `visibleChips` still appends whichever of those is on screen, so the strip never shows
     /// an unselected state while a panel is open.
     private static let studioChips: [StudioMenu] =
-        [.sound, .effects, .mix, .master, .mood, .composition, .field, .session, .export]
+        [.sound, .effects, .mix, .master, .mood, .composition, .field, .export]
 
-    /// The tab strip: the nine chips above, PLUS whatever the plate currently shows if a
+    /// The tab strip: the eight chips above, PLUS whatever the plate currently shows if a
     /// chrome door selected one of the two menus the strip does NOT carry — `.bio` (pulse
     /// pill) and `.video` (header clips tile).
     ///
@@ -1636,9 +1659,12 @@ struct EchoelStudioView: View {
     }
 
     /// ⭐ WHY THIS SCROLLS ITSELF (#291). #290 took the strip from five chips to nine, and
-    /// `visibleChips` can append a tenth. Nine chips at their real widths — the labels are
-    /// Atkinson Hyperlegible **Bold** (`EchoelTheme`), each in a 44 pt minimum tap frame
-    /// (`chipTapTarget`), 6 pt apart, plus 20 pt of row padding — measure roughly 590 pt.
+    /// `visibleChips` can append one more. #359 step 3 then dissolved "Place" into
+    /// "Save & Export", so the standing strip is EIGHT. Nine chips at their real widths — the
+    /// labels are Atkinson Hyperlegible **Bold** (`EchoelTheme`), each in a 44 pt minimum tap
+    /// frame (`chipTapTarget`), 6 pt apart, plus 20 pt of row padding — measured roughly
+    /// 590 pt; dropping one chip removes at least its 44 pt frame plus 6 pt of spacing, so
+    /// eight land at ~540 pt or less.
     /// A portrait iPhone is ~393 pt wide, and `EchoelStudioView` is deliberately NOT
     /// Dynamic-Type-clamped (only the chrome is, in `WorkspaceView`) and additionally scales
     /// with `StudioZoom`. So the strip OVERFLOWS, with `showsIndicators: false`.
@@ -1648,7 +1674,8 @@ struct EchoelStudioView: View {
     ///      never shows an unselected state — but it appends it LAST, i.e. off the right
     ///      edge. Opening Bio from the pulse pill selected a chip the user could not see, so
     ///      the strip still read as "nothing selected".
-    ///   2. `.export` is the ninth chip. #290 and #272 both argued a permanent chip names
+    ///   2. `.export` is the LAST chip (ninth then, eighth since #359 step 3 — its position
+    ///      is what matters here, not its index). #290 and #272 both argued a permanent chip names
     ///      Save/Record more strongly than a buried "•••" entry — true only while the chip is
     ///      ON SCREEN. Behind a hidden-indicator horizontal scroll it is *less* findable than
     ///      the "•••" glyph it replaced, which is #272's own complaint one layer over.
@@ -1661,7 +1688,7 @@ struct EchoelStudioView: View {
     /// the ~10 Hz reads the law is about. No `@Observable` is read here.
     ///
     /// ⛔ HONEST LIMIT: the ~590 pt is computed from the constants, not measured on a device.
-    /// What is certain is the direction (nine wide chips in one row on a 393 pt phone) and
+    /// What is certain is the direction (eight wide chips in one row on a 393 pt phone) and
     /// that scrolling the selection into view is correct whether or not it overflows today.
     private var menuBar: some View {
         ScrollViewReader { proxy in
@@ -1728,7 +1755,7 @@ struct EchoelStudioView: View {
         // justified by is the one it would most likely miss. `visibleChips` appends `.bio`
         // and `.video` in the SAME update in which `displayedMenu` becomes them, so a
         // synchronous `scrollTo` inside `onChange` targets a row SwiftUI has not inserted
-        // yet. For the nine permanent chips it worked either way; for the pulse-pill path —
+        // yet. For the eight permanent chips it worked either way; for the pulse-pill path —
         // rationale 1 above, the reason this exists — it was a coin flip. `Task { @MainActor }`
         // is the house pattern for exactly this (CLAUDE.md's async-UI rule) and is safe here
         // for the same reason the freeze law is not in play: this fires on a TAP, not on a
@@ -1879,7 +1906,6 @@ struct EchoelStudioView: View {
         switch displayedMenu {
         case .bio:         return AnyView(bioPanel)
         case .composition: return AnyView(tempoToolsPanel)
-        case .session:     return AnyView(sessionPanel)
         case .sound:       return AnyView(soundPanel)
         case .mix:         return AnyView(mixerPanel)
         case .effects:     return AnyView(effectsPanel)
@@ -2318,9 +2344,10 @@ struct EchoelStudioView: View {
     // (Historical: the beat control left this panel 2026-07-07 "Schmeiß den Beat komplett
     // raus". It stayed DEFINED but unpresented until #323 deleted it outright — see the
     // tombstone where it used to live for why "unpresented, reversible" stopped being true
-    // once #166/#167 removed the drums it selected between. placeRow/weatherRow live in the
-    // Session dropdown — chrome-door "session" since step 2c; its name preview moved to the
-    // header strip.)
+    // once #166/#167 removed the drums it selected between. The sentence that followed here
+    // said "placeRow/weatherRow live in the Session dropdown — chrome-door 'session' since
+    // step 2c"; #359 dissolved that dropdown entirely — `weatherRow` → Mood, its image half
+    // → Field, `placeRow` → "Save & Export". The name preview is still in the header strip.)
     private var tempoToolsPanel: some View {
         panel("Tempo & variations", "Tap · metronome · haptic beat · ideas",
               isExpanded: $showComposition) {
@@ -2444,29 +2471,17 @@ struct EchoelStudioView: View {
     // re-door on suspicion.
 
     // MARK: Panel 1b — Place (the city that names the session)
-
-    /// ONE opt-in toggle: the coarse place token in the session name. The live name
-    /// preview itself (SessionNamePreviewLeaf) sits in the header CompositionHeaderStrip,
-    /// always visible, so the city shows itself in the name the moment it resolves.
-    ///
-    /// ⛔ THE DOC BLOCK THAT STOOD HERE CLAIMED THIS PANEL IS "chrome-door-only … its
-    /// Session chip fell with it". Both halves were false, and `studioChips` says so three
-    /// screens up in THIS file: `.session` is in that array, so the chip never fell — it was
-    /// re-added and this comment was not. A doc that denies a door makes the next session
-    /// plan around a surface it thinks is unreachable.
-    ///
-    /// #359 (Founder 2026-08-01) moved `weatherRow` OUT of here and into `moodPanel`, where
-    /// the mood knobs it modulates live. What is left is exactly one thing, so the panel is
-    /// now titled after that one thing. This also settles filed task #284: a chip labelled
-    /// "Session" that saves no session, sitting next to a "Save & Export" panel that does.
-    private var sessionPanel: some View {
-        panel("Place", "Your city names the session and its export files",
-              isExpanded: $showSession) {
-            #if canImport(CoreLocation)
-            placeRow
-            #endif
-        }
-    }
+    //
+    // ⛔ `sessionPanel` STOOD HERE AND IS DELETED (#359 step 3). Its doc block is not
+    // reproduced, only its conclusion, because that conclusion is what justified deleting
+    // it: after step 1 moved `weatherRow` into `moodPanel`, this panel held exactly ONE
+    // control. A whole chip, a whole disclosure panel and a persisted expand flag for one
+    // toggle — sitting one chip away from "Save & Export", which is the panel a user
+    // reasonably opens to save a session. That name collision is filed task #284, and the
+    // honest fix is not a better title but no panel: `placeRow` now renders inside
+    // `utilityRow`, directly above the Save button whose file name it shapes.
+    //
+    // The ROW below is untouched and still lives here. Only its container changed.
 
     #if canImport(CoreLocation)
     /// Opt-in place token in the session name (E2, default OFF). One coarse
@@ -5516,8 +5531,12 @@ struct EchoelStudioView: View {
         // "Session speichern und Loops aufnehmen fehlt" about four controls that were right
         // here. Save leads now because that is the word he searched for; the subtitle names
         // opening too, since a save nobody can reload is not a save.
+        // #359 step 3 added the place toggle at the bottom of this panel, so the subtitle
+        // names it. It is the LAST clause because it is the smallest of the four and the
+        // only optional one — a subtitle that leads with an opt-in naming detail would bury
+        // the two words (#272) the founder actually searched for.
         panel("Save & Export",
-              "Save and open a session · record the loop as WAV · MIDI for your DAW · keep what just played",
+              "Save and open a session · record the loop as WAV · MIDI for your DAW · keep what just played · put your city in the name",
               isExpanded: $showExport) {
         VStack(spacing: 10) {
             if !hasComposed {
@@ -5636,6 +5655,20 @@ struct EchoelStudioView: View {
             // for. Disabled together for that reason, not because MIDI export is slow.
             .disabled(isExporting || !hasComposed)
             .accessibilityHint("Exports the take as a MIDI file to open in a DAW, with tempo and key")
+
+            // #359 step 3 — THE PLACE TOGGLE SITS DIRECTLY ABOVE SAVE, and the adjacency is
+            // the whole argument for moving it here rather than picking some other panel.
+            // The Save button one line down opens with `session.sessionName(bpm:)`, and
+            // `locationNamer` is what puts the city INTO that string. The control that
+            // shapes the name is now the line before the button that uses it — read top to
+            // bottom, the panel says "here is what your file will be called, now save it".
+            //
+            // Above the HStack and not below it because a user scanning down stops at the
+            // first button that does what they came for; anything under Save/Open is read
+            // as an afterthought (the same reason `moodPanel`'s caption must stay last).
+            #if canImport(CoreLocation)
+            placeRow
+            #endif
 
             HStack(spacing: 10) {
                 Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
@@ -7368,7 +7401,10 @@ private struct ExportedFile: Identifiable {
 /// EXAMPLE BREAKS. It said "the two original callers hold CARDS inside `EchoelPanel`, where 10 pt
 /// is right". The two bare callers WERE `mixerPanel` and `weatherRow` — NOT `sessionPanel`,
 /// which merely rendered `weatherRow` and contained no grid at all; someone acting on that name
-/// would have grepped `sessionPanel` and found nothing. And only `mixerPanel`'s grid sat
+/// would have grepped `sessionPanel` and found nothing. (Since #359 step 3 that grep finds
+/// nothing for a SECOND, unrelated reason — the declaration is deleted. The sentence is kept in
+/// the past tense it was already written in, because the lesson is about naming a container from
+/// file order, not about which containers exist today.) And only `mixerPanel`'s grid sat
 /// directly in `EchoelPanel`'s 14 pt stack: `weatherRow`'s sat in its own local
 /// `VStack(alignment: .leading, spacing: 8)`. So NEITHER matched 10 by design. The honest reason
 /// the default is 10 is narrower and sufficient: those two shipped at 10 and changing it would

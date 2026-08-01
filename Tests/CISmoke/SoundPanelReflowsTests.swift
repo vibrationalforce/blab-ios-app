@@ -19,7 +19,10 @@
 //      `sessionPanel` here and in three other places — wrong: `sessionPanel` merely RENDERED
 //      `weatherRow` and contained no grid at all, so anyone acting on a failure message would
 //      have grepped it and found nothing. A guard that names the wrong file is a guard that
-//      sends its reader away from the code.
+//      sends its reader away from the code. (#359 step 3 has since DELETED `sessionPanel`
+//      outright, so that grep now comes up empty for a second, unrelated reason. Kept in the
+//      past tense it was written in — the lesson is about naming a container you did not
+//      check, not about which containers exist today.)
 //      ⚠️ AND THE CORRECTED VERSION HAS SINCE GONE STALE TOO, which is the more useful lesson:
 //      it said "the TWO card callers (`mixerPanel`, `weatherRow`)" and #359 step 2 removed
 //      `weatherRow`'s grid when its second card moved to `visualPanel`. One bare caller now.

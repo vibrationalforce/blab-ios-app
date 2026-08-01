@@ -36,14 +36,19 @@
 //     justification is findability, so this is the honest gap in it, and no source-text guard
 //     can close it. It is a deliberate trade: a standing "turn weather on" line in Field would
 //     be permanent chrome for every user, on the panel #365/#369 just trimmed.
-// (b) These do NOT all survive #359 step 3. That step deletes `sessionPanel` and the
-//     `.session` chip. `testThePlacePanelNoLongerCarriesWeather` will then FAIL (its window
-//     opening is gone) — it used to SKIP silently, which the step-2 Nachlese fixed in
-//     `window(_:opening:closing:)`; that is a deliberate improvement, because a quiet green
-//     is exactly what this note was warning about — while `testThePlaceChipSaysPlace` and
+// (b) ⭐ THAT PREDICTION CAME TRUE AND WAS ACTED ON — kept, not deleted, because it is the
+//     only record that the deletion was planned rather than convenient. It read: "These do
+//     NOT all survive #359 step 3. That step deletes `sessionPanel` and the `.session` chip.
+//     `testThePlacePanelNoLongerCarriesWeather` will then FAIL (its window opening is gone)
+//     — it used to SKIP silently, which the step-2 Nachlese fixed in
+//     `window(_:opening:closing:)` … while `testThePlaceChipSaysPlace` and
 //     `testTheVoiceOverNameFollowsTheChip` will hard-FAIL (their windows survive, the case
 //     does not). Whoever ships step 3 must delete those three deliberately, in the same
-//     commit, and say so; two of them going quiet is not the same as them passing.
+//     commit, and say so; two of them going quiet is not the same as them passing."
+//     Step 3 deleted all three in its own commit and said so, and put three NEW tests on the
+//     surface the control moved to (see the "Place half" MARK below). The Nachlese's
+//     `XCTFail`-instead-of-`XCTSkip` change is what made this a forced decision rather than
+//     a silent one — which is the whole reason it was made.
 // (c) Step 2 already had to do that once: `testTheWeatherRowStillCarriesItsTwoMixerGroups`
 //     demanded both groups in one row, which is precisely what step 2 undid. It was rewritten
 //     in the same commit, not deleted. A guard written for step N that would go red on the
@@ -317,58 +322,87 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     }
 
     // MARK: - The Place half (this is also filed task #284)
+    //
+    // ⭐ THREE TESTS STOOD HERE AND STEP 3 DELETED THEM, WHICH IS THE OUTCOME THIS FILE'S
+    // HEADER ORDERED — `testThePlacePanelNoLongerCarriesWeather`, `testThePlaceChipSaysPlace`
+    // and `testTheVoiceOverNameFollowsTheChip`. All three pinned a surface that no longer
+    // exists: `sessionPanel` is deleted and `StudioMenu.session` with it. Note (b) in the
+    // header predicted exactly this and demanded the deletion be deliberate and stated,
+    // because the step-2 Nachlese had already turned the "window not found" path from
+    // `XCTSkip` into `XCTFail` — so leaving them would have reddened the only blocking
+    // bundle, and the reader would have been sent to a declaration that is innocent.
+    //
+    // What replaces them is NOT another test here. The claim "the place control still has a
+    // door" now belongs to the panel that holds it: `SaveDoorNamingTests` already guards
+    // `.export`'s presence in `studioChips`, its chip label and its `fullName`. A second
+    // file asserting the same door would be the two-surfaces defect in guard form.
 
-    func testThePlacePanelNoLongerCarriesWeather() throws {
+    /// The one claim from that group worth keeping, re-aimed at where the control went.
+    /// Without it, `placeRow` could be dropped from `utilityRow` and every surviving test
+    /// here stays green — the Mood/Field halves say nothing about Place.
+    func testTheSaveExportPanelCarriesThePlaceRow() throws {
         let source = try lines(Self.studio)
-        let place = code(try window(source,
-                                    opening: "private var sessionPanel: some View {",
-                                    closing: Self.declarationClosing))
-        let hits = place.filter { $0.contains("weatherRow") }
-        XCTAssertTrue(hits.isEmpty, """
-            #359: `weatherRow` is back in the Place panel as well. Two surfaces writing the \
-            same @AppStorage weather keys is the `visualVJOverlay` defect (open task #270) \
-            on a second feature — the row has ONE home, and it is moodPanel.
+        let utility = code(try window(source,
+                                      opening: "private var utilityRow: some View {",
+                                      closing: Self.declarationClosing))
+        let hits = utility.filter { $0.contains("placeRow") }
+        XCTAssertEqual(hits.count, 1, """
+            #359 step 3 / #284: `utilityRow` must build `placeRow` exactly once. Found \
+            \(hits.count). The Place panel and its chip were deleted in that step, so this \
+            is now the ONLY door to the toggle that puts your city into the session and \
+            export file names. Zero here does not hide a row — it makes the control \
+            unreachable, which is the #272 defect the same panel already paid for once.
+            """)
+        guard let at = utility.firstIndex(where: { $0.contains("placeRow") }) else { return }
+        let guardLine = at > 0 ? utility[at - 1] : ""
+        XCTAssertTrue(guardLine.contains("#if canImport(CoreLocation)"), """
+            #359 step 3: the line above `placeRow` must be its `#if canImport(CoreLocation)` \
+            guard, because `placeRow` itself is declared inside that same guard. Found: \
+            '\(guardLine)'. Without it "Save & Export" stops compiling wherever CoreLocation \
+            is absent — and unlike the weather rows, this panel has no other reason to be \
+            platform-conditional, so nothing else would catch it.
             """)
     }
 
-    func testThePlaceChipSaysPlace() throws {
+    /// The place toggle shapes the name the Save button writes, so it must sit ABOVE that
+    /// button. Ordering is the entire argument for choosing this panel over any other, and
+    /// a source-text guard can check it where it cannot check that the panel looks right.
+    func testThePlaceRowSitsAboveSave() throws {
         let source = try lines(Self.studio)
-        let labels = code(try window(source,
-                                     opening: "var label: String {",
-                                     closing: ["var fullName: String {"]))
-        guard let line = labels.first(where: { $0.contains("case .session:") }) else {
-            return XCTFail("the `.session` chip lost its label case")
+        let utility = code(try window(source,
+                                      opening: "private var utilityRow: some View {",
+                                      closing: Self.declarationClosing))
+        let placeAt = utility.firstIndex { $0.contains("placeRow") }
+        let saveAt = utility.firstIndex { $0.contains("saveName = session.sessionName(") }
+        guard let placeAt, let saveAt else {
+            return XCTFail("""
+                `utilityRow` lost either `placeRow` or the Save button's \
+                `saveName = session.sessionName(` action — see the sibling test.
+                """)
         }
-        XCTAssertTrue(line.contains("\"Place\""), """
-            #284/#359: the chip must read "Place". Found: '\(line.trimmingCharacters(in: .whitespaces))'. \
-            "Session" named nothing this panel does — it holds one toggle about the city in \
-            the session NAME — and it collided with the "Save & Export" panel two chips over, \
-            which is where a user reasonably looks to save a session.
+        XCTAssertLessThan(placeAt, saveAt, """
+            #359 step 3: `placeRow` moved BELOW the Save button. It is the control that puts \
+            the city into `session.sessionName(bpm:)`, which is literally what that button \
+            reads — a user scanning down stops at the first button that does what they came \
+            for, so a naming control underneath it is never seen before the file is written.
             """)
     }
 
-    func testTheVoiceOverNameFollowsTheChip() throws {
+    /// And the door has to say so. The subtitle is the only text visible before the panel is
+    /// opened; a control that moved into a panel whose description does not mention it is
+    /// the exact defect #359 exists to undo (filed task #59: "es fehlt die Auffindbarkeit").
+    func testTheSaveExportSubtitleNamesTheCity() throws {
         let source = try lines(Self.studio)
-        // ⛔ These terminators used to be ["private ", "func ", "static "] — three ordinary
-        // words that appear in ordinary prose. They are matched on RAW lines, so ONE doc
-        // comment mentioning a `func` anywhere inside this switch would truncate the window
-        // before `case .session:` and turn the blocking gate red for a sentence. Same shape
-        // as the trap `ScrubNotifiesOnlyOnRealChangeTests` already paid for. Narrowed to the
-        // declaration form the other three windows in this file already use.
-        let names = code(try window(source,
-                                    opening: "var fullName: String {",
-                                    closing: Self.declarationClosing))
-        guard let line = names.first(where: { $0.contains("case .session:") }) else {
-            return XCTFail("the `.session` chip lost its VoiceOver name")
-        }
-        XCTAssertFalse(line.lowercased().contains("weather"), """
-            #359: the spoken name still promises weather behind a chip that no longer holds \
-            it. Found: '\(line.trimmingCharacters(in: .whitespaces))'. A VoiceOver user \
-            following that sentence lands on a panel with one location toggle in it.
-            """)
-        XCTAssertTrue(line.contains("Place"), """
-            #359: the spoken name must start from the same word the chip shows, or the \
-            sighted and the spoken app disagree about what the door is.
+        let utility = code(try window(source,
+                                      opening: "private var utilityRow: some View {",
+                                      closing: Self.declarationClosing))
+        let joined = utility.joined(separator: " ")
+        XCTAssertTrue(joined.contains("city in the name"), """
+            #359 step 3: the "Save & Export" subtitle no longer names the city. The place \
+            toggle now lives inside this panel and nothing else advertises it — the chip that \
+            used to say "Place" is deleted. #272 is the precedent: the founder reported \
+            controls "missing" that were in this very panel, behind a title and subtitle that \
+            did not name them.
             """)
     }
 }
