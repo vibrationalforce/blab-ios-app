@@ -1771,7 +1771,10 @@ public final class EchoelDDSP: @unchecked Sendable {
         brightness = _smoothedBrightness
 
         // Coherence opens the filter. Higher coherence = more open (instrument-control
-        // mapping, no wellness valence). Very slow smoothing (α=0.97) for silky transitions.
+        // mapping, no wellness valence). Smoothed by the SHARED `smoothCoeff` above — this
+        // line read "Very slow smoothing (α=0.97) for silky transitions" until #332, and
+        // both halves of that were wrong at the rate this function runs at (see the ⛔ block
+        // on the assignment itself).
         // Anchored path (bioBaseFilterCutoff > 0, i.e. a patch was applied): the target is a
         // CLAMPED DEVIATION AROUND the patch's own cutoff (the bioBase* law) — neutral
         // coherence 0.5 → exactly the patch cutoff, calm opens (+), aroused darkens (−). This
@@ -1847,7 +1850,48 @@ public final class EchoelDDSP: @unchecked Sendable {
         // non-finite one, can reach this clamp at all. This is hardening with a precedent
         // (#92 sanitised the bio INPUTS of this same function with no demonstrated producer
         // either), not a tuning change, and it must not be reported as one.
-        filterCutoff = (filterCutoff * 0.97 + targetCutoff * 0.03).clamped(to: Self.cutoffRange)
+        // ⭐ THE SECOND MEMBER OF THE 60 Hz UNIT-ERROR CLASS, CLOSED (#332). #331 fixed the
+        // brightness/amplitude pole and named this one in a ⚠️ block 35 lines below; it stayed
+        // for one slice so the device listen could attribute what it heard. This is that slice.
+        //
+        // It read `filterCutoff * 0.97 + targetCutoff * 0.03`. At the ~1 Hz this function is
+        // actually called at, α = 0.97 is τ = −1/ln(0.97) = 32.83 s. Step response, both poles:
+        //
+        //            after 1 s   2 s    5 s    10 s   30 s
+        //   was 0.97      3 %    6 %    14 %    26 %   60 %
+        //   now 0.6065   39 %   63 %    92 %    99 %  100 %
+        //
+        // So the mapping the comments around here repeatedly call the MAIN bio expression —
+        // "coherence opens the filter" — delivered 3 % of a change in the player's body after a
+        // second and needed half a minute to get past halfway. That is the instrument's premise
+        // failing quietly, in the one place a listener would look for it first.
+        //
+        // ⭐ AND THE POINT IS THE SHARED CONSTANT, NOT THE NUMBER. Typing 0.6065 here a second
+        // time would fix the symptom and leave the structure that produced it: two one-poles on
+        // the same clock, each with its own literal, so a tuning change to one silently splits
+        // them again — which is exactly how #331 could fix one and leave this one 32.8 s slow
+        // in the same function. All THREE accumulators in `applyBioReactive` now read the one
+        // `smoothCoeff` declared above, and a blocking-bundle guard
+        // (`BioSmoothingSharesOnePoleTests`) fails if a fourth appears with its own literal.
+        // The one-token revert that block offers (0.75 = τ 3.5 s) therefore still works, and now
+        // moves all three together — which is what "one bio response time" has to mean.
+        //
+        // ZIPPER RISK: CHECKED, NOT ASSUMED. A faster block-rate pole steps `filterCutoff` in
+        // bigger jumps, and stepping an SVF's cutoff injects energy into its integrators. It
+        // cannot reach the filter as a step: `render` re-smooths PER SAMPLE toward this value
+        // (`smoothedCutoff += 0.01 * (modulatedCutoff - smoothedCutoff)`, ≈ a few-ms glide),
+        // and that smoother exists for precisely this reason — its own declaration names
+        // "driven in block-size jumps by `applyBioReactive`" as the hazard it absorbs.
+        //
+        // ⚠️ THIS IS A TUNING CHANGE AND MUST BE REPORTED AS ONE — unlike the clamp above it,
+        // which is a no-op for every shipped patch. It changes what the instrument sounds like,
+        // and the two paths are not affected equally: the ANCHORED path moves within 0.7…1.3 ×
+        // the patch's own cutoff, so the genre's character bounds the swing, while the SENTINEL
+        // path (patch-less bio voice) sweeps an absolute 200…1800 Hz and will now traverse that
+        // whole range in seconds. If a device listen finds either too twitchy, the fix is the
+        // shared constant above, not a private literal back here.
+        filterCutoff = (filterCutoff * smoothCoeff
+                        + targetCutoff * (1.0 - smoothCoeff)).clamped(to: Self.cutoffRange)
 
         // ⛔ A THROTTLE STOOD HERE AND IS DELETED (#331) — AND IT WAS REDUNDANT, NOT A GATE.
         // It read `_spectralUpdateCounter += 1 / if … >= 6 { updateSpectralEnvelope() }` under
@@ -1882,16 +1926,20 @@ public final class EchoelDDSP: @unchecked Sendable {
         // sent the next session hunting a staleness bug that the `didSet` had already closed.
         // The unit error never lived in this counter.
         //
-        // ⚠️ BUT DO NOT READ THAT AS "THE 60 Hz CLASS IS CLOSED" — #331 fixed ONE member of it.
-        // The `filterCutoff` one-pole a few lines above (`* 0.97 + targetCutoff * 0.03`) is the
-        // SAME per-call smoother with the SAME 60 Hz assumption, and its own comment still calls
-        // α = 0.97 "very slow smoothing … for silky transitions". At the real ~1 Hz that is
-        // τ = −1/ln(0.97) = 32.8 SECONDS — nearly three times slower than the 0.92 this slice
-        // just replaced, on the mapping the surrounding comments repeatedly call the main bio
-        // expression. It is deliberately NOT changed here (one slice, one measurable change, so
-        // the device listen can attribute what it hears) and is tracked as #332. An earlier
-        // draft of this paragraph ended at "it never lived here", which reads as a scope claim
-        // and would have retired a live defect sitting 80 lines away.
+        // ⚠️ THIS PARAGRAPH SAID "DO NOT READ THAT AS 'THE 60 Hz CLASS IS CLOSED' — #331 fixed
+        // ONE member of it", and named the `filterCutoff` one-pole above (α = 0.97, τ = 32.8 s
+        // at the real rate) as the other. **That one is closed as of #332**: it now reads the
+        // same `smoothCoeff`, and a blocking-bundle guard fails if a fourth accumulator appears
+        // with its own literal. The tombstone stays because the WARNING outlived its instance —
+        // "one slice, one measurable change, so the device listen can attribute what it hears"
+        // is why the two shipped separately, and a future reader deciding whether to batch two
+        // audible tuning changes should see that this repo deliberately did not.
+        //
+        // ⚠️ WHAT IS STILL OPEN in the same class, so this does not read as an all-clear either:
+        // the 60 Hz assumption was never confined to this function. Any per-call one-pole or
+        // per-call counter fed by a bio frame carries it. The two closed instances were both in
+        // `applyBioReactive`; nothing here proves there is no third elsewhere, and "I did not
+        // look" is the honest state of that claim.
 
         // 2. Bio → amplitude (coherence sets the level; the "audible pump synced to pulse"
         //    this comment used to promise was the deleted LFO's ±0.06 over 24–120 s — never a
