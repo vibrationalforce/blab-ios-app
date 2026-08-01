@@ -2908,9 +2908,11 @@ struct EchoelStudioView: View {
             // `spectralDonuts` — so claiming donut state here is a claim about another surface.
             visualLookStrip(showsDonutState: false)
             visualLookCustomizer
-            // visualBlendControls REMOVED from the surface (founder 2026-07-07:
-            // minimize — the A/B "mischend" mix was extra clicking). Still defined
-            // below, reversible; the migration in onAppear clears any lingering blend.
+            // The A/B "Blend with" strip left this surface 2026-07-07 (founder: minimize —
+            // the mix was extra clicking) and the view itself is DELETED as of #324. The
+            // blend is not gone: the look SLIDER above owns `visual.styleB`/`visual.blend`,
+            // and the migration in onAppear still clears a lingering blend on a look that
+            // fell out of the slider sequence.
             visualPresetRow
             MusicColourRowView()
             visualAdjustFields
@@ -3441,12 +3443,12 @@ struct EchoelStudioView: View {
             // out of the slider sequence was never repaired.
             //
             // ⛔ AND ONE THING THIS BLOCK CLAIMED FOR ONE COMMIT AND SHOULD NOT HAVE: that `true`
-            // also HID `visualBlendControls`. It did not. That view has ZERO mount sites — the two
-            // places that used to compose it are comments recording its removal on 2026-07-07. The
-            // guard `if !spectralDonuts` inside it protects something nobody can see either way.
-            // Writing an unreachable claim into the rationale of the commit that removes unreachable
-            // claims is the failure itself, and it would have taught the next reader that
-            // `visualBlendControls` is live — blocking a legitimate deletion.
+            // also HID `visualBlendControls`. It did not — that view had ZERO mount sites, so
+            // nothing was hidden. Writing an unreachable claim into the rationale of the commit
+            // that removes unreachable claims is the failure itself, and it did exactly the damage
+            // predicted: it marked a doorless view as live and blocked a legitimate deletion.
+            // That deletion has now happened (#324) — `visualBlendControls` is gone; the look
+            // slider still owns `visual.styleB`/`visual.blend`, so no capability went with it.
             //
             // The KEY, the cover's `if spectralDonuts` branch and `SpectralDonutView` all stay:
             // the renderer is not the defect, the unreachable claim was. Bring the pill back in
@@ -3556,8 +3558,8 @@ struct EchoelStudioView: View {
     /// live re-snap skipped — and now have no reachable control at all able to undo it. That is
     /// strictly worse than the lie the slice removes, which is why the flip and this line have to
     /// ship together. (This note said "keep `visualBlendControls` HIDDEN" for one commit. That view
-    /// has no mount sites at all, so nothing was hidden — see `StudioDefaultKeys` for the full
-    /// retraction. The remaining reasons stand on their own.)
+    /// had no mount sites at all, so nothing was hidden — see `StudioDefaultKeys` for the full
+    /// retraction — and it is DELETED as of #324. The remaining reasons stand on their own.)
     ///
     /// Deliberately NOT a "migration flag": there is nothing to remember. While no door exists,
     /// the only truthful value is `false`, and re-asserting it every launch costs one comparison.
@@ -3573,50 +3575,25 @@ struct EchoelStudioView: View {
             sequence: sliderLooks)
     }
 
-    /// The "mischend" controls: a SECOND look to overlap with the primary, plus a Mix
-    /// ratio (0 = pure primary, 1 = pure secondary). Only shown for the Metal field
-    /// looks (Donuts is a different renderer that can't blend yet — next cycle). Tapping
-    /// the already-selected B clears the blend back to pure A (Mix → 0), so the strip
-    /// itself is the on/off too.
-    @ViewBuilder
-    private var visualBlendControls: some View {
-        if !spectralDonuts {
-            // ONE source of truth for the look roster: LookBlendMap.library (curated,
-            // founder 2026-07-08 "weniger ist mehr") — this strip can never drift from
-            // the slider/customizer again.
-            let bLooks: [(String, Int)] = LookBlendMap.library.map { ($0.name, $0.index) }
-            Text("Blend with").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(bLooks.indices, id: \.self) { i in
-                        let b = bLooks[i]
-                        // "Selected" means this B is active AND the mix is actually open.
-                        let selected = visualStyleB == b.1 && visualBlend > 0.001
-                        Button {
-                            if visualStyleB == b.1 && visualBlend > 0.001 {
-                                visualBlend = 0            // tap again → back to pure primary
-                            } else {
-                                visualStyleB = b.1
-                                if visualBlend < 0.001 { visualBlend = 0.5 }   // open the mix
-                            }
-                        } label: {
-                            Text(b.0)
-                                .font(EchoelTheme.font(12, .semibold))
-                                .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
-                                .padding(.horizontal, 12).padding(.vertical, 7)
-                                .background(RoundedRectangle(cornerRadius: 8)
-                                    .fill(selected ? EchoelTheme.text : EchoelTheme.fill))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Blend with \(b.0)")
-                        .accessibilityAddTraits(selected ? [.isSelected] : [])
-                        .accessibilityHint(selected ? "Double tap to remove the blend" : "Double tap to blend")
-                    }
-                }
-            }
-            EchoelValueField(label: "Mix", value: $visualBlend, range: 0...1)
-        }
-    }
+    // ⛔ `visualBlendControls` STOOD HERE AND IS DELETED (#324) — a horizontal strip of
+    // "Blend with" look buttons plus a `Mix` value field, a SECOND way to set the A/B look
+    // blend.
+    //
+    // It was removed from BOTH surfaces that ever showed it on 2026-07-07 (founder:
+    // minimize), and two comments a few hundred lines apart still recorded that removal in
+    // the present tense — so the file has said "ZERO mount sites" about this view for weeks
+    // while nothing enforced it. Worse, a note in `StudioDefaultKeys` briefly claimed the
+    // donut flag HID it, which read as "there is a live path here" and blocked the deletion
+    // once already; that retraction is still in that file and is the reason this tombstone
+    // spells the state out rather than pointing at prose.
+    //
+    // NOTHING IS STRANDED, and this is the check that made the deletion safe rather than
+    // merely tidy: `visual.styleB` and `visual.blend` are NOT written only here. The look
+    // SLIDER owns them — `LookBlendMap.position/nearest` reads and writes both, in this view
+    // AND in `FloatingVisualWindow`, and `ExternalDisplayScene` reads them. So the blend is
+    // still fully reachable and adjustable; what disappears is a redundant second control
+    // for state the primary control already owns. (Contrast #323, where the persisted key
+    // went too because nothing else read it.)
 
     #if canImport(MetalKit) && canImport(UIKit)
     /// The hands-on VJ control panel that floats over the fullscreen visual: the four
@@ -3635,9 +3612,10 @@ struct EchoelStudioView: View {
                     // `true`: this overlay IS inside the cover that builds `SpectralDonutView`, and
                     // its top bar still toggles donut mode — here the state is real and worth naming.
                     visualLookStrip(showsDonutState: true)
-                    // visualBlendControls REMOVED here too (founder 2026-07-07 minimize) —
-                    // the fullscreen VJ overlay mirrors the inline panel, so both drop the
-                    // A/B blend. SAME definitions as the inline panel (visualPresetRow +
+                    // The A/B blend strip left here too (founder 2026-07-07 minimize) — the
+                    // fullscreen VJ overlay mirrors the inline panel, so both dropped it, and
+                    // #324 deleted the view once both mounts had been comments for weeks.
+                    // SAME definitions as the inline panel (visualPresetRow +
                     // visualAdjustFields) so the two surfaces can never drift apart.
                     visualPresetRow
                     visualAdjustFields

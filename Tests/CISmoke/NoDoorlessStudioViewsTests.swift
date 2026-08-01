@@ -80,9 +80,12 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     ///                                 reversible" had quietly become "unmountable". Removed
     ///                                 from the set below — the rot test now FAILS if anyone
     ///                                 re-adds the name without re-adding the property.
-    ///   · `visualBlendControls`     — the file says it plainly: "That view has ZERO mount sites",
-    ///                                 and that a wrong note once protected it "blocking a
-    ///                                 legitimate deletion". → #324
+    ///   · `visualBlendControls`     — RESOLVED AND DELETED (#324, 2026-08-01). The second A/B
+    ///                                 "Blend with" control; both surfaces dropped it 2026-07-07
+    ///                                 and a wrong note in `StudioDefaultKeys` (claiming the donut
+    ///                                 flag HID it) kept it alive by making it look reachable.
+    ///                                 Safe because the look SLIDER, not this strip, owns
+    ///                                 `visual.styleB`/`visual.blend` — the blend itself stayed.
     ///   · `nonStandardTuningBanner` — the file says "keeps the full explainer, unpresented". A
     ///                                 judgement call about a tuning warning, not cleanup. → #325
     ///   · `liveNarrationBanner`     — the EchoelAI live caption. The one record of where it was
@@ -102,8 +105,7 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     /// fails if one is deleted, renamed, OR quietly mounted — so the list cannot outlive its
     /// entries in either direction.
     private static let knownOrphans: Set<String> = [
-        "visualBlendControls", "nonStandardTuningBanner", "liveNarrationBanner",
-        "moodPadsSection"
+        "nonStandardTuningBanner", "liveNarrationBanner", "moodPadsSection"
     ]
 
     // MARK: - The headline
