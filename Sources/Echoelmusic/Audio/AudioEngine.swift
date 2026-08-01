@@ -128,17 +128,63 @@ public final class AudioEngine {
     /// safe from any thread.
     @ObservationIgnored nonisolated(unsafe) private var configChangeObserver: NSObjectProtocol?
 
+    /// The one global output trim, applied on `mainMixerNode` AFTER the limiter. A −1 dB
+    /// ceiling instead of the limiter's 0 dBFS: device capture showed repeated −0.1 dBFS
+    /// peaks (harsh, inter-sample-clip-prone, "not smooth").
+    ///
+    /// Named rather than inline (#316b) because it is now needed in TWO places — the node
+    /// gain, and the dB offset the meter readouts add because the tap sits upstream of it.
+    /// Two hand-written 0.89s that must agree is exactly the split #332 was about.
+    nonisolated static let outputTrimLinear: Float = 0.89
+    /// The trim in dB: 20·log10(0.89) = −1.0122 dB.
+    ///
+    /// Adding this to a measured dB value is EXACT, not an approximation, and that is why
+    /// the meter does not scale samples instead: the trim is a linear gain, and both
+    /// K-weighted loudness and (true) peak are homogeneous in gain — scaling every sample
+    /// by g shifts both by exactly 20·log10(g). So the offset costs one add per published
+    /// value on the main actor instead of a multiply per sample on the audio thread.
+    /// Derived from `outputTrimLinear`, NOT re-typed as `20 * log10f(0.89)` — which is what
+    /// the first version did, three lines under a comment explaining that two hand-written
+    /// 0.89s that must agree is the defect being fixed. Deriving it means the node gain and
+    /// the readout offset cannot disagree by construction.
+    nonisolated static let outputTrimDb: Float = 20 * log10f(outputTrimLinear)
+
+    /// A measured dB value carried down to the true output — EXCEPT when it is the meter's
+    /// FLOOR sentinel, which is passed through untouched.
+    ///
+    /// ⛔ THE NAIVE `value + trim` HAS A REAL EDGE, found while writing this rather than a
+    /// month later. The readouts print "—" for `v <= floor + 1`, so shifting a floor
+    /// sentinel down by 1.0122 dB still reads "—" (harmless), but a genuine value sitting
+    /// in the 1 dB band just above the floor would be pushed BELOW the threshold and
+    /// silently become "—" instead of a number. That band is silence-adjacent and nobody
+    /// would ever notice it was wrong, which is precisely why it is worth closing: the
+    /// sentinel is a marker, not a measurement, and arithmetic on it is a category error.
+    nonisolated static func trimmed(_ value: Float, floor: Float) -> Float {
+        value <= floor ? floor : value + outputTrimDb
+    }
+
     /// Held master sample-peak / true-peak in dBFS / dBTP, and momentary
     /// loudness in LUFS — published from the master tap (EchoelMix metering).
     var masterPeakDb: Float = EchoelMeter.floorDb
     var masterTruePeakDb: Float = EchoelMeter.floorDb
     var masterLUFS: Float = EchoelLoudnessMeter.floorLUFS
-    /// Full EBU R128 set: short-term (3 s) + max-hold true-peak (dBTP) + gated
-    /// integrated loudness (LUFS) + loudness range (LU). Published from the tap.
-    var masterLUFSShortTerm: Float = EchoelLoudnessMeter.floorLUFS
-    var masterTruePeakMaxDb: Float = EchoelMeter.floorDb
-    var masterLUFSIntegrated: Float = EchoelLoudnessMeter.floorLUFS
-    var masterLRA: Float = 0
+    /// Full EBU R128 set at the OUTPUT of the master chain (#316b): short-term (3 s) +
+    /// max-hold true-peak (dBTP) + gated integrated loudness (LUFS) + loudness range (LU).
+    ///
+    /// ⭐ THE `Output` IN THE NAME IS THE WHOLE POINT AND IS LOAD-BEARING. These were
+    /// `masterLUFS…`/`masterTruePeakMaxDb` and were measured on `masterMixer` — upstream of
+    /// EQ, auto-gain and the brick-wall limiter, i.e. before every stage that decides what
+    /// the number should be. #316 could only put a disclosure on screen; this is the move
+    /// it deferred. The tap now sits on the chain's last node and these carry
+    /// `outputTrimDb` for the one gain that is still downstream of it.
+    ///
+    /// The rename is deliberate churn: a post-chain value under the old name would look
+    /// identical at every call site while meaning something else, and the next reader would
+    /// have no way to tell which era they were looking at.
+    var masterOutputLUFSShortTerm: Float = EchoelLoudnessMeter.floorLUFS
+    var masterOutputTruePeakMaxDb: Float = EchoelMeter.floorDb
+    var masterOutputLUFSIntegrated: Float = EchoelLoudnessMeter.floorLUFS
+    var masterOutputLRA: Float = 0
 
     /// Live output sample rate (Hz), set from the master tap format in
     /// `prepareGraph`. 48 kHz until the graph is built. Used by the FFT visual to
@@ -626,7 +672,7 @@ public final class AudioEngine {
         // and more homogeneous level, at a negligible 1 dB loudness cost. Everything
         // routes through masterMixer → AutoMixChain → here, so this is the one global
         // output trim.
-        masterEngine.mainMixerNode.outputVolume = 0.89   // ≈ −1.0 dBFS
+        masterEngine.mainMixerNode.outputVolume = AudioEngine.outputTrimLinear
 
         // Extracted so `start()` can RE-install it: this method sits behind the one-shot
         // `graphPrepared` latch, so a tap installed only here can never come back after a
@@ -656,8 +702,40 @@ public final class AudioEngine {
     /// while leaving the visual dead would have been a fix that satisfied its own
     /// commit message and not the user.
     private func installMeterTap() {
-        masterMixer.removeTap(onBus: 0)   // idempotent — drops a previous/orphaned tap
-        let meterFormat = masterMixer.outputFormat(forBus: 0)
+        // ⭐ #316b: THE TAP SITS AT THE END OF THE MASTER CHAIN, not on `masterMixer`.
+        // `masterMixer` is upstream of EQ, auto-gain and the brick-wall limiter — every
+        // stage whose job is to shape and bound the master. A loudness/true-peak readout
+        // taken there does not describe what leaves the device; #316 could only disclose
+        // that on screen and defer the move to here.
+        //
+        // MOVED rather than DUPLICATED, and the deferral note in `MasterLoudnessGrid`
+        // guessed the other way — worth correcting rather than quietly diverging. It
+        // assumed a second tap, because this one is also the sole writer of `_outputRing`
+        // (the FFT visual) and the host of the #193 timing instrument, and those "must
+        // stay". They do not have to stay UPSTREAM: the ring feeds a visual of what is
+        // heard, for which post-limiter is the better source, and the #193 instrument
+        // measures `when.hostTime`/`sampleTime` deltas of the render cycle, which are the
+        // same on any node. What decided it was checking the consumers: `masterPeakDb`
+        // and `masterTruePeakDb` have ZERO readers outside this file, and the four EBU
+        // values are read only by `MasterLoudnessGrid`. No behaviour hangs off the old
+        // measurement point, so moving costs nothing a second tap would have bought —
+        // and a second tap would have doubled a per-buffer block carrying LUFS,
+        // oversampled true-peak, an FFT ring write and the timing instrument, against a
+        // <30 % CPU budget, for a readout.
+        //
+        // ⭐ IT ALSO SETTLES THE UNKNOWN #316 REFUSED TO ASSERT: whether the tap observes
+        // `masterMixer.outputVolume` (the "Master volume" field). It does now, by
+        // construction — that gain is applied at `masterMixer`'s output, which is
+        // upstream of the node tapped here. No device run needed for that half any more.
+        //
+        // Falls back to `masterMixer` when the chain is not installed (`insert` skipped),
+        // because tapping an unattached node traps. Both nodes get `removeTap` first: the
+        // fallback path may have left one on `masterMixer` from an earlier install, and
+        // this method is called on every `start()`, not once.
+        masterMixer.removeTap(onBus: 0)
+        autoMixChain.chainOutputNode?.removeTap(onBus: 0)
+        let meterNode: AVAudioNode = autoMixChain.chainOutputNode ?? masterMixer
+        let meterFormat = meterNode.outputFormat(forBus: 0)
         if meterFormat.sampleRate > 0 && meterFormat.channelCount > 0 {
             // Match the loudness windows to the real hardware rate. Safe to reassign
             // here ONLY because `removeTap` above already ran: with the tap detached,
@@ -706,7 +784,7 @@ public final class AudioEngine {
             let driftWorstPtr = _driftWorst
             let worstScorePtr = _worstScore
             armTimingInstrument()
-            masterMixer.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, when in
+            meterNode.installTap(onBus: 0, bufferSize: 1024, format: meterFormat) { @Sendable buffer, when in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = UInt(buffer.frameLength)
                 guard frameLength > 0 else { return }
@@ -1105,10 +1183,21 @@ public final class AudioEngine {
                 self.masterPeakDb = self._peakDb.pointee
                 self.masterTruePeakDb = self._truePeakDb.pointee
                 self.masterLUFS = self._lufs.pointee
-                self.masterLUFSShortTerm = self._lufsS.pointee
-                self.masterTruePeakMaxDb = self._tpMax.pointee
-                self.masterLUFSIntegrated = self._lufsI.pointee
-                self.masterLRA = self._lra.pointee
+                // #316b: the tap sits at the chain output, which is upstream of the ONE
+                // remaining gain (`mainMixerNode.outputVolume`). Adding the trim in dB is
+                // exact (see `outputTrimDb`) and keeps the audio thread untouched.
+                //
+                // ⚠️ NOT ADDED TO `masterOutputLRA`: loudness RANGE is a difference between two
+                // loudness percentiles, so a constant gain cancels out of it entirely.
+                // Offsetting it would have been a silent 1 dB error in a number nobody
+                // would have checked — the kind this repo keeps finding a month later.
+                self.masterOutputLUFSShortTerm =
+                    AudioEngine.trimmed(self._lufsS.pointee, floor: EchoelLoudnessMeter.floorLUFS)
+                self.masterOutputTruePeakMaxDb =
+                    AudioEngine.trimmed(self._tpMax.pointee, floor: EchoelMeter.floorDb)
+                self.masterOutputLUFSIntegrated =
+                    AudioEngine.trimmed(self._lufsI.pointee, floor: EchoelLoudnessMeter.floorLUFS)
+                self.masterOutputLRA = self._lra.pointee
                 // FeedbackGuard for live input monitoring (~15 Hz, only while monitoring).
                 #if os(iOS)
                 self.monitorPollTick &+= 1

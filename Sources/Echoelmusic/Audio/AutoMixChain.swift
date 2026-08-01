@@ -139,6 +139,23 @@ final class AutoMixChain {
         log.audio("AutoMixChain inserted — EQ → gainNode → limiter → mainMixer")
     }
 
+    /// The LAST node of the chain — the limiter's output, i.e. the signal after EQ,
+    /// auto-gain and the brick-wall limiter have all done their work.
+    ///
+    /// Exposed for ONE purpose (#316b): so the master meter tap can sit here instead of
+    /// on `masterMixer`, which is upstream of everything this chain does. A readout taken
+    /// before the stage whose job is to bound it is not a readout of what leaves the
+    /// device — that was the #316 defect, disclosed on screen and deferred to here.
+    ///
+    /// `nil` until `insert` has run, so a caller can fall back to the pre-chain node
+    /// rather than tapping an unattached node (which would trap).
+    ///
+    /// ⚠️ IT IS NOT THE VERY LAST GAIN. `mainMixerNode.outputVolume` (the −1 dBFS safety
+    /// trim) is applied AFTER this node, downstream, and a tap here cannot see it. The
+    /// caller must account for it — as a dB offset, which is exact: the trim is a linear
+    /// gain, and both K-weighted loudness and peak shift by exactly 20·log10(trim).
+    var chainOutputNode: AVAudioNode? { isInstalled ? limiter : nil }
+
     /// Provide a closure that returns the current master RMS (0-1 linear).
     /// AutoMixChain uses this to compute LUFS and drive auto-gain.
     func connectMeter(_ getter: @escaping () -> Float) {

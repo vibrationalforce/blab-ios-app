@@ -136,6 +136,54 @@ final class LoudnessReadoutMeasurementPointTests: XCTestCase {
             """)
     }
 
+    /// ⭐ THE INVARIANT FOR THE OTHER SIDE OF #316b, added the moment the measurement moved.
+    ///
+    /// Three of the tests above are written to fall silent once a post-chain measurement
+    /// exists — which is now. Left at that, this file would still be in the bundle, still
+    /// green, and checking nothing about the state it just entered: exactly the "a silent
+    /// guard is indistinguishable from a passing one" failure the `doctor` skill exists for.
+    /// The pre-chain guards STAY (they re-arm the moment someone reverts the tap), and this
+    /// one takes over the live half.
+    ///
+    /// The claim is now the mirror image: the screen must not still say "before", and must
+    /// say where the numbers actually come from. A caption is the only thing standing
+    /// between four bare numbers and a reader assuming they describe the output — which was
+    /// true before #316b and would be false in the other direction if the caption rotted.
+    func testTheOnScreenPointMatchesWhereTheTapActuallySits() throws {
+        guard try hasPostChainMeasurement() else { return }   // pre-chain guards own that case
+        let code = try source(Self.grid)
+
+        XCTAssertFalse(code.contains("Text(\"Measured before the master chain"), """
+            `AudioEngine` publishes a post-chain measurement (#316b moved the tap to \
+            `AutoMixChain.chainOutputNode`), but the caption still tells the reader the \
+            numbers are taken BEFORE the chain. That is now false in the opposite direction \
+            — it understates a correct readout instead of overstating a wrong one, which is \
+            no better: it invites someone to "fix" the measurement point a second time.
+            """)
+        XCTAssertTrue(code.contains("Text(\"Measured at the output of the master chain"), """
+            The post-chain measurement exists but the grid no longer states its measurement \
+            point on screen. Four bare LUFS/dBTP numbers read as the loudness of what leaves \
+            the device whether or not that is what they are — #316 put the sentence there for \
+            exactly that reason and #316b changed which sentence is true, not whether one is \
+            needed. If the wording was changed, update this token in the SAME commit.
+            """)
+    }
+
+    /// The trim is the one gain downstream of the tap, so the readouts have to add it back.
+    /// Pinning that it is DERIVED, not typed twice: two hand-written 0.89s that must agree
+    /// is the same shape as the two one-pole literals #332 spent a slice merging, and the
+    /// first version of `outputTrimDb` had it — caught while writing, pinned so it cannot
+    /// come back.
+    func testTheOutputTrimIsOneConstant() throws {
+        let code = try source(Self.engine)
+        XCTAssertTrue(code.contains("log10f(outputTrimLinear)"), """
+            `outputTrimDb` no longer derives from `outputTrimLinear`. If it was re-typed as \
+            a literal (`20 * log10f(0.89)`), the node gain and the meter offset can now drift \
+            apart silently — the readout would claim a trim the output does not apply, or \
+            miss one it does. Derive it.
+            """)
+    }
+
     /// The verdict functions now have ZERO callers in `Sources/`. That is deliberate, not
     /// dead weight: they are the ready-made, already-tested verdict for whoever moves the
     /// tap. A tidy-up that deletes them turns a one-line restoration into a re-derivation.

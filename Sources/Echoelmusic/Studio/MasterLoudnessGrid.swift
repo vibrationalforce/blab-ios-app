@@ -7,10 +7,20 @@ import SwiftUI
 // Kept in its own view so the 60 Hz meter refresh re-renders only this small grid, not
 // the whole studio. Science-first: the legible number leads, the unit follows.
 //
-// ⛔ THIS HEADER SAID "of the master OUTPUT" UNTIL 2026-08-01 (#316), AND THAT WAS FALSE.
-// The numbers are measured at the master chain's INPUT. `AudioEngine.installMeterTap()`
-// taps `masterMixer` bus 0, and `masterMixer` is precisely the node `AutoMixChain.insert`
-// takes as its `from:` — so everything the chain does happens AFTER the measurement:
+// ⭐ READ THIS FIRST — THE DEFECT THE REST OF THIS HEADER DESCRIBES IS FIXED (#316b,
+// 2026-08-01). The tap now sits on `AutoMixChain.chainOutputNode` (the limiter's output),
+// the four values are published as `masterOutput…` and carry `AudioEngine.outputTrimDb`
+// for the one gain still downstream. Everything below is the HISTORY of how the readout
+// came to be honest — kept because the analysis is what justifies the verdict colours
+// staying off until someone deliberately turns them back on, and because a header that
+// simply deleted its own diagnosis would leave the next reader unable to check it.
+// Read the tenses below as past tense; the property names it cites are the OLD ones.
+//
+// ⛔ THIS HEADER SAID "of the master OUTPUT" UNTIL 2026-08-01 (#316), AND THAT WAS FALSE
+// AT THE TIME. The numbers were then measured at the master chain's INPUT:
+// `AudioEngine.installMeterTap()` tapped `masterMixer` bus 0, precisely the node
+// `AutoMixChain.insert` takes as its `from:` — so everything the chain does happened
+// AFTER the measurement:
 //
 //     masterMixer ──[tap: these numbers]──▶ EQ ▶ auto-gain ▶ PeakLimiter ▶ mainMixerNode
 //                                                                          (×0.89 ≈ −1 dB)
@@ -149,19 +159,24 @@ struct MasterLoudnessGrid: View {
         VStack(spacing: 10) {
             // Instantaneous stereo mix level (L/R) — the moving meter every mixer has,
             // complementing the R128 numbers. Reads the published meter levels, which come
-            // from the same pre-chain tap as everything else here (#316) — so "output"
-            // would have been the wrong word for these two bars as well.
+            // from the same tap as everything else here.
+            // ⛔ THIS SAID "the same PRE-CHAIN tap … so 'output' would have been the wrong
+            // word for these two bars as well". #316b moved that tap to the chain's output,
+            // and the sentence would otherwise have survived the move as a confident,
+            // specific, wrong statement about the very thing the move was about. The bars
+            // are post-chain now too — they just do not carry the −1 dB trim, because they
+            // are linear levels feeding a bar and not a dB readout.
             VStack(spacing: 3) {
                 levelBar(audioEngine.masterLevel)
                 levelBar(audioEngine.masterLevelR)
             }
             HStack(spacing: 10) {
-                readout("Short-term", lufsText(audioEngine.masterLUFSShortTerm), "LUFS", EchoelTheme.text)
-                readout("Integrated", lufsText(audioEngine.masterLUFSIntegrated), "LUFS", EchoelTheme.text)
+                readout("Short-term", lufsText(audioEngine.masterOutputLUFSShortTerm), "LUFS", EchoelTheme.text)
+                readout("Integrated", lufsText(audioEngine.masterOutputLUFSIntegrated), "LUFS", EchoelTheme.text)
             }
             HStack(spacing: 10) {
-                readout("True peak", dbText(audioEngine.masterTruePeakMaxDb), "dBTP", EchoelTheme.text)
-                readout("Range", lraText(audioEngine.masterLRA), "LU", EchoelTheme.text)
+                readout("True peak", dbText(audioEngine.masterOutputTruePeakMaxDb), "dBTP", EchoelTheme.text)
+                readout("Range", lraText(audioEngine.masterOutputLRA), "LU", EchoelTheme.text)
             }
             // The measurement point, stated where the numbers are read rather than only in
             // the file header (#316). It lives INSIDE the grid on purpose, so any future
@@ -179,7 +194,14 @@ struct MasterLoudnessGrid: View {
             // disappear silently freezes the first's numbers. Unreachable today precisely
             // because there is only one caller; if #316b or a broadcast door ever mounts two,
             // that ownership needs a refcount.
-            Text("Measured before the master chain — EQ, auto-gain, limiter and the −1 dB trim come after.")
+            // #316b MOVED THE POINT, so this sentence had to move with it — and the LEVEL
+            // BARS are why it is two sentences and not one. The four R128 numbers now come
+            // from the chain's output; the bars above read `masterLevel`, which is written
+            // by the SAME tap and is therefore also post-chain now. Saying only "after the
+            // chain" would be right; saying nothing about the bars after #316 explicitly
+            // called them out as pre-chain would leave the earlier text half-alive on
+            // screen. The trim is the one gain still downstream, added in dB.
+            Text("Measured at the output of the master chain — after EQ, auto-gain and the limiter, with the −1 dB output trim included.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
