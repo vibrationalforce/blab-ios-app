@@ -24,9 +24,11 @@
 // very commit:
 //  1. It does not say a scroll gesture reaches the field at all. That is SwiftUI/UIKit gesture
 //     arbitration, undecidable from source, and it is the open half of #360.
-//  2. It does not make a below-grid drag WORK, only silent. `lastY` re-anchors every event, so
-//     the sub-grid remainder is discarded rather than accumulated: a `0…1, decimals: 2` field
-//     needs ≈140 pt/s at 60 Hz before it responds at all. That is #376.
+//  2. ⛔ RETIRED BY #376, ONE CYCLE LATER. This said "it does not make a below-grid drag WORK,
+//     only silent" — true when written and false now: the scrub carries an un-snapped target, so
+//     a slow drag accumulates instead of losing its remainder every event. Kept as a retraction
+//     rather than deleted, because the claim shipped and someone may have read it. The guard
+//     that holds the new behaviour is `SlowScrubStillMovesTests`.
 //  3. It does not survive a CANCELLED gesture. SwiftUI skips `onEnded` when a parent scroll view
 //     claims the drag, so the `scrubbing` latch and the start reference go stale and the next
 //     gesture can be judged against the previous one's start. Strictly better than the
@@ -157,9 +159,18 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
         // ends up with two conventions.
         let squashed = src.components(separatedBy: .whitespacesAndNewlines).joined()
 
-        XCTAssertTrue(squashed.contains("ifdelta!=0,apply(Double(value)+delta){onChange()}"), """
+        // ⛔ THIS NEEDLE WAS `apply(Double(value)+delta)` FOR EXACTLY ONE CYCLE. #376 gave the
+        // scrub its own un-snapped target, so the drag now applies `target`. I changed it in the
+        // same commit as the source — which is the discipline the previous cycle had to learn the
+        // expensive way, when #375 moved two lines that a sibling guard pinned and turned the
+        // blocking gate red while the compile check stayed green.
+        XCTAssertTrue(squashed.contains("ifdelta!=0,apply(target){onChange()}"), """
             The drag path no longer gates `onChange()` on `apply`'s answer. Below the grid and \
             at a range edge that runs destructive live-applies for an edit that never happened.
+            """)
+        XCTAssertTrue(squashed.contains("scrubTarget=target"), """
+            The drag stopped carrying its own un-snapped target, so each event's sub-grid \
+            remainder is discarded again and a slow drag cannot move the value at all (#376).
             """)
         // The other two paths, because the arithmetic above cannot tell them apart and because
         // the drag is the one everybody remembers to check.

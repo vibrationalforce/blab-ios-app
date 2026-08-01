@@ -102,17 +102,19 @@ enum ScrubPrecision {
     /// says so and the first draft of this line dropped the condition). A mood knob parked at 0
     /// and dragged DOWNWARD — the direction of a scroll — is exactly that gesture.
     ///
-    /// ⚠️ THE BELOW-GRID CASE IS ONLY HALF FIXED, AND SAYING SO IS THE POINT. This commit makes
-    /// it SILENT; it does not make the control WORK. `lastY`/`lastX` re-anchor every event, so
-    /// `delta` is a per-event increment and the sub-grid remainder is discarded rather than
-    /// accumulated — a slow drag below the grid can never move the value, however long it lasts.
-    /// Measured at 60 Hz: a `0…1, decimals: 2` field (every FX row, master volume, the weather
-    /// mixers) needs ≈140 pt/s before it responds at all, and on a 120 Hz display that rises to
-    /// ≈195 — which also defeats the frame-rate independence the speed measurement below claims.
-    /// The cure is to carry an un-snapped scrub target across events; that is #376, not this
-    /// commit. Until then `ScrubPrecision.fineScale > 0` (pinned in `ScrubPrecisionSmokeTests`
-    /// as "a zero-travel control reads as broken") is satisfied in the arithmetic and not on the
-    /// screen.
+    /// ⚠️ THE BELOW-GRID CASE WAS ONLY HALF FIXED BY #375 — it made the dead zone SILENT, not
+    /// gone — and #376 closed the other half one cycle later by giving the scrub an un-snapped
+    /// running target (`ScrubPrecision.advanced`). The measurement is kept because it is the
+    /// reason the field is shaped this way: adding each event's delta to the SNAPPED stored
+    /// value meant a `0…1, decimals: 2` row (every FX parameter, master volume, the weather
+    /// mixers) needed ≈140 pt/s at 60 Hz before it responded at all, ≈195 at 120 Hz. So
+    /// `ScrubPrecision.fineScale > 0` — pinned in `ScrubPrecisionSmokeTests` as "a zero-travel
+    /// control reads as broken" — was satisfied in the arithmetic and defeated by the grid one
+    /// step later. A guard can only hold the layer it can see.
+    ///
+    /// This paragraph still matters after the fix: `snapped` is what makes the grid visible, and
+    /// the next person tempted to snap somewhere else in the chain needs to know what that cost
+    /// the last time.
     ///
     /// Pure so the landing rule is tested rather than reasoned about; the field's `apply`
     /// compares this result to the current value IN `V`'s OWN PRECISION, because a `Float` field
@@ -132,9 +134,41 @@ enum ScrubPrecision {
     /// are what keep that unreachable today.
     static func snapped(_ raw: Double, lowerBound: Double, upperBound: Double,
                         decimals: Int) -> Double {
-        let clamped = Swift.min(Swift.max(raw, lowerBound), upperBound)
         let f = pow(10.0, Double(decimals))
-        return (clamped * f).rounded() / f
+        return (clamped(raw, lowerBound: lowerBound, upperBound: upperBound) * f).rounded() / f
+    }
+
+    /// The range clamp on its own — the half of `snapped` a scrub in progress needs WITHOUT the
+    /// grid, so the drag can hold an intent finer than the field can display.
+    static func clamped(_ raw: Double, lowerBound: Double, upperBound: Double) -> Double {
+        Swift.min(Swift.max(raw, lowerBound), upperBound)
+    }
+
+    /// Advances a scrub in progress by one event's travel.
+    ///
+    /// ⛔ WHY A SCRUB NEEDS ITS OWN TARGET AT ALL (#376). The drag used to add each event's delta
+    /// to the STORED value, which is already snapped — so everything below half a grid unit was
+    /// thrown away every frame instead of accumulating. That does not make a slow drag slow; it
+    /// makes it IMPOSSIBLE. Measured against the app's own fields at 60 Hz: a `0…1, decimals: 2`
+    /// row — every FX parameter, the master volume, the weather mixers — needed ≈140 pt/s before
+    /// it responded at all, and `8…90, decimals: 0` needed ≈150. Below that the row was inert for
+    /// as long as the finger moved, which is precisely the "dead control" that
+    /// `ScrubPrecisionSmokeTests` pins `fineScale > 0` to prevent: the guard was satisfied in the
+    /// arithmetic and defeated by the grid one step later. It also made the travel depend on the
+    /// display: at 120 Hz each event carries half as much, so the same physical drag lost MORE to
+    /// rounding — undoing the frame-rate independence the speed measurement is built for.
+    ///
+    /// The target is CLAMPED but not snapped. Clamped, so a drag that runs past the top and comes
+    /// back responds immediately instead of unwinding an invisible overshoot first; un-snapped,
+    /// so the intent survives between events.
+    ///
+    /// ⚠️ This changes fast drags too, slightly and in the honest direction: rounding each event
+    /// to the grid also perturbed them (±half a grid per event), and the travel is now exact.
+    /// Nobody will feel it above the dead zone — but "no change for fast drags" would be a
+    /// stronger claim than the arithmetic supports.
+    static func advanced(target: Double, by delta: Double,
+                         lowerBound: Double, upperBound: Double) -> Double {
+        clamped(target + delta, lowerBound: lowerBound, upperBound: upperBound)
     }
 
     /// Travel multiplier in `fineScale…1` for a finger speed in points per second.
@@ -206,6 +240,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// The value when this gesture began — the reference `onEnded` measures the commit against.
     /// nil while no drag is in flight.
     @State private var scrubStartValue: V?
+    /// The gesture's UN-SNAPPED running target (#376). The stored `value` is snapped to the
+    /// display grid, so accumulating into it throws away everything finer than half a grid unit
+    /// on every event; this keeps the intent. nil while no drag is in flight.
+    @State private var scrubTarget: Double?
     @State private var lastY: CGFloat = 0
     @State private var lastX: CGFloat = 0
     /// Timestamp of the previous drag event — the basis for the speed measurement that
@@ -449,6 +487,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 if !scrubbing {
                     scrubbing = true
                     scrubStartValue = value        // what a commit at the end is measured against
+                    scrubTarget = Double(value)    // the un-snapped intent this gesture accrues
                     lastY = g.translation.height   // anchor; no jump on the first move
                     lastX = g.translation.width
                     lastTime = g.time
@@ -473,12 +512,21 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 let scale = ScrubPrecision.scale(speedPointsPerSecond: abs(step) / dt)
 
                 let delta = ((step * scale) / fullRangePoints) * span
+                // The scrub advances its OWN un-snapped target and the field snaps that for the
+                // write (#376) — adding the delta to the stored value discarded everything below
+                // half a grid unit every frame, which made a slow drag impossible rather than
+                // slow. See `ScrubPrecision.advanced`.
+                let target = ScrubPrecision.advanced(target: scrubTarget ?? Double(value),
+                                                     by: delta,
+                                                     lowerBound: Double(range.lowerBound),
+                                                     upperBound: Double(range.upperBound))
+                scrubTarget = target
                 // `apply` reports whether the number MOVED — the old guard was `delta != 0`,
-                // which is a different question (see `ScrubPrecision.snapped`). Below the grid
-                // and at a range edge a real delta lands on the same number, and firing
-                // `onChange()` there ran destructive live-applies for an edit that never
-                // happened. (#375)
-                if delta != 0, apply(Double(value) + delta) { onChange() }
+                // which is a different question (see `ScrubPrecision.snapped`). At a range edge,
+                // and on any event whose accumulated target still rounds to the same number, a
+                // real delta lands on the value it started from, and firing `onChange()` there
+                // ran destructive live-applies for an edit that never happened. (#375)
+                if delta != 0, apply(target) { onChange() }
             }
             .onEnded { _ in
                 // The commit is judged over the WHOLE gesture, not per event: a drag can move
@@ -501,6 +549,7 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // cancellation. That needs a device check, so it is its own slice.
                 let moved = scrubStartValue.map { $0 != value } ?? false
                 scrubStartValue = nil
+                scrubTarget = nil
                 scrubbing = false
                 if moved { onCommit() }
             }
