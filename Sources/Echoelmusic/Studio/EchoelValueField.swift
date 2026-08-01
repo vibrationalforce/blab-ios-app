@@ -107,7 +107,7 @@ enum ScrubPrecision {
     /// running target (`ScrubPrecision.advanced`). The measurement is kept because it is the
     /// reason the field is shaped this way: adding each event's delta to the SNAPPED stored
     /// value meant a `0…1, decimals: 2` row (every FX parameter, master volume, the weather
-    /// mixers) needed ≈140 pt/s at 60 Hz before it responded at all, ≈195 at 120 Hz. So
+    /// mixers) needed ≈135 pt/s at 60 Hz before it responded at all, ≈193 at 120 Hz. So
     /// `ScrubPrecision.fineScale > 0` — pinned in `ScrubPrecisionSmokeTests` as "a zero-travel
     /// control reads as broken" — was satisfied in the arithmetic and defeated by the grid one
     /// step later. A guard can only hold the layer it can see.
@@ -115,6 +115,13 @@ enum ScrubPrecision {
     /// This paragraph still matters after the fix: `snapped` is what makes the grid visible, and
     /// the next person tempted to snap somewhere else in the chain needs to know what that cost
     /// the last time.
+    ///
+    /// ⛔ THE 60 Hz FIGURE READ "≈140" IN THREE PLACES FOR ONE COMMIT and the solved value is
+    /// ≈135 — `v · scale(v) = ½ · 10^-decimals · fullRangePoints`, i.e. `v · scale(v) = 60` for
+    /// this row. Four percent, in the direction that made the defect look worse than it was.
+    /// Small, and worth the line anyway: this file strikes unmeasured numbers by name elsewhere,
+    /// and a figure that has been copied into three files is exactly the kind that stops being
+    /// re-derived. The other two were right (≈193 at 120 Hz, ≈150 for `8…90, decimals: 0`).
     ///
     /// Pure so the landing rule is tested rather than reasoned about; the field's `apply`
     /// compares this result to the current value IN `V`'s OWN PRECISION, because a `Float` field
@@ -150,7 +157,7 @@ enum ScrubPrecision {
     /// to the STORED value, which is already snapped — so everything below half a grid unit was
     /// thrown away every frame instead of accumulating. That does not make a slow drag slow; it
     /// makes it IMPOSSIBLE. Measured against the app's own fields at 60 Hz: a `0…1, decimals: 2`
-    /// row — every FX parameter, the master volume, the weather mixers — needed ≈140 pt/s before
+    /// row — every FX parameter, the master volume, the weather mixers — needed ≈135 pt/s before
     /// it responded at all, and `8…90, decimals: 0` needed ≈150. Below that the row was inert for
     /// as long as the finger moved, which is precisely the "dead control" that
     /// `ScrubPrecisionSmokeTests` pins `fineScale > 0` to prevent: the guard was satisfied in the
@@ -162,10 +169,22 @@ enum ScrubPrecision {
     /// back responds immediately instead of unwinding an invisible overshoot first; un-snapped,
     /// so the intent survives between events.
     ///
-    /// ⚠️ This changes fast drags too, slightly and in the honest direction: rounding each event
-    /// to the grid also perturbed them (±half a grid per event), and the travel is now exact.
-    /// Nobody will feel it above the dead zone — but "no change for fast drags" would be a
-    /// stronger claim than the arithmetic supports.
+    /// ⚠️ THIS ALSO CHANGES DRAGS THAT WERE NEVER STUCK, AND MY FIRST DESCRIPTION OF HOW WAS
+    /// WRONG. It said "±half a grid per event … nobody will feel it above the dead zone", as if
+    /// the old rounding were symmetric jitter that averages out. It was not. For a steady finger
+    /// speed the per-event error had a CONSTANT SIGN — `grid · round(δ/grid) − δ`, the same
+    /// amount every event — so it accumulated instead of cancelling. Just above the old dead
+    /// zone, where δ is a hair over half a grid, the old code advanced a WHOLE grid step per
+    /// event against a requested half: on "Detail" (8…90, whole numbers) at ≈150 pt/s it moved
+    /// about TWICE as fast as the exact travel does now. The error decays with speed (~14 % at
+    /// 200 pt/s, ~10 % at normal fast-drag speeds), so the honest summary is: the fast end is
+    /// nearly unchanged, and the band just above the old dead zone is now SLOWER — correctly so,
+    /// because it finally travels the distance the finger asks for. If a slow-to-moderate drag
+    /// reads as sluggish after this, that is this paragraph, not a regression to hunt.
+    ///
+    /// (Found by review, one commit after the claim shipped. The lesson is narrow and worth
+    /// keeping: "it averages out" is a statement about a DISTRIBUTION, and a constant input
+    /// does not have one.)
     static func advanced(target: Double, by delta: Double,
                          lowerBound: Double, upperBound: Double) -> Double {
         clamped(target + delta, lowerBound: lowerBound, upperBound: upperBound)
@@ -512,14 +531,48 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 let scale = ScrubPrecision.scale(speedPointsPerSecond: abs(step) / dt)
 
                 let delta = ((step * scale) / fullRangePoints) * span
+                let lo = Double(range.lowerBound)
+                let hi = Double(range.upperBound)
+
+                // THE BASE THIS EVENT BUILDS ON. Normally the gesture's own running target — but
+                // ONLY while that target still describes the number on screen.
+                //
+                // ⛔ WHY THE CHECK EXISTS AND WHY IT IS NOT PARANOIA (#376 Reviewer-Nachlese).
+                // Before #376 the drag read the live `value` every event, so any divergence
+                // between "what the drag asked for" and "what is stored" self-corrected within
+                // one frame. Carrying a target removed that feedback loop, and a reviewer found
+                // the sequence that turns the loss into destroyed work: SwiftUI does NOT call
+                // `onEnded` on a CANCELLED gesture (#377), and these fields sit in a
+                // `ScrollView` that cancels them, so the latch and the target both stay standing.
+                // The user then taps the same field and TYPES a number — the keypad writes
+                // `value` and knows nothing about `scrubTarget` — and the next drag's FIRST event
+                // would have thrown that entry away and teleported back to where the abandoned
+                // drag ended, up to a full range width on the 20…18000 Hz cutoff row, with
+                // `onChange()` firing for a move the user never made. That is the exact class
+                // #375 exists to prevent, arrived at from the other side.
+                //
+                // COMPARE IN `V`'s OWN PRECISION, as `apply` does — this is load-bearing, not
+                // style: `Double(Float(0.57)) != 0.57`, so a Double-side comparison would fail on
+                // every event of every `Float` field, re-seed from the stored value each frame
+                // and silently restore the #376 dead zone this file was written to remove.
+                // A NaN target also fails the test and is therefore healed rather than carried
+                // for the rest of the gesture.
+                let base: Double
+                if let running = scrubTarget,
+                   V(ScrubPrecision.snapped(running, lowerBound: lo, upperBound: hi,
+                                            decimals: decimals)) == value {
+                    base = running
+                } else {
+                    base = Double(value)
+                }
                 // The scrub advances its OWN un-snapped target and the field snaps that for the
                 // write (#376) — adding the delta to the stored value discarded everything below
                 // half a grid unit every frame, which made a slow drag impossible rather than
                 // slow. See `ScrubPrecision.advanced`.
-                let target = ScrubPrecision.advanced(target: scrubTarget ?? Double(value),
+                let target = ScrubPrecision.advanced(target: base,
                                                      by: delta,
-                                                     lowerBound: Double(range.lowerBound),
-                                                     upperBound: Double(range.upperBound))
+                                                     lowerBound: lo,
+                                                     upperBound: hi)
                 scrubTarget = target
                 // `apply` reports whether the number MOVED — the old guard was `delta != 0`,
                 // which is a different question (see `ScrubPrecision.snapped`). At a range edge,
@@ -535,18 +588,26 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // knob's commit — re-rolls the composition, so an unmoved drag was an unexplained
                 // new take. `nil` start means the anchor branch never ran, i.e. nothing moved.
                 //
-                // ⚠️ THE REFERENCE CAN BE STALE, AND THIS COMMIT DOES NOT CLOSE THAT (#377).
+                // ⚠️ THE REFERENCE CAN BE STALE, AND NEITHER #375 NOR #376 CLOSES THAT (#377).
                 // SwiftUI does not call `onEnded` when a gesture is CANCELLED — which is exactly
                 // what a parent `ScrollView` claiming the drag does, and these fields live in
                 // one. `scrubbing` then stays true, the next gesture skips the anchor branch, and
-                // this line compares the NEW gesture's end against the OLD gesture's start. The
-                // latch is pre-existing (`lastY`/`lastX` go stale the same way, which is the
-                // long-standing first-event jump); what is new is that a stale reference can now
-                // produce a wrong COMMIT in either direction. Net effect is still strictly
-                // better than before — an unconditional commit was wrong on EVERY unmoved drag,
-                // this is wrong only after a cancelled one — but "strictly better" is not
-                // "correct", and the real cure is `@GestureState`, which SwiftUI resets on
-                // cancellation. That needs a device check, so it is its own slice.
+                // this line compares the NEW gesture's end against the OLD gesture's start.
+                //
+                // ⛔ THIS PARAGRAPH SAID "the latch is pre-existing … what is new is that a stale
+                // reference can now produce a wrong COMMIT" AND THAT UNDER-RATED IT. Three
+                // things go stale, not two, and the third is not a commit DECISION but a VALUE:
+                // `scrubTarget` survives cancellation the same way, and the per-event branch
+                // above would have built on it — teleporting the field and destroying any
+                // keypad or VoiceOver edit made in between. That half is contained AT THE POINT
+                // OF USE (the base check above re-seeds whenever the target no longer describes
+                // the screen), which is why this is a doc correction and not an open defect.
+                // What remains genuinely open is what a containment cannot reach: `scrubbing`
+                // itself, so a cancelled gesture's successor still skips the anchor branch and
+                // carries the old `lastY`/`lastX` (the long-standing first-event jump), and
+                // `scrubStartValue`, so THIS line can still judge the wrong span. The real cure
+                // is `@GestureState`, which SwiftUI resets on cancellation and would clear all
+                // three at once. That needs a device check, so it stays its own slice.
                 let moved = scrubStartValue.map { $0 != value } ?? false
                 scrubStartValue = nil
                 scrubTarget = nil

@@ -33,6 +33,14 @@
 //     claims the drag, so the `scrubbing` latch and the start reference go stale and the next
 //     gesture can be judged against the previous one's start. Strictly better than the
 //     unconditional commit it replaces, not correct. That is #377.
+//     ⛔ AND THIS ITEM WAS WRITTEN BEFORE #376 GAVE THE GESTURE A THIRD LATCH. `scrubTarget`
+//     goes stale the same way, and that one costs a VALUE rather than a commit decision: a
+//     keypad or VoiceOver edit made after a cancelled drag would have been thrown away by the
+//     next drag's first event. #376's Nachlese contains that half AT THE POINT OF USE — the
+//     per-event branch re-seeds whenever the target no longer describes the number on screen —
+//     so what is left for #377 is `scrubbing` and `scrubStartValue`, which no point-of-use check
+//     can reach. Worth stating plainly because the previous sentence's "strictly better than the
+//     unconditional commit" was, for one commit, no longer true in every direction.
 //
 // ⛔ AND ONE MORE THING THIS FILE IS: `ScrubPrecision.snapped` was hoisted out of the view for
 // these tests. That is the pattern this file argues for — the rest of `EchoelValueField` is a
@@ -172,6 +180,23 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             The drag stopped carrying its own un-snapped target, so each event's sub-grid \
             remainder is discarded again and a slow drag cannot move the value at all (#376).
             """)
+        // The other side of that target: carrying one removed the per-event re-read of `value`
+        // that used to self-correct any divergence within a frame. These two needles hold the
+        // replacement — the base is re-seeded whenever the target no longer describes the
+        // number on screen. Without it a CANCELLED gesture (#377) leaves a target standing that
+        // the next drag builds on, throwing away any keypad or VoiceOver edit made in between.
+        XCTAssertTrue(squashed.contains("V(ScrubPrecision.snapped(running,"), """
+            The drag's base is no longer checked against the live value in `V`'s OWN precision. \
+            In `Double` this check is worse than none: `Double(Float(0.57)) != 0.57`, so every \
+            `Float` field would re-seed every event and the #376 dead zone would be back with \
+            both guards green.
+            """)
+        XCTAssertTrue(squashed.contains("base=Double(value)"), """
+            The drag no longer falls back to the live value when its target has gone stale, so \
+            a gesture cancelled by the surrounding ScrollView can teleport the field on the \
+            first event of the NEXT drag — and fire `onChange()` for a move nobody made, which \
+            is this file's whole subject arrived at from the other side.
+            """)
         // The other two paths, because the arithmetic above cannot tell them apart and because
         // the drag is the one everybody remembers to check.
         XCTAssertTrue(squashed.contains("ifapply(newVal){onChange();onCommit()}"), """
@@ -182,6 +207,16 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
         XCTAssertTrue(squashed.contains("guardmovedelse{return}"), """
             The VoiceOver adjustment no longer gates on `apply`'s answer. A swipe against a \
             range limit then fires the live-apply closures for a value that did not change.
+            """)
+        // `fullRangePoints` is `private let` INSIDE the `#if canImport(SwiftUI)` block, so no
+        // test in this bundle can read it — and `SlowScrubStillMovesTests` mirrors the 200 as a
+        // literal. Pinning the source text is the only thing that keeps the two in step; without
+        // it, changing the view's travel constant leaves every arithmetic assertion over there
+        // green while measuring a gearing the app no longer has.
+        XCTAssertTrue(src.contains("fullRangePoints: Double = 200"), """
+            The full-range travel constant changed or was renamed. `SlowScrubStillMovesTests` \
+            hardcodes 200 to compute a drag's per-event delta, so its numbers now describe a \
+            control that does not exist — update both together or neither.
             """)
         XCTAssertTrue(src.contains("scrubStartValue"), """
             The gesture no longer records the value it started from, so `onEnded` cannot tell \
