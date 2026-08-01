@@ -179,11 +179,20 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
     /// "Preset" heading read `font(13)` in `EchoelTheme.text` — not 10 pt, not 12 pt, so
     /// neither the per-title loop above nor `testNoInlineHeadingSurvivesInTheStudio` (both
     /// anchored on `font(10, .medium)`) could see it. It was the LOUDEST text in its panel:
-    /// bigger and brighter than the `groupHeader` two rows above it, which is how a chip
-    /// strip came to out-rank the section that contained it.
+    /// bigger and brighter than the `groupHeader` two rows above it, so a strip that
+    /// pre-sets four values below it read as the panel's dominant section.
     ///
     /// The lesson is the one this repo keeps paying for: a guard written from the instances
     /// you found protects exactly those instances. The sweep is only as wide as its anchor.
+    ///
+    /// ⚠️ SO THIS ONE IS ANCHORED ON THE COLOUR, NOT THE SIZE. My first draft filtered on
+    /// `font(13)` — committing, in the same commit, the exact sin the paragraph above names:
+    /// a later `font(14)` or `font(13, .semibold)` respelling would have walked straight
+    /// past it. `EchoelTheme.text` is the property that makes a heading shout, and there is
+    /// no other `Text("Preset")` anywhere in `Sources/`, so the wider anchor costs nothing.
+    /// It stays narrow to the STRING on purpose: a general "no bare heading `Text`" rule
+    /// would false-positive on the legitimate `Toggle` and `Button` labels this file's other
+    /// ⛔ block already had to carve out.
     func testThePresetHeadingRoutesThroughTheBuilderToo() throws {
         let studio = try codeLines(Self.studio)
         let joined = studio.joined(separator: "\n")
@@ -194,12 +203,12 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
             panel's dominant section.
             """)
         let loud = studio.filter {
-            $0.contains("Text(\"Preset\")") && $0.contains("EchoelTheme.font(13)")
+            $0.contains("Text(\"Preset\")") && $0.contains("EchoelTheme.text")
         }
         XCTAssertTrue(loud.isEmpty, """
-            "Preset" is spelled inline at 13 pt again. A heading larger than \
-            `groupHeader`'s 11 pt inverts the panel's hierarchy no matter how correct the \
-            row beneath it is.
+            "Preset" is spelled inline in full-brightness `text` again. A heading at the \
+            panel title's own colour inverts the hierarchy no matter how correct the row \
+            beneath it is — that is what `EchoelTheme.dim` in `groupHeader` is for.
             """)
     }
 
@@ -208,23 +217,31 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
     ///
     /// `applyVisualPreset` writes intensity · detail · motion · spread · hue · saturation —
     /// the Energy field and its "Fine tune" rows, all of which live in `visualAdjustFields`.
-    /// It writes no look at all. Before #369 the inline Field panel filed it under the LOOK
-    /// heading with `MusicColourRowView()` wedged between it and the fields, while Energy's
-    /// caption said "across the same range the presets span" about a strip already scrolled
-    /// past. The VJ overlay (#270's dead copy) always had the right order — the divergence
-    /// is invisible to any review that reads one surface at a time.
+    /// It writes no look at all. Before #369 the inline Field panel put it between the look
+    /// controls and the colour row, with `MusicColourRowView()` wedged between it and the
+    /// fields, while Energy's caption said "across the same range the presets span" about a
+    /// strip already scrolled past.
     func testThePresetStripSitsWithTheFieldsItWrites() throws {
         let studio = try codeLines(Self.studio)
         let mounts = studio.indices.filter { studio[$0].trimmingCharacters(in: .whitespaces) == "visualPresetRow" }
-        XCTAssertEqual(mounts.count, 2, """
-            Expected `visualPresetRow` at exactly two mounts (the inline Field panel and the \
-            VJ overlay), found \(mounts.count). A third would be a new surface that has to \
-            make the same ordering promise; zero means the strip is gone and this guard is \
-            describing a control that no longer exists.
+        // ⛔ NOT `XCTAssertEqual(…, 2)`, and the first draft was. Two is today's count only
+        // because `visualVJOverlay` — the doorless second copy that open task #270 exists to
+        // DELETE — is one of them. Pinning it would turn a correct removal into a red
+        // blocking gate, which is the `#173`/`#165` shape this repo has already paid for
+        // twice: a guard that outlives the thing it describes and then argues with a founder
+        // decision. The invariant that actually matters is carried by `strays` below and
+        // holds at one mount or five.
+        XCTAssertGreaterThanOrEqual(mounts.count, 1, """
+            `visualPresetRow` has no mount left. If the preset strip was deliberately \
+            removed, delete this test with it rather than relaxing it — an ordering promise \
+            about a control that no longer exists is worse than no promise.
             """)
         // `codeLines` drops whole-line comments, so "the next line" is the next line of CODE
-        // — which is what adjacency on screen actually means. The overlay carries a five-line
-        // comment between the two mounts in the file and is still adjacent here, correctly.
+        // — which is what adjacency on screen actually means, and it means a comment inserted
+        // between the two rows later cannot fake a stray. (An earlier version of this note
+        // claimed the overlay already carries such a comment BETWEEN its two mounts. It does
+        // not: those five lines sit ABOVE `visualPresetRow`, between it and
+        // `visualLookStrip`. The defensive reasoning holds; the example was invented.)
         let strays = mounts.filter { i in
             i + 1 >= studio.count
                 || studio[i + 1].trimmingCharacters(in: .whitespaces) != "visualAdjustFields"

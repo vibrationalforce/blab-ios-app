@@ -3112,27 +3112,26 @@ struct EchoelStudioView: View {
             // fell out of the slider sequence.
             //
             // ⭐ ORDER IS THE FIX (#369, founder screenshot 2026-08-01 09:00 — the whole
-            // block circled in red). The panel put "Preset" under the LOOK heading, between
-            // the look chips and the colour row, and it does not set a look at ALL:
-            // `applyVisualPreset` writes intensity · detail · motion · spread · hue ·
-            // saturation and never touches `visualStyle`. Those six are exactly Energy plus
-            // its "Fine tune" rows — and Energy's own caption says "across the same range
-            // the presets span" while pointing at a strip the reader has already scrolled
-            // past under a different heading. Two controls describing each other, filed
-            // apart, with an unrelated row wedged between them.
+            // block circled in red). "Preset" sat between the look controls and the colour
+            // row, and it does not set a look at ALL: `applyVisualPreset` writes intensity ·
+            // detail · motion · spread · hue · saturation and never touches `visualStyle`.
+            // Those six are exactly Energy plus its "Fine tune" rows — and Energy's own
+            // caption says "across the same range the presets span" while pointing at a
+            // strip the reader has already scrolled past. Two controls describing each
+            // other, separated, with an unrelated row wedged between them.
             //
             // So: Preset sits directly above the fields it writes, and `MusicColourRowView`
             // moves down beside the colour caption that explains it (and Hue/Saturation).
             // Three sections instead of one dense stack — what it renders AS, how intense,
-            // where the colour comes from. Same eight children, so the presentation-modifier
-            // and ViewBuilder budgets are untouched; nothing is added or removed, only read
-            // in the order it is used. The VJ overlay already had this adjacency (#270's
-            // dead copy mounts `visualPresetRow` then `visualAdjustFields`) — the inline
-            // panel was the odd one out, which is why no per-surface review caught it.
+            // where the colour comes from. Nothing is added or removed: the same eight
+            // children in this ViewBuilder, read in the order they are used. (The
+            // presentation-modifier ceiling is a different budget entirely — it counts the
+            // `.sheet`/`.fullScreenCover` chain on `EchoelStudioView.body`, which panel
+            // children never touched. An earlier draft of this note ran the two together.)
             //
             // NOT done here and worth naming: the colour pair still has no heading of its
             // own, so "Look" and "Preset" head two of three sections. Adding a third would
-            // be a new child in a panel that is at eight of ten.
+            // be a new child in a ViewBuilder that is at eight of ten.
             visualPresetRow
             visualAdjustFields
             MusicColourRowView()
@@ -3645,10 +3644,14 @@ struct EchoelStudioView: View {
     ///
     /// ⭐ THE HEADING IS `groupHeader` AS OF #369, and it was the last inline one in the
     /// studio. It read `font(13)` in `EchoelTheme.text` — bigger AND brighter than the
-    /// `groupHeader` ("Look", 11 pt semibold dim) two rows above it, so the subordinate
-    /// strip out-ranked the section containing it. #362 unified seven headings and missed
-    /// this one because it grepped for the 10 pt spelling; a fourth spelling nobody had
-    /// listed survived the sweep that existed to end exactly that.
+    /// `groupHeader` ("Look", 11 pt semibold dim) above it, so this strip did not read as a
+    /// row inside the look section OR as a peer of it: it read as the panel's dominant
+    /// heading, louder than every real section around it. #362 unified seven headings and
+    /// missed this one because it grepped for the 10 pt spelling; a fourth spelling nobody
+    /// had listed survived the sweep that existed to end exactly that.
+    ///
+    /// Both mounts get it — the inline Field panel and `visualVJOverlay` — because this is
+    /// one shared property. The overlay is doorless (#270), so that half is latent.
     private var visualPresetRow: some View {
         VStack(alignment: .leading, spacing: 6) {
             groupHeader("Preset")
