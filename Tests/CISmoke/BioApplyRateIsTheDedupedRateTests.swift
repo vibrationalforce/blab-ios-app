@@ -94,8 +94,19 @@ final class BioApplyRateIsTheDedupedRateTests: XCTestCase {
                 return XCTFail("`framesApplied` is gone from \(path) — re-point this guard.")
             }
             // Look back a short way: the attribute sits on the line above the declaration.
-            let head = code[code.index(r.lowerBound, offsetBy: -220, limitedBy: code.startIndex)
-                            ?? code.startIndex ..< r.lowerBound]
+            //
+            // ⛔ TWO STATEMENTS ON PURPOSE. The one-liner
+            //     code[code.index(…, limitedBy: code.startIndex) ?? code.startIndex ..< r.lowerBound]
+            // does not mean what it reads like, and it took the blocking gate down: `..<`
+            // (RangeFormationPrecedence) binds TIGHTER than `??` (NilCoalescingPrecedence),
+            // so Swift parses it as `index(…) ?? (startIndex ..< lowerBound)` — a
+            // `String.Index?` coalesced with a `Range<String.Index>` — and reports it as
+            // "type of expression is ambiguous without a type annotation", which points at
+            // the subscript rather than at the operator that actually caused it.
+            let lower: String.Index = code.index(r.lowerBound,
+                                                 offsetBy: -220,
+                                                 limitedBy: code.startIndex) ?? code.startIndex
+            let head = code[lower ..< r.lowerBound]
             XCTAssertTrue(head.contains("@ObservationIgnored"), """
                 `framesApplied` in \(path) is no longer `@ObservationIgnored`. As a tracked \
                 `@Observable` property it invalidates every view that reads it on each new \
