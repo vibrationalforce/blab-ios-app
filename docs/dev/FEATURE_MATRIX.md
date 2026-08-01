@@ -156,7 +156,7 @@ acceptance line.
   - **Dynamics** — soft-knee compressor + brick-wall limiter (hard ceiling guarantee).
   - **Production FX characters** (`FXCharacter`): one-tap **Underwater** (deep low-pass + watery chorus + tape wobble), **Telephone**/**Megaphone** (band-pass), **Cassette**/**Vinyl** (warm low-pass), **Dream** (wide bright ping-pong), **Clean** (dry reset). Stampable in the FX tool *and* the Compose **Effects** picker. `Auto` defers to the genre's own space (see per-genre presets below).
   - **Per-genre FX presets** — each offered genre carries a signature space (long dub ping-pong delay, vapor chorus, psy roll), tempo-synced, auto-applied on "Generate from Body".
-  - convolution reverb (HRV-reactive), 4-band EQ + LUFS auto-gain (−14 LUFS, 4 presets), soft `tanh` saturation.
+  - algorithmic reverb (`EchoelReverb`, enabled per genre preset), 4-band EQ + LUFS auto-gain (target from the Loudness picker — streaming −14, podcast −16, broadcast −23, cinema −24 or none; correction clamped to ±6 dB; 4 tonal presets), soft `tanh` saturation. `EchoelDDSP`'s convolution reverb is compiled but disabled (`useConvolutionReverb = false`) and makes no sound.
   - Audio-thread-safe (no alloc/locks in render; `audio-thread-reviewer`-audited each change); gated by `fxEnabled` (default off → bit-identical to prior builds until engaged).
 - **Roadmap:** **master-FX bus** (so the whole beat/loop, not just the melody, can go Underwater — needs an AVAudioUnit insert on the master mixer), analog (VCA/Opto/FET/VariMu/Tube) emulations, spatial/Atmos 3D panning, stereo synth voice, ring-mod.
 - **TestFlight acceptance:** FX panel toggles the insert chain audibly; filter/delay/chorus/flanger/phaser/tremolo/comp/limiter each change the sound; stamping **Underwater** muffles + adds watery movement, **Clean** resets to dry; export path applies AutoMix to −14 LUFS without clipping.
@@ -165,7 +165,7 @@ acceptance line.
 - **Code:** `Audio/AudioEngine.swift`, `Audio/AutoMixChain.swift`, `Audio/SingleExport.swift`, `Audio/RetroCapture.swift`, `MicrophoneManager.swift`
 - **Live:** master bus, mic FFT (1024-pt), 30 s stereo pre-roll ring (`.caf`), LUFS-normalized WAV/AAC export.
 - **Roadmap:** `Audio/MultiTrackRecorder.swift` (skeleton), console UI, FLAC/ALAC, stem export.
-- **TestFlight acceptance:** SingleExport writes a valid −14 LUFS WAV/AAC.
+- **TestFlight acceptance:** SingleExport writes a valid WAV/AAC normalised to the SELECTED loudness target (−14 only when the picker is on Streaming; "No target" writes at unity).
 
 ### 4. EchoelSeq — `PARTIAL`
 
