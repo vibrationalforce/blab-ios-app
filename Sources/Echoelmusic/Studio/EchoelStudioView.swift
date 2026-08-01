@@ -3110,9 +3110,32 @@ struct EchoelStudioView: View {
             // blend is not gone: the look SLIDER above owns `visual.styleB`/`visual.blend`,
             // and the migration in onAppear still clears a lingering blend on a look that
             // fell out of the slider sequence.
+            //
+            // ⭐ ORDER IS THE FIX (#369, founder screenshot 2026-08-01 09:00 — the whole
+            // block circled in red). The panel put "Preset" under the LOOK heading, between
+            // the look chips and the colour row, and it does not set a look at ALL:
+            // `applyVisualPreset` writes intensity · detail · motion · spread · hue ·
+            // saturation and never touches `visualStyle`. Those six are exactly Energy plus
+            // its "Fine tune" rows — and Energy's own caption says "across the same range
+            // the presets span" while pointing at a strip the reader has already scrolled
+            // past under a different heading. Two controls describing each other, filed
+            // apart, with an unrelated row wedged between them.
+            //
+            // So: Preset sits directly above the fields it writes, and `MusicColourRowView`
+            // moves down beside the colour caption that explains it (and Hue/Saturation).
+            // Three sections instead of one dense stack — what it renders AS, how intense,
+            // where the colour comes from. Same eight children, so the presentation-modifier
+            // and ViewBuilder budgets are untouched; nothing is added or removed, only read
+            // in the order it is used. The VJ overlay already had this adjacency (#270's
+            // dead copy mounts `visualPresetRow` then `visualAdjustFields`) — the inline
+            // panel was the odd one out, which is why no per-surface review caught it.
+            //
+            // NOT done here and worth naming: the colour pair still has no heading of its
+            // own, so "Look" and "Preset" head two of three sections. Adding a third would
+            // be a new child in a panel that is at eight of ten.
             visualPresetRow
-            MusicColourRowView()
             visualAdjustFields
+            MusicColourRowView()
             Text("Colour defaults to the heard tone octave-transposed into visible light (its frequency doubled until it reaches the visible band, rendered via CIE 1931); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -3619,9 +3642,16 @@ struct EchoelStudioView: View {
     /// Named immersive-visual starting points ("von Aura bis Zentrifuge"). Tapping
     /// one loads its look into the four live sliders below (which stay editable for
     /// hands-on play); a manual slider tweak clears the selection back to custom.
+    ///
+    /// ⭐ THE HEADING IS `groupHeader` AS OF #369, and it was the last inline one in the
+    /// studio. It read `font(13)` in `EchoelTheme.text` — bigger AND brighter than the
+    /// `groupHeader` ("Look", 11 pt semibold dim) two rows above it, so the subordinate
+    /// strip out-ranked the section containing it. #362 unified seven headings and missed
+    /// this one because it grepped for the 10 pt spelling; a fourth spelling nobody had
+    /// listed survived the sweep that existed to end exactly that.
     private var visualPresetRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Preset").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+            groupHeader("Preset")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(VisualPreset.factory) { preset in

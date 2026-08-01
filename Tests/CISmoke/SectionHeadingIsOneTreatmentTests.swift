@@ -172,4 +172,74 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
             treatments grew in the first place, one honest local decision at a time.
             """)
     }
+
+    // MARK: - The fourth spelling this file's own sweep missed (#369)
+
+    /// ⛔ #362 SHIPPED CLAIMING "one treatment" AND LEFT ONE STANDING. The Field panel's
+    /// "Preset" heading read `font(13)` in `EchoelTheme.text` — not 10 pt, not 12 pt, so
+    /// neither the per-title loop above nor `testNoInlineHeadingSurvivesInTheStudio` (both
+    /// anchored on `font(10, .medium)`) could see it. It was the LOUDEST text in its panel:
+    /// bigger and brighter than the `groupHeader` two rows above it, which is how a chip
+    /// strip came to out-rank the section that contained it.
+    ///
+    /// The lesson is the one this repo keeps paying for: a guard written from the instances
+    /// you found protects exactly those instances. The sweep is only as wide as its anchor.
+    func testThePresetHeadingRoutesThroughTheBuilderToo() throws {
+        let studio = try codeLines(Self.studio)
+        let joined = studio.joined(separator: "\n")
+        XCTAssertTrue(joined.contains("groupHeader(\"Preset\")"), """
+            The Field panel's "Preset" heading no longer calls `groupHeader`. It was the \
+            fourth spelling — 13 pt, full-brightness `text` — and it out-shouted the \
+            `groupHeader` above it, so the strip that PRE-SETS the Energy fields read as the \
+            panel's dominant section.
+            """)
+        let loud = studio.filter {
+            $0.contains("Text(\"Preset\")") && $0.contains("EchoelTheme.font(13)")
+        }
+        XCTAssertTrue(loud.isEmpty, """
+            "Preset" is spelled inline at 13 pt again. A heading larger than \
+            `groupHeader`'s 11 pt inverts the panel's hierarchy no matter how correct the \
+            row beneath it is.
+            """)
+    }
+
+    /// #369's structural half, and the one a later edit is most likely to undo by accident:
+    /// the preset strip must sit immediately above the fields it writes.
+    ///
+    /// `applyVisualPreset` writes intensity · detail · motion · spread · hue · saturation —
+    /// the Energy field and its "Fine tune" rows, all of which live in `visualAdjustFields`.
+    /// It writes no look at all. Before #369 the inline Field panel filed it under the LOOK
+    /// heading with `MusicColourRowView()` wedged between it and the fields, while Energy's
+    /// caption said "across the same range the presets span" about a strip already scrolled
+    /// past. The VJ overlay (#270's dead copy) always had the right order — the divergence
+    /// is invisible to any review that reads one surface at a time.
+    func testThePresetStripSitsWithTheFieldsItWrites() throws {
+        let studio = try codeLines(Self.studio)
+        let mounts = studio.indices.filter { studio[$0].trimmingCharacters(in: .whitespaces) == "visualPresetRow" }
+        XCTAssertEqual(mounts.count, 2, """
+            Expected `visualPresetRow` at exactly two mounts (the inline Field panel and the \
+            VJ overlay), found \(mounts.count). A third would be a new surface that has to \
+            make the same ordering promise; zero means the strip is gone and this guard is \
+            describing a control that no longer exists.
+            """)
+        // `codeLines` drops whole-line comments, so "the next line" is the next line of CODE
+        // — which is what adjacency on screen actually means. The overlay carries a five-line
+        // comment between the two mounts in the file and is still adjacent here, correctly.
+        let strays = mounts.filter { i in
+            i + 1 >= studio.count
+                || studio[i + 1].trimmingCharacters(in: .whitespaces) != "visualAdjustFields"
+        }
+        XCTAssertTrue(strays.isEmpty, """
+            \(strays.count) mount(s) of `visualPresetRow` are no longer followed directly by \
+            `visualAdjustFields`. The preset strip sets nothing but those fields' values — \
+            separated from them it reads as a look picker, which is exactly the block the \
+            founder circled on 2026-08-01.
+            """)
+        XCTAssertTrue(studio.contains { $0.contains("visualSpread = Double(p.spread)") }, """
+            `applyVisualPreset` no longer writes `visualSpread`. The whole ordering argument \
+            above rests on this function writing the Energy/Fine-tune values and nothing \
+            else; if it starts writing a LOOK, the strip belongs back under "Look" and this \
+            test should be rewritten, not deleted.
+            """)
+    }
 }
