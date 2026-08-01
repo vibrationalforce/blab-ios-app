@@ -1267,26 +1267,40 @@ struct EchoelStudioView: View {
         .accessibilityHint("Closes the studio and returns to the calm session.")
     }
 
-    /// UNPRESENTED (founder 2026-07-07: "Xy Pads komplett wieder herausnehmen") —
-    /// kept compiling for reversibility, no body branch mounts it. The two mood
-    /// pads, side by side — SOUND (composition mood; recomposes at the loop
+    /// UNPRESENTED BY FOUNDER DECISION (2026-07-07, v10.79.87 `de728a5`: "Xy Pads komplett
+    /// wieder herausnehmen") — kept compiling for reversibility, no body branch mounts it.
+    /// The two mood pads, side by side: SOUND (composition mood; recomposes at the loop
     /// boundary on release) and VISUAL (palette + energy, live via its own leaf).
-    /// The two XY atmosphere pads (founder 2026-07-06D: "Ein XY Pad für den Sound,
-    /// damit man intuitiv die richtige Stimmung findet, und für visuals auch").
     ///
-    /// ⛔ THIS HAD NO DOOR until #322, and the way it lost one is worth keeping: it was
-    /// never deleted and never disabled — it simply stopped being mounted, and because
-    /// every parameter it moves (darkness, liveliness, hue, motion, intensity) IS
-    /// reachable as a number elsewhere, nothing looked broken. What was missing was the
-    /// GESTURE and, more importantly, the LINK the founder asked for on 2026-07-07: one
-    /// finger moving sound and image together. A capability whose parts are all reachable
-    /// separately is exactly the kind that goes missing without a grep trail — which is
-    /// why `Tests/CISmoke/NoDoorlessStudioViewsTests.swift` now fails on ANY unmounted
-    /// `some View` in this file rather than on this block by name.
+    /// ⛔ #322 RE-MOUNTED THIS AND #329 TOOK IT BACK OUT THE SAME DAY. Worth the space,
+    /// because the mistake is the cheapest kind to repeat:
     ///
-    /// Lives in `moodPanel` because this panel is literally "Character of the
-    /// composition": the pads are the fast way in, the knobs beneath them the fine tune
-    /// (the same ordering #228 chose for the visual Energy control).
+    /// I cited "founder 2026-07-07: Xy Sound und visuals verknüpfen" as the reason to
+    /// restore it. That ask is REAL and it is on the SAME DAY — and it is the EARLIER one.
+    /// It shipped as v10.79.85, the founder tested it on device, and v10.79.87 took the
+    /// pads out. `scratchpads/SESSION_LOG.md` has both, in order. So the quote I built on
+    /// was not stale; it had been ANSWERED, and the answer was no.
+    ///
+    /// The marker saying so was this line — the property's own first doc line, directly
+    /// above the code I edited. I read the block and not its header, which is precisely
+    /// what `CLAUDE.md` says about its own H1 twice over: **the heading is part of the
+    /// claim.** And I then appended a paragraph below it that asserted the opposite, so
+    /// the file stated both at once until the reviewer caught it.
+    ///
+    /// ⚠️ THEREFORE, BEFORE ANYONE RESTORES THIS: it is not a doorless-capability find,
+    /// it is a founder-gated decision, and the founder's answer came AFTER hearing it on
+    /// a device. Ask; do not infer it from the 07-06D/07-07 "XY Pad" quotes, which is
+    /// exactly the inference that failed. If the answer is yes, two things ride along that
+    /// the review surfaced: `MoodXYPad`'s outline uses `EchoelTheme.border` (0.10) against
+    /// `surface`, ≈1.1:1 — the same WCAG 1.4.11 failure `EchoelValueField` already fixed
+    /// with `borderStrong`; and the sound→visual link writes `visual.*` without clearing
+    /// `visualPresetID`, so the Visual panel would keep naming a preset that no longer
+    /// describes the output.
+    ///
+    /// What #322 DID leave behind on purpose: the Sound half is now `SoundMoodPadLeaf`
+    /// rather than inline state on this view. Same keys, same defaults, same behaviour —
+    /// but the drag no longer re-evaluates this ~500-line body, so the parked code is
+    /// correct on the freeze law for the day it is asked for.
     private var moodPadsSection: some View {
         HStack(alignment: .top, spacing: 12) {
             SoundMoodPadLeaf { x, y in
@@ -2287,11 +2301,22 @@ struct EchoelStudioView: View {
     // sheets are reachable today — the deletion costs the user nothing.
     //
     // WHY IT IS WRITTEN DOWN RATHER THAN JUST DELETED: they were found together with
-    // `moodPadsSection`, which looked exactly the same from a grep — an unmounted `some
-    // View` in this file — and was NOT dead code but an unreachable founder feature. Three
-    // of four were leftovers, one was a loss, and nothing in the source distinguished them.
-    // That is why `Tests/CISmoke/NoDoorlessStudioViewsTests.swift` now fails on the CLASS
-    // (any unmounted `some View` here) instead of trusting a future reader to look.
+    // `moodPadsSection`, which from a grep of NAMES looked identical — an unmounted `some
+    // View` in this file — and is something else entirely: a surface the founder had
+    // removed on purpose after testing it on device.
+    //
+    // ⛔ THE FIRST VERSION OF THIS NOTE SAID "nothing in the source distinguished them",
+    // AND THAT WAS FALSE — it is the sentence #329 had to retract. `moodPadsSection`'s own
+    // first doc line carries a DATE AND A VERBATIM FOUNDER QUOTE ("UNPRESENTED (founder
+    // 2026-07-07: …)"); these three carry no such marker. The source distinguished them
+    // perfectly. A grep of names did not, which is a different claim — and writing the
+    // stronger one taught the opposite of the cheap lesson.
+    //
+    // THE CHEAP LESSON: read the property's OWN doc comment before deciding what an
+    // unmounted view is. An "UNPRESENTED (founder …)" marker is the distinguisher, and it
+    // costs ten seconds. `Tests/CISmoke/NoDoorlessStudioViewsTests.swift` fires on the
+    // CLASS so nothing new goes unnoticed — but what it tells you to do is LOOK, not
+    // re-door on suspicion.
 
     // MARK: Panel 1b — Session (place · weather)
 
@@ -3800,7 +3825,6 @@ struct EchoelStudioView: View {
     private var moodPanel: some View {
         panel("Mood", "Character of the composition", isExpanded: $showMood) {
             moodPresetBar
-            moodPadsSection
             moodKnob("Liveliness", $mood.liveliness)
             moodKnob("Darkness", $mood.darkness)
             moodKnob("Tension", $mood.tension)

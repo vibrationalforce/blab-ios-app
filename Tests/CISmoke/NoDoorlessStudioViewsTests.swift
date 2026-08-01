@@ -2,21 +2,35 @@
 // Echoel — #322. `EchoelStudioView.swift` held FOUR `some View` properties that nothing
 // mounted. Three were leftovers. One was not.
 //
-// ⭐ WHY THE CLASS AND NOT THE FOUR NAMES. From a grep the four were indistinguishable:
+// ⭐ WHY THE CLASS AND NOT THE FOUR NAMES. From a grep of NAMES the four looked identical:
 // a `private var X: some View` whose only occurrence in the whole repo was its own
 // declaration line. What they actually were:
 //
 //   · `soundControls`   — the pre-chip page layout, replaced by `dropdownContent`. Leftover.
 //   · `learnRow`        — a door card; its door moved to the `.echoelChromeDoor` receiver. Leftover.
 //   · `liveColaboRow`   — same. Leftover.
-//   · `moodPadsSection` — the two XY atmosphere pads AND the sound↔visual link the founder
-//                         asked for on 2026-07-07. NOT a leftover: an unreachable feature.
+//   · `moodPadsSection` — the two XY atmosphere pads. NOT a leftover and NOT a lost feature:
+//                         a surface the FOUNDER removed on 2026-07-07 after testing it on a
+//                         device ("Xy Pads komplett wieder herausnehmen", v10.79.87).
 //
-// Nothing in the source said which was which. And the last one was the hardest kind to
-// notice, because every parameter it moves (darkness, liveliness, hue, motion, intensity)
-// is reachable as a number somewhere else — so no control was missing, only the gesture.
-// That is why this guard fires on the CLASS: the next unmounted view has to be LOOKED AT,
-// and whoever looks decides "delete" or "re-door" with the evidence in front of them.
+// ⛔ AND THE SENTENCE THAT STOOD HERE — "Nothing in the source said which was which" — WAS
+// FALSE, which is why #322 re-mounted the pads and #329 had to take them back out. The
+// source said it precisely: `moodPadsSection`'s own FIRST DOC LINE carries a date and a
+// verbatim founder quote ("UNPRESENTED (founder 2026-07-07: …)"). The other three carry no
+// such marker. A grep of names could not tell them apart; the FILE could, and #322 read the
+// block instead of its header.
+//
+// So the lesson this guard teaches is deliberately the cheap one, not the dramatic one:
+// **when this test goes red, read the property's own doc comment first.** An "UNPRESENTED
+// (founder …)" marker settles it in ten seconds — that view is parked on purpose and the
+// decision to bring it back belongs to the founder, not to a cleanup cycle. Only when there
+// is no such marker is it your call, and then the question is "delete or re-door", answered
+// with the evidence in front of you.
+//
+// The second half still holds and is worth keeping: an unmounted view can be genuinely
+// invisible, because every parameter it touches may be reachable as a NUMBER elsewhere —
+// so no control looks missing, only a gesture. That is why nothing here may be excused
+// silently, in either direction.
 //
 // ⛔ HONEST LIMITS — three, and the third is the one that matters.
 //
@@ -26,7 +40,12 @@
 //  2. It scans ONE file. `EchoelStudioView.swift` is where the defect keeps happening
 //     (it is the only view file large enough to lose a property in), not a claim about
 //     the rest of `Studio/`.
-//  3. **It cannot catch a view referenced from a DEAD caller.** `visualVJOverlay` is the
+//  3. Names are collected and counted FILE-WIDE, not per type. Two `some View` properties
+//     with the same name — one on `EchoelStudioView`, one on a nested leaf struct further
+//     down the file — would mask each other and both read as mounted. Harmless today (no
+//     such collision exists), and it is a false-NEGATIVE vector only: it can hide an
+//     orphan, never invent one.
+//  4. **It cannot catch a view referenced from a DEAD caller.** `visualVJOverlay` is the
 //     live proof: it has two occurrences — its declaration and one use inside
 //     `.fullScreenCover(isPresented: $showVisual)`, whose flag has no setter anywhere in
 //     `Sources/`. So the whole VJ control panel is unreachable and this file says nothing
@@ -62,14 +81,25 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     ///                                 legitimate deletion". → #324
     ///   · `nonStandardTuningBanner` — the file says "keeps the full explainer, unpresented". A
     ///                                 judgement call about a tuning warning, not cleanup. → #325
-    ///   · `liveNarrationBanner`     — the EchoelAI live caption. ZERO occurrences anywhere, not
-    ///                                 even in prose, so nothing recorded why. → #326
+    ///   · `liveNarrationBanner`     — the EchoelAI live caption. The one record of where it was
+    ///                                 meant to sit lived inside the `soundControls` block #322
+    ///                                 deleted: "It now lives at the TOP, right under the live
+    ///                                 bio (`liveNarrationBanner`)". Carried into #326 rather
+    ///                                 than lost — #322 first claimed it had "ZERO occurrences,
+    ///                                 nothing recorded why", which its own deletion had just
+    ///                                 made true. → #326
+    ///   · `moodPadsSection`         — the two XY atmosphere pads. PARKED BY FOUNDER DECISION
+    ///                                 (2026-07-07, "Xy Pads komplett wieder herausnehmen",
+    ///                                 after a device test), and the marker saying so is on the
+    ///                                 property's own first doc line. Do not mount it without
+    ///                                 asking; #322 did and #329 reverted it. → founder
     ///
     /// They are excused from the headline and pinned by `testTheKnownOrphanListDoesNotRot`, which
     /// fails if one is deleted, renamed, OR quietly mounted — so the list cannot outlive its
     /// entries in either direction.
     private static let knownOrphans: Set<String> = [
-        "beatModeRow", "visualBlendControls", "nonStandardTuningBanner", "liveNarrationBanner"
+        "beatModeRow", "visualBlendControls", "nonStandardTuningBanner", "liveNarrationBanner",
+        "moodPadsSection"
     ]
 
     // MARK: - The headline
@@ -93,15 +123,20 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
         these `some View` properties in \(Self.studio) are declared and never mounted: \
         \(orphans.joined(separator: ", ")).
 
-        DO NOT reach for the delete key first. #322 found four of these at once and ONE of them \
-        (`moodPadsSection`) was an unreachable founder feature, not dead code — the other three \
-        were genuine leftovers, and the source did not distinguish them. Read what the block \
-        does, then either mount it or delete it WITH a tombstone saying which it was and why.
+        STEP 1, AND IT IS TEN SECONDS: read the property's OWN doc comment. If it says \
+        "UNPRESENTED (founder …)" with a date, the view is parked BY DECISION — mounting it is \
+        a founder ask, not a cleanup slice, and deleting it throws away something deliberately \
+        kept reversible. Leave it and add it to `knownOrphans` with the quote. #322 skipped this \
+        step, read only the code block, and re-mounted a surface the founder had removed after \
+        testing it on a device; #329 undid it the same day.
 
-        Two things to check before deleting: does this block write any persisted state \
-        (`@AppStorage`, a store) that nothing else writes — deleting it then freezes that value \
-        rather than leaving a gap; and does anything it constructs become unreachable with it \
-        (`moodPadsSection` was the only mount point of BOTH `MoodXYPad` leaves).
+        STEP 2, only if there is no such marker: decide "mount" or "delete" — and either way \
+        leave a tombstone saying WHICH it was and why, so the next reader does not re-derive it.
+
+        Before deleting, two checks: does the block write persisted state (`@AppStorage`, a \
+        store) that nothing else writes — deleting it then FREEZES that value instead of leaving \
+        a gap; and does anything it constructs become unreachable with it (`moodPadsSection` is \
+        the only mount point of BOTH `MoodXYPad` leaves).
         """)
     }
 
