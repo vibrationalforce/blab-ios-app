@@ -41,6 +41,11 @@
 //     so what is left for #377 is `scrubbing` and `scrubStartValue`, which no point-of-use check
 //     can reach. Worth stating plainly because the previous sentence's "strictly better than the
 //     unconditional commit" was, for one commit, no longer true in every direction.
+//     ✅ CLOSED BY #377 (the latch, via a `@GestureState` SwiftUI resets itself) AND #378 (the
+//     value: a cancelled drag now puts the number back and re-fires `onChange`). What item 1
+//     above says is still true and is why #378 exists at all — this file cannot show that a
+//     scroll reaches the field, only that whatever leaks through before SwiftUI rules on the
+//     gesture leaves nothing behind.
 //
 // ⛔ AND ONE MORE THING THIS FILE IS: `ScrubPrecision.snapped` was hoisted out of the view for
 // these tests. That is the pattern this file argues for — the rest of `EchoelValueField` is a
@@ -266,20 +271,39 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             fall back to `false` and the watcher below can never fire. A latch that cannot \
             change is worse than none: it reads as cover.
             """)
-        // The WHOLE closure, bound value included — three separate regressions live here and a
-        // partial needle catches none of them: rebinding to another value, adding an
-        // `onCommit()`, or restoring the `resetScrubState()` call that nils `scrubStartValue`.
+        // THE WHOLE CLOSURE, bound value included. Four regressions live in this one closure
+        // and a partial needle catches none of them: rebinding to another value, dropping the
+        // deferral, dropping the `gestureSeq` re-check, or calling something other than
+        // `cancelScrub()`.
         XCTAssertTrue(squashed.contains(
-            ".onChange(of:dragActive){_,inFlightinguard!inFlight,scrubbingelse{return}scrubbing=false}"
+            ".onChange(of:dragActive){_,inFlightinguard!inFlight,scrubbingelse{return}"
+            + "letseq=gestureSeqTask{@MainActoringuardscrubbing,gestureSeq==seqelse{return}"
+            + "cancelScrub()}}"
         ), """
-            The cancellation watcher changed shape. It must do exactly three things — watch \
-            `dragActive`, fire only on the falling edge of a drag that is still latched, and \
-            clear THE LATCH ONLY. Two failure modes it guards: an `onCommit()` here would let a \
-            scroll that stole a drag re-roll the composition (#375's defect through the \
-            cancellation door); and calling the full `resetScrubState()` here would nil \
-            `scrubStartValue`, so if SwiftUI resets the gesture state before `onEnded` runs — \
-            which `TimelineAutomationRow.handleEnded` documents as possible — every NORMAL \
-            drag's `onCommit()` would be lost, silently and intermittently.
+            The cancellation watcher changed shape. THE HOP IS THE LOAD-BEARING PART: only after \
+            one main-actor turn does `scrubbing == true` prove that `onEnded` did not run, which \
+            is the only way this path can tell a cancel from a normal end. Make it synchronous \
+            and a normal drag can be judged a cancel — the value snaps back and the commit is \
+            lost, silently and intermittently, because `TimelineAutomationRow.handleEnded` \
+            documents that a `@GestureState` may already be reset when `onEnded` runs. Drop \
+            `gestureSeq` and a drag that starts inside that turn gets reverted and unlatched \
+            under the user's finger.
+            """)
+
+        // #378: what a cancelled gesture DOES. Restore, tell the engine, do not commit.
+        XCTAssertTrue(squashed.contains(
+            "ifletstart=scrubStartValue,start!=value{value=startonChange()}resetScrubState()"
+        ), """
+            `cancelScrub` changed shape. It must put the number back, re-fire `onChange()` so \
+            the live-applies follow it (otherwise the screen and the sound disagree, which is \
+            worse than either alone), and must NOT fire `onCommit()` — a drag the ScrollView \
+            took away is not a finished edit. This is the founder's #360 report (weather mixers \
+            reading 0.00 after a scroll) and #376 made it reachable more often, not less.
+            """)
+
+        XCTAssertTrue(squashed.contains("gestureSeq&+=1"), """
+            The anchor branch no longer stamps the gesture, so the deferred cancel check has \
+            nothing to compare and can act on a drag that is not the one it saw end.
             """)
         XCTAssertTrue(squashed.contains("resetScrubState()ifmoved{onCommit()}"), """
             `onEnded` stopped clearing through `resetScrubState()`. Two hand-written cleanups \
@@ -288,21 +312,24 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
             """)
         // Whole trimmed LINES, not substrings — the declaration reads
         // `@State private var scrubbing = false` and a substring count would score it as a
-        // clear. Simulated before commit both times: it counted 2 on the first draft for that
-        // reason, and it counts 2 again now for a DIFFERENT and deliberate one.
+        // clear.
         //
-        // TWO clear sites, and the number is the point: `resetScrubState()` (normal end, drops
-        // the references too) and the cancellation watcher (latch only, so the reset cannot
-        // race `onEnded` out of a commit). A THIRD would mean someone added a path that clears
-        // this latch without deciding which of those two semantics it wants.
+        // ⛔ THIS NUMBER HAS BEEN 1, THEN 2, THEN 1 AGAIN IN THREE CONSECUTIVE COMMITS, and the
+        // history is the useful part: 1 while `resetScrubState()` was the only clear, 2 while
+        // the cancellation watcher had to unlatch by hand (it could not call the shared reset
+        // without risking a lost commit), and 1 again now that #378's hop lets `cancelScrub()`
+        // go through the shared reset. A guard whose expected value moves with every slice is
+        // tracking an implementation detail — kept anyway, because the thing it actually
+        // protects is "exactly one place decides this latch is over", and each of those three
+        // commits would have gone unnoticed without it.
         let clears = src.split(separator: "\n").filter {
             $0.trimmingCharacters(in: .whitespaces) == "scrubbing = false"
         }.count
-        XCTAssertEqual(clears, 2, """
-            `scrubbing` is cleared in \(clears) places, not 2. The two are `resetScrubState()` \
-            and the cancellation watcher, and they clear DIFFERENT amounts on purpose — the \
-            needles above pin which is which. A third site, or one fewer, means that \
-            distinction was collapsed.
+        XCTAssertEqual(clears, 1, """
+            `scrubbing` is cleared in \(clears) places, not 1. It must be exactly one — inside \
+            `resetScrubState()`, which both the normal end and `cancelScrub()` go through. A \
+            second site means some path decided a drag was over without deciding whether its \
+            value should stand.
             """)
     }
 }
