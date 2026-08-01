@@ -907,6 +907,10 @@ struct EchoelStudioView: View {
             // strictly worse than the lie it replaced. Cleared here, BEFORE the snap below, so the
             // snap runs for those installs too.
             normaliseUnreachableDonutMode()
+            // #255: same shape, one store down — the Mix board's "Lead" field was the only
+            // door to the persisted `mixer.lead`, so a value dialled before its removal would
+            // silently attenuate the first lead a future genre produces.
+            normaliseDoorlessLeadMix()
             if !spectralDonuts, !sliderLooks.contains(visualStyle) {
                 visualStyle = sliderLooks.first ?? 3   // → first look (default Water)
                 visualStyleB = 0
@@ -2036,24 +2040,29 @@ struct EchoelStudioView: View {
                     EchoelValueField(label: "Drive", value: bassDriveBinding,
                                      range: TrackFXStore.driveRange, unit: "", decimals: 2)
                 }
-                // Pad + Lead share the melodic FX bus → one strip. The melodic filter tames
-                // a shrill lead directly.
+                // The melodic FX bus. It carried Pad AND Lead until #255; the filter still
+                // tames a shrill melodic line directly.
                 //
-                // ⛔ THE "Lead" FIELD BELOW IS INERT TODAY AND THE FOUNDER CAN SEE IT. Every curated
-                // genre sets `leadDensity: 0`, so `BioComposer` composes no `.lead`-role note and
-                // there is nothing for this fader to scale (`LeadRoleAbsenceTests`, blocking bundle;
-                // the whole finding is in `RoleRhythm.swift`'s A5 paragraph). It is a lying control
-                // by this repo's own #135/#164/#227 standard — LEFT IN DELIBERATELY, because the two
-                // honest fixes are both founder calls: give a genre a lead again, or remove the
-                // field. Removing it silently would also delete the only door to a PERSISTED value
-                // (`MixerStore.lead` → `"mixer.lead"`), which is the #167 lesson.
-                // Do not add a caption or grey it out to "explain" it either — that ships an apology
-                // instead of a decision.
-                mixStripCard("Melodic · Pad + Lead") {
+                // ⛔ A "Lead" FIELD STOOD HERE AND IS DELETED (#255, founder 2026-07-31:
+                // "Lead kann raus aus dem Mix"). It was inert and the founder could see it:
+                // every curated genre sets `leadDensity: 0`, so `BioComposer` composes no
+                // `.lead`-role note and there was nothing for the fader to scale
+                // (`LeadRoleAbsenceTests`, blocking bundle; the full finding is in
+                // `RoleRhythm.swift`'s A5 paragraph). The note that stood here named the two
+                // honest fixes — give a genre a lead again, or remove the field — and said both
+                // were founder calls. The founder made the second one.
+                //
+                // ⚠️ THE REMOVAL IS NOT COMPLETE WITHOUT `normaliseDoorlessLeadMix()`, and that
+                // is the #167 lesson this note itself flagged: `MixerStore.lead` is PERSISTED
+                // (`"mixer.lead"`), and this field was its only door. Deleting the door alone
+                // would freeze whatever the user last dialled — so an install sitting at 0.30
+                // would attenuate the first lead a future genre produces by 70 %, silently,
+                // with no control able to undo it. `MixerStore.lead` itself stays: it is still
+                // read by `level(for: .lead)` at compose time, and deleting the property would
+                // be a second, unrelated decision.
+                mixStripCard("Melodic · Pad") {
                     EchoelValueField(label: "Pad", value: mixBinding(\.pad),
                                      range: 0...1, unit: "", decimals: 2)   // see Bass Level
-                    EchoelValueField(label: "Lead", value: mixBinding(\.lead),
-                                     range: 0...1, unit: "", decimals: 2)
                     EchoelValueField(label: "Filter", value: melodicCutoffBinding,
                                      range: TrackFXStore.cutoffRange, unit: "Hz", decimals: 0)
                     EchoelValueField(label: "Drive", value: melodicDriveBinding,
@@ -2130,7 +2139,10 @@ struct EchoelStudioView: View {
             // not wording: the board now also carries Field and Click, which have no genre
             // balance to return to and which this button does not touch. "Reset to genre
             // balance" on a board with four strips promises four and delivers two.
-            .accessibilityHint("Sets the generated bass, pad and lead back to the genre's own balance. Field and click are not changed.")
+            // "and lead" dropped with #255 — `resetToUnity()` still writes `lead` (harmless,
+            // and it agrees with `normaliseDoorlessLeadMix()`), but the hint describes what
+            // the player can SEE change, and the lead fader is gone.
+            .accessibilityHint("Sets the generated bass and pad back to the genre's own balance. Field and click are not changed.")
         }
     }
 
@@ -3671,6 +3683,28 @@ struct EchoelStudioView: View {
     private func normaliseUnreachableDonutMode() {
         guard spectralDonuts else { return }   // untouched for everyone already on `false`
         spectralDonuts = false
+    }
+
+    /// ⛔ DELETE THIS TOGETHER WITH THE LINE THAT CALLS IT, IN THE SAME COMMIT THAT GIVES
+    /// `MixerStore.lead` A DOOR AGAIN (a lead fader, or any other control that writes it).
+    /// Same shape and same reason as `normaliseUnreachableDonutMode()` above, one store down.
+    ///
+    /// #255 deleted the Mix board's "Lead" field on the founder's call. `MixerStore.lead` is
+    /// persisted (`"mixer.lead"`) and that field was its ONLY writer besides `resetToUnity()`,
+    /// which is itself only reachable from the same panel. So a player who once pulled the
+    /// lead down to 0.30 would keep 0.30 forever — and the moment a genre produces a
+    /// `.lead`-role note again (#243/#196, or any future genre with `leadDensity > 0`), that
+    /// stored value multiplies straight into the velocity via `MixerStore.combined` and
+    /// attenuates the new lead by 70 %, with no control able to undo it. That is strictly
+    /// worse than the inert fader the slice removes, which is why the two ship together.
+    ///
+    /// Deliberately NOT a migration flag: while no door exists, the only truthful value is
+    /// unity, and re-asserting it each launch costs one comparison. The `!= 1` guard keeps
+    /// `didSet` — and therefore the `UserDefaults` write — off the path for everyone already
+    /// at unity, which is every fresh install.
+    private func normaliseDoorlessLeadMix() {
+        guard mixer.lead != 1.0 else { return }
+        mixer.lead = 1.0
     }
 
     /// Display name of the look nearest the slider position (no per-stop labels).
