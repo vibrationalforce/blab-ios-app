@@ -4317,6 +4317,15 @@ struct EchoelStudioView: View {
                     .frame(width: 34, height: 34)
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                    // #358 — 34×34 is 60 % of the HIG 44×44 floor by area, and this is the ONLY
+                    // door to save / favorite / delete / submit a mood. The house answer is to
+                    // grow the HIT AREA, not the picture (`contentShape` changes no layout), so
+                    // the chip still reads as a peer of the 34-high preset menu beside it.
+                    // CLEARANCE, measured, because −6 is only safe against a known gap:
+                    // leading ≥16 pt (`HStack(spacing: 8)` puts 8 pt on EACH side of the
+                    // `Spacer`), above 12 pt (`EchoelPanel`'s content `.padding(.top, 12)`),
+                    // below 14 pt (that stack's row spacing). Trailing is the panel edge.
+                    .contentShape(Rectangle().inset(by: -6))
             }
             .accessibilityLabel("Mood actions")
         }
@@ -4779,6 +4788,17 @@ struct EchoelStudioView: View {
                         .frame(width: 34, height: 34)
                         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                             .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        // #358 — same shortfall and same fix as the Mood overflow; this is the
+                        // only door to save / favorite / delete / submit a sound.
+                        // ⛔ THE GAP HERE IS TIGHTER AND IT DECIDES WHO MAY BE OUTSET. The preset
+                        // Menu beside it carries `maxWidth: .infinity`, so the two chips are
+                        // exactly `HStack(spacing: 8)` apart — no `Spacer` widening it as in the
+                        // Mood row. −6 leaves 2 pt. Giving the PRESET menu the same outset would
+                        // make the two hit areas overlap by 4 pt, and the overlapping half is the
+                        // destructive one. Only the ellipsis is outset, deliberately.
+                        // Vertically: 4 pt to the "Character" label above (a `Text`, not
+                        // hit-testable) and 14 pt to `promptRow` below.
+                        .contentShape(Rectangle().inset(by: -6))
                 }
                 .accessibilityLabel("Sound actions")
             }

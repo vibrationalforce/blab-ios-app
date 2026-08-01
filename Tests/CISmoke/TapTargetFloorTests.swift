@@ -67,6 +67,7 @@ final class TapTargetFloorTests: XCTestCase {
     private static let tempoField = "Sources/Echoelmusic/Studio/BodyTempoField.swift"
     private static let workspace = "Sources/Echoelmusic/Studio/WorkspaceView.swift"
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+    private static let panel = "Sources/Echoelmusic/Studio/EchoelPanel.swift"
 
     /// The outset idiom, spelled exactly as both transport-bar controls spell it.
     private static let outset6 = "contentShape(Rectangle().inset(by: -6))"
@@ -157,6 +158,112 @@ final class TapTargetFloorTests: XCTestCase {
             14×14 pt of target, about a fifteenth of the HIG 44×44 area. 36 is this row's own \
             height (`.frame(height: 36)` on the enclosing HStack), which is why it is 36 and \
             not 44: a taller control would outgrow the row that contains it.
+            """)
+    }
+
+    // MARK: - The two preset overflow menus (#358)
+
+    /// The Mood and Sound preset bars each end in an `ellipsis.circle` Menu drawn at 34×34 —
+    /// 60 % of the HIG 44×44 floor by area — and each is the ONLY door to save / favorite /
+    /// delete / submit for its library. They get the transport bar's outset, not a bigger
+    /// frame: `contentShape` changes no layout, so the chip still reads as a peer of the
+    /// 34-high preset menu beside it in the same row.
+    ///
+    /// ⛔ WHY THE WINDOW IS FIVE LINES AND NOT THE WHOLE FILE. There are now two of these
+    /// outsets in `EchoelStudioView`, so a file-wide `contains` would pass with ONE of them
+    /// present and the other deleted — which is precisely the defect this whole file was
+    /// written for (the transport row where one member had the fix and its neighbour did not).
+    /// Each assertion has to see its OWN control.
+    func testBothPresetOverflowMenusCarryTheHitAreaOutset() throws {
+        let studio = try codeLines(Self.studio)
+        for label in ["Mood actions", "Sound actions"] {
+            let anchor = "accessibilityLabel(\"\(label)\")"
+            let hits = studio.indices.filter { studio[$0].contains(anchor) }
+            XCTAssertEqual(hits.count, 1, """
+                `\(anchor)` is not unique in EchoelStudioView, so the window below cannot be \
+                trusted to scan the control this test names. Re-anchor before reading the \
+                assertion that follows as a pass or a fail.
+                """)
+            guard let idx = hits.first else { continue }
+            let window = studio[max(0, idx - 5)..<idx]
+            XCTAssertTrue(window.contains { $0.contains(Self.outset6) }, """
+                The "\(label)" overflow menu lost its `\(Self.outset6)`. Its visible chip is \
+                34×34, which is 60 % of the HIG 44×44 floor by area, and it is the only door \
+                to save / favorite / delete / submit in that library — a missed tap there \
+                lands on the preset menu next to it and CHANGES the preset instead.
+                """)
+        }
+    }
+
+    /// The outset is a claim about a GAP, and both gaps live in other lines. This pins them.
+    ///
+    /// ⛔ THE TWO ROWS ARE NOT THE SAME MEASUREMENT, and conflating them would have produced a
+    /// real overlap. The Mood row puts a `Spacer` between the preset menu and the overflow, so
+    /// `HStack(spacing: 8)` applies on BOTH sides of it — ≥16 pt of clearance. The Sound row has
+    /// the two chips adjacent (the preset menu carries `maxWidth: .infinity`), so the gap is
+    /// exactly 8 pt and −6 leaves 2. That is why only the ellipsis is outset in the Sound row:
+    /// giving the preset menu the same modifier would overlap the two hit areas by 4 pt, and
+    /// the overlapping half contains Delete.
+    ///
+    /// Vertically both rows sit in `EchoelPanel`'s content stack, whose 14 pt row spacing is the
+    /// clearance below. That is why this test reads a second file.
+    ///
+    /// ⛔ EVERY LITERAL BELOW IS WINDOWED, AND THE FIRST DRAFT OF TWO OF THEM WAS NOT.
+    /// `labeledRow("Character")` occurs TWICE in this file and `Spacer(minLength: 0)` FIVE
+    /// times; a `firstIndex`/file-wide `contains` on either would have passed while the row
+    /// this test names had lost the very thing being asserted — the same "assertion that
+    /// cannot fail for its own name" trap #376 paid for. Each anchor here is a declaration
+    /// that occurs once, and each literal is looked for between that declaration and the
+    /// control it belongs to.
+    func testThePresetRowGapsStillClearTheOutset() throws {
+        let studio = try codeLines(Self.studio)
+
+        /// Index range from a unique row declaration to that row's overflow-menu label.
+        func rowRange(_ declaration: String, _ endAnchor: String) -> Range<Int>? {
+            guard let start = studio.firstIndex(where: { $0.contains(declaration) }),
+                  let end = studio[start...].firstIndex(where: { $0.contains(endAnchor) })
+            else { return nil }
+            return start..<end
+        }
+
+        let rows = [("private var moodPresetBar: some View {", "Mood actions", "Mood"),
+                    ("private var presetRow: some View {", "Sound actions", "Sound")]
+        for (declaration, endAnchor, row) in rows {
+            guard let range = rowRange(declaration, endAnchor) else {
+                XCTFail("""
+                    the \(row) preset bar no longer spans `\(declaration)` → `\(endAnchor)`. If \
+                    the row was renamed, re-anchor this test in the same commit; if it was \
+                    removed, remove its outset assertion above with it rather than leaving it \
+                    to pass vacuously.
+                    """)
+                continue
+            }
+            XCTAssertTrue(studio[range].contains { $0.contains("HStack(spacing: 8)") }, """
+                The \(row) preset row's stack spacing changed. Both overflow menus' −6 outsets \
+                were sized against an 8 pt gap. In the Sound row that gap is the whole clearance \
+                (the two chips are adjacent), so narrowing it makes the overflow's hit area \
+                overlap the preset menu — taps meant for Delete would open the preset list, and \
+                taps meant for the preset list would land on a destructive menu. Re-measure the \
+                outset in the same commit, or leave the spacing alone.
+                """)
+
+            if row == "Mood" {
+                XCTAssertTrue(studio[range].contains { $0.contains("Spacer(minLength: 0)") }, """
+                    The Mood preset row's `Spacer(minLength: 0)` is gone. It is what makes that \
+                    row's clearance ≥16 pt rather than the Sound row's 8 — `HStack` spacing \
+                    applies on both sides of a Spacer. Without it the two rows have the same \
+                    tight gap, which is still safe for a −6 outset but no longer for anything \
+                    larger.
+                    """)
+            }
+        }
+
+        let panelLines = try codeLines(Self.panel)
+        XCTAssertTrue(panelLines.contains { $0.contains("spacing: 14) { content() }") }, """
+            `EchoelPanel`'s content stack no longer spaces its rows by 14 pt. That gap is the \
+            VERTICAL clearance both overflow outsets were measured against (−6 into 14 leaves \
+            8). Every panel row in the app is affected, not just these two, so re-measure before \
+            changing it.
             """)
     }
 }
