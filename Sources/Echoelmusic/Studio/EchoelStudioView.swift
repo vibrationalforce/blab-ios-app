@@ -4990,18 +4990,67 @@ struct EchoelStudioView: View {
         if !running { applySoundLive() }
     }
 
-    /// Coalesce fader movement into one re-bake.
+    /// The AUDIBLE half of a re-bake, run undebounced on every fader event.
     ///
-    /// 350 ms, and the number is set by the EXPENSIVE half, not the audible one. A
-    /// re-bake reaches `ClipStore.updateComposerMelody` → `persist()` → `AppGroupStore`,
-    /// i.e. a pretty-printed JSON encode of the whole clip grid plus an atomic
-    /// file-protected write — synchronously, on the actor that also hosts this view's
-    /// `.menu` Pickers. At 120 ms a stepwise drag could fire that ~8×/s, which is the
-    /// main-actor-starvation class that froze menus in 10.76.48. Nothing is LOST by
-    /// waiting: the roll swaps the new levels in at the next bar boundary regardless, and
-    /// a bar is ~2 s at any usable tempo. Still not free — if a device log ever shows a
-    /// hitch while dragging a Mix fader, the next step is to split the clip write onto its
-    /// own longer settle and keep only the roll on this one.
+    /// Deliberately a SUBSET of `rebalanceTake()`, not a refactor of it: the debounced
+    /// path still calls the full method unchanged, so this can only make the fader land
+    /// EARLIER — it can never change where it lands. Staging the same bars twice is
+    /// idempotent (`pendingNotes` is overwritten with equal content), and re-deriving
+    /// `mixGlued` twice costs a few hundred struct copies.
+    ///
+    /// Three things are deliberately NOT here, and each omission is why this is safe to
+    /// run at gesture rate:
+    /// · `syncPrimaryRollClip` / `writeLaneTakes` — the JSON encode + atomic file write.
+    ///   That is the whole point of the split.
+    /// · the `lastRawTake == nil` fallback to `recomposeIfRunning()`. Reached on every
+    ///   opened project (`open(_:)` restores a baked take without raw bars), it would fire
+    ///   a generate schedule per drag event. The debounced half keeps that fallback, so
+    ///   the no-raw-take case behaves exactly as before this change.
+    /// · the stopped branch — see the note on `scheduleRebalance` below.
+    private func rebalanceAudibleNow() {
+        guard running, beatPlayer.pattern.isPlaying else { return }
+        guard let take = lastRawTake, !take.bars.isEmpty else { return }
+        // `take.genre`, not `style` — same reason as in `rebalanceTake()`: the take must be
+        // re-glued with the genre it was COMPOSED in, not one whose recompose has not
+        // landed yet. Using `style` here would make the immediate half and the debounced
+        // half disagree for the length of that window, which is worse than being late.
+        let bars = take.bars.map { mixGlued($0, genre: take.genre) }
+        pianoRoll.rebakeArrangement(bars, playing: true)
+    }
+
+    /// Apply the AUDIBLE half of a fader move at once, and coalesce only the expensive
+    /// half. Founder 2026-08-01: "Lautstärke fader vom Pad zum Beispiel reagiert versetzt".
+    ///
+    /// ⭐ THE SPLIT THIS DOES, and why it is the fix rather than a tuning of the number.
+    /// The 350 ms was never set by anything musical — the paragraph below already said so,
+    /// and even named this split as the next step. A re-bake has two halves with costs
+    /// three orders of magnitude apart:
+    /// · AUDIBLE — `take.bars.map { mixGlued(…) }` + `rebakeArrangement`. A few hundred
+    ///   struct copies and one array assignment. `applySoundLive()` already proves this
+    ///   class is affordable at gesture rate: it runs on EVERY drag event, undebounced.
+    /// · EXPENSIVE — `syncPrimaryRollClip` → `ClipStore.updateComposerMelody` →
+    ///   `persist()` → `AppGroupStore`: a pretty-printed JSON encode of the whole clip
+    ///   grid plus an atomic file-protected write, SYNCHRONOUSLY on the actor that also
+    ///   hosts this view's `.menu` Pickers. At 120 ms a stepwise drag could fire that
+    ///   ~8×/s — the main-actor-starvation class that froze menus in 10.76.48.
+    /// Waiting for the cheap half behind the expensive one added 350 ms of pure dead time
+    /// in front of a control the founder holds while listening.
+    ///
+    /// WHAT THIS DOES NOT REMOVE, stated plainly so the next reader does not expect more
+    /// than it gives: the roll still swaps the new levels in at the next BAR BOUNDARY
+    /// (~2 s at 120 bpm), and that part IS musically required — the alternative is a
+    /// mid-bar note-array swap, and `rebakeArrangement`'s own multi-bar branch documents
+    /// why it stages instead. So the Pad fader goes from ~2.35 s to ~2.0 s worst case, not
+    /// to zero. Making the level itself live (a per-role output gain, so the fader stops
+    /// travelling through note VELOCITY at all) is the change that removes the remaining
+    /// 2 s — that is #196, a different and much larger slice, and it must answer #205
+    /// first (velocity doubles as "is this note audible" for the visual, the light output
+    /// and the felt sub).
+    ///
+    /// The immediate half runs ONLY while playing. Stopped, nothing is sounding, so there
+    /// is no lateness to remove — and `rebakeArrangement(_:playing: false)` delegates to
+    /// `loadArrangement`, which calls `allNotesOff()` and resets `playedBars`; doing that
+    /// per drag event would be churn in exchange for nothing.
     ///
     /// DELIBERATELY NOT cancelled by `stopEverything` / `pausePlaybackKeepingSession`,
     /// unlike `regenTask`. Those cancel WORK GENERATORS — a pending re-bake starts no
@@ -5009,6 +5058,7 @@ struct EchoelStudioView: View {
     /// agree with the fader the user just moved, which is the whole point of #174. A
     /// fader nudged just before Stop must not silently leave the old level baked in.
     private func scheduleRebalance() {
+        rebalanceAudibleNow()
         rebalanceTask?.cancel()
         rebalanceTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(350))
