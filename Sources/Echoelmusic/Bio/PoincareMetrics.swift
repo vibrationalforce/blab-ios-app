@@ -11,11 +11,8 @@
 //
 //  ⭐ WHY A PICTURE OF THE HEARTBEAT AND NOT ANOTHER NUMBER: the SHAPE is the
 //  information. A relaxed, coherent state draws a wide comet along the diagonal; a
-//  tense or shallow-breathing one draws a tight ball; a missed or doubled beat throws
-//  a visible satellite off the cloud. That last property is why it earns a place in a
-//  panel a performer actually watches — it is simultaneously a body readout and a
-//  plain-sight quality check on the sensor, which matters here because the camera path
-//  is the approximate one (a chest strap gives clean beat-to-beat directly).
+//  tense or shallow-breathing one draws a tight ball. Two numbers cannot say "wide in
+//  one direction, narrow in the other" as directly as an image of the cloud can.
 //
 //  DEFINITIONS. SD1 is the dispersion of the cloud PERPENDICULAR to the line of
 //  identity (short-term, beat-to-beat); SD2 is the dispersion ALONG it (long-term).
@@ -30,26 +27,79 @@
 //      SD1² = ½·SDSD²          SD2² = 2·SDNN² − ½·SDSD²
 //  and the second one is an APPROXIMATION: SDNN is taken over all N intervals while the
 //  cloud has only N−1 points, so the two are not the same sample set. Measured over
-//  200 000 random 3–8-beat series, `2·SDNN² − ½·SDSD²` came out NEGATIVE in **7.5 %** of
-//  them — a NaN under the square root, not the "few ulps" rounding case a clamp is for.
-//  SD1 is unaffected (both routes agree to the last bit, because the perpendicular
-//  projection IS ±SDSD/√2), so only SD2 was ever at stake.
+//  200 000 random series of 3–7 intervals with BOTH deviations population (÷n):
+//  `2·SDNN² − ½·SDSD²` came out NEGATIVE in **7.6 %** of them — a NaN under the square
+//  root, not the "few ulps" rounding case a clamp is for.
+//
+//  ⛔ AND THE DIVISORS ARE PART OF THAT CLAIM, which the first version of this header
+//  left out — it wrote "3–8-beat series, 7.5 %" with no divisor named, and the rate is
+//  strongly sensitive to both. Measured, same 200 000 trials each:
+//      SDNN ÷n,   SDSD ÷n    →  7.6 % negative  (3–7 intervals) · 6.3 % (3–8)
+//      SDNN ÷n,   SDSD ÷n−1  → 29.7 %           (3–7)
+//      SDNN ÷n−1, SDSD ÷n−1  → 13.6 %           (3–7)
+//      SDNN ÷n−1, SDSD ÷n    →  0.0 %           (3–7)
+//  A bare percentage with no divisor pairing and no N range is not a reproducible
+//  number, and this file is the one place in the app where a wrong physiological
+//  justification cannot be caught by a compiler.
+//
+//  SD1 is unaffected by any of this: the perpendicular projection IS ±SDSD/√2, so the two
+//  routes are the SAME quantity analytically. (Numerically they differ in the last digits
+//  — up to 5.3e−13 relative on random series, from float summation order. The first
+//  version of this header said "agree to the last bit", which is false and is the sort of
+//  overstatement this file exists to stop.) Only SD2 was ever at stake.
 //
 //  The cleanest demonstration is the alternating series 800, 840, 800, 840 … : every
 //  point is (800, 840) or (840, 800), so every point sums to 1640 and the cloud has
-//  ZERO extent along the identity line. Geometry says SD2 = 0. The identity says 4.04.
-//  Zero is the truth; 4.04 is the artefact of mixing two sample sets. `PoincareMetricsTests`
-//  pins that case, so nobody can "simplify" this back into the algebraic form.
+//  ZERO extent along the identity line. Geometry says SD2 = 0. The identity says 4.0406
+//  with both deviations population, or 11.4286 with a sample SDNN — two different wrong
+//  answers, which is itself the tell. `PoincareMetricsTests` pins that case, so nobody
+//  can "simplify" this back into the algebraic form.
 //
 //  ⛔ MY FIRST VERSION OF THIS HEADER ALSO GOT THE DANGER BACKWARDS, which is worth
 //  recording because it is this repo's named recurring failure — mechanism plausible,
 //  justification false. It warned that reusing `HRVMetrics.sdnn` (the SAMPLE deviation,
 //  ÷n−1) instead of a population one "can drive the term negative". Measured: that
-//  combination produced **zero** negatives in the same 200 000 trials — a sample SD is
-//  LARGER, so it makes the subtraction safer, not riskier. The real hazard was the
-//  formula, not the convention. A confident wrong reason in a file about physiology is
-//  exactly the kind the next session cannot refute, so it is corrected here rather than
-//  quietly deleted.
+//  combination produced **zero** negatives in the same trials — a sample SD is LARGER, so
+//  it makes the subtraction safer, not riskier (it is the last row of the table above).
+//  The real hazard was the formula, not the convention.
+//
+//  DIVISOR, and why the reference implementations disagree with each other. Both
+//  deviations here are POPULATION (÷n) over the cloud's own points — the same choice
+//  pyHRV makes (`numpy.std`, ddof=0 by default). NeuroKit2 uses ddof=1 and therefore
+//  reads √(n/(n−1)) higher: +8.0 % at 7 pairs, +2.6 % at 20, converging away. So SD1 and
+//  SD2 are only comparable across tools when the divisor is stated — but the RATIO is
+//  divisor-invariant (the factor cancels; measured max relative difference 4.6e−16), and
+//  that is the number to quote against literature.
+//
+//  ⛔ GAPS ARE NOT CLOSED — the defect the first version of this file shipped, and the
+//  repo had already decided the question. It filtered implausible intervals into a
+//  COMPACTED array and then paired adjacent entries, so the two beats either side of a
+//  removed one became a "consecutive" pair that never occurred. `RRIntervalHygiene`
+//  ("THE PART THAT IS EASY TO GET WRONG" in its own header) names exactly that trap for
+//  RMSSD and solves it by returning SEGMENTS; `HRVMetrics.rmssd(segments:)` already
+//  consumes them. This file now does the same.
+//
+//  Measured cost, with the protocol stated because a bare percentage here would be the
+//  same unreproducible claim as the one two paragraphs up. Take the 10-beat window used in
+//  the tests; simulate ONE missed beat by replacing an adjacent pair with its SUM (that is
+//  what a dropped beat physically is); compare SD1 from compacted survivors against SD1
+//  from segments, at each of the 9 possible positions:
+//      −6.8 % … +11.5 % for seven of them · 0.0 % when the artifact lands at the very tail
+//      (nothing to join it to) · **+851 %** when it lands at the HEAD.
+//  Four dropouts in the same window: +14 749 %. The head case is not an outlier to
+//  discount — it is `RRIntervalHygiene`'s own documented hole (the first interval of a
+//  window is band-checked but never Malik-checked, because there is no anchor yet), so a
+//  head artifact survives hygiene AND gets a fabricated partner under compaction. Note
+//  also that compaction is not reliably an OVER-estimate: three positions read low. There
+//  is no correction factor to apply; the pairing has to be right.
+//
+//  ⛔ AND THE JUSTIFICATION THAT WENT WITH IT IS STRUCK. The first header argued the plot
+//  doubles as a sensor check because "a missed or doubled beat throws a visible satellite
+//  off the cloud". Under hygiene it does not: an artifact is REJECTED, so it is neither
+//  plotted nor paired. The honest sensor check is the surviving FRACTION —
+//  `Analysis.acceptedFraction`, carried here for exactly that reason — against the bar the
+//  repo already set, `RRIntervalHygiene.minAcceptedFractionForHRV` (0.8). A view that
+//  shows SD1/SD2 while that bar is unmet is stating a number built from a spliced record.
 //
 //  NOT A DIAGNOSIS. These are descriptive statistics of an interval series, for
 //  self-observation (CLAUDE.md safety section). Nothing here interprets a shape as a
@@ -58,12 +108,13 @@
 //  Pure value maths, Foundation only, so the blocking bundle can test it without a
 //  sensor, a view or an audio graph.
 //
-//  ⛔ CONSUMER-FREE FOR EXACTLY ONE CYCLE, said out loud because this repo keeps a shelf
-//  of doorless files and a new one is not automatically innocent. The view and its door
-//  are #347 Slice 3b, next cycle. The split is deliberate: the MATHS is the part that has
-//  to be right — a mislabelled SD1 is a lying control in the one area where the app
-//  touches physiology — and it is the part the blocking bundle can actually check. If
-//  Slice 3b does not land, this file is a defect: delete it rather than let it sit.
+//  ⛔ CONSUMER-FREE FOR ONE MORE CYCLE, said out loud because this repo keeps a shelf of
+//  doorless files and a new one is not automatically innocent. The view and its door are
+//  #347 Slice 3b. The split cost something real and it is recorded rather than glossed:
+//  both defects found in review were CONTRACTS between this core and its future view
+//  (which points get paired, what the plot is claimed to prove), so shipping the maths
+//  first froze the wrong shape into a tested file and this slice is the repair. If 3b
+//  does not land next, this file is a defect: delete it rather than let it sit.
 //
 
 import Foundation
@@ -87,21 +138,30 @@ enum PoincareMetrics {
         /// along the diagonal is a real, describable state (see the alternating series in
         /// the file header), and printing "∞" or a silent 0 for it would be a claim.
         let ratio: Double?
-        /// How many beat PAIRS the numbers rest on. Meant to be SHOWN next to them: six
-        /// points and six hundred deserve different confidence, and hiding that behind a
-        /// tidy "SD1 24 ms" is how a readout starts overstating itself.
+        /// How many beat PAIRS the numbers rest on, counted WITHIN segments. Meant to be
+        /// SHOWN next to them: six points and six hundred deserve different confidence,
+        /// and hiding that behind a tidy "SD1 24 ms" is how a readout starts overstating
+        /// itself. Note this is NOT `intervals − 1` once anything was rejected — every
+        /// gap costs a pair, which is the visible trace of the hygiene.
         let pairs: Int
     }
 
-    /// Physiologically plausible RR window in milliseconds — 250 ms (240 bpm) to
-    /// 2000 ms (30 bpm), the same band `CameraRPPGBioPublisher` applies before replaying
-    /// RR through the respiration estimator.
+    /// Everything a view needs, from ONE call — the cloud and the numbers computed from
+    /// the SAME segments.
     ///
-    /// "Same band", not "the same constant": that site writes strict inequalities
-    /// (`ms > 250 && ms < 2000`), so an interval of exactly 250.0 or 2000.0 ms passes here
-    /// and not there. Immaterial for a picture, and said plainly so the next reader does
-    /// not go looking for a shared constant that does not exist.
-    static let plausibleMs: ClosedRange<Double> = 250...2000
+    /// Separate `points(...)` and `descriptors(...)` calls are still available and still
+    /// tested, but a view must use this: with two entry points a caller can draw one set
+    /// of beats and label it with statistics derived from another, and the picture would
+    /// look entirely reasonable while doing it.
+    struct Analysis: Equatable {
+        let points: [Point]
+        let descriptors: Descriptors
+        /// Fraction of the RAW intervals that survived hygiene, 0…1. The honest sensor
+        /// check (see the file header): compare against
+        /// `RRIntervalHygiene.minAcceptedFractionForHRV` before showing SD1/SD2 as a
+        /// figure about the body.
+        let acceptedFraction: Double
+    }
 
     /// Below this spread (in ms) a cloud is FLAT, not narrow — the value is arithmetic
     /// residue, not a measurement, and nothing may be divided by it.
@@ -113,55 +173,66 @@ enum PoincareMetrics {
     /// through and prints it. Measured, not estimated — and the reason this constant is
     /// named rather than inlined as a magic `1e-6`.
     ///
-    /// 1e−6 ms is a picosecond of heart-rate variability: seven orders above the residue
-    /// double precision produces at RR scale (~1e−13), and nine below the smallest spread
-    /// any sensor here can resolve (rPPG beats land on video frames, ~30 ms apart).
+    /// 1e−6 ms is a NANOsecond of heart-rate variability (the first version of this line
+    /// said picosecond, which is a thousand times smaller): seven orders above the residue
+    /// double precision produces at RR scale (~1e−13 ms), and six orders below the finest
+    /// quantum any sensor here delivers — the Polar strap reports RR in 1/1024 s steps,
+    /// 0.977 ms, and the camera path lands beats on video frames ~30 ms apart.
     static let degenerateSpreadMs = 1e-6
 
-    /// Keep only intervals that could be a heartbeat. An rPPG series in particular carries
-    /// dropouts that surface as one impossible 4-second "interval"; left in, a single such
-    /// point rescales the whole plot and squashes the real cloud into a dot.
-    static func plausible(_ rrMs: [Double]) -> [Double] {
-        rrMs.filter { $0.isFinite && plausibleMs.contains($0) }
+    /// Fewest beat pairs that can carry a spread. One point has no dispersion in any
+    /// direction, and reporting 0 for it would be a claim rather than an absence.
+    static let minimumPairs = 2
+
+    /// Runs of genuinely consecutive accepted intervals.
+    ///
+    /// Delegates to `RRIntervalHygiene` rather than re-deriving a band here: one hygiene
+    /// definition per repo, and that one carries the Malik ectopic rule and the honest
+    /// note about what it costs during strong RSA. A thin named wrapper rather than a
+    /// direct call at each site, so the dependency is visible in this file's own API and
+    /// the tests can pin it.
+    static func segments(_ rrMs: [Double]) -> [[Double]] {
+        RRIntervalHygiene.acceptedSegments(rrMs: rrMs)
     }
 
-    /// The scatter itself: consecutive pairs of the (already filtered) series.
+    /// The scatter itself: consecutive pairs, taken WITHIN each segment and never across
+    /// the boundary between two.
     ///
-    /// Pairs come from ADJACENT entries only — that is the definition, and it is also why
-    /// filtering must happen BEFORE this call and not inside it: dropping an implausible
-    /// interval joins its two neighbours into a pair that never occurred. Passing raw input
-    /// is therefore wrong in a way that still draws a plausible-looking picture. Call
-    /// `plausible(_:)` first, as `descriptors(rrMs:)` does.
-    static func points(_ rrMs: [Double]) -> [Point] {
-        guard rrMs.count >= 2 else { return [] }
-        return (0..<(rrMs.count - 1)).map { Point(rr: rrMs[$0], next: rrMs[$0 + 1]) }
+    /// The boundary is the whole point. A rejected interval leaves a gap; pairing across
+    /// it would invent a beat-to-beat transition that never happened — and, being a single
+    /// ordinary-looking dot, it would be invisible in the picture it corrupts.
+    static func points(segments: [[Double]]) -> [Point] {
+        var out: [Point] = []
+        out.reserveCapacity(segments.reduce(0) { $0 + max(0, $1.count - 1) })
+        for segment in segments where segment.count >= 2 {
+            for i in 0..<(segment.count - 1) {
+                out.append(Point(rr: segment[i], next: segment[i + 1]))
+            }
+        }
+        return out
     }
 
-    /// SD1/SD2 for a raw RR series, or `nil` when there is not enough to say.
+    /// SD1/SD2 over the pooled within-segment pairs, or `nil` when there are fewer than
+    /// `minimumPairs` of them.
     ///
-    /// `nil` and not zeros: a cloud of two beats has no meaningful perpendicular spread,
-    /// and "SD1 0 ms" is a claim rather than an absence. `HRVMetrics` returns 0 for that
-    /// case because its callers already treat 0 as unknown by convention; a view drawing a
-    /// picture has no such convention, so the type carries it instead.
-    ///
-    /// Needs at least 3 plausible intervals: two intervals give a single point, and one
-    /// point has no spread in either direction.
-    static func descriptors(rrMs: [Double]) -> Descriptors? {
-        let rr = plausible(rrMs)
-        guard rr.count >= 3 else { return nil }
-
+    /// `nil` and not zeros: a cloud of one point has no meaningful spread, and "SD1 0 ms"
+    /// is a claim rather than an absence. `HRVMetrics` returns 0 for that case because its
+    /// callers already treat 0 as unknown by convention; a view drawing a picture has no
+    /// such convention, so the type carries it instead.
+    static func descriptors(segments: [[Double]]) -> Descriptors? {
         // Project each point onto the two 45° axes. The √2 is the rotation, not a fudge:
         // (x−y)/√2 is the signed distance from the identity line, (x+y)/√2 the coordinate
         // along it.
         let root2 = 2.0.squareRoot()
         var perpendicular: [Double] = []
         var along: [Double] = []
-        perpendicular.reserveCapacity(rr.count - 1)
-        along.reserveCapacity(rr.count - 1)
-        for i in 1..<rr.count {
-            perpendicular.append((rr[i - 1] - rr[i]) / root2)
-            along.append((rr[i - 1] + rr[i]) / root2)
+        for segment in segments where segment.count >= 2 {
+            for i in 1..<segment.count {
+                perpendicular.append((segment[i - 1] - segment[i]) / root2)
+                along.append((segment[i - 1] + segment[i]) / root2)
+            }
         }
+        guard perpendicular.count >= minimumPairs else { return nil }
 
         // Snap a residue-sized spread to a clean zero before anyone reads it. Reporting
         // "SD2 0.0000000000002 ms" and reporting "SD2 0.0 ms" are the same statement about
@@ -173,7 +244,23 @@ enum PoincareMetrics {
         return Descriptors(sd1: sd1,
                            sd2: sd2,
                            ratio: sd2 >= degenerateSpreadMs ? sd1 / sd2 : nil,
-                           pairs: rr.count - 1)
+                           pairs: perpendicular.count)
+    }
+
+    /// THE entry point for a view: hygiene once, then the cloud and the numbers from the
+    /// same segments, plus the acceptance fraction that says whether to trust them.
+    static func analyse(rrMs: [Double]) -> Analysis? {
+        let segs = segments(rrMs)
+        guard let d = descriptors(segments: segs) else { return nil }
+        return Analysis(points: points(segments: segs),
+                        descriptors: d,
+                        acceptedFraction: RRIntervalHygiene.acceptedFraction(rrMs: rrMs))
+    }
+
+    /// Descriptors for a raw series. Convenience over `analyse(rrMs:)` for callers that
+    /// want only the numbers — never for a view, which must draw and label from one call.
+    static func descriptors(rrMs: [Double]) -> Descriptors? {
+        descriptors(segments: segments(rrMs))
     }
 
     /// Snap a residue-sized value to exactly zero. See `degenerateSpreadMs`.
@@ -185,9 +272,10 @@ enum PoincareMetrics {
     ///
     /// Population and not sample because these are the moments of a FINITE point set that
     /// is fully in hand — the cloud on screen is the whole population, not a draw from a
-    /// larger one. (`HRVMetrics.sdnn` uses ÷n−1, correctly, because SDNN is reported as an
-    /// estimate of an underlying process. Two different questions, two different divisors;
-    /// neither is a bug in the other.)
+    /// larger one, and it is the convention pyHRV follows (see the header note on the
+    /// divisor and on NeuroKit2's opposite choice). (`HRVMetrics.sdnn` uses ÷n−1,
+    /// correctly, because SDNN is reported as an estimate of an underlying process. Two
+    /// different questions, two different divisors; neither is a bug in the other.)
     private static func populationSD(_ xs: [Double]) -> Double {
         guard !xs.isEmpty else { return 0 }
         let n = Double(xs.count)
