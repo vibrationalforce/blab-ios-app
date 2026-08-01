@@ -305,7 +305,20 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
 
     /// The receipt a deferred cancellation leaves: which gesture it reverted, the number it took
     /// away (`from`), and the number it put back (`to`). `onEnded` tears it up — see the long
-    /// note at that call site. nil whenever no revert is outstanding.
+    /// note at that call site.
+    ///
+    /// ⚠️ IT IS NOT NIL WHENEVER NO REVERT IS OUTSTANDING, which is what this line claimed. After
+    /// a TRUE cancellation nothing tears the receipt up — `onEnded` never comes — so it holds a
+    /// `V` and an `Int` until some later gesture's `onEnded` clears it. Harmless (the `r.seq ==
+    /// gestureSeq` check makes a stale receipt unreadable), but the precise statement is "nil
+    /// whenever no revert is UNANSWERED", and the difference is what a reader debugging this
+    /// would trip over.
+    ///
+    /// ⚠️ `from` AND `to` ARE BOTH `V`, so a future edit that writes the receipt positionally —
+    /// `(gestureSeq, lastWritten, start)`, which compiles, Swift does not enforce labels when
+    /// they are omitted — could swap them, invert the undo, and type-check clean. Today the only
+    /// thing standing in the way is that `ScrubNotifiesOnlyOnRealChangeTests` pins the LABELLED
+    /// literal. If this ever stops being a tuple, a memberwise `private struct` is the reason.
     ///
     /// ⛔ IT EXISTS BECAUSE `endedSeq` IS ONLY HALF AN ANSWER, and the first #378 Nachlese said
     /// otherwise ("both orders are correct again"). `endedSeq` can only be read if `onEnded`
@@ -471,14 +484,26 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 //   wrapper resetting before its callback), so a synchronous revert would undo an
                 //   edit the user finished.
                 //
-                // ⭐ THE HOP IS NOT THE ANSWER, `endedSeq` IS. What the deferred check asks is a
-                // recorded fact — did `onEnded` run for THIS gesture number — not an assumption
-                // about SwiftUI's dispatch order. The first #378 asked `scrubbing` instead and
-                // called that a proof; it is not, and being wrong would have cost a legitimate
-                // `onCommit()` silently and intermittently. The three guards, in order: a new drag
-                // took over (`gestureSeq`) · this gesture ended normally (`endedSeq`) · somebody
-                // else wrote the value while we hopped (`value == wrote`). Only when all three say
-                // no is this a cancellation nobody else has spoken for.
+                // ⭐ THE HOP IS NOT THE ANSWER, AND NEITHER IS `endedSeq` ALONE. The two guards
+                // here ask a recorded fact — did a new drag take over (`gestureSeq`), did THIS
+                // gesture end normally (`endedSeq`) — instead of assuming a dispatch order. The
+                // first #378 asked `scrubbing` and called that a proof; it is not, and being
+                // wrong would have cost a legitimate `onCommit()` silently and intermittently.
+                //
+                // ⛔ AN EARLIER VERSION OF THIS BLOCK SAID THE TWO GUARDS SETTLE IT ("only when
+                // all three say no is this a cancellation nobody else has spoken for" — it also
+                // counted `value == wrote`, which lives in `revertCancelled`, not here). They do
+                // not settle it, and the declaration of `revertedGesture` says so in capitals:
+                // `endedSeq` is only READABLE once `onEnded` has run, so for the order where it
+                // has not, the task cannot tell "never coming" from "not here yet". That order is
+                // covered by making the revert REVERSIBLE (the receipt `onEnded` tears up), not
+                // by any guard on this line.
+                //
+                // This paragraph outlived its own retraction by one commit — it is the block a
+                // maintainer reads first, and it was still teaching the rule the file elsewhere
+                // withdrew. When a claim is retracted, grep the file for the places that repeat
+                // it; a doc contradicting itself across three hundred lines is the exact defect
+                // #378's Nachlese fixed for `unlatchScrub`/`resetScrubState`.
                 //
                 // ⚠️ ONE HOP PER GESTURE END, WHICH IS NOT THE THING THE LAW FORBIDS. CLAUDE.md
                 // bans `Task { @MainActor }` PER FRAME from a high-rate producer (10.76.48, the
@@ -764,6 +789,23 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // insurance against an assumption, not a fix for an observed bug. It is worth its
                 // twelve lines because the assumption is the one thing three commits in a row got
                 // wrong here, and because being wrong costs a finished edit silently.
+                //
+                // ⚠️ AND IT IS NARROWER THAN "THE EDIT IS SAFE NOW" — named by the #378 reviewer,
+                // recorded rather than fixed. When `value == r.to` YIELDS (a foreign writer moved
+                // the number between the revert and this callback), we fall through to the `moved`
+                // line — but `revertCancelled` has already nilled `scrubStartValue`, so `moved`
+                // computes false and the finished edit is dropped anyway. So this covers
+                // "revert → late onEnded" and NOT "revert → foreign write → late onEnded". The
+                // remaining case is one interleaving deeper inside a branch nobody could reach in
+                // the first place, and closing it would mean tracking this gesture's own last
+                // write. Stated so the next reader does not mistake the insurance for a proof.
+                //
+                // ⚠️ ONE SIDE EFFECT OF THE UNDO, also from that review: in the covered order the
+                // number goes v1 → v0 → v1 with TWO `onChange()` fires, so a normally-ended
+                // gesture can run the live-apply closures twice. Harmless for a pure apply; the
+                // one closure for which it would not be harmless is `applyArticulation()` (see
+                // `revertCancelled`'s doc), and it is idempotent in the value, so re-running it
+                // costs the same hand-tuned envelope once rather than twice.
                 if let r = revertedGesture, r.seq == gestureSeq, value == r.to {
                     revertedGesture = nil
                     value = r.from
@@ -812,21 +854,36 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     ///
     /// ⚠️ IT RESTORES THIS FIELD'S NUMBER, NOT THE WORLD. `EchoelStudioView` has 10 `onChange`
     /// closures spread over 25 fields (two of the ten are the `param`/`knob` helpers, which fan
-    /// out to 17 rows), and TWO of them destroy user work when re-run with an unchanged number:
-    /// `visualPresetID = ""` (4 rows) drops the chosen visual look — `@AppStorage`, so the loss
-    /// survives the launch — and `applyArticulation()` re-derives Attack/Decay/Sustain/Release
-    /// from the macro, overwriting a hand-tuned envelope.
+    /// out to 17 rows). ONE KIND of them still destroys user work when re-run with an unchanged
+    /// number: `applyArticulation()` re-derives Attack/Decay/Sustain/Release from the macro,
+    /// overwriting a hand-tuned envelope.
     ///
-    /// ⛔ THE FIRST #378 NACHLESE "CORRECTED" THAT TWO TO ONE AND WAS ITSELF WRONG. Its argument
-    /// was that `applyArticulation()` is a pure function of the restored number and therefore
-    /// comes back with it. Pure it is — but its four outputs are INDEPENDENTLY EDITABLE rows
-    /// (`param("Attack", $currentPatch.attack, …)` and its three neighbours in `EchoelStudioView`),
-    /// so re-deriving them restores the macro's envelope, not the one the user shaped by hand.
-    /// One reviewer asked me to propagate the "one" to three more places; the other refuted the
-    /// "one" outright. The source settled it: two. The lesson is not "trust the second reviewer"
-    /// — it is that a retraction needs the same evidence a claim does, and mine had none.
+    /// ⛔ TWO DIFFERENT ERRORS LIVED IN THIS PARAGRAPH. Keep them apart — one is arithmetic, the
+    /// other is judgment, and only the second is interesting.
     ///
-    /// Both belong to #379, in the rows that own those closures, not here.
+    /// (1) THE COUNT. It read "TWO of them", meaning two KINDS, in a sentence whose other numbers
+    /// are SITES. `visualPresetID = ""` sat on FOUR sites and `applyArticulation()` on one: five
+    /// sites, two kinds. The sibling `ScrubNotifiesOnlyOnRealChangeTests` had it right the whole
+    /// time ("(4×)", "(1×)"). Mixing the two units inside one sentence, in a file that lectures
+    /// twenty lines further up about never quoting an unmeasured number, is the same defect one
+    /// size smaller.
+    ///
+    /// (2) THE RETRACTION OF A RETRACTION, which is the part worth keeping. The first #378
+    /// Nachlese "corrected" two to one, arguing that `applyArticulation()` is a pure function of
+    /// the restored number and therefore comes back with it. Pure it is — but its four outputs
+    /// are INDEPENDENTLY EDITABLE rows (`param("Attack", $currentPatch.attack, …)` and its three
+    /// neighbours in `EchoelStudioView`), so re-deriving them restores the macro's envelope, not
+    /// the one the user shaped by hand. One reviewer asked me to propagate the "one" to three
+    /// more places; the other refuted it outright. The source settled it. The lesson is not
+    /// "trust the second reviewer" — it is that a retraction needs the same evidence a claim
+    /// does, and mine had none.
+    ///
+    /// #379 CLOSED THE OTHER KIND, WHERE IT BELONGED. The four visual-energy rows now call
+    /// `visualPresetDiverged()`, which takes the cleared preset id into a memo and hands it
+    /// straight back when the four values still match that preset — so a re-run with an unchanged
+    /// number is a no-op BY CONSTRUCTION rather than by this field's guard. That fix is in the
+    /// owner (`EchoelStudioView`), not here, because a control with 62 call sites has no business
+    /// knowing what a preset is. `applyArticulation()` is untouched and belongs to its own row.
     // The block below leaves a receipt (`revertedGesture`) that a late `onEnded` uses to undo
     // this revert — see that call site. The note sits ABOVE the block on purpose: the guard in
     // `ScrubNotifiesOnlyOnRealChangeTests` matches whitespace-squashed source that still contains

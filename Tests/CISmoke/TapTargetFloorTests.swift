@@ -67,7 +67,6 @@ final class TapTargetFloorTests: XCTestCase {
     private static let tempoField = "Sources/Echoelmusic/Studio/BodyTempoField.swift"
     private static let workspace = "Sources/Echoelmusic/Studio/WorkspaceView.swift"
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
-    private static let panel = "Sources/Echoelmusic/Studio/EchoelPanel.swift"
 
     /// The outset idiom, spelled exactly as both transport-bar controls spell it.
     private static let outset6 = "contentShape(Rectangle().inset(by: -6))"
@@ -174,16 +173,40 @@ final class TapTargetFloorTests: XCTestCase {
     /// `accessibilityLabel`, so it was equally green with the modifier INSIDE the `Menu`'s
     /// `label:` closure — where it is almost certainly a no-op, because a `Menu` installs its
     /// press interaction over its OWN bounds and `contentShape` cannot change those from a
-    /// descendant. Both in-repo precedents (`WorkspaceView`'s "•••" #113, `BodyTempoField`'s
-    /// lock) close the label first and put the outset on the control. The commit that added
-    /// these two shipped the wrong level and asserted the effect as fact; a reviewer found it,
-    /// this guard could not. So it now pins the exact two lines: the outset must be the line
-    /// IMMEDIATELY above the `accessibilityLabel`, and a closing brace immediately above that.
+    /// descendant. The commit that added these two shipped the wrong level and asserted the
+    /// effect as fact; a reviewer found it, this guard could not. So it now pins the exact two
+    /// lines: the outset must be the first CODE line above the `accessibilityLabel`, and a
+    /// closing brace immediately above that.
     ///
     /// The five-line window is gone with it: a window is the right shape for "is it still
     /// spelled", the wrong shape for "is it in the right place".
+    ///
+    /// ⛔ THE PRECEDENT IS ONE, NOT TWO — the #358 commit message and an earlier version of this
+    /// note both cited `WorkspaceView`'s "•••" (#113) AND `BodyTempoField`'s lock as corroboration.
+    /// `BodyTempoField`'s lock is a **`Button`**, and for a `Button` the label's content shape IS
+    /// the tap area, so inside-vs-outside is a materially different question there and it says
+    /// nothing about a `Menu`. One precedent, and #113 carries no recorded device verification
+    /// either — which is why the placement fix says "device-verify" rather than "proven".
+    ///
+    /// ⚠️ WHAT THIS STILL CANNOT SEE: nothing ties the closing brace below to the `Menu`'s
+    /// `label:` closure specifically. A refactor that put the outset and the label on an
+    /// enclosing `HStack` AFTER the Menu closed would pass both assertions while outsetting the
+    /// whole row. Named rather than papered over — closing it needs a brace-matching parser,
+    /// which is more machinery than this bundle should carry.
     func testBothPresetOverflowMenusCarryTheHitAreaOutset() throws {
         let studio = try codeLines(Self.studio)
+
+        /// The nearest non-blank line at or above `i`. `codeLines` drops whole-line comments but
+        /// NOT blank lines, so a naive `idx - 1` reddens the only blocking gate for a stray empty
+        /// line between the brace and the modifier — a whitespace-only edit failing a placement
+        /// test is exactly how a guard gets switched off. Same class as the comment trap that
+        /// `ScrubNotifiesOnlyOnRealChangeTests` documents; this one was found by review, not by CI.
+        func codeIndex(above i: Int) -> Int? {
+            var j = i - 1
+            while j >= 0, studio[j].trimmingCharacters(in: .whitespaces).isEmpty { j -= 1 }
+            return j >= 0 ? j : nil
+        }
+
         for label in ["Mood actions", "Sound actions"] {
             let anchor = "accessibilityLabel(\"\(label)\")"
             let hits = studio.indices.filter { studio[$0].contains(anchor) }
@@ -192,19 +215,22 @@ final class TapTargetFloorTests: XCTestCase {
                 trusted to describe the control this test names. Re-anchor before reading the \
                 assertions that follow as a pass or a fail.
                 """)
-            guard let idx = hits.first, idx >= 2 else { continue }
-            XCTAssertTrue(studio[idx - 1].contains(Self.outset6), """
+            guard let idx = hits.first,
+                  let outsetIdx = codeIndex(above: idx),
+                  let braceIdx = codeIndex(above: outsetIdx)
+            else { continue }
+            XCTAssertTrue(studio[outsetIdx].contains(Self.outset6), """
                 The "\(label)" overflow menu lost its `\(Self.outset6)`, or it moved away from \
                 the line directly above the accessibility label. Its visible chip is 34×34, \
                 which is 60 % of the HIG 44×44 floor by area, and it is the only door to save / \
                 favorite / delete / submit in that library — a missed tap there lands on the \
                 preset menu next to it and CHANGES the preset instead.
                 """)
-            XCTAssertTrue(studio[idx - 2].trimmingCharacters(in: .whitespaces) == "}", """
+            XCTAssertTrue(studio[braceIdx].trimmingCharacters(in: .whitespaces) == "}", """
                 The "\(label)" outset is no longer the first modifier after the Menu's `label:` \
                 closure. If it slid back INSIDE that closure it is a no-op: `contentShape` on a \
-                descendant does not widen what the Menu presents from, which is why #113 and \
-                BodyTempoField both close the label before outsetting.
+                descendant does not widen what the Menu presents from, which is why #113 closes \
+                the label before outsetting.
                 """)
         }
     }
@@ -272,17 +298,16 @@ final class TapTargetFloorTests: XCTestCase {
             }
         }
 
-        // ⛔ COUNT, NOT `contains` — `EchoelPanel` has TWO content stacks (the force-open branch
-        // and the DisclosureGroup branch) and they must stay identical. A `contains` would stay
-        // green with one of them changed, which is this file's own founding defect one level up.
-        let panelLines = try codeLines(Self.panel)
-        let contentStacks = panelLines.filter { $0.contains("spacing: 14) { content() }") }.count
-        XCTAssertEqual(contentStacks, 2, """
-            `EchoelPanel` has \(contentStacks) content stacks spaced by 14 pt, not 2. That gap is \
-            the VERTICAL clearance both overflow outsets were measured against (−6 into 14 leaves \
-            8), and the two branches — force-open and DisclosureGroup — must agree, or a panel \
-            spaces its rows differently depending on how it was opened. Every panel row in the \
-            app is affected, not just these two, so re-measure before changing either.
-            """)
+        // ⛔ THE VERTICAL HALF OF THIS MEASUREMENT IS PINNED ELSEWHERE, ON PURPOSE. `EchoelPanel`'s
+        // two content stacks (force-open branch + DisclosureGroup branch) and their 14 pt row
+        // spacing are what makes −6 safe vertically (−6 into 14 leaves 8). An assertion for that
+        // stood HERE for one commit, and it was a duplicate: `SoundPanelReflowsTests` already
+        // pins the same fact with a stricter needle, for its own unrelated reason (panel rhythm).
+        // Removed rather than kept in sync, because the sibling guard this file's own batch edited
+        // says it in one line — "a fact pinned twice in one bundle is a fact that gets
+        // half-updated once" — and I had just written the second pin.
+        //
+        // If that spacing ever changes, `SoundPanelReflowsTests` goes red and BOTH outsets need
+        // re-measuring; this comment is the pointer from here to there.
     }
 }

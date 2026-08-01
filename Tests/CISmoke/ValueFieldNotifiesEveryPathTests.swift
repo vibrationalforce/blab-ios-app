@@ -101,11 +101,17 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     /// unchanged value: `applyArticulation()` re-derives A/D/S/R from the macro. Swiping past the
     /// top must not undo work.
     ///
-    /// It was TWO until #379. The other was `visualPresetID = ""` on the four visual energy rows —
-    /// an `@AppStorage` key, so that loss survived the launch. Those rows now go through
+    /// There was a second KIND until #379: `visualPresetID = ""`, on FOUR of the ten sites — an
+    /// `@AppStorage` key, so that loss survived the launch. Those rows now go through
     /// `visualPresetDiverged()`, which takes the cleared id into a memo and hands it straight back
     /// when the four values still match the preset, so a write that moved nothing is a no-op by
     /// CONSTRUCTION rather than by this guard. Pinned by `PresetSurvivesACancelledDragTests`.
+    ///
+    /// ⛔ MIND THE UNIT: the sentence above used to say "two of the ten `onChange` closures",
+    /// counting KINDS while every other number around it counts SITES. It was five sites, two
+    /// kinds — and `ScrubNotifiesOnlyOnRealChangeTests` had it right the whole time with "(4×)"
+    /// and "(1×)". A #378 reviewer caught it. Small, and in this file of all files: twenty lines
+    /// up it lectures about never quoting an unmeasured number.
     ///
     /// ⚠️ THAT IS A DIFFERENT KIND OF CLAIM FROM THE ONE RETRACTED BELOW, and the difference is
     /// the point. The retraction was an ARGUMENT about `applyArticulation()` that source read
