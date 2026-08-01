@@ -1,4 +1,4 @@
-build: v10.79.363 — der Arp hängt nicht mehr am Bild, und Du kannst den Klang beschreiben
+build: v10.79.364 — der Klang folgt Deinem Körper jetzt in Sekunden statt in einer halben Minute
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,104 +6,125 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.362.
+  Der Vorgänger auf Deinem Gerät ist 10.79.363.
 
-  17 Commits, davon drei, die Du hörst oder siehst. Der wichtigste ist ein Fehler, den DU
-  gemeldet hast und dessen Ursache an einer Stelle lag, an der man sie nicht sucht.
+  Sechs Commits. Der wichtigste ist ein Rechenfehler, der seit Beginn im Bio-Pfad saß und
+  genau das kaputtgemacht hat, wofür dieses Instrument existiert.
 
-  ── DER ARP HING AM BILD ────────────────────────────────────────────────────
+  ── DEIN KÖRPER KAM IM KLANG NICHT AN ───────────────────────────────────────
 
-  Du hast es so beschrieben: der Arpeggiator läuft nur, während das Visual-Fenster offen
-  ist. Machst Du es zu, verstummt er.
+  Die Funktion, die Puls, Atem und Kohärenz in Klangfarbe und Pegel übersetzt, war für
+  60 Aufrufe pro Sekunde geschrieben. Sie bekommt ungefähr EINEN. Kein Fehler im Sensor —
+  ein Faktor 60 in der Glättung.
 
-  Das war kein Zufall und keine Timing-Laune. Der Arpeggiator wurde tatsächlich VON der
-  Bildschirmansicht angetrieben — sein Takt hing an der Bildwiederholung des Visuals. Kein
-  Bild, kein Takt. Eine Ansicht darf ein Instrument anzeigen; sie darf es nicht antreiben.
-  Der Antrieb sitzt jetzt dort, wo er hingehört: im Instrument selbst, unabhängig davon, ob
-  irgendetwas davon gerade zu sehen ist.
+  Was das hieß: eine Veränderung in Deinem Körper war nach einer Sekunde zu 8 % im Klang,
+  nach zehn Sekunden zu 57 %. Die Halbwertszeit lag bei zwölf Sekunden. Wer den Atem
+  vertieft und dann auf den Klang hört, hört in dem Moment praktisch nichts — die Bewegung
+  kommt erst, wenn man schon nicht mehr hinhört. Das ist auch ein Kandidat für „die Genres
+  klingen alle gleich": wenn jede Bio-Bewegung über zwölf Sekunden verschmiert, verwischt
+  sie den Unterschied zwischen den Genres mit.
 
-  DAS BRAUCHT DEIN OHR: Arp an, Visual-Fenster zu — läuft er weiter? Und läuft er GLEICH
-  schnell, oder hat er beim Schließen einen Ruck?
+  Jetzt: zwei Sekunden statt zwölf. Nach zwei Bio-Frames sind 63 % da statt 15 %.
 
-  ── DU KANNST DEN KLANG JETZT BESCHREIBEN ───────────────────────────────────
+  Im selben Zug ist ein interner Modulator gelöscht, der auf dem Papier ein „lebendiges
+  Wabern" erzeugen sollte und in Wahrheit 24 bis 120 SEKUNDEN pro Zyklus brauchte. Er ist
+  nicht reparierbar — bei einem Bio-Takt von 1 Hz liegt seine Frequenz über der
+  Abtastgrenze, und ausgerechnet bei 40, 120 und 200 Schlägen steht er exakt still. Beide
+  Stellen, die ihn benutzt haben, rechnen jetzt mit seinem Mittelwert: die Klangmitte
+  bleibt identisch, weg ist nur ein Driften, das ohnehin niemand als Bewegung wahrnehmen
+  konnte.
 
-  Im Sound-Panel steht eine neue Zeile: „Describe it". Du tippst „warm lush pad" oder
-  „bright glassy pluck", drückst Shape — und der laufende Klang wird in diese Richtung
-  geformt. Darunter liegen acht fertige Vorschläge zum Antippen.
+  DAS BRAUCHT DEIN OHR — und es ist die einzige wirklich wichtige Frage dieses Builds:
+  Atme bewusst tiefer, oder halte den Finger fester auf die Linse. Kommt die Veränderung
+  jetzt spürbar an? Und die Gegenfrage, die genauso zählt: ist es Dir zu ZAPPELIG
+  geworden? Falls ja, ist die Rücknahme ein einziger Wert, und der Wächter im Code lässt
+  sie ausdrücklich zu.
 
-  Vier Dinge, die dabei Absicht sind:
+  ── DAS MISCHPULT ───────────────────────────────────────────────────────────
 
-  · Es rechnet auf dem Gerät. Kein Netz, kein Modell, keine Wartezeit — eine kuratierte
-    Wortliste (24 Begriffe, dazu Verstärker wie „very" oder „gently") auf Klangparameter.
-    Dasselbe Wort ergibt immer dasselbe Ergebnis.
-  · Unbekannte Wörter werden ignoriert, nie missverstanden. Unter der Zeile steht, welche
-    Wörter erkannt wurden — Du siehst also vorher, was passieren wird.
-  · Es formt, was gerade da ist. Das ist kein Preset-Sprung: „warm" macht DEINEN Klang
-    wärmer, nicht irgendeinen anderen.
-  · Neben Shape steht ein Rückgängig. Denn Formen stapeln sich — sechsmal „deep dark drone"
-    hintereinander macht einen Klang unhörbar dumpf. Zwei Untergrenzen fangen das ab, und
-    der letzte Schritt ist immer mit einem Tap zurückzunehmen.
+  Deine Frage war: „Alles Sound Ebenen übersichtlich zu mixen?" Bis jetzt lautete die
+  ehrliche Antwort nein — auf dem Mix-Brett standen nur die generierten Rollen. Die Fläche,
+  auf der Du mit den Händen spielst, lag zwei Chips weiter, und den Klick konntest Du nur
+  im Tempo-Panel finden.
 
-  Ehrlicher Nachtrag, weil er zum Bild gehört: die Rechenlogik dafür lag seit einem Monat
-  fertig im Code. Ihr eigener Dateikopf beschrieb den Aufrufer im Präsens — den nie jemand
-  geschrieben hatte. Deshalb hat sie auch nie jemand vermisst. Ein Wächter im blockierenden
-  Bundle prüft ab jetzt, dass die im Kopf genannte Tür wirklich existiert.
+  Jetzt stehen alle klingenden Ebenen nebeneinander: Bass · Melodic · Field (Deine Hände) ·
+  Click. Wichtig dabei: der Field-Regler ist DIESELBE Zahl und DIESELBE Stimme wie im
+  Field-Panel, nicht eine zweite Kopie — eine Änderung hier erreicht den Klang genauso wie
+  dort. Dasselbe für den Klick und das Tempo-Panel.
 
-  ── DIE TRANSPORTLEISTE ─────────────────────────────────────────────────────
+  Was NICHT auf dem Brett steht, steht jetzt als Satz darunter statt als Rätsel: der Master
+  hat sein eigenes Panel, weil er die Summe dieser Ebenen ist und nicht eine davon.
 
-  · Die Pause trägt jetzt ein Pause-Symbol. Vorher war da dasselbe Zeichen wie für Stop.
-  · „Create from Within" ist als KNOPF verschwunden. Der Satz steht weiter über den Chips,
-    aber gestartet wird über das Play-Dreieck — wie in jeder Software, die Du kennst.
-  · Die Analyse-Anzeige und die BPM-Zahl können nicht mehr abgeschnitten werden, auch nicht
-    bei großer Schrift.
+  ── DREI REGLER, DIE NICHTS GETAN HABEN ─────────────────────────────────────
 
-  ── WAS NICHT DRIN IST ──────────────────────────────────────────────────────
+  · Der Beat-Regler wählte zwischen Schlagzeug-Varianten. Du hast die Drums am 26. Juli
+    entfernt — er wählte seit dem zwischen Stimmen, die es nicht mehr gibt.
+  · Ein zweiter Blend-Regler für die Visual-Looks war eine vollständige Zweitkopie, die
+    nirgends angezeigt wurde.
+  · Der Lead-Fader im Mix. Du hast entschieden: „Lead kann raus aus dem Mix." Er ist raus.
+    Wichtiger als das Entfernen war die zweite Hälfte: der Wert war GESPEICHERT, und dieses
+    Feld war seine einzige Tür. Hättest Du ihn je auf 0.30 gezogen, hätte dieser Wert den
+    ersten Lead eines künftigen Genres um 70 % gedämpft — lautlos, ohne Rückweg. Er wird
+    jetzt beim Start neutralisiert, solange es keine Tür gibt.
 
-  Absichtlich nicht angefasst, obwohl ich weiß, wo es klemmt: der Bass, die Genres, und der
-  langsame Bio-Schwenk in den Klängen. Ich habe die drei Stellen diesen Zyklus untersucht
-  und will sie NICHT blind mitschicken — bei jeder gibt es einen Verdacht, der noch nicht
-  bewiesen ist, und ein falsch geratener Klang-Fix ist teurer als ein fehlender.
+  ── DER RHYTHMUS VON SECHS GENRES ───────────────────────────────────────────
 
-  Unverändert offen: die Sample-Engine fürs Feld, der große UX-Durchgang, der ARP als
-  eigene Kategorie, die professionelle Vertiefung der FX, die Vierteltöne der Maqāmat.
+  Sechs der angebotenen Genres tragen einen notierten Swing, der den Takt bisher nie
+  erreicht hat — er stand in der Beschreibung und wurde beim Abspielen hart auf null
+  gesetzt. Das ist verdrahtet. Betrifft die Genres mit ausdrücklichem Groove; die geraden
+  bleiben gerade.
+
+  DAS BRAUCHT DEIN OHR: klingen sie jetzt weniger nach Maschine?
+
+  ── WAS ICH GEFUNDEN UND ABSICHTLICH NICHT MITGESCHICKT HABE ────────────────
+
+  Derselbe 60-Hz-Rechenfehler sitzt ein ZWEITES Mal im selben Block, beim Filter-Cutoff.
+  Dort sind es 33 Sekunden Halbwertszeit — fast dreimal so träge wie das, was ich gerade
+  repariert habe, und auf der hörbarsten Bio-Bewegung überhaupt.
+
+  Ich habe ihn stehen lassen, und das ist Absicht: wenn Helligkeit UND Filter gleichzeitig
+  schneller werden, sagt ein „zu zappelig" von Dir nicht, welcher der beiden es war. Erst
+  Dein Urteil zu diesem Build, dann die zweite Konstante — mit Deiner Rückmeldung als
+  Richtwert.
+
+  Unverändert offen: der Bass in tune, die Sample-Engine fürs Feld, der große
+  UX-Durchgang, der ARP als eigene Kategorie, die professionelle Vertiefung der FX.
 
   ── WAS ICH VON DIR BRAUCHE ─────────────────────────────────────────────────
 
-  Neu in diesem Build:
+  Neu in diesem Build, in dieser Reihenfolge:
 
-  · DER ARP: läuft er mit geschlossenem Visual-Fenster weiter, und gleich schnell?
-  · „DESCRIBE IT": ist es ein Werkzeug oder ein Spielzeug? Konkret — trifft „warm lush pad"
-    das, was Du beim Lesen erwartest? Und fehlt Dir ein Wort, das drin sein müsste?
-  · Das Play-Dreieck statt des Satzes: greifst Du jetzt intuitiv richtig?
+  · DER BIO-PFAD: folgt der Klang Deinem Körper jetzt in ~2 Sekunden? Oder ist es zu
+    zappelig? Beides ist eine brauchbare Antwort — die zweite genauso wie die erste.
+  · DIE SECHS GENRES mit Swing: weniger Maschine?
+  · DAS MISCHPULT: ist „übersichtlich" jetzt erfüllt, oder fehlt Dir eine Ebene darauf?
 
-  Weiter offen aus 362 (nichts davon konnte ich ohne Gerät schließen):
-  MIDI-Sync gegen Ableton · Bluetooth-Kopfhörer nach Monitoring · atmet das Vibrato jetzt ·
-  die Output-Zeile im Sound-Panel · das Sound-Panel im Querformat · der Energy-Regler ·
-  Notennamen und Dezimaltrenner · die Transportleiste im LOOP-Modus · klingen Minimal und
-  Detroit Techno verschieden · „Laid back" · das Delay im FX-Fenster · der Lead ·
-  und die eine Frage, an der eine Entscheidung hängt: war der Bass-Fader auf 0 hörbar?
+  Weiter offen aus 363: der Arp bei geschlossenem Visual · „Describe it" als Werkzeug oder
+  Spielzeug · das Play-Dreieck · und aus 362: MIDI-Sync gegen Ableton · Bluetooth nach
+  Monitoring · das Vibrato · das Sound-Panel im Querformat · Notennamen und Dezimaltrenner ·
+  die Transportleiste im LOOP-Modus · war der Bass-Fader auf 0 hörbar?
 
   ── PRÜFSTAND ───────────────────────────────────────────────────────────────
 
-  Auf dem letzten Code-Commit dieses Builds sind BEIDE echten Gates fertig und grün: Xcode
-  Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide FERTIG gesehen
+  Auf dem letzten Code-Commit dieses Builds sind BEIDE echten Gates FERTIG und grün: Xcode
+  Compile Check und CI/CD Pipeline. Ich schreibe das nur hin, wenn ich beide fertig gesehen
   habe — nicht laufend.
 
-  Das blockierende Bundle ist von 75 auf 78 Dateien gewachsen. Nur was dort liegt, kann
-  einen Merge rot färben; die große Suite daneben kann es nicht.
+  Das blockierende Bundle ist von 78 auf 83 Dateien gewachsen. Nur was dort liegt, kann
+  einen Merge rot färben.
 
-  DAS MUSTER DIESES BUILDS, unverblümt: bei „Describe it" waren vier meiner eigenen
-  Begründungen zu bequem, und der Pflicht-Reviewer hat alle vier zerlegt. Ich hatte die
-  Tippzeile direkt auf den Wurzel-Body gelegt und mit dem falschen Gesetz gerechtfertigt —
-  jeder Tastendruck hätte eine 500-Zeilen-Ansicht neu gebaut. Ich hatte behauptet, die
-  Wertegrenzen im Kern seien musikalisch ausreichend; sie sind es nicht, sie prüfen nur
-  Gültigkeit. Und ich hatte einen Wächter gebaut, der an genau dem Umbau rot geleuchtet
-  hätte, den dieselbe Datei als richtig empfiehlt. Alles behoben, alles mit der Widerlegung
-  im Code.
+  DAS MUSTER DIESES BUILDS, unverblümt: der Pflicht-Reviewer hat bei der Bio-Reparatur VIER
+  meiner Begründungen zerlegt — der Mechanismus stimmte jedes Mal, die Erklärung nicht. Ich
+  hatte behauptet, ein gelöschter Zähler sei die Ursache für einen trägen Klang; er war es
+  nie, die Klangfarbe wurde längst bei jedem Aufruf neu gebaut. Und ein Satz von mir hätte
+  eine noch LEBENDE Fehlerklasse für erledigt erklärt — genau den Filter-Cutoff oben. Beide
+  Fassungen stehen jetzt im Code nebeneinander, die falsche mit Begründung, warum sie falsch
+  war.
 
-  Dazu eine Löschung: der alte Patch-Editor ist weg. Er hatte seit einem Monat keine Tür,
-  und die fünf Regler aus Build 362 waren das Letzte, was noch in ihm steckte. Der lebende
-  Klang-Editor war die ganze Zeit das Sound-Panel.
+  Dazu ein eigener Fehlschlag, den ich benenne, weil ich ihn Dir gegenüber schon einmal zu
+  früh für erledigt erklärt hatte: ein neuer Wächter kompilierte nicht, und ich hatte das
+  Statusupdate geschrieben, bevor die dafür zuständige Pipeline gemeldet hatte. Das grüne
+  Häkchen, auf das ich mich stützte, prüft Testdateien gar nicht.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
   Dein Ohr und Dein Auge.
