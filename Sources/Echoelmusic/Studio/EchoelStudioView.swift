@@ -3117,6 +3117,16 @@ struct EchoelStudioView: View {
             Text("The same output by frequency, low on the left. Each band is tinted by the colour that frequency becomes in visible light — the same mapping the field uses — so the meter and the picture agree. The reading above names the loudest partial and how far it sits from the nearest note of your tuning.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+            // The BODY half of the same founder ask ("achte auch auf den evidenzbasierten
+            // gesundheitlichen benefit"). It lives inside this section rather than as a
+            // tenth child of `visualPanel` — see the ⚠️ note above about the ten-child
+            // ViewBuilder cap — but it gets its OWN heading, because a heart-rate picture
+            // filed under "Signal" would read as another audio meter.
+            Text("Body").font(EchoelTheme.font(10, .medium)).foregroundStyle(EchoelTheme.dim)
+            AnalysisPoincareView()
+            Text("Each heartbeat interval against the next one — the standard Poincaré plot. Spread ACROSS the diagonal (SD1) is beat-to-beat change, spread ALONG it (SD2) is the slower drift; the ellipse is those two numbers drawn. Descriptive statistics for self-observation, not a diagnosis.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

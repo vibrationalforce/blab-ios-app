@@ -313,6 +313,28 @@ public final class CameraRPPGBioPublisher {
         return .finding
     }
 
+    /// The analyzer's current window of beat-to-beat intervals, in MILLISECONDS and RAW —
+    /// no plausibility band, no ectopic rejection. Read by `AnalysisPoincareView` (#347
+    /// Slice 3b), which runs it through `RRIntervalHygiene` itself.
+    ///
+    /// RAW ON PURPOSE, and it is the one thing to get right about this property: hygiene is
+    /// only honest if the consumer can also see how much it REMOVED
+    /// (`RRIntervalHygiene.acceptedFraction`), and a pre-filtered array makes that
+    /// unknowable. Filtering here would hand every caller a clean-looking series with no way
+    /// to tell a perfect contact from a broken one.
+    ///
+    /// ⚠️ HIGH-FREQUENCY READ — the freeze law (10.76.50). `CameraAnalyzer.rrIntervals` is
+    /// observable and changes on every accepted beat, so this must only ever be read inside a
+    /// LEAF view. Reading it in `EchoelStudioView`/`WorkspaceView` — both of which already
+    /// hold this publisher in `@Environment` — would register the whole surface as an
+    /// observer and tear down any open `.menu` Picker on every heartbeat.
+    ///
+    /// (The strap has no equivalent yet: `PolarH10BioPublisher.rrIntervals` is
+    /// `@ObservationIgnored` and appended per beat, so exposing it the same way would notify
+    /// nothing. See `AnalysisPoincareView`'s header for why that is a slice and not a
+    /// one-liner.)
+    public var rrWindowMs: [Double] { analyzer.rrIntervals }
+
     @ObservationIgnored private let capture = CameraCapture()
     @ObservationIgnored private let analyzer = CameraAnalyzer()
     @ObservationIgnored private weak var bus: EngineBus?
