@@ -165,6 +165,78 @@ final class ChromeDynamicTypeTests: XCTestCase {
         }
     }
 
+    /// ⭐ #348 — THE HEADER MUST NOT STACK ITS TITLE ON TOP OF ITS TILES.
+    ///
+    /// Founder, 2026-08-01, circling the empty space left of the wordmark: *"Was kann hier jetzt
+    /// noch hin?"* The answer was "nothing — move the title into it", and the reason is in this
+    /// file's subject rather than in taste. `topBar` was a `ZStack`: an optically centred title
+    /// on one layer, and the row holding the mark and the three output monitors on another. A
+    /// `ZStack` performs no collision avoidance, so as the text grows the title grows straight
+    /// THROUGH the tiles — and since #232 C the chrome ceiling is `.accessibility1`, not
+    /// `.xxLarge`, so it now grows a lot further than it used to. `minimumScaleFactor(0.7)` only
+    /// bounds how far it goes, it does not stop it.
+    ///
+    /// In an `HStack` the `Spacer` is the thing that yields, so the two can no longer overlap at
+    /// any text size. That property is invisible in a screenshot at the default size, which is
+    /// exactly why it needs a guard rather than a comment.
+    func testTheHeaderLaysOutInARowSoTheTitleCannotOverlapTheMonitors() throws {
+        let bar = try topBarSource()
+        XCTAssertFalse(bar.contains { $0.contains("ZStack") }, """
+            `topBar` is a `ZStack` again. Its layers do not avoid each other, so the wordmark \
+            and the output monitors share the same space and simply overlap once the text \
+            grows — silently, and only at accessibility sizes nobody screenshots. Lay the bar \
+            out as an `HStack` with a `Spacer` between brand and monitors.
+            """)
+        XCTAssertTrue(bar.contains { $0.contains("HStack(spacing: 8) {") }, """
+            `topBar` no longer opens with an `HStack`. If the layout was deliberately changed, \
+            update this guard together with the change — do not delete it; the ZStack it \
+            replaced shipped a real Dynamic Type overlap.
+            """)
+        XCTAssertTrue(bar.contains { $0.contains("Spacer(minLength: 8)") }, """
+            The `Spacer(minLength: 8)` between the brand block and the output monitors is gone. \
+            It is the only thing that keeps a minimum gap when the wordmark grows; without it \
+            the title runs into the first tile instead of pushing it.
+            """)
+    }
+
+    /// The brand mark and the wordmark are ONE door, so they must be ONE control. As two buttons
+    /// they were two VoiceOver stops for the same action, which the old code papered over with
+    /// `.accessibilityHidden(true)` on the mark. Counting the calls is the durable form of that:
+    /// a second `openWebsite()` in this bar means the split is back.
+    func testTheBrandIsOneControlAndNotTwo() throws {
+        let bar = try topBarSource()
+        let opens = bar.filter { $0.contains("openWebsite()") }.count
+        XCTAssertEqual(opens, 1, """
+            `topBar` calls `openWebsite()` \(opens) time(s); exactly one is expected. Two means \
+            the mark and the wordmark are separate buttons again — the same door announced \
+            twice, which is why the previous version had to hide one of them from VoiceOver.
+            """)
+        XCTAssertFalse(bar.contains { $0.contains("accessibilityHidden(true)") }, """
+            Something in `topBar` is hidden from VoiceOver. In this bar that has only ever been \
+            the workaround for the duplicate brand button; if a NEW element genuinely needs \
+            hiding, say why here and update this guard in the same commit.
+            """)
+    }
+
+    /// The `topBar` property's code lines (whole-line comments already dropped), from its
+    /// declaration to the `}` at member indentation. Scoped deliberately: `WorkspaceView` has
+    /// other `ZStack`s that are perfectly correct, so a file-wide grep would be a guard that
+    /// fires on unrelated work and gets switched off.
+    private func topBarSource() throws -> [String] {
+        let lines = try codeLines(Self.workspace)
+        guard let start = lines.firstIndex(where: { $0.contains("private var topBar: some View {") }) else {
+            throw XCTSkip("""
+                `topBar` not found in \(Self.workspace) — skipping rather than reporting a green \
+                this file did not earn. If the header was renamed, re-point this helper.
+                """)
+        }
+        let rest = lines[(start + 1)...]
+        guard let end = rest.firstIndex(where: { $0 == "    }" }) else {
+            throw XCTSkip("no member-indentation `}` closes `topBar` — the slice would be wrong")
+        }
+        return Array(lines[(start + 1)..<end])
+    }
+
     func testTheValueBoxIsAFloorAndNotACeiling() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/EchoelValueField.swift")
         XCTAssertTrue(lines.contains { $0.contains(".frame(minHeight: boxHeight)") },

@@ -354,12 +354,19 @@ struct ImmersiveMonitorMini: View {
     /// it falls back to before `wire(...)` lands (`ExternalStageBridge`).
     ///
     /// WHY THIS LIVES HERE INSTEAD OF ITS OWN CHIP (#206 slice 3). It was a separate
-    /// header tile for exactly one review round. `topBar` is a ZStack whose right-hand
-    /// HStack draws OVER the centred wordmark, and a fourth 38 pt tile + spacing moved the
-    /// cluster 46 pt left — 64 pt of overlap on a 375 pt iPhone, plus the pulse pill's
-    /// coherence number truncating. It would have fired at the worst possible moment: a
-    /// cable going in mid-show. This tile is already THE visual monitor and already the
+    /// header tile for exactly one review round. Back then `topBar` was a `ZStack` whose
+    /// right-hand HStack drew OVER the centred wordmark, and a fourth 38 pt tile + spacing
+    /// moved the cluster 46 pt left — 64 pt of overlap on a 375 pt iPhone, plus the pulse
+    /// pill's coherence number truncating. It would have fired at the worst possible moment:
+    /// a cable going in mid-show. This tile is already THE visual monitor and already the
     /// door to the floating window, so the state belongs on it and costs zero width.
+    ///
+    /// ⚠️ THE MECHANISM IN THAT PARAGRAPH IS HISTORY SINCE #348 — `topBar` is now a single
+    /// `HStack` (brand · Spacer · monitors), so a fourth tile would PUSH rather than overlap.
+    /// The measurement above is kept because it is the record of what was seen, but do not
+    /// cite it as the current behaviour. The CONCLUSION still holds for a different and
+    /// better reason: width on a 375 pt bar is finite, and this tile already owns both the
+    /// meaning and the door.
     private var onExternalScreen: Bool {
         #if canImport(UIKit)
         let bridge = ExternalStageBridge.shared

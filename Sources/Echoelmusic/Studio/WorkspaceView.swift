@@ -264,73 +264,95 @@ struct WorkspaceView: View {
         #endif
     }
 
-    /// Persistent brand header — always on screen. Centre: "Echoelmusic" + the running
-    /// version/build. Left: app mark (the live pulse number lives once in the bio strip,
-    /// not here). Right: the immersive-visual monitor, which shows/hides the floating
-    /// visual. Uncodixfy-compliant.
+    /// Persistent brand header — always on screen. LEFT: the brand block (mark + wordmark +
+    /// running version/build) as ONE control. RIGHT: the output monitors. Uncodixfy-compliant.
+    ///
+    /// ⭐ WHY THE TITLE IS NO LONGER CENTRED — founder, 2026-08-01, with the empty space left of
+    /// the title circled in red: *"Was kann hier jetzt noch hin?"* The honest answer is
+    /// **nothing**, and that is a decision, not a shrug: the UI rules ban decorative tiles and
+    /// "control-room cosplay", every status a performer needs already has a home (transport and
+    /// tempo in `TransportBar`, key/scale/tone system/A4 in `CompositionHeaderStrip`, the three
+    /// output monitors on the right), and the live pulse pill was deliberately moved OUT of this
+    /// bar four days earlier on the founder's own ask (#289). Inventing a fourth chrome tile to
+    /// fill a gap would undo that reasoning to solve an aesthetic problem.
+    ///
+    /// The gap is a LAYOUT defect, so the layout is what changed: the wordmark moves left into
+    /// the space instead of a new element moving in beside it. The mark and the title were two
+    /// separate buttons for the same action, on two different layers of a `ZStack` — which also
+    /// made the second one `accessibilityHidden` to stop VoiceOver announcing the same door
+    /// twice. One leading button is simply what that was always describing.
+    ///
+    /// ⚠️ AND IT FIXES A REAL DYNAMIC-TYPE DEFECT, not only the look. A `ZStack` gives its
+    /// layers NO collision avoidance: the centred title sat on its own layer above the row that
+    /// holds the mark and the monitors, so as the text grew it grew straight THROUGH them.
+    /// `minimumScaleFactor(0.7)` only bounds how far. In an `HStack` the `Spacer` is what yields,
+    /// so the title and the tiles can no longer overlap at any text size — which matters because
+    /// the chrome is capped at `.accessibility1`, not at `.xxLarge`, since #262.
     private var topBar: some View {
-        ZStack {
+        HStack(spacing: 8) {
             Button { openWebsite() } label: {
-                VStack(spacing: 1) {
-                    Text("Echoelmusic")
-                        .font(EchoelTheme.font(14, .semibold))
-                        .foregroundStyle(EchoelTheme.text)
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                    Text(Self.versionString)
-                        .font(EchoelTheme.font(9))
-                        .foregroundStyle(EchoelTheme.dim)
-                        .lineLimit(1).minimumScaleFactor(0.7)
+                HStack(spacing: 8) {
+                    EchoelLogoMark().frame(width: 22, height: 22)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Echoelmusic")
+                            .font(EchoelTheme.font(14, .semibold))
+                            .foregroundStyle(EchoelTheme.text)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                        Text(Self.versionString)
+                            .font(EchoelTheme.font(9))
+                            .foregroundStyle(EchoelTheme.dim)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
                 }
             }
             .buttonStyle(.plain)
+            // ONE element, one announcement, one action. A `Button` is already a single
+            // accessibility element, so putting the mark INSIDE its label is what removes the
+            // second VoiceOver stop — the old `.accessibilityHidden(true)` on the separate mark
+            // button was buying the same thing by hand. Deliberately no
+            // `.accessibilityElement(children: .ignore)` here: on a Button that is at best
+            // redundant and at worst rebuilds the element without its activation.
             .accessibilityLabel("Echoelmusic \(Self.versionString)")
             .accessibilityHint("Opens echoelmusic.com — release notes and support")
-            HStack(spacing: 8) {
-                Button { openWebsite() } label: {
-                    EchoelLogoMark().frame(width: 22, height: 22)
-                }
-                .buttonStyle(.plain)
-                // The centred title button already announces + opens the website —
-                // two adjacent VoiceOver stops for one action is noise (AX audit).
-                .accessibilityHidden(true)
-                // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
-                // around this pill and the transport ■: "könnte ja alles in dem Create From
-                // within Button drin sein … Führe intelligent zusammen"). It now sits
-                // immediately left of "Create from Within" in `EchoelStudioView`, so the
-                // feedback appears ON the control that produces it instead of at the other
-                // end of the window.
-                //
-                // ⛔ This supersedes the founder's 2026-07-12 placement ("Der Pulsmonitor
-                // kommt nach oben zwischen Logo und Echoelmusic"), whose note in
-                // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
-                // This IS that ask, from the same person, with a drawing. The pill itself is
-                // unchanged — same leaf, same tap (Bio panel), same long-press (source
-                // picker) — only its address changed.
-                Spacer(minLength: 0)
-                // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
-                // (The former video-lane monitor tile was retired with the DAW video
-                // editing — pure-instrument cut; the tile now surfaces the recorded
-                // performance clips + REC state.) Each is a LEAF that reads its own
-                // live state (freeze rule); taps go through the chrome-door
-                // notification, never into studio state directly.
-                #if canImport(AVFoundation) && canImport(Metal)
-                EchoelClipsMonitorMini()
-                #endif
-                EchoelLuxMonitorMini()
-                // The immersive-visual monitor. (No purchase chip in v1.0 —
-                // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
-                // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
-                // live waveform stays in its own leaf.
-                #if canImport(AVFoundation)
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
-                } label: {
-                    ImmersiveMonitorMini(active: cameraRPPG.isRunning)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
-                #endif
+            // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
+            // around this pill and the transport ■: "könnte ja alles in dem Create From
+            // within Button drin sein … Führe intelligent zusammen"). It now sits
+            // immediately left of "Create from Within" in `EchoelStudioView`, so the
+            // feedback appears ON the control that produces it instead of at the other
+            // end of the window.
+            //
+            // ⛔ This supersedes the founder's 2026-07-12 placement ("Der Pulsmonitor
+            // kommt nach oben zwischen Logo und Echoelmusic"), whose note in
+            // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
+            // This IS that ask, from the same person, with a drawing. The pill itself is
+            // unchanged — same leaf, same tap (Bio panel), same long-press (source
+            // picker) — only its address changed. The space it left is the one the founder
+            // circled on 2026-08-01; see this property's own doc for why it is closed by
+            // moving the wordmark rather than by filling it.
+            Spacer(minLength: 8)
+            // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
+            // (The former video-lane monitor tile was retired with the DAW video
+            // editing — pure-instrument cut; the tile now surfaces the recorded
+            // performance clips + REC state.) Each is a LEAF that reads its own
+            // live state (freeze rule); taps go through the chrome-door
+            // notification, never into studio state directly.
+            #if canImport(AVFoundation) && canImport(Metal)
+            EchoelClipsMonitorMini()
+            #endif
+            EchoelLuxMonitorMini()
+            // The immersive-visual monitor. (No purchase chip in v1.0 —
+            // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
+            // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
+            // live waveform stays in its own leaf.
+            #if canImport(AVFoundation)
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
+            } label: {
+                ImmersiveMonitorMini(active: cameraRPPG.isRunning)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
+            #endif
         }
         .padding(.horizontal, 12)
         // `fixedSize` BEFORE `minHeight`, and the order is load-bearing — see the shared
