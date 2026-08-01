@@ -117,9 +117,21 @@ public enum WeatherMood {
         /// Short token for logs/UI, e.g. "rain-day-cold". Never marketing copy.
         public var descriptor: String
 
+        /// The full-intensity brightness offset for `ToneTrim` — see `toneTrim(for:intensity:)`.
+        /// Carried on the contribution so a caller that stored one does not also have to keep
+        /// the snapshot alive; defaulted so existing constructions (and their tests) still
+        /// compile with the same meaning as before, namely no tone effect.
+        public var toneBrightnessShift: Float
+
+        /// This sky's tone offset at the given `Param.warmth` mixer intensity.
+        public func toneTrim(intensity: Float) -> ToneTrim {
+            WeatherMood.toneTrim(fullBrightnessShift: toneBrightnessShift, intensity: intensity)
+        }
+
         public init(structureSalt: UInt64, darknessTarget: Float, livelinessTarget: Float,
                     tensionTarget: Float, hue: Float, saturation: Float,
-                    glowTarget: Float, motionTarget: Float, descriptor: String) {
+                    glowTarget: Float, motionTarget: Float, descriptor: String,
+                    toneBrightnessShift: Float = 0) {
             self.structureSalt = structureSalt
             self.darknessTarget = darknessTarget
             self.livelinessTarget = livelinessTarget
@@ -129,6 +141,7 @@ public enum WeatherMood {
             self.glowTarget = glowTarget
             self.motionTarget = motionTarget
             self.descriptor = descriptor
+            self.toneBrightnessShift = toneBrightnessShift
         }
 
         /// The absolute target for one mixable parameter (nil for `.structure`,
@@ -227,6 +240,105 @@ public enum WeatherMood {
         }
     }
 
+    /// A bounded, RELATIVE timbre offset — the half of "Warmth" you can actually hear.
+    ///
+    /// ⛔ WHY THIS EXISTS, and it is a defect report about the version above it. `Param.warmth`
+    /// promises "Warm weather brightens the TONE, cold darkens it". It was wired only to
+    /// `MoodProfile.darkness`, and `darkness` is not a gradient anywhere in the engine — its
+    /// only two readers are `mood.darkness > 0.6 ? -1 : 0` (`BioComposer`, twice: the ambient
+    /// octave and the pad voicing). `MoodPreset.swift` already records this in its own comment
+    /// ("two moods can differ by 0.43 of darkness and produce the SAME notes"). So a weather
+    /// nudge of a few hundredths did LITERALLY NOTHING unless it happened to cross 0.6, and
+    /// then it moved a whole octave. Founder, 2026-08-01: "Wetter ist nicht bemerkbar bis
+    /// jetzt oder?" — correct, and this is why.
+    ///
+    /// Also note what the label says: TONE, not register. The engine implemented register. This
+    /// is the parameter the text was always describing.
+    ///
+    /// RELATIVE AND BOUNDED, for the reason `RoleRhythm.TimbreTrim` states at length: #81/#125
+    /// were "every genre converges on one sound", and an absolute target per condition would
+    /// rebuild that with eight targets. A brightness OFFSET and a cutoff FACTOR applied to
+    /// whatever patch arrives leave every genre exactly as far apart as it was.
+    public struct ToneTrim: Sendable, Equatable {
+        /// Added to the patch's `brightness` (0…1) by the caller, then clamped there.
+        public var brightness: Float
+        /// Multiplies the patch's `filterCutoff`, then clamped there.
+        public var cutoffFactor: Float
+
+        /// The identity — what intensity 0 must return, so weather-off is bit-identical.
+        public static let neutral = ToneTrim(brightness: 0, cutoffFactor: 1)
+
+        public init(brightness: Float, cutoffFactor: Float) {
+            self.brightness = brightness
+            self.cutoffFactor = cutoffFactor
+        }
+    }
+
+    /// The widest this trim may move at FULL intensity. Deliberately larger than
+    /// `RoleRhythm.TimbreTrim`'s ±0.05 / ±12 %, and the difference is principled rather than
+    /// a preference: that trim pulls every genre toward one of six per-character targets (a
+    /// convergence risk, hence tiny), while this one applies the SAME relative offset to
+    /// whatever is playing — genre distances are preserved by construction. It is also opt-in,
+    /// per-session, and has its own fader. At the default intensity of 0.5 the reachable
+    /// extremes are half of these.
+    public static let maxToneBrightnessShift: Float = 0.20
+    public static let maxToneCutoffDeviation: Float = 0.36
+
+    /// Warm/clear sky → brighter and more open; cold/fog/rain → darker and softer.
+    /// `intensity` is `Param.warmth`'s mixer; 0 returns `.neutral` exactly.
+    ///
+    /// CONTINUOUS BY CONSTRUCTION — there is no threshold anywhere in here, which is the whole
+    /// point of the slice. Every 1 °C of temperature and every step of the mixer moves the
+    /// sound a little, so the fader behaves like a fader.
+    public static func toneTrim(for w: WeatherSnapshot, intensity: Float) -> ToneTrim {
+        toneTrim(fullBrightnessShift: toneBrightnessShift(for: w), intensity: intensity)
+    }
+
+    /// The same trim from an already-computed full-intensity shift — what
+    /// `Contribution.toneTrim(intensity:)` uses, so a stored contribution needs no snapshot
+    /// kept alongside it. One shape function, two entry points; a second copy of the maths is
+    /// how the two would drift.
+    public static func toneTrim(fullBrightnessShift shift: Float, intensity: Float) -> ToneTrim {
+        let i = Swift.min(Swift.max(intensity, 0), 1)
+        guard i > 0, shift.isFinite else { return .neutral }
+        let brightness = clampRange(shift, -maxToneBrightnessShift, maxToneBrightnessShift) * i
+        // Cutoff follows brightness rather than carrying its own table: they are two views of
+        // the same "how open is this" and letting them disagree is how a sound ends up bright
+        // and muffled at once. 1.8 maps the ±0.20 brightness bound onto the ±0.36 cutoff bound
+        // exactly, so one clamp governs both.
+        let cutoff = clampRange(1 + brightness * 1.8,
+                                1 - maxToneCutoffDeviation, 1 + maxToneCutoffDeviation)
+        return ToneTrim(brightness: brightness, cutoffFactor: cutoff)
+    }
+
+    /// The unscaled brightness offset for one sky, before any mixer.
+    static func toneBrightnessShift(for w: WeatherSnapshot) -> Float {
+        // Temperature is the PRIMARY term because the label names it first. Linear in °C
+        // between −5 and 32 rather than reusing `temperatureBand` — the bands are five steps,
+        // and a five-step staircase is the same "nothing happens, then a jump" defect one size
+        // smaller. `temperatureBand` stays where it is: the structure SALT wants a stable
+        // bucket (same sky = same skeleton), a tone wants a slope. Two questions, two shapes.
+        let t = Swift.min(Swift.max((w.temperatureC + 5) / 37, 0), 1)   // 0 at −5 °C, 1 at 32 °C
+        let tempShift = Float(t - 0.5) * 0.30                           // ±0.15
+
+        let condShift: Float
+        switch w.condition {
+        case .clear:        condShift = 0.05
+        case .partlyCloudy: condShift = 0.0
+        case .overcast:     condShift = -0.05
+        case .fog:          condShift = -0.08
+        case .drizzle:      condShift = -0.04
+        case .rain:         condShift = -0.06
+        // A storm is dark but not DULL — it has edge. Less closed than plain rain on purpose.
+        case .storm:        condShift = -0.02
+        case .snow:         condShift = -0.03
+        }
+        let night: Float = w.isDaylight ? 0 : -0.03
+
+        return clampRange(tempShift + condShift + night,
+                          -maxToneBrightnessShift, maxToneBrightnessShift)
+    }
+
     /// Crossfade a base value toward `target` by `intensity` [0…1]. Intensity 0
     /// returns `base` unchanged (bit-identical); 1 returns `target`. Pure.
     public static func blend(base: Float, target: Float, intensity: Float) -> Float {
@@ -268,7 +380,8 @@ public enum WeatherMood {
                             hue: hue, saturation: saturation,
                             glowTarget: glowTarget(for: w),
                             motionTarget: motionTarget(forWindKph: w.windKph),
-                            descriptor: descriptor)
+                            descriptor: descriptor,
+                            toneBrightnessShift: toneBrightnessShift(for: w))
     }
 
     // MARK: Sound targets (MoodProfile 0…1 space)

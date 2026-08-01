@@ -2600,7 +2600,12 @@ struct EchoelStudioView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.dim)
             ForEach(params) { param in
-                WeatherMixRow(param: param)
+                // The commit hook pushes the take patch again, so the WARMTH fader is audible
+                // while you move it instead of at the next generate. It fires for the image
+                // mixers too and does nothing there — filtering by param would be a second
+                // place that has to know which influences are patch-side, and that list is
+                // already stated once in `weatherToned`.
+                WeatherMixRow(param: param) { applyTakeSound(currentPatch) }
             }
         }
         .padding(12)
@@ -2635,6 +2640,12 @@ struct EchoelStudioView: View {
             }
             guard let fix, let snap = await weatherProvider.snapshot(for: fix), running else { return }
             weatherContribution = WeatherMood.contribution(for: snap)
+            // The TONE half lands NOW, not on the next re-seed. The salt and the mood targets
+            // are compose-time inputs and correctly wait for the next generate; the tone is a
+            // patch push, and holding it back would mean the sky arrives audibly only after
+            // the player happens to regenerate — which is most of why weather read as
+            // "nicht bemerkbar" in the first place.
+            applyTakeSound(currentPatch)
         }
     }
 
@@ -6640,8 +6651,44 @@ struct EchoelStudioView: View {
     private func applyTakeSound(_ patch: SynthPatch) {
         let trim = takeRhythmCharacter.map(RoleRhythm.timbreTrim(for:))
             ?? RoleRhythm.TimbreTrim.neutral
-        synth.apply(trim.trimmed(patch))
+        synth.apply(weatherToned(trim.trimmed(patch)))
         syncTouchSound()
+    }
+
+    /// The sky's TONE offset, on the same local copy and never written back (identical
+    /// discipline to the rhythm trim above — `TimbreTrim.trimmed` multiplies, so a stored
+    /// result would compound on every push).
+    ///
+    /// ⛔ WHY THIS EXISTS AT ALL — founder, 2026-08-01: "Wetter ist nicht bemerkbar bis jetzt
+    /// oder?" He was right, and the reason was structural, not a matter of amount.
+    /// `Param.warmth` promises "Warm weather brightens the TONE, cold darkens it", and its
+    /// only wiring was `MoodProfile.darkness`, whose ONLY two readers in the whole engine are
+    /// `mood.darkness > 0.6 ? -1 : 0` (`BioComposer`, the ambient octave and the pad voicing).
+    /// A threshold, not a gradient — `MoodPreset.swift` records the same finding in its own
+    /// words ("two moods can differ by 0.43 of darkness and produce the SAME notes"). So the
+    /// few hundredths weather moved did nothing at all unless they happened to cross 0.6, and
+    /// then they moved a whole octave. Note also which word the label uses: TONE. The engine
+    /// implemented REGISTER. This is the parameter the copy was always describing.
+    ///
+    /// It composes with the rhythm trim rather than replacing it: two independent, bounded,
+    /// relative offsets on the same patch. Genre distances are preserved by both.
+    private func weatherToned(_ patch: SynthPatch) -> SynthPatch {
+        #if canImport(WeatherKit) && canImport(CoreLocation)
+        guard weatherEnabled, let wx = weatherContribution else { return patch }
+        let tone = wx.toneTrim(intensity: WeatherMood.Param.warmth.currentIntensity())
+        guard tone != WeatherMood.ToneTrim.neutral else { return patch }
+        // Reuses `TimbreTrim.trimmed` for the clamping rather than re-deriving it — that
+        // method's rule ("a clamp bounds where the trim may PUSH a value, never where the
+        // input was allowed to BE") took a correction to get right once already, and a second
+        // copy is a second chance to get it wrong. Time factors stay 1: weather changes the
+        // colour of a note, not its envelope.
+        let asTrim = RoleRhythm.TimbreTrim(brightness: tone.brightness,
+                                           cutoffFactor: tone.cutoffFactor,
+                                           attackFactor: 1, releaseFactor: 1)
+        return asTrim.trimmed(patch)
+        #else
+        return patch
+        #endif
     }
 
     /// The character whose tone the take voice follows, or `nil`-as-neutral.
@@ -7074,17 +7121,21 @@ private struct AdaptiveCardGrid<Content: View>: View {
 @MainActor
 private struct WeatherMixRow: View {
     let param: WeatherMood.Param
+    /// Called when the fader is released — the host re-pushes the take patch so a
+    /// patch-side influence (today: Warmth's tone offset) is heard while you set it.
+    let onCommit: () -> Void
     @AppStorage private var intensity: Double
 
-    init(param: WeatherMood.Param) {
+    init(param: WeatherMood.Param, onCommit: @escaping () -> Void = {}) {
         self.param = param
+        self.onCommit = onCommit
         _intensity = AppStorage(wrappedValue: param.defaultIntensity, param.mixKey)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             EchoelValueField(label: param.label, value: $intensity,
-                             range: 0...1, unit: "", decimals: 2)
+                             range: 0...1, unit: "", decimals: 2, onCommit: onCommit)
             Text(param.explanation)
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
