@@ -6071,7 +6071,20 @@ struct EchoelStudioView: View {
                     } header: {
                         Text("Autosave").foregroundStyle(EchoelTheme.dim)
                     } footer: {
-                        Text("Kept automatically when you leave the app. Overwritten each time.")
+                        // ⛔ THIS SENTENCE NAMED ONE TRIGGER AND #357(b) ADDED A SECOND, in the
+                        // same slice that argued the gate exists to "keep the row meaning one
+                        // thing". It read "Kept automatically when you leave the app." — and
+                        // since `open(_:)` also writes the slot, a user reading that would
+                        // believe the row holds their last backgrounding when it actually holds
+                        // the state from just before their last OPEN. Wrong in the direction
+                        // that matters: they would trust it for a recovery it cannot make.
+                        // This is the one place anyone learns what the slot is, and it is
+                        // pinned by `OpeningAProjectRescuesTheLiveTakeTests` so the next
+                        // trigger cannot be added without the sentence.
+                        // One line, not a `+` concatenation: the guard matches this sentence
+                        // as a single string, and this bundle has been red once on the cost of
+                        // concatenated literals (#287).
+                        Text("Kept automatically when you leave the app and before you open another take. Overwritten each time.")
                             .foregroundStyle(EchoelTheme.dim)
                     }
                 }
@@ -7535,18 +7548,29 @@ struct EchoelStudioView: View {
         projects.save(take)
     }
 
-    /// ⭐ RESCUE BEFORE REPLACE (#357 b). Every line below overwrites the live take — style,
-    /// key, scale, patch, NOTES, tempo, A4 — and until this call there was no prompt and no
-    /// snapshot anywhere on the path. Tapping a row in the Open list silently destroyed
-    /// whatever the body had just played. `autosaveTake()` existed and was the obvious rescue,
-    /// but it only fired on a scene-phase departure (`.onChange(of: scenePhase)`), so it
-    /// covered backgrounding and covered nothing the user did inside the app.
+    /// ⭐ RESCUE BEFORE REPLACE. Nearly every line below overwrites the live take — style, key,
+    /// scale, patch, NOTES, tempo, A4 — and until this call there was no prompt and no snapshot
+    /// anywhere on the path. Tapping a row in the Open list silently destroyed whatever the
+    /// body had just played. `autosaveTake()` existed and was the obvious rescue, but it only
+    /// fired on a scene-phase departure (`.onChange(of: scenePhase)`), so it covered
+    /// backgrounding and covered nothing the user did inside the app.
+    /// (⛔ "EVERY line below" is what the first version wrote, and the very next statement is a
+    /// local `let openStyle`. A checkable sentence has to be checkable-TRUE — that is the norm
+    /// this file enforces on other people's comments.)
     ///
     /// REVERSIBLE BEATS CONFIRMED, and that is why this is not a `.confirmationDialog`. A
     /// prompt would add a presentation modifier to a chain the black-screen law says must not
-    /// grow, and it would only ever tell the user what they are about to lose — it could not
-    /// give it back. Writing the recovery point costs no UI at all and makes the action
-    /// undoable: the previous take is one tap away in the Open list's own Autosave section.
+    /// grow, and all it could ever do is tell the user what they are about to lose — it could
+    /// not give it back.
+    ///
+    /// ⚠️ IT IS NOT FREE, WHICH THE FIRST VERSION CLAIMED TWICE ("costs no UI at all"). What
+    /// costs nothing is the PRESENTATION chain — no modifier, no slot. The call itself runs
+    /// `ProjectStore.save` → `persist()` → `AppGroupStore.save`: a synchronous pretty-printed
+    /// encode of the WHOLE library plus a protected atomic write, on the main actor. The
+    /// scene-phase caller weighed exactly that cost in its own comment; this slice moved it
+    /// onto every project open without restating it. Acceptable per tap — the same tap already
+    /// re-applies the patch, re-pushes tuning and re-stamps every FX chain — but it is a
+    /// per-GESTURE budget, not a free one, and a third caller has to weigh it again.
     ///
     /// ⚠️ AND IT MUST NOT FIRE WHEN THE ROW BEING OPENED **IS** THE AUTOSAVE. There is exactly
     /// ONE reserved slot (`Project.autosaveSlotID`, matched by id in `ProjectStore.save`), so
@@ -7555,12 +7579,27 @@ struct EchoelStudioView: View {
     /// recovery row would now hold the discarded take, i.e. a second tap would undo the
     /// recovery. Skipping the write there keeps the row meaning one thing.
     ///
-    /// ⚠️ Honest limit: this is a RECOVERY POINT, not an undo stack. The slot holds one take,
-    /// so opening twice in a row leaves only the state from just before the second open, and
-    /// the rescue is only findable by someone who opens the library again. `autosaveTake()`'s
-    /// own `guard hasComposed, !pianoRoll.notes.isEmpty` is load-bearing for this caller too:
-    /// without it, opening a project while the roll is empty would write an EMPTY take over a
-    /// good recovery point, which is the exact trap that guard was added for.
+    /// ⚠️ HONEST LIMIT — WHAT COMES BACK IS LESS THAN THE TAKE, and the first version sold the
+    /// slot as an undo without saying so. `currentProject()` stores `pianoRoll.notes`, which is
+    /// the SOUNDING bar and not the arrangement: `generate()` builds `loopBars` distinct bars
+    /// (default eight) and the roll cycles them, while `Project` holds one flat `notes` array.
+    /// So the recovery returns one bar in eight — whichever was staged at the moment of the tap
+    /// — and `pianoRoll.load(_:)` clears `arrangementBars`, so the cycling does not come back
+    /// either. Hand-dialled FX is not in it at all (`Project` carries only `fxCharacterRaw`,
+    /// and the loop below re-stamps every chain from the character), nor are `presetIndex` and
+    /// `lockedBPM`. Persisting the raw bars is the real answer and is its own task, already
+    /// named at the re-seed site. None of this is new — manual Save has the same hole — but
+    /// this is the slice that markets the slot as a way back, so it is the slice that owes the
+    /// limit.
+    ///
+    /// ⚠️ Honest limit 2: ONE slot, not an undo stack. Opening twice in a row leaves only the
+    /// state from just before the second open — and that second write is redundant by
+    /// construction, because after an open the live state IS the project that was opened and
+    /// already sits in the library under its own id. Nor is the rescue "one tap away", as the
+    /// first version put it: it is chip → Save & Export → Open → the Autosave row.
+    /// `autosaveTake()`'s own `guard hasComposed, !pianoRoll.notes.isEmpty` is load-bearing for
+    /// this caller too: without it, opening a project while the roll is empty would write an
+    /// EMPTY take over a good recovery point, which is the exact trap that guard was added for.
     private func open(_ p: Project) {
         if p.id != Project.autosaveSlotID { autosaveTake() }
         // Same clamp as launch: a project saved before the genre re-curation (#125) can
