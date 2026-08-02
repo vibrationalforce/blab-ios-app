@@ -120,9 +120,18 @@ struct BioStripView: View {
     /// factor is a fraction of the CURRENT size, so at AX3 those numbers still land larger than
     /// the default-size ones — the increase is capped, not cancelled. Worth revisiting (#353c)
     /// and a genuinely harder call, because the alternative on a 375 pt phone is the "…"
-    /// truncation the founder complained about twice. This banner had no such trade: it wraps
-    /// freely (the `.lineLimit(1)` sits on `strip`, not here), sits in a `VStack` with no fixed
-    /// height, and nothing downstream measures it. It could always have scaled.
+    /// truncation the founder complained about twice. This banner had no such trade: it can be
+    /// MADE to wrap — it sits in a `VStack` with no fixed height, nothing downstream measures
+    /// it, and the strip's `.lineLimit(1)` belongs to `strip`, not here. It could always have
+    /// scaled.
+    ///
+    /// ⛔ "IT WRAPS FREELY" IS WHAT THIS SENTENCE SAID FOR ONE COMMIT, and the Nachlese
+    /// thirty-odd lines below already calls that derivation weaker than it sounds — absence of
+    /// a `lineLimit` is not presence of a wrap. Corrected HERE too rather than left to be
+    /// contradicted from further down, because this is the paragraph a session reads when
+    /// deciding whether the neighbouring `.minimumScaleFactor(0.6)` (#353c) can get the same
+    /// treatment. It cannot, on this reasoning alone: that row is width-bound in a way this
+    /// one is not.
     ///
     /// ⚠️ THE WEIGHT IS DELIBERATELY DROPPED — and this IS a visible de-emphasis, not the
     /// render-neutral cleanup the first version of this comment claimed.
