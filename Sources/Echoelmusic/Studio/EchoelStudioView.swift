@@ -6730,7 +6730,31 @@ struct EchoelStudioView: View {
         // octave error can never slam the beat, yet the tempo no longer holds a stale value.
         let tempo: Double
         if lockBPM {
-            tempo = min(max(lockedBPM, 40), 240).rounded()
+            // ⛔ #380: THIS LINE WAS `min(max(lockedBPM, 40), 240).rounded()` AND DISAGREED WITH
+            // THE FIELD THAT SETS IT, TWICE OVER. `lockedBPM` is a SETTING, not a measurement —
+            // #368's whole finding, one layer down. `BodyTempoField` stores it to 1e-4, displays
+            // every digit, and clamps to `Transport.minTempo...maxTempo`; tap tempo stores a
+            // tenth. Then this line rounded it to a whole BPM and re-clamped it to 40…240, and
+            // `glideTempo` below pulled the clock to THAT. Lock 71.2345 and the field kept
+            // reading 71,2345 while the beat ran 71; type 280 and it ran 240. The rounding was
+            // invisible until #356 made every tap trigger a recompose, which is how it surfaced.
+            //
+            // The three ranges are now two by construction: the field and the engine both use
+            // the `Transport` constants (`PatternEngine.minTempo/maxTempo` ARE those constants),
+            // so the take can no longer be the only party with an opinion. The 40…240 that stood
+            // here matched nothing but `TapTempo`'s OWN defaults — it read like a copied literal,
+            // not a decision about the locked path, and the unlocked branches below were never
+            // held to it either (they fold into the genre's window instead).
+            //
+            // `clamped(to:)` rather than `min(max(…))` is CONSISTENCY, not a live silence fix,
+            // and saying otherwise would be the mistake this file keeps paying for. The nested
+            // form does pass NaN through both bounds — but `PatternEngine.glideTempo` (which
+            // this value reaches) opens with the NaN-safe `clamped(to:)` against the same
+            // bounds and has its own ⛔ block about a comment that overstated exactly this.
+            // A NaN was already caught one layer down. It is changed here because a persisted
+            // value that reaches the clock should not be guarded by the form CLAUDE.md names
+            // as a shipped permanent-silence cause, however well the next layer covers for it.
+            tempo = lockedBPM.clamped(to: Transport.minTempo...Transport.maxTempo)
         } else if tempoSeededFromBody {
             // Ease toward the current body-mapped tempo (octave-folded INTO the genre's
             // window, B4 — the pulse drives the beat at the genre's rhythmic level, so
