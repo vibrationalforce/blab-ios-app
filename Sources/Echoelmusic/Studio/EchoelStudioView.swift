@@ -4339,16 +4339,43 @@ struct EchoelStudioView: View {
     private var moodPanel: some View {
         panel("Mood", "Character of the composition", isExpanded: $showMood) {
             moodPresetBar
-            moodKnob("Liveliness", $mood.liveliness)
-            moodKnob("Darkness", $mood.darkness)
-            moodKnob("Tension", $mood.tension)
-            moodKnob("Romance", $mood.romance)
-            moodKnob("Weird", $mood.weird)
-            moodKnob("Virtuosity", $mood.virtuosity)
-            moodKnob("Syncopation", $mood.syncopation)
-            moodKnob("Humanize", $mood.humanize)
-            bassRhythmRow
-            padRhythmRow
+            // ⭐ #292 SLICE 3 — the same reflow `soundPanel` got in Slice 2, for the same
+            // reason and with the same two exclusions. `EchoelValueField` fills whatever
+            // width it is offered and `menuPanelHost` offers `maxWidth: .infinity`, so at any
+            // regular width these eight rows put a label against the far left edge and its own
+            // value box against the far right — hundreds of points of nothing between a name
+            // and the number it names. `spacing: 14` is `EchoelPanel`'s own content spacing, so
+            // iPhone PORTRAIT (one column, the primary surface) is byte-for-byte what it is
+            // today; only the second column is new. The preset bar above and the weather block
+            // and caption below stay OUTSIDE — the house rule that headers, sub-sections and
+            // wrapping explanations want the full measure.
+            AdaptiveCardGrid(spacing: 14) {
+                moodKnob("Liveliness", $mood.liveliness)
+                moodKnob("Darkness", $mood.darkness)
+                moodKnob("Tension", $mood.tension)
+                moodKnob("Romance", $mood.romance)
+                moodKnob("Weird", $mood.weird)
+                moodKnob("Virtuosity", $mood.virtuosity)
+                moodKnob("Syncopation", $mood.syncopation)
+                moodKnob("Humanize", $mood.humanize)
+            }
+            // ⛔ A SECOND GRID, NOT TEN ITEMS IN THE FIRST — and with eight (an even number) of
+            // knobs above, the two render IDENTICALLY today, so this is a choice about the next
+            // edit rather than about this frame. Two reasons it is the right one:
+            //   · These are not mood dimensions. `moodSnapshot` captures exactly eight fields and
+            //     no `MoodPreset` writes either rhythm (`bassRhythmRow` says so itself) — putting
+            //     them in the same container as the eight would imply a symmetry the model does
+            //     not have.
+            //   · A ninth mood dimension is a plausible edit (#219 added characters to this very
+            //     panel). In ONE grid it would land beside `bassRhythmRow` — an `EchoelValueField`
+            //     (label and value on one line) paired with a `labeledRow` (label ABOVE its
+            //     Picker, so materially taller), and a `LazyVGrid` row takes its tallest cell.
+            //     Split, the worst case is a half-width cell with an empty one beside it, which
+            //     is already how "Sub / Bass (felt)" has shipped since Slice 2.
+            AdaptiveCardGrid(spacing: 14) {
+                bassRhythmRow
+                padRhythmRow
+            }
             // #359 (Founder 2026-08-01, "Weather könnte auch eine Rubrik in mood … sein oder?").
             // Weather is not a naming gimmick and never was: it blends darkness/liveliness/
             // tension into the composer's mood. It therefore belongs among the mood knobs it
