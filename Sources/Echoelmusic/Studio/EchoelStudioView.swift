@@ -302,14 +302,27 @@ struct EchoelStudioView: View {
     @State private var moodAsName = ""
     @State private var showSavePatchAs = false
     @State private var patchSaveName = ""
-    /// #320 — the patch as it was immediately before the last prompt application, so a
-    /// shaping can be taken back in one tap. Nil = nothing to undo.
+    /// The patch as it was immediately before the last wholesale timbre change in the Sound
+    /// panel, so that change can be taken back in one tap. Nil = nothing to undo.
+    ///
+    /// ⛔ IT WAS CALLED `patchBeforePrompt` AND ONLY THE PROMPT WROTE IT, while
+    /// `randomizeButton` — one row BELOW the Undo arrow, same panel — replaced `currentPatch`
+    /// outright with no snapshot at all. Two neighbouring controls that do the same thing to the
+    /// same value, one undoable and one not, and nothing on screen said which was which. The
+    /// name is part of the fix: a snapshot that covers two writers must not be named after one
+    /// of them, or the next writer reads the name and assumes it does not apply to it. (This
+    /// repo has paid for a stale name before — #374 renamed a whole guard file for it.)
+    ///
+    /// ⚠️ STILL EXACTLY ONE STEP, deliberately, and the reason is unchanged: a deeper history
+    /// would have to be invalidated by the seven other places that assign `currentPatch`
+    /// wholesale, and an undo that silently points at a patch from before a preset load is worse
+    /// than no undo.
     ///
     /// ⚠️ THE TYPED TEXT IS DELIBERATELY *NOT* HERE. It lives in `SoundPromptRow`'s own
     /// `@State`, because state on THIS view re-evaluates a ~500-line body on every keystroke.
-    /// This one is safe at root level for the opposite reason: it changes only when a prompt is
-    /// applied or undone — a tap, not a character.
-    @State private var patchBeforePrompt: SynthPatch?
+    /// This one is safe at root level for the opposite reason: it changes only when a timbre is
+    /// replaced or restored — a tap, not a character.
+    @State private var patchBeforeSoundChange: SynthPatch?
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @AppStorage("studio.presetIndex") private var presetIndex = -1
 
@@ -5206,7 +5219,7 @@ struct EchoelStudioView: View {
     /// keep every live read inside a leaf `View` struct."* Owning the text one level down means
     /// `EchoelStudioView` holds no per-keystroke state at all.
     private var promptRow: some View {
-        SoundPromptRow(canUndo: patchBeforePrompt != nil,
+        SoundPromptRow(canUndo: patchBeforeSoundChange != nil,
                        onShape: { applySoundPrompt($0) },
                        onUndo: { undoSoundPrompt() })
     }
@@ -5227,10 +5240,14 @@ struct EchoelStudioView: View {
     ///    so clearing it would trade "you come back to the factory sound you started from" for
     ///    "you come back to the genre patch" — no gain, one more moving part. "Save as new
     ///    sound…" is how a prompted timbre is actually kept.
-    /// 3. The `patchBeforePrompt` snapshot is taken per APPLICATION, so Undo is exactly one
+    /// 3. The `patchBeforeSoundChange` snapshot is taken per APPLICATION, so Undo is exactly one
     ///    step. Deliberately not a stack: a deeper history would have to be invalidated by the
     ///    seven other places that assign `currentPatch` wholesale, and an undo that silently
     ///    points at a patch from before a preset load is worse than no undo.
+    ///    ⚠️ AND THIS PATH IS NO LONGER THE SNAPSHOT'S ONLY WRITER — `randomizeButton` takes one
+    ///    too, into the same single slot. A randomize after a shaping therefore replaces this
+    ///    undo point instead of stacking on it, which is what "one step" has to mean once two
+    ///    controls in one panel share it.
     ///
     /// ⛔ VALIDITY IS NOT AUDIBILITY, and reading `SoundPrompt.clamp` as a safety net was my
     /// mistake in the first version of this slice. `apply` is RELATIVE — it shifts the patch it
@@ -5251,7 +5268,7 @@ struct EchoelStudioView: View {
         shaped.filterCutoff = Swift.max(shaped.filterCutoff, Self.promptCutoffFloor)
         shaped.brightness = Swift.max(shaped.brightness, Self.promptBrightnessFloor)
         currentPatch = shaped
-        patchBeforePrompt = previous
+        patchBeforeSoundChange = previous
         applySoundLive()
     }
 
@@ -5259,9 +5276,9 @@ struct EchoelStudioView: View {
     /// over-shaped sound are Randomize and re-picking a character, neither of which reads as
     /// "give me my sound back".
     private func undoSoundPrompt() {
-        guard let previous = patchBeforePrompt else { return }
+        guard let previous = patchBeforeSoundChange else { return }
         currentPatch = previous
-        patchBeforePrompt = nil
+        patchBeforeSoundChange = nil
         applySoundLive()
     }
 
@@ -5281,8 +5298,21 @@ struct EchoelStudioView: View {
         applyArticulation()   // character = timbre; the global macro owns the envelope
     }
 
+    /// ⭐ IT TAKES A SNAPSHOT NOW, and that is the whole slice. This button threw the live timbre
+    /// away outright — no prompt, no dialog, nothing to get it back from — while the row DIRECTLY
+    /// ABOVE it kept exactly one undo step for the identical kind of write. A hand-dialled sound
+    /// was one accidental tap from gone, and the Undo arrow sat right there looking like it
+    /// covered this too. Reversible beats confirmed, same as the project-open rescue: a
+    /// `.confirmationDialog` would grow the presentation chain the black-screen law forbids
+    /// growing and could only ever warn, while writing the snapshot costs one assignment and
+    /// makes the tap undoable.
+    ///
+    /// ⚠️ ONE SLOT, SHARED WITH THE PROMPT — so a randomize after a shaping replaces that
+    /// shaping's undo point rather than stacking on it. Correct for a one-step history: the
+    /// arrow always means "the sound I had immediately before the last thing I did here".
     private var randomizeButton: some View {
         Button {
+            patchBeforeSoundChange = currentPatch
             // Fresh timbre colour: start from a random character, then jitter a few
             // expressive fields so each press genuinely differs. (Don't touch
             // presetIndex — that would retrigger the picker's loader and clobber this.)
@@ -8124,7 +8154,12 @@ private struct SoundPromptRow: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Undo the last shaping")
+                        // ⛔ "Undo the last shaping" — true while the prompt was the only writer
+                        // of the snapshot, false the moment `randomizeButton` started taking one
+                        // too. A VoiceOver user would have heard "shaping" after a randomize and
+                        // reasonably concluded the arrow was for something else. It is the same
+                        // defect class as a stale caption, only audible instead of visible.
+                        .accessibilityLabel("Undo the last sound change")
                     }
                 }
 
