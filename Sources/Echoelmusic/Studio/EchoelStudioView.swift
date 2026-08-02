@@ -1589,35 +1589,68 @@ struct EchoelStudioView: View {
             : Text("Starts biofeedback; your body then composes and plays the music."))
     }
 
-    /// Unmissable, on the hero path: when a non-standard tone system is active it
-    /// retunes EVERY generated note (e.g. just intonation reads 15–30¢ flat), which
-    /// sounds "off" to an ear expecting standard pitch. The setting is persisted, so
-    /// without this it can silently colour every session. One tap returns to 12-TET.
-    /// Hidden entirely at 12-TET (the default) so it never adds chrome in normal use.
+    /// The instrument says when it is not at standard tuning — and #325 is why this
+    /// exists at all, doored on 2026-08-02 after sitting unpresented since 2026-07-09.
+    ///
+    /// ⭐ THE EVIDENCE THAT DECIDED IT, because "should a warning have a door?" is not a
+    /// question a taste argument settles. On 2026-08-02 the founder reported "es klingt
+    /// sehr unharmonisch" and sent a screen recording in which the concert pitch walks
+    /// 440 → 483,4352 → 500,0000 Hz — the header strip's own scroll gesture feeding the
+    /// A4 field (#391/#392 closed that cause). The value is PERSISTED, so it survived
+    /// relaunch, and for the whole time the instrument was a semitone and a half sharp
+    /// there was nothing on screen that said so. The cause is fixed; this is the part
+    /// that would have made the SYMPTOM legible while it was happening.
+    ///
+    /// ⛔ SO IT NOW COVERS TWO THINGS, NOT ONE, and that widening is the point rather
+    /// than a bonus. The version that sat here checked only the TONE SYSTEM
+    /// (`tuningID != "edo12"`) — it would have been mounted, visible and SILENT through
+    /// the founder's entire 500 Hz session, because the tone system was standard the
+    /// whole time. Dooring it as written would have shipped a warning that does not
+    /// warn about the thing that happened. The concert-pitch half is why it earns a door.
+    ///
+    /// Both are persisted settings that retune EVERY generated note — a non-12-TET
+    /// system reads 15–30¢ off a 12-TET ear, and a 483 Hz reference is 158¢ sharp
+    /// wholesale — and both are edited from the header strip, out of the eyeline of the
+    /// front plate where the sound is judged.
+    ///
+    /// Hidden entirely at 12-TET + 440 (the defaults), so it costs zero chrome in normal
+    /// use. That is also why it is a permanent line and not a dismissible one: a player
+    /// who deliberately works at A=432 or in Maqām Bayātī gets a quiet factual statement
+    /// of the frame they chose, which is information; a dismiss button would let the
+    /// accidental case be waved away and re-hidden, which is the defect again.
+    ///
+    /// FREEZE RULE: reads `tuningID` (`@AppStorage`) and `session.a4Hz` — both change
+    /// only on a user edit or a project open, never at bio/frame rate. This is not the
+    /// class of read the 10 Hz law forbids in a body.
     @ViewBuilder private var nonStandardTuningBanner: some View {
-        if tuningID != "edo12" {
+        if toneSystemIsNonStandard || concertPitchIsNonStandard {
             HStack(spacing: 10) {
                 Image(systemName: "tuningfork")
                     .foregroundStyle(EchoelTheme.dim)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Non-standard tuning: \(TuningSystem.named(tuningID).name)")
+                    Text(nonStandardTuningTitle)
                         .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
-                    Text("Every note is retuned to this system. Sounds off? Return to standard.")
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Every note is retuned to this. Sounds off? Return to standard.")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
-                Button("12-TET") {
-                    tuningID = "edo12"
-                    applyTuning()
-                    recomposeIfRunning()
-                }
+                // "Standard", not "12-TET": the button now returns BOTH dimensions, and the
+                // old label named only one of them. It is also the word the sentence above
+                // it uses, so the control and its explanation agree.
+                Button("Standard") { resetTuningToStandard() }
                 .font(EchoelTheme.font(13, .semibold))
                 .foregroundStyle(.black)
-                .padding(.horizontal, 12).frame(height: 34)
+                // `minHeight: 44`, not `height: 34`. Two reasons, both of which only became
+                // this control's problem when it got a door: 34 is 60 % of the HIG 44×44
+                // floor by area (`TapTargetFloorTests` pins the same number on the two preset
+                // overflow menus), and a FIXED height clips the label once Dynamic Type grows
+                // it — the #353 class. A minimum floors the target without capping the text.
+                .padding(.horizontal, 12).frame(minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.text))
                 .buttonStyle(.plain)
-                .accessibilityHint("Switches to standard 12-tone equal temperament")
+                .accessibilityHint("Returns to 12-tone equal temperament at A4 = 440 hertz")
             }
             .padding(12)
             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -1625,6 +1658,56 @@ struct EchoelStudioView: View {
                 .stroke(EchoelTheme.border, lineWidth: 1))
             .accessibilityElement(children: .combine)
         }
+    }
+
+    /// The two halves of "is this instrument at standard tuning", named once so the banner,
+    /// its headline and its reset cannot drift apart. Three call sites open-coding
+    /// `abs(session.a4Hz - 440) >= 0.05` is how one of them ends up with a different
+    /// tolerance than the other two and the banner starts contradicting its own button.
+    private var toneSystemIsNonStandard: Bool { tuningID != "edo12" }
+
+    /// Not `!= 440`: `a4Hz` is a `Double` the user can type to four decimals, so an exact
+    /// comparison would keep the banner up for a value that is 440 for every audible
+    /// purpose. 0.05 Hz at A4 is under a fifth of a cent — inaudible, and well below the
+    /// ±0.005 Hz the keypad can even express.
+    private var concertPitchIsNonStandard: Bool { abs(session.a4Hz - 440) >= 0.05 }
+
+    /// The banner's headline — it names only what is actually off standard, so a player
+    /// working in Maqām Bayātī at 440 is not told their concert pitch is unusual.
+    ///
+    /// The Hz goes through `EchoelDecimalText` like every other user-visible decimal in the
+    /// app (#267): a German player reads "443,25", and a hard-coded `%.2f` here would print
+    /// a point in a panel where every neighbouring number prints a comma.
+    private var nonStandardTuningTitle: String {
+        let systemName = TuningSystem.named(tuningID).name
+        let hz = EchoelDecimalText.string(session.a4Hz, decimals: 2)
+        switch (toneSystemIsNonStandard, concertPitchIsNonStandard) {
+        case (true, true):  return "Non-standard tuning: \(systemName), A4 = \(hz) Hz"
+        case (true, false): return "Non-standard tuning: \(systemName)"
+        default:            return "Non-standard concert pitch: A4 = \(hz) Hz"
+        }
+    }
+
+    /// Both dimensions back to standard in one tap, with exactly the side effects the
+    /// header strip's own edits produce — `handleCompositionEdit`'s `"tuning"` case for the
+    /// system and its `"a4"` case for the reference — and ONE recompose at the end rather
+    /// than one per dimension.
+    ///
+    /// Each half is guarded on being off standard so that pressing this from the
+    /// pitch-only case cannot re-apply a tuning table nothing changed.
+    private func resetTuningToStandard() {
+        if toneSystemIsNonStandard {
+            tuningID = "edo12"
+            applyTuning()
+        }
+        if concertPitchIsNonStandard {
+            session.a4Hz = 440
+            applyConcertPitch(440)
+            // Same reason as the "a4" edit path: the roll's note grid recolours with the
+            // concert pitch, so push it now rather than at the next compose.
+            pianoRoll.musicalA4Hz = 440
+        }
+        recomposeIfRunning()
     }
 
     // MARK: - Sound controls (one morph pad + genre + fine sliders)
@@ -2981,8 +3064,10 @@ struct EchoelStudioView: View {
     // verbatim into the chrome — CompositionHeaderStrip owns the Pickers/A4 field,
     // the TransportBar's BodyTempoField the tempo; their audible side effects run in
     // handleCompositionEdit below. tuningRow's conditional retune hint text fell
-    // with it; nonStandardTuningBanner below keeps the full explainer, unpresented
-    // since 2026-07-09, reversible.)
+    // with it; nonStandardTuningBanner keeps the full explainer — and since #325
+    // (2026-08-02) it is MOUNTED again, as the first child of `soundPanel`. It sat
+    // unpresented from 2026-07-09 to then, which is the whole point of that task:
+    // moving the CONTROLS into the chrome silently moved the WARNING out of the app.)
 
     /// Push the selected tone system's per-pitch-class retune table to the synth
     /// (relative to the current key root). 12-TET → all zeros → identical playback.
@@ -4855,6 +4940,20 @@ struct EchoelStudioView: View {
 
     private var soundPanel: some View {
         panel("Sound & texture", "Shape the timbre — exact to 0.0001", isExpanded: $showSound) {
+            // #325 — THE TUNING BANNER'S DOOR, and Sound is chosen over the panel the tuning
+            // controls live in on purpose. `displayedMenu` falls back to `.sound`, so this is
+            // what an untouched launch shows: a player who opens a detuned instrument is told
+            // before they play a note. The controls themselves are in the header strip, which
+            // is exactly the eyeline the founder's 500 Hz session never crossed.
+            //
+            // It renders nothing at 12-TET + 440, so on the normal path this adds no row, no
+            // spacing and no chrome to the default panel — the cost is paid only by the state
+            // it exists to report.
+            //
+            // METADATA: this is a child of an existing panel builder, NOT a fifth child of the
+            // root `VStack` and NOT a presentation modifier. The black-screen law counts the
+            // root body's aggregate generic type and the `.sheet` chain; both are untouched.
+            nonStandardTuningBanner
             presetRow
             promptRow
             randomizeButton

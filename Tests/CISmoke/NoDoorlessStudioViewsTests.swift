@@ -66,15 +66,13 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     /// something must mount by name.
     private static let protocolRequirements: Set<String> = ["body"]
 
-    /// ⚠️ THE LIVE LIST — THREE orphans (2026-08-01), each with its own decision to make. It is
+    /// ⚠️ THE LIVE LIST — TWO orphans (2026-08-02), each with its own decision to make. It is
     /// declared, not silent, because a guard that quietly excuses what it finds is the same
     /// defect as a workflow step that swallows its exit status.
     ///
-    /// All three are ALREADY documented as unmounted inside `EchoelStudioView.swift` itself —
+    /// Both are ALREADY documented as unmounted inside `EchoelStudioView.swift` itself —
     /// which is the point: the file knew, and nothing enforced it, so they sat there.
     ///
-    ///   · `nonStandardTuningBanner` — the file says "keeps the full explainer, unpresented". A
-    ///                                 judgement call about a tuning warning, not cleanup. → #325
     ///   · `liveNarrationBanner`     — the EchoelAI live caption. The one record of where it was
     ///                                 meant to sit lived inside the `soundControls` block #322
     ///                                 deleted: "It now lives at the TOP, right under the live
@@ -114,8 +112,19 @@ final class NoDoorlessStudioViewsTests: XCTestCase {
     ///                             reachable". That note lived for ONE commit on 2026-07-30
     ///                             (`99c9d13` → `4ef5e68`) and was caught in review — it cannot
     ///                             have caused 25 days of anything. Plain doc rot did.
+    ///   · `nonStandardTuningBanner` — DOORED #325 (2026-08-02), the first entry to leave this
+    ///                             list by being MOUNTED rather than deleted. It is now the first
+    ///                             child of `soundPanel`, which is what `displayedMenu` shows on
+    ///                             an untouched launch. The decision was made on evidence, not
+    ///                             taste: the founder's 2026-08-02 device report ran a persisted
+    ///                             concert pitch of up to 500 Hz with nothing on screen saying so.
+    ///                             It was widened in the same commit — as written it checked only
+    ///                             the tone SYSTEM and would have stayed silent through exactly
+    ///                             that session. Its own guard is
+    ///                             `DetunedInstrumentSaysSoTests`; this list only records that it
+    ///                             is no longer excused from the headline below.
     private static let knownOrphans: Set<String> = [
-        "nonStandardTuningBanner", "liveNarrationBanner", "moodPadsSection"
+        "liveNarrationBanner", "moodPadsSection"
     ]
 
     // MARK: - The headline
