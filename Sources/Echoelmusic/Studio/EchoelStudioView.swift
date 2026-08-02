@@ -485,8 +485,24 @@ struct EchoelStudioView: View {
     @State private var lastLaneRaw: [UUID: (genre: MusicStyle, notes: [Note])] = [:]
     /// Non-blocking watcher that re-seeds once the rPPG pulse first locks (see snapToLockWhenReady).
     @State private var lockSnapTask: Task<Void, Never>?
-    /// When the last take was composed — the floor for automatic re-seeds.
+    /// When a take was ACTUALLY composed. Written only by `generate(…)`, at run time.
+    ///
+    /// ⛔ #398: THIS IS ONE FACT AND IT USED TO CARRY TWO. `scheduleGenerate` also wrote the
+    /// FUTURE instant an automatic re-seed was claimed for into this same property, and then
+    /// every reader subtracted it as though it always meant "a take happened at T". Two defects
+    /// followed (see `RegenSchedule`), and a third landed in the DIAGNOSTIC: `generate(…)` prints
+    /// `sinceLast=` from here (#390), so while a claim could live in it the log reported the
+    /// distance to a re-seed that had not happened. Claims now live in `seedFloor`.
     @State private var lastSeedAt: Date = .distantPast
+    /// The instant an AUTOMATIC re-seed is already claimed for — the anti-flood floor, claimed at
+    /// SCHEDULE time so several auto triggers inside one window (lock-snap + evolve tick land
+    /// together the moment a pulse locks) COLLAPSE onto the same instant instead of each
+    /// computing a fresh gap. `.distantPast` = no claim stands.
+    ///
+    /// Deliberately NOT written by a user edit: `scheduleGenerate` cancels the pending task on
+    /// its first line, so a standing claim belongs to something that will never run, and
+    /// `generate(…)` re-stamps `lastSeedAt` on its own when a take is really produced.
+    @State private var seedFloor: Date = .distantPast
     /// WHY the next generate() runs ("start" · "user-edit" · "lock-snap" · "evolve") —
     /// carried into the generate breadcrumb so device logs can attribute every re-seed
     /// (log 1783370283 had a mid-take thinning nobody could explain).
@@ -504,10 +520,13 @@ struct EchoelStudioView: View {
     /// unchanged body holds its phrase instead of re-rolling every ~30 s. nil = the last
     /// take had no usable body (neutral/demo), so evolve keeps it gently alive.
     @State private var lastGenBody: (bpm: Double, coherence: Double)? = nil
-    /// Minimum seconds between AUTOMATIC re-seeds (evolve/lock). User edits bypass it.
-    /// Raised 3.5 → 6 s (device-log feedback): lets a take settle into a phrase and
-    /// makes overlapping auto triggers (lock-snap + evolve) collapse into one re-seed.
-    private let minAutoSeedGap: TimeInterval = 6.0
+    // ⛔ `minAutoSeedGap` USED TO BE DECLARED HERE (6.0 s, raised from 3.5 on device-log feedback:
+    // it lets a take settle into a phrase and makes overlapping auto triggers collapse into one
+    // re-seed). It moved to `RegenSchedule.minAutoSeedGap` with #398, next to the only arithmetic
+    // that ever read it, so one test can pin the number and the rule that uses it together. Kept
+    // as a note rather than an unused alias: a computed forwarder with no callers is dead code,
+    // and this repo's engineering rules say so — but a grep for the old name must not land on
+    // nothing, or the next reader concludes the floor was deleted rather than moved.
     /// The floating-visual state (visible/size) before Start staged the immersive
     /// fullscreen take, so Stop can restore exactly what the user had. nil = no take
     /// staging in flight. (The keys are @AppStorage-backed in WorkspaceView /
@@ -6011,10 +6030,21 @@ struct EchoelStudioView: View {
     /// quiet window, so a cascade of control changes reloads the pattern just once.
     ///
     /// `auto` re-seeds (the evolve loop and the lock-snap) are additionally
-    /// RATE-LIMITED to one per `minAutoSeedGap`: the music can never re-seed faster
-    /// than a musical phrase, no matter how many automatic triggers fire. A user
-    /// edit (`auto: false`) stays instant (140 ms). This makes a re-seed "flood"
-    /// structurally impossible rather than merely unlikely.
+    /// RATE-LIMITED to one per `RegenSchedule.minAutoSeedGap`: the music can never re-seed
+    /// faster than a musical phrase, no matter how many automatic triggers fire. A user
+    /// edit (`auto: false`) answers only to its own gentler floor, measured from the last take
+    /// that ACTUALLY happened. This makes a re-seed "flood" structurally impossible rather than
+    /// merely unlikely.
+    ///
+    /// ⛔ TWO CORRECTIONS TO THIS PARAGRAPH, BOTH FOUND BY READING THE CODE UNDER IT (#398).
+    /// (1) It said a user edit "stays instant (140 ms)". There has been no 140 ms anywhere in
+    /// this function for a long time — the quiet window is 0.45 s and the user floor is 2 s. A
+    /// number that no longer exists is worse than no number: it is what a reader reaches for
+    /// when deciding whether a delay they measured is a bug.
+    /// (2) The claim that the flood is "structurally impossible" was true only of the direction
+    /// it was aimed at. The arithmetic below it could push a re-seed arbitrarily FAR AWAY — the
+    /// opposite failure, unbounded, and it made a user's genre tap wait for a trigger that had
+    /// already been cancelled. Both are gone; `RegenSchedule`'s header carries the full account.
     private func scheduleGenerate(auto: Bool = false, reason: String) {
         // The reason is threaded INTO the task and stamped only when generate()
         // actually runs (T2, log 2361: stamping at SCHEDULE time left a stale
@@ -6027,25 +6057,24 @@ struct EchoelStudioView: View {
         // SCROLLING through a Picker (each highlighted option fires onChange) coalesces
         // into ONE recompose after the hand settles — device log 1783177585: five
         // generates in four seconds while browsing the genre menu, audible chaos.
-        var delay = 0.45
-        if auto {
-            let since = Date().timeIntervalSince(lastSeedAt)
-            if since < minAutoSeedGap { delay = max(delay, minAutoSeedGap - since) }
-            // Claim the anti-flood floor at SCHEDULE time, not only when generate()
-            // runs: several auto triggers can fire within one window (lock-snap +
-            // evolve tick land together the moment a pulse locks). Advancing the
-            // floor to this reseed's run time makes the next auto trigger compute a
-            // full gap and collapse into it — no rapid burst of re-seeds.
-            lastSeedAt = Date().addingTimeInterval(delay)
-        } else {
-            // User edits get their own gentler floor: at most one recompose every ~2 s.
-            // Taps 0.7–1.5 s apart (browsing options) would slip past the quiet window
-            // alone — the same log shows they did. The LAST edit always wins (each call
-            // cancels the pending task), so the sound lands on what the user chose.
-            let since = Date().timeIntervalSince(lastSeedAt)
-            let minUserGap = 2.0
-            if since < minUserGap { delay = max(delay, minUserGap - since) }
-        }
+        // ⛔ THE ARITHMETIC LEFT THIS FUNCTION (#398) AND MUST NOT COME BACK. It used to keep
+        // ONE date for two facts — "a take was generated at T" and "no automatic re-seed before
+        // T" — and subtract it as though it were always the first. With a FUTURE claim in it,
+        // `gap - (now - claim)` ADDS the unspent claim to a fresh full gap: two co-firing auto
+        // triggers pushed a re-seed claimed for t+5 s out to t+11 s (the opposite of the
+        // "collapse into it" this comment used to promise), and a genre tap one second into a
+        // claim waited six seconds under a doc line promising it stayed instant. The two facts
+        // are now two properties, and the decision is a tested pure value type.
+        // See `RegenSchedule` — its header carries the full account.
+        let now = Date()
+        let decision = RegenSchedule.decide(auto: auto,
+                                            sinceLastSeed: now.timeIntervalSince(lastSeedAt),
+                                            untilFloor: seedFloor.timeIntervalSince(now))
+        let delay = decision.delay
+        // Only the automatic branch claims, and it claims into `seedFloor` — never into
+        // `lastSeedAt`, which `generate(…)` both reports as `sinceLast=` (#390) and re-stamps
+        // when a take is really produced.
+        if let claim = decision.claimFloorIn { seedFloor = now.addingTimeInterval(claim) }
         regenTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, running else { return }
