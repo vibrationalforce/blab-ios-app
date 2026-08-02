@@ -579,22 +579,54 @@ struct FloatingVisualWindow: View {
     /// makes the button untappable while hidden — and a guard that holds by accident is exactly
     /// the kind this repo has had to re-learn.
     ///
-    /// ⛔ WHAT THIS STILL DOES NOT COVER, stated rather than implied: start a video recording,
-    /// THEN hide the picture. `recorder.isRecording` stays true, the badge keeps counting, and
-    /// the renderer is gone — the same gap the external-screen case has had since #206, now
-    /// reachable by one more route. Filed as its own slice; it needs a stop-or-pause decision,
-    /// not another boolean here.
+    /// ⛔ WHAT THIS DID NOT COVER — HALF CLOSED BY #319, and the half that remains is named
+    /// precisely because the first version of this note treated both as one problem. It said:
+    /// "start a video recording, THEN hide the picture … the renderer is gone. Filed as its own
+    /// slice; it needs a stop-or-pause decision, not another boolean here."
+    ///  · The HIDE route is fixed, and it needed neither a stop nor a pause: the picture simply
+    ///    keeps rendering while a take runs (`mustKeepRenderingForRecording`). Ending a capture
+    ///    because a window was hidden would have been the wrong answer to a real defect.
+    ///  · The EXTERNAL-SCREEN route is still open, and it is genuinely the harder one: the
+    ///    phone yields its renderer because the external stage has one, so recording through it
+    ///    means deciding which renderer feeds the writer — not adding a condition.
     private var videoCaptureYielded: Bool {
         (ExternalStageBridge.shared.isConnected || !isPresented) && !recorder.isRecording
     }
     #endif
+
+    /// ⭐ #319 — THE ONE STATE IN WHICH HIDING THE PICTURE MAY NOT DROP THE RENDERER.
+    ///
+    /// `VisualRecorder` has exactly one frame source: `MetalBioView`'s draw loop calling
+    /// `capture(from:in:device:)`. No renderer ⇒ no frames ⇒ the writer is never even built.
+    /// Start a video take and then tap the header's monitor button and, before this property
+    /// existed, the take silently became nothing: `recorder.isRecording` stayed true, the REC
+    /// badge kept counting wall-clock seconds (it counts from a `Date`, not from what was
+    /// written), the window went to `opacity(0)`, and `stop()` returned `nil` — a recording
+    /// that recorded nothing, reported by no control anywhere, because the badge is invisible
+    /// in that state too. `videoCaptureYielded` already forbids STARTING a take while the
+    /// picture is yielded; it had no counterpart for yielding while one runs, and the
+    /// `!isPresented` block below said so out loud without closing it.
+    ///
+    /// The fix is to keep rendering, not to stop or pause the take: the user asked to record
+    /// the picture, so the GPU cost of rendering it is the cost they asked for, and hiding a
+    /// window is far too casual a gesture to end a performance capture.
+    ///
+    /// ⛔ IT IS DELIBERATELY NOT `recorderIsRecording` ALONE. The external-stage branch below
+    /// yields the phone's renderer BECAUSE the external screen has one — the "ONE MetalBioView
+    /// app-wide" law. Forcing the local renderer back while an external stage is connected
+    /// would run two, which is a worse defect than the one being fixed. So an externally-held
+    /// picture still wins, and recording into it stays the open half of #319: it needs a
+    /// decision about WHICH renderer feeds the writer, not another condition here.
+    private var mustKeepRenderingForRecording: Bool {
+        recorderIsRecording && !ExternalStageBridge.shared.isConnected
+    }
 
     /// (No `#if canImport(UIKit)` inside: the WHOLE file is already gated on
     /// `canImport(UIKit)` at line 1, so an inner guard would imply a portability story
     /// this file does not have.)
     @ViewBuilder
     private func visualLayer(_ wv: (hue: Double, saturation: Double, intensity: Double, motion: Double)) -> some View {
-        if !isPresented {
+        if !isPresented && !mustKeepRenderingForRecording {
             // ⭐ #311 — THE PICTURE IS OFF, THE WINDOW IS NOT. Since the founder's
             // *"die arps soll immer hörbar sein und nicht nur, wenn das Visual Fenster auf
             // ist"*, `WorkspaceView` no longer unmounts this window when the monitor button
@@ -623,7 +655,8 @@ struct FloatingVisualWindow: View {
             //
             // The GPU law (ONE `MetalBioView` app-wide) is upheld more strictly than before,
             // not less: hidden now costs zero renderers where it used to cost zero by
-            // teardown.
+            // teardown. (Since #319 there is ONE exception, and it is still one renderer:
+            // a running video take keeps this branch out — see `mustKeepRenderingForRecording`.)
             Color.clear
         } else if ExternalStageBridge.shared.isConnected {
             // Not a placeholder for a missing feature — a deliberate statement of where

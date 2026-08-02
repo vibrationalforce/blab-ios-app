@@ -120,14 +120,24 @@ final class FieldSurvivesAHiddenPictureTests: XCTestCase {
     /// `.overlay` carrying the play surface measures itself against the frame this branch
     /// accepts, and the geometry has to be identical hidden and visible or a generated note's
     /// normalized coordinates would move when the picture is toggled.
+    /// ⛔ THE NEEDLE LOST ITS TRAILING BRACE IN #319, AND THAT IS THE POINT OF THIS NOTE. It was
+    /// `"if !isPresented {"` — the brace pinned "this branch has no further condition", which
+    /// was true and worth pinning until a second condition became correct: a running video take
+    /// is the one state in which the hidden window MUST keep its renderer, because
+    /// `MetalBioView`'s draw loop is the recorder's only frame source (#319). The needle is now
+    /// `"if !isPresented"` without the brace, so this guard keeps asserting what it is actually
+    /// about — the branch exists and is FIRST — and stops asserting a condition count it was
+    /// never meant to own. Its sibling `RecordingKeepsItsPictureTests` owns the exception.
     func testTheHiddenWindowRendersNoMetalLayerAndKeepsTheCardGeometry() throws {
         let layer = try visualLayerBody()
-        XCTAssertTrue(layer.contains { $0.contains("if !isPresented {") }, """
+        XCTAssertTrue(layer.contains { $0.contains("if !isPresented") }, """
         `visualLayer` no longer has its `if !isPresented` branch, or it is no longer FIRST.
 
         Without it the hidden window keeps a live `MetalBioView`. The window is mounted \
         permanently since #311, so "hidden" now has to mean "renders nothing" — it is no \
-        longer achieved by teardown.
+        longer achieved by teardown. (One exception is deliberate and lives in \
+        `RecordingKeepsItsPictureTests`: a running video take keeps the renderer, because it \
+        is the only thing feeding the writer.)
         """)
         XCTAssertTrue(layer.contains { $0.contains("Color.clear") }, """
         `visualLayer`'s hidden branch no longer yields `Color.clear`.
