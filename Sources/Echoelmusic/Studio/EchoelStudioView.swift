@@ -1977,7 +1977,21 @@ struct EchoelStudioView: View {
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Open Routing to connect a BLE heart-rate strap")
+            // ⛔ #355(c) — THIS LABEL SAID "Open Routing to connect a BLE heart-rate strap",
+            // AND ROUTING CANNOT CONNECT ONE. `PatchbayView` pairs Bluetooth MIDI, opens a
+            // network MIDI session, sets the OSC/ADM/Art-Net/sACN targets and holds the light
+            // master — there is no heart-rate pairing anywhere in it. The strap has exactly ONE
+            // owner, `startBioSource`, reached by touch-and-hold on the pulse display, which is
+            // what the sentence directly above this button already says.
+            //
+            // Why it mattered more than an ordinary wrong word: for a sighted user the button
+            // reads "Open Routing" and the false promise was invisible, but `accessibilityLabel`
+            // REPLACES the visible label, so for a VoiceOver user that sentence was the button's
+            // entire identity. The one reader who could not cross-check it was the only one
+            // being told. The hint now also says where the strap actually lives, because the
+            // correction is worthless if it only removes the wrong direction.
+            .accessibilityLabel("Open Routing")
+            .accessibilityHint("MIDI controllers, the network targets for OSC, Art-Net, sACN and spatial audio, and the light master. A Bluetooth heart-rate strap is not paired here — touch and hold the pulse display and pick the Bluetooth strap source.")
             // The Apple Health WRITE opt-in belongs here, with the bio data it writes.
             // Its only switch used to live in the Tools grid, which stopped rendering on
             // 2026-07-02 and was deleted 2026-07-26 — but the flag is PERSISTED
@@ -5607,7 +5621,17 @@ struct EchoelStudioView: View {
                 // #272: named only exporting, inside a panel that now promises saving and
                 // recording as well — the one first-run string here, and it left out both
                 // words the founder searched for.
-                Text("Start with the pulse button (next to Play) first — then you can record the loop, save the session, or export a WAV or MIDI file.")
+                // ⛔ #355(b) — IT THEN NAMED A CONTROL THAT STARTS NOTHING. It said "the pulse
+                // button (next to Play)", and both halves were false: the header pulse pill has
+                // opened the Bio panel since 2026-07-29 (`HeaderMonitors`, its own hint says
+                // "Opens the bio panel … Touch and hold to choose a bio source"), and there is
+                // no separate "Play" beside it — the ONE start is the play triangle whose
+                // VoiceOver label IS "Play". Its sister sentence in `bioPanel` was repaired
+                // when #307 removed the old button; this one was missed because
+                // `OneStartControlTests` only fires on "Press" AND "Create from Within"
+                // together, and this line contained neither. A guard scoped to one dead label
+                // does not cover the CLASS. `CopyNamesTheLiveControlTests` now does.
+                Text("Press Play first — then you can record the loop, save the session, or export a WAV or MIDI file.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
