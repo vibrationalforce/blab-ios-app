@@ -21,12 +21,28 @@
 //     branch runs, the automatic re-seed whose floor stands in `lastSeedAt` will never happen.
 //     The branch still measured against it: `minUserGap - (now - futureFloor)` = 2 s PLUS the
 //     whole unspent claim. Change the genre one second into a 6 s claim and the sound followed
-//     six seconds later — while the doc two lines up promised "a user edit stays instant".
+//     SEVEN seconds later — while `scheduleGenerate`'s own doc block promised "a user edit stays
+//     instant". (⛔ The first version wrote "six seconds" here and in two other files, while the
+//     test pinning it computes `minUserGap + 5` = 7 and prints that number in its failure
+//     message. A comment that disagrees with its own test by a second is the same defect as an
+//     overstated one, running the other way — and this repo strikes overstatement by name, so it
+//     has to strike understatement too. The same edit removed "the doc two lines up", which
+//     pointed at nothing: the doc it means lives in `EchoelStudioView`, not two lines above.)
 //
 //  3. ⚠️ AND THE DIAGNOSTIC INHERITED IT TOO. `generate(…)` prints `sinceLast=` from the same
 //     variable (#390). With a claimed floor in it that field reported the distance to a re-seed
-//     that had not happened — negative, or far too small. The founder is asked to send that log
-//     to settle whether the "unharmonisch" verdict is re-seed overlap; a field that can lie is
+//     that had not happened. ⭐ THE PRECISE SHAPE MATTERS, because it is what makes the symptom
+//     recognisable in a device log: an automatic re-seed runs at exactly the instant it claimed,
+//     so `now - lastSeedAt` is ≈ 0 and EVERY automatic generate printed `sinceLast=0.0s`. A
+//     NEGATIVE value was reachable only from the direct `generate(…)` callers (Start, the
+//     variation maze) firing while a claim stood. The first version said "negative, or far too
+//     small" — true but unusable: a reader scanning a log for a minus sign would have found none
+//     and concluded the field was fine.
+//     ⭐ CONFIRMED ON DEVICE (v10.79.368 build 2485, i.e. the build BEFORE this fix): five of
+//     twelve printed intervals were wrong, and all four `evolve` lines read `sinceLast=0.0s`
+//     where the real gaps were 6.0 · 6.0 · 13.8 · 15.6 s. One `user-edit` printed 2.0 s for a
+//     real 8.8 s gap — consequence 2, in the wild. The founder is asked for exactly that log to
+//     settle whether the "unharmonisch" verdict is re-seed overlap; a field that can lie is
 //     worse than no field. Splitting the two facts is what makes the next log readable.
 //
 // THE SPLIT: `lastSeedAt` is written ONLY by `generate(…)`, at run time, and means "a take was
@@ -80,6 +96,21 @@ enum RegenSchedule {
     /// an UPPER bound to collapse into, never something to add to. `max(gapWait, untilFloor)`
     /// says exactly that — whichever constraint is later wins, and neither is ever summed with
     /// the other. The removed code summed them, which is defect 1 in this file's header.
+    ///
+    /// ⭐ AND THE PROPERTY THAT ACTUALLY KILLS THE LOCKOUT, which the `max` shape alone does not
+    /// give you: **`delay ≤ minAutoSeedGap`, always.** `elapsed ≥ 0` ⇒ `gapWait ≤ gap`; a floor
+    /// is only ever set to `now + delay`, so by induction `claim ≤ gap` too (the ceiling on
+    /// `claim` above closes the one way an outside value could break that induction). The old
+    /// code had no such bound, which is why each co-firing trigger could add another gap without
+    /// limit. Any future edit that can produce a `delay` above the gap re-opens defect 1.
+    ///
+    /// ⭐ AND THE COROLLARY THAT EXPLAINS WHY NOTHING EVER CLEARS `seedFloor` — worth writing
+    /// down, because it is exactly what a later reader would otherwise "fix" by adding a reset
+    /// on stop: **a claim placed before the last real take can never govern.** If a claim was
+    /// placed at `t_c` with `d ≤ gap`, and a generate then actually ran at `t_gen ≥ t_c`, then
+    /// `floor ≤ t_c + gap ≤ t_gen + gap`, so `untilFloor ≤ gapWait` at every later instant. A
+    /// stale claim is dominated, not obeyed. That is also why honouring a claim whose task was
+    /// cancelled is harmless on the automatic path.
     static func decide(auto: Bool,
                        sinceLastSeed: TimeInterval,
                        untilFloor: TimeInterval) -> Decision {
@@ -87,7 +118,16 @@ enum RegenSchedule {
         // than propagating through `max` (where argument order decides NaN behaviour — see the
         // `clamped(to:)` note in CLAUDE.md). This has caused shipped silence bugs elsewhere.
         let elapsed = sinceLastSeed.isFinite && sinceLastSeed >= 0 ? sinceLastSeed : 0
-        let claim = untilFloor.isFinite ? untilFloor : 0
+        // ⛔ THE CEILING IS NOT BELT-AND-BRACES, AND THE FIRST VERSION OMITTED IT WHILE ITS OWN
+        // TEST ASSERTED THE PROPERTY IT PROVIDES ("never an unbounded pause"). Sanitising only
+        // NaN/±inf leaves a large FINITE claim intact, and one is reachable: `seedFloor` is a
+        // wall-clock `Date`, and `Date()` does not advance monotonically. An NTP or timezone
+        // correction that steps the clock BACKWARDS by an hour makes `untilFloor` 3600, and the
+        // evolve loop then waits an hour — silently, for the rest of the session, with nothing
+        // on screen to explain it. (The `elapsed` side was already immune: its `>= 0` guard
+        // clamps a backwards jump to 0.) Under normal operation this changes nothing, because a
+        // claim is only ever `now + delay` and `delay <= minAutoSeedGap` by the line below.
+        let claim = untilFloor.isFinite ? Swift.min(untilFloor, minAutoSeedGap) : 0
 
         if auto {
             // Two independent constraints, and the LATER one governs:

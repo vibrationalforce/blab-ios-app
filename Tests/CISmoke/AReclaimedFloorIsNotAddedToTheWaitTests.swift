@@ -22,9 +22,20 @@
 // ⚠️ WHY THIS IS ALSO A DIAGNOSTIC FIX AND NOT ONLY A FEEL FIX. `generate(…)` prints `sinceLast=`
 // from the SAME variable (#390, and `ReSeedIntervalIsMeasuredBeforeItIsResetTests` pins the
 // read-before-write ordering that makes it printable at all). While a claim could live in that
-// variable, the printed number was the distance to a re-seed that had not happened — negative or
-// far too small. The founder is being asked for exactly that log to settle whether the
-// "unharmonisch" verdict is re-seed overlap. A field that can lie is worse than no field.
+// variable, the printed number was the distance to a re-seed that had not happened. Confirmed on
+// device in v10.79.368 build 2485, before this fix shipped: five of twelve printed intervals were
+// wrong, and every `evolve` line read `sinceLast=0.0s` against real gaps of 6.0 · 6.0 · 13.8 ·
+// 15.6 s. The founder is being asked for exactly that log to settle whether the "unharmonisch"
+// verdict is re-seed overlap. A field that can lie is worse than no field.
+//
+// ⭐ AND THE MOST USEFUL THING IN THIS FILE IS WHAT THAT NEIGHBOUR TEACHES ABOUT GUARDS.
+// `ReSeedIntervalIsMeasuredBeforeItIsResetTests`'s failure message reads, verbatim: "If a write
+// reached it first, `sinceLast=` prints 0.0s on every generate." It named the exact symptom that
+// was happening — and stayed GREEN throughout, because it guards the ordering INSIDE `generate(…)`
+// and the offending write lived in `scheduleGenerate`, one caller away. The guard was pointed at
+// the right symptom through the wrong door. Lesson worth more than this slice: a passing guard
+// proves its own mechanism is intact, never that the symptom it describes is absent — when a log
+// shows the number a guard warns about, look for a SECOND producer before trusting the green.
 //
 // ⚠️ WHY THE ARITHMETIC IS BEHAVIOURAL HERE AND THE WIRING IS A SCAN. `RegenSchedule` is a pure
 // value type, so the numbers below are driven for real — these are not source greps. But whether
@@ -79,6 +90,13 @@ final class AReclaimedFloorIsNotAddedToTheWaitTests: XCTestCase {
     /// the OLD-vs-NEW formula (4.9 s against the shipped 10.9 s), not which constraint won. This
     /// one separates them: the gap is long satisfied, only the claim still stands, so a result of
     /// 3 s can only come from honouring the claim and a result of 0.45 s only from ignoring it.
+    ///
+    /// ⚠️ AND THE SAME HONESTY IS OWED TO THIS CASE: the view cannot currently REACH it. A claim
+    /// always resolves to `lastSeedAt + minAutoSeedGap` while the gap is unsatisfied and to
+    /// `now + quietWindow` after, so `untilFloor > gapWait` does not arise in the live state
+    /// machine and the `max` is belt-and-braces there. Kept anyway, for two reasons: it pins the
+    /// intended RULE rather than a reachable state, and the clock jump in
+    /// `testABackwardsClockJumpCannotStallTheEvolveLoop` below makes it reachable after all.
     func testAStandingClaimGovernsEvenAfterTheGapIsSatisfied() {
         let d = RegenSchedule.decide(auto: true, sinceLastSeed: 10, untilFloor: 3)
         XCTAssertEqual(d.delay, 3, accuracy: 1e-9, """
@@ -177,6 +195,27 @@ final class AReclaimedFloorIsNotAddedToTheWaitTests: XCTestCase {
         }
     }
 
+    /// ⛔ THE ASSERTION ABOVE WAS UNEARNED IN THE FIRST VERSION OF THIS FILE. It said the wait
+    /// "must degrade to the conservative floor, never to an unbounded pause" while feeding only
+    /// NaN and ±inf — and the sanitiser it was testing caught exactly those and let a large
+    /// FINITE claim through untouched. This is the reachable half, and it is not hypothetical:
+    /// `seedFloor` is a wall-clock `Date`, and `Date()` does not advance monotonically.
+    func testABackwardsClockJumpCannotStallTheEvolveLoop() {
+        // An NTP or timezone correction steps the clock back an hour mid-session.
+        let d = RegenSchedule.decide(auto: true, sinceLastSeed: 30, untilFloor: 3600)
+        XCTAssertLessThanOrEqual(d.delay, RegenSchedule.minAutoSeedGap, """
+            a backwards clock jump stalls the evolve loop for \(d.delay / 60) minutes (#398).
+
+            Nothing on screen would explain it: the take simply stops evolving for the rest of \
+            the session. A claim is only ever `now + delay` and `delay <= minAutoSeedGap`, so \
+            capping the claim at the gap changes nothing under normal operation and removes the \
+            one input that can outlive its own arithmetic. (The `elapsed` side is already immune \
+            — its `>= 0` guard clamps a backwards jump to zero.)
+            """)
+        XCTAssertEqual(d.delay, RegenSchedule.minAutoSeedGap, accuracy: 1e-9,
+                       "and the cap is the gap itself, not some smaller ad-hoc number")
+    }
+
     // MARK: - The wiring (scan — this bundle cannot build a SwiftUI view)
 
     /// ⛔ A CORRECT CORE NOBODY CALLS IS THE FAILURE THIS REPO HAS ALREADY PAID FOR. The
@@ -203,6 +242,20 @@ final class AReclaimedFloorIsNotAddedToTheWaitTests: XCTestCase {
             actually generated", it is what `generate(…)`'s `sinceLast=` breadcrumb reports \
             (#390), and a claimed floor written into it makes that diagnostic print the distance \
             to a re-seed that never happened. Claims belong in `seedFloor`.
+            """)
+        // ⛔ THE SYMMETRIC HALF, MISSING FROM THE FIRST VERSION. The line above protects the OLD
+        // property from regaining a writer; nothing protected the NEW one from gaining a second.
+        // The whole premise of this scan is that the view might stop honouring the core, so
+        // "only the automatic branch claims" needs the same treatment as "no claim in
+        // `lastSeedAt`" — the behavioural `claimFloorIn == nil` above proves the RULE, not that
+        // the view applies it.
+        XCTAssertEqual(text.components(separatedBy: "seedFloor =").count - 1, 1, """
+            `scheduleGenerate` has \(text.components(separatedBy: "seedFloor =").count - 1) \
+            writers of `seedFloor`; there must be exactly one, inside the `claimFloorIn` \
+            binding (#398). A second one means some path claims the automatic floor without \
+            asking `RegenSchedule` — most likely the user branch, which would let a burst of \
+            taps push the floor forward and starve the evolve tick.
+                \(body.map { $0.trimmingCharacters(in: .whitespaces) })
             """)
     }
 

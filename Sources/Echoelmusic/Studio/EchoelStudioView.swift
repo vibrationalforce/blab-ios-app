@@ -6037,10 +6037,13 @@ struct EchoelStudioView: View {
     /// merely unlikely.
     ///
     /// ⛔ TWO CORRECTIONS TO THIS PARAGRAPH, BOTH FOUND BY READING THE CODE UNDER IT (#398).
-    /// (1) It said a user edit "stays instant (140 ms)". There has been no 140 ms anywhere in
-    /// this function for a long time — the quiet window is 0.45 s and the user floor is 2 s. A
-    /// number that no longer exists is worse than no number: it is what a reader reaches for
-    /// when deciding whether a delay they measured is a bug.
+    /// (1) It said a user edit "stays instant (140 ms)". There is no 140 ms anywhere in this
+    /// function — the quiet window is 0.45 s and the user floor is 2 s. A number that does not
+    /// exist is worse than no number: it is what a reader reaches for when deciding whether a
+    /// delay they measured is a bug. (⛔ The first version wrote "for a long time" here. That
+    /// is unprovable in this repo — it is a shallow clone and `git log -S "140 ms"` bottoms out
+    /// at the graft. CLAUDE.md strikes exactly this shape of unbacked "schon immer" claim
+    /// elsewhere; the finding stands without it, so the three words are gone.)
     /// (2) The claim that the flood is "structurally impossible" was true only of the direction
     /// it was aimed at. The arithmetic below it could push a re-seed arbitrarily FAR AWAY — the
     /// opposite failure, unbounded, and it made a user's genre tap wait for a trigger that had
@@ -7172,7 +7175,13 @@ struct EchoelStudioView: View {
         // sentinel and prints as "first" rather than as an absurd number of seconds.
         let sinceLastSeed: TimeInterval? =
             lastSeedAt == .distantPast ? nil : Date().timeIntervalSince(lastSeedAt)
-        lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
+        // ⛔ #398: THIS COMMENT USED TO READ "floor for the next automatic re-seed (anti-flood
+        // invariant)" AND IT NOW NAMES THE WRONG PROPERTY. The anti-flood floor is `seedFloor`.
+        // This line records that a take was PRODUCED — the fact `sinceLast=` above reports.
+        // Left as a correction rather than a silent rewrite because this is the line a reader
+        // lands on when asking "where is the floor set?", and the old wording would have sent
+        // them to fold the claim back in here, which is precisely the defect #398 removed.
+        lastSeedAt = Date()   // a take really happened, now
         // ONE composer-input builder (shared with the variation-maze audition): the
         // real take advances the evolve cursor; the maze previewed read-only.
         let (input, frame, evolvingSeed, _, basePhase) =
@@ -7503,8 +7512,22 @@ struct EchoelStudioView: View {
         // is a line read in `echoel_diag.log` with no source beside it, so every value it
         // prints carries its own name (the #306 lesson, one paragraph up).
         // `sinceLastSeed` is captured at the TOP of this function, before `lastSeedAt` is
-        // overwritten — no new `@State`, and deliberately so: `lastSeedAt` is the anti-flood
-        // floor and adding a second clock beside it would be a second thing to keep in step.
+        // overwritten (`ReSeedIntervalIsMeasuredBeforeItIsResetTests` pins that ordering).
+        //
+        // ⛔ #398 FALSIFIED THE REST OF THIS PARAGRAPH, AND IT IS THE DANGEROUS KIND OF STALE.
+        // It read: "no new `@State`, and deliberately so: `lastSeedAt` is the anti-flood floor
+        // and adding a second clock beside it would be a second thing to keep in step." Both
+        // halves are now wrong — `lastSeedAt` is NOT the anti-flood floor (`seedFloor` is), and
+        // a second clock WAS added, on purpose. Worse than merely stale: as written it argues
+        // AGAINST `seedFloor`'s existence, so a later cleanup cycle could read it as the
+        // project's standing position and fold the two back together — restoring the exact
+        // defect. (CLAUDE.md records this class twice: a "do not change this" note with a false
+        // rationale is worse than none, because the next session cannot refute it.)
+        //
+        // The thing that WAS true and is worth keeping: one clock could not carry both facts.
+        // Overloading it is what made this very breadcrumb print `sinceLast=0.0s` on every
+        // automatic re-seed — confirmed on device in v10.79.368 build 2485, where all four
+        // `evolve` lines read 0.0 s against real gaps of 6.0 · 6.0 · 13.8 · 15.6 s.
         // The root prints via the existing `TuningReference.noteName(forMIDINote:)` on
         // 60+root; the "4" it appends is that helper's fixed octave and carries no meaning
         // here — the PITCH CLASS is the whole content.
