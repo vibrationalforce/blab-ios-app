@@ -6963,6 +6963,11 @@ struct EchoelStudioView: View {
         // Honest breadcrumb label (T2): callers name themselves at RUN time; nil
         // keeps whatever an earlier direct caller stamped (legacy paths).
         if let reason { pendingGenerateReason = reason }
+        // #390: read the PREVIOUS floor before overwriting it — that difference is the
+        // re-seed interval the breadcrumb prints. `.distantPast` is the never-generated
+        // sentinel and prints as "first" rather than as an absurd number of seconds.
+        let sinceLastSeed: TimeInterval? =
+            lastSeedAt == .distantPast ? nil : Date().timeIntervalSince(lastSeedAt)
         lastSeedAt = Date()   // floor for the next automatic re-seed (anti-flood invariant)
         // ONE composer-input builder (shared with the variation-maze audition): the
         // real take advances the evolve cursor; the maze previewed read-only.
@@ -7276,7 +7281,40 @@ struct EchoelStudioView: View {
         // own label is the entire explanation it gets, so the label has to carry the meaning
         // the comment carries. Any value printed here that the caller did not compute needs
         // a name that says so.
-        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), userMix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead))")
+        // ⭐ #390 — THE HARMONIC FRAME, because the founder's report "es klingt sehr
+        // unharmonisch" (v10.79.366, device log 2483) could NOT be answered from a log that
+        // has twenty-seven rPPG lines and not one naming a pitch. Three mechanisms were
+        // live candidates and this line could separate none of them:
+        //   · the composer's own harmony inside the chosen scale (#314),
+        //   · the #312 sub-bass retune, which is bit-identical under 12-TET and only bites
+        //     once a non-12-TET system is selected — so the FIRST thing to know is which
+        //     system was selected, and the log did not say,
+        //   · the re-seed overlap: `loadArrangement` deliberately does NOT `allNotesOff`
+        //     while playing (its own doc: "sounding bar keeps playing, new content from the
+        //     next boundary"), so every re-seed layers a new chord over the previous one's
+        //     tail. Log 2483 shows SEVEN generates in 57 s. `sinceLast` prints that rate so
+        //     it stops being something I have to reconstruct by subtracting timestamps.
+        // `tuning=edo12` on a bad-sounding take rules the second one out in one glance; a
+        // maqām or pélog id makes it the first thing to test. That is the whole point — this
+        // is a line read in `echoel_diag.log` with no source beside it, so every value it
+        // prints carries its own name (the #306 lesson, one paragraph up).
+        // `sinceLastSeed` is captured at the TOP of this function, before `lastSeedAt` is
+        // overwritten — no new `@State`, and deliberately so: `lastSeedAt` is the anti-flood
+        // floor and adding a second clock beside it would be a second thing to keep in step.
+        // The root prints via the existing `TuningReference.noteName(forMIDINote:)` on
+        // 60+root; the "4" it appends is that helper's fixed octave and carries no meaning
+        // here — the PITCH CLASS is the whole content.
+        //
+        // ⚠️ THE THREE VALUES ARE HOISTED, NOT INLINED, and the reason is a bill this repo
+        // has already paid. A `.map { … }` closure plus a fourth `String(format:)` dropped
+        // into an interpolation that already carried five of them is exactly the shape that
+        // blew the type-checker in #287 (`3379bb3`) and turned the BLOCKING gate red — with
+        // no local toolchain, that costs a full CI round-trip to discover. The expression is
+        // split where splitting is free.
+        let keyText = "\(TuningReference.noteName(forMIDINote: 60 + rootIndex)) \(scale.rawValue)"
+        let sinceText: String = sinceLastSeed.map { String(format: "%.1fs", $0) } ?? "first"
+        let a4Text = String(format: "%.1f", session.a4Hz)
+        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), key=\(keyText), tuning=\(tuningID), a4=\(a4Text), sinceLast=\(sinceText), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), userMix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead))")
     }
 
     /// Per-lane composition fan-out (Slice A): compose each override-carrying
