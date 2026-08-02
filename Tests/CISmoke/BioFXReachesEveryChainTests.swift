@@ -79,10 +79,32 @@ final class BioFXReachesEveryChainTests: XCTestCase {
             they hit one chain or they push one chain's base onto all of them:
             \(unfanned.map { $0.trimmingCharacters(in: .whitespaces) })
             """)
-        // Anti-vacuity: the loop that makes the writes above per-chain must actually exist.
-        XCTAssertTrue(lines.contains(where: { $0.contains("for (i, c) in allChains.enumerated()") }), """
-            no `for (i, c) in allChains.enumerated()` loop remains in \(Self.driver), so the \
-            `bases[...]` needle above is guarding an index into nothing.
+        // ⛔ THIS USED TO BE AN ANTI-VACUITY CHECK FOR "a loop exists ANYWHERE in the file", and
+        // a reviewer showed it left the hole in exactly the shape of the bug. The three checks
+        // above are independent — nothing tied a given write to a given loop — so narrowing the
+        // TICK back to `if let c = allChains.first { … bases[0] … }` kept the write count at 4
+        // (the three restore paths are untouched), kept a `bases[` on the narrowed line, and
+        // kept an `enumerated()` loop alive in `stop()`. All green, defect fully restored, in
+        // the one path that runs 30 times a second. Counting loops against writes closes it:
+        // every chain write in this file lives in a fan-out, and a narrowing drops the count.
+        let loops = lines.filter { $0.contains("for (i, c) in allChains.enumerated()") }
+        XCTAssertEqual(loops.count, writes.count, """
+            \(loops.count) fan-out loops for \(writes.count) chain writes in \(Self.driver) — \
+            they must be one to one, or some write reaches a single chain.
+            loops: \(loops.map { $0.trimmingCharacters(in: .whitespaces) })
+            writes: \(writes.map { $0.trimmingCharacters(in: .whitespaces) })
+
+            If a legitimate edit puts two writes inside ONE loop this count goes out of step. \
+            Then re-express the invariant (per-member windowing), do not widen it back to \
+            "a loop exists somewhere" — that is the version that let the regression through.
+            """)
+        // And the path that matters, named on its own, because the count above is a whole-file
+        // property: the 30 Hz driver's own write must be inside a fan-out, not next to one.
+        let tick = try memberBody(startingWith: "private func tick()", in: Self.driver)
+        XCTAssertTrue(tick.contains(where: { $0.contains("for (i, c) in allChains.enumerated()") }), """
+            `tick()` no longer fans out. This is the 30 Hz path — the one that makes the body \
+            audible — so a narrowing here IS the defect, whatever the restore paths do:
+            \(tick.joined(separator: "\n"))
             """)
     }
 
@@ -101,6 +123,25 @@ final class BioFXReachesEveryChainTests: XCTestCase {
     }
 
     // MARK: - Source helpers
+
+    /// Lines of a member, from the line that starts with `prefix` to the closing `}` at that
+    /// line's OWN indentation. Structural, not a line count.
+    private func memberBody(startingWith prefix: String, in path: String) throws -> [String] {
+        let lines = try codeLines(path)
+        guard let start = lines.firstIndex(where: { $0.contains(prefix) }) else {
+            XCTFail("""
+                `\(prefix)` is gone from \(path). If it was renamed, move this guard with it — \
+                do not leave a check for a member that no longer exists.
+                """)
+            return []
+        }
+        let indent = lines[start].prefix { $0 == " " }.count
+        let close = lines[(start + 1)...].firstIndex {
+            $0.trimmingCharacters(in: .whitespaces) == "}"
+                && $0.prefix { c in c == " " }.count == indent
+        } ?? lines.endIndex
+        return Array(lines[start..<close])
+    }
 
     /// Every line that is not a whole-line comment. Load-bearing: the ⛔ blocks in the driver
     /// quote `allChains`, `baseValues` and the old one-chain wording verbatim while explaining

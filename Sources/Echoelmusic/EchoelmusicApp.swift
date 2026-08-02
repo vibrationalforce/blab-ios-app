@@ -180,9 +180,11 @@ struct EchoelmusicApp: App {
     // does NOT touch the rPPG camera). Fed by the fullscreen VJ MetalBioView.
     @State private var visualRecorder = VisualRecorder()
     #endif
-    // Bio-reactive FX: the body (and LFOs) sculpt the melody voice's EchoelFX chain
+    // Bio-reactive FX: the body (and LFOs) sculpt EVERY sounding voice's EchoelFX chain
     // live (coherence→reverb, breath→filter, HR→tremolo). Control-rate, off the
     // audio thread; idle until the user adds routes in the FX tool.
+    // (Said "the melody voice's" — singular — until #386, which is what it actually did.
+    // The inventory is handed over at the `attach` call below, not here.)
     @State private var fxModulator = FXBioModulator()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false

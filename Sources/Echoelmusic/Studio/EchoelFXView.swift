@@ -367,11 +367,13 @@ final class FXViewModel {
     /// right because every write FROM THIS SURFACE goes to all of them.
     ///
     /// ⚠️ That is not the same as "the chains always agree", and the first version of this
-    /// comment said it was. `FXBioModulator` binds ONE chain — `polyVoice.fxChain`
-    /// (`EchoelmusicApp.swift`) — so while a bio route runs, `chain` carries a modulated value
-    /// no mirror holds, a snapshot taken then captures it, and `apply(_:)` would stamp that
-    /// momentary value onto every chain as a new base. Fanning the modulator out is its own
-    /// task (it captures and restores a base per parameter, so it needs a base set per chain).
+    /// comment said it was. The WARNING still stands; only its mechanism changed with #386.
+    /// It used to be that `FXBioModulator` bound ONE chain, so a modulated value existed on
+    /// `chain` and nowhere else. The modulator now drives every chain — but each around its OWN
+    /// captured base, so while a bio route runs they hold DIFFERENT values, none of which is the
+    /// user's setting. A snapshot taken then still captures a momentary modulated value, and
+    /// `apply(_:)` would still stamp it onto every chain as a new base. Fanning the modulator
+    /// out did not close that; it is a property of modulating a live parameter at all.
     func snapshot(name: String, tags: [String] = []) -> FXPreset {
         FXPreset.capture(from: chain, fxEnabled: fxEnabled, name: name, tags: tags)
     }

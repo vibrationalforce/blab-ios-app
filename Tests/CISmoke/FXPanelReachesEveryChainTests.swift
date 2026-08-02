@@ -27,16 +27,18 @@
 // division picker can still SHOW a division the chains do not hold. That is the other half of
 // the same `GenreFX` note, it is a Studio-side ordering call, and it is not guarded here.
 //
-// ⛔ A THIRD SITE WITH THE SAME SHAPE, found while fixing this one and deliberately NOT fixed
-// here: `FXBioModulator` stores ONE `EchoelFXChain?` and `attach(chain:bus:)` is called once,
-// with `polyVoice.fxChain` (`EchoelmusicApp.swift`), so the bio-driven FX modulation moves the
-// take and not the played notes either. (The parameter is non-optional; the OPTIONAL is the
-// stored property — the first version of this line put the `?` on the parameter.) It follows
-// that the chains are NOT identical while a bio route runs, which is why `snapshot(name:)`'s
-// doc had to be corrected too. It is not a copy of this slice —
-// the modulator CAPTURES each parameter's base value and restores it on stop, so fanning it out
-// means owning one base set per chain, not adding a loop. Its own task; naming it here so the
-// next reader does not conclude from this file's title that the class is closed.
+// ⛔ A THIRD SITE WITH THE SAME SHAPE — FIXED, and this note is kept as the record rather than
+// deleted, because it was written in the present tense and would otherwise send a future session
+// to redo finished work. `FXBioModulator` DID store ONE `EchoelFXChain?` with a single
+// `attach(chain:bus:)` call, so the bio-driven FX modulation moved the take and not the played
+// notes. Closed by #386: `allChains` + `attach(chain:mirrors:bus:)`, guarded by
+// `BioFXReachesEveryChainTests`. As predicted here, it was NOT a copy of this slice — the
+// modulator captures and restores a base per parameter, so it needed one base set PER CHAIN
+// (`[FXModTarget: [Float]]`), not just a loop.
+//
+// ⚠️ THE ONE CLAUSE THAT SURVIVES, because it is still true and `snapshot(name:)` still depends
+// on it: the chains are NOT identical while a bio route runs. Each rides the same body offset
+// around its OWN captured base, so their values differ by exactly the difference in those bases.
 //
 // ⚠️ WHY A SOURCE SCAN. `FXViewModel`'s chains are `private`, `EchoelStudioView`'s inventory is
 // a `private var` on a SwiftUI `View`, and there is no local toolchain to build a UI-test host.

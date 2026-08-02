@@ -155,6 +155,16 @@ public final class FXBioModulator {
         for t in active where baseValues[t] == nil {
             baseValues[t] = allChains.map { read(t, from: $0) }
         }
+        // ⚠️ THE WHOLE ALIGNMENT INVARIANT RESTS ON ONE LINE: `baseValues.removeAll()` sitting
+        // BEFORE the `allChains` assignment in `attach`. Nothing else can change either
+        // collection's length. The `where i < bases.count` clauses that guard the four write
+        // loops therefore never trip today — and if a future edit made them trip, they would
+        // SKIP a chain silently: never driven, never restored, which is the exact defect #386
+        // exists to close, wearing a bounds check as a disguise. `assert` (debug-only, never a
+        // release crash) is the loudest form available here; note honestly that no test exercises
+        // it, because nothing constructs this driver outside the app.
+        assert(baseValues.values.allSatisfy { $0.count == allChains.count },
+               "FXBioModulator base/chain length drift — a chain would be silently skipped")
         // Restore + drop targets no longer modulated.
         for t in baseValues.keys where !active.contains(t) {
             if let bases = baseValues[t] {
@@ -234,8 +244,19 @@ public final class FXBioModulator {
                 // nothing is modulating changes the sound off nothing — the same complaint
                 // this gate exists to answer, one level up. With the default coherence route
                 // on a source that reports no coherence, that would have run every tick for
-                // the whole session. (There is no matching disable, so a stage already on
-                // stays on and no click is introduced.)
+                // the whole session.
+                //
+                // ⛔ THIS IS A LATCH AND THE RESTORE PATHS DO NOT UNDO IT — the old parenthetical
+                // here ("a stage already on stays on and no click is introduced") reassured about
+                // the harmless half and stayed silent on the half that matters. The restores
+                // return the PARAMETER to its base; they never clear the flag. So the first tick
+                // on which a route contributes arms e.g. `reverbEnabled` on that chain for the
+                // rest of the session, and removing the route leaves it armed at the base mix.
+                // That was tolerable while only the composer's chain was reachable; since #386 it
+                // also happens to the Field, where a non-zero base mix on a stage the user had
+                // switched OFF now stays audible after the route is gone. Named, not fixed: an
+                // automatic disable needs a "was it the driver that turned this on" record, and
+                // getting that wrong silences a stage the user armed by hand.
                 if contributed { enableStage(for: target, on: c) }
             }
         }
