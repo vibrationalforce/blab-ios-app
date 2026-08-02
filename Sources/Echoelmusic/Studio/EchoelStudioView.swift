@@ -1186,9 +1186,16 @@ struct EchoelStudioView: View {
             // at presentation time, and the sheet then computed every sync division at that
             // frozen tempo for as long as it stayed open. `EchoelFXView` follows the clock
             // itself now, in its own leaf.
-            AnyView(EchoelFXView(chain: synth.fxChain, pattern: beatPlayer.pattern,
+            // #318: the deep surface gets the SAME inventory the character menu and the delay
+            // picker two rows above its door already use. Derived from `characterFXChains`,
+            // never re-listed here — a second list is how #240 happened.
+            AnyView(EchoelFXView(chain: synth.fxChain,
+                         mirrors: characterFXChains.filter { $0 !== synth.fxChain },
+                         pattern: beatPlayer.pattern,
                          fxEnabled: { synth.isFXEnabled },
-                         setFXEnabled: { synth.setFXEnabled($0) })
+                         // The gate travels with the parameters, or the take goes dry while the
+                         // played notes stay wet — the same split reach, one control higher.
+                         setFXEnabled: { synth.setFXEnabled($0); touchSynth?.setFXEnabled($0) })
                 .echoelSheetPanel())
         }
         .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }

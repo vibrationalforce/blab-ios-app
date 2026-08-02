@@ -21,12 +21,41 @@ import SwiftUI
 @Observable
 final class FXViewModel {
 
-    /// The audio-thread FX chain this surface drives. Stored DIRECTLY (not via a
-    /// specific voice) so the same control surface works for any voice that owns an
-    /// EchoelFXChain — the bio breath voice and the polyphonic melody voice both.
+    /// The chain this surface READS: the seed in `init`, every `reseed()`, `snapshot(name:)`.
+    /// It is `allChains.first` and is stored separately only so those reads say which chain
+    /// they mean instead of indexing into an array. Stored DIRECTLY (not via a specific voice)
+    /// so the same control surface works for any voice that owns an `EchoelFXChain`.
     @ObservationIgnored private let chain: EchoelFXChain
+
+    /// ⭐ EVERY chain this surface WRITES — #318, and the same law as `characterFXChains`
+    /// in `EchoelStudioView`: a knob must land on every chain it claims to move.
+    ///
+    /// ⛔ THE DEFECT. This view-model wrote ONE chain while the two rows that sit directly
+    /// above its door in the Effects panel — the character menu and the delay-division picker
+    /// — wrote the whole inventory (`[synth.fxChain, touchSynth?.fxChain]`, the #240 fix). So
+    /// the SAME panel had opposite reach: stamping "Cassette" moved the generated take and the
+    /// played notes together, and then opening "All parameters" to widen its delay moved only
+    /// the take. Half the instrument drifted away from the other half with nothing on screen
+    /// saying so — exactly the failure #240 named ("two lists that must agree are one list"),
+    /// on the surface #240 did not reach. `GenreFX.apply`'s doc calls this out by name: the FX
+    /// panel's character menu is the FOURTH stamp site and "writes only the injected chain
+    /// (`synth.fxChain`), never `touchSynth?.fxChain`".
+    ///
+    /// ⚠️ WHAT IS STILL NOT FIXED, so nobody reads this as more than it is: `applyCharacter`
+    /// stamps a character's own delay TIME and no `applyDelaySync(bpm:)` follows it, so the
+    /// Studio's division picker can still display a time the chains do not hold. That is the
+    /// other half of the same doc note and it is a Studio-side call, not a reach problem.
+    ///
+    /// Every write goes `for c in allChains { c.<field> = <mirror> }` — field by field, never
+    /// a whole nested struct: `EchoelDelay` and friends carry per-chain delay-line STATE, and
+    /// copying one chain's struct onto another would copy its buffers with it.
+    @ObservationIgnored private let allChains: [EchoelFXChain]
+
     /// Master insert-FX gate, injected as a setter so the view-model stays
-    /// voice-agnostic (each voice exposes its own `setFXEnabled`).
+    /// voice-agnostic (each voice exposes its own `setFXEnabled`). The setter is what carries
+    /// the fan-out for the gate — the call site hands over one closure that reaches every
+    /// voice, because a gate that dries the take and leaves the played notes wet is the same
+    /// defect as a knob that reaches one chain.
     @ObservationIgnored private let setMaster: (Bool) -> Void
 
     /// Live tempo, so delay times / LFO rates can be entered as note divisions.
@@ -107,10 +136,14 @@ final class FXViewModel {
     /// this is a known imprecision rather than a defect.)
     nonisolated static let tempoFollowPollSeconds: Double = 0.4
 
-    init(chain: EchoelFXChain, bpm: Double = 120,
+    /// `mirrors` are the OTHER sounding chains this surface must move in lockstep with
+    /// `chain` (#318). Defaulted to empty so the existing single-chain callers — and the two
+    /// test bundles — keep compiling unchanged; the app's one door passes the real inventory.
+    init(chain: EchoelFXChain, mirrors: [EchoelFXChain] = [], bpm: Double = 120,
          masterEnabled: @escaping () -> Bool,
          setMasterEnabled: @escaping (Bool) -> Void) {
         self.chain = chain
+        self.allChains = [chain] + mirrors
         self.bpm = bpm
         self.setMaster = setMasterEnabled
         let c = chain
@@ -154,108 +187,108 @@ final class FXViewModel {
     var fxEnabled: Bool { didSet { setMaster(fxEnabled) } }
 
     // Filter (tone — underwater low-pass, telephone band-pass, lo-fi)
-    var filterEnabled: Bool { didSet { chain.filterEnabled = filterEnabled } }
-    var filterMode: EchoelSVFilter.Mode { didSet { chain.filterL.mode = filterMode; chain.filterR.mode = filterMode } }
+    var filterEnabled: Bool { didSet { for c in allChains { c.filterEnabled = filterEnabled } } }
+    var filterMode: EchoelSVFilter.Mode { didSet { for c in allChains { c.filterL.mode = filterMode; c.filterR.mode = filterMode } } }
     // #138: write the TARGET and let the chain glide there over ~50 ms. A fader dragged
     // fast used to write the SVF coefficients directly on every gesture sample.
-    var filterCutoff: Float { didSet { chain.filterCutoff = filterCutoff } }
-    var filterResonance: Float { didSet { chain.filterResonance = filterResonance } }
+    var filterCutoff: Float { didSet { for c in allChains { c.filterCutoff = filterCutoff } } }
+    var filterResonance: Float { didSet { for c in allChains { c.filterResonance = filterResonance } } }
 
     // Delay
-    var delayEnabled: Bool { didSet { chain.delayEnabled = delayEnabled } }
-    var delayMode: EchoelDelay.Mode { didSet { chain.delay.mode = delayMode } }
-    var delayMix: Float { didSet { chain.delay.mix = delayMix } }
-    var delayTime: Float { didSet { chain.delay.timeSeconds = delayTime } }
-    var delayFeedback: Float { didSet { chain.delay.feedback = delayFeedback } }
-    var delayTone: Float { didSet { chain.delay.tone = delayTone } }
-    var delayWow: Float { didSet { chain.delay.wow = delayWow } }
-    var delayDrive: Float { didSet { chain.delay.drive = delayDrive } }
+    var delayEnabled: Bool { didSet { for c in allChains { c.delayEnabled = delayEnabled } } }
+    var delayMode: EchoelDelay.Mode { didSet { for c in allChains { c.delay.mode = delayMode } } }
+    var delayMix: Float { didSet { for c in allChains { c.delay.mix = delayMix } } }
+    var delayTime: Float { didSet { for c in allChains { c.delay.timeSeconds = delayTime } } }
+    var delayFeedback: Float { didSet { for c in allChains { c.delay.feedback = delayFeedback } } }
+    var delayTone: Float { didSet { for c in allChains { c.delay.tone = delayTone } } }
+    var delayWow: Float { didSet { for c in allChains { c.delay.wow = delayWow } } }
+    var delayDrive: Float { didSet { for c in allChains { c.delay.drive = delayDrive } } }
     /// ⛔ #251: THIS MIRROR WAS MISSING WHILE THE VALUE SHIPPED. `delaySpread` reaches the audio
     /// from three directions — a genre's `GenreFX` stamp, an `FXCharacter` stamp, and every
     /// `FXPreset` load (#246 made it travel with the preset and the morph fader) — but there was
     /// no row, so the one thing a user could not do with it was set it. Worse than invisible:
     /// stamping a character silently replaced whatever stereo image the previous one had left,
     /// with nothing on screen changing.
-    var delaySpread: Float { didSet { chain.delay.spread = delaySpread } }
+    var delaySpread: Float { didSet { for c in allChains { c.delay.spread = delaySpread } } }
 
     // Chorus
-    var chorusEnabled: Bool { didSet { chain.chorusEnabled = chorusEnabled } }
-    var chorusRate: Float { didSet { chain.chorus.rate = chorusRate } }
-    var chorusDepth: Float { didSet { chain.chorus.depth = chorusDepth } }
-    var chorusMix: Float { didSet { chain.chorus.mix = chorusMix } }
+    var chorusEnabled: Bool { didSet { for c in allChains { c.chorusEnabled = chorusEnabled } } }
+    var chorusRate: Float { didSet { for c in allChains { c.chorus.rate = chorusRate } } }
+    var chorusDepth: Float { didSet { for c in allChains { c.chorus.depth = chorusDepth } } }
+    var chorusMix: Float { didSet { for c in allChains { c.chorus.mix = chorusMix } } }
 
     // Flanger
-    var flangerEnabled: Bool { didSet { chain.flangerEnabled = flangerEnabled } }
-    var flangerRate: Float { didSet { chain.flanger.rate = flangerRate } }
-    var flangerDepth: Float { didSet { chain.flanger.depth = flangerDepth } }
-    var flangerFeedback: Float { didSet { chain.flanger.feedback = flangerFeedback } }
-    var flangerMix: Float { didSet { chain.flanger.mix = flangerMix } }
+    var flangerEnabled: Bool { didSet { for c in allChains { c.flangerEnabled = flangerEnabled } } }
+    var flangerRate: Float { didSet { for c in allChains { c.flanger.rate = flangerRate } } }
+    var flangerDepth: Float { didSet { for c in allChains { c.flanger.depth = flangerDepth } } }
+    var flangerFeedback: Float { didSet { for c in allChains { c.flanger.feedback = flangerFeedback } } }
+    var flangerMix: Float { didSet { for c in allChains { c.flanger.mix = flangerMix } } }
 
     // Phaser
-    var phaserEnabled: Bool { didSet { chain.phaserEnabled = phaserEnabled } }
-    var phaserRate: Float { didSet { chain.phaser.rate = phaserRate } }
-    var phaserDepth: Float { didSet { chain.phaser.depth = phaserDepth } }
-    var phaserFeedback: Float { didSet { chain.phaser.feedback = phaserFeedback } }
-    var phaserMix: Float { didSet { chain.phaser.mix = phaserMix } }
+    var phaserEnabled: Bool { didSet { for c in allChains { c.phaserEnabled = phaserEnabled } } }
+    var phaserRate: Float { didSet { for c in allChains { c.phaser.rate = phaserRate } } }
+    var phaserDepth: Float { didSet { for c in allChains { c.phaser.depth = phaserDepth } } }
+    var phaserFeedback: Float { didSet { for c in allChains { c.phaser.feedback = phaserFeedback } } }
+    var phaserMix: Float { didSet { for c in allChains { c.phaser.mix = phaserMix } } }
 
     // Tremolo
-    var tremoloEnabled: Bool { didSet { chain.tremoloEnabled = tremoloEnabled } }
-    var tremoloRate: Float { didSet { chain.tremolo.rate = tremoloRate } }
-    var tremoloDepth: Float { didSet { chain.tremolo.depth = tremoloDepth } }
-    var tremoloPan: Bool { didSet { chain.tremolo.stereoPan = tremoloPan } }
+    var tremoloEnabled: Bool { didSet { for c in allChains { c.tremoloEnabled = tremoloEnabled } } }
+    var tremoloRate: Float { didSet { for c in allChains { c.tremolo.rate = tremoloRate } } }
+    var tremoloDepth: Float { didSet { for c in allChains { c.tremolo.depth = tremoloDepth } } }
+    var tremoloPan: Bool { didSet { for c in allChains { c.tremolo.stereoPan = tremoloPan } } }
 
     // Compressor
-    var compEnabled: Bool { didSet { chain.compressorEnabled = compEnabled } }
-    var compThreshold: Float { didSet { chain.compressor.thresholdDb = compThreshold } }
-    var compRatio: Float { didSet { chain.compressor.ratio = compRatio } }
-    var compMakeup: Float { didSet { chain.compressor.makeupDb = compMakeup } }
+    var compEnabled: Bool { didSet { for c in allChains { c.compressorEnabled = compEnabled } } }
+    var compThreshold: Float { didSet { for c in allChains { c.compressor.thresholdDb = compThreshold } } }
+    var compRatio: Float { didSet { for c in allChains { c.compressor.ratio = compRatio } } }
+    var compMakeup: Float { didSet { for c in allChains { c.compressor.makeupDb = compMakeup } } }
     /// ATTACK, RELEASE, KNEE — the three that decide whether a compressor BREATHES with the
     /// material or just squashes it, and until now they were fixed constants with no writer
     /// anywhere in the app (#221). Threshold/ratio/make-up say how MUCH; these say how it
     /// MOVES, and a bio-driven take that swells and settles is exactly the material where
     /// that difference is audible.
-    var compAttack: Float { didSet { chain.compressor.attackMs = compAttack } }
-    var compRelease: Float { didSet { chain.compressor.releaseMs = compRelease } }
-    var compKnee: Float { didSet { chain.compressor.kneeDb = compKnee } }
+    var compAttack: Float { didSet { for c in allChains { c.compressor.attackMs = compAttack } } }
+    var compRelease: Float { didSet { for c in allChains { c.compressor.releaseMs = compRelease } } }
+    var compKnee: Float { didSet { for c in allChains { c.compressor.kneeDb = compKnee } } }
 
     // Limiter
-    var limiterEnabled: Bool { didSet { chain.limiterEnabled = limiterEnabled } }
-    var limiterCeiling: Float { didSet { chain.limiter.ceilingDb = limiterCeiling } }
+    var limiterEnabled: Bool { didSet { for c in allChains { c.limiterEnabled = limiterEnabled } } }
+    var limiterCeiling: Float { didSet { for c in allChains { c.limiter.ceilingDb = limiterCeiling } } }
 
     // Saturation (analog warmth — on by default)
-    var saturationEnabled: Bool { didSet { chain.saturationEnabled = saturationEnabled } }
-    var saturationDrive: Float { didSet { chain.saturationDrive = saturationDrive } }
-    var saturationMix: Float { didSet { chain.saturationMix = saturationMix } }
+    var saturationEnabled: Bool { didSet { for c in allChains { c.saturationEnabled = saturationEnabled } } }
+    var saturationDrive: Float { didSet { for c in allChains { c.saturationDrive = saturationDrive } } }
+    var saturationMix: Float { didSet { for c in allChains { c.saturationMix = saturationMix } } }
 
     // Tape / Bandmaschine / VHS (analog character — wow&flutter + saturation + HF loss)
-    var tapeEnabled: Bool { didSet { chain.tapeEnabled = tapeEnabled } }
-    var tapeDepth: Float { didSet { chain.tape.depth = tapeDepth } }
-    var tapeSaturation: Float { didSet { chain.tape.saturation = tapeSaturation } }
-    var tapeTone: Float { didSet { chain.tape.tone = tapeTone } }
+    var tapeEnabled: Bool { didSet { for c in allChains { c.tapeEnabled = tapeEnabled } } }
+    var tapeDepth: Float { didSet { for c in allChains { c.tape.depth = tapeDepth } } }
+    var tapeSaturation: Float { didSet { for c in allChains { c.tape.saturation = tapeSaturation } } }
+    var tapeTone: Float { didSet { for c in allChains { c.tape.tone = tapeTone } } }
 
     // Bitcrush (digital lo-fi)
-    var bitcrushEnabled: Bool { didSet { chain.bitcrushEnabled = bitcrushEnabled } }
-    var bitcrushBits: Float { didSet { chain.bitcrush.bits = bitcrushBits } }
-    var bitcrushDownsample: Float { didSet { chain.bitcrush.downsample = bitcrushDownsample } }
-    var bitcrushMix: Float { didSet { chain.bitcrush.mix = bitcrushMix } }
+    var bitcrushEnabled: Bool { didSet { for c in allChains { c.bitcrushEnabled = bitcrushEnabled } } }
+    var bitcrushBits: Float { didSet { for c in allChains { c.bitcrush.bits = bitcrushBits } } }
+    var bitcrushDownsample: Float { didSet { for c in allChains { c.bitcrush.downsample = bitcrushDownsample } } }
+    var bitcrushMix: Float { didSet { for c in allChains { c.bitcrush.mix = bitcrushMix } } }
 
     // Stereo widener (M/S)
-    var widenerEnabled: Bool { didSet { chain.widenerEnabled = widenerEnabled } }
-    var widenerWidth: Float { didSet { chain.widener.width = widenerWidth } }
+    var widenerEnabled: Bool { didSet { for c in allChains { c.widenerEnabled = widenerEnabled } } }
+    var widenerWidth: Float { didSet { for c in allChains { c.widener.width = widenerWidth } } }
 
     // Harmonizer (added harmony voices above the melody)
-    var harmonizerEnabled: Bool { didSet { chain.harmonizerEnabled = harmonizerEnabled } }
-    var harmInterval1: Float { didSet { chain.harmonizer.interval1 = harmInterval1 } }
-    var harmInterval2: Float { didSet { chain.harmonizer.interval2 = harmInterval2 } }
-    var harmVoice2: Bool { didSet { chain.harmonizer.voice2Enabled = harmVoice2 } }
-    var harmMix: Float { didSet { chain.harmonizer.mix = harmMix } }
+    var harmonizerEnabled: Bool { didSet { for c in allChains { c.harmonizerEnabled = harmonizerEnabled } } }
+    var harmInterval1: Float { didSet { for c in allChains { c.harmonizer.interval1 = harmInterval1 } } }
+    var harmInterval2: Float { didSet { for c in allChains { c.harmonizer.interval2 = harmInterval2 } } }
+    var harmVoice2: Bool { didSet { for c in allChains { c.harmonizer.voice2Enabled = harmVoice2 } } }
+    var harmMix: Float { didSet { for c in allChains { c.harmonizer.mix = harmMix } } }
 
     // Reverb (room / hall space)
-    var reverbEnabled: Bool { didSet { chain.reverbEnabled = reverbEnabled } }
-    var reverbRoomSize: Float { didSet { chain.reverb.roomSize = reverbRoomSize } }
-    var reverbDamping: Float { didSet { chain.reverb.damping = reverbDamping } }
-    var reverbMix: Float { didSet { chain.reverb.mix = reverbMix } }
-    var reverbWidth: Float { didSet { chain.reverb.width = reverbWidth } }
+    var reverbEnabled: Bool { didSet { for c in allChains { c.reverbEnabled = reverbEnabled } } }
+    var reverbRoomSize: Float { didSet { for c in allChains { c.reverb.roomSize = reverbRoomSize } } }
+    var reverbDamping: Float { didSet { for c in allChains { c.reverb.damping = reverbDamping } } }
+    var reverbMix: Float { didSet { for c in allChains { c.reverb.mix = reverbMix } } }
+    var reverbWidth: Float { didSet { for c in allChains { c.reverb.width = reverbWidth } } }
 
     // MARK: - Production characters
 
@@ -264,7 +297,9 @@ final class FXViewModel {
     /// new state. `.auto` is excluded here (no genre context in the FX tool).
     func applyCharacter(_ character: FXCharacter) {
         // Non-auto characters carry their own preset; the genre arg is unused.
-        character.apply(to: chain, bpm: bpm, genre: .selfObservation)
+        // Over the INVENTORY (#318): this is the fourth character-stamp site in the app and
+        // the only one that used to write a single chain.
+        for c in allChains { character.apply(to: c, bpm: bpm, genre: .selfObservation) }
         fxEnabled = true
         reseed()
     }
@@ -314,15 +349,18 @@ final class FXViewModel {
 
     // MARK: - Preset save / recall
 
-    /// Snapshot the live chain as a saveable/shareable preset.
+    /// Snapshot the live chain as a saveable/shareable preset. Reads `chain` alone, which is
+    /// correct precisely BECAUSE every write goes to all of them: they hold the same
+    /// parameters, so any one of them is the sound. (Their internal delay-line state differs;
+    /// that is not part of a preset.)
     func snapshot(name: String, tags: [String] = []) -> FXPreset {
         FXPreset.capture(from: chain, fxEnabled: fxEnabled, name: name, tags: tags)
     }
 
-    /// Apply a saved/community preset to the live chain, flip the master gate to
+    /// Apply a saved/community preset to every live chain, flip the master gate to
     /// match, and refresh every UI mirror.
     func apply(_ preset: FXPreset) {
-        preset.apply(to: chain)
+        for c in allChains { preset.apply(to: c) }
         fxEnabled = preset.fxEnabled   // didSet bridges the voice's master gate
         reseed()
     }
@@ -331,7 +369,10 @@ final class FXViewModel {
     /// [0…1] and write the result live (keeps the master gate as-is). The view drives
     /// this from the morph fader; `reseed()` refreshes every UI mirror.
     func morph(from a: FXPreset, to b: FXPreset, amount: Float) {
-        a.morphed(to: b, amount: amount).apply(to: chain)
+        // Blend ONCE, then stamp the same result on every chain — morphing per chain would
+        // be identical work repeated, and this runs on every fader sample.
+        let blended = a.morphed(to: b, amount: amount)
+        for c in allChains { blended.apply(to: c) }
         reseed()
     }
 }
@@ -367,11 +408,15 @@ struct EchoelFXView: View {
 
     /// Drive any voice's insert chain. `fxEnabled`/`setFXEnabled` bridge the
     /// voice's master gate so the surface stays decoupled from the voice type.
-    init(chain: EchoelFXChain, pattern: PatternEngine,
+    ///
+    /// `mirrors` are the other sounding chains that must move with `chain` (#318). The caller
+    /// derives them from its ONE inventory rather than listing voices here — see
+    /// `FXViewModel.allChains` for why a second list is the defect, not the fix.
+    init(chain: EchoelFXChain, mirrors: [EchoelFXChain] = [], pattern: PatternEngine,
          fxEnabled: @escaping () -> Bool,
          setFXEnabled: @escaping (Bool) -> Void) {
         self.pattern = pattern
-        _vm = State(wrappedValue: FXViewModel(chain: chain, bpm: pattern.tempo,
+        _vm = State(wrappedValue: FXViewModel(chain: chain, mirrors: mirrors, bpm: pattern.tempo,
                                               masterEnabled: fxEnabled,
                                               setMasterEnabled: setFXEnabled))
     }
