@@ -16,6 +16,10 @@ struct BioStripView: View {
 
     @Environment(EngineBus.self) private var bus
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// #353c. Read HERE, in the leaf that lays the numbers out — never passed down from an
+    /// ancestor. It is a settings-driven environment value, not a live signal, so unlike the bio
+    /// publishers it costs no rebuilds; the placement rule is the same one either way.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// Read the finger-on-lens flag HERE (this small leaf view), not in the parent
     /// `EchoelStudioView.body`. `fingerDetected` is rewritten ~10 Hz while reading; if the
     /// root body subscribed to it (the old `fingerOnLens:` argument), it re-evaluated 10×/s
@@ -284,28 +288,53 @@ struct BioStripView: View {
         .accessibilityLabel(text)
     }
 
+    /// ⭐ #353c — THE SOURCE TAG STEPS ASIDE AT ACCESSIBILITY SIZES, and this is the one
+    /// number-bearing row in the app where that matters most.
+    ///
+    /// THE MEASUREMENT, not a hunch: on a 375 pt phone this row carries the ⓘ, the driving dot,
+    /// four dividers, FOUR metric cells and an 88 pt tag slot inside 375 − 24 pt of padding. The
+    /// four cells share roughly 50 pt each. Every one of them holds a label, a value and a unit,
+    /// and the whole row is `lineLimit(1)` with `minimumScaleFactor(0.6)` — so as Dynamic Type
+    /// grows, the numbers do not grow with it. They shrink, down to 60 % of a 12 pt face, which
+    /// is ~7 pt. The user who RAISED the text size is the one who ends up with the smallest
+    /// numbers in the app. That is the defect, and it is invisible at the default size.
+    ///
+    /// The fix is the cheapest one that actually returns width: at an accessibility size the tag
+    /// leaves the row and takes its fixed 88 pt slot with it, which is about 22 pt back per cell
+    /// — a ~40 % wider cell, not a rounding difference. Nothing else changes.
+    ///
+    /// ⚠️ AT EVERY NON-ACCESSIBILITY SIZE THE LAYOUT IS BYTE-FOR-BYTE THE OLD ONE. That is the
+    /// safety property this slice is built around: there is no simulator here, so the branch that
+    /// every user sees today is the branch that is not touched. `dynamicTypeSize` is read in THIS
+    /// leaf — never in an ancestor (the 10.76.50 freeze law); it is an environment value that
+    /// changes when the user changes a setting, not a live signal, so it costs nothing.
+    ///
+    /// ⛔ WHY NOT `ViewThatFits`, which is the obvious tool: it picks the first candidate that
+    /// fits, and `minimumScaleFactor` makes the one-row candidate ALWAYS report a fit — it
+    /// shrinks instead of overflowing. The second candidate would never be chosen, and the guard
+    /// would still be green. An explicit size threshold is checkable; a measurement that cannot
+    /// fail is not.
     private var strip: some View {
-        // Equal-width metric cells that always fit the screen — no left-packing, so a
-        // value changing digit-count (or the source tag toggling width) can't reflow
-        // its neighbours or overflow the edge (the old "wobble"). The source tag sits
-        // in a bounded slot; everything scales down on narrow phones (adaptive).
-        HStack(spacing: 6) {
-            infoButton
-            drivingIndicator
-            divider
-            metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
-                .frame(maxWidth: .infinity)
-            divider
-            metricButton(label: "HRV", value: hrvString,       unit: hrvUnit, metric: .hrv)
-                .frame(maxWidth: .infinity)
-            divider
-            metricButton(label: "Br",  value: breathString,    unit: "/min",  metric: .breath)
-                .frame(maxWidth: .infinity)
-            divider
-            metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
-                .frame(maxWidth: .infinity)
-            sourceControl
-                .frame(width: 88, alignment: .trailing)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    metricsRow
+                    // Trailing, so the tag stays where the eye already looks for it — same
+                    // corner as before, one line down. No fixed width here: this row has the
+                    // whole strip to itself, and pinning it would re-create the squeeze that
+                    // moving it was meant to end.
+                    HStack(spacing: 6) {
+                        Spacer(minLength: 0)
+                        sourceControl
+                    }
+                }
+            } else {
+                HStack(spacing: 6) {
+                    metricsRow
+                    sourceControl
+                        .frame(width: 88, alignment: .trailing)
+                }
+            }
         }
         // lineLimit/scale/font BEFORE the sheets: these are ENVIRONMENT values, and sheet
         // content inherits the environment at the .sheet attachment point — with the old
@@ -348,6 +377,30 @@ struct BioStripView: View {
             Rectangle()
                 .fill(EchoelTheme.text.opacity(0.08))
                 .frame(height: 1)
+        }
+    }
+
+    /// The metrics themselves — equal-width cells that always fit the offered width, so a value
+    /// changing digit-count (or the source tag toggling width) cannot reflow its neighbours or
+    /// overflow the edge (the old "wobble"). Extracted from `strip` by #353c so both layouts
+    /// share ONE definition: two copies of this row is how the compact and the accessibility
+    /// version would silently drift apart, and only one of them is ever screenshotted.
+    private var metricsRow: some View {
+        HStack(spacing: 6) {
+            infoButton
+            drivingIndicator
+            divider
+            metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
+                .frame(maxWidth: .infinity)
+            divider
+            metricButton(label: "HRV", value: hrvString,       unit: hrvUnit, metric: .hrv)
+                .frame(maxWidth: .infinity)
+            divider
+            metricButton(label: "Br",  value: breathString,    unit: "/min",  metric: .breath)
+                .frame(maxWidth: .infinity)
+            divider
+            metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
+                .frame(maxWidth: .infinity)
         }
     }
 
