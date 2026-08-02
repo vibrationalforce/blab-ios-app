@@ -74,6 +74,13 @@ struct BioStripView: View {
         // When the pulse settles, flash a brief "locked — you can lift & play" cue so the
         // user learns to LOCK first, THEN play (the take tempo is latched, so lifting the
         // finger to play no longer perturbs it). `isSettled` is low-frequency.
+        //
+        // ⛔ ONE BEHAVIOUR CHANGED WITH #382 AND IT IS NOT A SIDE EFFECT TO DISCOVER LATER:
+        // the cue used to survive the camera being stopped mid-window, because its old branch
+        // read `lockedCueVisible` alone. The slot is now gated on `isRunning`, so stopping the
+        // measurement takes the cue with it. That is the right reading — "you can let go &
+        // play" is a statement about a measurement that is happening — and the timer below is
+        // unchanged, so a restart re-arms it through the same token path.
         .onChange(of: cameraRPPG.isSettled) { _, settled in
             guard settled, cameraRPPG.isRunning else { return }
             lockedCueToken += 1
@@ -91,6 +98,32 @@ struct BioStripView: View {
     /// The one status line above the strip. Recovery/cooling (urgent) wins; otherwise the
     /// brief "pulse locked" confirmation. Both read low-frequency state in THIS leaf, so
     /// they never churn the parent body (freeze rule).
+    ///
+    /// ⭐ THE THIRD BRANCH RESERVES ITS SLOT INSTEAD OF APPEARING IN IT (#382), and the reason
+    /// is that this view is the FIRST child of `EchoelStudioView.bioPanel`'s `VStack`. Below it
+    /// sit the explanatory sentence, the "Open Routing" button and `HealthWriteOptInRow()`. As
+    /// an ordinary `else if lockedCueVisible`, the six-second cue INSERTED itself and then
+    /// REMOVED itself — two layout changes, six seconds apart, shoving two live controls at a
+    /// moment when the user is plausibly reaching for one of them. The behaviour is old; #353d
+    /// made it big, because the banner now scales and wraps, so at AX3+ the shove is on the
+    /// order of 80–110 pt rather than the 26 pt it used to be.
+    ///
+    /// The slot holds the REAL cue view, hidden with `.opacity` — not a fixed `minHeight`.
+    /// That distinction is the whole point: a constant can only be right at one Dynamic Type
+    /// size, whereas the actual view reserves exactly what it will need at whatever size the
+    /// reader has chosen, and keeps doing so if the sentence is ever reworded.
+    ///
+    /// ⚠️ `.accessibilityHidden(!lockedCueVisible)` IS NOT OPTIONAL POLISH. `banner` ends in
+    /// `.accessibilityLabel(text)`, and `.opacity(0)` does not remove a view from the
+    /// accessibility tree — without the hide, a VoiceOver user would find "Pulse detected —
+    /// you can let go & play" sitting there for the entire measurement, including long before
+    /// any pulse has been detected. The layout bug was an annoyance for sighted users; that
+    /// would be a false statement made only to the reader who cannot check it.
+    ///
+    /// ⚠️ AND THE GATE STAYS `cameraRPPG.isRunning`, deliberately, rather than becoming an
+    /// unconditional `else`. Reserving a status line while a measurement runs is a design
+    /// statement; reserving blank height above the strip for someone who never starts the
+    /// camera is a tax. `LockCueDoesNotShoveTheControlsTests` pins both halves.
     @ViewBuilder private var statusBanner: some View {
         if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
             banner(hint, color: EchoelTheme.warning, systemImage: "camera.metering.center.weighted")
@@ -102,9 +135,11 @@ struct BioStripView: View {
             // be nagged about the camera — matches the header pill's suppression.
             banner(PulseCue.cameraDenied.fullHint,
                    color: EchoelTheme.warning, systemImage: "video.slash")
-        } else if lockedCueVisible {
+        } else if cameraRPPG.isRunning {
             banner("Pulse detected — you can let go & play",
                    color: EchoelTheme.success, systemImage: "checkmark.circle.fill")
+                .opacity(lockedCueVisible ? 1 : 0)
+                .accessibilityHidden(!lockedCueVisible)
         }
     }
 
