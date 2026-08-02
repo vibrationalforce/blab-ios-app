@@ -54,6 +54,21 @@ final class VisualRecorder {
     /// the video itself failed).
     @discardableResult
     func stop() async -> URL? {
+        // ⛔ RE-ENTRY GUARD (#387 Nachlese) — WITHOUT IT A SECOND STOP SILENCES THE FIRST ONE'S
+        // CLIP. `video.stopRecording()` rejects the second caller and returns nil, but THIS
+        // function used to carry on past it and reach `audioEngine = nil` below. Two calls
+        // enqueued in the same run-loop turn therefore interleaved like this: A sets
+        // `.finishing` synchronously and suspends inside `stopRecording`'s continuation → B
+        // falls straight through and nils the engine → A resumes, reads `audioEngine` as nil,
+        // takes the `guard let audioURL else { saveToPhotoLibrary(videoURL) }` escape and saves
+        // the take WITHOUT ITS AUDIO. Silent, unrepeatable, and it looks like a muxer bug.
+        //
+        // The hole is older than #387 — `FloatingVisualWindow.toggleRecording` could always
+        // reach it — but #387 added a SECOND tappable Stop (the Video panel's row), so the fix
+        // belongs here, at the one place both doors go through, and not in either caller.
+        // Found by the reviewer on `691f213`; the tap timing is tight (after A runs the row has
+        // already swapped), which is exactly why it would have shipped.
+        guard video.recordState == .recording else { return nil }
         let videoURL = await video.stopRecording()
         // Pull the last `duration` seconds of the mix NOW (ends ≈ the video's end →
         // best-effort alignment). Ring is ~30 s; longer videos get their last 30 s.

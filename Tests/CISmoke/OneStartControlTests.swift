@@ -191,11 +191,15 @@ final class OneStartControlTests: XCTestCase {
     /// and one anchor assertion says where the struct lives. A move now produces ONE unambiguous
     /// failure — "it moved, re-point the absence check" — instead of two lying ones.
     ///
-    /// The ABSENCE check keeps its file scope, because `stop.fill` is CORRECT in all THREE other
-    /// places it appears: `VideoLibraryPanel` (stop clip preview), `LiveColaboView` (end the live
-    /// session) and — since #307 — `EchoelStudioView.startButton`, which really does end the bio
-    /// session. Count them when you edit this list; the first version said "elsewhere" and named
-    /// two of the three. ⚠️ Note what that means: this is a FILE-scoped proxy for a ROW-scoped
+    /// The ABSENCE check keeps its file scope, because `stop.fill` is CORRECT in all FOUR other
+    /// places it appears: `VideoLibraryPanel` TWICE (the clip-preview stop, and — since #387 —
+    /// the panel's own "stop this recording" row), `LiveColaboView` (end the live session) and
+    /// — since #307 — `EchoelStudioView.startButton`, which really does end the bio session.
+    /// Count them when you edit this list; the first version said "elsewhere" and named two of
+    /// three, and the second said THREE the day #387 made it four. ⛔ The count went stale
+    /// WITHOUT the gate going red, because this assertion is scoped to `WorkspaceView.swift` and
+    /// none of the four live there — so nothing mechanical was ever going to catch it. A prose
+    /// count that no assertion can falsify is maintained by reading, or not at all. ⚠️ Note what that means: this is a FILE-scoped proxy for a ROW-scoped
     /// invariant. It cannot see the other members of `startControlRow`, which live in a different
     /// file — so it cannot actually count the claims in that row, only keep the pause button out
     /// of the argument.

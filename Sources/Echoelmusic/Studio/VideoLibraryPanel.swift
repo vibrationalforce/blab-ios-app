@@ -11,9 +11,11 @@
 //  mapping (P3) build on top of this library when they ship — no placeholder
 //  buttons for them here ("Clear Software": every control does something).
 //
-//  Render-safety: presented ONLY inside the DMMW menu dropdown (no new sheet;
-//  the ~18-modal chain is untouched). Inline playback is AVKit's VideoPlayer —
-//  not a second MTKView, so the one-Metal-view law holds.
+//  Render-safety: presented ONLY inside the studio's chip dropdown (no new sheet;
+//  the presentation chain is untouched — its COUNTED size is 14, per CLAUDE.md, and
+//  the "~18" that stood here was a guess that outlived the thing it guessed at, in a
+//  file whose whole point is that this surface adds no modal). Inline playback is
+//  AVKit's VideoPlayer — not a second MTKView, so the one-Metal-view law holds.
 //
 
 #if canImport(SwiftUI) && canImport(AVKit) && canImport(AVFoundation)
@@ -197,18 +199,30 @@ struct VideoLibraryPanelContent: View {
     // MARK: - The top row: start there, or end what is running
 
     /// The one action that CREATES clips — a real door, not a dead hint.
+    ///
+    /// ⚠️ THE WRAPPING MODIFIERS ARE NOT DECORATION — and the #387 commit body claimed this row
+    /// already "matched its new sibling" when it had only grown a `minHeight`. It had not: this
+    /// row carries the LONGER string of the two ("Record in the visual window"), so it is the
+    /// one that actually needs to wrap, and at accessibility text sizes it still could not.
+    /// The reviewer caught the claim, and the honest repair is to make the claim true rather
+    /// than to soften the sentence — the four modifiers below are the same set `stopRow` has
+    /// (#262/#353 shape: minimum height, wrap allowed, leading alignment).
     private var openVisualRow: some View {
         Button(action: onOpenVisual) {
             HStack(spacing: 8) {
                 Image(systemName: "record.circle")
                 Text("Record in the visual window")
                     .font(EchoelTheme.font(13))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
             }
             .foregroundStyle(EchoelTheme.text)
-            .padding(.horizontal, 12).frame(minHeight: 36)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .frame(minHeight: 36)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                 .fill(EchoelTheme.fill))
             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)

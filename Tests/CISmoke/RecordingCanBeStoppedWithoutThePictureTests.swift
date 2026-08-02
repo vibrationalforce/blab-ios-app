@@ -87,6 +87,33 @@ final class RecordingCanBeStoppedWithoutThePictureTests: XCTestCase {
             """)
     }
 
+    /// ⛔ THE SECOND STOP MUST NOT SILENCE THE FIRST ONE'S CLIP. Adding a second tappable Stop
+    /// (the panel row above) made an older hole reachable a second way: `VisualRecorder.stop()`
+    /// had no entry guard, so two calls enqueued in the same run-loop turn interleaved —
+    /// A sets `.finishing` and suspends inside `stopRecording`'s continuation, B falls through
+    /// and nils `audioEngine`, A resumes and takes the "no audio" escape. The take is saved
+    /// SILENT. Found by the reviewer on `691f213`.
+    ///
+    /// ⚠️ POSITIONAL, because position is the whole invariant. A guard placed anywhere after
+    /// `audioEngine = nil` is decoration: the damage is already done by then. So the assertion
+    /// is that it is the FIRST statement of the function, which is also the only place it can
+    /// be while remaining correct.
+    func testStoppingTwiceCannotStripTheAudio() throws {
+        let stop = try memberBody(startingWith: "func stop() async -> URL?",
+                                  in: "Sources/Echoelmusic/Video/VisualRecorder.swift")
+        let statements = stop.dropFirst().map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        XCTAssertEqual(statements.first, "guard video.recordState == .recording else { return nil }", """
+            `VisualRecorder.stop()` does not OPEN with its re-entry guard. First statement is:
+            \(statements.first ?? "<none>")
+
+            Both Stop controls — the visual window's toolbar and the Video panel's row (#387) — \
+            funnel through this one function, and a second entry that gets past this line nils \
+            `audioEngine` out from under the first, which then saves the clip without its \
+            master mix. A guard placed lower down cannot prevent that; it has to be first.
+            """)
+    }
+
     // MARK: - Source helpers
 
     /// Lines of a member, from the line that starts with `prefix` to the closing `}` at that
