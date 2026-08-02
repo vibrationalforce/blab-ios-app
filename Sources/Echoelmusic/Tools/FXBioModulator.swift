@@ -141,14 +141,35 @@ public final class FXBioModulator {
     // MARK: - Active targets / base capture
 
     /// Targets that currently have at least one enabled route.
-    private var activeTargets: Set<FXModTarget> {
-        Set(routes.filter { $0.enabled }.map { $0.target })
+    ///
+    /// ⭐ #388 — CACHED, NOT RECOMPUTED PER TICK. This was a computed property read once
+    /// every 33 ms from `tick()`, and each read built an array (`filter`), a second array
+    /// (`map`) and a `Set` on the main actor. That is the identical construct the note on
+    /// `pruneRouteFades` below forbids, for the identical reason, in the identical file:
+    /// the actor this app has a documented starvation law about (the 10.76.48 menu freeze)
+    /// does not want per-tick garbage for a fact that changes per EDIT.
+    ///
+    /// ⛔ AND IT IS A PER-EDIT FACT, exactly like the fade pruning. The set can only change
+    /// when `routes` changes, `routes` is the only input, and its `didSet` is the single
+    /// writer path — `FXModRoute` is a struct, so even `routes[i].enabled = false` goes
+    /// through it. The cache therefore cannot go stale without `reconcileBases()` running.
+    @ObservationIgnored private var activeTargets: Set<FXModTarget> = []
+
+    /// The one writer of `activeTargets`. Kept separate from `reconcileBases` so the
+    /// ordering requirement below is visible at the call site rather than buried.
+    private func refreshActiveTargets() {
+        activeTargets = Set(routes.filter { $0.enabled }.map { $0.target })
     }
 
     /// Capture a base for every newly-active target; restore + drop bases for targets
     /// that are no longer modulated. Called on attach and whenever routes change.
     private func reconcileBases() {
-        pruneRouteFades()   // before the chain guard: route edits land whether or not one is bound
+        // ⚠️ BOTH OF THESE MUST STAY ABOVE THE CHAIN GUARD, and for the same reason: a
+        // route edit is a fact about `routes`, not about whether a chain happens to be
+        // bound yet. Refreshing the cache below the guard would leave it holding the set
+        // from before the edit until the next attach — and `tick()` reads it as truth.
+        refreshActiveTargets()
+        pruneRouteFades()
         guard !allChains.isEmpty else { return }
         let active = activeTargets
         // Capture bases for new targets — one per chain, each its own user value (#386).
@@ -279,6 +300,12 @@ public final class FXBioModulator {
     /// an array, a map, a `Set` and a fresh dictionary 30× a second on the main actor —
     /// pure garbage for a per-edit fact, on the actor this app has a documented
     /// starvation law about.
+    ///
+    /// ⛔ THIS NOTE WAS TRUE AND ITS NEIGHBOUR IGNORED IT. `activeTargets` sat a few
+    /// declarations above doing the identical thing — filter, map, `Set`, every tick —
+    /// until #388. A rule written next to the one place that already obeys it does not
+    /// find the place that does not; when this shape appears again, grep the file for
+    /// `Set(` and `filter` inside anything the 33 ms loop reaches, don't trust the note.
     private func pruneRouteFades() {
         guard !routeFades.isEmpty else { return }
         let live = Set(routes.filter { $0.enabled }.map(\.id))
