@@ -244,7 +244,10 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
                           `Tests/CISmoke` (**123** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
                           2026-08-02 nach `DeletingAPresetIsUndoableTests.swift` (Loesch-Undo),
-                          davor „122" nach `RandomizeIsUndoableTests.swift` (Randomize-Undo),
+                          davor „122" nach `RandomizeIsUndoableTests.swift` (#357 c — der Eintrag
+                          hieß zuerst „(Randomize-Undo)", als einziger in dieser Kette ohne
+                          Slice-Nummer; eine Kette, deren Einträge verschieden benannt sind, lässt
+                          sich nicht mehr gegen die Commit-Historie prüfen),
                           davor „121" nach `OpeningAProjectRescuesTheLiveTakeTests.swift` (#357 b),
                           davor „120" nach `LockCueDoesNotShoveTheControlsTests.swift` (#382),
                           davor „119" nach `CoachingTextScalesTests.swift` (#353d),

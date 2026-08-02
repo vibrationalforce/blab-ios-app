@@ -343,9 +343,18 @@ struct EchoelStudioView: View {
     /// `Button(role: .destructive)`, which SwiftUI only COLOURS red — nothing asks. Both are
     /// gated on `!isFactory`, so the only thing they can remove is a preset the user made
     /// themselves: the irreplaceable kind. Meanwhile SAVING the same sound goes through an
-    /// alert. A `.confirmationDialog` is the wrong answer here twice over — it would grow the
-    /// presentation chain the black-screen law forbids growing, and it can only warn. Keeping
-    /// the removed preset costs no presentation slot and gives it back.
+    /// alert. A `.confirmationDialog` could only ever warn; keeping the removed preset gives it
+    /// back. That is the whole argument, and it is enough.
+    ///
+    /// ⛔ IT WAS SHIPPED WITH A SECOND REASON THAT DOES NOT HOLD HERE — "it would grow the
+    /// presentation chain the black-screen law forbids growing". That law is scoped to
+    /// `EchoelStudioView.body`'s OWN modifier chain, the counted 14 (CLAUDE.md), and these two
+    /// menus are not on it: `soundPanel` and `moodPanel` reach the body only through
+    /// `dropdownContent: AnyView`, which erases their types before the body's aggregate type is
+    /// formed. A dialog attached in here would have added nothing to that type and left the
+    /// count at 14. The claim was checkable and false, which in this file is worse than no
+    /// reason at all — a later session weighing a real dialog would have refused it on a law
+    /// that does not reach this code. Reversible beats confirmed on its own merits.
     ///
     /// ⚠️ THE FAVOURITE FLAG HAS TO TRAVEL WITH IT. `PatchStore.delete` / `MoodPresetStore.delete`
     /// also drop the id from `favorites` and `recents`, and `save(_:)` does not restore either —
@@ -5390,12 +5399,28 @@ struct EchoelStudioView: View {
     /// ABOVE it kept exactly one undo step for the identical kind of write. A hand-dialled sound
     /// was one accidental tap from gone, and the Undo arrow sat right there looking like it
     /// covered this too. Reversible beats confirmed, same as the project-open rescue: a
-    /// `.confirmationDialog` would grow the presentation chain the black-screen law forbids
-    /// growing and could only ever warn, while writing the snapshot costs one assignment and
-    /// makes the tap undoable.
+    /// `.confirmationDialog` could only ever warn, while writing the snapshot costs one
+    /// assignment and makes the tap undoable.
+    ///
+    /// ⛔ AND THE SHIPPED VERSION PROPPED THAT UP WITH A LAW THAT DOES NOT REACH THIS BUTTON —
+    /// "would grow the presentation chain the black-screen law forbids growing". The chain that
+    /// law governs is `EchoelStudioView.body`'s own, the counted 14 (CLAUDE.md); this button
+    /// lives in `soundPanel`, which reaches the body only through `dropdownContent: AnyView` and
+    /// is type-erased before the body's aggregate type exists. A dialog here would have left the
+    /// count at 14. Only the other half carries the decision, and it carries it alone: a prompt
+    /// warns, an assignment gives the sound back.
     ///
     /// ⚠️ ONE SLOT, SHARED WITH THE PROMPT — so a randomize after a shaping replaces that
     /// shaping's undo point rather than stacking on it. Correct for a one-step history.
+    ///
+    /// ⚠️ HONEST LIMIT — THE SECOND TAP IS THE ONE THAT COSTS. One slot means Randomize →
+    /// Randomize overwrites the snapshot with the FIRST random patch, so the hand-dialled sound
+    /// this fix exists to protect is unrecoverable from the second tap on — on a control whose
+    /// whole point is to be tapped repeatedly until something sounds right. Not an oversight and
+    /// not free: making it survive needs a stack rather than a slot, and how deep a stack and
+    /// whether the prompt shares it is a separate decision. As shipped, the arrow protects the
+    /// FIRST tap after a hand-dialled sound. Say that out loud rather than letting the arrow
+    /// imply more.
     ///
     /// ⛔ AND THE FIRST VERSION OF THIS COMMENT ENDED "the arrow always means 'the sound I had
     /// immediately before the last thing I did here'", WHICH WAS FALSE WHEN WRITTEN. Three more
@@ -7685,10 +7710,19 @@ struct EchoelStudioView: View {
     /// local `let openStyle`. A checkable sentence has to be checkable-TRUE — that is the norm
     /// this file enforces on other people's comments.)
     ///
-    /// REVERSIBLE BEATS CONFIRMED, and that is why this is not a `.confirmationDialog`. A
-    /// prompt would add a presentation modifier to a chain the black-screen law says must not
-    /// grow, and all it could ever do is tell the user what they are about to lose — it could
-    /// not give it back.
+    /// REVERSIBLE BEATS CONFIRMED, and that is why this is not a `.confirmationDialog`. All a
+    /// prompt could ever do is tell the user what they are about to lose — it could not give it
+    /// back.
+    ///
+    /// (⛔ The first version added "a prompt would add a presentation modifier to a chain the
+    /// black-screen law says must not grow". Checkable, and false at this location: the row that
+    /// calls this sits in `openSheet`, presented as `.sheet(isPresented: $showOpen) {
+    /// AnyView(openSheet) }`, so its type never reaches the body's aggregate type and a dialog
+    /// in there would leave the counted 14 untouched. The law is about modifiers appended to
+    /// `EchoelStudioView.body` itself. The same false half was written into the randomize and
+    /// preset-delete rationales and is struck in all three — a borrowed law that does not reach
+    /// the code makes a correct decision unfalsifiable, which is how the wrong one survives next
+    /// time.)
     ///
     /// ⚠️ IT IS NOT FREE, WHICH THE FIRST VERSION CLAIMED TWICE ("costs no UI at all"). What
     /// costs nothing is the PRESENTATION chain — no modifier, no slot. The call itself runs

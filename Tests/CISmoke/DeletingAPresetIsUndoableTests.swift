@@ -9,10 +9,18 @@
 // through an alert. One tap, no prompt, no way back was the asymmetry.
 //
 // THE FIX IS A SNAPSHOT, NOT A CONFIRMATION, and the reason is the same one the project-open
-// rescue and the randomize snapshot give: a `.confirmationDialog` would add a modifier to a
-// presentation chain the black-screen law (CLAUDE.md, 10.76.34) says must not grow, and all it
-// could ever do is warn. Keeping the removed preset costs no presentation slot and gives it
-// back.
+// rescue and the randomize snapshot give: all a `.confirmationDialog` could ever do is warn,
+// while keeping the removed preset gives it back.
+//
+// ⛔ THE OTHER HALF OF THAT ARGUMENT, AS FIRST WRITTEN, WAS FALSE HERE — "would add a modifier
+// to a presentation chain the black-screen law (CLAUDE.md, 10.76.34) says must not grow". That
+// law governs modifiers appended to `EchoelStudioView.body` itself, the counted 14. Both of
+// these menus live in `soundPanel` / `moodPanel`, which reach the body only through
+// `dropdownContent: AnyView`; their types are erased before the body's aggregate type exists, so
+// a dialog in either would have left the count untouched. Struck in all three places it was
+// written (here, `RandomizeIsUndoableTests`, and the two source rationales) — an argument that
+// cites a law which cannot reach the code is unfalsifiable, and unfalsifiable is how the WRONG
+// decision survives the next review.
 //
 // ⚠️ ORDER IS THE WHOLE BUG SURFACE. `PatchStore.delete` / `MoodPresetStore.delete` remove the
 // preset from the store's array AND drop its id from `favorites`. A snapshot taken afterwards
@@ -90,8 +98,8 @@ final class DeletingAPresetIsUndoableTests: XCTestCase {
                 `favorites`, so nothing after that line can put it back — and the button is a \
                 `Button(role: .destructive)` in a `Menu`, which SwiftUI only colours red. One \
                 tap, no prompt, no way back. Write `\(s.snapshot) …` ABOVE the delete rather \
-                than adding a confirmation dialog: a prompt grows the presentation chain the \
-                black-screen law forbids growing, and it can only warn.
+                than adding a confirmation dialog: a prompt can only warn, the capture gives \
+                the preset back.
                 """)
         }
     }

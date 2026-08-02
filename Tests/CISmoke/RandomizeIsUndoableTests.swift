@@ -9,10 +9,19 @@
 // to the same value, one reversible and one not, and the Undo arrow between them looked like
 // it covered both. It now does.
 //
-// THE FIX IS A SNAPSHOT, NOT A PROMPT, for the same reason the project-open rescue was: a
-// `.confirmationDialog` would add a modifier to a presentation chain the black-screen law
-// (CLAUDE.md, 10.76.34) says must not grow, and all it could ever do is warn. One assignment
-// makes the tap undoable instead of merely announced.
+// THE FIX IS A SNAPSHOT, NOT A PROMPT, for the same reason the project-open rescue was: all a
+// `.confirmationDialog` could ever do is warn, while one assignment makes the tap undoable
+// instead of merely announced.
+//
+// ⛔ AND THE FIRST VERSION PROPPED THAT UP WITH A LAW THAT DOES NOT REACH THIS BUTTON — "would
+// add a modifier to a presentation chain the black-screen law (CLAUDE.md, 10.76.34) says must
+// not grow". That law is about modifiers appended to `EchoelStudioView.body` itself, the counted
+// 14. `randomizeButton` lives in `soundPanel`, which reaches the body only through
+// `dropdownContent: AnyView` and is type-erased before the body's aggregate type is formed; a
+// dialog in here would have left the count at 14. The sentence was checkable and false, and a
+// borrowed law is worse than no reason: the next session weighing a genuine dialog would have
+// refused it on a rule that does not apply. Only the "a prompt warns, an assignment gives it
+// back" half carries this decision, and it carries it alone.
 //
 // ⚠️ THE NAME IS PART OF THE FIX, which is why this file pins it. The snapshot was called
 // `patchBeforePrompt` while only the prompt wrote it; a second writer inheriting that name
@@ -24,8 +33,17 @@
 // taken BEFORE the overwrite, and that the label does not name one writer. It cannot prove the
 // restored patch sounds like the one that was lost (that is `undoSoundPrompt`'s job and
 // unchanged), and it cannot prove a user finds an arrow that only appears once there is
-// something to undo. NEEDS-FOUNDER-VERIFY: dial a sound, tap Randomize, tap the arrow above it
-// — is the dialled sound back?
+// something to undo.
+//
+// ⚠️ AND THE PROTECTION IS ONE TAP DEEP — the limit worth stating out loud, because the button
+// invites the opposite. One slot means Randomize → Randomize overwrites the snapshot with the
+// FIRST random patch, so the hand-dialled sound this whole slice exists to protect is gone from
+// the second tap on. On a control whose point is to be tapped until something sounds right, that
+// is where a user will actually meet the hole. Deeper needs a stack, which is a separate
+// decision (how deep, and does the prompt share it).
+// NEEDS-FOUNDER-VERIFY, both halves: dial a sound, tap Randomize ONCE, tap the arrow above it —
+// is the dialled sound back? Then dial again, tap Randomize TWICE, tap the arrow — it will hand
+// back the first random patch, not the dialled one. Is that acceptable, or is a stack worth it?
 //
 // ⚠️ AND IT DOES NOT GUARD THE OTHER SEVEN. `currentPatch` is assigned wholesale in several
 // more places (preset load, project open, genre change); none of them is covered by one slot
@@ -55,9 +73,10 @@ final class RandomizeIsUndoableTests: XCTestCase {
                 button replaces `currentPatch` with a random factory character plus four \
                 jittered fields; without the snapshot a hand-dialled sound is gone on one \
                 accidental tap, and the Undo arrow one row above stays disabled while looking \
-                like it applies. Restore `\(Self.snapshot) = currentPatch` as the first \
-                statement rather than adding a confirmation dialog — a prompt grows the \
-                presentation chain the black-screen law forbids growing, and it can only warn.
+                like it applies. Restore `\(Self.snapshot) = currentPatch` ABOVE the overwrite \
+                — anywhere above it satisfies this guard, which checks order and not position \
+                — rather than adding a confirmation dialog: a prompt can only warn, the \
+                assignment gives the sound back.
                 """)
             return
         }

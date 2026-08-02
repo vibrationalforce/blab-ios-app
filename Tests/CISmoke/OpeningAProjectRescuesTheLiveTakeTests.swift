@@ -10,12 +10,19 @@
 // a local `let`. Small, and corrected because the standard this file applies to the source is
 // that a checkable sentence be checkable-true.)
 //
-// THE FIX IS A RESCUE, NOT A PROMPT, and the distinction is the whole point. A
-// `.confirmationDialog` would add a modifier to a presentation chain the black-screen law
-// (CLAUDE.md, 10.76.34) says must not grow — and all it could ever do is warn. `autosaveTake()`
+// THE FIX IS A RESCUE, NOT A PROMPT, and the distinction is the whole point: all a
+// `.confirmationDialog` could ever do is warn. `autosaveTake()`
 // already existed, already wrote the live take into the ONE reserved library slot through the
 // same `ProjectStore` the Save button uses, and was wired to exactly one trigger: a scene-phase
 // departure. So it covered backgrounding and covered nothing the user did inside the app.
+// (⛔ This paragraph also cited the black-screen law — "would add a modifier to a presentation
+// chain (CLAUDE.md, 10.76.34) that must not grow". Struck: that law is about modifiers appended
+// to `EchoelStudioView.body` itself, and the row calling `open(_:)` sits inside
+// `.sheet(isPresented: $showOpen) { AnyView(openSheet) }`, type-erased before the body's
+// aggregate type is formed. A dialog in there would have changed nothing. The same borrowed law
+// was written into the randomize and preset-delete rationales; struck in all three. It made a
+// correct decision unfalsifiable, which is how a wrong one gets through next time.)
+//
 // Calling it here costs no PRESENTATION — no modifier, no slot — and makes the action
 // reversible instead of merely announced. It is not costless as such: the call is a synchronous
 // encode of the whole library plus a protected write, on the main actor, now paid on every
@@ -118,8 +125,8 @@ final class OpeningAProjectRescuesTheLiveTakeTests: XCTestCase {
                 pitch — and both doors that load a project (the Open list and `onLoadShared`) \
                 run through it. Without the rescue, one tap in a library list destroys \
                 whatever the body just played with nothing to get it back from. Restore the \
-                call rather than adding a confirmation dialog: a prompt grows the presentation \
-                chain the black-screen law forbids growing, and it can only warn, never undo.
+                call rather than adding a confirmation dialog: a prompt can only warn, never \
+                undo.
                 """)
             return
         }
