@@ -5,8 +5,12 @@
 //  Every adjustable number in this app is read and typed through ONE control
 //  (`EchoelValueField` + `EchoelNumberPad`, the app-wide law in CLAUDE.md).
 //
-//  `git grep -c "EchoelValueField(" -- Sources` → 63 matching LINES, but **one of them is
-//  THIS comment** (the only comment-line hit in the tree). So: **62** call sites, of which
+//  `git grep -c "EchoelValueField(" -- Sources` → 64 matching LINES, but **TWO of them are
+//  comments** — this one and `EchoelValueField.swift`'s own `stacksLabel` doc, added by #353e.
+//  ⛔ THE PARENTHETICAL THAT STOOD HERE SAID "the only comment-line hit in the tree", and #353e
+//  falsified it the moment it landed: a doc that quotes the command has to say WHICH hits it
+//  subtracts, and "the only" is a claim about the whole tree that any future comment can break.
+//  Count the comment hits, do not assume there is one. So: **62** call sites, of which
 //  **57** are reachable — the 5 in `PianoRollView`, doorless per CLAUDE.md, are the only
 //  unreachable ones. ⛔ Two editions in a row quoted the raw grep output as the call-site
 //  count and were off by exactly one, because the line that documents the number is itself
@@ -14,9 +18,11 @@
 //  ⛔ This line first said "58", which was neither number and had no command beside it — in
 //  a repo whose CLAUDE.md spends a paragraph on exactly that failure. The command is here so
 //  the next reader re-runs it instead of quoting me. It then said "62" and went stale anyway.
-//  The RAW LINE COUNT went 64 (at #281) → 66 → 63, the last drop because #132 Slice 6 deleted
-//  `PatchEditorView.swift` and its 4 fields: a count can FALL as well as rise, so "it only
-//  ever grows" is not a safe shortcut either. Re-run the command, subtract this line, and do
+//  The RAW LINE COUNT went 64 (at #281) → 66 → 63 → 64, the drop because #132 Slice 6 deleted
+//  `PatchEditorView.swift` and its 4 fields, the rise because #353e added a second comment hit:
+//  a count can FALL as well as rise, AND it can rise without a single new call site, so "it only
+//  ever grows" and "it grew, so someone added a field" are both wrong.
+//  Re-run the command, subtract every comment line, and do
 //  not quote any of those numbers. Nothing asserts it, so it drifts silently — the count is
 //  context for the law, not the law itself.
 //

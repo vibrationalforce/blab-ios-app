@@ -12,6 +12,13 @@
 // landscape phone that is hundreds of points of nothing between a name and its number. Two
 // columns keep each row readable and spend the width on more parameters instead of more gap.
 //
+// ⚠️ THAT ROW SHAPE IS NOW CONDITIONAL (#353e, 2026-08-02): above an accessibility text size
+// `EchoelValueField` stacks the label ABOVE the box and drops its width pin. The sentence above
+// describes the layout below that threshold, which is the one this file's two-column rule is
+// about — `AdaptiveCardGrid` already forces ONE column at accessibility sizes, so the two
+// mechanisms never meet. Stated here because the paragraph reads like an unconditional
+// description of the control and is no longer one.
+//
 // ⚠️ WHAT THIS FILE ACTUALLY GUARDS — three things, and the third is the one that will break.
 //   1. The grids exist in `soundPanel` at all.
 //   2. `AdaptiveCardGrid`'s spacing still DEFAULTS to 10, so the card caller that predates

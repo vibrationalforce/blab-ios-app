@@ -4,7 +4,10 @@
 // at ANY width — the same defect `SoundPanelReflowsTests` describes for the Sound panel:
 // `EchoelValueField` is `HStack { label; Spacer(minLength: 8); valueBox }` and `menuPanelHost`
 // offers `maxWidth: .infinity`, so a landscape row puts a name against the far left edge and the
-// number it names against the far right.
+// number it names against the far right. (⚠️ That row shape is CONDITIONAL since #353e: above an
+// accessibility text size the field stacks its label above the box and drops the width pin. The
+// description holds below that threshold, which is where the two-column rule applies —
+// `AdaptiveCardGrid` forces one column at accessibility sizes, so the two never meet.)
 //
 // ⚠️ WHAT THIS FILE GUARDS, and what it deliberately does NOT.
 //   1. The grids exist in `moodPanel` and pass `spacing: 14`.

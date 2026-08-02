@@ -7938,15 +7938,20 @@ private struct AdaptiveCardGrid<Content: View>: View {
         self.content = content
     }
 
-    /// ⛔ ACCESSIBILITY SIZES GET ONE COLUMN, whatever the width. `EchoelValueField`'s value box
-    /// is a HARD `.frame(width:)` driven by `@ScaledMetric(relativeTo: .body) = 150`, and it
-    /// OVERFLOWS rather than clips (the field says so itself). `EchoelStudioView` is deliberately
-    /// not Dynamic-Type-clamped and `StudioZoom` reaches `.accessibility5`, so at the top sizes
-    /// that box alone wants more than half a landscape phone — two columns would draw over each
-    /// other. Halving the available width is exactly the wrong move for the user who most needs
-    /// the width. (Portrait already overflows at the top sizes today; that is a separate,
-    /// pre-existing defect of the fixed box width and is NOT fixed here — this only makes sure
-    /// this slice does not spend the extra landscape width that was masking it.)
+    /// ⛔ ACCESSIBILITY SIZES GET ONE COLUMN, whatever the width. The rule stands; its ORIGINAL
+    /// justification does not, and leaving that standing would tell the next reader a defect is
+    /// open that has been closed. What stood here: `EchoelValueField`'s box is a HARD
+    /// `.frame(width:)` driven by `@ScaledMetric(relativeTo: .body) = 150`, so at the top sizes
+    /// it wants more than half a landscape phone and two columns would draw over each other —
+    /// "(Portrait already overflows at the top sizes today; that is a separate, pre-existing
+    /// defect of the fixed box width and is NOT fixed here.)"
+    ///
+    /// **#353e IS that fix.** Above the accessibility threshold the field now drops the pin
+    /// entirely and puts its label above the box. So the reason for one column is no longer
+    /// "the box is too wide to share" but the opposite: a stacked label-over-box row WANTS the
+    /// full width, and halving it is exactly the wrong move for the user who most needs it.
+    /// `EchoelStudioView` is deliberately not Dynamic-Type-clamped and `StudioZoom` reaches
+    /// `.accessibility5`, so the threshold is genuinely reachable here.
     private var columns: Int {
         guard !typeSize.isAccessibilitySize else { return 1 }
         return (hSize == .regular || vSize == .compact) ? 2 : 1

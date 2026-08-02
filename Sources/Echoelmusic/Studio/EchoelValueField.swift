@@ -238,8 +238,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// the box takes the whole row and more, the label is squeezed to its
     /// `minimumScaleFactor(0.7)` floor and then truncates to nothing, and the box itself runs
     /// past the screen edge. This is the ONE parameter control in the app —
-    /// `grep -rn 'EchoelValueField(' Sources/` is 62 call sites once the one comment line is
-    /// dropped, and exactly ONE of them renders label-less unconditionally (the chrome A4 box
+    /// `git grep -c "EchoelValueField(" -- Sources` is 64 lines, TWO of them comments — the one
+    /// in `Core/EchoelDecimalText.swift` and THIS one, which is why the count in that file said
+    /// "the only comment-line hit" and had to be corrected the same day. 62 call sites, and
+    /// exactly ONE of them renders label-less unconditionally (the chrome A4 box
     /// in `WorkspaceView`) with one more doing so only in its compact form (`BodyTempoField`).
     /// So at accessibility sizes essentially every parameter row in the instrument reads as an
     /// unlabelled overflowing box. (The count is call SITES; `EchoelStudioView`'s `param`/`knob`
@@ -386,7 +388,9 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     private let fullRangePoints: Double = 200
 
     var body: some View {
-        // With a label, the caption sits left and the box trails (aligned columns).
+        // With a label, the caption sits left and the box trails (aligned columns) — BELOW an
+        // accessibility text size. Above it the label steps ABOVE the box and the box drops its
+        // width pin; see `stacksLabel`. Three branches, and the middle one is the newest.
         // With an EMPTY label (compact strips — e.g. the timeline lane gain) render
         // JUST the box: the leading Text + expanding Spacer would otherwise reserve
         // ~30 pt of dead width and blow the box past its host column. One caller uses
