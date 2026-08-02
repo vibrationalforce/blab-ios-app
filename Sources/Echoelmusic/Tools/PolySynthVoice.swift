@@ -867,7 +867,21 @@ public final class PolySynthVoice {
             }
             if peak < Self.idlePeakFloor {
                 idleQuietFrames += count
-                if idleQuietFrames >= Self.idleFrameThreshold { renderIdle = true }
+                if idleQuietFrames >= Self.idleFrameThreshold {
+                    renderIdle = true
+                    // #389: falling asleep EMPTIES the chain. Without this the delay line and
+                    // the reverb tank freeze holding the take's last seconds; because the skip
+                    // measures the chain OUTPUT, a low `mix` can hide live energy under the
+                    // floor, and the next thing that raises that mix — a bio route since #386 —
+                    // walks seconds-old audio out. Exactly the stale-audio burst the
+                    // SWITCH-CRACKLE RULE in EchoelFXChain.swift resets stages to prevent,
+                    // reaching the chain through the idle skip instead of a bypass toggle.
+                    //
+                    // Runs ONCE per sleep, not per skipped block: the guard at the top of this
+                    // render returns as soon as `renderIdle` is true, so this line is
+                    // unreachable again until a note command wakes the voice.
+                    fxChain.noteRenderSleeping()
+                }
             } else {
                 idleQuietFrames = 0
             }

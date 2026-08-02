@@ -280,6 +280,48 @@ public final class EchoelFXChain: @unchecked Sendable {
         renderSkipped = true
     }
 
+    /// Tell the chain that its caller is going to SLEEP — not that one more block was skipped.
+    ///
+    /// #389, and it is the SWITCH-CRACKLE RULE at the top of this file applied one level up.
+    /// That rule already says a skipped stage freezes holding old audio and must be reset on the
+    /// edge, or re-enabling it bursts stale audio into the mix. `PolySynthVoice`'s 2.5 s idle
+    /// skip does exactly that to the WHOLE chain, and nothing reset anything — the gap
+    /// `noteRenderSkipped`'s SCOPE paragraph above names and leaves for its own slice. This is
+    /// that slice.
+    ///
+    /// ⭐ THE HOLE IS THE TANK AT LOW MIX, not the tail. The idle skip measures the chain's
+    /// OUTPUT, so with `reverb.mix` (or `delay.mix`) near zero the output can sit under the
+    /// floor while the stage still holds energy. Sleep then freezes it while the 30 Hz bio
+    /// driver keeps writing parameters, and the next thing that raises the mix walks
+    /// seconds-old audio out. #386 made that reachable in ordinary play by giving every
+    /// sounding chain a bio path to those mixes; before it, nothing moved them mid-take.
+    /// The tails themselves were never at risk — they decay monotonically, so while audible
+    /// they hold the output above the floor and the sleep counter never fills.
+    ///
+    /// WHY A FULL `reset()` AND NOT A HAND-PICKED STAGE LIST: `reset()`'s own contract is "the
+    /// signal path is empty", and falling asleep is precisely the moment that becomes true.
+    /// Everything it discards is already inaudible at the current settings — the voice proved
+    /// that by measuring 2.5 s under the floor — so the only way to ever hear it again is a
+    /// later parameter change, and hearing it then means hearing 2.5-second-old audio. A
+    /// hand-picked list would also rot: a stage added later would silently miss the drain.
+    ///
+    /// `renderSkipped` is re-armed AFTER the reset because `reset()` clears it. Both are wanted:
+    /// the reset snaps the filter to its target now, and the flag makes the first block after
+    /// waking snap again — the target may have moved the whole time the voice slept. Snapping
+    /// is idempotent, so doing it twice costs nothing and skipping the second one would sweep.
+    ///
+    /// Audio-thread safe, and this is the one method here that deserves the arithmetic spelled
+    /// out because it is the most expensive thing on this path: every stage `reset()` is a
+    /// zero-fill of pre-allocated storage plus scalar stores — no allocation, no locks, no
+    /// isolation crossing. The dominant cost is `EchoelReverb`, 8 combs + 4 all-passes × 2
+    /// channels ≈ 40 k float stores, i.e. tens of microseconds against a ~5 ms deadline, paid
+    /// ONCE per sleep (at most every 2.5 s) rather than per block. That is why the drain lives
+    /// here and not in `noteRenderSkipped`, which runs on every skipped block.
+    func noteRenderSleeping() {
+        reset()
+        renderSkipped = true
+    }
+
     /// Advance the tone-filter glide by ONE block and publish it into the SVFs.
     ///
     /// Called from the two block entry points only. Kept separate rather than inlined so
