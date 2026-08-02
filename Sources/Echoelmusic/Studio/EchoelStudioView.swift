@@ -3360,9 +3360,38 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Button("Reset") { audioEngine.resetMastering() }
-                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
-                    .accessibilityHint("Clear the integrated loudness and peak hold")
+                // ⛔ #394 — THIS WAS A BARE TITLE BUTTON WITH NO FRAME AT ALL, i.e. a tap
+                // target the size of the word: ~35 × 15 pt at `EchoelTheme.font(12)`. That is
+                // under the HIG 44×44 floor AND under WCAG 2.5.8 (AA)'s 24×24 — the only
+                // control in this file's audited `Button("literal") { … }` set that failed
+                // both, and the same class as the clear-place ✕ that `TapTargetFloorTests`
+                // already pins. It sits hard against the panel's right edge behind a
+                // `Spacer`, so a thumb that lands ten points low hits nothing at all.
+                //
+                // The frame goes on the LABEL, not on the `Button`: for a title button the
+                // label's bounds are what gets hit-tested, so an outer `.frame` would grow the
+                // picture without growing the target. `contentShape` then makes the whole
+                // 44 pt-tall rectangle hittable rather than just the glyph run.
+                //
+                // `minHeight`, never `height`: the sentence to the left wraps and is already
+                // taller than 44 in most widths, so on a phone this changes no layout — it
+                // guarantees the floor exactly in the cases (wide screen, one-line text) where
+                // the row would otherwise collapse to the label's own height. A fixed height
+                // would also clip the label at large Dynamic Type sizes (the #353 class).
+                //
+                // `.buttonStyle(.plain)` is not a look change: `foregroundStyle` already
+                // overrode the accent tint, so this only stops the default style from
+                // re-asserting its own padding on top of the frame.
+                Button {
+                    audioEngine.resetMastering()
+                } label: {
+                    Text("Reset")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Clear the integrated loudness and peak hold")
             }
 
             // LABEL IS A RELEASE, NOT A MUTE (review 2026-07-26). "Silence" over-promised:

@@ -310,4 +310,69 @@ final class TapTargetFloorTests: XCTestCase {
         // If that spacing ever changes, `SoundPanelReflowsTests` goes red and BOTH outsets need
         // re-measuring; this comment is the pointer from here to there.
     }
+
+    // MARK: - The Master panel's loudness Reset (#394)
+
+    /// ⛔ THE SMALLEST TARGET IN A REACHABLE PANEL, AND IT FAILED BOTH FLOORS. Until #394 this
+    /// was `Button("Reset") { audioEngine.resetMastering() }` with `.font(EchoelTheme.font(12))`
+    /// and no frame at all — a hit area the size of the word, roughly 35 × 15 pt. That is under
+    /// the HIG 44×44 AND under WCAG 2.5.8 (AA)'s 24×24, which the two preset menus above (34×34,
+    /// outset) never were. It sits hard against the panel's right edge behind a `Spacer`, so a
+    /// thumb that lands ten points low hits nothing at all.
+    ///
+    /// ⭐ WHY A FRAME AND NOT THE OUTSET IDIOM the rest of this file uses. `contentShape` alone
+    /// would give ~47 × 27 pt — over WCAG, still well under HIG — because the deficit here is
+    /// height, not a missing few points. And the row has the room: the sentence beside it wraps
+    /// and is already taller than 44 in most widths, so `minHeight` costs no layout on a phone
+    /// and only asserts the floor in the wide/short-text case where the row would otherwise
+    /// collapse to the label's own height.
+    ///
+    /// ⚠️ THE FRAME IS ON THE LABEL, AND THE ASSERTION SAYS SO. For a title `Button` the label's
+    /// bounds are what gets hit-tested, so an outer `.frame` grows the picture and not the
+    /// target — the same inside-vs-outside distinction the preset-menu test above had to learn
+    /// the hard way, mirrored. This windows from the action to its `accessibilityHint` so a
+    /// `minHeight: 44` on some other control cannot satisfy it.
+    ///
+    /// ⚠️ `minHeight`, never `height`: a fixed one clips the label at large Dynamic Type sizes
+    /// (the #353 class). Both halves are asserted, because fixing one and losing the other is
+    /// how this control ends up back where it started with a different defect.
+    func testTheLoudnessResetClearsTheTapTargetFloor() throws {
+        let studio = try codeLines(Self.studio)
+        let anchor = "audioEngine.resetMastering()"
+        let hits = studio.indices.filter { studio[$0].contains(anchor) }
+        XCTAssertEqual(hits.count, 1, """
+            `\(anchor)` is no longer unique in EchoelStudioView, so the window below may be \
+            describing a different control than the one this test names. Re-anchor before \
+            reading the assertions that follow as a pass or a fail.
+            """)
+        guard let start = hits.first else { return }
+        guard let end = studio[start...].firstIndex(where: {
+            $0.contains("Clear the integrated loudness and peak hold")
+        }) else {
+            return XCTFail("""
+                the loudness Reset lost its accessibility hint, so this test cannot say where \
+                the control ends. Re-point the window at whatever closes it — do not widen it \
+                to the file, which is how a guard starts passing on a neighbour's modifiers.
+                """)
+        }
+        let control = studio[start...end]
+        XCTAssertTrue(control.contains(where: { $0.contains("frame(minHeight: 44)") }), """
+            the Master panel's loudness Reset lost its `frame(minHeight: 44)` (#394).
+
+            Without it the control is a bare title button: ~35 × 15 pt, under the HIG 44×44 \
+            floor and under WCAG 2.5.8's 24×24. It is the only way to clear the integrated \
+            loudness and the peak hold, and it sits at the panel's right edge behind a Spacer.
+            control: \(Array(control).map { $0.trimmingCharacters(in: .whitespaces) })
+            """)
+        XCTAssertTrue(control.contains(where: { $0.contains("contentShape(Rectangle())") }), """
+            the loudness Reset's `contentShape(Rectangle())` is gone. The frame above then \
+            grows the LAYOUT without growing what is hit-tested — the label's glyph run stays \
+            the target and the fix becomes decoration, which is exactly the inside-vs-outside \
+            mistake the preset-menu guard in this file documents.
+            """)
+        XCTAssertFalse(control.contains(where: { $0.contains("frame(height: 44)") }), """
+            the loudness Reset's frame is FIXED again. A fixed height clips the label once the \
+            player raises the text size (the #353 class); the floor has to be a minimum.
+            """)
+    }
 }
