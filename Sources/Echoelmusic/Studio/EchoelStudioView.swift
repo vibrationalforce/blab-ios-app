@@ -1192,6 +1192,13 @@ struct EchoelStudioView: View {
             AnyView(EchoelFXView(chain: synth.fxChain,
                          mirrors: characterFXChains.filter { $0 !== synth.fxChain },
                          pattern: beatPlayer.pattern,
+                         // ⚠️ The READ stayed one-sided while the WRITE below became two-sided,
+                         // which is the very asymmetry #318 is about. It cannot lie today: both
+                         // voices default `isFXEnabled = true` and this closure is the only
+                         // production caller of `setFXEnabled` in `Sources/`, so they cannot
+                         // diverge. Left as one voice deliberately — a `&&` over the inventory
+                         // would report "off" for a mix of states and there is no state that can
+                         // produce that mix. If a second writer ever appears, this is the line.
                          fxEnabled: { synth.isFXEnabled },
                          // The gate travels with the parameters, or the take goes dry while the
                          // played notes stay wet — the same split reach, one control higher.

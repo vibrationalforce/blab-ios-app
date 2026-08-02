@@ -28,8 +28,12 @@
 // the same `GenreFX` note, it is a Studio-side ordering call, and it is not guarded here.
 //
 // ⛔ A THIRD SITE WITH THE SAME SHAPE, found while fixing this one and deliberately NOT fixed
-// here: `FXBioModulator.attach(chain:bus:)` binds ONE `EchoelFXChain?`, so the bio-driven FX
-// modulation moves the take and not the played notes either. It is not a copy of this slice —
+// here: `FXBioModulator` stores ONE `EchoelFXChain?` and `attach(chain:bus:)` is called once,
+// with `polyVoice.fxChain` (`EchoelmusicApp.swift`), so the bio-driven FX modulation moves the
+// take and not the played notes either. (The parameter is non-optional; the OPTIONAL is the
+// stored property — the first version of this line put the `?` on the parameter.) It follows
+// that the chains are NOT identical while a bio route runs, which is why `snapshot(name:)`'s
+// doc had to be corrected too. It is not a copy of this slice —
 // the modulator CAPTURES each parameter's base value and restores it on stop, so fanning it out
 // means owning one base set per chain, not adding a loop. Its own task; naming it here so the
 // next reader does not conclude from this file's title that the class is closed.
@@ -58,13 +62,34 @@ final class FXPanelReachesEveryChainTests: XCTestCase {
     /// ⭐ THE GUARD. Every write-through observer fans out. A re-introduced `didSet { chain.…`
     /// is #318 coming back one parameter at a time — which is exactly how it would return,
     /// because the next FX parameter will be added by copying the line above it.
+    ///
+    /// ⚠️ IT KEYS ON THE LITERAL `"didSet {"`, so it is blind to `didSet{` without the space
+    /// and it would report a multi-line `didSet` as an offender it cannot diagnose. Both are
+    /// acceptable: this file's 63 subjects are one-liners written to one shape, and a scan that
+    /// tried to parse Swift properly would be the guard-that-mis-classifies this bundle keeps
+    /// paying for. If the shape ever changes, change this helper in the same commit.
     func testEveryWriteThroughFansOutOverTheInventory() throws {
         let lines = try codeLines(Self.fx)
         var offenders: [String] = []
         var fanned = 0
         for l in lines {
             guard l.contains("didSet {") else { continue }
-            if l.contains("didSet { for c in allChains {") { fanned += 1; continue }
+            if l.contains("didSet { for c in allChains {") {
+                // ⛔ THE LOOP IS NOT THE CLAIM — the BODY is, and the first version of this
+                // check stopped at the prefix. `didSet { for c in allChains { chain.reverb.mix
+                // = reverbMix } }` would have counted as fanned while the parameter reached one
+                // chain, and that is the single most likely way #318 returns: this file's own
+                // header says the next parameter gets added by copying the line above it, and a
+                // copy that keeps `chain.` inside the new loop looks right at a glance.
+                // Strip the ONE legitimate occurrence of the word first, then any `chain.`
+                // left is a write to the stored primary.
+                if l.replacingOccurrences(of: "allChains", with: "").contains("chain.") {
+                    offenders.append(l.trimmingCharacters(in: .whitespaces))
+                    continue
+                }
+                fanned += 1
+                continue
+            }
             // The master gate is the one observer that does not write a chain field: it calls
             // the injected `setMaster`, and the fan-out for THAT lives in the closure the call
             // site hands over (asserted separately below).

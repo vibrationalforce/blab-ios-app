@@ -211,11 +211,18 @@ public struct GenreFXPreset: Sendable, Equatable {
     /// FALSE. `EchoelFXView.applyCharacter` is a FOURTH stamp site, reachable from the FX
     /// panel's character menu, and NO `applyDelaySync` follows it — so after tapping Cassette or
     /// Dream the CHARACTER's division is the last writer and the Studio picker displays a time
-    /// the chain does not hold. It also writes only the injected chain (`synth.fxChain`), never
-    /// `touchSynth?.fxChain` — #240's other half, on a surface #240 did not reach. A genre
-    /// preset is not involved (`.auto` is filtered out of that menu), so the claim below about
-    /// GENRE divisions still stands; the absolute did not. Whoever implements the routing fix
-    /// must cover four sites, not three.
+    /// the chain does not hold. ⛔ THE SECOND HALF OF THIS PARAGRAPH IS SPENT — it read "It also
+    /// writes only the injected chain (`synth.fxChain`), never `touchSynth?.fxChain` — #240's
+    /// other half, on a surface #240 did not reach", and #318 closed exactly that: `FXViewModel`
+    /// now writes an `allChains` inventory built from `characterFXChains`, so the fourth stamp
+    /// site reaches every sounding chain like the other three. What survives is the FIRST half —
+    /// no `applyDelaySync` follows `applyCharacter`, so the picker can still display a division
+    /// the chains do not hold. (The commit that fixed the reach quoted THIS sentence as its
+    /// evidence and would have left it standing as a present-tense claim; a doc cited as proof
+    /// of a defect has to be re-read the moment the defect is gone.) A genre preset is not
+    /// involved (`.auto` is filtered out of that menu), so the claim below about GENRE divisions
+    /// still stands; the absolute did not. Whoever finishes the DIVISION fix must cover four
+    /// sites, not three.
     ///
     /// That is DELIBERATE, not a bug to undo here: it is the resolution of #240, guarded by
     /// `Tests/CISmoke/DelayReachesEveryChainTests` — a visible control must not display one

@@ -46,9 +46,23 @@ final class FXViewModel {
     /// Studio's division picker can still display a time the chains do not hold. That is the
     /// other half of the same doc note and it is a Studio-side call, not a reach problem.
     ///
-    /// Every write goes `for c in allChains { c.<field> = <mirror> }` — field by field, never
-    /// a whole nested struct: `EchoelDelay` and friends carry per-chain delay-line STATE, and
-    /// copying one chain's struct onto another would copy its buffers with it.
+    /// Every write goes `for c in allChains { c.<field> = <mirror> }` — field by field, never a
+    /// whole stage. ⛔ THE FIRST VERSION OF THIS LINE GAVE A MECHANISM THAT DOES NOT EXIST: it
+    /// said the stages are structs carrying delay-line state, so a whole-stage assignment would
+    /// COPY one chain's buffers onto another. They are `public let` bindings to `final class`
+    /// objects (`EchoelFXChain.swift`), so `c.delay = …` does not compile at all — and if the
+    /// bindings were ever made `var`, the result would be ALIASING, not copying: two chains
+    /// sharing one `EchoelDelayLine`, two render blocks writing one `writeIndex`. Strictly
+    /// worse than the danger I wrote down. The rule survives; the reason it gave was invented.
+    ///
+    /// ⚠️ THIS SURFACE CONVERGES LAZILY, PER PARAMETER, and that is worth knowing before
+    /// trusting what it shows. `init` and `reseed()` seed the UI from `chain` alone, and only a
+    /// row the user actually moves fans out. So if the chains have already drifted apart — via
+    /// the bio modulator above, or via the missing `applyDelaySync` after a character stamp —
+    /// opening this panel displays the composer chain and converges only the rows that get
+    /// dragged. Stamping the primary's whole state onto the mirrors on open would fix that in
+    /// one line, and it would also make merely OPENING the panel change what the Field sounds
+    /// like. That is a product decision, not a cleanup, so it is named here rather than taken.
     @ObservationIgnored private let allChains: [EchoelFXChain]
 
     /// Master insert-FX gate, injected as a setter so the view-model stays
@@ -350,9 +364,14 @@ final class FXViewModel {
     // MARK: - Preset save / recall
 
     /// Snapshot the live chain as a saveable/shareable preset. Reads `chain` alone, which is
-    /// correct precisely BECAUSE every write goes to all of them: they hold the same
-    /// parameters, so any one of them is the sound. (Their internal delay-line state differs;
-    /// that is not part of a preset.)
+    /// right because every write FROM THIS SURFACE goes to all of them.
+    ///
+    /// ⚠️ That is not the same as "the chains always agree", and the first version of this
+    /// comment said it was. `FXBioModulator` binds ONE chain — `polyVoice.fxChain`
+    /// (`EchoelmusicApp.swift`) — so while a bio route runs, `chain` carries a modulated value
+    /// no mirror holds, a snapshot taken then captures it, and `apply(_:)` would stamp that
+    /// momentary value onto every chain as a new base. Fanning the modulator out is its own
+    /// task (it captures and restores a base per parameter, so it needs a base set per chain).
     func snapshot(name: String, tags: [String] = []) -> FXPreset {
         FXPreset.capture(from: chain, fxEnabled: fxEnabled, name: name, tags: tags)
     }
