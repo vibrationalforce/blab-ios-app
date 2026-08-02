@@ -3491,6 +3491,24 @@ struct EchoelStudioView: View {
     private var signalSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             groupHeader("Signal")
+            // ⭐ FIRST, and above the scope on purpose — founder 2026-08-02, who struck out the
+            // oscilloscope and the Poincaré plot in red and asked: "Gibt es noch eine Möglichkeit
+            // das es mehr physikalisch korrekt wie die Schwingung aussieht? Schallwellen breiten
+            // sich ja in alle Richtungen gleichmäßig aus." He is right that neither struck view
+            // looks like sound: one is a voltage against time, the other a statistic over
+            // heartbeat intervals. This one shows propagation itself.
+            //
+            // ⚠️ THE TWO STRUCK VIEWS ARE STILL HERE, and that is a deliberate sequencing call,
+            // not a half-obeyed instruction. Removing them before this one has been SEEN on a
+            // device would trade something watched for something unwatched, and #347 Slices 1 and
+            // 3a/3b are two days old with guards of their own. The founder's verdict after
+            // looking decides what goes; if they go, the FILES stay doorless for a cycle so the
+            // reversal is one line. Stated here rather than only in the task, because this is
+            // where the next session will wonder why two crossed-out views survived.
+            AnalysisWavefrontView(reduceMotion: reduceMotion)
+            Text("The same output as a wave leaving its source: every ring is one moment of the sound, expanding at a constant speed and fading as the same energy spreads over a growing circumference. Its colour is that moment's centre of gravity in frequency, in the same visible-light mapping the field uses. The clock is slowed so the eye can follow it — real fronts cross a room in milliseconds.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
             AnalysisScopeView(reduceMotion: reduceMotion)
             Text("The master output, triggered on a rising edge so a steady tone stands still. It shows what is actually heard — timbre, overtones and the reverb tail — not the note grid.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
