@@ -223,6 +223,47 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     var onChange: () -> Void = {}
     var onCommit: () -> Void = {}
 
+    /// The user's chosen text size. Read HERE, in the control itself, never in an ancestor
+    /// (10.76.50 law) — and it is cheap for a different reason than that law is about: it is a
+    /// settings-driven environment value, so it changes when the user changes it, not ~10×/s.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// True when the row gives up its single line and puts the label ABOVE the box (#353e).
+    ///
+    /// THE DEFECT IT ANSWERS, measured rather than assumed. The labelled row is
+    /// `HStack { Text(label) ; Spacer(minLength: 8) ; valueBox }`, and `valueBox` is PINNED to
+    /// `valueWidth` — 150 pt at the default text size, but `@ScaledMetric(relativeTo: .body)`,
+    /// so it tracks body text: 17 pt → 53 pt at `.accessibility5` is a factor of ~3.1, i.e. a
+    /// box of ~468 pt on a 375 pt phone. A `.frame(width:)` is a pin and does not compress, so
+    /// the box takes the whole row and more, the label is squeezed to its
+    /// `minimumScaleFactor(0.7)` floor and then truncates to nothing, and the box itself runs
+    /// past the screen edge. This is the ONE parameter control in the app —
+    /// `grep -rn 'EchoelValueField(' Sources/` is 62 call sites once the one comment line is
+    /// dropped, and exactly ONE of them renders label-less unconditionally (the chrome A4 box
+    /// in `WorkspaceView`) with one more doing so only in its compact form (`BodyTempoField`).
+    /// So at accessibility sizes essentially every parameter row in the instrument reads as an
+    /// unlabelled overflowing box. (The count is call SITES; `EchoelStudioView`'s `param`/`knob`
+    /// helpers each render many rows from one site, so the number of affected ROWS is larger.)
+    ///
+    /// ⚠️ THE SAFETY PROPERTY, and it is why the slice is cut at a threshold: below an
+    /// accessibility size NOTHING here changes — same `HStack`, same pin, byte for byte. There
+    /// is no simulator in this repo; a layout change nobody can run is a wager, one that only
+    /// fires above a threshold and leaves the default path alone is not.
+    ///
+    /// The label-less callers (one today: the chrome's compact BPM box) are deliberately NOT
+    /// covered. They render the box alone, so there is no label to rescue, and dropping their
+    /// pin would make a chrome field greedy inside a bar whose geometry other guards pin
+    /// (#365/#382). Their own width story is `boxWidth` + `compactWidthProbe`, already scaled.
+    private var stacksLabel: Bool { !label.isEmpty && dynamicTypeSize.isAccessibilitySize }
+
+    /// The box's fixed width, or nil once the label has stepped out of its way. nil is not
+    /// "unbounded": the number inside already carries `.frame(maxWidth: .infinity)`, so the box
+    /// takes exactly what the parent proposes — the full row it now has to itself.
+    private var pinnedBoxWidth: CGFloat? {
+        if stacksLabel { return nil }
+        return boxWidth.map { $0 * compactWidthProbe / 100 } ?? valueWidth
+    }
+
     // The value box + label grow with Dynamic Type / app zoom. Wide enough for a
     // 4-decimal value with a large integer part plus its unit ("18000.0000 Hz").
     @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 150
@@ -353,6 +394,20 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         Group {
             if label.isEmpty {
                 valueBox
+            } else if stacksLabel {
+                // Label ABOVE the box at accessibility text sizes (see `stacksLabel`). The
+                // label loses `lineLimit(1)`/`minimumScaleFactor` on purpose: on its own line
+                // it has the whole row, so it should WRAP rather than shrink — shrinking is the
+                // behaviour that made the row unreadable to the person who asked for bigger
+                // text. `fixedSize(vertical:)` is what lets it claim the second line; without
+                // it a tight parent proposal still truncates to one.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(label)
+                        .font(EchoelTheme.font(14))
+                        .foregroundStyle(EchoelTheme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    valueBox
+                }
             } else {
                 HStack(spacing: 12) {
                     Text(label)
@@ -536,7 +591,10 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                     }
                 }
         }
-        .frame(width: boxWidth.map { $0 * compactWidthProbe / 100 } ?? valueWidth)
+        // nil once the label has stepped above the box — see `pinnedBoxWidth`. A pin that
+        // scales is right while the box shares a line with a label; once it has the line to
+        // itself the pin can only overflow it.
+        .frame(width: pinnedBoxWidth)
         // Dense rows pin the height (vertical padding shrinks) so the box matches its
         // neighbour buttons; default keeps the roomy 9 pt padding + natural height.
         .padding(.horizontal, 12).padding(.vertical, boxHeight == nil ? 9 : 3)
