@@ -277,32 +277,58 @@ struct WorkspaceView: View {
         #endif
     }
 
-    /// Persistent brand header — always on screen. LEFT: the brand block (mark + wordmark +
-    /// running version/build) as ONE control. RIGHT: the output monitors. Uncodixfy-compliant.
+    /// Persistent brand header — always on screen. LEFT: the live output spectrum. CENTRE: the
+    /// brand block (mark + wordmark + running version/build) as ONE control. RIGHT: the output
+    /// monitors. Uncodixfy-compliant.
     ///
-    /// ⭐ WHY THE TITLE IS NO LONGER CENTRED — founder, 2026-08-01, with the empty space left of
-    /// the title circled in red: *"Was kann hier jetzt noch hin?"* The honest answer is
-    /// **nothing**, and that is a decision, not a shrug: the UI rules ban decorative tiles and
-    /// "control-room cosplay", every status a performer needs already has a home (transport and
-    /// tempo in `TransportBar`, key/scale/tone system/A4 in `CompositionHeaderStrip`, the three
-    /// output monitors on the right), and the live pulse pill was deliberately moved OUT of this
-    /// bar four days earlier on the founder's own ask (#289). Inventing a fourth chrome tile to
-    /// fill a gap would undo that reasoning to solve an aesthetic problem.
+    /// ⭐ THE TITLE IS CENTRED AGAIN — founder, 2026-08-02, with the wordmark circled and an
+    /// arrow to the right: *"Echoelmusic wieder in die Mitte. Die Farbbalken links oben neben
+    /// Echoelmusic in angepasster Form."* Both halves of that sentence are one change, and the
+    /// second is what makes the first honest.
     ///
-    /// The gap is a LAYOUT defect, so the layout is what changed: the wordmark moves left into
-    /// the space instead of a new element moving in beside it. The mark and the title were two
-    /// separate buttons for the same action, on two different layers of a `ZStack` — which also
-    /// made the second one `accessibilityHidden` to stop VoiceOver announcing the same door
-    /// twice. One leading button is simply what that was always describing.
+    /// ⛔ IT SUPERSEDES A DECISION THAT IS ONE DAY OLD, and the previous reasoning is kept below
+    /// rather than deleted, because it was not wrong — it was answering a different question.
+    /// On 2026-08-01 the founder circled the empty space left of the title and asked *"Was kann
+    /// hier jetzt noch hin?"*; the answer was **nothing**, on the grounds that the UI rules ban
+    /// decorative tiles and "control-room cosplay", that every status a performer needs already
+    /// had a home (transport and tempo in `TransportBar`, key/scale/tone system/A4 in
+    /// `CompositionHeaderStrip`, the three output monitors on the right), and that the live pulse
+    /// pill had been deliberately moved OUT of this bar days earlier (#289). So the wordmark
+    /// moved left to close the gap instead. That still holds for a TILE. It does not hold for
+    /// what actually arrived: a live spectrum of the master output is a MEASUREMENT, the one
+    /// class of content the science-first rule asks for by name. The gap now has real content,
+    /// so the wordmark no longer has to stand in for it.
     ///
-    /// ⚠️ AND IT FIXES A REAL DYNAMIC-TYPE DEFECT, not only the look. A `ZStack` gives its
-    /// layers NO collision avoidance: the centred title sat on its own layer above the row that
-    /// holds the mark and the monitors, so as the text grew it grew straight THROUGH them.
-    /// `minimumScaleFactor(0.7)` only bounds how far. In an `HStack` the `Spacer` is what yields,
-    /// so the title and the tiles can no longer overlap at any text size — which matters because
-    /// the chrome is capped at `.accessibility1`, not at `.xxLarge`, since #262.
+    /// ⚠️ THE CENTRING MUST NOT GO BACK TO A `ZStack`, and that is the load-bearing half of
+    /// yesterday's note. A `ZStack` gives its layers NO collision avoidance: the old centred
+    /// title sat on a layer ABOVE the row holding the mark and the monitors, so as the text grew
+    /// it grew straight THROUGH them, with `minimumScaleFactor(0.7)` only bounding how far. The
+    /// centring here is the three-column `HStack` form instead — both flanks take
+    /// `.frame(maxWidth: .infinity)` and align to their outer edges, so they split the leftover
+    /// space evenly and the brand block sits geometrically in the middle. When the text grows the
+    /// FLANKS give way; nothing can overlap at any size, which matters because the chrome is
+    /// capped at `.accessibility1`, not at `.xxLarge`, since #262. `HeaderSpectrumStrip` draws
+    /// nothing at all below 36 pt of width, so the strip fails to empty rather than to a smear.
+    ///
+    /// ⚠️ THE STRIP IS A LEAF AND MUST STAY ONE. It reads the live audio ring in its own body.
+    /// Inlining its `TimelineView`/`Canvas` here — or passing any value it computes down from
+    /// this body — re-creates the 10.76.50 freeze exactly: a live read in the ROOT header tore
+    /// down every open `.menu` Picker in the surface below, once per frame.
     private var topBar: some View {
         HStack(spacing: 8) {
+            // LEFT: the founder's "Farbbalken … in angepasster Form" — same ring, same bands,
+            // same frequency→visible-light colours as the Field panel's meter, at chrome size.
+            //
+            // ⚠️ NO `#if canImport(AVFoundation)` HERE, deliberately, and the first draft had one.
+            // It would have been decoration: `HeaderSpectrumStrip` reads `AudioEngine`, which is
+            // itself declared inside `#if canImport(AVFoundation)`, so on a platform without it
+            // the TYPE does not exist and the guard around the call site saves nothing. Worse,
+            // its `#else` branch was a `Spacer`, which would fight the trailing flank's
+            // `maxWidth: .infinity` over the same slack and quietly move the "centre".
+            // `AnalysisSpectrumView` — the panel meter this is adapted from — is guarded on
+            // SwiftUI alone for the same reason and compiles green.
+            HeaderSpectrumStrip()
+                .frame(maxWidth: .infinity, alignment: .leading)
             Button { openWebsite() } label: {
                 HStack(spacing: 8) {
                     EchoelLogoMark().frame(width: 22, height: 22)
@@ -339,33 +365,43 @@ struct WorkspaceView: View {
             // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
             // This IS that ask, from the same person, with a drawing. The pill itself is
             // unchanged — same leaf, same tap (Bio panel), same long-press (source
-            // picker) — only its address changed. The space it left is the one the founder
-            // circled on 2026-08-01; see this property's own doc for why it is closed by
-            // moving the wordmark rather than by filling it.
-            Spacer(minLength: 8)
+            // picker) — only its address changed. The space it left was circled again on
+            // 2026-08-02 and now holds the output spectrum; see this property's own doc.
+            //
             // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
             // (The former video-lane monitor tile was retired with the DAW video
             // editing — pure-instrument cut; the tile now surfaces the recorded
             // performance clips + REC state.) Each is a LEAF that reads its own
             // live state (freeze rule); taps go through the chrome-door
             // notification, never into studio state directly.
-            #if canImport(AVFoundation) && canImport(Metal)
-            EchoelClipsMonitorMini()
-            #endif
-            EchoelLuxMonitorMini()
-            // The immersive-visual monitor. (No purchase chip in v1.0 —
-            // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
-            // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
-            // live waveform stays in its own leaf.
-            #if canImport(AVFoundation)
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
-            } label: {
-                ImmersiveMonitorMini(active: cameraRPPG.isRunning)
+            //
+            // ⚠️ GROUPED IN ITS OWN `HStack`, and that is not cosmetic: the `maxWidth: .infinity`
+            // has to sit on the whole cluster, not on each tile. Applied per tile it would give
+            // each one an equal share of the leftover width and spread them across the bar; on
+            // the cluster it makes the cluster ONE flank that mirrors the strip on the left, which
+            // is what puts the brand block in the geometric middle. The `Spacer` that used to sit
+            // here is gone for the same reason — a `Spacer` plus two `.infinity` flanks would
+            // fight over the same slack.
+            HStack(spacing: 8) {
+                #if canImport(AVFoundation) && canImport(Metal)
+                EchoelClipsMonitorMini()
+                #endif
+                EchoelLuxMonitorMini()
+                // The immersive-visual monitor. (No purchase chip in v1.0 —
+                // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
+                // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
+                // live waveform stays in its own leaf.
+                #if canImport(AVFoundation)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
+                } label: {
+                    ImmersiveMonitorMini(active: cameraRPPG.isRunning)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
+                #endif
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
-            #endif
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 12)
         // `fixedSize` BEFORE `minHeight`, and the order is load-bearing — see the shared
