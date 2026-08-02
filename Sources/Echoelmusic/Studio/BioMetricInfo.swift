@@ -98,8 +98,13 @@ struct BioMetricInfoView: View {
                         .foregroundStyle(EchoelTheme.dim)
                 }
                 Spacer()
+                // `EchoelTheme.font`, not `.system(size:)` — #353f. Every other string in this
+                // sheet grows with Larger Text; an absolute point size does not participate in
+                // Dynamic Type at all, so at an accessibility size the explanation swelled and
+                // the only way OUT of it stayed at 15 pt. A sheet whose escape hatch is the
+                // smallest thing on screen is worse than one that never grew.
                 Button("Done") { dismiss() }
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(EchoelTheme.font(15, .semibold))
                     .foregroundStyle(EchoelTheme.accent)
             }
 
@@ -155,8 +160,13 @@ struct BioMetricsGuideView: View {
                     .font(EchoelTheme.font(18, .semibold))
                     .foregroundStyle(EchoelTheme.text)
                 Spacer()
+                // Same change, same reason as the sibling sheet above (#353f). Kept spelled out
+                // in both places rather than factored into a shared button: two call sites is
+                // below the line where a helper earns its indirection, and the failure this
+                // guards against is somebody re-typing `.system(size:)` here — which a helper
+                // would not prevent either.
                 Button("Done") { dismiss() }
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(EchoelTheme.font(15, .semibold))
                     .foregroundStyle(EchoelTheme.accent)
             }
             .padding(.bottom, 4)
