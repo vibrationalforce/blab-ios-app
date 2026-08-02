@@ -8,8 +8,10 @@
 // This is that case.
 //
 // ⛔ WHY IT IS THE SAME DEFECT AND NOT A SMALLER ONE. `EchoelFXChain`'s SWITCH-CRACKLE RULE
-// (founder: "knistert beim Umschalten von Dingen") resets every stage on its enable flag's
-// rising edge, because a bypassed stage is skipped entirely and freezes holding old audio.
+// (founder: "knistert beim Umschalten von Dingen") resets every STATEFUL stage on its enable
+// flag's rising edge, because a bypassed stage is skipped entirely and freezes holding old
+// audio. (Thirteen of the fourteen `*Enabled` flags — `saturationEnabled` has no `willSet`
+// because a waveshaper has no state to freeze.)
 // `fxEnabled` skips all thirteen at once and reset nothing: bypass mid-take, wait, re-enable,
 // and the delay line and the reverb tank walk out audio from before the bypass. Unlike the
 // idle sleep this one is a DELIBERATE user action with a visible control (Effects panel,
@@ -18,14 +20,31 @@
 //
 // ⭐ THE TIMING IS THE INVARIANT, not the presence of a drain. It must fire on the RISING
 // edge and BEFORE the flag is raised: while `fxEnabled` is still false the render block is
-// skipping the chain, so the control-plane drain provably cannot race the audio thread —
-// the rule's own argument, reused unchanged. Draining on the falling edge would hit a chain
-// the audio thread is inside, and would cut a tail the user can still hear.
+// skipping the chain, so the audio thread is not in the chain when the control-plane drain
+// runs — the rule's own argument, reused unchanged. Draining on the falling edge would hit
+// a chain the audio thread is inside, and would cut a tail the user can still hear.
 //
-// ⚠️ WHY A SOURCE SCAN FOR THE ORDERING and a behavioural test for the drain: the ordering
-// is a threading property (which thread is where when), and every behavioural test in this
-// bundle drives the chain single-threaded. The drain ITSELF is observable, so that half is
-// driven with real buffers.
+// ⛔ AND THE SECOND HALF OF THAT INVARIANT WAS MISSING FROM THE FIRST VERSION OF THIS FILE,
+// which is why `testTheTwoDrainsAreComplementaryAndNotConcurrent` exists. Adding the
+// control-plane drain gave `noteRenderSleeping()` a SECOND caller — the audio thread's
+// 2.5 s idle sleep (#389). Those two are not mutually exclusive by construction: the idle
+// bookkeeping sits OUTSIDE the `if fxEnabled` branch (it measures the synth's output, which
+// the bypass does not affect), so a bypassed voice can fall asleep and drain at the same
+// instant the user's FX-on tap drains from the main thread. Both then zero-fill the same
+// `EchoelReverb.combBufL` — the exact failure `noteRenderSleeping` was rewritten to prevent,
+// re-entered from the other side. The audio-thread call is therefore gated on `fxEnabled`
+// too, so the two are exactly complementary: audio thread owns the drain while the flag is
+// TRUE, control plane while it is FALSE.
+//
+// ⚠️ WHY EVERYTHING HERE IS A SOURCE SCAN. Both assertions are about WHICH THREAD IS
+// WHERE WHEN, and every test in this bundle drives its subject single-threaded — no amount
+// of buffer-pushing can observe a two-thread ordering. That the drain actually EMPTIES the
+// chain is a separate, genuinely behavioural fact, and it is already asserted with real
+// float buffers in `SleepingChainDoesNotHoardAudioTests`; a second copy here was deleted
+// rather than kept, because a duplicated assertion in the blocking bundle reads as extra
+// coverage while proving nothing new. Stated plainly so the gap is on the record: if
+// `noteRenderSleeping()` stopped draining, THIS file would still pass — that neighbour is
+// what catches it.
 //
 // NEEDS-FOUNDER-VERIFY: play a take with reverb/delay audible, switch FX off, wait ~5 s,
 // switch FX on. No echo or wash of the pre-bypass audio may appear — the effects come back
@@ -33,43 +52,44 @@
 
 import Foundation
 import XCTest
-@testable import Echoelmusic
 
 final class BypassingTheChainEmptiesItOnTheWayBackTests: XCTestCase {
 
-    private let sampleRate: Float = 48000
-    private let block = 512
+    // MARK: - Single ownership: the two drains must never both be live
 
-    // MARK: - The drain itself, with real buffers
-
-    /// The chain-side half. `noteRenderSleeping()` is the drain both call sites use, so this
-    /// asserts what the bypass gate is actually buying: a tank charged before the bypass
-    /// cannot be heard after it, however the mix moves in between.
-    func testADrainedChainCannotAnswerWithAudioItWasNotFed() {
-        let chain = EchoelFXChain(sampleRate: sampleRate)
-        chain.reverbEnabled = true
-        chain.reverb.roomSize = 0.9
-        chain.reverb.mix = 0.0008          // charge loud, output stays under any floor
-        chain.limiterEnabled = false
-        chain.compressorEnabled = false
-
-        for _ in 0..<24 {
-            var l = burst(), r = burst()
-            chain.processBuffer(left: &l, right: &r, frameCount: block)
+    /// ⛔ THE SHIP BLOCKER THE FIRST VERSION OF #397 CARRIED. Giving `noteRenderSleeping()` a
+    /// control-plane caller made it a method reachable from TWO threads on the same chain
+    /// instance. The rising-edge argument covers only the control-plane side; the audio-thread
+    /// side (`#389`'s 2.5 s idle sleep) is decided by the idle counter, which lives OUTSIDE the
+    /// `if fxEnabled` branch and therefore keeps running while the chain is bypassed. Gating it
+    /// on the same flag is what makes the two complementary rather than concurrent.
+    func testTheTwoDrainsAreComplementaryAndNotConcurrent() throws {
+        let voice = try codeLines("Sources/Echoelmusic/Tools/PolySynthVoice.swift")
+        guard let idx = voice.firstIndex(where: {
+            $0.contains("idleQuietFrames >= Self.idleFrameThreshold")
+        }) else {
+            return XCTFail("""
+                the idle-sleep transition is gone from `PolySynthVoice`. If the skip was \
+                removed, remove this guard with it; if it moved, move this guard too.
+                """)
         }
-        chain.noteRenderSleeping()          // what the rising edge of `fxEnabled` now calls
-        chain.reverb.mix = 0.9
-
-        var maxAfter: Float = 0
-        for _ in 0..<24 {
-            var l = [Float](repeating: 0, count: block)
-            var r = [Float](repeating: 0, count: block)
-            chain.processBuffer(left: &l, right: &r, frameCount: block)
-            maxAfter = max(maxAfter, peak(l, r))
+        guard let drain = voice[idx...].first(where: { $0.contains("noteRenderSleeping()") }) else {
+            return XCTFail("""
+                the idle sleep no longer drains the chain at all — that is #389, and \
+                `SleepingChainDoesNotHoardAudioTests` owns it. Fix that one first.
+                """)
         }
-        XCTAssertLessThan(maxAfter, 1e-6, """
-            the drain the FX bypass relies on no longer empties the chain (\(maxAfter)) — so \
-            re-enabling FX after a bypass will burst the pre-bypass take (#397).
+        XCTAssertTrue(drain.contains("if fxEnabled"), """
+            the audio thread's sleep drain is no longer gated on `fxEnabled` (#397).
+
+            It is not an optimisation. The idle counter sits outside the `if fxEnabled` \
+            branch — it measures the SYNTH's output, which the bypass does not change — so \
+            without this gate a bypassed voice can fall asleep and drain at the same instant \
+            the user's FX-on tap drains from the main thread. Both zero-fill the same \
+            `EchoelReverb.combBufL`: an exclusivity trap, and an index cleared against a \
+            half-cleared buffer. Nothing is lost by gating it — a chain bypassed at sleep is \
+            drained by `setFXEnabled`'s rising edge, the only moment it could be heard again.
+                \(drain.trimmingCharacters(in: .whitespaces))
             """)
     }
 
@@ -168,24 +188,5 @@ final class BypassingTheChainEmptiesItOnTheWayBackTests: XCTestCase {
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)
             .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-    }
-
-    /// A full-scale-ish noise burst. Deterministic (a fixed recurrence, no `Random`) so a
-    /// failure reproduces exactly — the house rule for anything that can end up in CI.
-    private func burst() -> [Float] {
-        var out = [Float](repeating: 0, count: block)
-        var state: UInt32 = 0x9E37_79B9
-        for i in 0..<block {
-            state = state &* 1_664_525 &+ 1_013_904_223
-            out[i] = Float(Int32(bitPattern: state)) / Float(Int32.max) * 0.5
-        }
-        return out
-    }
-
-    private func peak(_ l: [Float], _ r: [Float]) -> Float {
-        var p: Float = 0
-        for v in l where abs(v) > p { p = abs(v) }
-        for v in r where abs(v) > p { p = abs(v) }
-        return p
     }
 }

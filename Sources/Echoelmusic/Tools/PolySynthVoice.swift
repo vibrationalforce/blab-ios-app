@@ -237,8 +237,12 @@ public final class PolySynthVoice {
     /// control-plane setter to hook.
     public func setFXEnabled(_ on: Bool) {
         // #397 — the SWITCH-CRACKLE RULE applied to the one WHOLE-chain bypass switch.
-        // Every per-stage flag in `EchoelFXChain` already resets its stage on the rising
-        // edge, because a skipped stage freezes holding old audio and bursts it on resume.
+        // Every per-stage flag in `EchoelFXChain` that owns STATE resets its stage on the
+        // rising edge, because a skipped stage freezes holding old audio and bursts it on
+        // resume. (Thirteen of the fourteen `*Enabled` flags; `saturationEnabled` has no
+        // `willSet` because a waveshaper is stateless. The first version of this line said
+        // "every per-stage flag" without that qualifier — one of fourteen is a small error,
+        // but it is the sentence a later session would cite when adding the fifteenth.)
         // This gate skips ALL of them at once, so it owed the same debt: bypass mid-take,
         // wait, re-enable, and the delay line and reverb tank walk out audio from before
         // the bypass. #389 fixed the audio-thread twin of this (the 2.5 s idle sleep) and
@@ -246,11 +250,26 @@ public final class PolySynthVoice {
         //
         // BEFORE the flag goes up, and only on the RISING edge — that is the rule's own
         // timing, not a detail. While `fxEnabled` is still false the render block is
-        // skipping the chain (`fxChain.noteRenderSkipped()` below), so this control-plane
-        // drain provably cannot race the audio thread. On the FALLING edge the audio
-        // thread IS inside `processBufferMono`, so draining there would be exactly the
-        // race the rule exists to avoid — and would also cut a tail the user can still
-        // hear.
+        // skipping the chain (`fxChain.noteRenderSkipped()` below), so the audio thread is
+        // not in the chain and this control-plane drain does not meet it. On the FALLING
+        // edge the audio thread IS inside `processBuffer`, so draining there would be
+        // exactly the race the rule exists to avoid — and would also cut a tail the user
+        // can still hear.
+        //
+        // ⛔ TWO CORRECTIONS TO THE FIRST VERSION OF THIS PARAGRAPH, both worth their space.
+        // (1) It named `processBufferMono`. This voice calls `processBuffer(left:right:)`;
+        // the mono path belongs to `BioReactiveSynthVoice`. The argument survives the
+        // substitution, but a wrong method name is what a later session reads as evidence.
+        // (2) It said the drain "provably cannot race the audio thread". There is no proof
+        // available: `fxEnabled` is a plain non-atomic `Bool` with no fence on either side,
+        // so nothing establishes happens-before between this store and the render block's
+        // read. That is equally true of every `willSet` in `EchoelFXChain` — the whole
+        // SWITCH-CRACKLE RULE rests on source order, not on the memory model — so this is
+        // the house standard, not a weaker variant of it. Do NOT "strengthen" this by
+        // converting `fxEnabled` to a `willSet` property: that lowers to the same plain
+        // store after the same call and would buy nothing but false confidence. A real
+        // guarantee means release/acquire on the enable flags chain-wide, which is its own
+        // slice.
         //
         // `noteRenderSleeping()` is the right method and not an approximation: it drains
         // only the ENABLED stages (keeping both threads' reset sets disjoint) and re-arms
@@ -909,7 +928,22 @@ public final class PolySynthVoice {
                     // `if !audioEntrainmentActive` above false, which forces `idleQuietFrames`
                     // to 0. Both paths re-arm the counter, so the once-per-sleep property holds
                     // either way; the sentence was over-precise, not the code.
-                    fxChain.noteRenderSleeping()
+                    //
+                    // ⛔ `if fxEnabled` IS THE OWNERSHIP GATE, NOT AN OPTIMISATION, and leaving
+                    // it out was #397's ship blocker. This bookkeeping is OUTSIDE the
+                    // `if fxEnabled` branch above — it measures the SYNTH's output, which the
+                    // bypass does not affect — so without this guard the voice could fall
+                    // asleep and drain while the chain was bypassed, at the same moment the
+                    // main thread's rising-edge drain in `setFXEnabled` ran. Two threads in
+                    // `EchoelReverb.combBufL`'s zero-fill: the exact failure `noteRenderSleeping`
+                    // was rewritten to prevent, re-entered from the other side.
+                    //
+                    // With the guard the two drains are exactly complementary: the audio thread
+                    // owns the drain while the flag is TRUE, the control plane while it is
+                    // FALSE. Nothing is lost — a chain that is bypassed when the voice sleeps
+                    // gets drained by `setFXEnabled`'s rising edge instead, which is the only
+                    // moment it could be heard again.
+                    if fxEnabled { fxChain.noteRenderSleeping() }
                 }
             } else {
                 idleQuietFrames = 0
