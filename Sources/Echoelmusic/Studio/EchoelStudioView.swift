@@ -1619,9 +1619,27 @@ struct EchoelStudioView: View {
     /// of the frame they chose, which is information; a dismiss button would let the
     /// accidental case be waved away and re-hidden, which is the defect again.
     ///
-    /// FREEZE RULE: reads `tuningID` (`@AppStorage`) and `session.a4Hz` — both change
-    /// only on a user edit or a project open, never at bio/frame rate. This is not the
-    /// class of read the 10 Hz law forbids in a body.
+    /// FREEZE RULE, and the first version of this paragraph was true but glossed the one
+    /// case that matters. It said `session.a4Hz` changes "only on a user edit or a project
+    /// open", which reads as ONE write. `EchoelValueField`'s drag writes its binding on
+    /// every gesture event where the snapped value moves, so a deliberate VERTICAL scrub on
+    /// the header A4 box writes it at gesture rate — `horizontalScrub: false` (#391) took
+    /// away the sideways axis, not the up/down one. While that drag is in flight this
+    /// banner's subtree re-evaluates per frame.
+    ///
+    /// That is bounded and it is not the 10 Hz law: the writer is a finger, not a sensor;
+    /// no menu can be open during the drag, so nothing is torn down; and the read lands on
+    /// the `EchoelPanel` node, not on `EchoelStudioView.body` — `panel(…)` hands its content
+    /// to `EchoelPanel` as an `@escaping @ViewBuilder`, which is a real observation boundary
+    /// (the same one `menuPanelHost` relies on). What it is NOT is free: the Sound panel is
+    /// the visible plate while that header drag happens, so its ~24 children re-evaluate for
+    /// the duration. Hoisting this banner into its own leaf `View` is the house cure and is
+    /// filed as #395 rather than done blind here — the honest statement now, the structural
+    /// fix as its own slice.
+    ///
+    /// Nothing else on `SessionContext` can invalidate this: `@Observable` tracks per
+    /// property, and `a4Hz`'s complete writer set in `Sources/` is the header field, project
+    /// open, and `resetTuningToStandard` below.
     @ViewBuilder private var nonStandardTuningBanner: some View {
         if toneSystemIsNonStandard || concertPitchIsNonStandard {
             HStack(spacing: 10) {
@@ -1641,7 +1659,11 @@ struct EchoelStudioView: View {
                 // it uses, so the control and its explanation agree.
                 Button("Standard") { resetTuningToStandard() }
                 .font(EchoelTheme.font(13, .semibold))
-                .foregroundStyle(.black)
+                // `EchoelTheme.onPrimary`, not a raw `.black` — the token exists for exactly
+                // this shape (a label on a `.text`-filled button) and #364 fixed the same
+                // literal on the keypad's OK key. A raw `.black` reads identically today and
+                // silently stops tracking the moment the primary fill is retuned.
+                .foregroundStyle(EchoelTheme.onPrimary)
                 // `minHeight: 44`, not `height: 34`. Two reasons, both of which only became
                 // this control's problem when it got a door: 34 is 60 % of the HIG 44×44
                 // floor by area (`TapTargetFloorTests` pins the same number on the two preset
@@ -1666,10 +1688,16 @@ struct EchoelStudioView: View {
     /// tolerance than the other two and the banner starts contradicting its own button.
     private var toneSystemIsNonStandard: Bool { tuningID != "edo12" }
 
-    /// Not `!= 440`: `a4Hz` is a `Double` the user can type to four decimals, so an exact
-    /// comparison would keep the banner up for a value that is 440 for every audible
-    /// purpose. 0.05 Hz at A4 is under a fifth of a cent — inaudible, and well below the
-    /// ±0.005 Hz the keypad can even express.
+    /// Not `!= 440`: `a4Hz` is a `Double`, so an exact comparison would keep the banner up
+    /// for a value that is 440 for every audible purpose. 0.05 Hz at A4 is 0.197 cents —
+    /// roughly a twenty-fifth of the ~5 cents a trained ear resolves on a sustained tone.
+    ///
+    /// ⛔ The first version of this line justified the number as "well below the ±0.005 Hz
+    /// the keypad can even express". That is backwards twice over: 0.05 is TEN TIMES 0.005,
+    /// and the field passes no `decimals:`, so it inherits `EchoelValueField`'s default of
+    /// FOUR — the keypad expresses 0.0001 Hz, which is exactly why the founder's recording
+    /// could read 483,4352. The threshold is right and unchanged; the reason given for it
+    /// was not, and a wrong reason is what lets a later session "correct" a correct number.
     private var concertPitchIsNonStandard: Bool { abs(session.a4Hz - 440) >= 0.05 }
 
     /// The banner's headline — it names only what is actually off standard, so a player
@@ -1682,32 +1710,51 @@ struct EchoelStudioView: View {
         let systemName = TuningSystem.named(tuningID).name
         let hz = EchoelDecimalText.string(session.a4Hz, decimals: 2)
         switch (toneSystemIsNonStandard, concertPitchIsNonStandard) {
-        case (true, true):  return "Non-standard tuning: \(systemName), A4 = \(hz) Hz"
-        case (true, false): return "Non-standard tuning: \(systemName)"
-        default:            return "Non-standard concert pitch: A4 = \(hz) Hz"
+        case (true, true):   return "Non-standard tuning: \(systemName), A4 = \(hz) Hz"
+        case (true, false):  return "Non-standard tuning: \(systemName)"
+        case (false, true):  return "Non-standard concert pitch: A4 = \(hz) Hz"
+        // ⛔ Written out rather than left to `default:`. The first version folded this into
+        // the pitch case, so a headline read for an all-standard instrument would have said
+        // "Non-standard concert pitch: A4 = 440.00 Hz" — a sentence that contradicts its own
+        // number. It cannot render today (the banner's `if` is this same pair), but an
+        // unreachable branch that states a falsehood is exactly what a later refactor
+        // promotes into a reachable one.
+        case (false, false): return ""
         }
     }
 
-    /// Both dimensions back to standard in one tap, with exactly the side effects the
-    /// header strip's own edits produce — `handleCompositionEdit`'s `"tuning"` case for the
-    /// system and its `"a4"` case for the reference — and ONE recompose at the end rather
-    /// than one per dimension.
+    /// Both dimensions back to standard in one tap, with exactly the side effects the header
+    /// strip's own edits produce — `handleCompositionEdit`'s `"tuning"` case for the system,
+    /// its `"a4"` case for the reference.
     ///
-    /// Each half is guarded on being off standard so that pressing this from the
-    /// pitch-only case cannot re-apply a tuning table nothing changed.
+    /// ⛔ AND "EXACTLY" IS A LOAD-BEARING WORD I GOT WRONG ONCE. The first version ended with
+    /// an unconditional `recomposeIfRunning()` and a doc line claiming that was "ONE recompose
+    /// at the end rather than one per dimension". Read the two cases: `"a4"` recomposes,
+    /// `"tuning"` does NOT. So there was no per-dimension recompose to consolidate, and the
+    /// unconditional call made a tone-system-only reset throw away the running take where the
+    /// header's own tuning Picker deliberately keeps it — a button that is more destructive
+    /// than the control it mirrors, in the one situation a player reaches for it because
+    /// something already sounds wrong. The recompose now rides the pitch half alone, which is
+    /// both halves' behaviour verbatim and still only ever fires once.
+    ///
+    /// The flags are captured BEFORE the writes: `concertPitchIsNonStandard` reads `session.a4Hz`,
+    /// and the first branch sets it to 440, so re-reading it afterwards would answer for the
+    /// post-reset world.
     private func resetTuningToStandard() {
-        if toneSystemIsNonStandard {
+        let systemWasOff = toneSystemIsNonStandard
+        let pitchWasOff = concertPitchIsNonStandard
+        if systemWasOff {
             tuningID = "edo12"
             applyTuning()
         }
-        if concertPitchIsNonStandard {
+        if pitchWasOff {
             session.a4Hz = 440
             applyConcertPitch(440)
             // Same reason as the "a4" edit path: the roll's note grid recolours with the
             // concert pitch, so push it now rather than at the next compose.
             pianoRoll.musicalA4Hz = 440
+            recomposeIfRunning()
         }
-        recomposeIfRunning()
     }
 
     // MARK: - Sound controls (one morph pad + genre + fine sliders)

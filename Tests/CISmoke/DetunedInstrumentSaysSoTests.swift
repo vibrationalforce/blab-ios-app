@@ -111,12 +111,19 @@ final class DetunedInstrumentSaysSoTests: XCTestCase {
     /// the #114 defect: `session.a4Hz` restores from `UserDefaults`, but nothing hears it until
     /// somebody calls `applyConcertPitch`. Both halves, plus the tone-system half, or the
     /// control lies in exactly the situation it exists to rescue.
+    ///
+    /// ⛔ `pianoRoll.musicalA4Hz = 440` is in this list because the first version of it left
+    /// that line out while the member's own doc claimed parity with `handleCompositionEdit`'s
+    /// `"a4"` case — which pushes it. A guard that asserts four fifths of a documented parity
+    /// lets the fifth be deleted and stay green, which is worse than not claiming parity: the
+    /// note grid would silently keep painting the old reference's colours.
     func testTheResetWritesTheValueAndPushesItToTheVoices() throws {
         let reset = try memberBody(startingWith: "private func resetTuningToStandard()",
                                    in: Self.studio)
         let trimmed = reset.map { $0.trimmingCharacters(in: .whitespaces) }
         for needle in ["tuningID = \"edo12\"", "applyTuning()",
-                       "session.a4Hz = 440", "applyConcertPitch(440)", "recomposeIfRunning()"] {
+                       "session.a4Hz = 440", "applyConcertPitch(440)",
+                       "pianoRoll.musicalA4Hz = 440", "recomposeIfRunning()"] {
             XCTAssertTrue(trimmed.contains(needle), """
                 `resetTuningToStandard` no longer contains `\(needle)` (#325).
 
@@ -127,6 +134,37 @@ final class DetunedInstrumentSaysSoTests: XCTestCase {
                 reset: \(trimmed)
                 """)
         }
+    }
+
+    /// ⭐ THE RECOMPOSE BELONGS TO THE PITCH HALF, AND ONLY TO IT. `handleCompositionEdit`'s
+    /// `"a4"` case recomposes; its `"tuning"` case does not. A reset that recomposes
+    /// unconditionally is therefore MORE destructive than the header control it mirrors — it
+    /// discards the running take when a player fixes only the tone system, at the moment they
+    /// reached for it because something already sounded wrong. Structural, not textual: the
+    /// call must sit at the same nesting as the other writes in the pitch branch.
+    func testTheRecomposeRidesThePitchHalfAndNotTheToneSystem() throws {
+        let reset = try memberBody(startingWith: "private func resetTuningToStandard()",
+                                   in: Self.studio)
+        let indent = { (line: String) in line.prefix { $0 == " " }.count }
+
+        let recomposes = reset.filter { $0.trimmingCharacters(in: .whitespaces) == "recomposeIfRunning()" }
+        XCTAssertEqual(recomposes.count, 1, """
+            expected exactly one `recomposeIfRunning()` in `resetTuningToStandard`, found \
+            \(recomposes.count). One per dimension re-generates the take twice for a single \
+            tap; zero leaves a running take on the old reference.
+            """)
+
+        guard let pitchWrite = reset.first(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "pianoRoll.musicalA4Hz = 440"
+        }), let recompose = recomposes.first else { return }
+
+        XCTAssertEqual(indent(recompose), indent(pitchWrite), """
+            `recomposeIfRunning()` is no longer in the same block as the concert-pitch writes \
+            (#325 Nachlese). At the function's own level it fires for a tone-system-only reset \
+            too, where `handleCompositionEdit`'s `"tuning"` case deliberately does not \
+            recompose — the button would then destroy a take the header Picker preserves.
+            reset: \(reset.map { $0.trimmingCharacters(in: .whitespaces) })
+            """)
     }
 
     // MARK: - House rules this banner now has to obey, because it is reachable
