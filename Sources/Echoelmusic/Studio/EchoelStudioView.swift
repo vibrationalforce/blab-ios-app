@@ -318,6 +318,18 @@ struct EchoelStudioView: View {
     /// wholesale, and an undo that silently points at a patch from before a preset load is worse
     /// than no undo.
     ///
+    /// ⭐ EVERY WHOLESALE REPLACE OF `currentPatch` MUST CLEAR THIS, and that is a standing
+    /// obligation on the next writer, not a nicety. The slot holds ONE step; if a control that
+    /// replaces the timbre by other means leaves it armed, the arrow stays lit and restores a
+    /// patch from BEFORE that replacement — silently skipping past the thing the user most
+    /// recently chose. Cleared today at: the genre picker (`handleCompositionEdit`), the "Genre
+    /// default" menu row, the Delete that falls back to the genre patch, the Undo-delete that
+    /// restores a user patch, `applySoundPatch` (the Character menu — the one a user hits most),
+    /// and `open(_:)`. NOT cleared, deliberately, at two places: the "Save as new sound…" alert,
+    /// because saving a copy does not change the SOUND (the values are identical, only id and
+    /// name differ), and `.onAppear`, where a fresh `@State` is already nil and a clear would be
+    /// a line that cannot do anything.
+    ///
     /// ⚠️ THE TYPED TEXT IS DELIBERATELY *NOT* HERE. It lives in `SoundPromptRow`'s own
     /// `@State`, because state on THIS view re-evaluates a ~500-line body on every keystroke.
     /// This one is safe at root level for the opposite reason: it changes only when a timbre is
@@ -3024,6 +3036,7 @@ struct EchoelStudioView: View {
             scale = style.scale
             presetIndex = -1
             currentPatch = style.synthPatch   // load the genre's timbre as a starting point
+            patchBeforeSoundChange = nil      // wholesale replace — see the property's doc
             // …then re-impose the persisted Pluck↔Pad macro, exactly like the "Genre
             // default" menu button, the post-delete path and launch. Without it the
             // picker was the ONE character-load path that skipped the macro, so the same
@@ -5165,6 +5178,7 @@ struct EchoelStudioView: View {
                     Button {
                         presetIndex = -1
                         currentPatch = style.synthPatch
+                        patchBeforeSoundChange = nil   // wholesale replace — property doc
                         applyArticulation()
                     } label: { Text("Genre default") }
                     Section("Sounds") {
@@ -5221,6 +5235,7 @@ struct EchoelStudioView: View {
                             patchStore.delete(id: currentPatch.id)
                             presetIndex = -1
                             currentPatch = style.synthPatch
+                            patchBeforeSoundChange = nil   // wholesale replace — property doc
                             applyArticulation()
                         } label: { Label("Delete", systemImage: "trash") }
                     }
@@ -5235,6 +5250,7 @@ struct EchoelStudioView: View {
                             // `presetIndex` stays -1: a restored user patch is "custom", which
                             // is what the delete already set it to.
                             currentPatch = d.patch
+                            patchBeforeSoundChange = nil   // wholesale replace — property doc
                             applyArticulation()
                             deletedPatch = nil
                         } label: {
@@ -5363,6 +5379,7 @@ struct EchoelStudioView: View {
     /// the randomize button keep working.
     private func applySoundPatch(_ p: SynthPatch) {
         currentPatch = p
+        patchBeforeSoundChange = nil    // wholesale replace — see the property's doc
         presetIndex = SynthPatch.factory.firstIndex { $0.id == p.id } ?? -1
         patchStore.markUsed(id: p.id)
         applyArticulation()   // character = timbre; the global macro owns the envelope
@@ -5378,8 +5395,18 @@ struct EchoelStudioView: View {
     /// makes the tap undoable.
     ///
     /// ⚠️ ONE SLOT, SHARED WITH THE PROMPT — so a randomize after a shaping replaces that
-    /// shaping's undo point rather than stacking on it. Correct for a one-step history: the
-    /// arrow always means "the sound I had immediately before the last thing I did here".
+    /// shaping's undo point rather than stacking on it. Correct for a one-step history.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS COMMENT ENDED "the arrow always means 'the sound I had
+    /// immediately before the last thing I did here'", WHICH WAS FALSE WHEN WRITTEN. Three more
+    /// controls in this same panel replace `currentPatch` wholesale — "Genre default", picking a
+    /// preset from the Character menu, and the Delete that falls back to the genre patch — and
+    /// none of them touched the snapshot. Randomize, then pick a preset, and the arrow was still
+    /// lit: tapping it jumped back past the preset the user had just chosen. That is verbatim
+    /// the "undo that silently points at a patch from before a preset load is worse than no
+    /// undo" defect that `applySoundPrompt`'s own doc cites as the REASON for the one-step
+    /// design. The sentence is true now because every wholesale replace clears the slot — see
+    /// the property's doc for the list and the standing obligation on the next writer.
     private var randomizeButton: some View {
         Button {
             patchBeforeSoundChange = currentPatch
@@ -7719,6 +7746,7 @@ struct EchoelStudioView: View {
         // silently written 4 into the shared key).
         loopBars = LoopBarLength(rawValue: p.loopBars) ?? .eight
         currentPatch = p.patch          // every control reads this, so the UI matches
+        patchBeforeSoundChange = nil    // wholesale replace — see the property's doc
         presetIndex = -1                // a saved patch is "custom", not a factory preset
         session.adopt(key: p.key)
         session.a4Hz = p.a4Hz
@@ -8211,7 +8239,15 @@ private struct SoundPromptRow: View {
                     .disabled(terms.isEmpty)
                     .accessibilityLabel("Shape the sound from the description")
 
-                    if canUndo {
+                    // ⭐ THE ARROW RESERVES ITS SLOT INSTEAD OF BEING INSERTED. It used to sit
+                    // behind `if canUndo`, so the first Shape or Randomize pushed a ≥44 pt
+                    // element into this HStack: the TextField narrowed and "Shape" jumped left
+                    // under a finger that may still have been typing. Same class as the lock
+                    // cue that shoved the Bio controls (#382), and it got worse the moment
+                    // Randomize became a second arming control — one more everyday tap that
+                    // rearranges a row. Hidden means INERT, not merely transparent: no hit
+                    // target, no VoiceOver element. Three modifiers, not one.
+                    Group {
                         Button(action: onUndo) {
                             Image(systemName: "arrow.uturn.backward")
                                 .font(.system(size: 14)).foregroundStyle(EchoelTheme.text)
@@ -8231,6 +8267,9 @@ private struct SoundPromptRow: View {
                         // defect class as a stale caption, only audible instead of visible.
                         .accessibilityLabel("Undo the last sound change")
                     }
+                    .opacity(canUndo ? 1 : 0)
+                    .allowsHitTesting(canUndo)
+                    .accessibilityHidden(!canUndo)
                 }
 
                 ScrollView(.horizontal, showsIndicators: false) {

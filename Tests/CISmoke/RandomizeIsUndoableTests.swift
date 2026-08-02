@@ -63,10 +63,15 @@ final class RandomizeIsUndoableTests: XCTestCase {
         }
 
         // ⛔ ORDER, NOT MERE PRESENCE — the same trap the project-open guard documents. A
-        // snapshot written AFTER `currentPatch = p` stores the random patch, so Undo would
-        // "restore" what the user just wanted to get away from, and the assertion above would
-        // still pass. `currentPatch = p` is the overwrite in this body.
-        let overwrite = body.firstIndex { $0.contains("currentPatch = p") }
+        // snapshot written AFTER the overwrite stores the random patch, so Undo would "restore"
+        // what the user just wanted to get away from, and the assertion above would still pass.
+        // ⚠️ Matched as the WHOLE trimmed statement, not as a substring: bare `currentPatch = p`
+        // is also a prefix of `currentPatch = previous` and `currentPatch = p.patch`, neither of
+        // which is this body's overwrite. Latent today (both live elsewhere in the file, outside
+        // the window) and cheap to close before a refactor moves one in.
+        let overwrite = body.firstIndex {
+            $0.trimmingCharacters(in: .whitespaces) == "currentPatch = p"
+        }
         XCTAssertNotNil(overwrite, """
             `randomizeButton` no longer assigns `currentPatch = p`, so this guard cannot tell \
             whether the snapshot still happens before the overwrite. If the button was \
@@ -92,13 +97,20 @@ final class RandomizeIsUndoableTests: XCTestCase {
     /// which is how a guard gets deleted instead of updated.
     func testTheUndoLabelDoesNotNameOnlyThePrompt() throws {
         let source = try codeLines(Self.studio)
-        guard let label = source.first(where: {
-            $0.contains(".accessibilityLabel(") && $0.contains("Undo")
-        }) else {
+        // ⛔ UNIQUENESS IS ASSERTED, NOT ASSUMED. The first version took `first(where:)` and the
+        // commit message argued from "there is exactly one Undo label in the file" — true then,
+        // and precisely the kind of fact that stops being true without anyone noticing. A second
+        // "Undo …" label added ANYWHERE earlier in these 8000+ lines (a take undo, a mix undo)
+        // would silently retarget this check, leaving the real arrow free to regress to
+        // "shaping" while the guard stayed green. A skip on ambiguity says so instead.
+        let labels = source.filter { $0.contains(".accessibilityLabel(") && $0.contains("Undo") }
+        guard labels.count == 1, let label = labels.first else {
             throw XCTSkip("""
-                No accessibility label mentioning "Undo" is left in EchoelStudioView — if the \
-                undo affordance moved or was renamed, rewrite this guard with it rather than \
-                letting it pass vacuously
+                Expected exactly one accessibility label mentioning "Undo" in EchoelStudioView, \
+                found \(labels.count). This guard reads the sound-panel arrow by that \
+                description alone; with none it has nothing to check, and with several it cannot \
+                tell which is which. Anchor it to its own view or rewrite it — do not let it \
+                report on whichever line happens to come first
                 """)
         }
         let text = label.trimmingCharacters(in: .whitespaces)
@@ -144,11 +156,21 @@ final class RandomizeIsUndoableTests: XCTestCase {
         return source[start...end]
     }
 
-    /// Lines of `path` that are not whole-line comments. Load-bearing here for a reason that
-    /// does occur in this file: the ⭐ block above `randomizeButton` and the ⛔ block above the
-    /// accessibility label both quote the very strings these assertions look for, so an
-    /// unfiltered scan could find the fix in the paragraph explaining it and pass on a source
-    /// that had lost it.
+    /// Lines of `path` that are not whole-line comments.
+    ///
+    /// ⛔ AND THE FIRST VERSION JUSTIFIED THIS WITH A MECHANISM THAT CANNOT FIRE — the THIRD
+    /// time this exact false rationale has been written into this bundle, after
+    /// `LockCueDoesNotShoveTheControlsTests` and `OpeningAProjectRescuesTheLiveTakeTests` each
+    /// carried a ⛔ correcting it. It claimed "the ⭐ block above `randomizeButton` and the ⛔
+    /// block above the accessibility label both quote the very strings these assertions look
+    /// for". Neither does: the ⭐ block sits ABOVE the declaration, so it is outside the window
+    /// whether comments are stripped or not, and the ⛔ block quotes "Undo the last shaping"
+    /// without `.accessibilityLabel(`, so the finder could never have matched it.
+    ///
+    /// The real reasons are narrower and do hold: a future comment line containing the literal
+    /// declaration string would move `firstIndex` onto a comment and drag prose into the window,
+    /// and a rationale comment placed INSIDE the member could satisfy a `contains` check with
+    /// text rather than code. Belt and braces — kept, but honestly labelled.
     ///
     /// ⚠️ Whole-line only — a TRAILING comment on a code line survives and reads as code.
     private func codeLines(_ path: String) throws -> [String] {

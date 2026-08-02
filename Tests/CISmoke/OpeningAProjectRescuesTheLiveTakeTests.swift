@@ -51,12 +51,19 @@
 // the Autosave row — is the first take back, and how much of it?
 //
 // SCOPE. The UX/a11y audit of 2026-08-01 listed four destructive paths; this slice takes only
-// the one that can lose a whole session. Still open: delete-a-sound and delete-a-mood are
-// `Button(role: .destructive)` in a `Menu`, which SwiftUI only COLOURS red — nothing confirms
-// them, while SAVING the same sound goes through an alert; "Randomize timbre" overwrites
-// `currentPatch` with no snapshot, eight lines below a row that keeps exactly one undo step
-// (`patchBeforePrompt`); and the video library's delete is a 32×32 target 10 pt from Share,
-// with all three of a row's buttons carrying the same VoiceOver name.
+// the one that can lose a whole session. Three of the four are now closed — this one, the two
+// preset Deletes (they snapshot and offer "Undo delete of …" in the same overflow menu, pinned
+// by `DeletingAPresetIsUndoableTests`) and "Randomize timbre" (it snapshots into
+// `patchBeforeSoundChange`, pinned by `RandomizeIsUndoableTests`). STILL OPEN: the video
+// library's delete is a 32×32 target 10 pt from Share with all three of a row's buttons
+// carrying the same VoiceOver name.
+//
+// ⛔ THIS PARAGRAPH WENT STALE THE MOMENT THOSE SLICES SHIPPED, and it was found stale by a
+// reviewer rather than by the commits that closed its items. It still described Randomize as
+// having "no snapshot" and named the state by its old spelling `patchBeforePrompt`. That is
+// the trap CLAUDE.md names outright: a session reading an open-items list believes the work is
+// undone and redoes it — or "re-fixes" the name back. An open-items list is part of the change
+// that closes one of its items.
 //
 // ⛔ THOSE ARE DESCRIBED HERE RATHER THAN CITED AS "#357", because the first version of this
 // paragraph pointed at that number three times and it is not findable: the slice numbers in
