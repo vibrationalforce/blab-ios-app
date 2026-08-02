@@ -38,6 +38,26 @@ struct VideoLibraryPanelContent: View {
     /// Open the floating visual window — where the record button lives.
     let onOpenVisual: () -> Void
 
+    #if canImport(Metal)
+    /// ⭐ #387 — THE WAY OUT OF A RECORDING, and it belongs HERE because this is where the
+    /// header's REC tile already sends you. `EchoelClipsMonitorMini` turns red while a clip is
+    /// capturing and taps through to this panel; until now the panel answered that with a door
+    /// labelled "Record in the visual window" — an invitation to start what was already
+    /// running, and no way to end it. The only Stop lived on the visual window's own toolbar,
+    /// so hiding the picture (which #319 made a supported thing to do mid-take: the renderer
+    /// deliberately stays alive) left the take running with its stop button off-screen.
+    ///
+    /// ⚠️ WHY THIS IS NOT THE LYING-CONTROL SHAPE (#164). That class is a control whose label
+    /// promises something the code does not do. This row changes its LABEL, its ACTION and its
+    /// COLOUR together with one visible state, and the state it reports is the same
+    /// `recorder.isRecording` the header tile reports. A control that says "Stop recording"
+    /// only while a recording exists is the honest version, not the counter-example.
+    ///
+    /// The read is safe under the freeze law: `isRecording` derives from `video.recordState`,
+    /// which changes on start and on stop and at no other time — it is not a 10 Hz source.
+    @Environment(VisualRecorder.self) private var recorder
+    #endif
+
     @State private var clips: [EchoelVideoClip] = []
     @State private var playingURL: URL?
     @State private var player: AVPlayer?
@@ -110,25 +130,15 @@ struct VideoLibraryPanelContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // The one action that CREATES clips — a real door, not a dead hint.
-            Button(action: onOpenVisual) {
-                HStack(spacing: 8) {
-                    Image(systemName: "record.circle")
-                    Text("Record in the visual window")
-                        .font(EchoelTheme.font(13))
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
-                }
-                .foregroundStyle(EchoelTheme.text)
-                .padding(.horizontal, 12).frame(height: 36)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            #if canImport(Metal)
+            if recorder.isRecording {
+                stopRow
+            } else {
+                openVisualRow
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens the floating visual window; its record button captures the visual plus your master mix")
+            #else
+            openVisualRow
+            #endif
 
             if clips.isEmpty {
                 Text("No clips yet. The record button in the visual window captures the bio-reactive visual together with your master mix — finished clips appear here.")
@@ -183,6 +193,72 @@ struct VideoLibraryPanelContent: View {
             playingURL = nil
         }
     }
+
+    // MARK: - The top row: start there, or end what is running
+
+    /// The one action that CREATES clips — a real door, not a dead hint.
+    private var openVisualRow: some View {
+        Button(action: onOpenVisual) {
+            HStack(spacing: 8) {
+                Image(systemName: "record.circle")
+                Text("Record in the visual window")
+                    .font(EchoelTheme.font(13))
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.dim)
+            }
+            .foregroundStyle(EchoelTheme.text)
+            .padding(.horizontal, 12).frame(minHeight: 36)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens the floating visual window; its record button captures the visual plus your master mix")
+    }
+
+    #if canImport(Metal)
+    /// End the take from here — see the `recorder` declaration for why this row exists.
+    ///
+    /// It does NOT open a share sheet, and that is a decision rather than an omission: the
+    /// finished clip lands in `Documents/Videos`, which is the list directly below this row, so
+    /// `reload()` makes it appear WHERE the user already is, with the Play, Share and Delete it
+    /// would have got anyway. Presenting a modal on top of an open panel would also mean a
+    /// second presentation on a chain the black-screen law (10.76.34) says not to grow.
+    private var stopRow: some View {
+        Button {
+            Task { @MainActor in
+                _ = await recorder.stop()
+                reload()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                // Steady, never blinking — the flash law is a hard ceiling and a "recording"
+                // dot is exactly the element that tempts an animation.
+                Circle().fill(EchoelTheme.recording).frame(width: 8, height: 8)
+                Text("Recording — tap to stop")
+                    .font(EchoelTheme.font(13))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+                Image(systemName: "stop.fill")
+                    .font(.system(size: 11)).foregroundStyle(EchoelTheme.recording)
+            }
+            .foregroundStyle(EchoelTheme.text)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .frame(minHeight: 36)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(EchoelTheme.recording.opacity(0.7), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Stop recording")
+        .accessibilityHint("Ends the clip and puts it in the library below")
+    }
+    #endif
 
     // MARK: - Row
 
