@@ -1838,10 +1838,20 @@ struct EchoelStudioView: View {
                     // ladder, and a `.frame(height:)` does NOT clip:
                     // the glyphs simply overhang a pill that stayed 26 pt, because the
                     // `.background`/`.overlay` below size to the FRAME, not to the text.
-                    // Same defect and same fix as `EchoelValueField.boxHeight` and the three
-                    // chrome bars in `WorkspaceView` — both became minimums; this row was
-                    // missed because its overflow is horizontal-strip and reads as "the font
-                    // is a bit big" rather than as breakage.
+                    // Same DEFECT as `EchoelValueField.boxHeight` and the three chrome bars in
+                    // `WorkspaceView`; this row was missed because its overflow is
+                    // horizontal-strip and reads as "the font is a bit big" rather than as
+                    // breakage.
+                    //
+                    // ⚠️ NOT quite the same FIX, and the reviewer was right to make me spell
+                    // out the difference rather than write "same fix" — the chrome's is a PAIR,
+                    // `.fixedSize(horizontal: false, vertical: true)` + `.frame(minHeight:)`,
+                    // and its own note says removing either half would be a regression for
+                    // EVERY user. That pairing exists because a vertically FLEXIBLE child (a
+                    // bare `Rectangle()` there) otherwise stretches to the proposal and the
+                    // minimum becomes an infinity. Here the only child is a `Text`, which never
+                    // expands to fill, so bare `minHeight` is complete. Copy the pair, not this
+                    // line, onto anything that contains a shape.
                     //
                     // Nothing else has to move: `chipTapTarget`'s 44 pt is already a
                     // `minHeight`, so the pill grows THROUGH it rather than out of it, and

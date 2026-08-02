@@ -7,12 +7,26 @@
 // (`WorkspaceView` clamps only the chrome, to `.accessibility1`). `StudioZoom` OVERRIDES the
 // effective size from its own `.large … .accessibility5` ladder rather than multiplying the
 // system one, so the pinch gesture alone reaches the top rung for a user who never opened
-// Larger Text. Either way the glyphs end up taller than 26 pt well before the top.
+// Larger Text.
+//
+// ⭐ THE CROSSOVER IS AX2, AND IT IS DERIVED RATHER THAN GUESSED — the first draft of this
+// header pinned "AX3", the second replaced it with "around AX2, unmeasured", and a reviewer
+// then MEASURED it, which is the version that belongs here: `AtkinsonHyperlegible-Bold.ttf`
+// has unitsPerEm 1000, ascender 950, descender −290, lineGap 0, i.e. a 1.24 em line box. A
+// 12 pt `relativeTo: .body` label draws 14.9 pt at Large, 24.5 pt at AX1 — still inside 26 —
+// and 28.9 pt at AX2, which is where it starts overhanging. The device instruction below says
+// AX3+ deliberately: comfortably past the crossover, so the check cannot come back ambiguous.
 //
 // A `.frame` does not clip. The `.background`/`.overlay` rounded rectangles below it size to
 // the FRAME, so what actually happens is the text draws OUTSIDE its own pill — the identical
-// mechanism `EchoelValueField.boxHeight` documents ("overflowed, not clipped") and the same
-// fix the three chrome bars in `WorkspaceView` took: the number becomes a MINIMUM.
+// mechanism `EchoelValueField.boxHeight` documents ("overflowed, not clipped").
+//
+// ⚠️ THE CHROME BARS IN `WorkspaceView` HAD THE SAME DEFECT BUT NEEDED A BIGGER FIX, and
+// saying "same fix" (as the first draft did) would mislead whoever copies this. Theirs is a
+// PAIR — `.fixedSize(horizontal: false, vertical: true)` + `.frame(minHeight:)` — and their
+// own note says removing either half is a regression for EVERY user, because a vertically
+// FLEXIBLE child stretches to the proposal and turns the minimum into an infinity. The chip's
+// only child is a `Text`, which never expands to fill, so bare `minHeight` is complete here.
 //
 // ⭐ WHY THIS ROW WAS MISSED WHILE ITS TWO SIBLINGS WERE FIXED, which is the part worth
 // remembering: an overflowing chip in a horizontal strip reads as "the font is a bit big",
@@ -29,8 +43,18 @@
 // never that a glyph lands inside its pill at AX5 (NEEDS-FOUNDER-VERIFY: set Larger Text to
 // AX3+ and look at the chip strip). And it pins ONE row — it is not a sweep for every fixed
 // `.frame(height:)` under `Sources/`. That sweep would fire on decorative glyphs and on rows
-// whose parent supplies the height, which is how a gate gets switched off. #353c lists the
-// other 21 candidates; each needs the same per-row judgement this one got.
+// whose parent supplies the height, which is how a gate gets switched off. The rest is filed
+// as #353c, and each row there needs the same per-row judgement this one got.
+//
+// ⛔ THIS SENTENCE SAID "#353c lists the other 21 candidates" AND WAS WRONG TWICE OVER, in the
+// exact way this repo keeps paying for. First: at the time it was written **#353c did not
+// exist** — it was cited as a filed item in three source locations and a commit body while
+// `grep -rn "353c"` returned only those citations. A rationale resting on a record that is not
+// there is worse than none, because the next reader cannot refute it. It is filed now. Second:
+// 21 was wrong under every reading — the audit's own list of 21 line numbers INCLUDES the chip
+// this slice just fixed, so 20 remain from it, while the file today holds 22 non-comment
+// `.frame(height:` sites. No number is quoted here any more; #353c carries the command that
+// counts them, because that is the only form of this fact that stays true.
 //
 // ⛔ ONE TEST HERE GOES RED ON THE PRE-FIX SOURCE, NOT TWO, and saying so is the point.
 // `testTheChipLabelUsesAMinimumHeight` fails both ways it can (no `minHeight`, a fixed
@@ -51,11 +75,17 @@ final class ChipLabelGrowsWithTheTextTests: XCTestCase {
     /// The chip label's own height constraint must be a floor, so the pill grows with the text.
     ///
     /// ⛔ THE WINDOW IS BOUNDED BY THE FUNCTION'S OWN LAST LINE, NOT BY A LINE COUNT. A count
-    /// rots the moment someone adds a rationale block — and this slice added twelve comment
-    /// lines to the very function being scanned. `codeLines` strips whole-line comments, so
-    /// those twelve do not shift the window; a future one that lands mid-expression would.
-    /// Anchoring on the closing `accessibilityAddTraits` makes the window describe the control
-    /// rather than a distance to it.
+    /// rots the moment someone adds a rationale block — and this slice added a large one to the
+    /// very function being scanned. `codeLines` strips whole-line comments, so those do not
+    /// shift the window; a future one that lands mid-expression would. Anchoring on the closing
+    /// `accessibilityAddTraits` makes the window describe the control rather than a distance
+    /// to it.
+    ///
+    /// (⛔ "twelve comment lines" stood here and was 30 by the time it shipped — the number was
+    /// true of a draft and was not re-counted when a correction was inserted into the same
+    /// block. A self-referential count describing its own commit is the easiest kind to leave
+    /// stale, and the sentence does not need it: the argument is "a count rots", which the
+    /// count itself then demonstrated.)
     func testTheChipLabelUsesAMinimumHeight() throws {
         let studio = try codeLines(Self.studio)
         let range = try chipRange(studio)
@@ -67,12 +97,12 @@ final class ChipLabelGrowsWithTheTextTests: XCTestCase {
             `EchoelStudioView` is deliberately not Dynamic-Type-clamped and additionally \
             raised by `StudioZoom` up to `.accessibility5`. Pinned to 26 the text simply draws \
             outside its own pill at the upper rungs, because a `.frame` does not clip and the \
-            background/overlay size to the frame rather than to the text. (No rung is named \
-            here on purpose: the crossover depends on Atkinson Hyperlegible's line height and \
-            this environment has no simulator to measure it. A back-of-envelope body-scale \
-            calculation puts it around AX2 — near enough that pinning "AX3" would be a number \
-            nobody checked.) Same fix as `EchoelValueField`'s `boxHeight` and the three chrome \
-            bars in `WorkspaceView`.
+            background/overlay size to the frame rather than to the text. The crossover is AX2 \
+            — Atkinson Hyperlegible Bold's 1.24 em line box puts a 12 pt body-relative label at \
+            24.5 pt at AX1 and 28.9 pt at AX2 — and it is reachable by pinch alone, without \
+            ever opening Larger Text. Same fix as `EchoelValueField`'s `boxHeight`; the chrome \
+            bars in `WorkspaceView` took the same defect but needed `fixedSize` alongside, \
+            which this control does not (see the header).
             """)
 
         let fixed = studio[range].filter { $0.contains("frame(height:") }
@@ -88,12 +118,19 @@ final class ChipLabelGrowsWithTheTextTests: XCTestCase {
 
     /// The 44 pt tap frame must stay a MINIMUM too, or the fix above breaks it.
     ///
-    /// ⚠️ THIS IS NOT A DUPLICATE OF `TapTargetFloorTests`. That file guards the HIG floor —
-    /// that the enlargement exists at all. This one guards the direction of the constraint:
-    /// `minHeight: 44` lets the pill grow THROUGH the tap frame when the text is large, while
-    /// a `height: 44` would clamp the frame and put the overflow straight back — the same
-    /// defect one level out, and green in every hit-target check. The two facts are adjacent
-    /// in the source and independent in what they protect.
+    /// ⛔ THE FIRST DRAFT OPENED "THIS IS NOT A DUPLICATE OF `TapTargetFloorTests`" AND SENT A
+    /// FUTURE READER THERE FOR THE CHIP'S 44 pt FLOOR. That file never mentions this control:
+    /// its cases are the transport-bar chips, the clear-place ✕ and the two preset overflow
+    /// menus, and `grep -rln "chipTapTarget" Tests/` returns only THIS file. So the sentence
+    /// invented a division of labour with a file that was not party to it — the same
+    /// "rationale resting on a record that is not there" the header now carries a ⛔ about.
+    ///
+    /// What is true: this assertion is the ONLY guard on the chip's 44 pt anywhere, and it
+    /// pins two independent things at once. (1) The FLOOR: 44×44 is the HIG minimum and this
+    /// is the app's most-touched control. (2) The DIRECTION: `minHeight` lets the pill grow
+    /// THROUGH the tap frame once the label is large, while a `height: 44` would clamp the
+    /// wrapper and put the overflow straight back one level out — invisible to any hit-target
+    /// check, which only ever asks whether the rectangle is big enough.
     func testTheTapFrameIsStillAFloorAndNotACeiling() throws {
         let studio = try codeLines(Self.studio)
         guard let idx = studio.firstIndex(where: {
@@ -104,14 +141,21 @@ final class ChipLabelGrowsWithTheTextTests: XCTestCase {
                 restructured this test should be rewritten with it, not left to pass vacuously
                 """)
         }
-        let end = min(idx + 6, studio.count)
+        // ⛔ BOUNDED BY THE NEXT DECLARATION, NOT BY `idx + 6`. The count version had ZERO
+        // margin: after comment-stripping it ended exactly one element before `menuChip`'s
+        // own declaration, so deleting a single `///` line above `menuChip` would have made
+        // the two windows touch. Harmless today — the decl line carries no frame — but it is
+        // the same rotting-count shape the sibling assertion's ⛔ argues against, in the file
+        // that argues it. `contentShape` is `chipTapTarget`'s last line either way.
+        let end = studio[idx...].dropFirst().firstIndex { $0.contains("private func ") } ?? studio.count
         XCTAssertTrue(studio[idx..<end].contains { $0.contains("frame(minWidth: 44, minHeight: 44)") }, """
             `chipTapTarget` no longer spells `.frame(minWidth: 44, minHeight: 44)`. Both \
             numbers are the HIG 44×44 floor AND both are minimums for a second reason: the \
             pill inside grows with Dynamic Type, and a fixed 44 would clamp the wrapper so \
-            the enlarged label overflows the tap frame instead of the pill. If the floor \
-            itself moved, `TapTargetFloorTests` is the file that argues about the number; \
-            this assertion is about `min`.
+            the enlarged label overflows the tap frame instead of the pill. This is the only \
+            place in the whole test bundle that pins either fact about this control — if the \
+            floor itself is being changed, that is a founder-facing HIG decision and needs an \
+            argument here, not a quiet edit.
             """)
     }
 
@@ -153,6 +197,15 @@ final class ChipLabelGrowsWithTheTextTests: XCTestCase {
     /// spelling it replaced (`.frame(height:`) in its own rationale block, inside the very
     /// window this test scans — a naive match would find the old form in the prose explaining
     /// the new one and fail forever.
+    ///
+    /// ⚠️ WHOLE-LINE ONLY, and that leaves one shape open that the window note above does not
+    /// cover. A TRAILING comment survives: `.padding(.horizontal, 10)  // was .frame(height: 26)`
+    /// reads as code, so `fixed.isEmpty` would fail permanently with a message accusing a
+    /// comment of being a control. The window note warns about a mid-expression comment moving
+    /// the BOUNDS; this is a different hazard on the same mechanism — it poisons the CONTENT.
+    /// Every comment inside `menuChip` is whole-line today, which is why this is a warning and
+    /// not a fix: a real comment-stripper is more machinery than one assertion is worth, and
+    /// `TapTargetFloorTests` accepts the same limit for the same reason.
     private func codeLines(_ path: String) throws -> [String] {
         let url = try repoRoot().appendingPathComponent(path)
         let text = try String(contentsOf: url, encoding: .utf8)
