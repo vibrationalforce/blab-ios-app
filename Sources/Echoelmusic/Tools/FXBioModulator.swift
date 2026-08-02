@@ -38,11 +38,36 @@ public final class FXBioModulator {
     /// 30 Hz tick / 3 ≈ 10 Hz UI refresh.
     @ObservationIgnored private static let publishEveryN = 3
 
-    @ObservationIgnored private var chain: EchoelFXChain?
+    /// ⭐ #386 — EVERY CHAIN THIS DRIVER MOVES, not just the composer's.
+    ///
+    /// THE DEFECT. `attach(chain: polyVoice.fxChain, bus:)` bound ONE chain, so the body
+    /// moved the generated take's filter/delay/reverb while the notes the performer played
+    /// on the Field stayed exactly where they were. Two sounds, one body, one of them
+    /// deaf to it — and nothing on screen said which. It is the same split reach #318
+    /// fixed in the FX view-model, one level down: there the USER's hand reached one
+    /// chain, here the USER's BODY does.
+    ///
+    /// ⛔ WHY THE BASE IS PER CHAIN AND NOT ONE VALUE. The driver's whole ownership model
+    /// is "capture the user's intended value, drive around it, restore it". Chains do NOT
+    /// necessarily hold the same value for a target: they converge on anything written
+    /// through the FX surface (#318) or a character/preset apply, but nothing forces them
+    /// equal — and `leadSynth.fxChain` is deliberately outside this inventory. Capturing
+    /// one base and writing it to all of them would silently overwrite one chain's setting
+    /// with another's the first time a route engages, and again on restore. So the base is
+    /// an array, index-aligned with `allChains`; the bio OFFSET is shared (it comes from
+    /// the body, not from a chain) and each chain rides it around its own value.
+    ///
+    /// ⚠️ THE INVENTORY IS DELIBERATELY THE SAME TWO AS `characterFXChains`, and the two
+    /// omissions are the same: `leadSynth.fxChain` is live but never configured (adding it
+    /// changes what the app sounds like and belongs to the founder's ear — #243), and
+    /// `bioVoice.fxChain` is dead (nothing calls `BioReactiveSynthVoice.setFXEnabled`).
+    /// If that list grows, it grows in ONE place at the call site, not here.
+    @ObservationIgnored private var allChains: [EchoelFXChain] = []
     @ObservationIgnored private weak var bus: EngineBus?
     /// The user's intended value per modulated target, captured when the target's
     /// first route is enabled and restored when its last route goes away.
-    @ObservationIgnored private var baseValues: [FXModTarget: Float] = [:]
+    /// ONE ENTRY PER CHAIN, index-aligned with `allChains` — see the `allChains` note.
+    @ObservationIgnored private var baseValues: [FXModTarget: [Float]] = [:]
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private let startTime = CFAbsoluteTimeGetCurrent()
 
@@ -59,9 +84,19 @@ public final class FXBioModulator {
 
     public init() {}
 
-    /// Bind to the chain a voice owns + the bio bus. Safe to call again to rebind.
-    public func attach(chain: EchoelFXChain, bus: EngineBus) {
-        self.chain = chain
+    /// Bind to the chains the sounding voices own + the bio bus. Safe to call again to
+    /// rebind. `mirrors` defaults to empty so existing two-argument calls keep compiling
+    /// and keep their exact behaviour.
+    public func attach(chain: EchoelFXChain, mirrors: [EchoelFXChain] = [], bus: EngineBus) {
+        // A rebind points at DIFFERENT objects, so the bases captured for the old ones
+        // must go back to the old ones — not be written into the new ones, which is what
+        // simply reconciling would do (the arrays would also be the wrong length). Restore
+        // first, then forget.
+        for (target, bases) in baseValues {
+            for (i, c) in allChains.enumerated() where i < bases.count { write(target, bases[i], to: c) }
+        }
+        baseValues.removeAll()
+        self.allChains = [chain] + mirrors
         self.bus = bus
         // A rebind is a different chain: carrying half-finished fades onto it would
         // apply offsets to parameters this driver never captured a base for.
@@ -71,7 +106,7 @@ public final class FXBioModulator {
     }
 
     public func start() {
-        guard !isRunning, chain != nil else { return }
+        guard !isRunning, !allChains.isEmpty else { return }
         isRunning = true
         // Anchor the clock here, or the first tick's dt would be the whole idle gap
         // since the last session and the envelope would snap instead of fading in.
@@ -95,9 +130,11 @@ public final class FXBioModulator {
         // runs from launch to termination — so this is the correctness of the API, not
         // a path the shipping app exercises.)
         routeFades.removeAll()
-        // Restore every captured base so the chain returns to the user's settings.
-        if let c = chain {
-            for (target, base) in baseValues { write(target, base, to: c) }
+        // Restore every captured base so EVERY chain returns to the user's settings (#386
+        // — restoring only the composer's would leave the Field's chain parked wherever
+        // the last tick left it).
+        for (target, bases) in baseValues {
+            for (i, c) in allChains.enumerated() where i < bases.count { write(target, bases[i], to: c) }
         }
     }
 
@@ -112,15 +149,17 @@ public final class FXBioModulator {
     /// that are no longer modulated. Called on attach and whenever routes change.
     private func reconcileBases() {
         pruneRouteFades()   // before the chain guard: route edits land whether or not one is bound
-        guard let c = chain else { return }
+        guard !allChains.isEmpty else { return }
         let active = activeTargets
-        // Capture bases for new targets.
+        // Capture bases for new targets — one per chain, each its own user value (#386).
         for t in active where baseValues[t] == nil {
-            baseValues[t] = read(t, from: c)
+            baseValues[t] = allChains.map { read(t, from: $0) }
         }
         // Restore + drop targets no longer modulated.
         for t in baseValues.keys where !active.contains(t) {
-            if let base = baseValues[t] { write(t, base, to: c) }
+            if let bases = baseValues[t] {
+                for (i, c) in allChains.enumerated() where i < bases.count { write(t, bases[i], to: c) }
+            }
             baseValues[t] = nil
         }
     }
@@ -133,7 +172,7 @@ public final class FXBioModulator {
         let uptime = ProcessInfo.processInfo.systemUptime
         let dt = Float(uptime - lastTickUptime)
         lastTickUptime = uptime
-        guard let c = chain else { return }
+        guard !allChains.isEmpty else { return }
         // Gate on `usableBio()` — the SAME per-source window the mod-brain uses
         // (ModulationEngine.tick). The fixed-5 s `freshBio()` here meant FX
         // bio-modulation stopped after 5 s for a latent Watch/HealthKit source
@@ -146,7 +185,7 @@ public final class FXBioModulator {
         let now = Float(CFAbsoluteTimeGetCurrent() - startTime)
         let active = activeTargets
         for target in active {
-            guard let base = baseValues[target] else { continue }
+            guard let bases = baseValues[target] else { continue }
             var sum: Float = 0
             var contributed = false
             for route in routes where route.enabled && route.target == target {
@@ -187,14 +226,18 @@ public final class FXBioModulator {
             // faded out (the fade snaps to zero at its epsilon rather than decaying
             // asymptotically), so a channel that stops being measured returns its
             // parameter to base instead of freezing at the last modulated value.
-            write(target, FXModulation.combine(base: base, target: target, offset: sum), to: c)
-            // Enabling the stage does NOT: switching a filter or reverb on for a target
-            // nothing is modulating changes the sound off nothing — the same complaint
-            // this gate exists to answer, one level up. With the default coherence route
-            // on a source that reports no coherence, that would have run every tick for
-            // the whole session. (There is no matching disable, so a stage already on
-            // stays on and no click is introduced.)
-            if contributed { enableStage(for: target, on: c) }
+            // #386: the SAME offset reaches every chain, each around ITS OWN base. The
+            // offset is a property of the body; the base is a property of the chain.
+            for (i, c) in allChains.enumerated() where i < bases.count {
+                write(target, FXModulation.combine(base: bases[i], target: target, offset: sum), to: c)
+                // Enabling the stage does NOT: switching a filter or reverb on for a target
+                // nothing is modulating changes the sound off nothing — the same complaint
+                // this gate exists to answer, one level up. With the default coherence route
+                // on a source that reports no coherence, that would have run every tick for
+                // the whole session. (There is no matching disable, so a stage already on
+                // stays on and no click is introduced.)
+                if contributed { enableStage(for: target, on: c) }
+            }
         }
         // Publish the live snapshot at ~10 Hz (throttled) for the visibility leaf.
         // Only write on a real change so an idle/stable state fires no observation.

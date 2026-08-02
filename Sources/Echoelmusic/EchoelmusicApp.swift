@@ -939,7 +939,16 @@ struct EchoelmusicApp: App {
                     resolveNativeBPM: { [weak clipStore] id in
                         clipStore?.clip(id: id)?.nativeBPM ?? 0
                     })
-                fxModulator.attach(chain: polyVoice.fxChain, bus: bus)
+                // #386: the body drives the FX on EVERY chain the character menu already
+                // configures, not just the composer's. Bound one chain, the take's filter
+                // and reverb breathed while the notes the performer played on the Field
+                // stayed still — one body, two sounds, only one of them listening. Same
+                // two-chain inventory as `characterFXChains` and the deep FX surface
+                // (#318); `leadVoice.fxChain` stays out until the founder's ear decides
+                // (#243), `bioVoice.fxChain` is dead.
+                fxModulator.attach(chain: polyVoice.fxChain,
+                                   mirrors: [touchVoice.fxChain],
+                                   bus: bus)
                 fxModulator.start()
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, automation: automationPlayer, timeline: timelinePlayer)
