@@ -39,6 +39,19 @@ extension Notification.Name {
     /// binding set / field commit), never from programmatic writes, so a
     /// project open can update the shared keys without triggering strip
     /// side effects that would clobber the loaded patch.
+    ///
+    /// ⚠️ ONE POSTER IS NOT IN THE CHROME, and this doc is widened rather than
+    /// quietly broken (#356): `EchoelStudioView.tapTempoRow` posts "tempoLock"
+    /// too. Tap tempo is a user edit of a musical setting like any other, and it
+    /// writes the same shared `lockBPM`/`lockedBPM` keys — so it owes the same
+    /// side effects. It happens to live in the studio, which makes its post a
+    /// round trip to its own `.onReceive`. The alternative was calling
+    /// `recomposeIfRunning()` directly; that was rejected because the "tempoLock"
+    /// case is then free to grow a second effect (re-arming the click, say) and
+    /// the three doors would silently diverge. The invariant that matters is
+    /// USER EDIT → this hook, not WHICH VIEW posts it; the "chrome never reaches
+    /// into studio state" sentence above is about the DIRECTION of the coupling
+    /// and still holds.
     static let echoelCompositionEdited = Notification.Name("echoel.compositionEdited")
 }
 

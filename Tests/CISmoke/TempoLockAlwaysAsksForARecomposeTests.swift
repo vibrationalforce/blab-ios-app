@@ -1,11 +1,17 @@
 // TempoLockAlwaysAsksForARecomposeTests.swift
 // Echoel — the tempo lock has three doors; all three must ring the same bell.
 //
-// WHAT THIS GUARDS (#356). `studio.lockBPM` is written from exactly three places:
-//   1. the Flow | Loop picker           — `WorkspaceView.modeBinding`
-//   2. the transport lock button        — `BodyTempoField.toggleLock`, whose caller posts
-//   3. tap tempo                        — `EchoelStudioView.tapTempoRow`
-// Two of them posted `.echoelCompositionEdited` with the object `"tempoLock"`; the tap did
+// WHAT THIS GUARDS (#356). `studio.lockBPM` has three DOORS and four assignment statements:
+//   1. the Flow | Loop picker      — `WorkspaceView.modeBinding`        (1 write)
+//   2. the transport lock button   — `BodyTempoField.toggleLock`        (2 writes, one per
+//                                     branch; its one caller posts via `onLockChanged`)
+//   3. tap tempo                   — `EchoelStudioView.tapTempoRow`     (1 write)
+// (⛔ This header said "exactly three places" while the ⛔ block on `isLockWrite` below spoke
+// of a wrongly-reported FIFTH site — which only parses if four is the true count, and the
+// usage note listed three offsets for four sites. Doors and writes are different things and
+// this file enumerates WRITES; both numbers are spelled out now.)
+//
+// Two doors posted `.echoelCompositionEdited` with the object `"tempoLock"`; the tap did
 // not. That post is the ONLY path to `recomposeIfRunning()` — there is no
 // `onChange(of: lockBPM)` in the app. So tapping a tempo moved the clock and left the take
 // generated for the OLD tempo, and it flipped the composition mode Flow→Loop with nothing
@@ -13,21 +19,37 @@
 //
 // ⭐ WHY A FILE-SCOPED CHECK WOULD HAVE PASSED THE BUG, and this one does not.
 // The obvious guard is "a file that writes `lockBPM` must mention `tempoLock`".
-// `EchoelStudioView.swift` mentions it — `case "tempoLock":` is the RECEIVER, forty lines
-// from the write that skipped it. The defect lived between a writer and a receiver that
-// were both present in the same file, so only a check anchored at the WRITE SITE can see
-// it. That is the whole reason for the window below, and it is worth the brittleness a
+// `EchoelStudioView.swift` mentions it — `case "tempoLock":` is the RECEIVER, sitting many
+// members ABOVE the write that skipped it. The defect lived between a writer and a receiver
+// that were both present in the same file, so only a check anchored at the WRITE SITE can
+// see it. That is the whole reason for the window below, and it is worth the brittleness a
 // window costs.
+// (⛔ The first version said "forty lines" and put the receiver BELOW the write; the review
+// measured 65 and above. Both are already wrong again — the Nachlese comments at the write
+// pushed it to 78, in the same commit that corrected the number. The distance is not part of
+// the argument, so it is gone: no number, nothing to rot. That is the general fix for this
+// class, not a more careful count.)
 //
 // ⚠️ HONEST LIMITS — read these before trusting a green.
-// · The window is 12 comment-free code lines FORWARD from the write. Today the three sites
-//   need 1, 2 and 7. A refactor that puts the post before the write, or behind a helper
-//   called from further away, reds this guard while being perfectly correct — fix the guard
-//   in that commit rather than deleting it, and say what the new shape is.
+// · The window is 12 comment-free code lines FORWARD from the write. Today the four sites
+//   need 1, 1, 2 and 7 — so the slack is real only for `BodyTempoField.toggleLock`; the
+//   other three sit at 1–2 and almost any refactor there reds this. A post placed BEFORE
+//   the write, or behind a helper called from further away, also reds it while being
+//   perfectly correct — fix the guard in that commit rather than deleting it, and say what
+//   the new shape is.
 // · It recognises a write as `lockBPM` followed by `=` (and not `==`, and not a
-//   declaration). `UserDefaults.standard.set(true, forKey: "studio.lockBPM")` is also a
-//   write and is NOT caught. Nothing does that today; `EchoelmusicApp.swift:986` only READS
-//   the key that way.
+//   declaration). NOT caught: `UserDefaults.standard.set(true, forKey: "studio.lockBPM")`,
+//   `lockBPM.toggle()`, and any write routed through a `Binding`'s `wrappedValue`. Nothing
+//   does any of those today; `EchoelmusicApp.swift:986` only READS the key that way.
+// · FALSE positive, latent: `codeLines` drops only WHOLE-line comments, so a trailing
+//   `// lockBPM = true` on a code line would be reported as a write site. No line in
+//   `Sources/` does that today.
+// · `onLockChanged` is accepted as "handed the change on" WITHOUT proving that any caller
+//   posts. `BodyTempoField`'s parameter defaults to a no-op (`= {}`), so a second
+//   `BodyTempoField(compact:)` built without the argument would pass this guard and post
+//   nothing — the same defect, one level of indirection out. One call site exists today and
+//   it posts (`WorkspaceView.swift`). Closing this would mean following the callee's callers,
+//   which is past what a text scan should attempt; it is written down instead.
 // · Source-text scan, no simulator. `Tests/CISmoke` is the blocking bundle. SKIPS rather
 //   than passes if the tree is not at this file's compile-time path.
 
@@ -47,10 +69,16 @@ final class TempoLockAlwaysAsksForARecomposeTests: XCTestCase {
     func testEveryTempoLockWriteHandsTheChangeOn() throws {
         let sites = try lockWriteSites()
 
-        XCTAssertFalse(sites.isEmpty, """
-            found no write to `lockBPM` anywhere under Sources/Echoelmusic — the parse \
-            failed, so a green here would be meaningless. The three doors are the Flow|Loop \
-            picker, the transport lock button and tap tempo.
+        // ⛔ THIS WAS `XCTAssertFalse(sites.isEmpty)`, WHICH ONLY PROVED THE PARSER RAN.
+        // Delete `tapTempoRow` and three compliant sites remain — green, in the file named
+        // after that one door. Anchoring on the file (not on a hard count of 4) keeps a
+        // legitimate FOURTH door from reddening this while still pinning the site this
+        // guard exists for.
+        XCTAssertTrue(sites.contains { $0.file.hasSuffix("Studio/EchoelStudioView.swift") }, """
+            no write to `lockBPM` in `Studio/EchoelStudioView.swift`. Either tap tempo lost \
+            its lock — in which case #356 no longer applies and this guard should say so — \
+            or the parse failed and every green below is meaningless. Sites found: \
+            \(sites.isEmpty ? "none" : sites.map { "\($0.file):\($0.line)" }.joined(separator: ", ")).
             """)
 
         for site in sites {
@@ -117,8 +145,10 @@ final class TempoLockAlwaysAsksForARecomposeTests: XCTestCase {
 
             The tap is the only control in the app that changes the Flow|Loop mode without \
             being labelled as a mode control. VoiceOver reads hints in full and this one is \
-            one sentence past the action — keep it that length (#355 paid for a 221-character \
-            hint against an app median near 57).
+            one sentence past the action — keep it that length. (⛔ This sentence quoted "an \
+            app median near 57" while the source comment beside the hint quoted the measured \
+            61.5, one commit, two numbers for one fact. The measurement lives at the hint, \
+            with the method; do not restate it here.)
             """)
     }
 

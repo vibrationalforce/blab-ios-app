@@ -3013,35 +3013,68 @@ struct EchoelStudioView: View {
 
     /// Tap a tempo in time — the classic performance way to dial BPM by feel. Tapping
     /// locks the BPM (so the take holds it) and steers the click; a long pause resets.
-    /// Locking here posts the same "tempoLock" hook the other two lock doors post, so a
-    /// running take is recomposed at the tapped tempo rather than left at the old one.
+    /// Locking here reaches the same "tempoLock" hook the other two lock doors reach (the
+    /// Flow|Loop picker posts it itself; the transport lock calls `onLockChanged`, and its
+    /// one caller posts), so a running take is recomposed instead of left at the old tempo.
+    /// "Recomposed" is debounced by ~0.45–2 s and lands on `round(lockedBPM)` — see the two
+    /// consequences spelled out at the post below.
     private var tapTempoRow: some View {
         HStack(spacing: 12) {
             Button {
                 if let bpm = tapTempo.tap(at: ProcessInfo.processInfo.systemUptime) {
                     lastTappedBPM = bpm
                     lockedBPM = (bpm * 10).rounded() / 10
-                    // ALWAYS push the clock (not only while running): the mode/lock binding
-                    // (`WorkspaceView.modeBinding`) freezes at the CLOCK's current tempo,
-                    // so the clock must already carry the tapped value when that fires — otherwise tapping while
-                    // stopped would freeze a stale tempo instead of the tap. setTempo while
-                    // stopped just stores the value (no tick scheduling), safe.
+                    // ALWAYS push the clock, not only while running — the click and the
+                    // transport read the clock, so a tap has to land there whether or not a
+                    // take is playing. `setTempo` while stopped just stores the value (no tick
+                    // scheduling), so it is safe.
+                    //
+                    // ⛔ THE REASON THAT USED TO STAND HERE WAS FALSE, and #356 only found it
+                    // because the guard it installed asserts the opposite. It said the clock
+                    // "must already carry the tapped value" because `WorkspaceView.modeBinding`
+                    // "freezes at the CLOCK's current tempo … when that fires" — but that is a
+                    // `Binding`'s `set` closure, and it runs only when the Flow|Loop Picker is
+                    // driven. Writing the shared `@AppStorage` key from here goes through the
+                    // binding's `get`, never its `set`; it cannot fire from this code path. The
+                    // trailing note on the next line said "onChange adopts clock", and
+                    // `git grep` finds NO `onChange(of: lockBPM)` or `onChange(of: lockedBPM)`
+                    // anywhere under `Sources/`. Both claims were checkable and both were wrong.
                     beatPlayer.pattern.setTempo(lockedBPM)
-                    lockBPM = true   // AFTER the clock carries the tap (onChange adopts clock)
+                    lockBPM = true
                     // ⛔ #356: THIS POST WAS MISSING, AND IT IS THE ONLY THING THAT MAKES A TAP
-                    // AUDIBLE IN THE TAKE. `lockBPM` has three writers — the Flow|Loop picker
-                    // (`WorkspaceView.modeBinding`), the transport lock (`BodyTempoField`, via
-                    // its `onLockChanged` callback) and this tap. The other two post the shared
-                    // "tempoLock" hook; `EchoelStudioView`'s `.onReceive` turns it into
-                    // `recomposeIfRunning()`. There is no `onChange(of: lockBPM)` anywhere, so
-                    // without the post a tap moved the CLOCK while the take kept the note
-                    // density it was generated with — the pattern audibly stopped matching its
-                    // own tempo. (It also flipped the composition mode Flow→Loop with no
+                    // AUDIBLE IN THE TAKE. `lockBPM` has three doors — the Flow|Loop picker
+                    // (`WorkspaceView.modeBinding`), the transport lock (`BodyTempoField`, whose
+                    // `onLockChanged` callback its one caller turns into this same post) and
+                    // this tap. Without the post a tap moved the CLOCK while the take kept the
+                    // note density it was generated with — the pattern audibly stopped matching
+                    // its own tempo. (It also flipped the composition mode Flow→Loop with no
                     // recompose to explain it; the hint below now says the lock happens.)
-                    // Posted AFTER the write for the same reason `setTempo` comes before it:
-                    // every reader of this hook resolves the tempo from the clock and the lock,
-                    // so both must already be true when the notification is delivered —
-                    // `post` is synchronous.
+                    //
+                    // ⚠️ THE WRITE ORDER IS NOT LOAD-BEARING, and saying otherwise was the first
+                    // version's mistake — it argued "post is synchronous, so the clock and the
+                    // lock must already be settled". `post` IS synchronous, but the one receiver
+                    // reads neither: `handleCompositionEdit`'s "tempoLock" case calls only
+                    // `recomposeIfRunning()`, and that DEBOUNCES — `scheduleGenerate` cancels the
+                    // pending task and sleeps 0.45–2 s before `generate()` reads the clock and
+                    // the lock. The statements are ordered to read causally, nothing more.
+                    //
+                    // ⚠️ TWO CONSEQUENCES A PERFORMER WILL HEAR, both NEEDS-FOUNDER-VERIFY:
+                    //   1. The recompose runs `makeComposerInput(advanceEvolution: true)`, which
+                    //      bumps the evolution nonce — so a tap now replaces the take's NOTES,
+                    //      not just its speed. The other two doors pay the same price, but they
+                    //      are one-shot mode switches; tapping is a repeated performance gesture.
+                    //   2. `generate()` resolves the locked tempo as `lockedBPM.rounded()` while
+                    //      the transport field keeps showing the tapped tenth. Tap 123.4 and the
+                    //      clock glides to 123 a second later under a field reading 123.4. The
+                    //      rounding is older than this change; tap tempo is what makes it routine
+                    //      (it is the one door that almost always produces a fraction). Tracked
+                    //      separately — do not "fix" it by rounding the tap, which would throw
+                    //      away the precision the field advertises.
+                    //
+                    // Repeated taps do NOT storm: each post cancels the pending regen task and
+                    // the user-edit floor is 2 s, so a burst of taps yields exactly ONE
+                    // `generate()`, at the last tapped tempo. While STOPPED the branch is
+                    // `applySoundLive()`, which is NOT debounced — once per tap, cheap, unmeasured.
                     NotificationCenter.default.post(name: .echoelCompositionEdited,
                                                     object: "tempoLock")
                 }
