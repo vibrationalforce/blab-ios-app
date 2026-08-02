@@ -108,12 +108,38 @@ struct BioStripView: View {
         }
     }
 
+    /// ⭐ THIS LINE IS THE ONLY PLACE THE STRIP GIVES AN INSTRUCTION, and until #353d it was
+    /// the one piece of text in the strip that Dynamic Type could not touch at all. It said
+    /// `.system(size: 11, weight: .medium)`, and `.system(size:)` without `relativeTo:` is an
+    /// ABSOLUTE size: a user at AX5 read "Cover the camera and flash", "Enable camera access"
+    /// and "Pulse detected — you can let go & play" at 11 pt, the same 11 pt everyone else
+    /// gets. Not "grows less than asked" — does not grow.
+    ///
+    /// ⚠️ THE DISTINCTION THAT MAKES THIS WORTH FIXING AHEAD OF ITS NEIGHBOUR. The strip below
+    /// carries `.minimumScaleFactor(0.6)`, which reads like the same defect and is NOT: a scale
+    /// factor is a fraction of the CURRENT size, so at AX3 those numbers still land larger than
+    /// the default-size ones — the increase is capped, not cancelled. Worth revisiting (#353c)
+    /// and a genuinely harder call, because the alternative on a 375 pt phone is the "…"
+    /// truncation the founder complained about twice. This banner had no such trade: it wraps
+    /// freely (the `.lineLimit(1)` sits on `strip`, not here), sits in a `VStack` with no fixed
+    /// height, and nothing downstream measures it. It could always have scaled.
+    ///
+    /// ⚠️ THE WEIGHT IS DELIBERATELY DROPPED, not overlooked. `.medium` cannot survive the move
+    /// to the brand face: the app bundles Regular, Bold and Italic only, so `EchoelTheme.font(11,
+    /// .medium)` resolves to Regular anyway while READING as a decision — exactly the 62-site
+    /// defect #361 swept out, and `TypeWeightsThatExistTests` would fail it. Asking for Regular
+    /// says the true thing. The emphasis this line needs is already carried twice over, by the
+    /// semantic colour (warning amber / success green) and by the icon beside it.
+    ///
+    /// The icon moves with it for the same reason: an SF Symbol pinned at 10 pt beside text that
+    /// now reaches AX5 would read as a speck. A custom `Font` sizes a symbol just as it sizes a
+    /// glyph — `EchoelNumberPad` and `EchoelStudioView` already do this — so it scales in step.
     private func banner(_ text: String, color: Color, systemImage: String) -> some View {
         HStack(spacing: 5) {
             Image(systemName: systemImage)
-                .font(.system(size: 10))
+                .font(EchoelTheme.font(10))
             Text(text)
-                .font(.system(size: 11, weight: .medium))
+                .font(EchoelTheme.font(11))
             Spacer(minLength: 0)
         }
         .foregroundStyle(color)
