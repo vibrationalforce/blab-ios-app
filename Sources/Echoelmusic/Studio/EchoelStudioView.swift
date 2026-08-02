@@ -323,6 +323,37 @@ struct EchoelStudioView: View {
     /// This one is safe at root level for the opposite reason: it changes only when a timbre is
     /// replaced or restored — a tap, not a character.
     @State private var patchBeforeSoundChange: SynthPatch?
+
+    /// The user sound / mood removed by the last Delete in its overflow menu, kept so the
+    /// removal can be taken back from that same menu. Nil = nothing to restore.
+    ///
+    /// ⭐ WHY A SNAPSHOT AND NOT A CONFIRMATION. Both Deletes sit in a `Menu` as
+    /// `Button(role: .destructive)`, which SwiftUI only COLOURS red — nothing asks. Both are
+    /// gated on `!isFactory`, so the only thing they can remove is a preset the user made
+    /// themselves: the irreplaceable kind. Meanwhile SAVING the same sound goes through an
+    /// alert. A `.confirmationDialog` is the wrong answer here twice over — it would grow the
+    /// presentation chain the black-screen law forbids growing, and it can only warn. Keeping
+    /// the removed preset costs no presentation slot and gives it back.
+    ///
+    /// ⚠️ THE FAVOURITE FLAG HAS TO TRAVEL WITH IT. `PatchStore.delete` / `MoodPresetStore.delete`
+    /// also drop the id from `favorites` and `recents`, and `save(_:)` does not restore either —
+    /// so an undo that only re-saved the preset would silently un-star it. The star is carried
+    /// here and re-applied; `recents` is deliberately NOT, because a restored preset genuinely
+    /// has not been recalled since, and re-inserting it at the top of the ranking would reorder
+    /// the library behind the user's back.
+    ///
+    /// ⚠️ HONEST LIMIT — THE WAY BACK IS NOT ANNOUNCED. A `Menu` closes on any tap, so after a
+    /// Delete the user sees no toast and no arrow: they have to REOPEN the same overflow menu
+    /// to find "Undo delete of …". That is worse than a banner and better than today's nothing,
+    /// and it is the shape that costs no presentation slot. It is also why the row names the
+    /// preset rather than saying "Undo" — reopened minutes later, the row has to say what it
+    /// would bring back. ONE step per surface: a second Delete replaces the first snapshot.
+    ///
+    /// ⚠️ AND IT DOES NOT SURVIVE A RELAUNCH. `@State`, not persisted — deliberately: a restore
+    /// offer that outlives the session would resurrect a preset the user deleted a week ago from
+    /// a menu they opened for something else. The undo is for the tap you just made.
+    @State private var deletedPatch: (patch: SynthPatch, wasFavorite: Bool)?
+    @State private var deletedMood: (mood: MoodPreset, wasFavorite: Bool)?
     /// Timbre base: -1 = the genre's own patch, else an index into SynthPatch.factory.
     @AppStorage("studio.presetIndex") private var presetIndex = -1
 
@@ -4686,10 +4717,28 @@ struct EchoelStudioView: View {
                             Label("Save changes", systemImage: "square.and.arrow.down")
                         }
                         Button(role: .destructive) {
+                            // Snapshot BEFORE the delete — `moodStore.delete` removes the
+                            // preset from `moods`, so reading it afterwards finds nothing.
+                            if let doomed = moodStore.moods.first(where: { $0.id == id }) {
+                                deletedMood = (doomed, moodStore.isFavorite(id: id))
+                            }
                             moodStore.delete(id: id)
                             moodPresetID = nil
                             moodPresetName = "Custom"
                         } label: { Label("Delete", systemImage: "trash") }
+                    }
+                }
+                if let d = deletedMood {
+                    Button {
+                        moodStore.save(d.mood)
+                        if d.wasFavorite, !moodStore.isFavorite(id: d.mood.id) {
+                            moodStore.toggleFavorite(id: d.mood.id)
+                        }
+                        moodPresetID = d.mood.id
+                        moodPresetName = d.mood.name
+                        deletedMood = nil
+                    } label: {
+                        Label("Undo delete of \(d.mood.name)", systemImage: "arrow.uturn.backward")
                     }
                 }
                 Divider()
@@ -5165,11 +5214,32 @@ struct EchoelStudioView: View {
                             Label("Save changes", systemImage: "square.and.arrow.down")
                         }
                         Button(role: .destructive) {
+                            // Snapshot BEFORE the delete. `currentPatch` is the live copy and
+                            // survives the store call, but it is overwritten two lines below —
+                            // so the capture has to happen here, not after.
+                            deletedPatch = (currentPatch, patchStore.isFavorite(id: currentPatch.id))
                             patchStore.delete(id: currentPatch.id)
                             presetIndex = -1
                             currentPatch = style.synthPatch
                             applyArticulation()
                         } label: { Label("Delete", systemImage: "trash") }
+                    }
+                    if let d = deletedPatch {
+                        Button {
+                            patchStore.save(d.patch)
+                            if d.wasFavorite, !patchStore.isFavorite(id: d.patch.id) {
+                                patchStore.toggleFavorite(id: d.patch.id)
+                            }
+                            // The delete replaced the LIVE sound with the genre's patch, so the
+                            // undo has to put the sound back too, not just the library row.
+                            // `presetIndex` stays -1: a restored user patch is "custom", which
+                            // is what the delete already set it to.
+                            currentPatch = d.patch
+                            applyArticulation()
+                            deletedPatch = nil
+                        } label: {
+                            Label("Undo delete of \(d.patch.name)", systemImage: "arrow.uturn.backward")
+                        }
                     }
                     Divider()
                     Button {
