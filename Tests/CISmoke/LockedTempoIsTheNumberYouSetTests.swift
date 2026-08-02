@@ -31,7 +31,16 @@
 //
 // ⚠️ HONEST LIMITS. Source-text scan, no simulator; it proves what the source SAYS, not what
 // the clock does. The clock behaviour is a device listen (NEEDS-FOUNDER-VERIFY: lock a
-// fractional tempo, confirm the beat and the field agree a second later).
+// fractional tempo, confirm the beat and the field agree a second later; and lock 300, where
+// `MIDIOutput`'s clock timer wakes 120×/s on the main actor — its own comment flags that as
+// compile-verified only and wanting a run with a Picker open. 300 was always reachable
+// instantly via the typed field; #380 is what makes it PERSIST through a re-seed).
+// ⛔ Against the PRE-fix source two assertions fire, not one. The `.rounded()` one is the
+// intended red; the clamp one also fails, and its wording ("no longer clamps to the
+// transport's own bounds") reads as a regression from a state that never existed. Left as is
+// — rewording it to cover both eras would blunt the message a real regression needs — but
+// noted, because "red for the right reason" was claimed for this file and is true of one
+// assertion, not of both.
 // `Tests/CISmoke` is the blocking bundle. SKIPS rather than passes if the tree is absent.
 
 import Foundation
@@ -88,6 +97,16 @@ final class LockedTempoIsTheNumberYouSetTests: XCTestCase {
 
     /// The field this guard measures the take against has to keep clamping the same way, or
     /// the two agree only by coincidence.
+    ///
+    /// ⛔ THIS TEST'S STATED REASON WAS FALSE AND THE REVIEWER CAUGHT IT. It said "#380
+    /// removed the take's own second clamp on the strength of this one" and that the take
+    /// "now honours `lockedBPM` verbatim". #380 WIDENED that clamp, it did not remove it —
+    /// the sibling assertion above literally requires it to still be there — and
+    /// `PatternEngine.glideTempo` clamps a third time. Nothing out of range can reach the
+    /// clock even if this field's clamp vanished. The assertion is still worth having as a
+    /// consistency pin; the danger of the old wording was that a reader would believe the
+    /// take is unguarded and add a FOURTH clamp to "restore safety", re-creating exactly the
+    /// disagreement #380 closed. Written in the file whose header lectures about this class.
     func testTheFieldClampsToTheSameBounds() throws {
         let field = try codeLines("Sources/Echoelmusic/Studio/BodyTempoField.swift")
         let clamps = field.filter {
@@ -95,11 +114,15 @@ final class LockedTempoIsTheNumberYouSetTests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(clamps.count, 2, """
             `BodyTempoField` clamps to the transport bounds on \(clamps.count) line(s); both \
-            the lock (`toggleLock`) and the typed edit (`lockedBinding`) must, or the value \
-            the take now honours verbatim can arrive out of range from the control itself. \
-            #380 removed the take's own second clamp on the strength of this one — if the \
-            field's clamp moves or narrows, that trade needs re-deciding, not silently \
-            dropping.
+            the lock (`toggleLock`) and the typed edit (`lockedBinding`) should, so the \
+            control that SETS the tempo and the take that PLAYS it agree on what is legal by \
+            construction rather than by three independent clamps happening to match. Nothing \
+            unsafe reaches the clock if this narrows — the take clamps and `glideTempo` \
+            clamps again — but the value the player typed would then be silently altered \
+            somewhere other than where they typed it. (Census note: `lockedBPM` has a THIRD \
+            writer this guard does not scan, `WorkspaceView.modeBinding`, which seeds it from \
+            an already-clamped `transport.tempo` via the NaN-unsafe `min(max(…))`. Harmless \
+            today because of its input; not harmless as a pattern.)
             """)
     }
 

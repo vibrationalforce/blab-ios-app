@@ -1063,7 +1063,19 @@ private struct SessionNamePreviewLeaf: View {
                 .foregroundStyle(EchoelTheme.text)
                 .fixedSize(horizontal: false, vertical: true)
             // The exact export/save filename, kept for reference but de-emphasised.
-            Text("File: \(session.sessionName(bpm: transport.tempo.rounded()))")
+            // ⛔ #380: THIS PREVIEW ROUNDED AND THE FILE DID NOT. Every path that actually
+            // writes a name passes the unrounded tempo (`EchoelStudioView`'s save, the WAV,
+            // MIDI and project exports, and `FloatingVisualWindow`'s share), and
+            // `SessionNaming.trimmed` prints up to two decimals. So the label said
+            // `…_71bpm_A440` while the file landed as `…_71.23bpm_A440`. Before #380 the
+            // mismatch was transient — the next re-seed rounded the clock and the two agreed
+            // again; #380 made it permanent for every locked fractional take, which is what
+            // turned a cosmetic drift into a label that is simply wrong. A preview whose whole
+            // job is "this is the exact filename" may not be the one place that rounds.
+            // ⚠️ `readableFields` above KEEPS its `Int(...rounded())` and must — its own doc
+            // says "READABLE is the operative word: this is a preview, not the stamped name",
+            // and it rounds the concert pitch the same way. Do not sweep the two together.
+            Text("File: \(session.sessionName(bpm: transport.tempo))")
                 .font(EchoelTheme.font(10).monospacedDigit())
                 .foregroundStyle(EchoelTheme.dim)
                 .lineLimit(1)

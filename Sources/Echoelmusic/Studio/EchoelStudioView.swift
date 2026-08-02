@@ -3016,8 +3016,11 @@ struct EchoelStudioView: View {
     /// Locking here reaches the same "tempoLock" hook the other two lock doors reach (the
     /// Flow|Loop picker posts it itself; the transport lock calls `onLockChanged`, and its
     /// one caller posts), so a running take is recomposed instead of left at the old tempo.
-    /// "Recomposed" is debounced by ~0.45–2 s and lands on `round(lockedBPM)` — see the two
-    /// consequences spelled out at the post below.
+    /// "Recomposed" is debounced by ~0.45–2 s — see the consequence spelled out at the post
+    /// below. (⛔ This said "and lands on `round(lockedBPM)`". #380 removed that rounding ONE
+    /// COMMIT LATER and left this line standing, so the file's most-read entry point for
+    /// tap-tempo work described the opposite of its own code. Written by the same session
+    /// whose commit message names that defect class by name.)
     private var tapTempoRow: some View {
         HStack(spacing: 12) {
             Button {
@@ -3058,18 +3061,21 @@ struct EchoelStudioView: View {
                     // pending task and sleeps 0.45–2 s before `generate()` reads the clock and
                     // the lock. The statements are ordered to read causally, nothing more.
                     //
-                    // ⚠️ TWO CONSEQUENCES A PERFORMER WILL HEAR, both NEEDS-FOUNDER-VERIFY:
-                    //   1. The recompose runs `makeComposerInput(advanceEvolution: true)`, which
-                    //      bumps the evolution nonce — so a tap now replaces the take's NOTES,
-                    //      not just its speed. The other two doors pay the same price, but they
-                    //      are one-shot mode switches; tapping is a repeated performance gesture.
-                    //   2. `generate()` resolves the locked tempo as `lockedBPM.rounded()` while
-                    //      the transport field keeps showing the tapped tenth. Tap 123.4 and the
-                    //      clock glides to 123 a second later under a field reading 123.4. The
-                    //      rounding is older than this change; tap tempo is what makes it routine
-                    //      (it is the one door that almost always produces a fraction). Tracked
-                    //      separately — do not "fix" it by rounding the tap, which would throw
-                    //      away the precision the field advertises.
+                    // ⚠️ ONE CONSEQUENCE A PERFORMER WILL HEAR, NEEDS-FOUNDER-VERIFY: the
+                    // recompose runs `makeComposerInput(advanceEvolution: true)`, which bumps the
+                    // evolution nonce — so a tap now replaces the take's NOTES, not just its
+                    // speed. The other two doors pay the same price, but they are one-shot mode
+                    // switches; tapping is a repeated performance gesture.
+                    //
+                    // ⛔ A SECOND CONSEQUENCE STOOD HERE AND IS FIXED, NOT PENDING. It said
+                    // `generate()` resolves the locked tempo as `lockedBPM.rounded()`, that a
+                    // 123.4 tap lands the clock on 123, and that this was "tracked separately".
+                    // It was — as #380, which landed the very next commit and removed the
+                    // rounding, while this paragraph stayed and went on describing it. The
+                    // instruction inside it is the part still worth having, so it is kept and
+                    // not deleted: DO NOT "fix" a future rounding complaint by rounding the tap
+                    // — that throws away the precision the transport field advertises. What is
+                    // dead is the claim that the clock still rounds.
                     //
                     // Repeated taps do NOT storm: each post cancels the pending regen task and
                     // the user-edit floor is 2 s, so a burst of taps yields exactly ONE
@@ -6739,12 +6745,30 @@ struct EchoelStudioView: View {
             // reading 71,2345 while the beat ran 71; type 280 and it ran 240. The rounding was
             // invisible until #356 made every tap trigger a recompose, which is how it surfaced.
             //
-            // The three ranges are now two by construction: the field and the engine both use
+            // The CLOCK's three ranges are now one: the field, this line and the engine all use
             // the `Transport` constants (`PatternEngine.minTempo/maxTempo` ARE those constants),
-            // so the take can no longer be the only party with an opinion. The 40…240 that stood
-            // here matched nothing but `TapTempo`'s OWN defaults — it read like a copied literal,
-            // not a decision about the locked path, and the unlocked branches below were never
-            // held to it either (they fold into the genre's window instead).
+            // and `LoopExporter`'s bar maths already reasoned in 30…300 — a third party that
+            // agreed with the field while this line did not. The 40…240 that stood here matched
+            // nothing but `TapTempo`'s OWN defaults; the unlocked branches below were never held
+            // to it either (they fold into the genre's window instead). Its provenance cannot be
+            // established: this is a shallow clone and `git log -S 'min(max(lockedBPM'` returns
+            // only the graft `24e9420`. So "a copied literal" is a reading, not a finding — the
+            // rival reading ("copied from `TapTempo` ON PURPOSE, so a tapped take cannot run at
+            // 30") is equally available and equally unprovable. What decided it is not the
+            // history but the disagreement: whatever the intent, the field accepted a tempo this
+            // line refused.
+            //
+            // ⚠️ AND "the take can no longer be the only party with an opinion" — which is what
+            // stood here — WAS TOO STRONG, because a FOURTH opinion is live and this change made
+            // its span wider. `generate()` also hands the composer the RAW `lockedBPM` as
+            // `lockedTempo`, and `BioComposer.tempo(for:)` clamps THAT into `style.tempoRange`,
+            // which is what `tempoDensityScale` reads. So the clock may now run 30…300 while the
+            // note density is computed at the genre's window — lock 300 on Contemplation (44…66)
+            // and the thinning that exists to stop a fast take sounding hektisch never engages.
+            // That divergence predates #380; its reachable span grew from 240→300 at the top and
+            // 40→30 at the bottom. Tracked as its own decision, because "should a locked take
+            // outside the genre window keep the genre's density?" is a musical question, not a
+            // clamp.
             //
             // `clamped(to:)` rather than `min(max(…))` is CONSISTENCY, not a live silence fix,
             // and saying otherwise would be the mistake this file keeps paying for. The nested
