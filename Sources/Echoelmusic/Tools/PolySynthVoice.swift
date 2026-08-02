@@ -236,6 +236,27 @@ public final class PolySynthVoice {
     /// and the 2.5 s `renderIdle` skip both decide on the audio thread and have no
     /// control-plane setter to hook.
     public func setFXEnabled(_ on: Bool) {
+        // #397 — the SWITCH-CRACKLE RULE applied to the one WHOLE-chain bypass switch.
+        // Every per-stage flag in `EchoelFXChain` already resets its stage on the rising
+        // edge, because a skipped stage freezes holding old audio and bursts it on resume.
+        // This gate skips ALL of them at once, so it owed the same debt: bypass mid-take,
+        // wait, re-enable, and the delay line and reverb tank walk out audio from before
+        // the bypass. #389 fixed the audio-thread twin of this (the 2.5 s idle sleep) and
+        // named this one as the remaining hole.
+        //
+        // BEFORE the flag goes up, and only on the RISING edge — that is the rule's own
+        // timing, not a detail. While `fxEnabled` is still false the render block is
+        // skipping the chain (`fxChain.noteRenderSkipped()` below), so this control-plane
+        // drain provably cannot race the audio thread. On the FALLING edge the audio
+        // thread IS inside `processBufferMono`, so draining there would be exactly the
+        // race the rule exists to avoid — and would also cut a tail the user can still
+        // hear.
+        //
+        // `noteRenderSleeping()` is the right method and not an approximation: it drains
+        // only the ENABLED stages (keeping both threads' reset sets disjoint) and re-arms
+        // `renderSkipped` so the tone-filter glide LANDS on resume instead of sweeping out
+        // of a value from before the bypass.
+        if on && !fxEnabled { fxChain.noteRenderSleeping() }
         fxEnabled = on
         isFXEnabled = on
     }

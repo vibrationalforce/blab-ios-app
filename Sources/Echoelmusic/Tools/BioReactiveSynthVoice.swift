@@ -165,7 +165,13 @@ public final class BioReactiveSynthVoice {
     /// Stated plainly because the first draft of this comment claimed the opposite —
     /// "this is the body-driven voice, so the drift is largest here" — which was false in
     /// both halves and is exactly the kind of line a later session cites as evidence.)
+    /// The #397 drain below is defensive here for the SAME reason and by the same evidence:
+    /// with no caller this chain never processes a sample, so it can hold nothing to burst.
+    /// It is written anyway so the two voices' gates cannot drift — the day someone wires
+    /// this method, the hole would reappear silently, and a reader comparing the two files
+    /// would have to work out from scratch which asymmetry was deliberate.
     public func setFXEnabled(_ on: Bool) {
+        if on && !fxEnabled { fxChain.noteRenderSleeping() }
         fxEnabled = on
         isFXEnabled = on
     }
