@@ -760,11 +760,32 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                     //
                     // ⚠️ NO NEW LATCH, BY DESIGN — `resetScrubState`'s doc asks for exactly that
                     // ("a future seventh latch belongs in the anchor branch first"). Declining
-                    // simply leaves `scrubbing` false, so this branch re-runs on the NEXT event
-                    // and re-reads `g.translation`, which is cumulative from the gesture's
-                    // start. A sweep that turns into a deliberate vertical drag therefore
-                    // anchors at that moment with a fresh `lastY` — adjusting still works, with
-                    // no teleport, and nothing has to be cleared on any end path.
+                    // simply leaves `scrubbing` false, so this branch re-runs on the NEXT event,
+                    // and when it does anchor it seeds `lastY`/`lastX`/`lastTime` from the SAME
+                    // cumulative translation the next event measures against — so the first
+                    // post-anchor delta is one frame's worth and there is no teleport.
+                    //
+                    // ⛔ WHAT THIS COMPARISON IS, SAID EXACTLY, because the first version of this
+                    // block said something else and it is the failure class this repo keeps
+                    // paying for (`3ac7f3b`: "its own doc described a check it did not
+                    // implement"). It claimed "a sweep that turns into a deliberate vertical drag
+                    // anchors AT THAT MOMENT". It does not. `g.translation` is CUMULATIVE from
+                    // the gesture's start, so anchoring needs the total vertical travel to
+                    // overtake the total sideways travel — sweep 120 pt right, then drag 60 pt
+                    // straight down, and the field is still declining. Only past 120 pt of
+                    // downward travel does it take over.
+                    //
+                    // ⭐ AND THAT IS THE RIGHT COMPARISON, not a limitation to fix later. The
+                    // per-EVENT alternative — comparing this frame's dx and dy — reopens the very
+                    // defect: a wobbling sweep has individual frames at the turn of each wobble
+                    // where |dy| exceeds |dx|, so it would anchor mid-scroll and start reading
+                    // the jitter again. Cumulative is what makes "this gesture is a scroll" a
+                    // property of the gesture rather than of one frame. The cost is that
+                    // adjusting after a sweep wants a lift and a fresh press — cheap, and the
+                    // gesture that does it is not one anybody performs by accident.
+                    //
+                    // (Exact ties anchor rather than decline: 45° is not "dominantly sideways",
+                    // and (0,0) cannot occur behind the 8 pt `minimumDistance`.)
                     //
                     // ⛔ `revertedGesture` MUST BE DROPPED HERE, and missing it would have been
                     // a silent regression rather than a missing feature. `onEnded` DOES fire for
@@ -773,8 +794,24 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                     // `r.seq == gestureSeq`, and `onEnded` would undo that revert and re-apply
                     // the value #378 just took back. For a normally anchored drag the `&+= 1`
                     // below is what makes the stale receipt unreadable; a decline has to say it
-                    // outright. (Assigning nil to nil on every event is idempotent, which is why
-                    // this does not need to be once-per-gesture either.)
+                    // outright.
+                    //
+                    // ⚠️ NARROWER THAN IT SOUNDS, and worth stating so the guard is not read as
+                    // covering more than it does: when the ScrollView actually CLAIMS the sweep —
+                    // the ordinary case this flag exists for — the gesture is cancelled and
+                    // `onEnded` is never called (see the three places this file says so). The
+                    // sequence above therefore needs a dominantly-sideways drag that ends
+                    // NORMALLY: a sideways wiggle that stays inside the field, or a sweep the
+                    // ScrollView loses arbitration over. Reachable, and cheap to close.
+                    //
+                    // ⚠️ RE-RUNNING THIS ASSIGNMENT IS VALUE-IDEMPOTENT, NOT FREE — the first
+                    // version of this note called it "idempotent" full stop, which invites the
+                    // next reader to assume the write costs nothing. `revertedGesture` is a
+                    // `@State` holding a non-`Equatable` tuple, so whether SwiftUI elides the
+                    // invalidation is not something this repo can answer. Bounded either way: the
+                    // state belongs to this leaf, so any churn stays inside it (the 10.76.50
+                    // ancestor law is not engaged), and the path it replaces wrote SIX `@State`
+                    // vars per event on the same gesture — strictly cheaper than before.
                     if !horizontalScrub,
                        abs(g.translation.width) > abs(g.translation.height) {
                         revertedGesture = nil
