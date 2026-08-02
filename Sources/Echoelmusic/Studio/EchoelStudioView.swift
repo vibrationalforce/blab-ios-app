@@ -3013,6 +3013,8 @@ struct EchoelStudioView: View {
 
     /// Tap a tempo in time — the classic performance way to dial BPM by feel. Tapping
     /// locks the BPM (so the take holds it) and steers the click; a long pause resets.
+    /// Locking here posts the same "tempoLock" hook the other two lock doors post, so a
+    /// running take is recomposed at the tapped tempo rather than left at the old one.
     private var tapTempoRow: some View {
         HStack(spacing: 12) {
             Button {
@@ -3026,6 +3028,22 @@ struct EchoelStudioView: View {
                     // stopped just stores the value (no tick scheduling), safe.
                     beatPlayer.pattern.setTempo(lockedBPM)
                     lockBPM = true   // AFTER the clock carries the tap (onChange adopts clock)
+                    // ⛔ #356: THIS POST WAS MISSING, AND IT IS THE ONLY THING THAT MAKES A TAP
+                    // AUDIBLE IN THE TAKE. `lockBPM` has three writers — the Flow|Loop picker
+                    // (`WorkspaceView.modeBinding`), the transport lock (`BodyTempoField`, via
+                    // its `onLockChanged` callback) and this tap. The other two post the shared
+                    // "tempoLock" hook; `EchoelStudioView`'s `.onReceive` turns it into
+                    // `recomposeIfRunning()`. There is no `onChange(of: lockBPM)` anywhere, so
+                    // without the post a tap moved the CLOCK while the take kept the note
+                    // density it was generated with — the pattern audibly stopped matching its
+                    // own tempo. (It also flipped the composition mode Flow→Loop with no
+                    // recompose to explain it; the hint below now says the lock happens.)
+                    // Posted AFTER the write for the same reason `setTempo` comes before it:
+                    // every reader of this hook resolves the tempo from the clock and the lock,
+                    // so both must already be true when the notification is delivered —
+                    // `post` is synchronous.
+                    NotificationCenter.default.post(name: .echoelCompositionEdited,
+                                                    object: "tempoLock")
                 }
             } label: {
                 Label("Tap tempo", systemImage: "hand.tap")
@@ -3035,7 +3053,13 @@ struct EchoelStudioView: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Tap in time to set the tempo")
+            // The lock is a MODE change (Flow → Loop), not a side note: it is what the doc
+            // comment above has always described and what the hint never mentioned. Kept to
+            // one sentence past the action — 77 characters against a median of 61.5 (measured
+            // over all 62 single-line literal `accessibilityHint`s under `Sources/`, this one
+            // included; the longest in the app is 154). #355 paid for a 221-character one,
+            // which VoiceOver reads in full with no way to skim.
+            .accessibilityHint("Tap in time to set the tempo. This locks the tempo and sets the mode to Loop.")
 
             if let tapped = lastTappedBPM {
                 Text("\(Int(tapped.rounded())) BPM")
