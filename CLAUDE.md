@@ -242,8 +242,13 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**123** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-02 nach `DeletingAPresetIsUndoableTests.swift` (Loesch-Undo),
+                          `Tests/CISmoke` (**124** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-02 nach `DeletingAClipIsUndoableTests.swift` (#357 d),
+                          davor „123" nach `DeletingAPresetIsUndoableTests.swift` (#357 a — der
+                          Eintrag hieß zuerst „(Loesch-Undo)"; er stand EINE Zeile über dem
+                          gleichen Fehler und wurde bei dessen Korrektur übersehen, was der
+                          Absatz unter der Plattform-Tabelle bereits als eigene Lehre trägt:
+                          such nach der ZWEITEN Stelle),
                           davor „122" nach `RandomizeIsUndoableTests.swift` (#357 c — der Eintrag
                           hieß zuerst „(Randomize-Undo)", als einziger in dieser Kette ohne
                           Slice-Nummer; eine Kette, deren Einträge verschieden benannt sind, lässt
@@ -340,7 +345,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. ZWEIUNDACHTZIG FRÜHERE Stände in fünf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf) — der aktuelle Wert 123 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. DREIUNDACHTZIG FRÜHERE Stände in fünf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf) — der aktuelle Wert 124 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

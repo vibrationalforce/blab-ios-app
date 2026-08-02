@@ -42,6 +42,38 @@ struct VideoLibraryPanelContent: View {
     @State private var playingURL: URL?
     @State private var player: AVPlayer?
 
+    /// The clip removed by the last Delete, PARKED rather than erased, so the removal can be
+    /// taken back. Nil = nothing to restore.
+    ///
+    /// ⭐ WHY PARKING AND NOT A CONFIRMATION. Every other destructive control in this app was
+    /// made reversible in #357 rather than confirmed, on one argument: a prompt can only warn,
+    /// a way back gives the thing back. That argument was easy for a preset (keep the value in
+    /// `@State`) and looked impossible here, because the thing is a FILE and `removeItem` is
+    /// final. It is not impossible: `Documents` and `tmp` are the same volume inside the app
+    /// container, so `moveItem` is a rename — constant time regardless of how many hundred
+    /// megabytes the clip is — and a rename is undone by renaming back.
+    ///
+    /// This is the most irreplaceable thing the app can destroy. A preset can be dialled again
+    /// and a take regenerated; a recorded performance cannot be performed again. The button
+    /// that destroyed it was a 32×32 trash glyph ten points from Share, in a row of three
+    /// look-alike icons, with no prompt and no way back.
+    ///
+    /// ⚠️ HONEST LIMIT — THE PARK IS SESSION-SHAPED, IN TWO WAYS, AND BOTH ARE DELIBERATE.
+    /// This is `@State`: leave the Video panel and the offer is gone, while the parked file
+    /// stays in `tmp` where the system reclaims it. That is what `tmp` is for, and it is the
+    /// reason nothing here has to invent a trash folder with its own purge policy — a second
+    /// lifecycle to get wrong. And iOS may reclaim `tmp` on its own schedule, so a restore is
+    /// offered on a best-effort basis: `restore()` reports the failure instead of pretending.
+    /// The undo is for the tap you just made, not for last week.
+    @State private var deletedClip: ParkedClip?
+
+    /// A removed clip waiting in `tmp`: where it came from, where it sits, what to call it.
+    private struct ParkedClip: Equatable {
+        let original: URL
+        let parked: URL
+        let title: String
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // The one action that CREATES clips — a real door, not a dead hint.
@@ -64,6 +96,34 @@ struct VideoLibraryPanelContent: View {
             .buttonStyle(.plain)
             .accessibilityHint("Opens the floating visual window; its record button captures the visual plus your master mix")
 
+            // The way back from the last Delete. An inline row, not a modal: it costs no
+            // presentation slot, and it can sit where the deleted clip was so the eye finds it
+            // without hunting. Shown only while there is something to restore — a row that
+            // shifts a LIST is not the same defect as an arrow that shifts a control the user
+            // is aiming at (#382), because the list has just reflowed anyway.
+            if let d = deletedClip {
+                Button(action: restore) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.uturn.backward")
+                        Text("Undo delete of \(d.title)")
+                            .font(EchoelTheme.font(13))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(EchoelTheme.text)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .frame(minHeight: 36)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .fill(EchoelTheme.fill))
+                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Puts the recording back into the library")
+            }
+
             if clips.isEmpty {
                 Text("No clips yet. The record button in the visual window captures the bio-reactive visual together with your master mix — finished clips appear here.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
@@ -84,9 +144,20 @@ struct VideoLibraryPanelContent: View {
 
     // MARK: - Row
 
-    @ViewBuilder
+    // ⚠️ NO `@ViewBuilder` HERE, DELIBERATELY. The body is a single `VStack` (its own builder
+    // handles the conditional player), so the attribute bought nothing — and it forbids the
+    // explicit `return` this function now needs after binding `name`. Dropping it is the
+    // smaller change of the two available; the alternative, a bare `let` inside a builder
+    // block, is legal but reads as an accident to the next author.
     private func clipRow(_ clip: EchoelVideoClip) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // ⭐ EVERY BUTTON IN THIS ROW NAMES ITS CLIP. They used to read "Play clip", "Share
+        // clip", "Delete clip" — correct for ONE row and useless in a list, which is the only
+        // shape this surface has: a VoiceOver user swiping through six recordings heard the
+        // same three words six times and had no way to tell which one the trash belonged to.
+        // The visible label is the recording's date and time, so that is what each control is
+        // named after; the sighted reading and the spoken one are then the same sentence.
+        let name = Self.title(for: clip)
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Button {
                     togglePlay(clip)
@@ -99,7 +170,7 @@ struct VideoLibraryPanelContent: View {
                             .strokeBorder(EchoelTheme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(playingURL == clip.url ? "Stop playback" : "Play clip")
+                .accessibilityLabel(playingURL == clip.url ? "Stop \(name)" : "Play \(name)")
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Self.title(for: clip))
@@ -116,7 +187,7 @@ struct VideoLibraryPanelContent: View {
                         .frame(width: 32, height: 32)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Share clip")
+                .accessibilityLabel("Share \(name)")
 
                 Button(role: .destructive) { delete(clip) } label: {
                     Image(systemName: "trash")
@@ -125,7 +196,7 @@ struct VideoLibraryPanelContent: View {
                         .frame(width: 32, height: 32)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Delete clip")
+                .accessibilityLabel("Delete \(name)")
             }
             if playingURL == clip.url, let player {
                 VideoPlayer(player: player)
@@ -157,16 +228,64 @@ struct VideoLibraryPanelContent: View {
         }
     }
 
+    /// Move the clip out of the library into `tmp`, keeping it restorable.
+    ///
+    /// ⚠️ ON FAILURE THE CLIP STAYS. `removeItem` was the previous body and could only fail by
+    /// leaving the file where it was; `moveItem` is the same shape. If the move throws, nothing
+    /// is parked, `deletedClip` is left alone and `reload()` will show the clip still there —
+    /// which is the honest outcome, because it IS still there. The one thing not to do is clear
+    /// `deletedClip` on the way in: that would drop a previous, still-restorable park on a
+    /// delete that did not happen.
     private func delete(_ clip: EchoelVideoClip) {
         if playingURL == clip.url {
             player?.pause()
             player = nil
             playingURL = nil
         }
+        let parked = FileManager.default.temporaryDirectory
+            .appendingPathComponent("echoel-deleted-\(UUID().uuidString).mp4")
         do {
-            try FileManager.default.removeItem(at: clip.url)
+            try FileManager.default.moveItem(at: clip.url, to: parked)
+            deletedClip = ParkedClip(original: clip.url,
+                                     parked: parked,
+                                     title: Self.title(for: clip))
         } catch {
             log.log(.error, category: .video, "Video library delete failed: \(error.localizedDescription)")
+        }
+        reload()
+    }
+
+    /// Move the parked clip back into the library.
+    ///
+    /// ⚠️ THE DESTINATION IS CHECKED FIRST. `moveItem` throws if something already occupies the
+    /// path, and a recording made after the delete could in principle carry the same name. In
+    /// that case the clip comes back beside it under a `-restored` name rather than failing or
+    /// — far worse — overwriting the newer file. A restore that destroys something else is not
+    /// a restore.
+    private func restore() {
+        guard let d = deletedClip else { return }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: d.parked.path) else {
+            // The park is gone — iOS reclaims `tmp` on its own schedule. Withdraw the offer
+            // rather than leaving a button that cannot do what it says; a control that fails
+            // silently on every tap is worse than one that is no longer there.
+            log.log(.error, category: .video, "Video library restore: parked clip no longer present")
+            deletedClip = nil
+            return
+        }
+        var target = d.original
+        if fm.fileExists(atPath: target.path) {
+            let stem = target.deletingPathExtension().lastPathComponent
+            target = target.deletingLastPathComponent()
+                .appendingPathComponent("\(stem)-restored.\(target.pathExtension)")
+        }
+        do {
+            try fm.moveItem(at: d.parked, to: target)
+            deletedClip = nil
+        } catch {
+            // Keep the offer standing: the park may simply have been reclaimed from `tmp`, and
+            // a row that vanishes without saying anything is how a user learns not to trust it.
+            log.log(.error, category: .video, "Video library restore failed: \(error.localizedDescription)")
         }
         reload()
     }
