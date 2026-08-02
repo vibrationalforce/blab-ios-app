@@ -1,4 +1,4 @@
-build: v10.79.365 — jede Zahl in dieser App wird von EINEM Regler gestellt, und der war an vier Stellen kaputt
+build: v10.79.366 — Dein Körper bewegt jetzt BEIDE Klänge, und eine Aufnahme verliert ihr Bild nicht mehr
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,202 +6,190 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.364.
+  Der Vorgänger auf Deinem Gerät ist 10.79.365.
 
-  Vierundsechzig Commits. Der größte Block ist kein neues Feature, sondern ein
-  Bedienelement, das Du hundertmal am Tag anfasst.
+  Achtundvierzig Commits. Zwei davon sind derselbe Fehler an zwei Stellen, und der
+  ist der wichtigste dieses Builds.
 
-  ── ZUERST: EINE ZUSAGE, DIE ICH GEBROCHEN HABE ─────────────────────────────
+  ── DIE HÄLFTE DES INSTRUMENTS WAR TAUB ────────────────────────────────────
 
-  In 364 habe ich Dir geschrieben, ich lasse die zweite falsche Zeitkonstante — den
-  Filter-Cutoff, 33 Sekunden Halbwertszeit — ABSICHTLICH stehen, damit ein „zu zappelig"
-  von Dir zuordenbar bleibt. Sie ist in diesem Build trotzdem repariert.
+  Es gibt in dieser App zwei Klänge, die gleichzeitig laufen: den generierten Take
+  und die Noten, die Du selbst auf dem Field spielst. Sie haben je eine eigene
+  EchoelFX-Kette. Zwei unabhängige Wege erreichten bisher nur die erste davon:
 
-  Der Grund ist verteidigbar, die Zusage bleibt gebrochen. Beim Reparieren stellte sich
-  heraus: es waren nicht zwei Einpole mit je eigener Zahl, sondern DREI, jeder mit einem
-  eigenen Literal und ohne im Code ausdrückbare Beziehung — genau die Struktur, die den
-  ersten reparierbar machte und den zweiten übersehen ließ. Alle drei lesen jetzt EINE
-  Konstante. Praktisch heißt das: falls es zu zappelig ist, ist die Rücknahme ein einziger
-  Wert, der alle drei gemeinsam auf 3,5 Sekunden zurückzieht.
+  · DIE TIEFE FX-FLÄCHE. Was Du im Effekt-Panel unter „All effects" einstellst —
+    Reverb, Delay, Drive, Breite — ging an EINE Kette. Deine gespielten Noten liefen
+    daran vorbei. Du hast einen Regler bewegt und die Hälfte des Klangs hat nicht
+    reagiert.
 
-  Was Du dadurch verlierst, sage ich auch: Du kannst mir nicht mehr sagen, ob es die
-  Helligkeit oder der Filter war. Diese Unterscheidung habe ich Dir weggenommen.
+  · UND DER KÖRPER SELBST. Der ~30-Hz-Treiber, der aus Puls und Kohärenz eine
+    FX-Bewegung macht, war an genau eine Kette gebunden. Der Take atmete mit Dir,
+    die gespielten Noten nicht. Ein Körper, zwei Klänge, einer davon taub — und
+    nichts auf dem Schirm, das gesagt hätte, welcher.
 
-  ── DER REGLER — WARUM VIER DEINER WETTER-WERTE AUF 0,00 STANDEN ────────────
+  Beide erreichen jetzt jede klingende Kette. Die Bio-Hälfte merkt sich dabei den
+  Ausgangswert PRO KETTE, nicht einmal für alle: die Bewegung kommt vom Körper und
+  ist geteilt, der Ausgangspunkt gehört der Kette und ist es nicht. Ein gemeinsamer
+  Ausgangswert hätte beim ersten Einschalten einer Bio-Route die von Hand gemachte
+  Einstellung der einen Kette mit der der anderen überschrieben — und beim
+  Zurücknehmen dauerhaft.
 
-  Auf Deinem Screenshot vom 1. August standen Structure, Warmth, Energy und Drama alle
-  exakt auf 0,00. Die Voreinstellungen sind 1,0 und 0,5. Also hat jemand diese vier Zahlen
-  nach unten gezogen — und Du warst es nicht.
+  DAS BRAUCHT DEIN OHR, und zwar in drei Fragen:
+  1. Bio-Route an (Effects → Bio-reactive, z.B. Kohärenz → Reverb mix), Puls läuft,
+     dann auf dem Field spielen: atmen die gespielten Noten jetzt mit?
+  2. PUMPT DER MASTER? Beide Stimmen tragen jetzt DASSELBE Körpersignal in ihre
+     Wet-Mixes, ihren Drive und ihr Feedback. Zwei gleichgerichtete Wellen treffen
+     zusammen am Master. Bei `Drive` und `Delay feedback` ist das wahrscheinlicher
+     als bei Reverb.
+  3. Kommt das Field dorthin zurück, wo es war, wenn Du die Route wieder entfernst?
 
-  Es gibt in dieser App genau EIN Bedienelement für jede einstellbare Zahl: das Wertefeld,
-  das Du vertikal ziehst oder antippst und eintippst. 62 Stellen benutzen es. Vier
-  unabhängige Fehler darin sind repariert:
+  Eine Nebenwirkung benenne ich, bevor Du sie findest: schaltet die Bio-Route eine
+  Stufe ein, die Du von Hand AUS hattest, bleibt sie danach an — auf ihrem eigenen
+  Ausgangswert. Ein automatisches Ausschalten braucht ein Gedächtnis dafür, wer die
+  Stufe eingeschaltet hat, und wer das falsch baut, macht eine Stufe stumm, die Du
+  selbst gewollt hast. Deshalb benannt und nicht gebaut.
 
-  · EIN ZUG, DER NICHTS BEWEGT, MELDET NICHTS MEHR. Bisher lief bei jedem Ziehereignis die
-    Aktion des Aufrufers — auch wenn die Zahl danach dieselbe war. Am Anschlag oder
-    unterhalb des Anzeigerasters hieß das: ein Mood-Regler, der auf 0 steht und nach unten
-    gezogen wird, hat die Komposition NEU GEWÜRFELT. Ohne sichtbare Ursache. Genau die
-    Bewegung macht auch ein Daumen, der scrollen will.
+  ── EINE AUFNAHME, DIE IHR BILD VERLIERT ───────────────────────────────────
 
-  · EIN LANGSAMER ZUG BEWEGT DIE ZAHL ÜBERHAUPT. „Detail" reicht von 8 bis 90 in ganzen
-    Schritten; ein Punkt Fingerweg sind 0,09 davon. Bisher wurde dieser Rest bei jedem
-    Ereignis weggeworfen — wer langsam und genau zog, bewegte gar nichts. Jetzt trägt die
-    Geste ihr eigenes ungerastertes Ziel und sammelt.
+  Wenn Du während einer laufenden Video-Aufnahme das Visual-Fenster geschlossen
+  hast, wurde der Renderer abgeworfen — die Aufnahme lief weiter und bekam nichts
+  mehr zu sehen. Was auf der Platte landete, war ab diesem Moment leer.
 
-  · EINE ABGEBROCHENE GESTE SETZT ZURÜCK. Wenn das Scrollen des Panels Dir die Geste
-    wegnimmt oder der Finger den Schirm verlässt, springt die Zahl auf ihren Ausgangswert
-    zurück, statt dort stehenzubleiben, wo der Abbruch sie erwischt hat. Und sie
-    hinterlässt keine halboffenen Zustände mehr, die die NÄCHSTE Geste geerbt hätte.
+  Der Renderer bleibt jetzt genau in diesem einen Zustand am Leben, und in keinem
+  anderen: die Batterie-Ersparnis beim Zuklappen ist unverändert, solange nichts
+  aufnimmt.
 
-  · UND SIE VERLIERT NICHT MEHR STILL DEN NAMEN DER VISUAL-SZENE. Ein Zug auf einem der
-    Energie-Regler löschte die Preset-Auswahl. Vorher sah man wenigstens die verschobenen
-    Zahlen; seit dem Rücksetzen sieht der Schirm unverändert aus, während die Leiste
-    „nichts ausgewählt" anzeigt — über Werten, die exakt die dieses Presets sind. Ein
-    Bedienelement, das den Zustand leugnet, den es zeigt. Jetzt merkt sich die App, was sie
-    geräumt hat, und holt es zurück, sobald die Werte wieder auf den Zahlen stehen.
+  NOCH NICHT ERLEDIGT und absichtlich offen: eine Aufnahme, während ein externer
+  Bildschirm das Bild hält. Da entscheidet noch nicht, welcher der beiden Renderer
+  den Schreiber speist.
 
-    ⛔ UND HIER MUSS ICH MICH SELBST KORRIGIEREN, bevor Du es liest: die erste Fassung
-    dieses Absatzes — und fünf Stellen im Code dazu — behauptete, der Preset sei das
-    EINZIGE Bild-Setting, das einen Neustart überlebt, die Einzelwerte würden nicht
-    gespeichert. Das ist falsch. Intensity, Detail, Motion und Spread sind einzeln
-    gespeichert und müssen es sein, weil das schwebende Visual-Fenster und die
-    Bildschirm-Ausgabe dieselben Schlüssel lesen. Ein Neustart stellt das BILD also so oder
-    so wieder her; verloren ging der NAME. Der Fehler ist echt und die Reparatur unverändert
-    — nur meine Dramatik war es nicht. Gefunden vom Pflicht-Reviewer, einen Commit nachdem
-    ich es geschrieben hatte.
+  ── DEIN SCREENSHOT VOM 2. AUGUST ──────────────────────────────────────────
 
-  DAS BRAUCHT DEINE HAND — die wichtigste Frage dieses Builds:
-  Öffne ein Panel mit Regler-Zeilen und SCROLLE mit dem Daumen über der Zahlenspalte durch
-  die Liste. Bleiben die Werte stehen? Zieh dann bewusst sehr langsam an einer Zahl —
-  bewegt sie sich jetzt? Und tippe eine Zahl ein — unverändert wie vorher?
+  Beides umgesetzt:
 
-  ── ZWEI KNÖPFE, DIE KLEINER WAREN ALS EIN FINGER ──────────────────────────
+  · Echoelmusic steht wieder in der MITTE der Kopfzeile, die Farbbalken links
+    daneben — statt das Loch zu füllen, indem der Titel hineinrutscht.
+  · Die Wellenfront-Ansicht: Schall so gezeigt, wie er sich ausbreitet — radial nach
+    allen Seiten, nicht als Oszilloskop-Spur. Die beiden Ansichten, die Du rot
+    durchgestrichen hattest, sind von der Fläche verschwunden.
 
-  Die Tempo-Sperre in der Transportleiste saß zwischen zwei Knöpfen, die BEIDE längst
-  vergrößert worden waren, und war selbst nie angefasst worden — ausgerechnet die, die
-  entscheidet, ob das Tempo Deinem Körper folgt. Dazu die beiden „•••"-Menüs über Mood und
-  Sound: sie hatten die Vergrößerung, aber eine Ebene zu tief, wo sie wirkungslos war.
-  Beide treffen jetzt.
+  ── WER GRÖSSERE SCHRIFT EINGESTELLT HAT, BEKAM DIE KLEINSTE APP ───────────
 
-  ── DER BIO-PFAD, ZWEITER TEIL ─────────────────────────────────────────────
+  Vier zusammenhängende Reparaturen, alle in derselben Klasse:
 
-  · Der Filter-Einpol (oben, die gebrochene Zusage): 32,8 s → 2 s, geteilte Konstante.
-  · Die Beat-Sperre des Puls-Detektors war eine ZEIT und wurde mit einer geratenen
-    Abtastrate in Schritte umgerechnet. Sie wird jetzt in Zeit gefragt.
-  · Der Sub-Bass war die einzige Tonhöhe im ganzen Instrument, die dem gewählten Tonsystem
-    NICHT folgte — bei Maqām oder Gamelan spielte er gegen den Rest. DAS BRAUCHT DEIN OHR.
-  · Eine gespielte Note wartete bis zu einer Sekunde auf den nächsten Bio-Takt, bevor sie
-    klang. Der Weg vom Keyboard zur Stimme wird jetzt gestoßen statt abgefragt.
-  · Und eine Korrektur an mir selbst: ich hatte gemeldet, der Bass-Mix werde neu gewürfelt.
-    Wird er nicht. Das Messgerät, das ich dafür gebaut hatte, hat die Fehldiagnose erzeugt —
-    ein gespeicherter Fader stand auf null, und die Beschriftung meiner eigenen
-    Diagnosezeile hat mich in die falsche Richtung gelesen.
+  · JEDE PARAMETER-ZEILE verlor bei großer Schrift ihr Etikett und lief aus dem
+    Bild. Sie stapelt jetzt.
+  · DIE BIO-ZAHLEN — ausgerechnet die, um die es geht — waren die kleinsten der App
+    und wuchsen nicht mit.
+  · DAS ABSTURZPROTOKOLL, das die App Dich zu lesen bittet, folgte der Textgröße
+    nicht. Ein Text, den man im Fehlerfall lesen soll, ist der letzte, der klein
+    bleiben darf.
+  · UND DER WEG AUS EINER ERKLÄRUNG wächst jetzt mit der Erklärung — vorher konnte
+    der Schließen-Knopf unter den Rand rutschen.
+  Dazu: die Chip-Etiketten laufen nicht mehr aus ihren Pillen.
 
-  ── DU KANNST DEM INSTRUMENT JETZT BEIM ARBEITEN ZUSEHEN ───────────────────
+  ── RÜCKGÄNGIG ─────────────────────────────────────────────────────────────
 
-  Drei echte Messansichten im Field-Panel, keine Deko:
+  Vier Dinge, die vorher endgültig waren:
 
-  · OSZILLOSKOP des Master-Ausgangs — die Wellenform, die tatsächlich rausgeht.
-  · SPEKTRUM mit einer Zahl, die den Ton BENENNT statt ihn nur zu zeichnen.
-  · POINCARÉ-PLOT Deiner Schlagabstände — das Bild, an dem man Herzratenvariabilität
-    wirklich sieht. Er schweigt ausdrücklich, wenn das Signal bricht, statt eine Wolke aus
-    erfundenen Schlagpaaren zu zeichnen.
+  · Einen Sound oder ein Mood zu LÖSCHEN.
+  · Eine gelöschte AUFNAHME zurückholen — und jeder Knopf sagt welche.
+  · „Randomize timbre".
+  · Ein Projekt zu ÖFFNEN zerstörte die laufende Aufnahme stillschweigend. Jetzt
+    wird sie gerettet, und die Rettung sagt, wie viel sie zurückholt.
 
-  ── SICHERHEIT: DIE BLITZGRENZE IST JETZT EINE RATE ────────────────────────
+  ── ORDNUNG: JEDER REGLER ZIEHT ZU DEM, WAS ER VERSTELLT ───────────────────
 
-  Die WCAG-Grenze von 3 Hz steckte als „Schritt pro Tick" im Code, während die Tickrate in
-  zwei ANDEREN Dateien stand. Ändert jemand den Sendetakt, wandert die Blitzgrenze
-  unbemerkt mit. Sendetakt und Blitzkappe sind ab jetzt eine einzige Tatsache.
+  Drei Umzüge, kein neues Feature — die Sachen standen an Orten, die nichts mit
+  ihrer Wirkung zu tun hatten:
 
-  ── CHROME: WENIGER BEHANDLUNGEN, DIESELBE INFORMATION ─────────────────────
+  · Das Wetter zieht zu den Reglern, die es verstellt.
+  · Die Bild-Regler ziehen zu dem Bild, das sie färben.
+  · Der Ortsname zieht zu dem Knopf, der ihn schreibt. Das Panel „Session", das
+    keine Session speicherte, ist damit weg.
+  Dazu spannt das Mood-Panel jetzt die Breite, statt sie zwischen Name und Zahl
+  aufzuteilen.
 
-  Du hattest die Kopf- und Fußleisten auf Deinen Screenshots komplett rot markiert. Ein
-  Teil davon ist abgearbeitet:
+  ── TEMPO ──────────────────────────────────────────────────────────────────
 
-  · EINE Abschnittsüberschrift statt drei verschiedener, und die eine rendert, was sie sagt.
-  · EIN Rot für „Aufnahme" (es waren drei), EINE Schrift für dieselbe Herzfrequenz (es
-    waren zwei), EIN Flächengrau.
-  · EIN Grün für den Körper — der Bestätigen-Knopf gehört nicht dazu.
-  · Das Loch in der Kopfzeile wird zugemacht, indem der Titel hineinrückt.
-  · Die Tempo-Anzeige behauptete vier Nachkommastellen, die sie gar nicht messen kann.
-  · 62 Stellen baten um eine Schriftgewichtung, die diese App nicht mitliefert — entfernt,
-    ohne dass sich am Bild etwas ändert.
-  · Das Visual-Fenster war nur auf EINER Achse adaptiv und seine Werkzeugleiste auf keiner.
-
-  Die Tempo-Gruppe, die Kopf-Kacheln, der Transport mit der Cover-Linse und die Chip-Leiste
-  sind damit NICHT vollständig erledigt — das ist der nächste Durchgang.
-
-  ── DIE ERSTE ANWEISUNG DER APP FUNKTIONIERTE NICHT ────────────────────────
-
-  Sie sagte „Finger auf die Kamera" in einem Vollbild, in dem nichts läuft. Wer sie
-  befolgte, bekam nichts. Sie nennt jetzt den Schritt, der wirklich nötig ist.
-
-  ── DIE WEBSITE HAT ZWEIMAL GELOGEN ───────────────────────────────────────
-
-  · Sie verkaufte einen Reverb, der so nicht klingen kann — und verschwieg den, der klingt.
-  · Sie behauptete das doppelte Auto-Gain, plus fünf weitere falsche Zahlen.
-  Beides korrigiert, dazu eine erste Seite, die eine Frage beantwortet statt sich
-  vorzustellen, und ein Wächter, der die Seite ab jetzt gegen die Quelle prüft.
+  · Das GESPERRTE Tempo erreicht die Uhr so, wie es im Feld steht — vorher wurde es
+    auf dem Weg dorthin gerundet.
+  · Tap-Tempo sperrt das Tempo und lässt den Take beim alten, statt ihn ungefragt
+    neu zu würfeln.
+  · Der Sperr-Hinweis reserviert seinen Platz, statt die Knöpfe daneben zu
+    verschieben, wenn er auftaucht.
 
   ── AUSSERDEM ─────────────────────────────────────────────────────────────
 
-  · Das Lautheits-Messgerät misst jetzt am tatsächlichen Ausgang der Master-Kette und fällt
-    kein Urteil mehr über Deine Mischung — es sagt, wo es misst.
-  · Der Pad-Fader wartete auf einen Schreibvorgang auf die Platte, bevor er klang.
-  · Das Wetter wird hörbar, weil es endlich einen Regler bewegt statt einer Schwelle.
-  · Die Spektrum-Analyse verschluckte ihre eigene Zahl vor VoiceOver.
+  · Eine Puls-Konfidenz überlebt keine Messung mehr, die es nicht mehr gibt — der
+    Wert stand vorher weiter da, nachdem die Messung längst abgerissen war.
+  · Was man antippen kann, sieht jetzt auch antippbar aus (Transport, Tempo-Sperre,
+    Clips).
+  · Zwei Sätze in der Oberfläche schickten Dich an Bedienelemente, die das gar nicht
+    konnten.
+  · Die erste Anweisung der App nennt jetzt den Schritt, der wirklich nötig ist.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  Auf `b8f0cb8` — dem letzten Commit dieses Builds, der VERHALTEN ändert — sind BEIDE
-  echten Gates fertig und grün: Xcode Compile Check und CI/CD Pipeline. Nur die zweite
-  baut und startet die Testdateien überhaupt.
+  Auf `687f781` — dem letzten Commit dieses Builds, der VERHALTEN ändert — sind
+  BEIDE echten Gates fertig und grün: Xcode Compile Check und CI/CD Pipeline. Nur
+  die zweite baut und startet die Testdateien überhaupt.
 
-  Die zwei Commits danach (`4d9bafd`, `3ba94ef`) ändern in `Sources/` KEINE einzige
-  Nicht-Kommentarzeile. Das ist nachgeprüft und nicht behauptet: zieht man vom Diff beider
-  Quelldateien alle Kommentar- und Leerzeilen ab, bleibt nichts übrig. Was sie ändern, sind
-  Wächter im blockierenden Bundle und Prosa. Auf beiden sind inzwischen BEIDE echten Gates
-  fertig und grün — bei `3ba94ef` habe ich dafür in die Job-Ebene geschaut, weil die
-  Lauf-Übersicht noch „läuft" anzeigte, während „Build for Testing" und „Run Tests" beide
-  längst auf success standen.
+  Der Commit danach (`2968341`) ändert in `Sources/` genau EINE Nicht-Kommentarzeile,
+  und die ist ein `assert` — im Release-Build ein No-op. Nachgeprüft, nicht behauptet.
+  Beide echten Gates sind auch darauf grün; für die CI/CD-Pipeline habe ich in die
+  Job-Ebene geschaut, weil die Lauf-Übersicht noch „läuft" anzeigte, während „Build
+  for Testing" und „Run Tests" beide längst auf success standen. Was danach noch
+  lief, war der Performance-Job, der nichts blockiert.
 
-  Ich schreibe das so umständlich, weil ich Dir in 364 genau den umgekehrten Fehler
-  gebeichtet habe: Statusmeldung geschrieben, bevor die zuständige Pipeline gemeldet hatte.
-  Diesmal habe ich gewartet.
+  Das blockierende Bundle ist von 111 auf 134 Dateien gewachsen. Nur was dort liegt,
+  kann einen Merge rot färben.
 
-  Das blockierende Bundle ist von 83 auf 111 Dateien gewachsen. Nur was dort liegt, kann
-  einen Merge rot färben.
+  DAS MUSTER DIESES BUILDS — und es ist ein anderes als in 365. Dort hat der
+  Reviewer meine BEGRÜNDUNGEN zerlegt. Diesmal hat er zweimal einen WÄCHTER zerlegt,
+  und das ist die teurere Sorte:
 
-  DAS MUSTER DIESES BUILDS: der Pflicht-Reviewer hat in fast jedem Zyklus eine BEGRÜNDUNG
-  von mir zerlegt, während der Mechanismus stimmte. Drei Fälle, die ich benenne, weil sie
-  Dich etwas kosten könnten, wenn sie stehenblieben:
+  · Der Wächter zu der Bio-FX-Reparatur hatte ein Loch in exakt der Form des
+    Fehlers, den er verhindern sollte — und sein eigener Kommentar behauptete das
+    Gegenteil. Man hätte den Defekt in dem einen Pfad, der 30-mal pro Sekunde läuft,
+    vollständig wiederherstellen können, und alles wäre grün geblieben. Die drei
+    Prüfungen darin waren unabhängig voneinander; nichts band einen Schreibvorgang
+    an eine Schleife.
+  · UND MEINE ERSTE REPARATUR DIESES LOCHS WAR SELBST UMKEHRBAR. Ich habe nach einem
+    Text im Code gesucht, der auch dann noch da ist, wenn man ein „nicht" davorsetzt
+    und die Bedingung damit umdreht. Die Prüfung, die genau diese Umkehrung fangen
+    sollte, wäre glatt daran vorbeigelaufen. Selbst gefunden, im selben Commit
+    repariert.
+  · Derselbe Fehlertyp im Wächter zu der Aufnahme-Reparatur, gefunden vom
+    Pflicht-Reviewer.
 
-  · Ein Fix von mir war ein No-op — die Vergrößerung der beiden „•••"-Menüs saß eine Ebene
-    zu tief, und der Wächter, den ich dazu geschrieben hatte, konnte den Unterschied nicht
-    sehen. Beides repariert.
-  · Ein Wächter von mir hätte die RICHTIGE Lösung rot geschaltet; zwei andere hatten
-    Löcher, durch die ein Fehler grün durchgegangen wäre; und einer wäre für eine bloße
-    Leerzeile rot geworden.
-  · Und ich habe eine eigene, korrekte Aussage zurückgenommen, weil ein Reviewer sie
-    anzweifelte — die Quelle gab mir am Ende recht. Eine Rücknahme braucht dieselben
-    Belege wie eine Behauptung; meine hatte keine.
+  Die Lehre, die ich mitnehme: ein Wächter mit Loch ist schlimmer als gar keiner —
+  er kauft eine Sicherheit, die es nicht gibt, und niemand schaut nochmal hin. Und
+  eine Prüfung muss den SINN festnageln, nicht das Wort.
 
-  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
-  Dein Ohr und Dein Auge.
+  Zwei Befunde habe ich aufgeschrieben statt dazugepackt: ein Bau von Array, Map und
+  Set 30-mal pro Sekunde auf dem Haupt-Thread (älter als dieser Build), und die
+  Frage, was Delay und Reverb tun sollen, wenn zwischen zwei Anschlägen auf dem
+  Field nichts klingt — mit dieser Version ist das der Normalfall, nicht die
+  Ausnahme.
+
+  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt,
+  entscheidet Dein Ohr und Dein Auge.
 
   Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
   allokationsfrei.
 
   ── WAS ICH VON DIR BRAUCHE, IN DIESER REIHENFOLGE ────────────────────────
 
-  1. DIE REGLER. Scroll mit dem Daumen über einer Zahlenspalte durch ein Panel — bleiben
-     die Werte stehen? Zieh sehr langsam — bewegt sich die Zahl? Wähle ein Visual-Preset,
-     scroll darüber, starte neu — ist es noch da?
-  2. DER BIO-PFAD. Ist er jetzt zu zappelig? Die Rücknahme ist ein Wert. (Und wenn ja: ich
-     kann Dir wegen der gebrochenen Zusage oben nicht mehr sagen, ob Helligkeit oder Filter.)
-  3. DER SUB-BASS bei Maqām oder Gamelan — stimmt er jetzt zum Rest?
-  4. DIE DREI MESSANSICHTEN im Field-Panel — brauchbar oder Deko?
+  1. DIE ZWEITE KETTE. Bio-Route an, Puls läuft, auf dem Field spielen: atmen die
+     gespielten Noten mit? Pumpt der Master, besonders auf Drive und Delay-Feedback?
+     Kommt das Field zurück, wenn die Route weg ist?
+  2. DIE AUFNAHME. Video-Aufnahme starten, Visual-Fenster ~10 s zuklappen, wieder
+     auf. Ist im Ergebnis Bild drin?
+  3. DER KOPF. Titel mittig, Balken links — sitzt das?
+  4. DIE WELLENFRONT. Zeigt sie das, was Du gemeint hast?
 
-  Weiter offen aus 364: das Mischpult · die sechs Genres mit Swing · der Arp bei
-  geschlossenem Visual · „Describe it" · MIDI-Sync gegen Ableton · das Sound-Panel im
-  Querformat · die Transportleiste im LOOP-Modus.
+  Weiter offen aus 365: die Regler-Verify (Daumen-Scroll, langsames Ziehen) · der
+  Bio-Pfad (zu zappelig?) · der Sub-Bass bei Maqām oder Gamelan · die drei
+  Messansichten im Field-Panel · das Mischpult · die sechs Genres mit Swing ·
+  MIDI-Sync gegen Ableton · das Sound-Panel im Querformat.
