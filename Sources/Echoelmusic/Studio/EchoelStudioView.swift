@@ -4366,12 +4366,19 @@ struct EchoelStudioView: View {
             //     no `MoodPreset` writes either rhythm (`bassRhythmRow` says so itself) — putting
             //     them in the same container as the eight would imply a symmetry the model does
             //     not have.
-            //   · A ninth mood dimension is a plausible edit (#219 added characters to this very
-            //     panel). In ONE grid it would land beside `bassRhythmRow` — an `EchoelValueField`
-            //     (label and value on one line) paired with a `labeledRow` (label ABOVE its
-            //     Picker, so materially taller), and a `LazyVGrid` row takes its tallest cell.
-            //     Split, the worst case is a half-width cell with an empty one beside it, which
-            //     is already how "Sub / Bass (felt)" has shipped since Slice 2.
+            //   · A ninth mood dimension is a plausible edit — this panel has gained characters
+            //     before, and `moodSnapshot` right below is the whole cost of adding one. In ONE
+            //     grid the ninth would land beside `bassRhythmRow`: an `EchoelValueField` (label
+            //     and value on one line) paired with a `labeledRow` (label ABOVE its Picker, so
+            //     materially taller), and a `LazyVGrid` row takes its tallest cell. Split, the
+            //     worst case is a half-width cell with an empty one beside it, which is already
+            //     how "Sub / Bass (felt)" has shipped since Slice 2.
+            //     ⚠️ The Tone grid in `soundPanel` mixes exactly those two kinds in ONE grid and
+            //     its own ⛔ says "there was never a technical reason" — that is not a
+            //     contradiction, it is the same fact from the safe side: Tone holds SIX items, so
+            //     its rows pair knob/knob, knob/knob, picker/picker and no mixed row ever occurs.
+            //     The next `knob(` added to Tone breaks that, and the split here is what makes
+            //     the property permanent instead of arithmetic.
             AdaptiveCardGrid(spacing: 14) {
                 bassRhythmRow
                 padRhythmRow

@@ -87,6 +87,11 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     ///
     /// Hoisted to one constant rather than repeated: the two call sites that needed it had
     /// drifted apart precisely because the list was written out by hand each time.
+    ///
+    /// ⚠️ FOUR WINDOWS USE THIS NOW, NOT SEVEN. The three `moodPanel` windows moved to
+    /// `memberClosing` in the #292-Slice-3 Nachlese — see that constant's own note for why.
+    /// The four that remain are short and comment-light, which is the only condition under
+    /// which ending on `"// MARK:"` is a convenience rather than a trap.
     private static let declarationClosing = ["private var ", "private func ", "// MARK:"]
 
     private func repoRoot() throws -> URL {
@@ -161,7 +166,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let mood = code(try window(source,
                                    opening: "private var moodPanel: some View {",
-                                   closing: Self.declarationClosing))
+                                   closing: Self.memberClosing))
         let hits = mood.filter { $0.contains("weatherRow") }
         XCTAssertEqual(hits.count, 1, """
             #359: moodPanel must build `weatherRow` exactly once. Found \(hits.count). \
@@ -174,7 +179,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let mood = code(try window(source,
                                    opening: "private var moodPanel: some View {",
-                                   closing: Self.declarationClosing))
+                                   closing: Self.memberClosing))
         guard let at = mood.firstIndex(where: { $0.contains("weatherRow") }) else {
             return XCTFail("no weatherRow in moodPanel — see the sibling test")
         }
@@ -196,7 +201,7 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
         let source = try lines(Self.studio)
         let mood = code(try window(source,
                                    opening: "private var moodPanel: some View {",
-                                   closing: Self.declarationClosing))
+                                   closing: Self.memberClosing))
         let weatherAt = mood.firstIndex { $0.contains("weatherRow") }
         let captionAt = mood.firstIndex { $0.contains("Friendly ↔ scary (tension)") }
         guard let weatherAt, let captionAt else {
@@ -337,17 +342,37 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
     // `.export`'s presence in `studioChips`, its chip label and its `fullName`. A second
     // file asserting the same door would be the two-surfaces defect in guard form.
 
-    /// ⛔ THESE THREE DO **NOT** USE `Self.declarationClosing`, and the exception is the point.
-    /// That list ends a window on `"// MARK:"` as well, matched on RAW lines. It is right for
-    /// the four short windows above; it is a trap here. `utilityRow` is now ten children over
-    /// ~170 lines with four multi-paragraph ⛔ blocks in it — by a wide margin the most likely
-    /// declaration in this file to acquire an internal `// MARK: - Naming` sub-heading. That
+    /// ⛔ SIX WINDOWS NOW USE THIS INSTEAD OF `Self.declarationClosing`, and the exception is
+    /// the point. That list ends a window on `"// MARK:"` as well, matched on RAW lines. It is
+    /// right for the four short windows above; it is a trap in a long, heavily-commented
+    /// declaration.
+    ///
+    /// ⛔ THE THREE `moodPanel` WINDOWS JOINED THIS LIST IN THE #292-SLICE-3 NACHLESE, and the
+    /// reason is that Slice 3 itself created the hazard: it added 23 comment lines inside
+    /// `moodPanel`, including a paragraph that argues about the `soundPanel` Tone grid. One
+    /// future sentence containing the literal `// MARK:` — say, a pointer to the
+    /// `// MARK: Mood presets` heading that already sits ~90 lines below — would truncate the
+    /// window, and `testTheCaptionStaysTheLastChildOfTheMoodPanel` would then report
+    /// "moodPanel lost either `weatherRow` or its explanatory caption" about a panel where
+    /// both are present. Same trap, third declaration; the fix was already sitting here.
+    ///
+    /// The original occasion (kept, because it is the worked example): `utilityRow` is ten
+    /// children over ~170 lines with four multi-paragraph ⛔ blocks in it — a strong candidate
+    /// to acquire an internal `// MARK: - Naming` sub-heading. That
     /// edit would truncate the window and, depending on where it landed, either drop
     /// `placeRow` (accusing someone of deleting a row that is still there) or drop the Save
     /// button (`XCTFail("utilityRow lost either …")`). Both messages send their reader to an
     /// innocent line — the exact failure this file's own header documents at the `weatherRow`
     /// window, ONE COMMIT before this one. Terminating only on the next member declaration
-    /// costs a few trailing comment lines in the window and cannot be tripped by prose.
+    /// costs a few trailing comment lines in the window.
+    ///
+    /// ⚠️ AND IT IS NOT PROSE-PROOF — the first version of this paragraph said "cannot be
+    /// tripped by prose", which is one claim too strong. `window(_:opening:closing:)` matches
+    /// `.contains` on RAW lines, so a comment reading "…the `private var placeRow` below…"
+    /// truncates a window just as surely as a `// MARK:` did. The difference is probability,
+    /// not impossibility: a sub-heading is a thing people ADD to a long declaration, while
+    /// spelling out `private var ` inside prose is rare (this file names members as
+    /// `` `placeRow` ``, never with the keyword). Say the smaller true thing.
     private static let memberClosing = ["private var ", "private func "]
 
     /// The one claim from that group worth keeping, re-aimed at where the control went.

@@ -96,12 +96,15 @@ final class DeviceFamilyIsPhoneOnlyTests: XCTestCase {
             rear torch, and `CameraCapture` gates rPPG illumination on `device.hasTorch`), \
             and the adaptivity pass in #292 — most panels have no reflow, so on a wide \
             screen their rows stretch across the FULL width (`menuPanelHost` sets \
-            `maxWidth: .infinity`); only `mixerPanel` and `soundPanel` go two-column. \
+            `maxWidth: .infinity`). \
             (This sentence named `sessionPanel` for a month and was wrong twice over: that \
             panel never held a grid — it merely RENDERED `weatherRow`, which did — and \
-            #359 deleted it outright. No count is given here on purpose; CLAUDE.md carries \
-            the current one next to the `grep` that produces it, and a second copy in a \
-            failure message is a second thing to keep true.) \
+            #359 deleted it outright. Then it named the two panels that DO reflow, and #292 \
+            Slice 3 made that three by doing `moodPanel`. So the naming is gone as well as \
+            the count: this message said in its own next breath that "a second copy in a \
+            failure message is a second thing to keep true", and then kept a second copy of \
+            the SET, one abstraction down, which aged exactly as fast. CLAUDE.md carries \
+            both the count and the list, next to the `grep` that produces them.) \
             Change the setting AND this test in the same commit, with the reason, rather \
             than deleting the guard.
             """)

@@ -183,9 +183,12 @@ final class SoundPanelReflowsTests: XCTestCase {
     }
 
     /// Lines of `soundPanel`, from its declaration to the next member declaration. Scoping
-    /// matters: `AdaptiveCardGrid` legitimately appears in one other panel in this
-    /// 6000-line file, and a whole-file scan would pass on those while `soundPanel` itself
-    /// had been reverted.
+    /// matters: `AdaptiveCardGrid` legitimately appears in other panels in this 6000-line file,
+    /// and a whole-file scan would pass on those while `soundPanel` itself had been reverted.
+    /// (⛔ This sentence said "in ONE other panel" and #292 Slice 3 made it two — `moodPanel`
+    /// took a grid for its mood knobs and a second for its rhythm pickers. It is now written
+    /// without a count on purpose: this is the THIRD time prose in this file went stale while
+    /// its assertions stayed green, and the two ⛔ blocks in the header are the other two.)
     private func soundPanelBody() throws -> [String] {
         let lines = try codeLines(Self.studio)
         guard let start = lines.firstIndex(where: { $0.contains("private var soundPanel") }) else {

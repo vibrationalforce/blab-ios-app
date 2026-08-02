@@ -96,17 +96,27 @@ final class MoodPanelReflowsTests: XCTestCase {
     func testTheHeadersAndTheWeatherBlockStayOutsideTheGrids() throws {
         let body = try moodPanelBody()
         let ranges = gridRanges(in: body)
-        // Matched on the FIRST words of the caption only: the sentence itself is copy the
-        // founder may reword, and a guard that fails on a rewritten caption is a guard the next
-        // person deletes instead of reading.
+        // ⛔ THE CAPTION FRAGMENT IS THE CAPTION'S FIRST WORD, and the first version of this
+        // comment claimed that made the guard reword-proof. It does not: the first word is the
+        // part a reword changes FIRST, and the miss path below is `XCTFail`, not a soft skip.
+        // The honest statement is that rewording this caption costs TWO guards — this one and
+        // `WeatherIsAMoodRubricTests`, which pins the longer "Friendly ↔ scary (tension)". That
+        // is acceptable (both are one-line edits in the same commit) but it is not free, and a
+        // comment that says it is free is how the next person is surprised.
+        //
+        // ⛔ ALL occurrences, not the first. `firstIndex` would let a SECOND `moodPresetBar`
+        // added inside a grid pass while the original stayed outside — the copy-paste shape
+        // this guard exists to catch. (`weatherRow` is covered bundle-wide by
+        // `WeatherIsAMoodRubricTests`, which asserts exactly one; the other two had nothing.)
         for fragment in ["moodPresetBar", "weatherRow", "Text(\"Friendly"] {
-            guard let i = body.firstIndex(where: { $0.contains(fragment) }) else {
+            let hits = body.indices.filter { body[$0].contains(fragment) }
+            guard !hits.isEmpty else {
                 XCTFail("`\(fragment)` is gone from `moodPanel`. If it moved on purpose, move "
                         + "this guard with it — do not leave a check for a row that is no "
                         + "longer there.")
                 continue
             }
-            XCTAssertFalse(ranges.contains { $0.contains(i) }, """
+            XCTAssertFalse(hits.contains { i in ranges.contains { $0.contains(i) } }, """
             `\(fragment)` is now INSIDE an `AdaptiveCardGrid` in `moodPanel`.
 
             At a regular width that renders it as a half-width cell beside a parameter row. The \
@@ -122,6 +132,14 @@ final class MoodPanelReflowsTests: XCTestCase {
     /// bare `}` in that same column. Every child sits deeper, so no child can be mistaken for the
     /// close. This is scoped to one already-extracted panel body, which is what makes an
     /// indentation rule safe here — it would not be over a 6000-line file.
+    ///
+    /// ⛔ IT ASSUMES A MULTI-LINE GRID, and says so out loud instead of failing quietly. A
+    /// one-line `AdaptiveCardGrid(spacing: 14) { moodKnob("X", $y) }` has no bare `}` at the
+    /// opening indent, so no range would be produced — and the FIRST version just skipped it,
+    /// which made `testEveryMoodKnobIsInsideAGrid` report "a mood knob sits OUTSIDE every
+    /// `AdaptiveCardGrid`" about a knob that is visibly inside one. A guard that fails with the
+    /// wrong diagnosis costs more than one that does not fail: the reader goes looking for a
+    /// layout regression that never happened. The explicit failure below names the real cause.
     private func gridRanges(in body: [String]) -> [Range<Int>] {
         var out: [Range<Int>] = []
         for i in body.indices where body[i].contains("AdaptiveCardGrid") {
@@ -130,7 +148,17 @@ final class MoodPanelReflowsTests: XCTestCase {
                 $0.trimmingCharacters(in: .whitespaces) == "}"
                     && $0.prefix { c in c == " " }.count == indent
             }
-            guard let close else { continue }
+            guard let close else {
+                XCTFail("""
+                an `AdaptiveCardGrid` in `moodPanel` has no closing `}` at its own indentation: \
+                \(body[i].trimmingCharacters(in: .whitespaces))
+
+                This scan brackets each grid by indentation and therefore assumes the grid spans \
+                several lines. A single-line grid is not a defect — it just cannot be bracketed \
+                this way. Split it across lines, or replace this helper with a brace-depth counter.
+                """)
+                continue
+            }
             out.append(i..<close)
         }
         return out
