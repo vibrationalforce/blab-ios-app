@@ -79,8 +79,7 @@ struct BioStripView: View {
         // the cue used to survive the camera being stopped mid-window, because its old branch
         // read `lockedCueVisible` alone. The slot is now gated on `isRunning`, so stopping the
         // measurement takes the cue with it. That is the right reading — "you can let go &
-        // play" is a statement about a measurement that is happening — and the timer below is
-        // unchanged, so a restart re-arms it through the same token path.
+        // play" is a statement about a measurement that is happening.
         .onChange(of: cameraRPPG.isSettled) { _, settled in
             guard settled, cameraRPPG.isRunning else { return }
             lockedCueToken += 1
@@ -92,6 +91,22 @@ struct BioStripView: View {
                     withAnimation(.easeInOut(duration: 0.2)) { lockedCueVisible = false }
                 }
             }
+        }
+        // ⛔ AND THE COMMENT ABOVE ONCE ENDED "a restart re-arms it through the same token
+        // path", WHICH WAS ONLY THE BENIGN HALF OF THE STORY. `stop()` sets `isSettled = false`,
+        // which fires the handler above and is turned away by its own `guard` — so the token is
+        // NOT bumped and `lockedCueVisible` stays `true` for the rest of the six seconds. Hiding
+        // the slot made that invisible rather than harmless: restart the camera inside that
+        // window and the branch renders again with the flag still true, so "Pulse detected — you
+        // can let go & play" appears IMMEDIATELY, in a take where nothing has been detected, and
+        // `accessibilityHidden(!lockedCueVisible)` is `false`, so VoiceOver says it out loud.
+        // That is the same false sentence the slot's own rationale argues against, reached by a
+        // different door. Stopping is the honest place to disarm: bump the token so the pending
+        // auto-hide cannot fire late, and clear the flag now.
+        .onChange(of: cameraRPPG.isRunning) { _, running in
+            guard !running, lockedCueVisible || lockedCueToken > 0 else { return }
+            lockedCueToken += 1
+            lockedCueVisible = false
         }
     }
 
@@ -113,17 +128,48 @@ struct BioStripView: View {
     /// size, whereas the actual view reserves exactly what it will need at whatever size the
     /// reader has chosen, and keeps doing so if the sentence is ever reworded.
     ///
-    /// ⚠️ `.accessibilityHidden(!lockedCueVisible)` IS NOT OPTIONAL POLISH. `banner` ends in
-    /// `.accessibilityLabel(text)`, and `.opacity(0)` does not remove a view from the
-    /// accessibility tree — without the hide, a VoiceOver user would find "Pulse detected —
-    /// you can let go & play" sitting there for the entire measurement, including long before
-    /// any pulse has been detected. The layout bug was an annoyance for sighted users; that
-    /// would be a false statement made only to the reader who cannot check it.
+    /// ⛔ WHAT THIS DOES **NOT** BUY, because the first version of this block implied it did
+    /// and both mandatory reviewers caught the same over-claim. The panel does not "hold
+    /// still" full stop; it holds still against the CUE'S OWN TIMER. Two height changes remain,
+    /// and they are worth knowing about rather than rediscovering on a device:
+    ///   1. The slot is inserted when the camera STARTS and removed when it STOPS. That is
+    ///      still two shoves of the full banner height — the trade is that both are now
+    ///      user-initiated, instead of arriving unannounced six seconds apart while the user
+    ///      reaches for "Open Routing". Better, not free.
+    ///   2. Branch 1 wins over branch 3 whenever `recoveryState.userHint != nil`, and the two
+    ///      branches render DIFFERENT strings through the same wrapping `banner` — so a stall,
+    ///      a thermal `.cooling` or an iOS `.interrupted` resizes the slot mid-measurement, by
+    ///      a wrapped line or two at AX3+. Those transitions are low-frequency and genuinely
+    ///      informative, so they are left alone; but they are not nothing, and a device pass
+    ///      that only watches the six-second window will not see them.
+    ///
+    /// ⚠️ AND THE SAME "TAX" ARGUMENT THAT REJECTS AN UNCONDITIONAL `else` APPLIES, HONESTLY,
+    /// TO WHAT SHIPPED. Reserving blank height for someone who never starts the camera would
+    /// be a tax on everyone; what ships charges it to every MEASURING user for the whole
+    /// measurement — a blank banner row above the strip whenever nothing needs saying. That is
+    /// the deliberate trade (a stable panel while the body is being read), not an oversight,
+    /// and it is written down here so the next reader weighs the same two costs I did rather
+    /// than only the one that favoured the answer. `menuPanelHost` scrolls, so the reserved
+    /// height cannot push the persisted Health opt-in out of reach even at AX5.
+    ///
+    /// ⚠️ `.accessibilityHidden(!lockedCueVisible)` IS NOT OPTIONAL POLISH, and it travels as
+    /// part of a THREE-modifier house pattern (`WorkspaceView`: *"Hidden means INERT, not
+    /// merely transparent"* — `.opacity` + `.allowsHitTesting` + `.accessibilityHidden`).
+    /// `.opacity(0)` removes a view from neither the accessibility tree nor the hit-test
+    /// region. `banner` ends in `.accessibilityLabel(text)`, which propagates that sentence
+    /// onto the subtree's elements — so without the hide a VoiceOver user would find "Pulse
+    /// detected — you can let go & play" sitting there for the entire measurement, including
+    /// long before any pulse has been detected. The layout bug was an annoyance for sighted
+    /// users; that would be a false statement made only to the reader who cannot check it.
+    /// (⛔ The first version called `.accessibilityLabel` the thing that "makes it an element"
+    /// and called the modifiers "a pair". Neither is right: elements come from
+    /// `.accessibilityElement(children:)`, which this banner does not use, and the house
+    /// pattern is three. `allowsHitTesting` costs nothing today — the banner holds only an
+    /// `Image`, a `Text` and a `Spacer` — but the omission would become a live bug the moment
+    /// anyone puts a control in it, and the wording is what a future author copies.)
     ///
     /// ⚠️ AND THE GATE STAYS `cameraRPPG.isRunning`, deliberately, rather than becoming an
-    /// unconditional `else`. Reserving a status line while a measurement runs is a design
-    /// statement; reserving blank height above the strip for someone who never starts the
-    /// camera is a tax. `LockCueDoesNotShoveTheControlsTests` pins both halves.
+    /// unconditional `else`. `LockCueDoesNotShoveTheControlsTests` pins both halves.
     @ViewBuilder private var statusBanner: some View {
         if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
             banner(hint, color: EchoelTheme.warning, systemImage: "camera.metering.center.weighted")
@@ -139,16 +185,37 @@ struct BioStripView: View {
             banner("Pulse detected — you can let go & play",
                    color: EchoelTheme.success, systemImage: "checkmark.circle.fill")
                 .opacity(lockedCueVisible ? 1 : 0)
+                .allowsHitTesting(lockedCueVisible)
                 .accessibilityHidden(!lockedCueVisible)
         }
     }
 
     /// ⭐ THIS LINE IS THE ONLY PLACE THE STRIP GIVES AN INSTRUCTION, and until #353d it was
     /// the one piece of text in the strip that Dynamic Type could not touch at all. It said
-    /// `.system(size: 11, weight: .medium)`, and `.system(size:)` without `relativeTo:` is an
-    /// ABSOLUTE size: a user at AX5 read "Cover the camera and flash", "Enable camera access"
-    /// and "Pulse detected — you can let go & play" at 11 pt, the same 11 pt everyone else
-    /// gets. Not "grows less than asked" — does not grow.
+    /// `.system(size: 11, weight: .medium)`, an ABSOLUTE size: a user at AX5 read it at 11 pt,
+    /// the same 11 pt everyone else gets. Not "grows less than asked" — does not grow.
+    ///
+    /// There are exactly THREE things this helper ever renders, and they are worth naming
+    /// because the list is what tells a reader how much text has to fit:
+    ///   · `recoveryState.userHint` — "Camera recovering…", "Device cooling down — pulse holds
+    ///     for a moment", "Camera paused by iOS — waiting to resume";
+    ///   · `PulseCue.cameraDenied.fullHint` — "Camera access is off — enable it in Settings to
+    ///     read your pulse";
+    ///   · the lock cue — "Pulse detected — you can let go & play".
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS PARAGRAPH LISTED A STRING THIS BANNER NEVER SHOWS, and one
+    /// that does not exist in `Sources/` at all: it claimed the AX5 user read *"Cover the
+    /// camera and flash"* here. The real wording is `PulseCue.coverLens.fullHint` = "Cover the
+    /// rear camera + flash", and its only consumer is `HeaderMonitors` via `acquisitionCue` —
+    /// a different surface entirely. "Enable camera access" was a paraphrase of the line above.
+    /// The wrong list mattered because it is a claim about how LONG the longest sentence is,
+    /// which is exactly what a reader checks before deciding whether wrapping is safe. Verified
+    /// by grep: `banner(` has three call sites in this file and no fourth.
+    ///
+    /// ⛔ It also said "`.system(size:)` without `relativeTo:`", which sends a reader hunting
+    /// for an argument that does not exist — `Font.system(size:weight:design:)` has none.
+    /// `relativeTo:` lives only on `Font.custom(_:size:relativeTo:)`; the fix is a change of
+    /// FAMILY, not an added argument.
     ///
     /// ⚠️ THE DISTINCTION THAT MAKES THIS WORTH FIXING AHEAD OF ITS NEIGHBOUR. The strip below
     /// carries `.minimumScaleFactor(0.6)`, which reads like the same defect and is NOT: a scale

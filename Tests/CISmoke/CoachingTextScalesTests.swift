@@ -2,8 +2,15 @@
 // Echoel — the line that tells you what to do must obey Larger Text. #353d.
 //
 // WHAT THIS GUARDS. `BioStripView.banner(_:color:systemImage:)` renders the strip's ONLY
-// instruction: "Cover the camera and flash", "Enable camera access", "Pulse detected — you
-// can let go & play". It was set with `.font(.system(size: 11, weight: .medium))`, which is an
+// instruction. It has exactly three call sites and therefore three possible texts: the camera
+// recovery/cooling/interruption hint, `PulseCue.cameraDenied.fullHint` ("Camera access is off
+// — enable it in Settings to read your pulse"), and "Pulse detected — you can let go & play".
+// (⛔ This paragraph listed "Cover the camera and flash" for a commit, a string that appears
+// NOWHERE in `Sources/`. The real wording is `PulseCue.coverLens.fullHint` = "Cover the rear
+// camera + flash", rendered by `HeaderMonitors`, not by this banner. The list matters because
+// it is a claim about how LONG the longest sentence is — the thing a reader checks before
+// deciding whether wrapping is safe. Same correction landed in `BioStripView.swift`.)
+// It was set with `.font(.system(size: 11, weight: .medium))`, which is an
 // absolute point size: it does not participate in Dynamic Type at all. A user at AX5 read the
 // app's coaching at 11 pt. (⛔ This said "`.system(size:)` WITHOUT `relativeTo:`", which sends
 // a reader hunting for a parameter that does not exist — `Font.system(size:weight:design:)`
@@ -105,9 +112,10 @@ final class CoachingTextScalesTests: XCTestCase {
         XCTAssertTrue(frozen.isEmpty, """
             The bio strip's status banner is back on an absolute font size: \
             \(frozen.map { $0.trimmingCharacters(in: .whitespaces) }). \
-            `.system(size:)` without `relativeTo:` does not scale with Dynamic Type at all, \
-            and this banner is where the app says "Cover the camera and flash" and "Enable \
-            camera access" — the instructions a user with impaired sight most needs to read. \
+            An absolute `.system(size:)` does not scale with Dynamic Type at all, and this \
+            banner is where the app says "Camera access is off — enable it in Settings to \
+            read your pulse" and reports a camera recovery — the instructions a user with \
+            impaired sight most needs to read. \
             Use `EchoelTheme.font(_:)`, which is `.custom(…, relativeTo: .body)`.
             """)
 
