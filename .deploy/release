@@ -1,4 +1,4 @@
-build: v10.79.366 — Dein Körper bewegt jetzt BEIDE Klänge, und eine Aufnahme verliert ihr Bild nicht mehr
+build: v10.79.367 — Warum es unharmonisch klang: die Kopfleiste hat Dein Instrument verstimmt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,172 +6,85 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.365.
+  Der Vorgänger auf Deinem Gerät ist 10.79.366.
 
-  Achtundvierzig Commits. Zwei davon sind derselbe Fehler an zwei Stellen, und der
-  ist der wichtigste dieses Builds.
+  Sechs Commits. Einer davon beantwortet vermutlich Deinen Satz „Es klingt sehr
+  unharmonisch" — und er stand auf Deinem eigenen Video.
 
-  ── DIE HÄLFTE DES INSTRUMENTS WAR TAUB ────────────────────────────────────
+  ── DIE KOPFLEISTE HAT DIE STIMMUNG VERSTELLT ──────────────────────────────
 
-  Es gibt in dieser App zwei Klänge, die gleichzeitig laufen: den generierten Take
-  und die Noten, die Du selbst auf dem Field spielst. Sie haben je eine eigene
-  EchoelFX-Kette. Zwei unabhängige Wege erreichten bisher nur die erste davon:
+  In der Chipleiste oben sitzt das Feld „A4" — der Kammerton, die Referenz, an der
+  JEDER Ton dieser App hängt. Die Leiste selbst scrollt seitwärts, weil mehr Chips
+  darin sind, als auf den Schirm passen.
 
-  · DIE TIEFE FX-FLÄCHE. Was Du im Effekt-Panel unter „All effects" einstellst —
-    Reverb, Delay, Drive, Breite — ging an EINE Kette. Deine gespielten Noten liefen
-    daran vorbei. Du hast einen Regler bewegt und die Hälfte des Klangs hat nicht
-    reagiert.
+  Und unsere Zahlenfelder reagieren auf BEIDE Achsen: hoch = größer, rechts = größer.
+  Das ist richtig für ein Feld in einem stehenden Panel. Für ein Feld MITTEN IN einer
+  seitwärts scrollenden Leiste ist es ein Unfall, der wie eine Bedienung aussieht: Du
+  wischst die Leiste, Dein Finger streift das A4-Kästchen, und die Referenz wandert mit.
 
-  · UND DER KÖRPER SELBST. Der ~30-Hz-Treiber, der aus Puls und Kohärenz eine
-    FX-Bewegung macht, war an genau eine Kette gebunden. Der Take atmete mit Dir,
-    die gespielten Noten nicht. Ein Körper, zwei Klänge, einer davon taub — und
-    nichts auf dem Schirm, das gesagt hätte, welcher.
+  Auf Deiner Aufnahme von 366 läuft sie 440 → 483,4352 → 500,0000 Hz. 500 ist das
+  Maximum des Bereichs — sie war oben angeschlagen. Die Zifferntastatur ging dabei kein
+  einziges Mal auf. Du hast nichts eingegeben; die Leiste hat es getan.
 
-  Beide erreichen jetzt jede klingende Kette. Die Bio-Hälfte merkt sich dabei den
-  Ausgangswert PRO KETTE, nicht einmal für alle: die Bewegung kommt vom Körper und
-  ist geteilt, der Ausgangspunkt gehört der Kette und ist es nicht. Ein gemeinsamer
-  Ausgangswert hätte beim ersten Einschalten einer Bio-Route die von Hand gemachte
-  Einstellung der einen Kette mit der der anderen überschrieben — und beim
-  Zurücknehmen dauerhaft.
+  Was das anrichtet: 483 Hz statt 440 ist anderthalb Halbtöne zu hoch. Jede Stimme wird
+  umgestimmt, der laufende Take neu komponiert — und der Wert ist gespeichert. Er
+  überlebt den App-Neustart. Das Instrument bleibt verstimmt, bis jemand eine
+  vierstellige Nachkommazahl in einem daumenbreiten Kästchen bemerkt.
 
-  DAS BRAUCHT DEIN OHR, und zwar in drei Fragen:
-  1. Bio-Route an (Effects → Bio-reactive, z.B. Kohärenz → Reverb mix), Puls läuft,
-     dann auf dem Field spielen: atmen die gespielten Noten jetzt mit?
-  2. PUMPT DER MASTER? Beide Stimmen tragen jetzt DASSELBE Körpersignal in ihre
-     Wet-Mixes, ihren Drive und ihr Feedback. Zwei gleichgerichtete Wellen treffen
-     zusammen am Master. Bei `Drive` und `Delay feedback` ist das wahrscheinlicher
-     als bei Reverb.
-  3. Kommt das Field dorthin zurück, wo es war, wenn Du die Route wieder entfernst?
+  Ab jetzt ignoriert genau dieses eine Feld die Seitwärts-Achse. Hoch und runter ziehen
+  stimmt weiter, Tippen öffnet weiter die Tastatur — nur das Scrollen der Leiste geht
+  daran vorbei.
 
-  Eine Nebenwirkung benenne ich, bevor Du sie findest: schaltet die Bio-Route eine
-  Stufe ein, die Du von Hand AUS hattest, bleibt sie danach an — auf ihrem eigenen
-  Ausgangswert. Ein automatisches Ausschalten braucht ein Gedächtnis dafür, wer die
-  Stufe eingeschaltet hat, und wer das falsch baut, macht eine Stufe stumm, die Du
-  selbst gewollt hast. Deshalb benannt und nicht gebaut.
+  ⚠ EHRLICH BLEIBEN: ich behaupte nicht, dass das ALLES war. Es ist der stärkste
+  Kandidat, den ich habe, und er passt zum Klangbild. Es gibt einen zweiten, den ich
+  noch nicht ausgeschlossen habe: die Neu-Aussaat legt bewusst über den ausklingenden
+  Akkord den nächsten — beim Umstimmen liegen dann alte und neue Referenz übereinander.
+  Der nächste Punkt ist genau dafür gebaut.
 
-  ── EINE AUFNAHME, DIE IHR BILD VERLIERT ───────────────────────────────────
+  ── DAS PROTOKOLL SAGT JETZT, IN WELCHEM RAHMEN GENERIERT WURDE ────────────
 
-  Wenn Du während einer laufenden Video-Aufnahme das Visual-Fenster geschlossen
-  hast, wurde der Renderer abgeworfen — die Aufnahme lief weiter und bekam nichts
-  mehr zu sehen. Was auf der Platte landete, war ab diesem Moment leer.
+  Wenn Du das nächste Mal ein Diagnose-Log schickst, steht in jeder generate-Zeile, was
+  vorher nur zu erraten war: Tonart und Skala, das Tonsystem, der Kammerton in Hertz —
+  und wie viele Sekunden seit der letzten Aussaat vergangen sind.
 
-  Der Renderer bleibt jetzt genau in diesem einen Zustand am Leben, und in keinem
-  anderen: die Batterie-Ersparnis beim Zuklappen ist unverändert, solange nichts
-  aufnimmt.
+  Damit ist die Frage „war es verstimmt oder überlagert es sich?" beim nächsten Log
+  keine Vermutung mehr, sondern ablesbar: steht dort `a4=440.0`, ist die Verstimmung
+  raus und ich suche weiter. Steht etwas anderes, weiß ich, wann sie passiert ist.
+  `sinceLast=` zeigt dasselbe für die Überlagerung.
 
-  NOCH NICHT ERLEDIGT und absichtlich offen: eine Aufnahme, während ein externer
-  Bildschirm das Bild hält. Da entscheidet noch nicht, welcher der beiden Renderer
-  den Schreiber speist.
+  Das kostet nichts an Klang. Es ist eine Zeile Text pro Generierung.
 
-  ── DEIN SCREENSHOT VOM 2. AUGUST ──────────────────────────────────────────
+  ── EINE LAUFENDE AUFNAHME LÄSST SICH DORT STOPPEN, WO SIE ANGEZEIGT WIRD ──
 
-  Beides umgesetzt:
+  Seit 366 darfst Du das Visual-Fenster mitten in einer Aufnahme zuklappen — das Bild
+  geht dabei nicht mehr verloren. Genau das war die Falle: der einzige Stopp-Knopf saß
+  auf der Werkzeugleiste dieses Fensters. Zugeklappt lief die Aufnahme weiter, und ihr
+  Ausgang war unsichtbar. Die Kachel im Kopf leuchtete rot und führte ins Video-Panel,
+  und dort stand als oberste Zeile eine Einladung, das zu STARTEN, was gerade lief.
 
-  · Echoelmusic steht wieder in der MITTE der Kopfzeile, die Farbbalken links
-    daneben — statt das Loch zu füllen, indem der Titel hineinrutscht.
-  · Die Wellenfront-Ansicht: Schall so gezeigt, wie er sich ausbreitet — radial nach
-    allen Seiten, nicht als Oszilloskop-Spur. Die beiden Ansichten, die Du rot
-    durchgestrichen hattest, sind von der Fläche verschwunden.
+  Jetzt steht dort, solange aufgenommen wird, eine Stopp-Zeile: roter Punkt,
+  „Recording — tap to stop". Sie beendet die Aufnahme und frischt die Liste darunter
+  gleich mit auf, damit der frische Clip sofort sichtbar ist und nicht verloren wirkt.
 
-  ── WER GRÖSSERE SCHRIFT EINGESTELLT HAT, BEKAM DIE KLEINSTE APP ───────────
+  Der Pflicht-Reviewer hat dabei ein älteres Loch gefunden, das erst durch den zweiten
+  Knopf erreichbar wurde: zwei Stopps im selben Wimpernschlag konnten sich verschränken
+  — der zweite riss dem ersten die Audio-Maschine unter den Füßen weg, und der Clip
+  wurde OHNE Ton gespeichert. Ein Riegel ganz vorn in der Stopp-Funktion schließt das.
 
-  Vier zusammenhängende Reparaturen, alle in derselben Klasse:
+  ── UND EINE STELLE, DIE 30-MAL PRO SEKUNDE UNNÖTIG GEARBEITET HAT ─────────
 
-  · JEDE PARAMETER-ZEILE verlor bei großer Schrift ihr Etikett und lief aus dem
-    Bild. Sie stapelt jetzt.
-  · DIE BIO-ZAHLEN — ausgerechnet die, um die es geht — waren die kleinsten der App
-    und wuchsen nicht mit.
-  · DAS ABSTURZPROTOKOLL, das die App Dich zu lesen bittet, folgte der Textgröße
-    nicht. Ein Text, den man im Fehlerfall lesen soll, ist der letzte, der klein
-    bleiben darf.
-  · UND DER WEG AUS EINER ERKLÄRUNG wächst jetzt mit der Erklärung — vorher konnte
-    der Schließen-Knopf unter den Rand rutschen.
-  Dazu: die Chip-Etiketten laufen nicht mehr aus ihren Pillen.
+  Der Treiber, der Deinen Puls in FX-Bewegung übersetzt, baute seine Zielliste bei JEDEM
+  Tick neu auf — Array, Map, Set, dreißigmal in der Sekunde, auf dem Haupt-Thread. Das
+  ist genau die Sorte Dauerlast, die anderswo Menüs einfrieren lässt. Er baut sie jetzt
+  nur noch, wenn Du die Routen tatsächlich änderst. Am Klang ändert das nichts.
 
-  ── RÜCKGÄNGIG ─────────────────────────────────────────────────────────────
+  ── WAS ICH MIR SELBST VORWERFE ────────────────────────────────────────────
 
-  Vier Dinge, die vorher endgültig waren:
-
-  · Einen Sound oder ein Mood zu LÖSCHEN.
-  · Eine gelöschte AUFNAHME zurückholen — und jeder Knopf sagt welche.
-  · „Randomize timbre".
-  · Ein Projekt zu ÖFFNEN zerstörte die laufende Aufnahme stillschweigend. Jetzt
-    wird sie gerettet, und die Rettung sagt, wie viel sie zurückholt.
-
-  ── ORDNUNG: JEDER REGLER ZIEHT ZU DEM, WAS ER VERSTELLT ───────────────────
-
-  Drei Umzüge, kein neues Feature — die Sachen standen an Orten, die nichts mit
-  ihrer Wirkung zu tun hatten:
-
-  · Das Wetter zieht zu den Reglern, die es verstellt.
-  · Die Bild-Regler ziehen zu dem Bild, das sie färben.
-  · Der Ortsname zieht zu dem Knopf, der ihn schreibt. Das Panel „Session", das
-    keine Session speicherte, ist damit weg.
-  Dazu spannt das Mood-Panel jetzt die Breite, statt sie zwischen Name und Zahl
-  aufzuteilen.
-
-  ── TEMPO ──────────────────────────────────────────────────────────────────
-
-  · Das GESPERRTE Tempo erreicht die Uhr so, wie es im Feld steht — vorher wurde es
-    auf dem Weg dorthin gerundet.
-  · Tap-Tempo sperrt das Tempo und lässt den Take beim alten, statt ihn ungefragt
-    neu zu würfeln.
-  · Der Sperr-Hinweis reserviert seinen Platz, statt die Knöpfe daneben zu
-    verschieben, wenn er auftaucht.
-
-  ── AUSSERDEM ─────────────────────────────────────────────────────────────
-
-  · Eine Puls-Konfidenz überlebt keine Messung mehr, die es nicht mehr gibt — der
-    Wert stand vorher weiter da, nachdem die Messung längst abgerissen war.
-  · Was man antippen kann, sieht jetzt auch antippbar aus (Transport, Tempo-Sperre,
-    Clips).
-  · Zwei Sätze in der Oberfläche schickten Dich an Bedienelemente, die das gar nicht
-    konnten.
-  · Die erste Anweisung der App nennt jetzt den Schritt, der wirklich nötig ist.
-
-  ── PRÜFSTAND ─────────────────────────────────────────────────────────────
-
-  Auf `687f781` — dem letzten Commit dieses Builds, der VERHALTEN ändert — sind
-  BEIDE echten Gates fertig und grün: Xcode Compile Check und CI/CD Pipeline. Nur
-  die zweite baut und startet die Testdateien überhaupt.
-
-  Der Commit danach (`2968341`) ändert in `Sources/` genau EINE Nicht-Kommentarzeile,
-  und die ist ein `assert` — im Release-Build ein No-op. Nachgeprüft, nicht behauptet.
-  Beide echten Gates sind auch darauf grün; für die CI/CD-Pipeline habe ich in die
-  Job-Ebene geschaut, weil die Lauf-Übersicht noch „läuft" anzeigte, während „Build
-  for Testing" und „Run Tests" beide längst auf success standen. Was danach noch
-  lief, war der Performance-Job, der nichts blockiert.
-
-  Das blockierende Bundle ist von 111 auf 134 Dateien gewachsen. Nur was dort liegt,
-  kann einen Merge rot färben.
-
-  DAS MUSTER DIESES BUILDS — und es ist ein anderes als in 365. Dort hat der
-  Reviewer meine BEGRÜNDUNGEN zerlegt. Diesmal hat er zweimal einen WÄCHTER zerlegt,
-  und das ist die teurere Sorte:
-
-  · Der Wächter zu der Bio-FX-Reparatur hatte ein Loch in exakt der Form des
-    Fehlers, den er verhindern sollte — und sein eigener Kommentar behauptete das
-    Gegenteil. Man hätte den Defekt in dem einen Pfad, der 30-mal pro Sekunde läuft,
-    vollständig wiederherstellen können, und alles wäre grün geblieben. Die drei
-    Prüfungen darin waren unabhängig voneinander; nichts band einen Schreibvorgang
-    an eine Schleife.
-  · UND MEINE ERSTE REPARATUR DIESES LOCHS WAR SELBST UMKEHRBAR. Ich habe nach einem
-    Text im Code gesucht, der auch dann noch da ist, wenn man ein „nicht" davorsetzt
-    und die Bedingung damit umdreht. Die Prüfung, die genau diese Umkehrung fangen
-    sollte, wäre glatt daran vorbeigelaufen. Selbst gefunden, im selben Commit
-    repariert.
-  · Derselbe Fehlertyp im Wächter zu der Aufnahme-Reparatur, gefunden vom
-    Pflicht-Reviewer.
-
-  Die Lehre, die ich mitnehme: ein Wächter mit Loch ist schlimmer als gar keiner —
-  er kauft eine Sicherheit, die es nicht gibt, und niemand schaut nochmal hin. Und
-  eine Prüfung muss den SINN festnageln, nicht das Wort.
-
-  Zwei Befunde habe ich aufgeschrieben statt dazugepackt: ein Bau von Array, Map und
-  Set 30-mal pro Sekunde auf dem Haupt-Thread (älter als dieser Build), und die
-  Frage, was Delay und Reverb tun sollen, wenn zwischen zwei Anschlägen auf dem
-  Field nichts klingt — mit dieser Version ist das der Normalfall, nicht die
-  Ausnahme.
+  Der Wächter zu dem 30-Hz-Punkt hatte vier Schlupflöcher, und sein eigener Kommentar
+  beschrieb eine Prüfung, die er gar nicht durchführte. Selbst gefunden, im selben
+  Zyklus repariert. Und mein Commit-Text zur Aufnahme-Zeile behauptete eine
+  Gleichbehandlung der beiden Zeilen, die noch nicht stimmte — ich habe die BEHAUPTUNG
+  wahr gemacht, statt sie abzuschwächen.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt,
   entscheidet Dein Ohr und Dein Auge.
@@ -181,15 +94,19 @@ notes: |
 
   ── WAS ICH VON DIR BRAUCHE, IN DIESER REIHENFOLGE ────────────────────────
 
-  1. DIE ZWEITE KETTE. Bio-Route an, Puls läuft, auf dem Field spielen: atmen die
-     gespielten Noten mit? Pumpt der Master, besonders auf Drive und Delay-Feedback?
-     Kommt das Field zurück, wenn die Route weg ist?
-  2. DIE AUFNAHME. Video-Aufnahme starten, Visual-Fenster ~10 s zuklappen, wieder
-     auf. Ist im Ergebnis Bild drin?
-  3. DER KOPF. Titel mittig, Balken links — sitzt das?
-  4. DIE WELLENFRONT. Zeigt sie das, was Du gemeint hast?
+  1. DER KAMMERTON. Schau ZUERST nach, ob auf Deinem Gerät noch ein falscher Wert
+     steht: Chipleiste bis „A4" scrollen. Steht dort etwas anderes als 440, tippe es an
+     und setze es auf 440 — der alte Wert ist gespeichert und überlebt auch dieses
+     Update. Danach: Leiste absichtlich hin und her wischen, den Finger dabei über das
+     A4-Kästchen ziehen. Die Zahl darf sich nicht rühren. Antippen muss weiter die
+     Tastatur öffnen, ein bewusstes Hoch/Runter-Ziehen muss weiter stimmen.
+  2. KLINGT ES DANN NOCH UNHARMONISCH? Das ist die eigentliche Frage. Wenn ja: einmal
+     Diagnose-Log schicken — die neuen Felder stehen ab dieser Version drin.
+  3. DIE AUFNAHME. Aufnahme im Visual-Fenster starten, Fenster zuklappen, Video-Panel
+     öffnen: steht dort die rote Stopp-Zeile? Stoppt sie? Taucht der Clip in der Liste
+     darunter auf, mit Bild UND Ton?
 
-  Weiter offen aus 365: die Regler-Verify (Daumen-Scroll, langsames Ziehen) · der
-  Bio-Pfad (zu zappelig?) · der Sub-Bass bei Maqām oder Gamelan · die drei
-  Messansichten im Field-Panel · das Mischpult · die sechs Genres mit Swing ·
-  MIDI-Sync gegen Ableton · das Sound-Panel im Querformat.
+  Weiter offen aus 366: die zweite FX-Kette (atmen die gespielten Noten mit? pumpt der
+  Master?) · Kopf und Wellenfront · der Bio-Pfad (zu zappelig?) · der Sub-Bass bei
+  Maqām oder Gamelan · die drei Messansichten im Field-Panel · das Mischpult · die
+  sechs Genres mit Swing · MIDI-Sync gegen Ableton · das Sound-Panel im Querformat.
