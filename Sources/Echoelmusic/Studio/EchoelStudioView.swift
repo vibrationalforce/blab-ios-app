@@ -7535,7 +7535,34 @@ struct EchoelStudioView: View {
         projects.save(take)
     }
 
+    /// ⭐ RESCUE BEFORE REPLACE (#357 b). Every line below overwrites the live take — style,
+    /// key, scale, patch, NOTES, tempo, A4 — and until this call there was no prompt and no
+    /// snapshot anywhere on the path. Tapping a row in the Open list silently destroyed
+    /// whatever the body had just played. `autosaveTake()` existed and was the obvious rescue,
+    /// but it only fired on a scene-phase departure (`.onChange(of: scenePhase)`), so it
+    /// covered backgrounding and covered nothing the user did inside the app.
+    ///
+    /// REVERSIBLE BEATS CONFIRMED, and that is why this is not a `.confirmationDialog`. A
+    /// prompt would add a presentation modifier to a chain the black-screen law says must not
+    /// grow, and it would only ever tell the user what they are about to lose — it could not
+    /// give it back. Writing the recovery point costs no UI at all and makes the action
+    /// undoable: the previous take is one tap away in the Open list's own Autosave section.
+    ///
+    /// ⚠️ AND IT MUST NOT FIRE WHEN THE ROW BEING OPENED **IS** THE AUTOSAVE. There is exactly
+    /// ONE reserved slot (`Project.autosaveSlotID`, matched by id in `ProjectStore.save`), so
+    /// recovering from it would first overwrite it with the very state the user is discarding.
+    /// The open itself would still succeed — `p` is a value copy, already read — but the
+    /// recovery row would now hold the discarded take, i.e. a second tap would undo the
+    /// recovery. Skipping the write there keeps the row meaning one thing.
+    ///
+    /// ⚠️ Honest limit: this is a RECOVERY POINT, not an undo stack. The slot holds one take,
+    /// so opening twice in a row leaves only the state from just before the second open, and
+    /// the rescue is only findable by someone who opens the library again. `autosaveTake()`'s
+    /// own `guard hasComposed, !pianoRoll.notes.isEmpty` is load-bearing for this caller too:
+    /// without it, opening a project while the roll is empty would write an EMPTY take over a
+    /// good recovery point, which is the exact trap that guard was added for.
     private func open(_ p: Project) {
+        if p.id != Project.autosaveSlotID { autosaveTake() }
         // Same clamp as launch: a project saved before the genre re-curation (#125) can
         // carry a style that is no longer offered, which would leave the picker showing
         // nothing selected while that genre composed every take. Bound ONCE and reused
