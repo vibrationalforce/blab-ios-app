@@ -31,8 +31,16 @@ final class ActiveTargetsIsAPerEditFactTests: XCTestCase {
 
     private static let driver = "Sources/Echoelmusic/Tools/FXBioModulator.swift"
 
-    /// ⭐ STORED, NOT COMPUTED. The needle is the trailing `= []`, and the negative half is the
-    /// one that actually catches a revert: a computed property's declaration ends in `{`.
+    /// ⭐ STORED, NOT COMPUTED — asserted POSITIVELY, by the trailing `= []`.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS TEST ASSERTED THE OPPOSITE OF WHAT ITS OWN DOC CLAIMED.
+    /// The doc said "the needle is the trailing `= []`"; the code checked only that the line
+    /// does not END in `{`. A single-line computed property ends in `}`, so
+    /// `@ObservationIgnored private var activeTargets: Set<FXModTarget> { Set(routes.filter
+    /// { $0.enabled }.map { $0.target }) }` — the original defect, byte for byte, on one line
+    /// — passed every assertion in this file. Found by the mandatory reviewer, reproduced
+    /// here before fixing. A negative needle can be walked around; a positive one names the
+    /// shape that must be there.
     func testActiveTargetsIsAStoredCache() throws {
         let lines = try codeLines(Self.driver)
         let decls = lines.filter { $0.contains("var activeTargets") }
@@ -42,8 +50,8 @@ final class ActiveTargetsIsAPerEditFactTests: XCTestCase {
             \(decls.map { $0.trimmingCharacters(in: .whitespaces) })
             """)
         let decl = decls[0].trimmingCharacters(in: .whitespaces)
-        XCTAssertFalse(decl.hasSuffix("{"), """
-            `activeTargets` declaration ends in `{` — it is a computed property again (#388):
+        XCTAssertTrue(decl.hasSuffix("= []"), """
+            `activeTargets` is not a plain stored property initialised to `[]` (#388):
             \(decl)
 
             `tick()` reads it every 33 ms, so a computed body runs filter + map + Set thirty \
@@ -51,9 +59,9 @@ final class ActiveTargetsIsAPerEditFactTests: XCTestCase {
             edits a route. That is the exact construct the note on `pruneRouteFades` in the \
             same file forbids.
 
-            (A stored property with a `didSet` observer would also end in `{` and fail here. \
-            That is deliberate: this cache has one writer, `refreshActiveTargets()`, and an \
-            observer on it would be a second one.)
+            This asserts the SHAPE, not the absence of one. A `didSet` observer or a computed \
+            body both fail here, deliberately: the cache has exactly one writer, \
+            `refreshActiveTargets()`, and either would be a second one.
             """)
         XCTAssertTrue(decl.contains("@ObservationIgnored"), """
             the `activeTargets` cache is no longer `@ObservationIgnored`:
@@ -68,28 +76,78 @@ final class ActiveTargetsIsAPerEditFactTests: XCTestCase {
     /// ⛔ THE TICK MUST ONLY READ. Checking the declaration alone is not enough: a future edit
     /// could keep the stored property and rebuild the set inline in the tick anyway, which is
     /// the original defect wearing the fix as a disguise.
+    ///
+    /// ⛔ THE FIRST VERSION BANNED TWO TOKENS AND LET FOUR BYPASSES THROUGH, all of them
+    /// plausible edits rather than contrivances: calling `refreshActiveTargets()` from inside
+    /// the tick (contains neither banned token, and rebuilds the Set every 33 ms just the
+    /// same); `Set<FXModTarget>(…)`, which does not contain the substring `Set(`; a per-tick
+    /// `activeTargets.filter { … }`, which allocates without constructing; and — because the
+    /// positive needle was a PREFIX match — renaming the read to `activeTargetsNow`, a fresh
+    /// computed property, while `let active = activeTargetsNow` still "contains" the needle.
+    /// The needle is now an exact line match and the ban covers allocation, not two spellings
+    /// of it.
     func testTheTickDoesNotRebuildTheSet() throws {
         let tick = try memberBody(startingWith: "private func tick()", in: Self.driver)
         XCTAssertFalse(tick.isEmpty, "`tick()` not found in \(Self.driver)")
-        XCTAssertTrue(tick.contains(where: { $0.contains("let active = activeTargets") }), """
-            `tick()` no longer reads the `activeTargets` cache:
+        let reads = tick.map { $0.trimmingCharacters(in: .whitespaces) }
+        XCTAssertTrue(reads.contains("let active = activeTargets"), """
+            `tick()` no longer reads the `activeTargets` cache — the line must be exactly \
+            `let active = activeTargets`, so that reading a differently-named (and possibly \
+            recomputed) property cannot pass as reading the cache:
             \(tick.joined(separator: "\n"))
             """)
-        let builders = tick.filter { $0.contains("Set(") || $0.contains("activeTargets =") }
+        let banned = ["Set(", "Set<", "activeTargets =", "refreshActiveTargets()", ".filter", ".map"]
+        let builders = tick.filter { line in banned.contains(where: { line.contains($0) }) }
         XCTAssertTrue(builders.isEmpty, """
-            `tick()` builds a collection again (#388) — this body runs every 33 ms on the main \
-            actor:
+            `tick()` allocates a collection again (#388) — this body runs every 33 ms on the \
+            main actor:
             \(builders.map { $0.trimmingCharacters(in: .whitespaces) })
+
+            Banned here: \(banned). If a future edit genuinely needs one of these in the 33 Hz \
+            path, hoist the work to a per-edit function the way `refreshActiveTargets()` and \
+            `pruneRouteFades()` were hoisted — do not relax the list.
             """)
     }
 
-    /// ⭐ THE ORDERING, which is the half a token check cannot see. `reconcileBases()` returns
-    /// early when no chain is bound. Refreshing the cache BELOW that guard would leave it
-    /// holding the pre-edit set until the next `attach()` — and `tick()` reads it as truth, so
-    /// a route the user just enabled would never be driven. `pruneRouteFades()` already sits
-    /// above the guard for the identical reason; this asserts the new call joined it there
-    /// rather than landing in the "chain is bound" half.
-    func testTheCacheIsRefreshedAboveTheChainGuard() throws {
+    /// ⭐ THE CACHE MUST ACTUALLY BE FILLED. Nothing above inspects the BODY of the writer, and
+    /// the reviewer's sharpest bypass was `private func refreshActiveTargets() { }` — every
+    /// other test green, `activeTargets` permanently empty, `tick()`'s loop never entered, and
+    /// so EVERY bio→FX route silently dead with no restore and no error. That is a strictly
+    /// worse outcome than the allocation this guard was written about, and the guard could not
+    /// see it. Three cycles running, my guards have had a hole; this is the one that would
+    /// have cost sound rather than CPU.
+    func testTheRefreshActuallyWritesTheCache() throws {
+        let body = try memberBody(startingWith: "private func refreshActiveTargets()", in: Self.driver)
+        XCTAssertFalse(body.isEmpty, "`refreshActiveTargets()` not found in \(Self.driver)")
+        XCTAssertTrue(body.contains(where: { $0.contains("activeTargets = Set(routes") }), """
+            `refreshActiveTargets()` no longer writes the cache from `routes`:
+            \(body.joined(separator: "\n"))
+
+            An empty body here passes every other test in this file and switches off all \
+            bio-reactive FX: the tick iterates an empty target set, so nothing is driven and \
+            nothing is restored. Silent, total, and invisible to the user.
+            """)
+    }
+
+    /// ⭐ NOTHING MAY RETURN BEFORE THE REFRESH. A route edit is a fact about `routes`, not
+    /// about whether a chain happens to be bound — so `refreshActiveTargets()` must run on
+    /// EVERY entry into `reconcileBases()`, unconditionally, the same way `pruneRouteFades()`
+    /// does.
+    ///
+    /// ⛔ TWO CORRECTIONS TO THE FIRST VERSION, both from the reviewer.
+    /// (1) It only compared the refresh against ONE named guard, so inserting a different
+    ///     early return ABOVE the refresh — `guard !routes.isEmpty else { return }` is the
+    ///     obvious one — still satisfied "refresh is above `guard !allChains.isEmpty`" while
+    ///     producing a genuinely stale cache: delete the last route and `activeTargets` is
+    ///     never cleared, so the tick keeps driving targets no route feeds and the restore
+    ///     loop never runs. The check is now "no `return` above the refresh at all", which is
+    ///     the actual invariant rather than one instance of it.
+    /// (2) Its stated REASON was unreachable, and the same false claim stood in the driver.
+    ///     Below the chain guard the cache could only go stale while `allChains` is empty, and
+    ///     in that state `tick()` has already returned at its own chain guard; the only exit
+    ///     is `attach`, which reconciles unconditionally. The placement is robustness and
+    ///     symmetry, not a live bug — see the corrected note in `reconcileBases()`.
+    func testNothingReturnsBeforeTheRefresh() throws {
         let body = try memberBody(startingWith: "private func reconcileBases()", in: Self.driver)
         XCTAssertFalse(body.isEmpty, "`reconcileBases()` not found in \(Self.driver)")
         guard let refresh = body.firstIndex(where: { $0.contains("refreshActiveTargets()") }) else {
@@ -100,22 +158,18 @@ final class ActiveTargetsIsAPerEditFactTests: XCTestCase {
                 \(body.joined(separator: "\n"))
                 """)
         }
-        guard let guardIdx = body.firstIndex(where: {
-            $0.trimmingCharacters(in: .whitespaces).hasPrefix("guard !allChains.isEmpty")
-        }) else {
-            return XCTFail("""
-                the `guard !allChains.isEmpty` early return is gone from `reconcileBases()`. If \
-                that is deliberate, this ordering check no longer describes anything — rewrite \
-                it against whatever now separates the bound and unbound halves, do not delete it:
-                \(body.joined(separator: "\n"))
-                """)
-        }
-        XCTAssertLessThan(refresh, guardIdx, """
-            `refreshActiveTargets()` moved BELOW the chain guard in `reconcileBases()`.
+        let escapesFirst = body[..<refresh].filter { $0.contains("return") }
+        XCTAssertTrue(escapesFirst.isEmpty, """
+            `reconcileBases()` can now return BEFORE it refreshes the `activeTargets` cache:
+            \(escapesFirst.map { $0.trimmingCharacters(in: .whitespaces) })
 
-            A route edit is a fact about `routes`, not about whether a chain happens to be bound \
-            yet. Below the guard, an edit made before `attach()` leaves the cache stale, and the \
-            30 Hz tick reads that stale set as the list of targets to drive.
+            Any early exit above the refresh makes the cache stale on the path it takes. The \
+            concrete case is `guard !routes.isEmpty else { return }`: delete the last route and \
+            `activeTargets` is never cleared, so the 30 Hz tick keeps driving targets no route \
+            feeds and `reconcileBases`'s restore loop never runs — the user's FX settings stay \
+            parked wherever the last tick left them.
+
+            If a new early exit is genuinely needed, put it BELOW the refresh.
             \(body.joined(separator: "\n"))
             """)
     }

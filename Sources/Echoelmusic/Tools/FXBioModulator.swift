@@ -142,17 +142,28 @@ public final class FXBioModulator {
 
     /// Targets that currently have at least one enabled route.
     ///
-    /// ⭐ #388 — CACHED, NOT RECOMPUTED PER TICK. This was a computed property read once
-    /// every 33 ms from `tick()`, and each read built an array (`filter`), a second array
-    /// (`map`) and a `Set` on the main actor. That is the identical construct the note on
-    /// `pruneRouteFades` below forbids, for the identical reason, in the identical file:
-    /// the actor this app has a documented starvation law about (the 10.76.48 menu freeze)
-    /// does not want per-tick garbage for a fact that changes per EDIT.
+    /// ⭐ #388 — CACHED, NOT RECOMPUTED PER TICK. This was a computed property, read from
+    /// `tick()` (every 33 ms) and from `reconcileBases()`, and each read built an array
+    /// (`filter`), a second array (`map`) and a `Set` on the main actor. That is the
+    /// identical construct the note on `pruneRouteFades` below forbids, for the identical
+    /// reason, in the identical file: the actor this app has a documented starvation law
+    /// about (the 10.76.48 menu freeze) does not want per-tick garbage for a fact that
+    /// changes per EDIT.
     ///
     /// ⛔ AND IT IS A PER-EDIT FACT, exactly like the fade pruning. The set can only change
     /// when `routes` changes, `routes` is the only input, and its `didSet` is the single
     /// writer path — `FXModRoute` is a struct, so even `routes[i].enabled = false` goes
-    /// through it. The cache therefore cannot go stale without `reconcileBases()` running.
+    /// through it (the FX view edits routes exclusively through `$modulator.routes`
+    /// bindings, `append` and `removeAll`; nothing decodes or restores them).
+    ///
+    /// ⚠️ WHAT THE CACHE NOW RESTS ON, said plainly because the blast radius grew. Both this
+    /// and `routeFades` depend on that `didSet` firing. It already did before #388, so this
+    /// adds no new risk — but a missed `didSet` used to leak a few fade entries and now
+    /// makes the 30 Hz tick drive the WRONG target set. The one way to miss it is an
+    /// initializer: property observers do not fire for the initializing assignment. Today
+    /// `init()` takes no routes, so cache and routes start consistent. Anything that adds
+    /// an `init(routes:)` or a decode path must call `refreshActiveTargets()` itself, or
+    /// every bio-FX route goes silently dead — not glitchy, dead.
     @ObservationIgnored private var activeTargets: Set<FXModTarget> = []
 
     /// The one writer of `activeTargets`. Kept separate from `reconcileBases` so the
@@ -164,10 +175,18 @@ public final class FXBioModulator {
     /// Capture a base for every newly-active target; restore + drop bases for targets
     /// that are no longer modulated. Called on attach and whenever routes change.
     private func reconcileBases() {
-        // ⚠️ BOTH OF THESE MUST STAY ABOVE THE CHAIN GUARD, and for the same reason: a
-        // route edit is a fact about `routes`, not about whether a chain happens to be
-        // bound yet. Refreshing the cache below the guard would leave it holding the set
-        // from before the edit until the next attach — and `tick()` reads it as truth.
+        // ⚠️ BOTH OF THESE STAY ABOVE THE CHAIN GUARD, and the honest reason is robustness,
+        // NOT a live bug — the first version of this comment claimed the latter and a
+        // reviewer showed it was unreachable. For the record, so nobody re-derives it:
+        // refreshing BELOW the guard could only strand a stale cache while `allChains` is
+        // empty, and in that state `tick()` has already returned at its own chain guard;
+        // the only exit from it is `attach`, which reconciles unconditionally. So the
+        // placement buys nothing today. It is here because a route edit is a fact about
+        // `routes` and not about whether a chain happens to be bound — the same
+        // non-live reason `pruneRouteFades()` sits here — and because it stays correct if
+        // a `detach()` ever empties `allChains` again. This repo's own rule applies: a
+        // rationale that cannot be checked is worse than none, because the next session
+        // cannot refute it.
         refreshActiveTargets()
         pruneRouteFades()
         guard !allChains.isEmpty else { return }
