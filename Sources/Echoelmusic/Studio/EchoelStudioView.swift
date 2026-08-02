@@ -6076,8 +6076,14 @@ struct EchoelStudioView: View {
     private func diagnosticsSheet(_ text: String) -> some View {
         NavigationStack {
             ScrollView {
+                // ⭐ Scales with Dynamic Type, stays monospaced — #353d. See the long rationale
+                // at the identical line in `SafeModeView`: this sheet and that screen render the
+                // SAME diagnostic log, so they must not disagree about how big it is. The text
+                // style `.caption2` is 11 pt at the default setting, so nobody who has changed
+                // nothing sees a difference. Do NOT "finish the job" by moving this to
+                // `EchoelTheme.font` — the brand face is proportional and a log needs its columns.
                 Text(text.isEmpty ? "No diagnostics recorded." : text)
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(.system(.caption2, design: .monospaced))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
                     .padding(12)

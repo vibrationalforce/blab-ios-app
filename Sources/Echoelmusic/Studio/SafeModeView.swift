@@ -66,8 +66,26 @@ struct SafeModeView: View {
                                 .frame(maxWidth: .infinity).frame(height: 44)
                                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                         }
+                        // ⭐ THE TEXT-STYLE OVERLOAD, NOT THE BRAND HELPER — #353d. Every other
+                        // string on this screen already scales (`EchoelTheme.font` is
+                        // `.custom(…, relativeTo: .body)`); this one did not, because
+                        // `.system(size: 11, …)` is an absolute point size that ignores Dynamic
+                        // Type entirely. The user who most needs to read a recovery screen read
+                        // its diagnostics at 11 pt whatever they had asked for.
+                        //
+                        // ⚠️ IT DOES NOT MOVE TO `EchoelTheme.font`, and that is the whole
+                        // judgement: the brand face is proportional, and a log loses its column
+                        // alignment the moment it stops being monospaced. `Font.system(_:design:)`
+                        // takes a TEXT STYLE instead of a size — same monospaced family, but sized
+                        // by the user's setting. `.caption2` is 11 pt at the default size, so this
+                        // renders identically for anyone who has changed nothing.
+                        //
+                        // Deliberately UNCAPPED: no `dynamicTypeSize` ceiling. The #262 chrome cap
+                        // exists so a toolbar cannot eat the canvas; this is content inside a
+                        // `ScrollView` with nothing below it to crowd, and there is no `lineLimit`
+                        // anywhere in this tree, so long log lines wrap instead of truncating.
                         Text(priorLog)
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.system(.caption2, design: .monospaced))
                             .foregroundStyle(EchoelTheme.dim)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
