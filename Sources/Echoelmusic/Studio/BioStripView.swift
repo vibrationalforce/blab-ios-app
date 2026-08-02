@@ -124,12 +124,25 @@ struct BioStripView: View {
     /// freely (the `.lineLimit(1)` sits on `strip`, not here), sits in a `VStack` with no fixed
     /// height, and nothing downstream measures it. It could always have scaled.
     ///
-    /// ⚠️ THE WEIGHT IS DELIBERATELY DROPPED, not overlooked. `.medium` cannot survive the move
-    /// to the brand face: the app bundles Regular, Bold and Italic only, so `EchoelTheme.font(11,
-    /// .medium)` resolves to Regular anyway while READING as a decision — exactly the 62-site
-    /// defect #361 swept out, and `TypeWeightsThatExistTests` would fail it. Asking for Regular
-    /// says the true thing. The emphasis this line needs is already carried twice over, by the
-    /// semantic colour (warning amber / success green) and by the icon beside it.
+    /// ⚠️ THE WEIGHT IS DELIBERATELY DROPPED — and this IS a visible de-emphasis, not the
+    /// render-neutral cleanup the first version of this comment claimed.
+    ///
+    /// ⛔ THAT FIRST VERSION CITED #361 AND THE REFUTATION WAS THREE LINES ABOVE THE HELPER IT
+    /// CITED. `EchoelTheme.font`'s own doc says, in bold: "`.font(.system(size:weight: .medium))`
+    /// IS NOT THIS BUG and must not be 'cleaned up' with it: SF ships a real medium and renders
+    /// it … do not conflate the two." The OLD spelling here was `.system(size: 11, weight:
+    /// .medium)` — SF Medium, which reached the screen. So this is SF-Medium-11 → Atkinson-
+    /// Regular-11: real strokes lost, not an imaginary weight tidied away. Writing it up as
+    /// "resolves to Regular anyway" was a checkable-but-false premise of exactly the kind this
+    /// file keeps paying for, drawing the one analogy the theme file forbids by name.
+    ///
+    /// The decision stands on its own terms: the brand family has no Medium, so the honest
+    /// choices are Regular or `.semibold` (the Bold face). Regular is chosen because the
+    /// emphasis this line needs is already carried twice over — by the semantic colour (warning
+    /// amber at ≈7.9:1, success green at ≈9.6:1 over their own tinted fills) and by the icon
+    /// beside it — and because the line now GROWS with the reader's setting, which buys back far
+    /// more legibility than a weight step. If a device look says otherwise, `.semibold` is the
+    /// one real alternative; `.medium` is not on the menu here whatever it looked like before.
     ///
     /// The icon moves with it for the same reason: an SF Symbol pinned at 10 pt beside text that
     /// now reaches AX5 would read as a speck. A custom `Font` sizes a symbol just as it sizes a
@@ -140,6 +153,16 @@ struct BioStripView: View {
                 .font(EchoelTheme.font(10))
             Text(text)
                 .font(EchoelTheme.font(11))
+                // ⛔ #353d-NACHLESE: WITHOUT THIS THE SCALING FIX ABOVE COULD SILENTLY BECOME A
+                // TRUNCATION BUG, and the guard as first written could not have told anyone.
+                // A wrapping `Text` beside a `Spacer` in an `HStack` is exactly the shape where
+                // SwiftUI can settle on one truncated line instead of wrapping, which is why
+                // every other multi-line banner in this design system pins it — see
+                // `nonStandardTuningBanner`, same icon + text + `Spacer` build, same modifier.
+                // `BioStripView` had ZERO occurrences of it. The original rationale asserted
+                // "it wraps freely" from the ABSENCE of a `lineLimit`, which is a different
+                // and weaker claim.
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .foregroundStyle(color)

@@ -83,10 +83,16 @@ final class CoachingTextScalesTests: XCTestCase {
             Use `EchoelTheme.font(_:)`, which is `.custom(…, relativeTo: .body)`.
             """)
 
-        let scaling = banner.filter { $0.contains("EchoelTheme.font(") }
-        XCTAssertEqual(scaling.count, 2, """
+        // ⛔ COUNTS OCCURRENCES, NOT LINES. The first version filtered lines containing the
+        // token, so writing the icon the way `EchoelNumberPad` writes it —
+        // `Image(systemName: x).font(EchoelTheme.font(10))` on ONE line — would have dropped
+        // the count to 1 and failed with a message accusing the banner of losing a font it
+        // still had. A guard whose failure text is wrong is worse than a missing guard.
+        let scaling = banner.joined(separator: "\n")
+            .components(separatedBy: "EchoelTheme.font(").count - 1
+        XCTAssertEqual(scaling, 2, """
             Expected exactly two `EchoelTheme.font(...)` calls in the banner (the icon and \
-            the text), found \(scaling.count). Both must scale together: an SF Symbol pinned \
+            the text), found \(scaling). Both must scale together: an SF Symbol pinned \
             at a fixed size beside text that reaches AX5 reads as a speck, and a symbol takes \
             its size from a custom `Font` just as a glyph does. If the banner genuinely grew a \
             third piece of content, widen this count in the same commit rather than deleting \
@@ -116,10 +122,32 @@ final class CoachingTextScalesTests: XCTestCase {
         }
     }
 
-    /// The property the fix depends on: this text is allowed to wrap.
-    func testTheBannerIsNotLineLimited() throws {
+    /// The property the fix depends on: this text really does wrap.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS TEST ASSERTED ONLY THE ABSENCE OF A `lineLimit`, WHICH WAS
+    /// ALREADY TRUE BEFORE THE SLICE AND WOULD HAVE STAYED TRUE THROUGH THE FAILURE IT CLAIMED
+    /// TO GUARD. Absence of a cap is not presence of a wrap: a `Text` beside a `Spacer` in an
+    /// `HStack` is exactly the shape where SwiftUI can settle on one truncated line, and the
+    /// house answer is `.fixedSize(horizontal: false, vertical: true)` — which every other
+    /// multi-line banner in this design system carries and `BioStripView` carried nowhere.
+    /// So the guard now pins BOTH halves: nothing caps the line count, AND the modifier that
+    /// makes wrapping deterministic is present. An assertion that cannot fail is worse than no
+    /// assertion, because it reports a green nobody earned.
+    func testTheBannerWraps() throws {
         let source = try codeLines(Self.strip)
         let banner = try bannerWindow(source)
+
+        XCTAssertTrue(banner.contains { $0.contains("fixedSize(horizontal: false, vertical: true)") }, """
+            The bio strip's banner lost `.fixedSize(horizontal: false, vertical: true)`. That \
+            modifier is what makes the coaching line WRAP rather than truncate once Dynamic \
+            Type grows it: it tells SwiftUI to take the text's ideal HEIGHT while accepting the \
+            offered width, which an `HStack` with a `Spacer` will not do on its own. Removing \
+            it converts the whole point of #353d — "the instruction gets bigger" — into "the \
+            instruction gets cut off", which is worse than the fixed 11 pt it replaced, because \
+            at 11 pt the sentence at least fit. `nonStandardTuningBanner` in `EchoelStudioView` \
+            is the same icon + text + Spacer build and carries the same modifier.
+            """)
+
         XCTAssertFalse(banner.contains { $0.contains("lineLimit") }, """
             A `lineLimit` appeared inside the bio strip's banner. Scaling the font was only \
             safe because this line WRAPS: the strip's own `.lineLimit(1)` sits on `strip`, a \
