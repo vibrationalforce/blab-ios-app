@@ -1988,10 +1988,22 @@ struct EchoelStudioView: View {
             // reads "Open Routing" and the false promise was invisible, but `accessibilityLabel`
             // REPLACES the visible label, so for a VoiceOver user that sentence was the button's
             // entire identity. The one reader who could not cross-check it was the only one
-            // being told. The hint now also says where the strap actually lives, because the
-            // correction is worthless if it only removes the wrong direction.
+            // being told.
+            //
+            // ⛔ AND THE FIRST CORRECTION NAMED TWO THINGS BY NAMES NOTHING CARRIES. Its hint
+            // ended "touch and hold the pulse display and pick the Bluetooth strap source" —
+            // but VoiceOver announces that tile as "Heart rate" (`HeaderMonitors`), and the menu
+            // entry reads "Play with a Bluetooth strap — scans for one"; the word "source"
+            // appears in neither. Writing a wrong destination into the fix for a wrong
+            // destination is this task's own defect, one level down. It also ran 221 characters
+            // against a ~57-character median across the app's ~70 hints, and VoiceOver speaks
+            // hints in FULL — while "Speak Hints" is user-suppressible, so the corrective half
+            // could be silently dropped anyway. The redirect is DELETED rather than reworded:
+            // the visible `Text` a few lines above already carries it, verbatim and correctly,
+            // and a VoiceOver user reaches that line immediately BEFORE this button. Saying it
+            // three times (Text, hint, comment) is not thoroughness.
             .accessibilityLabel("Open Routing")
-            .accessibilityHint("MIDI controllers, the network targets for OSC, Art-Net, sACN and spatial audio, and the light master. A Bluetooth heart-rate strap is not paired here — touch and hold the pulse display and pick the Bluetooth strap source.")
+            .accessibilityHint("Opens MIDI pairing, the OSC, Art-Net, sACN and spatial-audio targets, and the light master.")
             // The Apple Health WRITE opt-in belongs here, with the bio data it writes.
             // Its only switch used to live in the Tools grid, which stopped rendering on
             // 2026-07-02 and was deleted 2026-07-26 — but the flag is PERSISTED
@@ -5621,16 +5633,29 @@ struct EchoelStudioView: View {
                 // #272: named only exporting, inside a panel that now promises saving and
                 // recording as well — the one first-run string here, and it left out both
                 // words the founder searched for.
-                // ⛔ #355(b) — IT THEN NAMED A CONTROL THAT STARTS NOTHING. It said "the pulse
-                // button (next to Play)", and both halves were false: the header pulse pill has
-                // opened the Bio panel since 2026-07-29 (`HeaderMonitors`, its own hint says
-                // "Opens the bio panel … Touch and hold to choose a bio source"), and there is
-                // no separate "Play" beside it — the ONE start is the play triangle whose
-                // VoiceOver label IS "Play". Its sister sentence in `bioPanel` was repaired
-                // when #307 removed the old button; this one was missed because
-                // `OneStartControlTests` only fires on "Press" AND "Create from Within"
-                // together, and this line contained neither. A guard scoped to one dead label
-                // does not cover the CLASS. `CopyNamesTheLiveControlTests` now does.
+                // ⛔ #355(b) — IT NAMED THE WRONG CONTROL AS THE START. It said "Start with the
+                // pulse button (next to Play) first". The pill's TAP opens the Bio panel
+                // (`HeaderMonitors`' own hint: "Opens the bio panel … Touch and hold to choose a
+                // bio source"), so it is not what begins a session by the gesture anyone tries
+                // first. The start is `startButton`, whose VoiceOver label is literally "Play".
+                //
+                // ⛔ AND THE FIRST VERSION OF THIS NOTE WAS ITSELF A #355 — the defect it was
+                // written to remove, inside the fix for it. It claimed "the HEADER pulse pill"
+                // and "there is no separate Play beside it". Both are false: `PulseMonitorMiniLive()`
+                // is instantiated in exactly one place, `startControlRow`, which is
+                // `HStack { startButton; PlaybackToggleButton(); PulseMonitorMiniLive() }` — the
+                // pill is the LAST item in the same row that BEGINS with Play, and it left the
+                // header with #307. The old copy's "(next to Play)" was therefore imprecise, not
+                // wrong; only "start with the pulse button" was wrong. Nor does the pill start
+                // "nothing": its LONG-PRESS menu is three "Play with …" entries that call
+                // `selectBioSource`, which begins a session when idle — `OneStartControlTests`
+                // enumerates that as one of the three start paths by name. Keeping the true,
+                // narrower reason: the sentence pointed at the tap, and the tap opens a panel.
+                //
+                // Why it survived the #307 pass that repaired its sister sentence in `bioPanel`:
+                // `OneStartControlTests` fires only on "Press" AND "Create from Within" TOGETHER,
+                // and this line contained neither. A guard scoped to one dead label does not
+                // cover the CLASS. `CopyNamesTheLiveControlTests` now does.
                 Text("Press Play first — then you can record the loop, save the session, or export a WAV or MIDI file.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .frame(maxWidth: .infinity, alignment: .leading)

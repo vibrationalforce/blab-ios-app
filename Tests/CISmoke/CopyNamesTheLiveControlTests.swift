@@ -2,19 +2,30 @@
 // Echoel — #355. ONE defect class: user-facing copy that names a control which does not do
 // what the sentence says. It is the most expensive kind of stale text, because it does not
 // look stale — it reads as help, so the reader trusts it and hunts for something that is not
-// there. This repo has now paid for it three times (#272, #307, #355).
+// there. This repo has now paid for it four times (#272, #307, #351, #355) — and, as the ⛔
+// blocks below record, twice more INSIDE the fix for it.
 //
-// ⚠️ WHY NOT IN `OneStartControlTests`, which already guards one instance of this. That file's
-// ban fires on `"Press"` AND `"Create from Within"` TOGETHER — a pair scoped to one specific
-// dead label. #355(b) sat six thousand lines away saying "Start with the pulse button (next to
+// ⚠️ THREE FILES NOW COVER THIS CLASS, so here is the map rather than three overlapping bans:
+//   · `OneStartControlTests` — the START specifically: how many controls begin a session, and
+//     a ban on `"Press"` AND `"Create from Within"` together (one dead label, by name).
+//   · `FirstInstructionIsTrueTests` (#351) — `FloatingVisualWindow`'s first-run instruction and
+//     the precondition behind it.
+//   · this file — the two sentences #355 found, and the class in general.
+// They assert on disjoint text; nothing here duplicates either.
+//
+// ⚠️ WHY NOT SIMPLY WIDEN `OneStartControlTests`. Its ban is a PAIR scoped to one specific dead
+// label. #355(b) sat six thousand lines away saying "Start with the pulse button (next to
 // Play)" and contained NEITHER token, so it stayed green through the whole #307 cleanup that
-// repaired its own sister sentence. A guard aimed at one dead label does not cover the class;
-// widening that file's pair would have made it enforce more than the decision behind it (its
-// own ⛔ says so). Two files, two scopes.
+// repaired its own sister sentence. Widening that pair would have made it enforce more than
+// the decision behind it — its own ⛔ says so in as many words.
 //
 // ⛔ HONEST LIMIT — read before trusting a green. This proves the WORDS are right. It cannot
 // prove the control they name is reachable, that VoiceOver reads the button in a sensible
-// order, or that a first-run user finds it. Device-verify with VoiceOver is open.
+// order, or that a first-run user finds it. Device-verify with VoiceOver is open. And the two
+// BANS are literal: `testNoAccessibilityLabelPromisesAStrapWhereThereIsNone` matches the
+// phrase "heart-rate strap"/"heart rate strap", so "Open Routing to pair a chest strap" would
+// pass. Literal is the right trade for a guard (a semantic one would fire on prose), but do not
+// read a green as "no accessibility string overclaims".
 //
 // ⚠️ WHY A SOURCE SCAN: these are strings inside `private` members of views, `@testable import`
 // grants `internal` not `private`, and there is no simulator here. House pattern —
@@ -25,31 +36,40 @@ import XCTest
 
 final class CopyNamesTheLiveControlTests: XCTestCase {
 
-    /// ⛔ THE PULSE PILL IS NOT A START, AND HAS NOT BEEN SINCE 2026-07-29. It opens the Bio
-    /// panel; touch-and-hold picks the bio source (`HeaderMonitors`' own hint says exactly
-    /// that). Any sentence that sends a user there to begin sends them to a panel.
+    /// ⛔ THE PILL'S **TAP** STARTS NOTHING — it opens the Bio panel, and its own hint says so
+    /// (`HeaderMonitors`: "Opens the bio panel … Touch and hold to choose a bio source"). Its
+    /// LONG-PRESS is a different matter and the first version of this note got it wrong: the
+    /// three "Play with …" entries call `selectBioSource`, which begins a session when idle, and
+    /// `OneStartControlTests` enumerates that path by name. So the ban is not "the pill never
+    /// starts" — it is that a sentence naming the pill as THE start is wrong about the gesture
+    /// people actually try first, and about which control is the one start.
     ///
-    /// ⚠️ SCOPED TO STRING LITERALS, and the discrimination is load-bearing rather than
+    /// ⚠️ SCOPED TO CODE, NOT TO COMMENTS, and the discrimination is load-bearing rather than
     /// decorative. Two live code lines in `EchoelStudioView` carry `// chrome mirror
-    /// (TransportBar pulse button)` as a TRAILING comment — `sourceLines()` skips whole-line
-    /// comments but not those, so a bare phrase ban would redden the only blocking bundle over
-    /// two accurate notes about a control that really was called that before #289 moved it.
-    /// Requiring a `"` on the line keeps the ban on copy, where the defect is.
+    /// (TransportBar pulse button)` as a TRAILING comment, which a whole-line filter does not
+    /// remove — a bare phrase ban would redden the only blocking bundle over two stale
+    /// breadcrumbs. (Stale, not accurate: `WorkspaceView` records that the transport pulse
+    /// button was DELETED on 2026-07-15, not moved. They deserve renaming; a copy guard is the
+    /// wrong tool to force it, which is exactly why they are cut out here instead of banned.)
+    ///
+    /// ⚠️ AND IT MATCHES THE WHOLE FILE, NOT A LINE. The first version required the phrase and a
+    /// `"` on the SAME raw line — so a re-added sentence wrapped across two lines, or written as
+    /// a `"""` literal, would have passed. That is not hypothetical here: the Routing hint one
+    /// declaration away was 257 characters, over SwiftLint's 200-char error threshold, so
+    /// "wrap the long line" is a realistic edit in this exact block. Cost of the file-wide join:
+    /// the failure names the FILE, not the line. Worth it — a guard that a reformat disarms is
+    /// the failure mode this bundle keeps paying for.
     func testNoCopyTellsTheUserToStartWithThePulseButton() throws {
-        let liars = try sourceLines().filter {
-            $0.text.contains("pulse button") && $0.text.contains("\"")
-        }
+        let liars = try codeByFile().filter { $0.value.contains("pulse button") }.keys.sorted()
         XCTAssertTrue(liars.isEmpty, """
-        \(liars.map { "\($0.file):\($0.line)" }.joined(separator: ", ")) contains "pulse button" \
-        inside a string.
+        \(liars.joined(separator: ", ")) contains "pulse button" in CODE (comments excluded).
 
-        The header pill is not a button that starts anything — it opens the Bio panel, and \
-        touch-and-hold picks the bio source. The ONE start is the play triangle whose VoiceOver \
-        label is "Play". Name that.
+        The pill's tap opens the Bio panel; it is not the control that starts a session. The ONE \
+        start is the play triangle whose VoiceOver label is "Play" — name that.
 
         If this is a log or diagnostic string rather than user-facing copy, rename it anyway: \
-        the control has not been a button since #289, and a breadcrumb naming a control that \
-        does not exist misleads exactly the person reading a device log to find out what \
+        the control has not been a button since 2026-07-15, and a breadcrumb naming a control \
+        that does not exist misleads exactly the person reading a device log to find out what \
         happened.
         """)
     }
@@ -84,30 +104,55 @@ final class CopyNamesTheLiveControlTests: XCTestCase {
     /// claimed it connects a BLE heart-rate strap; `PatchbayView` pairs Bluetooth MIDI, opens a
     /// network MIDI session, sets the OSC/ADM/Art-Net/sACN targets and holds the light master,
     /// and contains no heart-rate pairing at all.
+    ///
+    /// ⛔ THE FIRST VERSION ALSO CARRIED `&& !text.contains("not paired here")` — a
+    /// self-exemption for the corrective hint. It was INERT (the hint contains no "Routing", so
+    /// the filter was already false one clause earlier) and its stated reason was therefore
+    /// wrong, while the hole it opened was real: any future label pairing Routing with a strap
+    /// escaped by also containing that phrase. Deleted. A guard should not carry an exemption
+    /// for a case that cannot arise.
+    ///
+    /// Same whole-file scope and the same reason as the first test: on one raw line, a wrapped
+    /// `.accessibilityLabel(\n "… strap")` splits the tokens and passes.
     func testNoAccessibilityLabelPromisesAStrapWhereThereIsNone() throws {
-        let liars = try sourceLines().filter {
-            ($0.text.contains("accessibilityLabel") || $0.text.contains("accessibilityHint"))
-                && $0.text.contains("Routing")
-                && ($0.text.contains("heart-rate strap") || $0.text.contains("heart rate strap"))
-                // The correction itself says where the strap ISN'T — that sentence must not
-                // trip the guard that exists because of it.
-                && !$0.text.contains("not paired here")
-        }
+        let liars = try codeByFile().filter { file in
+            (file.value.contains("accessibilityLabel") || file.value.contains("accessibilityHint"))
+                && file.value.contains("Routing")
+                && (file.value.contains("heart-rate strap") || file.value.contains("heart rate strap"))
+        }.keys.sorted()
         XCTAssertTrue(liars.isEmpty, """
-        \(liars.map { "\($0.file):\($0.line)" }.joined(separator: ", ")) tells a VoiceOver user \
-        that Routing connects a heart-rate strap.
+        \(liars.joined(separator: ", ")) pairs an accessibility string, "Routing" and a \
+        heart-rate strap — the shape that told a VoiceOver user Routing connects one.
 
         It does not. `PatchbayView` is MIDI pairing, network output targets and the light \
         master. The strap has ONE owner — `startBioSource`, reached by touch-and-hold on the \
-        pulse display. If a strap door is ever added to Routing, delete this guard in that \
+        heart-rate monitor. If a strap door is ever added to Routing, delete this guard in that \
         commit and say so.
+
+        (File-scoped, so an unrelated co-occurrence in the same file trips it. That is the price \
+        of surviving a line wrap; if it fires on something innocent, narrow it to a window \
+        rather than back to one line.)
         """)
     }
 
     /// The other half of (c): Routing must still SAY what it does, or the fix above degrades
     /// into an unlabelled button — a different accessibility defect, not an improvement.
+    ///
+    /// ⚠️ ANCHORED ON THE BUTTON, not just on the file. The first version asserted only that
+    /// SOME hint in `EchoelStudioView.swift` mentions the light master, so moving it onto the
+    /// master panel's Routing door would have kept it green while this button went hint-less.
+    /// Pinning `"Open Routing"` and `"light master"` to the same file AND requiring the label
+    /// costs nothing and closes that.
     func testTheRoutingButtonStillDescribesWhatIsInside() throws {
         let studio = try sourceLines().filter { $0.file == "EchoelStudioView.swift" }
+        XCTAssertTrue(studio.contains { $0.text.contains(".accessibilityLabel(\"Open Routing\")") }, """
+        the bio panel's Routing button no longer carries `.accessibilityLabel("Open Routing")`.
+
+        It is deliberately identical to the visible `Label` — SwiftUI would derive the same \
+        string — so it looks redundant and is not: it is what stops the false "connect a BLE \
+        heart-rate strap" label from being re-added, and what the guard above matches on. If \
+        the button moved, move this with it; do not delete it as cleanup.
+        """)
         let hints = studio.filter {
             $0.text.contains("accessibilityHint") && $0.text.contains("light master")
         }
@@ -117,14 +162,54 @@ final class CopyNamesTheLiveControlTests: XCTestCase {
 
         `.accessibilityLabel("Open Routing")` alone tells a VoiceOver user the name of a door \
         and nothing about the room. The hint is what carries MIDI, the network targets and the \
-        light master. Reword it freely; re-anchor this guard in the same commit.
+        light master. Reword it freely; re-anchor this guard in the same commit — and keep it \
+        short: VoiceOver speaks hints in full, and the app's median is ~57 characters.
         """)
     }
 
-    /// Every line of every Swift file under `Sources/`, minus whole-line comments — so the
-    /// prose explaining a defect never satisfies the guard against it. Deliberately NOT
-    /// stripping trailing comments: see the scoping note on the first test, which depends on
-    /// them being visible so the reason for the `"` filter stays checkable.
+    /// Every Swift file under `Sources/`, as ONE whitespace-normalised string of CODE per file:
+    /// whole-line comments dropped, trailing comments cut, lines joined with a space. Two
+    /// properties matter and neither is decoration —
+    ///   · comments are gone, so the prose explaining a defect never satisfies the guard against
+    ///     it, and two stale trailing breadcrumbs do not redden the blocking bundle;
+    ///   · lines are joined, so a token pair survives a line wrap and a `"""` literal reads as
+    ///     one string.
+    ///
+    /// ⚠️ THE TRAILING-COMMENT CUT IS QUOTE-AWARE, because a naive cut at the first `//` would
+    /// truncate any string holding a URL — `PatchbayView`'s attribution link and the WeatherKit
+    /// one both contain `https://`, and silently swallowing the rest of such a line is how a
+    /// scanner starts reporting greens it did not earn.
+    private func codeByFile() throws -> [String: String] {
+        var out: [String: String] = [:]
+        for line in try sourceLines() {
+            let code = Self.strippingTrailingComment(line.text)
+                .trimmingCharacters(in: .whitespaces)
+            guard !code.isEmpty else { continue }
+            out[line.file, default: ""] += code + " "
+        }
+        return out
+    }
+
+    /// The part of `raw` before a `//` that is not inside a string literal.
+    private static func strippingTrailingComment(_ raw: String) -> String {
+        var inString = false
+        var escaped = false
+        let chars = Array(raw)
+        var i = 0
+        while i < chars.count {
+            let c = chars[i]
+            if escaped { escaped = false; i += 1; continue }
+            if c == "\\" && inString { escaped = true; i += 1; continue }
+            if c == "\"" { inString.toggle(); i += 1; continue }
+            if !inString && c == "/" && i + 1 < chars.count && chars[i + 1] == "/" {
+                return String(chars[0..<i])
+            }
+            i += 1
+        }
+        return raw
+    }
+
+    /// Every line of every Swift file under `Sources/`, minus whole-line comments.
     private func sourceLines() throws -> [(file: String, line: Int, text: String)] {
         let root = try repoRoot().appendingPathComponent("Sources")
         let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)
