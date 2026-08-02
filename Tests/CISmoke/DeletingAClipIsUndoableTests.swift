@@ -78,8 +78,22 @@ final class DeletingAClipIsUndoableTests: XCTestCase {
     }
 
     /// A way back exists and puts the file where it came from.
+    ///
+    /// ⛔ THE EXISTENCE ASSERTION IS NOT DECORATION — without it this whole test SKIPPED on the
+    /// pre-fix source, because `window` cannot delimit a member that is not there and refuses
+    /// to report rather than passing vacuously. A skip is yellow, not red, and the first commit
+    /// body claimed all three tests went red. Worse than the bookkeeping: a future commit that
+    /// deletes `restore()` while keeping the park would leave this gate GREEN and ship the worst
+    /// of both designs — the file disappears into `tmp` with no way back, and
+    /// `testDeleteParksInsteadOfRemoving` stays green throughout.
     func testRestorePutsTheClipBack() throws {
         let source = try codeLines(Self.panel)
+        XCTAssertTrue(source.contains { $0.contains("private func restore()") }, """
+            `restore()` is gone from VideoLibraryPanel while `delete(_:)` still parks the clip. \
+            That combination is worse than either the old behaviour or the new one: the \
+            recording is moved out of the library into `tmp` and nothing can bring it back. If \
+            the park was deliberately removed, remove it from `delete(_:)` in the same commit.
+            """)
         let body = try window(source, from: "private func restore()")
 
         XCTAssertTrue(body.contains { $0.contains(".moveItem(") }, """
@@ -124,6 +138,56 @@ final class DeletingAClipIsUndoableTests: XCTestCase {
                 Interpolate the clip's own name (the visible title) into the label.
                 """)
         }
+    }
+
+    /// The park is swept, so Delete still frees storage.
+    ///
+    /// ⛔ THIS IS THE HALF THE FIRST VERSION SHIPPED WITHOUT. The offer lives in `@State` and
+    /// the panel is rebuilt whenever the chip strip switches, so the ordinary path — delete,
+    /// close the panel — drops the reference and leaves a full-size clip in `tmp` that nothing
+    /// can reach. Before the park, Delete freed the bytes at once; after it, a user deleting ten
+    /// recordings to make room reclaimed nothing until iOS chose to purge. A guard on the park
+    /// alone would have called that a success.
+    func testDeleteStillFreesStorage() throws {
+        let source = try codeLines(Self.panel)
+        XCTAssertTrue(source.contains { $0.contains("private func sweepStaleParks()") }, """
+            Nothing sweeps parked clips. Every delete whose offer is dropped — which is every \
+            delete where the user closes the panel afterwards — strands a full-size file in \
+            `tmp` with no reference and no way back, and Delete silently stops reclaiming \
+            storage. The park is only honest with the sweep beside it.
+            """)
+        let reload = try window(source, from: "private func reload()")
+        XCTAssertTrue(reload.contains { $0.contains("sweepStaleParks()") }, """
+            `reload()` no longer calls `sweepStaleParks()`, so the sweep exists and never runs. \
+            `reload()` is the one place that fires on appear AND after every delete and restore, \
+            which is what makes a file stranded in a previous visit disappear on the next one.
+            """)
+    }
+
+    /// The undo row sits below the list, so it cannot shove the trash buttons.
+    ///
+    /// ⛔ #382's DEFECT ON THE APP'S ONE UNREPEATABLE-DESTRUCTION CONTROL. Placed above the
+    /// list, the row pushed every clip ABOVE the deleted one down by close to a full row height
+    /// at the instant a finger was over a 32x32 trash glyph in a strip of three look-alikes —
+    /// and rendered off-screen when the panel was scrolled. Asserted by ORDER rather than by a
+    /// frame, because there is no simulator here: what a source scan can prove is that the row
+    /// comes after the list, and that is the property that keeps it from displacing anything.
+    func testTheUndoRowComesAfterTheList() throws {
+        let source = try codeLines(Self.panel)
+        guard let list = source.firstIndex(where: { $0.contains("ForEach(clips)") }),
+              let row = source.firstIndex(where: { $0.contains("if let d = deletedClip {") }) else {
+            throw XCTSkip("""
+                The panel body no longer contains both `ForEach(clips)` and the undo row's \
+                `if let d = deletedClip {` — it was restructured, so this guard should be \
+                rewritten with it rather than left to pass vacuously
+                """)
+        }
+        XCTAssertGreaterThan(row, list, """
+            The undo row is built BEFORE the clip list, so showing it pushes every remaining \
+            clip downward — including the ones above the deleted row, which the user did not \
+            touch and whose trash buttons are now under a finger that was aiming somewhere \
+            else. Keep it after the list.
+            """)
     }
 
     // MARK: - Reading the source
