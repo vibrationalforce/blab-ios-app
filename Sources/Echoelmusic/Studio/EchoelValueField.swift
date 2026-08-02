@@ -314,12 +314,19 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// axis is opted out per call site rather than removed, because in a vertical panel it is
     /// still the faster gesture the founder asked for.
     ///
-    /// ⚠️ HONEST RESIDUAL: this zeroes the x contribution, it does not make the field ignore a
-    /// dominantly-horizontal gesture. A sideways flick that carries vertical jitter can still
-    /// nudge the number — bounded by the 8 pt `minimumDistance` and by `ScrubPrecision`'s
-    /// speed scaling, which gives a fast gesture the coarse-but-short fine travel. If the device
-    /// shows that residual is still enough to move a tuning reference, the next step is an axis
-    /// DOMINANCE test, not a bigger dead zone.
+    /// ⭐ IT IS NOW TWO MECHANISMS, NOT ONE, and reading this flag as "zeroes `dxStep`" is how a
+    /// future edit removes half of it without noticing. #391 zeroed the x contribution; #392 made
+    /// the same fields also DECLINE to anchor while a gesture is dominantly sideways (the anchor
+    /// branch in `scrubGesture` carries the reasoning). The first alone left the residual named
+    /// here before: a sideways sweep carries vertical jitter, and on a 380…500 Hz range that is
+    /// still a handful of Hz per swipe on the one value that retunes every voice. The second is
+    /// the axis-dominance test that residual asked for — deliberately not a bigger dead zone,
+    /// which would tax the deliberate drag too.
+    ///
+    /// ⚠️ WHAT IS STILL NOT CLAIMED: a gesture that begins dominantly VERTICAL and then travels
+    /// sideways anchors and keeps adjusting on the y axis alone. That is correct — it is a
+    /// deliberate drag — but it means "the number cannot move while the strip scrolls" is a
+    /// statement about how the sweep STARTS, not a guarantee over the whole gesture.
     var horizontalScrub: Bool = true
 
     /// Presents the shared numeric keypad (tap-to-type path).
@@ -738,6 +745,41 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
             .updating($dragActive) { _, active, _ in active = true }
             .onChanged { g in
                 if !scrubbing {
+                    // ⭐ THE OTHER HALF OF #391 (#392). Zeroing the x contribution stopped the
+                    // header scroll from DRIVING the A4 field; it did not stop the field from
+                    // reading that gesture's vertical wobble. A thumb sweeping a chip strip
+                    // wanders several points up and down, and on a 380…500 Hz range over
+                    // `fullRangePoints` that is still a handful of Hz per swipe — the same
+                    // defect, quieter, on the one value that retunes every voice.
+                    //
+                    // So a field that has opted OUT of the sideways axis also declines to
+                    // anchor while the gesture LOOKS like the scroll it opted out of. This is
+                    // the axis-dominance test the `horizontalScrub` doc named as the next step,
+                    // and it is deliberately not a bigger dead zone: a dead zone taxes the
+                    // deliberate drag too.
+                    //
+                    // ⚠️ NO NEW LATCH, BY DESIGN — `resetScrubState`'s doc asks for exactly that
+                    // ("a future seventh latch belongs in the anchor branch first"). Declining
+                    // simply leaves `scrubbing` false, so this branch re-runs on the NEXT event
+                    // and re-reads `g.translation`, which is cumulative from the gesture's
+                    // start. A sweep that turns into a deliberate vertical drag therefore
+                    // anchors at that moment with a fresh `lastY` — adjusting still works, with
+                    // no teleport, and nothing has to be cleared on any end path.
+                    //
+                    // ⛔ `revertedGesture` MUST BE DROPPED HERE, and missing it would have been
+                    // a silent regression rather than a missing feature. `onEnded` DOES fire for
+                    // a drag this branch declined, and a decline leaves `gestureSeq` untouched —
+                    // so a receipt left by the PREVIOUS gesture's cancellation would still match
+                    // `r.seq == gestureSeq`, and `onEnded` would undo that revert and re-apply
+                    // the value #378 just took back. For a normally anchored drag the `&+= 1`
+                    // below is what makes the stale receipt unreadable; a decline has to say it
+                    // outright. (Assigning nil to nil on every event is idempotent, which is why
+                    // this does not need to be once-per-gesture either.)
+                    if !horizontalScrub,
+                       abs(g.translation.width) > abs(g.translation.height) {
+                        revertedGesture = nil
+                        return
+                    }
                     scrubbing = true
                     gestureSeq &+= 1               // identifies THIS drag to the cancel check
                     scrubStartValue = value        // what a commit at the end is measured against
