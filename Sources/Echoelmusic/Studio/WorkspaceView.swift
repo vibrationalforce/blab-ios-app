@@ -231,9 +231,21 @@ struct WorkspaceView: View {
             //
             // Hidden means INERT, not merely transparent: no hit target (`allowsHitTesting`),
             // no VoiceOver element (`accessibilityHidden`), and — the expensive half — no
-            // renderer, because `visualLayer` drops `MetalBioView` entirely while
-            // `isPresented` is false. Keeping a 60 fps Metal layer alive behind an
-            // `.opacity(0)` would trade the founder's bug for a battery one.
+            // renderer, because `visualLayer` drops `MetalBioView` while `isPresented` is
+            // false. Keeping a 60 fps Metal layer alive behind an `.opacity(0)` would trade
+            // the founder's bug for a battery one.
+            //
+            // ⚠️ EXACTLY ONE STATE BREAKS THAT, AND IT IS WRITTEN HERE BECAUSE THIS IS THE
+            // MOUNT SITE — the first place a session reads when it asks what a hidden window
+            // costs. While a video take is RUNNING and no external stage is connected, the
+            // hidden window KEEPS its renderer (#319): `MetalBioView`'s draw loop is
+            // `VisualRecorder`'s only frame source, so dropping it made the take silently
+            // record nothing (`AVAssetWriter` is built from the FIRST frame; none arrived,
+            // `stop()` returned nil, the REC badge counted wall-clock seconds it never
+            // wrote). The condition lives in `FloatingVisualWindow`'s
+            // `mustKeepRenderingForRecording`; this sentence exists so the paragraph above
+            // cannot be read as "a hidden window can never be rendering" — it can, and it is
+            // deliberate. Do not "restore" the unconditional claim here or the drop there.
             #if canImport(MetalKit) && canImport(UIKit)
             FloatingVisualWindow(isPresented: $floatingVisualVisible)
                 .opacity(floatingVisualVisible ? 1 : 0)

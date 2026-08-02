@@ -60,7 +60,14 @@ final class RecordingKeepsItsPictureTests: XCTestCase {
             right one in the same commit rather than loosening the count.
             """)
         let branch = hits[0]
-        XCTAssertTrue(branch.contains("mustKeepRenderingForRecording"), """
+        // ⛔ THE NEEDLE CARRIES ITS `&&` AND ITS `!`, and that is not pedantry. A reviewer
+        // found that asserting the bare NAME passes over `if !isPresented &&
+        // mustKeepRenderingForRecording {` — one deleted character, which reintroduces BOTH
+        // bugs at once: hidden+recording falls to `Color.clear` (this defect returns) and
+        // hidden+idle mounts the renderer (#311's battery bug returns), with the whole
+        // blocking bundle green. A guard that cannot tell a condition from its negation is
+        // not guarding the condition.
+        XCTAssertTrue(branch.contains("&& !mustKeepRenderingForRecording"), """
             the hidden branch is back to a bare `\(branch.trimmingCharacters(in: .whitespaces))`.
 
             A running video take has no other frame source (#319): hiding the picture drops the \
@@ -78,12 +85,23 @@ final class RecordingKeepsItsPictureTests: XCTestCase {
         let body = try memberBody(startingWith: "private var mustKeepRenderingForRecording: Bool",
                                   in: Self.window)
         let code = body.joined(separator: "\n")
-        XCTAssertTrue(code.contains("recorderIsRecording"), """
+        // Both needles pin the SENSE, not just the token — `!recorderIsRecording && …` and
+        // `recorderIsRecording && ExternalStageBridge…` are each a one-character inversion
+        // that a name-only assertion waves through. Same reviewer finding as above.
+        // ⛔ AND THE FIRST NEEDLE FOR THE FIRST TERM WAS ITSELF INVERTIBLE. It read
+        // `code.contains("recorderIsRecording && !ExternalStageBridge")` — which is a
+        // SUBSTRING of `!recorderIsRecording && !ExternalStageBridge…`, so the exact
+        // inversion it was written to catch walked straight through it. A `contains` needle
+        // can never pin a LEADING `!`; only an anchor can. Hence `hasPrefix` on the trimmed
+        // line. Caught by running the inversion through the check before committing, which
+        // is the only reason this file is not a third guard that guards nothing.
+        let terms = body.map { $0.trimmingCharacters(in: .whitespaces) }
+        XCTAssertTrue(terms.contains(where: { $0.hasPrefix("recorderIsRecording &&") }), """
             `mustKeepRenderingForRecording` no longer asks whether a take is running, so it \
             either never fires or fires always:
             \(code)
             """)
-        XCTAssertTrue(code.contains("!ExternalStageBridge.shared.isConnected"), """
+        XCTAssertTrue(code.contains("&& !ExternalStageBridge.shared.isConnected"), """
             `mustKeepRenderingForRecording` no longer excludes the external-stage case:
             \(code)
 

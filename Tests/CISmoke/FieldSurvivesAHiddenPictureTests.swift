@@ -126,12 +126,27 @@ final class FieldSurvivesAHiddenPictureTests: XCTestCase {
     /// is the one state in which the hidden window MUST keep its renderer, because
     /// `MetalBioView`'s draw loop is the recorder's only frame source (#319). The needle is now
     /// `"if !isPresented"` without the brace, so this guard keeps asserting what it is actually
-    /// about — the branch exists and is FIRST — and stops asserting a condition count it was
-    /// never meant to own. Its sibling `RecordingKeepsItsPictureTests` owns the exception.
+    /// about — the branch exists — and stops asserting a condition count it was never meant to
+    /// own. Its sibling `RecordingKeepsItsPictureTests` owns the exception.
+    /// ⛔ AND THE FIRST VERSION OF THAT SENTENCE SAID "the branch exists AND IS FIRST", which
+    /// this file had never checked in either form: `"if !isPresented {"` matched
+    /// `} else if !isPresented {` just as well. A note written to make a guard honest quietly
+    /// inherited the guard's one dishonest word. The check below now tests `hasPrefix("if ")`,
+    /// so the word is earned instead of removed.
     func testTheHiddenWindowRendersNoMetalLayerAndKeepsTheCardGeometry() throws {
         let layer = try visualLayerBody()
-        XCTAssertTrue(layer.contains { $0.contains("if !isPresented") }, """
-        `visualLayer` no longer has its `if !isPresented` branch, or it is no longer FIRST.
+        // ⛔ THE "FIRST" HALF OF THIS MESSAGE WAS AN OVERCLAIM FOR AS LONG AS IT EXISTED, and
+        // the #319 note above re-endorsed it without checking. The old needle
+        // `"if !isPresented {"` matched `} else if !isPresented {` exactly as happily — the
+        // guard never asserted ordering, it only ever asserted that the branch existed. Rather
+        // than delete the word, the check below now EARNS it: the trimmed line has to START
+        // with `if `, which is the leading branch of the chain and nothing else.
+        XCTAssertTrue(layer.contains(where: { line in
+            let t = line.trimmingCharacters(in: .whitespaces)
+            return t.hasPrefix("if !isPresented")
+        }), """
+        `visualLayer` no longer has its `if !isPresented` branch, or it is no longer FIRST \
+        (a leading `} else if` would mean some other condition now decides the hidden state).
 
         Without it the hidden window keeps a live `MetalBioView`. The window is mounted \
         permanently since #311, so "hidden" now has to mean "renders nothing" — it is no \
