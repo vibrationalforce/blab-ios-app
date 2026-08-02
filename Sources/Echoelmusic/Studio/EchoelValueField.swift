@@ -296,6 +296,32 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// 2026-07-15 "Die Felder sollen gleichgroß sein"). nil = the natural padded height.
     var boxHeight: CGFloat? = nil
 
+    /// Whether a SIDEWAYS drag adjusts this field. Default `true` — the founder's 2026-07-12
+    /// "both axes" decision, and correct for every field that lives in a vertical panel, where
+    /// nothing else wants the horizontal direction.
+    ///
+    /// ⛔ SET IT `false` FOR ANY FIELD INSIDE A HORIZONTALLY SCROLLING CONTAINER, and #391 is
+    /// why. The header chip strip is a `ScrollView(.horizontal)` (`WorkspaceView.swift`), and
+    /// the Concert-pitch A4 field sits in it. Scrolling that strip with a finger that happens to
+    /// land on the field fed the scroll's own travel into `dxStep` — so the gesture that moves
+    /// the strip sideways ALSO raised the global tuning reference. On the founder's 2026-08-02
+    /// screen recording (v10.79.366) A4 went 440 → 483.4352 → 500.0000 Hz, the range ceiling,
+    /// without the keypad ever opening. `onCommit` then posts "a4", which retunes every voice
+    /// and recomposes the running take, and the value is persisted — so it survives relaunch.
+    ///
+    /// This is not a bug in the "both axes" decision. It is that decision meeting a later layout
+    /// choice: when it was made, no `EchoelValueField` lived inside a horizontal scroll. The
+    /// axis is opted out per call site rather than removed, because in a vertical panel it is
+    /// still the faster gesture the founder asked for.
+    ///
+    /// ⚠️ HONEST RESIDUAL: this zeroes the x contribution, it does not make the field ignore a
+    /// dominantly-horizontal gesture. A sideways flick that carries vertical jitter can still
+    /// nudge the number — bounded by the 8 pt `minimumDistance` and by `ScrubPrecision`'s
+    /// speed scaling, which gives a fast gesture the coarse-but-short fine travel. If the device
+    /// shows that residual is still enough to move a tuning reference, the next step is an axis
+    /// DOMINANCE test, not a bigger dead zone.
+    var horizontalScrub: Bool = true
+
     /// Presents the shared numeric keypad (tap-to-type path).
     @State private var showPad = false
 
@@ -724,8 +750,11 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 let span = Double(range.upperBound - range.lowerBound)
                 // BOTH axes adjust (founder 2026-07-12): up = increase, right = increase.
                 // The deltas ADD, so a diagonal drag is simply faster — never a fight.
+                // …unless the field sits in a horizontally scrolling container, where the
+                // sideways direction already belongs to the scroll (#391 — see the
+                // `horizontalScrub` doc; the A4 field rode a header scroll to 500 Hz).
                 let dyStep = Double(lastY - g.translation.height)
-                let dxStep = Double(g.translation.width - lastX)
+                let dxStep = horizontalScrub ? Double(g.translation.width - lastX) : 0
                 lastY = g.translation.height
                 lastX = g.translation.width
 

@@ -965,13 +965,23 @@ struct CompositionHeaderStrip: View {
                     // standard 440.00. Commit posts "a4"; the studio pushes the new
                     // tuning to every voice + the roll and recomposes (the exact
                     // side effects the Composition panel's kammertonRow ran).
+                    // ⛔ `horizontalScrub: false` IS LOAD-BEARING (#391). This field is the ONLY
+                    // `EchoelValueField` inside this `ScrollView(.horizontal)`, and with the
+                    // sideways axis live the gesture that scrolls the strip also raised the
+                    // global tuning reference: the founder's 2026-08-02 recording shows A4
+                    // walking 440 → 483.4352 → 500.0000 Hz (the range ceiling) with the keypad
+                    // never opening. `onCommit` below then retunes every voice and recomposes
+                    // the running take, and `session.a4Hz` is persisted — so an accidental
+                    // scroll detuned the instrument and kept it detuned across relaunches.
+                    // If another value field is ever added to this strip, it needs this too.
                     EchoelValueField(label: "", value: $session.a4Hz, range: 380...500,
                                      unit: "Hz",
                                      onCommit: {
                                          NotificationCenter.default.post(
                                              name: .echoelCompositionEdited, object: "a4")
                                      },
-                                     boxWidth: 104, boxHeight: 30)
+                                     boxWidth: 104, boxHeight: 30,
+                                     horizontalScrub: false)
                         .accessibilityLabel("Concert pitch A4")
                 }
                 labeled("Mode") {
