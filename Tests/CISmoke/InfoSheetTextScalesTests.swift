@@ -24,19 +24,37 @@
 //
 //     git grep -n '\.font(\.system(size:' -- Sources
 //
-// Every hit was classified by whether the nearest preceding non-comment line owns an
-// `Image(systemName:`. The non-icon hits, in full, and why each is NOT a defect:
+// 92 hits, 2 of them whole-line comments. Each remaining hit was classified by whether it, or
+// the nearest preceding non-blank non-comment line, owns an `Image(systemName:`. That leaves 17
+// non-icon hits, and one of those (`FloatingVisualWindow.swift:935`) is the multi-line-ternary
+// resize glyph this file's next paragraph already calls out — so 16 real ones:
 //
 //   · `Resources/AppIcon.swift` (4) — renders the app ICON at a caller-supplied `size`. An icon
 //     is a fixed-geometry asset; Dynamic Type has no meaning there.
 //   · `Studio/EchoelLogoMark.swift` (1) — a `Canvas` that resolves `Text("E")` into a drawn
 //     glyph at `52 * s`. Same reason: artwork, not reading matter.
-//   · `Studio/PianoRollView.swift` (9) — doorless and unmounted since the founder's
+//   · `Studio/PianoRollView.swift` (8) — doorless and unmounted since the founder's
 //     "Pianoroll soll raus" (2026-07-26, CLAUDE.md). Fixing type in a view nobody can open is
 //     upkeep without a user; if it is ever re-doored, this paragraph is the checklist.
+//   · `Sources/EchoelmusicWatch/EchoelWatchApp.swift` (1) and
+//     `Sources/EchoelmusicWidgets/EchoelBioWidget.swift` (2) — the big `Text("\(bpm)")` numerals
+//     at 40/44/48 pt. Reading matter, genuinely, but in HOST-LAID-OUT surfaces: a widget family
+//     and a watch face are fixed point rectangles the app does not own, so a numeral that grew
+//     with Larger Text would be clipped by the host rather than read. Absolute is the right
+//     answer there and the wrong answer inside the app's own scrolling sheets. Not this slice.
 //   · `Studio/BioMetricInfo.swift` (2) — THIS SLICE.
 //
-// Every other hit in the tree is an SF Symbol. Those are deliberately absolute: the ones in
+// ⛔ THE FIRST VERSION OF THIS BLOCK WROTE "(9)" FOR THE ROLL, OMITTED THE WATCH AND WIDGET
+// THREE ENTIRELY, AND CLOSED WITH "every other hit in the tree is an SF Symbol" — which was
+// false. The cause is the exact failure CLAUDE.md documents over and over, and it is worth
+// naming precisely because it does not look like carelessness: I ran the classification over
+// `git ls-files Sources/Echoelmusic` and then WROTE the command as `-- Sources`. The number and
+// the command printed beside it were never the same query. `Sources/EchoelmusicWatch` and
+// `Sources/EchoelmusicWidgets` are inside the pathspec I published and outside the one I ran.
+// A command quoted next to a count is only worth something if it is the command that produced
+// the count — copy it from the shell, do not retype it wider.
+//
+// Every other hit is an SF Symbol. Those are deliberately absolute: the ones in
 // `FloatingVisualWindow` sit in 28×44 slots inside a chrome bar whose total width #365/#366 pin,
 // so growing the glyph would break a budget that has its own guards. Icons that should track the
 // text are a DIFFERENT slice with a different fix (`.imageScale`, or a text style) — do not fold
@@ -106,6 +124,13 @@ final class InfoSheetTextScalesTests: XCTestCase {
             guard i + 1 < all.count else {
                 return XCTFail("a \"Done\" button is the last line of the file — no font follows it")
             }
+            // ⚠️ POSITIONAL, and the sibling assertion below goes out of its way to be
+            // STRUCTURAL and says so. The inconsistency is deliberate but it should not be
+            // silent: a comment inserted between a `Button("Done")` and its `.font` would red
+            // this test while the code is correct. Accepted because the alternative — scanning
+            // forward for the next `.font(` — would happily bind to a DIFFERENT view's font and
+            // pass while the button had none, which is the failure that actually matters here.
+            // A false red is a minute; a false green is the defect shipping.
             let font = all[i + 1].trimmingCharacters(in: .whitespaces)
             XCTAssertTrue(font.contains("EchoelTheme.font("), """
                 The "Done" button on line \(i + 2) is set with `\(font)`. It must go through \
