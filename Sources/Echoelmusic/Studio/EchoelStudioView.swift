@@ -1821,7 +1821,37 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(12, .semibold))
                     .foregroundStyle(isActive ? EchoelTheme.onPrimary : EchoelTheme.text)
                     .padding(.horizontal, 10)
-                    .frame(height: 26)
+                    // ⭐ A MINIMUM, NOT A FIXED HEIGHT (#353b). `EchoelTheme.font` is
+                    // `.custom(…, relativeTo: .body)`, and `EchoelStudioView` is the one
+                    // surface deliberately NOT Dynamic-Type-clamped (only the chrome is,
+                    // `WorkspaceView`'s `.dynamicTypeSize(...accessibility1)`).
+                    //
+                    // ⛔ AND THE FIRST DRAFT OF THIS BLOCK SAID "on top of which `StudioZoom`
+                    // scales it again", WHICH IS FALSE AND UNDERSTATES THE REACH. `StudioZoom`
+                    // does not multiply the system size — it OVERRIDES it, writing one rung of
+                    // its own ladder (`.large` … `.accessibility5`) downward. So the pinch
+                    // gesture alone takes this label to AX5 for a user who never opened Larger
+                    // Text, which makes the overflow reachable by ordinary in-app zooming
+                    // rather than only by an accessibility setting.
+                    //
+                    // A 12 pt label therefore draws far taller than 26 pt at the top of that
+                    // ladder, and a `.frame(height:)` does NOT clip:
+                    // the glyphs simply overhang a pill that stayed 26 pt, because the
+                    // `.background`/`.overlay` below size to the FRAME, not to the text.
+                    // Same defect and same fix as `EchoelValueField.boxHeight` and the three
+                    // chrome bars in `WorkspaceView` — both became minimums; this row was
+                    // missed because its overflow is horizontal-strip and reads as "the font
+                    // is a bit big" rather than as breakage.
+                    //
+                    // Nothing else has to move: `chipTapTarget`'s 44 pt is already a
+                    // `minHeight`, so the pill grows THROUGH it rather than out of it, and
+                    // the strip is a horizontal `ScrollView` with no height of its own.
+                    // No `lineLimit`/`minimumScaleFactor` is added on purpose — shrinking
+                    // text that the user asked to be larger is the anti-fix (the same
+                    // `minimumScaleFactor(0.6)` sitting on the bio numbers is filed as part
+                    // of #353c), and the labels cannot wrap here anyway: an unconstrained
+                    // width in a horizontal scroll gives every chip its ideal width.
+                    .frame(minHeight: 26)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                         .fill(isActive ? EchoelTheme.text : EchoelTheme.fill))
                     // The INACTIVE tab is the case that matters: the active one is a solid
