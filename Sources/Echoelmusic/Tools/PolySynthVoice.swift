@@ -879,7 +879,15 @@ public final class PolySynthVoice {
                     //
                     // Runs ONCE per sleep, not per skipped block: the guard at the top of this
                     // render returns as soon as `renderIdle` is true, so this line is
-                    // unreachable again until a note command wakes the voice.
+                    // unreachable again until the voice WAKES.
+                    //
+                    // ⛔ "until a NOTE COMMAND wakes the voice" is what this line said first, and
+                    // it names only one of the two wakes. `audioEntrainmentActive` turning true
+                    // also clears `renderIdle` at the top guard, with no note involved — and it
+                    // is the one that matters here, because it is also the flag that makes the
+                    // `if !audioEntrainmentActive` above false, which forces `idleQuietFrames`
+                    // to 0. Both paths re-arm the counter, so the once-per-sleep property holds
+                    // either way; the sentence was over-precise, not the code.
                     fxChain.noteRenderSleeping()
                 }
             } else {

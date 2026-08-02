@@ -176,6 +176,75 @@ final class SleepingChainDoesNotHoardAudioTests: XCTestCase {
             """)
     }
 
+    // MARK: - The drain must stay conditional (the race the first version shipped)
+
+    /// ⛔ THE SHIP BLOCKER THE FIRST VERSION OF #389 CARRIED, and the only guard in this file
+    /// that no behavioural test can replace — it is a THREADING invariant, and everything above
+    /// drives the chain single-threaded.
+    ///
+    /// That version was `reset(); renderSkipped = true`. `EchoelFXChain.reset()` is documented
+    /// CONTROL PLANE ONLY (see `snapFilterToTarget`: "two threads snapping the same `ParamGlide`
+    /// structs is a race with no guard on it") and it resets all thirteen stages UNCONDITIONALLY.
+    /// The second half is the one that breaks the file's own SWITCH-CRACKLE RULE: that rule is
+    /// safe only because the control thread resets a stage exclusively while its flag is still
+    /// FALSE — exactly when the audio thread is not touching it. Resetting DISABLED stages from
+    /// the render block voids that, and puts both threads inside the same `[[Float]]` zero-fill.
+    ///
+    /// So: every reset in the drain must be gated on its own enable flag, and `reset()` /
+    /// `snapFilterToTarget()` must not appear at all.
+    func testTheDrainIsGatedOnEachStagesOwnEnableFlag() throws {
+        let body = try codeLines("Sources/Echoelmusic/DSP/EchoelFXChain.swift")
+        guard let start = body.firstIndex(where: {
+            $0.contains("func noteRenderSleeping()")
+        }) else {
+            return XCTFail("""
+                `noteRenderSleeping()` is gone from `EchoelFXChain`. If the idle drain was \
+                removed, remove this file with it; if it was renamed, move this guard too.
+                """)
+        }
+        let indent = body[start].prefix { $0 == " " }.count
+        let close = body[(start + 1)...].firstIndex {
+            $0.trimmingCharacters(in: .whitespaces) == "}"
+                && $0.prefix { c in c == " " }.count == indent
+        } ?? body.endIndex
+        let drain = Array(body[(start + 1)..<close])
+
+        for line in drain where line.contains(".reset()") {
+            XCTAssertTrue(line.contains("if ") && line.contains("Enabled"), """
+                a stage reset in `noteRenderSleeping` is no longer gated on its enable flag \
+                (#389 Nachlese):
+                    \(line.trimmingCharacters(in: .whitespaces))
+
+                An UNgated reset from the render block clears stages the audio thread is not \
+                touching — which is precisely when the control thread resets them on their \
+                rising edge. Two threads in the same buffer zero-fill: an exclusivity trap, and \
+                an index cleared against a half-cleared buffer, i.e. a stale-audio burst \
+                produced by the fix for stale-audio bursts.
+                """)
+        }
+        XCTAssertFalse(drain.contains(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "reset()"
+        }), """
+            `noteRenderSleeping` calls the whole-chain `reset()` again (#389 Nachlese). That is \
+            the exact line that made this a ship blocker: control-plane-only, and unconditional \
+            across all thirteen stages. Drain the ENABLED stages instead.
+            drain: \(drain.map { $0.trimmingCharacters(in: .whitespaces) })
+            """)
+        XCTAssertFalse(drain.contains(where: { $0.contains("snapFilterToTarget()") }), """
+            `noteRenderSleeping` snaps the tone-filter glide from the audio thread (#389 \
+            Nachlese). `snapFilterToTarget` names itself CONTROL PLANE ONLY and says why. \
+            `renderSkipped = true` alone is sufficient and correct: `advanceFilterGlide`'s \
+            resume branch performs the identical snap inline, on the audio thread.
+            """)
+        XCTAssertTrue(drain.contains(where: {
+            $0.trimmingCharacters(in: .whitespaces) == "renderSkipped = true"
+        }), """
+            the drain no longer re-arms `renderSkipped` (#389). Without it the first block after \
+            waking GLIDES from a value the voice last heard seconds ago instead of landing on \
+            the current target — the #138 Slice 2 sweep, reintroduced.
+            """)
+    }
+
     // MARK: - The caller
 
     /// ⛔ SOURCE-SCANNED ON PURPOSE, and only this one assertion is. The transition lives inside

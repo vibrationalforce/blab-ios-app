@@ -237,7 +237,9 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// block can skip this chain (`hasEverSounded`, the 2.5 s `renderIdle` skip, the
     /// `fxEnabled` gate — five call sites across the two voices) is decided ON the audio
     /// thread, where there is no control-plane edge to hook. Those use
-    /// `noteRenderSkipped()` instead.
+    /// `noteRenderSkipped()` instead — and, at the moment the idle skip decides to SLEEP,
+    /// `noteRenderSleeping()`, which for this same reason drains stages directly and does
+    /// not route through here either (#389).
     func snapFilterToTarget() {
         cutoffGlide.snap(to: filterCutoff)
         resonanceGlide.snap(to: filterResonance)
@@ -267,8 +269,10 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// SCOPE, so this does not read as more than it is: it restores the tone-filter
     /// GLIDE only. The time-based stages (delay, reverb, tape) also freeze across a skip
     /// and can burst stale audio on resume — this file's own switch-crackle rule at the
-    /// top — and that is deliberately left alone here; it predates this mechanism and
-    /// wants its own slice. This hook is where such a fix would attach.
+    /// top — and that is deliberately left alone HERE, because this hook runs on every
+    /// skipped block and a buffer clear per block is the wrong bill. #389 shipped that
+    /// slice as `noteRenderSleeping()` just below, for the 2.5 s idle sleep only; the
+    /// `fxEnabled` gate is still untreated and is named there.
     ///
     /// Audio-thread safe: a single Bool store, no allocation, no locks, no isolation
     /// crossing. Internal, not public, for the same reason `processStereo` was narrowed:
@@ -298,27 +302,73 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// The tails themselves were never at risk — they decay monotonically, so while audible
     /// they hold the output above the floor and the sleep counter never fills.
     ///
-    /// WHY A FULL `reset()` AND NOT A HAND-PICKED STAGE LIST: `reset()`'s own contract is "the
-    /// signal path is empty", and falling asleep is precisely the moment that becomes true.
-    /// Everything it discards is already inaudible at the current settings — the voice proved
-    /// that by measuring 2.5 s under the floor — so the only way to ever hear it again is a
-    /// later parameter change, and hearing it then means hearing 2.5-second-old audio. A
-    /// hand-picked list would also rot: a stage added later would silently miss the drain.
+    /// ⛔ NOT `reset()` — AND THE FIRST VERSION OF THIS METHOD CALLED IT. That version was a
+    /// ship blocker, and this paragraph exists so the "obvious" one-liner is not written a
+    /// second time. `reset()` is documented CONTROL PLANE ONLY ninety lines above
+    /// (`snapFilterToTarget`: "two threads snapping the same `ParamGlide` structs is a race with
+    /// no guard on it"), and it resets ALL THIRTEEN stages UNCONDITIONALLY. The second half is
+    /// the worse one: the SWITCH-CRACKLE RULE at the top of this file is safe only because the
+    /// control thread resets a stage exclusively while its flag is still FALSE — i.e. exactly
+    /// when the audio thread is not touching it. An unconditional reset from the audio thread
+    /// clears DISABLED stages too, so both threads can be inside `EchoelReverb.combBufL`'s
+    /// zero-fill at the same instant: a Swift exclusivity trap on concurrent `modify`, and —
+    /// worse than a crash — an index cleared against a half-cleared buffer, which is a
+    /// stale-audio burst produced by the fix for stale-audio bursts.
     ///
-    /// `renderSkipped` is re-armed AFTER the reset because `reset()` clears it. Both are wanted:
-    /// the reset snaps the filter to its target now, and the flag makes the first block after
-    /// waking snap again — the target may have moved the whole time the voice slept. Snapping
-    /// is idempotent, so doing it twice costs nothing and skipping the second one would sweep.
+    /// DRAINING ONLY THE ENABLED STAGES keeps the two threads' reset sets DISJOINT and needs no
+    /// new invariant: the control thread resets a stage only while its flag is false, the audio
+    /// thread only while it is true. It is not a compromise, either — a disabled stage's frozen
+    /// content is already cleared on its own rising edge by that same rule, which is the whole
+    /// point of it. If a stage is added later it arrives with its own enable flag and its own
+    /// rising-edge reset; add its line here in the same commit.
     ///
-    /// Audio-thread safe, and this is the one method here that deserves the arithmetic spelled
-    /// out because it is the most expensive thing on this path: every stage `reset()` is a
-    /// zero-fill of pre-allocated storage plus scalar stores — no allocation, no locks, no
-    /// isolation crossing. The dominant cost is `EchoelReverb`, 8 combs + 4 all-passes × 2
-    /// channels ≈ 40 k float stores, i.e. tens of microseconds against a ~5 ms deadline, paid
-    /// ONCE per sleep (at most every 2.5 s) rather than per block. That is why the drain lives
-    /// here and not in `noteRenderSkipped`, which runs on every skipped block.
+    /// NO `snapFilterToTarget()`: `renderSkipped = true` alone already makes
+    /// `advanceFilterGlide`'s resume branch perform the identical two-line snap INLINE, on the
+    /// audio thread — the sanctioned path, and the one the prohibition points at. The old
+    /// sequence cleared that flag inside `reset()` and immediately re-armed it here; the churn
+    /// only existed because the entry point was wrong.
+    ///
+    /// ⚠️ SCOPE — read this before assuming the chain-level gap is closed. This covers the 2.5 s
+    /// idle sleep ONLY. `PolySynthVoice.setFXEnabled(false)` bypasses the WHOLE chain and freezes
+    /// it in exactly the same way — the canonical switch-crackle case one level up, and the one
+    /// whole-chain bypass switch still untreated. It is the EASY one (it HAS a control-plane
+    /// setter, so it drains before raising the flag and is race-free by the rule above) and it is
+    /// its own slice, not this one. The two `hasEverSounded` sites need nothing at all: one-way
+    /// latches, and the chain has never been fed when they fire.
+    ///
+    /// Audio-thread safe, and the arithmetic belongs here because this is the most expensive
+    /// thing on the path. Every stage `reset()` is a zero-fill of pre-allocated storage plus
+    /// scalar stores — no allocation, no locks, no isolation crossing. Counted at 48 kHz:
+    /// `EchoelDelay` DOMINATES at 262,144 floats (two `EchoelDelayLine`s, each rounding
+    /// ceil(2.0 s × 48 k) + 4 up to the next power of two = 131,072), which is 9.5× the reverb's
+    /// 27,688 (8 combs + 4 all-passes × 2 channels, Freeverb tunings scaled from 44.1 k).
+    /// Harmonizer 32,768 · tape 8,192 · chorus 8,192 · flanger 2,048.
+    ///
+    /// ⛔ THE FIRST VERSION OF THAT COUNT READ "the dominant cost is `EchoelReverb`, ≈40 k float
+    /// stores, tens of microseconds against a ~5 ms deadline". Three numbers, three wrong: 40 k
+    /// is neither the reverb (27,688) nor the whole drain; the dominant stage is the DELAY by an
+    /// order of magnitude; and the default deadline is 512 frames = 10.67 ms, not 5 ms (5.33 ms
+    /// is `LatencyMode.low`). The wrong dominant stage was the dangerous one — a later session
+    /// optimising "the reverb" would have left most of the cost untouched.
+    ///
+    /// The everyday bill is far below even the corrected total, because `delayEnabled` defaults
+    /// to false: a typical sounding chain drains reverb + chorus, ~36 k stores, tens of
+    /// microseconds — paid ONCE per sleep (at most every 2.5 s), not per block. That is why the
+    /// drain lives here and not in `noteRenderSkipped`, which runs on every skipped block.
     func noteRenderSleeping() {
-        reset()
+        if filterEnabled     { filterL.reset(); filterR.reset() }
+        if tapeEnabled       { tape.reset() }
+        if bitcrushEnabled   { bitcrush.reset() }
+        if harmonizerEnabled { harmonizer.reset() }
+        if chorusEnabled     { chorus.reset() }
+        if flangerEnabled    { flanger.reset() }
+        if phaserEnabled     { phaser.reset() }
+        if tremoloEnabled    { tremolo.reset() }
+        if delayEnabled      { delay.reset() }
+        if reverbEnabled     { reverb.reset() }
+        if widenerEnabled    { widener.reset() }
+        if compressorEnabled { compressor.reset() }
+        if limiterEnabled    { limiter.reset() }
         renderSkipped = true
     }
 
