@@ -570,7 +570,11 @@ final class CameraAnalyzer {
         }
         lastPeakCount = newPeaks.count
 
-        guard newPeaks.count >= 3 else { fallbackBPM(auto); return }
+        guard newPeaks.count >= 3 else {
+            fallbackBPM(auto, timestamp: timestamp)
+            ageConfidence(timestamp)
+            return
+        }
 
         var intervals: [Double] = []
         // The SAME differences before any rejection — `rawIntervalsMs`, for consumers that do
@@ -589,7 +593,11 @@ final class CameraAnalyzer {
         // cannot move the lock.
         rawIntervalsMs = raw
 
-        guard intervals.count >= 2 else { fallbackBPM(auto); return }
+        guard intervals.count >= 2 else {
+            fallbackBPM(auto, timestamp: timestamp)
+            ageConfidence(timestamp)
+            return
+        }
 
         // IQR outlier rejection
         let sorted = intervals.sorted()
@@ -601,11 +609,11 @@ final class CameraAnalyzer {
             $0 > (q1 - 1.5 * iqr) && $0 < (q3 + 1.5 * iqr)
         }
 
-        guard !cleanIntervals.isEmpty else { return }
+        guard !cleanIntervals.isEmpty else { ageConfidence(timestamp); return }
 
         let avgInterval = cleanIntervals.reduce(0, +) / Double(cleanIntervals.count)
         let bpm = 60.0 / avgInterval
-        guard bpm > 40 && bpm < 200 else { return }
+        guard bpm > 40 && bpm < 200 else { ageConfidence(timestamp); return }
 
         // FRESH-LOCK corroboration (re-grip robustness, device-log feedback): right
         // after the finger is re-placed, motion settling can peak-count a HARMONIC
@@ -621,6 +629,7 @@ final class CameraAnalyzer {
            abs(bpm - auto.bpm) / auto.bpm > 0.2 {
             estimatedBPM = auto.bpm
             bpmConfidence = bpmConfidence * 0.82 + min(1, (auto.strength - 0.4) / 0.4) * 0.18
+            lastEstimateTimestamp = timestamp
             rrIntervals = cleanIntervals.map { $0 * 1000.0 }
             if rrIntervals.count >= 3 { calculateRMSSD() }
             return
@@ -813,6 +822,59 @@ final class CameraAnalyzer {
         autoStrength > 0.4 ? 0.98 : 0.6
     }
 
+    /// Grace period during which a published confidence still describes a fresh measurement.
+    /// Two seconds is a little over one publish interval, so a single dropped window costs
+    /// nothing.
+    nonisolated static let confidenceHoldSeconds: Double = 2.0
+    /// Age at which a published confidence must have reached zero. Beyond this the pair
+    /// (bpm, confidence) describes nothing that was measured.
+    nonisolated static let confidenceZeroSeconds: Double = 8.0
+
+    /// The highest confidence the AGE of the last real measurement can justify.
+    ///
+    /// ⭐ WHY A CEILING AND NOT A DECAY FACTOR — and it is the whole reason this is a pure
+    /// function of TIME. Device log 2482 (v10.79.365) showed a window with `acf=0.00 auto=0`,
+    /// i.e. the autocorrelation found no periodicity at all, published alongside `conf=0.59`
+    /// and a bpm identical to the previous window. Nothing was wrong with the arithmetic: the
+    /// analyzer had simply RETURNED early — no peaks, no usable intervals, autocorrelation too
+    /// weak for `fallbackBPM` — and an early return leaves `bpmConfidence` and `estimatedBPM`
+    /// exactly as they were. A stale pair is indistinguishable from a live one downstream: the
+    /// trust gate, the bio bus, the pulse readout all see a confident number.
+    ///
+    /// A per-call decay factor was the obvious repair and is the wrong shape here. This
+    /// analyzer's scan is throttled to ~4 Hz, so any factor compounds at a rate that depends
+    /// on the frame rate, the throttle and the drain size — the class #337 names ("measure dt,
+    /// do not assume the rate"), and the class the motion branch a few hundred lines up already
+    /// paid for once, when a 0.6 factor wiped a good lock in a single tick. A ceiling on AGE
+    /// cannot compound: one dropped window is free, and only a sustained blackout brings the
+    /// number down, at the same speed on every device.
+    ///
+    /// ⚠️ THE TWO CONSTANTS ARE A JUDGEMENT, NOT A MEASUREMENT. 2 s of grace and 0 by 8 s were
+    /// chosen so a real lock survives a cough and a lifted finger reads as gone within about
+    /// the time it takes to notice — no device evidence pins either number yet. That is
+    /// NEEDS-FOUNDER-VERIFY, and the honest failure mode of a wrong choice is opposite on each
+    /// side: too short starves the bio bus (#235's history), too long is the defect this fixes.
+    nonisolated static func confidenceCeiling(forAge age: Double) -> Double {
+        guard age.isFinite else { return 0 }
+        if age <= confidenceHoldSeconds { return 1 }
+        if age >= confidenceZeroSeconds { return 0 }
+        let span = confidenceZeroSeconds - confidenceHoldSeconds
+        return Swift.max(0, Swift.min(1, 1 - (age - confidenceHoldSeconds) / span))
+    }
+
+    /// Clamp the published confidence to what the age of the last real measurement allows.
+    ///
+    /// Called from every bail-out that produces NO measurement. It only ever lowers the value:
+    /// a fresh measurement stamps `lastEstimateTimestamp` and the ceiling is 1, so this cannot
+    /// hold a good lock down.
+    private func ageConfidence(_ timestamp: TimeInterval) {
+        // Before the first ever commit there is nothing to be stale relative to — the analyzer
+        // is warming up, and confidence is 0 anyway.
+        guard lastEstimateTimestamp > 0 else { return }
+        let age = Swift.max(0, timestamp - lastEstimateTimestamp)
+        bpmConfidence = Swift.min(bpmConfidence, Self.confidenceCeiling(forAge: age))
+    }
+
     /// Per-frame finger-presence test with red-floor HYSTERESIS (acquire hard, hold easy) —
     /// mirrors the frame-count window's own hysteresis. Device log 2026-07-02: a lit finger
     /// sat at R≈0.22–0.37, oscillating ACROSS a single 0.28 floor every ~8 s → `finger`
@@ -925,11 +987,16 @@ final class CameraAnalyzer {
     /// 3 clean peaks, the device-log "bpm=0 forever" case), recover the rate from
     /// the window's periodicity via autocorrelation. Gated on periodicity strength
     /// so it locks onto a real pulse, not noise.
-    private func fallbackBPM(_ auto: (bpm: Double, strength: Double)?) {
+    private func fallbackBPM(_ auto: (bpm: Double, strength: Double)?, timestamp: TimeInterval) {
         guard let r = auto, r.strength > 0.3 else { return }
         estimatedBPM = estimatedBPM == 0 ? r.bpm : estimatedBPM * 0.80 + r.bpm * 0.20
         let conf = max(0, min(1, (r.strength - 0.3) / 0.5))
         bpmConfidence = bpmConfidence * 0.82 + conf * 0.18
+        // ⭐ THIS IS A REAL MEASUREMENT, SO IT STAMPS THE CLOCK. Without the stamp a run
+        // carried entirely by the autocorrelation would age out under `ageConfidence` even
+        // while it was measuring perfectly well — the age check would be reading the clock of
+        // the peak-counter, which is not the only estimator in this file.
+        lastEstimateTimestamp = timestamp
     }
 
     // MARK: - HRV Calculation
