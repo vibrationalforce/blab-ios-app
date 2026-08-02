@@ -4,9 +4,13 @@
 // ⭐ WHAT THIS PROTECTS, and it is not the maths — `PoincareMetricsTests` owns that. This
 // file protects the three things that can only go wrong BETWEEN the core and its view, and
 // each of them has cost this repo a cycle before:
-//   1. THE DOOR. A view nothing constructs is a file on a shelf. This repo keeps a whole
-//      shelf of them (`SpectralDonutView` behind a flag with no setter, the VJ overlay,
-//      `ImmersiveStageView`), and #322 is the named shape.
+//   1. ⛔ THE DOOR — RETIRED 2026-08-02, and the file keeps its name so the history is
+//      findable. The founder struck this plot out in red (#385), the mount left
+//      `signalSection`, and the view is now PARKED: doorless on purpose, file intact,
+//      restorable in one line. The assertion that survives is only that the FILE still
+//      exists; the long reasoning sits on that test. Everything below is unchanged — a
+//      parked view still has to obey the freeze law and the honesty bar, and those are what
+//      keep it from rotting while it waits.
 //   2. THE FREEZE LAW (10.76.50). `CameraRPPGBioPublisher.rrWindowMs` changes on every
 //      heartbeat. Read from `EchoelStudioView` — which already holds that publisher in
 //      `@Environment` — it would rebuild the whole Studio per beat and tear down any open
@@ -26,22 +30,37 @@ import XCTest
 
 final class PoincareViewDoorTests: XCTestCase {
 
-    func testThePoincarePlotHasADoor() throws {
-        let code = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertTrue(code.contains("AnalysisPoincareView()"), """
-            Nothing constructs `AnalysisPoincareView` any more, so the one picture in this \
-            app that is about the PERSON rather than the sound has no surface. If it was \
-            removed on purpose, remove this test and the view in the same commit; if it was \
-            refactored, re-point this guard at the new call site.
-            """)
-        // Comments stripped first: the mount sits directly under a comment block that names
-        // the view, and a naive `contains` would survive the mount being deleted. A door test
-        // that outlives its door reports a green nobody earned.
-        let mounts = Self.stripComments(code)
-            .components(separatedBy: "AnalysisPoincareView").count - 1
-        XCTAssertGreaterThanOrEqual(mounts, 1, """
-            `AnalysisPoincareView` appears \(mounts) time(s) in the CODE (comments \
-            excluded) — it is referenced only in prose, which is the #322 orphan shape.
+    /// ⛔ THE DOOR ASSERTION IS RETIRED (2026-08-02) BECAUSE THE FOUNDER CLOSED THE DOOR.
+    ///
+    /// He struck the Poincaré plot out in red on the screenshot that asked for a physically
+    /// honest picture of the sound (#385), and the mount came out of `signalSection` one cycle
+    /// later. Three ways this could have been handled, and why this is the one:
+    ///   · Keep asserting the mount → the guard goes red on a change the founder ordered. A
+    ///     guard that fights an instruction gets deleted wholesale, and the OTHER two things
+    ///     this file protects (the freeze law, the honesty bar) would die with it.
+    ///   · Invert it to "must NOT be mounted" → that pins the parking as if it were the
+    ///     decision, and would go red on the very restore this note is written to make easy.
+    ///   · Retire the door half, keep the content halves. ← this.
+    ///
+    /// The view file is NOT deleted. `PoincareMetricsTests` still owns the maths and the two
+    /// tests below still own the freeze law and the honesty bar, so the file cannot rot while
+    /// it is parked. Restoring it is one line in `signalSection` (`AnalysisPoincareView()`)
+    /// plus its caption plus the "Body" heading — and whoever does that should bring this
+    /// assertion back in the same commit.
+    ///
+    /// ⚠️ WHAT IS UNGUARDED WHILE IT IS PARKED, said plainly: nothing now notices if the view
+    /// is deleted outright. That is the accepted cost of a deliberate doorless state, and it
+    /// is bounded by the founder's verdict on the wavefront picture.
+    func testTheParkedPlotStillExistsAsAFile() throws {
+        // The one door-shaped fact still worth asserting: the file is on disk. `source(_:)`
+        // throws if it is not, which is the whole assertion — a parked view that quietly
+        // vanished would make the "one line to restore" promise above a lie.
+        let view = try source("Sources/Echoelmusic/Studio/AnalysisPoincareView.swift")
+        XCTAssertTrue(view.contains("struct AnalysisPoincareView"), """
+            `AnalysisPoincareView.swift` no longer declares `AnalysisPoincareView`. The view is \
+            PARKED (doorless on purpose since 2026-08-02), not retired — the promise recorded \
+            in `signalSection` is that restoring it costs one line. If it was genuinely \
+            deleted, delete this file with it and say so in the commit.
             """)
     }
 

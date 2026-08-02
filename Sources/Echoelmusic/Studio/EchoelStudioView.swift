@@ -3459,14 +3459,15 @@ struct EchoelStudioView: View {
     /// SIGNAL (#347 Slice 1, founder 2026-08-01: "Diesen Bereich nochmal erweitern durch
     /// osciloscope, fft, spectrum, stereobild bzw spatial Analyse").
     ///
-    /// A REAL oscilloscope of the master output — see `AnalysisScopeView`'s header for why
-    /// the shader's retired "Scope" look (style index 8) is NOT this and must not be
-    /// relabelled as it: that one is handed the note frequency, never audio.
+    /// TWO PICTURES OF THE MASTER OUTPUT since 2026-08-02: the wavefront field (how the sound
+    /// SPREADS) and the spectrum (what is IN it). The oscilloscope that opened this section and
+    /// the Poincaré plot that closed it were both struck out by the founder in red and are now
+    /// parked — see the ⛔ note inside the body for what that means and how to undo it.
     ///
     /// It sits ABOVE "Look" deliberately: this is what the sound IS, the looks below are what
     /// it is rendered AS, and the reading order should follow that.
     ///
-    /// ⚠️ ONE PROPERTY, FIVE ROWS. Slice 2's spectrum went in HERE rather than at the top
+    /// ⚠️ ONE PROPERTY, THREE ROWS (was five). Slice 2's spectrum went in HERE rather than at the top
     /// level, and #359 step 2's `weatherImageRow` did not — those are the two decisions this
     /// paragraph records. `visualPanel`'s top-level children today: the show/hide Button,
     /// `signalSection`, the `Group`, `visualPresetRow`, `visualAdjustFields`,
@@ -3483,50 +3484,54 @@ struct EchoelStudioView: View {
     /// So the guidance survives — prefer a section over a tenth top-level row — but a session
     /// that genuinely needs one is not blocked, and must not be told it is.
     ///
-    /// The two views answer different questions on purpose and neither replaces the other:
-    /// the scope shows the WAVE (what shape, how loud, is it clipping), the spectrum shows
-    /// what is IN it (which partials, which note dominates). A performer checking whether the
-    /// take is too bright reads the second; one checking whether the master is squashed reads
-    /// the first.
+    /// ⛔ THE PARAGRAPH THAT STOOD HERE DESCRIBED A VIEW THAT IS NO LONGER MOUNTED. It said
+    /// "the two views answer different questions … the scope shows the WAVE … the spectrum
+    /// shows what is IN it", written when the section held scope + spectrum. Left as it was, a
+    /// session would plan from a picture the founder removed. The pairing survives with a
+    /// different first member: the WAVEFRONT shows how the sound spreads and how loud a moment
+    /// was, the SPECTRUM shows which partials are in it and how far the loudest sits from the
+    /// nearest note of your tuning. A performer checking whether the take is too bright reads
+    /// the second; one watching the shape of a phrase reads the first.
     private var signalSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             groupHeader("Signal")
-            // ⭐ FIRST, and above the scope on purpose — founder 2026-08-02, who struck out the
+            // ⭐ FIRST IN THE SECTION — founder 2026-08-02, who struck out the
             // oscilloscope and the Poincaré plot in red and asked: "Gibt es noch eine Möglichkeit
             // das es mehr physikalisch korrekt wie die Schwingung aussieht? Schallwellen breiten
             // sich ja in alle Richtungen gleichmäßig aus." He is right that neither struck view
             // looks like sound: one is a voltage against time, the other a statistic over
             // heartbeat intervals. This one shows propagation itself.
             //
-            // ⚠️ THE TWO STRUCK VIEWS ARE STILL HERE, and that is a deliberate sequencing call,
-            // not a half-obeyed instruction. Removing them before this one has been SEEN on a
-            // device would trade something watched for something unwatched, and #347 Slices 1 and
-            // 3a/3b are two days old with guards of their own. The founder's verdict after
-            // looking decides what goes; if they go, the FILES stay doorless for a cycle so the
-            // reversal is one line. Stated here rather than only in the task, because this is
-            // where the next session will wonder why two crossed-out views survived.
+            // ⛔ THE TWO STRUCK VIEWS ARE GONE FROM THIS SECTION (2026-08-02, one cycle after the
+            // replacement landed). The previous version of this note kept them mounted and called
+            // that "a deliberate sequencing call" — waiting for a device look before removing
+            // something the founder had already crossed out. That reasoning was mine, not his:
+            // the red X is an instruction, and delivering only the addition is half of it. What
+            // stays true from that note is the mitigation, so it is now the actual plan rather
+            // than a promise: `AnalysisScopeView.swift` and `AnalysisPoincareView.swift` are NOT
+            // deleted, their cores and content guards still run, and bringing either back is one
+            // line here plus its caption. The spectrum was never struck and stays, so this
+            // section can never end up empty.
+            //
+            // ⚠️ FOR THE NEXT SESSION: both files are now DOORLESS ON PURPOSE, which is the shape
+            // this repo otherwise treats as a defect (#322). Do not "fix" that by re-mounting
+            // them, and do not delete them either — the founder's look at the wavefront decides
+            // which way it goes.
             AnalysisWavefrontView(reduceMotion: reduceMotion)
             Text("The same output as a wave leaving its source: every ring is one moment of the sound, expanding at a constant speed and fading as the same energy spreads over a growing circumference. Its colour is that moment's centre of gravity in frequency, in the same visible-light mapping the field uses. The clock is slowed so the eye can follow it — real fronts cross a room in milliseconds.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-            AnalysisScopeView(reduceMotion: reduceMotion)
-            Text("The master output, triggered on a rising edge so a steady tone stands still. It shows what is actually heard — timbre, overtones and the reverb tail — not the note grid.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
             AnalysisSpectrumView(reduceMotion: reduceMotion)
             Text("The same output by frequency, low on the left. Each band is tinted by the colour that frequency becomes in visible light — the same mapping the field uses — so the meter and the picture agree. The reading above names the loudest partial and how far it sits from the nearest note of your tuning.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
-            // The BODY half of the same founder ask ("achte auch auf den evidenzbasierten
-            // gesundheitlichen benefit"). It lives inside this section rather than as a
-            // tenth child of `visualPanel` — see the ⚠️ note above about the ten-child
-            // ViewBuilder cap — but it gets its OWN heading, because a heart-rate picture
-            // filed under "Signal" would read as another audio meter.
-            groupHeader("Body")
-            AnalysisPoincareView()
-            Text("Each heartbeat interval against the next one — the standard Poincaré plot. Spread ACROSS the diagonal (SD1) is beat-to-beat change, spread ALONG it (SD2) is the slower drift; the ellipse is those two numbers drawn. Descriptive statistics for self-observation, not a diagnosis.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
+            // ⛔ THE "Body" HEADING WENT WITH THE POINCARÉ PLOT. It existed only to stop a
+            // heart-rate picture reading as another audio meter; with nothing under it, a lone
+            // heading is a promise of content that is not there. Two founder asks are in tension
+            // here and the LATER one wins: the plot was built for "achte auch auf den
+            // evidenzbasierten gesundheitlichen benefit" and was then crossed out on 2026-08-02.
+            // Restoring it means restoring this heading with it — one without the other is the
+            // half-state that made this note necessary.
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

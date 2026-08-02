@@ -123,7 +123,12 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
         // "Look" appears twice on purpose — the inline Visual panel and the (dead, #270) VJ
         // overlay copy. Both are listed so a future revival of the overlay cannot bring the
         // old spelling back with it.
-        for title in ["Look", "Signal", "Body", "Voice", "Self-play"] {
+        // ⛔ "Body" LEFT THIS LIST ON 2026-08-02, and the removal is the point rather than an
+        // oversight. It headed the Poincaré plot, which the founder struck out in red (#385);
+        // the plot is parked and a heading with nothing under it is a promise of content that
+        // is not there, so it came out with it. Restoring the plot means restoring the heading
+        // AND this entry in the same commit — that pairing is exactly what this list is for.
+        for title in ["Look", "Signal", "Voice", "Self-play"] {
             XCTAssertTrue(joined.contains("groupHeader(\"\(title)\")"), """
                 The "\(title)" section heading no longer calls `groupHeader`. It was one of \
                 the seven #362 unified; spelling a heading inline is how the panels drifted \

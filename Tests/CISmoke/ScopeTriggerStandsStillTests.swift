@@ -186,21 +186,30 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
             """)
     }
 
-    /// THE DOOR. A scope nobody can open is worth nothing, and this repo has accumulated a
-    /// shelf of exactly that (`SpectralDonutView`'s whole FFT behind a flag with no setter,
-    /// the VJ overlay, `ImmersiveStageView` …). The view is mounted from `visualPanel`,
-    /// which the Field chip opens.
+    /// ⛔ THE SCOPE'S OWN DOOR ASSERTION IS RETIRED (2026-08-02). The founder struck the
+    /// oscilloscope out in red on the screenshot that asked for a physically honest picture of
+    /// the sound (#385); the mount left `signalSection` one cycle later and the view is now
+    /// PARKED — doorless on purpose, file intact, one line to restore. The reasoning for
+    /// retiring rather than inverting the assertion is written out once, on
+    /// `PoincareViewDoorTests.testTheParkedPlotStillExistsAsAFile`, because both views were
+    /// struck by the same mark on the same day.
+    ///
+    /// WHAT THIS TEST STILL OWNS, and why it is not deleted: the SECTION. `signalSection` did
+    /// not go anywhere — it now holds the wavefront view and the spectrum — and a section that
+    /// exists but is never mounted is the #322 defect regardless of which pictures are in it.
+    /// So the chain check below is unchanged, and the scope's own existence is asserted as a
+    /// file rather than as a mount.
     ///
     /// Source text, because `EchoelStudioView` is a SwiftUI view this bundle cannot build —
-    /// the house pattern (`SoundPanelPresetBarTests`, `NoDoorlessStudioViewsTests`). It
-    /// checks the CHAIN, not just the construction: `signalSection` must both exist and be
-    /// referenced, because a section nothing mounts is precisely the #322 defect.
-    func testTheScopeHasADoor() throws {
+    /// the house pattern (`SoundPanelPresetBarTests`, `NoDoorlessStudioViewsTests`).
+    func testTheSignalSectionHasADoorAndTheParkedScopeStillExists() throws {
         let code = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertTrue(code.contains("AnalysisScopeView(reduceMotion:"), """
-            Nothing constructs `AnalysisScopeView` any more, so the oscilloscope is a file \
-            with no surface. If it was removed on purpose, remove this test and the view in \
-            the same commit; if it was refactored, re-point this guard at the new call site.
+        let view = try source("Sources/Echoelmusic/Studio/AnalysisScopeView.swift")
+        XCTAssertTrue(view.contains("struct AnalysisScopeView"), """
+            `AnalysisScopeView.swift` no longer declares `AnalysisScopeView`. The view is \
+            PARKED, not retired — `signalSection` records the promise that restoring it costs \
+            one line, and that promise needs the file to still be there. If it was genuinely \
+            deleted, delete this test file with it and say so in the commit.
             """)
         XCTAssertTrue(code.contains("private var signalSection"), """
             `signalSection` is gone. It exists to keep `visualPanel` under the ViewBuilder \
