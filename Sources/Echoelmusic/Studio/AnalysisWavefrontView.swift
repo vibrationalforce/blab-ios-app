@@ -23,11 +23,17 @@ import SwiftUI
 // The physics, its three honest limits (age not metres · envelope fronts not pressure cycles ·
 // a dilated clock) and the 1/r-versus-1/r² question are all argued in `WavefrontField`.
 //
-// ⚠️ NO NUMBER ON THIS VIEW, deliberately, and the science-first rule is not being broken. The
-// spectrum meter two rows down already names the loudest partial of the SAME output; a second
-// readout here would be a second address for one fact, which is the defect this repo keeps
-// paying for under other names. What this view adds is not a quantity, it is the SHAPE of
-// propagation — and that has no single number.
+// ⚠️ NO PRINTED NUMBER ON THIS VIEW, deliberately — but the SPOKEN label carries the live
+// measurement, and the first version of this file got that second half wrong. It argued "no
+// number at all" because the spectrum meter two rows down already names the loudest partial of
+// the same output, and a second printed readout would be a second address for one fact. That
+// argument holds for a SIGHTED reader, who gets frequency from the ring colour and loudness from
+// its brightness. For a VoiceOver user the picture contributes nothing whatsoever, so a fixed
+// label ("Wavefront field") leaves the view empty of content — exactly the class of defect
+// `AnalysisViewsSpeakTheirNumbersTests` was written for, and it caught this one on arrival.
+// The label is therefore COMPUTED from the live state; the panel stays free of a duplicate
+// printed number. (The centroid is also not the spectrum readout's fact: that names the LOUDEST
+// partial, this is the centre of mass of the whole spectrum — see `WavefrontField.centroidHz`.)
 //
 // ⚠️ FLASH SAFETY IS THE REAL RISK IN THIS VIEW, more than in any sibling: a pulsing radial
 // field is the textbook seizure trigger. Two things bound it. (1) The whole field's brightness
@@ -75,18 +81,48 @@ struct AnalysisWavefrontView: View {
                 .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                // ONE element with a real description. `.accessibilityElement()` — never
+                // `.combine`, which discards child labels and is the mistake #352 had to undo one
+                // file over. A `Canvas` has nothing readable in it, so the label has to carry the
+                // measurement itself.
+                //
+                // ⚠️ INSIDE THE TimelineView CLOSURE ON PURPOSE. Applied outside it, the label
+                // would be built once and then never again — a fixed string wearing a function
+                // call, which is the shape a source scan cannot tell from an honest one. In here
+                // the closure re-evaluates on every tick, so the sentence follows the picture.
+                .accessibilityElement()
+                .accessibilityLabel(spokenState())
+                .accessibilityHint("""
+                    Each ring is a moment of the sound spreading outward, fading as it goes, \
+                    tinted by the colour that its frequency becomes in visible light.
+                    """)
         }
         .frame(height: fieldHeight)
-        // ONE element with a real description. `.accessibilityElement()` — never `.combine`,
-        // which discards child labels and is the mistake #352 had to undo one file over. A
-        // `Canvas` has nothing readable in it, so the label has to carry the meaning: what the
-        // rings are and what their colour means.
-        .accessibilityElement()
-        .accessibilityLabel("Wavefront field")
-        .accessibilityHint("""
-            Each ring is a moment of the sound spreading outward, fading as it goes, tinted by \
-            the colour that its frequency becomes in visible light.
-            """)
+    }
+
+    /// What VoiceOver says about the picture — the live quantity a sighted reader takes from the
+    /// colour and the brightness.
+    ///
+    /// Built from the PREVIOUS frame's measurement: this closure evaluates before `Canvas` draws,
+    /// so `state` still holds the values written one tick ago. At 20 fps that is 50 ms, far below
+    /// anything a reader can notice, and it is stated rather than hidden because the alternative —
+    /// writing SwiftUI state from inside the draw closure — is a modify-during-update hazard.
+    private func spokenState() -> String {
+        let rings = state.fronts.count
+        guard rings > 0 else {
+            // Plain words, no dashes or symbols: VoiceOver reads punctuation glyphs aloud, which
+            // is the lesson `AnalysisSpectrumView`'s spoken form had to learn the hard way.
+            return "Wavefront field. Silent. Nothing is sounding, so no wave is leaving the centre."
+        }
+        let subject = rings == 1 ? "One wavefront is" : "\(rings) wavefronts are"
+        guard let hz = state.lastCentroidHz, hz.isFinite, hz > 0 else {
+            return "Wavefront field. \(subject) spreading outward."
+        }
+        // Whole hertz, and an `Int` interpolation on purpose: a formatter would insert the
+        // locale's grouping separator into a spoken number (#267's territory), and a decimal
+        // place here would change several times a second without telling anyone anything.
+        let hertz = Int(hz.rounded())
+        return "Wavefront field. \(subject) spreading outward, the newest centred near \(hertz) hertz."
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize, at date: Date) {
@@ -99,6 +135,11 @@ struct AnalysisWavefrontView: View {
         let (magnitudes, _) = state.fft.forward(state.samples)
         let centroid = WavefrontField.centroidHz(magnitudes: magnitudes,
                                                  sampleRate: audioEngine.sampleRate)
+        // Kept for the spoken label only. Held rather than cleared on a silent frame: rings
+        // already in flight still carry the colour of the moment that emitted them, so a label
+        // that dropped the frequency the instant the input went quiet would contradict what is
+        // still on screen.
+        if let centroid { state.lastCentroidHz = centroid }
 
         // --- Advance every front, retire the ones that have left ---
         state.advanceAll(dt: dt)
@@ -183,6 +224,10 @@ private final class WavefrontState {
     var samples = [Float](repeating: 0, count: WavefrontState.fftSize)
     var fronts: [Front] = []
     var fieldGain: Double = 0
+    /// The last spectral centroid that was measurable, for the spoken label. `nil` until the
+    /// first sounding frame — never a fabricated number, for the same reason `centroidHz`
+    /// returns `nil` in silence rather than 0 Hz.
+    var lastCentroidHz: Double?
 
     private var emitAccumulator: Double = 0
     private var lastDate: Date?

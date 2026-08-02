@@ -176,9 +176,22 @@ final class ChromeDynamicTypeTests: XCTestCase {
     /// `.xxLarge`, so it now grows a lot further than it used to. `minimumScaleFactor(0.7)` only
     /// bounds how far it goes, it does not stop it.
     ///
-    /// In an `HStack` the `Spacer` is the thing that yields, so the two can no longer overlap at
-    /// any text size. That property is invisible in a screenshot at the default size, which is
-    /// exactly why it needs a guard rather than a comment.
+    /// In an `HStack` the slack is what yields, so the two can no longer overlap at any text
+    /// size. That property is invisible in a screenshot at the default size, which is exactly why
+    /// it needs a guard rather than a comment.
+    ///
+    /// ⛔ THE MECHANISM CHANGED WITH #384 AND THIS GUARD WENT RED — correctly, and it is worth
+    /// recording which half was stale. #348 built the row as TWO columns with a
+    /// `Spacer(minLength: 8)` pushing the monitors to the trailing edge, and this test pinned
+    /// that spelling. On 2026-08-02 the founder asked for the wordmark back in the MIDDLE, which
+    /// a two-column row cannot do: a `Spacer` gives all the slack to one side. The bar is now
+    /// three columns — greedy flank, brand, greedy flank — and a `Spacer` in it would compete
+    /// with those flanks for the same slack and quietly pull the "centre" off centre. So the
+    /// assertion is inverted rather than deleted: the SUBJECT (title and monitors can never
+    /// overlap) is unchanged and still carried by the two assertions above it; what is banned is
+    /// now the `Spacer`, not its absence. The exact flank COUNT is pinned once, in
+    /// `HeaderSpectrumIsALeafTests.testTheTitleIsCentredWithoutAZStack` — not duplicated here,
+    /// so a future layout change has one number to update and not two.
     func testTheHeaderLaysOutInARowSoTheTitleCannotOverlapTheMonitors() throws {
         let bar = try topBarSource()
         XCTAssertFalse(bar.contains { $0.contains("ZStack") }, """
@@ -192,10 +205,20 @@ final class ChromeDynamicTypeTests: XCTestCase {
             update this guard together with the change — do not delete it; the ZStack it \
             replaced shipped a real Dynamic Type overlap.
             """)
-        XCTAssertTrue(bar.contains { $0.contains("Spacer(minLength: 8)") }, """
-            The `Spacer(minLength: 8)` between the brand block and the output monitors is gone. \
-            It is the only thing that keeps a minimum gap when the wordmark grows; without it \
-            the title runs into the first tile instead of pushing it.
+        let spacers = bar.filter { $0.contains("Spacer(") || $0.contains("Spacer()") }
+        XCTAssertTrue(spacers.isEmpty, """
+            A `Spacer` is back in `topBar`: \
+            \(spacers.map { $0.trimmingCharacters(in: .whitespaces) }). Since #384 the bar is \
+            three columns and both flanks carry `.frame(maxWidth: .infinity)`; a `Spacer` \
+            competes with them for the same leftover width, so the brand block stops sitting in \
+            the geometric middle — silently, and by an amount that depends on how much slack \
+            there happens to be. Use the flanks' alignment to place things, not a Spacer.
+            """)
+        XCTAssertEqual(bar.filter { $0.contains("HStack(spacing: 8) {") }.count, 3, """
+            `topBar` no longer has exactly three `HStack(spacing: 8)` (the bar itself, the brand \
+            block, the monitor cluster). The bar's own spacing is what guarantees a gap between \
+            the wordmark and the first tile now that the `Spacer` is gone — an HStack spacing \
+            cannot be consumed by a greedy child, which is precisely why it replaced one.
             """)
     }
 
