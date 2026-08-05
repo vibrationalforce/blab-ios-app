@@ -61,6 +61,42 @@ anders gespielt** — nicht wie ein anderes Stück. Genau das beschreibt „klin
 Ohr-Urteil, und es gehört dem Founder. Ich behandle es als Anforderung, nicht als Bugreport
 — aber es gibt heute **keine Zahl** dafür (siehe Slice 0).
 
+### 1d. GERÄTE-BELEG (Founder-Log v10.79.369 / Build 2486, 2026-08-05) — und er verschiebt die Gewichte
+
+Neun `generate[…]`-Zeilen über ~4 Minuten, Genre `selfObservation` (der Default, auf den eine
+Neuinstallation öffnet). **Jede einzelne meldet `5 notes`.** Alles andere konstant: `key=C4
+minor`, `tuning=edo12`, `a4=440.0`, `rollMixGain=1.00`, `userMix=1.00/1.00/1.00`. Der einzige
+Wert, der sich bewegt, ist `vMax` — zwischen 0,699 und 0,835.
+
+**Das ist KEIN Defekt im Seed, und genau deshalb ist es die wichtigste Zeile dieses Plans.**
+`MusicStyle.selfObservation` liefert `HarmonicProfile(progression: [0, 5, 3], chordTones:
+[0, 2, 4, 6], leadDensity: 0.0, sustained: true)` — vier gehaltene Akkordtöne plus einen
+Bass-Grundton, kein Lead, keine Drums. Fünf Noten sind die **Bauart**, nicht ein Zufall: das
+Profil ist am 2026-07-07 bewusst so gesetzt worden („reine meditative Flächen", „ein wahrer
+Drone"), und es tut, was es soll.
+
+Die Folge für #403 ist trotzdem hart: **für das Genre, auf das eine Neuinstallation öffnet,
+hat der `structureSeed` fast keinen Hebel.** Notenzahl fest, Akkordtöne fest, Lage fest,
+kein Lead. Was der Körper überhaupt bewegen kann, ist die Velocity und — über die Evolves —
+welcher der drei Akkorde gerade gehalten wird. Ein Personen-Seed im Skelett-Strom (Slice 1)
+verändert an einer gehaltenen Fläche also **kaum etwas Hörbares**.
+
+**Konsequenz, ausdrücklich als Planänderung:** Slice 2 (Charakter-Offsets — Tempo-Neigung im
+Genre-Fenster, Dichte, Register) ist damit **nicht die Politur nach Slice 1, sondern der
+einzige Hebel, der die kontemplative Mitte der Marke überhaupt erreicht.** Slice 1 bleibt
+zuerst, weil die Signatur existieren muss, bevor sie etwas neigen kann — aber die Erwartung
+„nach Slice 1 klingt es individuell" wäre für die Default-Genres falsch, und diese Zeile steht
+hier, damit sie nicht entsteht.
+
+⚠️ Der Wächter `testASustainedPadStillMovesWithTheBody` (Slice 0) misst genau diesen Fall auf
+`.drift` und fordert bewusst nur „größer null", keine Schwelle. Nach dieser Lesung ist klar,
+warum das die richtige Entscheidung war: auf einer gehaltenen Fläche bleibt heute im
+Wesentlichen der Velocity-Anteil übrig, und der wiegt 0,10.
+
+⚠️ Ebenfalls aus diesem Log: die Sitzung lief mit `bio simulation starting`, also der
+SIMULIERTEN Quelle, nicht mit einem gemessenen Puls. Sie sagt deshalb nichts darüber, ob der
+Körper des Founders das Instrument erreicht — nur, was die Schablone zulässt.
+
 ---
 
 ## 2. COUNCIL
