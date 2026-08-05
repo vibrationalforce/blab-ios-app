@@ -1175,6 +1175,14 @@ public final class AudioEngine {
         return measuredIntervals == 0 && engineRunning
     }
 
+    /// The last completed 60 s timing verdict, in one short line for the Master panel (#408).
+    ///
+    /// `nil` until the first window closes — the row says so rather than showing a zero it has
+    /// not earned. Observation-tracked ON PURPOSE (this is the whole point: the founder must
+    /// see it change), and safe to be so because it is written exactly once per
+    /// `timingWindowSeconds`. Do NOT add a faster writer to it.
+    var lastTimingLine: String?
+
     private func pollAudioTiming(now: TimeInterval) {
         if timingWindowStart == 0 { timingWindowStart = now; return }
         let elapsed = now - timingWindowStart
@@ -1199,6 +1207,26 @@ public final class AudioEngine {
         _driftWorst.pointee = 0
         _discCount.pointee = 0
         _measuredCount.pointee = 0
+
+        // ⭐ THE SCREEN GETS EVERY WINDOW; THE LOG DOES NOT (#408). This assignment sits
+        // deliberately ABOVE `shouldReportTimingWindow`, because the two readers want opposite
+        // things. The LOG speaks only when a window is dirty — that discipline is what keeps
+        // `echoel_diag.log` readable, and the comment below spends thirty lines earning it. The
+        // ROW is read at the moment a crackle is heard, and a row that only updated on dirty
+        // windows would show a verdict from ten minutes ago while the founder is looking for
+        // one from now. Stale is worse than clean here: it would be a wrong answer, not a
+        // missing one.
+        //
+        // WHY THIS EXISTS AT ALL: the instrument has been in the app since #193 and has only
+        // ever spoken into a file the founder has to export and send. The v10.79.369 report
+        // ("teilweise extremes Knacken") arrived without one — which is the normal case, not a
+        // lapse, and it left six candidate mechanisms unseparated (#407).
+        //
+        // Written once per 60 s, so it is nowhere near the freeze law's rate. It is still read
+        // in its own leaf (`AudioTimingRow`) rather than in a panel body, because the law is
+        // about WHERE a published read registers its observer, not only how fast.
+        lastTimingLine = tally.screenLine(overSeconds: elapsed,
+                                          quantumMilliseconds: timingQuantumSeconds * 1000)
 
         // PROOF OF LIFE. The first window always reports, even clean. Otherwise an absent
         // line is indistinguishable between "the audio path was clean", "the timebase

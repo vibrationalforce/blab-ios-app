@@ -294,5 +294,59 @@ public enum RenderGapDetector {
                           glitchCount, overSeconds, worstLateInQuanta,
                           quantumMilliseconds, worstDriftInQuanta) + tail
         }
+
+        /// ⭐ THE SAME VERDICT, SHORT ENOUGH FOR A PANEL ROW (#408).
+        ///
+        /// WHY A SECOND FORMATTER RATHER THAN REUSING `diagnosticLine`: that one is written
+        /// for `echoel_diag.log`, a file the founder has to export and send. It is deliberately
+        /// verbose — it names its denominator and its own blind spots in-line, because whoever
+        /// reads it next has no other context. A UI row has the opposite constraint: it is read
+        /// in one glance, WHILE the crackle is happening, and it has a caption beside it that
+        /// carries the caveat permanently. Squeezing the log line into a row would truncate;
+        /// putting the row's brevity into the log would strip the caveats. Two readers, two
+        /// lines, one `Tally`.
+        ///
+        /// AND THAT IS THE WHOLE POINT OF #408: this instrument has existed since #193 and has
+        /// only ever spoken into a file. The founder reported "teilweise extremes Knacken" on
+        /// v10.79.369 with no log attached — which is the normal case, not a lapse. A number
+        /// the founder can SEE at the moment they hear it turns the next report into its own
+        /// diagnosis.
+        ///
+        /// ⚠️ THE UNITS ARE MILLISECONDS HERE, NOT QUANTA. The log prints a multiplier because
+        /// its reader is expected to know the buffer size; the row's reader is not, and "2.4×"
+        /// means nothing without it. `worstLateInQuanta × quantumMilliseconds` is the same
+        /// measurement expressed in the unit a person can compare against a sound they heard.
+        ///
+        /// ⚠️ A BLIND WINDOW MUST NOT READ AS A CLEAN ONE. `isClean` is `glitchCount == 0`,
+        /// which is also true when the tap never fired — the exact ambiguity the log's
+        /// proof-of-life rules exist to remove, and it would come straight back if this row
+        /// printed "nothing late" for a window with no denominator.
+        public func screenLine(overSeconds: Double, quantumMilliseconds: Double) -> String {
+            let seconds = overSeconds.isFinite && overSeconds > 0 ? overSeconds : 0
+            guard measuredIntervals > 0 else {
+                return seconds > 0
+                    ? String(format: "Not measured in the last %.0f s", seconds)
+                    : "Not measured yet"
+            }
+            guard glitchCount > 0 else {
+                return String(format: "Nothing late in the last %.0f s", seconds)
+            }
+            let ms = quantumMilliseconds.isFinite && quantumMilliseconds > 0
+                ? worstLateInQuanta * quantumMilliseconds : 0
+            guard ms > 0 else {
+                return String(format: "%ld late in %.0f s", glitchCount, seconds)
+            }
+            return String(format: "%ld late in %.0f s · worst %.1f ms behind",
+                          glitchCount, seconds, ms)
+        }
+
+        /// The caveat that sits under `screenLine` PERMANENTLY, never only when the window is
+        /// dirty. A clean timing window is not an all-clear for the founder's report: a voice
+        /// steal, a parameter step or an un-faded seam produces a click with the audio path
+        /// perfectly on time, and this instrument cannot see any of them (the file header says
+        /// so at length). A caption that appeared only on dirty windows would let the clean
+        /// case read as "the crackling is gone", which is the one sentence this must never say.
+        public static let screenCaption =
+            "Timing only. A click while the audio is on time is not counted here."
     }
 }

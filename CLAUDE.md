@@ -242,8 +242,20 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**151** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-05 nach `TheMasterGainMovesInSmallStepsTests.swift` (#404 Slice 2 — der
+                          `Tests/CISmoke` (**152** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-05 nach `TimingVerdictReachesTheScreenTests.swift` (#408 — der erste
+                          Wächter in dieser Kette über einer ANZEIGE statt über einem Verhalten, und
+                          deshalb der erste, dessen Fehlermodi allesamt EHRLICHKEIT betreffen: ein Fenster
+                          ohne gemessene Intervalle darf nicht wie ein sauberes lesen (`isClean` ist
+                          `glitchCount == 0` und damit auch für den toten Tap wahr), und ein sauberes
+                          Fenster darf nicht wie eine Entwarnung lesen — dieses Messgerät sieht die ganze
+                          zweite Klasse von Klick nicht. ⛔ Und seine eigene erste Fassung war rot auf
+                          korrektem Code: die Reihenfolge-Prüfung ankerte auf
+                          `shouldReportTimingWindow(firstWindow:`, was zuerst die DEKLARATION trifft und
+                          nicht den Aufruf, also 1228 < 1169. Ein Quelltext-Scan muss auf ein Token
+                          ankern, das NUR an der gemeinten Stelle steht — die Eindeutigkeit zu prüfen
+                          gehört zum Schreiben des Scans, nicht zur Nachlese),
+                          davor „151" nach `TheMasterGainMovesInSmallStepsTests.swift` (#404 Slice 2 — der
                           erste Wächter in dieser Kette, dessen Schwelle beim Schreiben zuerst FALSCH gewählt
                           war und deren Korrektur die eigentliche Lehre ist: die erste Fassung setzte ein
                           lineares 2-%-Budget, der schlimmste legale Schnitt-Schritt liegt bei 2,68 %, und der
@@ -447,7 +459,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTZEHN FRÜHERE Stände in acht Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-05-Stand sind es acht, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 151 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTELF FRÜHERE Stände in acht Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-05-Stand sind es acht, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 152 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

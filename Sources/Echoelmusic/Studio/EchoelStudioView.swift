@@ -3587,6 +3587,14 @@ struct EchoelStudioView: View {
                 .accessibilityHint("Clear the integrated loudness and peak hold")
             }
 
+            // #408: the render-timing meter (#193) has existed for a week and speaks only into
+            // `echoel_diag.log`, a file the founder has to export and send. The v10.79.369
+            // "teilweise extremes Knacken" report arrived without one, leaving six candidate
+            // mechanisms unseparated (#407). This row is the same verdict where it can be read
+            // AT THE MOMENT the crackle is heard. Its own leaf, per the freeze law — the write
+            // is once per 60 s, but the law is about where the observer registers.
+            AudioTimingRow(engine: audioEngine)
+
             // LABEL IS A RELEASE, NOT A MUTE (review 2026-07-26). "Silence" over-promised:
             // this button releases every held note, but it does not stop the transport, so the
             // roll re-attacks on its next step and the bio arm re-opens on the next inhale.
@@ -3634,6 +3642,44 @@ struct EchoelStudioView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint(hint)
+    }
+
+    // MARK: - Audio timing readout (#408)
+
+    /// The render-timing verdict as ONE panel row, in its OWN `View` struct.
+    ///
+    /// ⚠️ THE LEAF IS NOT OPTIONAL EVEN THOUGH THE RATE IS HARMLESS. `lastTimingLine` changes
+    /// once per 60 s, which could not freeze anything — but the 10.76.50 law is about WHERE an
+    /// observed read registers, not only how fast it fires. Read inside `masterPanel` (a
+    /// computed `var` the root body evaluates), this would enrol the whole root as an observer
+    /// of an `AudioEngine` property. That is exactly one refactor away from being the freeze
+    /// again, and the audit that found the last one had to look a level ABOVE the obvious view.
+    /// A leaf costs six lines and closes the class.
+    ///
+    /// ⚠️ THE CAPTION IS UNCONDITIONAL. A clean timing window is not an all-clear for the
+    /// founder's report: a voice steal, a parameter step or an un-faded seam clicks with the
+    /// audio path perfectly on time, and this meter is blind to all three (`RenderGapDetector`'s
+    /// header says so at length). A caveat shown only on dirty windows would let "Nothing late"
+    /// read as "the crackling is fixed" — the one sentence this row must never say.
+    private struct AudioTimingRow: View {
+        let engine: AudioEngine
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text("Audio timing")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    Spacer()
+                    Text(engine.lastTimingLine ?? "Measuring…")
+                        .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
+                }
+                Text(RenderGapDetector.Tally.screenCaption)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+        }
     }
 
     /// Performance panic — release every sounding note on EVERY voice this view can reach,
