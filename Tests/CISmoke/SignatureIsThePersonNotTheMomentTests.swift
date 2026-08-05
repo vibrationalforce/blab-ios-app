@@ -209,21 +209,55 @@ final class SignatureIsThePersonNotTheMomentTests: XCTestCase {
         XCTAssertEqual(sig.heartRateBPM, 300, accuracy: 0.001, message)
     }
 
-    func testOneUnusualAfternoonCannotRedrawTheHandwriting() {
+    func testASaturatedFingerprintMovesSlowlyAndStillMoves() {
+        // ⛔ THIS TEST WAS CALLED `testOneUnusualAfternoonCannotRedrawTheHandwriting` AND FED
+        // EXACTLY ONE OUTLIER. Review pointed out that its NAME claimed a property it never
+        // checked: a real unusual afternoon is scores of observations, not one, and at the old
+        // `saturation` of 64 that afternoon converged the mean almost completely. The name is
+        // now the statement the test actually makes — per-observation slowness — and the
+        // afternoon-sized case below is the one that carries the real claim.
         var sig = PerformerSignature.unknown
         var t: TimeInterval = 1000
-        for _ in 0..<200 {
+        for _ in 0..<PerformerSignature.saturation * 2 {
             sig = sig.observing(body(at: t, hr: 60))
             t += 30
         }
         let settled = sig.heartRateBPM
-        let afterASprint = sig.observing(body(at: t, hr: 120)).heartRateBPM
-        let message = "A single extreme session moved the learned resting rate by more than "
-            + "one BPM. Past `saturation` the weight must be 1/64, so 60 BPM of difference "
-            + "may move the mean by at most ~0.94."
-        XCTAssertLessThan(afterASprint - settled, 1.0, message)
-        XCTAssertGreaterThan(afterASprint, settled,
+        let afterOneSprint = sig.observing(body(at: t, hr: 120)).heartRateBPM
+        let step = afterOneSprint - settled
+        let cap = 60 / Float(PerformerSignature.saturation)
+        let message = "One observation past saturation moved the learned rate too far. The "
+            + "weight must be 1/saturation, so 60 BPM of difference may move the mean by at "
+            + "most that fraction of it."
+        XCTAssertLessThan(step, cap + 0.01, message)
+        XCTAssertGreaterThan(step, 0,
                              "…but it must still move: a frozen fingerprint stops being one.")
+    }
+
+    func testOneSittingThrottlesButDoesNotDecideTheHandwriting() {
+        // THE CLAIM THE OLD TEST ONLY APPEARED TO MAKE, now sized to a real sitting. 45 minutes
+        // at one accepted observation per 30 s is ~90 frames. Against `saturation` 64 that
+        // converged a settled 60 BPM to ≈108 — one afternoon owning the person. The assertion
+        // deliberately states BOTH halves, because a fingerprint that refuses to follow a body
+        // that genuinely changed would be the opposite failure.
+        var sig = PerformerSignature.unknown
+        var t: TimeInterval = 1000
+        for _ in 0..<PerformerSignature.saturation * 2 {
+            sig = sig.observing(body(at: t, hr: 60))
+            t += 30
+        }
+        let settled = sig.heartRateBPM
+        for _ in 0..<90 {
+            sig = sig.observing(body(at: t, hr: 120))
+            t += 30
+        }
+        let drift = sig.heartRateBPM - settled
+        let message = "A 45-minute sitting at 120 BPM moved the settled 60 BPM handwriting by "
+            + "more than half the distance. That means one sitting effectively redraws the "
+            + "person, which is the moment-not-person failure wearing a longer clock."
+        XCTAssertLessThan(drift, 30, message)
+        XCTAssertGreaterThan(drift, 1,
+                             "And it must move at all — this IS their body, just that day.")
     }
 
     func testAClockThatWentBackwardsStillTeaches() {
@@ -263,14 +297,14 @@ final class SignatureIsThePersonNotTheMomentTests: XCTestCase {
     }
 
     func testAnEmptyStoreReadsAsUnknown() throws {
-        let suite = try XCTUnwrap(UserDefaults(suiteName: "PerformerSignatureTests.empty"))
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "SignatureIsThePersonNotTheMoment.empty"))
         suite.removeObject(forKey: PerformerSignature.storageKey)
         XCTAssertEqual(PerformerSignature.load(from: suite), .unknown,
                        "No stored fingerprint must read as no fingerprint, not as a crash.")
     }
 
     func testAStoredFingerprintComesBack() throws {
-        let suite = try XCTUnwrap(UserDefaults(suiteName: "PerformerSignatureTests.roundTrip"))
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "SignatureIsThePersonNotTheMoment.roundTrip"))
         suite.removeObject(forKey: PerformerSignature.storageKey)
         let sig = PerformerSignature.unknown.observing(body(at: 1000, hr: 61, hrv: 0.42))
         sig.save(to: suite)
@@ -280,12 +314,49 @@ final class SignatureIsThePersonNotTheMomentTests: XCTestCase {
     }
 
     func testCorruptStoredBytesReadAsUnknownRatherThanCrash() throws {
-        let suite = try XCTUnwrap(UserDefaults(suiteName: "PerformerSignatureTests.corrupt"))
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "SignatureIsThePersonNotTheMoment.corrupt"))
         suite.set(Data([0x00, 0x01, 0x02]), forKey: PerformerSignature.storageKey)
         let message = "Unreadable bytes must degrade to no fingerprint — losing a nuance is "
             + "acceptable, refusing to launch is not."
         XCTAssertEqual(PerformerSignature.load(from: suite), .unknown, message)
         suite.removeObject(forKey: PerformerSignature.storageKey)
+    }
+
+    func testAnImplausibleBreathRateIsAnAbsenceNotAReading() {
+        // The bus owns this rule: `BioSampleFrame.plausibleBreathRate = 3...40`, because "you
+        // cannot breathe zero times a minute, so a value outside this band is an absence, not
+        // a reading". `> 0` is the right sentinel for heart rate and coherence and the WRONG
+        // one here — a settling `RespirationEstimator` emitting 1.2 breaths/min is finite,
+        // positive, and would otherwise be learned as this person's respiration for good.
+        let settling = PerformerSignature.unknown
+            .observing(body(at: 1000, hr: 61, breath: 1.2))
+        let message = "1.2 breaths/min was learned as a respiration rate. No human breathes "
+            + "that; the bus calls anything outside 3…40 an absence, and this file's own doc "
+            + "cites the bus as its authority."
+        XCTAssertEqual(settling.breathCount, 0, message)
+        XCTAssertEqual(settling.heartRateCount, 1,
+                       "…while the channel that WAS measured must still be learned.")
+
+        let real = PerformerSignature.unknown.observing(body(at: 1000, breath: 12))
+        XCTAssertEqual(real.breathCount, 1, "A plausible rate must still teach.")
+    }
+
+    func testACorruptedCountCannotBreakTheArithmetic() throws {
+        // A defensive decoder that only handles ABSENCE is half a decoder. Neither value here
+        // can come from our own encoder; both can come from a corrupted preferences plist.
+        let negative = Data("{\"heartRateBPM\":60,\"heartRateCount\":-5}".utf8)
+        let a = try JSONDecoder().decode(PerformerSignature.self, from: negative)
+        let message = "A negative count survived decoding. `blend` would then use weight 1 and "
+            + "the channel would stop smoothing entirely — jumping to whatever the next frame "
+            + "happens to say."
+        XCTAssertEqual(a.heartRateCount, 0, message)
+
+        let huge = Data("{\"heartRateBPM\":60,\"heartRateCount\":9223372036854775807}".utf8)
+        let b = try JSONDecoder().decode(PerformerSignature.self, from: huge)
+        XCTAssertLessThan(b.heartRateCount, Int.max,
+                          "A count at `Int.max` makes the `+= 1` in `observing` trap.")
+        // And prove it, rather than trusting the clamp: one more observation must not crash.
+        _ = b.observing(body(at: 9_000_000, hr: 62))
     }
 
     // MARK: - Provenance, and the way out
@@ -339,7 +410,7 @@ final class SignatureIsThePersonNotTheMomentTests: XCTestCase {
     }
 
     func testTheResetIsProvenAgainstAScratchStore() throws {
-        let suite = try XCTUnwrap(UserDefaults(suiteName: "PerformerSignatureTests.reset"))
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "SignatureIsThePersonNotTheMoment.reset"))
         let sig = PerformerSignature.unknown.observing(body(at: 1000, hr: 61, hrv: 0.42))
         sig.save(to: suite)
         XCTAssertTrue(PerformerSignature.load(from: suite).hasBody, "precondition")

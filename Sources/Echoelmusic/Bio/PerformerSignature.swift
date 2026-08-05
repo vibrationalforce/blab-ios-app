@@ -27,15 +27,16 @@
 // 3. **It is not "more randomness".** An empty signature contributes EXACTLY ZERO: `seedSalt`
 //    returns 0 and the caller's XOR is then a no-op, so a user who has never been measured
 //    renders bit-identically to before this file existed. That is the whole safety story of
-//    this slice, and `PerformerSignatureTests` pins it.
+//    this slice, and `SignatureIsThePersonNotTheMomentTests` pins it.
 //
 // ⚠️ HOW FAR SLICE 1's CLAIM GOES. This changes WHICH skeleton a body opens on. On the genre
 // a fresh install opens with (`.selfObservation`: three chords, four sustained chord tones,
-// no lead — the device log of 2026-08-05 shows `5 notes` on all nine takes) the skeleton has
-// very little room to differ, so the audible effect there is small by construction. That is
-// not a defect in this file; it is why `scratchpads/PLAN_PERFORMER_SIGNATURE.md` re-weighted
-// Slice 2 (character offsets) as the slice that actually reaches the contemplative middle of
-// the brand. Do not claim "sounds like you" on the strength of this file alone.
+// no lead — the 2026-08-05 device log, quoted in §1d of
+// `scratchpads/PLAN_PERFORMER_SIGNATURE.md`, shows `5 notes` on all nine takes) the skeleton
+// has very little room to differ, so the audible effect there is small by construction. That
+// is not a defect in this file; it is why that plan re-weighted Slice 2 (character offsets)
+// as the slice that actually reaches the contemplative middle of the brand. Do not claim
+// "sounds like you" on the strength of this file alone.
 
 import Foundation
 
@@ -89,11 +90,16 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
 
     /// `frame.timestamp` (CFAbsoluteTime at receipt) of the last accepted observation.
     ///
-    /// Persisted deliberately. The rate limit exists so that ONE long session — where every
-    /// control tap recomposes and would otherwise offer another observation — cannot dominate
-    /// a fingerprint that is supposed to describe a person across sessions. If the stamp were
-    /// held in memory only, ten relaunches in a minute would stack ten observations and
-    /// re-open exactly that hole.
+    /// Persisted deliberately. The rate limit is what makes an observation cost TIME rather
+    /// than a tap: every control edit recomposes, so without it a busy ten minutes would count
+    /// as dozens of independent pieces of evidence about the person. If the stamp were held in
+    /// memory only, ten relaunches in a minute would stack ten observations and re-open exactly
+    /// that hole.
+    ///
+    /// ⛔ IT DOES NOT MAKE A SESSION HARMLESS, and the first version of this doc said it did
+    /// ("so that ONE long session … cannot dominate"). That belongs to `saturation`, which now
+    /// carries the corrected arithmetic — and even there the honest verb is "throttles", not
+    /// "bounds".
     public private(set) var lastObservation: TimeInterval
 
     /// The empty signature: contributes nothing, and is what a fresh install carries.
@@ -119,6 +125,12 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.schemaVersion = PerformerSignature.currentSchemaVersion
         self.heartRateBPM = try c.decodeIfPresent(Float.self, forKey: .heartRateBPM) ?? 0
+        // ⚠️ THE COUNTS ARE SANITISED, NOT JUST DEFAULTED. A "defensive decoder" that only
+        // handles ABSENCE is half a decoder: a negative count makes `blend`'s weight 1 (the
+        // channel stops smoothing and jumps to each new sample), and a count near `Int.max`
+        // makes the `+= 1` in `observing` TRAP. Neither can come from our own encoder — both
+        // can come from a corrupted or hand-edited preferences plist, which is exactly the
+        // input a defensive decoder exists for. Same shape as `TrackFX`'s `finite(_:_:)`.
         self.heartRateCount = try c.decodeIfPresent(Int.self, forKey: .heartRateCount) ?? 0
         self.hrvNormalized = try c.decodeIfPresent(Float.self, forKey: .hrvNormalized) ?? 0
         self.hrvCount = try c.decodeIfPresent(Int.self, forKey: .hrvCount) ?? 0
@@ -133,10 +145,16 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         // unknown provenance to be safe provenance. But a payload that taught nothing has no
         // provenance to be unsure about, and marking it restricted would make a decoded empty
         // signature differ from `.unknown` for no reason a reader could explain.
+        // Reads the RAW counts deliberately: a negative one is not evidence of anything, and
+        // `sane` below maps it to 0, so both agree that nothing was taught on that channel.
         let taughtAnything = self.heartRateCount > 0 || self.hrvCount > 0
             || self.coherenceCount > 0 || self.breathCount > 0
         self.taughtByRestrictedSource =
             try c.decodeIfPresent(Bool.self, forKey: .taughtByRestrictedSource) ?? taughtAnything
+        self.heartRateCount = PerformerSignature.sane(self.heartRateCount)
+        self.hrvCount = PerformerSignature.sane(self.hrvCount)
+        self.coherenceCount = PerformerSignature.sane(self.coherenceCount)
+        self.breathCount = PerformerSignature.sane(self.breathCount)
         self.lastObservation = try c.decodeIfPresent(TimeInterval.self,
                                                      forKey: .lastObservation) ?? 0
     }
@@ -144,10 +162,21 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
     // MARK: - Learning
 
     /// How many observations it takes before a channel stops moving quickly. Past this the
-    /// running mean behaves as an exponential average with α = 1/64 — it keeps following a
-    /// body that genuinely changes over months, without letting one unusual afternoon
-    /// redraw the handwriting.
-    public static let saturation = 64
+    /// running mean behaves as an exponential average with α = 1/`saturation`.
+    ///
+    /// ⛔ THE FIRST VERSION SAID 64 AND CLAIMED "without letting one unusual afternoon redraw
+    /// the handwriting". Review did the arithmetic and the claim did not survive it: at one
+    /// accepted observation per ~30–45 s, a 45-minute sitting yields 60–90 observations — it
+    /// SATURATES the mean on its own. A hundred frames at 120 BPM would have pulled a settled
+    /// 60 to ≈107.6. The test that appeared to guard this fed exactly ONE outlier, so it
+    /// proved a much weaker statement than its name promised.
+    ///
+    /// 256 is chosen so the window is roughly two to four HOURS of playing rather than one
+    /// sitting. And the honest statement of what this constant does, which the old one
+    /// overstated: **it throttles, it does not bound.** A performer who plays for a whole day
+    /// in an unusual state will move their handwriting, and should — it is still their body.
+    /// What is prevented is a single half-hour deciding it outright.
+    public static let saturation = 256
 
     /// The minimum spacing between two accepted observations, in seconds.
     ///
@@ -159,8 +188,10 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
 
     /// Fold one measured body state into the fingerprint, or return `self` unchanged.
     ///
-    /// Returns `self` when the frame arrives inside the rate-limit window, and ignores each
-    /// channel the source did not actually measure. **Zero means "not measured" for HRV,
+    /// Returns `self` unchanged in four cases, and a reader who lands here should see all
+    /// four: the source may not teach at all (`mayTeach` — the simulator), the frame carries
+    /// no usable timestamp (`now > 0`), it arrived inside the rate-limit window, or every
+    /// channel it carries was unmeasured. None of them consumes the window. **Zero means "not measured" for HRV,
     /// coherence and breath rate** — that convention is the bus's, not this file's
     /// (`BioSampleFrame.hrvNormalized` documents it, and `hrvForSound` exists because 0 is an
     /// EXTREME rather than a neutral value). Averaging an unmeasured 0 in would drag every
@@ -195,7 +226,13 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
             next.coherenceCount += 1
             accepted = true
         }
-        if let br = PerformerSignature.measured(frame.breathRate, upTo: 60) {
+        // ⚠️ BREATH IS THE ONE CHANNEL WHERE `> 0` IS THE WRONG GATE, and the doc above cites
+        // the bus as its authority — so it has to use the bus's OWN answer. `BioSampleFrame`
+        // defines `plausibleBreathRate = 3...40` precisely because "you cannot breathe zero
+        // times a minute, so a value outside this band is an absence, not a reading". A
+        // settling `RespirationEstimator` emitting 1.2 breaths/min is finite and positive and
+        // would otherwise be learned as this person's respiration for good.
+        if frame.hasMeasuredBreath, let br = PerformerSignature.measured(frame.breathRate, upTo: 60) {
             next.breathRate = PerformerSignature.blend(next.breathRate,
                                                        br, count: next.breathCount)
             next.breathCount += 1
@@ -228,6 +265,13 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         case .fallback: return false
         case .healthKit, .oura, .ble, .watch, .cameraPPG, .faceCam: return true
         }
+    }
+
+    /// Clamp a decoded observation count into a range where the arithmetic is defined:
+    /// non-negative (so `blend`'s weight stays ≤ 1) and far enough below `Int.max` that
+    /// `observing`'s `+= 1` can never overflow.
+    private static func sane(_ count: Int) -> Int {
+        Swift.max(0, Swift.min(count, 1_000_000))
     }
 
     /// A value counts as a MEASUREMENT only when it is finite and above zero — the same
