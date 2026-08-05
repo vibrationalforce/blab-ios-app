@@ -88,6 +88,72 @@ final class TheManifestArgumentOrderIsTheCompilersTests: XCTestCase {
                       "the two labels this guard exists for must both be found; got \(seen)")
     }
 
+    /// ⭐ THE SECOND ERROR, and the reason this file grew. The first version of this guard shipped
+    /// with an honest-limits note saying "a different manifest error would sail straight past it."
+    /// One did, in the very next CI run: with the argument order fixed, the log stopped saying
+    /// `incorrect argument labels` (0 occurrences) and started saying
+    ///
+    ///   Package.swift:25:15: error: 'v18' is unavailable
+    ///   note: 'v18' was introduced in PackageDescription 6.0
+    ///
+    /// while line 1 declares `swift-tools-version: 5.10`. Overload resolution had been reporting
+    /// the label mismatch first, so the platform error was invisible until the label error was
+    /// gone. TWO errors, one visible at a time — which is why "I fixed the manifest error" was
+    /// the wrong sentence and "the manifest still does not parse" was the right one.
+    ///
+    /// So this test encodes the RULE rather than my fix: a `.vNN` platform case only exists if the
+    /// tools version is new enough for it. The string form (`.iOS("18.0")`) is always legal and
+    /// passes. A future tools-version bump makes the enum form legal again and this stays green.
+    ///
+    /// ⚠️ It still cannot compile the manifest. It closes the ONE class that has now bitten twice
+    /// (a platform literal ahead of its tools version); a third, different manifest error would
+    /// still sail past. The only real proof is a successful `swift build`, which no gate here runs.
+    func testThePlatformLiteralIsWithinItsToolsVersion() throws {
+        let raw = try manifest()
+        guard let toolsMajor = declaredToolsMajorVersion(in: raw) else {
+            return XCTFail("Could not read the `swift-tools-version:` line — re-derive this guard")
+        }
+        // ⛔ COMMENTS MUST GO FIRST, and this was nearly the bug. The fix in `Package.swift`
+        // documents itself with a block that QUOTES the broken form (".iOS(.v18)") so the next
+        // reader understands why the string form is there. A scan over the raw text finds that
+        // sentence, parses `v18` out of prose, and fails on correct code — the same
+        // "a source scan cannot tell code from prose" trap this repo has now hit from both
+        // directions (#367 a guard that could not fail, #404 one that failed on a doc comment).
+        let text = codeOnly(raw)
+        // ⛔ ANCHOR FIRST, OR THIS GUARD CANNOT FAIL. The natural shape here is "if the enum
+        // form is present, check it; otherwise return" — and on today's manifest (string form)
+        // that returns immediately, so the test is green no matter what else happens to the
+        // platforms block, including its deletion. That is the #367 defect exactly: a guard
+        // whose passing state carries no information. So assert the platform EXISTS in one of
+        // the two forms first; only then apply the rule to the form that has a constraint.
+        let usesStringForm = text.contains(".iOS(\"")
+        let enumForm = text.range(of: ".iOS(.")
+        XCTAssertTrue(usesStringForm || enumForm != nil, """
+            `Package.swift` no longer declares an iOS platform. CLAUDE.md states an iOS 18 \
+            deployment floor kept in step across Package.swift, project.yml and \
+            Resources/iOS/Info.plist — if the floor moved, move all three and re-derive this guard.
+            """)
+        guard let range = enumForm,
+              let close = text.range(of: ")", range: range.upperBound..<text.endIndex) else { return }
+        let caseName = text[range.upperBound..<close.lowerBound]
+            .trimmingCharacters(in: .whitespaces)
+        guard caseName.hasPrefix("v"), let major = Int(caseName.dropFirst()) else {
+            return XCTFail("Unrecognised platform case `.\(caseName)` — re-derive this guard")
+        }
+        // PackageDescription 6.0 introduced .v18; 5.x tops out at .v17.
+        let highestCaseFor5x = 17
+        let message = """
+            `Package.swift` uses the platform case `.\(caseName)` under \
+            `swift-tools-version: \(toolsMajor).x`. That case was introduced in \
+            PackageDescription 6.0, so the manifest does NOT compile — `swift build` and \
+            `swift test` fail before touching a single source file, and `ci.yml:165` runs \
+            `swift package resolve || true`, so nothing turns red. Use the string form \
+            `.iOS("\(major).0")`, or bump the tools version in its own slice with an explicit \
+            `.swiftLanguageMode(.v5)`.
+            """
+        XCTAssertTrue(toolsMajor >= 6 || major <= highestCaseFor5x, message)
+    }
+
     /// The manifest still declares zero dependencies. CLAUDE.md states this as a product fact
     /// ("ZERO external deps shipped today"), the tech-stack table plans HaishinKit as the first
     /// one, and the App Store copy leans on it — so a dependency arriving unannounced should
@@ -110,6 +176,27 @@ final class TheManifestArgumentOrderIsTheCompilersTests: XCTestCase {
     }
 
     // MARK: - Reading the manifest
+
+    /// Everything before a `//` on each line. Crude on purpose: this manifest has no string
+    /// literal containing `//`, and a real tokenizer here would be more machinery than the one
+    /// fact it protects. If a URL ever lands in a string in `Package.swift`, revisit this.
+    private func codeOnly(_ text: String) -> String {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> Substring in
+                guard let slashes = line.range(of: "//") else { return line }
+                return line[line.startIndex..<slashes.lowerBound]
+            }
+            .joined(separator: "\n")
+    }
+
+    /// Major version from the `// swift-tools-version:` line. Deliberately tolerant of the two
+    /// spellings SwiftPM accepts (`:5.10` and `: 5.10`) and of a trailing patch component.
+    private func declaredToolsMajorVersion(in text: String) -> Int? {
+        guard let marker = text.range(of: "swift-tools-version:") else { return nil }
+        let rest = text[marker.upperBound...].prefix(20)
+        let digits = rest.drop { $0 == " " }.prefix { $0.isNumber }
+        return Int(digits)
+    }
 
     private func manifest() throws -> String {
         let root = URL(fileURLWithPath: #filePath)

@@ -267,7 +267,27 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           benutzten Labels gegen die kanonische Liste — ein anderer Manifest-Fehler zöge
                           vorbei. Er beweist deshalb AUCH NICHT, dass `swift build`/`swift test` laufen: das
                           Test-Target zeigt auf `Tests/EchoelmusicTests`, 313 Dateien, die die iOS-Sim-Gates
-                          nie kompilieren. Blockade entfernt ist nicht dasselbe wie Weg frei),
+                          nie kompilieren. Blockade entfernt ist nicht dasselbe wie Weg frei.
+                          ⛔ **UND GENAU DAS IST EINEN COMMIT SPÄTER EINGETRETEN — der Satz „ein anderer
+                          Manifest-Fehler zöge vorbei" war keine Floskel, sondern eine Vorhersage mit einer
+                          Halbwertszeit von einem Lauf.** Der `b78adca`-Job-Log zeigt `incorrect argument
+                          labels` = NULL Treffer (die Reihenfolge ist repariert) und an derselben Stelle
+                          jetzt: `Package.swift:25:15: error: 'v18' is unavailable` · `note: 'v18' was
+                          introduced in PackageDescription 6.0`. Zeile 1 sagt `swift-tools-version: 5.10`.
+                          **Das Manifest parste nach #420 IMMER NOCH NICHT** — es gab ZWEI Fehler, und die
+                          Überladungsauflösung zeigte immer nur den ersten. Repariert mit der String-Form
+                          `.iOS("18.0")` (die dokumentierte Ausweichform für ein Deployment-Ziel, das die
+                          Tools-Version noch nicht kennt); die Tools-Version NICHT gebumpt, weil 6.0 den
+                          Default-Sprachmodus auf Swift 6 kippt und zusammen mit `-warnings-as-errors` aus
+                          heutigen Nebenläufigkeits-Warnungen Build-Fehler macht — das ist eine eigene
+                          Scheibe mit explizitem `.swiftLanguageMode(.v5)`, kein Beifang. Der Wächter hat
+                          dafür eine ZWEITE Hälfte bekommen, die die REGEL kodiert statt meiner Reparatur:
+                          ein `.vNN`-Fall muss zur Tools-Version passen. **Zwei Lehren, und die zweite ist
+                          die allgemeinere:** (1) eine ehrliche Grenzen-Notiz ist keine Absolution — wenn
+                          sie so schnell zutrifft, gehört die Lücke geschlossen, nicht nur benannt. (2) Bei
+                          einem maskierten Fehlerkanal (`|| true`) beweist „der Fehler ist weg" NICHT „es
+                          ist heil": man sieht immer nur den vordersten Fehler, und jede Reparatur legt den
+                          nächsten frei. Der Log ist die Quelle, nicht das Gefühl),
                           davor „158" nach `LivelinessMovesTheStillnessGateTests.swift` (#419 — der zweite
                           Wächter derselben Woche über DEMSELBEN Regler, und der Grund, warum der erste
                           nicht genügte: #418 verdrahtete Liveliness an die zwei melodischen

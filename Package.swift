@@ -22,7 +22,29 @@ let package = Package(
     // own `sourceLanguage`. All three must stay in step.
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v18)         // iPhone-first per master prompt §1. Other-platform code remains
+        // ⛔ THE STRING FORM IS LOAD-BEARING — `.iOS(.v18)` DOES NOT COMPILE HERE, and #420
+        // only found that out because it fixed a DIFFERENT error first. The enum case is
+        //   PackageDescription.SupportedPlatform.IOSVersion.v18
+        // and the toolchain says plainly: "'v18' was introduced in PackageDescription 6.0".
+        // Line 1 of this file declares `swift-tools-version: 5.10`, so the case does not
+        // exist for this manifest. `SupportedPlatform.iOS(_ versionString: String)` is the
+        // documented escape hatch for exactly this — a deployment target newer than the
+        // tools version knows about — and it keeps the iOS 18 floor CLAUDE.md states.
+        //
+        // ⚠️ WHY NOT BUMP THE TOOLS VERSION TO 6.0 INSTEAD. That is the other honest fix and
+        // it was rejected deliberately: tools-version 6.0 flips the default Swift LANGUAGE
+        // MODE to 6 for every target. Combined with the `-warnings-as-errors` below, that
+        // turns today's strict-concurrency warnings into build failures — a large, untestable
+        // change (there is no local toolchain here) smuggled in behind a one-line platform
+        // fix. If the tools version is ever bumped, it must be its own slice, and it must
+        // carry an explicit `.swiftLanguageMode(.v5)` to keep today's semantics.
+        //
+        // ⚠️ SCOPE, so nobody over-reads this: SwiftPM does NOT build the app. XcodeGen +
+        // `project.yml` set `IPHONEOS_DEPLOYMENT_TARGET`, and both CI gates go through
+        // xcodebuild. This line only decides whether `swift build` / `swift test` — the two
+        // commands CLAUDE.md's SESSION START ritual tells every fresh session to run first —
+        // work at all. It was broken for both of the errors #420 turned up.
+        .iOS("18.0")       // iPhone-first per master prompt §1. Other-platform code remains
                            // compilable behind #if canImport(...) guards but is not a v10 deliverable.
     ],
     products: [
