@@ -959,10 +959,26 @@ struct EchoelmusicApp: App {
                 // (quick attack + unison width) so the play surface answers a finger
                 // immediately instead of the mushy 0.5 s "Warm Pad" it used to launch
                 // on (founder 2026-07-09: "Den Synth vom Visual Touch Instrument auch
-                // optimieren"). The generate path re-syncs it to the take, or the
-                // user's own touch patch overrides.
-                if let touchPatch = patchStore.patches.first(where: { $0.id == SynthPatch.touchDefaultID })
-                    ?? patchStore.patches.first {
+                // optimieren"). The generate path re-syncs it to the take.
+                //
+                // ⛔ #402 — AND THE STORED USER CHOICE IS HONOURED HERE, WHICH IT WAS NOT.
+                // The line above used to say "or the user's own touch patch overrides", and
+                // that was false in the one case it mattered: `EchoelStudioView.onAppear`
+                // applies the user's Field patch during the first SYNCHRONOUS appear pass,
+                // which — as the level-restore note further up in this very task states —
+                // runs BEFORE this task. So this apply landed second and silently replaced
+                // the user's choice with the factory default on every launch. A chosen Field
+                // sound never survived a relaunch, and the comment claiming otherwise is
+                // exactly why nobody looked.
+                //
+                // `SynthPatch.launchTouchPatch(storedID:in:)` is now the single answer both
+                // sites resolve through, so the second apply lands on the same patch as the
+                // first. Reading the key here rather than passing it in keeps the resolver
+                // free of `Core` types — `DSP/` compiles in isolation for the AUv3 target.
+                let storedTouchPatchID = UserDefaults.standard
+                    .string(forKey: StudioDefaultKeys.touchPatchID.key) ?? ""
+                if let touchPatch = SynthPatch.launchTouchPatch(storedID: storedTouchPatchID,
+                                                                in: patchStore.patches) {
                     touchVoice.apply(touchPatch)
                 }
                 // WARM default lead timbre (founder 2026-07-07: "warmen Synth-Sound …

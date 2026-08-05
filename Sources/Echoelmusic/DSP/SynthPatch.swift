@@ -433,6 +433,45 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     /// "Echoel Touch" — id unchanged through every rename so saved selections survive),
     /// picked by identity at launch.
     public static let touchDefaultID = stableID("00000000-0000-0000-0000-0000000000B4")
+
+    /// ⭐ WHICH PATCH THE PLAY SURFACE SHOULD WAKE UP ON, before any take exists.
+    ///
+    /// #402. The app's async startup task used to apply `touchDefaultID` here unconditionally —
+    /// and `EchoelStudioView.onAppear` applies the user's stored Field patch in the first
+    /// SYNCHRONOUS appear pass, which the repo itself documents as running BEFORE that task. So
+    /// the default always landed second and replaced the user's choice: a chosen Field sound
+    /// never survived a relaunch. The comment beside that apply claimed "or the user's own touch
+    /// patch overrides", which is why it stood unexamined for so long.
+    ///
+    /// ⛔ THIS IS NOT `syncTouchSound()`'s QUESTION, and routing that one through here would be a
+    /// regression — stated because the tempting "single answer for the Field patch" reading is
+    /// wrong. `syncTouchSound()` asks *what should the Field play NOW*, and its answer for an
+    /// EMPTY selection is the current TAKE's patch (follow-the-take, by design). This asks *what
+    /// should it wake up on*, where no take exists yet, so an empty selection means the factory
+    /// Field default. Two questions, two answers.
+    ///
+    /// What the fix actually buys is AGREEMENT in the one case that was broken: a non-empty
+    /// stored id. `onAppear` only calls `syncTouchSound()` when the id is non-empty, and both
+    /// paths then resolve that same id to that same patch. On a STALE id they still differ —
+    /// `syncTouchSound()` falls back to the take, this falls back to the factory default, and
+    /// this one wins because it runs later. That is the better landing for a play surface with
+    /// no take yet, and it is the behaviour that shipped before; it is written down rather than
+    /// left to be rediscovered.
+    ///
+    /// ⚠️ TAKES THE STORED ID AS A STRING, and does not read `UserDefaults` itself. This file
+    /// lives in `DSP/`, which the AUv3 target compiles in isolation — it may not reference
+    /// `Core` types, and `StudioDefaultKeys` is one. The caller reads the key; this decides.
+    ///
+    /// Order: the user's explicit choice · else the factory play-surface default · else anything
+    /// at all · else nothing. A stale or unparseable id falls through rather than leaving the
+    /// surface silent.
+    static func launchTouchPatch(storedID: String, in library: [SynthPatch]) -> SynthPatch? {
+        if let id = UUID(uuidString: storedID),
+           let chosen = library.first(where: { $0.id == id }) {
+            return chosen
+        }
+        return library.first(where: { $0.id == touchDefaultID }) ?? library.first
+    }
 }
 
 public extension SynthPatch {
