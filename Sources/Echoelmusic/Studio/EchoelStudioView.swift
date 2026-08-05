@@ -1088,6 +1088,7 @@ struct EchoelStudioView: View {
             // no action here (currentPatch is still the Init placeholder pre-generate —
             // the app startup already gave both voices the warm default).
             if !touchPatchID.isEmpty { syncTouchSound() }
+            logLaunchMusicalIdentity()
         }
         .onChange(of: scenePhase) { old, phase in
             if phase == .active { handlePendingIntent(); updateKeepAwake() }
@@ -3192,6 +3193,45 @@ struct EchoelStudioView: View {
         touchSynth?.setTuning(a4Hz: a4Hz)
         bioVoice.setTuning(a4Hz: a4Hz)
         leadSynth?.setTuning(a4Hz: a4Hz)
+    }
+
+    /// ⭐ THE MUSICAL IDENTITY THIS INSTALL WOKE UP WITH — one line, once, at the end of the
+    /// launch restore.
+    ///
+    /// #401. The founder reported the instrument playing "schief" (out of tune), and then that
+    /// DELETING AND REINSTALLING the app cured it. Same binary either side of that, so the cause
+    /// was a value PERSISTED ON THE DEVICE, not a code path — and the reinstall destroyed the
+    /// only copy of the evidence. That is the whole reason this function exists: the question
+    /// "which stored value was it" became unanswerable after the fact, and the next occurrence
+    /// must not be.
+    ///
+    /// The existing `generate[…]` breadcrumb could not answer it. It carries four of these
+    /// values, it fires only once the user presses Generate, and by then a user who reinstalls
+    /// first has already taken the state with them.
+    ///
+    /// ⚠️ CALLED LAST IN `onAppear`, ON PURPOSE. Every value it names has by then been read AND
+    /// applied — `applyArticulation()`, `applyTuning()`, `applyConcertPitch(_:)`, the genre-roster
+    /// clamp that can REWRITE `studio.genre`, and `syncTouchSound()` — so the line reports what is
+    /// driving the voices, not what was on disk before restore. Move it earlier and it starts
+    /// printing a de-curated genre that the clamp has already replaced.
+    ///
+    /// `touchPatchID` is logged as a PRESENCE ("take" vs "custom"), never as its UUID. Which
+    /// custom patch is loaded is not the diagnostic question — whether a user-authored patch is
+    /// driving the play surface at all is — and a UUID in a log the founder pastes into a chat is
+    /// identifying data with no payoff.
+    ///
+    /// ⚠️ THE VALUES ARE HOISTED, NOT INLINED, and that is a constraint rather than a style
+    /// preference. A pile of `String(format:)` calls inside one interpolation is exactly the
+    /// shape that blew the type-checker in #287 (`3379bb3`) and turned the BLOCKING gate red.
+    /// With no local Swift toolchain here, that costs a full CI round-trip to even discover.
+    /// The same warning sits on the `generate[…]` breadcrumb for the same reason.
+    private func logLaunchMusicalIdentity() {
+        let keyText = "\(TuningReference.noteName(forMIDINote: 60 + rootIndex)) \(scale.rawValue)"
+        let a4Text = String(format: "%.1f", session.a4Hz)
+        let articulationText = String(format: "%.2f", articulation)
+        let glideText = String(format: "%.2f", touchGlide)
+        let touchText = touchPatchID.isEmpty ? "take" : "custom"
+        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), touchPatch=\(touchText), glide=\(glideText)")
     }
 
     /// Step 2b: applies the audible side effects of a USER edit in the chrome's
