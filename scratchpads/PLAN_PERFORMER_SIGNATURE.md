@@ -113,14 +113,21 @@ dieselbe Person, zweimal" dasselbe Skelett mit neuer Melodie.
 
 ### Slice 0 — die Zahl (blockiert alles andere) · **GEBAUT 2026-08-05**
 `Sources/Echoelmusic/Sequencer/TakeDistance.swift` + `Tests/CISmoke/TakeDistanceTests.swift`.
-Zwölf Eigenschaften des reinen Maßes plus vier Wächter an echten `BioComposer`-Takes; die
-beiden im Absatz unten geforderten sind `testDifferentBodiesDoNotCollapseOntoOneTake` und
+Elf Eigenschaften des reinen Maßes plus fünf Wächter an echten `BioComposer`-Takes (16 gesamt —
+Zahl per `grep -c "func test"` prüfen, nicht aus dem Kopf). Die beiden im Absatz unten
+geforderten sind `testDifferentBodiesDoNotCollapseOntoOneTake` und
 `testTheSamePersonIsCloserToItselfThanToAStranger`.
-⚠️ Zwei Einschränkungen, die beim Zitieren mitmüssen: (1) die Seed-Faltung im Test ist eine
-NACHBILDUNG der App-Faltung (`bioSeed` ist privat auf einer @MainActor-View) — gepinnt ist die
-Unterscheidungskraft des Maßes, NICHT die App-Verdrahtung; die bekommt ihren Wächter mit Slice 1.
+⚠️ Drei Einschränkungen, die beim Zitieren mitmüssen:
+(1) Die Seed-Faltung im Test ist eine NACHBILDUNG der App-Faltung (`bioSeed` ist privat auf
+einer @MainActor-View) — gepinnt ist die Unterscheidungskraft des Maßes, NICHT die
+App-Verdrahtung; die bekommt ihren Wächter mit Slice 1.
 (2) `minimumCrossBodyDistance = 0.05` ist ein BODEN gegen Kollaps, keine gemessene Grenze — die
 echte Zahl liefert Slice 2.
+(3) `testTheSamePersonIsCloserToItselfThanToAStranger` belegt die PRODUKT-Eigenschaft, nicht die
+Naht: die Fremd-Paare unterscheiden sich auch in allen vier Bio-Werten, die Ordnung hielte also
+selbst bei folgenlosem `structureSeed`. Die Naht isoliert
+`testTheSkeletonSeedAloneChangesTheTake` — alles gleich außer dem Skelett-Seed. **Das ist der
+Test, an dem Slice 1 hängt.**
 
 Ein reiner Kern `TakeDistance`, der zwei `[Note]`-Takes vergleicht und einen Abstand in
 [0,1] liefert, aufgeteilt in benannte Anteile: Tonhöhen-Kontur · Rhythmus-Onsets ·

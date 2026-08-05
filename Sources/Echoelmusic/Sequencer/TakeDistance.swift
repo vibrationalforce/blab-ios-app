@@ -21,6 +21,14 @@
 //  kein Beweis, dass ein Mensch einen Unterschied HÖRT. Sie ist ein Regressionsmaß gegen
 //  Konvergenz, kein Ersatz für das Ohr des Founders.
 //
+//  ⚠️ HEUTE HAT DIESE DATEI KEINEN PRODUKTIONS-AUFRUFER. `git grep -l TakeDistance -- Sources`
+//  liefert nur sie selbst; der einzige Nutzer ist `Tests/CISmoke/TakeDistanceTests.swift`. Das
+//  ist derselbe Zustand, den CLAUDE.md für `EchoelModalBank` als Warnung führt („~800 Zeilen DSP
+//  ohne Produktionspfad"), und ein Testbundle ist KEIN Produktionspfad — es gehört hier
+//  hingeschrieben statt weggeredet. Der Zustand ist für eine Mess-Scheibe vertretbar und endet
+//  mit #403 Slice 2: dort wählt die Signatur ihre Charakter-Grenzen anhand dieser Zahl, und
+//  damit bekommt sie einen Aufrufer. Bleibt sie nach Slice 2 ohne, ist sie zu löschen.
+//
 //  ⚠️ DIE GEWICHTE SIND EIN ANFANG, KEINE PHYSIK. `Weights.balanced` ist gesetzt, damit die
 //  Zahl überhaupt existiert; welcher Anteil wie schwer wiegen MUSS, entscheidet die Messung an
 //  echten Takes (#403 Slice 2), nicht diese Datei. Deshalb sind die fünf Anteile einzeln
@@ -172,14 +180,17 @@ public enum TakeDistance {
 
     /// Wie oft eine Note auf jedem Sechzehntel des Takts beginnt, auf Summe 1 normiert.
     static func onsetHistogram(_ notes: [Note]) -> [Float] {
-        // Die Faltungsbreite ist `Note.ticksPerStep * onsetClasses` — ein 4/4-Takt. Sie steht
-        // hier bewusst nur als Erklärung: die Rechnung erreicht sie über den Modulo auf den
-        // SCHRITT, nicht über den Tick, und eine ausgerechnete Konstante daneben wäre eine
-        // zweite Wahrheit, die still veralten kann.
+        // ⚠️ `note.startStep` UND NICHT eine eigene Division. Die erste Fassung rechnete
+        // `(startTick / Note.ticksPerStep) % onsetClasses` — also abrundend, während
+        // `Note.startStep` auf das NÄCHSTE Sechzehntel rundet. Damit lag eine Note auf Tick
+        // 119 hier in Klasse 0 und überall sonst im Repo auf Schritt 1: eine zweite
+        // Definition von „welches Sechzehntel", genau die Sorte zweiter Wahrheit, die diese
+        // Datei an anderer Stelle als Gefahr benennt. Die Faltungsbreite bleibt ein 4/4-Takt
+        // (`Note.ticksPerStep * onsetClasses` = 1920 Ticks); sie steht als Erklärung da und
+        // nicht als ausgerechnete Konstante, die still veralten kann.
         var bins = [Float](repeating: 0, count: onsetClasses)
         for note in notes {
-            let tick = Swift.max(0, note.startTick)
-            let step = (tick / Note.ticksPerStep) % onsetClasses
+            let step = Swift.max(0, note.startStep) % onsetClasses
             bins[step] += 1
         }
         return normalized(bins)

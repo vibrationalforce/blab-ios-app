@@ -81,10 +81,18 @@ final class TakeDistanceTests: XCTestCase {
     /// Ein Take ist eine MENGE, keine Folge. Der Komponist gibt seine Noten nicht in
     /// garantierter Ordnung heraus; ein Maß, das auf die Array-Reihenfolge hereinfällt,
     /// meldet Unterschiede, die niemand hört.
-    func testShufflingATakeChangesNothing() {
+    /// ⚠️ Der Name hieß zuerst „shuffling" und der Rumpf drehte nur um. Eine Umkehrung IST
+    /// eine gültige Permutation, der Test war also nie falsch — aber er versprach mehr
+    /// Abdeckung als eine einzige feste Vertauschung liefert. Ohne Zufall (der einen
+    /// Wächter unreproduzierbar machte) sind es jetzt ZWEI verschiedene Permutationen,
+    /// und der Name sagt, was geprüft wird.
+    func testTheOrderOfNotesDoesNotMatter() {
         let a = Self.handmadeTake()
-        let shuffled = Array(a.reversed())
-        XCTAssertEqual(TakeDistance.distance(a, shuffled).overall, 0, accuracy: 1e-6)
+        let reversed = Array(a.reversed())
+        let rotated: [Note] = Array(a.dropFirst(3)) + Array(a.prefix(3))
+        XCTAssertEqual(TakeDistance.distance(a, reversed).overall, 0, accuracy: 1e-6)
+        XCTAssertEqual(TakeDistance.distance(a, rotated).overall, 0, accuracy: 1e-6)
+        XCTAssertEqual(TakeDistance.distance(reversed, rotated).overall, 0, accuracy: 1e-6)
     }
 
     /// Eine um eine Oktave verschobene Melodie ist DIESELBE Melodie in einer anderen Lage.
@@ -175,13 +183,24 @@ final class TakeDistanceTests: XCTestCase {
 
     // MARK: - Hälfte 2: das Lineal an echten Takes
 
-    /// VORBEDINGUNG für alles darunter. Wären die Takes leer, wäre JEDER Abstand 1 und
-    /// die beiden Schwellen darunter wären trivial erfüllt — ein Wächter, der aus dem
-    /// falschen Grund grün ist. Genau diese Falle hat #376 einmal gekostet.
+    /// VORBEDINGUNG für alles darunter — und zwar für den TEILWEISEN Ausfall, nicht für den
+    /// vollständigen.
+    ///
+    /// ⛔ Die erste Fassung dieses Kommentars begründete den Test damit, dass bei leeren Takes
+    /// „JEDER Abstand 1" wäre und die Schwellen darunter trivial erfüllt. Das ist genau
+    /// verkehrt herum, und dieselbe Datei widerlegt es 120 Zeilen weiter oben: zwei LEERE
+    /// Takes haben Abstand **0** (`testTwoSilencesAreNotDifferent`). Fielen alle fünf Körper
+    /// aus, würde der Wächter darunter also FEHLSCHLAGEN statt falsch grün zu werden.
+    ///
+    /// Der echte Grund steht hier, weil eine falsche Begründung in diesem Repo schlimmer ist
+    /// als gar keine: gefährlich ist der TEILAUSFALL. Erzeugen einige Körper Noten und andere
+    /// nicht, bekommen genau diese Paare den Maximalwert 1 — und heben den Mittelwert über
+    /// den Boden, ohne dass irgendetwas an der Musik verschieden wäre. Das ist die
+    /// #376-Falle: grün aus einem Grund, den der Name nicht nennt.
     func testEveryTestBodyActuallyProducesNotes() {
         for body in Self.bodies {
             let notes = Self.take(body, genre: .acidTechno, evolution: 0)
-            let message = "Koerper \(body.label) erzeugt keine Noten; die Schwellen unten waeren dann aus dem falschen Grund erfuellt."
+            let message = "Koerper \(body.label) erzeugt keine Noten; jedes Paar mit ihm bekaeme den Maximalwert 1 und wuerde den Mittelwert unten heben, ohne dass Musik verschieden waere."
             XCTAssertFalse(notes.isEmpty, message)
         }
     }
@@ -212,11 +231,15 @@ final class TakeDistanceTests: XCTestCase {
     /// Variation dem MOMENT.** Derselbe Mensch soll bei jedem Render ein neues Stück
     /// bekommen und trotzdem näher bei sich selbst liegen als bei einem Fremden.
     ///
-    /// Heute ist „dieselbe Person" gleichbedeutend mit „derselbe `structureSeed`, anderer
-    /// Detail-Seed". Genau darauf setzt #403 Slice 1 auf: gilt diese Ordnung NICHT, kann
-    /// eine Personen-Signatur im `structureSeed` gar nicht funktionieren, und der ganze
-    /// Plan bräuchte eine andere Naht. Dieser Test ist also die Vorbedingung des Entwurfs
-    /// und nicht bloß eine Eigenschaft des Maßes.
+    /// ⚠️ WAS ER BEWEIST UND WAS NICHT — die erste Fassung dieses Kommentars nannte ihn „die
+    /// Vorbedingung des Entwurfs", und das war zu viel behauptet. Die „selbe Person"-Paare
+    /// unterscheiden sich NUR im Detail-Seed; die „fremde Person"-Paare unterscheiden sich im
+    /// `structureSeed`, im Detail-Seed UND in allen vier Bio-Werten (Puls 52→104, HRV
+    /// 0,85→0,15 …), und diese Bio-Werte treiben Tempo, Register und Dichte im Komponisten
+    /// unabhängig vom Seed. Die Ordnung kann also halten, selbst wenn der `structureSeed`
+    /// GAR NICHTS beitrüge. Was dieser Test zeigt, ist die PRODUKT-Eigenschaft: derselbe
+    /// Mensch bleibt sich ähnlicher als zwei verschiedene. Die Naht für Slice 1 prüft der
+    /// Test direkt darunter, der den Seed isoliert.
     func testTheSamePersonIsCloserToItselfThanToAStranger() {
         // Derselbe Körper, zwei Momente (Skelett gleich, Detail verschieden).
         var sameBody: [Float] = []
@@ -239,8 +262,37 @@ final class TakeDistanceTests: XCTestCase {
 
         let variationDead = "Derselbe Koerper bekommt bei zwei Renders EXAKT dieselben Noten; dann ist die Variation tot."
         XCTAssertGreaterThan(sameMean, 0, variationDead)
-        let noSeam = "Zwei Takes derselben Person (\(sameMean)) liegen nicht naeher beieinander als zwei verschiedener Personen (\(crossMean)); dann traegt der structureSeed keine Identitaet und #403 Slice 1 haette keine Naht."
-        XCTAssertLessThan(sameMean, crossMean, noSeam)
+        let notCloser = "Zwei Takes derselben Person (\(sameMean)) liegen nicht naeher beieinander als zwei verschiedener Personen (\(crossMean)); die Wiedererkennbarkeit, die der Founder-Satz verlangt, gibt es dann nicht."
+        XCTAssertLessThan(sameMean, crossMean, notCloser)
+    }
+
+    /// DIE NAHT, ISOLIERT — der Test, den der darüber nicht leisten kann.
+    ///
+    /// Hier ist ALLES gleich außer dem `structureSeed`: derselbe Körper, dasselbe Genre,
+    /// derselbe Detail-Seed. Was übrig bleibt, ist ausschließlich der Skelett-Strom
+    /// (`structureRNG` in `BioComposer.compose` — Progression, Register, Dichte,
+    /// Ornament-Platzierung).
+    ///
+    /// Das ist die echte Vorbedingung für #403 Slice 1: die Entscheidung im Plan lautet
+    /// „die Signatur fällt in den `structureSeed`". Wäre dieser Seed folgenlos, hätte die
+    /// Personen-Signatur keinen Angriffspunkt und der Plan bräuchte eine andere Naht.
+    ///
+    /// ⚠️ Auch das ist ein Boden über null, keine Schwelle: WIE VIEL der Skelett-Strom
+    /// bewegen soll, ist eine Klang-Entscheidung und gehört Slice 2.
+    func testTheSkeletonSeedAloneChangesTheTake() {
+        var distances: [Float] = []
+        for body in Self.bodies {
+            let structure = Self.foldBody(body)
+            let detail = structure ^ 0x9E3779B97F4A7C15
+            let a = Self.take(body, genre: .acidTechno, structure: structure, detail: detail)
+            let b = Self.take(body, genre: .acidTechno,
+                              structure: structure ^ 0xA5A5A5A5A5A5A5A5, detail: detail)
+            XCTAssertFalse(a.isEmpty, "Take fuer \(body.label) ist leer.")
+            distances.append(TakeDistance.distance(a, b).overall)
+        }
+        let mean = distances.reduce(0, +) / Float(distances.count)
+        let message = "Nur der structureSeed wurde geaendert und der Take blieb im Mittel derselbe; dann hat eine Personen-Signatur in diesem Seed keinen Angriffspunkt und #403 Slice 1 braucht eine andere Naht."
+        XCTAssertGreaterThan(mean, 0, message)
     }
 
     /// Der HARTE Fall, und er gehört ausdrücklich in den Wächter: eine gehaltene Fläche.
@@ -276,7 +328,13 @@ final class TakeDistanceTests: XCTestCase {
     /// liefert erst #403 Slice 2 — wer sie hier vorher anhebt, setzt eine Meinung durch.
     static let minimumCrossBodyDistance: Float = 0.05
 
-    struct Body {
+    /// `Sendable` steht hier AUSDRÜCKLICH und nicht per Inferenz. Ein interner Struct aus
+    /// `String` + `Float` bekommt die Konformanz heute geschenkt (SE-0302), und genau
+    /// deshalb ist die Stelle heimtückisch: wer später ein Feld mit einer Closure oder einer
+    /// Klasse ergänzt, verliert sie still — und rot wird nicht diese Zeile, sondern
+    /// `static let bodies` weiter unten, mit einer Meldung über einen Typ, den er gerade gar
+    /// nicht angefasst hat. Die Anforderung gehört an die Deklaration, die sie erzeugt.
+    struct Body: Sendable {
         let label: String
         let hr: Float
         let hrv: Float
@@ -295,8 +353,19 @@ final class TakeDistanceTests: XCTestCase {
         Body(label: "aufgeregt",   hr: 104, hrv: 0.15, coherence: 0.10, breath: 0.90)
     ]
 
-    /// Nachbildung der App-Faltung: HR fein quantisiert, die drei normierten Werte grob.
-    /// Siehe die ⚠️-Notiz im Dateikopf — DIESELBE FORM, nicht dieselbe Funktion.
+    /// Faltet einen Körper zu einem stabilen Seed.
+    ///
+    /// ⛔ Die erste Fassung dieses Kommentars sagte „HR fein quantisiert, die drei normierten
+    /// Werte grob" — das ist genau verkehrt herum. Die App skaliert den Puls mit 100 (also
+    /// 0,01 BPM Auflösung, GROB) und HRV/Kohärenz/Atemphase mit 100 000 (1e-5, FEIN). Es
+    /// steht hier korrigiert, weil das der Absatz ist, den die nächste Session liest, wenn
+    /// sie den echten Seed-Wächter für Slice 1 schreibt.
+    ///
+    /// ⚠️ Und „DIESELBE FORM" war zu stark: die App nimmt drei verschiedene ungerade
+    /// Multiplikatoren, rundet und deckelt nach oben; das hier ist ein gleichförmiges FNV-1a
+    /// mit `Int()`-Abschneidung und ohne Deckel (`Int(0.35 * 100_000)` ist 34 999, nicht
+    /// 35 000). Für die Unterscheidungskraft des Maßes ist das gleichgültig — für einen
+    /// Wächter über die App-Faltung wäre es der Unterschied zwischen Prüfen und Nachbauen.
     static func foldBody(_ b: Body) -> UInt64 {
         var h: UInt64 = 0xcbf29ce484222325
         for value in [UInt64(Swift.max(0, Int(b.hr * 100))),
@@ -312,14 +381,21 @@ final class TakeDistanceTests: XCTestCase {
     /// Moment. `evolution` ist die Render-Nummer derselben Person.
     static func take(_ body: Body, genre: MusicStyle, evolution: UInt64) -> [Note] {
         let structure = foldBody(body)
-        let moment = structure ^ (evolution &* 0x9E3779B97F4A7C15)
+        return take(body, genre: genre, structure: structure,
+                    detail: structure ^ (evolution &* 0x9E3779B97F4A7C15))
+    }
+
+    /// Dieselbe Konstruktion mit BEIDEN Seeds frei wählbar — die einzige Möglichkeit, den
+    /// Skelett-Strom vom Detail-Strom zu trennen (`testTheSkeletonSeedAloneChangesTheTake`).
+    static func take(_ body: Body, genre: MusicStyle,
+                     structure: UInt64, detail: UInt64) -> [Note] {
         let input = BioComposer.Input(
             heartRateBPM: body.hr,
             hrvNormalized: body.hrv,
             coherence: body.coherence,
             breathPhase: body.breath,
             style: genre,
-            seed: moment,
+            seed: detail,
             structureSeed: structure)
         return BioComposer.compose(input).notes
     }
