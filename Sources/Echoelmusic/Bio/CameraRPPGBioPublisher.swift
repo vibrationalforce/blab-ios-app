@@ -304,7 +304,27 @@ public final class CameraRPPGBioPublisher {
         if isLocked { return .locked }
         if !fingerDetected { return .coverLens }
         // Finger is on the lit lens but no lock yet — say WHY, from the live signal.
-        if analyzer.brightness > 0.85 || analyzer.redChannel > 0.92 { return .tooBright }
+        //
+        // ⭐ ONE DEFINITION OF "TOO BRIGHT", and it belongs to the state machine.
+        // This line used to carry its own pair — `brightness > 0.85 || redChannel > 0.92`
+        // — written before `isWashedOut` existed. The red halves stayed equal; the
+        // brightness halves drifted apart, and drifted in the direction that hurts: the
+        // COACHING threshold (0.85) sat ABOVE the line at which this same file declares
+        // the frame washed out (0.72) and hands the exposure back to auto. So across the
+        // whole 0.72…0.85 band the machine was saying "this scene is flooded, re-settle
+        // it" while the screen was saying "Press gently and hold still" or "finding your
+        // pulse…" — a control telling the user to press HARDER into the exact condition
+        // its own recovery path was firing on. Nobody wrote that contradiction; it is
+        // what two copies of a number do over time.
+        //
+        // ⛔ WHAT THIS DOES NOT FIX, said plainly because the next session will otherwise
+        // read it as the acquisition fix: the founder's failed session sat at bright≈0.30
+        // (log 2487) — far below BOTH thresholds, old and new — so this changes nothing
+        // there. A lock that is legal-but-too-bright for a pulse is #304/#410 and needs a
+        // device decision about the permissive ceiling, not another blind threshold here.
+        if Self.isWashedOut(brightness: analyzer.brightness, red: analyzer.redChannel) {
+            return .tooBright
+        }
         // Large swings = the finger moving / changing pressure, not a pulse (the analyzer
         // rejects these windows, so it can't lock). Tell the user the real blocker so a
         // motion-heavy contact gets actionable guidance instead of an endless "finding…".
@@ -536,6 +556,13 @@ public final class CameraRPPGBioPublisher {
 
     /// A locked scene is washed out (AC pulse swamped) once it drifts too bright or
     /// the red channel clips — trigger a re-settle so it recovers instead of sitting dead.
+    ///
+    /// TWO CONSUMERS SINCE #416, and the second one is user-facing: `acquisitionCue` asks
+    /// this the same question to decide `PulseCue.tooBright`. That is deliberate — one
+    /// definition of "flooded" for the recovery and for the sentence on screen, so they
+    /// cannot say opposite things again (they did: 0.85 here vs 0.72 there). The cost is
+    /// that moving these numbers now moves what the player is TOLD, not only what the
+    /// exposure does; `Tests/CISmoke/OneDefinitionOfTooBrightTests.swift` pins both halves.
     nonisolated static func isWashedOut(brightness: Float, red: Float) -> Bool {
         brightness > 0.72 || red > 0.92
     }
