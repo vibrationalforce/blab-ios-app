@@ -217,6 +217,56 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         XCTAssertEqual(relaunched.keyRoot, first.keyRoot, "a relaunch after a reset would be in a different key")
     }
 
+    /// The same half-fix one layer down (slice 2). `MixerStore` reads its four levels once in
+    /// `init`, so a clear leaves the live store still returning the old value — and `didSet`
+    /// would write it straight back on the next unrelated edit.
+    ///
+    /// ⚠️ THE FIRST ASSERTION IS DELIBERATELY THE "WRONG" ONE, like its `SessionContext` twin: it
+    /// pins that a clear alone does NOT cure a muted role. If it ever fails, `MixerStore` has
+    /// gained a store observer and `resetToUnity()` may be redundant — check before deleting it.
+    @MainActor
+    func testMixResetPutsEveryFaderBackToUnity() throws {
+        let defaults = try scratchDefaults()
+        let mixer = MixerStore(defaults: defaults)
+        mixer.bass = 0        // the #399 signature: a whole role silently muted
+        mixer.lead = 0.4
+
+        SoundReset.clear(in: defaults)
+        XCTAssertEqual(mixer.bass, 0, """
+        the live mixer picked up the cleared store on its own. See the note above before \
+        removing `resetToUnity()` from the reset — this assertion is the point of the test.
+        """)
+
+        mixer.resetToUnity()
+        XCTAssertEqual(mixer.bass, 1.0, "the bass fader did not return to unity")
+        XCTAssertEqual(mixer.lead, 1.0, "the lead fader did not return to unity")
+
+        let relaunched = MixerStore(defaults: defaults)
+        XCTAssertEqual(relaunched.bass, mixer.bass, """
+        a relaunch after a reset would mix differently: the live store says unity and the \
+        persisted store says something else. #399 is exactly this shape — a level that held \
+        steady for a whole session and was indistinguishable from a broken engine.
+        """)
+        XCTAssertEqual(relaunched.lead, mixer.lead, "a relaunch after a reset would mix differently")
+    }
+
+    /// The doorless one. `mixer.drums` has had no control since #166/#167 deleted the drums, so a
+    /// value dialled down in July can neither be seen nor changed by any player — which makes it
+    /// the one level that MUST be in the reset, not the one that is safe to leave out.
+    func testTheDoorlessDrumLevelIsClearedToo() {
+        let userMix = SoundReset.entries.first { $0.label == "userMix" }
+        XCTAssertNotNil(userMix, """
+        the mixer levels are no longer part of the sound reset. #399 found a bass fader persisted \
+        at 0.00 for an entire session on a shipped build — that is the #400 defect one layer down, \
+        and it is why slice 2 exists.
+        """)
+        XCTAssertEqual(Set(userMix?.keys ?? []), Set(MixerStore.storageKeys), """
+        the reset no longer clears every mixer key. `MixerStore.storageKeys` is the single source; \
+        listing a subset here is how `drums` — the one level with no door left — would quietly \
+        survive a factory reset.
+        """)
+    }
+
     // MARK: - Source scans: the literals, and the door
 
     /// The four keys `SoundReset` spells out as literals are declared with a raw literal at
@@ -263,6 +313,11 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         the reset no longer pushes the factory key and concert pitch into the live \
         `SessionContext`. Clearing the keys alone leaves the old A4 SOUNDING until the next \
         launch — see `testSessionResetPutsTheTrioBackToFactory`, which pins exactly that.
+        """)
+        XCTAssertTrue(lines.contains { $0.contains("mixer.resetToUnity()") }, """
+        the reset no longer pushes unity into the live `MixerStore`. Same half-fix as the line \
+        above, one layer down: the levels are cached in stored properties, so a muted role stays \
+        muted until the next launch and `didSet` re-persists it in the meantime.
         """)
     }
 

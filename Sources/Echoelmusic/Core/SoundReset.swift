@@ -20,11 +20,16 @@
 //
 //  ⛔ WHAT IT DELIBERATELY DOES NOT TOUCH, and why the boundary is drawn exactly here:
 //  saved patches, projects, takes, the autosave slot and the artist name are the user's WORK.
-//  A "reset" that eats those is the reinstall again, wearing a button. This clears the
-//  instrument's musical IDENTITY — the settings that decide what a note sounds like — and
-//  nothing else. The mix faders are a deliberate second question (#399 caught a bass fader
-//  persisted at zero for a whole session); they are not in this slice, so do not describe
-//  this as "resets everything".
+//  A "reset" that eats those is the reinstall again, wearing a button. This clears the settings
+//  that decide what the instrument SOUNDS LIKE, and nothing else.
+//
+//  ⭐ THE MIX LEVELS JOINED IN SLICE 2, and the evidence is what changed the answer. Slice 1
+//  left them out as "a deliberate second question". Then #399 finished: a device log showed the
+//  BASS FADER AT 0.00 FOR AN ENTIRE SESSION, and the next session at 1.00 on the same build —
+//  a persisted level, silently muting a whole role, indistinguishable from "the app is broken".
+//  That is the #400 defect exactly, one layer down from the musical identity. `mixer.drums` goes
+//  with them: the drums were deleted (#166/#167), so no door can show or change that value any
+//  more, which makes it the worst persisted state rather than the most harmless.
 //
 //  ⚠️ REMOVING A KEY IS NOT THE SAME AS APPLYING ITS DEFAULT. Any value CACHED in a live object
 //  keeps the old reading — `SessionContext` holds its three in stored properties read once at
@@ -89,7 +94,12 @@ public enum SoundReset {
         Entry(label: "bassRhythm", keys: [StudioDefaultKeys.bassRhythm.key]),
         Entry(label: "padRhythm", keys: [StudioDefaultKeys.padRhythm.key]),
         Entry(label: "touchPatch", keys: [StudioDefaultKeys.touchPatchID.key]),
-        Entry(label: "glide", keys: [StudioDefaultKeys.touchGlide.key])
+        Entry(label: "glide", keys: [StudioDefaultKeys.touchGlide.key]),
+        // ⚠️ THE LABEL IS `userMix`, NOT `mix`, AND THAT IS #306's RENAME. It distinguishes the
+        // level the USER set from any computed or genre-built-in balance — the two were confused
+        // once, and the confusion is what produced a wrong diagnosis ("the value is re-rolled per
+        // generate") for a fader that was simply persisted at zero.
+        Entry(label: "userMix", keys: MixerStore.storageKeys)
     ]
 
     /// Every key the reset clears, flattened. Order is the breadcrumb's order, which is the

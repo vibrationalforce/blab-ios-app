@@ -11,6 +11,15 @@
 import Foundation
 import Observation
 
+/// The mixer's storage keys, at file scope — see `MixerStore.storageKeys` for why they are not
+/// nested inside the `@MainActor` class that uses them.
+private enum MixerStorageKey {
+    static let bass  = "mixer.bass"
+    static let pad   = "mixer.pad"
+    static let lead  = "mixer.lead"
+    static let drums = "mixer.drums"
+}
+
 @MainActor @Observable
 public final class MixerStore {
 
@@ -31,11 +40,22 @@ public final class MixerStore {
     public var lead:  Float { didSet { persist(Keys.lead,  lead)  } }
     public var drums: Float { didSet { persist(Keys.drums, drums) } }   // BeatPlayer master
 
-    private enum Keys {
-        static let bass  = "mixer.bass"
-        static let pad   = "mixer.pad"
-        static let lead  = "mixer.lead"
-        static let drums = "mixer.drums"
+    private typealias Keys = MixerStorageKey
+
+    /// The four storage keys, for `SoundReset` — which has to clear them and must not repeat
+    /// the strings at a second site.
+    ///
+    /// ⚠️ `nonisolated`, and the enum below sits at FILE SCOPE rather than nested here, for the
+    /// reason `SessionContext` records: a type nested in a `@MainActor` class inherits that
+    /// isolation, and `SoundReset` is a plain nonisolated enum. Same shape, same fix.
+    ///
+    /// ⚠️ `drums` IS INCLUDED AND THAT IS DELIBERATE. The drum apparatus was deleted (#166/#167),
+    /// so nothing can reach that value any more — which makes it the worst kind of persisted
+    /// state, not the most harmless: a number a user set once, that no door can show them and no
+    /// control can change back. If drums ever return, they must return at unity for everyone
+    /// rather than at whatever was dialled in July.
+    public nonisolated static var storageKeys: [String] {
+        [MixerStorageKey.bass, MixerStorageKey.pad, MixerStorageKey.lead, MixerStorageKey.drums]
     }
 
     private let defaults: UserDefaults

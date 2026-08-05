@@ -71,6 +71,8 @@ final class LaunchLogsWhatItWokeUpWithTests: XCTestCase {
         "padRhythm=",      // studio.padRhythm  — same, on the biggest audible surface since #166/#167
         "touchPatch=",     // touch.patchID — the one launch path that reads USER-authored JSON
         "glide=",          // touch.glide — a persisted slide between Field notes
+        "userMix=",        // mixer.bass/pad/lead — #399 found one persisted at 0.00 for a whole
+                           // session, which mutes a role in every take and reads as a broken engine
     ]
 
     // MARK: - The line exists, and the launch restore calls it

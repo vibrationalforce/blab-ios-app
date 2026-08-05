@@ -3295,7 +3295,14 @@ struct EchoelStudioView: View {
         // chords on ONE grid", and the pad is the biggest audible surface since #166/#167.
         let bassRhythmText = bassRhythmRaw.isEmpty ? "-" : bassRhythmRaw
         let padRhythmText = padRhythmRaw.isEmpty ? "-" : padRhythmRaw
-        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), touchPatch=\(touchText), glide=\(glideText)")
+        // The user's own fader trim, in the same bass/pad/lead order the Mix panel shows and the
+        // `generate[…]` breadcrumb already prints. It belongs on the LAUNCH line too because #399
+        // is the same defect as "schief" one layer down: a level persisted at 0.00 mutes a whole
+        // role for every take of a session, and nothing else in a log distinguishes that from a
+        // broken engine. `drums` is cleared by the reset but NOT printed — there is no door left
+        // to show or change it (#166/#167), so a number nobody can act on would only pad the line.
+        let mixText = String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead)
+        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), touchPatch=\(touchText), glide=\(glideText), userMix=\(mixText)")
     }
 
     /// Step 2b: applies the audible side effects of a USER edit in the chrome's
@@ -6459,8 +6466,8 @@ struct EchoelStudioView: View {
             Tap to reset the sound now. Saved patches, takes and projects are kept.
             """ : """
             Puts key, tuning, concert pitch, genre, preset, articulation, the bass and pad \
-            rhythm characters and the Field voice back to factory. Saved patches, takes and \
-            projects are kept. Needs a second tap to confirm.
+            rhythm characters, the Field voice and the mix faders back to factory. Saved \
+            patches, takes and projects are kept. Needs a second tap to confirm.
             """)
             // …and the ARMING itself must be audible. VoiceOver does not re-announce a label
             // change on a control that already holds focus, so without this the experience is
@@ -6468,7 +6475,7 @@ struct EchoelStudioView: View {
             .accessibilityValue(soundResetArmed ? "Armed" : "")
 
             if soundResetArmed {
-                Text("Key, tuning, genre, preset and the Field voice go back to factory. Your saved patches, takes and projects are kept.")
+                Text("Key, tuning, genre, preset, the Field voice and the mix faders go back to factory. Your saved patches, takes and projects are kept.")
                     .font(EchoelTheme.font(10))
                     .foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
@@ -6527,6 +6534,14 @@ struct EchoelStudioView: View {
     private func resetSoundToDefaults() {
         SoundReset.clear(in: .standard)
         session.resetMusicalIdentity()
+        // ⚠️ THE SAME HALF-FIX AS `SessionContext`, one layer down. `MixerStore` reads its four
+        // levels once in `init` and holds them in stored properties, so clearing the keys leaves
+        // the LIVE store still returning 0.00 for a muted role — and its `didSet` would write that
+        // stale value straight back on the next unrelated edit. Assigning unity here is idempotent
+        // (each `didSet` re-persists the factory value) and lands BEFORE the `recomposeIfRunning()`
+        // at the end, which is what makes it audible: the level is a compose-time velocity
+        // multiplier, so the running take has to be rebuilt for a fader change to be heard at all.
+        mixer.resetToUnity()
 
         // ⚠️ READ THE DEFAULT DIRECTLY, not through `style`. This is the identical expression
         // `@AppStorage` declares as `style`'s fresh-install default, so it is the SAME single
@@ -6570,7 +6585,7 @@ struct EchoelStudioView: View {
         // two behaviours, decided by unrelated prior state.
         recomposeIfRunning()
 
-        EchoelCrashLog.breadcrumb("reset/sound: musical identity cleared to factory (#400)")
+        EchoelCrashLog.breadcrumb("reset/sound: musical identity + user mix cleared to factory (#400)")
     }
 
     // MARK: - Diagnostics
