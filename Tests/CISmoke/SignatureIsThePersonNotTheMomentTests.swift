@@ -288,6 +288,67 @@ final class SignatureIsThePersonNotTheMomentTests: XCTestCase {
         suite.removeObject(forKey: PerformerSignature.storageKey)
     }
 
+    // MARK: - Provenance, and the way out
+
+    func testARestrictedSourceLeavesAStickyMark() {
+        // `observing` blends every source into the same four means, so after the blend the
+        // `BioSource` is gone and `BioEgressPolicy.allowsEgress` — which takes exactly that —
+        // can no longer be asked. One bit, recorded at learn time, keeps the answer available
+        // for the two places already planned (Slice 3's UI, and a peer share).
+        let ownMeasurement = PerformerSignature.unknown
+            .observing(body(at: 1000, hr: 61, source: .cameraPPG))
+        XCTAssertFalse(ownMeasurement.taughtByRestrictedSource,
+                       "rPPG is measured by this app and may egress; it marks nothing.")
+
+        let fromHealthStore = ownMeasurement.observing(body(at: 1040, hr: 62, source: .healthKit))
+        XCTAssertTrue(fromHealthStore.taughtByRestrictedSource,
+                      "A HealthKit reading contributed to the mean; the mark must be set.")
+
+        let laterOwn = fromHealthStore.observing(body(at: 1080, hr: 63, source: .ble))
+        let message = "The mark cleared once a non-restricted source taught again. It must be "
+            + "STICKY: the mean the restricted reading moved does not un-mix, so the answer "
+            + "\"has a Health-store value influenced this?\" stays yes forever."
+        XCTAssertTrue(laterOwn.taughtByRestrictedSource, message)
+    }
+
+    func testAPayloadFromBeforeTheMarkIsTreatedAsRestricted() throws {
+        // Conservative on unknown provenance, but only where there IS provenance to be unsure
+        // about — an empty payload has taught nothing and must stay indistinguishable from
+        // `.unknown`.
+        let taught = Data("{\"heartRateBPM\":61,\"heartRateCount\":3}".utf8)
+        let old = try JSONDecoder().decode(PerformerSignature.self, from: taught)
+        let message = "An older payload carries no provenance bit and there is no way left to "
+            + "recover it, so the honest default is the restricted one. Defaulting to false "
+            + "would declare unknown provenance to be safe provenance."
+        XCTAssertTrue(old.taughtByRestrictedSource, message)
+
+        let empty = try JSONDecoder().decode(PerformerSignature.self, from: Data("{}".utf8))
+        XCTAssertEqual(empty, .unknown,
+                       "A payload that taught nothing has nothing to be unsure about.")
+    }
+
+    func testTheFingerprintHasAWayOut() {
+        // ⭐ THE OFF-SWITCH. A persisted, invisible, health-derived value that changes every
+        // take must be clearable without deleting the app — `SoundReset`'s whole thesis, and
+        // this file's value is the one that would otherwise have no remedy at all.
+        let cleared = SoundReset.keys.contains(PerformerSignature.storageKey)
+        let message = "`SoundReset` no longer clears the performer fingerprint. Its only "
+            + "remedy is then delete-and-reinstall, which also destroys every patch, take and "
+            + "project — the amputation `SoundReset.swift` exists to replace."
+        XCTAssertTrue(cleared, message)
+    }
+
+    func testTheResetIsProvenAgainstAScratchStore() throws {
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "PerformerSignatureTests.reset"))
+        let sig = PerformerSignature.unknown.observing(body(at: 1000, hr: 61, hrv: 0.42))
+        sig.save(to: suite)
+        XCTAssertTrue(PerformerSignature.load(from: suite).hasBody, "precondition")
+        SoundReset.clear(in: suite)
+        XCTAssertEqual(PerformerSignature.load(from: suite), .unknown,
+                       "After a sound reset the stored fingerprint must be gone, not stale.")
+        suite.removeObject(forKey: PerformerSignature.storageKey)
+    }
+
     // MARK: - The wiring (source text — see the header for why)
 
     func testTheSkeletonSeedActuallyCarriesTheSignature() throws {
@@ -312,6 +373,34 @@ final class SignatureIsThePersonNotTheMomentTests: XCTestCase {
             + "from scratch on every launch — the person becomes the session again, which is "
             + "precisely what this slice exists to stop."
         XCTAssertTrue(source.contains("PerformerSignature.load(from: .standard)"), message)
+    }
+
+    func testTheLiveCopyIsClearedTooNotJustTheStoredOne() throws {
+        // ⚠️ THE HALF-FIX THIS REPO HAS NOW PAID FOR THREE TIMES (`SessionContext`, `MixerStore`,
+        // and this). `performerSignature` is `@State`, read once at view construction, so
+        // clearing the KEY leaves the in-memory copy salting every take until the next launch —
+        // a factory reset that visibly does nothing, which is the reinstall experience coming
+        // back through the button built to end it.
+        let source = try Self.studioSource()
+        let message = "`resetSoundToDefaults` no longer assigns `.unknown` to the live "
+            + "fingerprint. The stored key goes, the in-memory one keeps colouring every take "
+            + "until relaunch, and the reset reads as broken."
+        XCTAssertTrue(source.contains("performerSignature = .unknown"), message)
+    }
+
+    func testTheLaunchLineReportsPresenceAndNeverValues() throws {
+        // The pairing with `SoundReset` is enforced by
+        // `ResetSoundClearsWhatTheLaunchLineReportsTests`; what THIS pins is the shape of what
+        // gets reported. `echoel_diag.log` is a file the founder pastes into a chat, so a
+        // learned resting heart rate printed there is a health value leaving the device by the
+        // most ordinary route there is — and it would turn a musical handwriting into a
+        // readout ABOUT a person, which this feature is forbidden from becoming.
+        let source = try Self.studioSource()
+        let present = "let signatureText = performerSignature.hasBody ? \"learned\" : \"none\""
+        let message = "The launch breadcrumb no longer reports the fingerprint as a plain "
+            + "presence flag. If it now prints the learned values instead, health numbers are "
+            + "going into the diagnostics file users share."
+        XCTAssertTrue(source.contains(present), message)
     }
 
     /// The one place that resolves the source path, so a directory move breaks three tests

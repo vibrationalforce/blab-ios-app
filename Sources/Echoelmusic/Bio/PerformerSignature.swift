@@ -12,9 +12,18 @@
 // 1. **It is not a statement about the human being.** It is a musical handwriting. Nothing
 //    here is a health reading, a score, or a diagnosis, and nothing derived from it may ever
 //    be phrased as one (`CLAUDE.md`: bio is a modulation source, never wellness).
-// 2. **It never leaves the device.** It is derived from health data, so there is no cloud
-//    half, no comparison between users, and it is deliberately kept out of the shared App
-//    Group — the Watch has no business reading it.
+// 2. **This app never transmits it.** No cloud half, no comparison between users, and it is
+//    deliberately kept out of the shared App Group — which matters for a specific reason: that
+//    container is readable by an extension, and a HealthKit-derived value there would sit one
+//    refactor away from real 5.1.3 egress.
+//    ⛔ THE FIRST VERSION SAID "it never leaves the device", FLATLY, AND THAT IS NOT TRUE OF
+//    ANY `UserDefaults` VALUE. The suite persists to `Library/Preferences`, which iCloud and
+//    encrypted local backups include — while the HealthKit store itself is excluded from
+//    them. So this file creates a backup channel the underlying readings do not have. That is
+//    a deliberate, stated trade (a `UserDefaults` suite cannot be marked
+//    `isExcludedFromBackup`; a plain file could), not an oversight — but the absolute
+//    sentence would have been quoted into a privacy claim, which is exactly how #158/#184 got
+//    expensive.
 // 3. **It is not "more randomness".** An empty signature contributes EXACTLY ZERO: `seedSalt`
 //    returns 0 and the caller's XOR is then a no-op, so a user who has never been measured
 //    renders bit-identically to before this file existed. That is the whole safety story of
@@ -61,6 +70,23 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
     public private(set) var breathRate: Float
     public private(set) var breathCount: Int
 
+    /// Whether ANY of the frames that taught this fingerprint came from a source whose values
+    /// may not leave the device (`BioEgressPolicy.allowsEgress == false`: HealthKit, Watch,
+    /// Oura). Sticky — once true it never clears, because the mean it influenced never
+    /// un-mixes.
+    ///
+    /// ⚠️ WHY IT IS RECORDED NOW, WHEN NOTHING READS IT YET. `observing` blends every accepted
+    /// source into the same four running means, and after the blend the `BioSource` is gone —
+    /// so `BioEgressPolicy.allowsEgress(_:)`, which takes exactly that, can no longer be
+    /// asked. That is harmless while the value stays where it is, and stops being harmless at
+    /// the two places already planned: Slice 3 wants to SAY something about it in the UI, and
+    /// `ColabPayload.BioPeek` already ships live vitals to a peer behind that very gate, so
+    /// "share your handwriting" is a natural next ask. Adding this field later would leave the
+    /// answer permanently unknowable for every install that had already learned. Same shape
+    /// and same reason as `BioVitals.egressAllowed`, which carries provenance across a
+    /// serialisation boundary for exactly this case.
+    public private(set) var taughtByRestrictedSource: Bool
+
     /// `frame.timestamp` (CFAbsoluteTime at receipt) of the last accepted observation.
     ///
     /// Persisted deliberately. The rate limit exists so that ONE long session — where every
@@ -82,6 +108,7 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         self.coherenceCount = 0
         self.breathRate = 0
         self.breathCount = 0
+        self.taughtByRestrictedSource = false
         self.lastObservation = 0
     }
 
@@ -99,6 +126,17 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         self.coherenceCount = try c.decodeIfPresent(Int.self, forKey: .coherenceCount) ?? 0
         self.breathRate = try c.decodeIfPresent(Float.self, forKey: .breathRate) ?? 0
         self.breathCount = try c.decodeIfPresent(Int.self, forKey: .breathCount) ?? 0
+        // On a payload that predates the field, an already-taught fingerprint defaults to
+        // RESTRICTED and an empty one does not. Both halves are deliberate: an old fingerprint
+        // might have been taught by HealthKit and there is no way left to find out, so the
+        // conservative answer is the restricted one — guessing `false` would silently declare
+        // unknown provenance to be safe provenance. But a payload that taught nothing has no
+        // provenance to be unsure about, and marking it restricted would make a decoded empty
+        // signature differ from `.unknown` for no reason a reader could explain.
+        let taughtAnything = self.heartRateCount > 0 || self.hrvCount > 0
+            || self.coherenceCount > 0 || self.breathCount > 0
+        self.taughtByRestrictedSource =
+            try c.decodeIfPresent(Bool.self, forKey: .taughtByRestrictedSource) ?? taughtAnything
         self.lastObservation = try c.decodeIfPresent(TimeInterval.self,
                                                      forKey: .lastObservation) ?? 0
     }
@@ -167,6 +205,7 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         // that emits empty frames every few seconds would keep the real body permanently
         // outside the rate limit and the fingerprint would never learn anything.
         guard accepted else { return self }
+        if !BioEgressPolicy.allowsEgress(frame.source) { next.taughtByRestrictedSource = true }
         next.lastObservation = now
         return next
     }

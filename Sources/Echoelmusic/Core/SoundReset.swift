@@ -99,7 +99,23 @@ public enum SoundReset {
         // level the USER set from any computed or genre-built-in balance — the two were confused
         // once, and the confusion is what produced a wrong diagnosis ("the value is re-rolled per
         // generate") for a fader that was simply persisted at zero.
-        Entry(label: "userMix", keys: MixerStore.storageKeys)
+        Entry(label: "userMix", keys: MixerStore.storageKeys),
+        // ⭐ THE PERFORMER FINGERPRINT (#403), and it belongs here more sharply than anything
+        // above it. It is a value the user never set, cannot see, and that silently shifts the
+        // harmonic skeleton of every take — the #400 defect with an extra twist, because the
+        // other entries at least have a visible control showing their current state. Without
+        // this line its only remedy would be delete-and-reinstall, which is the amputation
+        // this whole file exists to replace, three commits after it was written.
+        //
+        // Two cases that make it concrete rather than tidy: someone else plays your phone once
+        // with the camera or a strap, and their body is folded into YOUR skeleton for good;
+        // or you revoke HealthKit access in iOS Settings expecting the app to forget, and the
+        // derived fingerprint keeps colouring every take because nothing clears it.
+        //
+        // ⚠️ IT IS NOT THE USER'S WORK, which is the boundary this list must not cross. Saved
+        // patches, projects and takes are things a player MADE. This is something the app
+        // inferred about them automatically — a setting that learned itself, not an artefact.
+        Entry(label: "signature", keys: [PerformerSignature.storageKey])
     ]
 
     /// Every key the reset clears, flattened. Order is the breadcrumb's order, which is the

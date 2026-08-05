@@ -85,7 +85,7 @@
     <main id="main" class="subpage">
         <div class="subpage-hero">
             <h1>Privacy Policy</h1>
-            <p class="date">Updated: February 2026</p>
+            <p class="date">Updated: August 2026</p>
         </div>
 
         <div class="subpage-summary">
@@ -123,7 +123,8 @@
         <section>
             <h2>Data Processing</h2>
             <p>All data processing occurs locally on your device:</p>
-            <p><strong>Biometric Data:</strong> Heart rate variability (HRV), heart rate, and breathing patterns from Apple Watch or HealthKit are processed in real-time on your device to influence audio, visuals, and lighting. This data never leaves your device and is not stored.</p>
+            <p><strong>Biometric Data:</strong> Heart rate variability (HRV), heart rate, and breathing patterns from Apple Watch or HealthKit are processed in real-time on your device to influence audio, visuals, and lighting. Individual readings are not stored, and none of this is transmitted by the app.</p>
+            <p><strong>Your performer signature:</strong> So that the same preset does not compose the same-sounding piece for everyone, Echoelmusic keeps one small summary on your device — coarse averages of your resting heart rate, variability, breathing rate and coherence, learned slowly while you play. It is used for a single purpose: to seed the music generator, so what the instrument creates carries your musical handwriting. It is never shown as a health reading, never used for advertising, never compared with other users, and never transmitted. It is stored in the app's own preferences, so it is included in an iCloud or encrypted local device backup of your phone. <strong>You can erase it at any time:</strong> open <em>Save &amp; Export</em> and tap <em>Reset sound</em>, which clears it together with the instrument's other settings. Deleting the app also removes it.</p>
             <p><strong>Audio Input:</strong> Microphone input for music production, voice synthesis, and audio analysis is processed locally. No audio is uploaded to servers or shared with third parties.</p>
             <p><strong>Camera (pulse / rPPG):</strong> When you start a camera pulse reading, the rear camera with the torch reads subtle color changes in your fingertip to estimate heart rate (photoplethysmography). Frames are analyzed in real time on-device and are never recorded, stored, or transmitted. There is no face tracking, AR, or video recording.</p>
             <p><strong>Sensors:</strong> Bluetooth heart-rate straps are read on-device to drive the instrument. This stays on your device unless you explicitly switch on local-network output (OSC / ADM-OSC / Art-Net / sACN / MIDI) or nearby session sharing — see those sections below for exactly which values then leave.</p>
@@ -135,11 +136,11 @@
             <ul>
                 <li>HealthKit data is <strong>never shared with third parties</strong></li>
                 <li>HealthKit data is <strong>never used for advertising</strong></li>
-                <li>HealthKit data <strong>never leaves your device</strong></li>
+                <li>HealthKit data is <strong>never transmitted by the app</strong> — no server, no third party, no analytics</li>
                 <li>You control which health metrics Echoelmusic can access</li>
                 <li>You can revoke access at any time in iOS Settings</li>
             </ul>
-            <p>We use HealthKit data solely to create bio-reactive audio-visual experiences in real-time. The data is read, processed, and immediately discarded—it is never stored.</p>
+            <p>We use HealthKit data solely to create bio-reactive audio-visual experiences in real-time. Individual readings are read, processed, and immediately discarded — they are never stored. The one exception is the coarse performer signature described under <em>Data Processing</em> above: if HealthKit or Apple Watch is your pulse source, its readings contribute to those averages. That summary stays on your device, is never shared with third parties, is never used for advertising, and can be erased with <em>Reset sound</em>.</p>
         </section>
 
         <section>

@@ -3309,7 +3309,16 @@ struct EchoelStudioView: View {
         // broken engine. `drums` is cleared by the reset but NOT printed — there is no door left
         // to show or change it (#166/#167), so a number nobody can act on would only pad the line.
         let mixText = String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead)
-        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), touchPatch=\(touchText), glide=\(glideText), userMix=\(mixText)")
+        // ⭐ PRESENCE ONLY — NEVER THE NUMBERS (#403). This line answers "why does this install
+        // open on a different skeleton than a fresh one", which needs exactly one bit: has a
+        // fingerprint been learned. Printing the learned resting rate, HRV or coherence would
+        // put health values into the file the founder pastes into a chat, and would turn a
+        // musical handwriting into a readout ABOUT a person — the thing this feature is
+        // forbidden from becoming. It is also what lets the value join `SoundReset` at all:
+        // that list is keyed by the labels THIS line emits, deliberately, so a value that
+        // cannot be reported honestly cannot be quietly half-reset either.
+        let signatureText = performerSignature.hasBody ? "learned" : "none"
+        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), touchPatch=\(touchText), glide=\(glideText), userMix=\(mixText), signature=\(signatureText)")
     }
 
     /// Step 2b: applies the audible side effects of a USER edit in the chrome's
@@ -6568,6 +6577,15 @@ struct EchoelStudioView: View {
         mixer.resetToUnity()
         subBass.mixLevel = mixer.bass
         laneVoiceRack.setBassMixLevel(mixer.bass)
+
+        // ⚠️ THE SAME HALF-FIX A THIRD TIME, and this file's own header names the shape:
+        // removing a key is not the same as applying its default when a LIVE object holds the
+        // value. `performerSignature` is `@State`, read once at view construction, so
+        // `SoundReset.clear` above deletes the stored fingerprint while the in-memory copy
+        // keeps salting every take until the next launch — a factory reset that visibly does
+        // nothing, which is the "it needed a reinstall" experience returning through the
+        // button built to end it. Assigning `.unknown` is idempotent and takes the salt to 0.
+        performerSignature = .unknown
 
         // ⚠️ READ THE DEFAULT DIRECTLY, not through `style`. This is the identical expression
         // `@AppStorage` declares as `style`'s fresh-install default, so it is the SAME single
