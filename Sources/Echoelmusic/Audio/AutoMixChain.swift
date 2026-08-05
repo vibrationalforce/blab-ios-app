@@ -58,8 +58,16 @@ final class AutoMixChain {
     ///
     /// COMPUTED, not stored, deliberately: a stored mirror needs a writer, and every
     /// half-threaded fix in this repo has been a writer someone forgot. One source, no
-    /// synchronisation. The 5 Hz auto-gain timer re-reads it, so a picker change takes effect
-    /// within ~200 ms and then eases — no `didSet` needed and no click.
+    /// synchronisation. The auto-gain timer re-reads it, so a picker change takes effect
+    /// within ~200 ms and then eases — no `didSet` needed.
+    ///
+    /// ⛔ THIS LINE ENDED "and no click" UNTIL #404, and that was the false half. Easing does
+    /// not by itself make a change inaudible: what reaches the audio is a STAIRCASE of
+    /// `AVAudioMixerNode.outputVolume` writes, and each stair is a hard discontinuity at a
+    /// render boundary. At the old rate the first stair after a target change was up to
+    /// −13.2 % of amplitude — a click, and then another every 200 ms while it converged. The
+    /// stairs are now 10× finer (see `subSteps`); "no click" is still not something a comment
+    /// should promise without a number next to it.
     ///
     /// `nil` = the user chose "No target": hold the level where the mix puts it. The safety
     /// limiter is a separate, always-on stage and stays on.
@@ -158,13 +166,67 @@ final class AutoMixChain {
 
     /// Provide a closure that returns the current master RMS (0-1 linear).
     /// AutoMixChain uses this to compute LUFS and drive auto-gain.
+    ///
+    /// ⭐ ONE TIMER, TWO RATES (#404): it fires at `easeInterval` (20 ms) and only every
+    /// `subSteps`-th tick re-READS the meter. The measurement rate is unchanged — `lufsReading`
+    /// still publishes at 5 Hz, which matters because it IS observation-tracked and feeds the
+    /// loudness readout; raising it would put a 50 Hz write in front of a SwiftUI body, i.e.
+    /// the menu-freeze law. Only the GAIN APPLICATION runs at 50 Hz, and it writes
+    /// `smoothedGainDB` (`@ObservationIgnored`) plus one `Float` on a mixer node — nothing a
+    /// view observes.
     func connectMeter(_ getter: @escaping () -> Float) {
         masterLevelRef = getter
         lufsTimer?.invalidate()
-        lufsTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.updateLUFS() }
+        easeTick = 0
+        lufsTimer = Timer.scheduledTimer(withTimeInterval: Self.easeInterval, repeats: true) {
+            [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.easeTick += 1
+                if self.easeTick >= Self.subSteps {
+                    self.easeTick = 0
+                    self.updateLUFS()
+                }
+                self.updateAutoGain()
+            }
         }
     }
+
+    /// How often the gain is APPLIED. See `subSteps` for why this is not the measurement rate.
+    ///
+    /// `nonisolated` deliberately: this class is `@MainActor`, and Xcode's toolchain isolates
+    /// even an immutable `static let` to the actor (CLAUDE.md records the exact error). Both
+    /// constants are read from a non-isolated test method and one of them is a default argument
+    /// of a `nonisolated` function — without this the blocking bundle would not compile.
+    nonisolated static let easeInterval: TimeInterval = 0.02
+
+    /// How many gain applications happen per measurement — the whole #404 fix in one number.
+    ///
+    /// ⭐ WHY (measured, not guessed): `gainNode` is an `AVAudioMixerNode`, and
+    /// `outputVolume` has no ramp — a write lands whole at the next render quantum. At the
+    /// old one-application-per-200-ms rate a 6 dB correction moved the master **1.08 dB in a
+    /// single render boundary, an instantaneous −13.2 % amplitude discontinuity**; the worst
+    /// legal delta (±6 dB target, ±6 dB current) gave 2.16 dB = −28 %. On a sustained pad that
+    /// is a click, and because the one-pole keeps stepping every 200 ms while it converges it
+    /// is a BURST of clicks — which is what "teilweise extremes Knacken" sounds like, and why
+    /// it is intermittent: it only happens while the level is actually moving.
+    ///
+    /// ⚠️ THE TIME CONSTANT IS UNCHANGED, EXACTLY — not approximately. Applying a one-pole
+    /// coefficient `c` once is identical to applying `1 − (1−c)^(1/n)` n times against the
+    /// same target, because both are `(1−c)` of the remaining distance. So the founder's tuned
+    /// anti-pumping feel (slow to boost, quicker to cut) survives bit-for-bit at the 200 ms
+    /// mark; only the staircase inside those 200 ms gets 10× finer. Same 6 dB cut now steps
+    /// 0.118 dB = −1.37 %.
+    ///
+    /// ⚠️ AND THIS IS A MECHANISM, NOT A CONFIRMED DIAGNOSIS. The founder's report is
+    /// "teilweise extremes Knacken" on v10.79.369 with no log attached; the arithmetic above
+    /// proves this stage CAN click and by how much, not that it is the only source. Do not
+    /// close #404 on this commit — a device listen is what closes it.
+    nonisolated static let subSteps = 10
+
+    /// Counts applications since the last measurement. Not observation-tracked: it changes
+    /// 50×/s and nothing may re-render on it.
+    @ObservationIgnored private var easeTick = 0
 
     // MARK: - LUFS update (called every 200ms on main thread)
 
@@ -178,7 +240,8 @@ final class AutoMixChain {
         // BS.1770 approximation: LUFS ≈ dBFS - 0.1 (K-weighting offset)
         let dBFS = 20 * Foundation.log10(rmsLinear)
         lufsReading = dBFS - 0.1
-        updateAutoGain()
+        // NOT `updateAutoGain()` here any more — the caller applies the gain on EVERY tick,
+        // this one included. Calling it here too would double-step the measurement tick.
     }
 
     /// The smoothed auto-gain, in dB — eased toward the target each 200 ms tick so the
@@ -222,12 +285,36 @@ final class AutoMixChain {
         return current + delta * Swift.min(Swift.max(coeff, 0), 1)
     }
 
+    /// One SUB-step of the ease. The coefficients are the shipped ones spread over `subSteps`
+    /// applications; `deadZoneDB` is deliberately NOT spread — it is a hold threshold, not a
+    /// rate, and dividing it would let a deviation the founder chose to ignore start creeping.
     private func updateAutoGain() {
         guard isInstalled, lufsReading > -59 else { return }
         smoothedGainDB = Self.steadyGainDB(current: smoothedGainDB,
-                                           targetLUFS: targetLUFS, lufsReading: lufsReading)
+                                           targetLUFS: targetLUFS, lufsReading: lufsReading,
+                                           boostCoeff: Self.subStepped(0.05),
+                                           cutCoeff: Self.subStepped(0.18))
         let linearGain = Foundation.pow(10.0, Double(smoothedGainDB) / 20.0)
         gainNode.outputVolume = Float(Swift.min(Swift.max(linearGain, 0.5), 2.0))
+    }
+
+    /// The per-application coefficient that reproduces a whole-tick coefficient `c` over
+    /// `subSteps` applications: `1 − (1−c)^(1/n)`.
+    ///
+    /// Pure and `nonisolated` so the equivalence is a TEST and not a claim in a comment —
+    /// this repo has paid for the difference. Guarded on both ends because a coefficient
+    /// outside 0…1 would either stall the ease (≤0) or overshoot past the target (>1), and
+    /// `pow` of a negative base is NaN, which would silence the master.
+    ///
+    /// ⚠️ `clamped(to:)`, NOT `min(max(…))`: the latter passes NaN straight through (CLAUDE.md
+    /// names it a shipped permanent-silence cause), and a NaN here would land on
+    /// `outputVolume`. The first version of this function had exactly that bug.
+    nonisolated static func subStepped(_ coeff: Float, over n: Int = subSteps) -> Float {
+        guard n > 1 else { return coeff.clamped(to: 0...1) }
+        let c = Double(coeff.clamped(to: 0...1))
+        // Double, then narrowed: `Foundation.pow` is the Double overload here, and doing the
+        // root in Float would lose precision exactly where the equivalence above is asserted.
+        return Float(1 - Foundation.pow(1 - c, 1 / Double(n)))
     }
 
     // MARK: - Node configuration
