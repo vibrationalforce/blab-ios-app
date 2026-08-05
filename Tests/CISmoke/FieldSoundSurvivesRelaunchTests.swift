@@ -15,10 +15,18 @@
 // here with no simulator, no `UserDefaults` and no view. Only the last test is a scan, and it
 // guards the one thing a pure function cannot: that the startup task actually asks.
 //
-// ⛔ WHAT IT STILL CANNOT PROVE. That the apply lands on an attached voice, that the user hears
-// the right patch, or that the `onAppear` apply is not itself a no-op on a not-yet-attached voice
-// (`setGain` provably is — the startup task says so). Those need a device pass. What is settled
-// here is that both launch paths now resolve a stored id to the SAME patch.
+// ⛔ WHAT IT STILL CANNOT PROVE. That the apply lands on an attached voice, or that the user
+// hears the right patch. Those need a device pass. What IS settled here is that both launch paths
+// resolve a stored id to the SAME patch — which is why the fix does not depend on which of them
+// runs first.
+//
+// ⛔ AND ONE SENTENCE HERE WAS AN OVERCLAIM IN THE OPPOSITE DIRECTION, corrected in review. It
+// said `setGain` on a not-yet-attached voice is "provably" a no-op, citing the startup task. The
+// startup task says the reverse of proven — verbatim: "nothing in this repo establishes that such
+// a write survives the later connect", and it notes `PolySynthVoice.setGain` does NOT guard on
+// attachment the way `SubBassVoice.setGain` does. The repo's position is UNKNOWN and deliberately
+// recorded as unknown. Writing "provably" into the block whose whole job is epistemic honesty is
+// the same defect as the false rationale this commit fixes, one register quieter.
 
 import Foundation
 import XCTest
@@ -26,15 +34,25 @@ import XCTest
 
 final class FieldSoundSurvivesRelaunchTests: XCTestCase {
 
-    /// A factory patch that is NOT the play-surface default — stands in for "the user picked
-    /// something else". Derived rather than hard-coded so a re-ordered factory list cannot turn
-    /// this file into a test of nothing.
+    /// A factory patch that is neither the play-surface default NOR `factory.first` — it stands
+    /// in for "the user picked something else", and it has to dodge BOTH landmarks to mean that.
+    ///
+    /// ⛔ THE FIRST VERSION EXCLUDED ONLY THE DEFAULT, AND THAT MADE THE HEADLINE TEST VACUOUS.
+    /// `factory.first` is "Warm Pad", which is not the play-surface default — so the old helper
+    /// returned exactly `library.first`, the resolver's terminal fallback. Gut `launchTouchPatch`
+    /// down to `return library.first` and the test carrying the "RED before #402" banner would
+    /// still have passed: it could not tell "resolved the stored id" from "fell all the way
+    /// through". Found in review, not by the test.
+    ///
+    /// The old doc claimed deriving it "so a re-ordered factory list cannot turn this file into a
+    /// test of nothing" — backwards about which risk it had eliminated. Deriving is still right;
+    /// it just has to skip the first entry too.
     private func someOtherFactoryPatch() throws -> SynthPatch {
-        let other = SynthPatch.factory.first { $0.id != SynthPatch.touchDefaultID }
+        let other = SynthPatch.factory.dropFirst().first { $0.id != SynthPatch.touchDefaultID }
         return try XCTUnwrap(other, """
-        `SynthPatch.factory` holds no patch other than the play-surface default, so "the user \
-        picked a different one" cannot be expressed. If the factory list really shrank to one, \
-        this whole file needs rewriting against a constructed patch instead.
+        `SynthPatch.factory` holds no patch that is both non-first and not the play-surface \
+        default, so "the user picked a different one" cannot be expressed without ambiguity. If \
+        the factory list really shrank that far, rewrite this file against a constructed patch.
         """)
     }
 
@@ -143,9 +161,11 @@ final class FieldSoundSurvivesRelaunchTests: XCTestCase {
         XCTAssertTrue(lines.contains { $0.contains("StudioDefaultKeys.touchPatchID.key") }, """
         the startup task no longer reads `touch.patchID`.
 
-        The resolver deliberately does NOT read `UserDefaults` — it lives in `DSP/`, which the \
-        AUv3 target compiles without `Core` types. If nobody hands it the stored id, it can only \
-        ever answer with the default.
+        The resolver deliberately does NOT read `UserDefaults` — `DSP/` stays Foundation-only by \
+        hygiene, and a plain `String` parameter is what makes every branch above testable here at \
+        all. If nobody hands it the stored id, it can only ever answer with the default. \
+        (The reason is NOT "the AUv3 target compiles DSP/ in isolation", which this message said \
+        for one commit — that target was removed 2026-07-24.)
         """)
     }
 

@@ -971,10 +971,15 @@ struct EchoelmusicApp: App {
                 // sound never survived a relaunch, and the comment claiming otherwise is
                 // exactly why nobody looked.
                 //
-                // `SynthPatch.launchTouchPatch(storedID:in:)` is now the single answer both
-                // sites resolve through, so the second apply lands on the same patch as the
-                // first. Reading the key here rather than passing it in keeps the resolver
-                // free of `Core` types — `DSP/` compiles in isolation for the AUv3 target.
+                // `SynthPatch.launchTouchPatch(storedID:in:)` answers "which patch wakes up",
+                // and both launch paths resolve a stored id through it — so the two applies
+                // land on the SAME patch and the fix holds whichever runs first. Reading the
+                // key HERE rather than inside the resolver keeps that resolver free of `Core`
+                // types: `DSP/` stays Foundation-only by hygiene (`project.yml` — the AUv3
+                // target that once mandated it was removed 2026-07-24, so do not repeat the
+                // "compiles in isolation" reason this comment carried for one commit), and a
+                // plain `String` parameter is what makes every branch testable without
+                // `UserDefaults`.
                 let storedTouchPatchID = UserDefaults.standard
                     .string(forKey: StudioDefaultKeys.touchPatchID.key) ?? ""
                 if let touchPatch = SynthPatch.launchTouchPatch(storedID: storedTouchPatchID,

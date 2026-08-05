@@ -1084,9 +1084,26 @@ struct EchoelStudioView: View {
             // was wrong: this `onAppear` runs in the first SYNCHRONOUS appear pass, before
             // the async startup task attaches the node, so the write landed on an
             // unattached `sourceNode`. Do not move it back.
-            // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs
-            // no action here (currentPatch is still the Init placeholder pre-generate —
-            // the app startup already gave both voices the warm default).
+            // Restore a CUSTOM play-surface patch across relaunch. Follow-the-take needs no
+            // action here: with an empty selection `syncTouchSound()` would apply the take
+            // patch, and the startup task's own Field default is the better landing before
+            // any take exists (`SynthPatch.launchTouchPatch`).
+            //
+            // ⛔ WHAT STOOD HERE WAS FALSE TWICE OVER, and one of the two halves contradicted
+            // the comment SIX LINES ABOVE IT — found by review during #402, in the very
+            // commit whose thesis is that a comment with a wrong rationale is worse than none.
+            // It read: "currentPatch is still the Init placeholder pre-generate — the app
+            // startup already gave both voices the warm default."
+            //   · `currentPatch` is NOT the placeholder here. It is assigned ~75 lines earlier
+            //     in this same closure, from `presetIndex` or `style.synthPatch`.
+            //   · "the app startup ALREADY gave" asserts the async startup task ran FIRST.
+            //     The level-restore note just above says the opposite, and that one is the
+            //     one backed by an observed symptom. Two comments, eight lines apart, in one
+            //     closure, claiming opposite orderings.
+            // Neither half is replaced by a new ordering claim, because #402 does not need
+            // one: both launch paths now resolve a stored id to the SAME patch, so the fix
+            // holds whichever runs first. Only the STALE-id case is order-dependent, and it
+            // is written down where it lives (`SynthPatch.launchTouchPatch`).
             if !touchPatchID.isEmpty { syncTouchSound() }
             logLaunchMusicalIdentity()
         }

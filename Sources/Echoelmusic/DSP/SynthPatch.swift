@@ -450,22 +450,36 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     /// should it wake up on*, where no take exists yet, so an empty selection means the factory
     /// Field default. Two questions, two answers.
     ///
-    /// What the fix actually buys is AGREEMENT in the one case that was broken: a non-empty
-    /// stored id. `onAppear` only calls `syncTouchSound()` when the id is non-empty, and both
-    /// paths then resolve that same id to that same patch. On a STALE id they still differ —
-    /// `syncTouchSound()` falls back to the take, this falls back to the factory default, and
-    /// this one wins because it runs later. That is the better landing for a play surface with
-    /// no take yet, and it is the behaviour that shipped before; it is written down rather than
-    /// left to be rediscovered.
+    /// ⭐ AND THE FIX IS CORRECT WHICHEVER PATH RUNS FIRST — its strongest property, and the
+    /// first version of this note failed to state it while leaning on the weaker order-dependent
+    /// story. What it buys is AGREEMENT in the one case that was broken: a non-empty stored id.
+    /// `onAppear` only calls `syncTouchSound()` when the id is non-empty, and both paths then
+    /// resolve that same id to that same patch. Order stops mattering.
     ///
-    /// ⚠️ TAKES THE STORED ID AS A STRING, and does not read `UserDefaults` itself. This file
-    /// lives in `DSP/`, which the AUv3 target compiles in isolation — it may not reference
-    /// `Core` types, and `StudioDefaultKeys` is one. The caller reads the key; this decides.
+    /// ⚠️ ONE case remains order-dependent, and it is the only claim here resting on framework
+    /// behaviour nobody in this repo can read: a STALE id. `syncTouchSound()` falls back to the
+    /// take, this falls back to the factory default, and *at launch* this one lands last — which
+    /// is the better place for a play surface with no take yet, and is what shipped before. Two
+    /// limits on that sentence, both found in review rather than assumed: SwiftUI's delivery
+    /// order between an ancestor's `.task` and a descendant's `onAppear` is inferred, not proven;
+    /// and it is a LAUNCH-only statement, because the startup task is latched to run once per
+    /// process while `onAppear` is not — on any later re-appear `syncTouchSound()` is the sole
+    /// writer and the take wins.
+    ///
+    /// ⚠️ TAKES THE STORED ID AS A STRING, and does not read `UserDefaults` itself — for two
+    /// reasons, neither of which is the one the first version gave. It claimed `DSP/` "compiles
+    /// in isolation for the AUv3 target"; **there is no AUv3 target** (removed 2026-07-24,
+    /// `project.yml` says so and adds that `DSP/` stays Foundation-only "by hygiene even though
+    /// the isolated-AUv3-compile that mandated it is retired"). Landing a dead compile mandate
+    /// in the commit that exists to punish false rationales is exactly the trap it names. The
+    /// real reasons: (1) that hygiene rule still stands on its own, and (2) a `String` parameter
+    /// is what lets every branch below be tested without `UserDefaults`, a view or a simulator —
+    /// which is the whole reason `FieldSoundSurvivesRelaunchTests` can exist.
     ///
     /// Order: the user's explicit choice · else the factory play-surface default · else anything
-    /// at all · else nothing. A stale or unparseable id falls through rather than leaving the
-    /// surface silent.
-    static func launchTouchPatch(storedID: String, in library: [SynthPatch]) -> SynthPatch? {
+    /// at all · else nothing. The last two rungs are DEFENSIVE, not live: `PatchStore` always
+    /// prepends `SynthPatch.factory`, so the production call site can never reach them.
+    public static func launchTouchPatch(storedID: String, in library: [SynthPatch]) -> SynthPatch? {
         if let id = UUID(uuidString: storedID),
            let chosen = library.first(where: { $0.id == id }) {
             return chosen
