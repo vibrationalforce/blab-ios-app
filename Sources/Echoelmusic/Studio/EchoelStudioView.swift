@@ -7631,8 +7631,11 @@ struct EchoelStudioView: View {
             // window, B4 — the pulse drives the beat at the genre's rhythmic level, so
             // Trap really runs 130–150 and Punk 160+), at most ±step per tick.
             if bodyTempoTrustworthy(frame) {
-                let target = StudioCalculator.genreTempo(composition.suggestedTempo,
-                                                         into: style.tempoRange).rounded()
+                let target = StudioCalculator.tilted(
+                    StudioCalculator.genreTempo(composition.suggestedTempo,
+                                                into: style.tempoRange),
+                    within: style.tempoRange,
+                    by: performerSignature.tempoTilt).rounded()
                 let current = beatPlayer.pattern.tempo
                 let delta = max(-Self.tempoConvergeStep, min(Self.tempoConvergeStep, target - current))
                 tempo = (current + delta).rounded()
@@ -7647,8 +7650,16 @@ struct EchoelStudioView: View {
             // frame would freeze a too-fast beat. Until the pulse is confidently settled we hold
             // a steady tempo instead of chasing the noise; once confident we seed from the
             // settled body and lock. (Bio still MODULATES timbre throughout — only TEMPO holds.)
-            let bodySeed = StudioCalculator.genreTempo(composition.suggestedTempo,
-                                                       into: style.tempoRange).rounded()
+            // #403 Slice 2 — THE PERSON TILTS THE PACE, AFTER THE FOLD. Both genre-tempo call
+            // sites in this method get the tilt and the LOCKED branch above deliberately does
+            // not: a number the user typed is theirs, and a fingerprint quietly moving it
+            // would be a lying control. An unlearned performer tilts by 0, which
+            // `StudioCalculator.tilted` returns unchanged — bit-identical to before #403.
+            let bodySeed = StudioCalculator.tilted(
+                StudioCalculator.genreTempo(composition.suggestedTempo,
+                                            into: style.tempoRange),
+                within: style.tempoRange,
+                by: performerSignature.tempoTilt).rounded()
             if bodyTempoTrustworthy(frame) {
                 tempo = bodySeed
                 tempoSeededFromBody = true

@@ -301,6 +301,37 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         heartRateCount > 0 || hrvCount > 0 || coherenceCount > 0 || breathCount > 0
     }
 
+    /// Where this performer sits between the calmest and the busiest resting heart — −1 …
+    /// +1, and exactly `0` until a heart rate has been learned.
+    ///
+    /// ⭐ WHAT IT IS FOR (#403 Slice 2): `StudioCalculator.tilted` nudges the genre-folded
+    /// tempo by this, so the same preset opens at a different pace for a different body.
+    ///
+    /// ⚠️ IT IS NOT A SECOND OPINION ABOUT THE MOMENT, and the distinction is what makes it
+    /// legitimate rather than double-counting. The LIVE heart rate already sets the tempo —
+    /// but `genreTempo` octave-folds it, and its own doc measures the loss: on contemplation
+    /// (44…66), 41 % of one octave of body tempo collapses onto the floor. Two people 30 BPM
+    /// apart land on the same number. The tilt is applied AFTER that fold and restores what
+    /// the fold erased.
+    ///
+    /// 50…90 BPM is the span the mapping opens across, chosen as the ordinary waking resting
+    /// range rather than the physiological extremes: anchoring on 30…200 would compress every
+    /// real performer into the middle few percent and make the whole feature inaudible. A
+    /// trained endurance athlete at 45 and a habitually fast heart at 95 both saturate, which
+    /// is the honest behaviour — the tilt is a position among people, not a measurement.
+    public var tempoTilt: Double {
+        guard heartRateCount > 0 else { return 0 }
+        let bpm = Double(heartRateBPM)
+        guard bpm.isFinite, bpm > 0 else { return 0 }
+        let span = PerformerSignature.restingSpan
+        let unit = (bpm - span.lowerBound) / (span.upperBound - span.lowerBound)
+        return Swift.min(Swift.max(unit, 0), 1) * 2 - 1
+    }
+
+    /// The resting-heart-rate span `tempoTilt` opens across. See its doc for why it is the
+    /// ordinary waking range and not the physiological one.
+    public static let restingSpan: ClosedRange<Double> = 50...90
+
     /// The value the composer XORs into its STRUCTURE seed — `0` when nothing was ever
     /// measured, which makes the caller's fold a no-op.
     ///

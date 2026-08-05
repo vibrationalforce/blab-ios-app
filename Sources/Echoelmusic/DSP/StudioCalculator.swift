@@ -213,6 +213,49 @@ public struct StudioCalculator: Sendable, Equatable {
         return dropFromAbove <= liftFromBelow ? range.upperBound : range.lowerBound
     }
 
+    /// Nudge a genre-folded tempo toward one end of its window, without ever leaving it.
+    ///
+    /// ⭐ WHY THIS EXISTS, AND WHY IT IS NOT A SECOND COPY OF THE BODY→TEMPO MAPPING (#403
+    /// Slice 2). `genreTempo` above OCTAVE-FOLDS, and its own doc measures what that costs:
+    /// 41 % of one octave of body tempo collapses onto the floor on contemplation (44…66).
+    /// Two performers whose hearts rest 30 BPM apart routinely fold to the SAME number — the
+    /// founder's 2026-08-05 log shows exactly that, nine takes all reading the same tempo.
+    /// This restores, AFTER the fold, a distinction the fold destroys. It is not a second
+    /// opinion about the moment; it is the person, applied where the person had been erased.
+    ///
+    /// ⚠️ THE GENRE ALWAYS WINS, BY CONSTRUCTION, and that is the whole safety argument. The
+    /// move is a FRACTION OF THE REMAINING HEADROOM toward the window's edge, so the result
+    /// cannot leave `range` for any tilt — no clamp is doing the work, the shape is. #81
+    /// already cost this repo one round of "erst individuell, dann klingt alles gleich"; a
+    /// tilt that could cross a genre boundary would be the same mistake pointing the other
+    /// way. At an edge the tilt does nothing in that direction, which is correct: the genre
+    /// owns its own boundary.
+    ///
+    /// - Parameters:
+    ///   - tilt: −1 (as slow as this genre allows this performer to be) … +1 (as fast).
+    ///     **0 returns `bpm` unchanged**, which is what makes an unlearned performer
+    ///     bit-identical to before #403.
+    public static func tilted(_ bpm: Double,
+                              within range: ClosedRange<Double>,
+                              by tilt: Double) -> Double {
+        // A non-finite tilt or a degenerate window is not a reason to move a tempo. Returning
+        // the input un-nudged is the only answer that cannot make a take worse than no
+        // signature at all.
+        guard bpm.isFinite, tilt.isFinite, tilt != 0,
+              range.lowerBound.isFinite, range.upperBound.isFinite,
+              range.upperBound > range.lowerBound else { return bpm }
+        let anchor = Swift.min(Swift.max(bpm, range.lowerBound), range.upperBound)
+        let amount = Swift.min(Swift.max(tilt, -1), 1)
+        let headroom = amount > 0 ? range.upperBound - anchor : anchor - range.lowerBound
+        return anchor + amount * headroom * maxTiltShare
+    }
+
+    /// How much of the headroom a full tilt may take. 0.35 is a judgement, not a measurement,
+    /// and is named here so it can be argued with instead of being found inline: on
+    /// contemplation (44…66) a body folded to 55 moves at most ±3.9 BPM — audibly a different
+    /// pace for the same preset, nowhere near another genre's tempo.
+    public static let maxTiltShare: Double = 0.35
+
     // MARK: - Bar-aligned loop trim window (audit C6/C7)
 
     /// Where to cut EXACTLY one loop out of a longer capture so the written WAV

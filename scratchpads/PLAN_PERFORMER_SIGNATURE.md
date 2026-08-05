@@ -211,11 +211,34 @@ Leer/unbekannt ⇒ bit-identisch zu heute (Golden-Law).
 ⚠️ Kern UND Aufrufer im selben Commit — ein reiner Kern ohne Aufrufer ist derselbe Fehler
 mit mehr Schritten.
 
-### Slice 2 — Charakter-Offsets
+### Slice 2 — Charakter-Offsets · **Tempo-Hälfte GEBAUT 2026-08-05**
 Die Signatur neigt das Tempo INNERHALB des Genre-Fensters, die Notendichte und das
 Register. Klein und begrenzt: sie darf die Genre-Identität nicht aufheben — #81 hat schon
 einmal bewiesen, dass „erst individuell, dann alles gleich" die andere Richtung derselben
 Falle ist. Grenzen werden mit Slice 0 gemessen, nicht geschätzt.
+
+**Gebaut (Tempo):** `PerformerSignature.tempoTilt` (−1 … +1 über der Ruhepuls-Spanne
+50…90) + `StudioCalculator.tilted(_:within:by:)`, verdrahtet an BEIDEN Körper-Tempo-Pfaden
+in `makeComposerInput` (Erst-Aussaat und Pro-Tick-Konvergenz). Wächter:
+`Tests/CISmoke/ThePaceIsTiltedInsideTheGenreTests.swift`.
+
+Drei Dinge, die beim Bauen anders entschieden wurden als der Plan sie offen ließ:
+
+1. **Warum das KEINE zweite Kopie der Live-Abbildung ist** — der naheliegendste Einwand,
+   und er hat eine belegbare Antwort statt einer Meinung: `genreTempo` OKTAV-FALTET, und
+   sein eigenes Doc beziffert den Verlust — auf Contemplation (44…66) fallen 41 % einer
+   Oktave Körpertempo auf den Boden. Zwei Körper 30 BPM auseinander landen auf derselben
+   Zahl. Die Neigung wirkt NACH der Faltung und stellt genau das wieder her, was die
+   Faltung zerstört.
+2. **Die Genre-Grenze hält durch die FORM, nicht durch einen Clamp** — die Bewegung ist ein
+   Bruchteil (`maxTiltShare` 0.35) des VERBLEIBENDEN Kopfraums. Ein „Offset dann Clamp"
+   sähe äquivalent aus und würde eine ganze Population von Performern auf eine Grenze
+   sättigen; der Wächter wischt deshalb über tilt × bpm statt Stichproben zu nehmen.
+3. **Der GESPERRTE Tempo-Zweig bleibt unberührt** — eine vom Nutzer getippte Zahl gehört
+   ihm. Der Wächter prüft das als POSITIVEN Scan auf die unveränderte Zuweisung, weil ein
+   negativer Scan Code nicht von Prosa unterscheiden kann (#367 rückwärts).
+
+**Offen in Slice 2:** Register-Neigung und Dichte-Neigung.
 
 ### Slice 3 — Ehrlichkeit im Produkt
 Wenn nie ein Körper gemessen wurde, sagt die App das (eine Zeile, kein Dialog) statt eine
