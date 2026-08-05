@@ -349,31 +349,42 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
     /// Where this performer sits between the least and the most variable habitual body —
     /// −1 … +1, and exactly `0` until an HRV has been learned. #403 Slice 3.
     ///
-    /// ⭐ WHAT IT IS FOR. `BioComposer.composeHarmonic` reads it to set how far the bass is
-    /// lifted OVER the pad — the take's low-end weight. Same section, same level, a body that
-    /// habitually sits low or high on variability carries more or less bottom.
+    /// ⭐ WHAT IT IS FOR. `BioComposer.composeHarmonic` reads it to set how far the composed
+    /// bass LINE is lifted over the pad. A body that habitually sits low or high on
+    /// variability carries more or less bottom, by ≈1 dB.
+    ///
+    /// ⛔ Two qualifiers the first version dropped, both from the review of the same commit.
+    /// (a) It is the bass LINE at `padOctave − 1`, not "the low end": the felt sub an octave
+    /// below is `SubBassVoice`, which discards velocity by design, so that band does not move.
+    /// (b) "Same level" is only true because the default-on loudness servo is holding the
+    /// master; with the user on "No target" the lift is a level change as well as a balance
+    /// change. Neither breaks the design — both were stated more strongly than the code
+    /// supports.
     ///
     /// ⛔ IT WAS A LEVEL TILT FOR ONE COMMIT AND THAT VERSION WAS ERASED DOWNSTREAM BY
     /// DESIGN. The inventory behind it was right that the section VELOCITY is the one
-    /// continuously-read body quantity in the live composer — everything else there is read
-    /// through a THRESHOLD, which sorts performers into two or three buckets rather than
-    /// spreading them out. (An earlier version of this paragraph listed the six gate values
-    /// with their comparison operators; a review found three of the operators wrong. The
-    /// argument did not depend on them, so they are gone rather than re-guessed — read the
-    /// gates in `BioComposer` if you need them, not a copy here.) What that inventory missed
-    /// is what happens after: velocity reaches exactly one thing in the synth — `velocityGain`, a
-    /// pure amplitude scale, with no velocity→timbre path — while `AutoMixChain`'s loudness
-    /// servo is ON by default at −14 LUFS and reads a PRE-chain meter, making it open-loop
-    /// feed-forward with fixed point `target − Lᵢₙ`. It removes a source-level offset
-    /// entirely. On the shipped default genre, where every sounding note derives from the pad
-    /// velocity, the tilt was 100 % common-mode: precisely the signal that stage cancels.
+    /// continuously-read body quantity in the live composer. (An earlier version of this
+    /// paragraph listed the six gate values with their comparison operators; a review found
+    /// three of the operators wrong. They are gone rather than re-guessed — read the gates in
+    /// `BioComposer` if you need them, not a copy here. ⛔ And a second review found the
+    /// SUPERLATIVE wrong too: voice-leading strictness/spread, the chord-journey coherence and
+    /// `effectiveTension` are all live continuous body reads. Velocity may have been the best
+    /// pick; it was not the only one.) What that inventory did not look at is what happens
+    /// after the composer — and the reasons first written here were themselves part wrong,
+    /// which is why the full arithmetic now lives at `BioComposer.composeHarmonic`'s velocity
+    /// site rather than in two paraphrases. In short: velocity is overwhelmingly but not
+    /// purely level (it also moves the per-note filter brightness), and the default-on
+    /// loudness servo has a 0.4 dB dead zone that Slice 3's ±0.3–0.4 dB offset sat inside. So
+    /// the level tilt was neither erased nor reliable — it was INDETERMINATE.
     ///
     /// **The general lesson, because it is not about this parameter:** before making a
-    /// fingerprint out of a quantity, follow it to the speaker. A stage whose whole job is to
-    /// normalise something will normalise yours too, and "the number in the composer changed"
-    /// is not the same claim as "the take changed". Level belongs to the master (and the app
-    /// gives the user a control for it); BALANCE belongs to the composer and nothing
-    /// downstream touches it.
+    /// fingerprint out of a quantity, follow it to the speaker — and compute the SIZE of the
+    /// effect against the size of whatever stage you think removes it. "A servo will cancel
+    /// this" is not an argument until the offset is compared with the servo's dead zone; the
+    /// first version of this doc asserted the cancellation without ever doing that
+    /// subtraction. Level belongs to the master (and the app gives the user a control for
+    /// it); BALANCE belongs to the composer, and a RATIO is untouched by a gain servo, by the
+    /// static master trim and by the chain's linear EQ.
     ///
     /// ⚠️ THE COLLAPSE IT ANSWERS IS STILL THE ONE `tempoTilt` EXISTS FOR. The composer's
     /// dynamics driver is `Input.breathDepth`, which `makeComposerInput` feeds

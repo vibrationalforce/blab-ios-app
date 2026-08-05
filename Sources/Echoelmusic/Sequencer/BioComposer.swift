@@ -472,11 +472,35 @@ public enum BioComposer {
     /// (#403 Slice 3b). The un-tilted lift is `0.14`, so the reachable band is 0.07…0.21.
     ///
     /// ⚠️ WHY THIS SIZE, stated as a number so it can be argued with rather than found inline.
-    /// `EchoelDDSP` scales amplitude by `v^0.5` for a pad-like envelope, so at a typical pad
-    /// velocity of ~0.46 the two extremes put the bass at 0.53 and 0.67 — a spread of
-    /// `20·log₁₀(√(0.67/0.53))` ≈ **1.0 dB of bass weight relative to the pad**. Audible as a
-    /// different mix, nowhere near enough to unbalance one. It is a judgement, not a
-    /// measurement, and the device listen is what can overturn it.
+    /// At a typical pad velocity of ~0.46 the two extremes put the bass at 0.53 and 0.67. Under
+    /// the `v^0.5` law that is `20·log₁₀(√(0.67/0.53))` ≈ **1.0 dB of bass weight relative to
+    /// the pad** — audible as a different mix, nowhere near enough to unbalance one.
+    ///
+    /// ⛔ AND `v^0.5` IS NOT A PROPERTY OF `EchoelDDSP`, WHICH IS WHAT THE FIRST VERSION OF
+    /// THIS LINE SAID. `spawnVoice` scales `amplitude` by `pow(v, expo)` with `expo = 1 …
+    /// 1.5`; the 0.5 comes from `velocityGain`'s `expo * velocityCurve` (`velocityCurve` =
+    /// 0.5), and that only governs the level when bio modulation is armed — which the app does
+    /// at play, on an ambient patch whose `expo` is exactly 1. So ≈1.0 dB is right for the
+    /// SHIPPED path and is the CONSERVATIVE end: with bio off the law is `v^1` (≈2.0 dB), and
+    /// on the percussive genre patches it is 1.2…1.5 dB. Naming the condition matters because
+    /// the number is the whole argument for the size.
+    ///
+    /// ⚠️ AND IT IS THE BASS LINE, NOT "THE LOW END". The felt sub an octave below
+    /// (`SubBassVoice`) takes `noteOn(pitch:velocity:)` and DISCARDS the velocity by design —
+    /// its level is `subGain × mixLevel`, performer-independent. So the sub band does not move
+    /// at all; what moves is the composed bass line at `padOctave − 1`, against a fixed-level
+    /// sub. Calling this "low-end weight" overstates which band actually shifts.
+    ///
+    /// ⚠️ THE HONEST LIMIT, AND IT IS THE ONE THAT DECIDES THE DEVICE LISTEN: on the shipped
+    /// default genre a take is ONE sustained section, so `appendBass` writes exactly ONE bass
+    /// note. The per-note humanisation on it is `hVel` ±0.05 plus `hrvHumanize` (default-on in
+    /// the app, depth 0.12) up to ±0.036 — combined ±0.086 against a systematic ±0.07. With no
+    /// second note there is no within-take averaging, so a SINGLE take is noise-dominated for
+    /// all but near-opposite fingerprints; the fingerprint is a BIAS across takes, not a
+    /// per-take guarantee. (Two takes from the same seed differ by exactly 0.14 because the
+    /// tilt consumes no RNG — but #403 Slice 1 salts the seed per performer, so in the
+    /// founder's actual scenario the jitter differs too.) A dimension that moves EVERY note
+    /// — register, Slice 4 — carries a fingerprint better than one that moves one note.
     ///
     /// ⚠️ AND IT IS SYMMETRIC BY CONSTRUCTION, which the tilted-velocity form was not.
     /// `StudioCalculator.tilted` moves a fraction of the headroom to the NEAR bound, so when
@@ -493,7 +517,15 @@ public enum BioComposer {
     ///
     /// Higher habitual HRV lifts the bass LESS (see the convention note at the call site), so
     /// the tilt is subtracted. Clamped at both ends: `dynamicTilt` is already −1…1 by
-    /// construction, and this is the line that would put a bad value into the audio.
+    /// construction, and a non-finite tilt must not become a non-finite velocity.
+    ///
+    /// ⛔ It does NOT make the velocity site NaN-proof, which the first version implied by
+    /// calling it "the line that would put a bad value into the audio". `clamp01` is
+    /// `min(max(x, 0), 1)`, and by the argument-order law in CLAUDE.md that passes NaN
+    /// straight through — so a non-finite `breathDepth` still yields a NaN `bassVelocity`,
+    /// exactly as it did before #403. Not reachable via `makeComposerInput` (it sanitises
+    /// first) and pre-existing, but the sentence claimed a completeness this line does not
+    /// have, on a file whose whole subject is claims that outrun their code.
     static func bassLift(for tilt: Double) -> Float {
         let t = tilt.isFinite ? tilt.clamped(to: -1...1) : 0
         return Float(0.14 - t * Self.bassLiftRange)
@@ -2019,29 +2051,56 @@ public enum BioComposer {
         let sectionLen = max(1, stepCount / prog.count)
         // ⭐ #403 SLICE 3b — THE PERSON SETS THE TAKE'S LOW-END WEIGHT, NOT ITS LEVEL.
         //
-        // ⛔ SLICE 3 TILTED `padVelocity` ITSELF AND THAT WAS ERASED DOWNSTREAM BY DESIGN.
-        // The reasoning was sound as far as it went — an inventory of every body read in the
-        // LIVE composer (2026-08-05) found all the others read through a threshold, so the
-        // section velocity really is the one continuous body-driven quantity here. (Say LIVE
-        // and not "in this file": `velBase` in the lead block a few hundred lines down is a
-        // second continuous `breathDepth` expression, and so are the three genre melody
-        // builders — all of them dormant, which is exactly why the qualifier is load-bearing
-        // rather than pedantic.) What the inventory missed is what happens after:
+        // ⛔ SLICE 3 TILTED `padVelocity` ITSELF, AND THE REASON GIVEN FOR TAKING IT BACK WAS
+        // ITSELF PART WRONG — both halves are recorded here because the next session will
+        // plan from this block.
         //
-        //   1. Velocity reaches exactly ONE thing in the synth — `velocityGain`, a pure
-        //      amplitude scale (`EchoelDDSP.spawnVoice`). There is no velocity→filter or
-        //      velocity→spectrum path, so a velocity tilt is nothing but LEVEL.
-        //   2. `AutoMixChain`'s loudness servo is ON by default (`StudioDefaultKeys`
-        //      `loudnessTarget` = `.streaming`, −14 LUFS) and its input meter is the
-        //      PRE-chain tap, upstream of its own `gainNode` (`AudioEngine` says so at the
-        //      tap). That makes it open-loop feed-forward: its fixed point is `target − Lᵢₙ`,
-        //      i.e. it removes a source-level offset ENTIRELY, not partly.
+        // The inventory behind Slice 3 claimed the section velocity was "the ONE continuous
+        // body-driven quantity in the live composer, everything else is a threshold". ⛔ That
+        // superlative is false. Live continuous body reads it missed: `voiceLeadControl`
+        // (`strictness` from coherence, `spread` from breathDepth — consumed inside
+        // `VoiceLeader`'s cost function, and the app passes `voiceLeading: true`),
+        // `chordSuggestControl.coherence` (`suggestJourney: true`), and `effectiveTension`,
+        // which is read as a continuous probability in this very function. The velocity may
+        // still have been the best pick; it was not the only one, and the doc asserted the
+        // stronger claim in two files. What the inventory genuinely got right is the DORMANT
+        // half: `velBase` in the lead block and the three genre melody builders are continuous
+        // too and have no callers — which is why "LIVE" is load-bearing and not pedantic.
+        //
+        // What the inventory did not look at is what happens after the composer:
+        //
+        //   1. It is overwhelmingly LEVEL. `spawnVoice` writes three velocity-derived values
+        //      (`amplitude`, `velocityGain`, `noteVelocity`), and the first two are pure
+        //      amplitude. ⛔ THE FIRST VERSION OF THIS LINE SAID "exactly ONE thing … no
+        //      velocity→filter or velocity→spectrum path", AND THAT IS FALSE: `noteVelocity`
+        //      feeds `brightBoost` (`EchoelDDSP`, the SVF cutoff term), and `filterEnvAmount`
+        //      defaults to 1 and has NO setter anywhere in `Sources/` — so velocity moves the
+        //      per-note brightness on every note of every patch. Over this slice's range that
+        //      is ~5 % of cutoff, decaying in ~100 ms. Small, but not zero, and a servo cannot
+        //      remove it. Two more paths (onset chiff, attack scale) are real and inert here,
+        //      gated on `percussiveness`, which is 0 on a slow-attack pad.
+        //   2. The loudness servo is ON by default (`StudioDefaultKeys.loudnessTarget` =
+        //      `.streaming`, −14 LUFS) and its input meter is the PRE-chain tap, upstream of
+        //      its own `gainNode` — open-loop feed-forward, fixed point `target − Lᵢₙ`.
+        //      ⛔ AND THE FIRST VERSION SAID IT REMOVES A SOURCE OFFSET "ENTIRELY, NOT
+        //      PARTLY", WHICH IS ALSO FALSE — `steadyGainDB` carries `deadZoneDB = 0.4` and
+        //      HOLDS inside it. The arithmetic I never did: Slice 3's per-performer offset
+        //      under the same `v^0.5` law was +0.32/−0.42 dB at coherence 0.5 (span 0.73 dB),
+        //      so one whole side of it sat INSIDE the hold band. The honest verdict is not
+        //      "erased" and not "survives" — it is INDETERMINATE, which is a worse property
+        //      for a fingerprint than either.
         //   3. On the shipped default genre (`.selfObservation`, `leadDensity 0`) every
-        //      sounding note derives from `padVelocity`, so the tilt was 100 % common-mode —
-        //      exactly the signal that servo exists to cancel. The worst case was the default.
+        //      sounding note derives from `padVelocity`, so the tilt was essentially all
+        //      common-mode — the one class of signal that stage is built to move. (Not
+        //      exactly 100 %: an ADDITIVE velocity delta is not a constant dB offset across
+        //      notes, so ~0.08 dB of it was differential.)
         //
-        // So the level half is the MASTER's job and the app already gives the user a control
-        // for it. What the composer owns, and nothing downstream normalises, is BALANCE.
+        // ⭐ SO THE SURVIVING ARGUMENT IS #2 AND #3 TOGETHER, AND IT IS ABOUT RELIABILITY, NOT
+        // ERASURE: a sub-dB common-mode LEVEL offset lands in the servo's hold band, where
+        // whether it reaches the listener depends on what the rest of the mix happens to be
+        // doing. A fingerprint may not be a coin flip. BALANCE has no such stage: a RATIO is
+        // untouched by a gain servo, by the static master trim, and by `AutoMixChain`'s EQ
+        // (linear, no crossover, no multiband). That is the whole reason for 3b.
         //
         // `padVelocity` is therefore back to its pre-#403 expression, bit-identical for every
         // performer. The fingerprint moves the bass's lift OVER the pad instead: the same

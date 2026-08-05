@@ -269,7 +269,28 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           nicht zu diesem Parameter: bevor man aus einer Größe eine Handschrift macht,
                           verfolgt man sie bis zum Lautsprecher.** Pegel gehört dem Master (mit eigenem
                           Nutzer-Regler), BALANCE gehört dem Composer und wird nirgends normalisiert;
-                          3b kippt deshalb den Bass-Lift über dem Pad),
+                          3b kippt deshalb den Bass-Lift über dem Pad. ⛔ **Und die Begründung DIESER
+                          Umkehrung war selbst zur Hälfte falsch — zwei Reviewer fanden unabhängig
+                          dieselben zwei Stellen, und sie standen in vier Dateien plus hier.** (1)
+                          „Velocity erreicht genau EINE Sache" stimmt nicht: `spawnVoice` schreibt auch
+                          `noteVelocity`, und das speist `brightBoost`, also die Filter-Cutoff, bei
+                          `filterEnvAmount` = 1 ohne Setter in `Sources/` — auf JEDER Note jedes
+                          Patches. (2) „entfernt einen Pegel-Offset VOLLSTÄNDIG" stimmt auch nicht:
+                          `steadyGainDB` hat `deadZoneDB = 0.4` und HÄLT darin — und die Rechnung, die
+                          ich nie gemacht habe, ergibt für Slice 3 einen Versatz von +0,32/−0,42 dB bei
+                          Kohärenz 0,5, also eine ganze Seite INNERHALB der Totzone. Das Urteil ist
+                          weder „gelöscht" noch „überlebt", sondern **unbestimmt** — was für eine
+                          Handschrift schlechter ist als beides. Die Entscheidung für Balance bleibt
+                          (ein VERHÄLTNIS rührt kein Gain-Servo an), die Begründung ist ersetzt.
+                          **Lehre, zusätzlich zur obigen: „eine Regelstufe löscht das" ist erst ein
+                          Argument, wenn die GRÖSSE des Effekts neben der Totzone dieser Stufe steht.**
+                          Dazu drei kleinere Korrekturen: der Fühl-Sub (`SubBassVoice`) verwirft
+                          Velocity, es bewegt sich also die Bass-LINIE und nicht „das Tieftonband"; die
+                          `v^0.5`-Kurve gilt nur mit armierter Bio-Modulation auf einem Ambient-Patch;
+                          und auf dem ausgelieferten Genre trägt ein Take EINE Bassnote, deren
+                          Humanisierung (±0,086 mit `hrvHumanize`) größer ist als der systematische
+                          Kipp (±0,07) — die Handschrift ist ein Bias ÜBER Takes, keine Garantie pro
+                          Take),
                           davor „152" nach `TimingVerdictReachesTheScreenTests.swift` (#408 — der erste
                           Wächter in dieser Kette über einer ANZEIGE statt über einem Verhalten, und
                           deshalb der erste, dessen Fehlermodi allesamt EHRLICHKEIT betreffen: ein Fenster

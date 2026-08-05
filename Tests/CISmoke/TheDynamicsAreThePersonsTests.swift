@@ -2,16 +2,15 @@
 // Echoel — #403 Slice 3b. Blocking bundle, because the other suite cannot fail a merge (#208).
 //
 // ⭐ WHAT THIS PROTECTS. The founder's ask is that two people rendering the same preset do
-// not get the same song. This slice gives the performer a say in the take's LOW-END WEIGHT:
-// how far the bass is lifted over the pad. Same section, same loudness, more or less bottom.
+// not get the same song. This slice gives the performer a say in how far the composed BASS
+// LINE is lifted over the pad. Same section, more or less bottom.
 //
-// ⛔ AND WHY IT IS NOT THE LEVEL, WHICH IS WHAT SLICE 3 TILTED FOR ONE COMMIT. Velocity
-// reaches exactly one thing in the synth — `velocityGain`, a pure amplitude scale, with no
-// velocity→timbre path — and `AutoMixChain`'s loudness servo is ON by default at −14 LUFS
-// reading a PRE-chain meter, i.e. open-loop feed-forward whose fixed point is `target − Lᵢₙ`.
-// It removes a source-level offset entirely. On the shipped default genre every sounding note
-// derives from the pad velocity, so the tilt was 100 % common-mode: exactly the signal that
-// stage exists to cancel. Balance is what the composer owns and nothing downstream normalises.
+// ⛔ AND WHY IT IS NOT THE LEVEL, WHICH IS WHAT SLICE 3 TILTED FOR ONE COMMIT. The full
+// argument, with the arithmetic, is at `BioComposer.composeHarmonic`'s velocity site; it is
+// NOT paraphrased here, because the first version of this header paraphrased it and repeated
+// two claims the source review then falsified ("velocity reaches exactly one thing", "the
+// servo removes a source offset entirely"). One place owns that reasoning. What matters for
+// these tests: the composer owns BALANCE, a ratio, and no downstream stage normalises a ratio.
 //
 // ⚠️ WHAT THIS FILE CANNOT PROVE, said plainly because the epic's headline invites the
 // opposite. It shows that two learned fingerprints produce a DIFFERENT bass-over-pad lift by a
@@ -19,9 +18,17 @@
 // "a different person" is a device listen, and no assertion here should be quoted as more.
 //
 // ⚠️ AND THE SIZE IS SMALL ENOUGH TO SAY OUT LOUD: full opposite fingerprints move the lift by
-// ±0.07, ≈ 1 dB of bass weight relative to the pad. The composer's own per-note humanize is
-// ±0.05 on every note. The tilt is systematic where that jitter is random, so it is a
-// different thing — but it is not a large thing.
+// ±0.07, ≈ 1 dB of bass weight relative to the pad on the shipped path.
+//
+// ⛔ THE FIRST VERSION THEN SAID "the composer's own per-note humanize is ±0.05 … the tilt is
+// systematic where that jitter is random, so it is a different thing". Half right, and the
+// wrong half matters. It counted only `hVel` and missed `hrvHumanize` (default-on in the app,
+// up to ±0.036 more) — combined ±0.086 against a systematic ±0.07. And "systematic beats
+// random" needs notes to average over: on the shipped genre a take is ONE sustained section,
+// so `appendBass` writes exactly ONE bass note and there is nothing to average. The honest
+// claim is that the fingerprint is a BIAS ACROSS TAKES, not a per-take guarantee. These tests
+// hold it exactly because they compare two takes from the SAME seed, where the jitter is
+// identical and cancels; the field does not grant that (Slice 1 salts the seed per performer).
 
 import Foundation
 import XCTest
@@ -60,12 +67,29 @@ final class TheDynamicsAreThePersonsTests: XCTestCase {
         corrupt = corrupt.observing(Self.frame(hrv: 0.5, at: Self.moment(0)))
         XCTAssertGreaterThan(corrupt.hrvCount, 0, "Setup failed — nothing was learned.")
         // A learned signature whose value is legitimately positive tilts; the guard must not
-        // have disarmed that. The zero-value case is unreachable through `observing` by
-        // construction (`measured` rejects it), which is why the guard is asserted here at the
-        // source rather than through a fabricated store.
+        // have disarmed that.
         XCTAssertNotEqual(corrupt.dynamicTilt, 0, """
             A legitimately measured HRV no longer tilts at all — the `hrv > 0` guard is \
             rejecting real measurements, not just the "not measured" sentinel.
+            """)
+
+        // ⛔ AND THIS HALF IS THE ONE THE FIRST VERSION LEFT OUT, WHICH MADE THE TEST'S NAME A
+        // LIE. It asserted only that the guard does NOT fire — so deleting `hrv > 0` from the
+        // source kept the whole file green, i.e. the fix this commit added had no guard of its
+        // own. The in-test comment then justified the omission with "the zero-value case is
+        // unreachable through `observing` by construction", which is true of `observing` and
+        // irrelevant: the guard's own doc names the reachable route, and it is right here.
+        // `init(from:)` sanitises the COUNTS and not the VALUES, so a store carrying a
+        // positive count with a zero value decodes exactly as written.
+        let corruptJSON = Data(#"{"hrvCount":5,"hrvNormalized":0}"#.utf8)
+        guard let decoded = try? JSONDecoder().decode(PerformerSignature.self, from: corruptJSON) else {
+            return XCTFail("The corrupt-store fixture no longer decodes — the guard is untested again.")
+        }
+        XCTAssertEqual(decoded.hrvCount, 5, "Fixture failed — the count did not survive decoding.")
+        XCTAssertEqual(decoded.hrvNormalized, 0, "Fixture failed — the zero value did not survive decoding.")
+        XCTAssertEqual(decoded.dynamicTilt, 0, """
+            A store carrying "5 observations, value 0" produced a non-zero tilt. `0` means NOT \
+            MEASURED repo-wide, so this is a maximal fingerprint invented out of an absence.
             """)
     }
 
@@ -160,7 +184,21 @@ final class TheDynamicsAreThePersonsTests: XCTestCase {
         // defect with more steps, and a source scan proves the call EXISTS, not that it
         // changes a note. Two Inputs identical in every field except the fingerprint, same
         // seeds, same body — so any difference in the notes is the fingerprint and nothing else.
+        //
+        // ⛔ THE GENRE AND THE HUMANISATION ARE SET EXPLICITLY, because the first version left
+        // both at `Input()`'s defaults and called the result "the default take". It was not:
+        // `Input.style` defaults to `.dubTechno`, while the app SHIPS `.selfObservation`
+        // (`StudioDefaultKeys.genre`), and the app passes `humanize: true`. The configuration
+        // the whole commit reasoned about was the one configuration untested. It is also the
+        // harder case: `.selfObservation` is sustained with ONE section, so the take carries
+        // exactly one bass note and there is no averaging to hide behind. The comparison stays
+        // exact because the tilt consumes no RNG — both takes draw identical jitter from the
+        // same seed, so the difference below is the fingerprint alone. (In the FIELD the seed
+        // is salted per performer by Slice 1, so the jitter differs too and the effect is a
+        // bias across takes rather than a per-take guarantee — stated at the source.)
         var quiet = BioComposer.Input()
+        quiet.style = .selfObservation
+        quiet.humanize = true
         quiet.seed = 4242
         quiet.structureSeed = 99
         quiet.signatureDynamicTilt = -1
@@ -169,7 +207,7 @@ final class TheDynamicsAreThePersonsTests: XCTestCase {
 
         let a = BioComposer.compose(quiet).notes.filter { $0.role == .bass }
         let b = BioComposer.compose(lively).notes.filter { $0.role == .bass }
-        XCTAssertFalse(a.isEmpty, "The default take has no bass notes — this test proves nothing.")
+        XCTAssertFalse(a.isEmpty, "The shipped-genre take has no bass notes — this test proves nothing.")
         XCTAssertEqual(a.count, b.count, """
             The fingerprint changed HOW MANY bass notes there are. It is meant to change their \
             weight only; a note-count difference means it leaked into structure.
@@ -202,7 +240,7 @@ final class TheDynamicsAreThePersonsTests: XCTestCase {
             """)
     }
 
-    func testTheComposerAsksTheSignatureForIt() throws {
+    func testTheAppSuppliesTheSignatureToTheComposer() throws {
         // The app half: the composer input must be SUPPLIED from the signature. Without this
         // the field defaults to 0 and every test above still passes against a dead feature.
         //
