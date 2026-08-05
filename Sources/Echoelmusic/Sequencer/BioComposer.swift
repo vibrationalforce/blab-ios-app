@@ -763,7 +763,8 @@ public enum BioComposer {
     ///   `stillnessThresholdSpan` for the reason written at that constant. One function, so
     ///   "lively lowers the bar, 0.5 is exactly today" means the same thing everywhere it is used.
     nonisolated static func densityThreshold(base: Float, liveliness: Float,
-                                             span: Float = livelinessThresholdSpan) -> Float {
+                                             span: Float = BioComposer.livelinessThresholdSpan)
+        -> Float {
         let safe = liveliness.isFinite ? liveliness : 0.5     // NaN/±inf ⇒ today's threshold
         let centred = safe.clamped(to: 0...1) - 0.5           // −0.5 … +0.5
         return base - span * centred                          // lively ⇒ lower bar

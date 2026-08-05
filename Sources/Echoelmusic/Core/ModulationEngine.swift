@@ -124,8 +124,14 @@ public final class ModulationEngine {
     /// on the first applied frame after `start`/`stop`, where the smoothing seeds at the raw
     /// value anyway (`prev = raw` ⇒ the result is `raw` for any alpha) — so it is a floor against
     /// nonsense, not a behavioural knob.
-    @ObservationIgnored
-    static let nominalFramePeriod: Float = 1.0
+    /// ⛔ `nonisolated` IS LOAD-BEARING, AND THE FIRST VERSION LEFT IT OFF: this class is
+    /// `@MainActor`, so an unqualified `static let` is main-actor-isolated and the `nonisolated`
+    /// `smoothingGap` below cannot read it. The Xcode gate said so in three lines. CLAUDE.md
+    /// records exactly this ("mark it `nonisolated static let` explicitly", and that SwiftPM may
+    /// accept what Xcode rejects) — the rule was written down and still walked into.
+    /// `@ObservationIgnored` was also wrong here and is gone: the macro only tracks INSTANCE
+    /// storage, so on a `static` it was decoration that made the isolation error look intentional.
+    nonisolated static let nominalFramePeriod: Float = 1.0
 
     /// Ceiling on a measured gap. Beyond this the previous smoothed value is not a neighbour to
     /// slew from, it is history: the longest normal publisher cadence is ~1 s (camera · BLE ·
@@ -138,8 +144,7 @@ public final class ModulationEngine {
     /// makes a FINITE, enormous gap reachable — the exact species of input that stalled the
     /// evolve loop for an hour there. The sanitiser below therefore bounds the finite case too,
     /// not only NaN/±inf.
-    @ObservationIgnored
-    static let maxSmoothingGap: Float = 5.0
+    nonisolated static let maxSmoothingGap: Float = 5.0
 
     /// Seconds between two APPLIED bio frames, sanitised — the `dt` the one-pole smoothing is
     /// actually stepped with.
