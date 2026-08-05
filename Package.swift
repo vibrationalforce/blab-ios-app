@@ -39,19 +39,42 @@ let package = Package(
         .target(
             name: "Echoelmusic",
             dependencies: [],
-            swiftSettings: [
-                // Treat all warnings as errors — prevents broken builds from reaching CI
-                .unsafeFlags(["-warnings-as-errors"]),
-                // Strict concurrency checking for Sendable/actor isolation
-                .enableExperimentalFeature("StrictConcurrency=targeted")
-            ],
             // No `exclude:` — every path this used to list (Platforms/, VisionOS/,
             // WatchOS/, tvOS/, Widgets/, LiveActivity/, AppClips/, Targets/) is gone from
             // disk, so the list only told SwiftPM to skip directories that do not exist.
             // Nothing else needs excluding: Sources/ holds only Echoelmusic,
             // EchoelmusicWatch and EchoelmusicWidgets.
+            //
+            // ⛔ `resources:` MUST STAY ABOVE `swiftSettings:`, and this is not style.
+            // `PackageDescription.target` is
+            //   (name:dependencies:path:exclude:sources:resources:publicHeadersPath:
+            //    cSettings:cxxSettings:swiftSettings:linkerSettings:plugins:)
+            // — all defaulted, so writing them in the WRONG ORDER is not a nice error about
+            // ordering: overload resolution walks off to a different `target` overload and
+            // reports two lies instead. That is exactly what CI printed for an unknown length
+            // of time:
+            //   Package.swift:39: incorrect argument labels in call (have
+            //     'name:dependencies:swiftSettings:resources:', expected 'name:dependencies:
+            //     path:exclude:sources:publicHeadersPath:…')
+            //   Package.swift:54: type 'Array<String>.ArrayLiteralElement' (aka 'String')
+            //     has no member 'process'
+            // The second one points at `.process("Resources")` and reads like a resources
+            // problem. It is not — `resources` had been bound to `path`'s position.
+            //
+            // ⛔ WHY NOBODY NOTICED: `ci.yml:165` runs `swift package resolve || true`. The
+            // mask means an invalid manifest cannot fail anything, so the error just sat in
+            // every CI/CD log as noise. Meanwhile CLAUDE.md's SESSION START ritual tells every
+            // session to run `swift build` and `swift test` first — and what they got back was
+            // this manifest error, about a file they had not touched. The `|| true` is in a
+            // founder-gated file and is reported, not edited.
             resources: [
                 .process("Resources")
+            ],
+            swiftSettings: [
+                // Treat all warnings as errors — prevents broken builds from reaching CI
+                .unsafeFlags(["-warnings-as-errors"]),
+                // Strict concurrency checking for Sendable/actor isolation
+                .enableExperimentalFeature("StrictConcurrency=targeted")
             ]),
 
         // Test target for unit tests
