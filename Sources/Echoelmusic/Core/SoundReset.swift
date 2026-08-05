@@ -26,11 +26,20 @@
 //  persisted at zero for a whole session); they are not in this slice, so do not describe
 //  this as "resets everything".
 //
-//  ⚠️ REMOVING A KEY IS NOT THE SAME AS APPLYING ITS DEFAULT. `@AppStorage` re-reads and falls
-//  back on its own, but any value CACHED in a live object does not — `SessionContext` holds
-//  its three in stored properties read once at init. The call site must push those back (see
-//  `SessionContext.resetMusicalIdentity()`); clearing alone would leave the old A4 sounding
-//  until the next launch, which is precisely the "it needed a reinstall" experience again.
+//  ⚠️ REMOVING A KEY IS NOT THE SAME AS APPLYING ITS DEFAULT. Any value CACHED in a live object
+//  keeps the old reading — `SessionContext` holds its three in stored properties read once at
+//  init. The call site must push those back (see `SessionContext.resetMusicalIdentity()`);
+//  clearing alone would leave the old A4 sounding until the next launch, which is precisely the
+//  "it needed a reinstall" experience again.
+//
+//  ⛔ AND THE FIRST VERSION OF THAT PARAGRAPH OPENED WITH A CLAIM IT COULD NOT BACK: "`@AppStorage`
+//  re-reads and falls back on its own". That the wrapper's GETTER synchronously re-reads the store
+//  is observed behaviour, not documented contract — see the ⛔ block on
+//  `EchoelStudioView.resetSoundToDefaults()` for what IS established (no `register(defaults:)`
+//  covers these keys; `removeObject(forKey:)` posts KVO and is not the stale-making
+//  `removePersistentDomain`) and what is not. Stating the unproven half as fact, in the file whose
+//  own thesis is that a comment with a wrong rationale is worse than none, is the same defect one
+//  register quieter.
 //
 
 import Foundation
@@ -53,14 +62,21 @@ public enum SoundReset {
     }
 
     /// ⚠️ KEYS COME FROM THEIR OWNER WHERE AN OWNER EXISTS — `StudioDefaultKeys` for the shared
-    /// preferences, `SessionContext.storageKeys` for the session trio. The four remaining string
-    /// literals below are keys that are declared with a raw literal at their single use site in
-    /// `EchoelStudioView`; repeating them here makes this the SECOND site (the THIRD, for
-    /// `toneSystemID`, which `WorkspaceView` also declares raw). That duplication is the shape of
-    /// defect `StudioDefaultKeys` exists to prevent, and the honest fix is promoting all four into
-    /// that file — a separate slice, because it moves declarations in two views. Until then the
-    /// guard scans `EchoelStudioView.swift` for each literal, so a rename there fails the blocking
-    /// bundle instead of silently turning one line of this reset into a no-op.
+    /// preferences, `SessionContext.keyStorageKeys` / `a4StorageKey` for the two groups that type
+    /// deliberately exposes. The THREE remaining string literals below are keys declared with a
+    /// raw literal at their single use site in `EchoelStudioView`; repeating them here makes this
+    /// the SECOND site (the THIRD, for `toneSystemID`, which `WorkspaceView` also declares raw).
+    /// That duplication is the shape of defect `StudioDefaultKeys` exists to prevent, and the
+    /// honest fix is promoting all three into that file — a separate slice, because it moves
+    /// declarations in two views. Until then the guard scans `EchoelStudioView.swift` for each
+    /// literal, so a rename there fails the blocking bundle instead of silently turning one line
+    /// of this reset into a no-op.
+    ///
+    /// ⛔ TWO WRONG NAMES IN THIS PARAGRAPH FOR ONE COMMIT, both found in review. It cited
+    /// `SessionContext.storageKeys`, WHICH DOES NOT EXIST — a reader following it finds nothing —
+    /// and called the exposure "the session trio", when withholding the artist key is the entire
+    /// point of the note beside it. And it said FOUR literals where its own guard iterates three.
+    /// A wrong symbol and a wrong count, in the sentence that SCOPES a future slice.
     public static let entries: [Entry] = [
         Entry(label: "key", keys: [StudioDefaultKeys.rootIndex.key,
                                    StudioDefaultKeys.scale.key]

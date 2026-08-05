@@ -551,7 +551,17 @@ struct EchoelStudioView: View {
     /// modifiers, and the black-screen SIGSEGV of 10.76.34 was caused by growing exactly that
     /// chain past the SwiftUI metadata-decoder limit. A destructive action still needs a
     /// confirmation step, so the confirmation goes inline where it costs no generic depth.
-    /// Not persisted — an armed reset must never survive putting the phone in a pocket.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS NOTE SAID "Not persisted — an armed reset must never survive
+    /// putting the phone in a pocket", AND IT WAS FALSE IN EXACTLY THE DIRECTION THAT MATTERS.
+    /// `@State` here survives backgrounding: `WorkspaceView` keeps `EchoelStudioView` mounted for
+    /// the whole app lifetime, so non-persistence only means the flag dies on process
+    /// TERMINATION — the pocket is the case the sentence claimed to cover and did not. It also
+    /// survived switching to another dropdown panel, because this state lives on the ROOT view
+    /// and not on the row. A reader checking whether the arm can go stale would have found that
+    /// sentence and stopped looking. It is TRUE NOW because two disarms make it true:
+    /// `.onDisappear` on `soundResetRow` (panel switch) and the `scenePhase` branch in the body
+    /// (backgrounding). Found in review, before any device saw it.
     @State private var soundResetArmed = false
 
     // Modal slots. `compose.toolsExpanded` went with the Tools grid it folded — zero
@@ -1117,6 +1127,12 @@ struct EchoelStudioView: View {
         }
         .onChange(of: scenePhase) { old, phase in
             if phase == .active { handlePendingIntent(); updateKeepAwake() }
+            // #400 — DISARM THE SOUND RESET ON THE WAY OUT. `soundResetArmed` is `@State` on a
+            // view `WorkspaceView` never unmounts, so without this an arm survives a phone call
+            // or a pocket and the NEXT tap is the destructive one. It rides this EXISTING
+            // handler on purpose: a `.task`, a timer or a second `.onChange` would each be a new
+            // modifier on the body, which is the one thing the black-screen law forbids.
+            if phase != .active { soundResetArmed = false }
             // #273 — AUTOSAVE ON THE WAY OUT. `ProjectStore.save` had THREE callers in
             // `Sources/` (the Save alert, the peer receive, and `importProject`'s own
             // `return save(p)` behind the live `.fileImporter`) — all three an explicit tap,
@@ -6426,13 +6442,30 @@ struct EchoelStudioView: View {
                 Text(soundResetArmed ? "Tap again to reset the sound" : "Reset sound")
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(soundResetArmed ? EchoelTheme.text : EchoelTheme.dim)
+                    // ⚠️ `minHeight`, not `height`, and `contentShape` because `.buttonStyle(.plain)`
+                    // makes the HIT AREA the glyph run — ~90 × 14 pt without this, under both the
+                    // HIG 44 floor and WCAG 2.5.8's 24. Exactly the defect #394 fixed on the Master
+                    // panel's loudness Reset, and this control is smaller AND destructive.
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityHint("""
+            // ⚠️ THE HINT HAS TO FLIP WITH THE STATE. The first version was static and ended
+            // "Needs a second tap to confirm" — in the ARMED state that is the opposite of the
+            // truth, so a VoiceOver user re-focusing an armed control was told a safety step
+            // still stood in front of them. A hint that lies about a destructive action is worse
+            // than none.
+            .accessibilityHint(soundResetArmed ? """
+            Tap to reset the sound now. Saved patches, takes and projects are kept.
+            """ : """
             Puts key, tuning, concert pitch, genre, preset, articulation, the bass and pad \
             rhythm characters and the Field voice back to factory. Saved patches, takes and \
             projects are kept. Needs a second tap to confirm.
             """)
+            // …and the ARMING itself must be audible. VoiceOver does not re-announce a label
+            // change on a control that already holds focus, so without this the experience is
+            // "tap · silence · tap · destroyed". A VALUE change it does announce.
+            .accessibilityValue(soundResetArmed ? "Armed" : "")
 
             if soundResetArmed {
                 Text("Key, tuning, genre, preset and the Field voice go back to factory. Your saved patches, takes and projects are kept.")
@@ -6441,28 +6474,86 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        // ⚠️ DISARM WHEN THE PANEL GOES. `soundResetArmed` lives on the ROOT view, not on this
+        // row, so without this it survives switching to another dropdown: arm it, open Sound,
+        // come back ten minutes later, and ONE tap resets. `.onDisappear` fires when
+        // `dropdownContent` swaps this panel's `AnyView` for another — one line, no timer, no
+        // modifier on the root chain. (The backgrounding half is in the body's EXISTING
+        // `.onChange(of: scenePhase)`, for the same reason: no new modifier.)
+        .onDisappear { soundResetArmed = false }
     }
 
     /// Clear the musical identity and make the change AUDIBLE NOW.
     ///
     /// ⚠️ CLEARING THE KEYS IS ONLY HALF OF IT, and the missing half is the whole reason this
-    /// is a function rather than one call. `@AppStorage` falls back on the next read by itself,
-    /// but `SessionContext` caches its three in stored properties, and the engine holds the
-    /// tuning, the concert pitch, the articulation and the Field patch as applied STATE. A
-    /// reset that only removed keys would leave the wrong sound playing until the next launch —
-    /// which is the "I had to reinstall" experience again, just quieter.
+    /// is a function rather than one call. `SessionContext` caches its three values in stored
+    /// properties, and the engine holds the tuning, the concert pitch, the articulation and the
+    /// Field patch as applied STATE. A reset that only removed keys would leave the wrong sound
+    /// playing until the next launch — the "I had to reinstall" experience again, just quieter.
     ///
-    /// The re-apply below is deliberately the same sequence `onAppear` runs, in the same order,
-    /// for the same reason: whatever the launch restore does IS the definition of "factory" for
-    /// this instrument, and a second, divergent definition here is how the two drift apart.
+    /// ⛔ ONE THING HERE IS NOT PROVEN, and the first version of this comment asserted it as
+    /// fact twice ("`@AppStorage` falls back on the next read by itself"). What IS established:
+    /// no `register(defaults:)` covers any of these keys — the only three registrations in the
+    /// app are `multiRoll`, `voiceKindRouting`, `instrumentHome` — so after the clear the key is
+    /// genuinely absent and the declared default is the only fallback; and `SoundReset.clear`
+    /// uses `removeObject(forKey:)`, which posts KVO, NOT `removePersistentDomain(forName:)`,
+    /// the variant known to leave `@AppStorage` stale. What is NOT established is that
+    /// `AppStorage.wrappedValue`'s GETTER, called here from a button action, synchronously
+    /// re-reads the store — that is observed behaviour, not documented contract. If it ever does
+    /// not, `applyArticulation()` and `applyTuning()` re-apply the values this function just
+    /// cleared and the reset silently cures nothing. `currentPatch` is deliberately NOT exposed
+    /// to that risk (see below), and no test that can run in this repo settles the rest; the
+    /// device pass does.
+    ///
+    /// ⚠️ THE RE-APPLY IS THE SAME EFFECT AS `onAppear`, NOT THE SAME SEQUENCE — the first
+    /// version claimed the stronger thing. `onAppear` also clamps the genre against
+    /// `MusicStyle.offered` and branches `currentPatch` on `presetIndex`; both are omitted here
+    /// and both are currently harmless, the second ONLY because `studio.presetIndex` happens to
+    /// be in `SoundReset.entries`. Take that entry out and the two definitions of "factory"
+    /// diverge in silence, which is precisely what the claim was supposed to prevent.
+    ///
+    /// ⚠️ AND "the launch restore" IS NOT ONLY `onAppear`. The app's startup task also gives
+    /// `leadVoice` a warm default before any generate (`EchoelmusicApp`), which this does not
+    /// replicate — after a reset the lead keeps the last genre's `leadPatchName`. Left alone
+    /// deliberately: copying that patch NAME here would be a second literal for one factory
+    /// choice, the duplication `SoundReset`'s own header calls the shape of the defect. Stated
+    /// rather than silently accepted, so the next reader knows it is a decision.
+    ///
+    /// ⚠️ THE SIBLING TO READ FIRST IS `resetTuningToStandard()`, the partial reset behind the
+    /// tuning banner. It recomposes only on the PITCH half, deliberately, because a
+    /// tone-system-only reset must not throw away a running take. This one always recomposes,
+    /// and that is not a divergence: it resets the key, the genre and the preset by definition,
+    /// so the running take is no longer the take the settings describe.
     private func resetSoundToDefaults() {
         SoundReset.clear(in: .standard)
         session.resetMusicalIdentity()
 
-        currentPatch = style.synthPatch     // `style` now reads its fresh-install default
+        // ⚠️ READ THE DEFAULT DIRECTLY, not through `style`. This is the identical expression
+        // `@AppStorage` declares as `style`'s fresh-install default, so it is the SAME single
+        // source — it simply does not depend on the getter semantics the ⛔ block above marks as
+        // unproven. The timbre is the most consequential of these values, so it is the one that
+        // must not rest on an assumption. Same reasoning as the Field patch below, which passes
+        // `storedID: ""` rather than reading the freshly-cleared `touchPatchID`.
+        currentPatch = StudioDefaultKeys.genre.value.synthPatch
+        // Every other wholesale replace in this file nils the Undo snapshot (six sites, each
+        // with the same note). Without it the prompt row still offers Undo after a factory
+        // reset, and taking it restores a PRE-RESET patch — the one state this feature exists
+        // to get rid of, leaking back through a live control.
+        patchBeforeSoundChange = nil
         applyArticulation()
         applyTuning()
         applyConcertPitch(session.a4Hz)
+
+        // ⚠️ THE OUTPUT STAGE HAS TO BE TOLD TOO, and forgetting it is silent. `PianoRollModel`'s
+        // tick handler stamps these into every `MusicalFrame` on the shared sequencer tick —
+        // installed once at app start, roll mounted or not — so the visual, the light and the
+        // ADM-OSC space keep colouring by the OLD concert pitch and the OLD key until the next
+        // `generate()` unless they are pushed here. `resetTuningToStandard()` (the sibling
+        // partial reset behind the tuning banner) already does exactly this for A4, and the
+        // `"a4"` edit path does it "now rather than at the next compose" for the same reason.
+        pianoRoll.musicalA4Hz = session.a4Hz
+        pianoRoll.musicalRootPitchClass = rootIndex
+        pianoRoll.musicalScaleName = scale.rawValue
 
         // The Field wakes up on the factory play-surface patch when nothing is stored — the
         // launch resolver decides that, not a literal here, so the two cannot disagree (#402).
@@ -6470,6 +6561,14 @@ struct EchoelStudioView: View {
            let field = SynthPatch.launchTouchPatch(storedID: "", in: patchStore.patches) {
             touchSynth.apply(field)
         }
+
+        // ⚠️ EXPLICIT, because otherwise it happens BY ACCIDENT. `handleCompositionEdit` ends in
+        // `recomposeIfRunning()` for genre, key, scale and a4 — every value this clears. Without
+        // it here, a reset while the take is playing leaves the OLD key and OLD genre sounding.
+        // Worse, `.onChange(of: bassRhythmRaw)`/`(padRhythmRaw)` each call it too, so a user who
+        // had set a rhythm character got a recompose and a user who had not got none: one tap,
+        // two behaviours, decided by unrelated prior state.
+        recomposeIfRunning()
 
         EchoelCrashLog.breadcrumb("reset/sound: musical identity cleared to factory (#400)")
     }

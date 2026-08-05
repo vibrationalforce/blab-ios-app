@@ -269,12 +269,69 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
     /// It must NOT be an `.alert`. The two-tap confirmation is a deliberate response to the
     /// 10.76.34 black screen: the root body's presentation chain is at the metadata limit, and
     /// "add one more modal" is the one change that has taken this app down at first render.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS TEST COULD NOT FAIL FOR ITS OWN NAME. Its only assertion was
+    /// that the string `soundResetArmed` appears somewhere — and `@State private var
+    /// soundResetArmed = false` satisfies that on its own, with no warning, even after someone
+    /// rips out the two-tap logic and adds `.alert(…)` as a 15th modifier. The name promised a
+    /// count; the body checked a spelling. Found in review — it is the `#376` trap this bundle
+    /// has already documented twice, committed a third time by the file that cites it.
     func testTheConfirmationDidNotBecomeAnotherModal() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+
         XCTAssertTrue(lines.contains { $0.contains("soundResetArmed") }, """
-        the two-tap arm/confirm state is gone. If the confirmation became an `.alert` or a \
-        `.confirmationDialog` on the root body, that is a 15th presentation modifier on a chain \
-        whose growth caused a SIGSEGV before any view appeared. Reuse a slot or confirm inline.
+        the two-tap arm/confirm state is gone — see the count assertion below for why that \
+        matters. Reuse a slot or confirm inline; do not add a modal.
+        """)
+
+        // ⚠️ FILE-WIDE, DELIBERATELY, and the decomposition is what makes the number meaningful:
+        // 14 sit on the root body's chain, `.sheet(item: $visualShare)` sits INSIDE the
+        // fullScreenCover's content, and one `.fileImporter` hangs off a different view. Only the
+        // first group counts against the metadata limit — but a file-wide count is the one a
+        // source scan can take honestly, and any new modal lands in it whichever group it joins.
+        let modals = lines.filter {
+            $0.contains(".sheet(") || $0.contains(".fullScreenCover(")
+                || $0.contains(".alert(") || $0.contains(".confirmationDialog(")
+                || $0.contains(".fileImporter(") || $0.contains(".popover(")
+        }
+        XCTAssertEqual(modals.count, 16, """
+        `EchoelStudioView` now has \(modals.count) presentation-modifier call sites, not 16.
+
+        If this GREW, read the black-screen law before doing anything else: the aggregate generic \
+        type of the root body is at the SwiftUI metadata-decoder limit, and the 10.76.34 crash was \
+        this chain growing by three — SIGSEGV at first render, before any view appears, presenting \
+        as a black screen. An `AnyView` split does NOT save it; only reverting the count did. \
+        Reuse an existing slot, or consolidate the chain into one `.sheet(item:)` enum FIRST.
+
+        If it SHRANK, that is the safe direction — update this number, the `CHAIN LENGTH` comment \
+        in `EchoelStudioView`, and the two counts in `CLAUDE.md` in the same commit. They are \
+        supposed to be one fact; they have been three different numbers before.
+
+        Found: \(modals.map { $0.trimmingCharacters(in: .whitespaces).prefix(48) })
+        """)
+    }
+
+    /// A destructive control with a glyph-sized hit area is the #394 defect, and this one is
+    /// smaller AND more destructive than the loudness Reset that fix was written for.
+    /// `TapTargetFloorTests` is deliberately an anchored list rather than a sweep, so it has no
+    /// case for this row — the guard lives here, next to the thing it guards.
+    func testTheResetRowIsAReachableTapTarget() throws {
+        let lines = try codeLines("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        guard let start = lines.firstIndex(where: { $0.contains("private var soundResetRow") }) else {
+            return XCTFail("`soundResetRow` is gone — if the reset moved, move this guard with it.")
+        }
+        let window = lines[start..<min(start + 40, lines.count)].joined(separator: "\n")
+
+        XCTAssertTrue(window.contains("minHeight: 44"), """
+        the reset row no longer declares a 44 pt minimum height.
+
+        `.buttonStyle(.plain)` makes the hit area the GLYPH RUN — about 90 × 14 pt at this font. \
+        That is under the HIG 44 floor and under WCAG 2.5.8's 24, on a control that wipes the \
+        instrument's settings and sits one line above "Diagnostics".
+        """)
+        XCTAssertTrue(window.contains("contentShape("), """
+        the reset row no longer declares a `contentShape`, so the 44 pt frame is empty space that \
+        does not accept taps — the frame alone does not extend the hit area under `.plain`.
         """)
     }
 
