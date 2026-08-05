@@ -2283,7 +2283,7 @@ public enum BioComposer {
                 // angenehmen weichen Trance-Sound"). Arps were 16ths when busy, 8ths
                 // when calm — a machine-gun, unnatural top layer. Halved to 8ths /
                 // quarter-notes so the arp breathes instead of rattling.
-                // Coarsen the arp at fast tempo (densityScale < 0.8 ≈ >~106 BPM) so it
+                // Coarsen the arp at fast tempo (densityScale < 0.8 ⇔ >109 BPM) so it
                 // breathes in quarters instead of rattling in 8ths — the anti-hectic move.
                 // `arpStep` is hoisted above the A4 block (it is also that block's rate source);
                 // the value and this branch's behaviour are unchanged.

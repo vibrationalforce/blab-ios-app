@@ -248,13 +248,42 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           oder einer Anzeige, und deshalb der erste, dessen beide Hälften Quelltext-Scans
                           sind und der das im eigenen Kopf als Grenze aufschreibt statt es zu verschweigen.
                           Er prüft, dass die `generate[…]`-Zeile alle VIER Dichte-Treiber nennt (Genre ·
-                          lebender Frame · `busy` · Stimmung+Tempo-Ausdünnung) und dass `busy` aus
+                          lebender Frame · `busy` · Tempo-Ausdünnung) und dass `busy` aus
                           `BioComposer.musicalState` mit demselben `input` neu gerechnet wird, das der
                           Komponist bekam — eine zweite Herleitung wäre eine Zahl, die vom Klang abweichen
                           und im Log trotzdem maßgeblich aussehen kann. Was er NICHT kann und was deshalb
                           im Dateikopf steht: dass die Zeile das Gerät erreicht (Geräte-Lesung) und dass
                           das gedruckte `busy` GLEICH dem ist, das `compose` benutzt hat — das gilt durch
-                          Konstruktion, und Konstruktion ist genau das, was eine spätere Änderung bricht),
+                          Konstruktion, und Konstruktion ist genau das, was eine spätere Änderung bricht.
+                          ⛔ **Und seine erste Fassung wäre auf KORREKTEM Code rot gewesen** — der
+                          Concurrency-Reviewer hat es gefunden, ich habe es nachgeprüft: sie behauptete
+                          alle fünf Feldnamen auf der Breadcrumb-ZEILE, `codeLines` hält aber PHYSISCHE
+                          Zeilen, und die Quelle hebt das Literal absichtlich in eine eigene
+                          `densityText`-Anweisung eine Zeile darüber — genau der Hoist, den der
+                          Quellkommentar verteidigt, weil das Einfalten in ein Literal mit schon zehn
+                          Interpolationen die #287-Form ist, die das blockierende Gate rot gemacht hat.
+                          Die Annahme des Scans („eine Anweisung = eine Zeile") wurde also von der
+                          Reparatur widerlegt, zu deren Schutz er geschrieben war. **Lehre, und sie ist
+                          nicht „Scan verbreitern": ein Quelltext-Scan muss der BINDUNG folgen, nicht der
+                          Zeile, sobald das Gemessene gehoben werden darf — und dieses Repo hebt
+                          absichtlich und wiederholt.** Jetzt zwei verkettete Hälften: die Feldnamen auf
+                          dem Literal, plus die Forderung, dass die Breadcrumb `densityText` überhaupt
+                          interpoliert — ohne die zweite wäre ein perfekt gebautes Literal grün, das
+                          nirgends im Log ankommt. ⛔ **Und ein FÜNFTES Feld, `live=` (Stimmungs-
+                          Lebendigkeit), stand in der ersten Fassung und ist wieder raus** — der
+                          Code-Reviewer fand es, ich habe es nachgezählt: JEDER Lesezugriff auf
+                          `mood.liveliness` im Komponisten liegt entweder im aufruferlosen
+                          `ambientMelody` oder in `if profile.leadDensity > 0`
+                          (`BioComposer.swift:2422…2544`), und ALLE 33 ausgelieferten Genres setzen
+                          `leadDensity: 0.0` — eine Invariante, die `LeadRoleAbsenceTests` im selben
+                          blockierenden Bundle längst festnagelt. Das war die DRITTE falsche Fassung
+                          desselben Aufzählungspunktes und die subtilste: kein veralteter Name, sondern
+                          ein LEBENDER Wert auf einem TOTEN Pfad, in genau der Zeile, die gegen
+                          Teilantworten gebaut wurde. **Der größere Befund dahinter ist NICHT
+                          mitrepariert und als eigene Aufgabe registriert:** der Liveliness-Regler im
+                          Mood-Panel, der Mood-Pad-Zug und `WeatherMood.blend` SCHREIBEN alle drei
+                          `mood.liveliness` — drei Schreiber, null erreichbare Leser, also ein lügendes
+                          Control im #135-Sinn und ein Loch in der #349-Behauptung „Wetter ist hörbar"),
                           davor „154" nach `OneDefinitionOfTooBrightTests.swift` (#416 — der erste
                           Wächter in dieser Kette über einer DOPPELTEN Definition statt über einer
                           fehlenden: „die Fingerkuppe ist überstrahlt" stand zweimal in EINER Datei,
