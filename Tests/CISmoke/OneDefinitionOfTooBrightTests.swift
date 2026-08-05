@@ -20,11 +20,20 @@
 // and needs a device decision about the permissive ceiling. This file closes a self-contradiction,
 // not the acquisition problem.
 //
-// ⛔ HONEST LIMITS. The second half is a SOURCE SCAN — it proves the call is written, not that
-// the amber cue reaches the header (`acquisitionCue` needs a live `AVCaptureSession`, and there
-// is no simulator here). House pattern: `SoundPromptHasADoorTests`, `SoundPanelReflowsTests`.
-// And neither half can say whether "Press a little lighter" is the RIGHT sentence for a flooded
-// scene — that is a device judgement.
+// ⛔ HONEST LIMITS, and this block is only worth having if it is EXHAUSTIVE — a limits list that
+// omits a known hole is the failure this repo has paid for more than once.
+//   · The second half is a SOURCE SCAN. It proves the call is written, not that the amber cue
+//     reaches the header (`acquisitionCue` needs a live `AVCaptureSession`, and there is no
+//     simulator here). House pattern: `SoundPromptHasADoorTests`, `SoundPanelReflowsTests`.
+//   · The marker list in `comparisonMarkers` matches SPACED comparisons. `>=` and `<=` are
+//     caught (they contain `>` / `<`), but `analyzer.brightness>0.85` — no space — is NOT.
+//     The narrowness is real but bounded: hoisting to a local (`let b = analyzer.brightness;
+//     if b > 0.85`) only makes sense once the `isWashedOut(` call is gone, which the first
+//     assertion catches. So the surviving evasion is "keep the call AND add an unspaced second
+//     literal". Widening to a regex would cost the whole file's plain-string legibility for
+//     that one case; if it ever happens, widen then and say so here.
+//   · Neither half can say whether "Press a little lighter" is the RIGHT sentence for a flooded
+//     scene — that is a device judgement.
 
 import Foundation
 import XCTest
@@ -99,6 +108,11 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
     /// cannot stand in for code. Reverting #416 makes this red.
     func testTheCoachingAsksTheStateMachineInsteadOfCarryingItsOwnNumber() throws {
         let body = try acquisitionCueBody()
+        // An empty body means `acquisitionCueBody()` already recorded the REAL failure (anchor
+        // missing or ambiguous). Running the two assertions below on it would add two more
+        // messages that name the wrong cause — "no longer calls isWashedOut" is misleading when
+        // the truth is that the property could not be located at all.
+        guard !body.isEmpty else { return }
 
         XCTAssertTrue(body.contains { $0.contains("isWashedOut(") }, """
         `acquisitionCue` no longer calls `isWashedOut` — it decides "too bright" on its own again.
@@ -113,8 +127,7 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
         """)
 
         let comparisons = body.filter { line in
-            ["brightness >", "brightness <", "redChannel >", "redChannel <"]
-                .contains { line.contains($0) }
+            Self.comparisonMarkers.contains { line.contains($0) }
         }
         XCTAssertTrue(comparisons.isEmpty, """
         `acquisitionCue` compares a brightness/red value directly:
@@ -133,6 +146,15 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
     /// string appearing in two places measures the wrong one (#408 shipped that mistake: it
     /// anchored on a name that matched the declaration before the call site).
     private static let cueAnchor = "var acquisitionCue: PulseCue {"
+
+    /// A brightness/red comparison written INSIDE the cue — the thing #416 removed. Hoisted to a
+    /// stored constant rather than a literal inside the `filter` closure: this bundle already
+    /// went red once because an assertion expression was too expensive to type-check (`3379bb3`),
+    /// and a nested literal in a closure is the cheapest such site to remove. Its known hole is
+    /// documented in the ⛔ HONEST LIMITS block at the top of this file — keep the two in sync.
+    private static let comparisonMarkers = [
+        "brightness >", "brightness <", "redChannel >", "redChannel <"
+    ]
 
     /// The statements inside `acquisitionCue`, comments stripped, braces balanced from the
     /// anchor. Brace counting runs on the STRIPPED lines on purpose: a brace inside a comment
