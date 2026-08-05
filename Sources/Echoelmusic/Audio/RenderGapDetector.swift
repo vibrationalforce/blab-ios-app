@@ -321,6 +321,25 @@ public enum RenderGapDetector {
         /// which is also true when the tap never fired — the exact ambiguity the log's
         /// proof-of-life rules exist to remove, and it would come straight back if this row
         /// printed "nothing late" for a window with no denominator.
+        /// ⚠️ AND A WINDOW THAT WAS MOSTLY BLIND MUST NOT READ AS A FULLY MEASURED ONE. This
+        /// is the same over-claim one step milder, and the first version of this method walked
+        /// straight into it: `measuredIntervals` was used ONLY as a `> 0` gate and
+        /// `discontinuityCount` never reached the row at all. The field docs sixty lines above
+        /// state the rule being broken in as many words — *"a 60 s window in which the graph ran
+        /// for 5 s is not 60 s of evidence, and the line must not read as though it were"* — and
+        /// `diagnosticLine` honours it with a tail the row was missing.
+        ///
+        /// The failure is concrete, not theoretical: a Bluetooth route flapping through a
+        /// window classifies (say) 50 intervals of which 48 are discontinuities and 0 are late.
+        /// The log says so. The row said "Nothing late in the last 60 s" — a clean verdict read
+        /// off a quarter-second of evidence, in the feature whose entire justification is that
+        /// it does not over-claim. Note WHY the count looks healthy: the tap increments
+        /// `measuredIntervals` BEFORE classifying, so discontinuities are inside it, not beside
+        /// it (`AudioEngine.swift`, the `installTap` body).
+        ///
+        /// So the span is named whenever it falls meaningfully short of the window. It stays
+        /// silent in the ordinary case — a row that always carries a caveat is a row nobody
+        /// finishes reading.
         public func screenLine(overSeconds: Double, quantumMilliseconds: Double) -> String {
             let seconds = overSeconds.isFinite && overSeconds > 0 ? overSeconds : 0
             guard measuredIntervals > 0 else {
@@ -328,16 +347,50 @@ public enum RenderGapDetector {
                     ? String(format: "Not measured in the last %.0f s", seconds)
                     : "Not measured yet"
             }
+            let evidence = evidenceSuffix(seconds: seconds,
+                                          quantumMilliseconds: quantumMilliseconds)
             guard glitchCount > 0 else {
-                return String(format: "Nothing late in the last %.0f s", seconds)
+                // ⛔ The `seconds > 0` split is not decoration: without it this branch printed
+                // "Nothing late in the last 0 s" — a clean verdict over a window of no length —
+                // while the blind branch four lines up had already special-cased exactly that.
+                // Unreachable from `pollAudioTiming` (it formats only after a 60 s guard), but
+                // the asymmetry is what lets a future caller find it.
+                return seconds > 0
+                    ? String(format: "Nothing late in the last %.0f s", seconds) + evidence
+                    : "Nothing late so far" + evidence
             }
             let ms = quantumMilliseconds.isFinite && quantumMilliseconds > 0
                 ? worstLateInQuanta * quantumMilliseconds : 0
-            guard ms > 0 else {
-                return String(format: "%ld late in %.0f s", glitchCount, seconds)
+            // ⛔ `isFinite` AND a floor at half the printed resolution, not the old `ms > 0`.
+            // `+infinity > 0` is true, so the old guard would have printed "worst inf ms
+            // behind"; and 0.04 ms passed it only to render as "worst 0.0 ms behind" — the
+            // fabricated zero the unknown-quantum branch exists to avoid. Neither is reachable
+            // today (`classify` bounds lateness at 32 quanta and a glitch needs > 0.75), which
+            // is exactly why they would have survived until the day something else changed.
+            guard ms.isFinite, ms >= 0.05 else {
+                return String(format: "%ld late in %.0f s", glitchCount, seconds) + evidence
             }
             return String(format: "%ld late in %.0f s · worst %.1f ms behind",
-                          glitchCount, seconds, ms)
+                          glitchCount, seconds, ms) + evidence
+        }
+
+        /// The honest denominator, appended only when it contradicts the window length.
+        ///
+        /// Needs the quantum: `measuredIntervals` is a count of render intervals, and without
+        /// their duration it cannot become a span. When the quantum is unknown the row stays
+        /// silent rather than guessing — an invented denominator would be worse than none.
+        private func evidenceSuffix(seconds: Double, quantumMilliseconds: Double) -> String {
+            guard seconds > 0, quantumMilliseconds.isFinite, quantumMilliseconds > 0 else {
+                return ""
+            }
+            let measuredSeconds = Double(measuredIntervals) * quantumMilliseconds / 1000
+            // 80 %: a window is never exactly full (the tap starts mid-window, a buffer or two
+            // is lost to the poll boundary), so a strict comparison would append the caveat to
+            // every healthy window and train the reader to skip it.
+            guard measuredSeconds.isFinite, measuredSeconds < seconds * 0.8 else { return "" }
+            return measuredSeconds < 1
+                ? " · under 1 s of it measured"
+                : String(format: " · only %.0f s of it measured", measuredSeconds)
         }
 
         /// The caveat that sits under `screenLine` PERMANENTLY, never only when the window is
@@ -348,5 +401,34 @@ public enum RenderGapDetector {
         /// case read as "the crackling is gone", which is the one sentence this must never say.
         public static let screenCaption =
             "Timing only. A click while the audio is on time is not counted here."
+
+        /// What the row actually shows, resolved from the two facts it has: the last window's
+        /// verdict (nil until one closes) and whether the engine is still measuring.
+        ///
+        /// ⚠️ THIS EXISTS BECAUSE THE FIRST VERSION HAD THE STALENESS HOLE IT WAS WRITTEN TO
+        /// PREVENT. The row printed `lastTimingLine ?? "Measuring…"` and nothing more. `stop()`
+        /// invalidates the meter poll timer without clearing that string, so after Stop the
+        /// row kept showing the last verdict — usually "Nothing late in the last 60 s" —
+        /// indefinitely, with no sign that measurement had ceased. The realistic sequence is
+        /// the one #408 exists for: play, hear the crackle, hit Stop, open Master, read a
+        /// clean verdict from BEFORE the stop as if it described now. The commit argued in its
+        /// own message that "stale is worse than clean: a wrong answer, not a missing one" —
+        /// and then applied that argument only to the log gate (≤ 60 s stale) and not to the
+        /// stop path (unbounded).
+        ///
+        /// The verdict is NOT discarded on stop — it is qualified. Discarding would trade a
+        /// wrong answer for a missing one; the founder's own gesture is to stop and then look.
+        ///
+        /// ⚠️ WHAT THIS STILL DOES NOT FIX: even while running, the line names the window that
+        /// just CLOSED, so 59 s later "the last 60 s" is really 60–120 s ago. Inherent to a
+        /// windowed measure, and small next to reading a pre-stop verdict as current — but it
+        /// is an over-claim of recency, in a slice whose whole argument is about not
+        /// over-claiming, so it is written down rather than left for someone to discover.
+        public static func screenText(line: String?, isRunning: Bool) -> String {
+            guard let line, !line.isEmpty else {
+                return isRunning ? "Measuring…" : "Not measured"
+            }
+            return isRunning ? line : "\(line) · measured before the stop"
+        }
     }
 }

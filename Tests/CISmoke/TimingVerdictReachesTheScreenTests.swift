@@ -49,7 +49,11 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
             """)
     }
 
-    func testACleanWindowNamesItsWindowAndNothingMore() {
+    // ⛔ Named `…AndNothingMore` in the first version, which stopped being true the moment the
+    // thin-evidence caveat landed — 400 intervals at 5.33 ms is 2 s of a 60 s window, so this
+    // very fixture now carries one. A test name that describes yesterday's behaviour is the
+    // stale-name trap this repo has already paid for at `RefractoryFollowsTheMeasuredRate`.
+    func testACleanWindowNamesItsWindow() {
         let clean = RenderGapDetector.Tally(measuredIntervals: 400)
         let line = clean.screenLine(overSeconds: window, quantumMilliseconds: quantumMs)
         XCTAssertTrue(line.contains("Nothing late"), "Line was: \(line)")
@@ -86,8 +90,12 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
                                             measuredIntervals: 400)
         let line = dirty.screenLine(overSeconds: window, quantumMilliseconds: 0)
         XCTAssertTrue(line.contains("7 late"), "Line was: \(line)")
-        XCTAssertFalse(line.contains("0.0 ms"), """
-            An unknown quantum produced a fabricated 0.0 ms figure. Line was: \(line)
+        // ⛔ This asserted `!contains("0.0 ms")` — format-specific, so a switch to `%.2f`
+        // would print "0.00 ms", which is not that substring, and the guard would have stayed
+        // green over the fabricated figure it was written to forbid. Assert the absence of any
+        // millisecond claim instead: with no quantum there is no duration to state at all.
+        XCTAssertFalse(line.contains("ms"), """
+            An unknown quantum produced a millisecond figure anyway. Line was: \(line)
             """)
     }
 
@@ -108,12 +116,92 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
         XCTAssertTrue(caption.lowercased().contains("timing"), """
             The caption no longer says what it is limited TO. Caption was: \(caption)
             """)
-        XCTAssertTrue(caption.lowercased().contains("not counted")
-                      || caption.lowercased().contains("not"), """
+        // ⛔ THE FIRST VERSION OF THIS ASSERTION COULD NOT FAIL, AND BOTH REVIEWERS SAID SO
+        // INDEPENDENTLY. It read `contains("not counted") || contains("not")`. The second
+        // disjunct implies the first and matches "nothing", "note", "cannot", "another" — so
+        // the caption "Timing looks good — nothing to worry about" passed BOTH assertions
+        // while being precisely the all-clear sentence this test exists to forbid. A guard
+        // with a fallback that swallows its own condition is the #367 trap wearing an OR.
+        XCTAssertTrue(caption.lowercased().contains("not counted"), """
             The caption no longer says what it does NOT see. A clean timing window is not an \
             all-clear for a click that happens with the audio path on time. Caption was: \
             \(caption)
             """)
+    }
+
+    // MARK: - A mostly-blind window is not a measured one
+
+    func testAMostlyBlindWindowSaysHowLittleItSaw() {
+        // The over-claim one step milder than a fully blind window, and the one the first
+        // version shipped: a route flapping through the window leaves 50 classified intervals
+        // of which 48 are pause/restart artefacts. `measuredIntervals` looks healthy because
+        // the tap counts them BEFORE classifying, `glitchCount` is 0, and the row read
+        // "Nothing late in the last 60 s" — a clean verdict off a quarter-second of evidence.
+        let thin = RenderGapDetector.Tally(discontinuityCount: 48, measuredIntervals: 50)
+        let line = thin.screenLine(overSeconds: window, quantumMilliseconds: quantumMs)
+        XCTAssertTrue(line.contains("measured"), """
+            A window with 0.27 s of evidence in 60 s reads as fully measured. The field doc \
+            of `measuredIntervals` states this rule verbatim and `diagnosticLine` honours it. \
+            Line was: \(line)
+            """)
+    }
+
+    func testAFullWindowCarriesNoCaveat() {
+        // The other half, and the reason the caveat is conditional: a row that always carries
+        // a qualifier trains its reader to stop reading it. 11_000 × 5.33 ms ≈ 59 s of 60.
+        let full = RenderGapDetector.Tally(measuredIntervals: 11_000)
+        let line = full.screenLine(overSeconds: window, quantumMilliseconds: quantumMs)
+        XCTAssertEqual(line, "Nothing late in the last 60 s", """
+            A fully measured window grew a caveat. Line was: \(line)
+            """)
+    }
+
+    func testAnUnknownQuantumCannotInventADenominator() {
+        // Without the buffer duration a COUNT of intervals cannot become a SPAN. Silence is
+        // the honest answer there; a guessed number would be worse than none.
+        let thin = RenderGapDetector.Tally(discontinuityCount: 48, measuredIntervals: 50)
+        let line = thin.screenLine(overSeconds: window, quantumMilliseconds: 0)
+        XCTAssertFalse(line.contains("measured"), """
+            The row named a measured span with no quantum to derive it from. Line was: \(line)
+            """)
+    }
+
+    // MARK: - The row after Stop
+
+    func testAPreStopVerdictIsNotPresentedAsCurrent() {
+        // `stop()` invalidates the meter poll timer and does NOT clear `lastTimingLine`, so
+        // the string outlives the measurement. The realistic sequence is the one #408 exists
+        // for: play, hear the crackle, hit Stop, open Master — and read a clean verdict from
+        // before the stop as if it described now. The commit's own message argued "stale is
+        // worse than clean: a wrong answer, not a missing one" and then applied that argument
+        // only to the log gate.
+        let line = "Nothing late in the last 60 s"
+        let stopped = RenderGapDetector.Tally.screenText(line: line, isRunning: false)
+        XCTAssertNotEqual(stopped, line, """
+            A verdict measured before the stop is shown verbatim, as if it were current.
+            """)
+        XCTAssertTrue(stopped.contains(line), """
+            The verdict was discarded rather than qualified. Discarding trades a wrong answer \
+            for a missing one — and the founder's own gesture is to stop and THEN look. \
+            Text was: \(stopped)
+            """)
+    }
+
+    func testARunningVerdictIsShownVerbatim() {
+        let line = "3 late in 60 s · worst 12.8 ms behind"
+        XCTAssertEqual(RenderGapDetector.Tally.screenText(line: line, isRunning: true), line)
+    }
+
+    func testTheWaitingStateDistinguishesRunningFromStopped() {
+        // Before the first window closes there is nothing to show. "Measuring…" is true while
+        // the engine runs and a lie once it does not — nothing is measuring after Stop.
+        let running = RenderGapDetector.Tally.screenText(line: nil, isRunning: true)
+        let stopped = RenderGapDetector.Tally.screenText(line: nil, isRunning: false)
+        XCTAssertNotEqual(running, stopped, """
+            The empty state reads the same whether or not the engine is measuring.
+            """)
+        XCTAssertTrue(running.lowercased().contains("measuring"), "Was: \(running)")
+        XCTAssertFalse(stopped.lowercased().contains("measuring…"), "Was: \(stopped)")
     }
 
     // MARK: - The wiring: every window, and a leaf
@@ -139,7 +227,14 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
         // A source scan must anchor on a token that occurs ONLY at the site it means; here the
         // `Self.` prefix is what makes it the call and nothing else. Checking that a token is
         // unique is part of writing the scan, not a detail.
-        let source = try Self.read("Sources/Echoelmusic/Audio/AudioEngine.swift")
+        //
+        // ⚠️ WHAT IT DOES NOT PROVE, stated so nobody reads more into a green than is there:
+        // this is TEXTUAL order, not control flow. Inserting `guard !tally.isClean else
+        // { return }` above the publish would break the behaviour and keep this green. A real
+        // proof needs the poll driven from a test, which needs an engine, which this bundle
+        // cannot start. The comment strip below is belt-and-braces on top of anchors already
+        // chosen to be unique in code.
+        let source = Self.codeOnly(try Self.read("Sources/Echoelmusic/Audio/AudioEngine.swift"))
         guard let publish = source.range(of: "lastTimingLine = tally.screenLine("),
               let gate = source.range(of: "Self.shouldReportTimingWindow(firstWindow:") else {
             return XCTFail("""
@@ -157,7 +252,14 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
         // Both halves, because either alone is the defect this repo keeps paying for: a leaf
         // nobody mounts is a doorless view, and a mounted read that is not a leaf is the
         // 10.76.50 freeze class one refactor away.
-        let source = try Self.read("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        //
+        // ⛔ CODE ONLY, NOT RAW TEXT — the fix the ordering test above got by construction and
+        // this one did not. Both anchors are unique today, but comment out the mount and leave
+        // the tombstone this repo habitually writes (`// AudioTimingRow(engine: audioEngine)`)
+        // and a raw `contains` stays green over a view that is gone from the UI.
+        // `NoDoorlessStudioViewsTests` has a test named for exactly this — prose about a view
+        // does not count as mounting it — and strips comments for the same reason.
+        let source = Self.codeOnly(try Self.read("Sources/Echoelmusic/Studio/EchoelStudioView.swift"))
         XCTAssertTrue(source.contains("private struct AudioTimingRow: View"), """
             The timing readout is no longer its own View. Read from `masterPanel` directly it \
             enrols the root body as an observer of an AudioEngine property — the class the \
@@ -167,6 +269,16 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
             The timing row is not mounted anywhere. A verdict nobody can see is the state \
             #408 exists to end.
             """)
+    }
+
+    /// Drops `//` comment tails so a scan cannot be satisfied by prose about the code. Line
+    /// comments only — that is what a tombstone is, and a block-comment stripper would need a
+    /// nesting-aware parser for a case this file does not have.
+    private static func codeOnly(_ source: String) -> String {
+        source.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
+            guard let slashes = line.range(of: "//") else { return String(line) }
+            return String(line[line.startIndex..<slashes.lowerBound])
+        }.joined(separator: "\n")
     }
 
     private static func read(_ relativePath: String) throws -> String {

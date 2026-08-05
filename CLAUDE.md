@@ -254,7 +254,21 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `shouldReportTimingWindow(firstWindow:`, was zuerst die DEKLARATION trifft und
                           nicht den Aufruf, also 1228 < 1169. Ein Quelltext-Scan muss auf ein Token
                           ankern, das NUR an der gemeinten Stelle steht — die Eindeutigkeit zu prüfen
-                          gehört zum Schreiben des Scans, nicht zur Nachlese),
+                          gehört zum Schreiben des Scans, nicht zur Nachlese. ⛔ Und die Nachlese fand
+                          BEIDE Reviewer an derselben Stelle: die Zeile behauptete das Wanduhr-Fenster
+                          als Beweis-Spanne. `measuredIntervals` diente nur als `> 0`-Tor,
+                          `discontinuityCount` erreichte die Zeile gar nicht — ein flatternder
+                          Bluetooth-Ausgang mit 50 Intervallen, davon 48 Abrisse, las sich als
+                          „Nothing late in the last 60 s", also ein sauberes Urteil auf einer
+                          Viertelsekunde Beleg. Das Feld-Doc formuliert genau diese Regel und
+                          `diagnosticLine` hält sie ein; nur die neue Zeile nicht. **Lehre: wer eine
+                          zweite Ausgabe für dieselbe Messung schreibt, muss die Vorbehalte der ersten
+                          mitnehmen — die stehen nicht zur Kürzung frei, sie sind die Messung.**
+                          Dazu: die Begründung für das Leaf-View nannte den ROOT-Body als Beobachter,
+                          während `EchoelPanel` mit seinem `@escaping @ViewBuilder` die echte Grenze
+                          ist — dieselbe Datei sagt das 1400 Zeilen weiter oben, und ein Wächter, der
+                          nur den Mount-String suchte, wäre über einem auskommentierten Mount grün
+                          geblieben),
                           davor „151" nach `TheMasterGainMovesInSmallStepsTests.swift` (#404 Slice 2 — der
                           erste Wächter in dieser Kette, dessen Schwelle beim Schreiben zuerst FALSCH gewählt
                           war und deren Korrektur die eigentliche Lehre ist: die erste Fassung setzte ein

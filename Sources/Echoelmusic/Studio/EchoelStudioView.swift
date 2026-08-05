@@ -3650,11 +3650,28 @@ struct EchoelStudioView: View {
     ///
     /// ⚠️ THE LEAF IS NOT OPTIONAL EVEN THOUGH THE RATE IS HARMLESS. `lastTimingLine` changes
     /// once per 60 s, which could not freeze anything — but the 10.76.50 law is about WHERE an
-    /// observed read registers, not only how fast it fires. Read inside `masterPanel` (a
-    /// computed `var` the root body evaluates), this would enrol the whole root as an observer
-    /// of an `AudioEngine` property. That is exactly one refactor away from being the freeze
-    /// again, and the audit that found the last one had to look a level ABOVE the obvious view.
-    /// A leaf costs six lines and closes the class.
+    /// observed read registers, not only how fast it fires.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS PARAGRAPH NAMED THE WRONG "WHERE", WHICH IS THE ONE
+    /// MISTAKE THIS FILE ALREADY CORRECTS ELSEWHERE. It said a direct read in `masterPanel`
+    /// would enrol THE ROOT BODY as an observer. It would not: `masterPanel` goes through the
+    /// `panel(...)` helper into `EchoelPanel`, which stores its content as an `@escaping
+    /// @ViewBuilder` closure and invokes it inside ITS OWN `body` — a real observation
+    /// boundary, unlike `AnyView`. The note above `dropdownContent` in this same file says
+    /// exactly that, 1400 lines up, and a session reading the old wording here would have
+    /// re-acquired the misconception that note exists to kill.
+    ///
+    /// The leaf is still right, for a nearer reason: without it the observer is `EchoelPanel`'s
+    /// body, so the WHOLE Master panel re-renders — and this panel hosts a `.pickerStyle(.menu)`
+    /// Picker ("Target", the loudness delivery target) whose open popover a rebuild tears down.
+    /// Once a minute is a hazard rather than a freeze, and it is one refactor away from being
+    /// the freeze again. A leaf costs six lines and closes the class.
+    ///
+    /// ⚠️ IT READS `isRunning` TOO, AND THAT IS DELIBERATE. `stop()` invalidates the meter poll
+    /// timer without clearing `lastTimingLine`, so the string outlives the measurement; the
+    /// resolution lives in `RenderGapDetector.Tally.screenText`, which qualifies a pre-stop
+    /// verdict instead of presenting it as current. `isRunning` changes only on start/stop, so
+    /// observing it here costs nothing.
     ///
     /// ⚠️ THE CAPTION IS UNCONDITIONAL. A clean timing window is not an all-clear for the
     /// founder's report: a voice steal, a parameter step or an un-faded seam clicks with the
@@ -3670,8 +3687,15 @@ struct EchoelStudioView: View {
                     Text("Audio timing")
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     Spacer()
-                    Text(engine.lastTimingLine ?? "Measuring…")
+                    // ⚠️ `fixedSize` on the VALUE, not only the caption. The longest real
+                    // string is "3 late in 60 s · worst 12.8 ms behind"; opposite a label with
+                    // a Spacer between, SwiftUI will squeeze a `Text` to its ideal width and
+                    // truncate — and the number this whole row exists to deliver is the part
+                    // that would be elided. The sibling row eleven lines up does the same.
+                    Text(RenderGapDetector.Tally.screenText(line: engine.lastTimingLine,
+                                                            isRunning: engine.isRunning))
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Text(RenderGapDetector.Tally.screenCaption)
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
