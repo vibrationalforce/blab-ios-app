@@ -3209,16 +3209,32 @@ struct EchoelStudioView: View {
     /// values, it fires only once the user presses Generate, and by then a user who reinstalls
     /// first has already taken the state with them.
     ///
-    /// ⚠️ CALLED LAST IN `onAppear`, ON PURPOSE. Every value it names has by then been read AND
-    /// applied — `applyArticulation()`, `applyTuning()`, `applyConcertPitch(_:)`, the genre-roster
-    /// clamp that can REWRITE `studio.genre`, and `syncTouchSound()` — so the line reports what is
-    /// driving the voices, not what was on disk before restore. Move it earlier and it starts
-    /// printing a de-curated genre that the clamp has already replaced.
+    /// ⚠️ CALLED LAST IN `onAppear`, ON PURPOSE — after `applyArticulation()`, `applyTuning()`,
+    /// `applyConcertPitch(_:)`, the genre-roster clamp that can REWRITE `studio.genre`, and
+    /// `syncTouchSound()`. Move it earlier and it prints a de-curated genre that the clamp has
+    /// already replaced. `Tests/CISmoke/LaunchLogsWhatItWokeUpWithTests` asserts that ordering,
+    /// because it is the one property this design rests on and a call-site COUNT cannot see it.
+    ///
+    /// ⛔ WHAT THIS LINE DOES **NOT** REPORT, and the first version of this comment claimed it did:
+    /// "what is driving the voices". It does not, and cannot from here. `EchoelmusicApp`'s async
+    /// startup `.task` runs AFTER this synchronous appear pass — the repo says so in its own words
+    /// at `EchoelmusicApp.swift` above the play-surface level restore — and that task then applies
+    /// patches to `polyVoice`, `touchVoice` and `leadVoice`. So `touchPatch=custom` can print while
+    /// the startup default is what ends up sounding (a real defect in its own right, filed as #402;
+    /// do NOT patch it from inside a diagnostic). What this line reports honestly is **the
+    /// persisted musical identity as restored, after the launch clamp** — which is exactly what the
+    /// "schief" investigation needs, and is all it should ever be read as.
     ///
     /// `touchPatchID` is logged as a PRESENCE ("take" vs "custom"), never as its UUID. Which
     /// custom patch is loaded is not the diagnostic question — whether a user-authored patch is
-    /// driving the play surface at all is — and a UUID in a log the founder pastes into a chat is
-    /// identifying data with no payoff.
+    /// selected at all is — and a UUID in a log the founder pastes into a chat is identifying data
+    /// with no payoff.
+    ///
+    /// TWO READING CAVEATS, because this line's only reader is a human scanning a pasted log:
+    /// `key=`'s trailing octave digit is `TuningReference.noteName`'s fixed "4" and carries no
+    /// meaning here — the PITCH CLASS is the content (the `generate[…]` site carries the same
+    /// caveat). And `preset=-1` is not an error: −1 is the stored value for "no factory preset,
+    /// use the genre's own patch".
     ///
     /// ⚠️ THE VALUES ARE HOISTED, NOT INLINED, and that is a constraint rather than a style
     /// preference. A pile of `String(format:)` calls inside one interpolation is exactly the
@@ -3231,7 +3247,14 @@ struct EchoelStudioView: View {
         let articulationText = String(format: "%.2f", articulation)
         let glideText = String(format: "%.2f", touchGlide)
         let touchText = touchPatchID.isEmpty ? "take" : "custom"
-        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), touchPatch=\(touchText), glide=\(glideText)")
+        // `""` is the stored value for "the genre's own rhythm"; printing it as `-` keeps the
+        // label readable in a log line where every other field is populated. Both keys override
+        // their role's rhythm for EVERY genre, which is why they belong here at all —
+        // `StudioDefaultKeys` calls a non-empty `padRhythm` "every genre re-articulating its
+        // chords on ONE grid", and the pad is the biggest audible surface since #166/#167.
+        let bassRhythmText = bassRhythmRaw.isEmpty ? "-" : bassRhythmRaw
+        let padRhythmText = padRhythmRaw.isEmpty ? "-" : padRhythmRaw
+        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), touchPatch=\(touchText), glide=\(glideText)")
     }
 
     /// Step 2b: applies the audible side effects of a USER edit in the chrome's
