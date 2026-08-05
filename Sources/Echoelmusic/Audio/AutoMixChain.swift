@@ -58,16 +58,17 @@ final class AutoMixChain {
     ///
     /// COMPUTED, not stored, deliberately: a stored mirror needs a writer, and every
     /// half-threaded fix in this repo has been a writer someone forgot. One source, no
-    /// synchronisation. The auto-gain timer re-reads it, so a picker change takes effect
-    /// within ~200 ms and then eases — no `didSet` needed.
+    /// synchronisation. The auto-gain timer snapshots it once per measurement tick (see
+    /// `tickTarget`), so a picker change takes effect within ~200 ms and then eases — no
+    /// `didSet` needed.
     ///
     /// ⛔ THIS LINE ENDED "and no click" UNTIL #404, and that was the false half. Easing does
     /// not by itself make a change inaudible: what reaches the audio is a STAIRCASE of
-    /// `AVAudioMixerNode.outputVolume` writes, and each stair is a hard discontinuity at a
-    /// render boundary. At the old rate the first stair after a target change was up to
-    /// −13.2 % of amplitude — a click, and then another every 200 ms while it converged. The
-    /// stairs are now 10× finer (see `subSteps`); "no click" is still not something a comment
-    /// should promise without a number next to it.
+    /// `AVAudioMixerNode.outputVolume` writes, and each stair is a discontinuity at a render
+    /// boundary. At the old rate the first stair after a target change was up to −11.7 % of
+    /// amplitude — a click, and then another every 200 ms while it converged. The stairs are
+    /// now 10× finer (see `subSteps`); "no click" is still not something a comment should
+    /// promise without a number next to it.
     ///
     /// `nil` = the user chose "No target": hold the level where the mix puts it. The safety
     /// limiter is a separate, always-on stage and stays on.
@@ -174,23 +175,52 @@ final class AutoMixChain {
     /// the menu-freeze law. Only the GAIN APPLICATION runs at 50 Hz, and it writes
     /// `smoothedGainDB` (`@ObservationIgnored`) plus one `Float` on a mixer node — nothing a
     /// view observes.
+    ///
+    /// ⛔ `MainActor.assumeIsolated`, NOT `Task { @MainActor }` — and the first version of this
+    /// commit got that wrong at 50 Hz, which is the rate `HARNESS_LEDGER` records as a proven
+    /// dead-end (the 10.76.48 menu freeze was a per-frame main-actor task submission). The
+    /// timer is installed from a `@MainActor` method onto the main run loop, so the block
+    /// ALREADY runs on the main thread and the hop bought nothing but an allocation. It also
+    /// bought a real hazard the ledger does not name: `Task` submissions are enqueued, not
+    /// inline, so under main-thread load ten 20 ms sub-steps can bunch into one runloop turn —
+    /// reassembling the very staircase this change exists to break apart. Precedent for the
+    /// synchronous form at a HIGHER rate: `AudioEngine`'s 60 Hz meter poll.
+    ///
+    /// ⚠️ `assumeIsolated` TRAPS (SIGTRAP) if the handler is not literally on the main queue —
+    /// see the note in `PatternEngine`. Safe here only because `Timer.scheduledTimer` installs
+    /// on the run loop of the calling thread and the one caller is `AudioEngine.start()`. If
+    /// this ever moves to a `DispatchSourceTimer` or a background queue, the form must change
+    /// with it.
     func connectMeter(_ getter: @escaping () -> Float) {
         masterLevelRef = getter
         lufsTimer?.invalidate()
         easeTick = 0
+        tickTarget = targetLUFS
         lufsTimer = Timer.scheduledTimer(withTimeInterval: Self.easeInterval, repeats: true) {
             [weak self] _ in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 guard let self else { return }
                 self.easeTick += 1
                 if self.easeTick >= Self.subSteps {
                     self.easeTick = 0
                     self.updateLUFS()
+                    self.tickTarget = self.targetLUFS
                 }
                 self.updateAutoGain()
             }
         }
     }
+
+    /// The loudness target resolved ONCE per measurement tick, and eased toward for the ten
+    /// applications that follow it.
+    ///
+    /// Two reasons, and the second is the one that matters. (1) `targetLUFS` is COMPUTED — it
+    /// hits `UserDefaults.string(forKey:)` plus a String-raw-value enum init on every read, and
+    /// the #404 rate change silently took that from 5×/s to 50×/s on the main thread. (2) The
+    /// exactness argument in `subSteps` holds only if the target is CONSTANT across a window.
+    /// Re-resolving mid-window made that contingent on the user not touching the picker; a
+    /// snapshot makes it structural. A picker change is still picked up within one tick.
+    @ObservationIgnored private var tickTarget: Float?
 
     /// How often the gain is APPLIED. See `subSteps` for why this is not the measurement rate.
     ///
@@ -202,27 +232,54 @@ final class AutoMixChain {
 
     /// How many gain applications happen per measurement — the whole #404 fix in one number.
     ///
-    /// ⭐ WHY (measured, not guessed): `gainNode` is an `AVAudioMixerNode`, and
-    /// `outputVolume` has no ramp — a write lands whole at the next render quantum. At the
-    /// old one-application-per-200-ms rate a 6 dB correction moved the master **1.08 dB in a
-    /// single render boundary, an instantaneous −13.2 % amplitude discontinuity**; the worst
-    /// legal delta (±6 dB target, ±6 dB current) gave 2.16 dB = −28 %. On a sustained pad that
-    /// is a click, and because the one-pole keeps stepping every 200 ms while it converges it
-    /// is a BURST of clicks — which is what "teilweise extremes Knacken" sounds like, and why
-    /// it is intermittent: it only happens while the level is actually moving.
+    /// ⭐ WHY: `gainNode` is an `AVAudioMixerNode`, and `outputVolume` has **no DOCUMENTED
+    /// ramp** — no ramped-set API exists on it, unlike `AUParameter`'s explicit `.ramp` event.
+    /// If a write lands whole at the next render quantum, then at the old
+    /// one-application-per-200-ms rate a 6 dB correction moved the master **1.08 dB in a single
+    /// render boundary, an instantaneous −11.7 % of amplitude**; the worst legal delta (±6 dB
+    /// target, ∓6 dB current) gave 2.16 dB = −22.0 %. On a sustained pad that is a click, and
+    /// because the one-pole keeps stepping every 200 ms while it converges it is a BURST of
+    /// clicks — which is what "teilweise extremes Knacken" sounds like, and why it is
+    /// intermittent: it only happens while the level is actually moving.
     ///
-    /// ⚠️ THE TIME CONSTANT IS UNCHANGED, EXACTLY — not approximately. Applying a one-pole
-    /// coefficient `c` once is identical to applying `1 − (1−c)^(1/n)` n times against the
-    /// same target, because both are `(1−c)` of the remaining distance. So the founder's tuned
-    /// anti-pumping feel (slow to boost, quicker to cut) survives bit-for-bit at the 200 ms
-    /// mark; only the staircase inside those 200 ms gets 10× finer. Same 6 dB cut now steps
-    /// 0.118 dB = −1.37 %.
+    /// ⛔ THE FIRST VERSION OF THIS DOC WROTE "has no ramp" AS A FACT, in a commit whose own
+    /// headline was "measured, not guessed". It is not established. Apple's mixer AUs have
+    /// historically interpolated gain across a render slice precisely to avoid zipper noise —
+    /// undocumented implementation behaviour that has changed across OS versions. If it holds,
+    /// the pre-#404 step was a ~100 dB/s ramp over one 10.7 ms slice, i.e. inaudible, and this
+    /// change buys nothing (it also costs nothing). **The decisive experiment is already in the
+    /// repo:** `RetroCapture` taps `mainMixerNode`, DOWNSTREAM of `gainNode` — record while
+    /// moving the loudness-target picker and look at a sustained pad's envelope. A literal
+    /// staircase on a 200 ms grid settles it; a smooth ramp retires this diagnosis.
+    ///
+    /// ⚠️ THE TIME CONSTANT IS UNCHANGED EXACTLY — but only while `|delta| > deadZoneDB`, which
+    /// is the whole of the correction range that matters. Applying a one-pole coefficient `c`
+    /// once is identical to applying `1 − (1−c)^(1/n)` n times against the SAME target, because
+    /// both leave `(1−c)` of the distance; and `updateLUFS` runs only on the wrapping tick, so
+    /// the target really is constant across each window of ten. The founder's tuned
+    /// anti-pumping feel (slow to boost, quicker to cut) therefore lands on the identical value
+    /// at every 200 ms boundary; only the staircase inside gets 10× finer. Same 6 dB cut now
+    /// steps 0.118 dB = −1.35 %.
+    ///
+    /// ⛔ "bit-for-bit" STOOD HERE AND WAS FALSE IN A NARROW BAND. `steadyGainDB`'s dead-zone
+    /// hold is now evaluated per sub-step, so for `|delta|` in `[0.400, 0.478)` dB on the cut
+    /// path (`[0.400, 0.419)` on boost) the hold can engage part-way through a window where it
+    /// was previously all-or-nothing. The stage then parks on a residual up to
+    /// `deadZoneDB × c` = 0.072 dB larger. Inaudible, and in the safer direction — but an
+    /// absolute word with a counter-example is exactly what this repo keeps paying to undo.
     ///
     /// ⚠️ AND THIS IS A MECHANISM, NOT A CONFIRMED DIAGNOSIS. The founder's report is
     /// "teilweise extremes Knacken" on v10.79.369 with no log attached; the arithmetic above
-    /// proves this stage CAN click and by how much, not that it is the only source. Do not
-    /// close #404 on this commit — a device listen is what closes it.
+    /// proves this stage CAN click and by how much, not that it is the only source — and the
+    /// ⛔ above says the premise itself is unverified. Do not close #404 on this commit: a
+    /// device listen, and a `echoel_diag.log` from a crackling session, are what close it.
     nonisolated static let subSteps = 10
+
+    /// The shipped per-application coefficients, hoisted so the two numbers have ONE home
+    /// instead of living as call-site literals a source scan has to match character for
+    /// character — and so the `pow` runs once at static-init rather than 50×/s.
+    nonisolated static let boostSubStep: Float = subStepped(0.05)
+    nonisolated static let cutSubStep: Float = subStepped(0.18)
 
     /// Counts applications since the last measurement. Not observation-tracked: it changes
     /// 50×/s and nothing may re-render on it.
@@ -244,7 +301,8 @@ final class AutoMixChain {
         // this one included. Calling it here too would double-step the measurement tick.
     }
 
-    /// The smoothed auto-gain, in dB — eased toward the target each 200 ms tick so the
+    /// The smoothed auto-gain, in dB — eased toward the target every 20 ms (ten sub-steps per
+    /// 200 ms measurement window since #404; it was one whole step per 200 ms) so the
     /// master level settles instead of chasing every momentary reading (the old "die
     /// Levels bewegen sich ständig" pumping). Starts at unity (0 dB).
     @ObservationIgnored private var smoothedGainDB: Float = 0
@@ -277,8 +335,20 @@ final class AutoMixChain {
             // PERMANENT residual of up to ±deadZoneDB (±0.4 dB ≈ ±4.7 % linear) — so "no
             // target" would still be applying a gain, just a smaller lie. Land on exact
             // unity instead, which is also what the export half of this control does
-            // (`SingleExport.normalizeGainDB` returns exactly 0 for nil). The step taken
-            // here is by definition < deadZoneDB, so it cannot click.
+            // (`SingleExport.normalizeGainDB` returns exactly 0 for nil).
+            //
+            // ⛔ THIS COMMENT ENDED "The step taken here is by definition < deadZoneDB, so it
+            // cannot click" AND THAT IS THE LARGEST SINGLE STEP THIS FILE PRODUCES. It is up
+            // to 0.4 dB (+4.7 % of amplitude) in ONE application — 1.7× the worst case
+            // `subSteps` engineers away, 2.7× the mark the guard calls inaudible, and 80 % of
+            // its click ceiling. It squeaks under only because the ceiling is 0.5. So: an
+            // unnumbered inaudibility promise, in the same file whose #404 block strikes
+            // exactly that habit. KEPT rather than sub-stepped, deliberately — easing the last
+            // 0.4 dB would make "No target" take up to a further 200 ms to reach EXACT unity,
+            // and a residual gain under a control that says "no target" is the #183 lie this
+            // branch exists to end. The step is real, it is one-shot, and it fires only when
+            // the user themselves moves the picker; that is a different thing from a burst
+            // that happens while they are listening.
             return targetLUFS == nil ? 0 : current
         }
         let coeff = delta > 0 ? boostCoeff : cutCoeff                  // slow to boost, quicker to cut
@@ -289,13 +359,20 @@ final class AutoMixChain {
     /// applications; `deadZoneDB` is deliberately NOT spread — it is a hold threshold, not a
     /// rate, and dividing it would let a deviation the founder chose to ignore start creeping.
     private func updateAutoGain() {
-        guard isInstalled, lufsReading > -59 else { return }
+        // `isEnabled` belongs here: without it the timer overwrote `applyBypass`'s
+        // neutralisation on the next tick, so "AutoMix off" was a lying control that held for
+        // 200 ms — and #404 would have shortened that to 20 ms. Found by review, not by ear.
+        guard isInstalled, isEnabled, lufsReading > -59 else { return }
         smoothedGainDB = Self.steadyGainDB(current: smoothedGainDB,
-                                           targetLUFS: targetLUFS, lufsReading: lufsReading,
-                                           boostCoeff: Self.subStepped(0.05),
-                                           cutCoeff: Self.subStepped(0.18))
+                                           targetLUFS: tickTarget, lufsReading: lufsReading,
+                                           boostCoeff: Self.boostSubStep,
+                                           cutCoeff: Self.cutSubStep)
         let linearGain = Foundation.pow(10.0, Double(smoothedGainDB) / 20.0)
-        gainNode.outputVolume = Float(Swift.min(Swift.max(linearGain, 0.5), 2.0))
+        // `clamped(to:)`, not `min(max(…))`: this is the line that actually writes the mixer,
+        // and the first #404 commit fixed the idiom in `subStepped` while leaving it here —
+        // condemning `min(max(…))` fifteen lines above a surviving `min(max(…))` on the more
+        // dangerous of the two. NaN here is silence, and CLAUDE.md names it a shipped cause.
+        gainNode.outputVolume = Float(linearGain.clamped(to: 0.5...2.0))
     }
 
     /// The per-application coefficient that reproduces a whole-tick coefficient `c` over

@@ -246,13 +246,22 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           2026-08-05 nach `TheMasterGainMovesInSmallStepsTests.swift` (#404 Slice 2 — der
                           erste Wächter in dieser Kette, dessen Schwelle beim Schreiben zuerst FALSCH gewählt
                           war und deren Korrektur die eigentliche Lehre ist: die erste Fassung setzte ein
-                          lineares 2-%-Budget, der schlimmste legale Schnitt-Schritt liegt bei 2,75 %, und der
+                          lineares 2-%-Budget, der schlimmste legale Schnitt-Schritt liegt bei 2,68 %, und der
                           naheliegende Griff wäre gewesen, das Budget auf 3 % zu schieben — also die Schwelle
                           so zu wählen, dass der eigene Code sie besteht. Die Schwelle steht jetzt in dB (der
                           Einheit der Sache), wurde VOR der Messung gewählt und wird zweifach geprüft: Decke
                           für den schlimmsten legalen Fall, strengere Marke für den gewöhnlichen. Dazu ein
                           Test, der die VOR-Zahl festnagelt — ohne ihn könnte eine spätere Sitzung `subSteps`
-                          auf 1 zurückdrehen und am bestandenen Deckel-Test ablesen, es sei nichts verloren),
+                          auf 1 zurückdrehen und am bestandenen Deckel-Test ablesen, es sei nichts verloren.
+                          ⛔ Die Nachlese fand die Datei trotzdem an vier Stellen falsch, und die lehrreichste
+                          ist die Prozentzahl selbst: `abs(1 − 10^(dB/20))` ist IMMER der Anhebungs-Betrag,
+                          egal welches Vorzeichen gemeint war — an einen SCHNITT geheftet überzeichnete sie
+                          den Defekt um 13 bzw. 28 % relativ. Dazu: der größte Einzelschritt der Datei kommt
+                          gar nicht aus dem Koeffizienten, sondern aus dem „No target"-Sprung (0,4 dB), den der
+                          erste Wächter mit „alles andere ist kleiner" ausdrücklich ausschloss; „bit-for-bit"
+                          galt nicht in einem 0,078 dB breiten Band um die Totzone; und der erste Commit
+                          verurteilte `min(max(…))` fünfzehn Zeilen über einem überlebenden `min(max(…))` auf
+                          genau der Zeile, die den Mixer schreibt),
                           davor „150" nach `ThePaceIsTiltedInsideTheGenreTests.swift` (#403 Slice 2 — der
                           erste Wächter in dieser Kette, dessen wichtigste Hälfte eine NICHT-Wirkung sichert:
                           dass eine Zahl das Fenster ihres Genres unter KEINEM Wert verlässt. Deshalb gewischt
