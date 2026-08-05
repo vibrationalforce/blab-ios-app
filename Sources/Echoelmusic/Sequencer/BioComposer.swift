@@ -715,6 +715,41 @@ public enum BioComposer {
     /// curve + a floor so it thins without gutting the line. Does NOT touch the pad's
     /// heartbeat re-articulation (that's the body's own movement, driven by arousal, not
     /// tempo). Pure → unit-testable.
+    /// ⭐ #418 — WHERE THE LIVELINESS KNOB LANDS. `MoodProfile.liveliness` documents itself as
+    /// "0 sparse/still … 1 busy/active (density)" and `MoodProfile`'s own doc points here, at
+    /// `composeHarmonic`, for the mapping. That mapping did not exist on any shipped path: every
+    /// read of the field sat in the callerless `ambientMelody` or inside `if profile.leadDensity
+    /// > 0`, and all 33 offered genres set `leadDensity: 0.0` (pinned by `LeadRoleAbsenceTests`).
+    /// Three writers — the Mood panel knob, the mood-pad drag, `WeatherMood.blend` — and no
+    /// reachable reader. Fifteen shipped mood presets carry values spread from 0.05 to 0.92 and
+    /// all fifteen behaved identically, which is the founder's "die Kompositionen klingen gleich"
+    /// at its own source.
+    ///
+    /// It moves the THRESHOLD, not the steps. The two live density decisions (`arpStep`,
+    /// `pulseGap`) each choose between two fixed values by comparing `busy` against a literal;
+    /// this shifts that literal. The knob can therefore only pick the other of the two values the
+    /// genre ALREADY ships — it can never invent a third, so no knob position can produce a
+    /// texture the genre could not previously make. That bound is the whole safety argument for
+    /// changing shipped sound, and `LivelinessReachesTheDensityDecisionTests` sweeps it.
+    ///
+    /// ⚠️ 0.5 IS BIT-IDENTICAL, and that is load-bearing rather than tidy: it is `MoodProfile`'s
+    /// init default, so anyone who never touches the knob gets exactly today's take. `centred` is
+    /// zero there and `base - span * 0` is `base` exactly in Float — not "close enough".
+    ///
+    /// `clamp01` also handles the non-finite case: `min(max(x, 0), 1)` with NaN first returns 0
+    /// (the argument-order rule CLAUDE.md records), so a bad value from the weather provider
+    /// reads as "still" instead of poisoning the threshold.
+    nonisolated static func densityThreshold(base: Float, liveliness: Float) -> Float {
+        let centred = clamp01(liveliness) - 0.5              // −0.5 … +0.5
+        return base - Self.livelinessThresholdSpan * centred  // lively ⇒ lower bar
+    }
+
+    /// Full knob travel = ±0.15 on the `busy` axis. Chosen so both thresholds (0.6 and 0.7) stay
+    /// strictly inside 0…1 across the whole range — outside it one branch becomes unreachable and
+    /// the knob would delete half a genre instead of biasing it. Whether ±0.15 is the musically
+    /// right amount is a listening call; this is the one line to change for it.
+    nonisolated static let livelinessThresholdSpan: Float = 0.3
+
     nonisolated static func tempoDensityScale(bpm: Double) -> Float {
         let baseline = 84.0
         guard bpm > baseline else { return 1.0 }          // slow stays full (75 is good)
@@ -2236,7 +2271,11 @@ public enum BioComposer {
             //     its keep.
             //   · everything else → `chordOnsets`, which IS the definition of what the genre plays
             //     there. Pure and RNG-free, so asking it costs nothing.
-            let arpStep = (busy > 0.6 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)
+            // #418: the 0.6 is the SPARSE/DENSE line, and the Mood panel's Liveliness knob now
+            // shifts it (see `densityThreshold`). It still chooses between 2 and 4 — the knob
+            // biases which of the genre's own two steps you land on, it never adds a third.
+            let arpStep = (busy > Self.densityThreshold(base: 0.6, liveliness: mood.liveliness) ? 2 : 4)
+                * (densityScale < 0.8 ? 2 : 1)
             var padBeats: [(start: Int, len: Int, level: Float)] = []
             if let character = padRhythm, !voiced.isEmpty {
                 // ONE seed per section, drawn once — the `flowing`/`dynamic` reproducibility rule
@@ -2366,7 +2405,10 @@ public enum BioComposer {
                 // 0.6 → drops to a drone sooner) and it's HALVED to 8ths / quarters
                 // (was 16ths / 8ths) and quieter, so even when present it just breathes.
                 // Coarsen the pulse at fast tempo too (anti-hectic), same threshold as the arp.
-                let pulseGap = (busy > 0.7 ? 2 : 4) * (densityScale < 0.8 ? 2 : 1)  // 8ths busy, else quarters
+                // #418: same shift as the arp, one line higher up the texture — 8ths busy, else
+                // quarters, with the Liveliness knob moving where that line sits.
+                let pulseGap = (busy > Self.densityThreshold(base: 0.7, liveliness: mood.liveliness) ? 2 : 4)
+                    * (densityScale < 0.8 ? 2 : 1)
                 let pulseVel = clamp01(padVelocity * 0.45)
                 // Voice the pulse an OCTAVE ABOVE the pad (chord tones + 12, clamped ≤127) —
                 // a comp/shimmer sits over the held chord like a real player, it doesn't
