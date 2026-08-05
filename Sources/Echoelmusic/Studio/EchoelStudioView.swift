@@ -7674,6 +7674,13 @@ struct EchoelStudioView: View {
                 // continuous, no jump. Before the `measured` guard above, this branch was
                 // unreachable in practice anyway: a frame with `bpm=0` existed from the first
                 // camera tick, so the app took the `frame != nil` branch with a zero body.
+                //
+                // ⚠️ #403 Slice 2 made the "66 … walks DOWN to the real pulse" half of the
+                // paragraph above genre- AND performer-specific: `bodySeed` now carries the
+                // signature's tilt, so a returning performer with a learned calm heart starts
+                // BELOW their fold instead of at it, and the convergence can walk up. Still
+                // continuous, still no jump — but do not read the two literal numbers as the
+                // whole story for anyone the app already knows.
                 tempo = bodySeed
             }
         }

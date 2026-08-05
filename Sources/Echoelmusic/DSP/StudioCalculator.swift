@@ -216,39 +216,76 @@ public struct StudioCalculator: Sendable, Equatable {
     /// Nudge a genre-folded tempo toward one end of its window, without ever leaving it.
     ///
     /// ⭐ WHY THIS EXISTS, AND WHY IT IS NOT A SECOND COPY OF THE BODY→TEMPO MAPPING (#403
-    /// Slice 2). `genreTempo` above OCTAVE-FOLDS, and for every body whose octave lands
-    /// ABOVE the window's ceiling it returns one of the two BOUNDS — so distinct performers
-    /// collapse onto the same handful of numbers.
+    /// Slice 2). Three reasons, strongest first — and note the ORDER, because the first two
+    /// versions of this paragraph led with the weakest one and measured it on a flattering
+    /// genre.
     ///
-    /// ⛔ THE FIRST VERSION OF THIS PARAGRAPH SAID "41 % of one octave collapses onto the
-    /// FLOOR" and cited `genreTempo`'s own doc. That sentence describes the BUG #237 fixed,
-    /// in the past tense, and repeating it in the present tense would have been exactly the
-    /// false-rationale-in-a-comment this repo keeps paying for. The CURRENT code collapses
-    /// onto a BOUND, not the floor — and the honest numbers are worse, not better. Walked
-    /// over contemplation (44…66):
+    /// **1. Coherence erases the body completely, and that is not genre-dependent.**
+    /// `BioComposer.tempo(for:)` pulls the suggested tempo toward `resonancePulseBPM` (72) as
+    /// coherence rises; at full coherence EVERY performer's suggested tempo is exactly 72,
+    /// whatever their heart is doing. `genreTempo(72, into: 46…78)` is 72 for all of them. A
+    /// calm room full of people gets one tempo. That is the total collapse, it happens before
+    /// any fold, and the tilt is the only thing downstream that still knows who is playing.
     ///
-    ///     48…66 →  48…66   (passes through, full resolution)
-    ///     68, 70, 72, 74, 76 → 66      (five bodies, one tempo)
-    ///     78, 80, 82, 84, 86, 88 → 44  (six bodies, one tempo — and SLOWER than the 76)
+    /// **2. The tilt is the HABITUAL rate; the live mapping is THIS MOMENT's.** They are two
+    /// different measurements of the same person, which is exactly why stacking them is not
+    /// double-counting. A habitually fast heart caught in a calm minute still leans forward.
     ///
-    /// So across the ordinary waking resting range, roughly half of all performers land on
-    /// one of two numbers, non-monotonically. The founder's 2026-08-05 log is that in the
-    /// wild: nine takes, one tempo. The tilt is applied AFTER the fold and restores a
-    /// distinction the fold destroyed.
+    /// **3. The octave fold also collapses — but less than the first version of this
+    /// paragraph claimed, and NOT on the genre it named.** Walked over the SHIPPED DEFAULT
+    /// `.selfObservation` (46…78), which is what a fresh install actually opens on:
     ///
-    /// In the pass-through band (48…66 here) nothing was destroyed, and there the tilt mildly
-    /// AMPLIFIES in the same direction rather than restoring — deliberately, and it is not
-    /// double-counting: the tilt carries the performer's HABITUAL resting rate, the fold
-    /// carries this moment's. A habitually fast heart caught in a calm minute still leans
-    /// forward, which is the whole point of a signature.
+    ///     46…78 → 46…78          passes through, full resolution
+    ///     79…84 → 78             six bodies, one tempo
+    ///     85…92 → 46             eight bodies, one tempo — and SLOWER than the 84
+    ///
+    /// Over `tempoTilt`'s own 50…90 domain that is 29 of 41 BPM values passing through
+    /// untouched: on the default genre the fold destroys nothing for roughly three quarters
+    /// of performers, and there the tilt AMPLIFIES rather than restores (legitimately, per 2).
+    /// The narrower a window, the more it collapses — on contemplation (44…66) 68…76 all
+    /// become 66 and 78…88 all become 44.
+    ///
+    /// ⛔ TWO EARLIER VERSIONS OF THIS BLOCK WERE WRONG AND BOTH SURVIVED A COMMIT. The first
+    /// said "41 % of one octave collapses onto the FLOOR", quoting `genreTempo`'s description
+    /// of the bug #237 FIXED as if it were current. The second fixed that but walked
+    /// CONTEMPLATION while calling it the default — it is not; `StudioDefaultKeys` ships
+    /// `.selfObservation`. Picking the genre where your argument looks best and labelling it
+    /// "the default" is a subtler version of the same defect. Both are recorded here because
+    /// this is the paragraph a future session reads before deciding whether the tilt is
+    /// legitimate at all.
     ///
     /// ⚠️ THE GENRE ALWAYS WINS, BY CONSTRUCTION, and that is the whole safety argument. The
-    /// move is a FRACTION OF THE REMAINING HEADROOM toward the window's edge, so the result
-    /// cannot leave `range` for any tilt — no clamp is doing the work, the shape is. #81
-    /// already cost this repo one round of "erst individuell, dann klingt alles gleich"; a
-    /// tilt that could cross a genre boundary would be the same mistake pointing the other
-    /// way. At an edge the tilt does nothing in that direction, which is correct: the genre
-    /// owns its own boundary.
+    /// move is a FRACTION OF THE REMAINING HEADROOM toward the window's edge, so for any
+    /// window of finite width the result cannot leave `range` for any tilt — no clamp is
+    /// doing the work, the shape is. (The `headroom.isFinite` guard below is what makes
+    /// "finite width" true rather than assumed: both bounds can be finite while their
+    /// DIFFERENCE overflows, and `genreTempo` twelve lines up already treats a hostile range
+    /// as in-scope because "the loop is the caller's to feed".) #81 already cost this repo one
+    /// round of "erst individuell, dann klingt alles gleich"; a tilt that could cross a genre
+    /// boundary would be the same mistake pointing the other way. At an edge the tilt does
+    /// nothing in that direction, which is correct: the genre owns its own boundary.
+    ///
+    /// ⚠️ WHAT THE TILT COSTS, stated because no other doc states it. `genreTempo`'s stated
+    /// purpose is an exact POWER-OF-TWO relationship to the pulse ("66 bpm body → 132 bpm
+    /// Trap = the same pulse, double-time"). A tilt multiplies that by a non-dyadic factor:
+    /// on trap a body folded to 132 lands at 138.3 at full forward tilt, a ratio of 2.096
+    /// rather than 2. In the PASS-THROUGH band the lock is 1:1 and the tilt is what breaks
+    /// it — 55 becomes 51.15 or 58.85. That is a real trade against a real property, not an
+    /// oversight: the epic's premise is that a take must sound like the PERSON, and an exact
+    /// octave lock to this minute's rate is precisely what makes two people sound alike. It
+    /// is bounded (≤ 35 % of headroom) and it is the founder's call to reverse.
+    ///
+    /// ⚠️ NaN POLICY DIVERGES FROM `genreTempo` ON PURPOSE, and the neighbours should not be
+    /// read as inconsistent by accident: `genreTempo` OWNS the sanitising (NaN → the window's
+    /// floor) because it is the entry point from the body; `tilted` sits downstream of it and
+    /// passes a non-finite `bpm` through unchanged rather than inventing a plausible number
+    /// out of a caller error. In production `genreTempo` always hands this a finite value.
+    ///
+    /// ⚠️ AND THE IN-RANGE PROMISE IS ABOUT ACCEPTED INPUTS. Every input the guard accepts
+    /// comes back inside `range`. A REJECTED input (tilt 0, non-finite tilt, degenerate
+    /// window) is returned untouched — in range or not, because `tilted(200, within: 44…66,
+    /// by: 0)` is 200. Returning the caller's own number unchanged is the only failure mode
+    /// that cannot make a take worse than having no signature at all.
     ///
     /// - Parameters:
     ///   - tilt: −1 (as slow as this genre allows this performer to be) … +1 (as fast).
@@ -263,16 +300,44 @@ public struct StudioCalculator: Sendable, Equatable {
         guard bpm.isFinite, tilt.isFinite, tilt != 0,
               range.lowerBound.isFinite, range.upperBound.isFinite,
               range.upperBound > range.lowerBound else { return bpm }
-        let anchor = Swift.min(Swift.max(bpm, range.lowerBound), range.upperBound)
-        let amount = Swift.min(Swift.max(tilt, -1), 1)
+        // `clamped(to:)` rather than the nested `min(max(…))` CLAUDE.md names as a shipped
+        // permanent-silence cause. Both inputs are already proven finite one line up, so this
+        // is consistency with the rest of `DSP/` (EchoelDelayLine, EchoelDDSP both use it),
+        // not a fix — and `Core/FloatingPointClamp.swift` is Foundation-only, so it does not
+        // breach this file's no-Core-types rule.
+        let anchor = bpm.clamped(to: range)
+        let amount = tilt.clamped(to: -1...1)
         let headroom = amount > 0 ? range.upperBound - anchor : anchor - range.lowerBound
+        // Both bounds can be finite while their DIFFERENCE is not (±greatestFiniteMagnitude
+        // is a legal `ClosedRange<Double>`), and an infinite headroom would carry the result
+        // straight out of the window the doc above promises it can never leave. No shipped
+        // `MusicStyle.tempoRange` can produce it; the promise is absolute, so the guard is too.
+        guard headroom.isFinite else { return bpm }
         return anchor + amount * headroom * maxTiltShare
     }
 
     /// How much of the headroom a full tilt may take. 0.35 is a judgement, not a measurement,
-    /// and is named here so it can be argued with instead of being found inline: on
-    /// contemplation (44…66) a body folded to 55 moves at most ±3.9 BPM — audibly a different
-    /// pace for the same preset, nowhere near another genre's tempo.
+    /// and is named here so it can be argued with instead of being found inline: on the
+    /// shipped default `.selfObservation` (46…78) a body folded to 62 moves at most ±5.6 BPM
+    /// — audibly a different pace for the same preset, and still unmistakably that genre.
+    ///
+    /// ⛔ IT IS A FRACTION, SO THE ABSOLUTE MOVE SCALES WITH WINDOW WIDTH — and an earlier
+    /// version of this line ended "nowhere near another genre's tempo", which is false the
+    /// moment you leave the calm windows it was measured on. Klezmer (90…170) travels up to
+    /// ±14 BPM from centre and jazz (80…150) ±12.25; a jazz take sweeping 24.5 BPM crosses
+    /// the whole of deepHouse (120…126) and techHouse (124…130) on the way. **The genre
+    /// safety argument is unaffected** — the take never leaves ITS OWN window, which is what
+    /// #81 was about — but "nowhere near another genre" was a different, wrong claim, and it
+    /// is the kind that gets quoted later as if it had been measured.
+    ///
+    /// ⚠️ ITS HONEST LIMIT, because the founder's ask ("soll er individuell nach der Person
+    /// klingen") is not genre-conditional and this constant is: both call sites `.rounded()`
+    /// to whole BPM, so on a NARROW window the tilt can round away entirely. Psytrance
+    /// (140…150) has a full-tilt reach of 3.5 BPM and only ±1.75 from mid-window, so any
+    /// |tilt| below ≈0.29 lands back on the untilted integer. Same for upliftingTrance
+    /// (136…144), techHouse (124…130), acidTechno (130…139). On those genres the signature
+    /// has to be carried by STRUCTURE (the Slice 1 seed fold), not by tempo — raising this
+    /// number to compensate would trade a real risk of genre drift for a few tenths of a BPM.
     public static let maxTiltShare: Double = 0.35
 
     // MARK: - Bar-aligned loop trim window (audit C6/C7)

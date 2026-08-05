@@ -308,32 +308,53 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
     /// tempo by this, so the same preset opens at a different pace for a different body.
     ///
     /// ⚠️ IT IS NOT A SECOND OPINION ABOUT THE MOMENT, and the distinction is what makes it
-    /// legitimate rather than double-counting. The LIVE heart rate already sets the tempo —
-    /// but `genreTempo` octave-folds it, and for a body whose octave overshoots the window's
-    /// ceiling it returns one of the two BOUNDS. Walked over contemplation (44…66): 68, 70,
-    /// 72, 74 and 76 all become 66; 78 through 88 all become 44. Roughly half of ordinary
-    /// resting hearts land on two numbers, non-monotonically. The tilt is applied AFTER that
-    /// fold and restores what the fold erased. (⛔ The first version of this paragraph said
-    /// "41 % … collapses onto the floor" — that is `genreTempo`'s description of the bug
-    /// #237 FIXED, quoted in the present tense. See `StudioCalculator.tilted` for the walk.)
+    /// legitimate rather than double-counting: this is the HABITUAL rate, the live mapping is
+    /// THIS MINUTE's. The full argument (including what the tilt costs) lives on
+    /// `StudioCalculator.tilted` — read it there rather than trusting a summary here; two
+    /// earlier versions of the summary were wrong, one of them about which genre it measured.
     ///
-    /// 50…90 BPM is the span the mapping opens across, chosen as the ordinary waking resting
-    /// range rather than the physiological extremes: anchoring on 30…200 would compress every
-    /// real performer into the middle few percent and make the whole feature inaudible. A
-    /// trained endurance athlete at 45 and a habitually fast heart at 95 both saturate, which
-    /// is the honest behaviour — the tilt is a position among people, not a measurement.
+    /// ⚠️ IT RAMPS IN OVER `confidentAfter` OBSERVATIONS, and that is not decoration. `blend`
+    /// uses weight `1/(n+1)`, so at `count == 0` the mean is set OUTRIGHT to the first sample:
+    /// without the ramp a single startle or finger-pressure artefact ~30 s into a fresh
+    /// install's first take would jump the target by the full 0.35·headroom — inside the
+    /// 8 BPM/tick limiter on the calm windows, so it would land in ONE tick, mid-take. The
+    /// file header calls this a slowly-learned fingerprint; `saturation` only damps samples
+    /// 2…n, so the ramp is what makes that true of the first one too. It preserves the golden
+    /// law by construction: `count == 0` still gives exactly 0.
+    ///
+    /// ⚠️ AND THE SPAN IS NAMED FOR WHAT IT MEASURES. It was called `restingSpan` for one
+    /// commit and that was wrong: `heartRateBPM` is a running mean over every accepted frame
+    /// — the person PLAYING, standing, engaged — not a resting measurement. Anchoring a
+    /// resting range on a playing mean biases every performer upward. 50…90 stays (a trained
+    /// endurance athlete at 45 and a habitually fast heart at 95 both saturate, which is the
+    /// honest behaviour — this is a position among people, not a clinical number), but the
+    /// name no longer claims a measurement nobody takes.
     public var tempoTilt: Double {
         guard heartRateCount > 0 else { return 0 }
         let bpm = Double(heartRateBPM)
         guard bpm.isFinite, bpm > 0 else { return 0 }
-        let span = PerformerSignature.restingSpan
+        let span = PerformerSignature.habitualSpan
+        // Mirrors `StudioCalculator.tilted`'s own degenerate-window guard. `habitualSpan` is
+        // a constant today, so this cannot fire — it is here because `tempoTilt` is PUBLIC
+        // and a future consumer would not have that function's guard downstream to catch a
+        // 0/0 for it.
+        guard span.upperBound > span.lowerBound else { return 0 }
         let unit = (bpm - span.lowerBound) / (span.upperBound - span.lowerBound)
-        return Swift.min(Swift.max(unit, 0), 1) * 2 - 1
+        let position = unit.clamped(to: 0...1) * 2 - 1
+        let ramp = Double(Swift.min(heartRateCount, PerformerSignature.confidentAfter))
+            / Double(PerformerSignature.confidentAfter)
+        return position * ramp
     }
 
-    /// The resting-heart-rate span `tempoTilt` opens across. See its doc for why it is the
-    /// ordinary waking range and not the physiological one.
-    public static let restingSpan: ClosedRange<Double> = 50...90
+    /// The habitual-heart-rate span `tempoTilt` opens across — see its doc for why the name
+    /// says "habitual" and not "resting".
+    public static let habitualSpan: ClosedRange<Double> = 50...90
+
+    /// How many accepted heart-rate observations before `tempoTilt` reaches its full
+    /// magnitude. Eight is roughly four minutes of playing at the 30 s rate limit — long
+    /// enough that no single artefact owns the pace, short enough to be there within one
+    /// session.
+    public static let confidentAfter = 8
 
     /// The value the composer XORs into its STRUCTURE seed — `0` when nothing was ever
     /// measured, which makes the caller's fold a no-op.

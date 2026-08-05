@@ -245,6 +245,27 @@ Drei Dinge, die beim Bauen anders entschieden wurden als der Plan sie offen lie�
    ihm. Der Wächter prüft das als POSITIVEN Scan auf die unveränderte Zuweisung, weil ein
    negativer Scan Code nicht von Prosa unterscheiden kann (#367 rückwärts).
 
+**Reviewer-Nachlese (zwei Reviewer, beide mit HIGH-Befunden auf der BEGRÜNDUNG, nicht auf
+dem Code):**
+
+- **Die Begründung maß das falsche Genre.** Sie lief über Contemplation (44…66) und nannte es
+  „das Genre, auf dem eine Neuinstallation öffnet" — das ist `.selfObservation` (46…78,
+  `StudioDefaultKeys`). Auf dem echten Default gehen 50…78 unverändert durch, also rund drei
+  Viertel der Tilt-Spanne: dort *verstärkt* die Neigung, statt wiederherzustellen. Das ist
+  legitim (habituell vs. momentan), war aber als Minderheitsfall dargestellt.
+- **Die Begründung führte mit dem schwächsten Argument.** Das stärkste ist
+  `BioComposer.tempo(for:)`: bei voller Kohärenz zieht es JEDEN Puls auf 72 — ein ganzer
+  ruhiger Raum bekommt ein Tempo, ohne jede Faltung. Steht jetzt an erster Stelle, mit Test.
+- **Die Anekdote „neun Takes, ein Tempo" war unbelegbar** — die Breadcrumb trägt gar kein
+  Tempo, konstant waren die NOTEN (`5 notes`), und die Sitzung lief simuliert. Gestrichen.
+- **Kein einziger Test unterschied die Kopfraum-Form von „Offset dann Clamp"** — obwohl drei
+  Kommentare behaupteten, sie täten es. `testNearABoundTheTiltStaysInjective` tut es jetzt.
+- **Der erste Messwert trug die volle Neigung** (`blend`-Gewicht 1/(n+1) = 1 bei n = 0). Jetzt
+  Rampe über `confidentAfter` = 8 Beobachtungen.
+- Dazu: `restingSpan` → `habitualSpan` (der Mittelwert misst den SPIELENDEN Körper),
+  `headroom.isFinite`-Wächter, `clamped(to:)` statt verschachteltem `min(max(…))`, und der
+  Oktav-Lock-Preis der Neigung erstmals irgendwo aufgeschrieben.
+
 **Offen in Slice 2:** Register-Neigung und Dichte-Neigung.
 
 ### Slice 3 — Ehrlichkeit im Produkt
