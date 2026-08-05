@@ -305,23 +305,47 @@ public final class CameraRPPGBioPublisher {
         if !fingerDetected { return .coverLens }
         // Finger is on the lit lens but no lock yet — say WHY, from the live signal.
         //
-        // ⭐ ONE DEFINITION OF "TOO BRIGHT", and it belongs to the state machine.
-        // This line used to carry its own pair — `brightness > 0.85 || redChannel > 0.92`
-        // — written before `isWashedOut` existed. The red halves stayed equal; the
-        // brightness halves drifted apart, and drifted in the direction that hurts: the
-        // COACHING threshold (0.85) sat ABOVE the line at which this same file declares
-        // the frame washed out (0.72) and hands the exposure back to auto. So across the
-        // whole 0.72…0.85 band the machine was saying "this scene is flooded, re-settle
-        // it" while the screen was saying "Press gently and hold still" or "finding your
-        // pulse…" — a control telling the user to press HARDER into the exact condition
-        // its own recovery path was firing on. Nobody wrote that contradiction; it is
-        // what two copies of a number do over time.
+        // ⭐ THE WASHOUT LINE HAS ONE OWNER, and it is the state machine. This line used to
+        // carry its own copy — `brightness > 0.85 || redChannel > 0.92`. The red halves were
+        // equal; the brightness halves were not, and the difference ran the wrong way: the
+        // COACHING number (0.85) sat ABOVE the line at which this same file calls the frame
+        // washed out (0.72) and hands exposure back to auto. Across 0.72…0.85 the machine was
+        // re-settling BECAUSE it judged the scene flooded, while the screen said nothing about
+        // light at all.
         //
-        // ⛔ WHAT THIS DOES NOT FIX, said plainly because the next session will otherwise
-        // read it as the acquisition fix: the founder's failed session sat at bright≈0.30
-        // (log 2487) — far below BOTH thresholds, old and new — so this changes nothing
-        // there. A lock that is legal-but-too-bright for a pulse is #304/#410 and needs a
-        // device decision about the permissive ceiling, not another blind threshold here.
+        // ⛔ FOUR THINGS THE FIRST VERSION OF THIS COMMENT CLAIMED THAT ARE NOT TRUE. It is
+        // kept as a correction because each one would mislead the next reader in a different
+        // direction, and the second is the one that matters for the product.
+        //
+        // 1. It said this establishes "ONE definition of too bright". It does not. This file
+        //    holds THREE brightness lines that each mean "flooded" in their own comment's
+        //    words: `strictLockBrightness` 0.28, `maxLockBrightness` 0.6, and `isWashedOut`
+        //    0.72. The cue now adopts the LOOSEST. So the contradiction moved rather than
+        //    closed: at brightness 0.65 `canLockNow` refuses to lock — the machine has decided
+        //    the scene is flooded — and the screen still shows no light cue. That residual band
+        //    contains 0.62, the exact device-log value this file cites TWICE as its canonical
+        //    failure ("locked at bright=0.62 → no pulse all session"). One definition OF
+        //    WASHOUT, of three brightness lines.
+        // 2. It said the old messages told the user to "press HARDER". None of the three does.
+        //    They are "Hold still — keep your finger steady", "Press gently and hold still" and
+        //    "Hold still — finding your pulse…" — the middle one literally asks for LIGHTER
+        //    pressure. And the omission was load-bearing: `.holdStill` was left off that list,
+        //    yet by this file's own attribution ("finger lightening / re-grip") and the
+        //    analyzer's ("hard-press / re-grip"), a re-grip is the most likely cause in the
+        //    newly-claimed band — so `.holdStill` was arguably the RIGHT message there and is
+        //    now preempted. Whether "Press a little lighter" should own that transient is a
+        //    device/wording call, recorded with #304/#410, deliberately not decided here.
+        // 3. It said the cue's pair was "written before `isWashedOut` existed". Unprovable:
+        //    this clone is shallow (`.git/shallow`), and `git log -S` on either predicate
+        //    returns only the graft and this commit. The present state is checkable, the
+        //    ordering is not.
+        // 4. It said the failed session's bright≈0.30 was "far below BOTH thresholds". That
+        //    counted two of the three above — 0.30 is ABOVE `strictLockBrightness` (0.28), the
+        //    one line this file says decides whether the take works at all. Still true that
+        //    this change does nothing at 0.30; not true that 0.30 is comfortably clear.
+        //
+        // What survives all four: the coaching must not keep a private copy of a threshold the
+        // state machine owns. That is why the call is here.
         if Self.isWashedOut(brightness: analyzer.brightness, red: analyzer.redChannel) {
             return .tooBright
         }
@@ -559,10 +583,19 @@ public final class CameraRPPGBioPublisher {
     ///
     /// TWO CONSUMERS SINCE #416, and the second one is user-facing: `acquisitionCue` asks
     /// this the same question to decide `PulseCue.tooBright`. That is deliberate — one
-    /// definition of "flooded" for the recovery and for the sentence on screen, so they
-    /// cannot say opposite things again (they did: 0.85 here vs 0.72 there). The cost is
-    /// that moving these numbers now moves what the player is TOLD, not only what the
-    /// exposure does; `Tests/CISmoke/OneDefinitionOfTooBrightTests.swift` pins both halves.
+    /// definition of WASHOUT for the recovery and for the sentence on screen, so they cannot
+    /// say opposite things again (they did: this line is 0.72, the cue carried its own 0.85).
+    /// ⛔ The first version of this sentence had that backwards — "0.85 here vs 0.72 there" —
+    /// on the doc comment whose one job is to say which number lives where.
+    ///
+    /// NOT the only brightness line in this file: `strictLockBrightness` (0.28) and
+    /// `maxLockBrightness` (0.6) also decide "flooded", and the cue adopts the loosest of the
+    /// three. Do not read this as the single source of that judgement — read the ⛔ block at
+    /// `acquisitionCue` for the band that still has no cue.
+    ///
+    /// The cost of the second consumer: moving these numbers now moves what the player is
+    /// TOLD, not only what the exposure does. `Tests/CISmoke/OneDefinitionOfTooBrightTests.swift`
+    /// pins both halves.
     nonisolated static func isWashedOut(brightness: Float, red: Float) -> Bool {
         brightness > 0.72 || red > 0.92
     }

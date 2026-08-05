@@ -7,24 +7,46 @@
 //     handed back to auto so the lock can recover instead of sitting dead.
 //   · `acquisitionCue` — the SENTENCE ON SCREEN. It carried its own hand-written pair.
 // The red halves stayed equal (`> 0.92`). The brightness halves did not: the state machine
-// said 0.72, the coaching said 0.85. So across 0.72…0.85 the machine was declaring the frame
-// flooded and re-settling it, while the screen said "Press gently and hold still" or "Hold
-// still — finding your pulse…" — telling the player to press HARDER into the one condition its
-// own recovery path was firing on. Nobody wrote that contradiction. It is what two copies of a
-// number do once one of them is edited.
+// said 0.72, the coaching said 0.85. So across 0.72…0.85 the machine was re-settling BECAUSE
+// it judged the scene flooded, while the screen said nothing about light at all.
+//
+// ⛔ AND THE FIRST VERSION OF THIS PARAGRAPH ENDED "— telling the player to press HARDER into
+// the one condition its own recovery path was firing on." That is FALSE of every shipped
+// string: the three fall-through cues are "Hold still — keep your finger steady", "Press
+// gently and hold still" and "Hold still — finding your pulse…". The middle one asks for
+// LIGHTER pressure. The sentence also silently dropped `.holdStill` from the list — and that
+// omission carried the weight, because `CameraRPPGBioPublisher`'s own attribution of this band
+// is "finger lightening / re-grip" and the analyzer's is "hard-press / re-grip", i.e.
+// `.holdStill` was arguably the RIGHT message there and #416 preempts it. Whether
+// "Press a little lighter" should own that transient is a device/wording call recorded with
+// #304/#410, not settled by this commit. The false sentence stood in four places at once
+// (here, the source, the commit message, CLAUDE.md) — a rhetorically satisfying claim that
+// nobody checked against `PulseCue.fullHint`.
 //
 // ⛔ WHAT THIS FILE DOES NOT CLAIM, stated here because the surrounding tasks are about
 // acquisition and the next session will otherwise read this as their fix. The founder's failed
-// session sat at bright ≈ 0.30 (log 2487) — under BOTH thresholds, old and new — so nothing
-// here would have changed it. A lock that is legal-but-too-bright to yield a pulse is #304/#410
-// and needs a device decision about the permissive ceiling. This file closes a self-contradiction,
-// not the acquisition problem.
+// session sat at bright ≈ 0.30 (log 2487), so nothing here would have changed it. (The first
+// version added "under BOTH thresholds, old and new" — true of 0.72 and 0.85, but this file
+// holds THREE brightness lines and 0.30 is ABOVE the third, `strictLockBrightness` = 0.28.)
+// A lock that is legal-but-too-bright to yield a pulse is #304/#410 and needs a device decision
+// about the permissive ceiling. This file closes ONE self-contradiction of two, not the
+// acquisition problem: at brightness 0.65 the lock is still refused with no cue on screen.
 //
 // ⛔ HONEST LIMITS, and this block is only worth having if it is EXHAUSTIVE — a limits list that
 // omits a known hole is the failure this repo has paid for more than once.
 //   · The second half is a SOURCE SCAN. It proves the call is written, not that the amber cue
-//     reaches the header (`acquisitionCue` needs a live `AVCaptureSession`, and there is no
-//     simulator here). House pattern: `SoundPromptHasADoorTests`, `SoundPanelReflowsTests`.
+//     reaches the header. (⛔ The first version blamed "needs a live `AVCaptureSession`" — the
+//     property is readable on a bare publisher and returns `.coverLens`. The real blocker is
+//     that `analyzer` is an `@ObservationIgnored private let` with no injection seam, so the
+//     cue cannot be STEERED. Naming the wrong blocker sends the next session to a device for
+//     what is a one-line test seam.) House pattern: `SoundPromptHasADoorTests`,
+//     `SoundPanelReflowsTests`.
+//   · The scan is scoped to ONE property. A helper `private var brightnessCue` carrying its own
+//     literal, one function away, passes both assertions.
+//   · `codeLines` strips `//` only, not `/* */`. A block comment containing a brace inside the
+//     cue would truncate the extracted body silently.
+//   · The behavioural half is green on BOTH sides of #416 — see its own header. Only the scan
+//     pins this change.
 //   · The marker list in `comparisonMarkers` matches SPACED comparisons. `>=` and `<=` are
 //     caught (they contain `>` / `<`), but `analyzer.brightness>0.85` — no space — is NOT.
 //     The narrowness is real but bounded: hoisting to a local (`let b = analyzer.brightness;
@@ -52,9 +74,20 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
 
     // MARK: - The definition itself (real behaviour, no scan)
 
-    /// ⭐ THE REGRESSION, AS BEHAVIOUR. Every value in 0.72…0.85 must read as washed out. That
-    /// band is exactly what the old coaching copy excluded, so this goes red the moment anyone
-    /// raises the brightness line back toward the number the cue used to carry.
+    /// ⛔ THIS IS NOT THE REGRESSION, and its first version said it was. The header read
+    /// "⭐ THE REGRESSION, AS BEHAVIOUR … goes red the moment anyone raises the brightness line
+    /// back". It exercises ONLY `isWashedOut`, which was 0.72 before #416, is 0.72 after, and
+    /// was not touched by that commit — so this test is **green on both sides of the change it
+    /// claims to pin**. Worse, the same predicate is already swept in the non-blocking suite
+    /// (`Tests/EchoelmusicTests/RPPGExposureLockTests.swift`).
+    ///
+    /// It is kept for the one thing it does earn: moving that pin into the BLOCKING bundle, so
+    /// the line the coaching now depends on cannot move without a red gate. **Only the source
+    /// scan below distinguishes pre- from post-#416.** A behavioural test of the cue itself is
+    /// not writable today — not for the reason the header first gave ("needs a live
+    /// AVCaptureSession"; the property is readable on a bare publisher and returns `.coverLens`)
+    /// but because `analyzer` is an `@ObservationIgnored private let` with no injection seam, so
+    /// the cue cannot be STEERED. That is a one-line test seam, not a device trip.
     func testTheBandTheCoachingUsedToMissIsWashedOut() {
         for value in stride(from: 0.73, through: 0.85, by: 0.01) {
             let b = Float(value)
@@ -143,7 +176,9 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
     private static let publisher = "Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift"
 
     /// The declaration line is the anchor, and it must be UNIQUE — a scan that anchors on a
-    /// string appearing in two places measures the wrong one (#408 shipped that mistake: it
+    /// string appearing in two places measures the wrong one (#408 MADE that mistake and was
+    /// caught by running — "THE FIRST VERSION OF THIS TEST FAILED", says its own header. The
+    /// first version of this line said "#408 shipped" it, which is the opposite of the record: it
     /// anchored on a name that matched the declaration before the call site).
     private static let cueAnchor = "var acquisitionCue: PulseCue {"
 

@@ -248,19 +248,39 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           fehlenden: „die Fingerkuppe ist überstrahlt" stand zweimal in EINER Datei,
                           einmal als Zustandsmaschine (`isWashedOut`, 0,72) und einmal als Satz auf
                           dem Schirm (`acquisitionCue`, eigenes Paar, 0,85). Die Rot-Hälften blieben
-                          gleich, die Helligkeits-Hälften nicht — und die Richtung ist der Punkt:
-                          über 0,72…0,85 belichtete die Maschine neu, WEIL sie das Bild für geflutet
-                          hielt, während der Schirm „Press gently and hold still" sagte, also drücken
-                          statt lockern. **Lehre, und sie unterscheidet sich von der üblichen
-                          Zahlen-Lehre dieses Absatzes: nicht eine Zahl war veraltet, sondern eine
-                          zweite Kopie derselben Entscheidung ist bearbeitet worden und die erste
-                          nicht.** Der Wächter hat deshalb zwei Hälften — eine Verhaltens-Hälfte, die
-                          das geschlossene Band 0,72…0,85 gewischt prüft, und einen Quelltext-Scan
-                          darauf, dass die Coaching-Zeile FRAGT statt selbst zu vergleichen. ⛔ Und
-                          was er ausdrücklich NICHT ist: die Akquise-Reparatur. Die gescheiterte
-                          Founder-Sitzung lag bei bright ≈ 0,30, unter BEIDEN Schwellen, alt wie neu
-                          — das bleibt #304/#410 und braucht eine Geräte-Entscheidung, keine dritte
-                          blinde Schwelle),
+                          gleich, die Helligkeits-Hälften nicht: über 0,72…0,85 belichtete die
+                          Maschine neu, WEIL sie das Bild für geflutet hielt, während der Schirm
+                          über Licht gar nichts sagte. **Lehre, und sie unterscheidet sich von der
+                          üblichen Zahlen-Lehre dieses Absatzes: nicht eine Zahl war veraltet,
+                          sondern eine zweite Kopie derselben Entscheidung ist bearbeitet worden und
+                          die erste nicht.** ⛔ **UND DIE ERSTE FASSUNG DIESES EINTRAGS TRUG DREI
+                          FALSCHE BEHAUPTUNGEN, die alle vier zugleich in Quelle, Test, Commit-Text
+                          und hier standen — der Bio-Reviewer hat sie gefunden, ich habe jede selbst
+                          nachgeprüft.** (1) „also drücken statt lockern": FALSCH für alle drei
+                          ausgelieferten Sätze — „Hold still — keep your finger steady", „Press
+                          gently and hold still", „Hold still — finding your pulse…"; der mittlere
+                          verlangt ausdrücklich WENIGER Druck. Die Aufzählung ließ dabei `.holdStill`
+                          weg, und genau der trug das Gewicht: die Datei selbst schreibt das Band dem
+                          „finger lightening / re-grip" zu, der Analyzer dem „hard-press / re-grip"
+                          — `.holdStill` war dort also vermutlich die RICHTIGE Meldung und wird
+                          seit #416 verdrängt. (2) „EINE Definition": es sind DREI Helligkeitslinien
+                          in dieser Datei (`strictLockBrightness` 0,28 · `maxLockBrightness` 0,6 ·
+                          `isWashedOut` 0,72), und der Hinweis übernimmt die LOCKERSTE. Bei 0,65
+                          verweigert die Maschine den Lock und der Schirm sagt weiter nichts — und in
+                          diesem Restband liegt 0,62, der Wert, den dieselbe Datei ZWEIMAL als ihren
+                          kanonischen Fehlschlag zitiert. (3) „unter BEIDEN Schwellen": 0,30 liegt
+                          ÜBER `strictLockBrightness` (0,28) — die eine Linie, von der die Datei
+                          sagt, sie entscheide, ob der Take überhaupt trägt. **Die eigentliche Lehre
+                          ist damit eine andere als die oben: eine Formulierung, die sich gut liest
+                          („drücken statt lockern"), wird nicht geprüft — sie wird kopiert.** Der
+                          Wächter hat zwei Hälften, und auch da war ich zu großzügig: die
+                          Verhaltens-Hälfte prüft `isWashedOut`, das #416 gar nicht angefasst hat,
+                          ist also auf BEIDEN Seiten der Änderung grün; nur der Quelltext-Scan
+                          unterscheidet vorher/nachher. Sie bleibt, weil sie die Linie ins
+                          BLOCKIERENDE Bundle holt — aber sie heißt nicht mehr „die Regression".
+                          Was NICHT repariert ist: die Akquise. Die gescheiterte Founder-Sitzung lag
+                          bei bright ≈ 0,30, das bleibt #304/#410 und braucht eine
+                          Geräte-Entscheidung, keine dritte blinde Schwelle),
                           davor „153" nach `TheDynamicsAreThePersonsTests.swift` (#403 Slice 3 — der
                           erste Wächter in dieser Kette, dessen eigene erste Fassung an DREI Stellen
                           gegen die API gelaufen wäre, die er prüft, und die dritte ist die lehrreiche:
