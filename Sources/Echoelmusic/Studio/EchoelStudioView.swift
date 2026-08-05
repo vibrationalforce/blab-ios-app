@@ -546,6 +546,14 @@ struct EchoelStudioView: View {
     @State private var visualShare: ExportedFile?
     @State private var diagnostics: DiagReport?
 
+    /// #400 — the sound reset is armed by a first tap and performed by a second, INSTEAD of an
+    /// `.alert`. That is not a style preference: this body already carries 14 presentation
+    /// modifiers, and the black-screen SIGSEGV of 10.76.34 was caused by growing exactly that
+    /// chain past the SwiftUI metadata-decoder limit. A destructive action still needs a
+    /// confirmation step, so the confirmation goes inline where it costs no generic depth.
+    /// Not persisted — an armed reset must never survive putting the phone in a pocket.
+    @State private var soundResetArmed = false
+
     // Modal slots. `compose.toolsExpanded` went with the Tools grid it folded — zero
     // readers, zero writers. Its persisted UserDefaults key is deliberately NOT migrated
     // or cleared: a stale bool costs nothing, a delete-on-launch is a destructive write
@@ -6376,6 +6384,8 @@ struct EchoelStudioView: View {
                 .disabled(projects.projects.isEmpty)
             }
 
+            soundResetRow
+
             Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
                 Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
@@ -6383,6 +6393,85 @@ struct EchoelStudioView: View {
             .accessibilityHint("Shows the in-app diagnostic log to share if something crashed")
         }
         }   // panel("Save & Export")
+    }
+
+    // MARK: - Sound reset (#400)
+
+    /// ⭐ THE ONLY COMPLETE SOUND RESET THIS APP HAD WAS DELETING IT.
+    ///
+    /// The founder's "schief" report on 2026-08-05 was cured by deleting and reinstalling —
+    /// same binary either side, so the cause was persisted state. Reinstalling also destroys
+    /// every saved patch, take and project, which is why nobody should ever have to reach for
+    /// it. This row does the sound half and leaves the work alone.
+    ///
+    /// ⚠️ IT SITS BESIDE "Diagnostics" ON PURPOSE. This is the recovery corner of the panel —
+    /// the place a player goes when something is wrong rather than when they want to make
+    /// something. Putting it in `soundPanel`, among the controls that SHAPE the sound, would
+    /// invite the accidental tap it is least able to survive.
+    ///
+    /// ⚠️ TWO TAPS, NOT AN `.alert` — see `soundResetArmed`. The body is already carrying 14
+    /// presentation modifiers and the 10.76.34 black screen was that chain growing by three.
+    /// A destructive action still needs its confirmation; this one just does not spend metadata
+    /// depth on it.
+    private var soundResetRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                if soundResetArmed {
+                    resetSoundToDefaults()
+                    soundResetArmed = false
+                } else {
+                    soundResetArmed = true
+                }
+            } label: {
+                Text(soundResetArmed ? "Tap again to reset the sound" : "Reset sound")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(soundResetArmed ? EchoelTheme.text : EchoelTheme.dim)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("""
+            Puts key, tuning, concert pitch, genre, preset, articulation, the bass and pad \
+            rhythm characters and the Field voice back to factory. Saved patches, takes and \
+            projects are kept. Needs a second tap to confirm.
+            """)
+
+            if soundResetArmed {
+                Text("Key, tuning, genre, preset and the Field voice go back to factory. Your saved patches, takes and projects are kept.")
+                    .font(EchoelTheme.font(10))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Clear the musical identity and make the change AUDIBLE NOW.
+    ///
+    /// ⚠️ CLEARING THE KEYS IS ONLY HALF OF IT, and the missing half is the whole reason this
+    /// is a function rather than one call. `@AppStorage` falls back on the next read by itself,
+    /// but `SessionContext` caches its three in stored properties, and the engine holds the
+    /// tuning, the concert pitch, the articulation and the Field patch as applied STATE. A
+    /// reset that only removed keys would leave the wrong sound playing until the next launch —
+    /// which is the "I had to reinstall" experience again, just quieter.
+    ///
+    /// The re-apply below is deliberately the same sequence `onAppear` runs, in the same order,
+    /// for the same reason: whatever the launch restore does IS the definition of "factory" for
+    /// this instrument, and a second, divergent definition here is how the two drift apart.
+    private func resetSoundToDefaults() {
+        SoundReset.clear(in: .standard)
+        session.resetMusicalIdentity()
+
+        currentPatch = style.synthPatch     // `style` now reads its fresh-install default
+        applyArticulation()
+        applyTuning()
+        applyConcertPitch(session.a4Hz)
+
+        // The Field wakes up on the factory play-surface patch when nothing is stored — the
+        // launch resolver decides that, not a literal here, so the two cannot disagree (#402).
+        if let touchSynth,
+           let field = SynthPatch.launchTouchPatch(storedID: "", in: patchStore.patches) {
+            touchSynth.apply(field)
+        }
+
+        EchoelCrashLog.breadcrumb("reset/sound: musical identity cleared to factory (#400)")
     }
 
     // MARK: - Diagnostics
