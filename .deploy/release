@@ -1,4 +1,4 @@
-build: v10.79.368 — Die Kette hält nichts mehr fest, und ein verstimmtes Instrument sagt es Dir
+build: v10.79.369 — Du musst die App nicht mehr löschen, und sie sagt Dir beim Start, womit sie aufgewacht ist
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,84 +6,101 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.367.
+  Der Vorgänger auf Deinem Gerät ist 10.79.368.
 
-  Vierzehn Commits, fünf davon ändern etwas, das Du hören oder sehen kannst. Zwei davon
-  gehören zur „unharmonisch"-Frage, zwei zum Knistern beim Umschalten.
+  Zehn Commits. Diese Version ist von vorne bis hinten die Antwort auf EINEN Satz von Dir:
+  „Nachdem ich Echoelmusic gelöscht und neu installiert habe klingt es wieder harmonisch."
 
-  ── DAS INSTRUMENT SAGT JETZT SELBST, WENN ES VERSTIMMT IST ────────────────
+  ── WAS DIESER SATZ BEWIESEN HAT ───────────────────────────────────────────
 
-  In 367 habe ich die URSACHE geschlossen: die Kopfleiste kann den Kammerton nicht mehr
-  mitziehen, wenn Du sie wischst. Aber der falsche Wert, den Dein Gerät schon gespeichert
-  hatte, blieb liegen — und Du musstest ihn suchen, in einem daumenbreiten Kästchen mit
-  vier Nachkommastellen.
+  Löschen und neu installieren ändert am Programm nichts — es ist dieselbe App. Was es
+  ändert, ist der auf dem Gerät GESPEICHERTE Zustand. Damit war klar: die Ursache war
+  nicht ein Rechenweg, sondern ein Wert, der bei Dir lag und den nichts zurücksetzen
+  konnte. Und weil die Neuinstallation genau diesen Wert vernichtet hat, ist DIESER eine
+  Fall für immer unbeantwortbar. Also habe ich drei Dinge gebaut, damit der nächste es
+  nicht ist.
 
-  Ab jetzt steht auf der Fläche, die beim Start offen ist, eine Zeile: dass die Referenz
-  nicht 440 Hz ist, mit dem tatsächlichen Wert daneben und einem Knopf „Standard", der
-  ihn in einem Tap zurücksetzt. Ist alles in Ordnung, ist die Zeile nicht da — sie
-  erscheint nur, wenn es etwas zu melden gibt.
+  ── 1. „RESET SOUND" — DER AUSWEG, DER BISHER NUR LÖSCHEN HIESS ────────────
 
-  Der Knopf tut dabei GENAU dasselbe wie das Feld oben: er setzt den Kammerton und stößt
-  eine Neukomposition an. Der Pflicht-Reviewer hat da eine Ungleichheit gefunden — meine
-  erste Fassung hat mehr angefasst als das Feld. Korrigiert, bevor es Dich erreicht.
+  Im Panel „Save & Export", ganz unten neben „Diagnostics", steht eine neue Zeile. Sie
+  setzt zurück, was den Klang bestimmt: Tonart, Tonsystem, Kammerton, Genre, Preset,
+  Artikulation, Bass- und Pad-Rhythmus, die Field-Stimme, das Glide — und die Pegel der
+  generierten Stimmen.
 
-  Dazu die zweite Hälfte der Wisch-Geschichte: eine Geste, die überwiegend seitwärts
-  läuft, kann jetzt überhaupt keinen Wert mehr greifen. In 367 habe ich das für die
-  Kopfleiste geschlossen, hier für JEDE Zahlenspalte — Du kannst über einer Liste von
-  Feldern scrollen, ohne dass eines davon anspringt.
+  Was sie NICHT anfasst: Deine gespeicherten Sounds, Projekte, Aufnahmen, den Autosave-
+  Platz, Deinen Künstlernamen. Das ist die ganze Grenze: Einstellungen ja, Deine ARBEIT
+  nein. Eine Zurücksetzung, die Deine Arbeit frisst, ist die Neuinstallation mit einem
+  Knopf davor.
 
-  ── ZWEIMAL: DIE FX-KETTE HÄLT KEIN ALTES AUDIO MEHR FEST ──────────────────
+  Sie braucht ZWEI Taps — der erste bewaffnet sie („Tap again to reset the sound"), der
+  zweite führt aus. Kein Warndialog: die Modal-Kette der Hauptfläche ist am Limit, das
+  Schwarzbild-Gesetz gilt, also wird direkt in der Zeile bestätigt statt ein Fenster zu
+  öffnen. Verlässt Du das Panel oder legst das Telefon weg, entschärft sie sich wieder.
 
-  Das ist die Antwort auf „knistert beim Umschalten von Dingen", an zwei Stellen, die
-  bisher übersehen waren.
+  Die Pegel sind erst in der zweiten Scheibe dazugekommen, und zwar wegen eines konkreten
+  Fundes: in einem Deiner Logs stand der Bass-Fader eine GANZE Session auf 0.00 und in der
+  nächsten auf 1.00, bei gleichem Build. Ein Pegel auf null macht eine ganze Stimme in
+  jedem Take stumm — von „die App ist kaputt" nicht zu unterscheiden. Der Drums-Pegel ist
+  bewusst mit dabei, gerade WEIL seine Bedienung mit den Drums gelöscht wurde: eine Zahl,
+  die niemand mehr sehen oder ändern kann, ist der schlimmste gespeicherte Rest, nicht der
+  harmloseste.
 
-  Eine Effektstufe, die übersprungen wird, friert ein. Ihr Hall-Tank und ihre
-  Verzögerungsleitung behalten, was zuletzt hineinlief — Sekunden alte Musik, in Puffern
-  eingefroren. Kommt die Stufe zurück, läuft dieses alte Material heraus, mitten in etwas
-  Neues.
+  ── 2. DER START SAGT JETZT, WOMIT ER AUFGEWACHT IST ───────────────────────
 
-  Erstens: wenn das Instrument einschläft. Spielst Du nichts mehr, hört die Kette nach
-  2,5 Sekunden Stille auf zu arbeiten — und behielt bis jetzt Deinen letzten Akkord
-  darin. Ziehst Du danach den Hall auf, kam er zurück. Ab jetzt wird beim Einschlafen
-  geleert.
+  Im Diagnose-Log steht ab sofort beim Start EINE Zeile, die alle gespeicherten
+  musikalischen Werte nennt: Tonart, Tonsystem, Kammerton, Genre, Preset, Artikulation,
+  Bass-/Pad-Rhythmus, Field-Patch, Glide — plus die Pegel.
 
-  Zweitens: wenn Du die Effekte ganz ausschaltest und wieder ein. Das ist derselbe Fehler
-  eine Ebene höher — ein Schalter, der dreizehn Stufen auf einmal überspringt, und
-  bisher als einziger nichts zurücksetzte. Ab jetzt wird beim EINSCHALTEN geleert, in dem
-  Moment, in dem die Kette noch nicht läuft.
+  Der Grund ist genau Dein Satz. Bisher nannte diese Werte nur die generate-Zeile, und die
+  entsteht erst, wenn Du auf Generate drückst. Wer vorher neu installiert, nimmt den Beweis
+  mit. Ab jetzt reicht mir EIN Log vom Start, um zu sehen, ob das Instrument mit etwas
+  Falschem aufgewacht ist — ohne dass Du irgendetwas suchen musst.
 
-  Am Klang der laufenden Musik ändert das nichts. Es entfernt nur, was nicht mehr
-  dazugehört.
+  Die UUID Deines eigenen Patches steht bewusst NICHT drin, nur ob überhaupt einer geladen
+  ist. Welcher es ist, beantwortet keine Frage und wäre eine Kennung in einem Text, den Du
+  in einen Chat kopierst.
 
-  ── EIN KLEINER, ABER ÄRGERLICHER ─────────────────────────────────────────
+  ── 3. EIN ECHTER SPEICHER-FEHLER, GEFUNDEN AUF DEM WEG ────────────────────
 
-  Das „Reset" neben der Lautheits-Anzeige war ein Wort, kein Knopf: die tippbare Fläche
-  war so groß wie der Text. Jetzt hat es die volle Fingergröße wie alles andere.
+  Beim Bauen von Punkt 2 ist aufgefallen: der Start-Task hat den Field-Stimmen-Patch, den
+  Du gewählt hattest, mit dem Werksklang ÜBERSCHRIEBEN. Die Anzeige zeigte Deine Wahl, die
+  Fläche spielte etwas anderes — jeden Start aufs Neue. Das ist kein Diagnose-Thema, das
+  ist der Defekt selbst, eine Stimme weit. Behoben: was aufwacht, ist die Entscheidung
+  einer einzigen Stelle, und die respektiert Deine Wahl.
+
+  ── 4. EIN GEHALTENES VERSPRECHEN AN DEN RHYTHMUS ──────────────────────────
+
+  Die Sperre, die verhindert, dass sich die Musik schneller neu aussät als eine Phrase
+  lang ist, hat Wartezeit ANGEHÄUFT: eine Aussaat, die ohnehin überfällig war, hat die
+  Uhr trotzdem von vorne gestartet. Jetzt ist der Boden eine Frist und keine Schuld — eine
+  Wartezeit, die schon abgelaufen ist, wird nicht noch einmal berechnet.
 
   ── WAS ICH MIR SELBST VORWERFE ────────────────────────────────────────────
 
-  Beide FX-Punkte hatten in ihrer ERSTEN Fassung einen echten Fehler, und beide hat der
-  Pflicht-Reviewer gefunden, bevor sie hier landeten. Der erste leerte die Kette zu
-  gründlich — von der falschen Seite, auf einem Weg, der laut eigenem Quellkommentar nur
-  dem Bedien-Thread gehört. Der zweite gab derselben Leerung einen zweiten Aufrufer auf
-  einem zweiten Thread, ohne die beiden voneinander zu trennen. Beides repariert und mit
-  je einem Wächter festgenagelt, der genau diesen Rückfall rot machen würde.
+  Die erste Fassung des Reset war ein Halb-Fix von genau dem Defekt, den er beheben soll.
+  Er hat die Pegel zurückgesetzt, aber den gefühlten Sub NICHT mitgezogen — der nimmt
+  seinen Pegel auf einem anderen Weg. Hättest Du mit Bass auf 0.00 „Reset sound" getippt,
+  wären alle Stimmen auf unity gesprungen und der Sub wäre stumm geblieben, bis zum
+  nächsten Neustart. Beide Pflicht-Reviewer haben das unabhängig gefunden, bevor es Dich
+  erreicht hat. Dasselbe galt für den gestoppten Transport: der Take wurde gar nicht neu
+  gebacken, der alte Pegel wäre in den nächsten Take und in seinen MIDI-Export
+  eingebrannt geblieben.
 
-  Ich habe außerdem zwei Sätze aus meinen eigenen Kommentaren gestrichen, die stärker
-  klangen als sie waren: eine Kostenrechnung, die die falsche Stufe als teuerste nannte
-  (das Delay ist neunmal so groß wie der Hall), und ein „kann nachweislich nicht
-  kollidieren", für das es keinen Nachweis gibt. Lieber eine ehrliche Begründung als eine
-  bequeme.
+  Und ich habe einen Text korrigiert, der zu viel versprach: „die Mix-Fader" — das
+  Mischpult hat vier Streifen, der Reset bewegt nur die generierten. Steht jetzt so da.
 
   ── EHRLICH ZUM PRÜFSTAND ──────────────────────────────────────────────────
 
-  Der Compile-Prüfstand ist auf allen vierzehn Commits grün. Der Test-Prüfstand meldet
-  seit sieben Läufen rot — aber NICHT wegen eines fehlgeschlagenen Tests: der Simulator
-  der zweiten Testmaschine stirbt beim App-Start, jedes Mal. Die erste Testmaschine läuft
-  durch und bestätigt jedes Mal alles, auch die neuen Wächter dieser Version. Über die
-  ganzen sieben Läufe gibt es null fehlgeschlagene Prüfungen. Das ist eine Blockade am
-  Prüfstand selbst; die Reparatur liegt in der CI-Konfiguration und die fasse ich ohne
-  Dich nicht an.
+  Der Compile-Prüfstand ist auf allen zehn Commits grün, auch auf dem letzten.
+
+  Der Test-Prüfstand meldet seit inzwischen NEUN Läufen rot — weiterhin NICHT wegen eines
+  fehlgeschlagenen Tests. Der Simulator der Testmaschine stirbt beim App-Start; über die
+  geprüften Läufe hinweg gibt es null Compiler-Fehler, null Build-Abbrüche und null
+  fehlgeschlagene Prüfungen. Ich habe das diesmal Zeile für Zeile nachgescannt statt der
+  Zusammenfassung zu glauben. Kleine Selbstkorrektur dazu: ich hatte Dir „drei
+  Erscheinungsformen" gemeldet — es sind ZWEI, die dritte war ein Fehler in meiner eigenen
+  Auswertung. Die Reparatur liegt in der CI-Konfiguration und die fasse ich ohne Dich
+  nicht an.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt,
   entscheidet Dein Ohr und Dein Auge.
@@ -93,22 +110,22 @@ notes: |
 
   ── WAS ICH VON DIR BRAUCHE, IN DIESER REIHENFOLGE ────────────────────────
 
-  1. DER KAMMERTON, ZUERST. Steht beim Start die Zeile da, dass die Referenz nicht 440 Hz
-     ist? Wenn ja: „Standard" tippen. Wenn nein, ist Dein Gerät sauber. Danach die
-     Chipleiste absichtlich hin und her wischen, den Finger über das A4-Kästchen ziehen —
-     die Zahl darf sich nicht rühren, Antippen muss weiter die Tastatur öffnen.
-  2. KLINGT ES DANN NOCH UNHARMONISCH? Das ist die eigentliche Frage, und ich habe seit
-     366 keine Antwort darauf. Wenn ja: einmal Diagnose-Log schicken. Seit 367 steht in
-     jeder generate-Zeile die Tonart, das Tonsystem, der Kammerton in Hertz und die
-     Sekunden seit der letzten Aussaat — damit sehe ich, ob es die Verstimmung war oder
-     die Überlagerung.
-  3. DER FX-SCHALTER. Etwas mit hörbarem Hall/Delay spielen, Effekte AUS, ~5 Sekunden
-     warten, Effekte AN. Es darf kein Echo und kein Hall-Schwall von VORHER kommen.
-  4. DIE PAUSE. Spielen, ausklingen lassen, ~3 Sekunden warten, dann den Hall-Regler
-     aufziehen. Es darf nichts Altes zurückkommen.
+  1. ZUERST DAS LOG, VOR ALLEM ANDEREN. App starten, sonst nichts tun, Diagnose-Log
+     schicken. Darin steht jetzt die neue Start-Zeile. Wenn Dein Gerät nach der
+     Neuinstallation sauber ist, sehe ich das — und wenn es je wieder schief klingt,
+     vergleiche ich diese eine Zeile mit dieser einen Zeile.
+  2. DAS FIELD. Einen Klang für die Spielfläche wählen, App komplett schließen, neu
+     starten. Klingt sie beim ersten Antippen nach Deiner Wahl? Das war der echte Fehler
+     oben, und das ist sein Test.
+  3. DEN RESET, EINMAL BEWUSST. „Save & Export" öffnen, ganz nach unten, „Reset sound"
+     zweimal tippen. Danach: sind Deine gespeicherten Sounds und Projekte noch alle da?
+     Und klingt das Instrument sofort anders, oder erst nach einem Neustart? Beides muss
+     stimmen, sonst ist der Knopf nur ein halbes Versprechen.
+  4. UND DANN DIE EIGENTLICHE FRAGE: klingt es noch unharmonisch? Wenn ja, Log schicken —
+     mit der neuen Start-Zeile kann ich diesmal antworten statt zu raten.
 
-  Weiter offen aus 367: die zweite FX-Kette (atmen die gespielten Noten mit? pumpt der
-  Master?) · Kopf und Wellenfront · der Bio-Pfad (zu zappelig?) · der Sub-Bass bei
-  Maqām oder Gamelan · die drei Messansichten im Field-Panel · das Mischpult · die
-  sechs Genres mit Swing · MIDI-Sync gegen Ableton · das Sound-Panel im Querformat ·
-  die Aufnahme-Stopp-Zeile im Video-Panel (aus 367, noch unbestätigt).
+  Weiter offen aus 368: der Kammerton-Hinweis auf der Startfläche · die FX-Kette beim
+  Aus/Ein und beim Einschlafen · die zweite FX-Kette · Kopf und Wellenfront · der Bio-Pfad ·
+  der Sub-Bass bei Maqām oder Gamelan · die drei Messansichten im Field-Panel · das
+  Mischpult · die sechs Genres mit Swing · MIDI-Sync gegen Ableton · das Sound-Panel im
+  Querformat · die Aufnahme-Stopp-Zeile im Video-Panel.
