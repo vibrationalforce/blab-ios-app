@@ -237,11 +237,18 @@ public enum BioComposer {
         /// separate decision (it is the layer that keeps a take moving) and deliberately not made here.
         public var padRhythm: RoleRhythm.Character?
 
-        /// The PERSON's habitual dynamic position, −1 … +1 (#403 Slice 3). `0` = no
-        /// fingerprint learned yet, and `StudioCalculator.tilted` returns its input unchanged
-        /// for a zero tilt — so a never-measured performer renders bit-identically to before
-        /// this field existed. Supplied by `PerformerSignature.dynamicTilt`; see
-        /// `composeHarmonic`'s velocity site for why this is the dimension that carries it.
+        /// The PERSON's habitual dynamic position, −1 … +1 (#403 Slice 3b). `0` = no
+        /// fingerprint learned yet, and `bassLift(for: 0)` is the pre-#403 constant `0.14` —
+        /// so a never-measured performer renders bit-identically to before this field existed.
+        ///
+        /// Supplied by `PerformerSignature.dynamicTilt`. It sets the take's LOW-END WEIGHT
+        /// (how far the bass is lifted over the pad), not its level — see `composeHarmonic`'s
+        /// velocity site for why the level version was erased by the loudness servo.
+        ///
+        /// ⛔ For one commit this doc said "`StudioCalculator.tilted` returns its input
+        /// unchanged for a zero tilt", which was true of the Slice 3 implementation and stopped
+        /// being true when 3b dropped that call. Naming the mechanism rather than the guarantee
+        /// is what made it rot; the guarantee is stated above and the mechanism is one hop away.
         public var signatureDynamicTilt: Double = 0
 
         public init(
@@ -461,16 +468,36 @@ public enum BioComposer {
     /// not a pump. Tunable; 0 restores the old flat behaviour.
     static let dynamicDepth: Float = 0.6
 
-    /// The window the un-tilted pad velocity can occupy — `0.34 + 0.22 * breathDepth` over
-    /// the whole of `breathDepth`'s 0…1. The performer tilt moves a fraction of the REMAINING
-    /// headroom inside it, so the result cannot leave it for any tilt: the same structural
-    /// bound Slice 2 relies on, not a clamp doing the work afterwards.
+    /// How far the performer fingerprint may move the bass's lift over the pad, either way
+    /// (#403 Slice 3b). The un-tilted lift is `0.14`, so the reachable band is 0.07…0.21.
     ///
-    /// ⚠️ IT IS THE EXPRESSION'S RANGE, NOT THE RANGE THE APP HAPPENS TO FEED. Today
-    /// `makeComposerInput` clamps its `breathDepth` to 0.2…1, so the reachable band is
-    /// narrower — but `Input.breathDepth` is public with a 0…1 contract, and a window derived
-    /// from one caller's clamp would silently stop bounding the moment another caller appeared.
-    static let padVelocityWindow: ClosedRange<Double> = 0.34...0.56
+    /// ⚠️ WHY THIS SIZE, stated as a number so it can be argued with rather than found inline.
+    /// `EchoelDDSP` scales amplitude by `v^0.5` for a pad-like envelope, so at a typical pad
+    /// velocity of ~0.46 the two extremes put the bass at 0.53 and 0.67 — a spread of
+    /// `20·log₁₀(√(0.67/0.53))` ≈ **1.0 dB of bass weight relative to the pad**. Audible as a
+    /// different mix, nowhere near enough to unbalance one. It is a judgement, not a
+    /// measurement, and the device listen is what can overturn it.
+    ///
+    /// ⚠️ AND IT IS SYMMETRIC BY CONSTRUCTION, which the tilted-velocity form was not.
+    /// `StudioCalculator.tilted` moves a fraction of the headroom to the NEAR bound, so when
+    /// the anchor itself moves with the body the two directions get different authority — at
+    /// high coherence the old pad-velocity form was 4:1 lopsided, i.e. the better a performer
+    /// did at the one thing this instrument asks of them, the more one half of their
+    /// fingerprint disappeared. The anchor here is a constant, so plain ± arithmetic is both
+    /// simpler and fairer, and `tilted` would be ceremony.
+    static let bassLiftRange: Double = 0.07
+
+    /// The bass's lift over the pad for this performer. `0.14` when nothing was ever measured,
+    /// which is the value this line carried before #403 — so an unlearned performer renders
+    /// bit-identically.
+    ///
+    /// Higher habitual HRV lifts the bass LESS (see the convention note at the call site), so
+    /// the tilt is subtracted. Clamped at both ends: `dynamicTilt` is already −1…1 by
+    /// construction, and this is the line that would put a bad value into the audio.
+    static func bassLift(for tilt: Double) -> Float {
+        let t = tilt.isFinite ? tilt.clamped(to: -1...1) : 0
+        return Float(0.14 - t * Self.bassLiftRange)
+    }
 
     /// Trap's low end, when the body is aroused, drives a quarter-note root PEDAL (a
     /// moving 808 — the genre's signature) instead of the single held root, so beats 2 & 4
@@ -1990,32 +2017,44 @@ public enum BioComposer {
         if mood.romance > 0.5, !tones.contains(6) { tones.append(6) }
         let octShift = mood.darkness > 0.6 ? -1 : 0
         let sectionLen = max(1, stepCount / prog.count)
-        // ⭐ #403 SLICE 3 — THE PERSON SETS HOW HARD THE TAKE IS PLAYED.
+        // ⭐ #403 SLICE 3b — THE PERSON SETS THE TAKE'S LOW-END WEIGHT, NOT ITS LEVEL.
         //
-        // This is the ONE continuous body-driven quantity in the live composer. An inventory
-        // of every body read in this file (2026-08-05) found the rest gated: density at 0.5 /
-        // 0.6 / 0.62 / 0.68 / 0.7 / 0.82, register at `darkness > 0.6`. A tilt on a gate is
-        // nothing for most performers and a whole-texture jump for the few at the edge; a tilt
-        // here is continuous for everyone, and `bassVelocity` and the pulse level are derived
-        // from `padVelocity`, so ONE number moves the whole dynamic profile coherently.
+        // ⛔ SLICE 3 TILTED `padVelocity` ITSELF AND THAT WAS ERASED DOWNSTREAM BY DESIGN.
+        // The reasoning was sound as far as it went — an inventory of every body read in the
+        // LIVE composer (2026-08-05) found all the others read through a threshold, so the
+        // section velocity really is the one continuous body-driven quantity here. (Say LIVE
+        // and not "in this file": `velBase` in the lead block a few hundred lines down is a
+        // second continuous `breathDepth` expression, and so are the three genre melody
+        // builders — all of them dormant, which is exactly why the qualifier is load-bearing
+        // rather than pedantic.) What the inventory missed is what happens after:
         //
-        // ⚠️ AND IT IS NEEDED BECAUSE `breathDepth` IS NOT THE BREATH. `makeComposerInput`
-        // feeds this field `0.3 + 0.5 * coherence`, not the measured breath — so without the
-        // tilt the dynamics of every take are a function of coherence alone, and coherence is
-        // the input that pulls every performer toward the same take as it rises. Two bodies at
-        // the same coherence played at identical velocities. That is the founder's "die
-        // Kompositionen klingen gleich", in the only dimension that could have differed.
+        //   1. Velocity reaches exactly ONE thing in the synth — `velocityGain`, a pure
+        //      amplitude scale (`EchoelDDSP.spawnVoice`). There is no velocity→filter or
+        //      velocity→spectrum path, so a velocity tilt is nothing but LEVEL.
+        //   2. `AutoMixChain`'s loudness servo is ON by default (`StudioDefaultKeys`
+        //      `loudnessTarget` = `.streaming`, −14 LUFS) and its input meter is the
+        //      PRE-chain tap, upstream of its own `gainNode` (`AudioEngine` says so at the
+        //      tap). That makes it open-loop feed-forward: its fixed point is `target − Lᵢₙ`,
+        //      i.e. it removes a source-level offset ENTIRELY, not partly.
+        //   3. On the shipped default genre (`.selfObservation`, `leadDensity 0`) every
+        //      sounding note derives from `padVelocity`, so the tilt was 100 % common-mode —
+        //      exactly the signal that servo exists to cancel. The worst case was the default.
         //
-        // The window is the range the un-tilted expression can occupy, so `tilted` moves a
-        // fraction of the REMAINING headroom and the result cannot leave it — the same
-        // structural bound Slice 2 relies on, not a clamp. `signatureDynamicTilt` defaults to
-        // 0, and `tilted` returns its input unchanged for a zero tilt, so a never-measured
-        // performer renders bit-identically to before this line existed.
-        let padVelocity = Float(StudioCalculator.tilted(
-            Double(clamp01(0.34 + 0.22 * breathDepth)),
-            within: Self.padVelocityWindow,
-            by: dynamicTilt))
-        let bassVelocity = clamp01(padVelocity + 0.14)
+        // So the level half is the MASTER's job and the app already gives the user a control
+        // for it. What the composer owns, and nothing downstream normalises, is BALANCE.
+        //
+        // `padVelocity` is therefore back to its pre-#403 expression, bit-identical for every
+        // performer. The fingerprint moves the bass's lift OVER the pad instead: the same
+        // section, played by a body that habitually sits low or high on variability, carries
+        // more or less bottom. A loudness servo cannot take that back, because it does not
+        // change how loud the take is — only what it is made of.
+        //
+        // ⚠️ THE DIRECTION IS A CONVENTION, NOT A FINDING. Higher habitual HRV → lighter
+        // bottom (pad-forward, airier); lower → heavier. Nothing measures which way a body
+        // "should" sound; the convention is fixed here so it is at least consistent, and it is
+        // the founder's to reverse.
+        let padVelocity = clamp01(0.34 + 0.22 * breathDepth)
+        let bassVelocity = clamp01(padVelocity + Self.bassLift(for: dynamicTilt))
 
         // Voice-leading state: the average MIDI pitch of the previous pad voicing.
         // Each chord is shifted by whole octaves to sit closest to it — pitch

@@ -256,7 +256,20 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           gelernt wurde** — beide Fälle prüfen jetzt `hrvCount`, bevor sie den Tilt
                           ansehen. Dazu: die eine Hälfte, die ein Wächter hier nicht kann, steht im
                           Dateikopf — dass zwei Handschriften VERSCHIEDEN klingen ist prüfbar, dass ein
-                          Take „nach dir klingt" ist eine Hörprobe),
+                          Take „nach dir klingt" ist eine Hörprobe. ⛔ **Und die Datei wurde Stunden
+                          später für Slice 3b komplett neu geschrieben, weil der DSP-Reviewer den
+                          Mechanismus widerlegt hat, den sie schützte:** Slice 3 kippte die
+                          Sektions-VELOCITY, Velocity erreicht im Synth ausschließlich `velocityGain`
+                          (reine Amplitude, kein Timbre-Pfad), und `AutoMixChain` ist per Default auf
+                          −14 LUFS an und liest einen Meter VOR der eigenen `gainNode` — also
+                          vorwärtsgekoppelt mit Fixpunkt `Ziel − Lᵢₙ`, entfernt einen Pegel-Offset
+                          vollständig. Auf dem ausgelieferten Default-Genre leitet sich JEDE klingende
+                          Note aus `padVelocity` ab, der Kipp war also zu 100 % Gleichtakt — genau das
+                          Signal, das diese Stufe auslöschen soll. **Die Lehre ist allgemein und gehört
+                          nicht zu diesem Parameter: bevor man aus einer Größe eine Handschrift macht,
+                          verfolgt man sie bis zum Lautsprecher.** Pegel gehört dem Master (mit eigenem
+                          Nutzer-Regler), BALANCE gehört dem Composer und wird nirgends normalisiert;
+                          3b kippt deshalb den Bass-Lift über dem Pad),
                           davor „152" nach `TimingVerdictReachesTheScreenTests.swift` (#408 — der erste
                           Wächter in dieser Kette über einer ANZEIGE statt über einem Verhalten, und
                           deshalb der erste, dessen Fehlermodi allesamt EHRLICHKEIT betreffen: ein Fenster

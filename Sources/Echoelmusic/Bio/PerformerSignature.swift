@@ -349,24 +349,38 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
     /// Where this performer sits between the least and the most variable habitual body —
     /// −1 … +1, and exactly `0` until an HRV has been learned. #403 Slice 3.
     ///
-    /// ⭐ WHAT IT IS FOR, AND WHY THIS DIMENSION AND NOT THE OBVIOUS ONES. An inventory of the
-    /// LIVE composer (2026-08-05, `scratchpads/PLAN_SIGNATURE_TILT_REMAINDER.md`) went looking
-    /// for a body-driven quantity that is read as a MAGNITUDE rather than as a threshold, and
-    /// found exactly one: the section velocity. `BioComposer.composeHarmonic` derives
-    /// `padVelocity` continuously, and `bassVelocity` and the pulse level are derived from it,
-    /// so one number sets the dynamic level of every note that sounds. Density, register and
-    /// rhythm all turned out to be gated (`>= 0.5`, `> 0.6`, `> 0.62`, `> 0.68`, `> 0.7`,
-    /// `> 0.82`, `> 0.6` for darkness) — a tilt on any of those is nothing for most performers
-    /// and a whole-texture jump for the few who straddle an edge.
+    /// ⭐ WHAT IT IS FOR. `BioComposer.composeHarmonic` reads it to set how far the bass is
+    /// lifted OVER the pad — the take's low-end weight. Same section, same level, a body that
+    /// habitually sits low or high on variability carries more or less bottom.
     ///
-    /// ⚠️ AND THE REASON IT NEEDS A TILT AT ALL IS THE SAME COLLAPSE `tempoTilt` EXISTS FOR.
-    /// The velocity's own driver is `Input.breathDepth`, which `makeComposerInput` feeds
-    /// `0.3 + 0.5 * coherence` — NOT the measured breath. So the dynamics of every take are a
-    /// function of coherence alone, and coherence is precisely the input that pulls every
-    /// performer toward the same take as it rises (it also scales `calm`, `settle`, `busy` and
-    /// the tempo pull toward 72). Two bodies at the same coherence play at identical
-    /// velocities today. That is the "alles klingt gleich" mechanism in the one dimension that
-    /// is continuous.
+    /// ⛔ IT WAS A LEVEL TILT FOR ONE COMMIT AND THAT VERSION WAS ERASED DOWNSTREAM BY
+    /// DESIGN. The inventory behind it was right that the section VELOCITY is the one
+    /// continuously-read body quantity in the live composer — everything else there is read
+    /// through a THRESHOLD, which sorts performers into two or three buckets rather than
+    /// spreading them out. (An earlier version of this paragraph listed the six gate values
+    /// with their comparison operators; a review found three of the operators wrong. The
+    /// argument did not depend on them, so they are gone rather than re-guessed — read the
+    /// gates in `BioComposer` if you need them, not a copy here.) What that inventory missed
+    /// is what happens after: velocity reaches exactly one thing in the synth — `velocityGain`, a
+    /// pure amplitude scale, with no velocity→timbre path — while `AutoMixChain`'s loudness
+    /// servo is ON by default at −14 LUFS and reads a PRE-chain meter, making it open-loop
+    /// feed-forward with fixed point `target − Lᵢₙ`. It removes a source-level offset
+    /// entirely. On the shipped default genre, where every sounding note derives from the pad
+    /// velocity, the tilt was 100 % common-mode: precisely the signal that stage cancels.
+    ///
+    /// **The general lesson, because it is not about this parameter:** before making a
+    /// fingerprint out of a quantity, follow it to the speaker. A stage whose whole job is to
+    /// normalise something will normalise yours too, and "the number in the composer changed"
+    /// is not the same claim as "the take changed". Level belongs to the master (and the app
+    /// gives the user a control for it); BALANCE belongs to the composer and nothing
+    /// downstream touches it.
+    ///
+    /// ⚠️ THE COLLAPSE IT ANSWERS IS STILL THE ONE `tempoTilt` EXISTS FOR. The composer's
+    /// dynamics driver is `Input.breathDepth`, which `makeComposerInput` feeds
+    /// `0.3 + 0.5 * coherence` — NOT the measured breath. Coherence is precisely the input
+    /// that pulls every performer toward the same take as it rises (it also scales `calm`,
+    /// `settle`, `busy` and the tempo pull toward 72), so without a per-person term the
+    /// weighting of every take is a function of coherence alone.
     ///
     /// ⚠️ WHY HRV AND NOT BREATH, given that the parameter is named for breath. `observing`
     /// only counts a channel it actually receives, and breath is the least reliably delivered
@@ -387,7 +401,13 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
     public var dynamicTilt: Double {
         guard hrvCount > 0 else { return 0 }
         let hrv = Double(hrvNormalized)
-        guard hrv.isFinite else { return 0 }
+        // ⛔ `hrv > 0` WAS MISSING FOR ONE COMMIT, under a comment claiming this mirrors
+        // `tempoTilt` — which guards `bpm > 0` for exactly this reason. The decoder sanitises
+        // the COUNTS, not the values, so a corrupt or hand-edited store carrying
+        // `{hrvCount: 5, hrvNormalized: 0}` produced a maximal NEGATIVE tilt out of a value
+        // the whole repo defines as "not measured" (`BioSampleFrame.hrvNormalized`). A partial
+        // mirror described as a full one is the failure this file's header warns about.
+        guard hrv.isFinite, hrv > 0 else { return 0 }
         let span = PerformerSignature.habitualHRVSpan
         // Same degenerate-window guard as `tempoTilt`, for the same reason: this is PUBLIC and
         // a future consumer may not have `StudioCalculator.tilted` downstream to catch a 0/0.
