@@ -8043,7 +8043,68 @@ struct EchoelStudioView: View {
         let keyText = "\(TuningReference.noteName(forMIDINote: 60 + rootIndex)) \(scale.rawValue)"
         let sinceText: String = sinceLastSeed.map { String(format: "%.1fs", $0) } ?? "first"
         let a4Text = String(format: "%.1f", session.a4Hz)
-        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), key=\(keyText), tuning=\(tuningID), a4=\(a4Text), sinceLast=\(sinceText), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), userMix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead))")
+        // ⭐ #413 — WHAT SET THE NOTE COUNT. Founder device log 2488 shows five automatic
+        // re-seeds of the same session reporting 5 → 25 → 13 → 13 → 13 notes, and this line
+        // could not attribute a single one of them: it prints the COUNT and nothing that
+        // produces it. I spent a whole analysis pass ruling out the obvious suspect by hand
+        // (at the 25-note generate the freshest published frame was ~14 s old against the
+        // camera's 6 s `freshnessWindow`, so no body reached the composer) and still cannot
+        // say what DID move it. That is the #401 situation exactly, one layer over.
+        //
+        // FOUR VALUES, because the count has four independent drivers and naming fewer would
+        // be the same partial answer dressed as an explanation:
+        //   · `genre` — `MusicStyle` carries the `harmonicProfile` (progression length, chord
+        //     tones per chord, `sustainedDrone`, `arpeggiated`) plus `chordArticulation` and the
+        //     bass/pad rhythms, and those are what decide how many notes a bar holds. A genre
+        //     change between two generates moves the count with nothing else changing.
+        //     ⛔ THE FIRST VERSION OF THIS BULLET SAID "`MusicStyle` picks WHICH MELODY FUNCTION
+        //     runs — `trapMelody` 3…6, `ambientMelody` 2…8, `dubMelody` another shape", and it
+        //     is FALSE for every genre that ships. All three of those functions are retired
+        //     (the founder removed the exposed melodies 2026-07-09, "zu laut und zu
+        //     unnatürlich"); `BioComposer.compose`'s switch routes EVERY style, dubTechno and
+        //     trap included, into `composeHarmonic`, and their own doc comments say "unused,
+        //     reversible". Left as a correction rather than a silent rewrite because a reader
+        //     chasing a count anomaly would have opened three dead functions and found numbers
+        //     that never reach a take — CLAUDE.md files that as the expensive kind of stale.
+        //   · `body` — 1 when `makeComposerInput` found a USABLE frame, 0 when it composed
+        //     without one. Deliberately NOT the `bio=` of the visual line: that one asks
+        //     `freshBio(maxAge: 5)`, this one is the composer's own per-source window (camera
+        //     and BLE 6 s, watch/HealthKit 90 s, Oura 600 s). Two different questions that
+        //     have looked like one number in every log so far.
+        //   · `busy` — the autonomic density term, recomputed here from the SAME `input` the
+        //     composer received, so it is equal to the composer's by construction rather than
+        //     by hope. `musicalState` is pure and is the one place that term is defined.
+        //   · `live` (mood liveliness) and `tScale` (the tempo thinning) — the two terms that
+        //     sit BESIDE `busy` inside `composeHarmonic`. Verified paths, since the retired
+        //     melodies are not one of them: liveliness raises the octave-lift and ornament
+        //     PROBABILITIES (so it adds or withholds notes without changing the skeleton),
+        //     `densityScale` coarsens the arp step and the inner pulse gap once the playback
+        //     tempo passes roughly 106 BPM. Both are per-draw, which is why two takes at the
+        //     same `busy` can still differ.
+        //
+        // ⚠️ BUILT AS ITS OWN STATEMENT, not folded into the breadcrumb literal below. That
+        // literal already carried TEN interpolations before this one (count them with
+        // `grep -o '\\(' ` on the line, not from memory — this file has paid for guessed
+        // counts), three of them inline `String(format:)` calls, and #287 (`3379bb3`) turned
+        // the BLOCKING gate red with an expression of exactly this shape — with no local
+        // toolchain that costs a full CI round-trip to find out. The paragraph above the
+        // `keyText` hoist says the same thing; this is that rule applied, not a new one.
+        // ⛔ AND THE FIRST VERSION OF THIS BLOCK BUILT `densityText` AS A FIVE-TERM `+` CHAIN
+        // — the exact shape the paragraph above forbids, written directly under the warning
+        // against it. Each `+` is its own overload-resolution site; interpolation of already
+        // typed `let`s is not. Every value is hoisted and typed first, then ONE literal.
+        let genBusy = BioComposer.musicalState(coherence: input.coherence,
+                                               hrvNormalized: input.hrvNormalized,
+                                               heartRateBPM: Double(input.heartRateBPM)).busy
+        let genScale = BioComposer.tempoDensityScale(bpm: BioComposer.tempo(for: input))
+        let genreID: String = input.style.rawValue
+        let bodyFlag: Int = frame == nil ? 0 : 1
+        let busyText: String = String(format: "%.2f", genBusy)
+        let liveText: String = String(format: "%.2f", input.mood.liveliness)
+        let scaleText: String = String(format: "%.2f", genScale)
+        let densityText: String =
+            "genre=\(genreID), body=\(bodyFlag), busy=\(busyText), live=\(liveText), tScale=\(scaleText)"
+        EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), key=\(keyText), tuning=\(tuningID), a4=\(a4Text), sinceLast=\(sinceText), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), userMix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead)), \(densityText)")
     }
 
     /// Per-lane composition fan-out (Slice A): compose each override-carrying
