@@ -224,12 +224,24 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
     /// ⚠️ THE FIRST ASSERTION IS DELIBERATELY THE "WRONG" ONE, like its `SessionContext` twin: it
     /// pins that a clear alone does NOT cure a muted role. If it ever fails, `MixerStore` has
     /// gained a store observer and `resetToUnity()` may be redundant — check before deleting it.
+    ///
+    /// ⚠️ AND THE EXPECTED VALUES ARE THE LITERAL `1.0`, NOT `MixerStore.defaultLevel` — do not
+    /// "tidy" them into the constant. The `SessionContext` twin reads its constants because there
+    /// the question is "did the reset and the initializer agree"; here the question is whether the
+    /// factory value is still UNITY, and a test written against the constant answers yes no matter
+    /// what the constant becomes.
     @MainActor
     func testMixResetPutsEveryFaderBackToUnity() throws {
         let defaults = try scratchDefaults()
         let mixer = MixerStore(defaults: defaults)
+        // ⚠️ ALL FOUR ARE MOVED OFF UNITY, not just two. The first version touched `bass` and
+        // `lead` only, so no assertion about `pad` or `drums` could fail — including `drums`, the
+        // one the sibling test below exists to protect. A test named "every fader" that exercises
+        // half of them is the #376 trap wearing a plural.
         mixer.bass = 0        // the #399 signature: a whole role silently muted
+        mixer.pad = 0.25
         mixer.lead = 0.4
+        mixer.drums = 0.1     // no door since #166/#167 — unreachable except through this reset
 
         SoundReset.clear(in: defaults)
         XCTAssertEqual(mixer.bass, 0, """
@@ -239,7 +251,12 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
 
         mixer.resetToUnity()
         XCTAssertEqual(mixer.bass, 1.0, "the bass fader did not return to unity")
+        XCTAssertEqual(mixer.pad, 1.0, "the pad fader did not return to unity")
         XCTAssertEqual(mixer.lead, 1.0, "the lead fader did not return to unity")
+        XCTAssertEqual(mixer.drums, 1.0, """
+        the drums level did not return to unity. It has no door left (#166/#167), so this reset \
+        is the ONLY way a player can ever move it — a value stuck here is stuck for good.
+        """)
 
         let relaunched = MixerStore(defaults: defaults)
         XCTAssertEqual(relaunched.bass, mixer.bass, """
@@ -247,7 +264,9 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         persisted store says something else. #399 is exactly this shape — a level that held \
         steady for a whole session and was indistinguishable from a broken engine.
         """)
+        XCTAssertEqual(relaunched.pad, mixer.pad, "a relaunch after a reset would mix differently")
         XCTAssertEqual(relaunched.lead, mixer.lead, "a relaunch after a reset would mix differently")
+        XCTAssertEqual(relaunched.drums, mixer.drums, "a relaunch after a reset would mix differently")
     }
 
     /// The doorless one. `mixer.drums` has had no control since #166/#167 deleted the drums, so a
@@ -260,10 +279,23 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         at 0.00 for an entire session on a shipped build — that is the #400 defect one layer down, \
         and it is why slice 2 exists.
         """)
+        // ⛔ THE LITERAL FIRST, AND THAT ORDER IS THE WHOLE POINT. The set-equality below is true
+        // BY CONSTRUCTION — `SoundReset` writes `keys: MixerStore.storageKeys` — so on its own it
+        // can only catch someone re-typing a subset as literals, which is not the edit this test's
+        // name warns about. The edit it warns about is `drums` being dropped from
+        // `MixerStore.storageKeys` while finishing the dead-drum cleanup (#167 shipped; #268 is
+        // still open on `LaneVoiceKind.drums`). That moves BOTH sides together and would sail past
+        // a set comparison, leaving the one unreachable level surviving a factory reset for good.
+        XCTAssertTrue(Set(userMix?.keys ?? []).contains("mixer.drums"), """
+        "mixer.drums" is no longer cleared by the sound reset.
+
+        Its door was deleted with the drums (#166/#167), so nothing else in the app can show or \
+        change that value. If it was dropped as part of finishing that cleanup, the honest order \
+        is: clear it for everyone FIRST (so no install carries a stale level), then remove the key.
+        """)
         XCTAssertEqual(Set(userMix?.keys ?? []), Set(MixerStore.storageKeys), """
         the reset no longer clears every mixer key. `MixerStore.storageKeys` is the single source; \
-        listing a subset here is how `drums` — the one level with no door left — would quietly \
-        survive a factory reset.
+        listing a subset here is how a level would quietly survive a factory reset.
         """)
     }
 
@@ -318,6 +350,46 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         the reset no longer pushes unity into the live `MixerStore`. Same half-fix as the line \
         above, one layer down: the levels are cached in stored properties, so a muted role stays \
         muted until the next launch and `didSet` re-persists it in the meantime.
+        """)
+    }
+
+    /// ⛔ THE GUARD THAT WAS MISSING, and the defect it now catches shipped for one commit. The
+    /// scan above only asks whether `mixer.resetToUnity()` APPEARS — and the first version of
+    /// slice 2 satisfied that while leaving the felt sub at the old level, because `SubBassVoice`
+    /// has no per-note velocity for the compose-time path to scale and therefore takes its level
+    /// on the AUDIO side. A player with `mixer.bass` persisted at 0.00 (the #399 signature) would
+    /// have tapped Reset, watched every other role return to unity, and still had a silent sub
+    /// until the next relaunch. Found by a reviewer, not by a test — hence this one.
+    ///
+    /// ⚠️ IT IS WINDOWED TO THE FUNCTION, deliberately. A whole-file search would have passed on
+    /// the day the bug existed: `mixBinding` and the Mix panel's own reset each carry an identical
+    /// pair of lines, so the strings were in the file the whole time. That is the exact shape of a
+    /// test that cannot fail for its own name.
+    func testTheResetPushesTheBassLevelIntoTheFeltSub() throws {
+        let lines = try codeLines("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        guard let start = lines.firstIndex(where: { $0.contains("private func resetSoundToDefaults") }) else {
+            return XCTFail("`resetSoundToDefaults` is gone — if the reset moved, move this guard with it.")
+        }
+        let end = lines[start...].firstIndex { $0.contains("reset/sound:") }
+            ?? Swift.min(start + 60, lines.count - 1)
+        let window = lines[start...end].joined(separator: "\n")
+
+        XCTAssertTrue(window.contains("mixer.resetToUnity()"), """
+        `resetSoundToDefaults()` no longer puts the mixer back to unity, so a role muted at 0.00 \
+        survives a factory reset — the #399 defect, untouched by the thing built to fix it.
+        """)
+        XCTAssertTrue(window.contains("subBass.mixLevel = mixer.bass"), """
+        the reset sets the mixer to unity but never pushes the bass level into the felt sub.
+
+        `mixer.resetToUnity()` writes the store DIRECTLY, bypassing `mixBinding`, and \
+        `recomposeIfRunning()` cannot cover the gap: the sub takes its level on the audio side \
+        because it has no per-note velocity to scale. The Mix panel's own reset says this in as \
+        many words — "a new mutator must push both lines below". This is a new mutator.
+        """)
+        XCTAssertTrue(window.contains("laneVoiceRack.setBassMixLevel(mixer.bass)"), """
+        the reset does not push the bass level into the lane rack's subs, which share the Bass \
+        bus. Half a fan-out is the same defect as none: one sub returns to unity, the others \
+        stay where the user left them.
         """)
     }
 

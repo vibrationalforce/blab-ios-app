@@ -45,9 +45,11 @@ public final class MixerStore {
     /// The four storage keys, for `SoundReset` — which has to clear them and must not repeat
     /// the strings at a second site.
     ///
-    /// ⚠️ `nonisolated`, and the enum below sits at FILE SCOPE rather than nested here, for the
-    /// reason `SessionContext` records: a type nested in a `@MainActor` class inherits that
-    /// isolation, and `SoundReset` is a plain nonisolated enum. Same shape, same fix.
+    /// ⚠️ `nonisolated`, and `MixerStorageKey` sits at FILE SCOPE **above this class** rather than
+    /// nested inside it, for the reason `SessionContext` records: a type nested in a `@MainActor`
+    /// class inherits that isolation, and `SoundReset` is a plain nonisolated enum. Same shape,
+    /// same fix. (The first version of this line said "the enum below" — it is above; a direction
+    /// that sends a reader the wrong way costs the same as a wrong name.)
     ///
     /// ⚠️ `drums` IS INCLUDED AND THAT IS DELIBERATE. The drum apparatus was deleted (#166/#167),
     /// so nothing can reach that value any more — which makes it the worst kind of persisted
@@ -69,8 +71,18 @@ public final class MixerStore {
         drums = MixerStore.read(defaults, Keys.drums)
     }
 
+    /// The fresh-install level, named once.
+    ///
+    /// ⚠️ THIS EXISTS BECAUSE `resetToUnity()` BECAME LOAD-BEARING (#400 slice 2). It used to be
+    /// one button among controls a user was looking at; it is now what a factory reset calls, so
+    /// "unity" and "what a fresh install computes" have to be the SAME number by construction and
+    /// not by coincidence. `SessionContext` states the identical rule beside its own three factory
+    /// values — before this, `MixerStore` had `1.0` written in five places, which is precisely the
+    /// shape that doc calls the defect.
+    public nonisolated static let defaultLevel: Float = 1.0
+
     private static func read(_ d: UserDefaults, _ key: String) -> Float {
-        d.object(forKey: key) == nil ? 1.0 : d.float(forKey: key)
+        d.object(forKey: key) == nil ? defaultLevel : d.float(forKey: key)
     }
 
     private func persist(_ key: String, _ value: Float) {
@@ -172,8 +184,21 @@ public final class MixerStore {
     }
 
     /// Reset every fader to unity (the genre's own balance).
+    ///
+    /// ⚠️ TWO CALLERS WITH DIFFERENT STAKES: the Mix panel's own button, and the factory sound
+    /// reset (#400 slice 2). Both must land on the value a fresh install computes, which is why
+    /// this reads `defaultLevel` rather than repeating the literal.
+    ///
+    /// ⛔ IT RE-PERSISTS RATHER THAN LEAVING THE KEYS ABSENT — each `didSet` writes `1.0` back.
+    /// `SoundReset`'s own guard states the opposing principle ("gone means ABSENT, not set to a
+    /// default value"), and the two are reconciled only because `defaultLevel` above is now the
+    /// single source for both paths. Change that constant and a reset install still agrees with a
+    /// fresh one; write a literal here again and it silently stops agreeing the day it moves.
     public func resetToUnity() {
-        bass = 1.0; pad = 1.0; lead = 1.0; drums = 1.0
+        bass = Self.defaultLevel
+        pad = Self.defaultLevel
+        lead = Self.defaultLevel
+        drums = Self.defaultLevel
     }
 
     /// PERSISTENCE tolerance, not the fader's range any more (2026-07-27). The Mix fields

@@ -2520,9 +2520,10 @@ struct EchoelStudioView: View {
                 // Reset writes the store DIRECTLY, so it bypasses `mixBinding` and would
                 // leave the sub at the old level while every other part jumped to unity —
                 // the same "one owner updates, the other doesn't" split that made this
-                // fader inert in the first place. Third of three MUTATORS; `MixerStore.init`
-                // is a fourth writer but is covered by the launch restore in `.onAppear`.
-                // A new mutator must push both lines below.
+                // fader inert in the first place. Third of FOUR mutators — the fourth is
+                // `resetSoundToDefaults()` (#400 slice 2), which pushes the same two lines;
+                // `MixerStore.init` is a fifth writer but is covered by the launch restore in
+                // `.onAppear`. A new mutator must push both lines below.
                 subBass.mixLevel = mixer.bass
                 laneVoiceRack.setBassMixLevel(mixer.bass)
                 setBassFX(.off)
@@ -6466,8 +6467,8 @@ struct EchoelStudioView: View {
             Tap to reset the sound now. Saved patches, takes and projects are kept.
             """ : """
             Puts key, tuning, concert pitch, genre, preset, articulation, the bass and pad \
-            rhythm characters, the Field voice and the mix faders back to factory. Saved \
-            patches, takes and projects are kept. Needs a second tap to confirm.
+            rhythm characters, the Field voice and the generated part levels back to factory. \
+            Saved patches, takes and projects are kept. Needs a second tap to confirm.
             """)
             // …and the ARMING itself must be audible. VoiceOver does not re-announce a label
             // change on a control that already holds focus, so without this the experience is
@@ -6475,7 +6476,12 @@ struct EchoelStudioView: View {
             .accessibilityValue(soundResetArmed ? "Armed" : "")
 
             if soundResetArmed {
-                Text("Key, tuning, genre, preset, the Field voice and the mix faders go back to factory. Your saved patches, takes and projects are kept.")
+                // ⚠️ "generated part levels", NOT "the mix faders" — the Mix board carries four
+                // strips (Bass · Melodic·Pad · Field · Click) and this reset moves only the
+                // generated ones. The panel's own reset button was corrected for exactly this
+                // ("promises four and delivers two"); saying "mix faders" here on a destructive
+                // control would re-open the same overclaim one screen away from its correction.
+                Text("Key, tuning, genre, preset, the Field voice and the generated part levels go back to factory. Your saved patches, takes and projects are kept.")
                     .font(EchoelTheme.font(10))
                     .foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
@@ -6538,10 +6544,24 @@ struct EchoelStudioView: View {
         // levels once in `init` and holds them in stored properties, so clearing the keys leaves
         // the LIVE store still returning 0.00 for a muted role — and its `didSet` would write that
         // stale value straight back on the next unrelated edit. Assigning unity here is idempotent
-        // (each `didSet` re-persists the factory value) and lands BEFORE the `recomposeIfRunning()`
-        // at the end, which is what makes it audible: the level is a compose-time velocity
-        // multiplier, so the running take has to be rebuilt for a fader change to be heard at all.
+        // (each `didSet` re-persists the factory value).
+        //
+        // ⚠️ A MIX LEVEL REACHES THE EAR BY TWO DIFFERENT ROUTES, and the first version of this
+        // comment named only one ("a compose-time velocity multiplier — so the recompose below is
+        // what makes it audible"). That is the belief this repo has already paid to correct once:
+        //  · bass/pad/lead scale NOTE VELOCITIES at compose time, so they need the take re-baked;
+        //  · the FELT SUB has no per-note velocity to scale and takes its level on the AUDIO side
+        //    (`SubBassVoice.mixLevel`), so no amount of recomposing moves it. `mixBinding` and the
+        //    Mix panel's own reset each push the two lines below IN ADDITION to their re-bake, and
+        //    the latter carries the instruction "a new mutator must push both lines below".
+        // This is that new mutator, and the first version of it pushed neither: a player with
+        // `mixer.bass` persisted at 0.00 (the #399 signature) would have tapped "Reset sound",
+        // watched every compose-time role return to unity, and still had a silent sub until the
+        // next relaunch — a factory reset leaving behind exactly the class of state it exists to
+        // clear. Caught in review, not by the guard, which only saw the `resetToUnity()` call.
         mixer.resetToUnity()
+        subBass.mixLevel = mixer.bass
+        laneVoiceRack.setBassMixLevel(mixer.bass)
 
         // ⚠️ READ THE DEFAULT DIRECTLY, not through `style`. This is the identical expression
         // `@AppStorage` declares as `style`'s fresh-install default, so it is the SAME single
@@ -6584,6 +6604,15 @@ struct EchoelStudioView: View {
         // had set a rhythm character got a recompose and a user who had not got none: one tap,
         // two behaviours, decided by unrelated prior state.
         recomposeIfRunning()
+        // ⚠️ AND WHEN STOPPED, THAT CALL DOES NOT RE-BAKE. `recomposeIfRunning()` falls to
+        // `applySoundLive()`, which re-applies the patch and leaves the take's velocities exactly
+        // as they were — so the mix levels this function just reset would stay baked into the take
+        // that plays next and into its MIDI export. `scheduleRebalance()` is the re-bake, and the
+        // Mix panel's own reset calls it for precisely this reason (`scheduleRebalance`'s doc: "A
+        // fader nudged just before Stop must not silently leave the old level baked in").
+        // Deliberately NOT called while running: the branch above already regenerates the take
+        // from scratch, so a re-bake would be re-balancing something that is being replaced.
+        if !running { scheduleRebalance() }
 
         EchoelCrashLog.breadcrumb("reset/sound: musical identity + user mix cleared to factory (#400)")
     }

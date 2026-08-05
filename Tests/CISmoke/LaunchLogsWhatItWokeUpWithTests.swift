@@ -52,12 +52,19 @@ final class LaunchLogsWhatItWokeUpWithTests: XCTestCase {
     /// each label is bound to the value it names. See the header's honest-limits block.
     ///
     /// ⛔ THIS IS NOT "every persisted musical key", and the first version claimed it was. It is a
-    /// deliberate TEN, chosen as the values that (a) survive a relaunch, (b) are applied during the
-    /// launch restore, and (c) change the PITCH or the RHYTHM of every take rather than one voice's
-    /// colour. Knowingly outside: `touch.slideVibrato`/`slideChorus`/`life`, `touch.sync.strength`,
-    /// the `field.autoPlay.*` block, `studio.lockBPM`/`lockedBPM`, `studio.fxCharacter`. A future
-    /// investigation must NOT read their absence as "ruled out" — it means unlogged. Widen the line
-    /// and this list together when one of them becomes a suspect.
+    /// deliberate ELEVEN, chosen as the values that (a) survive a relaunch, (b) are applied during
+    /// the launch restore, and (c) change the PITCH, the RHYTHM or the BALANCE of every take rather
+    /// than one voice's colour. Knowingly outside: `touch.slideVibrato`/`slideChorus`/`life`,
+    /// `touch.sync.strength`, the `field.autoPlay.*` block, `studio.lockBPM`/`lockedBPM`,
+    /// `studio.fxCharacter`. A future investigation must NOT read their absence as "ruled out" —
+    /// it means unlogged. Widen the line and this list together when one of them becomes a suspect.
+    ///
+    /// ⚠️ "OR THE BALANCE" IS #400 SLICE 2's WIDENING, and it is stated rather than smuggled. The
+    /// rubric was pitch-or-rhythm when it held ten; `userMix=` changes neither. It earns its place
+    /// on the same argument, one axis over: #399 found a role level persisted at 0.00 for a whole
+    /// session, which silences that role in EVERY take and is indistinguishable in a log from a
+    /// broken engine. A criterion quietly stretched to fit a new entry is how a list stops meaning
+    /// anything — so the criterion moved in the open, in the same commit as the entry.
     ///
     /// Adding a persisted key that meets (a)+(b)+(c)? Add its label here in the SAME commit.
     private static let requiredLabels = [
@@ -196,7 +203,7 @@ final class LaunchLogsWhatItWokeUpWithTests: XCTestCase {
     // MARK: - What the line must say
 
     /// The payload is the whole value of the line. A breadcrumb that fires on every launch and
-    /// names three of ten persisted keys still leaves seven un-rulable.
+    /// names three of eleven persisted keys still leaves eight un-rulable.
     func testTheLineNamesEveryPersistedMusicalValue() throws {
         let line = try breadcrumbLine()
         for label in Self.requiredLabels {
