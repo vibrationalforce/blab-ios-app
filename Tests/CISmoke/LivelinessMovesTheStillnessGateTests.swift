@@ -160,7 +160,10 @@ final class LivelinessMovesTheStillnessGateTests: XCTestCase {
             let onsets = BioComposer.heartbeatOnsets(secStart: 0, secLen: 16, energy: 0.7,
                                                      syncopation: 0.1, liveliness: bad)
             XCTAssertEqual(onsets.count, reference.count, "non-finite \(bad) must read as neutral")
-            XCTAssertEqual(onsets.map(\.start), reference.map(\.start))
+            // Closure, not `map(\.start)`: these are TUPLES, and Swift has no key paths into
+            // tuple elements. The Xcode gate would have caught it; writing it correctly is
+            // cheaper than a round trip.
+            XCTAssertEqual(onsets.map { $0.start }, reference.map { $0.start })
         }
     }
 
@@ -182,10 +185,11 @@ final class LivelinessMovesTheStillnessGateTests: XCTestCase {
                                                       span: BioComposer.stillnessThresholdSpan)
         let stillGate = BioComposer.densityThreshold(base: 0.5, liveliness: 0.05,
                                                      span: BioComposer.stillnessThresholdSpan)
+        // ONE interpolated literal, not a `+` chain of them: #287 made the blocking gate red
+        // with exactly that shape (too expensive to type-check).
+        let band = "busy=\(state.busy) lively=\(livelyGate) still=\(stillGate)"
         XCTAssertTrue(state.busy > livelyGate && state.busy < stillGate,
-                      "fixture busy=\(state.busy) must sit between the lively gate " +
-                      "(\(livelyGate)) and the still one (\(stillGate)) for this test to mean " +
-                      "anything — re-pick the body, do not relax the assertion")
+                      "fixture must sit between the two gates for this test to mean anything — \(band) — re-pick the body, do not relax the assertion")
 
         let still = BioComposer.compose(Self.input(liveliness: 0.05))
         let lively = BioComposer.compose(Self.input(liveliness: 0.92))
@@ -218,8 +222,7 @@ final class LivelinessMovesTheStillnessGateTests: XCTestCase {
             checked += 1
         }
         XCTAssertGreaterThanOrEqual(checked, 4,
-                                    "expected at least the three chordOnsets sites plus the " +
-                                    "trap-pedal heartbeatActive; found \(checked)")
+                                    "expected at least the three chordOnsets sites plus the trap-pedal heartbeatActive; found \(checked)")
     }
 
     // MARK: - Fixtures
