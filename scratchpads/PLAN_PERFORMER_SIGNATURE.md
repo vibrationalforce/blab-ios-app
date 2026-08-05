@@ -173,7 +173,37 @@ liegen" und „zwei Takes derselben Person müssen NÄHER beieinander liegen als
 verschiedener Personen".
 **Ohne diese Zahl ist jede folgende Scheibe Geschmackssache.** Rein, testbar, kein UI.
 
-### Slice 1 — `PerformerSignature` (Kern + Verdrahtung, keine Fläche)
+### Slice 1 — `PerformerSignature` (Kern + Verdrahtung, keine Fläche) · **GEBAUT 2026-08-05**
+`Sources/Echoelmusic/Bio/PerformerSignature.swift` + `Tests/CISmoke/SignatureIsThePersonNotTheMomentTests.swift`
+(24 Testfunktionen — Zahl per `grep -c "func test"` prüfen, nicht aus dem Kopf). Verdrahtet in
+`EchoelStudioView.makeComposerInput`: Salt-Faltung in `structureSeed`, Lernen nur auf einem
+echten Take.
+
+**Drei Dinge, die beim Bauen anders entschieden wurden als der Plan sie beschrieb, jeweils mit
+Grund — wer aus diesem Plan zitiert, muss sie kennen:**
+
+1. ⛔ **„Sie fällt NICHT in den evolvingSeed" ist im heutigen Code NICHT herstellbar, und das war
+   schon vor #403 so.** `evolvingSeed` wird aus `structureSeed` ABGELEITET
+   (`structureSeed ^ (evolution &* K)`), also erreicht jedes dort gefaltete Salz auch das Detail
+   — der Wetter-Salt tut das seit E3b, und der Quellkommentar daneben behauptete wörtlich das
+   Gegenteil („the detail seed below stays body+evolution"). Beides ist mit diesem Commit
+   richtiggestellt. Die Absicht der Regel bleibt erfüllt: die Evolutions-Nonce bewegt sich bei
+   jedem Take, die Person verschiebt also WO im Raum ihre Takes liegen, sie kollabiert sie
+   nicht auf einen Punkt. Eine echte Trennung wäre eine Umstellung von `evolvingSeed` auf den
+   Seed VOR dem Salz — das änderte auch das Wetterverhalten und gehört nicht in diese Scheibe.
+2. **Der Simulator darf nicht lehren.** `BioSimulator` stempelt `.fallback` und liefert
+   plausible Werte; eine daraus gelernte Handschrift wäre ein synthetischer Mensch, der als der
+   Nutzer ausgegeben wird — genau die Vision-Keeper-Sorge aus Abschnitt 2. Nicht theoretisch:
+   die Founder-Sitzung vom 2026-08-05 lief mit `bio simulation starting`.
+3. **Ein 30-s-Fenster begrenzt das Lernen.** Jeder Bedienschritt komponiert neu; ohne Fenster
+   hätte EINE Sitzung die Handschrift besessen, die über Sitzungen hinweg gelten soll. Und die
+   Ablehnung — ob Fenster oder Simulator — verbraucht das Fenster ausdrücklich NICHT, sonst
+   friert eine unmessbare Quelle das Lernen dauerhaft ein.
+
+⚠️ Was diese Scheibe NICHT belegt: dass es hörbar individuell klingt. Sie entscheidet, auf
+welches Skelett ein Körper öffnet. Für `.selfObservation` bleibt der Hebel klein — siehe 1d.
+
+**Ursprünglicher Plan-Text:**
 Ein persistierter, langsam lernender Fingerabdruck aus dem, was ohnehin gemessen wird:
 Ruhepuls-Lage, HRV-Streuung, typische Atemrate, typische Kohärenz. Aktualisiert per
 laufendem Mittel über Sessions, nicht pro Frame. Faltet in `structureSeed`.

@@ -1,0 +1,289 @@
+// PerformerSignature.swift
+// Echoel — #403 Slice 1. "Zwei User, gleiches Preset, verschiedene Songs."
+//
+// ⭐ WHAT THIS IS. A slowly-learned, on-device fingerprint of the PERSON at the instrument:
+// where their heart rests, how much variability they carry, how they breathe, how coherent
+// they usually are. It folds into the composer's STRUCTURE seed, so the same preset opens on
+// a different harmonic skeleton for a different body — while the DETAIL seed stays the
+// MOMENT, so the same person still gets a fresh take every render.
+//
+// ⚠️ WHAT IT IS NOT, and this matters more than what it is:
+//
+// 1. **It is not a statement about the human being.** It is a musical handwriting. Nothing
+//    here is a health reading, a score, or a diagnosis, and nothing derived from it may ever
+//    be phrased as one (`CLAUDE.md`: bio is a modulation source, never wellness).
+// 2. **It never leaves the device.** It is derived from health data, so there is no cloud
+//    half, no comparison between users, and it is deliberately kept out of the shared App
+//    Group — the Watch has no business reading it.
+// 3. **It is not "more randomness".** An empty signature contributes EXACTLY ZERO: `seedSalt`
+//    returns 0 and the caller's XOR is then a no-op, so a user who has never been measured
+//    renders bit-identically to before this file existed. That is the whole safety story of
+//    this slice, and `PerformerSignatureTests` pins it.
+//
+// ⚠️ HOW FAR SLICE 1's CLAIM GOES. This changes WHICH skeleton a body opens on. On the genre
+// a fresh install opens with (`.selfObservation`: three chords, four sustained chord tones,
+// no lead — the device log of 2026-08-05 shows `5 notes` on all nine takes) the skeleton has
+// very little room to differ, so the audible effect there is small by construction. That is
+// not a defect in this file; it is why `scratchpads/PLAN_PERFORMER_SIGNATURE.md` re-weighted
+// Slice 2 (character offsets) as the slice that actually reaches the contemplative middle of
+// the brand. Do not claim "sounds like you" on the strength of this file alone.
+
+import Foundation
+
+/// The persisted, slowly-learned fingerprint of one performer's body.
+///
+/// Every channel carries its OWN running mean and its OWN count, because sources disagree
+/// about what they can measure: camera rPPG reports heart rate long before it reports HRV,
+/// Apple Watch delivers HRV sporadically, and several sources derive no respiration at all.
+/// A single shared count would let one channel's silence dilute another channel's evidence.
+public struct PerformerSignature: Codable, Equatable, Sendable {
+
+    /// 1 = the shape as of 2026-08-05 (#403 Slice 1). Same stamp shape as `TrackFX`: written
+    /// by the synthesized encoder, never assigned, so a future migration reads it as a local
+    /// inside `init(from:)` rather than trusting this constant.
+    public static let currentSchemaVersion = 1
+
+    public private(set) var schemaVersion: Int = PerformerSignature.currentSchemaVersion
+
+    /// Running mean resting-ish heart rate in BPM, and how many observations built it.
+    public private(set) var heartRateBPM: Float
+    public private(set) var heartRateCount: Int
+
+    /// Running mean of `hrvNormalized` ([0…1]), and its own count.
+    public private(set) var hrvNormalized: Float
+    public private(set) var hrvCount: Int
+
+    /// Running mean coherence ([0…1]), and its own count.
+    public private(set) var coherence: Float
+    public private(set) var coherenceCount: Int
+
+    /// Running mean breathing rate in breaths/min, and its own count.
+    public private(set) var breathRate: Float
+    public private(set) var breathCount: Int
+
+    /// `frame.timestamp` (CFAbsoluteTime at receipt) of the last accepted observation.
+    ///
+    /// Persisted deliberately. The rate limit exists so that ONE long session — where every
+    /// control tap recomposes and would otherwise offer another observation — cannot dominate
+    /// a fingerprint that is supposed to describe a person across sessions. If the stamp were
+    /// held in memory only, ten relaunches in a minute would stack ten observations and
+    /// re-open exactly that hole.
+    public private(set) var lastObservation: TimeInterval
+
+    /// The empty signature: contributes nothing, and is what a fresh install carries.
+    public static let unknown = PerformerSignature()
+
+    public init() {
+        self.heartRateBPM = 0
+        self.heartRateCount = 0
+        self.hrvNormalized = 0
+        self.hrvCount = 0
+        self.coherence = 0
+        self.coherenceCount = 0
+        self.breathRate = 0
+        self.breathCount = 0
+        self.lastObservation = 0
+    }
+
+    /// Defensive decoder (the `decodeIfPresent` law, #163/#189): a signature is derived data
+    /// that can always be re-learned, so a partially-readable payload degrades to whatever
+    /// fields survived rather than throwing the whole fingerprint away.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.schemaVersion = PerformerSignature.currentSchemaVersion
+        self.heartRateBPM = try c.decodeIfPresent(Float.self, forKey: .heartRateBPM) ?? 0
+        self.heartRateCount = try c.decodeIfPresent(Int.self, forKey: .heartRateCount) ?? 0
+        self.hrvNormalized = try c.decodeIfPresent(Float.self, forKey: .hrvNormalized) ?? 0
+        self.hrvCount = try c.decodeIfPresent(Int.self, forKey: .hrvCount) ?? 0
+        self.coherence = try c.decodeIfPresent(Float.self, forKey: .coherence) ?? 0
+        self.coherenceCount = try c.decodeIfPresent(Int.self, forKey: .coherenceCount) ?? 0
+        self.breathRate = try c.decodeIfPresent(Float.self, forKey: .breathRate) ?? 0
+        self.breathCount = try c.decodeIfPresent(Int.self, forKey: .breathCount) ?? 0
+        self.lastObservation = try c.decodeIfPresent(TimeInterval.self,
+                                                     forKey: .lastObservation) ?? 0
+    }
+
+    // MARK: - Learning
+
+    /// How many observations it takes before a channel stops moving quickly. Past this the
+    /// running mean behaves as an exponential average with α = 1/64 — it keeps following a
+    /// body that genuinely changes over months, without letting one unusual afternoon
+    /// redraw the handwriting.
+    public static let saturation = 64
+
+    /// The minimum spacing between two accepted observations, in seconds.
+    ///
+    /// Sized to the composer's own re-seed cadence (~25–30 s) rather than to the ~1 Hz bio
+    /// rate: the thing being throttled is not frames, it is TAKES. Every control tap
+    /// recomposes, and without this a busy ten minutes of tweaking would count as dozens of
+    /// separate pieces of evidence about the person.
+    public static let minimumObservationInterval: TimeInterval = 30
+
+    /// Fold one measured body state into the fingerprint, or return `self` unchanged.
+    ///
+    /// Returns `self` when the frame arrives inside the rate-limit window, and ignores each
+    /// channel the source did not actually measure. **Zero means "not measured" for HRV,
+    /// coherence and breath rate** — that convention is the bus's, not this file's
+    /// (`BioSampleFrame.hrvNormalized` documents it, and `hrvForSound` exists because 0 is an
+    /// EXTREME rather than a neutral value). Averaging an unmeasured 0 in would drag every
+    /// mean toward a body nobody has.
+    public func observing(_ frame: BioSampleFrame) -> PerformerSignature {
+        guard PerformerSignature.mayTeach(frame.source) else { return self }
+        let now = frame.timestamp
+        // `now < lastObservation` = the clock moved backwards (a device time change, a
+        // restored backup). Treat it as elapsed rather than as a window that never ends;
+        // refusing forever would freeze the fingerprint for good.
+        let spaced = now - lastObservation >= PerformerSignature.minimumObservationInterval
+            || now < lastObservation
+        guard now > 0, spaced else { return self }
+
+        var next = self
+        var accepted = false
+        if let hr = PerformerSignature.measured(frame.heartRateBPM, upTo: 300) {
+            next.heartRateBPM = PerformerSignature.blend(next.heartRateBPM,
+                                                         hr, count: next.heartRateCount)
+            next.heartRateCount += 1
+            accepted = true
+        }
+        if let hrv = PerformerSignature.measured(frame.hrvNormalized, upTo: 1) {
+            next.hrvNormalized = PerformerSignature.blend(next.hrvNormalized,
+                                                          hrv, count: next.hrvCount)
+            next.hrvCount += 1
+            accepted = true
+        }
+        if let coh = PerformerSignature.measured(frame.coherence, upTo: 1) {
+            next.coherence = PerformerSignature.blend(next.coherence,
+                                                      coh, count: next.coherenceCount)
+            next.coherenceCount += 1
+            accepted = true
+        }
+        if let br = PerformerSignature.measured(frame.breathRate, upTo: 60) {
+            next.breathRate = PerformerSignature.blend(next.breathRate,
+                                                       br, count: next.breathCount)
+            next.breathCount += 1
+            accepted = true
+        }
+        // A frame that measured NOTHING must not consume the window — otherwise a source
+        // that emits empty frames every few seconds would keep the real body permanently
+        // outside the rate limit and the fingerprint would never learn anything.
+        guard accepted else { return self }
+        next.lastObservation = now
+        return next
+    }
+
+    /// Whether frames from this source may teach a PERSON's fingerprint.
+    ///
+    /// ⚠️ `.fallback` is the SIMULATOR (`BioSimulator` is its only producer), and it emits
+    /// perfectly plausible numbers — a resting rate, a coherence, a breath. Letting them in
+    /// would build a handwriting out of a synthetic body and then present it as "this is how
+    /// you sound", which is the one failure the plan's Vision-Keeper seat named outright:
+    /// randomness is not a body. It matters in practice and not only in principle — the
+    /// founder's own 2026-08-05 device session ran with `bio simulation starting`.
+    ///
+    /// This is a policy of THIS file (what may teach an identity), deliberately not a general
+    /// property of `BioSource` — every other consumer is right to treat a simulated frame as
+    /// a frame. A simulated session still plays, still sounds bio-reactive, and still
+    /// composes; it just does not get to decide who the performer is.
+    private static func mayTeach(_ source: BioSource) -> Bool {
+        switch source {
+        case .fallback: return false
+        case .healthKit, .oura, .ble, .watch, .cameraPPG, .faceCam: return true
+        }
+    }
+
+    /// A value counts as a MEASUREMENT only when it is finite and above zero — the same
+    /// `> 0` rule the composer applies to heart rate and coherence (`measured(_:)` in
+    /// `EchoelStudioView`), for the same reason: zero is the sentinel the sources emit.
+    private static func measured(_ v: Float, upTo hi: Float) -> Float? {
+        guard v.isFinite, v > 0 else { return nil }
+        return Swift.min(v, hi)
+    }
+
+    /// Running mean with a saturating weight: 1/(n+1) until `saturation`, then a constant
+    /// 1/`saturation`.
+    private static func blend(_ mean: Float, _ sample: Float, count: Int) -> Float {
+        let n = Swift.max(0, Swift.min(count, PerformerSignature.saturation - 1))
+        let weight = 1 / Float(n + 1)
+        return mean + (sample - mean) * weight
+    }
+
+    // MARK: - The seam
+
+    /// `true` once ANY channel has been measured at least once.
+    ///
+    /// This is the honest answer to "does this install know a body?", and Slice 3 is the
+    /// slice that is allowed to SAY it in the UI. Until then it exists so callers can tell
+    /// "no signature" from "a signature that happens to be near zero".
+    public var hasBody: Bool {
+        heartRateCount > 0 || hrvCount > 0 || coherenceCount > 0 || breathCount > 0
+    }
+
+    /// The value the composer XORs into its STRUCTURE seed — `0` when nothing was ever
+    /// measured, which makes the caller's fold a no-op.
+    ///
+    /// ⚠️ THE QUANTISATION IS THE POINT, and it is the one thing here that must not be
+    /// "improved" into finer resolution. `EchoelStudioView.bioSeed` folds the LIVE body at up
+    /// to five decimal places, because it wants a different number every time the body moves
+    /// — that is the MOMENT. This function wants the opposite: a number that stays the same
+    /// across sessions while the running means drift by fractions. So heart rate lands in
+    /// whole BPM, HRV in 0.02 steps, coherence in 0.05 steps, breathing in half a breath per
+    /// minute. Two takes an hour apart keep the same skeleton; two different people do not.
+    ///
+    /// A channel that was never measured contributes NOTHING rather than a zero bucket —
+    /// otherwise "no HRV source" and "HRV that averages near zero" would be the same person.
+    public var seedSalt: UInt64 {
+        guard hasBody else { return 0 }
+        var s: UInt64 = 0x243F6A8885A308D3
+        func fold(_ bucket: UInt64, _ odd: UInt64) {
+            s = (s ^ bucket) &* odd
+        }
+        if heartRateCount > 0 {
+            fold(PerformerSignature.bucket(heartRateBPM, step: 1, upTo: 300),
+                 0xC2B2AE3D27D4EB4F)
+        }
+        if hrvCount > 0 {
+            fold(PerformerSignature.bucket(hrvNormalized, step: 0.02, upTo: 1),
+                 0x165667B19E3779F9)
+        }
+        if coherenceCount > 0 {
+            fold(PerformerSignature.bucket(coherence, step: 0.05, upTo: 1),
+                 0x27D4EB2F165667C5)
+        }
+        if breathCount > 0 {
+            fold(PerformerSignature.bucket(breathRate, step: 0.5, upTo: 60),
+                 0x9E3779B97F4A7C15)
+        }
+        // 0 is the caller's "no signature" sentinel, so a real fingerprint may never produce
+        // it — the same guard `bioSeed` ends with, for the same reason.
+        return s == 0 ? 1 : s
+    }
+
+    /// Quantise into a bucket index. Non-finite and negative values fold to 0 rather than
+    /// trapping: `UInt64(Float.nan)` is a crash, and every bio channel can legitimately
+    /// carry NaN from a dropped rPPG lock.
+    private static func bucket(_ v: Float, step: Float, upTo hi: Float) -> UInt64 {
+        guard v.isFinite, v > 0, step > 0 else { return 0 }
+        let clamped = Swift.min(v, hi)
+        return UInt64((clamped / step).rounded())
+    }
+
+    // MARK: - Persistence (on-device only)
+
+    /// The defaults key. Deliberately in the app's OWN suite, never the App Group.
+    public static let storageKey = "bio.performerSignature"
+
+    /// Read the stored fingerprint, or `.unknown` when there is none or it cannot be read.
+    public static func load(from defaults: UserDefaults) -> PerformerSignature {
+        guard let data = defaults.data(forKey: storageKey),
+              let decoded = try? JSONDecoder().decode(PerformerSignature.self, from: data)
+        else { return .unknown }
+        return decoded
+    }
+
+    /// Persist. Silent on failure by design — a fingerprint that cannot be written is a lost
+    /// nuance, not a reason to interrupt a performance.
+    public func save(to defaults: UserDefaults) {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        defaults.set(data, forKey: PerformerSignature.storageKey)
+    }
+}

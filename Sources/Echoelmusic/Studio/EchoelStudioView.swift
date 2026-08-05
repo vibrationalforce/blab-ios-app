@@ -515,6 +515,12 @@ struct EchoelStudioView: View {
     /// The no-body structure seed for THIS take — drawn once per Start, stable until the
     /// next take. Keeps the piece coherent through the pre-lock warm-up (see bioSeed).
     @State private var takeFallbackSeed: UInt64 = 1
+    /// #403 Slice 1 — the slowly-learned fingerprint of THIS performer, folded into the
+    /// STRUCTURE seed so the same preset opens on a different skeleton for a different body.
+    /// Loaded once at view construction and written back only when a take actually taught it
+    /// something (see `makeComposerInput`). `.unknown` ⇒ `seedSalt == 0` ⇒ bit-identical to
+    /// before the signature existed.
+    @State private var performerSignature = PerformerSignature.load(from: .standard)
     /// The body state (HR·coherence) captured at the last take — the baseline the evolve
     /// HOLD compares against (founder 2026-07-04 "halten wenn eingerastet"): a settled,
     /// unchanged body holds its phrase instead of re-rolling every ~30 s. nil = the last
@@ -7337,8 +7343,53 @@ struct EchoelStudioView: View {
         // shifts, the structure evolves with it; with no signal both are random.
         // An explicit override (maze replay) pins the skeleton to the audition's.
         var structureSeed = structureSeedOverride ?? bioSeed(frame)
-        // E3b: the sky flavours the SKELETON only (structure seed) — the detail
-        // seed below stays body+evolution, so weather never outweighs the body.
+        // #403 Slice 1 — the PERSON flavours the SKELETON, the MOMENT flavours the detail.
+        // `bioSeed` above is the body RIGHT NOW (fine-quantised, deliberately different every
+        // time the body moves); this salt is the slowly-learned fingerprint of the performer,
+        // coarse enough to stay the same across sessions. Folded ONCE, here.
+        //
+        // ⚠️ AND IT REACHES THE DETAIL SEED TOO — stated plainly rather than claiming a
+        // separation this code does not have. `evolvingSeed` three statements below is
+        // DERIVED from `structureSeed`, so every salt folded here displaces the detail seed
+        // as well (the weather salt always has; see the corrected E3b note). What the plan's
+        // "not in the detail seed" rule actually guards against — one person always getting
+        // the same piece — cannot happen either way: the evolution nonce moves on every take,
+        // so the fingerprint shifts WHERE in the space a person's takes live and never
+        // collapses them onto one point.
+        //
+        // Read BEFORE the observation further down, so a take is coloured by the fingerprint
+        // as it stood when the user pressed the button. Skipped on an explicit override: the
+        // maze audition already resolved its skeleton, and re-salting it would replay
+        // something the user never heard.
+        //
+        // Empty signature ⇒ salt 0 ⇒ XOR is a no-op ⇒ bit-identical to before #403.
+        if structureSeedOverride == nil {
+            let salt = performerSignature.seedSalt
+            if salt != 0 { structureSeed ^= salt }
+        }
+        // …and this is the learning half, deliberately AFTER the read above. Only a real take
+        // teaches (`advanceEvolution`), so a maze audition reads the body without writing to
+        // the person, and `PerformerSignature` itself refuses anything inside its 30 s window
+        // — a control tap that recomposes must not count as another piece of evidence about
+        // who is playing. Writing back only on a real change keeps a settled body from
+        // touching the defaults on every generate.
+        if advanceEvolution, let f = frame {
+            let taught = performerSignature.observing(f)
+            if taught != performerSignature {
+                performerSignature = taught
+                taught.save(to: .standard)
+            }
+        }
+        // E3b: the sky flavours the SKELETON — its salt is folded into the structure seed and
+        // is never applied to the detail seed on its own.
+        // ⛔ AND THAT IS AS FAR AS THE CLAIM GOES. This comment used to continue "— the detail
+        // seed below stays body+evolution, so weather never outweighs the body", and the very
+        // next statement falsifies the first half: `evolvingSeed` is DERIVED from
+        // `structureSeed`, so whatever is folded here displaces the detail seed too. The
+        // "never outweighs" half survives (the body seed is the base and the evolution nonce
+        // keeps moving); "never reaches it" was a different, untrue statement. Found while
+        // folding the #403 performer salt in above, which lands in exactly the same place —
+        // a wrong rationale next to a correct decision is the more expensive of the two.
         // P5: the salt is now one mixable influence — applied only while the
         // "Structure" weather mixer is up (0 = off = bit-identical). Skipped when the
         // skeleton is an explicit override (the audition already resolved it).
