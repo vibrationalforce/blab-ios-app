@@ -7599,7 +7599,12 @@ struct EchoelStudioView: View {
             // #253 A3: nil (the stored default "") = the genre's own bass rhythm, byte-identical.
             // An unrecognised stored value also reads as nil, for the reason the key states.
             bassRhythm: RoleRhythm.Character(rawValue: bassRhythmRaw),
-            padRhythm: RoleRhythm.Character(rawValue: padRhythmRaw)
+            padRhythm: RoleRhythm.Character(rawValue: padRhythmRaw),
+            // #403 Slice 3 — the PERSON sets how hard the take is played. A fold inside the
+            // builder that already exists, not a new surface: `performerSignature` is the same
+            // `@State` the seed salt and the pace tilt read, and `dynamicTilt` is exactly 0
+            // until an HRV has been learned, so this argument is a no-op on a fresh install.
+            signatureDynamicTilt: performerSignature.dynamicTilt
         )
         return (input, frame, evolvingSeed, structureSeed, basePhase)
     }

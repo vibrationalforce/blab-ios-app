@@ -237,6 +237,13 @@ public enum BioComposer {
         /// separate decision (it is the layer that keeps a take moving) and deliberately not made here.
         public var padRhythm: RoleRhythm.Character?
 
+        /// The PERSON's habitual dynamic position, −1 … +1 (#403 Slice 3). `0` = no
+        /// fingerprint learned yet, and `StudioCalculator.tilted` returns its input unchanged
+        /// for a zero tilt — so a never-measured performer renders bit-identically to before
+        /// this field existed. Supplied by `PerformerSignature.dynamicTilt`; see
+        /// `composeHarmonic`'s velocity site for why this is the dimension that carries it.
+        public var signatureDynamicTilt: Double = 0
+
         public init(
             heartRateBPM: Float = 70,
             hrvNormalized: Float = 0.5,
@@ -255,7 +262,8 @@ public enum BioComposer {
             humanize: Bool = false,
             suggestJourney: Bool = false,
             bassRhythm: RoleRhythm.Character? = nil,
-            padRhythm: RoleRhythm.Character? = nil
+            padRhythm: RoleRhythm.Character? = nil,
+            signatureDynamicTilt: Double = 0
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -275,6 +283,7 @@ public enum BioComposer {
             self.suggestJourney = suggestJourney
             self.bassRhythm = bassRhythm
             self.padRhythm = padRhythm
+            self.signatureDynamicTilt = signatureDynamicTilt
         }
     }
 
@@ -451,6 +460,17 @@ public enum BioComposer {
     /// this gives the loop real phrasing so it breathes. Kept musical (peak-to-peak ~±30%),
     /// not a pump. Tunable; 0 restores the old flat behaviour.
     static let dynamicDepth: Float = 0.6
+
+    /// The window the un-tilted pad velocity can occupy — `0.34 + 0.22 * breathDepth` over
+    /// the whole of `breathDepth`'s 0…1. The performer tilt moves a fraction of the REMAINING
+    /// headroom inside it, so the result cannot leave it for any tilt: the same structural
+    /// bound Slice 2 relies on, not a clamp doing the work afterwards.
+    ///
+    /// ⚠️ IT IS THE EXPRESSION'S RANGE, NOT THE RANGE THE APP HAPPENS TO FEED. Today
+    /// `makeComposerInput` clamps its `breathDepth` to 0.2…1, so the reachable band is
+    /// narrower — but `Input.breathDepth` is public with a 0…1 contract, and a window derived
+    /// from one caller's clamp would silently stop bounding the moment another caller appeared.
+    static let padVelocityWindow: ClosedRange<Double> = 0.34...0.56
 
     /// Trap's low end, when the body is aroused, drives a quarter-note root PEDAL (a
     /// moving 808 — the genre's signature) instead of the single held root, so beats 2 & 4
@@ -699,6 +719,7 @@ public enum BioComposer {
                                     breathPhase: input.breathPhase,
                                     breathDepth: input.breathDepth, mood: effMood,
                                     progressionPhase: input.progressionPhase,
+                                    dynamicTilt: input.signatureDynamicTilt,
                                     densityScale: densityScale,
                                     quarterAnchor: input.style == .trap,
                                     articulation: input.style.chordArticulation,
@@ -731,6 +752,7 @@ public enum BioComposer {
                                     breathPhase: input.breathPhase,
                                     breathDepth: input.breathDepth, mood: effMood,
                                     progressionPhase: input.progressionPhase,
+                                    dynamicTilt: input.signatureDynamicTilt,
                                     densityScale: densityScale,
                                     articulation: input.style.chordArticulation,
                                     voiceLead: voiceLead,
@@ -1825,6 +1847,7 @@ public enum BioComposer {
                                         calm: Float, busy: Float,
                                         breathPhase: Float, breathDepth: Float,
                                         mood: MoodProfile, progressionPhase: Int,
+                                        dynamicTilt: Double = 0,
                                         densityScale: Float = 1,
                                         quarterAnchor: Bool = false,
                                         articulation: MusicStyle.ChordArticulation = .sustained,
@@ -1967,7 +1990,31 @@ public enum BioComposer {
         if mood.romance > 0.5, !tones.contains(6) { tones.append(6) }
         let octShift = mood.darkness > 0.6 ? -1 : 0
         let sectionLen = max(1, stepCount / prog.count)
-        let padVelocity = clamp01(0.34 + 0.22 * breathDepth)
+        // ⭐ #403 SLICE 3 — THE PERSON SETS HOW HARD THE TAKE IS PLAYED.
+        //
+        // This is the ONE continuous body-driven quantity in the live composer. An inventory
+        // of every body read in this file (2026-08-05) found the rest gated: density at 0.5 /
+        // 0.6 / 0.62 / 0.68 / 0.7 / 0.82, register at `darkness > 0.6`. A tilt on a gate is
+        // nothing for most performers and a whole-texture jump for the few at the edge; a tilt
+        // here is continuous for everyone, and `bassVelocity` and the pulse level are derived
+        // from `padVelocity`, so ONE number moves the whole dynamic profile coherently.
+        //
+        // ⚠️ AND IT IS NEEDED BECAUSE `breathDepth` IS NOT THE BREATH. `makeComposerInput`
+        // feeds this field `0.3 + 0.5 * coherence`, not the measured breath — so without the
+        // tilt the dynamics of every take are a function of coherence alone, and coherence is
+        // the input that pulls every performer toward the same take as it rises. Two bodies at
+        // the same coherence played at identical velocities. That is the founder's "die
+        // Kompositionen klingen gleich", in the only dimension that could have differed.
+        //
+        // The window is the range the un-tilted expression can occupy, so `tilted` moves a
+        // fraction of the REMAINING headroom and the result cannot leave it — the same
+        // structural bound Slice 2 relies on, not a clamp. `signatureDynamicTilt` defaults to
+        // 0, and `tilted` returns its input unchanged for a zero tilt, so a never-measured
+        // performer renders bit-identically to before this line existed.
+        let padVelocity = Float(StudioCalculator.tilted(
+            Double(clamp01(0.34 + 0.22 * breathDepth)),
+            within: Self.padVelocityWindow,
+            by: dynamicTilt))
         let bassVelocity = clamp01(padVelocity + 0.14)
 
         // Voice-leading state: the average MIDI pitch of the previous pad voicing.

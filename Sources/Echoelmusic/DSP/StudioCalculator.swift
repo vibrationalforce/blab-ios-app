@@ -215,6 +215,14 @@ public struct StudioCalculator: Sendable, Equatable {
 
     /// Nudge a genre-folded tempo toward one end of its window, without ever leaving it.
     ///
+    /// ⚠️ THE PARAMETER IS CALLED `bpm` AND THE WHOLE DOC BELOW IS ABOUT TEMPO, but the
+    /// arithmetic is dimensionless and Slice 3 added a SECOND caller in a different unit:
+    /// `BioComposer.composeHarmonic` tilts its pad VELOCITY (0…1) within
+    /// `BioComposer.padVelocityWindow`. Nothing here needs changing for that — the guards,
+    /// the in-range promise and the zero-tilt no-op are all unit-free — but a reader must not
+    /// take `bpm` as a contract, and anyone tightening a guard around a tempo assumption has
+    /// two callers to satisfy, not one.
+    ///
     /// ⭐ WHY THIS EXISTS, AND WHY IT IS NOT A SECOND COPY OF THE BODY→TEMPO MAPPING (#403
     /// Slice 2). Three reasons, strongest first — and note the ORDER, because the first two
     /// versions of this paragraph led with the weakest one and measured it on a flattering

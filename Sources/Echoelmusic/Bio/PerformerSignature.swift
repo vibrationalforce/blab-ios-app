@@ -346,9 +346,68 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
         return position * ramp
     }
 
+    /// Where this performer sits between the least and the most variable habitual body —
+    /// −1 … +1, and exactly `0` until an HRV has been learned. #403 Slice 3.
+    ///
+    /// ⭐ WHAT IT IS FOR, AND WHY THIS DIMENSION AND NOT THE OBVIOUS ONES. An inventory of the
+    /// LIVE composer (2026-08-05, `scratchpads/PLAN_SIGNATURE_TILT_REMAINDER.md`) went looking
+    /// for a body-driven quantity that is read as a MAGNITUDE rather than as a threshold, and
+    /// found exactly one: the section velocity. `BioComposer.composeHarmonic` derives
+    /// `padVelocity` continuously, and `bassVelocity` and the pulse level are derived from it,
+    /// so one number sets the dynamic level of every note that sounds. Density, register and
+    /// rhythm all turned out to be gated (`>= 0.5`, `> 0.6`, `> 0.62`, `> 0.68`, `> 0.7`,
+    /// `> 0.82`, `> 0.6` for darkness) — a tilt on any of those is nothing for most performers
+    /// and a whole-texture jump for the few who straddle an edge.
+    ///
+    /// ⚠️ AND THE REASON IT NEEDS A TILT AT ALL IS THE SAME COLLAPSE `tempoTilt` EXISTS FOR.
+    /// The velocity's own driver is `Input.breathDepth`, which `makeComposerInput` feeds
+    /// `0.3 + 0.5 * coherence` — NOT the measured breath. So the dynamics of every take are a
+    /// function of coherence alone, and coherence is precisely the input that pulls every
+    /// performer toward the same take as it rises (it also scales `calm`, `settle`, `busy` and
+    /// the tempo pull toward 72). Two bodies at the same coherence play at identical
+    /// velocities today. That is the "alles klingt gleich" mechanism in the one dimension that
+    /// is continuous.
+    ///
+    /// ⚠️ WHY HRV AND NOT BREATH, given that the parameter is named for breath. `observing`
+    /// only counts a channel it actually receives, and breath is the least reliably delivered
+    /// of the four (see #343 on the respiration estimator). HRV is supplied by camera rPPG,
+    /// HealthKit and the BLE strap alike, so this tilt reaches a real user. The musical
+    /// framing is a handwriting and nothing more: how variable a body habitually is, mapped to
+    /// how strongly the take is played. It is NOT a statement about the person — the file
+    /// header's law — and no copy may phrase it as one.
+    ///
+    /// ⚠️ ITS SPAN IS ITS OWN, and stated rather than borrowed. `hrvNormalized` is already
+    /// 0…1, so unlike `tempoTilt` there is no unit conversion — but the useful part of that
+    /// range is not the whole of it. `habitualHRVSpan` is 0.2…0.7: below 0.2 and above 0.7 a
+    /// performer saturates, which is the same honest behaviour `habitualSpan` chose for the
+    /// heart (a position among people, not a clinical number).
+    ///
+    /// Ramps in over `confidentAfter` for the same reason `tempoTilt` does, and returns
+    /// exactly 0 at `hrvCount == 0` so a never-measured user renders bit-identically.
+    public var dynamicTilt: Double {
+        guard hrvCount > 0 else { return 0 }
+        let hrv = Double(hrvNormalized)
+        guard hrv.isFinite else { return 0 }
+        let span = PerformerSignature.habitualHRVSpan
+        // Same degenerate-window guard as `tempoTilt`, for the same reason: this is PUBLIC and
+        // a future consumer may not have `StudioCalculator.tilted` downstream to catch a 0/0.
+        guard span.upperBound > span.lowerBound else { return 0 }
+        let unit = (hrv - span.lowerBound) / (span.upperBound - span.lowerBound)
+        let position = unit.clamped(to: 0...1) * 2 - 1
+        let ramp = Double(Swift.min(hrvCount, PerformerSignature.confidentAfter))
+            / Double(PerformerSignature.confidentAfter)
+        return position * ramp
+    }
+
     /// The habitual-heart-rate span `tempoTilt` opens across — see its doc for why the name
     /// says "habitual" and not "resting".
     public static let habitualSpan: ClosedRange<Double> = 50...90
+
+    /// The habitual-HRV span `dynamicTilt` opens across. Narrower than the full 0…1 on
+    /// purpose: `hrvNormalized` is a normalised index, and both tails are sparsely populated,
+    /// so opening the tilt across the whole range would leave almost every real performer
+    /// bunched near the middle with no audible difference between them.
+    public static let habitualHRVSpan: ClosedRange<Double> = 0.2...0.7
 
     /// How many accepted heart-rate observations before `tempoTilt` reaches its full
     /// magnitude. Eight is roughly four minutes of playing at the 30 s rate limit — long
