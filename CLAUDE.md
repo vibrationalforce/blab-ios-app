@@ -242,8 +242,29 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**156** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-05 nach `LivelinessReachesTheDensityDecisionTests.swift` (#418 — der
+                          `Tests/CISmoke` (**157** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-05 nach `SmoothingStepsTheFrameGapNotThePollRateTests.swift` (#336 — der
+                          erste Wächter in dieser Kette über einem Pfad, den HEUTE NIEMAND ERREICHT, und der
+                          das im eigenen Kopf als erstes aufschreibt: `ModRoute.smoothingTau` hat den Default
+                          0, die ausgelieferte Matrix ist leer, und in `Sources/` gibt es keinen Schreiber —
+                          die Glättung, deren Schrittweite hier korrigiert wird, läuft in keinem heutigen
+                          Take. Er entsteht trotzdem, weil #136 `ModRoute` eine Oberfläche geben wird und
+                          JEDER dort eingestellte Slew sonst zehnfach zu langsam gewesen wäre: der alte Code
+                          reichte eine KONSTANTE `tickSeconds = 0.1` an `BioNormalizer.alpha` weiter, während
+                          die Frames mit ~1 Hz ankommen (dieselbe Poll-vs-Anwendungsrate-Verwechslung, die
+                          in CLAUDE.md schon #315/#332/#336 erzeugt hat — dies ist die dritte Stelle). Seine
+                          lehrreichste Hälfte ist nicht der Normalfall, sondern die drei Ränder: der ERSTE
+                          Frame hat keinen Vorgänger und muss auf die nominale Periode fallen statt auf 0
+                          (ein `dt` von 0 gibt `alpha` = 0 und friert die Route für immer ein), ein
+                          rückwärts laufender oder doppelter Stempel darf kein nicht-positives `dt` geben,
+                          und eine echte Lücke (App im Hintergrund) wird bei 5 s GEDECKELT statt befolgt —
+                          sonst springt der erste Frame nach dem Aufwachen auf den Rohwert und macht aus der
+                          Glättung einen Sprung. Dazu ein Quelltext-Scan, der der BINDUNG folgt statt der
+                          Zeile (#413-Falle) und verlangt, dass keine Konstante mehr an `alpha` geht.
+                          ⚠️ Was er NICHT kann: hörbar belegen, dass die Slew-Zeit jetzt stimmt — dafür
+                          braucht es die #136-Oberfläche und ein Ohr. Er misst die ARITHMETIK, nicht den
+                          Klang, und sagt das in beiden Dateien),
+                          davor „156" nach `LivelinessReachesTheDensityDecisionTests.swift` (#418 — der
                           erste Wächter in dieser Kette über einem Regler, der NICHTS TAT: drei Schreiber
                           (Mood-Knopf, Mood-Pad-Zug, `WeatherMood.blend`), null erreichbare Leser, und
                           fünfzehn ausgelieferte Mood-Presets mit Werten von 0,05 bis 0,92, die sich alle
@@ -643,7 +664,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTFÜNFZEHN FRÜHERE Stände in acht Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-05-Stand sind es acht, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 156 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSECHZEHN FRÜHERE Stände in acht Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-05-Stand sind es acht, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 157 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

@@ -90,10 +90,74 @@ public final class ModulationEngine {
     @ObservationIgnored
     private var routeSmoothing: [UUID: Float] = [:]
 
-    /// Control-plane tick spacing in seconds (matches the 100 ms polling loop).
-    /// Used as `dt` for the smoothing time constant.
+    /// Timestamp of the frame the smoothing state was last advanced with. Separate from
+    /// `lastFrameTimestamp` on purpose: that one belongs to `tick`'s dedup and is not set
+    /// when `apply(_:)` is called directly (tests, and any future caller), so reusing it
+    /// would make `dt` depend on WHICH door the frame came through.
     @ObservationIgnored
-    private static let tickSeconds: Float = 0.1
+    private var lastSmoothedFrameTimestamp: TimeInterval = -1
+
+    /// ⛔ #336 — WHAT USED TO BE HERE WAS A CONSTANT `tickSeconds: Float = 0.1`, described as
+    /// "matches the 100 ms polling loop" and handed to `BioNormalizer.alpha` as `dt`. The poll
+    /// IS 100 ms; the SMOOTHING is not advanced by the poll. `tick` returns early unless
+    /// `frame.timestamp` changed, and every wired publisher sends at ~1 Hz (CLAUDE.md pins this,
+    /// `BioApplyRateIsTheDedupedRateTests` guards it). So one `alpha` step covered ~1 s of wall
+    /// clock while claiming 0.1 s — a route asking for a 2 s slew took about 20 s. Same family as
+    /// #315 (60 Hz assumed, ~1 Hz delivered) and #332, and the third time this repo has paid for
+    /// a rate ASSUMED instead of measured.
+    ///
+    /// ⭐ THE FIX IS #337'S SHAPE AT ONE SITE: measure `dt` from the two frames themselves.
+    /// `BioSampleFrame.timestamp` already carries it, so this needs no clock, stays pure, and is
+    /// deterministic in a test — a `Date()` here would have been untestable AND would have made
+    /// the smoothing depend on how long the main actor was busy.
+    ///
+    /// ⚠️ HONEST SCOPE, because it decides how much this slice may claim: **no shipped route is
+    /// smoothed today.** `ModRoute.smoothingTau` defaults to 0, the default matrix is empty, and
+    /// `git grep smoothingTau -- Sources` finds no writer outside the model and this file. So the
+    /// branch below is unreachable in the shipped app and this change is audibly a no-op. It is
+    /// worth doing anyway for one reason: #136 exists to give `ModRoute` a UI, and the day that
+    /// lands, every slew a user dials would have been ten times too slow with nothing on screen
+    /// to explain it.
+    ///
+    /// The nominal period used when there is no previous frame to measure against. 1 s, not the
+    /// old 0.1 s, because that is the rate every wired publisher actually sends at. Only reached
+    /// on the first applied frame after `start`/`stop`, where the smoothing seeds at the raw
+    /// value anyway (`prev = raw` ⇒ the result is `raw` for any alpha) — so it is a floor against
+    /// nonsense, not a behavioural knob.
+    @ObservationIgnored
+    static let nominalFramePeriod: Float = 1.0
+
+    /// Ceiling on a measured gap. Beyond this the previous smoothed value is not a neighbour to
+    /// slew from, it is history: the longest normal publisher cadence is ~1 s (camera · BLE ·
+    /// simulator) and HealthKit's sensor is 4–5 s, so any larger gap means the link was down.
+    /// Capping makes `alpha` land near 1 (i.e. essentially snap to the new reading) instead of
+    /// letting an unbounded number decide.
+    ///
+    /// ⛔ THE CAP IS NOT BELT-AND-BRACES, and #398 is why it is written down. `timestamp` is
+    /// wall-clock derived; `Date()` does not advance monotonically, so an NTP or timezone step
+    /// makes a FINITE, enormous gap reachable — the exact species of input that stalled the
+    /// evolve loop for an hour there. The sanitiser below therefore bounds the finite case too,
+    /// not only NaN/±inf.
+    @ObservationIgnored
+    static let maxSmoothingGap: Float = 5.0
+
+    /// Seconds between two APPLIED bio frames, sanitised — the `dt` the one-pole smoothing is
+    /// actually stepped with.
+    ///
+    /// Pure and `Date`-free so the arithmetic can be driven directly in the blocking bundle.
+    /// - Parameters:
+    ///   - previous: the previously applied frame's timestamp, or a negative value for "none yet".
+    ///   - current: this frame's timestamp.
+    /// - Returns: a finite gap in `(0, maxSmoothingGap]`. A missing, non-finite, zero or
+    ///   backwards gap degrades to `nominalFramePeriod` rather than to 0 — a 0 would make
+    ///   `alpha` 0 and freeze every smoothed route at its seed value, which is silence-shaped
+    ///   and would look like the route was never wired.
+    nonisolated static func smoothingGap(previous: TimeInterval, current: TimeInterval) -> Float {
+        guard previous >= 0, previous.isFinite, current.isFinite else { return nominalFramePeriod }
+        let gap = Float(current - previous)
+        guard gap.isFinite, gap > 0 else { return nominalFramePeriod }
+        return Swift.min(gap, maxSmoothingGap)
+    }
 
     public init(matrix: ModulationMatrix = ModulationMatrix(), defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -150,6 +214,12 @@ public final class ModulationEngine {
         loop.stop()
         isActive = false
         routeSmoothing.removeAll() // a fresh start re-seeds smoothing, no stale ramp
+        // …and the gap the next frame is measured against must go with it. Left standing, a
+        // session paused for ten minutes would hand the first frame after restart a gap across
+        // the whole pause. It would be CAPPED and therefore harmless, but it would also be a
+        // measurement of nothing — the two facts (`no previous frame` vs `a real gap`) have to
+        // stay distinguishable, which is the same lesson `RegenSchedule` was extracted for.
+        lastSmoothedFrameTimestamp = -1
         lastOutputs = [:]          // the item-2 meter clears when modulation stops
     }
 
@@ -188,6 +258,11 @@ public final class ModulationEngine {
     public func apply(_ frame: BioSampleFrame) {
         var result: [ModDestination: Float] = [:]
         var active = Set<UUID>()
+        // Measured once per applied frame, not once per route: every route in this pass is
+        // advanced by the SAME elapsed time, and reading it per route would let a mid-loop
+        // state change hand two routes different clocks for one frame.
+        let dt = Self.smoothingGap(previous: lastSmoothedFrameTimestamp, current: frame.timestamp)
+        lastSmoothedFrameTimestamp = frame.timestamp
 
         for route in matrix.routes where route.enabled {
             active.insert(route.id)
@@ -195,7 +270,7 @@ public final class ModulationEngine {
 
             var value = raw
             if route.smoothingTau > 0 {
-                let alpha = BioNormalizer.alpha(tauSeconds: route.smoothingTau, dtSeconds: Self.tickSeconds)
+                let alpha = BioNormalizer.alpha(tauSeconds: route.smoothingTau, dtSeconds: dt)
                 let prev = routeSmoothing[route.id] ?? raw // seed at first value
                 value = alpha * raw + (1 - alpha) * prev
                 routeSmoothing[route.id] = value
