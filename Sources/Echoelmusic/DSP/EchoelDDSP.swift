@@ -1055,6 +1055,18 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// cutting them off (which causes an abrupt click at every note end).
     public var isActive: Bool { envelopeStage != .idle }
 
+    /// How LOUD this voice is right now (the raw envelope level, 0…1).
+    ///
+    /// `isActive` answers "is anything still coming out of this slot"; this answers
+    /// "how much". The poly engine needs the second question to pick WHICH ringing
+    /// tail to reuse when no truly idle slot is left (#404) — reusing the quietest
+    /// one puts the unavoidable reuse artefact on the least audible voice.
+    ///
+    /// Read-only on purpose: the envelope stays owned by this voice. Plain Float read
+    /// on the same audio thread that already drives `render` and `noteOn`, so it adds
+    /// no synchronisation of its own.
+    public var envelopeLevel: Float { envelopeValue }
+
     /// Prepare a freshly-allocated voice for a new note. Staggers oscillator
     /// phases (golden-ratio spread, so partials do NOT all start in-phase and
     /// produce an onset impulse) and clears filter + noise state left over from
@@ -1070,9 +1082,21 @@ public final class EchoelDDSP: @unchecked Sendable {
         // Always snap pitch to the new note — including a STOLEN/ringing voice. The
         // smoothedFreq one-pole otherwise glides (~16 ms) from the stolen voice's old
         // pitch to the new one, an audible portamento that reads as a "weird" sliding
-        // note whenever polyphony exceeds maxVoices. Pitch snapping doesn't click
-        // (phase stays continuous and the attack envelope ramps amplitude from
-        // current); only the amplitude smoothers / phases must NOT be zeroed mid-tail.
+        // note whenever polyphony exceeds maxVoices. Only the amplitude smoothers /
+        // phases must NOT be zeroed mid-tail — those stay below the guard.
+        //
+        // ⚠️ "PITCH SNAPPING DOESN'T CLICK" is what this comment used to assert, and it is
+        // half true in a way that hid #404. Partial phases ARE kept, so the waveform's VALUE
+        // is continuous across the snap — no step. Its SLOPE is not: every partial's phase
+        // increment changes in one sample. That kink is a real, broadband discontinuity whose
+        // loudness scales with how loud the tail still was, and on a sustained pad several of
+        // them land on the SAME sample at a bar line and sum. Writing it off as "doesn't
+        // click" is what let the line sit unexamined while the founder reported crackling.
+        //
+        // The snap STAYS — the sliding-note artefact it prevents is worse and more constant
+        // than the kink it costs. What changed is that the cost is now named here, and
+        // `quietestFreeSlot` (#404) makes the poly engine pay it on the quietest available
+        // tail instead of whichever slot happened to have the lowest index.
         smoothedFreq = -1
         guard hardReset else { return }
         let golden: Float = 0.61803398875
@@ -1123,12 +1147,26 @@ public final class EchoelDDSP: @unchecked Sendable {
             // Update envelope
             updateEnvelope()
 
-            // Glide the base frequency per-sample so a stolen/reused voice doesn't
-            // jump pitch instantly (the audible "phase jump"/click on a still-loud
-            // voice). Fresh idle voices seed smoothedFreq in prepareForNote so they
-            // snap to pitch; only reused voices glide. Coefficient default 0.01
-            // (~2 ms, the legacy micro-glide); `glideCoeff` is fanned from the poly
+            // Glide the base frequency per-sample toward `frequency`. Coefficient default
+            // 0.01 (~2 ms, the legacy micro-glide); `glideCoeff` is fanned from the poly
             // engine's portamento setting so slid notes SING between pitches.
+            //
+            // ⛔ WHOM THIS GLIDE ACTUALLY SERVES — the previous version of this comment named
+            // the wrong half and it mattered. It said "fresh idle voices seed smoothedFreq in
+            // prepareForNote so they snap; only reused voices glide", i.e. exactly backwards.
+            // `prepareForNote` writes `smoothedFreq = -1` ABOVE its `guard hardReset`, so it
+            // runs for a reused/stolen ringing voice too, and the seed line below then snaps
+            // that voice to the new pitch on its very first sample. NO note-on glides — idle
+            // or reused. The one caller that glides is `slideNote`, which moves `frequency`
+            // and never calls `prepareForNote` at all, so `smoothedFreq` survives and this
+            // one-pole walks it: that is the portamento, and it is the whole reason the line
+            // exists.
+            //
+            // The distinction is not cosmetic. As written, the old comment promised that a
+            // still-loud reused voice was protected from an instant pitch jump — the exact
+            // protection #404 needs and does not have. A session reading it would look for
+            // the crackle everywhere except here. The snap is a deliberate trade (see
+            // `prepareForNote`); what it is not, is free.
             if smoothedFreq < 0 { smoothedFreq = frequency }
             smoothedFreq += glideCoeff * (frequency - smoothedFreq)
 
@@ -2436,6 +2474,12 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     private var voiceAges: [Int]       // Age counter for voice stealing
     private var ageCounter: Int = 0
 
+    /// Scratch for `allocateVoice`: each slot's current envelope level, refreshed on the
+    /// audio thread immediately before the reuse decision (#404). Pre-allocated at init and
+    /// never resized, so reading "how loud is each tail right now" costs no allocation.
+    /// Holds no meaning between calls — do not read it as state.
+    private var voiceLevels: [Float]
+
     /// Smoothed poly makeup gain (audio-thread state) — eased toward the
     /// voice-count target each render block so a single note sounds FULL while a
     /// dense chord is backed off before the safety tanh (founder 2026-07-11:
@@ -2503,6 +2547,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         self.voiceLevelTrimSmoothed = [Float](repeating: 1, count: maxVoices)
         self.voiceAges = [Int](repeating: 0, count: maxVoices)
         self.voicePans = [Float](repeating: 0, count: maxVoices)
+        self.voiceLevels = [Float](repeating: 0, count: maxVoices)
 
         let maxFrameSize = 4096
         self.voiceBuffer = [Float](repeating: 0, count: maxFrameSize)
@@ -2864,14 +2909,68 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     // MARK: - Voice Allocation
 
+    /// Of the slots whose note has been released (`voiceNotes[i] < 0`), the one whose tail
+    /// is QUIETEST — not the one with the lowest index.
+    ///
+    /// WHY THIS EXISTS (#404, founder "teilweise extremes Knacken"). Reusing a slot whose
+    /// release tail is still ringing is not free: `spawnVoice` calls
+    /// `prepareForNote(hardReset: false)`, which nevertheless clears `smoothedFreq`, so the
+    /// render re-seeds it to the NEW pitch on the very next sample. The waveform's VALUE
+    /// stays continuous (the partial phases are kept) but its SLOPE does not — a kink whose
+    /// audibility scales directly with how loud that tail still was. Picking the quietest
+    /// candidate puts that unavoidable kink on the least audible voice available.
+    ///
+    /// ⚠️ HOW FAR THIS CLAIM GOES, so the next reader does not over-read it: choosing the
+    /// quietest tail REDUCES the energy of a confirmed discontinuity. It does not remove it,
+    /// and it is NOT established that this discontinuity is the whole of what the founder
+    /// hears. Treat it as a floor-lowering, not as a fix, until a device listen says
+    /// otherwise. The stronger move — fade the reused tail to zero over ~3 ms and then hard
+    /// reset — is deliberately NOT taken here: it changes what a stolen voice sounds like,
+    /// and this slice is meant to be safe under every competing theory of the artefact.
+    ///
+    /// TIES GO TO THE LOWEST INDEX, which makes this a strict refinement: when every free
+    /// slot carries the same level, the answer is identical to the old lowest-free-index
+    /// rule. (That rule's exact call is deliberately NOT quoted anywhere in this file's
+    /// prose — `ReusedTailIsTheQuietestOneTests` scans the source for its absence, so a
+    /// doc-comment mention would redden the blocking gate over a sentence.)
+    /// A slot whose level is non-finite can never WIN (it would be a meaningless comparison)
+    /// but stays eligible as the fallback, so a poisoned envelope can never make a voice
+    /// unallocatable — it would only be chosen when it is the sole free slot, exactly as
+    /// before.
+    ///
+    /// Pure and total: no allocation, no state, defined for mismatched array lengths (a
+    /// slot past the end of `levels` is treated as having no usable level). Audio-thread
+    /// safe by construction — same discipline as `polyMakeupTarget`/`smoothedMakeup`.
+    nonisolated static func quietestFreeSlot(voiceNotes: [Int], levels: [Float]) -> Int? {
+        var firstFree: Int?
+        var bestIdx: Int?
+        var bestLevel = Float.infinity
+        for i in 0..<voiceNotes.count where voiceNotes[i] < 0 {
+            if firstFree == nil { firstFree = i }
+            guard i < levels.count else { continue }
+            let level = levels[i]
+            guard level.isFinite else { continue }
+            if level < bestLevel {
+                bestLevel = level
+                bestIdx = i
+            }
+        }
+        return bestIdx ?? firstFree
+    }
+
     private func allocateVoice() -> Int {
         // Prefer a truly silent voice (free slot AND envelope idle) so we never
         // cut off a still-audible release tail.
         for i in 0..<maxVoices where voiceNotes[i] < 0 && !voices[i].isActive {
             return i
         }
-        // Next, any free slot (note released but tail may still be ringing).
-        if let freeIdx = voiceNotes.firstIndex(of: -1) {
+        // Next, a free slot — the note is released but its tail may still be ringing.
+        // Among those take the QUIETEST, not the lowest index (#404): every candidate here
+        // costs a re-pitch kink on a sounding voice, so the choice is which voice pays it.
+        // Filling `voiceLevels` is `maxVoices` plain Float reads into a pre-allocated array
+        // — no allocation on the audio thread.
+        for i in 0..<maxVoices { voiceLevels[i] = voices[i].envelopeLevel }
+        if let freeIdx = Self.quietestFreeSlot(voiceNotes: voiceNotes, levels: voiceLevels) {
             return freeIdx
         }
         // Steal oldest voice
