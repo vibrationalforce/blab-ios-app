@@ -225,11 +225,18 @@ in `makeComposerInput` (Erst-Aussaat und Pro-Tick-Konvergenz). Wächter:
 Drei Dinge, die beim Bauen anders entschieden wurden als der Plan sie offen ließ:
 
 1. **Warum das KEINE zweite Kopie der Live-Abbildung ist** — der naheliegendste Einwand,
-   und er hat eine belegbare Antwort statt einer Meinung: `genreTempo` OKTAV-FALTET, und
-   sein eigenes Doc beziffert den Verlust — auf Contemplation (44…66) fallen 41 % einer
-   Oktave Körpertempo auf den Boden. Zwei Körper 30 BPM auseinander landen auf derselben
-   Zahl. Die Neigung wirkt NACH der Faltung und stellt genau das wieder her, was die
-   Faltung zerstört.
+   und er hat eine belegbare Antwort statt einer Meinung. `genreTempo` OKTAV-FALTET, und
+   jeder Körper, dessen Oktave die Fenster-Decke überschießt, kommt als eine der beiden
+   GRENZEN zurück. Über Contemplation (44…66) durchgerechnet: 68, 70, 72, 74, 76 → alle 66;
+   78 bis 88 → alle 44. Rund die Hälfte gewöhnlicher Ruhepulse landet auf zwei Zahlen, und
+   nicht einmal monoton. Die Neigung wirkt NACH der Faltung und stellt wieder her, was die
+   Faltung zerstört hat.
+   ⛔ **Die erste Fassung dieses Punktes schrieb „41 % einer Oktave fallen auf den Boden"
+   und berief sich auf das Doc von `genreTempo`.** Dieser Satz beschreibt dort den Fehler,
+   den #237 BEHOBEN hat — im Perfekt. Ihn im Präsens zu zitieren wäre genau die
+   Falsch-Begründung-im-Kommentar, die diese Datei an anderer Stelle als schlimmer als gar
+   keine Begründung bezeichnet. Er stand gleichzeitig in vier Dateien. Die richtige Zahl
+   ist schlechter, nicht besser — und sie wurde nachgerechnet, nicht zitiert.
 2. **Die Genre-Grenze hält durch die FORM, nicht durch einen Clamp** — die Bewegung ist ein
    Bruchteil (`maxTiltShare` 0.35) des VERBLEIBENDEN Kopfraums. Ein „Offset dann Clamp"
    sähe äquivalent aus und würde eine ganze Population von Performern auf eine Grenze

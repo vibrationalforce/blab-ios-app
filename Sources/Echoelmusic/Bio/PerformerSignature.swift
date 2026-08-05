@@ -309,10 +309,13 @@ public struct PerformerSignature: Codable, Equatable, Sendable {
     ///
     /// ⚠️ IT IS NOT A SECOND OPINION ABOUT THE MOMENT, and the distinction is what makes it
     /// legitimate rather than double-counting. The LIVE heart rate already sets the tempo —
-    /// but `genreTempo` octave-folds it, and its own doc measures the loss: on contemplation
-    /// (44…66), 41 % of one octave of body tempo collapses onto the floor. Two people 30 BPM
-    /// apart land on the same number. The tilt is applied AFTER that fold and restores what
-    /// the fold erased.
+    /// but `genreTempo` octave-folds it, and for a body whose octave overshoots the window's
+    /// ceiling it returns one of the two BOUNDS. Walked over contemplation (44…66): 68, 70,
+    /// 72, 74 and 76 all become 66; 78 through 88 all become 44. Roughly half of ordinary
+    /// resting hearts land on two numbers, non-monotonically. The tilt is applied AFTER that
+    /// fold and restores what the fold erased. (⛔ The first version of this paragraph said
+    /// "41 % … collapses onto the floor" — that is `genreTempo`'s description of the bug
+    /// #237 FIXED, quoted in the present tense. See `StudioCalculator.tilted` for the walk.)
     ///
     /// 50…90 BPM is the span the mapping opens across, chosen as the ordinary waking resting
     /// range rather than the physiological extremes: anchoring on 30…200 would compress every

@@ -18,11 +18,14 @@
 // into an additive offset plus a clamp, which looks equivalent and is not.
 //
 // ⚠️ WHY THIS IS NOT A SECOND COPY OF THE LIVE BODY→TEMPO MAPPING. The live heart rate
-// already sets the tempo, and it would be double-counting if `genreTempo` passed it through.
-// It does not: it octave-FOLDS, and its own doc measures the loss — 41 % of one octave of
-// body tempo collapses onto the floor on contemplation (44…66). The founder's 2026-08-05 log
-// is that measurement in the wild: nine takes, one tempo. The tilt is applied AFTER the fold
-// and restores precisely what the fold erased.
+// already sets the tempo, and it would be double-counting if `genreTempo` passed every body
+// through. It does not: it octave-FOLDS, and any body whose octave overshoots the window's
+// ceiling comes back as one of the two BOUNDS. Walked over contemplation (44…66): 68, 70, 72,
+// 74, 76 all → 66; 78 through 88 all → 44. Roughly half of ordinary resting hearts land on two
+// numbers, non-monotonically — the founder's 2026-08-05 log is that in the wild, nine takes and
+// one tempo. The tilt is applied AFTER the fold and restores what the fold erased. In the
+// pass-through band it amplifies instead, deliberately: the tilt is the HABITUAL rate, the fold
+// is this moment's.
 
 import Foundation
 import XCTest
@@ -128,6 +131,39 @@ final class ThePaceIsTiltedInsideTheGenreTests: XCTestCase {
         let out = StudioCalculator.tilted(200, within: contemplation, by: 1)
         XCTAssertLessThanOrEqual(out, contemplation.upperBound,
                                  "An out-of-window input must not carry the result out too.")
+    }
+
+    // MARK: - The premise itself, measured rather than asserted in prose
+
+    func testTheFoldReallyDoesCollapseDistinctBodies() {
+        // ⭐ THIS TEST GUARDS THE RATIONALE, NOT THE CODE — and it is here because the first
+        // version of that rationale was WRONG in four files at once: it quoted `genreTempo`'s
+        // description of the bug #237 FIXED ("41 % collapses onto the floor") in the present
+        // tense. A prose claim nobody can run is exactly how that survives review. So the
+        // premise is measured.
+        //
+        // If this ever goes RED, do NOT "fix" it — it means `genreTempo` stopped collapsing,
+        // and the honest response is to re-argue whether the tilt is still restoring a lost
+        // distinction or has become a second opinion about the same body.
+        var byOutput: [Double: [Int]] = [:]
+        for bpm in 44...96 {
+            let out = StudioCalculator.genreTempo(Double(bpm), into: contemplation)
+            byOutput[out, default: []].append(bpm)
+        }
+        let collapsed = byOutput.values.filter { $0.count > 1 }
+        let worst = collapsed.map(\.count).max() ?? 0
+        let message = "The genre fold no longer collapses distinct resting hearts onto one "
+            + "tempo. That was the entire justification for tilting after the fold."
+        XCTAssertGreaterThanOrEqual(worst, 4, message)
+
+        // And it is not merely lossy — it is NON-MONOTONIC, which is the part that makes a
+        // post-fold tilt the only place the person can be restored: 76 → 66 while the faster
+        // 78 → 44.
+        let slower = StudioCalculator.genreTempo(76, into: contemplation)
+        let faster = StudioCalculator.genreTempo(78, into: contemplation)
+        XCTAssertGreaterThan(slower, faster,
+                             "The fold used to hand a faster heart a slower tempo (76→66 vs "
+                             + "78→44). If that is gone, re-read the tilt's rationale.")
     }
 
     // MARK: - The tilt is a body, not a dice roll

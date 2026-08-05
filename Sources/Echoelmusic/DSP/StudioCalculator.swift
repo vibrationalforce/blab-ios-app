@@ -216,12 +216,31 @@ public struct StudioCalculator: Sendable, Equatable {
     /// Nudge a genre-folded tempo toward one end of its window, without ever leaving it.
     ///
     /// ⭐ WHY THIS EXISTS, AND WHY IT IS NOT A SECOND COPY OF THE BODY→TEMPO MAPPING (#403
-    /// Slice 2). `genreTempo` above OCTAVE-FOLDS, and its own doc measures what that costs:
-    /// 41 % of one octave of body tempo collapses onto the floor on contemplation (44…66).
-    /// Two performers whose hearts rest 30 BPM apart routinely fold to the SAME number — the
-    /// founder's 2026-08-05 log shows exactly that, nine takes all reading the same tempo.
-    /// This restores, AFTER the fold, a distinction the fold destroys. It is not a second
-    /// opinion about the moment; it is the person, applied where the person had been erased.
+    /// Slice 2). `genreTempo` above OCTAVE-FOLDS, and for every body whose octave lands
+    /// ABOVE the window's ceiling it returns one of the two BOUNDS — so distinct performers
+    /// collapse onto the same handful of numbers.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS PARAGRAPH SAID "41 % of one octave collapses onto the
+    /// FLOOR" and cited `genreTempo`'s own doc. That sentence describes the BUG #237 fixed,
+    /// in the past tense, and repeating it in the present tense would have been exactly the
+    /// false-rationale-in-a-comment this repo keeps paying for. The CURRENT code collapses
+    /// onto a BOUND, not the floor — and the honest numbers are worse, not better. Walked
+    /// over contemplation (44…66):
+    ///
+    ///     48…66 →  48…66   (passes through, full resolution)
+    ///     68, 70, 72, 74, 76 → 66      (five bodies, one tempo)
+    ///     78, 80, 82, 84, 86, 88 → 44  (six bodies, one tempo — and SLOWER than the 76)
+    ///
+    /// So across the ordinary waking resting range, roughly half of all performers land on
+    /// one of two numbers, non-monotonically. The founder's 2026-08-05 log is that in the
+    /// wild: nine takes, one tempo. The tilt is applied AFTER the fold and restores a
+    /// distinction the fold destroyed.
+    ///
+    /// In the pass-through band (48…66 here) nothing was destroyed, and there the tilt mildly
+    /// AMPLIFIES in the same direction rather than restoring — deliberately, and it is not
+    /// double-counting: the tilt carries the performer's HABITUAL resting rate, the fold
+    /// carries this moment's. A habitually fast heart caught in a calm minute still leans
+    /// forward, which is the whole point of a signature.
     ///
     /// ⚠️ THE GENRE ALWAYS WINS, BY CONSTRUCTION, and that is the whole safety argument. The
     /// move is a FRACTION OF THE REMAINING HEADROOM toward the window's edge, so the result
