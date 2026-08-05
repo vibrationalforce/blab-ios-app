@@ -730,6 +730,15 @@ public enum BioComposer {
     /// this shifts that literal. The knob can therefore only pick the other of the two values the
     /// genre ALREADY ships — it can never invent a third.
     ///
+    /// ⛔ "THE TWO" IS A #418 SENTENCE AND #419 MADE IT INCOMPLETE — kept as written because it is
+    /// still exactly true of the MELODIC path this block describes, but a reader must not take it
+    /// as the full inventory of what the knob reaches. Both of those decisions sit behind
+    /// `!profile.sustained`, so eight of the sixteen offered genres — `.selfObservation`, the
+    /// shipped default, among them — saw nothing. #419 added three more comparisons on the
+    /// `.sustained` path (the `heartbeatActive` arousal gate and `heartbeatOnsets`' two stride
+    /// steps) through this same function with a smaller `stillnessThresholdSpan`. Five
+    /// comparisons, one shape, two spans. The count in this paragraph is the melodic half only.
+    ///
     /// ⛔ THAT BOUND IS ABOUT THE GRID, NOT THE TAKE, and the first version of this comment said
     /// "no knob position can produce a texture the genre could not previously make" — too strong,
     /// caught in the #418 Nachlese. Doubling the arp onsets in section 0 shifts every later RNG
@@ -749,10 +758,15 @@ public enum BioComposer {
     /// spells this out for the same helper; a brand-new comment cited the law backwards anyway.
     /// A non-finite value now reads as the NEUTRAL 0.5, not as 0: a bad weather sample must not
     /// silently sparsify a take, and 0.5 lands on exactly today's threshold.
-    nonisolated static func densityThreshold(base: Float, liveliness: Float) -> Float {
+    /// - Parameter span: how far full knob travel may move `base`. Defaults to the melodic
+    ///   `livelinessThresholdSpan`; the `.sustained` stillness ladder passes the smaller
+    ///   `stillnessThresholdSpan` for the reason written at that constant. One function, so
+    ///   "lively lowers the bar, 0.5 is exactly today" means the same thing everywhere it is used.
+    nonisolated static func densityThreshold(base: Float, liveliness: Float,
+                                             span: Float = livelinessThresholdSpan) -> Float {
         let safe = liveliness.isFinite ? liveliness : 0.5     // NaN/±inf ⇒ today's threshold
         let centred = safe.clamped(to: 0...1) - 0.5           // −0.5 … +0.5
-        return base - Self.livelinessThresholdSpan * centred  // lively ⇒ lower bar
+        return base - span * centred                          // lively ⇒ lower bar
     }
 
     /// Full knob travel = ±0.15 on the `busy` axis. Chosen so both thresholds (0.6 and 0.7) stay
@@ -760,6 +774,29 @@ public enum BioComposer {
     /// the knob would delete half a genre instead of biasing it. Whether ±0.15 is the musically
     /// right amount is a listening call; this is the one line to change for it.
     nonisolated static let livelinessThresholdSpan: Float = 0.3
+
+    /// ⭐ #419 — THE SAME KNOB, A DELIBERATELY SMALLER TRAVEL, ON THE `.sustained` PATH.
+    /// #418 wired Liveliness to the two melodic density decisions (`arpStep`, `pulseGap`) and
+    /// BOTH sit behind `!profile.sustained`. Eight of the sixteen offered genres are Flächen —
+    /// including `.selfObservation`, the genre a first-run user hears — so for exactly those the
+    /// knob still did nothing. On a Fläche the movement lives in `heartbeatOnsets`: the arousal
+    /// gate that decides held-vs-pulsing, and the two stride steps above it. Those three
+    /// literals are what this span moves.
+    ///
+    /// ⚠️ WHY 0.2 AND NOT 0.3, and this is a founder doctrine rather than a taste: on the melodic
+    /// path the knob decides how DENSELY an already-moving texture is filled; here it decides
+    /// whether the Fläche moves AT ALL. The 2026-07-09 "Flächen still" call is what the founder
+    /// liked about the meditative genres, and `heartbeatOnsets`' own doc states it as
+    /// "calm = still, active = alive". So the knob may bring the onset of movement FORWARD and
+    /// must never abolish the hold: at the fully-live extreme the gate is still `busy >= 0.4`,
+    /// which a resting body does not reach (a settled take runs `busy` well under 0.35 — the
+    /// `pulseInput` fixture in `LivelinessReachesTheDensityDecisionTests` had to push HR to 110
+    /// to clear 0.55). At the fully-still extreme the gate is 0.6, so an aroused body can still
+    /// move the pad — the knob biases, it does not veto.
+    ///
+    /// Whether 0.2 is the musically right amount is a listening call, exactly like its melodic
+    /// twin; this is the one line to change for it.
+    nonisolated static let stillnessThresholdSpan: Float = 0.2
 
     nonisolated static func tempoDensityScale(bpm: Double) -> Float {
         let baseline = 84.0
@@ -1469,6 +1506,11 @@ public enum BioComposer {
                                    // nothing in the diff to see. One caller — the cost is nil.
                                    sectionIndex: Int,
                                    rhythm: RoleRhythm.Character? = nil,
+                                   // #419: the trap 808 pedal shares `heartbeatActive` with the pad
+                                   // — that sharing is the whole point of hoisting the gate, and the
+                                   // doc there says "identical across the low end and the pad". If
+                                   // only the pad passed the knob that sentence would become false.
+                                   liveliness: Float,
                                    rng: inout SeededRNG) {
         // H2: semitone alteration of a chord tone (root / fifth) when the
         // section's chord is a borrowed suggestion. Empty (legacy: always) ⇒ 0.
@@ -1482,7 +1524,7 @@ public enum BioComposer {
         // so beats 2 & 4 no longer drop out. Calm trap (and every non-trap caller, which
         // never sets quarterAnchor) falls through to the held-root path below, RNG-identical.
         if quarterAnchor, sustained, Self.quarterAnchorBass,
-           Self.heartbeatActive(energy: busy, secLen: len) {
+           Self.heartbeatActive(energy: busy, secLen: len, liveliness: liveliness) {
             let gap = 4                                        // quarter grid
             let secEndLocal = secStart + len
             var s = secStart
@@ -1731,23 +1773,42 @@ public enum BioComposer {
     /// heartbeat re-articulation (`heartbeatOnsets`) and trap's quarter-note 808 pedal
     /// (`appendBass`) read this ONE definition so "aroused enough to move" is identical
     /// across the low end and the pad. Pure → unit-tested.
-    static func heartbeatActive(energy: Float, secLen: Int) -> Bool {
-        secLen >= 4 && energy >= 0.5
+    /// - Parameter liveliness: the mood's Liveliness knob (#419). Moves the arousal bar by
+    ///   `stillnessThresholdSpan`; 0.5 — `MoodProfile`'s own default — is exactly the shipped
+    ///   0.5 gate, in Float, not approximately. Defaulted ONLY so the pure-core tests that
+    ///   predate the knob keep reading as "at the neutral setting"; both production callers pass
+    ///   `mood.liveliness` explicitly and `LivelinessMovesTheStillnessGateTests` scans for that.
+    ///   The default is the one risk here — a future third caller would silently get neutral —
+    ///   which is what that scan exists to catch.
+    static func heartbeatActive(energy: Float, secLen: Int, liveliness: Float = 0.5) -> Bool {
+        secLen >= 4 && energy >= Self.densityThreshold(base: 0.5, liveliness: liveliness,
+                                                       span: Self.stillnessThresholdSpan)
     }
 
     static func heartbeatOnsets(secStart: Int, secLen: Int,
-                                energy: Float, syncopation: Float) -> [(start: Int, len: Int)] {
+                                energy: Float, syncopation: Float,
+                                liveliness: Float = 0.5) -> [(start: Int, len: Int)] {
         // `energy` is the composer's own `busy` activity signal (0…~0.85). Below the
         // arousal gate the body is at rest or only neutrally engaged → ONE held onset (the
         // still Fläche, unchanged) so typical resting/meditative states keep the stillness
         // the founder liked. Rhythm only emerges once the body is genuinely activated.
-        guard heartbeatActive(energy: energy, secLen: secLen) else { return [(secStart, secLen)] }
+        guard heartbeatActive(energy: energy, secLen: secLen, liveliness: liveliness) else {
+            return [(secStart, secLen)]
+        }
         // Syncopation nudges the body toward the more off-beat (tresillo) feel sooner.
         let e = clamp01(energy + clamp01(syncopation) * 0.15)
+        // #419: the same knob that moved the gate above moves the two steps of the ladder, by the
+        // same `stillnessThresholdSpan`, so "livelier" means ONE thing on this path — the movement
+        // arrives sooner AND grows sooner — rather than a gate and a ladder that disagree.
+        // Direction is the shared one: lively LOWERS the bar. At 0.5 both are the shipped literals.
+        let dotted = Self.densityThreshold(base: 0.68, liveliness: liveliness,
+                                           span: Self.stillnessThresholdSpan)
+        let tresillo = Self.densityThreshold(base: 0.82, liveliness: liveliness,
+                                             span: Self.stillnessThresholdSpan)
         let strides: [Int]
-        if e < 0.68 {
+        if e < dotted {
             strides = [6, 4]              // dotted-quarter + quarter — a gentle dotted lilt
-        } else if e < 0.82 {
+        } else if e < tresillo {
             strides = [3, 3, 2]           // tresillo — the classic heartbeat-like syncopation
         } else {
             strides = [3, 3, 2, 2, 3, 3]  // busier tresillo variant for a fully aroused body
@@ -1779,12 +1840,21 @@ public enum BioComposer {
     /// Absolute-step phase → the pattern is bar-aligned regardless of section boundaries;
     /// hits are ≥ 2 steps apart so the 2-step chops never overlap. Deterministic (no RNG
     /// in placement; velocity uses the existing humaniser) → pure, unit-tested.
+    /// - Parameter liveliness: the mood's Liveliness knob (#419). Reaches ONLY the `.sustained`
+    ///   delegation below — the skank/stab/comp grids keep their own literals, deliberately: those
+    ///   genres are not the ones the knob failed to reach (their movement runs through the melodic
+    ///   `arpStep`/`pulseGap` decisions #418 already wired), and their grid IS the genre's
+    ///   identity. All three production call sites still pass it, because passing the mood's own
+    ///   value into a function that takes it is simply correct, and a site that passed it next to
+    ///   a site that did not would be the more confusing arrangement.
     static func chordOnsets(secStart: Int, secLen: Int, energy: Float, syncopation: Float,
-                            articulation: MusicStyle.ChordArticulation) -> [(start: Int, len: Int)] {
+                            articulation: MusicStyle.ChordArticulation,
+                            liveliness: Float = 0.5) -> [(start: Int, len: Int)] {
         guard secLen > 0 else { return [(secStart, Swift.max(0, secLen))] }
         if articulation == .sustained {
             return heartbeatOnsets(secStart: secStart, secLen: secLen,
-                                   energy: energy, syncopation: syncopation)
+                                   energy: energy, syncopation: syncopation,
+                                   liveliness: liveliness)
         }
         // Syncopation nudges the busier subdivisions in a touch sooner (same feel knob as
         // heartbeatOnsets), so an edgy body fills the pattern earlier.
@@ -2201,7 +2271,7 @@ public enum BioComposer {
                        busy: busy, calm: calm, velocity: bassVelocity,
                        sustained: profile.sustained, quarterAnchor: quarterAnchor,
                        alterations: secAlts, sectionIndex: idx,
-                       rhythm: bassRhythm, rng: &rng)
+                       rhythm: bassRhythm, liveliness: mood.liveliness, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for
@@ -2295,9 +2365,13 @@ public enum BioComposer {
                 let padSeed = rng.next()
                 let genreRate = profile.arpeggiated
                     ? (len + arpStep - 1) / max(1, arpStep)          // ceil: the arp's own onsets
+                    // #419: the SAME liveliness the pad below uses. This is a count of the pad's
+                    // onsets feeding `roleRhythmOnsets`' density — omitting it would leave the
+                    // estimate describing a pad that is not the one being written.
                     : Self.chordOnsets(secStart: secStart, secLen: len, energy: busy,
                                        syncopation: mood.syncopation,
-                                       articulation: articulation).count
+                                       articulation: articulation,
+                                       liveliness: mood.liveliness).count
                 padBeats = Self.roleRhythmOnsets(
                     secStart: secStart, secLen: len, sectionIndex: idx, character: character,
                     density: Float(max(1, genreRate)) / Float(max(1, len)), seed: padSeed)
@@ -2361,7 +2435,8 @@ public enum BioComposer {
                 // pad timbre (no lead), all inside the bar; `busy` fills busier subdivisions.
                 let onsets = Self.chordOnsets(secStart: secStart, secLen: len,
                                               energy: busy, syncopation: mood.syncopation,
-                                              articulation: articulation)
+                                              articulation: articulation,
+                                              liveliness: mood.liveliness)
                 for pitch in voiced {
                     for onset in onsets {
                         notes.append(Note(id: nextUUID(&rng), pitch: pitch,
@@ -2378,7 +2453,8 @@ public enum BioComposer {
                 // differed). Now the SAME chord voicing is chopped on each genre's characteristic
                 // grid; `busy` fills busier subdivisions. Same pitches (in-key), pad timbre.
                 let onsets = Self.chordOnsets(secStart: secStart, secLen: len, energy: busy,
-                                              syncopation: mood.syncopation, articulation: articulation)
+                                              syncopation: mood.syncopation, articulation: articulation,
+                                              liveliness: mood.liveliness)
                 for pitch in voiced {
                     for onset in onsets {
                         // Metric accent shapes the chops so the rhythm reads as intentional
