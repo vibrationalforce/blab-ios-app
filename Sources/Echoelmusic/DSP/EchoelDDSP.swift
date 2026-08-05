@@ -615,12 +615,27 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// crackles. One-pole smoothed each sample (~10 ms glide). -1 = seed on first use.
     private var smoothedGain: Float = -1
 
-    /// Per-sample-smoothed base frequency. When a still-ringing voice is reused
-    /// (stolen, or a released tail), `frequency` is reassigned in a single step —
-    /// an instant pitch change on a loud voice is the audible "phase jump"/click.
-    /// One-pole glided each sample so reused voices slide to the new pitch; a fresh
-    /// idle voice re-seeds this in `prepareForNote(hardReset:)` so it snaps instead.
-    /// -1 = seed on first use.
+    /// Per-sample-smoothed base frequency. -1 = seed on first use.
+    ///
+    /// ⛔ THE THIRD COPY OF A CLAIM THAT WAS BACKWARDS, and the one most likely to be read
+    /// — it sits on the property itself, above both use sites. The #404 commit corrected
+    /// the two USE-site comments and said so in its message; this one survived, still
+    /// asserting "reused voices slide to the new pitch; a fresh idle voice re-seeds this
+    /// in `prepareForNote(hardReset:)` so it snaps instead". Both halves are false.
+    /// `prepareForNote` writes `smoothedFreq = -1` ABOVE its `guard hardReset`, so it runs
+    /// for a reused ringing voice too, and `render` re-seeds to the new pitch on the next
+    /// sample: NOTHING slides on a note-on, idle or reused. The one caller that glides is
+    /// `slideNote`, which moves `frequency` and never calls `prepareForNote` — that is the
+    /// portamento, and it is what this one-pole is for.
+    ///
+    /// The lesson is the reason this paragraph is this long: correcting the comments you
+    /// happened to be reading is not correcting the claim. `git grep` the CLAIM — here,
+    /// "snaps"/"slides"/`smoothedFreq` — before writing "corrected" into a commit message.
+    ///
+    /// The instant pitch change on a reused voice is real and is not free; it is a
+    /// discontinuity in the waveform's SLOPE (see `prepareForNote`). Calling it a "phase
+    /// jump", as this comment used to, names a mechanism that does not occur — the partial
+    /// phases are exactly what a reuse KEEPS.
     private var smoothedFreq: Float = -1
 
     /// Anti-alias weighting scratch — smoothedAmplitudes with a raised-cosine
@@ -717,7 +732,15 @@ public final class EchoelDDSP: @unchecked Sendable {
 
     /// Convolution reverb engine (vDSP_conv based).
     ///
-    /// DISABLED by default: note triggering runs on the pattern's TIMER thread
+    /// ⛔ THE STATED REASON BELOW IS HISTORICAL, THE DECISION IS NOT. Note triggering no
+    /// longer runs on a timer thread: `prepareForNote`'s one caller is `spawnVoice` ←
+    /// `noteOn` ← `PolySynthVoice.drainNoteCommands`, which runs INSIDE the render block
+    /// (#404 review, 2026-08-05). So the cross-thread race described here cannot occur as
+    /// written — but nothing has re-validated the convolution against a same-thread
+    /// `reset()` either, and re-enabling it is not a comment edit. Left OFF; the paragraph
+    /// is kept because it records what was actually observed on device.
+    ///
+    /// DISABLED by default: note triggering ran on the pattern's TIMER thread
     /// (`noteOn → prepareForNote`), which mutated this convolution's internal Swift
     /// arrays (`reset()`) while the AUDIO render thread was concurrently inside
     /// `process(...)` touching the same arrays → copy-on-write refcount race →
@@ -1055,12 +1078,22 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// cutting them off (which causes an abrupt click at every note end).
     public var isActive: Bool { envelopeStage != .idle }
 
-    /// How LOUD this voice is right now (the raw envelope level, 0…1).
+    /// Where this voice's ENVELOPE currently stands (0…1).
     ///
-    /// `isActive` answers "is anything still coming out of this slot"; this answers
-    /// "how much". The poly engine needs the second question to pick WHICH ringing
-    /// tail to reuse when no truly idle slot is left (#404) — reusing the quietest
-    /// one puts the unavoidable reuse artefact on the least audible voice.
+    /// ⚠️ THIS IS NOT THE VOICE'S LOUDNESS, and the first version of this doc said it was
+    /// ("how LOUD this voice is right now"). The render line is
+    /// `sample = mixed * smoothedGain * envelopeValue`, and `smoothedGain` follows
+    /// `amplitude * patchOutputLevel` — so two tails at envelope 0.5 struck at velocity 0.3
+    /// and 1.0 are ~10 dB apart while this property reports them identical. Worse, since
+    /// #174 a Mix fader at zero bakes velocity 0 into the note, so a slot can sit at
+    /// envelope 0.9 and emit exact silence. A caller ranking tails by this alone would
+    /// have preferred the audible one and spared the silent one — backwards.
+    ///
+    /// `isActive` answers "is anything still coming out of this slot"; this answers "how
+    /// far through its envelope is it". The poly engine multiplies it by `amplitude`
+    /// before comparing (`allocateVoice`) — that product is the per-voice level factor;
+    /// `patchOutputLevel` is common to all voices of a patch and so cannot change a
+    /// RANKING.
     ///
     /// Read-only on purpose: the envelope stays owned by this voice. Plain Float read
     /// on the same audio thread that already drives `render` and `noteOn`, so it adds
@@ -1086,12 +1119,24 @@ public final class EchoelDDSP: @unchecked Sendable {
         // phases must NOT be zeroed mid-tail — those stay below the guard.
         //
         // ⚠️ "PITCH SNAPPING DOESN'T CLICK" is what this comment used to assert, and it is
-        // half true in a way that hid #404. Partial phases ARE kept, so the waveform's VALUE
-        // is continuous across the snap — no step. Its SLOPE is not: every partial's phase
-        // increment changes in one sample. That kink is a real, broadband discontinuity whose
-        // loudness scales with how loud the tail still was, and on a sustained pad several of
-        // them land on the SAME sample at a bar line and sum. Writing it off as "doesn't
+        // half true in a way that hid #404. Partial phases ARE kept, so the harmonic sum's
+        // VALUE is continuous across the snap — no step from the phases. Its SLOPE is not:
+        // every partial's phase increment changes in one sample. That kink is a real,
+        // broadband discontinuity whose loudness scales with how loud the tail still was,
+        // and on a sustained pad several of them can land in the SAME render block at a bar
+        // line and sum (the note drain runs once per block, so simultaneity is per-block —
+        // the Humanizer can still scatter onsets across blocks). Writing it off as "doesn't
         // click" is what let the line sit unexamined while the founder reported crackling.
+        //
+        // TWO THINGS THE "value is continuous" HALF STILL DOES NOT COVER (#404 review) —
+        // both make the artefact bigger, so they argue for the fix rather than against it:
+        // · The anti-alias taper is derived from each partial's frequency, which snaps in
+        //   the same sample. On a DOWNWARD reuse a partial can go from tapered-or-excluded
+        //   to full weight instantly — that is a genuine value step, not just a kink.
+        //   Upward snaps are safe; fading them out is what that band was built for.
+        // · `noteOn` sets `onsetNoiseEnv` from `percussiveness`, added straight into the
+        //   mix on the first new sample. Zero for a slow-attack pad (so not the reported
+        //   case), non-zero for anything plucked.
         //
         // The snap STAYS — the sliding-note artefact it prevents is worse and more constant
         // than the kink it costs. What changed is that the cost is now named here, and
@@ -1108,7 +1153,10 @@ public final class EchoelDDSP: @unchecked Sendable {
         for i in 0..<noiseFilterState.count { noiseFilterState[i] = 0 }
         filter.reset()
         // NOTE: reverbConvolution.reset() removed — prepareForNote runs on the
-        // note-trigger (timer) thread; mutating the convolution's arrays here
+        // note-trigger (timer) thread — ⛔ that thread claim is stale, see the
+        // `reverbConvolution` property doc: this runs on the AUDIO thread today, so the
+        // race named here is not the current reason. The removal stands; only its
+        // justification has expired. Mutating the convolution's arrays here
         // raced the audio thread's process() → crash. Reverb is disabled
         // (see useConvolutionReverb) until it is fed by a lock-free queue.
     }
@@ -2939,8 +2987,16 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// before.
     ///
     /// Pure and total: no allocation, no state, defined for mismatched array lengths (a
-    /// slot past the end of `levels` is treated as having no usable level). Audio-thread
-    /// safe by construction — same discipline as `polyMakeupTarget`/`smoothedMakeup`.
+    /// slot past the end of `levels` is treated as having no usable level).
+    ///
+    /// Audio-thread safe by construction. `polyMakeupTarget`/`smoothedMakeup` are the
+    /// precedent for "pure `nonisolated static` helper called from the render", but they
+    /// take SCALARS — citing them as cover for passing arrays, as the first version did,
+    /// over-claimed. The precedent for that is the line this replaced: the old rule was
+    /// itself an Array method call on the same stored property, and branch 1 above already
+    /// subscripts `voices` up to `maxVoices` times. Read-only arguments take no copy, so
+    /// the cost is the same category and roughly twice the count of something already
+    /// negligible — not a new class of risk.
     nonisolated static func quietestFreeSlot(voiceNotes: [Int], levels: [Float]) -> Int? {
         var firstFree: Int?
         var bestIdx: Int?
@@ -2969,7 +3025,20 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // costs a re-pitch kink on a sounding voice, so the choice is which voice pays it.
         // Filling `voiceLevels` is `maxVoices` plain Float reads into a pre-allocated array
         // — no allocation on the audio thread.
-        for i in 0..<maxVoices { voiceLevels[i] = voices[i].envelopeLevel }
+        //
+        // ENVELOPE × AMPLITUDE, not the envelope alone. The first version compared
+        // `envelopeLevel` by itself and its doc called that "how loud" — it is not. The
+        // render is `mixed * smoothedGain * envelopeValue` with `smoothedGain` tracking
+        // `amplitude * patchOutputLevel`, so the envelope is only one of two per-voice
+        // factors. Comparing it alone inverts on the case this repo actually ships: a
+        // role muted by a Mix fader bakes velocity 0 into its notes (#174), leaving a
+        // slot at envelope 0.9 that emits exact silence — which the old comparison
+        // ranked as the LOUDEST tail and therefore protected, while reusing an audible
+        // one instead. `patchOutputLevel` is deliberately left out: it is common to
+        // every voice of a patch and cannot change a ranking.
+        for i in 0..<maxVoices {
+            voiceLevels[i] = voices[i].envelopeLevel * voices[i].amplitude
+        }
         if let freeIdx = Self.quietestFreeSlot(voiceNotes: voiceNotes, levels: voiceLevels) {
             return freeIdx
         }

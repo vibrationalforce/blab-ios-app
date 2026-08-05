@@ -25,6 +25,7 @@
 // by source text. A correct core with no caller is the same defect with more steps, which is
 // why the scan is not optional decoration here.
 
+import Foundation
 import XCTest
 @testable import Echoelmusic
 
@@ -170,6 +171,23 @@ final class ReusedTailIsTheQuietestOneTests: XCTestCase {
             + "Without it the poly engine cannot fill `voiceLevels`, so the quietest-tail "
             + "rule has nothing to compare."
         XCTAssertTrue(source.contains("public var envelopeLevel: Float { envelopeValue }"),
+                      message)
+    }
+
+    func testTheComparedLevelIsEnvelopeTimesAmplitude() throws {
+        // THE REVIEW FINDING THIS PINS. The first version compared `envelopeLevel` alone
+        // and its doc called that "how loud". It is not: the render is
+        // `mixed * smoothedGain * envelopeValue`, `smoothedGain` follows `amplitude *
+        // patchOutputLevel`, and since #174 a muted role bakes velocity 0 into its notes.
+        // So a slot could sit at envelope 0.9 emitting exact silence and be ranked the
+        // LOUDEST tail — protected, while an audible one was reused instead. Exactly
+        // backwards, on a case this app ships (mute one role, play the others).
+        let source = try Self.dspSource()
+        let message = "The reuse comparison no longer multiplies the envelope by "
+            + "`amplitude`. With the envelope alone the ranking inverts whenever one role "
+            + "is muted: a silent slot reads loud and gets spared, an audible one gets the "
+            + "re-pitch kink. See the doc on `envelopeLevel` for why it is not loudness."
+        XCTAssertTrue(source.contains("voiceLevels[i] = voices[i].envelopeLevel * voices[i].amplitude"),
                       message)
     }
 
