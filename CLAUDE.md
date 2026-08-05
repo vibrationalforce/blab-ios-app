@@ -256,13 +256,32 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           AUSGELIEFERTER KLANG geändert wird und jeder, der den Regler nie anfasst, exakt
                           den heutigen Take behalten muss. Was er NICHT kann: „klingt es besser" — das ist
                           eine Hörprobe, und der Spann-Wert (±0,15 auf der busy-Achse) ist bewusst als EINE
-                          Zeile zum Ändern gebaut, nicht als eingestellter Wert),
+                          Zeile zum Ändern gebaut, nicht als eingestellter Wert.
+                          ⛔ **UND SEINE ERSTE FASSUNG WAR ROT AUF DEM CODE, DEN SIE SCHÜTZTE — durch ein
+                          Gesetz, das in DREI Dateien dieses Repos steht und in einem brandneuen Kommentar
+                          trotzdem RÜCKWÄRTS zitiert wurde.** Der NaN-Test verlangte `isFinite`; die Funktion
+                          benutzte `clamp01`, also `min(max(x, 0), 1)` — genau die NaN-DURCHLÄSSIGE
+                          Argument-Reihenfolge, vor der CLAUDE.md, `FloatingPointClamp.swift` und der
+                          `genreAnchorCount`-Wächter ACHTZIG ZEILEN ÜBER `clamp01` in derselben Datei warnen.
+                          Der Kommentar behauptete das Gegenteil („mit NaN zuerst gibt 0"). Nicht-endlich
+                          liest jetzt als NEUTRALE 0,5, nicht als 0: `clamped(to:)` bildet NaN auf die UNTERE
+                          Grenze ab, ein schlechter Wetter-Wert hätte also jeden Take still ausgedünnt.
+                          **Lehre, und sie unterscheidet sich von „Zahl nachführen": ein dreifach
+                          dokumentiertes Gesetz schützt nicht davor, es rückwärts zu zitieren — was schützt,
+                          ist der Test, der es ausrechnet.** Dazu drei engere Fassungen aus derselben
+                          Nachlese: die Schranke gilt für das RASTER, nicht für den Take (die verdoppelten
+                          Arp-Anschläge verschieben jede spätere RNG-Ziehung, und der Beat wird NACH der
+                          Melodie gezogen); der Puls-Aufrufer bekam einen ZWEITEN Körper, weil der erste
+                          `busy`-Wert unter seinem ganzen Band lag und die Hälfte nur per Quelltext-Scan
+                          gedeckt war; und der Scan folgt jetzt der BINDUNG statt der Zeile — dieselbe
+                          #413-Falle, eine Datei weiter),
                           davor „155" nach `TheGenerateLineExplainsItsNoteCountTests.swift` (#413 — der
                           erste Wächter in dieser Kette über einer BREADCRUMB statt über einem Verhalten
                           oder einer Anzeige, und deshalb der erste, dessen beide Hälften Quelltext-Scans
                           sind und der das im eigenen Kopf als Grenze aufschreibt statt es zu verschweigen.
-                          Er prüft, dass die `generate[…]`-Zeile alle VIER Dichte-Treiber nennt (Genre ·
-                          lebender Frame · `busy` · Tempo-Ausdünnung) und dass `busy` aus
+                          Er prüft, dass die `generate[…]`-Zeile alle FÜNF Dichte-Treiber nennt (Genre ·
+                          lebender Frame · `busy` · Tempo-Ausdünnung · Stimmungs-Lebendigkeit — die
+                          fünfte kam mit #418 zurück, siehe den ⛔-Block weiter unten) und dass `busy` aus
                           `BioComposer.musicalState` mit demselben `input` neu gerechnet wird, das der
                           Komponist bekam — eine zweite Herleitung wäre eine Zahl, die vom Klang abweichen
                           und im Log trotzdem maßgeblich aussehen kann. Was er NICHT kann und was deshalb
@@ -297,7 +316,17 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           mitrepariert und als eigene Aufgabe registriert:** der Liveliness-Regler im
                           Mood-Panel, der Mood-Pad-Zug und `WeatherMood.blend` SCHREIBEN alle drei
                           `mood.liveliness` — drei Schreiber, null erreichbare Leser, also ein lügendes
-                          Control im #135-Sinn und ein Loch in der #349-Behauptung „Wetter ist hörbar"),
+                          Control im #135-Sinn und ein Loch in der #349-Behauptung „Wetter ist hörbar".
+                          ⛔ **UND `live=` IST NOCH AM SELBEN TAG WIEDER EINGEZOGEN, weil #418 ihm einen
+                          Leser gegeben hat** — dreimal derselbe Aufzählungspunkt, dreimal richtig zum
+                          Zeitpunkt des Schreibens. **Die Lehre ist deshalb nicht „genauer hinsehen",
+                          sondern: eine Treiber-Liste gilt nur für den Commit, in dem sie steht — wer
+                          einem toten Wert einen Leser gibt, muss zur Diagnose zurücklaufen, die ihn tot
+                          erklärt hat.** Mit einer Grenze, die BLEIBT und in beiden Dateien steht: beide
+                          Entscheidungen liegen hinter `!sustained`, und 8 der 16 angebotenen Genres —
+                          das ausgelieferte Standard-Genre `.selfObservation` eingeschlossen — erreichen
+                          sie nie. Für das Genre, das ein Erstnutzer hört, ist der Regler weiter inert
+                          (#419)),
                           davor „154" nach `OneDefinitionOfTooBrightTests.swift` (#416 — der erste
                           Wächter in dieser Kette über einer DOPPELTEN Definition statt über einer
                           fehlenden: „die Fingerkuppe ist überstrahlt" stand zweimal in EINER Datei,

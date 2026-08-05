@@ -8051,7 +8051,7 @@ struct EchoelStudioView: View {
         // camera's 6 s `freshnessWindow`, so no body reached the composer) and still cannot
         // say what DID move it. That is the #401 situation exactly, one layer over.
         //
-        // FOUR VALUES, because the count has four independent drivers and naming fewer would
+        // FIVE VALUES, because the count has five independent drivers and naming fewer would
         // be the same partial answer dressed as an explanation:
         //   · `genre` — `MusicStyle` carries the `harmonicProfile` (progression length, chord
         //     tones per chord, `sustainedDrone`, `arpeggiated`) plus `chordArticulation` and the
@@ -8081,22 +8081,24 @@ struct EchoelStudioView: View {
         //     would have put the repo in disagreement with itself over a number a reader uses to
         //     decide whether a take was thinned.
         //
-        // ⛔ IT WAS FIVE, AND `live=` (mood liveliness) IS GONE — the third wrong version of the
-        // same bullet, and this one printed a number that CANNOT move the count. Every read of
-        // `mood.liveliness` in the composer is either `ambientMelody:1332` (callerless) or inside
-        // `if profile.leadDensity > 0` (`BioComposer.swift:2422…2544`, containing `lively:2424`,
-        // `liftP:2510`, `ornamentP:2521`) — and ALL 33 shipped genres set `leadDensity: 0.0`,
-        // an invariant `Tests/CISmoke/LeadRoleAbsenceTests.swift` already pins. So the block never
-        // runs and liveliness reaches no note. Printing it as one of the drivers is exactly the
-        // partial-answer-dressed-as-explanation this slice exists to remove, one level subtler:
-        // not a stale name, but a live value with a dead path. When a founder raises `leadDensity`
-        // on any genre, THAT commit adds `live=` back.
+        //   · `live=` — the Mood panel's Liveliness knob, which since #418 shifts the THRESHOLD
+        //     both of the decisions above compare `busy` against (`BioComposer.densityThreshold`).
         //
-        // ⚠️ THE BIGGER FINDING BEHIND IT IS NOT FIXED HERE: the Mood panel's Liveliness knob and
-        // the mood-pad drag both WRITE `mood.liveliness`, and `WeatherMood.blend` steers it too —
-        // three writers, zero reachable readers. That is a lying control in the #135 sense and a
-        // partial hole in #349's "weather is audible" claim. Registered separately; a diagnostic
-        // slice must not quietly grow into a mood-engine change.
+        // ⛔ THE HISTORY OF THIS ONE BULLET IS WORTH MORE THAN THE BULLET. It shipped as `live=`,
+        // was REMOVED hours later as a number that could not move the count, and is now back —
+        // and both of those were right at the time. Removed because every read of
+        // `mood.liveliness` sat in the callerless `ambientMelody` or inside
+        // `if profile.leadDensity > 0`, and all 33 shipped genres set `leadDensity: 0.0`
+        // (`Tests/CISmoke/LeadRoleAbsenceTests.swift` pins it) — a live value on a dead path,
+        // which is the subtlest way this line can lie. Back because #418 gave it a reachable
+        // reader in the same cycle. **Lehre: a driver list is only true for the commit it was
+        // written in — the fix that makes a value matter has to walk back to the diagnostic.**
+        //
+        // ⚠️ AND `live=` IS NOT A DRIVER ON EVERY GENRE — say so rather than let a log reader
+        // infer it. Both decisions it shifts sit behind `!sustained`, and 8 of the 16 offered
+        // genres are `sustained: true`, INCLUDING the default `.selfObservation`. On those the
+        // number prints and changes nothing. Registered as #419 (the sustained half); until that
+        // lands, read `live=` together with `genre=`.
         //
         // ⚠️ BUILT AS ITS OWN STATEMENT, not folded into the breadcrumb literal below. That
         // literal already carried TEN interpolations before this one (count them with
@@ -8117,8 +8119,9 @@ struct EchoelStudioView: View {
         let bodyFlag: Int = frame == nil ? 0 : 1
         let busyText: String = String(format: "%.2f", genBusy)
         let scaleText: String = String(format: "%.2f", genScale)
+        let liveText: String = String(format: "%.2f", input.mood.liveliness)
         let densityText: String =
-            "genre=\(genreID), body=\(bodyFlag), busy=\(busyText), tScale=\(scaleText)"
+            "genre=\(genreID), body=\(bodyFlag), busy=\(busyText), tScale=\(scaleText), live=\(liveText)"
         EchoelCrashLog.breadcrumb("generate[\(pendingGenerateReason)]: \(composition.notes.count) notes, playing=\(beatPlayer.pattern.isPlaying), key=\(keyText), tuning=\(tuningID), a4=\(a4Text), sinceLast=\(sinceText), rollMixGain=\(String(format: "%.2f", pianoRoll.mixGain)), vMax=\(String(format: "%.3f", vMax)), userMix=\(String(format: "%.2f/%.2f/%.2f", mixer.bass, mixer.pad, mixer.lead)), \(densityText)")
     }
 

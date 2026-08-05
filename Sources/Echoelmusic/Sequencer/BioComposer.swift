@@ -728,19 +728,30 @@ public enum BioComposer {
     /// It moves the THRESHOLD, not the steps. The two live density decisions (`arpStep`,
     /// `pulseGap`) each choose between two fixed values by comparing `busy` against a literal;
     /// this shifts that literal. The knob can therefore only pick the other of the two values the
-    /// genre ALREADY ships — it can never invent a third, so no knob position can produce a
-    /// texture the genre could not previously make. That bound is the whole safety argument for
-    /// changing shipped sound, and `LivelinessReachesTheDensityDecisionTests` sweeps it.
+    /// genre ALREADY ships — it can never invent a third.
+    ///
+    /// ⛔ THAT BOUND IS ABOUT THE GRID, NOT THE TAKE, and the first version of this comment said
+    /// "no knob position can produce a texture the genre could not previously make" — too strong,
+    /// caught in the #418 Nachlese. Doubling the arp onsets in section 0 shifts every later RNG
+    /// draw (`nextUUID` twice per note, `hVel` once), and the beat is drawn AFTER the melody, so
+    /// velocity detail and drum placement land somewhere this seed could not previously reach.
+    /// The claim that survives: no knob position changes WHICH grid values a genre can use.
     ///
     /// ⚠️ 0.5 IS BIT-IDENTICAL, and that is load-bearing rather than tidy: it is `MoodProfile`'s
     /// init default, so anyone who never touches the knob gets exactly today's take. `centred` is
     /// zero there and `base - span * 0` is `base` exactly in Float — not "close enough".
     ///
-    /// `clamp01` also handles the non-finite case: `min(max(x, 0), 1)` with NaN first returns 0
-    /// (the argument-order rule CLAUDE.md records), so a bad value from the weather provider
-    /// reads as "still" instead of poisoning the threshold.
+    /// ⛔ AND THE NON-FINITE PATH WAS WRONG IN BOTH THE CODE AND THE COMMENT ABOVE IT. The first
+    /// version called `clamp01` and claimed "`min(max(x, 0), 1)` with NaN first returns 0 (the
+    /// argument-order rule CLAUDE.md records)". That is the rule INVERTED: `max(0, NaN)` returns
+    /// 0, `max(NaN, 0)` returns NaN — and `clamp01` writes the value first, so a NaN went
+    /// straight through into the threshold. The `genreAnchorCount` guard eighty lines above
+    /// spells this out for the same helper; a brand-new comment cited the law backwards anyway.
+    /// A non-finite value now reads as the NEUTRAL 0.5, not as 0: a bad weather sample must not
+    /// silently sparsify a take, and 0.5 lands on exactly today's threshold.
     nonisolated static func densityThreshold(base: Float, liveliness: Float) -> Float {
-        let centred = clamp01(liveliness) - 0.5              // −0.5 … +0.5
+        let safe = liveliness.isFinite ? liveliness : 0.5     // NaN/±inf ⇒ today's threshold
+        let centred = safe.clamped(to: 0...1) - 0.5           // −0.5 … +0.5
         return base - Self.livelinessThresholdSpan * centred  // lively ⇒ lower bar
     }
 

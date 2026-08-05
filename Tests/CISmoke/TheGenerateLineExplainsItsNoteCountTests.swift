@@ -10,7 +10,7 @@
 // and it is the #401 situation one layer over: a breadcrumb that reports an outcome without
 // the inputs that decide it can only ever start an investigation, never end one.
 //
-// ⭐ FOUR DRIVERS, NOT ONE. The count has four independent sources, and naming fewer would be
+// ⭐ FIVE DRIVERS, NOT ONE. The count has five independent sources, and naming fewer would be
 // the same partial answer dressed as an explanation — the failure this file's sibling #416 was
 // corrected for on the same day:
 //   · `genre`   — `MusicStyle` carries the `harmonicProfile` (progression length, chord tones
@@ -31,11 +31,15 @@
 //   · `busy`    — the autonomic density term from `BioComposer.musicalState`.
 //   · `tScale` — the tempo thinning: `densityScale` coarsens the arp step and the inner pulse
 //                 gap once it drops below 0.8, which is above 109 BPM (`(84/bpm)^0.85 = 0.8`).
-//                 Two earlier drafts of this bullet were wrong — one cited `ambientMelody`'s
-//                 `density = busy * (0.6 + 0.8 * liveliness)` (retired, reaches no take), the
-//                 other paired it with `live` (mood liveliness), which cannot move the count at
-//                 all: see `requiredFields` below. Three versions, two dead paths — the reason
-//                 this file names its evidence instead of its intuition.
+//                 ⛔ An earlier draft of this bullet cited `ambientMelody`'s
+//                 `density = busy * (0.6 + 0.8 * liveliness)` — retired, reaches no take. The
+//                 reason this file names its evidence instead of its intuition.
+//   · `live`    — the Mood panel's Liveliness knob, which since #418 SHIFTS the threshold both
+//                 decisions above compare `busy` against (`BioComposer.densityThreshold`). It
+//                 was in this list, was removed as provably inert, and came back within the same
+//                 cycle when it got a reader — the full history is on `requiredFields` below,
+//                 including the part that stays true: on the 8 `sustained` genres (the default
+//                 `.selfObservation` among them) it still moves nothing (#419).
 //
 // ⛔ HONEST LIMITS, exhaustive as far as I can make it:
 //   · All three tests are SOURCE SCANS. They prove the line is written and that it recomputes
@@ -45,12 +49,14 @@
 //     function, same `input` — and construction is exactly what a later edit can break. The
 //     stronger guard would need `compose` to return the state it used; that is a return-type
 //     change and a separate slice.
-//   · The scan matches the four field names as they appear in the source literal. Renaming a
+//   · The scan matches the five field names as they appear in the source literal. Renaming a
 //     field in the literal AND here in the same commit passes, which is correct (the names are
 //     the contract, not the spelling of any one of them) but means this cannot catch a rename
 //     that makes the log less legible.
-//   · Nothing here says the four drivers are COMPLETE. They are the four I could trace; if a
-//     fifth is found, this file should grow rather than be trusted as an inventory.
+//   · Nothing here says the five drivers are COMPLETE, and that bullet has already been cashed:
+//     it read "if a fifth is found, this file should grow rather than be trusted as an
+//     inventory" — #418 found the fifth within the day and the file grew. Read the list as the
+//     drivers traced so far, never as an inventory.
 
 import Foundation
 import XCTest
@@ -59,16 +65,24 @@ final class TheGenerateLineExplainsItsNoteCountTests: XCTestCase {
 
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
 
-    /// The four names the line must carry. `notes` is deliberately absent — it was always
+    /// The five names the line must carry. `notes` is deliberately absent — it was always
     /// there and is the value being explained, not part of the explanation.
     ///
-    /// ⛔ `live=` (mood liveliness) WAS HERE AND IS DELETED. Every read of `mood.liveliness` in
-    /// the composer sits either in the callerless `ambientMelody` or inside
-    /// `if profile.leadDensity > 0` (`BioComposer.swift:2422…2544`), and all 33 shipped genres
-    /// set `leadDensity: 0.0` — the invariant `LeadRoleAbsenceTests` in this same bundle pins.
-    /// A guard that demanded it would have forced the log to keep printing a number that cannot
-    /// move the count. Add it back in the SAME commit that raises `leadDensity` on any genre.
-    private static let requiredFields = ["genre=", "body=", "busy=", "tScale="]
+    /// ⛔ `live=` WAS HERE, WAS DELETED HOURS LATER, AND IS BACK — and all three were correct at
+    /// the time. Deleted because every read of `mood.liveliness` in the composer then sat either
+    /// in the callerless `ambientMelody` or inside `if profile.leadDensity > 0`, and all 33
+    /// shipped genres set `leadDensity: 0.0` (the invariant `LeadRoleAbsenceTests` pins in this
+    /// same bundle) — a guard demanding it would have forced the log to print a number that could
+    /// not move the count. Back because #418 gave it a reachable reader
+    /// (`BioComposer.densityThreshold`, shifting both live density decisions) in the same cycle.
+    /// The honest limit travels with it: both decisions sit behind `!sustained`, and 8 of the 16
+    /// offered genres — the default `.selfObservation` included — never reach them (#419). So
+    /// `live=` is a driver on SOME genres, which is why this list demands it and the block above
+    /// `densityText` says which.
+    ///
+    /// **Lehre: this list is only true for the commit it was written in.** A fix that gives a
+    /// dead value a reader has to walk back to the diagnostic that declared it dead.
+    private static let requiredFields = ["genre=", "body=", "busy=", "tScale=", "live="]
 
     // MARK: - The line says what set the count
 
