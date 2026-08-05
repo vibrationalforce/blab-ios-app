@@ -111,7 +111,17 @@ dieselbe Person, zweimal" dasselbe Skelett mit neuer Melodie.
 
 ## 4. SCHEIBEN
 
-### Slice 0 — die Zahl (blockiert alles andere)
+### Slice 0 — die Zahl (blockiert alles andere) · **GEBAUT 2026-08-05**
+`Sources/Echoelmusic/Sequencer/TakeDistance.swift` + `Tests/CISmoke/TakeDistanceTests.swift`.
+Zwölf Eigenschaften des reinen Maßes plus vier Wächter an echten `BioComposer`-Takes; die
+beiden im Absatz unten geforderten sind `testDifferentBodiesDoNotCollapseOntoOneTake` und
+`testTheSamePersonIsCloserToItselfThanToAStranger`.
+⚠️ Zwei Einschränkungen, die beim Zitieren mitmüssen: (1) die Seed-Faltung im Test ist eine
+NACHBILDUNG der App-Faltung (`bioSeed` ist privat auf einer @MainActor-View) — gepinnt ist die
+Unterscheidungskraft des Maßes, NICHT die App-Verdrahtung; die bekommt ihren Wächter mit Slice 1.
+(2) `minimumCrossBodyDistance = 0.05` ist ein BODEN gegen Kollaps, keine gemessene Grenze — die
+echte Zahl liefert Slice 2.
+
 Ein reiner Kern `TakeDistance`, der zwei `[Note]`-Takes vergleicht und einen Abstand in
 [0,1] liefert, aufgeteilt in benannte Anteile: Tonhöhen-Kontur · Rhythmus-Onsets ·
 Dichte · Register · Velocity-Profil. Plus Wächter im blockierenden Bundle:
