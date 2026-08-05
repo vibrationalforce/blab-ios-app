@@ -177,9 +177,14 @@ struct WorkspaceView: View {
                 // `.accessibility1` (~1.65× vs the old ~1.24×) is the largest step
                 // verifiable by reasoning alone. Raising it further is a founder device
                 // look, and it needs the fixed heights INSIDE the bars converted first
-                // (`BodyTempoField` 76×32; ⛔ `HeaderMonitors.PulseMonitorMini` stood here too
-                // and has not been chrome since #289 moved it into the instrument's
-                // `startControlRow` — it is no longer part of this ceiling's arithmetic) — those
+                // (⛔ `BodyTempoField` 76×32 was named here and LEFT with #411 — like
+                // `HeaderMonitors.PulseMonitorMini` before it (#289), it now lives in the
+                // instrument's `startControlRow`, so neither is part of this ceiling's
+                // arithmetic any more. What is still fixed-size in the chrome:
+                // `EchoelValueField`'s A4 box in `CompositionHeaderStrip` and the "•••"
+                // 30×32. TWO named examples have now migrated out of this list without the
+                // list noticing, which is the argument for re-measuring rather than
+                // re-quoting it) — those
                 // hold at AX1 and overflow from AX2 up, so "the layout is ready" is true
                 // only for the step actually taken. Do NOT read this as "accessibility is
                 // done": a user on AX4/AX5 still gets AX1 in the chrome.
@@ -644,19 +649,29 @@ private struct TransportBar: View {
             //  alone. Same founder complaint, answered twice — the second time by removing
             //  the duplicate rather than relocating it.)
 
-            // THE tempo control, up in the transport chrome next to Play (founder
-            // 2026-07-15 "Das soll da oben hin", "beide behalten" — the pulse monitor
-            // stays in the brand header above; the wasteful full-width Tempo row is
-            // gone). Compact 4-decimal field + its lock. A self-contained LEAF that
-            // reads the ~10 Hz pulse in its OWN body, so the transport bar / root never
-            // subscribe to the churn (freeze rule, same as PulseMonitorMiniLive).
-            // Lock/unlock/edit posts "tempoLock" so the studio recomposes to the new
-            // musical tempo (step 2b: this hook lived on the Composition panel's full
-            // BodyTempoField, which is gone — THE tempo control is this one).
-            BodyTempoField(onLockChanged: {
-                NotificationCenter.default.post(name: .echoelCompositionEdited,
-                                                object: "tempoLock")
-            }, compact: true)
+            // ⛔ THE TEMPO FIELD + ITS LOCK LEFT THIS BAR (#411, founder 2026-08-05,
+            // screenshot with the row circled and an arrow pointing down at the play row:
+            // *"Die Zeile mit den bpm und Schloss in rot umrandet soll dort hin wo der rote
+            // Pfeil hinzeigt migrieren."*). It now sits in `EchoelStudioView.startControlRow`,
+            // between the transport buttons and the analysis pill — the Ableton ordering that
+            // row already follows (controls left, readout right), which is what #307 built it
+            // for. Nothing about the control changed: same `BodyTempoField(compact: true)`,
+            // same "tempoLock" post, same shared `@AppStorage` keys. It is THE musical-tempo
+            // control and there is still exactly one of it.
+            //
+            // ⚠️ WHY THE MOVE IS FREEZE-SAFE, since this is the bar that used to host it:
+            // `BodyTempoField` reads the ~10 Hz pulse in its OWN body and always did. That
+            // isolation is the reason it can be mounted anywhere — including inside
+            // `EchoelStudioView`, the body that hosts every `.menu` Picker in the instrument.
+            // Constructing it there registers nothing; only its own body reads state.
+            //
+            // ⚠️ WHAT DID NOT MOVE, and it is a measurement rather than an oversight: the
+            // "•••" overflow and `TransportPositionView` stay here. The founder named the row
+            // by "bpm und Schloss"; folding all four children into one line would leave the
+            // analysis pill — which he asked to make BIGGER on 2026-07-31 (#305/#307) — with
+            // roughly a third of its width on a 393 pt phone once the pause button appears.
+            // Two founder asks pull against each other there, and that one needs a device
+            // look, not a guess.
 
             // Global doors, grouped into ONE overflow menu (founder 2026-07-12 placed
             // Master · Export · Live · Learn "oben in die Leiste"; collapsing them to a

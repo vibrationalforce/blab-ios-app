@@ -1573,10 +1573,38 @@ struct EchoelStudioView: View {
     /// display — which he wanted bigger — is the only flexible child, so it takes all of it.
     /// The pill moved from first to last for that reason and no other; its behaviour, its tap
     /// (Bio panel) and its long-press (bio source, the BLE strap's ONE owner) are untouched.
+    /// ⭐ #411 — THE TEMPO FIELD JOINED THIS ROW (founder 2026-08-05, screenshot with the
+    /// chrome tempo row circled and an arrow pointing down here: *"Die Zeile mit den bpm und
+    /// Schloss in rot umrandet soll dort hin wo der rote Pfeil hinzeigt migrieren."*).
+    ///
+    /// It lands between the transport buttons and the readout, which is the ordering #307
+    /// already built this row on — and it is where a musician looks for a tempo, because it is
+    /// where every DAW puts it. Nothing about the control changed: same
+    /// `BodyTempoField(compact: true)`, same "tempoLock" post, same shared `@AppStorage`
+    /// keys as the chrome copy it replaces. There is still exactly ONE musical-tempo control.
+    ///
+    /// ⚠️ FREEZE LAW, EXTENDED TO A THIRD CHILD. `BodyTempoField` reads the ~10 Hz camera
+    /// publisher in its OWN body — that is why it can be mounted here at all. CONSTRUCTING it
+    /// registers nothing; only a body that READS state subscribes. The same argument that
+    /// admits `PulseMonitorMiniLive` and `PlaybackToggleButton` admits this one, and it is the
+    /// reason all three are `struct`s instead of inline `HStack` content.
+    ///
+    /// ⚠️ THE COST IS WIDTH, AND IT IS PAID BY THE READOUT. The pill is the only flexible
+    /// child, so it absorbs the ~114 pt the field and its lock take (76 + 30 + spacing) — on a
+    /// 393 pt phone with a session running that leaves it roughly 150 pt instead of 300. The
+    /// founder asked for a BIGGER analysis display on 2026-07-31 (#305/#307), so this is two of
+    /// his asks pulling against each other and it needs a device look, not a taste argument.
+    /// If it reads too cramped, the cheapest answer is to move `TransportPositionView` and the
+    /// "•••" overflow OUT of the chrome bar as well and give this row a second line — NOT to
+    /// send the tempo back up.
     private var startControlRow: some View {
         HStack(spacing: 8) {
             startButton
             PlaybackToggleButton()
+            BodyTempoField(onLockChanged: {
+                NotificationCenter.default.post(name: .echoelCompositionEdited,
+                                                object: "tempoLock")
+            }, compact: true)
             #if canImport(AVFoundation)
             PulseMonitorMiniLive()
             #endif
