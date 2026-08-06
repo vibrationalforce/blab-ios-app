@@ -92,8 +92,16 @@ struct MeditationView: View {
                 Text(pacer.pattern.evidence).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                 // Same honesty line as the guide: two of the four curated patterns are paced
-                // outside `RespirationEstimator.reportableRange`, so the live breath readout
-                // cannot follow them. Derived from the arithmetic, never hand-written (#435).
+                // BELOW `RespirationEstimator.reportableRange`, so Echoel's breath NUMBER (the
+                // one in the bio strip) cannot show this pace. Derived from the arithmetic,
+                // never hand-written (#435).
+                // ⚠️ SCOPE, because this screen is titled "Coherence Session" and the note must
+                // not be read as "nothing here measures you": what THIS view records is
+                // coherence, and that is unaffected — `HRVCoherence`'s peak-search band is
+                // 0.04–0.26 Hz, which contains box (0.0625 Hz) and 4-7-8 (0.0526 Hz) comfortably.
+                // The caption is deliberately worded about the breath NUMBER only. Saying the
+                // coherence half out loud here is a separate copy decision (#449), not a silent
+                // omission.
                 if let note = pacer.pattern.measurementNote {
                     Text(note).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.accent)
                         .fixedSize(horizontal: false, vertical: true)

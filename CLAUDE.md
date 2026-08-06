@@ -251,9 +251,22 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           vier liegen UNTER der Untergrenze** — während der Nutzer der Atemführung der
                           App folgt, kann die Atemmessung der App die verlangte Rate nicht zurücklesen.
                           `BreathGuideView` bietet ausdrücklich einen „treibe den Ball aus deinem
-                          GEMESSENEN Atem"-Modus an, der dort nie angehen kann, und `bioNormalized`
-                          lässt den Atem-Term ganz fallen — die Musik hört genau in dem Moment auf, dem
-                          Atem zu folgen, in dem der Nutzer bewusst atmet.
+                          GEMESSENEN Atem"-Modus an, der auf `breathRate > 0` schaltet, und
+                          `BioStripView` zeigt eine Atem-Zahl.
+                          ⛔ **Und die erste Fassung dieses Eintrags begründete das mit zwei Sätzen, die
+                          BEIDE falsch sind — beide vom Bio-Reviewer gefunden, beide von mir nachgeprüft.**
+                          (1) „der dort nie angehen kann" gilt nur für 4-7-8; für Box schaltet er an
+                          etwa fünf von sechs Ruhepulsen sehr wohl an. (2) „`bioNormalized` … die MUSIK
+                          hört auf, dem Atem zu folgen" ist doppelt falsch und dieses Repo sagt das an
+                          zwei Stellen schon selbst: der einzige Aufrufer ist
+                          `RecordController.captureBio` — eine aufgezeichnete Automationsspur, kein
+                          lebender Audiopfad —, und `RecordController.onStep` beginnt mit
+                          `guard armed else { return }`, während `arm()` NULL Aufrufer in `Sources/` hat
+                          (#204, #433). Ich habe genau die Behauptung neu eingetragen, die zwei
+                          Retraktionen streichen. Die WIRKLICH lebenden Verbraucher sind
+                          `ModulationMatrix` (`.breathRate` hat einen Produzenten, erreicht also den
+                          Carrier-Picker der FX-Bio-Modulation), `BioEventPublisher` → Atem-Onsets → OSC
+                          `/echoelmusic/bio/breath/*` und der Follow-Modus selbst.
                           ⭐ Die zwei scheitern VERSCHIEDEN, und das ist der Fund, der mehr wert ist als
                           der Boolesche. Modelliert wurde nur der fragliche Mechanismus (die Atemperiode
                           wird zwischen Nulldurchgängen der Herzschlagreihe gelesen, ein Zyklus rastert
@@ -277,17 +290,67 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Dateikopf: die Sweep-Zahlen sind ein MODELL des Annahmebandes und der
                           Schlag-Quantisierung, nicht `RespirationEstimator` selbst — sie festzunageln
                           hieße mein Modell festnageln statt das Produkt, die teurere Sorte Grün.
-                          Behauptet wird nur, was aus den ausgelieferten Typen entscheidbar ist. Und die
-                          Aussage „die Notiz erscheint genau dann, wenn die Rate draußen liegt" ist per
-                          Konstruktion wahr und wird deshalb NICHT geprüft (#367) — geprüft wird, WELCHE
-                          konkreten Muster auf welcher Seite landen, was bei jeder Segment- oder
-                          Band-Änderung rot wird. ⚠️ Und die ehrliche Grenze der Türen: BEIDE Flächen,
+                          Behauptet wird nur, was aus den ausgelieferten Typen entscheidbar ist.
+                          ⛔ **UND DIE ERSTE FASSUNG LIEFERTE EINE BILDUNTERSCHRIFT AUS, DIE FÜR BOX
+                          FALSCH IST — zwanzig Zeilen unter einem Doc-Kommentar desselben Commits, der
+                          das Gegenteil sagt.** Sie lautete „Echoel can't read your breath rate at this
+                          pace — … the live breath readout won't follow it", versprach also STILLE. Box
+                          wird nicht still: es veröffentlicht an etwa fünf von sechs Ruhepulsen und liest
+                          ~3 % ZU HOCH. Einer Nutzerin zu sagen, eine LEBENDE Anzeige sei tot, ist die
+                          lügendes-Control-Klasse umgekehrt. Die Lehre ist nicht „Text prüfen", sondern:
+                          **eine aus einem Booleschen ABGELEITETE Bildunterschrift erbt nur, was der
+                          Boolesche weiß** — und dieser weiß „unter dem Band", nicht „still". Die neue
+                          Fassung behauptet nur das modellfrei Entscheidbare: die Rate liegt unter dem
+                          Band, der Schätzer veröffentlicht nur INNERHALB — also kann die Anzeige diese
+                          Rate nie zeigen, sie bleibt leer oder liest zu hoch.
+                          ⛔ **Und die Aussage „die Notiz erscheint genau dann, wenn die Rate draußen
+                          liegt … wird deshalb NICHT geprüft (#367)" war an VIER Stellen gleichzeitig
+                          falsch** (hier, im Dateikopf, im Commit-Text und im Testkopf): die Datei prüft
+                          genau das, zweimal, an beiden Bandenden. Beide Reviewer fanden es unabhängig.
+                          Die Behauptungen BLEIBEN — ihr Wert ist nicht, dass sie heute scheitern können,
+                          sondern dass `measurementNote` eine Bearbeitung davon entfernt ist, ein
+                          GESPEICHERTER Text pro Muster zu werden, und sie dann das Einzige sind, was
+                          das Auseinanderlaufen bemerkt. Der Dateikopf sagt das jetzt so.
+                          ⛔ **Und der Boolesche allein nagelt nichts Unterscheidendes fest:** auf dem
+                          ausgelieferten Satz fällt `measurementNote != nil` exakt mit `hasHolds`
+                          zusammen, ein `hasHolds ? … : nil` bestand also JEDE Behauptung der Datei.
+                          `testTheNoteFollowsTheBandAndNotTheHolds` bricht die Koinzidenz mit zwei
+                          synthetischen Mustern, auf denen beide Eigenschaften auseinandergehen.
+                          ⚠️ Und die ehrliche Grenze der Türen: BEIDE Flächen,
                           die diesen Picker zeigen, sind heute unerreichbar (`BreathGuideView` nur aus
                           dem türlosen `BioSourceView` (#276), `MeditationView` nur unter
                           `showMeditation`, einem der drei Präsentations-Flags ohne jeden Setzer). Die
                           Zeile ist trotzdem geschrieben, aus demselben Grund wie bei #433/#434: die
                           Arithmetik ist falsch, ob eine Tür existiert oder nicht, und eine später
-                          eintreffende Tür darf nicht auf einem stillen Widerspruch aufsetzen),
+                          eintreffende Tür darf nicht auf einem stillen Widerspruch aufsetzen.
+                          ⛔ **Die ANNAHME, auf der das ganze Modell ruht, stand nirgends: GENAU EIN
+                          aufsteigender Nulldurchgang pro Atemzyklus.** Die erste Fassung wischte die
+                          Halte-Phasen als Randfrage weg („nichts hier misst das") und nannte den Rest
+                          gesichert — dabei sind die Halte-Phasen genau das, was die Annahme bricht.
+                          Unter dem Halte-Modell DIESER Datei (Amplitude bleibt stehen) überlebt sie
+                          (Box 19 Durchgänge in 300 s gegen 18,75 erwartete, 4-7-8 16 gegen 15,8). Unter
+                          dem physiologisch mindestens ebenso plausiblen Modell — kein Atemantrieb
+                          während des Haltens, der Puls RELAXIERT also zur Ruhelinie — erzeugt 4-7-8s
+                          7-s-Halt einen ZWEITEN Durchgang pro Zyklus, und der Schätzer veröffentlicht
+                          konfident ≈6,3/min: fast exakt das Doppelte der gepacten 3,158, mitten im
+                          Band, von Resonanzatmung nicht zu unterscheiden. Robust über Relaxations-
+                          Zeitkonstanten 1–5 s. Die plausible Fehlfunktion ist also eine ERFUNDENE
+                          IN-BAND-RATE — schlimmer als die Stille, vor der die Notiz warnt, und die
+                          Klasse, die dieses Repo mit #424 und #426 schon zweimal bezahlt hat. Keines
+                          der beiden Halte-Modelle ist am Gerät gemessen; das entscheidet ein Gurt-Take,
+                          kein drittes Modell.
+                          ⚠️ **Nebenbefund derselben Runde, und er sitzt auf einer SICHERHEITS-Doku:**
+                          `BreathPacer.minRate = 5.0` trug den Satz „we do not push below it so the
+                          guide can never drive an unsafely slow pace" — während der ausgelieferte
+                          Satz Box mit 3,75 und 4-7-8 mit 3,158 pact und die Konstante nichts klemmt
+                          (einziger Leser: `ResonanceFinder`s Sweep; `defaultRate` hat null Leser).
+                          `RecordAnchor` hielt „constrain NOTHING" längst fest, nur hatte niemand das
+                          mit der SICHERHEITS-Formulierung auf der Konstante selbst abgeglichen.
+                          Korrigiert am Ort: sicher ist der Führer durch die PRO-SEGMENT-Klemmung in
+                          `BreathPattern.init` plus das Halte-Einverständnis — ein langsamer ZYKLUS aus
+                          sanften Segmenten ist nicht die Gefahr, ein langer Einzelatemzug oder ein
+                          langer Halt wäre es, und die sind gedeckelt. Ob der kuratierte Satz überhaupt
+                          einen Raten-Boden haben soll, ist eine Founder-Frage (#450)),
                           davor „174"
                           nach `TheGapClimbCannotChangeTheResumeTests.swift` (#444 — der erste
                           Wächter in dieser Kette über einer REGISTRIERTEN REPARATUR, die sich beim

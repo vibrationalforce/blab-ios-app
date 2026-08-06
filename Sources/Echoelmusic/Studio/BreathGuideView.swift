@@ -201,7 +201,14 @@ struct BreathGuideView: View {
             }
             .tint(EchoelTheme.accent)
             if followMyBreath && measuredBreath == nil {
-                Text("Start the camera to measure your breath.")
+                // For a pattern paced below `RespirationEstimator.reportableRange` this branch
+                // can be the PERMANENT state with the camera already running (4-7-8 never
+                // publishes a rate, and this mode gates on `breathRate > 0`) — so the bare
+                // "Start the camera" instruction would be a standing falsehood there. Both
+                // clauses are true in both cases (#435).
+                Text(pacer.pattern.pacedRateIsReportable
+                     ? "Start the camera to measure your breath."
+                     : "Start the camera — at this pace it may not find a breath rate.")
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.dim)
                     .multilineTextAlignment(.center)

@@ -105,11 +105,22 @@ public struct BreathPattern: Identifiable, Equatable, Sendable {
     /// numbers here — a second copy of that bound is the #416 defect, and this is #426's form:
     /// one side asks the other instead of both remembering the same constant.
     ///
-    /// It matters because the guide is not only a guide. `BreathGuideView` offers a
-    /// "drive the ball from your MEASURED breath" mode, and `bioNormalized` folds a measured
-    /// breath rate into the arousal the music follows. For a pattern outside the band, both go
-    /// quiet — and nothing on screen says why, which is exactly the lying-control class this
-    /// repo keeps closing.
+    /// ⛔ WHY IT MATTERS — and the first version of this paragraph named the WRONG consumer.
+    /// It said "`bioNormalized` folds a measured breath rate into the arousal the MUSIC
+    /// follows". Both halves are false, and two places in this repo already said so before I
+    /// wrote it: `bioNormalized`'s only caller is `RecordController.captureBio` — a recorded
+    /// automation lane, not a live audio path — and `RecordController.onStep` opens
+    /// `guard armed else { return }` while `arm()` has ZERO callers in `Sources/`. The #433
+    /// entry and `RespirationEstimator`'s own doc both record that dormancy; I re-committed the
+    /// claim they strike. The consumers that ARE live:
+    ///   · `ModulationMatrix` — `.breathRate` has a producer, so it reaches `FXModCarrier`'s
+    ///     carrier picker and can be routed onto any FX parameter in a session.
+    ///   · `BioEventPublisher` → `BioEventGraph` breath onsets → OSC `/echoelmusic/bio/breath/*`.
+    ///   · `BreathGuideView`'s "drive the ball from your MEASURED breath" mode, which gates on
+    ///     `breathRate > 0` — so a pattern that never publishes a rate leaves that toggle stuck
+    ///     on "Start the camera" WITH the camera already running.
+    /// (`BreathArp` and the composer's inhale bias read breath PHASE, not rate; they are not
+    /// covered by this property and must not be cited for it.)
     ///
     /// ⚠️ MEASURED, and the two out-of-band patterns fail DIFFERENTLY, which is why this is a
     /// property and the note below is not one sentence for both. Modelling only the mechanism
@@ -126,17 +137,47 @@ public struct BreathPattern: Identifiable, Equatable, Sendable {
     ///   · 4-7-8 (3.1579/min, **16.3% below**): **0 of 131** branches accepted, silent at every
     ///     one of the 66 pulses. No jitter reaches back into the band from there.
     ///
-    /// ⚠️ WHAT THIS MODEL DOES NOT COVER, stated rather than left to be found: it says nothing
-    /// about what the estimator does DURING a hold. Box holds 8 of its 16 seconds and 4-7-8
-    /// holds 7 of 19; the respiratory sinus arrhythmia across a held breath is not the smooth
-    /// modulation the estimator assumes, and nothing here measures that. The claim is only the
-    /// arithmetic one: even a perfectly tracked cycle at these paced rates is rejected or
-    /// biased by the acceptance band alone.
+    /// ⛔ THE ASSUMPTION THE WHOLE MODEL RESTS ON, and the first version left it unstated while
+    /// calling the remaining risk bounded: **exactly one upward zero-crossing per breath cycle**.
+    /// Every number above is a statement about the rate implied by ONE crossing interval. The
+    /// holds are precisely what can break that, and the first version waved at them ("nothing
+    /// here measures that") as if the residue were a detail. It is not — it is the claim.
+    ///   · Under the hold model THIS FILE ships (amplitude plateaus, see `sample`), the
+    ///     assumption survives: 19 crossings in 300 s for box against 18.75 expected, 16 for
+    ///     4-7-8 against 15.8. The 8 s trend follower chases a plateau asymptotically and never
+    ///     crosses back.
+    ///   · Under the arguably more physiological model — no respiratory drive during a hold, so
+    ///     HR RELAXES toward baseline — 4-7-8's 7 s hold produces a SECOND crossing per cycle
+    ///     and the estimator publishes a confident ≈6.3/min: almost exactly twice the paced
+    ///     3.158, sitting in the middle of the band, indistinguishable from resonance breathing.
+    ///     Measured robust across relaxation time constants of 1–5 s; it only falls silent once
+    ///     the relaxation is slower than the hold itself. 4-7-8's second harmonic is 0.105 Hz,
+    ///     which is the frequency this estimator is tuned for — the mechanism is not exotic.
+    /// So "0 of 131, silent at every pulse" is a property of the PLATEAU, not of the estimator,
+    /// and the plausible failure for 4-7-8 is a FABRICATED IN-BAND RATE — strictly worse than the
+    /// silence this note warns about, and the failure class this repo has already paid for twice
+    /// (#424's 3.5/min rail, #426's one-sided filter). Neither hold model is device-measured.
+    /// Resolving that needs a strap or a device take, not a third model.
     public var pacedRateIsReportable: Bool {
         RespirationEstimator.reportableRange.contains(ratePerMinute)
     }
 
-    /// The honest one-liner to show beside a pattern the camera cannot read back, or `nil`.
+    /// The honest one-liner for a pattern paced outside the readable band, or `nil`.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS STRING WAS FALSE FOR BOX — and the paragraph directly above
+    /// it already said so, in the same commit. It read "Echoel can't read your breath rate at
+    /// this pace — the guide still works, the live breath readout won't follow it", i.e. it
+    /// promised SILENCE. Box does not go silent: it publishes a rate at roughly five of every
+    /// six resting pulses and reads about 3% HIGH. A caption telling the user a LIVE readout is
+    /// dead is the lying-control class inverted, and it shipped two dozen lines under a doc
+    /// comment stating the opposite. The lesson is not "check the copy" — it is that a caption
+    /// derived from a boolean inherits only what the boolean knows, and this boolean knows
+    /// "outside the band", not "silent".
+    ///
+    /// What survives is the part decidable from the arithmetic alone, with no model in it: the
+    /// paced rate is BELOW `reportableRange`, and the estimator only ever publishes a rate
+    /// INSIDE it. Therefore the readout can never show this pace — it shows nothing, or it shows
+    /// a number that is higher. One sentence covering both branches, claiming neither.
     ///
     /// DERIVED, never stored: a hand-written caveat string on each pattern would drift the
     /// moment somebody retunes the band or edits a segment, and the drift would be invisible.
@@ -148,8 +189,8 @@ public struct BreathPattern: Identifiable, Equatable, Sendable {
     public var measurementNote: String? {
         pacedRateIsReportable
             ? nil
-            : "Echoel can't read your breath rate at this pace — the guide still works, "
-                + "the live breath readout won't follow it."
+            : "This pace is slower than Echoel's breath readout can report — the breath "
+                + "number stays blank or reads high."
     }
 
     /// Pure sample of the guide at a time within the cycle. `amplitude` [0,1] drives

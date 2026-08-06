@@ -36,8 +36,23 @@ public final class BreathPacer {
     // `nonisolated` so pure, non-MainActor models (e.g. ResonanceFinder) can read
     // these immutable bounds without crossing actor isolation.
 
-    /// Slow floor — resonance-search protocols stay at/above this; we do not push
-    /// below it so the guide can never drive an unsafely slow pace.
+    /// ⛔ THIS CONSTANT DOES NOT DO WHAT ITS DOC CLAIMED, and the claim was a SAFETY one, which
+    /// is why the correction is here rather than in a scratchpad. It read: "we do not push below
+    /// it so the guide can never drive an unsafely slow pace." The guide already does: the
+    /// curated set ships Box at 3.75/min and 4-7-8 at 3.158/min, both below this floor, and
+    /// neither is clamped by it — `BreathPacer.tick` paces `pattern.cycleSeconds`, and the only
+    /// readers of these bounds are `ResonanceFinder`'s sweep (`minRate`/`maxRate`) and nothing
+    /// at all (`defaultRate`). `RecordAnchor` already recorded that they "constrain NOTHING";
+    /// nobody had reconciled that with the safety wording sitting on the constant itself.
+    ///
+    /// What actually keeps the guide safe is the PER-SEGMENT clamping in `BreathPattern.init`
+    /// (`maxActiveSeconds` 15, `maxHoldFullSeconds` 8, `maxHoldEmptySeconds` 6) plus the
+    /// hold-acknowledgement gate — a slow CYCLE built from gentle segments is not the hazard;
+    /// a long single breath or a long hold is, and those are the ones that are bounded.
+    ///
+    /// So these two are the RESONANCE-SEARCH sweep bounds and nothing more. Whether the curated
+    /// set should be constrained by a rate floor at all is a founder question (#450), not a
+    /// number to quietly widen here. Do not restore the old sentence.
     public nonisolated static let minRate = 5.0
     public nonisolated static let maxRate = 12.0
     /// ~0.1 Hz — the canonical resonance / coherence pace.
