@@ -103,13 +103,14 @@ public struct RespirationEstimator {
     /// `[minRate / bandTolerance, maxRate * bandTolerance]` = `[3.774, 31.8]` at the shipped
     /// tolerance. Swept over the pulse axis (37…110), a body breathing exactly `maxRate` reports
     /// up to **+1.42/min above it** (pulse 63; 8 of 74 pulses exceed +0.074), and a body at
-    /// `minRate` reports down to **3.793** (pulse 38, 0.21 under). So:
+    /// `minRate` reports down to **3.7920** (pulse 38, phase 283°; 0.21 under). So:
     ///
     /// **`minRate`/`maxRate` are the band this estimator TARGETS, not a range the output obeys.
     /// A consumer that gates on the exact bounds is gating on the wrong numbers — use the accept
-    /// band, or accept a fraction outside.** `HealthWritePolicy.respiratoryRange` (4…40) is the
-    /// one that matters today, and its low end is exactly where the excursion is; see the ⛔ on
-    /// the health path below.
+    /// band, or accept a fraction outside.** `HealthWritePolicy.respiratoryRange` is the one that
+    /// matters today; its low end used to be exactly where the excursion is, and #426 moved it to
+    /// **3.7** for that reason. `reportableRange` below is the number a consumer should check
+    /// against, and a guard in the blocking bundle now keeps the two in step.
     public static let minRate = 4.0
     public static let maxRate = 30.0
 
@@ -253,14 +254,18 @@ public struct RespirationEstimator {
     /// each ~1.7× closer to the truth on the written population (see the ⛔ above — the "~5×" this
     /// sentence carried for one commit was the consumer-path figure, measured on a different
     /// population than the one paying the cost) — a trade, and a defensible one, but it is a trade
-    /// and it is written down. The clean end-state is the follow-up already named two ⛔s down
-    /// (widen `respiratoryRange` or round at the writer); until then this is the honest reading.
+    /// and it is written down. **⭐ THAT TRADE IS NO LONGER BEING MADE: #426 widened
+    /// `HealthWritePolicy.respiratoryRange` to 3.7…40, and all four counts are back to 360 of 360
+    /// with the written bias equal to the population bias (+0.0497 / +0.0492 / +0.0457 / +0.0415).**
+    /// The paragraph stays because the mechanism is the lesson: a range filter that truncates near
+    /// the mean of its input does not clean a measurement, it skews it.
     ///
     /// ⛔ AND THE SURPLUS BOUGHT A FABRICATION. Paired with the rate clamp the first version
     /// also shipped, a body breathing BELOW the band read as a confident rail: at 3.5 breaths/min
     /// the estimator published at 360 of 360 phases with `ratePerMinute` exactly 4.000 at 358 of
     /// them, where before #424 it published at 37 and never at the boundary. That value is not a
-    /// measurement, and `HealthWritePolicy.respiratoryRange` (4...40) CONTAINS it — so a
+    /// measurement, and `HealthWritePolicy.respiratoryRange` (4...40 then, 3.7...40 since #426)
+    /// CONTAINS it — so a
     /// saturated number would have been written to Apple Health as a respiratory sample, and
     /// learned into `PerformerSignature`. The clamp is gone (the reported rate is now the raw
     /// EMA) and the tolerance is small enough that the accept floor sits at 3.774/min. The lesson
@@ -272,11 +277,16 @@ public struct RespirationEstimator {
     /// downstream code does. `HealthWritePolicy.values(for:)` DROPS an out-of-range respiratory
     /// value (`respiratoryRange.contains(br) ? br : nil`); it does not clamp. At a body breathing
     /// exactly `minRate` the report lands below 4.0 — by 0.000075 at 240 of 360 phases AT THE
-    /// 60 bpm FIXTURE, and by up to 0.21 off it (3.793 at pulse 38) — so those
+    /// 60 bpm FIXTURE, and by up to 0.21 off it (3.7920 at pulse 38) — so those
     /// measurements are silently discarded on the write path — at the very rate this whole fix
     /// is named after. That is the RIGHT trade (a dropped sample beats an invented one) and it
     /// is a decision, not a side effect: if the edge should reach Apple Health, widen
     /// `respiratoryRange` or round at the writer, deliberately and in its own slice.
+    /// **⭐ #426 TOOK THAT DECISION AND TOOK THE FIRST HALF: widened, not rounded.** Rounding at
+    /// the writer would have put a value on the rail again, which is the defect two ⛔s up. The
+    /// widened bound is a literal, not `reportableRange.lowerBound`, so a later retune of
+    /// `bandTolerance` cannot silently change what is written into a health record — it makes
+    /// `TheBreathEdgeReachesHealthTests` red instead.
     ///
     /// ⚠️ IT DOES STILL COST SOMETHING, AND THE COST IS STALE-WINDOW, NOT ACCURACY. Accepting a
     /// period the old band rejected also keeps `lastCrossT` and `periodEMA` alive on bodies just
@@ -296,6 +306,23 @@ public struct RespirationEstimator {
     /// The numbers above are the full sweep, three digits: 19.776 / 40.857 / 22.687 and
     /// 32.390 / 36.360 / 36.360.)
     private static let bandTolerance = 1.06
+
+    /// ⭐ WHAT A CONSUMER MUST BE PREPARED TO RECEIVE (#426). `minRate`/`maxRate` are the band
+    /// this estimator TARGETS; this is the band its output actually lives in, because a period
+    /// is accepted on the wider band and the reported rate is the raw EMA of accepted periods,
+    /// never clamped back. At the shipped tolerance that is **3.7736 … 31.8** breaths/min.
+    ///
+    /// It is public so a downstream range filter can be checked against it instead of against
+    /// `minRate`/`maxRate` — the mistake `HealthWritePolicy` made for one release: its
+    /// `respiratoryRange` started at exactly 4.0, so a body breathing at `minRate` had a large
+    /// fraction of its (correct) measurements silently dropped on the write path, and the
+    /// surviving ones were the high-biased half. See the ⛔ on the health path above.
+    ///
+    /// ⚠️ This is a bound on what the arithmetic can EMIT, not a promise about accuracy. A
+    /// report at 31.8 is a badly-conditioned 30/min measurement, not a 31.8/min breather.
+    public static var reportableRange: ClosedRange<Double> {
+        (minRate / bandTolerance)...(maxRate * bandTolerance)
+    }
 
     // MARK: State
     private var lastT: Double?

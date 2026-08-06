@@ -242,8 +242,38 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**163** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `MoodKnobsSayWhatTheyDoTests.swift` (#354 Slice A — der
+                          `Tests/CISmoke` (**164** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `TheBreathEdgeReachesHealthTests.swift` (#426 — der erste
+                          Wächter in dieser Kette, der eine KONSTANTE an eine ANDERE Konstante kettet,
+                          statt ein Verhalten oder eine Anzeige zu prüfen: `HealthWritePolicy`
+                          verwarf jede Atemmessung unter 4,0/min, weil ihre untere Grenze aus
+                          `RespirationEstimator.minRate` abgeschrieben war — der Rate, die der
+                          Schätzer ANZIELT, während er seit #424 im weiteren `reportableRange`
+                          (3,7736…31,8) MELDET. Ein Körper, der genau die Resonanzrate atmet, verlor
+                          damit auf dem Schreibweg **214 von 360** Phasen bei Puls 42 (217 bei 46,
+                          218 bei 50, 209 bei 55, 219 bei 62, 217 bei 70, 137 bei 84, 210 bei 90,
+                          146 bei 100) — neun Pulse, kein sauberer darunter.
+                          ⭐ **Und der Schaden ist nicht „weniger Samples", sondern VERZERRUNG**, was
+                          diesen Befund von einem konservativen Filter unterscheidet: der Schnitt lag
+                          fast genau auf dem Mittelwert der korrigierten Verteilung, also überlebte
+                          die hohe Hälfte. Mittlerer Fehler der GESCHRIEBENEN Teilmenge gegen die
+                          ganze veröffentlichte Population: Puls 42 **+0,1522 vs +0,0497**, 46
+                          +0,1430 vs +0,0492, 62 +0,1212 vs +0,0457, 90 +0,1093 vs +0,0415 — Faktor
+                          ~3 auf Daten, die in einer Gesundheitsakte landen und in
+                          `PerformerSignature` gelernt werden. Die Reparatur ist WEITEN, nicht RUNDEN
+                          (#424 hat genau auf diesem Pfad bezahlt: eine geklemmte Meldung
+                          veröffentlichte 4,000 an 358 von 360 Phasen für einen 3,5/min-Körper, also
+                          eine erfundene Zahl innerhalb der Policy-Grenze).
+                          ⭐ Der Punkt ist die KETTUNG, und die Bauweise ist bewusst: die Grenze
+                          bleibt ein LITERAL (3,7), weil das, was Echoel in eine Gesundheitsakte
+                          schreibt, sich nicht als Nebenwirkung einer DSP-Nachjustierung weiten darf
+                          — `testThePolicyAdmitsEverythingTheEstimatorCanReport` wird rot, sobald
+                          `bandTolerance` steigt, und macht die Weitung zu einer Entscheidung statt
+                          zu einer Folge. ⚠️ Was er NICHT kann: beweisen, dass der Kamerapfad einen
+                          echten 4/min-Atmer 15 s lang hält (#304/#410), und beweisen, dass
+                          `HealthKitWriter` das Sample wirklich ablegt (braucht HealthKit + Gerät).
+                          Beides steht im Dateikopf), davor „163" nach
+                          `MoodKnobsSayWhatTheyDoTests.swift` (#354 Slice A — der
                           erste Wächter in dieser Kette, der eine ANZEIGE an eine ENGINE-Tatsache
                           kettet statt eine der beiden für sich zu prüfen: zwei der acht
                           Mood-Regler (`darkness`, `romance`) werden vom Komponisten je EINMAL
@@ -955,7 +985,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTZWEIUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 163 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTDREIUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 164 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
