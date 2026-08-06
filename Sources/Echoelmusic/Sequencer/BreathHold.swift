@@ -120,8 +120,13 @@
 //
 //   What `up` actually does is carry the ramp DURING a run; what it cannot do is influence the
 //   value a run restarts FROM. The triangle is the fade itself: `down` falls at
-//   `1/releaseSeconds`, the resumed ramp climbs at the same rate, so a source flickering slower
-//   than the horizon traces a symmetric triangle whose peaks all reach 1. Making those peaks
+//   `1/releaseSeconds`, and the resumed ramp USED TO climb at the same rate, so a source
+//   flickering slower than the horizon traced a symmetric triangle whose peaks all reach 1.
+//   ⛔ That equality is GONE for every window over 6 s as of #448 — the sentence above stood in
+//   the present tense in the very file #448 edited, and it is the #444 lesson in its quietest
+//   form: prose that survives a change is the prose nobody re-reads. On camera/BLE the triangle
+//   is unchanged (3 s attack, 3 s release). On the WRIST the shape is now a SAWTOOTH: 3 s rise,
+//   45 s fall. Making those peaks
 //   decay — a source that keeps dropping out earning less trust each time — means changing the
 //   RAMP RATE on re-acquisition. That is a behaviour policy, not a typo, so it still does not
 //   ride along; `testTheRampRateDoesNotRememberEarlierDropouts` is there to make it a red test
@@ -140,19 +145,37 @@
 //   and then falling — the source whose whole premise is "a reading from a minute ago is still
 //   your current rate" was the one this coupled hardest against. Camera/BLE was comparatively
 //   unharmed because its 3 s attack is short against its ~1 Hz cadence.
-//   ⭐ THE ANSWER WAS ALREADY IN THE FILE: camera/BLE's accidental 3 s IS three frames at the
-//   ~1 Hz apply rate, i.e. the shortest ramp that reads as a ramp on the lane. So `maximumAttack`
-//   generalises the LIVE path's behaviour instead of inventing a number, and expressing it as
-//   `min(releaseSeconds, …)` keeps camera (3 s) and `.fallback` (2.5 s) bit-identical AND keeps
-//   #444's `elapsed > half >= attack` precondition true by construction.
+//   ⭐ THE ANSWER WAS ALREADY IN THE FILE: 3 s is what camera/BLE — the only live source —
+//   already attacks over. So `maximumAttack` generalises the LIVE path's behaviour instead of
+//   inventing a number, and expressing it as `min(releaseSeconds, …)` keeps camera (3 s) and
+//   `.fallback` (2.5 s) bit-identical AND keeps #444's `elapsed > half >= attack` precondition
+//   true by construction.
+//   ⛔ The first draft justified the 3 s differently — "three frames at the ~1 Hz apply rate,
+//   the shortest ramp that reads as a ramp on the lane" — and that derivation is FALSE, on a
+//   fact this same file states two hundred lines below (see `weight(at:)`). The ramp is not
+//   sampled at frame arrivals: `RecordController.onStep` reads it as
+//   `breathHold.weight(at: CFAbsoluteTimeGetCurrent())` on every TRANSPORT step, and
+//   `BioAutomationRecorder.minTickInterval` defaults to exactly one step, so nothing is
+//   decimated. `Transport.stepDuration(atTempo:)` is `60/bpm/4` over a 30…300 clamp, i.e. a lane
+//   rate of 2–20 Hz — 8 Hz at the default 120 BPM, where a 3 s attack is ~24 keyframes and not
+//   three. The number stands; the reason was a rationalisation reached for after the fact. The
+//   honest one is the sentence above plus this: the attack is a SLEW LIMIT ON THE LANE, and a
+//   slew limit has no business being derived from how long a sensor's reading stays fresh.
 //   Measured over one full 90 s wrist life, weight sampled every 0.5 s: mean **0.4972 → 0.7293**.
 //   The exact continuous means are cleaner and grid-free: **1/2 → 11/15**. Camera (6 s) and
 //   `.fallback` (5 s): max |Δ| exactly **0** at every sample.
 //   ⛔ The number this paragraph carried before was "mean weight 0.4712", quoted with no grid.
-//   The continuous mean of the old shape is exactly 0.5 and no sampling of it lands on 0.4712;
-//   whatever grid produced it was never written down, so it could not be reproduced or refuted —
-//   the same defect as the unreproducible counts #443 and #430 each had to retract. A measured
-//   number in this repo carries its grid or it is not a measurement.
+//   ⛔ AND THE FIRST RETRACTION OF IT WAS ITSELF FALSE, in the paragraph whose subject is false
+//   numbers. It said "no sampling of the old shape lands on 0.4712 … it could not be reproduced
+//   or refuted". It can: **0.4712 = 90/191 exactly** — this very 0.5 s grid, run to t = 95 s
+//   instead of 90. The trace sums to 90 either way (everything past the horizon is 0), so the ten
+//   extra zero samples pull the mean from 90/181 to 90/191. Swept step ∈ {0.05 … 5} × end ∈
+//   [90, 130], that is the UNIQUE hit — an entirely ordinary "one life plus a little tail" grid.
+//   So the old number was UNDER-SPECIFIED, not unreproducible, and it read low because its window
+//   included ten samples of pure post-expiry silence. Calling it irrefutable was the same defect
+//   one level up, and it was the load-bearing sentence of this paragraph. A measured number in
+//   this repo carries its grid or it is not a measurement — and a retraction carries the search
+//   that failed, or it is not a retraction.
 //   ⛔ And the obvious-looking alternative is still REJECTED, not merely deferred — a decaying
 //   envelope that lowers each successive peak so a repeatedly-dropping source earns less trust.
 //   It fails on the same ground #433 used to delete the fabricated calm: the bus still trusts the
@@ -165,6 +188,17 @@
 //   ⚠️ What #448 does NOT fix: the flicker triangle. On camera/BLE the attack is unchanged, so a
 //   source flickering slower than its horizon traces exactly the same shape. That artifact was
 //   never the attack rate's fault at that window; it is the shape of `min(up, down)` itself.
+//   ⚠️ AND #448 ADDS ONE, on the window it repairs — the first draft of this bullet said "camera
+//   /BLE unchanged" and stopped there, which reads as "unchanged everywhere". On the WRIST the
+//   flicker shape becomes a SAWTOOTH (3 s rise, 45 s fall), and a steep edge moves AC energy into
+//   the breathing band. Measured by the review pass, share of AC energy in 0.05–0.5 Hz, old →
+//   new: 60 s flicker period **1.28 % → 27.25 %** · 120 s 0.09 % → 2.98 % · 180 s 0.07 % → 1.88 %
+//   · 300 s 0.06 % → 1.43 %. Amplitude is bit-identical at every period swept, and the worst
+//   keyframe-to-keyframe move at the slowest legal tempo is 0.1667 weight units — i.e. ≤ 0.083
+//   lane units after the `|hr − br|/2` scaling, an order of magnitude under the 0.4286 step #434
+//   exists to remove, and exactly what camera/BLE already ships. So no step is reintroduced at
+//   any legal tempo; the transient is real and is named here rather than covered by a
+//   camera-scoped sentence.
 //
 // ⭐ THE LESSON, and it is why this correction is worth more than the artifact: a registered
 // follow-up with a NAMED cause is the most expensive kind of wrong note in this repo (#167). The
@@ -334,7 +368,13 @@ public struct BreathHold: Sendable, Equatable {
         // reused the divisor the EXPIRY side had chosen — see `maximumAttack`. `attack <= half`
         // always, so #444's theorem (`elapsed > half >= attack` at every restart ⇒ `up > 1`) is
         // preserved, and the camera/BLE and `.fallback` traces are bit-identical.
-        let attack = Swift.min(half, Self.maximumAttack)
+        // ⛔ And the first draft of this line wrote `Swift.min(half, Self.maximumAttack)` INLINE,
+        // twenty lines under a `maximumAttack` doc that reasons about the `min(releaseSeconds, …)`
+        // form and a hundred under `attackSeconds`, which is that expression. Two definitions of
+        // one quantity, in the file that cites #416 twice — and the expensive half is that three
+        // of #448's six guards assert on the ACCESSOR, which the shipped path then never read.
+        // Editing `attackSeconds` alone would have left them green.
+        let attack = attackSeconds
         let elapsed = now - runStartedAt
         let up = resumeWeight + (elapsed > 0 ? elapsed : 0) / attack
 

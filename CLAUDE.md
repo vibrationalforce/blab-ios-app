@@ -257,11 +257,22 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Augenblick. Kontinuierlicher Mittelwert über die 90 s: exakt **1/2**.
                           `.oura` (600 s) ist schlimmer und hat heute keinen Produzenten.
                           ⭐ **Die Reparatur erfindet keine Zahl — sie verallgemeinert, was der
-                          LEBENDE Pfad ohnehin tut.** Kamera/BLE (6 s Fenster) hat einen zufälligen
-                          Anstieg von 3 s, und das sind DREI Frames bei der ~1-Hz-Anwendungsrate, die
-                          der Bus wirklich fährt (`BioApplyRateIsTheDedupedRateTests`) — die kürzeste
-                          Rampe, die auf einer so abgetasteten Spur als Rampe und nicht als Sprung
-                          liest. `BreathHold.maximumAttack = 3.0` deckelt das für jede Quelle.
+                          LEBENDE Pfad ohnehin tut.** 3 s ist, worüber Kamera/BLE — die einzige lebende
+                          Quelle — heute schon ansteigt; `BreathHold.maximumAttack = 3.0` deckelt das
+                          für jede Quelle.
+                          ⛔ **Die erste Fassung begründete die 3 s anders — „DREI Frames bei der
+                          ~1-Hz-Anwendungsrate, die kürzeste Rampe, die auf einer so abgetasteten Spur
+                          als Rampe liest" — und diese Herleitung ist FALSCH, an einer Tatsache, die
+                          `BreathHold.swift` zweihundert Zeilen tiefer selbst festhält.** Die Rampe wird
+                          nicht an Frame-Ankünften abgetastet: `RecordController.onStep` liest sie als
+                          `breathHold.weight(at: CFAbsoluteTimeGetCurrent())` bei JEDEM Transport-Schritt,
+                          und `BioAutomationRecorder.minTickInterval` steht per Default auf genau einem
+                          Schritt, dezimiert also nichts. `Transport.stepDuration(atTempo:)` ist
+                          `60/bpm/4` über eine 30…300-Klemme, die Spurrate also **2–20 Hz — 8 Hz beim
+                          Standard-Tempo 120**, wo 3 s ~24 Keyframes sind und nicht drei. Die Zahl bleibt,
+                          die Begründung war eine nachgeschobene Rationalisierung. Die ehrliche lautet:
+                          der Anstieg ist eine SLEW-GRENZE AUF DER SPUR, und eine Slew-Grenze hat nichts
+                          damit zu tun, wie lange die Messung eines Sensors frisch bleibt.
                           ⭐ Die `min(releaseSeconds, …)`-FORM ist zweifach tragend, und deshalb
                           behauptet der Wächter sie direkt: Kamera (3 s) und `.fallback` (2,5 s)
                           bleiben BITGLEICH — jede Behauptung in `TheGapClimbCannotChangeTheResumeTests`
@@ -275,16 +286,37 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           rasterfrei und sauberer: **1/2 → 11/15**. Kamera und `.fallback`: max |Δ|
                           exakt **0** an jedem Abtastwert.
                           ⛔ **Die Zahl, die der `BreathHold`-Kopf dafür trug — „mean weight 0.4712" —
-                          ist zurückgenommen.** Sie stand ohne Raster da, und keine Abtastung der
-                          alten Form ergibt sie; der kontinuierliche Mittelwert ist exakt 0,5. Damit
-                          war sie weder reproduzierbar noch widerlegbar — dieselbe Klasse wie die
-                          unreproduzierbaren Zählungen, die #443 und #430 je zurücknehmen mussten.
+                          ist zurückgenommen**, weil sie ohne Raster dastand.
+                          ⛔ **UND DIE ERSTE RÜCKNAHME WAR SELBST FALSCH — im Absatz über falsche
+                          Zahlen.** Sie sagte „keine Abtastung der alten Form ergibt sie … weder
+                          reproduzierbar noch widerlegbar". Doch: **0,4712 = 90/191 exakt** — genau
+                          dieses 0,5-s-Raster, nur bis t = 95 s statt bis 90 gefahren. Die Spur summiert
+                          so oder so zu 90 (alles jenseits des Horizonts ist 0), die zehn zusätzlichen
+                          Null-Abtastwerte ziehen den Mittelwert also von 90/181 auf 90/191. Über
+                          Schritt ∈ {0,05 … 5} × Ende ∈ [90, 130] gewischt ist das der EINZIGE Treffer.
+                          Die alte Zahl war damit UNTERSPEZIFIZIERT, nicht unreproduzierbar, und sie las
+                          tief, weil ihr Fenster zehn Abtastwerte reiner Nach-Ablauf-Stille enthielt.
                           **Eine gemessene Zahl trägt in diesem Repo ihr Raster, oder sie ist keine
-                          Messung.**
+                          Messung — und eine Rücknahme trägt die Suche, die gescheitert ist, oder sie
+                          ist keine Rücknahme.**
                           ⚠️ Was NICHT repariert ist: das Flacker-Dreieck. Auf Kamera/BLE ist der
                           Anstieg unverändert, eine langsamer als ihr Horizont flackernde Quelle
                           zeichnet also exakt dieselbe Form. Das Artefakt war an diesem Fenster nie
                           die Schuld der Anstiegsrate, sondern die Form von `min(up, down)` selbst.
+                          ⚠️ **Und #448 FÜGT auf dem reparierten Fenster eines HINZU** — die erste
+                          Fassung schrieb „Kamera/BLE unverändert" und hörte auf, was sich wie
+                          „überall unverändert" liest. Auf dem HANDGELENK wird die Flackerform ein
+                          SÄGEZAHN (3 s Anstieg, 45 s Abfall), und eine steile Flanke schiebt
+                          Wechselenergie ins Atemband. Vom Reviewer gemessen, Anteil der AC-Energie in
+                          0,05–0,5 Hz, alt → neu: 60-s-Flackerperiode **1,28 % → 27,25 %** · 120 s
+                          0,09 % → 2,98 % · 180 s 0,07 % → 1,88 % · 300 s 0,06 % → 1,43 %. Die
+                          Amplitude ist bei jeder gewischten Periode bitgleich, und der größte Schritt
+                          zwischen zwei Keyframes beträgt beim langsamsten zulässigen Tempo 0,1667
+                          Gewichtseinheiten — nach der `|hr − br|/2`-Skalierung also ≤ 0,083
+                          Spur-Einheiten, eine Größenordnung unter dem 0,4286-Sprung, gegen den #434
+                          existiert, und exakt das, was Kamera/BLE heute schon ausliefert. Es wird also
+                          bei keinem zulässigen Tempo ein Sprung wiedereingeführt; der Einschwinger ist
+                          real und steht deshalb hier statt unter einem kamera-begrenzten Satz.
                           ⚠️ Und die härteste Grenze, unverändert seit #433/#434: nichts davon ist
                           hörbar oder aufgezeichnet — `RecordController.onStep` beginnt mit
                           `guard armed else { return }`, `arm()` hat null Aufrufer (#204). Repariert
@@ -575,7 +607,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           er nirgends her — sie ist Nebenwirkung der Konstante, die für die Ablauf-Seite
                           gewählt wurde. Die teure Folge ist nicht das Flackern, sondern das Handgelenk:
                           90 s Horizont heißt 45 s Anstieg, eine HealthKit-Messung verbringt also ihr
-                          ganzes nutzbares Leben mit Steigen und Fallen (Mittel **0,4712**, Vollgewicht
+                          ganzes nutzbares Leben mit Steigen und Fallen (Mittel **0,4712** — das ist die 0,5-s-Abtastung über 0…95 s, also mit zehn Nach-Ablauf-Nullen; rasterfrei ist der Mittelwert exakt **1/2**, siehe die Doppel-Rücknahme im #448-Eintrag oben —, Vollgewicht
                           für EINEN Augenblick). ⛔ Damit ist auch die Zeile im #434-Kopf korrigiert, die
                           „volles Gewicht für 45 s" behauptete — es ist ein Dreieck, kein Plateau; die
                           Regressions-Aussage gegen die alte 2-s/4-s-Paarung überlebt trotzdem. Die
@@ -1960,7 +1992,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSECHSUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 176 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSECHSUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 177 ist hier NICHT mitgezählt (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

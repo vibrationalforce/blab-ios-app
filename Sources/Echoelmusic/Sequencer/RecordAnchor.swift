@@ -180,8 +180,13 @@ public enum RecordPlan {
 /// (which belongs to |br − hr| = 1). Every weight-driven move takes exactly the fade time,
 /// independent of step size — the step cancels. What #434 actually guarantees is a fade lasting
 /// half the source's freshness window (3 s for camera/BLE, 45 s for wrist), beginning after an
-/// equally long grace. Mixing a worst-case slope with a non-worst-case step is precisely the
+/// equally long grace.
+/// Mixing a worst-case slope with a non-worst-case step is precisely the
 /// apples-to-oranges these comments warn about elsewhere.
+/// ⛔ "Every … takes exactly the fade time" is true of the FALL only, as of #448: the RISE is
+/// now `min(releaseSeconds, 3.0)`, so a wrist reading fades over 45 s and re-acquires over 3.
+/// The sentence was written when the two rates were one number and stayed put when they split
+/// — the #444 lesson, third site in this cluster.
 ///
 /// ⚠️ THIS PATH IS DORMANT TODAY and the fix is worth making BECAUSE of that, not in spite of
 /// it. `RecordController.onStep` opens with `guard armed else { return }`, `arm()` has zero

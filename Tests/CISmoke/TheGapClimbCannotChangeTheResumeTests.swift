@@ -43,14 +43,20 @@
 //   coverage note rather than a hole in the proof.)
 //
 // ⭐ SO WHAT IS THE TRIANGLE, THEN? ATTACK RATE == RELEASE RATE — and nothing in `BreathHold`
-// ever decided that. `down` falls at `1/half`; `up` climbs at `elapsed / half`, i.e. also
-// `1/half`, purely because `up` reuses `half` as its divisor. The header of `BreathHold.swift`
+// ever decided that. `down` falls at `1/half`; `up` climbed at `elapsed / half`, i.e. also
+// `1/half`, purely because `up` reused `half` as its divisor. The header of `BreathHold.swift`
 // derives the SPLIT (grace = release = horizon/2, chained to `BioSource.freshnessWindow`); it
-// never derives the ATTACK, which arrived as a side effect of the constant chosen for the expiry
-// side. A source flickering with a period longer than the horizon therefore traces a SYMMETRIC
-// triangle whose peaks all reach 1, and `testAFlickeringSourceTracesASymmetricTriangle` measures
-// that shape rather than asserting it. Decoupling the two rates is a behaviour change with a real
-// design question behind it, registered as its own slice.
+// never derived the ATTACK, which arrived as a side effect of the constant chosen for the expiry
+// side.
+//
+// ⛔ THAT SLICE HAS LANDED (#448) AND THIS PARAGRAPH STOOD IN THE PRESENT TENSE AFTERWARDS —
+// in the BLOCKING bundle, describing a pending slice that is done. `attackSeconds` is now
+// `min(releaseSeconds, maximumAttack)` with `maximumAttack = 3.0`, so attack == release only for
+// windows of 6 s or less. **Every assertion in THIS file is unaffected and measures exactly what
+// it measured**, because every one of them drives `cameraWindow` (6 s), where `min(3, 3) = 3`;
+// that bit-identity is asserted directly in `TheWristReadingIsNotUnderweightedTests`. The
+// symmetric triangle below is therefore still the camera/BLE shape. On the WRIST it is now a
+// sawtooth, and the artifact that creates is measured in the `BreathHold` header, not here.
 //   ⛔ And the obvious-looking version of that slice — a decaying envelope, so a source that keeps
 //   dropping out earns less trust each time — is rejected, not merely deferred. It fails on the
 //   ground #433 used to delete the fabricated calm: the bus still trusts the frame, so lowering
@@ -233,7 +239,9 @@ final class TheGapClimbCannotChangeTheResumeTests: XCTestCase {
     // MARK: - The counterweight
 
     /// ⭐ GREEN TODAY, AND THAT IS ITS JOB. The re-acquisition ramp is memoryless: it climbs at
-    /// `1/releaseSeconds` from whatever weight was held, no matter how many dropouts came before.
+    /// `1/attackSeconds` from whatever weight was held, no matter how many dropouts came before.
+    /// (It read `1/releaseSeconds` until #448 split the two; on this file's camera window the two
+    /// are the same number, so the measurement is unchanged — only the name of the rate is.)
     /// A "decaying envelope" policy — the thing the #434 note wished for — is exactly a change to
     /// this property, so it should have to turn a test red on the way in rather than arriving as
     /// a side effect of a fade tweak.

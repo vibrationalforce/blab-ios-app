@@ -43,10 +43,23 @@
 // device listen, not a test.
 //
 // ⚠️ AND WHICH OF THESE CAN FAIL ON THE OLD CODE, said out loud because a file where everything
-// looks like a regression invites the wrong kind of trust: three can — the wrist mean, the
-// window-independence of the attack, and the attack/release inequality (which the old code
-// satisfies only with equality, so it is stated as `<` for the slow sources). The other three are
-// counterweights and are green on both sides by design.
+// looks like a regression invites the wrong kind of trust: **TWO** can — the wrist mean and the
+// window-independence of the attack. The other four are counterweights, green on both sides by
+// design.
+//
+// ⛔ THE FIRST DRAFT OF THAT SENTENCE SAID THREE, and the third was the attack/release
+// inequality, "which the old code satisfies only with equality, so it is stated as `<` for the
+// slow sources". Both halves are wrong, in the file whose subject is a constant nobody checked.
+// The assertion is `XCTAssertLessThanOrEqual` for EVERY window in the loop, slow ones included —
+// it describes an assertion this file does not contain — and equality passes `<=`, so the old
+// code is GREEN there. Simulated counterfactually (attack = release): T1 RED, T2 RED, T3 GREEN.
+// Worse, T3 cannot fail for any VALUE of `maximumAttack` at all: `attackSeconds` is DEFINED as
+// `Swift.min(releaseSeconds, Self.maximumAttack)`, and `min(a, b) <= a` holds for every input.
+// It is kept because it guards the DEFINITION SHAPE — replace that `min` with a bare constant
+// above some source's release and it goes red — and its own doc comment said so correctly while
+// this header contradicted it. A guard that cannot fail for its stated reason is #367; a guard
+// correctly described one screen down and miscounted at the top is the same defect, cheaper to
+// miss.
 
 import Foundation
 import XCTest
@@ -77,7 +90,13 @@ final class TheWristReadingIsNotUnderweightedTests: XCTestCase {
     // MARK: - The regression
 
     /// RED on the old code: the wrist mean was 0.4972 on this grid.
-    func testAWristReadingSpendsMostOfItsLifeAtFullWeight() {
+    ///
+    /// ⛔ This was called `testAWristReadingSpendsMostOfItsLifeAtFullWeight` and that name
+    /// overstated what it asserts — the same defect the `BreathHold` header retracts one screen
+    /// up as "full weight for 45 s". At 0.005 s resolution the new shape holds full weight for
+    /// 42 of 90 s = **46.67 %**, i.e. LESS than half its life. What is asserted, and what
+    /// matters, is the MEAN.
+    func testAWristReadingCountsAtAHighMeanWeightAcrossItsLife() {
         let trace = lifeTrace(window: wristWindow)
         XCTAssertGreaterThan(trace.count, 150, """
             Only \(trace.count) samples cover the 90 s wrist life, so the mean below is measured \
@@ -138,7 +157,9 @@ final class TheWristReadingIsNotUnderweightedTests: XCTestCase {
 
     /// The live path must not move at all. Stated as an equality on the two accessors rather
     /// than as a trace comparison, because that is the property a later edit would break: drop
-    /// `maximumAttack` below 2.5 and camera/BLE starts attacking faster than it fades.
+    /// `maximumAttack` below **3.0** and camera/BLE starts attacking faster than it fades (2.5 is
+    /// `.fallback`'s threshold, and the first draft of this line quoted it for both — the loop
+    /// covers both windows, so the assertion was right and only the sentence was wrong).
     func testTheLivePathIsBitIdentical() {
         for window in [cameraWindow, fallbackWindow] {
             var hold = BreathHold()
