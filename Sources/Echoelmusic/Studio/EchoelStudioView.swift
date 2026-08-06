@@ -5028,7 +5028,16 @@ struct EchoelStudioView: View {
             #if canImport(WeatherKit) && canImport(CoreLocation)
             weatherRow
             #endif
-            Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · bright ↔ dark · lush 7ths (romance) · odd leaps (weird). Blends with your live signal.")
+            // ⭐ #354 — THE CAPTION NAMES THE TWO THAT ARE SWITCHES, because the panel cannot
+            // show it any other way. Six of these eight dials are read as gradients by the
+            // composer; `Darkness` and `Romance` are read ONCE each, as `> 0.6` (drop the
+            // voicing an octave) and `> 0.5` (add the 7th). A user moving Darkness from 0.20 to
+            // 0.59 hears nothing and has no way to know why — the library's own preset comment
+            // says two moods can differ by 0.43 of darkness and produce the same notes. Saying
+            // it costs one clause; the alternative was leaving a control that reads continuous
+            // and is not. `MoodKnobsSayWhatTheyDoTests` measures both cliffs and fails if either
+            // moves, so this sentence cannot go stale silently.
+            Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · odd leaps (weird). Blends with your live signal. Dark drops the octave above 0.60 and Romance adds the 7th above 0.50 — those two switch rather than fade.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -5117,8 +5126,31 @@ struct EchoelStudioView: View {
     }
 
     /// A mood value recomposes on release (it changes the notes, not the timbre).
+    ///
+    /// ⭐ #354 — `decimals: 2`, WHICH IS THE APP'S OWN IDIOM AND WAS THE ONLY ROW SET NOT USING IT.
+    /// `EchoelValueField.decimals` defaults to 4, and these eight rows were the only `0…1` fields
+    /// in the app that never passed a value, so they shipped reading `0.5000` while every FX
+    /// parameter, the master volume and the weather mixers read `0.50` (`EchoelValueField`'s own
+    /// scrub-precision doc names that set as "`0…1, decimals: 2`" — these rows were silently
+    /// outside it). Two decimals is also all these controls can mean: `darkness` and `romance`
+    /// are read by the composer as SWITCHES (see the caption below), and the other six feed
+    /// arithmetic where the third decimal is far under what an ear can separate.
+    ///
+    /// ⚠️ WHAT THIS DOES **NOT** FIX, so nobody reads a display change as an engine change: the
+    /// two threshold dimensions are still thresholds. The audit that raised this (#354) offered
+    /// two ways out — render the control as what it is, or make the composer read it
+    /// continuously — and this is the first half of the first one. `romance` is the one of the
+    /// two that CAN be made continuous (share of chords carrying the 7th), and that is its own
+    /// slice because it changes shipped sound. `darkness` cannot: it moves the register, and
+    /// register is quantised by construction (`key.degree(_:octave:)` moves in octaves, and
+    /// `VoiceLeader.resolve` re-octaves the voicing anyway), so a "gradient" there would be
+    /// invented rather than measured.
+    ///
+    /// ⚠️ It does not change the DRAG either — `ScrubPrecision.advanced` holds an un-snapped
+    /// running target since #376, so the grid stopped gating travel then. What moves is what the
+    /// number pad accepts and what the row reads.
     private func moodKnob(_ label: String, _ value: Binding<Float>) -> some View {
-        EchoelValueField(label: label, value: value, range: 0...1,
+        EchoelValueField(label: label, value: value, range: 0...1, decimals: 2,
                          onCommit: { recomposeIfRunning() })
     }
 

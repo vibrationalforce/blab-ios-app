@@ -242,8 +242,37 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**162** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheBandHoldsAtEveryRestingPulseTests.swift` (#424 dritte
+                          `Tests/CISmoke` (**163** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `MoodKnobsSayWhatTheyDoTests.swift` (#354 Slice A — der
+                          erste Wächter in dieser Kette, der eine ANZEIGE an eine ENGINE-Tatsache
+                          kettet statt eine der beiden für sich zu prüfen: zwei der acht
+                          Mood-Regler (`darkness`, `romance`) werden vom Komponisten je EINMAL
+                          gelesen, als `> 0.6` (Voicing eine Oktave runter) und `> 0.5` (Septime
+                          dazu) — der Rest ihrer Reise ist wirkungslos. Die Zeilen boten dabei
+                          VIER Nachkommastellen an, weil `EchoelValueField.decimals` auf 4
+                          defaultet und diese acht die einzigen 0…1-Felder der App waren, die nie
+                          einen Wert übergaben (jeder FX-Parameter, die Master-Lautstärke und die
+                          Wetter-Mischer stehen auf 2). Gemessen wird jetzt beides: die zwei
+                          Klippen über ALLE angebotenen Genres (0,20 vs 0,59 bitgleich, 0,61
+                          anders) UND dass die Panel-Bildunterschrift die zwei Schwellen NENNT.
+                          ⭐ Der Punkt ist die KETTE, nicht die einzelne Behauptung: wenn eine
+                          spätere Scheibe `romance` stufenlos macht, wird der Verhaltenstest ROT —
+                          absichtlich, als Erinnerung, die Bildunterschrift im selben Commit
+                          mitzuziehen, nicht als Argument für die Klippe. ⛔ `darkness` ist
+                          bewusst NICHT für dieselbe Behandlung vorgemerkt: Register ist per
+                          Konstruktion gerastert (`key.degree(_:octave:)` bewegt sich in ganzen
+                          Oktaven, alles feinere verlässt die Tonart, und `VoiceLeader.resolve`
+                          oktaviert die Lage danach ohnehin neu) — ein „Gradient" dort wäre eine
+                          erfundene Zahl, damit ein Regler stufenlos AUSSIEHT. ⚠️ Was er NICHT
+                          kann: beweisen, dass die Bildunterschrift auf dem Gerät erscheint, und
+                          beweisen, dass `EchoelValueField` `decimals` befolgt — beide Hälften sind
+                          Quelltext-Scans und sagen das im Dateikopf. Und der Gegengewichts-Test
+                          („die anderen sechs sind KEINE Schalter") fehlt absichtlich: den halten
+                          `LivelinessReachesTheDensityDecisionTests` (#418) und
+                          `LivelinessMovesTheStillnessGateTests` (#419) schon, und eine zweite,
+                          schwächere Kopie einer lebenden Behauptung ist genau der
+                          Doppel-Definitions-Defekt aus #416),
+                          davor „162" nach `TheBandHoldsAtEveryRestingPulseTests.swift` (#424 dritte
                           Fassung — der erste Wächter in dieser Kette, der eine ACHSE hinzufügt statt
                           eines Falls, und er entstand, weil die zweite Fassung eine Konstante an
                           EINEN Puls angepasst hatte. Alle Sweeps von #424 liefen auf `meanBPM: 60`,
@@ -878,7 +907,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTEINUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 162 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTZWEIUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 163 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
