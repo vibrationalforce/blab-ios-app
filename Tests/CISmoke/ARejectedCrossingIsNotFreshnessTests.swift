@@ -337,12 +337,11 @@ final class ARejectedCrossingIsNotFreshnessTests: XCTestCase {
 
     /// Comment-stripped source of the estimator, or a skip when the tree is not present.
     ///
-    /// ⚠️ This is the second copy of `TheBandEdgeIsMeasurableTests.codeOnly` in this bundle,
-    /// which is the #416 shape — that one is `private`, so sharing it means hoisting it into a
-    /// bundle-level helper, and that is a separate slice (#453), not a drive-by edit to a
-    /// neighbouring guard. It strips TRAILING `//` comments as well as whole comment lines, and
-    /// that half is load-bearing rather than cosmetic: a future trailing comment mentioning a
-    /// forbidden token would trip a negative assertion on prose (the #404 trap, one file over).
+    /// Stripping is `SourceText.codeOnly` (#453) — ONE definition for the whole bundle, after
+    /// this helper spent a slice as the second of eleven private copies. Trailing `//` comments
+    /// are stripped as well as whole comment lines, and that half is load-bearing rather than
+    /// cosmetic: a future trailing comment mentioning a forbidden token would trip a negative
+    /// assertion on prose (the #404 trap, one file over).
     private func estimatorSource() throws -> String {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent().deletingLastPathComponent()
@@ -351,14 +350,6 @@ final class ARejectedCrossingIsNotFreshnessTests: XCTestCase {
         guard FileManager.default.fileExists(atPath: path.path) else {
             throw XCTSkip("source tree not present under \(root.path)")
         }
-        return try String(contentsOf: path, encoding: .utf8)
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map { line -> Substring in
-                let trimmed = line.drop { $0 == " " }
-                if trimmed.hasPrefix("//") { return "" }
-                guard let slashes = line.range(of: "//") else { return line }
-                return line[line.startIndex..<slashes.lowerBound]
-            }
-            .joined(separator: "\n")
+        return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
     }
 }

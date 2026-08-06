@@ -86,12 +86,16 @@ final class ThePacedRateMustBeReadableTests: XCTestCase {
     /// nowhere in that file, comments included. The first version of this comment claimed the
     /// opposite, which is the "a comment with a false justification is worse than none" defect
     /// this repo names in CLAUDE.md.)
+    /// Stripping is `SourceText.codeOnly` (#453). ⚠️ This helper used to DELETE comment lines
+    /// rather than blank them, so the stripped text had 104 lines where the file has 825. No
+    /// assertion here reads a line number, so the two agree — but `BreathPattern.swift`, which
+    /// this scans, holds `` `/echoelmusic/bio/breath/*` `` in a doc comment, and the bundle's
+    /// most thorough stripper would have opened a phantom block there and eaten real code. The
+    /// shared one strips line comments FIRST, so that token can no longer open anything.
     private func codeOnly(_ relative: String) throws -> String {
         let text = try String(contentsOf: try repoRoot().appendingPathComponent(relative),
                               encoding: .utf8)
-        return text.split(separator: "\n", omittingEmptySubsequences: false)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-            .joined(separator: "\n")
+        return SourceText.codeOnly(text)
     }
 
     private func pattern(_ id: String) throws -> BreathPattern {

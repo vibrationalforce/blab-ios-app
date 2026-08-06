@@ -358,16 +358,11 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
 
     // MARK: - Reading the source
 
-    private func codeOnly(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
-            .map { line -> Substring in
-                let trimmed = line.drop { $0 == " " }
-                if trimmed.hasPrefix("//") { return "" }
-                guard let slashes = line.range(of: "//") else { return line }
-                return line[line.startIndex..<slashes.lowerBound]
-            }
-            .joined(separator: "\n")
-    }
+    /// One definition for the whole bundle (#453). This was the shape eleven private copies
+    /// diverged from; the shared one additionally refuses to treat a `//` or `/*` inside a
+    /// string literal as a comment, which this file's own scans never needed and the next one
+    /// might.
+    private func codeOnly(_ text: String) -> String { SourceText.codeOnly(text) }
 
     private func estimatorSource() throws -> String {
         let root = URL(fileURLWithPath: #filePath)

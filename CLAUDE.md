@@ -242,8 +242,50 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**177** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheWristReadingIsNotUnderweightedTests.swift` (#448 — der erste
+                          `Tests/CISmoke` (**179** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `SourceText.swift` + `OneDefinitionOfCodeNotProseTests.swift`
+                          (#453 — die erste Scheibe dieser Kette, die ZWEI Dateien auf einmal legt und
+                          von der ich vorher wusste, dass sie es tut: eine DEFINITION und ihr Waechter.
+                          Registriert war sie als „`codeOnly`-Helfer ist ZWEIMAL im blockierenden
+                          Bundle". Gezaehlt: **ELF Kopien in FUENF materiell verschiedenen Formen** —
+                          Zeile loeschen · Zeile leeren · am ersten `//` abschneiden · trimmen und
+                          beides · `/* … */` ZUERST strippen. Meine eigene Registrierung war um den
+                          Faktor 5,5 daneben, und das ist die #416-Form in ihrer breitesten Auspraegung:
+                          eine Entscheidung, elf Orte, nichts das merkt, wenn sie auseinanderlaufen.
+                          ⚠️ EHRLICHER UMFANG: auf dem heutigen Baum stimmen die elf fuer JEDE
+                          `contains`-Behauptung ueberein — keine gescannte Datei hat einen echten
+                          `/* … */`-Block, keine gescannte Zeile ein `//` in einem String-Literal.
+                          Migriert sind deshalb DREI: genau die, die `RespirationEstimator.swift` und
+                          `BreathPattern.swift` scannen, also die belegte Gleiche-Ziel-Divergenz. Die
+                          anderen acht stehen auf einer Erlaubnisliste, die in BEIDE Richtungen geprueft
+                          wird (#440-Form): ein Eintrag, dessen Datei keine eigene Kopie mehr hat, ist
+                          ein veralteter Freibrief und wird rot.
+                          ⭐ **Was NICHT prophylaktisch ist, und es steht andersherum als man erwartet:
+                          die GRUENDLICHSTE Form ist die gefaehrlichste.** Zwei der elf strippen
+                          `/* … */` VOR den Zeilenkommentaren. Ein `/*`, das gar kein Blockanfang ist —
+                          in einer `///`-Zeile, in einem String —, oeffnet damit einen Phantom-Block und
+                          frisst alles bis zum naechsten `*/`. In `Sources/` liegen **8 solche `/*` in
+                          6 Dateien**, eines davon (`` `/echoelmusic/bio/breath/*` ``) in
+                          `BreathPattern.swift`, das `ThePacedRateMustBeReadableTests` scannt. Eine
+                          positive Behauptung wuerde dort rot, eine NEGATIVE gruen auf nichts — genau
+                          das, wogegen das blockierende Bundle existiert. Die Reparatur ist deshalb die
+                          REIHENFOLGE und nicht die Gruendlichkeit: `SourceText.codeOnly` laeuft jede
+                          Zeile einmal in der Reihenfolge des Compilers durch, ein Anfuehrungszeichen
+                          schaltet String-Zustand um, also kann weder `//` noch `/*` aus einem Literal
+                          heraus feuern. Die Zeilenzahl bleibt erhalten, weil mehrere Waechter auf der
+                          REIHENFOLGE zweier Treffer behaupten.
+                          ⚠️ Gemessen, bevor irgendetwas migriert wurde: die neue Definition und die
+                          alte Form liefern fuer alle 11 lebenden Behauptungen der drei migrierten
+                          Dateien **identische Ergebnisse** (0 Abweichungen ueber
+                          `RespirationEstimator` · `BreathPattern` · `BreathGuideView` ·
+                          `MeditationView`). Die Scheibe entfernt einen MECHANISMUS, keinen heutigen
+                          Defekt — so gesagt, statt als Bugfix verkleidet.
+                          ⚠️ Was sie NICHT kann: keine ihrer Behauptungen ist ein Lauf, und Raw Strings
+                          sowie verschachtelte Bloecke sind bewusst NICHT behandelt — beides trifft
+                          heute keine Scan-Zielscheibe, und ein Waechter ueber einem Fall, den es nicht
+                          gibt, ist die #367-Falle),
+                          davor „177"
+                          nach `TheWristReadingIsNotUnderweightedTests.swift` (#448 — der erste
                           Wächter in dieser Kette über einer Konstante, die NIE GEWÄHLT WURDE. Der
                           Kopf von `BreathHold.swift` leitet die TEILUNG her (Gnadenfrist = Release =
                           horizon/2, gekettet an `BioSource.freshnessWindow`, damit der Einfluss genau
@@ -1992,7 +2034,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSECHSUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 177 ist hier NICHT mitgezählt (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSIEBENUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 179 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
