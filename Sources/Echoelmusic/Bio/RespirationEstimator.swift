@@ -29,11 +29,29 @@ public struct RespirationEstimator {
     private static let smoothTau = 0.8
     /// Envelope decay used to normalize the swing to [0,1].
     private static let envTau = 6.0
-    /// Added to the freshness grace to pay for the delay between a breath cycle happening and
-    /// the beat that marks it reaching `ingest`. See `age(to:)` and the grace comment below —
-    /// without it the pull turns a pipeline delay into apparent staleness at the fast end of
-    /// the supported band.
-    private static let pullLagAllowance = 2.5
+    /// Subtracted from the measured staleness to pay for the delay between the beat that marks
+    /// a breath cycle and that beat reaching `ingest`. See `age(to:)` and the grace comment
+    /// below — without it the pull turns a pipeline delay into apparent staleness at the fast
+    /// end of the supported band.
+    ///
+    /// DERIVED FROM THE THREE PIPELINE TERMS, measured from the LAST BEAT (which is where the
+    /// host's `age(to:)` clock effectively starts): a peak needs two later samples to be
+    /// confirmed (`CameraAnalyzer`'s `val > window[i+1] && val > window[i+2]`), the peak scan
+    /// is throttled to every 4th frame, and the publish drain runs at ~1 Hz. At 15 fps that is
+    /// 0.13 + 0.27 + 1.0 ≈ 1.40 s; at 7.5 fps — the low end `CameraAnalyzer` documents for
+    /// this device range — the two frame-counted terms double to 1.80 s. This is the 7.5 fps
+    /// figure, so the slower device is covered rather than the faster one.
+    ///
+    /// ⛔ A FOURTH TERM WAS IN THE FIRST VERSION AND DOES NOT BELONG: "the crossing is stamped
+    /// at a beat (≈1 s at rest)". That quantisation is real, but it is already inside
+    /// `lastBeat − lastCrossT`, so adding it to a lag measured FROM the last beat counts it
+    /// twice — and it applied identically before the pull, so it is not part of the delta the
+    /// pull introduced. That mistake put the constant at 2.5 s and the comment opened with
+    /// "THE ALLOWANCE IS NOT PADDING", which was then exactly what the extra second was.
+    /// The correction narrows the case as well as the number: with the three real terms the
+    /// worst phase at 28 breaths/min reads 0.457 at 15 fps — no defect — and 0.394 at 7.5 fps,
+    /// under the 0.4 gate. This is a slow-device defect, and saying so is the point.
+    private static let pullLagAllowance = 1.8
 
     // MARK: Respiration band (breaths/min)
     public static let minRate = 4.0
@@ -133,11 +151,13 @@ public struct RespirationEstimator {
     /// later behaves exactly as before.
     ///
     /// ⚠️ "Every publish" is deliberately NOT what the caller does, and the first version of
-    /// this line said it did. `CameraRPPGBioPublisher` ages AFTER its `shouldPublish` guard;
-    /// the else-branch re-emits the last good frame unaged for up to `bioHoldTicks`. That is
-    /// bounded and carries the held frame's own timestamp (so timestamp-dedup consumers treat
-    /// it as a no-op), but a future reader deciding "can this estimator go stale?" must know
-    /// the pull does not run on that path.
+    /// this line said it did. TWO paths through `CameraRPPGBioPublisher`'s 1 Hz block skip the
+    /// ageing, and a future reader deciding "can this estimator go stale?" needs both:
+    /// (1) the `shouldPublish` else-branch re-emits the last good frame for up to
+    /// `bioHoldTicks` — bounded, and it carries the held frame's OWN timestamp, so
+    /// timestamp-dedup consumers treat it as a no-op; (2) the `inboundRateEMA` guard above it
+    /// `continue`s past the whole block, so nothing is published AND nothing is aged — benign,
+    /// because a claim that is never emitted cannot go stale. The first version named only (1).
     ///
     /// ⚠️ Nor can it be stated flatly that ageing never RAISES confidence — it holds for the
     /// case that matters and fails in two corners. (1) A fresh estimator with `lastT == nil`
@@ -196,12 +216,17 @@ public struct RespirationEstimator {
         //
         // ⚠️ AND IT DOES NOT YET DO THIS ON THE DEVICE. `CameraAnalyzer` takes peak times at
         // whole-sample resolution (no sub-sample interpolation) and the camera runs at
-        // 7.5–15 fps, so every interval is quantised to 67–133 ms — ±4 to ±8 bpm of aliasing
-        // noise at 60 bpm, several times the 1.5 bpm scale this floor is set to. A still hand
-        // can therefore clear the gate on quantisation alone. The invariant here is right and
-        // strictly better than the old blend, but "separates a shallow breather from noise"
-        // only becomes true of the shipped path once peak timing is sub-sample. Do not quote
-        // this comment as evidence that it already does.
+        // 7.5–15 fps, so every interval is quantised to one frame period — 1.6 bpm RMS at
+        // 15 fps and 3.2 at 7.5 (peaks of ±4/±8), against the 1.5 bpm scale this floor is set
+        // to. A still hand can therefore clear the gate on quantisation alone. (⛔ The first
+        // version quoted only the PEAK and called it "several times" the floor. A floor
+        // responds to the RMS, and the honest ratio is 1.1–2.2×, not 3–5×. Right direction,
+        // overstated — and overstating the case for a fix is how a fix gets scoped wrong.)
+        // The invariant here is right and strictly better than the old blend, but "separates a
+        // shallow breather from noise" only becomes true of the shipped path once peak timing
+        // is sub-sample — and #421 has since measured that naive 3-point parabolic
+        // interpolation is WORSE than whole-sample at this signal's SNR, so that is not a
+        // one-line change either. Do not quote this comment as evidence that it already works.
         let countConf = Swift.min(Swift.min(1.0, Double(crossingCount) / 4.0), envConf)
 
         // ⭐ FRESHNESS — a reported rate is only as good as the last cycle that produced it.
@@ -222,37 +247,56 @@ public struct RespirationEstimator {
         // envelope veto above catches the take that ends in a noisy one, where crossings keep
         // arriving and nothing here ever goes stale. Neither substitutes for the other.
         //
-        // Grace is 1.5 expected periods (a real cycle always lands inside that) PLUS a fixed
-        // pipeline-lag allowance, then a linear fade to zero over the same span — so at the
-        // 6/min resonance rate the gate closes ~35 s after the last crossing. Before the FIRST
-        // crossing there is nothing to be stale about and the term is inert, which is why a
-        // fresh estimator still behaves exactly as it did. The fallback period is the slowest
-        // supported rate: with no measured period yet, assuming the shortest one would expire
-        // a slow breather.
+        // Grace is 1.5 expected periods (a real cycle always lands inside that), then a linear
+        // fade to zero over the same span. The pipeline lag is SUBTRACTED FROM THE MEASURED
+        // STALENESS rather than added to the grace — see below. Before the FIRST crossing there
+        // is nothing to be stale about and the term is inert, which is why a fresh estimator
+        // still behaves exactly as it did. The fallback period is the slowest supported rate:
+        // with no measured period yet, assuming the shortest one would expire a slow breather.
         //
-        // ⭐ THE ALLOWANCE IS NOT PADDING — it pays for a delay this term cannot see. While the
-        // estimator was only refreshed from inside `ingest`, `sinceCross` was measured at a
-        // BEAT time and the proportional grace covered it. `age(to:)` moved the evaluation to
-        // wall-clock now, which adds the whole camera pipeline: the crossing is stamped at a
-        // beat (≈1 s at rest), a peak needs two later samples to be confirmed, the peak scan
-        // is throttled to ~4 Hz and the publish drain runs at ~1 Hz — up to ~2.5 s in total.
-        // That is measurement latency, not staleness, and charging it to the breather is
-        // wrong. Swept over all 360 whole-degree breathing phases at a 2.5 s lag: at 28
-        // breaths/min the worst phase read confidence 0.284 WITHOUT the allowance — under the
-        // publisher's 0.4 gate, so a fast breather's own measurement flickered off — and 0.487
-        // with it. (An earlier draft of this note quoted 0.313 off a 180-phase sweep; the
-        // guard that holds it uses the file's 360-phase set, and a coarser sweep is exactly
-        // the hand-picked-figure habit #343 spent two commits retracting.)
-        // The cost at the other end is negligible because the envelope veto dominates there:
-        // the 60 s-then-flat series that `testAMeasuredRateExpiresWhenTheBreathingStops`
-        // drives ends at 0.0099 instead of 0.0019, both far under the gate.
+        // ⭐ THE ALLOWANCE PAYS FOR A DELAY THIS TERM CANNOT SEE. While the estimator was only
+        // refreshed from inside `ingest`, `sinceCross` was measured at a BEAT time. `age(to:)`
+        // moved the evaluation to wall-clock now, which adds the camera pipeline between the
+        // beat and this call. That is measurement latency, not staleness, and charging it to
+        // the breather is wrong. Swept over all 360 whole-degree breathing phases at a 2.5 s
+        // lag: at 28 breaths/min the worst phase read confidence 0.284 WITHOUT the allowance —
+        // under the publisher's 0.4 gate, so a fast breather's own measurement flickered off —
+        // and 0.487 with it. The cost at the other end is negligible because the envelope veto
+        // dominates there: the 60 s-then-flat series that
+        // `testAMeasuredRateExpiresWhenTheBreathingStops` drives ends at 0.0054 instead of
+        // 0.0019, both far under the gate.
         //
-        // ⚠️ It does NOT rescue 30/min, the band edge: at 0.5 Hz against ~1 Hz beats the RSA
-        // sits at Nyquist and the measured rate aliases to ~10/min. That is a sampling limit
-        // of reading breath from beats, not a freshness problem, and no grace can fix it.
+        // ⛔ SUBTRACT FROM `sinceCross`, DO NOT ADD TO `grace` — the first version added it and
+        // the difference is not cosmetic, because `grace` appears TWICE: once as the flat
+        // window and once as the fade denominator. Adding a constant there therefore also
+        // STRETCHES the fade, which nothing about a fixed measurement lag justifies. Measured
+        // time from the last crossing to `confidence < 0.4`, before / added 2.5 / subtracted
+        // 1.8: 6/min 24.1 → 28.1 → 25.9 s · 15/min 9.0 → 12.8 → 10.8 s · 28/min 4.7 → 8.4 →
+        // 6.5 s. Subtracting buys the identical fast-end protection (0.487 at every phase, the
+        // same number) for a smaller extension of the stale window at every rate.
+        //
+        // ⛔ AND THE FIRST VERSION MISREAD ITS OWN RETRACTION. It said "an earlier draft quoted
+        // 0.313 off a 180-phase sweep". No phase set produces 0.313 here: 180 phases give
+        // 0.2841 and 360 give 0.2837. The 0.313 was the confidence at the phase with the worst
+        // FRESHNESS, read out of the wrong column of my own table — so the cautionary example
+        // in a paragraph about hand-picked figures was itself a number nobody could reproduce.
+        // The lesson is narrower than "sweep": when a table has two minima, name which one.
+        //
+        // ⚠️ ABOVE ~28.5/min A GROWING SHARE OF PHASES STILL FAILS THE GATE, and the first
+        // version blamed Nyquist for it. That was written from ONE phase and the sweep refutes
+        // it: at 30 breaths/min the measured rate is 30 at 244 of 360 phases, 0 at 61 and ~10
+        // at 54 — the modal answer is the RIGHT one. So the residual is a CONFIDENCE problem of
+        // the same lag/freshness kind, not a sampling limit, and neither this allowance nor a
+        // larger one closes it (29/min worst phase at the same 2.5 s lag: 0.000 before, 0.179
+        // with 1.8, 0.266 with 2.5 — all under the gate). Two real causes sit under the 61
+        // zeros at 30/min and are
+        // registered on the board, not fixed here: `lastCrossT` is quantised to a beat, and
+        // line `r <= Self.maxRate` REJECTS a crossing whose jitter puts it a hair over 30/min
+        // instead of accepting the measurement into a wider band than it reports.
         let expectedPeriod = periodEMA > 0 ? periodEMA : 60.0 / Self.minRate
-        let grace = expectedPeriod * 1.5 + Self.pullLagAllowance
-        let sinceCross = lastCrossT.map { t - $0 } ?? 0
+        let grace = expectedPeriod * 1.5
+        let measuredSince = lastCrossT.map { t - $0 } ?? 0
+        let sinceCross = Swift.max(0.0, measuredSince - Self.pullLagAllowance)
         let freshness = sinceCross <= grace
             ? 1.0
             : Swift.max(0.0, 1.0 - (sinceCross - grace) / grace)

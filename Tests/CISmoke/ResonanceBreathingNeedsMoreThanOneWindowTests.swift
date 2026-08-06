@@ -52,9 +52,13 @@
 //     three staleness guards (`…ExpiresWhenTheBreathingStops`, `…WeakNoisySignal…`,
 //     `…AgesWithTheClock…`) and `…FastBreathersOwnMeasurementSurvivesThePipelineLag`, which
 //     read 0.284 against a 0.4 gate before the grace paid for the lag.
-//     `…AgeingInsideTheGraceWindow…` is a counterweight — it holds a
-//     bound that must NOT move, and it could only fail if the grace were tightened later.
-//     The remaining four describe the pure estimator on inputs these commits
+//     TWO are counterweights — they hold bounds that must NOT move and could only fail if the
+//     grace were TIGHTENED: `…AgeingInsideTheGraceWindow…` and `…ContinuingSlowBreathNever…`.
+//     And `…AgesWithTheClock…` is the one test that bounds `pullLagAllowance` from above: it
+//     goes red once the constant passes ≈15.0 s under the shipped subtract-from-staleness form
+//     (≈9.4 s under the add-to-grace form the first version used). Nothing else in this file
+//     constrains that constant, so a session raising it should look here first.
+//     The remaining three describe the pure estimator on inputs these commits
 //     leave bit-identical — they are green on both sides and exist to state the SHAPE of the
 //     defect, not to catch its return. That is NOT the same as "the arithmetic did not
 //     change": `32c3dcc` changed the confidence expression, which moved
@@ -83,13 +87,24 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// The publisher's own gate: `resp.confidence >= 0.4` means "breath measured".
     private static let measuredBreathGate = 0.4
     /// Well inside the estimator's 4…30/min band but far enough up it that the proportional
-    /// grace has shrunk to the same order as the pipeline lag. NOT 30: at the band edge the
-    /// RSA is at Nyquist against a ~60 bpm pulse and the rate aliases, which is a different
-    /// (and unfixable) problem — see `testAFastBreathersOwnMeasurementSurvivesThePipelineLag`.
+    /// grace has shrunk to the same order as the pipeline lag. NOT 30, but not for the reason
+    /// the first version gave — see the ⚠️ on
+    /// `testAFastBreathersOwnMeasurementSurvivesThePipelineLag`: above ~28.5/min a growing share
+    /// of phases fails the gate for a reason nothing in this file fixes, so testing there would
+    /// pin a failure rather than a guarantee.
     private static let fastBreathsPerMinute = 28.0
-    /// Worst-case delay between a breath cycle happening and the beat that marks it being read
-    /// by the publisher: one beat interval, plus two samples to confirm the peak, plus the
-    /// ~4 Hz peak-scan throttle, plus the ~1 Hz publish drain.
+    /// Delay between the last beat reaching `ingest` and `age(to:)` being called on it: two
+    /// samples to confirm the peak, the ~4 Hz peak-scan throttle, and the ~1 Hz publish drain.
+    /// Derived: ≈1.40 s at 15 fps, ≈1.80 s at 7.5 fps (the two frame-counted terms double).
+    ///
+    /// This test deliberately uses a LARGER value than `RespirationEstimator`'s allowance
+    /// (1.8 s) so it asserts margin, not the constant: a missed peak or a slow drain pushes the
+    /// real delay past the derived figure, and the gate must still hold. It stays red without
+    /// the allowance at either value (0.394 at 1.8 s, 0.284 at 2.5 s).
+    ///
+    /// ⛔ It said "worst-case delay … one beat interval, plus …". The beat interval does NOT
+    /// belong: the delay is measured FROM the last beat, so beat quantisation is already inside
+    /// `lastBeat − lastCrossT`. Counting it twice is what put the allowance at 2.5 s.
     private static let publishPipelineLagSeconds = 2.5
 
     // MARK: - The blind spot
@@ -417,20 +432,29 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
 
     /// ⭐ THE PRICE OF THE PULL, made a decision instead of a side-effect. `age(to:)` moved the
     /// freshness evaluation from the last BEAT's timestamp to wall-clock now, and the camera
-    /// pipeline sits in between: the crossing is stamped at a beat, a peak needs two later
-    /// samples to be confirmed, the peak scan is throttled to ~4 Hz and the publish drain runs
-    /// at ~1 Hz. Up to ~2.5 s — which the grace, being purely proportional to the breathing
-    /// period, charged to the breather. A slow breather never noticed (15 s of grace at 6/min);
-    /// a fast one did, because their grace shrinks while the pipeline delay does not.
+    /// pipeline sits in between: two samples to confirm the peak, the ~4 Hz peak-scan throttle
+    /// and the ~1 Hz publish drain — ≈1.40 s at 15 fps, ≈1.80 s at 7.5 fps. The grace, being
+    /// purely proportional to the breathing period, charged that to the breather. A slow
+    /// breather never noticed (15 s of grace at 6/min); a fast one did, because their grace
+    /// shrinks while the pipeline delay does not.
     ///
-    /// Swept over all 360 phases at 28 breaths/min with that 2.5 s lag, the worst phase read
-    /// confidence 0.284 — UNDER the publisher's 0.4 gate. Their own, correctly measured breath
-    /// flickered off and on at their breathing rate. With `pullLagAllowance` it reads 0.487.
+    /// Swept over all 360 phases at 28 breaths/min, the worst phase read confidence 0.394 at
+    /// the 7.5 fps delay and 0.284 at the 2.5 s wall this test uses — both UNDER the
+    /// publisher's 0.4 gate. Their own, correctly measured breath (rate 24.6–28.7 at EVERY
+    /// phase) flickered off and on at their breathing rate. With `pullLagAllowance` it reads
+    /// 0.487. At 15 fps the worst phase is 0.457 and there is no defect — this is a slow-device
+    /// failure, and the test says so rather than implying the fix was always needed.
     ///
-    /// ⚠️ This is a counterweight, not a claim that the whole band works. At 30/min — the
-    /// estimator's own `maxRate` — the RSA sits at Nyquist against a ~60 bpm pulse and the
-    /// measured rate aliases to ~10/min. No grace fixes that; it is a limit of reading breath
-    /// out of beats, and this test deliberately stops below it.
+    /// ⚠️ THIS IS A COUNTERWEIGHT, NOT A CLAIM THAT THE WHOLE BAND WORKS, and the first version
+    /// misdiagnosed the residual. It said 30/min is unreachable because the RSA sits at Nyquist
+    /// and the rate aliases to ~10/min. That was written from ONE phase (phase 0) and the sweep
+    /// refutes it: at 30/min the measured rate is ~30 at 244 of 360 phases, 0 at 61 and ~10 at
+    /// 54 — the modal answer is the RIGHT one. What actually fails above ~28.5/min is the
+    /// CONFIDENCE, for the same lag-versus-shrinking-grace reason this test is about, and
+    /// neither this allowance nor a larger one closes it (29/min worst phase: 0.000 before,
+    /// 0.179 with the shipped 1.8, 0.266 with 2.5). Registered on the board; not fixed here.
+    /// Writing "Nyquist" in the file whose thesis is "swept, not sampled" — off one phase — is
+    /// the exact habit this epic has now retracted three times.
     func testAFastBreathersOwnMeasurementSurvivesThePipelineLag() {
         var worst = Double.infinity
         var worstRate = 0.0
