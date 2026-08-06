@@ -24,6 +24,14 @@
 //
 // ⚠️ Source-text scan, no browser, no crawler. A green means the pages are reachable and
 // carry their metadata; it can say nothing about whether they read well or rank.
+//
+// ⚠️ SCOPE, because a guard that looks broader than it is will be trusted further than it
+// should be. `pages()` uses a NON-RECURSIVE listing of `docs/*.html`. It can therefore never
+// see `README.md` — the file a GitHub visitor reads first — nor `docs/dev/**`, nor
+// `fastlane/metadata` (which only the counted-claims test reaches, and only because that test
+// names those paths explicitly). This is not theoretical: the #436 sweep found the SAME false
+// "RTMP was built and removed" sentence sitting in `README.md`, where no assertion in this file
+// could ever have reached it. When a claim is corrected on the site, grep the whole repo for it.
 
 import Foundation
 import XCTest
@@ -178,23 +186,18 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     /// without any of these words. It is a tripwire against the careless re-introduction the
     /// history actually shows, not a proof of honesty. Honesty is `ContentPipeline/CLAIMS.md`
     /// plus a human.
+    ///
+    /// ⚠️ CONVERTED to `mentionsWithoutMarker` (#436). It carried its own copy of that windowed
+    /// walk until the RTMP and Ableton-Link checks needed the same shape — at which point
+    /// leaving it alone would have shipped THREE copies of one decision while the helper's own
+    /// doc cited #416 as the reason it exists. The only behavioural change is that the search
+    /// is now case-insensitive: for the literal "AUv3" that can only ADD matches, so the check
+    /// is strictly stricter, never looser.
     func testEveryAUv3MentionIsADenial() throws {
         let negations = ["not ", "no ", "never", "n't", "removed", "cannot", "can not",
                          "without", "neither", "nor "]
-        var affirmatives: [String] = []
-        for page in try pages() {
-            let html = page.html
-            var search = html.startIndex..<html.endIndex
-            while let hit = html.range(of: "AUv3", range: search) {
-                let lo = html.index(hit.lowerBound, offsetBy: -220, limitedBy: html.startIndex) ?? html.startIndex
-                let hi = html.index(hit.upperBound, offsetBy: 120, limitedBy: html.endIndex) ?? html.endIndex
-                let window = html[lo..<hi].lowercased()
-                if !negations.contains(where: { window.contains($0) }) {
-                    affirmatives.append("\(page.name): …\(html[lo..<hi].prefix(90))…")
-                }
-                search = hit.upperBound..<html.endIndex
-            }
-        }
+        let affirmatives = try mentionsWithoutMarker("AUv3", markers: negations,
+                                                     back: 220, forward: 120)
         let shown = affirmatives.prefix(3).joined(separator: " | ")
         XCTAssertTrue(affirmatives.isEmpty, """
             \(affirmatives.count) mention(s) of AUv3 on the site are not near a negation: \
@@ -427,9 +430,14 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     // MARK: - Never-built claims (#436 / #437)
 
     /// Every mention of `needle` must sit within a window of at least one `markers` phrase.
-    /// This is the shape `testEveryAUv3MentionIsADenial` already uses; it is factored out here
-    /// because three separate claims now need it and a third hand-rolled copy of the same
-    /// windowed walk is the #416 double-definition defect.
+    /// `testEveryAUv3MentionIsADenial` carried the only copy of this walk until the RTMP and
+    /// Ableton-Link checks needed the same shape; all three now call this, because three
+    /// hand-rolled copies of one decision is the #416 double-definition defect.
+    ///
+    /// ⚠️ THIS HELPER COUNTS CHARACTERS (graphemes); `testMotionIsNotListedAsABodySignalTheAppSenses`
+    /// counts UTF-16 units, because it drives `NSRegularExpression` and must speak `NSRange`.
+    /// They agree on this tree and are NOT interchangeable in general — do not "unify" them by
+    /// swapping one unit for the other.
     ///
     /// ⚠️ THE WINDOW IS ASYMMETRIC ON PURPOSE and the numbers are not decorative: English
     /// qualifies AFTER the noun far more often than before it ("RTMP was never built"), so the
@@ -470,12 +478,25 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     /// ⛔ WHY "NOT PLANNED" IS NOT AN ACCEPTED MARKER HERE, AND THIS IS THE WHOLE POINT OF THE
     /// TEST. The false sentences were not enthusiastic — they were *disclaimers*. They read
     /// "RTMP … is not planned (built and removed, July 2026)" and "video editing and RTMP were
-    /// built and removed". Every one correctly told a reader RTMP is absent, and every one
-    /// attached the wrong REASON: it invented a shipped-then-withdrawn broadcast stack. That is
-    /// a claim about engineering history that a journalist can quote and an integrator can plan
-    /// against ("so the code exists — how hard can re-enabling it be?"). A marker set containing
-    /// "not planned" would have passed all seven. So the accepted markers are exactly the ones
-    /// that contradict *having been built*.
+    /// built and removed". Six of the seven correctly told a reader RTMP is absent and attached
+    /// the wrong REASON: they invented a shipped-then-withdrawn broadcast stack. That is a claim
+    /// about engineering history a journalist can quote and an integrator can plan against ("so
+    /// the code exists — how hard can re-enabling it be?"). The seventh, a bare
+    /// `<li>RTMP / live broadcast</li>` under a "Built, shipped, and then removed" heading,
+    /// attached no reason at all and inherited the wrong one from the heading.
+    ///
+    /// ⛔ AND THE NUMBER IN THIS PARAGRAPH HAS NOW BEEN WRONG TWICE, IN OPPOSITE DIRECTIONS —
+    /// which is the reason it is now a measurement and not an intuition. It first read "would
+    /// have passed all five" (a leftover count), was "corrected" to "all seven" on the
+    /// assumption that a looser marker set can only be looser, and the real figure is **two**:
+    /// adding "not planned" to `markers` takes the offender count from 7 to 5, silencing exactly
+    /// the `architecture.html` "Further roadmap" row and the `tools.html` roadmap paragraph —
+    /// the only two false sentences that contain the phrase. The argument is unchanged and the
+    /// two it silences include the loudest of them; but a prohibition defended by a refutable
+    /// number is worth less than one defended by none. Measure, then write the sentence.
+    ///
+    /// So the accepted markers are exactly the ones that contradict *having been built* — a
+    /// disclaimer is not a contradiction.
     ///
     /// The truth, chained below rather than restated: `Package.swift` declares
     /// `dependencies: []`, HaishinKit is not a dependency, and `BroadcastPublisher` is a
@@ -485,9 +506,11 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     ///
     /// ⚠️ WHAT THIS CANNOT DO: it cannot catch the same lie phrased without the token, e.g.
     /// "live streaming was built and removed". That is the #364 limit and it is real — but
-    /// "RTMP" is the term every one of the five offenders used, and a scan for the generic word
-    /// `streaming` collides with legitimate copy on four pages. Narrow and honest beats broad
-    /// and disarmed.
+    /// "RTMP" is the term every one of the seven offenders used, and a scan for the generic word
+    /// `streaming` collides with legitimate copy on three pages: `architecture.html` (the
+    /// "streaming −14 LUFS" target and a "Lighting / streaming" row), `artnet-sacn-from-a-phone`
+    /// ("Streaming ACN", "keeps streaming underneath") and `brainstorming.html` ("HR/HRV
+    /// streaming"). Narrow and honest beats broad and disarmed.
     func testNothingClaimsRTMPWasEverBuilt() throws {
         let manifest = try String(
             contentsOf: try repoRoot().appendingPathComponent("Package.swift"), encoding: .utf8)
@@ -524,6 +547,15 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     /// for the bare token over HTML is unusable (`<link>`, "linked", "linking", every anchor's
     /// prose). So the badge was fixed by hand and this test protects only the phrased mentions.
     /// A green here means no PROSE overclaims Link — not that no abbreviation does.
+    ///
+    /// ⚠️ AND IT IS MATERIALLY WEAKER THAN THE RTMP CHECK ABOVE — same shape, worse markers.
+    /// "roadmap" and "planned" are the site's own badge vocabulary: `architecture.html` carries
+    /// 24 "roadmap" and 9 "planned" tokens, `faq.html` and `overview.html` a comparable density.
+    /// On those pages a 440-character window will often contain an unrelated
+    /// `<span class="tag">ROADMAP</span>`, so a fresh unqualified mention placed one table row
+    /// over would pass. It is not unfalsifiable — it DID fire on the bare `<li>Ableton Link</li>`
+    /// even on the page with 24 roadmap tokens — but it is a tripwire, not a proof. The RTMP
+    /// markers are specific phrases the site does not otherwise use; these are not.
     func testEveryAbletonLinkMentionIsUnshipped() throws {
         let markers = ["roadmap", "planned", "not in the app"]
         let offenders = try mentionsWithoutMarker("Ableton Link", markers: markers,
@@ -543,28 +575,45 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     /// live".
     ///
     /// ⛔ A BARE `motion` SCAN IS THE #364 TRAP AND I MEASURED IT BEFORE WRITING THIS. The token
-    /// appears across `docs/` in roughly twenty places and almost every one is legitimate:
+    /// appears across the scanned pages exactly 28 times and almost every one is legitimate:
     /// "reduced-motion support" and `prefers-reduced-motion` (accessibility — required copy),
     /// "Legibility & motion safety", "filter motion", "chord motion", "your pulse drives
     /// motion" (all MUSICAL motion), and "head motion" on the explicitly-labelled ideas page.
     /// A keyword guard would go red on the accessibility statement — the site being at its most
     /// correct.
     ///
-    /// So the rule is the LIST FORM, not the token: motion joined by `and` / `&` / `,` to a
-    /// clause that already named another body signal within 60 characters. That is precisely
-    /// the shape of the false claim and none of the legitimate uses can reach it — "drives
-    /// motion" and "filter motion" have no conjunction, and "Legibility & motion safety" has
-    /// the conjunction but no bio word in front of it. Measured, not assumed: zero hits on the
-    /// current tree, THREE on the tree this commit repaired — the press headline, the
-    /// `bioFrames` payload row, and the `bioEvents` onset row.
+    /// So the rule is the LIST FORM, not the token: motion adjacent to `and` / `&` / `,` with
+    /// another body signal within 60 characters on the joining side. That is precisely the shape
+    /// of the false claim and none of the legitimate uses can reach it — "drives motion" and
+    /// "filter motion" have no conjunction, and "Legibility & motion safety" has the conjunction
+    /// but no bio word in front of it. Measured, not assumed: zero hits on the current tree,
+    /// THREE on the tree this commit repaired — the press headline, the `bioFrames` payload row,
+    /// and the `bioEvents` onset row.
     ///
-    /// ⚠️ WHAT THIS CANNOT DO, and one case is already in the tree it just guarded. It cannot
-    /// judge a claim that stands alone rather than joining a list: `architecture.html` also
-    /// described a "motion peak (hysteresis 0.6/0.3)" detector with no conjunction in front of
-    /// it, so this scan was blind to it and it was corrected by hand in the same commit. The
-    /// list form is guarded because it is the shape the site produced three times unprompted —
-    /// motion reads as a natural fourth item after heart, breath and coherence. Guarding the
-    /// reachable shape beats guarding an imagined one badly, but the gap is real, not rhetorical.
+    /// ⚠️ BOTH DIRECTIONS, AND `bio` INCLUDES HRV AND COHERENCE — because the first version had
+    /// each gap and a reviewer walked straight through them. It only matched a conjunction
+    /// BEFORE motion, so "your motion, heartbeat and breath" — the mirror image of the press
+    /// sentence just repaired — was invisible; and `bio` listed only heart/breath/pulse, so
+    /// "HRV, coherence and motion" would have passed. That second one is not hypothetical: it is
+    /// the vocabulary of the `architecture.html` `bioFrames` row this commit fixed, and the ONLY
+    /// reason that row was caught is that "breath rate, breath phase" happened to fall inside the
+    /// 60-character window. Reword it without the word "breath" and the old guard went blind.
+    /// Widening cost nothing measurable — still zero hits on the current tree.
+    ///
+    /// ⚠️ WHAT THIS STILL CANNOT DO, and one case is in the tree it just guarded. It cannot judge
+    /// a claim that stands alone rather than joining a list: `architecture.html` also described a
+    /// "motion peak (hysteresis 0.6/0.3)" detector with no conjunction anywhere near it, so this
+    /// scan is blind to it and it was corrected by hand in the same commit. The list form is
+    /// guarded because it is the shape the site produced three times unprompted — motion reads as
+    /// a natural fourth item after heart, breath and coherence.
+    ///
+    /// ⚠️ AND ONE CORRECT ROW SITS ONE COPY-EDIT AWAY FROM A FALSE POSITIVE. `overview.html`
+    /// carries `Heart rate | Vibrato · filter motion · intensity` — "Heart rate" is 44 characters
+    /// before `motion`, well inside the precondition window, and the ONLY thing keeping that row
+    /// green is that its separator is `&middot;` and not a comma. If someone rewrites it as
+    /// "Vibrato, filter, motion" this test goes red on a correct sentence about a bio→target
+    /// mapping. When that happens the guard is wrong and the site is right: narrow the rule, do
+    /// not edit the row.
     func testMotionIsNotListedAsABodySignalTheAppSenses() throws {
         XCTAssertFalse(ModSource.motion.hasProducer, """
             `ModSource.motion.hasProducer` is now true — something measures motion again. \
@@ -572,26 +621,43 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             update the copy FIRST and then invert this guard, in the same commit.
             """)
 
-        let bio = ["breath", "heartbeat", "heart rate", "pulse"]
-        guard let rx = try? NSRegularExpression(pattern: "(?:and|&amp;|,)\\s+motion\\b",
-                                                options: [.caseInsensitive]) else {
-            return XCTFail("the conjunction pattern did not compile — the scan checked nothing")
+        let bio = ["breath", "heartbeat", "heart rate", "pulse", "hrv", "coherence"]
+        // `trailing` = a conjunction BEFORE motion ("breath and motion"); the bio word must then
+        // precede the match. `leading` = a conjunction AFTER motion ("motion, heartbeat"); the
+        // bio word must then FOLLOW it. Two patterns rather than one because the side the window
+        // is taken from is what differs, and folding that into a single regex would hide it.
+        guard let trailing = try? NSRegularExpression(pattern: "(?:and|&amp;|,)\\s+motion\\b",
+                                                      options: [.caseInsensitive]),
+              let leading = try? NSRegularExpression(pattern: "\\bmotion\\s*(?:,|and\\b|&amp;)",
+                                                     options: [.caseInsensitive]) else {
+            return XCTFail("a conjunction pattern did not compile — the scan checked nothing")
         }
 
         var offenders: [String] = []
         for page in try pages() {
             let html = page.html
             let ns = html as NSString
-            for m in rx.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
-                let start = m.range.location
-                let preLo = max(0, start - 60)
-                let preceding = ns.substring(with: NSRange(location: preLo,
-                                                          length: start - preLo)).lowercased()
-                guard bio.contains(where: { preceding.contains($0) }) else { continue }
-                let lo = max(0, start - 90)
-                let hi = min(ns.length, m.range.location + m.range.length + 90)
+            let whole = NSRange(location: 0, length: ns.length)
+
+            func record(_ range: NSRange) {
+                let lo = max(0, range.location - 90)
+                let hi = min(ns.length, range.location + range.length + 90)
                 offenders.append("\(page.name): …"
                     + ns.substring(with: NSRange(location: lo, length: hi - lo)) + "…")
+            }
+
+            for m in trailing.matches(in: html, range: whole) {
+                let lo = max(0, m.range.location - 60)
+                let preceding = ns.substring(
+                    with: NSRange(location: lo, length: m.range.location - lo)).lowercased()
+                if bio.contains(where: { preceding.contains($0) }) { record(m.range) }
+            }
+            for m in leading.matches(in: html, range: whole) {
+                let start = m.range.location + m.range.length
+                let following = ns.substring(
+                    with: NSRange(location: start,
+                                  length: min(60, ns.length - start))).lowercased()
+                if bio.contains(where: { following.contains($0) }) { record(m.range) }
             }
         }
         XCTAssertTrue(offenders.isEmpty, """
