@@ -100,6 +100,58 @@ public struct BreathPattern: Identifiable, Equatable, Sendable {
     /// before starting these).
     public var hasHolds: Bool { segments.contains { $0.kind.isHold } }
 
+    /// ⭐ CAN ECHOEL READ BACK THE RATE THIS PATTERN PACES? Chained to the estimator's own
+    /// published contract (`RespirationEstimator.reportableRange`) rather than restating its
+    /// numbers here — a second copy of that bound is the #416 defect, and this is #426's form:
+    /// one side asks the other instead of both remembering the same constant.
+    ///
+    /// It matters because the guide is not only a guide. `BreathGuideView` offers a
+    /// "drive the ball from your MEASURED breath" mode, and `bioNormalized` folds a measured
+    /// breath rate into the arousal the music follows. For a pattern outside the band, both go
+    /// quiet — and nothing on screen says why, which is exactly the lying-control class this
+    /// repo keeps closing.
+    ///
+    /// ⚠️ MEASURED, and the two out-of-band patterns fail DIFFERENTLY, which is why this is a
+    /// property and the note below is not one sentence for both. Modelling only the mechanism
+    /// in question — the breath period is read between zero-crossings of the heartbeat series,
+    /// so a cycle is quantised to a whole number of beats, and a crossing is kept only if the
+    /// rate it implies lands in the band — swept over pulses 45…110:
+    ///   · resonance / coherent (6.0/min, +59% inside): 121 of 121 quantised branches accepted,
+    ///     mean report 6.0140, i.e. +0.23%. Comfortably readable.
+    ///   · box (3.75/min, **0.62% BELOW** the lower bound): 54 of 127 branches accepted, mean
+    ///     report **3.8590 — a +2.91% HIGH bias**, and 12 of those 66 pulses accept nothing at
+    ///     all. Pulse 60 is one of them, exactly: a 16 s cycle is exactly 16 beats there, both
+    ///     quantisations give 3.75, and both are rejected. This is #426's one-sided filter in a
+    ///     second place — it does not go silent, it reads high.
+    ///   · 4-7-8 (3.1579/min, **16.3% below**): **0 of 131** branches accepted, silent at every
+    ///     one of the 66 pulses. No jitter reaches back into the band from there.
+    ///
+    /// ⚠️ WHAT THIS MODEL DOES NOT COVER, stated rather than left to be found: it says nothing
+    /// about what the estimator does DURING a hold. Box holds 8 of its 16 seconds and 4-7-8
+    /// holds 7 of 19; the respiratory sinus arrhythmia across a held breath is not the smooth
+    /// modulation the estimator assumes, and nothing here measures that. The claim is only the
+    /// arithmetic one: even a perfectly tracked cycle at these paced rates is rejected or
+    /// biased by the acceptance band alone.
+    public var pacedRateIsReportable: Bool {
+        RespirationEstimator.reportableRange.contains(ratePerMinute)
+    }
+
+    /// The honest one-liner to show beside a pattern the camera cannot read back, or `nil`.
+    ///
+    /// DERIVED, never stored: a hand-written caveat string on each pattern would drift the
+    /// moment somebody retunes the band or edits a segment, and the drift would be invisible.
+    /// Deriving it means the copy and the arithmetic cannot disagree.
+    ///
+    /// The wording deliberately does not call the technique broken — Box and 4-7-8 are
+    /// established practices and are offered on purpose; it is Echoel's camera measurement that
+    /// is not built for a rate this slow. No health claim, no instruction.
+    public var measurementNote: String? {
+        pacedRateIsReportable
+            ? nil
+            : "Echoel can't read your breath rate at this pace — the guide still works, "
+                + "the live breath readout won't follow it."
+    }
+
     /// Pure sample of the guide at a time within the cycle. `amplitude` [0,1] drives
     /// the ball (1 = lungs full). Raised-cosine on inhale/exhale, flat on holds.
     public func sample(atCycleTime time: Double) -> (amplitude: Double, instruction: String, kind: BreathSegmentKind) {

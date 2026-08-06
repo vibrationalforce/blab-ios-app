@@ -242,8 +242,54 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**174** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheGapClimbCannotChangeTheResumeTests.swift` (#444 — der erste
+                          `Tests/CISmoke` (**175** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `ThePacedRateMustBeReadableTests.swift` (#435 — der erste
+                          Wächter in dieser Kette über einem WIDERSPRUCH ZWISCHEN ZWEI EIGENEN
+                          TEILEN der App statt über einem falschen Wert in einem: `BreathPattern.curated`
+                          pact vier Raten (Resonance 6,0 · Coherent 6,0 · Box 3,75 · 4-7-8 3,1579),
+                          und `RespirationEstimator.reportableRange` ist `[3,7736 … 31,8]`. **ZWEI der
+                          vier liegen UNTER der Untergrenze** — während der Nutzer der Atemführung der
+                          App folgt, kann die Atemmessung der App die verlangte Rate nicht zurücklesen.
+                          `BreathGuideView` bietet ausdrücklich einen „treibe den Ball aus deinem
+                          GEMESSENEN Atem"-Modus an, der dort nie angehen kann, und `bioNormalized`
+                          lässt den Atem-Term ganz fallen — die Musik hört genau in dem Moment auf, dem
+                          Atem zu folgen, in dem der Nutzer bewusst atmet.
+                          ⭐ Die zwei scheitern VERSCHIEDEN, und das ist der Fund, der mehr wert ist als
+                          der Boolesche. Modelliert wurde nur der fragliche Mechanismus (die Atemperiode
+                          wird zwischen Nulldurchgängen der Herzschlagreihe gelesen, ein Zyklus rastert
+                          also auf ganze Schläge, und ein Durchgang überlebt nur, wenn die implizierte
+                          Rate im Band landet), gewischt über Puls 45…110: Resonance/Coherent **121 von
+                          121** Zweigen angenommen, Mittel 6,0140 (+0,23 %). **Box** liegt 0,62 %
+                          darunter und geht NICHT still: 54 von 127 Zweigen kommen durch, Mittel
+                          **3,8590 — also +2,91 % ZU HOCH**, und an 12 der 66 Pulse wird gar nichts
+                          angenommen, Puls 60 exakt (16-s-Zyklus = genau 16 Schläge, beide
+                          Quantisierungen ergeben 3,75). Das ist die #426-Klasse — ein EINSEITIGER
+                          Filter am Rand — an einer zweiten Stelle. **4-7-8** liegt 16,3 % darunter:
+                          **0 von 131**, stumm an allen 66 Pulsen.
+                          ⭐ Deshalb ist die Reparatur weder „Band weiten" (eine Messentscheidung an
+                          eine UI-Liste anpassen) noch „Technik ändern" (Box 4-4-4-4 und 4-7-8 sind
+                          benannte Praktiken, absichtlich angeboten) — sondern die Tatsache KETTEN und
+                          SAGEN: `pacedRateIsReportable` fragt `RespirationEstimator.reportableRange`
+                          statt sie zu wiederholen (#416/#426-Form), und `measurementNote` ist DARAUS
+                          ABGELEITET statt pro Muster hingeschrieben, damit Text und Arithmetik nicht
+                          auseinanderlaufen können.
+                          ⚠️ Was der Wächter NICHT behauptet, und das steht als eigener ⛔-Block im
+                          Dateikopf: die Sweep-Zahlen sind ein MODELL des Annahmebandes und der
+                          Schlag-Quantisierung, nicht `RespirationEstimator` selbst — sie festzunageln
+                          hieße mein Modell festnageln statt das Produkt, die teurere Sorte Grün.
+                          Behauptet wird nur, was aus den ausgelieferten Typen entscheidbar ist. Und die
+                          Aussage „die Notiz erscheint genau dann, wenn die Rate draußen liegt" ist per
+                          Konstruktion wahr und wird deshalb NICHT geprüft (#367) — geprüft wird, WELCHE
+                          konkreten Muster auf welcher Seite landen, was bei jeder Segment- oder
+                          Band-Änderung rot wird. ⚠️ Und die ehrliche Grenze der Türen: BEIDE Flächen,
+                          die diesen Picker zeigen, sind heute unerreichbar (`BreathGuideView` nur aus
+                          dem türlosen `BioSourceView` (#276), `MeditationView` nur unter
+                          `showMeditation`, einem der drei Präsentations-Flags ohne jeden Setzer). Die
+                          Zeile ist trotzdem geschrieben, aus demselben Grund wie bei #433/#434: die
+                          Arithmetik ist falsch, ob eine Tür existiert oder nicht, und eine später
+                          eintreffende Tür darf nicht auf einem stillen Widerspruch aufsetzen),
+                          davor „174"
+                          nach `TheGapClimbCannotChangeTheResumeTests.swift` (#444 — der erste
                           Wächter in dieser Kette über einer REGISTRIERTEN REPARATUR, die sich beim
                           Nachrechnen als NO-OP herausstellte. Der #434-Dateikopf hielt ein Artefakt fest
                           („eine periodisch flackernde Quelle erzeugt ein glattes Dreieck statt einer
@@ -1671,7 +1717,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTDREIUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 174 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTVIERUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 174 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

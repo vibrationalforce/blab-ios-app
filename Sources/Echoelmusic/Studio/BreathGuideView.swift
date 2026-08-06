@@ -149,6 +149,17 @@ struct BreathGuideView: View {
             .foregroundStyle(EchoelTheme.dim)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
+            // The measured-breath toggle below can never light up for a pattern paced outside
+            // `RespirationEstimator.reportableRange` — say so here rather than letting the user
+            // read a dead readout as their own technique failing. Derived, so it cannot drift
+            // from the arithmetic (#435).
+            if let note = pacer.pattern.measurementNote {
+                Text(note)
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.accent)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

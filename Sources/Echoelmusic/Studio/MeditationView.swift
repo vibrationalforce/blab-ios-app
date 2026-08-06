@@ -91,6 +91,13 @@ struct MeditationView: View {
                 }.pickerStyle(.segmented)
                 Text(pacer.pattern.evidence).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
+                // Same honesty line as the guide: two of the four curated patterns are paced
+                // outside `RespirationEstimator.reportableRange`, so the live breath readout
+                // cannot follow them. Derived from the arithmetic, never hand-written (#435).
+                if let note = pacer.pattern.measurementNote {
+                    Text(note).font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.accent)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             primaryButton("Begin") { beginPressed() }
