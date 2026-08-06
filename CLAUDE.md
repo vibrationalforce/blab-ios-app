@@ -242,8 +242,55 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**176** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `ARejectedCrossingIsNotFreshnessTests.swift` (#452 — der erste
+                          `Tests/CISmoke` (**177** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `TheWristReadingIsNotUnderweightedTests.swift` (#448 — der erste
+                          Wächter in dieser Kette über einer Konstante, die NIE GEWÄHLT WURDE. Der
+                          Kopf von `BreathHold.swift` leitet die TEILUNG her (Gnadenfrist = Release =
+                          horizon/2, gekettet an `BioSource.freshnessWindow`, damit der Einfluss genau
+                          dann erlischt, wenn der Bus dem Frame nicht mehr traut — #426s Form). Den
+                          ANSTIEG leitet er nirgends her: `up` benutzte schlicht denselben Teiler
+                          `half`, den die ABLAUF-Seite gewählt hatte.
+                          ⭐ Die Rechnung kostet ausgerechnet die Quelle, deren ganze Prämisse
+                          „ein Messwert von vor einer Minute ist immer noch deiner" ist: 90 s
+                          Fenster heißt 45 s Anstieg, eine Handgelenks-Atemrate verbringt ihr ganzes
+                          nutzbares Leben mit Steigen und Fallen und berührt Vollgewicht für EINEN
+                          Augenblick. Kontinuierlicher Mittelwert über die 90 s: exakt **1/2**.
+                          `.oura` (600 s) ist schlimmer und hat heute keinen Produzenten.
+                          ⭐ **Die Reparatur erfindet keine Zahl — sie verallgemeinert, was der
+                          LEBENDE Pfad ohnehin tut.** Kamera/BLE (6 s Fenster) hat einen zufälligen
+                          Anstieg von 3 s, und das sind DREI Frames bei der ~1-Hz-Anwendungsrate, die
+                          der Bus wirklich fährt (`BioApplyRateIsTheDedupedRateTests`) — die kürzeste
+                          Rampe, die auf einer so abgetasteten Spur als Rampe und nicht als Sprung
+                          liest. `BreathHold.maximumAttack = 3.0` deckelt das für jede Quelle.
+                          ⭐ Die `min(releaseSeconds, …)`-FORM ist zweifach tragend, und deshalb
+                          behauptet der Wächter sie direkt: Kamera (3 s) und `.fallback` (2,5 s)
+                          bleiben BITGLEICH — jede Behauptung in `TheGapClimbCannotChangeTheResumeTests`
+                          misst also weiter, was sie maß —, und #444s Theorem braucht
+                          `elapsed > half >= attack` an jedem Neustart, um `up > 1` zu folgern. Eine
+                          nackte Konstante über der Release irgendeiner Quelle hätte diesen Beweis
+                          still gebrochen, ohne dass die Nachbardatei rot geworden wäre: sie treibt
+                          nur das Kamera-Fenster.
+                          ⚠️ Gemessen, MIT genanntem Raster (alle 0,5 s über ein volles 90-s-Leben):
+                          Mittel **0,4972 → 0,7293**. Die exakten kontinuierlichen Mittel sind
+                          rasterfrei und sauberer: **1/2 → 11/15**. Kamera und `.fallback`: max |Δ|
+                          exakt **0** an jedem Abtastwert.
+                          ⛔ **Die Zahl, die der `BreathHold`-Kopf dafür trug — „mean weight 0.4712" —
+                          ist zurückgenommen.** Sie stand ohne Raster da, und keine Abtastung der
+                          alten Form ergibt sie; der kontinuierliche Mittelwert ist exakt 0,5. Damit
+                          war sie weder reproduzierbar noch widerlegbar — dieselbe Klasse wie die
+                          unreproduzierbaren Zählungen, die #443 und #430 je zurücknehmen mussten.
+                          **Eine gemessene Zahl trägt in diesem Repo ihr Raster, oder sie ist keine
+                          Messung.**
+                          ⚠️ Was NICHT repariert ist: das Flacker-Dreieck. Auf Kamera/BLE ist der
+                          Anstieg unverändert, eine langsamer als ihr Horizont flackernde Quelle
+                          zeichnet also exakt dieselbe Form. Das Artefakt war an diesem Fenster nie
+                          die Schuld der Anstiegsrate, sondern die Form von `min(up, down)` selbst.
+                          ⚠️ Und die härteste Grenze, unverändert seit #433/#434: nichts davon ist
+                          hörbar oder aufgezeichnet — `RecordController.onStep` beginnt mit
+                          `guard armed else { return }`, `arm()` hat null Aufrufer (#204). Repariert
+                          WIRD es deshalb, nicht trotzdem. Und **kein Gate hat es gesehen** (#451)),
+                          davor „176"
+                          nach `ARejectedCrossingIsNotFreshnessTests.swift` (#452 — der erste
                           Wächter in dieser Kette über einer LATCH, die den Messwert der VORIGEN
                           Technik weiterbehauptet — mit voller Konfidenz, während der Körper etwas
                           atmet, das das Band gar nicht lesen kann. `ingest` setzte
@@ -1892,7 +1939,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTFÜNFUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 176 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSECHSUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 176 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

@@ -63,12 +63,13 @@
 //     fades out precisely as the frame expires". It is a TRIANGLE, not a plateau: measured for
 //     a wrist reading, `weight` at t = 0/5/15/30/45/60/90 s is 0.0 / 0.111 / 0.333 / 0.667 /
 //     **1.0 / 0.667 / 0.0** — full weight is touched for ONE INSTANT at t = 45, and the mean
-//     over the 90 s usable life is **0.4712**. And because HealthKit publishes once per new
+//     over the 90 s usable life is exactly **1/2**. And because HealthKit publishes once per new
 //     reading, minutes apart (this paragraph's own words), every wrist reading restarts from
 //     `resumeWeight == 0`, so that triangle is the NORMAL case, not an edge one. The regression
-//     claim survives — 0.4712 beats "0 for ~83 of 90 s" by a lot — but the wrist path is still
-//     substantially under-weighted for a source whose whole point is that a reading from a
-//     minute ago is still valid. Cause and open slice: see the ⚠️ ATTACK RATE note below.
+//     claim survives — half weight beats "0 for ~83 of 90 s" by a lot — but the wrist path was
+//     still substantially under-weighted for a source whose whole point is that a reading from a
+//     minute ago is still valid. ✅ FIXED IN #448 (mean 11/15); the derivation is the ATTACK RATE
+//     note below, which also retracts the ungridded "0.4712" this paragraph used to carry.
 //   Consequences at the two live windows: camera/BLE (6 s) → 3 s grace + 3 s fade, so two
 //   missed frames at ~1 Hz still move nothing and the weight travels at most 1/3 per second;
 //   HealthKit/Watch (90 s) → 45 s + 45 s.
@@ -126,33 +127,44 @@
 //   ride along; `testTheRampRateDoesNotRememberEarlierDropouts` is there to make it a red test
 //   rather than a side effect.
 //
-// ⚠️ ATTACK RATE == RELEASE RATE, AND NOTHING IN THIS FILE EVER DECIDED THAT. This is the
-// sentence that belongs where the withdrawn cause stood, and it is a stronger statement than the
-// one it replaces. The triangle is not made by `up` climbing during a gap; it is made by the
-// climb and the fade having the SAME slope. `down` falls at `1/half`. `up` climbs at
-// `elapsed / half` — also `1/half`, and only because `up` reuses `half` as its divisor. The
-// header above derives the SPLIT (grace = release = horizon/2, chained to the source's own
-// freshness window, #426's form). It never derives the ATTACK: the re-acquisition rate arrived as
+// ✅ ATTACK RATE == RELEASE RATE, AND NOTHING IN THIS FILE EVER DECIDED THAT — FIXED IN #448.
+// This is the sentence that belongs where the withdrawn cause stood, and it is a stronger
+// statement than the one it replaces. The triangle is not made by `up` climbing during a gap; it
+// is made by the climb and the fade having the SAME slope. `down` falls at `1/half`. `up` used to
+// climb at `elapsed / half` — also `1/half`, and only because `up` reused `half` as its divisor.
+// The header above derives the SPLIT (grace = release = horizon/2, chained to the source's own
+// freshness window, #426's form). It never derived the ATTACK: the re-acquisition rate arrived as
 // a side effect of the one constant that was chosen for the expiry side.
-//   Two consequences, and the second is the expensive one:
-//   · the flicker triangle in the ⚠️ note above is the visible consequence;
-//   · the WRIST path is the costly one. A 90 s horizon means a 45 s attack, so a HealthKit
-//     reading that arrives minutes after the last one spends its entire usable life climbing and
-//     then falling — mean weight 0.4712, peak touched for one instant. The source whose whole
-//     premise is "a reading from a minute ago is still your current rate" is the one this couples
-//     hardest against. Camera/BLE is comparatively unharmed because its 3 s attack is short
-//     against its ~1 Hz cadence.
-// Decoupling the attack from `half` is a BEHAVIOUR change with a real design question behind it
-// (should re-acquisition be immediate, source-dependent, or trust-earning?), so it is registered
-// as its own slice and deliberately does not ride along with a comment correction.
-//   ⛔ And do not reach for the obvious-looking version of that slice — a decaying envelope that
-//   lowers each successive peak so a repeatedly-dropping source earns less trust. It fails on the
-//   same ground #433 used to delete the fabricated calm: the bus still trusts the frame, so
-//   lowering its influence invents a distrust nothing measured, and on a recorded lane the result
-//   is indistinguishable from a body that actually breathed less regularly. It also makes the
-//   weight depend on history the caller cannot see, so two identical bodies read differently.
-//   `testTheRampRateDoesNotRememberEarlierDropouts` exists to make that a red test rather than a
-//   side effect of some later tidy-up.
+//   The expensive consequence was the WRIST path. A 90 s horizon meant a 45 s attack, so a
+//   HealthKit reading arriving minutes after the last one spent its entire usable life climbing
+//   and then falling — the source whose whole premise is "a reading from a minute ago is still
+//   your current rate" was the one this coupled hardest against. Camera/BLE was comparatively
+//   unharmed because its 3 s attack is short against its ~1 Hz cadence.
+//   ⭐ THE ANSWER WAS ALREADY IN THE FILE: camera/BLE's accidental 3 s IS three frames at the
+//   ~1 Hz apply rate, i.e. the shortest ramp that reads as a ramp on the lane. So `maximumAttack`
+//   generalises the LIVE path's behaviour instead of inventing a number, and expressing it as
+//   `min(releaseSeconds, …)` keeps camera (3 s) and `.fallback` (2.5 s) bit-identical AND keeps
+//   #444's `elapsed > half >= attack` precondition true by construction.
+//   Measured over one full 90 s wrist life, weight sampled every 0.5 s: mean **0.4972 → 0.7293**.
+//   The exact continuous means are cleaner and grid-free: **1/2 → 11/15**. Camera (6 s) and
+//   `.fallback` (5 s): max |Δ| exactly **0** at every sample.
+//   ⛔ The number this paragraph carried before was "mean weight 0.4712", quoted with no grid.
+//   The continuous mean of the old shape is exactly 0.5 and no sampling of it lands on 0.4712;
+//   whatever grid produced it was never written down, so it could not be reproduced or refuted —
+//   the same defect as the unreproducible counts #443 and #430 each had to retract. A measured
+//   number in this repo carries its grid or it is not a measurement.
+//   ⛔ And the obvious-looking alternative is still REJECTED, not merely deferred — a decaying
+//   envelope that lowers each successive peak so a repeatedly-dropping source earns less trust.
+//   It fails on the same ground #433 used to delete the fabricated calm: the bus still trusts the
+//   frame, so lowering its influence invents a distrust nothing measured, and on a recorded lane
+//   the result is indistinguishable from a body that actually breathed less regularly. It also
+//   makes the weight depend on history the caller cannot see, so two identical bodies read
+//   differently. `testTheRampRateDoesNotRememberEarlierDropouts` exists to make that a red test
+//   rather than a side effect of some later tidy-up — and #448 deliberately does not touch it:
+//   a CEILING is not a memory.
+//   ⚠️ What #448 does NOT fix: the flicker triangle. On camera/BLE the attack is unchanged, so a
+//   source flickering slower than its horizon traces exactly the same shape. That artifact was
+//   never the attack rate's fault at that window; it is the shape of `min(up, down)` itself.
 //
 // ⭐ THE LESSON, and it is why this correction is worth more than the artifact: a registered
 // follow-up with a NAMED cause is the most expensive kind of wrong note in this repo (#167). The
@@ -191,10 +203,34 @@ public struct BreathHold: Sendable, Equatable {
     /// floored. Zero until something has been measured.
     public private(set) var horizon: TimeInterval = 0
 
+    /// Ceiling on the ATTACK — how long re-acquisition takes to climb back to full weight.
+    ///
+    /// ⭐ THIS IS NOT A NEW NUMBER; IT IS THE LIVE PATH'S OWN ATTACK, GENERALISED (#448). Until
+    /// this constant existed the attack was `releaseSeconds`, purely because `up` reused `half`
+    /// as its divisor — the file header derives the SPLIT (grace = release = horizon/2, chained
+    /// to `BioSource.freshnessWindow`) and never derives the attack at all. On camera/BLE that
+    /// accident lands on 3 s, which is three frames at the ~1 Hz apply rate the bus actually
+    /// runs at (`Tests/CISmoke/BioApplyRateIsTheDedupedRateTests`). Three is the smallest count
+    /// that reads as a ramp rather than a step on a lane sampled at that rate: one sample IS the
+    /// step, two gives a single midpoint. So the shipped live behaviour is the definition, and
+    /// the ceiling stops a SLOW source from scaling that ramp up with its freshness window.
+    ///
+    /// ⚠️ It is expressed as a ceiling — `min(releaseSeconds, …)` — and that form is load-bearing
+    /// twice over. It keeps camera (3 s) and `.fallback` (2.5 s) BIT-IDENTICAL, so every existing
+    /// assertion in `TheGapClimbCannotChangeTheResumeTests` still measures what it measured. And
+    /// it preserves #444's theorem by construction: that proof needs `elapsed > half >= attack`
+    /// at every restart to conclude `up > 1`, which holds for any attack at or below the release.
+    /// A bare constant larger than some source's release would break both.
+    public static let maximumAttack: TimeInterval = 3.0
+
     /// How long a measurement counts at FULL weight, and how long the fade to zero then takes.
     /// Both are half the horizon; see the file header for why that split is the whole design.
     public var graceSeconds: TimeInterval { horizon * 0.5 }
     public var releaseSeconds: TimeInterval { horizon * 0.5 }
+
+    /// How long re-acquisition takes to climb back to full weight — the release, capped.
+    /// Deliberately NOT `releaseSeconds`: see `maximumAttack`.
+    public var attackSeconds: TimeInterval { Swift.min(releaseSeconds, Self.maximumAttack) }
 
     private var lastMeasuredAt: TimeInterval = -.infinity
     private var runStartedAt: TimeInterval = -.infinity
@@ -276,7 +312,8 @@ public struct BreathHold: Sendable, Equatable {
     /// it to 0 in a single lane sample — the full step, in the case the fade exists for.
     ///
     /// ⚠️ And what the per-second bound describes is this function, not the recording. The
-    /// weight moves at most `1/releaseSeconds` per second; the lane records that ramp SAMPLED at
+    /// weight rises at most `1/attackSeconds` and falls at most `1/releaseSeconds` per second —
+    /// two different bounds since #448, where they used to be one; the lane records that ramp SAMPLED at
     /// the transport step rate, so between two adjacent keyframes it can move by a whole sample
     /// period's worth. The bound is on the signal, not on the difference between two rows.
     public func weight(at now: TimeInterval) -> Double {
@@ -293,8 +330,13 @@ public struct BreathHold: Sendable, Equatable {
             down = 1 - (age - half) / half
         }
 
+        // ⭐ THE ATTACK IS NO LONGER `half` (#448). It used to be, purely because this line
+        // reused the divisor the EXPIRY side had chosen — see `maximumAttack`. `attack <= half`
+        // always, so #444's theorem (`elapsed > half >= attack` at every restart ⇒ `up > 1`) is
+        // preserved, and the camera/BLE and `.fallback` traces are bit-identical.
+        let attack = Swift.min(half, Self.maximumAttack)
         let elapsed = now - runStartedAt
-        let up = resumeWeight + (elapsed > 0 ? elapsed : 0) / half
+        let up = resumeWeight + (elapsed > 0 ? elapsed : 0) / attack
 
         // `clamped(to:)` (Core/FloatingPointClamp.swift) rather than a local helper: the first
         // draft wrote a fourth private copy of this clamp, in a file whose own docs cite #416
