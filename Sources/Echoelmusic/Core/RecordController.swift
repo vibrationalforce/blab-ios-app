@@ -46,6 +46,12 @@ public final class RecordController {
     /// if any (today's recorder captures a single mic stream — the first armed
     /// audio lane wins; see `RecordPlan.armedAudioLaneIDs`).
     @ObservationIgnored private var recordingAudioLaneID: UUID?
+
+    /// Carries the last measured breath rate across a camera dropout (#434). Lives for the
+    /// controller's lifetime rather than per take: a gap that straddles a take boundary is the
+    /// same gap, and resetting it at `start` would put the step back exactly where a performer
+    /// is most likely to be mid-breath.
+    @ObservationIgnored private var breathHold = BreathHold()
     /// The async tail of the last `stop()` (awaiting the audio file + committing
     /// every take) — nil once it has finished, or when the last take had no
     /// audio leg. Exposed (non-`private`) purely so a test can await the SAME
@@ -137,8 +143,28 @@ public final class RecordController {
         }
         // Poll bio into any armed bio lane each step (the recorder decimates internally).
         if let frame = bus?.usableBio() {
+            // #434: a breath measurement that flickers used to STEP this value by up to 0.43 at
+            // 120 bpm over paced 6/min breathing (the step is |hr − br| / 2, so its true
+            // maximum is 0.5). `BreathHold` carries the last MEASURED rate across the gap and
+            // fades its weight, so the lane leaves the "we have breath" branch by a ramp instead
+            // of an edge. `hasMeasuredBreath` stays the ONE answer to "is this a reading"
+            // (#416) — the hold deliberately does not know, it only handles time.
+            //
+            // ⚠️ TWO CLOCKS, ON PURPOSE, and getting this wrong made the first draft a no-op on
+            // its main case. `observe` takes the FRAME stamp, because that is the age of the
+            // newest real measurement and it is what dedups a republish. `weight` takes the WALL
+            // clock, because the camera's pulse-HOLD republish deliberately freezes the frame
+            // stamp (`CameraRPPGBioPublisher`, "carry the last good frame's OWN timestamp") while
+            // `usableBio()` keeps that frame alive against the wall clock — so reading the weight
+            // at the frame stamp held it at 1 for the whole dropout. The horizon comes from the
+            // frame's own source, so a wrist reading (90 s window) is not treated like a camera
+            // frame (6 s).
+            breathHold.observe(measured: frame.hasMeasuredBreath ? Double(frame.breathRate) : nil,
+                               at: frame.timestamp,
+                               usableFor: frame.source.freshnessWindow)
             let value = bioNormalized(bpm: Double(frame.heartRateBPM),
-                                      breathRate: Double(frame.breathRate))
+                                      heldBreathRate: breathHold.rate,
+                                      blend: breathHold.weight(at: CFAbsoluteTimeGetCurrent()))
             recorder.captureBio(value: Double(value), atTick: tick)
         }
     }

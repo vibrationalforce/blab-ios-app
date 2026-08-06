@@ -169,6 +169,20 @@ public enum RecordPlan {
 /// registered as its own slice. Landing this half anyway is defensible ONLY because the path is
 /// dormant: a fabricated calm is a permanent lie, the step is a fixable one.
 ///
+/// ✅ THAT SLICE IS #434 AND IT HAS LANDED: `BreathHold` (`Sequencer/BreathHold.swift`) owns the
+/// state, and `bioNormalized(bpm:heldBreathRate:blend:)` below is the continuous form this
+/// function now delegates to. THIS two-argument signature is unchanged and still exact — it is
+/// the `blend == 1 or 0` special case — which is why every assertion written against it before
+/// #434 still holds.
+///
+/// ⛔ The first draft of this line said "the step is a ≥3.4 s traverse", and 3.4 was an
+/// arithmetic accident: 0.4286 / 0.125, i.e. THIS point's step divided by the WORST-CASE slope
+/// (which belongs to |br − hr| = 1). Every weight-driven move takes exactly the fade time,
+/// independent of step size — the step cancels. What #434 actually guarantees is a fade lasting
+/// half the source's freshness window (3 s for camera/BLE, 45 s for wrist), beginning after an
+/// equally long grace. Mixing a worst-case slope with a non-worst-case step is precisely the
+/// apples-to-oranges these comments warn about elsewhere.
+///
 /// ⚠️ THIS PATH IS DORMANT TODAY and the fix is worth making BECAUSE of that, not in spite of
 /// it. `RecordController.onStep` opens with `guard armed else { return }`, `arm()` has zero
 /// callers in `Sources/`, and task #204 records RecordController as doorless. A review report
@@ -181,19 +195,59 @@ public enum RecordPlan {
 ///     `BioSampleFrame.plausibleBreathRate` (0 included) to say "no breath reading".
 /// - Returns: a value clamped to 0…1 (0 = calm floor, 1 = active ceiling).
 public func bioNormalized(bpm: Double, breathRate: Double) -> Float {
+    // ⛔ ONE DEFINITION, not two. The obvious way to add #434 was to write a second function
+    // beside this one and leave this body alone — and that is the #416 double-definition
+    // defect, on the arithmetic that decides what a bio lane records. Instead this IS the
+    // continuous form, at its two endpoints: a measurement is full weight, no measurement is
+    // none. Every pre-#434 assertion against this signature still measures the shipped maths.
+    bioNormalized(bpm: bpm, heldBreathRate: breathRate,
+                  blend: measuresBreath(breathRate) ? 1 : 0)
+}
+
+/// The same arousal blend, with the breath term's INFLUENCE as an explicit weight (#434).
+///
+/// `blend == 1` is bit-for-bit the two-argument form on a measured body, `blend == 0` is
+/// bit-for-bit the heart term alone, and everything between is the fade that removes the step.
+/// The identity is `hr + w·(br − hr)/2`, which at `w = 1` is `(hr + br)/2` — the shipped
+/// expression, algebraically rearranged rather than replaced.
+///
+/// ⚠️ "BIT-FOR-BIT" IS A MEASUREMENT, and it needed one, because algebraic equality is NOT
+/// floating-point equality: swept over 1 178 241 (bpm, rate) pairs across both full ranges the
+/// `Double` intermediates differ on ~4 % of the domain, by up to 1.1e-16 — **one** ULP at 0.5,
+/// not half of one (a reviewer caught that; `ulp(0.50023809…)` is 1.1102230246251565e-16
+/// exactly). What makes the claim true is this function's RETURN TYPE: every one of those pairs
+/// collapses to the SAME `Float`, zero differing, with the `Float` ULP near 0.5 (5.96e-8) some
+/// eight orders larger than the divergence. It is a rounding margin, not a theorem — if the
+/// return type ever widens to `Double`, the word stops being true, and
+/// `TheBreathTermFadesInsteadOfStepping` is where it will say so.
+///
+/// ⚠️ `heldBreathRate` is a value a body actually breathed — `BreathHold` never invents one.
+/// The weight fades, the rate does not drift. That distinction is the whole argument for
+/// holding over smoothing, and it is why this takes a RATE and a WEIGHT rather than an
+/// already-smoothed number: a low-passed rate would put a breath rate on the lane that nobody
+/// produced, and the lane is what a take records.
+///
+/// - Parameters:
+///   - bpm: heart rate in beats per minute.
+///   - heldBreathRate: the last MEASURED breaths per minute. Anything outside
+///     `BioSampleFrame.plausibleBreathRate` drops the term regardless of `blend` — a weight
+///     cannot resurrect a rate that was never a measurement.
+///   - blend: how much of the breath term counts, 0…1. Clamped; non-finite reads as 0.
+/// - Returns: a value clamped to 0…1 (0 = calm floor, 1 = active ceiling).
+public func bioNormalized(bpm: Double, heldBreathRate: Double, blend: Double) -> Float {
     // Calm → active reference windows. Below the floor reads 0, above the top reads 1.
     let hrFloor = 50.0, hrTop = 120.0
     let brFloor = 3.0, brTop = 24.0
 
     let hr = normalize01(bpm, floor: hrFloor, top: hrTop)
+    let w = clamp01(blend)
 
-    // No breath measurement → the heart term alone, never a fabricated calm.
-    guard measuresBreath(breathRate) else { return Float(clamp01(hr)) }
-    let br = normalize01(breathRate, floor: brFloor, top: brTop)
+    // No breath measurement, or no weight left on it → the heart term alone, never a
+    // fabricated calm.
+    guard w > 0, measuresBreath(heldBreathRate) else { return Float(clamp01(hr)) }
+    let br = normalize01(heldBreathRate, floor: brFloor, top: brTop)
 
-    // Equal blend of the two arousal terms; already in 0…1, clamp for safety.
-    let blended = (hr + br) * 0.5
-    return Float(clamp01(blended))
+    return Float(clamp01(hr + w * (br - hr) * 0.5))
 }
 
 // MARK: - Private math helpers (pure)
