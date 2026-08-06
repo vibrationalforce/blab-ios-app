@@ -106,7 +106,28 @@ public struct RespirationEstimator {
 
         // Confidence: meaningful swing AND a few consistent cycles seen.
         let envConf = Swift.min(1.0, e / 1.5)                 // ~1.5 bpm RSA = decent
-        let countConf = Swift.min(1.0, Double(crossingCount) / 4.0)
+        // ⭐ THE ENVELOPE VETOES THE COUNT, so the whole expression obeys one stated
+        // invariant: `confidence <= envConf * freshness`. We may never claim more certainty
+        // than the size of the swing supports, however many cycles we have counted.
+        //
+        // Without it the freshness term below is INERT against the failure that actually
+        // ends a long take. Freshness keys on `lastCrossT`, so it only fires when the
+        // crossings STOP — a flat heart rate. But a fingertip that drifts, or a hand that
+        // relaxes, does not produce a flat trace: it produces a small noisy one, which keeps
+        // manufacturing crossings inside the 4…30/min band. Then `crossingCount` goes on
+        // rising, `lastCrossT` stays fresh, and confidence sits on the 0.5 floor while the
+        // swing that justified it is gone. Simulated on the shipped constants — 60 s of clean
+        // 6/min RSA followed by 90 s of a 0.15 bpm wobble — confidence held at 0.524 (gate
+        // OPEN) with an envelope of 0.071, publishing a fabricated 11.9 breaths/min. With the
+        // veto the same series ends at 0.048 and the gate closes.
+        //
+        // ⚠️ IT COSTS THE SHALLOWEST BREATHERS, and that is a deliberate trade, not an
+        // oversight. Measured on 60 s of clean 6/min: an RSA swing of 1.2 bpm reads 0.448
+        // (still measured), 1.0 bpm reads 0.373 — below the 0.4 gate, where the old blend
+        // would have said 0.686. Such a body now falls back to the paced guide instead of
+        // driving the ball. That is the designed fallback; narrating a rate read out of noise
+        // is not, and is the worse failure of the two.
+        let countConf = Swift.min(Swift.min(1.0, Double(crossingCount) / 4.0), envConf)
 
         // ⭐ FRESHNESS — a reported rate is only as good as the last cycle that produced it.
         //
@@ -121,6 +142,10 @@ public struct RespirationEstimator {
         // a bounded staleness into a latch. Measured on a 60 s 6/min series followed by a
         // perfectly flat heart rate: confidence settled at exactly 0.500 and never moved, so
         // "6.0 breaths/min, measured" was published indefinitely with no breathing at all.
+        //
+        // It is HALF the answer. Freshness catches the take that ends in a flat trace; the
+        // envelope veto above catches the take that ends in a noisy one, where crossings keep
+        // arriving and nothing here ever goes stale. Neither substitutes for the other.
         //
         // Grace is 1.5 expected periods (a real cycle always lands inside that), then a
         // linear fade to zero over another 1.5 — so at the 6/min resonance rate the gate

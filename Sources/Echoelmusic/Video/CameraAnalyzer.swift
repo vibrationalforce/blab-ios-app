@@ -66,7 +66,14 @@ final class CameraAnalyzer {
     /// recovery flushes the window (`resetForRecovery`) but does NOT rewind the clock, so a
     /// "newer than what I consumed" filter stays correct across one; the gap simply shows up
     /// as a large `dt`, which is the consumer's business to handle.
-    var beatTimes: [Double] = []
+    ///
+    /// `@ObservationIgnored` on purpose, unlike `rrIntervals` right above: this array exists
+    /// for ONE non-view consumer (the publisher's 10 Hz drain) and is rewritten about once a
+    /// second. Leaving it observed would put a ~1 Hz invalidation source in reach of any body
+    /// that happened to touch it — the exact shape of the menu-freeze law in CLAUDE.md. It is
+    /// cheaper to withhold observation from a property no view should ever read than to rely
+    /// on nobody reading it.
+    @ObservationIgnored var beatTimes: [Double] = []
 
     /// Every peak-to-peak difference of the newest window, in ms, with NOTHING removed —
     /// including the impossible ones a dropped or doubled peak produces.

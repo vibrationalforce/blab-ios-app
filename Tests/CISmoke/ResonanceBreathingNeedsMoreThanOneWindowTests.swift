@@ -33,6 +33,18 @@
 //     and reset on stop, not that the values reach the ear.
 //   · Real RSA is noisier and shallower than a clean sine. The thresholds here are floors
 //     against the STRUCTURAL failure (rate identically 0), not quality judgements.
+//   · ⛔ ONLY FOUR OF THESE EIGHT TESTS COULD FAIL BEFORE THEIR FIX: the two source scans
+//     (the long-lived estimator, the paired `beatTimes`) and the two staleness guards
+//     (`…ExpiresWhenTheBreathingStops`, `…WeakNoisySignal…`). The other four describe the
+//     PURE estimator's arithmetic, which none of these commits changed — they are green on
+//     both sides and exist to state the SHAPE of the defect, not to catch its return.
+//     Saying so is the point: a file that reads as eight regression guards while holding
+//     four is the same kind of overclaim this repo keeps paying for.
+//   · The generator's ±3 bpm RSA swing is not incidental. The "harmful, not merely
+//     incomplete" half — that the publisher's 0.4 gate stands OPEN while the rate is wrong
+//     — needs a swing of roughly 2.5 bpm or more. At 1 bpm the same window reads confidence
+//     0.15–0.29 and the old behaviour was honest silence. The defect was always about a
+//     clearly breathing body, never about a faint signal.
 
 import Foundation
 import XCTest
@@ -49,27 +61,41 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
 
     // MARK: - The blind spot
 
-    /// ⭐ THE REGRESSION, stated as the defect rather than as the repair: ONE analysis window
-    /// cannot yield a resonance breathing rate, at ANY starting phase. Four phases, because a
-    /// single one would leave open the reading "unlucky alignment" — it is not luck, it is
-    /// that one cycle contains one crossing.
+    /// ⭐ THE DEFECT, stated as itself rather than as the repair: ONE analysis window never
+    /// yields the resonance breathing rate, at ANY starting phase.
+    ///
+    /// ⛔ SWEPT, not sampled, and that correction is the useful part of this test. The first
+    /// version asserted `rate == 0` at four hand-picked phases and called it "not luck". It
+    /// WAS luck: the estimator seeds `smooth`/`prevSmooth` at zero, so a window that opens on
+    /// a rising edge manufactures an upward crossing that is not a breath. 15 of the 360
+    /// whole-degree phases (≈4 %, clustered around 1.0–1.3 rad) therefore report a confident
+    /// 7.4 breaths/min — worse than the silence the other 345 give. A single `phase = 1.1`
+    /// would have turned that test red on completely untouched code.
+    ///
+    /// So the honest property is not "the rate is zero" but "the rate is never RIGHT", and it
+    /// is asserted over the whole circle: no phase gets within 1 breath/min of the truth.
     func testOneWindowCannotMeasureResonanceBreathing() {
-        for phase in Self.phases {
+        var spurious = 0
+        for phase in Self.sweptPhases {
             var estimator = RespirationEstimator()
             for beat in Self.rsaBeats(seconds: Self.analysisWindowSeconds,
                                       breathsPerMinute: Self.resonanceBreathsPerMinute,
                                       phase: phase) {
                 estimator.ingest(heartRate: beat.heartRate, at: beat.time)
             }
-            XCTAssertEqual(estimator.ratePerMinute, 0,
-                           """
-                           A single \(Self.analysisWindowSeconds) s window reported \
-                           \(estimator.ratePerMinute) breaths/min at phase \(phase). If this \
-                           now passes because the estimator changed, re-derive the guard — but \
-                           do NOT delete it: it is the reason the estimator is long-lived.
-                           """)
+            if estimator.ratePerMinute > 0 { spurious += 1 }
+            let error = abs(estimator.ratePerMinute - Self.resonanceBreathsPerMinute)
+            XCTAssertGreaterThan(error, 1.0,
+                                 """
+                                 A single \(Self.analysisWindowSeconds) s window measured \
+                                 \(estimator.ratePerMinute) breaths/min at phase \(phase) — \
+                                 within 1/min of the truth. If the estimator changed so that \
+                                 one window CAN see a resonance cycle, re-derive this guard; \
+                                 do not delete it, it is the reason the estimator is \
+                                 long-lived.
+                                 """)
             // The half that makes it harmful rather than merely incomplete: the publisher's
-            // gate is OPEN here, so the frame is published as a measured breath of rate zero.
+            // gate stands OPEN, so the frame is published as a measured breath regardless.
             XCTAssertGreaterThanOrEqual(
                 estimator.confidence, Self.measuredBreathGate,
                 """
@@ -78,13 +104,23 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
                 (no claim at all) and this test's premise wrong — recheck before trusting it.
                 """)
         }
+        // Not a threshold, a receipt: it records that the "always zero" reading is false and
+        // fails loudly if a change ever makes the whole sweep silent, which would mean the
+        // seeding artefact is gone and the comment above has become fiction.
+        XCTAssertGreaterThan(spurious, 0,
+                             """
+                             No phase produced a spurious rate any more. That is an \
+                             IMPROVEMENT, not a failure — but this file's header explains the \
+                             defect in terms of that artefact, so rewrite it before deleting \
+                             this line.
+                             """)
     }
 
     /// The same signal, accumulated the way the publisher now does it, is measured correctly.
     /// 60 s is roughly six resonance cycles — the estimator needs four crossings for full
     /// count-confidence, so this is the first duration at which the answer is not marginal.
     func testAccumulatingAcrossWindowsMeasuresResonanceBreathing() {
-        for phase in Self.phases {
+        for phase in Self.sweptPhases {
             var estimator = RespirationEstimator()
             for beat in Self.rsaBeats(seconds: 60,
                                       breathsPerMinute: Self.resonanceBreathsPerMinute,
@@ -98,23 +134,38 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
         }
     }
 
-    /// Why nobody caught it: at an ordinary resting rate the old code was right at every
-    /// phase. This is the control that keeps the finding narrow and truthful — the window was
-    /// never "too short" in general, it was too short for slow breathing.
-    func testFasterBreathingAlwaysWorked() {
-        for phase in Self.phases {
+    /// Why nobody caught it: at an ordinary resting rate one window mostly works. This is the
+    /// control that keeps the finding narrow — the window was never "too short" in general,
+    /// it was too short for slow breathing.
+    ///
+    /// ⛔ "Mostly", not "always", and the same sweep that corrected the test above corrected
+    /// this one's NAME. At 15/min, 36 of 360 phases still read 0 (the window can open just
+    /// after the second-to-last crossing) and another 46 land outside ±2/min. Four
+    /// hand-picked phases all happened to work, so the original claim looked total.
+    ///
+    /// The real contrast is a ratio, and it is the whole point of the file: at 15/min a
+    /// single window measures a usable rate at 278 of 360 phases (77 %); at 6/min the test
+    /// above shows it does so at NONE of them. The floor is 60 %, well under the measured
+    /// value — a guard set at the measurement is a guard that fails on rounding.
+    func testFasterBreathingMostlyWorked() {
+        var usable = 0
+        for phase in Self.sweptPhases {
             var estimator = RespirationEstimator()
             for beat in Self.rsaBeats(seconds: Self.analysisWindowSeconds,
                                       breathsPerMinute: 15, phase: phase) {
                 estimator.ingest(heartRate: beat.heartRate, at: beat.time)
             }
-            XCTAssertGreaterThan(estimator.ratePerMinute, 0,
-                                 """
-                                 15 breaths/min in one window read as 0 at phase \(phase). \
-                                 If that becomes true, the defect is no longer rate-specific \
-                                 and this file's whole framing needs rewriting.
-                                 """)
+            if abs(estimator.ratePerMinute - 15) <= 2 { usable += 1 }
         }
+        let fraction = Double(usable) / Double(Self.sweptPhases.count)
+        XCTAssertGreaterThan(fraction, 0.6,
+                             """
+                             Only \(usable)/\(Self.sweptPhases.count) phases measured 15 \
+                             breaths/min from a single window (77 % when this was written). \
+                             If that collapses, the defect is no longer rate-specific and \
+                             this file's whole framing — "the window was too short for SLOW \
+                             breathing" — needs rewriting.
+                             """)
     }
 
     // MARK: - The wiring
@@ -206,39 +257,110 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
         XCTAssertEqual(estimator.ratePerMinute, Self.resonanceBreathsPerMinute, accuracy: 1.0)
     }
 
+    /// ⭐ THE SECOND HALF OF THAT SAME REGRESSION, and the one the freshness term does NOT
+    /// cover. Freshness keys on the last upward crossing, so it only fires when the crossings
+    /// STOP. A take does not usually end in a flat trace — it ends in a drifting fingertip, a
+    /// relaxing hand, a noisy one. That keeps producing crossings inside the 4…30/min band,
+    /// so `crossingCount` keeps rising, `lastCrossT` stays fresh, and the 0.5 floor stands
+    /// while the swing that justified it is long gone.
+    ///
+    /// Measured before the fix: 60 s of clean 6/min followed by 90 s of a 0.15 bpm wobble
+    /// ended at confidence 0.524 — gate OPEN — publishing a fabricated 11.9 breaths/min off
+    /// an envelope of 0.07. The fix is that the envelope VETOES the count, i.e. confidence
+    /// can never exceed what the swing alone supports.
+    ///
+    /// This is the worse of the two failures: a rate read out of noise is narrated with the
+    /// same certainty as a real one, whereas the silence it replaced was at least honest.
+    func testAWeakNoisySignalCannotKeepTheGateOpen() {
+        var estimator = RespirationEstimator()
+        for beat in Self.rsaBeats(seconds: 60,
+                                  breathsPerMinute: Self.resonanceBreathsPerMinute,
+                                  phase: 0) {
+            estimator.ingest(heartRate: beat.heartRate, at: beat.time)
+        }
+        XCTAssertGreaterThanOrEqual(estimator.confidence, Self.measuredBreathGate,
+                                    "premise: 60 s of clean RSA must read as measured first")
+
+        // Breathing becomes invisible in the trace: the heart still wobbles, by a fortieth of
+        // the earlier swing, fast enough that crossings never stop arriving.
+        var t = 60.0
+        while t < 150 {
+            let hr = 60.0 + 0.15 * sin(2 * .pi * 0.2 * t)
+            estimator.ingest(heartRate: hr, at: t)
+            t += 60 / hr
+        }
+        XCTAssertLessThan(estimator.confidence, Self.measuredBreathGate,
+                          """
+                          90 s after the RSA collapsed to noise the estimator still reports \
+                          confidence \(estimator.confidence), so \(estimator.ratePerMinute) \
+                          breaths/min keeps being published as MEASURED. The freshness term \
+                          alone cannot catch this — crossings never stopped. What catches it \
+                          is the envelope vetoing the count; do not remove that without \
+                          replacing it.
+                          """)
+    }
+
     /// `beatTimes` only works as a de-duplication key while it stays 1:1 with `rrIntervals`.
     /// The two are produced together today; this holds the pairing so a later edit to one
     /// side cannot silently desynchronise them into an off-by-one respiration signal.
+    /// ⛔ ADJACENCY, not a head-count. The first version compared two totals, which two
+    /// unrelated edits — one site losing its pairing while a third gained one — would leave
+    /// perfectly balanced. It counted, it did not pair. This walks the lines and requires the
+    /// partner to be the very next statement, which is how the four sites read today.
     func testEveryRRAssignmentCarriesItsBeatTimes() throws {
         let text = Self.codeOnly(try Self.source("Sources/Echoelmusic/Video/CameraAnalyzer.swift"))
-        let assigns = Self.count(of: "rrIntervals = cleanIntervals", in: text)
-        let paired = Self.count(of: "beatTimes = cleanEndTimes", in: text)
-        XCTAssertGreaterThan(assigns, 0, "Could not find the RR publication at all — re-derive")
-        XCTAssertEqual(assigns, paired,
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+
+        var checked = 0
+        for (i, line) in lines.enumerated() {
+            let partner: String
+            if line.contains("rrIntervals = cleanIntervals") {
+                partner = "beatTimes = cleanEndTimes"
+            } else if line.contains("rrIntervals.removeAll()") {
+                partner = "beatTimes.removeAll()"
+            } else {
+                continue
+            }
+            checked += 1
+            let next = lines.dropFirst(i + 1).first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            XCTAssertTrue(next?.contains(partner) == true,
+                          """
+                          `\(line.trimmingCharacters(in: .whitespaces))` is not immediately \
+                          followed by `\(partner)` — the next statement is \
+                          `\(next?.trimmingCharacters(in: .whitespaces) ?? "<end of file>")`. \
+                          The two arrays index each other by position, so a consumer would \
+                          read the wrong beat's interval, or a surviving times array would \
+                          outlive the intervals it indexes.
+                          """)
+        }
+        XCTAssertEqual(checked, 4,
                        """
-                       \(assigns) site(s) publish `rrIntervals` but only \(paired) publish \
-                       `beatTimes`. A consumer that indexes one by the other would read the \
-                       wrong beat's interval.
-                       """)
-        let clears = Self.count(of: "rrIntervals.removeAll()", in: text)
-        let clearsPaired = Self.count(of: "beatTimes.removeAll()", in: text)
-        XCTAssertEqual(clears, clearsPaired,
-                       """
-                       \(clears) site(s) clear `rrIntervals` but only \(clearsPaired) clear \
-                       `beatTimes`. A surviving times array outlives the intervals it indexes.
+                       Expected 4 `rrIntervals` write sites (2 publications, 2 clears), found \
+                       \(checked). If the analyzer grew or lost one, re-derive this guard \
+                       rather than adjusting the number — a site added without its partner is \
+                       exactly what it exists to catch.
                        """)
     }
 
     // MARK: - Helpers
 
-    private static let phases: [Double] = [0, .pi / 2, .pi, 3 * .pi / 2]
+    /// Every whole degree. A handful of hand-picked phases is what made two claims in this
+    /// file false at once (see the two ⛔ notes above): the seeding artefact and the
+    /// 15/min misses both live in narrow bands that four samples walked straight past.
+    /// 360 × a few hundred ingests is microseconds — there is no reason to sample.
+    private static let sweptPhases: [Double] = (0..<360).map { Double($0) * .pi / 180 }
 
     private struct Beat { let time: Double; let heartRate: Double }
 
     /// Beat series of a heart whose rate is sinusoidally modulated by breathing (RSA) —
     /// the signal `RespirationEstimator` is built to read. Each beat lands one interval after
     /// the last, so the sample spacing is irregular exactly as it is on a real pulse.
-    /// The ±3 bpm swing is a deliberately generous but not absurd resting RSA amplitude.
+    /// The ±3 bpm swing is a deliberately generous but not absurd resting RSA amplitude —
+    /// and it is load-bearing, not decoration. `confidence` scales with the envelope, so the
+    /// "the gate stands open while the rate is wrong" half of the defect needs a swing of
+    /// roughly 2.5 bpm or more; at 1 bpm the same window reads 0.15–0.29 and the old code was
+    /// honestly silent. Lowering this default therefore does not make the tests stricter, it
+    /// makes them describe a different (and less interesting) body.
     private static func rsaBeats(seconds: Double,
                                  breathsPerMinute: Double,
                                  phase: Double,
@@ -265,17 +387,6 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
                 return line[line.startIndex..<slashes.lowerBound]
             }
             .joined(separator: "\n")
-    }
-
-    private static func count(of needle: String, in text: String) -> Int {
-        guard !needle.isEmpty else { return 0 }
-        var total = 0
-        var cursor = text.startIndex
-        while let found = text.range(of: needle, range: cursor..<text.endIndex) {
-            total += 1
-            cursor = found.upperBound
-        }
-        return total
     }
 
     private static func source(_ relativePath: String) throws -> String {

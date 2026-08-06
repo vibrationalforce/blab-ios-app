@@ -288,11 +288,19 @@ public final class CameraRPPGBioPublisher {
     /// aims: at 6 breaths/min (the HRV-resonance rate `BioScienceInfo` cites and
     /// `BreathPacer` paces toward) one window spans ONE breath cycle, so it can contain at
     /// most one upward zero-crossing — and a PERIOD needs two. Simulated over the shipped
-    /// constants at four starting phases, 10 s of RR gives `ratePerMinute == 0` every time
-    /// while `confidence` lands at 0.46–0.50, i.e. ABOVE the 0.4 gate below. The publisher
-    /// therefore reported "breath measured" and a rate of zero, for the one breathing rate
-    /// the product is built around. 30 s of the same signal reads 6.0; 60 s reads 6.0 at
-    /// full confidence.
+    /// constants across all 360 whole-degree starting phases, 10 s of RR reaches the true
+    /// 6/min at NO phase (345 read exactly 0; the other 15 read a spurious 7.4, which is
+    /// worse than silence), while `confidence` lands at 0.46–0.63 — ABOVE the 0.4 gate
+    /// below at every one of them. The publisher therefore reported "breath measured" and
+    /// a wrong or zero rate, for the one breathing rate the product is built around.
+    ///
+    /// ⛔ An earlier version of this comment said "rate 0 at four phases, 0.46–0.50". Both
+    /// halves were narrower than the truth and the first one is FALSE as a general claim —
+    /// the estimator seeds `smooth`/`prevSmooth` at zero, so a window that starts on a
+    /// rising edge manufactures a crossing that is not a breath. Four hand-picked phases
+    /// missed that entirely. Accumulate instead and it is measured: 60 s reads 5.7–6.2
+    /// across the same sweep at full confidence. (30 s reads 5.2–6.6 — usable, but the
+    /// spread is why the guard uses 60 s.)
     ///
     /// Fed incrementally from `analyzer.beatTimes`, which is why that property exists:
     /// windows overlap ~90 % and interval values carry no identity, so "newer than the last
@@ -1324,13 +1332,22 @@ public final class CameraRPPGBioPublisher {
         // cursor alongside is then hygiene, not a fix: it must never be NEWER than the
         // estimator's state, or the first beats of the next take would be skipped.
         //
-        // Deliberately NOT reset on a stall recovery (`handleCameraSessionReset`): the person
-        // is still breathing and the timestamps still only move forward, so the accumulated
-        // cycles remain about the same body. Throwing them away would re-create #343 once per
-        // recovery — #303 measured those 12–13 s apart on a bad contact. What covers the gap
-        // itself is NOT the estimator's `dt >= 5` guard (that skips one filter step and ages
-        // nothing) but its freshness term, which lets `confidence` fall through the publisher
-        // gate below when no new cycle arrives.
+        // Deliberately NOT reset on any of the THREE `analyzer.resetForRecovery()` sites —
+        // two exposure re-locks in `manageExposure()` (a weak-signal re-lock and a
+        // finger-off/re-placement flush) and the stall recovery in
+        // `handleCameraSessionReset()`. An earlier version of this comment named only the
+        // third, which made the argument look narrower than it is and hid the one site where
+        // the obvious justification does NOT hold: at a re-placement the finger may have been
+        // off the lens entirely, so "the person is still breathing" is an assumption about the
+        // body, not about the signal.
+        //
+        // The reason it is still right is not that assumption but the estimator's own ageing:
+        // timestamps only move forward, and its freshness term plus the envelope veto let
+        // `confidence` fall through the publisher gate below when the gap produced no real
+        // cycle — whether the trace went flat or merely noisy. Resetting instead would
+        // re-create #343 once per recovery, and #303 measured those 12–13 s apart on a bad
+        // contact. What does NOT cover the gap is the estimator's `dt >= 5` guard: it skips
+        // one filter step and ages nothing.
         respiration.reset()
         lastRespirationBeatTime = 0
         isRunning = false
