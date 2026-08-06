@@ -1,4 +1,4 @@
-build: v10.79.370 — Der Atem wird endlich gemessen, und jede Zahl auf dem Schirm ist die, die bleibt
+build: v10.79.371 — Der Atem wird endlich gemessen, und jede Zahl auf dem Schirm ist die, die bleibt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -204,18 +204,71 @@ notes: |
   Pulsmessung: jeder Stopp tötet die Kamera und kostet danach rund 19 Sekunden, bis der Puls
   wieder greift.
 
-  ── RE-TRIGGER 1 VON 3 (2026-08-06 18:4x UTC) ──────────────────────────────
+  ── WAS SEIT DER 370-NOTIZ DAZUGEKOMMEN IST ────────────────────────────────
 
-  Der erste Anlauf (Lauf 31124762898) hat den Build NICHT hochgeladen, und der Grund liegt
-  nicht im Code: die zwei ubuntu-Jobs `Preflight` und `Summary` stehen auf `cancelled` mit
-  `runner_id: 0`, leerem Runner-Namen und `started_at == created_at` — sie haben in 17 bzw.
-  15 Minuten NIE einen Runner bekommen. `Compile Check` und `iOS` wurden daraufhin
-  `skipped`. Es wurde also nichts gebaut, nichts signiert und nichts abgelehnt.
+  Vier Scheiben, alle nach dem Schreiben der Notiz oben gelandet, alle im selben Thema:
 
-  Dieselbe Erscheinungsform wie auf c0e5b0d (#446). Version bleibt bewusst v10.79.370 —
-  neue Build-Nummer, gleiche Version, damit eindeutig bleibt, dass es derselbe Inhalt ist.
-  Re-Run-APIs sind für diesen Token 403, ein Bump hier ist der einzige Hebel.
+  · DIE ATEMRATE RASTETE EIN. Wenn Dein Atem ein Tempo hat, das unser Band gar nicht lesen
+    kann — Box-Atmung und 4-7-8 liegen BEIDE darunter, und beide gibt die App Dir selbst
+    vor —, wurden die Nulldurchgänge verworfen, aber der Frische-Anker lief weiter. Die App
+    hat daraufhin den letzten Wert der VORIGEN Technik unbegrenzt weiterbehauptet, bei voller
+    Konfidenz. Gemessen über alle 66 ganzzahligen Ruhepulse von 45 bis 110: sie meldete im
+    Mittel 5,985/min, während der Körper mit 3,158 atmete — ein Fehler von +89,5 %,
+    zertifiziert. Jetzt schweigt sie an dieser Stelle, statt eine fremde Zahl zu wiederholen.
+    Erholung nach Rückkehr zur Resonanzatmung: 3,7 Sekunden.
 
-  ⚠ Wenn auch dieser Anlauf ohne Runner abbricht: NICHT weiter bumpen. Zwei Fehlschläge mit
-  `runner_id: 0` hintereinander sind kein Transient mehr, sondern eine Kapazitäts- oder
-  Kontingentfrage im Konto — und die gehört dem Founder, nicht einem dritten Commit.
+  · DIE ANSTIEGSRATE DES ATEM-EINFLUSSES war nie gewählt worden — sie hatte einfach den
+    Teiler übernommen, den die ABLAUF-Seite benutzt. Für die Uhr am Handgelenk hieß das:
+    90-Sekunden-Fenster, also 45 Sekunden Anstieg, und eine Handgelenks-Atemrate verbringt
+    ihr ganzes nutzbares Leben mit Steigen und Fallen — mittleres Gewicht exakt die Hälfte.
+    Jetzt auf 3 Sekunden gedeckelt, das ist, worüber Kamera und Gurt ohnehin ansteigen; das
+    mittlere Gewicht steigt auf 11/15. Kamera und Gurt bleiben dabei BITGLEICH.
+
+  · EINE REGISTRIERTE REPARATUR WAR EIN NO-OP. In der Doku stand ein Artefakt samt benannter
+    Ursache und vorgeschlagener Reparatur. Das Artefakt ist echt, die Ursache nicht: die
+    vorgeschlagene Änderung ändert auf KEINER Eingabe irgendetwas — bewiesen algebraisch und
+    an 61.769 zufälligen Neustarts mit Abweichung exakt null. Die Kausalkette ist gestrichen.
+    Eine registrierte Folgearbeit mit falscher Ursache ist die teuerste Sorte Notiz in diesem
+    Projekt: die nächste Sitzung kann ihr nicht widersprechen, sie setzt sie um.
+
+  · UND EINE ENTSCHULDIGUNG. Ich habe Dir gemeldet, GitHub blockiere unsere Prüfläufe, und
+    Dich gebeten, Actions-Minuten und Abrechnung zu prüfen. Das war falsch, und ich hätte es
+    mit einer einzigen Abfrage vorher wissen können: das Repository ist ÖFFENTLICH, also sind
+    die Standard-Runner kostenlos — es gibt kein Kontingent zum Ausschöpfen und nichts zu
+    bezahlen. Alle 28 Workflows sind aktiv, die Läufe existierten, sie standen nur in der
+    Warteschlange. Es entstehen keine Kosten. Eine Frage an Dich ist teurer als jede Messung;
+    wer eskaliert, misst vorher.
+
+  ── WARUM DIESER ANLAUF UND WARUM 371 STATT 370 ───────────────────────────
+
+  Anlauf 1 (Lauf 31124762898, 18:00 UTC): der Lauf wurde angelegt, aber die beiden
+  ubuntu-Jobs `Preflight` und `Summary` bekamen NIE einen Runner (`runner_id: 0`, leerer
+  Runner-Name, `started_at == created_at`). `Compile Check` und `iOS` wurden daraufhin
+  übersprungen. Es wurde nichts gebaut, nichts signiert und nichts abgelehnt.
+
+  Anlauf 2 (Commit fa12a45, 19:13 UTC): **es wurde überhaupt kein Lauf angelegt.** Nachgeprüft
+  in der Lauf-Liste des TestFlight-Workflows — der letzte Eintrag ist weiterhin der von
+  18:00 UTC. GitHub hat in diesem Zeitraum für die meisten Pushes dieses Repos gar keine
+  Läufe erzeugt; erst um 22:54 UTC kam wieder ein Satz, und der lief sauber durch.
+
+  ⚠ Die Warnung oben — „bei zwei Fehlschlägen mit `runner_id: 0` nicht weiter bumpen" — ist
+  damit NICHT erfüllt: es gab EINEN Fehlschlag und EIN Nicht-Ereignis. Das ist ein Unterschied
+  und wird hier hingeschrieben, damit dieser dritte Bump nicht wie ein Überschreiben der
+  eigenen Bremse aussieht. Ist auch dieser Anlauf ohne Runner: dann sind es zwei, und dann
+  gehört die Frage Dir.
+
+  Die Version steigt auf 10.79.371, weil der INHALT sich geändert hat — seit der 370-Notiz
+  sind vier weitere Scheiben gelandet. Dieselbe Nummer bei anderem Inhalt wäre genau die
+  Sorte stiller Unwahrheit, die diese Notiz an zehn Stellen aufräumt.
+
+  ── PRÜFSTAND, STAND DIESES BUMPS ──────────────────────────────────────────
+
+  Auf dem aktuellen Stand (631d01e) sind BEIDE echten Gates weiter, als sie es seit Tagen
+  waren: „Xcode Compile Check" = success, und im CI/CD-Lauf ist der Schritt „Build for
+  Testing" = success — damit ist auch das blockierende Testbündel nachweislich kompiliert,
+  inklusive der neuen Wächter. Der Schritt „Run Tests" stirbt weiterhin am bekannten
+  Simulator-Start (`FBSOpenApplicationServiceErrorDomain Code=1`); das ist der founder-gated
+  CI-Punkt und nicht der Code.
+
+  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
+  weiterhin Dein Ohr und Dein Auge.
