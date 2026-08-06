@@ -253,9 +253,15 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Ursache nicht** — Freezen ändert auf KEINER Eingabe irgendetwas. Der Beweis
                           sind drei Zeilen: ein Neustart verlangt `now − lastMeasuredAt > graceSeconds`
                           und `graceSeconds == horizon/2`; `runStartedAt` wird nur an einer Messung
-                          gesetzt, also `runStartedAt ≤ lastMeasuredAt`; damit ist bei JEDEM Neustart
-                          `elapsed > half` und folglich `up > 1`, der `min` nimmt also immer `down`. Das
-                          Freezen setzt `elapsed ≥ half`, also wieder `up ≥ 1` — DERSELBE Zweig.
+                          VORGERÜCKT, und seine einzige andere Zuweisung — der Rückwärtsuhr-Reset
+                          `self = BreathHold()` — setzt es GEMEINSAM mit `lastMeasuredAt` auf −∞, also
+                          gilt `runStartedAt ≤ lastMeasuredAt` in beiden Fällen; damit ist bei JEDEM
+                          Neustart `elapsed > half` und folglich `up > 1`, der `min` nimmt also immer
+                          `down`. Das Freezen setzt `elapsed ≥ half`, also wieder `up ≥ 1` — DERSELBE
+                          Zweig. (⚠️ „bei JEDEM Neustart" ist in GENAU EINEM Fall leer statt wahr, und
+                          die erste Fassung behauptete es dort als wahr: bei der ERSTEN Messung ist
+                          `horizon` noch 0, `weight(at:)` kehrt an seinem `horizon > 0`-Wächter um und
+                          `up` entsteht gar nicht. Die Folgerung ist dort STÄRKER, nicht schwächer.)
                           Gemessen zusätzlich zum Argument, weil eine Algebra-Behauptung über
                           ausgelieferten Code auch nur eine Behauptung ist: 6 000 zufällige Verläufe über
                           die drei lebenden Fenster (5 s · 6 s · 90 s) ergaben **61 769 Neustarts**,
@@ -267,6 +273,19 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           lassen hieße, die RAMPENRATE bei der Wiederaufnahme zu ändern, und das ist eine
                           Verhaltenspolitik, keine Reparatur; `testTheRampRateDoesNotRememberEarlierDropouts`
                           ist das Gegengewicht, das daraus einen roten Test macht statt einer Nebenwirkung.
+                          ⛔ **Und der Formtest KONNTE seine wichtigste Behauptung in der ersten
+                          Fassung nicht scheitern lassen — #367 in seiner leisesten Form.** Der Trog
+                          wurde als `weights.min()` über die GANZE Spur genommen, und `t = 0` ist per
+                          KALTSTART-Konstruktion 0 (die erste Messung nimmt den Neustart-Zweig, während
+                          `horizon` noch 0 ist, `weight(at:)` kehrt am eigenen Wächter um). Dieser eine
+                          Abtastwert nagelte das Minimum für immer auf 0, während die Fehlermeldung
+                          „eine Lücke länger als das Frische-Fenster muss die gehaltene Rate vollständig
+                          zurückziehen" behauptete. Der Reviewer hat es bewiesen, indem er `down` bei
+                          0,2 abfing — genau der beschriebene Defekt — und der Test blieb GRÜN; rot
+                          wurde nur die Flankensteilheit, also eine ANDERE Behauptung. Nicht „ein
+                          Wächter, der nicht scheitern kann", sondern **einer, der nicht aus seinem
+                          GENANNTEN Grund scheitern kann.** Der Trog wird jetzt ab `t ≥ horizon`
+                          gemessen.
                           ⚠️ Welcher der drei Tests überhaupt scheitern KANN, steht im Dateikopf: nur der
                           gewischte Stetigkeitstest (160 Wiederaufnahme-Punkte, die SWEPT-Form des
                           Ein-Punkt-Tests aus #434 — keine zweite Kopie einer lebenden Behauptung (#416),

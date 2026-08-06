@@ -13,13 +13,19 @@
 // argue with it, it just implements it and measures nothing.
 //
 //   The proof is three lines. A restart needs `now − lastMeasuredAt > graceSeconds`, and
-//   `graceSeconds == horizon / 2 == half`. `runStartedAt` is only ever assigned at a measurement,
-//   so `runStartedAt <= lastMeasuredAt` always. Therefore at any restart
-//   `elapsed = now − runStartedAt >= now − lastMeasuredAt > half`, so
+//   `graceSeconds == horizon / 2 == half`. `runStartedAt` is only ever ADVANCED at a measurement,
+//   and the one other assignment — the backwards-clock `self = BreathHold()` — sets it and
+//   `lastMeasuredAt` to −∞ TOGETHER, so `runStartedAt <= lastMeasuredAt` survives both. Therefore
+//   at any restart `elapsed = now − runStartedAt >= now − lastMeasuredAt > half`, so
 //   `up = resumeWeight + elapsed / half > 0 + 1 = 1`, so `min(up, down) == down`. Freezing `up` at
 //   `lastMeasuredAt + half` gives `elapsed >= half`, hence `up >= 1` — the SAME branch of the
 //   `min`. And between restarts the freeze is inactive by construction, because inside grace
 //   `now <= lastMeasuredAt + half` already.
+//   (⚠️ "at any restart" is VACUOUS in exactly one case, which the first draft asserted as if it
+//   were true there: at the FIRST measurement `horizon` is still 0, so `weight(at:)` returns at
+//   its `horizon > 0` guard and `up` is never formed at all. The no-op conclusion is stronger
+//   there, not weaker — both variants return 0 — but a proof text in this repo gets implemented
+//   without being re-derived, so the gap is named rather than smoothed over.)
 //
 //   Measured as well as argued, because an algebraic claim about shipped code is still a claim:
 //   6 000 randomised traces (bursts of 1–5 measurements separated by gaps drawn to straddle
@@ -45,7 +51,11 @@
 //     claim (#416) — it is the generalisation, and it exists because the failure it guards
 //     against is a REFACTOR of the resume rule, which a single hand-picked point survives. The
 //     naive `resumeWeight = 1` turns it red at every sample in the release window.
-//   · `testAFlickeringSourceTracesASymmetricTriangle` is red on any change to the fade shape.
+//   · `testAFlickeringSourceTracesASymmetricTriangle` is red on any change to the fade shape —
+//     but only since the trough assertion was fixed to measure past the horizon. As first
+//     written it read `weights.min()` over the WHOLE trace, which the cold-start sample pins at
+//     0 regardless of the fade, so a floored `down` (the exact defect its message describes)
+//     left it green. See the ⛔ block at the assertion.
 //   · `testTheRampRateDoesNotRememberEarlierDropouts` is GREEN on today's code and is meant to
 //     be. Its job is the envelope policy above.
 //
@@ -137,7 +147,23 @@ final class TheGapClimbCannotChangeTheResumeTests: XCTestCase {
 
         let weights = samples.map { $0.w }
         let peak = weights.max() ?? -1
-        let trough = weights.min() ?? -1
+
+        // ⛔ THE TROUGH IS MEASURED FROM `t >= horizon`, NOT OVER THE WHOLE TRACE, and the
+        // first draft got that wrong in a way its own message denied. `weights.min()` includes
+        // `t = 0`, where the weight is 0 by COLD-START construction — the first measurement
+        // takes the restart branch while `horizon` is still 0, so `weight(at:)` returns at its
+        // `horizon > 0` guard. That one sample pinned the minimum at 0 forever, and the
+        // assertion could not fail for the property it names. A reviewer proved it by flooring
+        // `down` at 0.2 — the "rate stays alive past expiry" defect this message describes —
+        // and the assertion stayed green; only the fall-slope check went red, i.e. the bug was
+        // caught incidentally by a different claim. #367 in its quietest form: not a guard that
+        // cannot fail, but a guard that cannot fail FOR ITS STATED REASON.
+        let expired = samples.filter { $0.t >= hold.graceSeconds + hold.releaseSeconds }
+        let trough = expired.map { $0.w }.min() ?? -1
+        XCTAssertGreaterThan(expired.count, 20, """
+            Only \(expired.count) samples fall past the horizon, so the trough below is measured \
+            on too little of the expiry region to mean anything.
+            """)
         XCTAssertEqual(peak, 1, accuracy: 1e-12, """
             The flicker peak is \(peak), not 1. Every one of those measurements is fresh, so a \
             peak below full weight means re-acquisition is being penalised — which is the \

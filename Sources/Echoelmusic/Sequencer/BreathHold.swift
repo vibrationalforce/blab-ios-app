@@ -80,14 +80,22 @@
 // slice that went to implement it and measured instead:
 //
 //   A restart needs `now − lastMeasuredAt > graceSeconds`, and `graceSeconds == horizon / 2`.
-//   `runStartedAt` is only ever assigned at a measurement, so `runStartedAt <= lastMeasuredAt`.
-//   Hence at any restart `elapsed = now − runStartedAt >= now − lastMeasuredAt > half`, so
+//   `runStartedAt` is only ever ADVANCED at a measurement, and its one other assignment — the
+//   backwards-clock `self = BreathHold()` below — sets it and `lastMeasuredAt` to −∞ TOGETHER,
+//   so `runStartedAt <= lastMeasuredAt` survives both. Hence at any restart
+//   `elapsed = now − runStartedAt >= now − lastMeasuredAt > half`, so
 //   `up = resumeWeight + elapsed / half > 1`, so `min(up, down) == down`. Freezing `up` at
 //   `lastMeasuredAt + half` still gives `elapsed >= half`, so still `up >= 1` — the SAME branch
 //   of the `min`. Inside grace the freeze is inactive by construction. Measured as well as
 //   argued: 6 000 randomised traces over the three live windows produced 61 769 restarts, the
 //   smallest `up` at any of them was 1.000224, and the difference against the frozen variant was
-//   exactly 0 at every sample. `Tests/CISmoke/TheGapClimbCannotChangeTheResumeTests.swift`.
+//   exactly 0 at every sample. An independent adversarial re-run (mixed windows inside one
+//   trace, 5 % backwards clock steps, `nil`/NaN measurements, negative absolute times) found
+//   102 921 restarts, smallest `up` 1.0000009939619714, and max difference 0.0 over 1 287 552
+//   samples. `Tests/CISmoke/TheGapClimbCannotChangeTheResumeTests.swift`.
+//   ⚠️ "At any restart" is VACUOUS in exactly one case: at the FIRST measurement `horizon` is
+//   still 0, so `weight(at:)` returns at its `horizon > 0` guard and `up` is never formed. The
+//   conclusion is stronger there, not weaker — both variants return 0.
 //
 //   What `up` actually does is carry the ramp DURING a run; what it cannot do is influence the
 //   value a run restarts FROM. The triangle is the fade itself: `down` falls at
