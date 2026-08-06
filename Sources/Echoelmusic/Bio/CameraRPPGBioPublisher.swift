@@ -296,10 +296,18 @@ public final class CameraRPPGBioPublisher {
     ///
     /// Fed incrementally from `analyzer.beatTimes`, which is why that property exists:
     /// windows overlap ~90 % and interval values carry no identity, so "newer than the last
-    /// beat I consumed" is the only exact way to ingest each beat once.
-    private var respiration = RespirationEstimator()
-    /// Absolute time of the newest beat already handed to `respiration`. 0 = nothing yet.
-    private var lastRespirationBeatTime: Double = 0
+    /// beat I consumed" is the only way to ingest a beat AT MOST once. (Not "exactly once":
+    /// the analyzer's peak threshold is window-relative, so a marginal peak can be accepted
+    /// at a slightly different sample in a later window and re-enter as a new beat. Rare, and
+    /// it costs one extra sample in a filter that already smooths — but the stronger claim
+    /// would be false.)
+    ///
+    /// ⚠️ Making this long-lived is what forced `RespirationEstimator`'s freshness term. Its
+    /// `crossingCount` is monotonic, so a per-take estimator would otherwise keep certifying
+    /// the last measured rate forever. Read that comment before shortening either lifetime.
+    @ObservationIgnored private var respiration = RespirationEstimator()
+    /// Absolute time of the newest beat already considered for `respiration`. 0 = none yet.
+    @ObservationIgnored private var lastRespirationBeatTime: Double = 0
     /// ~4 s at the 10 Hz tick. Deliberately non-private so a test can pin the
     /// invariant this hold depends on: a held frame carries its ORIGINAL timestamp,
     /// so the hold only works while it is SHORTER than every consumer's freshness
@@ -1052,10 +1060,16 @@ public final class CameraRPPGBioPublisher {
                 let beatTimes = self.analyzer.beatTimes
                 if beatTimes.count == rrMs.count {
                     for (i, t) in beatTimes.enumerated() where t > self.lastRespirationBeatTime {
+                        // Cursor advances on CONSIDERATION, not on acceptance. Otherwise a
+                        // beat rejected below is re-examined on every later publish forever.
+                        self.lastRespirationBeatTime = t
                         let ms = rrMs[i]
+                        // Belt-and-braces only: `CameraAnalyzer` already accepts just
+                        // 300…1500 ms, so this cannot fire today. It stays as the boundary
+                        // this long-lived filter is willing to be fed, independent of an
+                        // upstream band that is free to widen.
                         guard ms > 250, ms < 2000 else { continue }
                         self.respiration.ingest(heartRate: 60_000.0 / ms, at: t)
-                        self.lastRespirationBeatTime = t
                     }
                 }
                 let resp = self.respiration
@@ -1298,15 +1312,25 @@ public final class CameraRPPGBioPublisher {
         capture.stop()
         sampleQueue.clear()            // drop any frames buffered but not yet drained
         analyzer.stopPulseDetection()
-        // A new take is a new session — and the clock behind `beatTimes` does not
-        // necessarily continue across a camera teardown, so a stale cursor could swallow
-        // the first beats of the next take. Reset BOTH or neither.
+        // A new take gets a new estimator: the last take's baseline, envelope and cycle
+        // count say nothing about this one.
         //
-        // Deliberately NOT reset on a stall recovery (`handleCameraSessionReset`): the
-        // person is still breathing, the timestamps still only move forward, and the
-        // estimator's own long-gap guard skips the discontinuity. Throwing away the
-        // accumulated cycles there would re-create #343 once every recovery — and #303
-        // measured those at 12–13 s apart on a bad contact.
+        // ⛔ The first version of this comment justified it with a stale CURSOR ("the clock
+        // behind `beatTimes` does not necessarily continue across a camera teardown"). That
+        // is false and the reviewer was right to call it: the clock is
+        // `ProcessInfo.processInfo.systemUptime` (see the frame sink above), monotonic since
+        // boot and entirely indifferent to an `AVCaptureSession` teardown. The named failure
+        // mode cannot happen. The reset is still correct — the reason was not. Resetting the
+        // cursor alongside is then hygiene, not a fix: it must never be NEWER than the
+        // estimator's state, or the first beats of the next take would be skipped.
+        //
+        // Deliberately NOT reset on a stall recovery (`handleCameraSessionReset`): the person
+        // is still breathing and the timestamps still only move forward, so the accumulated
+        // cycles remain about the same body. Throwing them away would re-create #343 once per
+        // recovery — #303 measured those 12–13 s apart on a bad contact. What covers the gap
+        // itself is NOT the estimator's `dt >= 5` guard (that skips one filter step and ages
+        // nothing) but its freshness term, which lets `confidence` fall through the publisher
+        // gate below when no new cycle arrives.
         respiration.reset()
         lastRespirationBeatTime = 0
         isRunning = false

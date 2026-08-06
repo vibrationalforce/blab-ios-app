@@ -107,7 +107,35 @@ public struct RespirationEstimator {
         // Confidence: meaningful swing AND a few consistent cycles seen.
         let envConf = Swift.min(1.0, e / 1.5)                 // ~1.5 bpm RSA = decent
         let countConf = Swift.min(1.0, Double(crossingCount) / 4.0)
-        confidence = Swift.max(0.0, Swift.min(1.0, 0.5 * envConf + 0.5 * countConf))
+
+        // ⭐ FRESHNESS — a reported rate is only as good as the last cycle that produced it.
+        //
+        // `crossingCount` is monotonic and `ratePerMinute` holds its last value forever, so
+        // without this term `countConf` pins at 1.0 after four cycles and `confidence`
+        // acquires a permanent floor of 0.5 — above every consumer gate in this repo
+        // (`CameraRPPGBioPublisher` uses 0.4). The estimator would go on certifying a rate
+        // long after the breathing that produced it stopped.
+        //
+        // This was HARMLESS while the estimator was rebuilt on every publish: state could not
+        // outlive one 10 s window. #343 made it live for a whole take, and in doing so turned
+        // a bounded staleness into a latch. Measured on a 60 s 6/min series followed by a
+        // perfectly flat heart rate: confidence settled at exactly 0.500 and never moved, so
+        // "6.0 breaths/min, measured" was published indefinitely with no breathing at all.
+        //
+        // Grace is 1.5 expected periods (a real cycle always lands inside that), then a
+        // linear fade to zero over another 1.5 — so at the 6/min resonance rate the gate
+        // closes ~30 s after the last crossing. Before the FIRST crossing there is nothing to
+        // be stale about and the term is inert, which is why a fresh estimator still behaves
+        // exactly as it did. The fallback period is the slowest supported rate: with no
+        // measured period yet, assuming the shortest one would expire a slow breather.
+        let expectedPeriod = periodEMA > 0 ? periodEMA : 60.0 / Self.minRate
+        let grace = expectedPeriod * 1.5
+        let sinceCross = lastCrossT.map { t - $0 } ?? 0
+        let freshness = sinceCross <= grace
+            ? 1.0
+            : Swift.max(0.0, 1.0 - (sinceCross - grace) / grace)
+
+        confidence = Swift.max(0.0, Swift.min(1.0, 0.5 * envConf + 0.5 * countConf)) * freshness
     }
 
     /// Clear all state (e.g. when the camera signal drops or a session restarts).

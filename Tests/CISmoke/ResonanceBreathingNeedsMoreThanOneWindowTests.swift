@@ -137,10 +137,73 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
                        """)
         XCTAssertTrue(text.contains("respiration.reset()"),
                       """
-                      `stop()` must reset the estimator: a take is a session, and the clock \
-                      behind `beatTimes` need not continue across a camera teardown, so a \
-                      stale cursor could swallow the next take's first beats.
+                      `stop()` must reset the estimator. A new take gets a new one: the last \
+                      take's baseline, envelope and cycle count say nothing about this body \
+                      now. (The first version of this message blamed a stale cursor across a \
+                      camera teardown — false: the clock is `systemUptime`, monotonic since \
+                      boot. Right conclusion, wrong reason.)
                       """)
+    }
+
+    /// ⭐ THE REGRESSION #343 ITSELF INTRODUCED, and the reason this file grew a fourth
+    /// behavioural test. `crossingCount` is monotonic and `ratePerMinute` keeps its last
+    /// value, so once four cycles are seen `countConf` pins at 1.0 and `confidence` has a
+    /// hard floor of 0.5 — permanently above the publisher's 0.4 "measured" gate.
+    ///
+    /// While the estimator was rebuilt every publish that floor could not outlive one 10 s
+    /// window. Making it live for a whole take turned a bounded staleness into a LATCH: on a
+    /// 60 s resonance series followed by a perfectly flat heart rate, confidence sat at
+    /// exactly 0.500 forever and the publisher went on reporting "6.0 breaths/min, measured"
+    /// with no breathing at all — a frozen value stamped with a fresh timestamp, the very
+    /// thing the pulse path already has a truth gate for.
+    ///
+    /// So the fix for #343 is only honest WITH the freshness term, and this test is what
+    /// keeps the two together.
+    func testAMeasuredRateExpiresWhenTheBreathingStops() {
+        var estimator = RespirationEstimator()
+        for beat in Self.rsaBeats(seconds: 60,
+                                  breathsPerMinute: Self.resonanceBreathsPerMinute,
+                                  phase: 0) {
+            estimator.ingest(heartRate: beat.heartRate, at: beat.time)
+        }
+        XCTAssertGreaterThanOrEqual(estimator.confidence, Self.measuredBreathGate,
+                                    "premise: 60 s of clean RSA must read as measured first")
+
+        // Breathing stops; the heart keeps beating at a flat rate. Nothing new to see.
+        var t = 60.0
+        for _ in 0..<30 {
+            t += 1
+            estimator.ingest(heartRate: 60, at: t)
+        }
+        XCTAssertLessThan(estimator.confidence, Self.measuredBreathGate,
+                          """
+                          30 s after the last breath cycle the estimator still reports \
+                          confidence \(estimator.confidence) — at or above the publisher's \
+                          \(Self.measuredBreathGate) gate — so `breathRate` \
+                          \(estimator.ratePerMinute) keeps being published as MEASURED. That \
+                          is the latch the freshness term exists to prevent; do not remove it \
+                          without replacing it.
+                          """)
+    }
+
+    /// The other half of the same rule: the expiry must not fire while breathing continues.
+    /// Without this, "make confidence decay" could be satisfied by a term that also kills a
+    /// perfectly good resonance measurement — the slowest supported rate has 15 s between
+    /// cycles, which is longer than most naive timeouts.
+    func testAContinuingSlowBreathNeverExpires() {
+        var estimator = RespirationEstimator()
+        for beat in Self.rsaBeats(seconds: 120,
+                                  breathsPerMinute: Self.resonanceBreathsPerMinute,
+                                  phase: 0) {
+            estimator.ingest(heartRate: beat.heartRate, at: beat.time)
+        }
+        XCTAssertGreaterThanOrEqual(estimator.confidence, Self.measuredBreathGate,
+                                    """
+                                    Two minutes of uninterrupted 6/min breathing expired to \
+                                    \(estimator.confidence). The freshness grace is too tight \
+                                    for the rate this product is built around.
+                                    """)
+        XCTAssertEqual(estimator.ratePerMinute, Self.resonanceBreathsPerMinute, accuracy: 1.0)
     }
 
     /// `beatTimes` only works as a de-duplication key while it stays 1:1 with `rrIntervals`.
