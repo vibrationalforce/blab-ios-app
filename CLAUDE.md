@@ -242,8 +242,60 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**175** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `ThePacedRateMustBeReadableTests.swift` (#435 — der erste
+                          `Tests/CISmoke` (**176** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `ARejectedCrossingIsNotFreshnessTests.swift` (#452 — der erste
+                          Wächter in dieser Kette über einer LATCH, die den Messwert der VORIGEN
+                          Technik weiterbehauptet — mit voller Konfidenz, während der Körper etwas
+                          atmet, das das Band gar nicht lesen kann. `ingest` setzte
+                          `lastCrossT = t` AUSSERHALB des Annahme-Zweigs, und die Frische-Logik maß
+                          die Veralterung von genau dieser Variable. `ratePerMinute` hält seinen
+                          letzten ANGENOMMENEN Wert für immer (die Datei sagt das an der
+                          Deklaration selbst). Also hielt ein Körper, dessen Atmung Durchgänge
+                          erzeugt, die das Band VERWIRFT, den Anker in Bewegung: Veralterung blieb
+                          null, Frische blieb auf 1,0 festgenagelt, und der alte Wert wurde weiter
+                          zertifiziert.
+                          ⭐ **Das ist die DRITTE Latch in EINER Datei, und die Datei benennt die
+                          anderen zwei selbst** — den Frische-Term („fängt den Take, der in einer
+                          flachen Spur endet") und das Hüllkurven-Veto („fängt den, der in einer
+                          VERRAUSCHTEN endet"), mit dem eigenen Satz, jeder sei „die HALBE Antwort"
+                          und keiner ersetze den anderen. Beide Hälften handeln von einer Spur, die
+                          DEGRADIERT. Dieser dritte Fall ist eine vollkommen SAUBERE Spur, die
+                          einfach aus dem Band wandert: die Hüllkurve ist gesund, also schweigt das
+                          Veto, und der Anker lief weiter, also feuerte die Frische nie. **Eine
+                          Taxonomie mit zwei Fällen ist kein Beweis, dass es zwei sind.**
+                          ⭐ Und der Auslöser ist ein Muster, das ECHOEL SELBST VORGIBT: Box (3,75)
+                          und 4-7-8 (3,158) liegen beide unter `reportableRange` (#435). `ingest`
+                          und `refreshConfidence` Zeile für Zeile transkribiert und aus
+                          `BreathPattern.sample` getrieben — 120 s Resonanz, dann 180 s 4-7-8 —
+                          veröffentlichte der Schätzer an ALLEN 66 ganzzahligen Ruhepulsen 45…110
+                          im Mittel **5,985/min bei Konfidenz exakt 1,000**, während der Körper mit
+                          3,158 atmete: **+89,5 % Fehler, zertifiziert**. Box genauso (11 verworfene
+                          Durchgänge, Konfidenz 1,000). Am ANNAHME-Anker fallen alle 66 auf
+                          Konfidenz 0,000 und veröffentlichen nichts — die ehrliche Antwort: wir
+                          können dieses Tempo nicht lesen, also sagen wir nichts, statt die Zahl der
+                          vorigen Technik zu wiederholen.
+                          ⭐ Und es kostet im Band NICHTS, auch das gemessen statt angenommen: über
+                          dieselbe Puls-Achse sind ein Resonanz- und ein Coherent-Take in
+                          `ratePerMinute` UND `confidence` BITGLEICH (0 von 66 Pulsen weichen ab).
+                          Ein einzelner verworfener Durchgang mitten im Take senkt die Konfidenz
+                          jetzt für einen Zyklus, statt unsichtbar zu bleiben — das ist die richtige
+                          Lesart eines Zyklus, den wir nicht messen konnten, keine Regression.
+                          ⚠️ Der Sweep ist ein MODELL und wird NICHT festgenagelt, aus demselben
+                          Grund, aus dem #435 seinen eigenen nicht festnagelt: die Zahlen stammen aus
+                          meiner Transkription, sie festzunageln hieße die Transkription festnageln
+                          statt das Produkt. Behauptet wird, was der AUSGELIEFERTE Typ tut, wenn man
+                          ihn direkt treibt.
+                          ⚠️ Und NICHT behauptet wird der Fall ÜBER dem Band. Die dafür gebaute
+                          Fixtur (1,0 s ein / 0,9 s aus, 31,6/min) erzeugte gar keinen verworfenen
+                          Durchgang — die Glättung verschmilzt Zyklen, der Schätzer landete bei
+                          27/min, also INNERHALB. Eine Latch am oberen Rand ist nach demselben
+                          Argument plausibel und UNGEMESSEN; diesen Eintrag nicht dafür zitieren.
+                          ⚠️ Und die härteste Grenze zuerst, weil sie diesmal für die ganze Scheibe
+                          gilt: **KEIN Gate hat diesen Code gesehen** (#451 — GitHub legt seit
+                          18:33 UTC keine Läufe mehr an). Weder Kompilieren noch Ausführen ist
+                          belegt),
+                          davor „175"
+                          nach `ThePacedRateMustBeReadableTests.swift` (#435 — der erste
                           Wächter in dieser Kette über einem WIDERSPRUCH ZWISCHEN ZWEI EIGENEN
                           TEILEN der App statt über einem falschen Wert in einem: `BreathPattern.curated`
                           pact vier Raten (Resonance 6,0 · Coherent 6,0 · Box 3,75 · 4-7-8 3,1579),
@@ -1780,7 +1832,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTVIERUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 174 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTFÜNFUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 176 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

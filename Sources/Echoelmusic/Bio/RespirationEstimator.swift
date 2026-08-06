@@ -390,7 +390,12 @@ public struct RespirationEstimator {
     private var smooth = 0.0         // band-passed respiration signal
     private var prevSmooth = 0.0
     private var env = 0.0            // |smooth| envelope (normalization)
-    private var lastCrossT: Double?  // last upward zero-crossing time
+    private var lastCrossT: Double?  // last upward zero-crossing time (period baseline)
+    /// Last crossing whose implied rate was ACCEPTED into the band — the anchor the freshness
+    /// term measures staleness from. Deliberately NOT `lastCrossT`: see the ⛔ block on
+    /// `rawSinceAccept` in `refreshConfidence`. `lastCrossT` still keeps its own job (it is the
+    /// baseline the NEXT period is measured against, accepted or not).
+    private var lastAcceptT: Double?
     private var periodEMA = 0.0      // smoothed respiration period (s)
     private var crossingCount = 0
 
@@ -462,6 +467,9 @@ public struct RespirationEstimator {
                     // `TheBandHoldsAtEveryRestingPulseTests`.
                     if periodEMA > 0 { ratePerMinute = 60.0 / periodEMA }
                     crossingCount += 1
+                    // The freshness anchor moves ONLY here. A crossing the band rejected is
+                    // evidence AGAINST the held rate, never for it (#452).
+                    lastAcceptT = t
                 }
             }
             lastCrossT = t
@@ -591,11 +599,23 @@ public struct RespirationEstimator {
         // envelope veto above catches the take that ends in a noisy one, where crossings keep
         // arriving and nothing here ever goes stale. Neither substitutes for the other.
         //
+        // ⛔ AND THERE WAS A THIRD CASE THAT NEITHER SAW, closed by #452: a CLEAN trace whose
+        // crossings the band rejects — the person breathing slower than we can read. The
+        // envelope is healthy so the veto is silent, and the anchor used to advance on every
+        // crossing so freshness never fired either. Measured at +89.5% error, confidence 1.000,
+        // at all 66 resting pulses. The sentence above stays true and was never enough; the
+        // anchor is now the last ACCEPTED crossing.
+        //
         // Grace is 1.5 expected periods (a real cycle always lands inside that), then a linear
         // fade to zero over the same span. The pipeline lag is SUBTRACTED FROM THE MEASURED
-        // STALENESS rather than added to the grace — see below. Before the FIRST crossing there
-        // is nothing to be stale about and the term is inert, which is why a fresh estimator
-        // still behaves exactly as it did. The fallback period is the slowest supported rate:
+        // STALENESS rather than added to the grace — see below. Before the FIRST ACCEPTED
+        // crossing there is nothing to be stale about and the term is inert, which is why a
+        // fresh estimator still behaves exactly as it did. (#452 moved that from "first
+        // crossing" to "first ACCEPTED crossing", which widens the inert window by at most one
+        // crossing and cannot matter: until the first acceptance `crossingCount` is 0, so
+        // `countConf` is 0 and `confidence` is capped at `0.5 * envConf` — and, decisively,
+        // `ratePerMinute` is still 0, so the publisher's `conf >= 0.4 && rate > 0` cannot pass
+        // either way.) The fallback period is the slowest supported rate:
         // with no measured period yet, assuming the shortest one would expire a slow breather.
         //
         // ⭐ THE ALLOWANCE PAYS FOR A DELAY THIS TERM CANNOT SEE. While the estimator was only
@@ -680,12 +700,40 @@ public struct RespirationEstimator {
         // evidence, its parts have to add up to the sweep.
         let expectedPeriod = periodEMA > 0 ? periodEMA : 60.0 / Self.minRate
         let grace = expectedPeriod * 1.5
-        // NAMED FOR WHAT IT IS: the raw age of the crossing, versus the age this term is
-        // allowed to CHARGE the breather after the pipeline's own delay is paid off. The
-        // earlier `sinceCross` held the raw value and then held the reduced one, which is
+        // NAMED FOR WHAT IT IS: the raw age of the ACCEPTED measurement, versus the age this
+        // term is allowed to CHARGE the breather after the pipeline's own delay is paid off.
+        // The earlier `sinceCross` held the raw value and then held the reduced one, which is
         // exactly the stale-name trap this repo has already paid for once (#373/#374).
-        let rawSinceCross = lastCrossT.map { t - $0 } ?? 0
-        let chargeableSince = Swift.max(0.0, rawSinceCross - Self.pullLagAllowance)
+        //
+        // ⛔ THIS ANCHORED ON `lastCrossT` UNTIL #452, AND THAT WAS A THIRD LATCH — reached by a
+        // path neither the freshness term nor the envelope veto could see, in a file whose own
+        // comment two screens up says freshness "is HALF the answer" and names the other half.
+        // `ingest` set `lastCrossT = t` OUTSIDE the accept branch, so a body whose breathing
+        // produces crossings the band REJECTS kept the anchor moving: staleness stayed at zero,
+        // freshness stayed pinned at 1.0, and `ratePerMinute` — which holds its last accepted
+        // value forever — went on being published at full confidence.
+        //
+        // Not hypothetical, and the trigger is a pattern ECHOEL ITSELF PACES. Transcribing this
+        // method and driving it with `BreathPattern.sample`: 120 s of resonance, then 4-7-8.
+        // At all 66 integer resting pulses 45…110 the estimator published a mean 5.985/min at
+        // confidence EXACTLY 1.000 while the body breathed 3.158 — a **+89.5% error, certified**.
+        // Same for box (11 rejected crossings, confidence 1.000). Anchored on acceptance, all 66
+        // fall to confidence 0.000 and publish nothing, which is the honest answer: we cannot
+        // read this pace, so we say nothing rather than repeating the previous technique's number.
+        //
+        // It costs nothing in band, and that is measured too, not assumed: over the same pulse
+        // axis a resonance take and a coherent take are BIT-IDENTICAL in both `ratePerMinute`
+        // and `confidence` (0 of 66 pulses differ). A single rejected crossing mid-take now dips
+        // confidence for one cycle instead of being invisible — which is the correct reading of
+        // one cycle we could not measure, not a regression.
+        //
+        // ⚠️ What is NOT claimed: the ABOVE-band case. The fixture built for it (1.0 s in /
+        // 0.9 s out, 31.6/min) never actually produced a rejected crossing — the smoothing
+        // merges cycles and the estimator settled at 27/min, inside the band. So the measured
+        // claim is the below-band one only. An above-band latch is plausible by the same
+        // argument and is unmeasured here; do not cite this block for it.
+        let rawSinceAccept = lastAcceptT.map { t - $0 } ?? 0
+        let chargeableSince = Swift.max(0.0, rawSinceAccept - Self.pullLagAllowance)
         let freshness = chargeableSince <= grace
             ? 1.0
             : Swift.max(0.0, 1.0 - (chargeableSince - grace) / grace)
