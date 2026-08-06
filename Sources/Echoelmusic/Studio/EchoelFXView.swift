@@ -851,19 +851,38 @@ struct EchoelFXView: View {
     /// finger can place a value — and a default argument never appears in a diff.
     ///
     /// ⚠️ Honest about what was NOT wrong: all 33 silent rows were CORRECT at 2 when the
-    /// default was removed. Measured before touching anything, comments stripped: both range
-    /// endpoints of all 43 `field(` rows land on their own stated grid, and of the 316 literal
-    /// assignments to those 43 parameters across `EchoelFXChain`, `FXCuratedLibrary` and
-    /// `GenreFX`, zero are off the 0.01 grid. So this change moves no pixel and no sound; it
-    /// removes the MECHANISM, not a defect. The live risk it closes is the NEXT row: this
-    /// window already has a `Cutoff` spanning 80…18000 Hz that needed `decimals: 0` and says
-    /// so — a new frequency row would have inherited 2 and offered a 0.01 Hz grid across
-    /// 18 kHz, silently.
+    /// default was removed. The INVARIANT, which is what matters and is the part that does not
+    /// depend on how you count: **no shipped value is off its own row's grid** — not one of the
+    /// 86 range endpoints, and not one assignment to those 43 parameters in `EchoelFXChain`,
+    /// `FXCuratedLibrary` or `GenreFX`. So this change moves no pixel and no sound; it removes
+    /// the MECHANISM, not a defect. The live risk it closes is the NEXT row: this window
+    /// already has a `Cutoff` spanning 80…18000 Hz that needed `decimals: 0` and says so — a
+    /// new frequency row would have inherited 2 and offered a 0.01 Hz grid across 18 kHz,
+    /// silently.
     ///
-    /// ⛔ THE FIRST DRAFT OF THIS PARAGRAPH SAID "63 shipped assignments", and I could not
-    /// reproduce it with any statable method — the re-measurement above finds 316. The number
-    /// was not the defect; the missing METHOD was, because a count nobody can re-derive is not
-    /// a measurement. Every figure here now names what was scanned.
+    /// ⛔ TWO NUMBERS DIED HERE, AND THE SECOND DEATH IS THE INSTRUCTIVE ONE. The first draft
+    /// said "63 shipped assignments" and no method reproduced it; I replaced it with "316" and
+    /// declared the lesson learned. The reviewer then re-derived the same quantity and got 424
+    /// (65 dot-assignments + 4 stored defaults + 355 labelled arguments); my own re-run under a
+    /// stated decomposition gives 320 (8 + 4 + 308). Three methods, three totals, and all three
+    /// agree on ZERO off-grid. The defect was never the digit and it was not even the missing
+    /// file list — it is that "assignment" silently spans three different syntactic FORMS, so
+    /// the aggregate is not a measurement at all. Hence the invariant above and no total: state
+    /// what cannot change under a re-count, not what can.
+    ///
+    /// ⚠️ "On the grid" means AS WRITTEN. The app stores `Float`, and after that round-trip
+    /// **11 of the 86 endpoints are not bit-exact** — 0.95 is 0.949999988079071 (Δ 1.19e-08,
+    /// five rows) and 0.1 is 0.10000000149011612 (Δ 1.49e-09), so 6 endpoints exceed the 1e-9
+    /// tolerance `testTheFXLFOGridCanExpressWhatShips` uses. Harmless (`snapped` clamps then
+    /// grids, so the endpoint returns to the identical `Float`), and stated because that test's
+    /// own ⚠️ paragraph had to unlearn the phrase "bit-for-bit" one file over. Same hazard,
+    /// second edition.
+    ///
+    /// ⚠️ AND THIS COMMENT NOW QUOTES THE TOKEN ITS OWN GUARD MATCHES (`field(`, above). That is
+    /// safe ONLY because the guard blanks whole-line `//` before scanning — its own doc says it
+    /// does not handle trailing or `/* */` comments. Reflow any sentence here onto a code line
+    /// and the scan gains a phantom 44th "call site" with no `decimals:` in it, and reddens
+    /// pointing at prose. A self-inflicted coupling, named rather than discovered later.
     private func field(
         _ title: String,
         _ value: Binding<Float>,

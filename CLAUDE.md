@@ -376,14 +376,28 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Default weg und schreibt die Zahl an allen 33 hin, plus zwei Hälften in
                           `EveryReachableRowStatesItsGridTests`: ein eigener paren-gematchter Scan über
                           `field(` und eine Behauptung auf der DEKLARATION, dass `decimals` keinen
-                          Default hat. ⚠️ Ehrlich zum Umfang: die 33 Zeilen waren alle KORREKT bei 2 —
-                          gemessen mit abgestreiften Kommentaren liegen BEIDE Bereichsenden aller 43
-                          `field(`-Zeilen auf ihrem eigenen Raster, und von den 316 Literal-Zuweisungen
-                          an diese 43 Parameter in `EchoelFXChain`, `FXCuratedLibrary` und `GenreFX`
-                          liegt KEINE neben dem 0,01-Raster. ⛔ Die erste Fassung dieses Eintrags schrieb
-                          „63 ausgelieferte Zuweisungen" und keine angebbare Methode reproduziert das —
-                          eine Zahl, die niemand nachrechnen kann, ist keine Messung, und dieser Absatz
-                          trägt genau dafür schon vier Lehren. Die Scheibe entfernt den MECHANISMUS, keinen Defekt; was sie
+                          Default hat. ⚠️ Ehrlich zum Umfang: die 33 Zeilen waren alle KORREKT bei 2.
+                          Die INVARIANTE — der Teil, der sich beim Umzählen nicht bewegt — lautet: kein
+                          ausgelieferter Wert liegt neben dem Raster SEINER EIGENEN Zeile, weder eines
+                          der 86 Bereichsenden noch eine Zuweisung an diese 43 Parameter in
+                          `EchoelFXChain`, `FXCuratedLibrary` oder `GenreFX`.
+                          ⛔ **Und die Zahl, die das belegen sollte, ist ZWEIMAL gestorben — die zweite
+                          ist die lehrreiche.** Erste Fassung „63 ausgelieferte Zuweisungen"
+                          (nicht reproduzierbar); ich ersetzte sie durch „316" und erklärte die Lehre für
+                          gezogen; der Reviewer leitete unabhängig 424 her, mein eigener Neulauf unter
+                          angegebener Zerlegung 320. Alle drei sind sich über NULL daneben einig. Der
+                          Defekt ist weder die Ziffer noch die fehlende Dateiliste, sondern dass
+                          „Zuweisung" drei syntaktische FORMEN umspannt (Punkt-Zuweisung, gespeicherter
+                          Default, benanntes Argument) — die Summe ist also gar keine Messung. Deshalb
+                          eine Invariante und keine Gesamtzahl. **Die schärfere Lehre als die übliche
+                          Stale-Zahl-Lehre dieses Absatzes: eine Zahl mit genannter Datei-Liste kann
+                          IMMER NOCH unreproduzierbar sein, wenn die FORM des Gezählten offen bleibt.**
+                          ⚠️ „Auf dem Raster" heißt WIE GESCHRIEBEN: nach dem `Float`-Umlauf sind 11 der
+                          86 Bereichsenden nicht bitgenau (0,95 → Δ 1,19e-08 in fünf Zeilen, 0,1 →
+                          Δ 1,49e-09), also 6 über der 1e-9-Toleranz, die der Nachbartest in derselben
+                          Datei benutzt — folgenlos, weil `snapped` klemmt und dann rastert, aber genau
+                          die Formulierung, die dieser Nachbartest schon einmal als „bit-for-bit"
+                          zurücknehmen musste. Die Scheibe entfernt den MECHANISMUS, keinen Defekt; was sie
                           kauft, ist die NÄCHSTE Zeile, in einem Fenster, das schon eine
                           `Cutoff`-Zeile über 80…18000 Hz mit `decimals: 0` ausliefert. **Die Lehre ist
                           die von #430 in ihrer schärfsten Form: ein Argument, das keine Aufrufstelle

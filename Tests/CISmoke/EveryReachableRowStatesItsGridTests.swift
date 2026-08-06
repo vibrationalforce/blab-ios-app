@@ -38,12 +38,18 @@
 // `decimals: Int = 2`, exactly the defaulted argument #430's guard forbids, one level up, and
 // 33 of its 43 call sites were silent. #443 removed the default and wrote the number at all 33.
 //
-// ⚠️ Honest about what was NOT wrong: those 33 rows were all CORRECT at 2. Measured before the
-// edit, comments stripped — both range endpoints of all 43 `field(` rows land on their own
-// stated grid, and of the 316 literal assignments to those 43 parameters across
-// `EchoelFXChain`, `FXCuratedLibrary` and `GenreFX`, zero are off the 0.01 grid. (The first
-// draft of this paragraph said "63 shipped assignments" and no statable method reproduces it;
-// a count nobody can re-derive is not a measurement, so every figure here names its scan.)
+// ⚠️ Honest about what was NOT wrong: those 33 rows were all CORRECT at 2. The invariant — the
+// part that does not move when you change how you count — is that no shipped value is off its
+// OWN row's grid: not one of the 86 range endpoints (as written; see the `Float` caveat in
+// `field`'s doc block), and not one assignment to those 43 parameters in `EchoelFXChain`,
+// `FXCuratedLibrary` or `GenreFX`.
+//
+// ⛔ THE COUNT THAT WAS SUPPOSED TO BACK THAT UP DIED TWICE. The first draft said "63 shipped
+// assignments" (unreproducible); I replaced it with "316" and called the lesson learned; the
+// reviewer independently derived 424 and my own re-run under a stated decomposition gave 320.
+// All three agree on ZERO off-grid. The defect is neither the digit nor even the missing file
+// list — "assignment" spans three syntactic FORMS (dot-assignment, stored default, labelled
+// argument), so the aggregate is not a measurement at all. Hence an invariant and no total.
 // The change moves no pixel and no sound; it removes the
 // MECHANISM. What it buys is the NEXT row: this window already ships a `Cutoff` spanning
 // 80…18000 Hz that needs `decimals: 0`, and a new frequency row would have inherited 2 and
@@ -495,12 +501,18 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
         let collapsed = signature.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         let rowCount = try fxFieldCallSites().count
 
-        XCTAssertTrue(signature.contains("decimals: Int"), """
+        // ⚠️ MATCHED ON THE WHITESPACE-COLLAPSED TEXT, not the raw signature, and the reviewer
+        // is why. `decimals: Int  = 2` (two spaces) or a newline before the `=` is the same
+        // default and would walk straight past a raw `contains`. The #430 sibling
+        // (`SoundRowsCanReachTheShippedPatchesTests`) still matches raw and has the same gap —
+        // both catch today's canonical spelling, neither catches a reflow. This half is the
+        // cheap fix; propagating it there is a separate slice, not a drive-by.
+        XCTAssertTrue(collapsed.contains("decimals: Int"), """
             `EchoelFXView.field` no longer takes a `decimals: Int` parameter. Every one of its \
             rows then inherits `EchoelValueField`'s default grid of 4 with nothing here or in \
             the scan above going red — the exact hole #443 closed.
             """)
-        XCTAssertFalse(signature.contains("decimals: Int ="), """
+        XCTAssertFalse(collapsed.contains("decimals: Int ="), """
             `EchoelFXView.field` gives `decimals` a default again. That is the mechanism #430 \
             legislated against and #440 named as its blind spot: a defaulted argument never \
             appears in a diff, so changing that one number re-grids all \(rowCount) rows at \
@@ -508,9 +520,17 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
             """)
     }
 
-    /// Every call to that forwarder must state its grid. Without the default there is no other
-    /// way to compile — so this is a guard against the default coming BACK together with new
-    /// silent rows, and against the count collapsing (a broken scan reporting a green).
+    /// Every call to that forwarder must state its grid.
+    ///
+    /// ⚠️ BE CLEAR ABOUT WHICH HALF EARNS ITS KEEP, because #367 says an assertion that cannot
+    /// fail is a defect and one of these two is close to that line. The COUNT assertion is
+    /// genuinely independent: break the paren matcher, the word boundary or the declaration
+    /// exclusion and it collapses. The `silent.isEmpty` assertion is NOT a second opinion —
+    /// with no default there is no other way to compile, so its only red path is "a default
+    /// came back AND new rows were added silently", and the first half of that is already
+    /// covered one test up. It is kept for exactly one reason: the declaration check is a
+    /// string match, so a default re-added in a spelling that match misses would leave the row
+    /// scan as the only thing standing. Reviewer's point, stated rather than smoothed over.
     ///
     /// ⚠️ Honest about what #443 did NOT fix: all 33 previously-silent rows were CORRECT at 2.
     /// Both range endpoints of all 43 rows are on their own stated grid, and of the 316 literal

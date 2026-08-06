@@ -10,7 +10,8 @@
 //
 // REACH, paren-matched over `Sources/` with whole-line comments EXCLUDED: **62 construction
 // sites — 40 pass `decimals: 2`, 11 pass `0`, 10 take the 4-place default, and 1 forwards**
-// (`EchoelFXView.field`, itself `decimals: Int = 2`). Three of the 62 render many rows each:
+// (`EchoelFXView.field`; it USED to carry `decimals: Int = 2` and #443 removed that default, so
+// all 43 of its rows now state their own grid). Three of the 62 render many rows each:
 // `field`, plus `param` and `knob` in `EchoelStudioView` — both already inside the 10 defaults,
 // so there is no "plus" on top of the split. The eleven `decimals: 0` rows were never exposed:
 // `allowsDecimal` disables their separator key, so no `.` can enter and the cap never applies.

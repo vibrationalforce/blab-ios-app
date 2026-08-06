@@ -21,8 +21,9 @@ import Foundation
 /// `0.375`, READ `0.375` in the 30 pt readout, tapped OK and got `0.38`. The readout was not
 /// a preview of the commit; it was a promise the commit did not keep. Reach, paren-matched over
 /// `Sources/` with whole-line comments EXCLUDED: **62 construction sites — 40 pass `decimals: 2`,
-/// 11 pass `0`, 10 take the 4-place default, and 1 forwards** (`EchoelFXView.field`, itself
-/// `decimals: Int = 2`). Three of those 62 render many rows each — `field` here, `param` and
+/// 11 pass `0`, 10 take the 4-place default, and 1 forwards** (`EchoelFXView.field`; it USED to
+/// carry `decimals: Int = 2` and #443 removed that default, so all 43 of its rows now state
+/// their own grid). Three of those 62 render many rows each — `field` here, `param` and
 /// `knob` in `EchoelStudioView` (both already inside the 10 defaults). The `decimals: 0` rows
 /// were never exposed: their separator key is disabled by `allowsDecimal`, so no `.` can enter
 /// those buffers and the fraction cap never applies.
