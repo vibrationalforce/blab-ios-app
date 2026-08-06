@@ -95,10 +95,12 @@ public enum HealthWritePolicy {
     /// have to be re-fitted after every DSP change — which is the maintenance failure this file's
     /// neighbours document at length. Chain over fit, deliberately.
     ///
-    /// ⚠️ THERE ARE FIVE RESPIRATION BANDS IN THIS REPO — the fifth, `RecordAnchor
-    /// .bioNormalized`'s `6.0...24.0`, is enumerated with the others at
-    /// `RespirationEstimator.reportableRange`; it is the most reachable and carries #429's
-    /// defect on the shipped capture path. `BioSampleFrame.plausibleBreathRate`
+    /// ⚠️ THERE ARE FIVE RESPIRATION BANDS IN THIS REPO — the fifth is the arousal window inside
+    /// `bioNormalized` (`Sequencer/RecordAnchor.swift`), `3.0...24.0` since #433; all five are
+    /// enumerated at `RespirationEstimator.reportableRange`. (⛔ This called that fifth band "the
+    /// most reachable" and put it "on the shipped capture path": both were wrong — the record
+    /// controller is doorless, see the retraction at that enumeration.)
+    /// `BioSampleFrame.plausibleBreathRate`
     /// is `3...40` (it gates `hasMeasuredBreath`, OSC egress and what `PerformerSignature`
     /// learns), `RespirationEstimator.reportableRange` is 3.7736…31.8 (what the estimator can
     /// EMIT — the one this range is chained to, two paragraphs above), `ModSource.breathRate

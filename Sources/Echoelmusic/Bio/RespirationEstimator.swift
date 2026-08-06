@@ -349,13 +349,22 @@ public struct RespirationEstimator {
     /// end above this one", which parses as a claim about THIS property and is false), and
     /// `ModSource.breathRate.range` `3...30` (a modulation SCALING range, not a validity test).
     ///
-    /// ⛔ THE FIFTH WAS FOUND BY THE #429 REVIEWER AND IS THE MOST REACHABLE OF THE LOT:
-    /// `RecordAnchor.bioNormalized` scales breath over `6.0...24.0`, is called every step from
-    /// `RecordController` on live bio, and therefore reads EXACTLY 0 across the whole HRV
-    /// resonance band this file exists to measure — #429's defect verbatim, in the shipped path,
-    /// while #429 fixed the dormant one. Registered as its own slice, not folded in here. This
-    /// paragraph said "FOUR" while a fifth already shipped: an enumeration whose stated purpose
-    /// is stopping the next one from appearing unnoticed had already missed one.
+    /// ⛔ THE FIFTH WAS FOUND BY THE #429 REVIEWER: the breath window inside `bioNormalized`
+    /// (`Sequencer/RecordAnchor.swift`), now `3.0...24.0` since #433 — its low bound is the
+    /// gate's, its top stays an AROUSAL ceiling. This paragraph said "FOUR" while a fifth
+    /// already shipped: an enumeration whose stated purpose is stopping the next one from
+    /// appearing unnoticed had already missed one.
+    ///
+    /// ⛔ AND THE FIRST DESCRIPTION OF THAT FIFTH BAND WAS WRONG IN BOTH ITS CLAIMS, which is
+    /// worth more than the correction itself. It called the window "the most reachable of the
+    /// lot … called every step from `RecordController` on live bio … in the shipped path". It is
+    /// DORMANT: `RecordController.onStep` opens with `guard armed else { return }` and `arm()`
+    /// has zero callers in `Sources/` (task #204 records the controller as doorless). And it did
+    /// not read 0 "across the whole HRV resonance band" — the old floor of 6.0 flattened 5…6,
+    /// while 8/10/12 gave 0.111/0.222/0.333. The true, sharper statement is that
+    /// `BreathPacer.defaultRate` is exactly 6.0, so the app's own default paced rate sat exactly
+    /// on the floor. A report written in the shape of the previous finding is not evidence; both
+    /// halves had to be re-derived from source.
     ///
     /// That `ModSource` band WAS `4...30` — a copy of this file's
     /// `minRate`/`maxRate` — and #429 unpicked the copy rather than tightening it: its low bound

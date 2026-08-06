@@ -242,8 +242,47 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**168** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheBreathScaleSpansWhatTheGateAdmitsTests.swift` (#429 — der
+                          `Tests/CISmoke` (**169** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `TheArousalFloorSitsBelowThePacedBreathTests.swift` (#433 — der
+                          erste Wächter in dieser Kette über einem Defekt, den ein REVIEWER-BERICHT
+                          eingeführt hat und dessen Korrektur die halbe Scheibe ist. Der #429-Reviewer
+                          nannte die Atem-Skala in `bioNormalized` (`Sequencer/RecordAnchor.swift`) „den
+                          AUSGELIEFERTEN Aufnahmepfad, gerufen bei JEDEM Schritt auf lebendem Bio,
+                          erreichbarer als der, den du repariert hast" — und ich habe das wörtlich in die
+                          Aufgabe übernommen. **Beide Hälften falsch:** `RecordController.onStep` beginnt
+                          mit `guard armed else { return }`, `arm()` hat NULL Aufrufer in `Sources/`, und
+                          Task #204 hält den Controller längst als türlos fest. Und „das ganze
+                          Resonanzband liest 0" stimmte auch nicht — der alte Boden 6,0 flachte 5…6 ab,
+                          8/10/12 gaben 0,111/0,222/0,333.
+                          ⭐ Die WAHRE, schärfere Aussage ist eine, die der Bericht nicht hatte:
+                          `BreathPacer.defaultRate` ist EXAKT 6,0. Der Atemtrainer der App pact
+                          voreingestellt genau auf den Boden, also las der Atem-Term am eigenen Ziel
+                          exakt null. Ein Boden, der die gepacte Rate verschluckt, ist keine
+                          Ruhe-Referenz, sondern ein blinder Fleck an der Stelle, auf die das Produkt
+                          zielt. Boden jetzt 3,0 (die Untergrenze von
+                          `BioSampleFrame.plausibleBreathRate`, als LITERAL — #426-Form: die Kettung an
+                          `BreathPacer.minRate` steht im Wächter, damit ein Zurückklettern rot wird).
+                          ⭐ Zweite Hälfte, vom Reviewer nicht genannt und beim Nachlesen gefunden:
+                          `usableBio()` prüft nur die FRISCHE, nicht `hasMeasuredBreath`. Ein
+                          Gurt-Frame trägt `breathRate: 0`, und das wurde als Ruhe EINGEMISCHT — es
+                          halbierte den Erregungswert für einen Körper, dessen Herz das Gegenteil sagte.
+                          Genau die #215-Begründung („eine konstante 0 ist von einem stillen Performer
+                          nicht zu unterscheiden"), einen Pfad weiter. Ohne Messung steht der Herz-Term
+                          jetzt allein. Die Oberkante 24 bleibt absichtlich schmaler als das Tor (40):
+                          Erregungsdecke, kein Gültigkeitstest — auf 40 zu weiten kostete jeder
+                          realistischen Rate pauschal ~43 % Reiseweg, dieselbe Asymmetrie und dieselbe
+                          Ablehnung wie bei #429.
+                          ⚠️ Was er NICHT kann, und das steht als ERSTES im Dateikopf: zeigen, dass
+                          irgendetwas davon heute HÖRBAR oder AUFGEZEICHNET wird. Der Pfad ist dormant;
+                          repariert WIRD er deshalb, nicht trotzdem — dieselbe Arithmetik nach einer Tür
+                          bräuchte eine Hörprobe. Vier der sieben Tests sind auf dem alten Fenster rot,
+                          die anderen drei halten fest, was sich NICHT bewegen darf.
+                          ⛔ **Lehre, verschieden von der Stale-Zahl-Lehre dieses Absatzes: ein
+                          Reviewer-Befund in der FORM des vorigen Befunds ist kein Beleg.** Dieser hier
+                          war die perfekte Fortsetzung von #429 — gleiche Sache, größerer Einsatz — und
+                          genau deshalb habe ich ihn nicht nachgeprüft, bevor er in einer Aufgabe stand.
+                          Beide Behauptungen brauchten je einen `grep`, und beide fielen.),
+                          davor „168" nach `TheBreathScaleSpansWhatTheGateAdmitsTests.swift` (#429 — der
                           erste Wächter in dieser Kette, der eine SKALA an ein TOR kettet statt an eine
                           Messung: `ModSource.breathRate.range` war `4...30`, abgeschrieben von
                           `RespirationEstimator.minRate`/`maxRate` — und ZWEI Quelldateien nannten genau
@@ -1188,7 +1227,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSIEBENUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 168 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTACHTUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 169 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

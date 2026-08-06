@@ -107,16 +107,51 @@ public enum RecordPlan {
 /// term and a breath-rate term against calm-to-active physiological ranges and
 /// clamps hard to 0…1 so downstream mapping can never over-drive.
 ///
+/// ⛔ THE BREATH FLOOR WAS 6.0 AND THAT WAS THE ONE RATE THE APP ITSELF ASKS FOR (#433).
+/// `BreathPacer.defaultRate` is EXACTLY 6.0 and the pacer's whole range is 5…12 — so a user
+/// following Echoel's own resonance guide sat on the floor and the breath term read exactly 0,
+/// while the coached band's slow half (5…6) had no travel at all. A floor that swallows the
+/// paced target is not a calm reference, it is a blind spot at the one place the product aims.
+///
+/// ⭐ WHY 3.0 AND WHY IT IS A LITERAL. It is the low bound of `BioSampleFrame
+/// .plausibleBreathRate` — the set of rates that can arrive here at all — so every admitted
+/// slow breath now spends depth instead of pinning. It stays a LITERAL rather than a reference
+/// because this is an AROUSAL window, not a validity test: the two happen to agree today, and
+/// the day the gate widens is a day someone should decide about arousal on purpose, not inherit
+/// it. `Tests/CISmoke/TheArousalFloorSitsBelowThePacedBreathTests` chains it to
+/// `BreathPacer.minRate` so the floor can never climb back above a paced rate unnoticed.
+///
+/// ⚠️ THE TOP IS DELIBERATELY NARROWER THAN THE GATE and is NOT moved. 24/min is an active
+/// ceiling; the gate admits 40. Widening it to 40 would cost every realistic rate a flat ~43 %
+/// of its travel (the ratio 21/37 is the same at every rate) to buy resolution for panting —
+/// the same asymmetry, and the same refusal, as `ModSource.breathRate.range` (#429).
+///
+/// ⭐ AN UNMEASURED BREATH IS NO LONGER BLENDED IN AS CALM. `EngineBus.usableBio()` gates on
+/// FRESHNESS only, not on `hasMeasuredBreath`, so a BLE-strap frame arrives here with
+/// `breathRate: 0` — and a fabricated 0 used to halve the arousal value, indistinguishable from
+/// a genuinely very slow breather. This is exactly the argument #215 used to stop sending
+/// `/bio/motion`. When there is no breath measurement the heart term stands alone.
+///
+/// ⚠️ THIS PATH IS DORMANT TODAY and the fix is worth making BECAUSE of that, not in spite of
+/// it. `RecordController.onStep` opens with `guard armed else { return }`, `arm()` has zero
+/// callers in `Sources/`, and task #204 records RecordController as doorless. A review report
+/// called this "the shipped capture path"; it is not. Repairing arithmetic while nothing rides
+/// on it is free — the same repair after a door exists would need a device listen.
+///
 /// - Parameters:
 ///   - bpm: heart rate in beats per minute (typical resting ~50, active ~120).
-///   - breathRate: breaths per minute (typical resting ~6, active ~24).
+///   - breathRate: breaths per minute — a MEASUREMENT, or anything outside
+///     `BioSampleFrame.plausibleBreathRate` (0 included) to say "no breath reading".
 /// - Returns: a value clamped to 0…1 (0 = calm floor, 1 = active ceiling).
 public func bioNormalized(bpm: Double, breathRate: Double) -> Float {
     // Calm → active reference windows. Below the floor reads 0, above the top reads 1.
     let hrFloor = 50.0, hrTop = 120.0
-    let brFloor = 6.0, brTop = 24.0
+    let brFloor = 3.0, brTop = 24.0
 
     let hr = normalize01(bpm, floor: hrFloor, top: hrTop)
+
+    // No breath measurement → the heart term alone, never a fabricated calm.
+    guard measuresBreath(breathRate) else { return Float(clamp01(hr)) }
     let br = normalize01(breathRate, floor: brFloor, top: brTop)
 
     // Equal blend of the two arousal terms; already in 0…1, clamp for safety.
@@ -125,6 +160,15 @@ public func bioNormalized(bpm: Double, breathRate: Double) -> Float {
 }
 
 // MARK: - Private math helpers (pure)
+
+/// Is this a breath READING at all? Reuses the repo's single answer to that question
+/// (`BioSampleFrame.plausibleBreathRate`, the same set `hasMeasuredBreath` tests) rather than
+/// minting a second definition of "plausible" — that duplication is the #416 defect. Non-finite
+/// is never a measurement.
+private func measuresBreath(_ rate: Double) -> Bool {
+    guard rate.isFinite else { return false }
+    return BioSampleFrame.plausibleBreathRate.contains(Float(rate))
+}
 
 private func normalize01(_ value: Double, floor: Double, top: Double) -> Double {
     guard top > floor else { return 0 }

@@ -184,18 +184,27 @@ final class RecordAnchorTests: XCTestCase {
     }
 
     func testBioNormalized_clampsAboveRange() {
-        // Both terms far above their tops → clamps to 1.
+        // Heart far above its top → 1. NOTE (#433): 200 breaths/min is outside
+        // `BioSampleFrame.plausibleBreathRate`, so it is now treated as "no breath reading" and
+        // the heart term stands alone — same answer, different reason than before.
         XCTAssertEqual(bioNormalized(bpm: 500, breathRate: 200), 1.0, accuracy: 1e-6)
     }
 
     func testBioNormalized_clampsBelowRange() {
-        // Both terms below their floors (incl. negatives) → clamps to 0.
+        // Heart below its floor → 0. Both breath values here are outside the plausible set, so
+        // there is no breath term to blend (#433) — a missing reading is not "very calm".
         XCTAssertEqual(bioNormalized(bpm: 0, breathRate: 0), 0.0, accuracy: 1e-6)
         XCTAssertEqual(bioNormalized(bpm: -40, breathRate: -5), 0.0, accuracy: 1e-6)
     }
 
     func testBioNormalized_atFloors_isZero() {
-        XCTAssertEqual(bioNormalized(bpm: 50, breathRate: 6), 0.0, accuracy: 1e-6)
+        // ⛔ THIS ASSERTED `(50, 6) == 0` UNTIL #433, AND THAT ZERO WAS THE DEFECT: 6/min is
+        // `BreathPacer.defaultRate`, the rate Echoel's own guide paces by default, and it sat
+        // exactly on the old breath floor. The floor is now 3.0 (the low bound of the plausible
+        // set), so the paced target carries travel. The floors that still read 0 are the real
+        // ones: heart at 50, breath at 3.
+        XCTAssertEqual(bioNormalized(bpm: 50, breathRate: 3), 0.0, accuracy: 1e-6)
+        XCTAssertEqual(bioNormalized(bpm: 50, breathRate: 6), 0.0714285, accuracy: 1e-5)
     }
 
     func testBioNormalized_atTops_isOne() {
