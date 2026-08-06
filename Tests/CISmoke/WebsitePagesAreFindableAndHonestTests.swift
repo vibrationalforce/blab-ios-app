@@ -423,4 +423,182 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             lower this floor deliberately rather than letting the scan pass over nothing.
             """)
     }
+
+    // MARK: - Never-built claims (#436 / #437)
+
+    /// Every mention of `needle` must sit within a window of at least one `markers` phrase.
+    /// This is the shape `testEveryAUv3MentionIsADenial` already uses; it is factored out here
+    /// because three separate claims now need it and a third hand-rolled copy of the same
+    /// windowed walk is the #416 double-definition defect.
+    ///
+    /// ⚠️ THE WINDOW IS ASYMMETRIC ON PURPOSE and the numbers are not decorative: English
+    /// qualifies AFTER the noun far more often than before it ("RTMP was never built"), so the
+    /// forward reach carries most of the weight, while the backward reach only has to cross a
+    /// heading or a `<div>`. Widening either is safe for correctness — a bigger window can only
+    /// make the guard MISS a lie, never invent one — but it is what turns a guard into
+    /// decoration, so widen it deliberately and say why.
+    private func mentionsWithoutMarker(_ needle: String, markers: [String],
+                                       back: Int, forward: Int) throws -> [String] {
+        // ⛔ Every index below is an index into `html`, and the window is lowercased only AFTER
+        // it is cut. The first draft searched a pre-lowercased copy and then sliced `html` with
+        // those indices — indices are not portable between two Strings, and `lowercased()` is
+        // not even length-preserving in general (ß, İ). It would have worked on this tree and
+        // trapped on the first non-ASCII page. `.caseInsensitive` on the search removes the
+        // need for the second string entirely.
+        var offenders: [String] = []
+        for page in try pages() {
+            let html = page.html
+            var search = html.startIndex..<html.endIndex
+            while let hit = html.range(of: needle, options: [.caseInsensitive], range: search) {
+                let lo = html.index(hit.lowerBound, offsetBy: -back, limitedBy: html.startIndex)
+                    ?? html.startIndex
+                let hi = html.index(hit.upperBound, offsetBy: forward, limitedBy: html.endIndex)
+                    ?? html.endIndex
+                let window = html[lo..<hi].lowercased()
+                if !markers.contains(where: { window.contains($0) }) {
+                    offenders.append("\(page.name): …\(html[lo..<hi].prefix(110))…")
+                }
+                search = hit.upperBound..<html.endIndex
+            }
+        }
+        return offenders
+    }
+
+    /// RTMP was NEVER BUILT. Measured on the tree this commit repaired: SEVEN mentions across
+    /// FIVE pages had no never-built marker anywhere near them.
+    ///
+    /// ⛔ WHY "NOT PLANNED" IS NOT AN ACCEPTED MARKER HERE, AND THIS IS THE WHOLE POINT OF THE
+    /// TEST. The false sentences were not enthusiastic — they were *disclaimers*. They read
+    /// "RTMP … is not planned (built and removed, July 2026)" and "video editing and RTMP were
+    /// built and removed". Every one correctly told a reader RTMP is absent, and every one
+    /// attached the wrong REASON: it invented a shipped-then-withdrawn broadcast stack. That is
+    /// a claim about engineering history that a journalist can quote and an integrator can plan
+    /// against ("so the code exists — how hard can re-enabling it be?"). A marker set containing
+    /// "not planned" would have passed all seven. So the accepted markers are exactly the ones
+    /// that contradict *having been built*.
+    ///
+    /// The truth, chained below rather than restated: `Package.swift` declares
+    /// `dependencies: []`, HaishinKit is not a dependency, and `BroadcastPublisher` is a
+    /// `#if canImport(HaishinKit)` scaffold that cannot compile into a working publisher. The
+    /// deletion that DID happen in July 2026 was the video EDITOR (#121 Slice 3) — the two got
+    /// merged into one sentence, and the sentence outlived the check.
+    ///
+    /// ⚠️ WHAT THIS CANNOT DO: it cannot catch the same lie phrased without the token, e.g.
+    /// "live streaming was built and removed". That is the #364 limit and it is real — but
+    /// "RTMP" is the term every one of the five offenders used, and a scan for the generic word
+    /// `streaming` collides with legitimate copy on four pages. Narrow and honest beats broad
+    /// and disarmed.
+    func testNothingClaimsRTMPWasEverBuilt() throws {
+        let manifest = try String(
+            contentsOf: try repoRoot().appendingPathComponent("Package.swift"), encoding: .utf8)
+        XCTAssertTrue(manifest.contains("dependencies: []"), """
+            `Package.swift` no longer declares an empty dependency list. If HaishinKit (or any \
+            RTMP stack) was actually linked, this whole test is describing a build that no \
+            longer exists — reword the site FIRST, then delete or invert this guard.
+            """)
+
+        let markers = ["never built", "scoped and cut", "scaffold", "not linked", "never linked"]
+        let offenders = try mentionsWithoutMarker("RTMP", markers: markers,
+                                                  back: 260, forward: 200)
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) mention(s) of RTMP on the site are not near any of \(markers): \
+            \(offenders.prefix(3).joined(separator: " | ")). RTMP was never built — say "scoped \
+            and cut, never built", not "built and removed" (that was the VIDEO EDITOR, #121 \
+            Slice 3). See `ContentPipeline/CLAIMS.md` before rewording.
+            """)
+    }
+
+    /// Ableton Link is a roadmap item with ZERO code: `git grep -E "AbletonLink|LinkKit|ABLLink"`
+    /// over `Sources/` returns nothing, and `Package.swift` links nothing. Eight of the ten
+    /// phrased site mentions already said "roadmap"/"planned"; the two that did not were a bare
+    /// `<li>Ableton Link</li>` and an ideas-page list — both technically under a heading that
+    /// qualified them, but too far away for any window a guard can justify, so both were given
+    /// their own qualifier.
+    ///
+    /// The worst offender was not phrased at all: a spec-table badge reading `MIDI · Link` —
+    /// no verb, no qualifier, in a row of things that ship today. That is how an unqualified
+    /// claim survives a truth pass: it is not a sentence, so nobody reads it as one.
+    ///
+    /// ⚠️ THIS GUARD CANNOT SEE THAT BADGE, AND THAT IS WORTH STATING RATHER THAN GLOSSING. It
+    /// scans for the two-word phrase "Ableton Link"; the badge said only "Link", and scanning
+    /// for the bare token over HTML is unusable (`<link>`, "linked", "linking", every anchor's
+    /// prose). So the badge was fixed by hand and this test protects only the phrased mentions.
+    /// A green here means no PROSE overclaims Link — not that no abbreviation does.
+    func testEveryAbletonLinkMentionIsUnshipped() throws {
+        let markers = ["roadmap", "planned", "not in the app"]
+        let offenders = try mentionsWithoutMarker("Ableton Link", markers: markers,
+                                                  back: 240, forward: 200)
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) mention(s) of Ableton Link are not marked as unshipped: \
+            \(offenders.prefix(3).joined(separator: " | ")). Nothing in `Sources/` imports \
+            LinkKit and `Package.swift` links nothing; Link is a roadmap item (#111).
+            """)
+    }
+
+    /// Motion is a STRUCK word (CLAUDE.md, 2026-07-31): `ModSource.motion.hasProducer` is hard
+    /// `false`, all six `BioSampleFrame` construction sites write `motionEnergy: 0`, the last
+    /// CoreMotion provider went in the 2026-06-19 cleanup, and `/echoelmusic/bio/motion` is
+    /// deliberately not sent (#215 — "a constant 0 is indistinguishable from a still
+    /// performer"). The press page nevertheless said "your heartbeat, breath and motion compose
+    /// live".
+    ///
+    /// ⛔ A BARE `motion` SCAN IS THE #364 TRAP AND I MEASURED IT BEFORE WRITING THIS. The token
+    /// appears across `docs/` in roughly twenty places and almost every one is legitimate:
+    /// "reduced-motion support" and `prefers-reduced-motion` (accessibility — required copy),
+    /// "Legibility & motion safety", "filter motion", "chord motion", "your pulse drives
+    /// motion" (all MUSICAL motion), and "head motion" on the explicitly-labelled ideas page.
+    /// A keyword guard would go red on the accessibility statement — the site being at its most
+    /// correct.
+    ///
+    /// So the rule is the LIST FORM, not the token: motion joined by `and` / `&` / `,` to a
+    /// clause that already named another body signal within 60 characters. That is precisely
+    /// the shape of the false claim and none of the legitimate uses can reach it — "drives
+    /// motion" and "filter motion" have no conjunction, and "Legibility & motion safety" has
+    /// the conjunction but no bio word in front of it. Measured, not assumed: zero hits on the
+    /// current tree, THREE on the tree this commit repaired — the press headline, the
+    /// `bioFrames` payload row, and the `bioEvents` onset row.
+    ///
+    /// ⚠️ WHAT THIS CANNOT DO, and one case is already in the tree it just guarded. It cannot
+    /// judge a claim that stands alone rather than joining a list: `architecture.html` also
+    /// described a "motion peak (hysteresis 0.6/0.3)" detector with no conjunction in front of
+    /// it, so this scan was blind to it and it was corrected by hand in the same commit. The
+    /// list form is guarded because it is the shape the site produced three times unprompted —
+    /// motion reads as a natural fourth item after heart, breath and coherence. Guarding the
+    /// reachable shape beats guarding an imagined one badly, but the gap is real, not rhetorical.
+    func testMotionIsNotListedAsABodySignalTheAppSenses() throws {
+        XCTAssertFalse(ModSource.motion.hasProducer, """
+            `ModSource.motion.hasProducer` is now true — something measures motion again. \
+            This test asserts the site does NOT claim motion as an input; if that became true, \
+            update the copy FIRST and then invert this guard, in the same commit.
+            """)
+
+        let bio = ["breath", "heartbeat", "heart rate", "pulse"]
+        guard let rx = try? NSRegularExpression(pattern: "(?:and|&amp;|,)\\s+motion\\b",
+                                                options: [.caseInsensitive]) else {
+            return XCTFail("the conjunction pattern did not compile — the scan checked nothing")
+        }
+
+        var offenders: [String] = []
+        for page in try pages() {
+            let html = page.html
+            let ns = html as NSString
+            for m in rx.matches(in: html, range: NSRange(location: 0, length: ns.length)) {
+                let start = m.range.location
+                let preLo = max(0, start - 60)
+                let preceding = ns.substring(with: NSRange(location: preLo,
+                                                          length: start - preLo)).lowercased()
+                guard bio.contains(where: { preceding.contains($0) }) else { continue }
+                let lo = max(0, start - 90)
+                let hi = min(ns.length, m.range.location + m.range.length + 90)
+                offenders.append("\(page.name): …"
+                    + ns.substring(with: NSRange(location: lo, length: hi - lo)) + "…")
+            }
+        }
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) place(s) list motion alongside another body signal: \
+            \(offenders.prefix(3).joined(separator: " | ")). Nothing measures motion — \
+            `hasProducer` is false and every `BioSampleFrame` writes `motionEnergy: 0`. Name \
+            the three real ones (heart, breath, coherence) or say the field is always 0.
+            """)
+    }
 }

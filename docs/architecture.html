@@ -176,9 +176,9 @@
             <section id="bus">
                 <h2>EngineBus &mdash; the spine <span class="tag">LIVE</span></h2>
                 <p><code>EngineBus</code> is <code>@MainActor @Observable</code> and is the single source of truth. It has a <strong>hybrid design</strong>: a control plane for SwiftUI (observable <code>latestBio</code>, <code>latestControllerEvent</code>, <code>latestBioEvent</code> snapshots) and a <strong>lock-free data plane</strong> of three typed queues for real-time consumers. Producers call <code>nonisolated</code> publish methods from any thread; consumers poll the queues without ever touching the bus object.</p>
-                <div class="data-row"><div class="k"><code>bioFrames</code></div><div class="v"><code>SPSCQueue&lt;BioSampleFrame&gt;</code> — heart rate (BPM), HRV (normalized), breath rate, breath phase, coherence, motion energy.</div></div>
+                <div class="data-row"><div class="k"><code>bioFrames</code></div><div class="v"><code>SPSCQueue&lt;BioSampleFrame&gt;</code> — heart rate (BPM), HRV (normalized), breath rate, breath phase, coherence, and a motion-energy field that is always 0 — no motion sensor feeds it.</div></div>
                 <div class="data-row"><div class="k"><code>controllerEvents</code></div><div class="v"><code>SPSCQueue&lt;ControllerEvent&gt;</code> — note on/off, pitch bend, slide (CC&nbsp;74), air-CC.</div></div>
-                <div class="data-row"><div class="k"><code>bioEvents</code></div><div class="v"><code>SPSCQueue&lt;BioEvent&gt;</code> — discrete onsets (heartbeat, breath inhale/exhale, motion peak) with a confidence score.</div></div>
+                <div class="data-row"><div class="k"><code>bioEvents</code></div><div class="v"><code>SPSCQueue&lt;BioEvent&gt;</code> — discrete onsets (heartbeat, breath inhale/exhale) with a confidence score. A motion-peak kind exists in the type and is never emitted — no motion sensor.</div></div>
                 <div class="data-row"><div class="k">Publish API</div><div class="v"><code>publish(bio:)</code>, <code>publish(controller:)</code>, <code>publish(bioEvent:)</code> — all <code>nonisolated</code>: atomic enqueue, then an async hop to the MainActor updates the observable snapshot. No locks, no allocation on the data plane.</div></div>
                 <div class="data-row"><div class="k"><code>SPSCQueue</code></div><div class="v">Cache-line-padded, lock-free single-producer / single-consumer ring buffer. Power-of-two capacity; <code>enqueue()</code> drops the oldest on overflow; <code>tryEnqueue()</code>, <code>dequeue()</code>, <code>peek()</code>; counters for dropped/enqueued/dequeued. Index updates use atomic memory barriers — no malloc, no locks.</div></div>
             </section>
@@ -212,7 +212,7 @@
                 <p>Three pure value types form the read-only signal-conditioning core. They allocate nothing and take no locks, so they are safe to run on the audio thread. Contracts are pinned as SKILL.md specs and treated as protected (changed only with explicit approval).</p>
                 <div class="data-row"><div class="k">BioSignalDeconvolver</div><div class="v"><code>struct</code> — first conditioning stage: <strong>detrend</strong> (biquad high-pass; 0.5&nbsp;Hz PPG/ECG, 1&nbsp;Hz EEG, 0.1&nbsp;Hz accelerometer) + <strong>mains notch</strong> (50/60&nbsp;Hz, Q=30) + <strong>validity</strong> flag (recovering / valid / corrupt). Direct-Form-II-Transposed biquads. <code>process(_:) → CleanedSample</code>.</div></div>
                 <div class="data-row"><div class="k">HilbertSensorMapper</div><div class="v"><code>enum</code> (static) — maps a 1-D sensor index to a 2-D grid coordinate along a <strong>Hilbert curve</strong>, so numerically adjacent channels land in spatially adjacent cells (Manhattan distance ≤ 1). <code>map(index:order:)</code>, <code>mapToGrid(values:gridSize:)</code>.</div></div>
-                <div class="data-row"><div class="k">BioEventGraph</div><div class="v"><code>struct</code> — continuous frames → discrete events. <strong>Heartbeat</strong> (adaptive threshold + 300&nbsp;ms refractory + 2&nbsp;s envelope, ≤200&nbsp;bpm), <strong>breath</strong> phase markers (inhale on the 0.5 crossing, exhale on wrap), <strong>motion peak</strong> (hysteresis 0.6/0.3). Each <code>BioEvent</code> carries <code>kind</code>, <code>confidence</code>, <code>aux</code> (e.g. inter-beat interval). EEG-burst &amp; coherence-shift detectors are reserved.</div></div>
+                <div class="data-row"><div class="k">BioEventGraph</div><div class="v"><code>struct</code> — continuous frames → discrete events. <strong>Heartbeat</strong> (adaptive threshold + 300&nbsp;ms refractory + 2&nbsp;s envelope, ≤200&nbsp;bpm), <strong>breath</strong> phase markers (inhale on the 0.5 crossing, exhale on wrap), and a <strong>motion peak</strong> detector (hysteresis 0.6/0.3) that never fires — no motion sensor produces its input. Each <code>BioEvent</code> carries <code>kind</code>, <code>confidence</code>, <code>aux</code> (e.g. inter-beat interval). EEG-burst &amp; coherence-shift detectors are reserved.</div></div>
                 <p class="note">These modules use solid, well-understood DSP (RBJ-cookbook biquads, envelope/threshold and hysteresis detection); the design is informed by the bio-signal deconvolution and event-graph literature rather than porting any single paper verbatim.</p>
             </section>
 
@@ -266,7 +266,7 @@
                 <div class="data-row"><div class="k">Visual modes (planned)</div><div class="v"><strong>Cymatics</strong> (Chladni standing waves), <strong>Mandala</strong> (radial symmetry), <strong>Particles</strong> (procedural), <strong>Waveform</strong>, <strong>Spectral</strong> bars. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Chroma key (planned)</div><div class="v">A 6-pass GPU pipeline: HSV key extraction → Sobel edge → despill → feather → light-wrap → premultiplied composite, with preview overlays. <span class="tag">ROADMAP</span></div></div>
                 <div class="data-row"><div class="k">Video export (planned)</div><div class="v">Short-form 720×1280 (9:16) H.264 MP4 with animated waveform + HR/coherence overlay. <span class="tag">ROADMAP</span></div></div>
-                <div class="data-row"><div class="k">Further roadmap</div><div class="v">Hilbert-map display, flow field, kaleidoscope, nebula, generative &amp; AR worlds. <span class="tag">ROADMAP</span> &mdash; NLE editing, ProRes, multi-cam, color grading and RTMP streaming are <strong>not planned</strong> (built and removed, July&nbsp;2026).</div></div>
+                <div class="data-row"><div class="k">Further roadmap</div><div class="v">Hilbert-map display, flow field, kaleidoscope, nebula, generative &amp; AR worlds. <span class="tag">ROADMAP</span> &mdash; NLE editing, ProRes, multi-cam, color grading and RTMP streaming are <strong>not planned</strong> (the video editor was built and removed in July&nbsp;2026; RTMP was never built).</div></div>
             </section>
 
             <!-- STUDIO UI -->
@@ -349,7 +349,7 @@
                 <div class="data-row"><div class="k">EchoelMIDI <span class="tag">LIVE</span></div><div class="v">MIDIInput · MIDIBusPublisher → EngineBus.controllerEvents (notes, pitch bend, CC&nbsp;74 slide, air-CC). MPE zone/pressure handling <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">EchoelBio <span class="tag">LIVE</span></div><div class="v">EchoelBioEngine · BioSignalDeconvolver · BioEventGraph · HilbertSensorMapper · HealthKitBioPublisher (Watch / Oura via Health) · PolarH10BioPublisher (any BLE Heart Rate device) · CameraRPPGBioPublisher (finger-on-lens rPPG, live) · BioSimulator. ADM-OSC object output via <code>ADMOSCSender</code>.</div></div>
                 <div class="data-row"><div class="k">EchoelVis <span class="tag">LIVE</span></div><div class="v">MetalBioView — Metal bio-visual live today (HR&rarr;pulse &le;3&nbsp;Hz, coherence&rarr;hue, breath&rarr;spread). plus richer modes and chroma key <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">EchoelVid <span class="tag">CUT</span></div><div class="v">Video editing and RTMP were built and removed in July&nbsp;2026. What remains is <code>VisualRecorder</code> — the immersive visual captured as a share-ready MP4.</div></div>
+                <div class="data-row"><div class="k">EchoelVid <span class="tag">CUT</span></div><div class="v">Video editing was built and removed in July&nbsp;2026; RTMP was never built. What remains is <code>VisualRecorder</code> — the immersive visual captured as a share-ready MP4.</div></div>
                 <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
                 <div class="data-row"><div class="k">EchoelLux <span class="tag">LIVE</span></div><div class="v">ArtNetSender · SACNSender — native Art-Net (UDP 6454) and sACN / E1.31 (unicast) lighting live today, flash-safe. DMX-512 · HomeKit · fixture profiles · cue lists <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">EchoelStage / EchoelAI <span class="tag">ROADMAP</span></div><div class="v">External displays / projection · on-device CoreML &amp; stems — designed, not yet implemented.</div></div>
@@ -392,7 +392,7 @@
                             <li>EchoelLux — DMX-512 / HomeKit (Art-Net + sACN live)</li>
                             <li>EchoelStage — displays / projection</li>
                             <li>EchoelAI — on-device CoreML / stems</li>
-                            <li>Ableton Link</li>
+                            <li>Ableton Link — planned, not linked today</li>
                             <li>iPad · Mac · Watch · TV · Vision</li>
                         </ul>
                         <h3>Deliberately cut</h3>
@@ -402,7 +402,7 @@
                             <li>Drums, step sequencer, sampler</li>
                             <li>Note editor (piano roll)</li>
                             <li>Video editing, ProRes, color grading</li>
-                            <li>RTMP / live broadcast</li>
+                            <li>RTMP / live broadcast — scoped and cut, never built</li>
                             <li>AUv3 — as a plugin and as a host</li>
                         </ul>
                     </div>
