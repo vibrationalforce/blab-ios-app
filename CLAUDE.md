@@ -269,31 +269,91 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `BreathPattern.sample` getrieben — 120 s Resonanz, dann 180 s 4-7-8 —
                           veröffentlichte der Schätzer an ALLEN 66 ganzzahligen Ruhepulsen 45…110
                           im Mittel **5,985/min bei Konfidenz exakt 1,000**, während der Körper mit
-                          3,158 atmete: **+89,5 % Fehler, zertifiziert**. Box genauso (11 verworfene
-                          Durchgänge, Konfidenz 1,000). Am ANNAHME-Anker fallen alle 66 auf
-                          Konfidenz 0,000 und veröffentlichen nichts — die ehrliche Antwort: wir
-                          können dieses Tempo nicht lesen, also sagen wir nichts, statt die Zahl der
-                          vorigen Technik zu wiederholen.
-                          ⭐ Und es kostet im Band NICHTS, auch das gemessen statt angenommen: über
-                          dieselbe Puls-Achse sind ein Resonanz- und ein Coherent-Take in
-                          `ratePerMinute` UND `confidence` BITGLEICH (0 von 66 Pulsen weichen ab).
-                          Ein einzelner verworfener Durchgang mitten im Take senkt die Konfidenz
-                          jetzt für einen Zyklus, statt unsichtbar zu bleiben — das ist die richtige
-                          Lesart eines Zyklus, den wir nicht messen konnten, keine Regression.
+                          3,158 atmete: **+89,5 % Fehler, zertifiziert**. Am ANNAHME-Anker fallen
+                          alle 66 auf Konfidenz 0,000 und veröffentlichen nichts — die ehrliche
+                          Antwort: wir können dieses Tempo nicht lesen, also sagen wir nichts, statt
+                          die Zahl der vorigen Technik zu wiederholen.
+                          ⛔ **Hier stand „Box genauso (11 verworfene Durchgänge, Konfidenz 1,000)"
+                          — eine unqualifizierte Behauptung aus EINEM Puls, und 60 ist genau der
+                          Puls, den der #435-Eintrag drei Bildschirme weiter unten selbst als
+                          entartet benennt** (16-s-Zyklus = exakt 16 Schläge). Gewischt: ausgeliefert
+                          veröffentlicht Box an 66/66 Pulsen, davon **16 mit der STALEN
+                          Resonanz-Zahl** (>5/min); mit der Reparatur an **45/66**, stale-Zahl
+                          **0/66**. Die Reparatur macht Box also nicht still — sie nimmt der Zahl
+                          die fremde Herkunft. ⛔ Und die zweite Fassung nannte diese 45 „jede davon
+                          Box' EIGENE Rate": sie sind box-ABGELEITET, aber sie lesen 3,8168…4,7743
+                          für einen Körper bei 3,7500, also **+1,8 % bis +27,3 %, Mittel +8,8 %** —
+                          der Quantisierungsfehler aus #435, unrepariert. Eine Formulierung, die ihn
+                          verschweigt, behauptet ihn als behoben.
+                          ⛔ **Und „es kostet im Band NICHTS" war am unteren Rand FALSCH, zweimal
+                          hintereinander.** Erste Fassung: nur bei 6/min gemessen. Zweite: 4,00 und
+                          28,04 dazu — und trotzdem daneben, weil die zahlende Scheibe UNTER 4 liegt.
+                          Der Annahme-Boden ist `minRate/tolerance` = **3,7736**, und #426 hat
+                          `HealthWritePolicy` bewusst auf 3,7 gesenkt, um genau diese Scheibe
+                          zuzulassen. Gewischt über dieselben 66 Pulse: **3,78/min 64/66 → 51/66 ·
+                          3,80/min 66/66 → 58/66 · ab 3,85 bis 30 unverändert** (4,00 · 6,00 · 12 ·
+                          20 · 28,04 · 30: 0 Abweichungen). Die Richtung stimmt und ist ebenfalls
+                          gemessen — die stillgelegten Messwerte lagen bei 3,78 um +2,8…+8,3 %
+                          daneben —, aber die ehrliche Formulierung ist „kostet ab ~3,85/min
+                          nichts", nicht „kostet im Band nichts".
+                          ⭐ Die In-Band-Hälfte ist ohnehin ein THEOREM und nicht ein Sweep:
+                          `lastAcceptT` hat genau EINEN Schreiber und EINEN Leser, kann also
+                          `ratePerMinute`/`amplitude`/`periodEMA`/`crossingCount` gar nicht
+                          erreichen; und wo JEDER Durchgang angenommen wird, gilt ab dem zweiten
+                          `lastAcceptT == lastCrossT`. Genau deshalb ist die Scheibe oben der ganze
+                          Preis: sie ist exakt die Menge der Takes mit VERWORFENEN Durchgängen.
+                          ⚠️ Ein verworfener Durchgang senkt die Konfidenz nur, wenn die entstehende
+                          LÜCKE `1,5·periodEMA + pullLagAllowance` (≈16,8 s bei 6/min) übersteigt —
+                          ein 20-s-Zyklus in einen 6/min-Take gespleißt drückt sie auf 0,5329 und sie
+                          erholt sich; ein Verwurf durch einen zu SCHNELLEN Durchgang kostet direkt
+                          nichts. Unter HR-Rauschen senken BEIDE Varianten auf denselben Takes
+                          (sd 4/8/12/16 bpm, je 30 Takes: 7/7/4/7 gegen 7/9/5/8) — dort ist der
+                          Einbruch der Hüllkurve zuzuschreiben, nicht dem Anker.
+                          ⚠️ Und die Erholung gehört neben die „Konfidenz 0,000", sonst liest sich
+                          die Reparatur wie eine Aussperrung: nach 180 s 4-7-8 zertifiziert
+                          wiederaufgenommene Resonanzatmung nach **3,71 s** wieder (ausgeliefert:
+                          0,63 s, weil sie nie de-zertifiziert hatte).
                           ⚠️ Der Sweep ist ein MODELL und wird NICHT festgenagelt, aus demselben
                           Grund, aus dem #435 seinen eigenen nicht festnagelt: die Zahlen stammen aus
                           meiner Transkription, sie festzunageln hieße die Transkription festnageln
                           statt das Produkt. Behauptet wird, was der AUSGELIEFERTE Typ tut, wenn man
                           ihn direkt treibt.
-                          ⚠️ Und NICHT behauptet wird der Fall ÜBER dem Band. Die dafür gebaute
-                          Fixtur (1,0 s ein / 0,9 s aus, 31,6/min) erzeugte gar keinen verworfenen
-                          Durchgang — die Glättung verschmilzt Zyklen, der Schätzer landete bei
-                          27/min, also INNERHALB. Eine Latch am oberen Rand ist nach demselben
-                          Argument plausibel und UNGEMESSEN; diesen Eintrag nicht dafür zitieren.
+                          ⚠️ **DIE GANZE 4-7-8-/BOX-AUSSAGE HÄNGT AM HALTE-MODELL, und diese Grenze
+                          fehlte in der ersten Fassung, obwohl sie die tragende ist.**
+                          `BreathPattern.sample` gibt über `holdFull`/`holdEmpty` eine FLACHE
+                          Amplitude zurück, also genau EIN aufsteigender Nulldurchgang pro Zyklus.
+                          Der #435-Eintrag hält das Gegenmodell als mindestens ebenso plausibel und
+                          am Gerät UNGEMESSEN fest: ohne Atemantrieb relaxiert der Puls während des
+                          Haltens zur Ruhelinie, das ergibt einen ZWEITEN Durchgang pro Zyklus und
+                          4-7-8 impliziert ≈6,3/min — mitten im Band, angenommen, konfident
+                          veröffentlicht, von Resonanzatmung nicht zu unterscheiden. Unter DIESEM
+                          Modell tut #452 nichts und BEIDE Latch-Tests werden rot. Kein Grund, sie
+                          abzuschwächen: der Grund, warum ein Gurt-Take das entscheidet und nicht
+                          ein drittes Modell.
+                          ⛔ **Und NICHT behauptet wird der Fall ÜBER dem Band — die BEGRÜNDUNG der
+                          ersten Fassung war dabei falsch.** Sie lautete: die Fixtur (1,0 s ein /
+                          0,9 s aus, 31,6/min) erzeuge keinen Verwurf, weil „die Glättung Zyklen
+                          verschmilzt". Das beschrieb MEINE TRANSKRIPTION, die `BreathPattern.init`
+                          übersprang. Im ausgelieferten Typ klemmt `minActiveSeconds = 1.0` beide
+                          Schenkel, dieselbe Konstruktion ist also 1,0/1,0 = **exakt 30,0/min** —
+                          unter der Annahme-Decke 31,8 — und **kein Muster aus Ein- und Ausatmung
+                          kann überhaupt schneller als 30/min pacen**. Der Fall über dem Band ist
+                          nicht „ungemessen durch eine Fixtur, die sich seltsam verhielt", sondern
+                          durch diesen Fixtur-Typ UNERREICHBAR. Niemanden auf die Glättung ansetzen.
                           ⚠️ Und die härteste Grenze zuerst, weil sie diesmal für die ganze Scheibe
                           gilt: **KEIN Gate hat diesen Code gesehen** (#451 — GitHub legt seit
                           18:33 UTC keine Läufe mehr an). Weder Kompilieren noch Ausführen ist
-                          belegt),
+                          belegt. ⛔ Und meine erste #451-Diagnose nannte als zweiten Beleg einen
+                          „seit 17:49 laufenden, 2 h über seinem 40-Minuten-Timeout hängenden"
+                          Compile-Check. Nachgeprüft: dieser Lauf ist `cancelled`, und der
+                          CI/CD-Lauf desselben Commits (`1a3d8b9`) hat sehr wohl gebaut — er stand
+                          nur **1 h 51 min in der Warteschlange** (erstellt 17:49:58, „Build for
+                          Testing" **success** 19:44:16, danach „Run Tests" rot = das bekannte
+                          founder-gated #396). Zwei verschiedene Zustände, von mir zu einem
+                          verschmolzen. Der eigentliche Befund bleibt und ist jetzt schärfer:
+                          repo-WEIT null `push`-Läufe seit 18:33:27Z und null in `queued` — kein
+                          Rückstau, sondern gar keine Datensätze. Das ist die Signatur einer
+                          Actions-Quote/Abrechnungs-Sperre, keine Branch-Eigenheit),
                           davor „175"
                           nach `ThePacedRateMustBeReadableTests.swift` (#435 — der erste
                           Wächter in dieser Kette über einem WIDERSPRUCH ZWISCHEN ZWEI EIGENEN

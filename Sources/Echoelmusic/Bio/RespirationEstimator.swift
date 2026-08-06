@@ -395,6 +395,18 @@ public struct RespirationEstimator {
     /// term measures staleness from. Deliberately NOT `lastCrossT`: see the ⛔ block on
     /// `rawSinceAccept` in `refreshConfidence`. `lastCrossT` still keeps its own job (it is the
     /// baseline the NEXT period is measured against, accepted or not).
+    ///
+    /// ⛔ AND WHY IT KEEPS ADVANCING ON A REJECTED CROSSING IS AN ARGUMENT, NOT A MEASUREMENT —
+    /// the first version of this claimed otherwise and was wrong. It said collapsing the two
+    /// "either way reintroduces a defect … the other makes every rejected cycle restart the
+    /// period". Both alternatives were then implemented and swept (resonance 300 s; resonance →
+    /// 4-7-8; all 66 integer pulses 45…110): setting `lastCrossT = nil` on a rejection and
+    /// FREEZING it both give **0 of 66 pulses different** in published verdict and rate. That is
+    /// the #444 class verbatim — a named mechanism with nothing behind it, which the next session
+    /// would implement without measuring. The defensible argument, which is NOT a measurement:
+    /// FREEZING lets the next period span two cycles, so two short noise crossings can sum into a
+    /// plausible in-band period; `nil` merely discards one more cycle. Advancing is the cheapest
+    /// of the three and the only one that keeps "period baseline" meaning one thing.
     private var lastAcceptT: Double?
     private var periodEMA = 0.0      // smoothed respiration period (s)
     private var crossingCount = 0
@@ -542,12 +554,23 @@ public struct RespirationEstimator {
         // than the size of the swing supports, however many cycles we have counted.
         //
         // Without it the freshness term below is INERT against the failure that actually
-        // ends a long take. Freshness keys on `lastCrossT`, so it only fires when the
-        // crossings STOP — a flat heart rate. But a fingertip that drifts, or a hand that
-        // relaxes, does not produce a flat trace: it produces a small noisy one, which keeps
-        // manufacturing crossings inside the 4…30/min band. Then `crossingCount` goes on
-        // rising, `lastCrossT` stays fresh, and confidence sits on the 0.5 floor while the
-        // swing that justified it is gone. Simulated on the shipped constants — 60 s of clean
+        // ends a long take. Freshness keys on the newest ACCEPTED crossing, so it only fires
+        // when accepted crossings STOP — a flat heart rate. But a fingertip that drifts, or a
+        // hand that relaxes, does not produce a flat trace: it produces a small noisy one,
+        // which keeps manufacturing crossings inside the 4…30/min band — and an IN-BAND
+        // crossing is accepted, so the anchor keeps moving. Then `crossingCount` goes on
+        // rising, the anchor stays fresh, and confidence sits on the 0.5 floor while the
+        // swing that justified it is gone.
+        //
+        // ⛔ THESE TWO SENTENCES SAID `lastCrossT` UNTIL THE #452 REVIEW, and they had been
+        // false since #452 changed the anchor ~180 lines below — inside the ⭐ block named for
+        // the very term that moved. #452 rewrote the block AT the anchor and left the block
+        // that EXPLAINS it, so a reader who stopped at the section titled for the thing got the
+        // pre-#452 story. The paragraph's own argument is unaffected (drift noise is in-band,
+        // therefore accepted, therefore still invisible to freshness) — which is exactly why
+        // nothing went red. Lesson, and it is not "grep harder": when a variable changes
+        // meaning, the prose that survives is the prose whose ARGUMENT still works, and that is
+        // the prose least likely to be re-read. Simulated on the shipped constants — 60 s of clean
         // 6/min RSA followed by 90 s of a 0.15 bpm wobble — confidence held at 0.524 (gate
         // OPEN) with an envelope of 0.071, publishing a fabricated 11.9 breaths/min. With the
         // veto the same series ends at 0.048 and the gate closes.
@@ -717,21 +740,76 @@ public struct RespirationEstimator {
         // method and driving it with `BreathPattern.sample`: 120 s of resonance, then 4-7-8.
         // At all 66 integer resting pulses 45…110 the estimator published a mean 5.985/min at
         // confidence EXACTLY 1.000 while the body breathed 3.158 — a **+89.5% error, certified**.
-        // Same for box (11 rejected crossings, confidence 1.000). Anchored on acceptance, all 66
-        // fall to confidence 0.000 and publish nothing, which is the honest answer: we cannot
-        // read this pace, so we say nothing rather than repeating the previous technique's number.
+        // Anchored on acceptance, all 66 fall to confidence 0.000 and publish nothing, which is
+        // the honest answer: we cannot read this pace, so we say nothing rather than repeating
+        // the previous technique's number.
         //
-        // It costs nothing in band, and that is measured too, not assumed: over the same pulse
-        // axis a resonance take and a coherent take are BIT-IDENTICAL in both `ratePerMinute`
-        // and `confidence` (0 of 66 pulses differ). A single rejected crossing mid-take now dips
-        // confidence for one cycle instead of being invisible — which is the correct reading of
-        // one cycle we could not measure, not a regression.
+        // ⛔ AND THE FIRST VERSION OF THIS BLOCK ADDED "Same for box … all 66 fall to 0.000",
+        // WHICH IS FALSE — and `BreathPattern.swift` said so, in a comment written forty minutes
+        // earlier in the same session: box's crossings are ACCEPTED at most pulses (it reads
+        // ~3% high rather than going quiet, the #435 finding). Swept properly, box is the more
+        // interesting case, not a copy of 4-7-8: shipped, it publishes at 66 of 66 pulses and at
+        // **16 of them the published number is the STALE resonance rate** (>5/min); anchored on
+        // acceptance it still publishes at 45 of 66, and the stale-resonance count is **0 of 66**.
+        // So the fix does not silence box; it removes the previous technique's number from the 16
+        // pulses that were repeating it. The lesson is the one this repo keeps paying for: a claim
+        // about a second case is not a corollary of the first, and the file two directories over
+        // already had the number that refuted it.
         //
-        // ⚠️ What is NOT claimed: the ABOVE-band case. The fixture built for it (1.0 s in /
-        // 0.9 s out, 31.6/min) never actually produced a rejected crossing — the smoothing
-        // merges cycles and the estimator settled at 27/min, inside the band. So the measured
-        // claim is the below-band one only. An above-band latch is plausible by the same
-        // argument and is unmeasured here; do not cite this block for it.
+        // ⛔ AND THE SENTENCE THAT REPLACED IT WAS STILL TOO KIND: it called those 45 "every one
+        // of them box's OWN rate". They are box-DERIVED, not box's rate — swept, they run
+        // 3.8168…4.7743/min for a body pacing 3.7500, i.e. **+1.8% to +27.3%, mean +8.8%**. The
+        // honest claim is the one that survives the sweep: none of them is the PREVIOUS
+        // technique's number. Beat quantisation still reads box high (the #435 finding), and that
+        // is a different, unfixed problem — writing "box's own rate" quietly claimed it fixed.
+        //
+        // ⛔ AND "IT COSTS NOTHING IN BAND" WAS FALSE AT THE LOW EDGE, twice over. The first
+        // version measured only 6/min — the single rate furthest from either edge — and wore a
+        // band-wide qualifier. The second added 4.00 and 28.04/min and still missed it, because
+        // the sliver that pays is BELOW 4: the accept floor is `minRate/tolerance` = 3.7736, and
+        // #426 deliberately moved `HealthWritePolicy.respiratoryRange` down to 3.7 to admit
+        // exactly that sliver. Swept over the same 66 pulses, steady breathers:
+        //
+        //   3.78/min  publishes 64/66 → 51/66      3.85/min and every rate to 30  UNCHANGED
+        //   3.80/min  publishes 66/66 → 58/66      (4.00 · 6.00 · 12 · 20 · 28.04 · 30: 0 differ)
+        //
+        // The direction is right and that is measured too, not assumed: the readings the fix
+        // silences at 3.78 were +2.8%…+8.3% off (mean +4.5%), at 3.80 +3.2%…+7.8%. But the
+        // honest wording is "costs nothing at or above ~3.85/min; below that it silences readings
+        // that were wrong", not "costs nothing in band" — the estimator's band starts at 3.7736,
+        // and a claim must be measured where its own boundary is.
+        //
+        // ⭐ AND THE IN-BAND HALF IS A THEOREM, WHICH IS WORTH MORE THAN THE SWEEP THAT AGREES
+        // WITH IT. `lastAcceptT` has exactly one write (the accept branch) and one read (here),
+        // so the change cannot reach `ratePerMinute`, `amplitude`, `periodEMA` or
+        // `crossingCount` — only `confidence` can move. And on a take where EVERY crossing is
+        // accepted, `lastAcceptT == lastCrossT` from the second crossing onward, so confidence
+        // cannot move either. That is why the sliver above is the whole cost: it is exactly the
+        // set of takes where some crossings are NOT accepted.
+        //
+        // ⚠️ A rejected crossing dips confidence only when the resulting GAP exceeds
+        // `1.5·periodEMA + pullLagAllowance` (≈16.8 s at 6/min). Splicing one 20 s cycle into a
+        // 6/min take dips it to 0.5329 and it recovers; a rejection caused by a too-FAST crossing
+        // (the noise case) leaves the anchor young and costs nothing directly. Under additive HR
+        // noise both variants already dip on the same takes (sd 4/8/12/16 bpm, 30 takes each:
+        // 7/7/4/7 dips shipped vs 7/9/5/8 with the fix) — the dip there is the envelope's, not
+        // the anchor's. The first version of this paragraph said "dips for one cycle" flatly,
+        // which is true only for the long-gap case.
+        //
+        // ⚠️ AND RECOVERY IS THE NUMBER THAT BELONGS NEXT TO "confidence 0.000", or the fix reads
+        // like a lock-out: after 180 s of 4-7-8, resuming resonance re-certifies in **3.71 s**
+        // (shipped: 0.63 s, because it never de-certified). Three and a half seconds of honest
+        // silence, not a dead estimator.
+        //
+        // ⚠️ What is NOT claimed: the ABOVE-band case — and the reason the first version gave for
+        // that was wrong. It blamed the smoothing ("merges cycles, settled at 27/min"), which
+        // described MY TRANSCRIPTION, not this app: the transcription skipped `BreathPattern.init`,
+        // so its 1.0 s in / 0.9 s out fixture really did pace 31.6/min there. In the shipped type
+        // `minActiveSeconds = 1.0` clamps both legs, so that construction IS 1.0/1.0 = exactly
+        // 30.0/min — under the 31.8 accept ceiling — and no inhale+exhale `BreathPattern` can pace
+        // above 30/min at all. The above-band case is not "unmeasured through a fixture that
+        // behaved oddly"; it is unreachable through this fixture type, and reaching it needs a
+        // different driver. Do not send the next session to investigate the smoothing.
         let rawSinceAccept = lastAcceptT.map { t - $0 } ?? 0
         let chargeableSince = Swift.max(0.0, rawSinceAccept - Self.pullLagAllowance)
         let freshness = chargeableSince <= grace
