@@ -72,9 +72,15 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     /// ⭐ BREATH'S LOW BOUND IS THE GATE'S LOW BOUND, DELIBERATELY (#429). It was `4`,
     /// copied from `RespirationEstimator.minRate` — and that file and the `isMeasured`
     /// doc below both named it as the last live instance of that copy. The set of values
-    /// that can EVER reach `normalizedValue` on a gated route is exactly
+    /// that can EVER reach `normalizedValue` on a GATED route is exactly
     /// `BioSampleFrame.plausibleBreathRate` (`3...40`), because `isMeasured` drops everything
-    /// else. So a scale starting at 4 left `[3, 4)` admitted-and-dead: a slow breather the
+    /// else. (Three of the six consumers gate — the FX, FX-bio and visual paths. `output(for:
+    /// frame:)` below and `BoundParameter.resolved` do NOT; see the KNOWN, DEFERRED note at
+    /// `output`. It changes nothing here: outside `3...40` both the old and the new scale go
+    /// negative or past 1 and `clamp01` flattens them identically, so an ungated consumer sees
+    /// bit-identical values. Post-#429 it gets strictly better — a 3.5/min breather and the
+    /// `breathRate: 0` "no respiration" sentinel used to be the same number.)
+    /// So a scale starting at 4 left `[3, 4)` admitted-and-dead: a slow breather the
     /// gate called a measurement spent exactly zero depth, indistinguishable from a body
     /// that is not breathing. Chaining to the GATE closes that and mints no new constant;
     /// chaining to `reportableRange` (3.7736…) would have minted a fifth respiration number
@@ -83,10 +89,14 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     ///
     /// ⚠️ THE TOP IS NOT WIDENED TO MATCH, AND THAT ASYMMETRY IS THE DECISION, NOT AN
     /// OVERSIGHT. The gate admits to 40; above 30 this scale saturates at 1.0 and stays
-    /// there. Widening to `3...40` would cost 0.27 of travel at 20/min — squeezing every
-    /// rate a seated performer actually breathes at — to give resolution to panting.
-    /// Saturating a rate above 30 at full depth is the right answer, not a rounding error.
+    /// there. Widening to `3...40` costs **27% of travel at every rate** (10/37, a constant
+    /// ratio) — in absolute terms 0.090 at 12/min, 0.170 at 20/min, and a maximum of 0.270
+    /// at 30/min. It squeezes every rate a seated performer actually breathes at, to give
+    /// resolution to panting. Saturating above 30 at full depth is a bounded answer.
     /// If you widen the top, delete this paragraph in the same commit or it becomes a lie.
+    /// (⛔ This said "0.27 of travel at 20/min" for one commit. 0.27 is the RELATIVE loss,
+    /// which is the same at every rate, and the ABSOLUTE loss at 30/min; at 20/min it is
+    /// 0.170. One number wearing two units, pinned to the wrong rate, in four places.)
     ///
     /// ⚠️ IT MOVES SHIPPED ARITHMETIC, AND HERE IS THE SIZE OF IT: `(v−3)/27` against
     /// `(v−4)/26`. The shift is +0.037037 at 4/min and falls monotonically to EXACTLY zero
@@ -94,9 +104,21 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     /// 20/min 0.6154 → 0.6296. It moves in the direction the product wants: the HRV-resonance
     /// band (~4.5–6/min, what `BreathPacer` paces and `BioScienceInfo` cites) sat in the
     /// bottom 8% of every breath route and gains +44% of travel at 6/min, +189% at 4.5 —
-    /// one number would understate it at one end and overstate it at the other. No SHIPPED
-    /// route binds `.breathRate` — the enum case appears only in this file's own switches —
-    /// so nothing a user hears today changes; this is the mapping a built route will get.
+    /// one number would understate it at one end and overstate it at the other.
+    ///
+    /// ⛔ AND HERE IS WHO HEARS IT, because the first version of this paragraph said "no
+    /// SHIPPED route binds `.breathRate` — the enum case appears only in this file's own
+    /// switches — so nothing a user hears today changes", and BOTH halves were false. The
+    /// chain: `hasProducer` returns `true` for `.breathRate` → `FXModCarrier.allChoices`
+    /// (`FXModulation.swift`) is `ModSource.allCases.filter(\.hasProducer)` → the live
+    /// carrier `Picker` in `EchoelFXView` offers **"Breath rate"** → `FXModulation
+    /// .contributions` calls `normalizedValue` on it. There is a `switch` on `ModSource`
+    /// in `FXModulation.swift` too. What IS true, and it is weaker: `FXBioModulator.routes`
+    /// is in-memory only — no preset, store or default carries an `[FXModRoute]` — so no
+    /// PERSISTED route is silently re-mapped and nothing is bound out of the box. A route
+    /// the user builds in-session does change. **An audibility claim is the one a future
+    /// session trusts when deciding whether a range change is safe; do not write one from
+    /// a grep of this file alone.**
     ///
     /// ⚠️ WHAT THIS DOES NOT FIX, so the next session does not read it as fixed: the scale
     /// is LINEAR over a 10× span, and rate is perceived roughly logarithmically, so the

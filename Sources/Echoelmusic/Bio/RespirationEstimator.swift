@@ -339,13 +339,25 @@ public struct RespirationEstimator {
     /// bound is convex-combination exact; in `Double` a rounding step can put the result one ulp
     /// outside. Irrelevant against any real consumer's margin, but "cannot" would be too strong.)
     ///
-    /// ⚠️ FOUR RESPIRATION BANDS NOW EXIST IN THIS REPO and they are deliberately different, so
+    /// ⚠️ FIVE RESPIRATION BANDS EXIST IN THIS REPO and they are deliberately different, so
     /// nobody unifies them by reflex: this one (what the estimator can emit),
     /// `BioSampleFrame.plausibleBreathRate` `3...40` (is this frame a measurement at all — gates the
     /// readout, OSC egress and `PerformerSignature`), `HealthWritePolicy.respiratoryRange`
-    /// `3.7...40` (may this be written into a health record — the strictest act, hence the
-    /// narrowest low end above this one), and `ModSource.breathRate.range` `3...30` (a modulation
-    /// SCALING range, not a validity test). That fourth one WAS `4...30` — a copy of this file's
+    /// `3.7...40` (may this be written into a health record — the strictest ACT; its low bound sits
+    /// above `plausibleBreathRate`'s 3.0 for that reason and BELOW this property's 3.7736 on
+    /// purpose, so a DSP retune cannot narrow what may be written. ⛔ This read "the narrowest low
+    /// end above this one", which parses as a claim about THIS property and is false), and
+    /// `ModSource.breathRate.range` `3...30` (a modulation SCALING range, not a validity test).
+    ///
+    /// ⛔ THE FIFTH WAS FOUND BY THE #429 REVIEWER AND IS THE MOST REACHABLE OF THE LOT:
+    /// `RecordAnchor.bioNormalized` scales breath over `6.0...24.0`, is called every step from
+    /// `RecordController` on live bio, and therefore reads EXACTLY 0 across the whole HRV
+    /// resonance band this file exists to measure — #429's defect verbatim, in the shipped path,
+    /// while #429 fixed the dormant one. Registered as its own slice, not folded in here. This
+    /// paragraph said "FOUR" while a fifth already shipped: an enumeration whose stated purpose
+    /// is stopping the next one from appearing unnoticed had already missed one.
+    ///
+    /// That `ModSource` band WAS `4...30` — a copy of this file's
     /// `minRate`/`maxRate` — and #429 unpicked the copy rather than tightening it: its low bound
     /// is now `BioSampleFrame.plausibleBreathRate`'s, because a scaling range should span what the
     /// GATE admits, not what this estimator can emit. Its top stays 30 on purpose. Do not

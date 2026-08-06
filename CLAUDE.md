@@ -264,21 +264,51 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Wächter — dieselbe Form wie `HealthWritePolicy` seit #426.
                           ⚠️ Die OBERE Grenze ist absichtlich NICHT mitgezogen, und das ist der Grund,
                           warum die Asymmetrie als eigener Test dasteht statt als Kommentar: `3...40`
-                          würde bei 20/min 0,27 Reiseweg kosten — jede Rate, die ein sitzender Performer
-                          wirklich atmet — um Auflösung fürs Hecheln zu kaufen. Der gemessene Preis der
+                          kostet PAUSCHAL 27 % Reiseweg bei JEDER Rate in 3…30 (das Verhältnis 27/37
+                          hängt nicht von der Rate ab) — absolut 0,170 bei 20/min, 0,270 bei 30/min —
+                          und trifft damit jede Rate, die ein sitzender Performer wirklich atmet, um
+                          Auflösung fürs Hecheln zu kaufen. ⛔ Hier stand „bei 20/min 0,27", an FÜNF
+                          Stellen gleichzeitig: 0,27 ist der RELATIVE Verlust, der bei jeder Rate
+                          gleich ist, UND der absolute bei 30/min — eine Zahl in zwei Einheiten, an
+                          die falsche Rate geheftet. Der gemessene Preis der
                           Änderung, die WIRKLICH passiert ist: +0,037037 bei 4/min, monoton fallend auf
                           EXAKT null bei 30 und darüber (6/min 0,0769 → 0,1111, 12/min 0,3077 → 0,3333).
                           Sie bewegt sich in die Richtung, die das Produkt will: das HRV-Resonanzband
                           (~4,5–6/min, das `BreathPacer` vorgibt) lag in den unteren 8 % jeder Atem-Route.
-                          ⚠️ Was er NICHT kann, und das ist hier die Hauptsache: KEINE ausgelieferte
-                          Route bindet `.breathRate` — der Enum-Case kommt nur in den eigenen `switch`es
-                          seiner Datei vor. Es ändert sich also nichts, was heute jemand hört, und
-                          folglich kann auch keine Hörprobe bestätigen, dass die Kurve die RICHTIGE ist.
+                          ⛔ **UND DIE ERSTE FASSUNG BEHAUPTETE HIER, ES SEI UNHÖRBAR — beide Hälften
+                          falsch, und es ist genau die Behauptung, der eine künftige Sitzung glaubt,
+                          wenn sie entscheidet, ob eine Bereichsänderung gefahrlos ist.** Sie lautete
+                          „KEINE ausgelieferte Route bindet `.breathRate` — der Enum-Case kommt nur in
+                          den eigenen `switch`es seiner Datei vor". `hasProducer` ist für `.breathRate`
+                          WAHR, also setzt `FXModCarrier.allChoices` (gebaut aus
+                          `ModSource.allCases.filter`) „Breath rate" in den LEBENDEN Carrier-Picker der
+                          FX-Bio-Modulation, und `FXModulation.swift` hat einen eigenen `switch` auf
+                          `ModSource`. **Ein grep über EINE Datei kann `allCases` nicht sehen.** Wahr
+                          ist das Schwächere: nichts PERSISTIERT eine Atem-Route und keine Vorgabe
+                          bindet sie (`FXBioModulator.routes` lebt nur im Speicher, startet leer, der
+                          „+"-Knopf legt eine Kohärenz-Route an) — ein frischer Start klingt gleich,
+                          eine in der Sitzung gebaute Route nicht. Der Wächter
+                          `testTheBreathCarrierIsOfferedToTheUser` macht daraus eine Tatsache statt
+                          einer Behauptung. Was BLEIBT: keine Hörprobe kann bestätigen, dass die Kurve
+                          die RICHTIGE ist.
                           Die tiefere Frage bleibt offen und steht in beiden Dateien: die Skala ist
                           LINEAR über einen 10×-Bereich, während Rate ungefähr logarithmisch empfunden
-                          wird. Und nur ZWEI der sechs Tests sind auf der alten Konstante rot; die
-                          anderen vier halten fest, was sich NICHT bewegen darf, und sagen das im
-                          Dateikopf. ⛔ Beim Schreiben stand `EngineBus.plausibleBreathRate` in DREI
+                          wird. DREI der ACHT Tests sind auf der alten Konstante rot; der Rest hält
+                          fest, was sich NICHT bewegen darf, und sagt das im Dateikopf. ⛔ Hier stand
+                          „nur ZWEI der sechs", während ein Doc-Kommentar 80 Zeilen tiefer in
+                          DERSELBEN Datei den dritten schon rot nannte — und gezählt wurde über eine
+                          Datei mit sieben Methoden. Zwei einander widersprechende Sätze in einer
+                          Datei, und keiner davon stimmte.
+                          ⛔ **Und der FÜNFTE Atem-Bereich stand die ganze Zeit da und wurde von
+                          keiner der beiden Aufzählungen erfasst:** `RecordAnchor.bioNormalized`
+                          skaliert Atem über `6.0...24.0`, wird bei JEDEM Schritt aus
+                          `RecordController` auf lebendem Bio gerufen und liest damit über das GANZE
+                          HRV-Resonanzband exakt 0 — der #429-Defekt wörtlich, auf dem AUSGELIEFERTEN
+                          Aufnahmepfad, während #429 den ruhenden repariert hat. Als eigene Scheibe
+                          registriert (#433), nicht mit eingefaltet. Die Aufzählungen in
+                          `RespirationEstimator` („VIER") und `HealthWritePolicy` („DREI") standen
+                          beide falsch da — in Dateien, deren erklärter Zweck es ist, den nächsten
+                          unbemerkten Bereich zu verhindern. ⛔ Beim Schreiben stand `EngineBus.plausibleBreathRate` in DREI
                           Quell-Doks und wanderte von dort in meinen Testcode — die Konstante gehört
                           `BioSampleFrame`, `EngineBus` ist nur die DATEI. Ohne Compiler in dieser
                           Sitzung fängt so etwas kein Gate vor dem Push; korrigiert, auch in den drei

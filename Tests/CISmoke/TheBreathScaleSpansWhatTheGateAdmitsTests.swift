@@ -4,10 +4,14 @@
 // live instance of that copy and both declined to fix it.
 //
 // ⭐ THE DEFECT, and it is a defect of REACH, not of accuracy. The set of values that can
-// ever arrive at `normalizedValue` on a gated route is exactly
+// ever arrive at `normalizedValue` on a GATED route is exactly
 // `BioSampleFrame.plausibleBreathRate` (`3...40`) — `ModSource.isMeasured` drops everything
-// else before a
-// route ever runs. A scale that started at 4 therefore left `[3, 4)` admitted-and-dead: the
+// else. (⛔ This said "before a route ever runs", full stop. Three of the six consumers gate;
+// `ModulationMatrix.output(for:frame:)` and `BoundParameter.resolved` do not, and the former
+// says so in its own KNOWN, DEFERRED note. It changes no arithmetic — outside `3...40` both
+// scales go negative or past 1 and `clamp01` flattens them identically — but a hedge dropped
+// from a sentence is how the next reader inherits a premise the code contradicts.)
+// A scale that started at 4 therefore left `[3, 4)` admitted-and-dead: the
 // gate called that frame a measurement, and the scale spent exactly zero depth on it,
 // indistinguishable from a body that is not breathing at all. Same excursion, surviving
 // inside the gate. Measured: 3.5/min normalized to 0.000000, and so did 3.9.
@@ -19,22 +23,36 @@
 // only band that answers "what can actually get here".
 //
 // ⚠️ THE TOP IS DELIBERATELY NOT WIDENED, and that is why `testTheTopStaysNarrowerThanTheGate`
-// exists as an ASSERTION rather than as a comment. Widening to `3...40` would cost 0.27 of
-// travel at 20/min — squeezing every rate a seated performer actually breathes — to buy
-// resolution for panting. Saturating above 30 at full depth is a bounded answer. Spending
-// zero below 4 was not.
+// exists as an ASSERTION rather than as a comment. Widening to `3...40` costs a flat 27% of
+// travel at EVERY rate in 3…30 (the ratio 27/37 is independent of the rate) — 0.170 absolute
+// at 20/min, 0.270 at 30/min. It squeezes every rate a seated performer actually breathes, to
+// buy resolution for panting. Saturating above 30 at full depth is a bounded answer; spending
+// zero below 4 was not. (⛔ This said "0.27 of travel at 20/min" — 0.27 is the RELATIVE loss,
+// identical at every rate, and the ABSOLUTE loss at 30/min. One number, two units, wrong rate.)
 //
-// ⚠️ WHAT THIS FILE CANNOT DO. It measures a mapping, not a sound. No SHIPPED route binds
-// `.breathRate` (the enum case appears only in `ModulationMatrix`'s own switches), so nothing
-// a user hears today changes — which also means no listening test can confirm the curve is
-// the RIGHT one. And the deeper question stays open on purpose: the scale is LINEAR over a
-// 10× span while rate is perceived roughly logarithmically, so the resonance band still
-// occupies a small slice of it. That is a curve decision with no route to hear it on.
+// ⚠️ WHO HEARS IT. ⛔ This said "no SHIPPED route binds `.breathRate` (the enum case appears
+// only in `ModulationMatrix`'s own switches), so nothing a user hears today changes". Both
+// halves were false: `hasProducer` is true for `.breathRate`, so `FXModCarrier.allChoices`
+// (built from `ModSource.allCases.filter`) puts **"Breath rate"** in the live FX bio-mod
+// carrier Picker, and `FXModulation.swift` has its own `switch` on `ModSource`. What is true
+// is weaker: no PERSISTED route and no default binds it (`FXBioModulator.routes` is in-memory,
+// starts empty, and the "+" button creates a coherence route), so a fresh launch is unchanged
+// — but a route built in-session sounds different. `testTheBreathCarrierIsOfferedToTheUser`
+// below turns that correction into a guard, because a grep of one file cannot see `allCases`.
 //
-// ⚠️ ONLY TWO OF THESE SIX TESTS ARE RED ON THE OLD CONSTANT (`testTheScaleStartsWhereTheGate
-// Starts` and `testEveryAdmittedSlowBreathSpendsDepth`). The other four pin what must NOT
-// move — the untouched top, the untouched heart-rate case, the untouched gate, and bit
-// identity at and above 30 — and they say so here rather than posing as regressions.
+// ⚠️ WHAT THIS FILE CANNOT DO. It measures a mapping, not a sound. The deeper question stays
+// open on purpose: the scale is LINEAR over a 10× span while rate is perceived roughly
+// logarithmically, so the resonance band still occupies a small slice of it. (And the 27%
+// top-end price above is itself a consequence of that linearity — on a log rate map the same
+// widening would cost ~11%. The two decisions interact; only one of them is made here.)
+//
+// ⚠️ THREE OF THESE EIGHT TESTS ARE RED ON THE OLD CONSTANT: `testTheScaleStartsWhereTheGate
+// Starts`, `testEveryAdmittedSlowBreathSpendsDepth`, and `testTheResonanceBandKeepsTheTravel
+// ItGained` (its `after` values and its strict-increase assertion both fail). ⛔ This said
+// "only two of these six", while a doc comment 80 lines below already called the third one
+// red — two contradicting sentences in one file, and the count was of six methods in a file
+// that had seven. The rest pin what must NOT move and say so rather than posing as
+// regressions.
 
 import Foundation
 import XCTest
@@ -121,7 +139,11 @@ final class TheBreathScaleSpansWhatTheGateAdmitsTests: XCTestCase {
         ]
         for (rate, before, after) in expected {
             XCTAssertEqual(Self.oldNormalized(rate), before, accuracy: 1e-6,
-                           "the pre-#429 value for \(rate)/min is quoted in three source docs")
+                           """
+                           the pre-#429 value for \(rate)/min. (⛔ This message claimed the \
+                           value is "quoted in three source docs"; it is quoted in ONE, and \
+                           for 4.5 and 5.0 in none — the sibling docs quote the BOUNDS.)
+                           """)
             let now = ModSource.breathRate.normalizedValue(from: Self.frame(breathRate: rate))
             XCTAssertEqual(now, after, accuracy: 1e-6,
                            """
@@ -170,11 +192,30 @@ final class TheBreathScaleSpansWhatTheGateAdmitsTests: XCTestCase {
                           BioSampleFrame.plausibleBreathRate.upperBound,
                           """
                           The scale's top is deliberately below the gate's: widening it to 40 \
-                          costs ~0.27 of travel at 20/min — every rate a seated performer \
-                          actually breathes — to buy resolution for panting. The reason is \
+                          costs a flat 27% of travel at every rate — 0.170 absolute at 20/min, \
+                          0.270 at 30/min — to buy resolution for panting. The reason is \
                           written at `ModSource.range`.
                           """)
         XCTAssertEqual(ModSource.breathRate.range.upperBound, 30, accuracy: 1e-6)
+    }
+
+    /// ⭐ THE CLAIM THE FIRST VERSION GOT WRONG, TURNED INTO A GUARD. The commit said "no
+    /// shipped route binds `.breathRate` — the enum case appears only in `ModulationMatrix`'s
+    /// own switches", which was true of a grep and false of the product: `hasProducer` is
+    /// `true`, so `FXModCarrier.allChoices` (`ModSource.allCases.filter(\.hasProducer)`) puts
+    /// "Breath rate" in the live FX bio-mod carrier `Picker`. A grep cannot see `allCases`.
+    /// This test asserts the reachability directly, so the next range change reads a fact
+    /// rather than a claim. If breath ever stops being offered, this goes red and whoever
+    /// removed it must also correct the audibility paragraph at `ModSource.range`.
+    func testTheBreathCarrierIsOfferedToTheUser() {
+        XCTAssertTrue(ModSource.breathRate.hasProducer,
+                      "breath has a producer; `allChoices` filters on exactly this")
+        XCTAssertTrue(FXModCarrier.allChoices.contains(.bio(.breathRate)),
+                      """
+                      "Breath rate" must be selectable in the FX bio-mod carrier picker. \
+                      Any change to `ModSource.breathRate.range` is therefore audible to a \
+                      user who builds a breath route in-session — it is NOT a dormant path.
+                      """)
     }
 
     /// ⚠️ #429 TOUCHED ONE CASE. Heart rate's range is a free physiological span with no
