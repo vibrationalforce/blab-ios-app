@@ -1,4 +1,4 @@
-build: v10.79.369 — Du musst die App nicht mehr löschen, und sie sagt Dir beim Start, womit sie aufgewacht ist
+build: v10.79.370 — Der Atem wird endlich gemessen, und jede Zahl auf dem Schirm ist die, die bleibt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,126 +6,200 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.368.
+  Der Vorgänger auf Deinem Gerät ist 10.79.369.
 
-  Zehn Commits. Diese Version ist von vorne bis hinten die Antwort auf EINEN Satz von Dir:
-  „Nachdem ich Echoelmusic gelöscht und neu installiert habe klingt es wieder harmonisch."
+  71 Commits, 27 neue Wächter. Der größte Sprung seit Wochen, mit zwei Schwerpunkten: die
+  MESSUNG Deines Atems, die an der wichtigsten Stelle gar nicht funktioniert hat — und die
+  ZAHLENFELDER, bei denen die App gezeigt hat, was sie nicht behält.
 
-  ── WAS DIESER SATZ BEWIESEN HAT ───────────────────────────────────────────
+  ── 1. DIE RESONANZATMUNG WAR FÜR DIE KAMERA UNSICHTBAR ────────────────────
 
-  Löschen und neu installieren ändert am Programm nichts — es ist dieselbe App. Was es
-  ändert, ist der auf dem Gerät GESPEICHERTE Zustand. Damit war klar: die Ursache war
-  nicht ein Rechenweg, sondern ein Wert, der bei Dir lag und den nichts zurücksetzen
-  konnte. Und weil die Neuinstallation genau diesen Wert vernichtet hat, ist DIESER eine
-  Fall für immer unbeantwortbar. Also habe ich drei Dinge gebaut, damit der nächste es
-  nicht ist.
+  Der schwerste Fund dieser Runde, und er trifft genau die Rate, auf die das Produkt zielt.
 
-  ── 1. „RESET SOUND" — DER AUSWEG, DER BISHER NUR LÖSCHEN HIESS ────────────
+  Die Atemfrequenz wird aus dem Abstand zweier Nulldurchgänge der Herzschlag-Modulation
+  gelesen. Der Schätzer bekam pro Veröffentlichung ein FRISCHES 10-Sekunden-Fenster — und
+  bei 6 Atemzügen pro Minute IST ein Atemzyklus 10 Sekunden lang. In so einem Fenster liegt
+  höchstens EIN Durchgang, und aus einem lässt sich kein Abstand bilden. Über alle 360
+  Startphasen simuliert: die App meldete „Atem gemessen: ja" bei voller Konfidenz, während
+  die Rate an 345 Phasen NULL war und an 15 eine erfundene 7,4.
 
-  Im Panel „Save & Export", ganz unten neben „Diagnostics", steht eine neue Zeile. Sie
-  setzt zurück, was den Klang bestimmt: Tonart, Tonsystem, Kammerton, Genre, Preset,
-  Artikulation, Bass- und Pad-Rhythmus, die Field-Stimme, das Glide — und die Pegel der
-  generierten Stimmen.
+  Bei 15 Atemzügen/min war derselbe Code an 278 von 360 Phasen richtig. Deshalb ist es nie
+  aufgefallen: der Fehler war ratenabhängig und traf ausgerechnet die ruhige Atmung.
 
-  Was sie NICHT anfasst: Deine gespeicherten Sounds, Projekte, Aufnahmen, den Autosave-
-  Platz, Deinen Künstlernamen. Das ist die ganze Grenze: Einstellungen ja, Deine ARBEIT
-  nein. Eine Zurücksetzung, die Deine Arbeit frisst, ist die Neuinstallation mit einem
-  Knopf davor.
+  Repariert NICHT durch ein längeres Fenster — das ist der teuerste Einzelposten im ganzen
+  Bio→Audio-Budget —, sondern durch EINEN Schätzer pro Take, dem jeder Herzschlag genau
+  einmal zugeführt wird. Sechs Reviewer-Nachlesen hängen an dieser einen Scheibe; jede hat
+  einen echten Rest gefunden.
 
-  Sie braucht ZWEI Taps — der erste bewaffnet sie („Tap again to reset the sound"), der
-  zweite führt aus. Kein Warndialog: die Modal-Kette der Hauptfläche ist am Limit, das
-  Schwarzbild-Gesetz gilt, also wird direkt in der Zeile bestätigt statt ein Fenster zu
-  öffnen. Verlässt Du das Panel oder legst das Telefon weg, entschärft sie sich wieder.
+  ── 2. DER SCHÄTZER SCHWIEG AN BEIDEN GRENZEN, MIT DENEN ER WIRBT ──────────
 
-  Die Pegel sind erst in der zweiten Scheibe dazugekommen, und zwar wegen eines konkreten
-  Fundes: in einem Deiner Logs stand der Bass-Fader eine GANZE Session auf 0.00 und in der
-  nächsten auf 1.00, bei gleichem Build. Ein Pegel auf null macht eine ganze Stimme in
-  jedem Take stumm — von „die App ist kaputt" nicht zu unterscheiden. Der Drums-Pegel ist
-  bewusst mit dabei, gerade WEIL seine Bedienung mit den Drums gelöscht wurde: eine Zahl,
-  die niemand mehr sehen oder ändern kann, ist der schlimmste gespeicherte Rest, nicht der
-  harmloseste.
+  Er nennt 4 bis 30 Atemzüge/min als seinen Bereich und VERWARF einen Durchgang komplett,
+  sobald dessen Zittern die Rate einen Hauch darüber oder darunter schob. Gemessen: bei
+  30/min an 61 von 360 Phasen keine Rate — und bei 4/min an 240 von 360. Der langsame Rand,
+  den niemand angesehen hatte, war viermal schlimmer als der berichtete.
 
-  ── 2. DER START SAGT JETZT, WOMIT ER AUFGEWACHT IST ───────────────────────
+  Die Reparatur ist eine Formregel: in einem WEITEREN Band annehmen, als man MELDET.
 
-  Im Diagnose-Log steht ab sofort beim Start EINE Zeile, die alle gespeicherten
-  musikalischen Werte nennt: Tonart, Tonsystem, Kammerton, Genre, Preset, Artikulation,
-  Bass-/Pad-Rhythmus, Field-Patch, Glide — plus die Pegel.
+  Und dabei habe ich mir selbst einen Defekt gebaut, den erst der DSP-Reviewer gesehen hat.
+  Meine erste Fassung KLEMMTE den Report auf die alte Grenze zurück, „damit der
+  veröffentlichte Vertrag gleich bleibt". Damit hätte sich ein Körper UNTERHALB des Bandes
+  als saubere Messung gelesen: bei 3,5 Atemzügen/min an 358 von 360 Phasen exakt 4,000 —
+  eine erfundene Zahl, die als Atemfrequenz nach Apple Health geschrieben worden wäre. Ein
+  sättigender Ausgang auf einem Messpfad erfindet Daten am Anschlag. Klemme raus, drei
+  weitere Runden, bis die Konstante nicht mehr an einen einzelnen Puls angepasst war.
 
-  Der Grund ist genau Dein Satz. Bisher nannte diese Werte nur die generate-Zeile, und die
-  entsteht erst, wenn Du auf Generate drückst. Wer vorher neu installiert, nimmt den Beweis
-  mit. Ab jetzt reicht mir EIN Log vom Start, um zu sehen, ob das Instrument mit etwas
-  Falschem aufgewacht ist — ohne dass Du irgendetwas suchen musst.
+  ── 3. DER ATEM ERREICHTE APPLE HEALTH NICHT MEHR ──────────────────────────
 
-  Die UUID Deines eigenen Patches steht bewusst NICHT drin, nur ob überhaupt einer geladen
-  ist. Welcher es ist, beantwortet keine Frage und wäre eine Kennung in einem Text, den Du
-  in einen Chat kopierst.
+  Der Schreibpfad verwarf jede Messung unter 4,0/min, weil seine Grenze von der Rate
+  abgeschrieben war, die der Schätzer ANZIELT statt von der, die er MELDET. Ein Körper, der
+  genau die Resonanzrate atmet, kam nur mit 214 von 360 Phasen durch.
 
-  ── 3. EIN ECHTER SPEICHER-FEHLER, GEFUNDEN AUF DEM WEG ────────────────────
+  Der Schaden ist nicht „weniger Daten", sondern VERZERRUNG: der Schnitt lag fast genau auf
+  dem Mittelwert, also überlebte die hohe Hälfte. Der mittlere Fehler dessen, was in Deiner
+  Gesundheitsakte landete, war rund DREIMAL so groß wie der der ganzen Messung.
 
-  Beim Bauen von Punkt 2 ist aufgefallen: der Start-Task hat den Field-Stimmen-Patch, den
-  Du gewählt hattest, mit dem Werksklang ÜBERSCHRIEBEN. Die Anzeige zeigte Deine Wahl, die
-  Fläche spielte etwas anderes — jeden Start aufs Neue. Das ist kein Diagnose-Thema, das
-  ist der Defekt selbst, eine Stimme weit. Behoben: was aufwacht, ist die Entscheidung
-  einer einzigen Stelle, und die respektiert Deine Wahl.
+  ── 4. UNGEMESSENER ATEM WURDE ALS RUHE EINGEMISCHT ────────────────────────
 
-  ── 4. EIN GEHALTENES VERSPRECHEN AN DEN RHYTHMUS ──────────────────────────
+  Ein Gurt-Frame trägt „Atemrate 0". Das wurde behandelt wie ein sehr ruhig atmender
+  Mensch und halbierte den Erregungswert für einen Körper, dessen Herz das Gegenteil sagte.
+  Ohne Messung steht der Herz-Term jetzt allein. Und der Ruhe-Boden lag exakt auf 6,0/min,
+  also genau auf der Rate, die die Atemführung der App vorgibt: am eigenen Ziel las der
+  Atem-Term null.
 
-  Die Sperre, die verhindert, dass sich die Musik schneller neu aussät als eine Phrase
-  lang ist, hat Wartezeit ANGEHÄUFT: eine Aussaat, die ohnehin überfällig war, hat die
-  Uhr trotzdem von vorne gestartet. Jetzt ist der Boden eine Frist und keine Schuld — eine
-  Wartezeit, die schon abgelaufen ist, wird nicht noch einmal berechnet.
+  Dazu die Folge-Scheibe: wenn eine Messung ERSCHEINT oder VERSCHWINDET, sprang der Wert
+  vorher hart. Jetzt wird die letzte gemessene Rate GEHALTEN und nur ihr Einfluss
+  ausgeblendet — genau so lange, wie der Bus dem Frame überhaupt noch traut (Kamera 6 s,
+  Handgelenk 90 s). Bewusst gehalten und nicht geglättet: eine Glättung würde Erregungs-
+  werte erfinden, die kein Körper erzeugt hat.
+
+  ⚠ EHRLICH DAZU: Punkt 4 sitzt auf dem Aufnahme-Pfad, und der ist heute TÜRLOS — es gibt
+  keinen Knopf, der ihn scharf schaltet. Repariert wird er deshalb, nicht trotzdem. Punkte
+  1 bis 3 sitzen dagegen auf dem LEBENDEN Kamerapfad und auf dem Health-Schreibweg.
+
+  ── 5. JEDE ZAHL AUF DEM SCHIRM IST JETZT DIE, DIE BLEIBT ──────────────────
+
+  Bei den Parameterfeldern steuert eine Einstellung nicht die Anzeige, sondern das RASTER,
+  auf das ein Wert einrastet. Das war an sechs Stellen falsch oder gar nicht gesetzt:
+
+  · Das Visual-Panel bot vier Nachkommastellen an, wo der Rest der App zwei zeigt.
+  · Das Sound-Panel: EINUNDZWANZIG Zeilen zeigten „0.5000" und „2400.0000 Hz". Drei müssen
+    bewusst feiner bleiben, und WELCHE wurde aus dem ausgelieferten Klangbestand GEMESSEN,
+    nicht gewählt — sonst wären vier verschiedene Anschlagzeiten auf null zusammengefallen.
+  · Das Zahlenfeld nahm Ziffern an, die es beim OK nicht behalten konnte: Du tipptest
+    `0,375`, LASEST `0,375`, gespeichert wurde `0,38`.
+  · Anzeigen und Behalten rundeten nach ZWEI verschiedenen Regeln und liefen an jedem
+    exakten Gleichstand auseinander — auf der Cutoff-Zeile allein bei jeder zweiten
+    Halbzahl.
+  · Der Kammerton A4 versprach im eigenen Kommentar „genau auf 0,01 Hz" und bot 0,0001 an.
+    Dein Video vom 2. August zeigt `483,4352` auf dem Schirm nach einem Scrollen.
+  · Und der Bild-Regler blieb unter dem Finger stehen: unterhalb von etwa 135 pt/s bewegte
+    er sich gar nicht, darüber sprang er auf Anschlag — ein Zwei-Zustands-Schalter, wo ein
+    Regler sein sollte.
+
+  Ein Wächter hält jetzt fest, welche Zeile aus welchem Grund abweichen DARF — inklusive
+  der einen, die die vier Stellen wirklich braucht: das gesperrte Tempo, mit dem Du auf eine
+  externe Uhr ziehst. Der aufgeräumt aussehende Rundumschlag „überall zwei Stellen" hätte
+  genau die still vergröbert.
+
+  ── 6. INDIVIDUALITÄT: DEIN KÖRPER, NICHT MEHR ZUFALL ──────────────────────
+
+  Deine Bitte war: „Mir wäre wichtig, dass man nicht das Gefühl hat, die Kompositionen
+  klingen gleich." Dafür ist zuerst ein MESSGERÄT entstanden, das den Abstand zweier Takes
+  beziffert — bevor irgendjemand mehr Variation baut. Darauf sitzt eine Handschrift, die
+  aus Deiner GEWOHNTEN Herzratenvariabilität kommt und nicht aus dem Moment. Sie kippt das
+  Tempo INNERHALB des Genre-Fensters und die BALANCE zwischen Bass und Fläche.
+
+  Warum Balance und nicht Lautstärke: die erste Fassung kippte die Anschlagstärke, und die
+  Master-Automatik hätte einen reinen Pegelversatz teilweise wieder weggeregelt. Ein
+  VERHÄLTNIS rührt keine Regelstufe an. Der DSP-Reviewer hat das widerlegt, ich habe es
+  nachgerechnet, die Scheibe wurde umgedreht.
+
+  Dazu: der Regler „Liveliness" hatte DREI Schreiber und NULL erreichbare Leser — er tat
+  buchstäblich nichts, quer durch fünfzehn ausgelieferte Stimmungs-Presets. Er erreicht
+  jetzt die Notendichte und, in einer zweiten Scheibe, auch die Flächen-Genres. Darunter
+  das ausgelieferte Standard-Genre, also der Klang, den ein Erstnutzer hört.
+
+  ── 7. KNACKEN: ZWEI MECHANISMEN, KEINE DIAGNOSE ───────────────────────────
+
+  Zu „teilweise extremes Knacken": zwei echte Ursachen sind weg. Beim Stimmenklau wird
+  jetzt die LEISESTE Stimme wiederverwendet statt der ältesten, und der Master-Pegel landete
+  alle 200 ms in EINEM ungerampten Schritt statt zu gleiten. Beides sind MECHANISMEN, die
+  knacken können. Ob es DEIN Knacken war, ist damit nicht bewiesen — das entscheidet Dein
+  Ohr, und fünf weitere Mechanismen stehen unangetastet auf der Liste.
+
+  ── 8. SICHTBARES ──────────────────────────────────────────────────────────
+
+  · Das Tempofeld und seine Sperre sind in die Transportzeile gewandert.
+  · Das Master-Panel zeigt ein Timing-Urteil der letzten 60 Sekunden — und sagt
+    ausdrücklich, wenn es zu wenige Messungen für ein Urteil hatte.
+  · Die generate-Zeile im Log nennt jetzt alle Treiber ihrer Notendichte.
+  · Der Kamera-Hinweis „zu hell" hatte ZWEI verschiedene Definitionen in EINER Datei; es
+    ist jetzt eine.
+
+  ── 9. WAHRHEIT NACH AUSSEN ────────────────────────────────────────────────
+
+  Die Website behauptete RTMP-Streaming als gebaut-und-wieder-entfernt; es war nie gebaut.
+  „motion" stand als Kompositions-Eingang, obwohl das Wort gestrichen ist. Und die
+  Store-Zahlen für Genres und Skalen waren zu NIEDRIG angegeben, in beiden Sprachen. Eine
+  falsche Behauptung im Store ist ein Ablehnungsgrund — in beide Richtungen.
+
+  ── 10. DER BAU SELBST WAR KAPUTT, UND EINE MASKE HAT ES VERSTECKT ─────────
+
+  `Package.swift` hat nicht geparst, mit ZWEI Fehlern hintereinander, von denen immer nur
+  der vorderste sichtbar war. Gemerkt hat es niemand, weil der CI-Schritt mit `|| true`
+  läuft: ein ungültiges Manifest kann damit gar nichts rot färben. Beide Fehler sind weg.
+  Die Maske selbst liegt in der CI-Konfiguration, und die fasse ich ohne Dich nicht an.
 
   ── WAS ICH MIR SELBST VORWERFE ────────────────────────────────────────────
 
-  Die erste Fassung des Reset war ein Halb-Fix von genau dem Defekt, den er beheben soll.
-  Er hat die Pegel zurückgesetzt, aber den gefühlten Sub NICHT mitgezogen — der nimmt
-  seinen Pegel auf einem anderen Weg. Hättest Du mit Bass auf 0.00 „Reset sound" getippt,
-  wären alle Stimmen auf unity gesprungen und der Sub wäre stumm geblieben, bis zum
-  nächsten Neustart. Beide Pflicht-Reviewer haben das unabhängig gefunden, bevor es Dich
-  erreicht hat. Dasselbe galt für den gestoppten Transport: der Take wurde gar nicht neu
-  gebacken, der alte Pegel wäre in den nächsten Take und in seinen MIDI-Export
-  eingebrannt geblieben.
+  Drei Dinge, alle von Pflicht-Reviewern gefunden, bevor sie Dich erreicht haben:
 
-  Und ich habe einen Text korrigiert, der zu viel versprach: „die Mix-Fader" — das
-  Mischpult hat vier Streifen, der Reset bewegt nur die generierten. Steht jetzt so da.
+  1. Die Atemband-Reparatur hat in ihrer ersten Fassung selbst einen Defekt auf den
+     GESUNDHEITSDATEN-Pfad gelegt (Punkt 2). Der einzige in dieser Runde, der in eine echte
+     Akte geschrieben hätte.
+  2. Die Ausblendung des Atem-Terms war in ihrer ersten Fassung auf ihrem HAUPTFALL ein
+     No-op — mit acht grünen Tests. Sie las die Zeit vom Frame-Stempel, und der steht genau
+     dann still, wenn die Ausblendung gebraucht wird. Keiner der acht Tests konnte das
+     sehen, weil alle beide Uhren aus derselben Variable speisten.
+  3. Eine Zahl, die ich Dir als „korrigiert" gemeldet hatte, war immer noch nicht
+     nachrechenbar. Beim dritten Anlauf habe ich sie durch eine Aussage ersetzt, die sich
+     beim Umzählen nicht bewegt.
 
   ── EHRLICH ZUM PRÜFSTAND ──────────────────────────────────────────────────
 
-  Der Compile-Prüfstand ist auf allen zehn Commits grün, auch auf dem letzten.
+  Der Compile-Prüfstand ist grün, auch auf den letzten Commits.
 
-  Der Test-Prüfstand meldet seit inzwischen NEUN Läufen rot — weiterhin NICHT wegen eines
-  fehlgeschlagenen Tests. Der Simulator der Testmaschine stirbt beim App-Start; über die
-  geprüften Läufe hinweg gibt es null Compiler-Fehler, null Build-Abbrüche und null
-  fehlgeschlagene Prüfungen. Ich habe das diesmal Zeile für Zeile nachgescannt statt der
-  Zusammenfassung zu glauben. Kleine Selbstkorrektur dazu: ich hatte Dir „drei
-  Erscheinungsformen" gemeldet — es sind ZWEI, die dritte war ein Fehler in meiner eigenen
-  Auswertung. Die Reparatur liegt in der CI-Konfiguration und die fasse ich ohne Dich
-  nicht an.
+  Der Test-Prüfstand ist weiter rot, und diesmal habe ich einen NEUEN Grund gefunden, den
+  ich vorher fälschlich dem alten zugeschlagen hätte: auf einem der letzten Commits hat der
+  Test-Job GAR NICHT GEBAUT. Ein unbeteiligter Sicherheits-Scan starb an einer
+  GitHub-Störung („Service Unavailable"), und die Build- und Testjobs wurden daraufhin
+  übersprungen. Das sieht im Ergebnisfeld exakt aus wie der bekannte Simulator-Tod, ist aber
+  etwas anderes. Konsequenz für mich: eine rote Meldung wird ab jetzt auf JOB-Ebene
+  aufgelöst, bevor ich ihr einen Grund gebe.
 
-  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt,
-  entscheidet Dein Ohr und Dein Auge.
+  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
+  Dein Ohr und Dein Auge.
 
   Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
   allokationsfrei.
 
   ── WAS ICH VON DIR BRAUCHE, IN DIESER REIHENFOLGE ────────────────────────
 
-  1. ZUERST DAS LOG, VOR ALLEM ANDEREN. App starten, sonst nichts tun, Diagnose-Log
-     schicken. Darin steht jetzt die neue Start-Zeile. Wenn Dein Gerät nach der
-     Neuinstallation sauber ist, sehe ich das — und wenn es je wieder schief klingt,
-     vergleiche ich diese eine Zeile mit dieser einen Zeile.
-  2. DAS FIELD. Einen Klang für die Spielfläche wählen, App komplett schließen, neu
-     starten. Klingt sie beim ersten Antippen nach Deiner Wahl? Das war der echte Fehler
-     oben, und das ist sein Test.
-  3. DEN RESET, EINMAL BEWUSST. „Save & Export" öffnen, ganz nach unten, „Reset sound"
-     zweimal tippen. Danach: sind Deine gespeicherten Sounds und Projekte noch alle da?
-     Und klingt das Instrument sofort anders, oder erst nach einem Neustart? Beides muss
-     stimmen, sonst ist der Knopf nur ein halbes Versprechen.
-  4. UND DANN DIE EIGENTLICHE FRAGE: klingt es noch unharmonisch? Wenn ja, Log schicken —
-     mit der neuen Start-Zeile kann ich diesmal antworten statt zu raten.
+  1. ATMEN, LANGSAM, MIT LOG. Finger auf die Kamera, ruhig atmen — etwa sechs Atemzüge pro
+     Minute — zwei, drei Minuten lang. Dann Diagnose-Log schicken. Das ist der direkte Test
+     für Punkt 1: vorher konnte die App genau diese Atmung nicht messen. Steht im Log eine
+     Atemrate um 6 statt einer Null, ist der wichtigste Fund dieser Runde bestätigt.
+  2. DIE ZAHLENFELDER ANFASSEN. Sound-Panel und Visual-Panel öffnen: stehen die Werte jetzt
+     mit zwei Nachkommastellen da statt mit vier? Und der Bild-Regler „Energy" — lässt er
+     sich LANGSAM ziehen, oder springt er? Das war der Zwei-Zustands-Schalter.
+  3. DAS TEMPOFELD in der Transportzeile: findest Du es dort, und lässt sich die Sperre wie
+     vorher setzen?
+  4. UND DIE EIGENTLICHE FRAGE: klingt es unterschiedlicher als vorher? Zwei, drei Takes
+     hintereinander generieren. Und knackt es noch?
 
-  Weiter offen aus 368: der Kammerton-Hinweis auf der Startfläche · die FX-Kette beim
-  Aus/Ein und beim Einschlafen · die zweite FX-Kette · Kopf und Wellenfront · der Bio-Pfad ·
-  der Sub-Bass bei Maqām oder Gamelan · die drei Messansichten im Field-Panel · das
-  Mischpult · die sechs Genres mit Swing · MIDI-Sync gegen Ableton · das Sound-Panel im
-  Querformat · die Aufnahme-Stopp-Zeile im Video-Panel.
+  Weiter offen aus 369: der Kammerton-Hinweis auf der Startfläche · die zweite FX-Kette ·
+  Kopf und Wellenfront · der Sub-Bass bei Maqām oder Gamelan · die drei Messansichten im
+  Field-Panel · das Mischpult · die sechs Genres mit Swing · MIDI-Sync gegen Ableton · das
+  Sound-Panel im Querformat · die Aufnahme-Stopp-Zeile im Video-Panel · und die AKQUISE der
+  Pulsmessung: jeder Stopp tötet die Kamera und kostet danach rund 19 Sekunden, bis der Puls
+  wieder greift.
