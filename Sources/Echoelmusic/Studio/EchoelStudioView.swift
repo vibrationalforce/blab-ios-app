@@ -5037,7 +5037,7 @@ struct EchoelStudioView: View {
             // it costs one clause; the alternative was leaving a control that reads continuous
             // and is not. `MoodKnobsSayWhatTheyDoTests` measures both cliffs and fails if either
             // moves, so this sentence cannot go stale silently.
-            Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · odd leaps (weird). Blends with your live signal. Dark drops the octave above 0.60 and Romance adds the 7th above 0.50 — those two switch rather than fade.")
+            Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · odd leaps (weird). Blends with your live signal. Darkness and Romance switch rather than fade: above 0.60 Darkness drops the voicing an octave, and above 0.50 Romance adds the 7th to genres whose chord does not already have one (7 of the 16 offered).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -5127,21 +5127,44 @@ struct EchoelStudioView: View {
 
     /// A mood value recomposes on release (it changes the notes, not the timbre).
     ///
-    /// ⭐ #354 — `decimals: 2`, WHICH IS THE APP'S OWN IDIOM AND WAS THE ONLY ROW SET NOT USING IT.
-    /// `EchoelValueField.decimals` defaults to 4, and these eight rows were the only `0…1` fields
-    /// in the app that never passed a value, so they shipped reading `0.5000` while every FX
-    /// parameter, the master volume and the weather mixers read `0.50` (`EchoelValueField`'s own
-    /// scrub-precision doc names that set as "`0…1, decimals: 2`" — these rows were silently
-    /// outside it). Two decimals is also all these controls can mean: `darkness` and `romance`
-    /// are read by the composer as SWITCHES (see the caption below), and the other six feed
-    /// arithmetic where the third decimal is far under what an ear can separate.
+    /// ⭐ #354 — `decimals: 2`, WHICH IS THE APP'S OWN IDIOM AND WAS THE LARGEST ROW SET NOT USING IT.
+    /// `EchoelValueField.decimals` defaults to 4, and these eight rows shipped reading `0.5000`
+    /// while every FX parameter, the master volume and the weather mixers read `0.50`
+    /// (`EchoelValueField`'s own scrub-precision doc names that set as "`0…1, decimals: 2`" —
+    /// these rows were silently outside it). Two decimals is also all these controls can mean:
+    /// `darkness` and `romance` are read by the composer as SWITCHES (see the caption below), and
+    /// the other six feed arithmetic where the third decimal is far under what an ear can separate.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS BLOCK SAID "the ONLY `0…1` fields in the app that never passed
+    /// a value", IN THREE PLACES AT ONCE. False: `EchoelValueField(label: "Energy", …, range: 0...1)`
+    /// and `EchoelValueField(label: "Hue", …, range: 0...1)` in the visual panel take the default 4
+    /// as well. They are image controls rather than composer parameters, so they were not swept in
+    /// with this slice — but "only" was a superlative nobody had counted, in the doc block whose
+    /// whole subject is a count. Registered as its own decision rather than quietly widened here.
+    ///
+    /// ⚠️ `decimals` is not only a DISPLAY setting: `EchoelValueField.apply(_:)` snaps the stored
+    /// value to the same `10^-decimals` grid, so these eight now persist on 0.01 and a preset's
+    /// gradient dial lands on the grid instead of its authored figure. Two consequences, both
+    /// checked before shipping: every value in the shipped mood library is already ≤2 decimals, so
+    /// nothing on disk changes; and `onCommit` (the recompose) now fires only when a drag actually
+    /// crosses a 0.01 boundary, which is the same behaviour every other `0…1` row in the app has.
     ///
     /// ⚠️ WHAT THIS DOES **NOT** FIX, so nobody reads a display change as an engine change: the
     /// two threshold dimensions are still thresholds. The audit that raised this (#354) offered
     /// two ways out — render the control as what it is, or make the composer read it
     /// continuously — and this is the first half of the first one. `romance` is the one of the
     /// two that CAN be made continuous (share of chords carrying the 7th), and that is its own
-    /// slice because it changes shipped sound. `darkness` cannot: it moves the register, and
+    /// slice because it changes shipped sound.
+    ///
+    /// ⚠️ AND ROMANCE IS WEAKER STILL THAN "a switch": its one read is `if mood.romance > 0.5,
+    /// !tones.contains(6)`, so on a genre whose chord ALREADY carries the 7th it does nothing at
+    /// any setting. That is 9 of the 16 offered genres — `.selfObservation`, THE SHIPPED DEFAULT,
+    /// among them. The caption therefore says "to genres whose chord does not already have one
+    /// (7 of the 16 offered)" rather than promising the 7th outright; an unqualified promise would
+    /// have been false for the genre a first-time user hears. `MoodKnobsSayWhatTheyDoTests` pins
+    /// the 7/16 split against `harmonicProfile` itself, so the number in the caption cannot rot.
+    ///
+    /// `darkness` cannot be made continuous: it moves the register, and
     /// register is quantised by construction (`key.degree(_:octave:)` moves in octaves, and
     /// `VoiceLeader.resolve` re-octaves the voicing anyway), so a "gradient" there would be
     /// invented rather than measured.

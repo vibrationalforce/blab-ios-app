@@ -247,14 +247,36 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           erste Wächter in dieser Kette, der eine ANZEIGE an eine ENGINE-Tatsache
                           kettet statt eine der beiden für sich zu prüfen: zwei der acht
                           Mood-Regler (`darkness`, `romance`) werden vom Komponisten je EINMAL
-                          gelesen, als `> 0.6` (Voicing eine Oktave runter) und `> 0.5` (Septime
-                          dazu) — der Rest ihrer Reise ist wirkungslos. Die Zeilen boten dabei
-                          VIER Nachkommastellen an, weil `EchoelValueField.decimals` auf 4
-                          defaultet und diese acht die einzigen 0…1-Felder der App waren, die nie
-                          einen Wert übergaben (jeder FX-Parameter, die Master-Lautstärke und die
-                          Wetter-Mischer stehen auf 2). Gemessen wird jetzt beides: die zwei
-                          Klippen über ALLE angebotenen Genres (0,20 vs 0,59 bitgleich, 0,61
-                          anders) UND dass die Panel-Bildunterschrift die zwei Schwellen NENNT.
+                          auf dem LEBENDEN Pfad gelesen, als `> 0.6` (Voicing eine Oktave runter)
+                          und `> 0.5` (Septime dazu) — der Rest ihrer Reise ist wirkungslos. Die
+                          Zeilen boten dabei VIER Nachkommastellen an, weil
+                          `EchoelValueField.decimals` auf 4 defaultet und diese acht der GRÖSSTE
+                          Satz 0…1-Felder der App waren, die nie einen Wert übergaben (jeder
+                          FX-Parameter, die Master-Lautstärke und die Wetter-Mischer stehen auf
+                          2). Gemessen wird jetzt beides: die zwei Klippen über ALLE angebotenen
+                          Genres (0,20 vs 0,59 bitgleich, 0,61 anders) UND dass die
+                          Panel-Bildunterschrift die zwei Schwellen NENNT.
+                          ⛔ **UND DIE ERSTE FASSUNG DIESER SCHEIBE LIEFERTE EINE ÜBERZOGENE
+                          BILDUNTERSCHRIFT AUS — genau die Klasse Fehler, gegen die sie gebaut
+                          war, nur auf der Anzeige-Seite.** Sie versprach „adds the 7th above
+                          0.50" pauschal; die einzige Leserstelle ist aber
+                          `if mood.romance > 0.5, !tones.contains(6)`, und **9 der 16 angebotenen
+                          Genres tragen die Septime schon** — `.selfObservation`, das
+                          AUSGELIEFERTE STANDARD-GENRE, darunter. Für den Klang, den ein
+                          Erstnutzer hört, versprach die Zeile also etwas, das der Regler dort
+                          unter keiner Stellung tut. Die Bildunterschrift nennt jetzt die
+                          Einschränkung samt Zahl („7 of the 16 offered"), und zwei neue Tests
+                          nageln sie fest: Bit-Identität 0,49↔0,51 auf allen neun lushen Genres
+                          und der 7/16-Schnitt direkt gegen `harmonicProfile`. Zwei weitere
+                          Behauptungen derselben Fassung waren ebenfalls falsch und sind
+                          zurückgenommen: „die EINZIGEN 0…1-Felder" (`Energy` und `Hue` im
+                          Visual-Panel stehen ebenfalls auf dem 4er-Default) und die Begründung
+                          des Darkness-Zählers, die `dubTechno`/`trap` „handgebaute Zweige"
+                          nannte — beide laufen durch `composeHarmonic`, und `trap` ist gar nicht
+                          angeboten. Der wahre Grund für „mindestens eins" statt einer Zahl ist
+                          `VoiceLeader.resolve`, das die Lage danach neu oktaviert.
+                          **Lehre: ein Wächter über einer Anzeige muss die Anzeige AUCH gegen die
+                          Daten prüfen, nicht nur gegen ihr eigenes Vorhandensein.**
                           ⭐ Der Punkt ist die KETTE, nicht die einzelne Behauptung: wenn eine
                           spätere Scheibe `romance` stufenlos macht, wird der Verhaltenstest ROT —
                           absichtlich, als Erinnerung, die Bildunterschrift im selben Commit

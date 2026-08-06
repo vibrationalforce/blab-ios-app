@@ -4,19 +4,24 @@
 //
 // ⭐ THE DEFECT, stated as the audit stated it. `MoodProfile` advertises eight continuous
 // characters. Six of them are read as gradients by the composer. `darkness` and `romance` are
-// each read ONCE, as a comparison: `mood.darkness > 0.6` drops the whole voicing an octave,
-// `mood.romance > 0.5` adds the 7th. So a user moving Darkness from 0.20 to 0.59 — a third of
-// the control's travel — hears nothing, and the row said `0.5900` while doing it. The mood
-// library's own source comment reached the same finding from the other side: "Two moods can
-// therefore differ by 0.43 of darkness and produce the SAME notes."
+// each read ONCE on the live path, as a comparison: `mood.darkness > 0.6` drops the whole
+// voicing an octave, `mood.romance > 0.5` adds the 7th. So a user moving Darkness from 0.20 to
+// 0.59 — a third of the control's travel — hears nothing, and the row said `0.5900` while doing
+// it. The mood library's own source comment reached the same finding from the other side: "Two
+// moods can therefore differ by 0.43 of darkness and produce the SAME notes."
+//
+// ⛔ "ONCE ON THE LIVE PATH", NOT "ONCE". `darkness` is read TWICE in `BioComposer` — the second
+// read is in `ambientMelody`, which has had no callers since `.selfObservation` stopped being
+// intercepted, and `WeatherMood`'s own doc already says "twice" from that same count. The
+// unqualified word would have contradicted a note that is already in the repo.
 //
 // ⭐ WHAT THIS FILE IS AND IS NOT. It does not assert that thresholds are the right design —
 // they are not, and `romance` is scheduled to become a real gradient in its own slice because
 // that one changes shipped sound. It asserts the COUPLING: as long as the engine reads these
 // two as switches, the caption in `moodPanel` must say so, and the rows must not offer four
 // decimals of a quantity with two states. When someone makes `romance` continuous,
-// `testRomanceIsASwitchAtTheAdvertisedPoint` goes red — that is the point. It is a reminder to
-// move the caption in the same commit, not an argument to keep the cliff.
+// `testRomanceIsInertWhereTheChordAlreadyHasTheSeventh` goes red — that is the point. It is a
+// reminder to move the caption in the same commit, not an argument to keep the cliff.
 //
 // ⛔ WHY `darkness` IS NOT SCHEDULED WITH IT. Register is quantised by construction:
 // `key.degree(_:octave:)` moves in whole octaves (anything finer changes pitch classes and
@@ -32,6 +37,11 @@
 //     own that.
 //   · The behavioural halves compare NOTE SIGNATURES, not `Note` values: `Note.id` is a fresh
 //     `UUID` per note, so two identical takes are never `==`.
+//   · The darkness half asserts "at least one genre changes", not a count. Crossing 0.60 shifts
+//     the pad/bass octave, but `VoiceLeader.resolve` re-octaves the voicing afterwards, so
+//     whether a specific genre's take differs is a property of the voice-leader's cost function,
+//     not of the switch. Pinning a count there would pin an unrelated decision. The romance half
+//     CAN be exact, because its guard is a plain `!tones.contains(6)` on data this file reads.
 
 import Foundation
 import XCTest
@@ -66,15 +76,21 @@ final class MoodKnobsSayWhatTheyDoTests: XCTestCase {
         }
     }
 
+    /// The genres where romance can do anything at all: its only read is
+    /// `if mood.romance > 0.5, !tones.contains(6)`, so a chord that already carries the 7th is
+    /// indifferent to the dial at every setting.
+    private static var genresWithoutTheSeventh: [MusicStyle] {
+        MusicStyle.offered.filter { !$0.harmonicProfile.chordTones.contains(6) }
+    }
+
     // MARK: - The two cliffs, measured
 
     /// ⭐ Below the line, a third of the control's travel does nothing — at EVERY offered genre,
     /// which is why this half sweeps rather than samples. Above it, at least one genre changes.
     ///
-    /// "At least one" and not "every": a genre whose profile never reaches `composeHarmonic`'s
-    /// default pad path (the hand-built `dubTechno`/`trap` branches) can be indifferent to the
-    /// octave shift, and demanding otherwise would pin an unrelated routing decision. The count
-    /// is printed so a future narrowing is visible rather than silent.
+    /// "At least one" and not a count: see the HONEST LIMITS note in the header — the octave
+    /// shift goes through `VoiceLeader.resolve`, which re-octaves. The count is printed so a
+    /// future narrowing is visible rather than silent.
     func testDarknessIsASwitchAtTheAdvertisedPoint() {
         var changedAbove = 0
         for style in MusicStyle.offered {
@@ -83,8 +99,8 @@ final class MoodKnobsSayWhatTheyDoTests: XCTestCase {
             XCTAssertEqual(low, justUnder, """
                 Genre “\(style.rawValue)”: darkness 0.20 and 0.59 no longer produce the same \
                 take. If darkness became a gradient, this file's premise changed — update the \
-                `moodPanel` caption (it currently promises "drops the octave above 0.60") in \
-                the SAME commit, then delete this expectation.
+                `moodPanel` caption (it currently promises the octave drop above 0.60) in the \
+                SAME commit, then delete this expectation.
                 """)
             if Self.take(darkness: 0.61, style: style) != justUnder { changedAbove += 1 }
         }
@@ -95,24 +111,60 @@ final class MoodKnobsSayWhatTheyDoTests: XCTestCase {
             """)
     }
 
-    /// The same shape for romance's 7th. This is the test that goes red when romance becomes a
-    /// gradient — deliberately, see the header.
+    /// The same shape for romance's 7th, on the genres it can reach. This is the test that goes
+    /// red when romance becomes a gradient — deliberately, see the header.
     func testRomanceIsASwitchAtTheAdvertisedPoint() {
         var changedAbove = 0
-        for style in MusicStyle.offered {
+        for style in Self.genresWithoutTheSeventh {
             let low = Self.take(romance: 0.10, style: style)
             let justUnder = Self.take(romance: 0.49, style: style)
             XCTAssertEqual(low, justUnder, """
                 Genre “\(style.rawValue)”: romance 0.10 and 0.49 no longer produce the same \
                 take. If this is the slice that made romance continuous: good — move the \
-                `moodPanel` caption off "adds the 7th above 0.50" in the same commit.
+                `moodPanel` caption off the 0.50 threshold in the same commit.
                 """)
             if Self.take(romance: 0.51, style: style) != justUnder { changedAbove += 1 }
         }
         XCTAssertGreaterThan(changedAbove, 0, """
-            Crossing 0.50 changed NOTHING at any of \(MusicStyle.offered.count) offered genres, \
-            so the romance dial reaches no sound at all — that is worse than the cliff this \
-            file documents, not better.
+            Crossing 0.50 changed NOTHING at any of the \(Self.genresWithoutTheSeventh.count) \
+            genres whose chord lacks the 7th, so the romance dial reaches no sound at all — that \
+            is worse than the cliff this file documents, not better.
+            """)
+    }
+
+    /// ⭐ THE HALF THE REVIEW ADDED, AND THE REASON THE CAPTION IS WORDED THE WAY IT IS. Romance
+    /// is not merely a switch; on a genre whose chord already carries the 7th it is INERT at
+    /// every setting — and that is 9 of the 16 offered genres, `.selfObservation` (the shipped
+    /// default) among them. The first version of the caption promised "adds the 7th above 0.50"
+    /// flat, which is false for the genre a first-time user hears.
+    func testRomanceIsInertWhereTheChordAlreadyHasTheSeventh() {
+        let alreadyLush = MusicStyle.offered.filter { $0.harmonicProfile.chordTones.contains(6) }
+        XCTAssertFalse(alreadyLush.isEmpty, """
+            No offered genre carries the 7th any more, so the caption's "does not already have \
+            one" qualifier now covers all of them and should be simplified.
+            """)
+        for style in alreadyLush {
+            XCTAssertEqual(Self.take(romance: 0.49, style: style),
+                           Self.take(romance: 0.51, style: style), """
+                Genre “\(style.rawValue)” already has the 7th in `chordTones`, so romance's only \
+                read (`!tones.contains(6)`) cannot fire — yet the take changed. Romance grew a \
+                second reader; the caption now understates it.
+                """)
+        }
+    }
+
+    /// The caption prints "7 of the 16 offered". This pins that number against the profiles
+    /// themselves, so adding a genre — or giving an existing one a 7th — makes the caption's
+    /// arithmetic fail here rather than on a user's screen.
+    func testTheCaptionsGenreCountIsTheRealOne() {
+        XCTAssertEqual(MusicStyle.offered.count, 16, """
+            The offered roster changed size. The `moodPanel` caption names it ("… of the 16 \
+            offered") — update both in the same commit.
+            """)
+        XCTAssertEqual(Self.genresWithoutTheSeventh.count, 7, """
+            \(Self.genresWithoutTheSeventh.count) offered genres lack the 7th, not 7. The \
+            `moodPanel` caption names that number too; a caption that counts wrong is the same \
+            defect as a caption that promises a switch it does not have.
             """)
     }
 
@@ -136,18 +188,29 @@ final class MoodKnobsSayWhatTheyDoTests: XCTestCase {
             The mood panel's caption is gone or reworded past recognition. It is the only place \
             the two threshold dials are explained; if it moved, move these assertions with it.
             """)
-        XCTAssertTrue(code.contains("drops the octave above 0.60"), """
-            The caption no longer names darkness's threshold. Either the composer became \
+        XCTAssertTrue(code.contains("switch rather than fade"), """
+            The caption no longer says these two dials switch. Either the composer became \
             continuous (then say so, and update the behavioural tests above) or a control that \
             switches is being presented as one that fades.
             """)
-        XCTAssertTrue(code.contains("adds the 7th above 0.50"), """
+        XCTAssertTrue(code.contains("above 0.60 Darkness drops the voicing an octave"), """
+            The caption no longer names darkness's threshold or what crossing it does — same two \
+            cases as above.
+            """)
+        XCTAssertTrue(code.contains("above 0.50 Romance adds the 7th"), """
             The caption no longer names romance's threshold — same two cases as darkness.
+            """)
+        XCTAssertTrue(code.contains("does not already have one (7 of the 16 offered)"), """
+            The caption dropped romance's QUALIFIER. Without it the sentence promises the 7th on \
+            every genre, which is false for 9 of the 16 — including `.selfObservation`, the \
+            shipped default. That is the exact overclaim this slice's review found.
             """)
     }
 
-    /// The precision half. `EchoelValueField.decimals` defaults to 4; these rows were the only
-    /// `0…1` fields in the app that never passed a value.
+    /// The precision half. `EchoelValueField.decimals` defaults to 4; these eight rows were the
+    /// largest set of `0…1` fields in the app that never passed a value. (Not the ONLY set —
+    /// `Energy` and `Hue` in the visual panel still take the default. They are image controls,
+    /// not composer parameters, and were deliberately left out of this slice.)
     func testMoodRowsOfferTwoDecimals() throws {
         let code = try Self.studioSource()
         guard let range = code.range(of: "private func moodKnob(") else {
