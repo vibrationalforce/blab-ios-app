@@ -68,9 +68,9 @@ PLAY WITH YOUR PULSE
 • No sensor around? Demo mode plays instantly.
 
 COMPOSE FROM YOUR BODY
-• One tap generates music in your key: eight curated genres, from deep
+• One tap generates music in your key: sixteen curated genres, from deep
   ambient and drift to classical and dub techno.
-• Choose key and scale (50 scales), concert pitch A4 from 432 to 444 Hz,
+• Choose key and scale (57 scales), concert pitch A4 from 432 to 444 Hz,
   tempo locked in the studio or flowing with your heart.
 • Polyphonic synthesizer with a live patch editor and preset library, a
   sub-bass voice you can feel, loop cutter, and a production FX chain
@@ -200,8 +200,8 @@ Checklist before submitting:
    Composition panel. Caption: "Your heartbeat makes music."
 2. **Immersive visual fullscreen** with the pulse visibly driving it.
    Caption: "See your pulse. Flash-safe by design."
-3. **Generate from Body** — genre + key selection. Caption: "Eight genres,
-   50 scales, your key, your tempo — composed from your body."
+3. **Generate from Body** — genre + key selection. Caption: "Sixteen genres,
+   57 scales, your key, your tempo — composed from your body."
 4. The patch editor. Caption: "A real instrument: shape and save your own sound."
 5. Camera pulse measurement (finger on lens). Caption: "Measure with your
    fingertip — no accessories needed."
@@ -224,7 +224,7 @@ pulse locks → play → music + visual react → "Free. Private. No account."
 
 Every description claim re-checked against the repo — all grounded:
 camera rPPG / universal BLE 0x180D / HealthKit (LIVE) · real HRV coherence
-Lomb-Scargle+Welch (LIVE) · 8 offered genres, 50 scales, A4 432–444 (LIVE) ·
+Lomb-Scargle+Welch (LIVE) · 16 offered genres, 57 scales, A4 432–444 (LIVE) ·
 poly synth + patch editor + presets, sub-bass voice, loop cutter,
 FX chain (LIVE) · MIDI input (notes/bend/CC 74) (LIVE) · virtual MIDI 1.0 out,
 route-gated (LIVE) · OSC + ADM-OSC +

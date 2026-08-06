@@ -27,6 +27,9 @@
 
 import Foundation
 import XCTest
+// #428: the counted-claims test reads `MusicStyle.offered` and `Scale.Family` so the published
+// numbers are chained to the app instead of copied from it. Every other test here is pure text.
+@testable import Echoelmusic
 
 final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
 
@@ -213,6 +216,113 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
         XCTAssertTrue(all.contains { $0.name == "index.html" }, """
             `docs/index.html` was not among the scanned pages. If the home page moved, this \
             file's index/canonical special cases are describing a site that no longer exists.
+            """)
+    }
+
+    // MARK: - Counted claims (#428)
+
+    /// English number words this scan understands. A phrase whose quantifier is NOT in here
+    /// (`the genres`, `electronic genres`, `many scales`) is deliberately IGNORED — this guard
+    /// exists to catch a WRONG number, not to demand that every mention carry one.
+    private static let numberWords: [String: Int] = [
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+        "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+        "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+        "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+        "seventy": 70, "eighty": 80, "ninety": 90
+    ]
+
+    private static func number(_ token: String) -> Int? {
+        let t = token.lowercased()
+        if let n = Int(t) { return n }
+        if let n = numberWords[t] { return n }
+        // "fifty-seven"
+        let parts = t.split(separator: "-").map(String.init)
+        if parts.count == 2, let tens = numberWords[parts[0]], let ones = numberWords[parts[1]],
+           tens >= 20, ones < 10 {
+            return tens + ones
+        }
+        return nil
+    }
+
+    /// Every quantified mention of `noun` in `text`, as (spelled token, value, isSubsetClaim).
+    ///
+    /// ⭐ THE `of` PREFIX IS THE WHOLE DESIGN, and it was found by running this scan before
+    /// writing the assertion: `docs/architecture.html` says "22 of 33 genres carry their own
+    /// [reverb] values". That 33 is the TAXONOMY (`MusicStyle.allCases`), not the roster, and a
+    /// guard that compared it to `MusicStyle.offered.count` would have gone red on a correct
+    /// sentence — the #364 mistake this file's header already apologises for once. So a match
+    /// preceded by `of` is checked against the taxonomy instead of being skipped: still
+    /// guarded, just against the number it is actually claiming.
+    private static func counts(of noun: String, in text: String) -> [(String, Int, Bool)] {
+        let pattern = "(of\\s+)?([A-Za-z0-9-]+)\\s+(?:curated\\s+|offered\\s+)?" + noun + "\\b"
+        guard let rx = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+        else { return [] }
+        let ns = text as NSString
+        return rx.matches(in: text, range: NSRange(location: 0, length: ns.length))
+            .compactMap { m in
+                let token = ns.substring(with: m.range(at: 2))
+                guard let value = number(token) else { return nil }
+                return (token, value, m.range(at: 1).location != NSNotFound)
+            }
+    }
+
+    /// Marketing copy that states HOW MANY genres or scales Echoel offers must agree with the
+    /// app. #254 added eight genres and #232's shelves took the scale list to 57; every public
+    /// "eight curated genres … 50 scales" went stale on the day of those commits and stayed
+    /// stale — across four site pages and the LIVE App Store release notes (#428).
+    ///
+    /// The counts come from the SAME expressions the app uses — `MusicStyle.offered` and
+    /// `Scale.Family.allCases.flatMap(\.scales)`, which is what the grouped picker iterates
+    /// (`ScaleFamilyTests` guards that it covers `Scale.allCases`). Hardcoding 16/57 here would
+    /// simply move the staleness into this file.
+    ///
+    /// ⚠️ Understating is not an App Store 2.3 rejection the way overstating is — but it is
+    /// still a false claim, and this repo has twice paid a full cycle to remove one (#158/#192,
+    /// #184). The guard treats both directions the same.
+    func testPublishedGenreAndScaleCountsMatchTheApp() throws {
+        let expectedGenres = MusicStyle.offered.count
+        let expectedScales = Scale.Family.allCases.flatMap(\.scales).count
+
+        var sources = try pages().map { (name: "docs/\($0.name)", text: $0.html) }
+        let notes = try repoRoot()
+            .appendingPathComponent("fastlane/metadata/en-US/release_notes.txt")
+        if let text = try? String(contentsOf: notes, encoding: .utf8) {
+            sources.append((name: "fastlane/metadata/en-US/release_notes.txt", text: text))
+        }
+
+        let taxonomyGenres = MusicStyle.allCases.count
+        let taxonomyScales = Scale.allCases.count
+
+        var checked = 0
+        for source in sources {
+            for (token, value, isSubset) in Self.counts(of: "genres", in: source.text) {
+                checked += 1
+                let expected = isSubset ? taxonomyGenres : expectedGenres
+                XCTAssertEqual(value, expected, """
+                    \(source.name) says "\(isSubset ? "of " : "")\(token) genres"; \
+                    \(isSubset ? "the taxonomy holds \(taxonomyGenres) (`MusicStyle.allCases`)"
+                               : "the app offers \(expectedGenres) (`MusicStyle.offered`)"). \
+                    Published copy must be recounted in the same commit that changes the roster.
+                    """)
+            }
+            for (token, value, isSubset) in Self.counts(of: "scales", in: source.text) {
+                checked += 1
+                let expected = isSubset ? taxonomyScales : expectedScales
+                XCTAssertEqual(value, expected, """
+                    \(source.name) says "\(isSubset ? "of " : "")\(token) scales"; the picker \
+                    offers \(expectedScales) (`Scale.Family.allCases.flatMap(\\.scales)`).
+                    """)
+            }
+        }
+
+        // Without this the whole test is vacuous the day someone rewords the copy to drop every
+        // number — a green that was never earned, the failure mode this file's header names.
+        XCTAssertGreaterThanOrEqual(checked, 6, """
+            Only \(checked) quantified genre/scale claim(s) were found across \
+            \(sources.count) source(s). The site and the release notes carried nine before \
+            #428; if the copy legitimately stopped counting, lower this floor deliberately \
+            rather than letting the scan pass over nothing.
             """)
     }
 }
