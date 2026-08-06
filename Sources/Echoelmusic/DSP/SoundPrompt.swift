@@ -151,6 +151,24 @@ public enum SoundPrompt {
 
     // MARK: - Clamp to valid ranges
 
+    /// ⚠️ THESE BOUNDS MUST AGREE WITH THE SOUND PANEL'S ROWS, and two of them did not.
+    /// "Describe it" writes straight back into `currentPatch` (`EchoelStudioView.applySoundPrompt`)
+    /// and lives in the SAME panel as the rows that render those numbers, so a bound here that is
+    /// NARROWER than its row silently destroys a shipped value, and one that is WIDER lets the
+    /// prompt produce a value the row rewrites on first touch. Both were live (#430 follow-up):
+    ///
+    ///   · `decay` clamped to 5 while the row spans 0…10 — `Drone Bed` ships 6.0 s
+    ///     (`GenrePatches.swift:146`), so ANY recognised descriptor typed into the same panel
+    ///     rewrote it as 5.0. The row was widened for exactly this value; the prompt still cut it.
+    ///   · `reverbDecay` clamped to 12 while the row spans 0…10 — "lush"/"huge" adds up to 1.5,
+    ///     and the bank ships 8.5 (`GenrePatches`), so 10.0 was reachable here and unreachable
+    ///     there.
+    ///
+    /// The remaining differences are deliberate and harmless TODAY, stated so the next reader does
+    /// not have to re-derive it: `attack`'s 0.001 floor is a musical minimum below every shipped
+    /// onset (0.002); `filterLFORate`'s 12 is narrower than the row's 20 but the bank's maximum is
+    /// 1.2. Two definitions of one range is still the #416 condition — single-sourcing them is
+    /// registered, not done here.
     private static func clamp(_ p: inout SynthPatch) {
         func c01(_ x: Float) -> Float { min(max(x, 0), 1) }
         p.brightness = c01(p.brightness)
@@ -164,11 +182,11 @@ public enum SoundPrompt {
         p.filterLFODepth = c01(p.filterLFODepth)
         p.vibratoDepth = c01(p.vibratoDepth)
         p.attack = min(max(p.attack, 0.001), 5)
-        p.decay = min(max(p.decay, 0.0), 5)
+        p.decay = min(max(p.decay, 0.0), 10)      // was 5 — cut Drone Bed's 6.0 s (#430)
         p.release = min(max(p.release, 0.0), 10)
         p.filterCutoff = min(max(p.filterCutoff, 20), 18_000)
         p.filterLFORate = min(max(p.filterLFORate, 0), 12)
-        p.reverbDecay = min(max(p.reverbDecay, 0), 12)
+        p.reverbDecay = min(max(p.reverbDecay, 0), 10)   // was 12 — wider than its row (#430)
         p.vibratoRate = min(max(p.vibratoRate, 0), 12)
     }
 }

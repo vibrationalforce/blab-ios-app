@@ -40,9 +40,9 @@
 //  value/row pairs, and a completely different picture. Same defect as the #431 count — the
 //  METHOD in a sentence is also a claim, and mine did not cover the source it advertised.
 //
-//  ⭐ WHAT THE HONEST MEASUREMENT FOUND, and why this guard is THREE claims and not one:
+//  ⭐ WHAT THE HONEST MEASUREMENT FOUND:
 //    · ONE authored value was outside its row's RANGE — `Drone Bed`'s `d: 6.0`
-//      (`GenrePatches.swift:145`) against a Decay row of 0…5. `snapped` clamps before it
+//      (`GenrePatches.swift:146`) against a Decay row of 0…5. `snapped` clamps before it
 //      rounds, so touching that row rewrote 6.0 s as 5.0 s: a fifth of the row's span, on a
 //      value a designer typed. That is the real #427 defect in this bank, and it is fixed by
 //      WIDENING the row to 0…10 (the Release row's range) — never by rounding the patch. The
@@ -50,12 +50,22 @@
 //    · 65 values are off-grid and ALL 65 are COMPUTED: 32 brightnesses and 33 harmonic levels,
 //      every one of them from the genre lift. A computed value lands on a finite grid only by
 //      luck; demanding otherwise would force rounding into the sound-design code, which changes
-//      33 shipped genres by ear-untested amounts. They are allowed to round, and claim 3 BOUNDS
-//      the rounding instead (measured worst case 0.005 — half a grid step, ~0.5 % of a 0…1
-//      timbre control).
-//    · Every AUTHORED literal — all 1261 of them — is exactly on its row's grid. That is the
-//      claim worth having: it is what protects Attack's 0.002…0.008 s and Noise's 0.006/0.008
-//      from being rounded away.
+//      33 shipped genres by ear-untested amounts. They are excluded from the exactness claim,
+//      by SOURCE and FIELD rather than by row — the same two fields are authored literals in
+//      the factory bank and the library, and there they must hold exactly.
+//    · Every AUTHORED value — all 1260 value/row pairs, 991 hand-written literals plus 269
+//      `SynthPatch.init` defaults — is exactly on its row's grid. That is the claim worth
+//      having: it is what protects Attack's 0.002…0.008 s and Noise's 0.006/0.008 from being
+//      rounded away.
+//
+//  ⛔ AND THAT SENTENCE READ "all 1261 AUTHORED literals" FOR ONE COMMIT — wrong twice, in the
+//  very line that draws the authored/computed border. 1261 is the ON-GRID count (1326 − 65),
+//  not the authored count (1326 − 66): the extra one is `Berlin Seq`, whose `bright: 0.40`
+//  lifts to exactly 0.43 and lands on the two-decimal grid BY LUCK. Counting it as authored
+//  puts a computed value on the authored side of the very border being drawn. And "literals"
+//  was wrong a second way: the measurement fills in `SynthPatch.init`'s defaults for every
+//  omitted field, so 269 of the 1260 were never written by anybody. Same class as the 496 it
+//  replaced — a count is only as true as the sentence describing what was counted.
 //
 //  ⚠️ WHAT THIS FILE CANNOT DO. It cannot prove the rows RENDER, cannot prove a finger moving
 //  across one of them lands where the eye expects (#427's dead-zone figure is simulation), and
@@ -183,13 +193,22 @@ final class SoundRowsCanReachTheShippedPatchesTests: XCTestCase {
 
     // MARK: - Claim 2 — every AUTHORED value survives its row bit-for-bit
 
-    /// THE REGRESSION. This is what goes red if someone "tidies" Attack or Noise down to 2
-    /// decimals: those two rows are the only reason this test is not a one-liner, and the four
-    /// sub-centisecond onsets plus the two noise floors are the evidence.
+    /// THE REGRESSION — but read what it is a regression IN. The `rows` table below is this
+    /// file's MODEL of the panel; nothing in Swift binds it to the `param(...)`/`knob(...)` call
+    /// sites. So this test goes red when the DATA moves under a fixed grid (a new patch authored
+    /// with a value its row cannot hold) and when the table alone is coarsened — not when someone
+    /// edits `EchoelStudioView.swift`. `testEveryRowStatesItsOwnGridInTheSource` is the half that
+    /// covers the panel, and the two together are what make "tidying Attack down to 2 decimals"
+    /// impossible to land quietly. Neither half is sufficient alone, which is why both exist.
     ///
-    /// The two genre-lifted fields are excluded ON THE GENRE SOURCE ONLY, and claim 3 covers
-    /// them instead. Excluding a whole row would be too coarse — the same two fields are
-    /// authored literals in the factory bank and the library, and there they must hold exactly.
+    /// ⛔ This doc said "goes red if someone tidies Attack down to 2 decimals" and stopped there,
+    /// which was false for the realistic edit. A test that models a surface must say so, or the
+    /// next reader trusts a coupling that is not in the language.
+    ///
+    /// The two genre-lifted fields are excluded ON THE GENRE SOURCE ONLY — the same two fields
+    /// are authored literals in the factory bank and the library, and there they must hold
+    /// exactly. Their computed drift is measured in the header, not asserted here (see the ⛔
+    /// note below for why the assertion that used to live there could not fail).
     func testEveryAuthoredValueIsExactlyOnItsRowsGrid() {
         var checkedPerBank: [Bank: Int] = [:]
         for bank in Bank.allCases {
@@ -218,47 +237,29 @@ final class SoundRowsCanReachTheShippedPatchesTests: XCTestCase {
         }
     }
 
-    // MARK: - Claim 3 — the computed fields may round, but only by half a step
-
-    /// The genre lift (`GenrePatches.swift:363-364`) is arithmetic on an authored number, so it
-    /// lands on a two-decimal grid only by luck — 65 of the 66 genre values do not. Forcing them
-    /// on-grid would mean rounding inside the sound-design code, changing 33 shipped genres by
-    /// amounts nobody has heard. So they are allowed to round, and this bounds the rounding.
-    ///
-    /// Half a grid step is the arithmetic maximum of rounding to that grid, so this is not a
-    /// threshold picked to let the current numbers through (#404 slice 2's mistake) — it is the
-    /// definition. What it actually guards is the two ways that stops being true: a row's grid
-    /// getting coarser, or a lift big enough to push a value out of range where the clamp, not
-    /// the rounding, decides.
-    func testTheGenreLiftedFieldsRoundByAtMostHalfAGridStep() {
-        var seen = 0
-        for row in Self.rows where row.genreLifted {
-            let halfStep = Float(0.5 * pow(10.0, -Double(row.decimals)))
-            for patch in Bank.genres.patches() {
-                let v = row.value(patch)
-                guard v.isFinite else { continue }
-                seen += 1
-                let drift = abs(Self.onGrid(v, row) - v)
-                XCTAssertLessThanOrEqual(drift, halfStep, """
-                    Genre "\(patch.name)": \(row.label) is \(v) and the row would write \
-                    \(Self.onGrid(v, row)) — a move of \(drift), more than the \(halfStep) that \
-                    rounding alone can cost. That means the value left the row's range and was \
-                    CLAMPED. Widen the row; do not round the lift.
-                    """)
-            }
-        }
-        XCTAssertGreaterThan(seen, 0, """
-            No genre-lifted values were examined, so this claim proved nothing. If the lift in \
-            GenrePatches.patch(...) is gone, drop the `genreLifted` exemption from claim 2 \
-            instead of leaving an empty test standing in for it.
-            """)
-    }
+    // ⛔ THERE WAS A CLAIM 3 HERE FOR ONE COMMIT, AND IT COULD NOT FAIL.
+    //
+    // `testTheGenreLiftedFieldsRoundByAtMostHalfAGridStep` asserted that the two computed fields
+    // move by at most half a grid step, and its doc named two things it guarded. Both were void:
+    //
+    //   · "a row's grid getting coarser" — the bound was `0.5 * 10^-decimals` and the rounding
+    //     used the SAME `decimals`. Both sides scale together, so coarsening can never trip it.
+    //   · "a lift big enough to leave the range" — the lift is `min(1, x + k·(1-x))`, which for
+    //     x ∈ [0,1] returns a value in [x, 1]. It cannot leave a 0…1 row by construction, and if
+    //     it somehow did, claim 1 already covers those exact rows with a better message.
+    //
+    // So it was a strictly weaker duplicate of claim 1 — the #367 class this file's own scan
+    // section warns about. Worse, the ONE way it could ever go red was floating point: the bound
+    // is `Float(0.005)` = 0.004999999888 and the measured worst drift is 0.004999995232, a margin
+    // of 4.7e-9 against a representation error that already reaches ~3e-8. The only reachable
+    // failure was a spurious one. Deleted rather than weakened; the measured drift is recorded in
+    // the header, where a number that nothing can check belongs.
 
     // MARK: - Why two rows are finer than the rest
 
     /// THE TWO ROWS THAT ARE DELIBERATELY FINER — pinned so the reason cannot be lost.
     ///
-    /// Without this, a later cycle reads fifteen rows on 2 and two on 3, calls it an
+    /// Without this, a later cycle reads fourteen rows on 2, two on 3 and one on 0, calls it an
     /// inconsistency, and "fixes" it. Each half asserts BOTH directions: the value exists, AND
     /// it is genuinely unreachable one decimal coarser. The second half is the whole argument,
     /// so it is an assertion and not a comment.
@@ -344,6 +345,50 @@ final class SoundRowsCanReachTheShippedPatchesTests: XCTestCase {
             because no call site ever had to write the argument, so no review ever saw it. \
             Keep it required and let each row state its own grid.
             """)
+    }
+
+    /// THE FOUR ROWS WHOSE NUMBERS ARE NOT THE HOUSE DEFAULT — pinned in the SOURCE, not just in
+    /// this file's table.
+    ///
+    /// Without this the model above can drift from the panel with every test green: coarsen
+    /// Attack to 2 in `EchoelStudioView.swift` and nothing here notices, because `rows` is a hand
+    /// copy. That is the same gap #427's sibling guard closed with a per-row scan, and the
+    /// precedent is why this is a scan and not an argument.
+    ///
+    /// Only the four rows that DEVIATE are pinned, and deliberately so: asserting all seventeen
+    /// would make every ordinary panel edit red for no reason, which is how a guard gets deleted.
+    /// Three deviate in `decimals` (each earned by shipped data, see the header) and one in
+    /// RANGE — Decay's 0…10 is what makes `Drone Bed`'s 6.0 s reachable, so narrowing it back is
+    /// the defect returning, not a style change.
+    ///
+    /// ⚠️ A scan: it pins the literal text of four call sites and can go red for a harmless
+    /// reformat. That is the trade — a false red here costs one edit, a silent drift costs the
+    /// two grids the whole slice exists for.
+    func testEveryRowStatesItsOwnGridInTheSource() throws {
+        let url = try repoRoot()
+            .appendingPathComponent("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        let text = try String(contentsOf: url, encoding: .utf8)
+
+        let pinned: [(row: String, call: String, why: String)] = [
+            ("Noise", #"knob("Noise", $currentPatch.noiseLevel, 0...1, decimals: 3)"#,
+             "0.006 and 0.008 both map onto 0.01 on a 2-decimal grid"),
+            ("Cutoff", #"knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz", decimals: 0)"#,
+             "all 44 shipped cutoffs are whole Hz, and the app's three other cutoff rows say 0"),
+            ("Attack", #"param("Attack", $currentPatch.attack, 0...5, unit: "s", decimals: 3)"#,
+             "0.002/0.003/0.004/0.005 s all collapse to 0.00 on a 2-decimal grid"),
+            ("Decay", #"param("Decay", $currentPatch.decay, 0...10, unit: "s", decimals: 2)"#,
+             "0...5 clamped Drone Bed's 6.0 s down to 5.0 on first touch")
+        ]
+
+        for pin in pinned {
+            XCTAssertTrue(text.contains(pin.call), """
+                The Sound panel's \(pin.row) row is no longer written as
+                    \(pin.call)
+                and that number is not decoration — \(pin.why). If the row moved or was \
+                reformatted, retarget this pin in the same commit; if the grid or range really \
+                changed, the header's measurement has to change with it.
+                """)
+        }
     }
 
     // MARK: - Helpers

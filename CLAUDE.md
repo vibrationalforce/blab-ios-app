@@ -276,25 +276,64 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           UND mit den `SynthPatch.init`-Vorgaben für jedes ausgelassene Feld: **78
                           Patches, 1326 Wert/Zeile-Paare**. Derselbe Defekt wie bei der
                           #431-Zählung — die Methode in einem Satz ist auch eine Behauptung.
-                          ⭐ Was die ehrliche Messung fand, und warum der Wächter jetzt DREI
-                          Ansprüche stellt statt einem: **EIN** ausgelieferter Wert lag außerhalb
-                          seiner Zeile (`Drone Bed` `d: 6.0` gegen eine Decay-Zeile 0…5; `snapped`
-                          klemmt VOR dem Runden, ein Antippen hätte 6,0 s als 5,0 s
+                          ⭐ Was die ehrliche Messung fand: **EIN** ausgelieferter Wert lag
+                          außerhalb seiner Zeile (`Drone Bed` `d: 6.0` gegen eine Decay-Zeile 0…5;
+                          `snapped` klemmt VOR dem Runden, ein Antippen hätte 6,0 s als 5,0 s
                           zurückgeschrieben) — behoben durch WEITEN auf 0…10, nie durch Runden des
                           Patches, die #424-Lehre auf einem anderen Pfad. **65** Werte liegen
                           neben dem Raster und ALLE 65 sind BERECHNET (32 Helligkeiten, 33
-                          Obertonpegel, alle aus dem Genre-Lift); sie dürfen runden, und Anspruch 3
-                          BEGRENZT das Runden auf eine halbe Rasterstufe statt es zu verbieten —
-                          on-grid zu erzwingen hieße, in den Sound-Design-Code zu runden und 33
-                          ausgelieferte Genres um ungehörte Beträge zu ändern. Alle **1261**
-                          AUTORIERTEN Literale sind exakt auf dem Raster ihrer Zeile; das ist der
-                          Anspruch, der Attacks 0,002…0,008 s und die zwei Rauschböden schützt.
-                          Die vierte Hälfte verbietet, dass `decimals` je wieder einen DEFAULT
-                          bekommt — denn genau das war der Mechanismus: ein Argument, das keine
-                          Aufrufstelle schreibt, taucht in keinem Diff auf. ⚠️ Was er NICHT kann:
-                          beweisen, dass die Zeilen rendern, und beurteilen, ob 3 Stellen sich für
-                          eine Hüllkurve richtig ANFÜHLEN — das ist eine Geräteprobe. Steht so im
-                          Dateikopf), davor „169"
+                          Obertonpegel, alle aus dem Genre-Lift); sie sind von der
+                          Exaktheits-Forderung ausgenommen — nach QUELLE und FELD, nicht nach
+                          Zeile, weil dieselben zwei Felder in Werksbank und Bibliothek
+                          handgeschrieben sind. Alle **1260** AUTORIERTEN Wert/Zeile-Paare (991
+                          Literale + 269 `SynthPatch.init`-Vorgaben) sind exakt auf dem Raster
+                          ihrer Zeile; das ist der Anspruch, der Attacks 0,002…0,008 s und die
+                          zwei Rauschböden schützt.
+                          ⛔ **Und diese Zeile stand einen Commit lang auf „1261 AUTORIERTE
+                          Literale" — zweifach falsch, ausgerechnet in dem Satz, der die Grenze
+                          zwischen autoriert und berechnet ZIEHT.** 1261 ist die ON-GRID-Zahl
+                          (1326 − 65), nicht die autorierte (1326 − 66): der eine Überschuss ist
+                          `Berlin Seq`, dessen `bright: 0.40` auf exakt 0,43 gehoben wird und rein
+                          zufällig auf dem Raster landet. Und „Literale" war die zweite Hälfte:
+                          269 der 1260 Werte hat nie jemand geschrieben, sie kommen aus den
+                          `init`-Vorgaben. Dieselbe Klasse wie die 496, die sie ersetzt hat.
+                          ⚠️ **Nachlese-Befund, der eine Behauptung des ersten Commits
+                          zurücknimmt:** dessen Text sagte „der einzige andere Schreiber
+                          (`applyArticulation`) bleibt in 0,25…1,25". Falsch —
+                          `SoundPrompt.clamp` (`DSP/SoundPrompt.swift`) ist ein zweiter, aus
+                          DERSELBEN Fläche erreichbarer Schreiber („Describe it") und klemmte
+                          `decay` auf 0…5: jeder erkannte Beschreibungs-Begriff schrieb `Drone
+                          Bed`s 6,0 s als 5,0 zurück, also der gerade behobene Defekt eine
+                          Bedienung weiter. Umgekehrt klemmte `reverbDecay` dort auf 0…12, während
+                          seine Zeile 0…10 spannt — der Prompt konnte einen Wert erzeugen, den die
+                          Zeile beim ersten Antippen wieder einfängt. Beide Grenzen ziehen jetzt
+                          mit der Zeile; die verbleibenden Abweichungen (`attack`-Boden 0,001,
+                          `filterLFORate` 0…12 gegen Zeile 0…20) sind gemessen folgenlos und
+                          stehen als solche im Quellkommentar. **Zwei Definitionen EINES Bereichs
+                          bleiben die #416-Bedingung** — sie wirklich single-zu-sourcen ist
+                          registriert, nicht getan.
+                          ⛔ **Der Wächter hatte außerdem einen Anspruch, der NICHT SCHEITERN
+                          KONNTE, und ich habe ihn gelöscht statt abgeschwächt:** er verlangte,
+                          dass die berechneten Felder um höchstens eine halbe Rasterstufe runden —
+                          die Schranke leitete sich aber aus DEMSELBEN `decimals` ab wie das
+                          Runden, skaliert also mit, und die einzige andere Fehlerart (Verlassen
+                          des Bereichs) ist durch `min(1, x + k·(1-x))` konstruktiv ausgeschlossen
+                          und ohnehin schon von Anspruch 1 gedeckt. Übrig blieb ein
+                          Fließkomma-Abstand von 4,7e-9 zwischen Schranke und gemessenem Drift —
+                          die einzige erreichbare Fehlschlag-Ursache wäre ein Fehlalarm gewesen.
+                          Die #367-Klasse, in einem Wächter, dessen eigener Scan-Abschnitt davor
+                          warnt. **Neu dazugekommen ist stattdessen ein QUELLEN-Scan über die vier
+                          Zeilen, die vom Hausdefault abweichen** (Noise 3 · Cutoff 0 · Attack 3 ·
+                          Decay 0…10) — ohne ihn ist die Zeilentabelle des Tests eine Handkopie,
+                          und ein „Aufräumen" von Attack auf 2 Stellen in `EchoelStudioView.swift`
+                          hätte alle Tests grün gelassen. Bewusst nur die vier Abweichler: alle
+                          siebzehn festzunageln macht jede gewöhnliche Panel-Änderung rot, und so
+                          wird ein Wächter gelöscht. Die letzte Hälfte verbietet, dass `decimals`
+                          je wieder einen DEFAULT bekommt — denn genau das war der Mechanismus:
+                          ein Argument, das keine Aufrufstelle schreibt, taucht in keinem Diff
+                          auf. ⚠️ Was er NICHT kann: beweisen, dass die Zeilen rendern, und
+                          beurteilen, ob 3 Stellen sich für eine Hüllkurve richtig ANFÜHLEN — das
+                          ist eine Geräteprobe. Steht so im Dateikopf), davor „169"
                           nach `TheArousalFloorSitsBelowThePacedBreathTests.swift` (#433 — der
                           erste Wächter in dieser Kette über einem Defekt, den ein REVIEWER-BERICHT
                           eingeführt hat und dessen Korrektur die halbe Scheibe ist. Der #429-Reviewer
