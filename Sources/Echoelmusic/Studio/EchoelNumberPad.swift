@@ -328,25 +328,30 @@ struct EchoelNumberPad: View {
     /// replaced. (A "do not delete" note with a false reason is worse than none: the next session
     /// cannot refute it.)
     ///
-    /// **And the header can still disagree with the commit, at exact ties.** `fmt` →
-    /// `EchoelDecimalText.string` → `String(format: "%.Nf", …)`, which is C `printf` and rounds
-    /// HALF-TO-EVEN on the exact binary value; this rounds HALF-AWAY-FROM-ZERO. They part company
-    /// wherever the value is an exact dyadic tie whose truncated integer is even — `0.125` at two
-    /// places reads "0.12" and commits `0.13`. Reachable, because `initial` is the live value and
-    /// a derived binding (`EchoelStudioView.visualEnergy`) lands off-grid by construction.
-    /// That is the #431 defect surviving on the empty-buffer path; it is a FORMATTER mismatch
-    /// rather than an entry one, so it is registered as its own item (#432) instead of being
-    /// bolted onto this slice — but it must not be claimed away here, which is what the first
-    /// version of this comment did.
+    /// **The header could also disagree with the commit, at exact ties — CLOSED BY #432.** `fmt`
+    /// → `EchoelDecimalText.string` → `String(format: "%.Nf", …)` is C `printf` and rounds
+    /// HALF-TO-EVEN on the exact binary value, while this rounds HALF-AWAY-FROM-ZERO. They parted
+    /// company wherever the value was an exact dyadic tie whose lower neighbour is even — `0.125`
+    /// at two places read "0.12" and committed `0.13`. Reachable, because `initial` is the live
+    /// value and a derived binding (`EchoelStudioView.visualEnergy`) lands off-grid by
+    /// construction. `fmt` now grids before it formats, and this function no longer keeps its own
+    /// copy of the arithmetic: there is ONE definition of the grid, `ScrubPrecision.gridded`.
     private func snapped(_ v: Double) -> Double {
-        let f = pow(10.0, Double(decimals))
-        return (v * f).rounded() / f
+        ScrubPrecision.gridded(v, decimals: decimals)
     }
 
     /// The pad's own readout and its "Range …–…" line. Same helper as `EchoelValueField`, so
-    /// the number cannot read one way in the field and another way in the pad that edits it.
+    /// the number cannot read one way in the field and another way in the pad that edits it —
+    /// and, since #432, gridded by the same rule the commit uses, so it cannot read one way and
+    /// commit another either.
+    ///
+    /// ⚠️ IT ALSO FORMATS THE TWO BOUNDS, and a bound is not a value a touch will keep — gridding
+    /// one can only misstate it, outward (a lower bound of `0.5` on a whole-number row would read
+    /// "Range 1–…" while `0.5` is still legal). Latent, not live: every range bound in `Sources/`
+    /// was checked against its own row's `decimals` and none is an exact dyadic tie there. Written
+    /// down because the next bound somebody adds is the one that makes it live.
     private func fmt(_ v: Double) -> String {
-        EchoelDecimalText.string(v, decimals: decimals)
+        EchoelDecimalText.string(ScrubPrecision.gridded(v, decimals: decimals), decimals: decimals)
     }
 }
 #endif

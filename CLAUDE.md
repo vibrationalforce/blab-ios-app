@@ -242,8 +242,65 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**170** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `SoundRowsCanReachTheShippedPatchesTests.swift` (#430 — der
+                          `Tests/CISmoke` (**171** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `TheShownNumberIsTheKeptNumberTests.swift` (#432 — der erste
+                          Wächter in dieser Kette über zwei RUNDUNGSREGELN für dieselbe Zahl, und der
+                          Abschluss der #135/#416/#427/#431-Familie: das eine Parameter-Bedienelement
+                          rundete, was es ZEIGT, anders als das, was es BEHÄLT. Behalten läuft über
+                          `.rounded()` (half-away-from-zero), Zeigen über `EchoelDecimalText.string` →
+                          `String(format: "%.Nf", …)`, also C-`printf` (half-to-EVEN auf dem exakten
+                          Binärwert). Sie stimmen überall überein außer an einem exakten dyadischen
+                          Gleichstand — und dort genau zur HÄLFTE, nämlich wenn der gerade Nachbar der
+                          UNTERE ist: gemessen **30 von 60** bei jeder der fünf benutzten Stellenzahlen
+                          (0,125 las „0,12" und schrieb 0,13; 0,25 las „0,2" und schrieb 0,3; 0,5 las
+                          „0" und schrieb 1).
+                          ⭐ Und die Reichweite ist kein Sonderfall: auf der Spanne der Cutoff-Zeile
+                          allein weichen **8990 der 17980 Halbzahlen in 20…18000** ab, also jede
+                          zweite. Erreichbar ist ein Gleichstand nur für einen Wert, den noch nichts
+                          gerastert hat — und das ist die interessante Menge: ein ausgeliefertes
+                          Patch-Literal, ein von Bio oder „Describe it" geschriebener Wert, oder eine
+                          ABGELEITETE Bindung wie `EchoelStudioView.visualEnergy`, deren Getter aus
+                          zwei anderen Werten neu rechnet und konstruktionsbedingt neben dem Raster
+                          landet (#427 maß dort 62 von 101 Positionen).
+                          ⭐ Die Reparatur ist EINE Regel pro Bedienelement, keine neue: `ScrubPrecision.gridded`
+                          ist der Rasterschritt aus `snapped` herausgehoben, beide Anzeigen
+                          (`EchoelValueField.numberString`, `EchoelNumberPad.fmt`) formatieren jetzt den
+                          GERASTERTEN Wert, `snapped` ist darüber neu definiert und die private
+                          Zweitkopie derselben Arithmetik im Tastenfeld ist weg — eine Definition statt
+                          drei (#416). ⚠️ Gerastert wird, GEKLEMMT nicht: Rastern bewegt eine Zahl um
+                          weniger als eine halbe Stufe, Klemmen um beliebig viel. Eine Anzeige, die
+                          klemmt, behauptet einen Wert innerhalb eines Bereichs, in dem er nicht liegt
+                          — die schlechtere Lüge.
+                          ⚠️ Was er NICHT kann: `numberString` und `fmt` sind beide `private` in
+                          SwiftUI-Views, also hält die KOPPLUNG allein der Quelltext-Scan; zwei der
+                          fünf Tests sind seit der Neudefinition von `snapped` fast tautologisch und
+                          sagen das im Dateikopf. Die eigentliche Regression ist
+                          `testTheOldFormatterDisagreedWithTheCommit`, das die gemessene Hälfte
+                          festnagelt und rot wird, sobald jemand `gridded` „zur Konsistenz mit printf"
+                          auf half-to-even umstellt.
+                          ⛔ **Und die erste Fassung dieser Scheibe hielt einen Modellfehler für einen
+                          Befund und hat daraufhin die eigene Beweislast VERKLEINERT.** Ein
+                          Python-Modell meldete 64 Abweichungen auf gewöhnlichen Nicht-Gleichständen,
+                          alle der Form „-0" → „0" bei `decimals: 0` — wäre das echt, träfe es sechs
+                          ausgelieferte Zeilen (Transpose ±12/±24, Detune, Trim −48…0, Pan −1…1). Es
+                          war ein Fehler des MODELLS (ein naives `floor(x + 0.5)`), nicht des Codes:
+                          Swifts `.rounded()` ist `toNearestOrAwayFromZero`, also IEEE-754
+                          `roundToIntegralTiesAway`, und das ERHÄLT das Vorzeichen der Null. Meine
+                          Antwort darauf war, den No-op-Sweep auf nichtnegative Werte zu begrenzen und
+                          das ehrlich hinzuschreiben — und genau das ist die schwächere Aussage im
+                          Gewand der stärkeren: „sicher für jede Anzeige der App" kann sich nicht auf
+                          einen Sweep stützen, der die halbe ausgelieferte Domäne auslässt. Der Sweep
+                          deckt die negativen Bereiche jetzt mit ab, auf der IEEE-Regel statt auf
+                          einem Modell (Reviewer-Gegenprobe: 120 000 Werte, null Abweichungen).
+                          ⚠️ Das Versprechen des Titels gilt NUR für die RUNDUNG, nicht für die
+                          Klemme: `999` in eine 0…1-Zeile getippt zeigt `999` in der 30-pt-Anzeige und
+                          schreibt `1,00` fest — ein viel größerer sichtbarer Unterschied als jeder
+                          Gleichstand, absichtlich erhalten, weil ein Bereichs-PRÄFIX die normale
+                          Mitte einer gültigen Eingabe ist (#431). ⚠️ Und die Prosa der Datei war an
+                          einer Stelle falsch, wo nichts rot wird: sie sagte „die fünf
+                          Stellenzahlen" und zählte VIER auf, wobei „2 quer durch FX" konkret falsch
+                          ist — sechs Dynamik-Zeilen des FX-Fensters stehen auf 1), davor „170"
+                          nach `SoundRowsCanReachTheShippedPatchesTests.swift` (#430 — der
                           erste Wächter in dieser Kette, der eine RASTERWEITE an den DATENBESTAND
                           kettet statt an eine Regel: `EchoelValueField.decimals` ist nicht die
                           Anzeige sondern das SNAP-RASTER (`ScrubPrecision.snapped`), und die zwei
@@ -1341,7 +1398,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTNEUNUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 170 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 171 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

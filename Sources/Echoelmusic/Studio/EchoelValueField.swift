@@ -143,8 +143,50 @@ enum ScrubPrecision {
     /// are what keep that unreachable today.
     static func snapped(_ raw: Double, lowerBound: Double, upperBound: Double,
                         decimals: Int) -> Double {
+        gridded(clamped(raw, lowerBound: lowerBound, upperBound: upperBound), decimals: decimals)
+    }
+
+    /// The GRID half of `snapped`, without the clamp — and the app's ONE definition of what
+    /// rounding a parameter to `decimals` places means.
+    ///
+    /// It exists because the number a row SHOWS and the number a row KEEPS were rounded by two
+    /// different rules (#432). The commit path has always used `.rounded()`, which is
+    /// half-away-from-zero. The readout went through `EchoelDecimalText.string` →
+    /// `String(format: "%.Nf", …)`, which is C `printf` and rounds HALF-TO-EVEN on the exact
+    /// binary value. They agree everywhere except at an exact dyadic tie — and there they
+    /// disagree half the time, because half of all ties have an even neighbour below:
+    ///
+    ///   · 2 places: `0.125` read "0.12" and committed `0.13`; `0.625` read "0.62" → `0.63`.
+    ///     (`0.375` and `0.875` agreed — their even neighbour is the upper one.)
+    ///   · 0 places: `2400.5` read "2400" and committed `2401`. Measured over the Cutoff row's
+    ///     own span, **8990 of the 17980 half-integers in 20…18000 diverge** — this is not an
+    ///     exotic corner, it is every other one.
+    ///
+    /// A tie is only reachable for a value nothing has snapped yet, which is exactly the
+    /// interesting case: a shipped patch literal, a bio- or prompt-written value, or a DERIVED
+    /// binding like `EchoelStudioView.visualEnergy`, whose getter recomputes and lands off-grid
+    /// by construction. The player then reads one number and the first touch keeps another —
+    /// the #135/#416/#427/#431 condition, on the last path where it survived.
+    ///
+    /// NOT the clamp: the readout must never claim a value is inside a range it is outside of.
+    /// Gridding alone is safe for display because it moves a number by less than half a step;
+    /// clamping can move it by any amount at all.
+    ///
+    /// NaN and the infinities pass through as they did (`(NaN).rounded()` is NaN, `±∞ * f` is
+    /// `±∞`), so `printf` still prints "nan"/"inf" exactly as before — this is a no-op for every
+    /// input that is not an exact tie. A negative zero also survives: `.rounded()` is
+    /// `toNearestOrAwayFromZero`, which preserves the sign of a zero result, so the six rows that
+    /// go below zero (Transpose, Detune, Trim, pan) still read "-0" where they always did.
+    ///
+    /// ⚠️ NO `decimals ≥ 0` GUARD, unlike `EchoelDecimalText.string`, which clamps with
+    /// `Swift.max(0, decimals)`. A negative `decimals` here would grid to tens or hundreds and the
+    /// readout would print "0" for a 7. No call site passes one (the only computed `decimals` in
+    /// the app is `bio.hrvRMSSDms < 10 ? 1 : 0`) and `snapped` has always had the same hole, so
+    /// this is written down rather than closed — closing it silently would make a nonsense input
+    /// look handled instead of impossible.
+    static func gridded(_ raw: Double, decimals: Int) -> Double {
         let f = pow(10.0, Double(decimals))
-        return (clamped(raw, lowerBound: lowerBound, upperBound: upperBound) * f).rounded() / f
+        return (raw * f).rounded() / f
     }
 
     /// The range clamp on its own — the half of `snapped` a scrub in progress needs WITHOUT the
@@ -1219,8 +1261,15 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// Locale-aware since #232 G — a German player reads "0,50", not "0.50". Feeds BOTH the
     /// drawn value and `accessibleValue`, so VoiceOver speaks the same string the eye sees
     /// (a mismatch there is the #263 defect, one layer down).
+    ///
+    /// GRIDDED FIRST (#432). `EchoelDecimalText.string` is `printf`, which rounds half-to-even;
+    /// `apply` rounds half-away. Formatting the raw value let this row print "0.12" for a
+    /// stored `0.125` that the very next touch would write as `0.13`. One rounding rule per
+    /// control: the readout describes the grid cell the row would keep. No clamp — see
+    /// `ScrubPrecision.gridded`; a readout must not claim a value is inside a range it is not.
     private var numberString: String {
-        EchoelDecimalText.string(Double(value), decimals: decimals)
+        EchoelDecimalText.string(ScrubPrecision.gridded(Double(value), decimals: decimals),
+                                 decimals: decimals)
     }
 }
 #endif
