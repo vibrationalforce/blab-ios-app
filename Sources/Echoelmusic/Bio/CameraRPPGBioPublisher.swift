@@ -281,6 +281,25 @@ public final class CameraRPPGBioPublisher {
     private var lastGoodBioFrame: BioSampleFrame?
     private var lastGoodPublishTick = Int.min
     private var lastValidCoherence: Float = 0
+
+    /// ⭐ ONE respiration estimator for the whole take (#343). It used to be rebuilt from
+    /// scratch on EVERY publish and fed only the newest 10 s analysis window — and that is
+    /// not a settling-time nuisance, it is a structural blind spot exactly where this app
+    /// aims: at 6 breaths/min (the HRV-resonance rate `BioScienceInfo` cites and
+    /// `BreathPacer` paces toward) one window spans ONE breath cycle, so it can contain at
+    /// most one upward zero-crossing — and a PERIOD needs two. Simulated over the shipped
+    /// constants at four starting phases, 10 s of RR gives `ratePerMinute == 0` every time
+    /// while `confidence` lands at 0.46–0.50, i.e. ABOVE the 0.4 gate below. The publisher
+    /// therefore reported "breath measured" and a rate of zero, for the one breathing rate
+    /// the product is built around. 30 s of the same signal reads 6.0; 60 s reads 6.0 at
+    /// full confidence.
+    ///
+    /// Fed incrementally from `analyzer.beatTimes`, which is why that property exists:
+    /// windows overlap ~90 % and interval values carry no identity, so "newer than the last
+    /// beat I consumed" is the only exact way to ingest each beat once.
+    private var respiration = RespirationEstimator()
+    /// Absolute time of the newest beat already handed to `respiration`. 0 = nothing yet.
+    private var lastRespirationBeatTime: Double = 0
     /// ~4 s at the 10 Hz tick. Deliberately non-private so a test can pin the
     /// invariant this hold depends on: a held frame carries its ORIGINAL timestamp,
     /// so the hold only works while it is SHORTER than every consumer's freshness
@@ -1019,16 +1038,27 @@ public final class CameraRPPGBioPublisher {
                 if coherence.valid { self.lastValidCoherence = coherence.coherence }
 
                 // Respiration from the RR series via RSA (breathing modulates HR).
-                // Replay the current RR window through a fresh estimator → the current
-                // breath amplitude (drives the ball) + rate. Pure + cheap. Reported
-                // only when the respiratory oscillation is clear (confidence gate), so
-                // breathRate > 0 signals "measured breath available" to the UI.
-                var resp = RespirationEstimator()
-                var tAcc = 0.0
-                for ms in rrMs where ms > 250 && ms < 2000 {
-                    tAcc += ms / 1000.0
-                    resp.ingest(heartRate: 60_000.0 / ms, at: tAcc)
+                // ONE estimator per take, fed each beat exactly once (#343 — see the
+                // `respiration` property for why replaying a single 10 s window could not
+                // measure resonance breathing at all). Reported only when the respiratory
+                // oscillation is clear (confidence gate), so breathRate > 0 signals
+                // "measured breath available" to the UI.
+                //
+                // The count check is not defensive noise: these two arrays are produced
+                // together and are 1:1 by construction, and indexing on that assumption is
+                // exactly the kind of thing a later edit on one side breaks silently. If
+                // they ever diverge, skipping the ingest keeps the LAST good estimate
+                // rather than crashing or feeding garbage into long-lived state.
+                let beatTimes = self.analyzer.beatTimes
+                if beatTimes.count == rrMs.count {
+                    for (i, t) in beatTimes.enumerated() where t > self.lastRespirationBeatTime {
+                        let ms = rrMs[i]
+                        guard ms > 250, ms < 2000 else { continue }
+                        self.respiration.ingest(heartRate: 60_000.0 / ms, at: t)
+                        self.lastRespirationBeatTime = t
+                    }
                 }
+                let resp = self.respiration
                 let measuredBreath = resp.confidence >= 0.4
                 let frame = BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
@@ -1268,6 +1298,17 @@ public final class CameraRPPGBioPublisher {
         capture.stop()
         sampleQueue.clear()            // drop any frames buffered but not yet drained
         analyzer.stopPulseDetection()
+        // A new take is a new session — and the clock behind `beatTimes` does not
+        // necessarily continue across a camera teardown, so a stale cursor could swallow
+        // the first beats of the next take. Reset BOTH or neither.
+        //
+        // Deliberately NOT reset on a stall recovery (`handleCameraSessionReset`): the
+        // person is still breathing, the timestamps still only move forward, and the
+        // estimator's own long-gap guard skips the discontinuity. Throwing away the
+        // accumulated cycles there would re-create #343 once every recovery — and #303
+        // measured those at 12–13 s apart on a bad contact.
+        respiration.reset()
+        lastRespirationBeatTime = 0
         isRunning = false
         fingerDetected = false
         signalQuality = 0

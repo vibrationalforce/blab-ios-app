@@ -52,6 +52,22 @@ final class CameraAnalyzer {
     /// tolerates it; a Poincaré plot does not. Use `rawIntervalsMs` for that.
     var rrIntervals: [Double] = []
 
+    /// Absolute timestamp (same clock as the camera frames) of the beat that CLOSED each
+    /// interval in `rrIntervals` — always the same length, always in the same order.
+    ///
+    /// It exists for the one thing `rrIntervals` alone cannot support: accumulating across
+    /// windows. The analysis window is 10 s and re-runs about once a second, so consecutive
+    /// publications overlap by ~90 %, and the interval VALUES carry no identity — two beats
+    /// 40 s apart can produce byte-identical doubles. A consumer holding long-lived state
+    /// (respiration, #343) needs to ingest each beat exactly once; comparing against the last
+    /// time it consumed is the only exact way to do that.
+    ///
+    /// ⚠️ Times are absolute and monotonically increasing WITHIN a capture session. A stall
+    /// recovery flushes the window (`resetForRecovery`) but does NOT rewind the clock, so a
+    /// "newer than what I consumed" filter stays correct across one; the gap simply shows up
+    /// as a large `dt`, which is the consumer's business to handle.
+    var beatTimes: [Double] = []
+
     /// Every peak-to-peak difference of the newest window, in ms, with NOTHING removed —
     /// including the impossible ones a dropped or doubled peak produces.
     ///
@@ -308,6 +324,7 @@ final class CameraAnalyzer {
                 estimatedBPM = 0
                 rmssd = 0
                 rrIntervals.removeAll()
+                beatTimes.removeAll()    // stays 1:1 with rrIntervals, including when both are empty
                 recentBPMs.removeAll()   // don't seed the next lock from a stale median
             }
         }
@@ -370,6 +387,7 @@ final class CameraAnalyzer {
         signalTimestamps.removeAll()
         peakIndices.removeAll()
         rrIntervals.removeAll()
+        beatTimes.removeAll()   // stays 1:1 with rrIntervals, including when both are empty
         bpState = BandpassState()
         dcEstimate = 0
         dcWarmupCount = 0
@@ -577,15 +595,25 @@ final class CameraAnalyzer {
         }
 
         var intervals: [Double] = []
+        // Absolute time of the SECOND beat of each accepted interval, kept 1:1 with
+        // `intervals` (and therefore with `rrIntervals` after the IQR filter below).
+        // Without it, a consumer that wants to accumulate ACROSS windows cannot tell which
+        // beats it has already seen — the window overlaps its predecessor by ~90 %, and the
+        // interval VALUES are not unique. #343: that is why respiration had to be recomputed
+        // from one 10 s window each publish, which is too short to measure a breath cycle at
+        // the app's own resonance target. See `beatTimes`.
+        var endTimes: [Double] = []
         // The SAME differences before any rejection — `rawIntervalsMs`, for consumers that do
         // their own hygiene. See that property's doc for why the `continue` below makes
         // `intervals` unusable for anything that reads CONSECUTIVE pairs.
         var raw: [Double] = []
         for j in 1..<newPeaks.count {
-            let dt = signalTimestamps[startIdx + newPeaks[j]] - signalTimestamps[startIdx + newPeaks[j-1]]
+            let end = signalTimestamps[startIdx + newPeaks[j]]
+            let dt = end - signalTimestamps[startIdx + newPeaks[j-1]]
             raw.append(dt * 1000.0)
             guard dt > 0.3 && dt < 1.5 else { continue }
             intervals.append(dt)
+            endTimes.append(end)
         }
         // Published unconditionally, BEFORE the window can bail out below: a window whose rate
         // the lock refuses still contains real beat timings, and the consumer that filters them
@@ -605,8 +633,14 @@ final class CameraAnalyzer {
         let q1 = sorted[cnt / 4]
         let q3 = sorted[(cnt * 3) / 4]
         let iqr = q3 - q1
-        let cleanIntervals = intervals.filter {
-            $0 > (q1 - 1.5 * iqr) && $0 < (q3 + 1.5 * iqr)
+        // Indexed rather than `intervals.filter { … }` so `endTimes` survives the SAME
+        // rejection and stays 1:1 with the published series. A second, independent filter
+        // over `endTimes` would drift apart the moment either predicate changed.
+        var cleanIntervals: [Double] = []
+        var cleanEndTimes: [Double] = []
+        for (i, v) in intervals.enumerated() where v > (q1 - 1.5 * iqr) && v < (q3 + 1.5 * iqr) {
+            cleanIntervals.append(v)
+            cleanEndTimes.append(endTimes[i])
         }
 
         guard !cleanIntervals.isEmpty else { ageConfidence(timestamp); return }
@@ -631,6 +665,7 @@ final class CameraAnalyzer {
             bpmConfidence = bpmConfidence * 0.82 + min(1, (auto.strength - 0.4) / 0.4) * 0.18
             lastEstimateTimestamp = timestamp
             rrIntervals = cleanIntervals.map { $0 * 1000.0 }
+            beatTimes = cleanEndTimes
             if rrIntervals.count >= 3 { calculateRMSSD() }
             return
         }
@@ -695,6 +730,7 @@ final class CameraAnalyzer {
         if slewClamped { bpmConfidence *= 0.85 }
 
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
+        beatTimes = cleanEndTimes
         if rrIntervals.count >= 3 { calculateRMSSD() }
     }
 
