@@ -242,8 +242,43 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**173** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheBreathTermFadesInsteadOfSteppingTests.swift` (#434 — der
+                          `Tests/CISmoke` (**174** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `TheGapClimbCannotChangeTheResumeTests.swift` (#444 — der erste
+                          Wächter in dieser Kette über einer REGISTRIERTEN REPARATUR, die sich beim
+                          Nachrechnen als NO-OP herausstellte. Der #434-Dateikopf hielt ein Artefakt fest
+                          („eine periodisch flackernde Quelle erzeugt ein glattes Dreieck statt einer
+                          abklingenden Hülle") UND benannte seine Ursache samt Reparatur („`up` darf
+                          während einer offenen Lücke weiterklettern … Freezen von `up` außerhalb des
+                          Gnadenfensters ist die Kandidaten-Reparatur"). **Das Artefakt ist echt, die
+                          Ursache nicht** — Freezen ändert auf KEINER Eingabe irgendetwas. Der Beweis
+                          sind drei Zeilen: ein Neustart verlangt `now − lastMeasuredAt > graceSeconds`
+                          und `graceSeconds == horizon/2`; `runStartedAt` wird nur an einer Messung
+                          gesetzt, also `runStartedAt ≤ lastMeasuredAt`; damit ist bei JEDEM Neustart
+                          `elapsed > half` und folglich `up > 1`, der `min` nimmt also immer `down`. Das
+                          Freezen setzt `elapsed ≥ half`, also wieder `up ≥ 1` — DERSELBE Zweig.
+                          Gemessen zusätzlich zum Argument, weil eine Algebra-Behauptung über
+                          ausgelieferten Code auch nur eine Behauptung ist: 6 000 zufällige Verläufe über
+                          die drei lebenden Fenster (5 s · 6 s · 90 s) ergaben **61 769 Neustarts**,
+                          kleinstes `up` an einem davon **1,000224**, und der größte Unterschied zur
+                          gefreezten Variante über alle Abtastwerte aller Verläufe war **exakt 0**.
+                          ⭐ Das Dreieck ist die Ausblendung selbst: `down` fällt mit `1/releaseSeconds`,
+                          die wiederaufgenommene Rampe steigt mit derselben Rate. Die Gipfel auf 1 sind
+                          für sich KEIN Fehler — jede dieser Messungen ist frisch. Sie ABKLINGEN zu
+                          lassen hieße, die RAMPENRATE bei der Wiederaufnahme zu ändern, und das ist eine
+                          Verhaltenspolitik, keine Reparatur; `testTheRampRateDoesNotRememberEarlierDropouts`
+                          ist das Gegengewicht, das daraus einen roten Test macht statt einer Nebenwirkung.
+                          ⚠️ Welcher der drei Tests überhaupt scheitern KANN, steht im Dateikopf: nur der
+                          gewischte Stetigkeitstest (160 Wiederaufnahme-Punkte, die SWEPT-Form des
+                          Ein-Punkt-Tests aus #434 — keine zweite Kopie einer lebenden Behauptung (#416),
+                          sondern die Verallgemeinerung, weil der Fehler, gegen den sie steht, ein
+                          REFACTOR der Resume-Regel ist, den ein einzelner handgewählter Punkt übersteht)
+                          und der Dreiecks-Formtest. Der dritte ist heute grün und soll es sein.
+                          ⭐ Die LEHRE ist mehr wert als das Artefakt und ist die schärfste Fassung von
+                          #167: **eine registrierte Folgearbeit mit BENANNTER Ursache ist die teuerste
+                          Sorte falscher Notiz in diesem Repo.** Die nächste Sitzung kann ihr nicht
+                          widersprechen — sie setzt sie um, misst nichts, und liefert einen Diff ab, der
+                          wie eine Reparatur aussieht), davor „173"
+                          nach `TheBreathTermFadesInsteadOfSteppingTests.swift` (#434 — der
                           erste Wächter in dieser Kette über einem Defekt, den die VORIGE Scheibe
                           bewusst gekauft hatte: #433 hörte auf, einen UNGEMESSENEN Atem als Ruhe
                           einzumischen, und schrieb den Preis in die eigene Doku statt ihn zu
@@ -317,11 +352,16 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           beginnt mit `guard armed else { return }`, `arm()` hat NULL Aufrufer in
                           `Sources/`, #204 hält den Controller als türlos fest. Repariert WIRD er
                           deshalb, nicht trotzdem. ⚠️ Und ein Artefakt ist gemessen und NICHT behoben:
-                          `up` darf während einer offenen Lücke weiterklettern, eine PERIODISCH
-                          flackernde Quelle erzeugt daher ein glattes Dreieck statt einer abklingenden
-                          Hülle — eine Schwingung im Atemband, auf einer aufgezeichneten Spur schwerer
-                          als Fehler zu erkennen als die Rechteckform, die sie ersetzt. Eigene Scheibe,
-                          keine Mitnahme), davor „172" nach `EveryReachableRowStatesItsGridTests.swift` (#440 — der erste
+                          eine PERIODISCH flackernde Quelle erzeugt ein glattes Dreieck statt einer
+                          abklingenden Hülle — eine Schwingung im Atemband, auf einer aufgezeichneten
+                          Spur schwerer als Fehler zu erkennen als die Rechteckform, die sie ersetzt.
+                          Eigene Scheibe, keine Mitnahme. ⛔ **Und die URSACHE, die dieser Eintrag hier
+                          und der #434-Dateikopf gleichlautend dazu benannten — „`up` darf während einer
+                          offenen Lücke weiterklettern, DAHER das Dreieck" —, ist mit #444 widerlegt:
+                          `up` ist bei jedem Neustart schon > 1, der `min` nimmt also immer `down`, und
+                          die vorgeschlagene Reparatur ist ein No-op** (Beweis + Messung im
+                          #444-Eintrag oben). Das Artefakt bleibt, die Kausalkette ist gestrichen),
+                          davor „172" nach `EveryReachableRowStatesItsGridTests.swift` (#440 — der erste
                           Wächter in dieser Kette, dessen wichtigste Behauptung eine ERLAUBNIS ist und
                           kein Verbot, und der deshalb den Abschluss der #427/#430-Familie bildet statt
                           ihre Fortsetzung: nachdem #427 sechs Visual-Zeilen und #430 einundzwanzig
@@ -1587,7 +1627,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTZWEIUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 173 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTDREIUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 174 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

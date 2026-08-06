@@ -69,12 +69,39 @@
 // repair is worth making BECAUSE the path is dormant — the same arithmetic behind a door would
 // need a device listen, not a test.
 //
-// ⚠️ AND ONE ARTIFACT IS KNOWN, MEASURED AND NOT FIXED HERE (registered as its own slice): `up`
-// may climb while a gap is still open, so a PERIODICALLY flickering source produces a smooth
-// triangle rather than a decaying envelope — an oscillation in the breathing band, which on a
-// recorded lane is harder to recognise as a fault than the square wave it replaces. Freezing
-// `up` outside the grace window is the candidate fix and `testResumingMidReleaseDoesNotStep`
-// would still pass; it is a behaviour decision, not a typo, so it does not ride along.
+// ⚠️ ONE ARTIFACT IS KNOWN, MEASURED AND NOT FIXED HERE: a PERIODICALLY flickering source
+// produces a smooth triangle rather than a decaying envelope — an oscillation in the breathing
+// band (a 7 s flicker is 0.14 Hz), which on a recorded lane is harder to recognise as a fault
+// than the square wave it replaces.
+//
+// ⛔ AND THE FIX THIS PARAGRAPH USED TO NAME WAS A NO-OP. It read: "`up` may climb while a gap
+// is still open … Freezing `up` outside the grace window is the candidate fix." The artifact is
+// real; that cause is not, and freezing `up` provably changes nothing on any input. #444 is the
+// slice that went to implement it and measured instead:
+//
+//   A restart needs `now − lastMeasuredAt > graceSeconds`, and `graceSeconds == horizon / 2`.
+//   `runStartedAt` is only ever assigned at a measurement, so `runStartedAt <= lastMeasuredAt`.
+//   Hence at any restart `elapsed = now − runStartedAt >= now − lastMeasuredAt > half`, so
+//   `up = resumeWeight + elapsed / half > 1`, so `min(up, down) == down`. Freezing `up` at
+//   `lastMeasuredAt + half` still gives `elapsed >= half`, so still `up >= 1` — the SAME branch
+//   of the `min`. Inside grace the freeze is inactive by construction. Measured as well as
+//   argued: 6 000 randomised traces over the three live windows produced 61 769 restarts, the
+//   smallest `up` at any of them was 1.000224, and the difference against the frozen variant was
+//   exactly 0 at every sample. `Tests/CISmoke/TheGapClimbCannotChangeTheResumeTests.swift`.
+//
+//   What `up` actually does is carry the ramp DURING a run; what it cannot do is influence the
+//   value a run restarts FROM. The triangle is the fade itself: `down` falls at
+//   `1/releaseSeconds`, the resumed ramp climbs at the same rate, so a source flickering slower
+//   than the horizon traces a symmetric triangle whose peaks all reach 1. Making those peaks
+//   decay — a source that keeps dropping out earning less trust each time — means changing the
+//   RAMP RATE on re-acquisition. That is a behaviour policy, not a typo, so it still does not
+//   ride along; `testTheRampRateDoesNotRememberEarlierDropouts` is there to make it a red test
+//   rather than a side effect.
+//
+// ⭐ THE LESSON, and it is why this correction is worth more than the artifact: a registered
+// follow-up with a NAMED cause is the most expensive kind of wrong note in this repo (#167). The
+// next session cannot argue with it — it implements it, measures nothing, and ships a diff that
+// looks like a fix.
 //
 // PURE value type. Foundation only. No clock of its own — every timestamp is handed in, which
 // is what makes the whole thing testable without a simulator.
