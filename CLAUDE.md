@@ -335,7 +335,33 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           einen echten 4/min-Atmer trägt (#304/#410), und ein konstanter Puls ist
                           selbst eine Fixtur — ein echter Take driftet, und Drift bewegt N stetig.
                           Er behauptet die schwächere, prüfbare Aussage: bei FESTEM Puls irgendwo im
-                          Bereich sind die beworbenen Grenzen messbar),
+                          Bereich sind die beworbenen Grenzen messbar.
+                          ⛔ **VIERTE RUNDE (DSP-Reviewer auf `ab713ef`, jeder Befund von mir
+                          nachgerechnet): die Wächter-Datei war an drei Stellen falsch, und der
+                          Aufhänger ist, dass die HÄRTESTE davon in dem Absatz stand, der die
+                          Puls-Auswahl gegen den Vorwurf der Rosinenpickerei verteidigt.** Er nannte
+                          55, 84 und 100 „entartet … null Stille sogar vor #424" und stellte sie als
+                          KONTROLLE hin. Beide Hälften falsch: 55 ist mit 13,75 Schlägen/Zyklus gar
+                          nicht entartet, und die Stille vor #424 beträgt dort 112 · 223 · 214 von
+                          360 — die drei SCHLECHTESTEN im Satz. Der Mechanismus stand dabei
+                          verkehrt herum: ein entarteter Puls ist der Messerschneiden-Fall, nicht
+                          der sichere (der Durchgang landet exakt auf der Grenzperiode, also
+                          schweigt er an zwei Dritteln aller Phasen und jedes ε > 0 räumt ihn ab —
+                          genau deshalb zeigte 60 bpm 240/360). **Es gab in diesem Satz nie eine
+                          Kontrolle; alle neun Pulse sind vor #424 rot.** Dazu: „diese vier Tests
+                          sind bei 1,02 rot" galt für EINEN (die anderen drei sagen in ihren eigenen
+                          Doc-Kommentaren das Gegenteil), der Hochkanten-Test konnte über
+                          `restingPulses` GAR NICHT scheitern (Anforderung 1,0 an allen neun; der
+                          Defekt sitzt bei Puls 60/61 — jetzt angehängt), und der veröffentlichte
+                          Vertrag auf `docs/architecture.html` war um ~19× zu eng (gemessen +1,42
+                          statt +0,07 über `maxRate`, weil den Report nicht die Messung begrenzt
+                          sondern das ANNAHME-Band). **Der Wert ist auf 1,06 gestiegen:** 1,055 lag
+                          nur 0,0018 über der bindenden Anforderung (1,0532 bei Puls 38) und deckte
+                          Puls 34 (1,0595) nicht; 1,06 deckt jeden Puls ab 31 und ist messbar
+                          kostenlos (alle Innen-Fehler, alle 4/min-Reports, alle health-schreibbaren
+                          Zahlen, das Stale-Fenster und die Ruhe-Hand bitgleich). Und das
+                          „FENSTER" ist zurückgenommen: die obere Wand bei 1,067 war eine
+                          Eigenschaft des 60-bpm-Fixtures, kein Messqualitäts-Limit),
                           davor „161" nach `TheBandEdgeIsMeasurableTests.swift` (#424 — der erste
                           Wächter in dieser Kette über einem Defekt an BEIDEN Enden eines Bandes,
                           von denen die Diagnose nur EINES nannte: `RespirationEstimator` warb mit

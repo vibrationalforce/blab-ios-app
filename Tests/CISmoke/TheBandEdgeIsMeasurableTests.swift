@@ -22,11 +22,14 @@
 // the old band, so the repair reaches inward from both ends. The true, narrower claim is the one
 // `testInsideTheBandNothingMoved` pins — bit-identical at 5, 6, 10, 15 and 20 — and where it
 // does move, it improves (4.25/min worst error 0.4226 → 0.3661, 24/min 4.9626 → 2.2217; better
-// at every changed rate except 21.5, which is 0.0044/min worse). This is the same defect the
+// at every changed rate except 21.5, which is 0.0108/min worse). This is the same defect the
+// (⛔ 0.0044 here for two commits: 90 phases sampled and called a sweep. `RespirationEstimator`
+// retracted it; this file is the fourth of the four places it stood and was missed by the
+// retraction that names it. A correction has to be applied at every site it lists.)
 // file's own ⛔s keep retracting: a sweep was run, and the conclusion was stated wider than it.
 //
 // ⭐ THE FIX, in one sentence: ACCEPT into a wider band than you REPORT. Acceptance uses
-// `[minRate / bandTolerance, maxRate * bandTolerance]` with a tolerance of 1.02; the reported
+// `[minRate / bandTolerance, maxRate * bandTolerance]`; the reported
 // `ratePerMinute` is the raw EMA and is NOT clamped back. A measurement at 30.4/min is a 30/min
 // breath with jitter, not nonsense — refusing it is not conservative, it is blind.
 //
@@ -49,11 +52,18 @@
 //   · This drives the PURE estimator with exact timestamps. It proves the arithmetic and the
 //     band logic; it does not prove the camera path measures a real 4/min breather (that is
 //     #304/#410, and 4/min is 15 s per cycle — the acquisition has to survive that long).
-//   · The `tolerance` value (1.02) is a judgement WITH a derived floor under it: the smallest
-//     tolerance that removes the silence at both edges is 1.00111 (binary search over 360
-//     phases), so 1.02 is that minimum with ~18× margin. What is derived outright is the SHAPE:
-//     accept-band ⊋ report-band. The tests below pin the shape, the two edges and the
-//     no-rail property — the constant itself only has a floor, not a proof.
+//   · ⛔ THIS BULLET READ "the smallest tolerance that removes the silence at both edges is
+//     1.00111, so 1.02 is that minimum with ~18× margin" — the exact derivation
+//     `RespirationEstimator.bandTolerance` now spends four paragraphs retracting as
+//     fixture-fitted, left standing in a block titled HONEST LIMITS, which is the most expensive
+//     place for a retracted derivation to survive. 1.00111 is the 60 bpm value and 60 bpm is
+//     degenerate at the low edge. The real floor is measured per pulse
+//     (`TheBandHoldsAtEveryRestingPulseTests`): worst 1.0595 at pulse 34, which is what the
+//     shipped 1.06 clears. What is derived outright is the SHAPE: accept-band ⊋ report-band. The
+//     tests below pin the shape, the two edges and the no-rail property.
+//   · Every behavioural number in THIS file is a 60 bpm number. That is not a flaw in the
+//     numbers — it is why the pulse-axis file exists, and why no assertion here should be read
+//     as a property of the estimator rather than of this fixture.
 //   · Nothing here says the reading at the edge is GOOD. At 30/min the RMS error is 1.19/min
 //     after the fix, against 8.52 before.
 //     ⛔ That "before" figure carried the parenthetical "dominated by the zeros" for one commit
