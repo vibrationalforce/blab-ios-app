@@ -47,10 +47,12 @@
 //     These tests drive the pure estimator with exact timestamps, so they prove the
 //     arithmetic and say nothing about how well the shipped path separates a shallow breather
 //     from a still hand. That needs sub-sample peak timing first, and then a device run.
-//   · ⛔ SIX OF THESE ELEVEN TESTS COULD FAIL ON THE CODE THEY GUARD: the three source scans
-//     (the long-lived estimator, the paired `beatTimes`, the evidence-gated publish) and the
+//   · ⛔ SEVEN OF THESE TWELVE TESTS COULD FAIL ON THE CODE THEY GUARD: the three source scans
+//     (the long-lived estimator, the paired `beatTimes`, the evidence-gated publish), the
 //     three staleness guards (`…ExpiresWhenTheBreathingStops`, `…WeakNoisySignal…`,
-//     `…AgesWithTheClock…`). `…AgeingInsideTheGraceWindow…` is a counterweight — it holds a
+//     `…AgesWithTheClock…`) and `…FastBreathersOwnMeasurementSurvivesThePipelineLag`, which
+//     read 0.284 against a 0.4 gate before the grace paid for the lag.
+//     `…AgeingInsideTheGraceWindow…` is a counterweight — it holds a
 //     bound that must NOT move, and it could only fail if the grace were tightened later.
 //     The remaining four describe the pure estimator on inputs these commits
 //     leave bit-identical — they are green on both sides and exist to state the SHAPE of the
@@ -80,6 +82,15 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     private static let analysisWindowSeconds = 10.0
     /// The publisher's own gate: `resp.confidence >= 0.4` means "breath measured".
     private static let measuredBreathGate = 0.4
+    /// Well inside the estimator's 4…30/min band but far enough up it that the proportional
+    /// grace has shrunk to the same order as the pipeline lag. NOT 30: at the band edge the
+    /// RSA is at Nyquist against a ~60 bpm pulse and the rate aliases, which is a different
+    /// (and unfixable) problem — see `testAFastBreathersOwnMeasurementSurvivesThePipelineLag`.
+    private static let fastBreathsPerMinute = 28.0
+    /// Worst-case delay between a breath cycle happening and the beat that marks it being read
+    /// by the publisher: one beat interval, plus two samples to confirm the peak, plus the
+    /// ~4 Hz peak-scan throttle, plus the ~1 Hz publish drain.
+    private static let publishPipelineLagSeconds = 2.5
 
     // MARK: - The blind spot
 
@@ -326,9 +337,6 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
                           """)
     }
 
-    /// `beatTimes` only works as a de-duplication key while it stays 1:1 with `rrIntervals`.
-    /// The two are produced together today; this holds the pairing so a later edit to one
-    /// side cannot silently desynchronise them into an off-by-one respiration signal.
     // MARK: - Staleness the estimator cannot see from inside
 
     /// ⭐ THE THIRD LATCH, and the one neither earlier term can reach. Both the freshness
@@ -407,6 +415,64 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
                        """)
     }
 
+    /// ⭐ THE PRICE OF THE PULL, made a decision instead of a side-effect. `age(to:)` moved the
+    /// freshness evaluation from the last BEAT's timestamp to wall-clock now, and the camera
+    /// pipeline sits in between: the crossing is stamped at a beat, a peak needs two later
+    /// samples to be confirmed, the peak scan is throttled to ~4 Hz and the publish drain runs
+    /// at ~1 Hz. Up to ~2.5 s — which the grace, being purely proportional to the breathing
+    /// period, charged to the breather. A slow breather never noticed (15 s of grace at 6/min);
+    /// a fast one did, because their grace shrinks while the pipeline delay does not.
+    ///
+    /// Swept over all 360 phases at 28 breaths/min with that 2.5 s lag, the worst phase read
+    /// confidence 0.284 — UNDER the publisher's 0.4 gate. Their own, correctly measured breath
+    /// flickered off and on at their breathing rate. With `pullLagAllowance` it reads 0.487.
+    ///
+    /// ⚠️ This is a counterweight, not a claim that the whole band works. At 30/min — the
+    /// estimator's own `maxRate` — the RSA sits at Nyquist against a ~60 bpm pulse and the
+    /// measured rate aliases to ~10/min. No grace fixes that; it is a limit of reading breath
+    /// out of beats, and this test deliberately stops below it.
+    func testAFastBreathersOwnMeasurementSurvivesThePipelineLag() {
+        var worst = Double.infinity
+        var worstRate = 0.0
+        var slowestRate = Double.infinity
+        for phase in Self.sweptPhases {
+            var estimator = RespirationEstimator()
+            let beats = Self.rsaBeats(seconds: 60,
+                                      breathsPerMinute: Self.fastBreathsPerMinute,
+                                      phase: phase)
+            guard let last = beats.last else {
+                return XCTFail("premise: a 60 s take at \(Self.fastBreathsPerMinute)/min has beats")
+            }
+            for beat in beats { estimator.ingest(heartRate: beat.heartRate, at: beat.time) }
+            estimator.age(to: last.time + Self.publishPipelineLagSeconds)
+            slowestRate = Swift.min(slowestRate, estimator.ratePerMinute)
+            if estimator.confidence < worst {
+                worst = estimator.confidence
+                worstRate = estimator.ratePerMinute
+            }
+        }
+        // Premise first: a confidence floor is worth nothing if the rate underneath it is 0 —
+        // that combination would satisfy this assertion while failing the publish gate anyway.
+        XCTAssertGreaterThan(slowestRate, 20.0,
+                             """
+                             At \(Self.fastBreathsPerMinute) breaths/min the estimator's \
+                             slowest measured rate across all \(Self.sweptPhases.count) \
+                             phases was \(slowestRate). The premise of this test is that a \
+                             fast breather IS measured; if that broke, fix it before reading \
+                             the confidence assertion below.
+                             """)
+        XCTAssertGreaterThanOrEqual(worst, Self.measuredBreathGate,
+                                    """
+                                    A fast breather's own measurement fell to confidence \
+                                    \(worst) (rate \(worstRate)) once the publisher's \
+                                    \(Self.publishPipelineLagSeconds) s pipeline lag was added \
+                                    to the wait — under the \(Self.measuredBreathGate) gate, so \
+                                    their breath stops being published while they are breathing \
+                                    it. The grace must pay for the lag it cannot see; that is \
+                                    what `pullLagAllowance` is for.
+                                    """)
+    }
+
     /// ⭐ THE SURVIVING "MEASURED, RATE ZERO". `confidence` bounds the claim about the SWING;
     /// it says nothing about whether a period was ever measured. With zero crossings and a
     /// healthy envelope the expression is `0.5 * envConf`, which clears 0.4 — so 345 of the
@@ -434,6 +500,15 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
                       """)
     }
 
+    /// `beatTimes` only works as a de-duplication key while it stays 1:1 with `rrIntervals`.
+    /// The two are produced together today; this holds the pairing so a later edit to one
+    /// side cannot silently desynchronise them into an off-by-one respiration signal.
+    ///
+    /// (That paragraph spent one commit orphaned 110 lines up the file: a new section was
+    /// inserted between its third and fourth line, leaving a `///` block documenting a `MARK`
+    /// and this test opening mid-thought. Nothing diagnoses that — a doc comment separated
+    /// from its declaration is still valid Swift.)
+    ///
     /// ⛔ ADJACENCY, not a head-count. The first version compared two totals, which two
     /// unrelated edits — one site losing its pairing while a third gained one — would leave
     /// perfectly balanced. It counted, it did not pair. This walks the lines and requires the
@@ -489,9 +564,16 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// The ±3 bpm swing is a deliberately generous but not absurd resting RSA amplitude —
     /// and it is load-bearing, not decoration. `confidence` scales with the envelope, so the
     /// "the gate stands open while the rate is wrong" half of the defect needs a swing of
-    /// roughly 2.5 bpm or more; at 1 bpm the same window reads 0.15–0.29 and the old code was
-    /// honestly silent. Lowering this default therefore does not make the tests stricter, it
-    /// makes them describe a different (and less interesting) body.
+    /// about ±2.62 bpm or more (the swept all-phase floor — see the header bullet, and note
+    /// the ± : RSA is conventionally quoted peak-to-peak, so that is ~5.2 bpm p-p); at ±1 the
+    /// same window reads 0.15–0.29 and the old code was honestly silent. Lowering this default
+    /// therefore does not make the tests stricter, it makes them describe a different (and
+    /// less interesting) body.
+    ///
+    /// ⛔ This doc said "roughly 2.5 bpm or more", without the ±, for a whole commit after the
+    /// header bullet retracted exactly that number as hand-picked and replaced it with the
+    /// swept figure. Second copy of a corrected fact, second time in this one epic — the fix
+    /// belongs everywhere `grep` finds the number, not only where the retraction is written.
     private static func rsaBeats(seconds: Double,
                                  breathsPerMinute: Double,
                                  phase: Double,

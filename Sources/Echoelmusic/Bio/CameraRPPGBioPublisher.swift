@@ -1060,8 +1060,10 @@ public final class CameraRPPGBioPublisher {
                 // ONE estimator per take, fed each beat exactly once (#343 — see the
                 // `respiration` property for why replaying a single 10 s window could not
                 // measure resonance breathing at all). Reported only when the respiratory
-                // oscillation is clear (confidence gate), so breathRate > 0 signals
-                // "measured breath available" to the UI.
+                // oscillation is clear AND a period was actually measured — see the two-part
+                // gate below, which this line described as "the confidence gate" for one
+                // commit after it stopped being one — so breathRate > 0 signals "measured
+                // breath available" to the UI.
                 //
                 // The count check is not defensive noise: these two arrays are produced
                 // together and are 1:1 by construction, and indexing on that assumption is
@@ -1350,14 +1352,24 @@ public final class CameraRPPGBioPublisher {
         // estimator's state, or the first beats of the next take would be skipped.
         //
         // Deliberately NOT reset on any of the THREE `analyzer.resetForRecovery()` sites —
-        // two in `manageExposure()`, guarded by `deadWindowNeedsFlush` and
-        // `weakLockNeedsResettle`, plus the stall recovery in `handleCameraSessionReset()`.
-        // Named by their guards on purpose: an earlier version described them in prose ("a
-        // weak-signal re-lock and a finger-off/re-placement flush") and got the two the wrong
-        // way round — `deadWindowNeedsFlush` fires with the finger ON the lens after minutes
-        // of conf 0.00, `weakLockNeedsResettle` is the re-placement one. It also named only
-        // the third site at all, which hid the one where the obvious justification does NOT
-        // hold: at a re-placement the finger may have been off the lens entirely, so "the
+        // two in `manageExposure()`, guarded by `deadWindowNeedsFlush` and by
+        // `fingerLostTicks >= relockOnLossTicks`, plus the stall recovery in
+        // `handleCameraSessionReset()`.
+        //
+        // ⛔ FOURTH ATTEMPT AT THIS ONE SENTENCE, and the failure mode is worth more than the
+        // fact. Round 1 named only the third site. Round 2 described the other two in prose
+        // ("a weak-signal re-lock and a finger-off/re-placement flush"). Round 3 replaced the
+        // prose with guard NAMES, on the theory that an identifier cannot drift — and named
+        // `weakLockNeedsResettle`, which is not a reset site at all: its branch unlocks the
+        // exposure and returns without touching the analyzer. The SEMANTICS were right every
+        // time (the second flush really is the finger-off/re-placement one); only the label
+        // was wrong, which is the hardest version to notice, because the sentence around it
+        // reads true. An identifier is only more reliable than prose if someone checks that it
+        // is the identifier on the guard — `grep -n "resetForRecovery" ` shows the three call
+        // sites and the `if` directly above each one settles it in ten seconds.
+        //
+        // Naming them matters because the second one is where the obvious justification does
+        // NOT hold: at a re-placement the finger may have been off the lens entirely, so "the
         // person is still breathing" is an assumption about the body, not about the signal.
         // (Not the full set of beat-supply interruptions either: `CameraAnalyzer` clears both
         // arrays on a true lock loss without going through `resetForRecovery`.)

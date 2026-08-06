@@ -29,6 +29,11 @@ public struct RespirationEstimator {
     private static let smoothTau = 0.8
     /// Envelope decay used to normalize the swing to [0,1].
     private static let envTau = 6.0
+    /// Added to the freshness grace to pay for the delay between a breath cycle happening and
+    /// the beat that marks it reaching `ingest`. See `age(to:)` and the grace comment below —
+    /// without it the pull turns a pipeline delay into apparent staleness at the fast end of
+    /// the supported band.
+    private static let pullLagAllowance = 2.5
 
     // MARK: Respiration band (breaths/min)
     public static let minRate = 4.0
@@ -122,10 +127,25 @@ public struct RespirationEstimator {
     /// So the publisher goes on emitting bio frames at ~1 Hz with ZERO beats reaching here,
     /// and a confidence of 1.0 earned a minute ago keeps certifying a breathing rate.
     ///
-    /// Hence the pull: the host calls this every publish, and staleness becomes a function of
-    /// the clock rather than of the supply. Nothing else moves — the filters, the envelope and
-    /// the cycle count are untouched, so a beat that arrives later behaves exactly as before,
-    /// and because only the freshness factor depends on `t`, ageing can never RAISE confidence.
+    /// Hence the pull: the host ages on every publish that carries a live measurement, and
+    /// staleness becomes a function of the clock rather than of the supply. Nothing else moves
+    /// — the filters, the envelope and the cycle count are untouched, so a beat that arrives
+    /// later behaves exactly as before.
+    ///
+    /// ⚠️ "Every publish" is deliberately NOT what the caller does, and the first version of
+    /// this line said it did. `CameraRPPGBioPublisher` ages AFTER its `shouldPublish` guard;
+    /// the else-branch re-emits the last good frame unaged for up to `bioHoldTicks`. That is
+    /// bounded and carries the held frame's own timestamp (so timestamp-dedup consumers treat
+    /// it as a no-op), but a future reader deciding "can this estimator go stale?" must know
+    /// the pull does not run on that path.
+    ///
+    /// ⚠️ Nor can it be stated flatly that ageing never RAISES confidence — it holds for the
+    /// case that matters and fails in two corners. (1) A fresh estimator with `lastT == nil`
+    /// passes the guard trivially and lands on ~3.3e-7 instead of 0: `env` is 0, so `envConf`
+    /// is the 1e-6 floor over 1.5. Six orders of magnitude below the 0.4 gate, and a rate of 0
+    /// blocks it anyway. (2) `age(to:)` does NOT advance `lastT`, so a caller that ages
+    /// backwards after ageing forwards re-evaluates at the earlier time and comes back up.
+    /// The shipped caller passes monotonic `systemUptime`, so neither is reachable today.
     ///
     /// `t` must be on the same clock as `ingest` (the camera path uses
     /// `ProcessInfo.processInfo.systemUptime`). Ageing to a time before the last beat is
@@ -202,14 +222,36 @@ public struct RespirationEstimator {
         // envelope veto above catches the take that ends in a noisy one, where crossings keep
         // arriving and nothing here ever goes stale. Neither substitutes for the other.
         //
-        // Grace is 1.5 expected periods (a real cycle always lands inside that), then a
-        // linear fade to zero over another 1.5 — so at the 6/min resonance rate the gate
-        // closes ~30 s after the last crossing. Before the FIRST crossing there is nothing to
-        // be stale about and the term is inert, which is why a fresh estimator still behaves
-        // exactly as it did. The fallback period is the slowest supported rate: with no
-        // measured period yet, assuming the shortest one would expire a slow breather.
+        // Grace is 1.5 expected periods (a real cycle always lands inside that) PLUS a fixed
+        // pipeline-lag allowance, then a linear fade to zero over the same span — so at the
+        // 6/min resonance rate the gate closes ~35 s after the last crossing. Before the FIRST
+        // crossing there is nothing to be stale about and the term is inert, which is why a
+        // fresh estimator still behaves exactly as it did. The fallback period is the slowest
+        // supported rate: with no measured period yet, assuming the shortest one would expire
+        // a slow breather.
+        //
+        // ⭐ THE ALLOWANCE IS NOT PADDING — it pays for a delay this term cannot see. While the
+        // estimator was only refreshed from inside `ingest`, `sinceCross` was measured at a
+        // BEAT time and the proportional grace covered it. `age(to:)` moved the evaluation to
+        // wall-clock now, which adds the whole camera pipeline: the crossing is stamped at a
+        // beat (≈1 s at rest), a peak needs two later samples to be confirmed, the peak scan
+        // is throttled to ~4 Hz and the publish drain runs at ~1 Hz — up to ~2.5 s in total.
+        // That is measurement latency, not staleness, and charging it to the breather is
+        // wrong. Swept over all 360 whole-degree breathing phases at a 2.5 s lag: at 28
+        // breaths/min the worst phase read confidence 0.284 WITHOUT the allowance — under the
+        // publisher's 0.4 gate, so a fast breather's own measurement flickered off — and 0.487
+        // with it. (An earlier draft of this note quoted 0.313 off a 180-phase sweep; the
+        // guard that holds it uses the file's 360-phase set, and a coarser sweep is exactly
+        // the hand-picked-figure habit #343 spent two commits retracting.)
+        // The cost at the other end is negligible because the envelope veto dominates there:
+        // the 60 s-then-flat series that `testAMeasuredRateExpiresWhenTheBreathingStops`
+        // drives ends at 0.0099 instead of 0.0019, both far under the gate.
+        //
+        // ⚠️ It does NOT rescue 30/min, the band edge: at 0.5 Hz against ~1 Hz beats the RSA
+        // sits at Nyquist and the measured rate aliases to ~10/min. That is a sampling limit
+        // of reading breath from beats, not a freshness problem, and no grace can fix it.
         let expectedPeriod = periodEMA > 0 ? periodEMA : 60.0 / Self.minRate
-        let grace = expectedPeriod * 1.5
+        let grace = expectedPeriod * 1.5 + Self.pullLagAllowance
         let sinceCross = lastCrossT.map { t - $0 } ?? 0
         let freshness = sinceCross <= grace
             ? 1.0
