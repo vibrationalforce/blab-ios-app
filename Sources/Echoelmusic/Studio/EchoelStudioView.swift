@@ -5405,10 +5405,10 @@ struct EchoelStudioView: View {
             // content spacing, so the rhythm the founder sees today is preserved exactly.
             groupHeader("Tone")
             AdaptiveCardGrid(spacing: 14) {
-                knob("Brightness", $currentPatch.brightness, 0...1)
-                knob("Harmonics", $currentPatch.harmonicity, 0...1)
-                knob("Harm. level", $currentPatch.harmonicLevel, 0...1)
-                knob("Noise", $currentPatch.noiseLevel, 0...1)
+                knob("Brightness", $currentPatch.brightness, 0...1, decimals: 2)
+                knob("Harmonics", $currentPatch.harmonicity, 0...1, decimals: 2)
+                knob("Harm. level", $currentPatch.harmonicLevel, 0...1, decimals: 2)
+                knob("Noise", $currentPatch.noiseLevel, 0...1, decimals: 3)
                 // ⛔ THE TWO PICKERS BELONG IN THIS GRID, and leaving them out was the same
                 // defect one level down. The first version put them after it, so Tone rendered
                 // as two 2-up rows followed by two FULL-WIDTH picker rows — the exact ragged
@@ -5465,11 +5465,11 @@ struct EchoelStudioView: View {
 
             groupHeader("Filter")
             AdaptiveCardGrid(spacing: 14) {
-                knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz")
-                knob("Resonance", $currentPatch.filterResonance, 0...1)
-                knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1)
-                knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz")
-                knob("LFO depth", $currentPatch.filterLFODepth, 0...1)
+                knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz", decimals: 0)
+                knob("Resonance", $currentPatch.filterResonance, 0...1, decimals: 2)
+                knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1, decimals: 2)
+                knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz", decimals: 2)
+                knob("LFO depth", $currentPatch.filterLFODepth, 0...1, decimals: 2)
             }
 
             groupHeader("Envelope")
@@ -5480,7 +5480,7 @@ struct EchoelStudioView: View {
             EchoelValueField(label: "Swell ↔ Strike", value: Binding(
                 get: { Float(articulation) },
                 set: { articulation = Double(min(1, max(0, $0))) }
-            ), range: Float(0)...Float(1), onChange: { applyArticulation() })
+            ), range: Float(0)...Float(1), decimals: 2, onChange: { applyArticulation() })
             Text("How each character speaks: 0 = slow swell (bowed strings, glass bowl) · 1 = struck / sharp onset (mallet, plucked, tuba stab). Sets touch response too; click-safe.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -5488,18 +5488,18 @@ struct EchoelStudioView: View {
             // WRITES the four fields below it, so pairing it beside one of them would read as
             // a peer of A/D/S/R instead of the control that sets them.
             AdaptiveCardGrid(spacing: 14) {
-                param("Attack", $currentPatch.attack, 0...5, unit: "s")
-                param("Decay", $currentPatch.decay, 0...5, unit: "s")
-                param("Sustain", $currentPatch.sustain, 0...1)
-                param("Release", $currentPatch.release, 0...10, unit: "s")
+                param("Attack", $currentPatch.attack, 0...5, unit: "s", decimals: 3)
+                param("Decay", $currentPatch.decay, 0...5, unit: "s", decimals: 2)
+                param("Sustain", $currentPatch.sustain, 0...1, decimals: 2)
+                param("Release", $currentPatch.release, 0...10, unit: "s", decimals: 2)
             }
 
             groupHeader("Space & vibrato")
             AdaptiveCardGrid(spacing: 14) {
-                knob("Reverb mix", $currentPatch.reverbMix, 0...1)
-                knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s")
-                knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz")
-                knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1)
+                knob("Reverb mix", $currentPatch.reverbMix, 0...1, decimals: 2)
+                knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s", decimals: 2)
+                knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz", decimals: 2)
+                knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1, decimals: 2)
             }
 
             // #286 — THE LAST PORTED ROW, and the one that was held back longest. See
@@ -5525,18 +5525,18 @@ struct EchoelStudioView: View {
                 EchoelValueField(label: "Sub level", value: Binding(
                     get: { subBass.subGain },
                     set: { subBass.subGain = min(max($0, 0), 1) }
-                ), range: Float(0)...Float(1))
+                ), range: Float(0)...Float(1), decimals: 2)
                 // Sub character (founder "sub culture" 2026-07-16, in-house SubCharacter
                 // DSP): presence = octave-harmonic read on small speakers; heat =
                 // loudness-compensated saturation. 0.50/0.50 = the previous fixed sound.
                 EchoelValueField(label: "Sub presence", value: Binding(
                     get: { subBass.subPresence },
                     set: { subBass.subPresence = min(max($0, 0), 1) }
-                ), range: Float(0)...Float(1))
+                ), range: Float(0)...Float(1), decimals: 2)
                 EchoelValueField(label: "Sub heat", value: Binding(
                     get: { subBass.subHeat },
                     set: { subBass.subHeat = min(max($0, 0), 1) }
-                ), range: Float(0)...Float(1))
+                ), range: Float(0)...Float(1), decimals: 2)
             }
             Text("Reinforces the bass an octave below — feel it on a sub, in headphones, or as haptics. Presence makes it read on small speakers (octaves only, always in key); heat saturates without getting louder.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -5691,17 +5691,31 @@ struct EchoelStudioView: View {
 
     /// A precise parameter row bound to a live patch field: a scrubbable numeric
     /// value (no slider). `applySoundLive` runs continuously so edits are heard at once.
+    ///
+    /// ⭐ `decimals` HAS NO DEFAULT ON PURPOSE (#430). It is not a display choice — it is the
+    /// SNAP GRID (`ScrubPrecision.snapped` rounds every commit to `10^-decimals`), so a value
+    /// off the grid cannot be typed and cannot be scrubbed to. These two helpers rendered
+    /// SEVENTEEN rows of the Sound panel on `EchoelValueField`'s own `decimals: 4` default,
+    /// which meant the app's most-used craft surface showed "0.5000" and "2400.0000 Hz" while
+    /// every FX parameter, the master level and the weather mixers sat on 2. A defaulted
+    /// argument is how that stayed invisible for a month: it was never written at any call
+    /// site, so no diff ever showed it. Requiring it makes each row state its own grid — the
+    /// #431 rule (a call is only meaningful together with the argument that gives it meaning),
+    /// applied one level up.
     private func param(_ label: String, _ value: Binding<Float>,
-                       _ range: ClosedRange<Float>, unit: String = "") -> some View {
+                       _ range: ClosedRange<Float>, unit: String = "",
+                       decimals: Int) -> some View {
         EchoelValueField(label: label, value: value, range: range, unit: unit,
-                         onChange: { applySoundLive() })
+                         decimals: decimals, onChange: { applySoundLive() })
     }
 
     /// Alias kept for call-site readability; same scrubbable numeric value as `param`.
+    /// `decimals` is required here for the same reason — see `param`.
     private func knob(_ label: String, _ value: Binding<Float>,
-                      _ range: ClosedRange<Float>, unit: String = "") -> some View {
+                      _ range: ClosedRange<Float>, unit: String = "",
+                      decimals: Int) -> some View {
         EchoelValueField(label: label, value: value, range: range, unit: unit,
-                         onChange: { applySoundLive() })
+                         decimals: decimals, onChange: { applySoundLive() })
     }
 
     /// THE section heading — the only one. Every "a group of rows starts here" label in this

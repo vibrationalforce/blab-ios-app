@@ -242,8 +242,38 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**169** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheArousalFloorSitsBelowThePacedBreathTests.swift` (#433 — der
+                          `Tests/CISmoke` (**170** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `SoundRowsCanReachTheShippedPatchesTests.swift` (#430 — der
+                          erste Wächter in dieser Kette, der eine RASTERWEITE an den DATENBESTAND
+                          kettet statt an eine Regel: `EchoelValueField.decimals` ist nicht die
+                          Anzeige sondern das SNAP-RASTER (`ScrubPrecision.snapped`), und die zwei
+                          Helfer `param`/`knob` reichten es nicht durch — SIEBZEHN Zeilen des
+                          Sound-Panels erbten damit die Vorgabe 4, plus VIER weitere direkte Zeilen
+                          derselben Fläche (Swell ↔ Strike, Sub level/presence/heat). Einundzwanzig
+                          Zeilen zeigten „0.5000" und „2400.0000 Hz", während jeder FX-Parameter,
+                          der Master-Pegel und die Wetter-Mischer auf 2 stehen — auf der Fläche
+                          hinter dem Sound-Chip, also der, die Ship-Gate 2 („Kontrolle") meint.
+                          ⭐ Der Punkt ist NICHT „überall 2", und genau das unterscheidet diese
+                          Scheibe von #427/#354 A: DREI Zeilen müssen abweichen, und WELCHE wurde
+                          aus dem ausgelieferten Bestand GEMESSEN, nicht gewählt. `attack` liefert
+                          0,003/0,004/0,005/0,008 s (`PatchLibrary` + `SynthPatch.factory`) und
+                          `noiseLevel` einmal 0,006 (`SynthPatch.swift:424`) — ein Zweier-Raster
+                          würde vier Werksanschläge runden, einen davon auf null, also 3 Stellen.
+                          `filterCutoff` spannt 20…18000 Hz und ALLE 29 ausgelieferten Werte sind
+                          ganzzahlig, also 0 — was die drei ANDEREN Cutoff-Zeilen der App
+                          (`EchoelFXView:480`, `EchoelStudioView:2475`/`:2503`) längst sagen.
+                          ⚠️ Der Wächter hat zwei Hälften und die erste ist die tragende: 496
+                          ausgelieferte Literale über `SynthPatch.factory` + `PatchLibrary.all` +
+                          `MusicStyle.allCases` gehen durch das Raster ihrer eigenen Zeile und
+                          müssen bitgleich zurückkommen (Float→Double→Raster→Float, weil die
+                          Bindung `Float` ist und ein reiner Double-Vergleich eine Umwandlung
+                          verstecken würde, die wirklich passiert). Die zweite verbietet, dass
+                          `decimals` je wieder einen DEFAULT bekommt — denn genau das war der
+                          Mechanismus: ein Argument, das keine Aufrufstelle schreibt, taucht in
+                          keinem Diff auf. ⚠️ Was er NICHT kann: beweisen, dass die Zeilen
+                          rendern, und beurteilen, ob 3 Stellen sich für eine Hüllkurve richtig
+                          ANFÜHLEN — das ist eine Geräteprobe. Steht so im Dateikopf), davor „169"
+                          nach `TheArousalFloorSitsBelowThePacedBreathTests.swift` (#433 — der
                           erste Wächter in dieser Kette über einem Defekt, den ein REVIEWER-BERICHT
                           eingeführt hat und dessen Korrektur die halbe Scheibe ist. Der #429-Reviewer
                           nannte die Atem-Skala in `bioNormalized` (`Sequencer/RecordAnchor.swift`) „den
@@ -1250,7 +1280,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTACHTUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 169 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTNEUNUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 170 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
