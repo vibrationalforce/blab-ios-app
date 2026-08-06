@@ -57,8 +57,18 @@
 //     nobody had noticed: `HealthKitBioPublisher` publishes a real breath rate once per new
 //     reading, minutes apart, inside a 90 s window. Under 2 s + 4 s a wrist breath rate reached
 //     the lane at weight 0 for ~83 of its 90 usable seconds — silently disabled, the exact
-//     "lying control" class this repo keeps paying for. Under the chain it is full weight for
-//     45 s and fades out precisely as the frame expires.
+//     "lying control" class this repo keeps paying for.
+//     ⛔ AND THE SENTENCE THAT FOLLOWED HERE OVERSTATED THE RESULT — in the same paragraph that
+//     congratulates itself for catching an overstatement. It read "full weight for 45 s and
+//     fades out precisely as the frame expires". It is a TRIANGLE, not a plateau: measured for
+//     a wrist reading, `weight` at t = 0/5/15/30/45/60/90 s is 0.0 / 0.111 / 0.333 / 0.667 /
+//     **1.0 / 0.667 / 0.0** — full weight is touched for ONE INSTANT at t = 45, and the mean
+//     over the 90 s usable life is **0.4712**. And because HealthKit publishes once per new
+//     reading, minutes apart (this paragraph's own words), every wrist reading restarts from
+//     `resumeWeight == 0`, so that triangle is the NORMAL case, not an edge one. The regression
+//     claim survives — 0.4712 beats "0 for ~83 of 90 s" by a lot — but the wrist path is still
+//     substantially under-weighted for a source whose whole point is that a reading from a
+//     minute ago is still valid. Cause and open slice: see the ⚠️ ATTACK RATE note below.
 //   Consequences at the two live windows: camera/BLE (6 s) → 3 s grace + 3 s fade, so two
 //   missed frames at ~1 Hz still move nothing and the weight travels at most 1/3 per second;
 //   HealthKit/Watch (90 s) → 45 s + 45 s.
@@ -87,12 +97,22 @@
 //   `up = resumeWeight + elapsed / half > 1`, so `min(up, down) == down`. Freezing `up` at
 //   `lastMeasuredAt + half` still gives `elapsed >= half`, so still `up >= 1` — the SAME branch
 //   of the `min`. Inside grace the freeze is inactive by construction. Measured as well as
-//   argued: 6 000 randomised traces over the three live windows produced 61 769 restarts, the
-//   smallest `up` at any of them was 1.000224, and the difference against the frozen variant was
-//   exactly 0 at every sample. An independent adversarial re-run (mixed windows inside one
-//   trace, 5 % backwards clock steps, `nil`/NaN measurements, negative absolute times) found
-//   102 921 restarts, smallest `up` 1.0000009939619714, and max difference 0.0 over 1 287 552
-//   samples. `Tests/CISmoke/TheGapClimbCannotChangeTheResumeTests.swift`.
+//   argued: 6 000 randomised traces produced 61 769 restarts and the difference against the
+//   frozen variant was exactly 0 at every sample. An independent adversarial re-run (mixed
+//   windows inside one trace, 5 % backwards clock steps, `nil`/NaN measurements, negative
+//   absolute times) found 102 921 restarts and a max difference of 0.0 over 1 287 552 samples.
+//   `Tests/CISmoke/TheGapClimbCannotChangeTheResumeTests.swift`.
+//   ⛔ Both sweeps also reported "the smallest `up` seen at a restart" (1.000224, then
+//   1.0000009939619714) and the first draft quoted the first of those as if it were a MARGIN. It
+//   is not a property of this code — it is a property of the random number generator. The restart
+//   test is a STRICT inequality, so the infimum of `up` at a restart is exactly 1 and is never
+//   attained; a denser sweep simply reports a smaller number, for ever. The theorem is the
+//   load-bearing statement here. The sweeps only show it did not miss a case.
+//   ⚠️ Coverage, stated rather than implied: `BioSource.freshnessWindow` declares FOUR distinct
+//   values across six cases — 6 s (ble · cameraPPG · faceCam), 90 s (watch · healthKit), 600 s
+//   (oura), 5 s (fallback). The sweeps drove 5 / 6 / 90, i.e. every value that has a producer in
+//   `Sources/` today; `.oura`'s 600 has none. The proof does not depend on the window at all
+//   (`half` cancels out of the comparison), so the untested value is a coverage note, not a hole.
 //   ⚠️ "At any restart" is VACUOUS in exactly one case: at the FIRST measurement `horizon` is
 //   still 0, so `weight(at:)` returns at its `horizon > 0` guard and `up` is never formed. The
 //   conclusion is stronger there, not weaker — both variants return 0.
@@ -105,6 +125,34 @@
 //   RAMP RATE on re-acquisition. That is a behaviour policy, not a typo, so it still does not
 //   ride along; `testTheRampRateDoesNotRememberEarlierDropouts` is there to make it a red test
 //   rather than a side effect.
+//
+// ⚠️ ATTACK RATE == RELEASE RATE, AND NOTHING IN THIS FILE EVER DECIDED THAT. This is the
+// sentence that belongs where the withdrawn cause stood, and it is a stronger statement than the
+// one it replaces. The triangle is not made by `up` climbing during a gap; it is made by the
+// climb and the fade having the SAME slope. `down` falls at `1/half`. `up` climbs at
+// `elapsed / half` — also `1/half`, and only because `up` reuses `half` as its divisor. The
+// header above derives the SPLIT (grace = release = horizon/2, chained to the source's own
+// freshness window, #426's form). It never derives the ATTACK: the re-acquisition rate arrived as
+// a side effect of the one constant that was chosen for the expiry side.
+//   Two consequences, and the second is the expensive one:
+//   · the flicker triangle in the ⚠️ note above is the visible consequence;
+//   · the WRIST path is the costly one. A 90 s horizon means a 45 s attack, so a HealthKit
+//     reading that arrives minutes after the last one spends its entire usable life climbing and
+//     then falling — mean weight 0.4712, peak touched for one instant. The source whose whole
+//     premise is "a reading from a minute ago is still your current rate" is the one this couples
+//     hardest against. Camera/BLE is comparatively unharmed because its 3 s attack is short
+//     against its ~1 Hz cadence.
+// Decoupling the attack from `half` is a BEHAVIOUR change with a real design question behind it
+// (should re-acquisition be immediate, source-dependent, or trust-earning?), so it is registered
+// as its own slice and deliberately does not ride along with a comment correction.
+//   ⛔ And do not reach for the obvious-looking version of that slice — a decaying envelope that
+//   lowers each successive peak so a repeatedly-dropping source earns less trust. It fails on the
+//   same ground #433 used to delete the fabricated calm: the bus still trusts the frame, so
+//   lowering its influence invents a distrust nothing measured, and on a recorded lane the result
+//   is indistinguishable from a body that actually breathed less regularly. It also makes the
+//   weight depend on history the caller cannot see, so two identical bodies read differently.
+//   `testTheRampRateDoesNotRememberEarlierDropouts` exists to make that a red test rather than a
+//   side effect of some later tidy-up.
 //
 // ⭐ THE LESSON, and it is why this correction is worth more than the artifact: a registered
 // follow-up with a NAMED cause is the most expensive kind of wrong note in this repo (#167). The

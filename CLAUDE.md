@@ -263,15 +263,40 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `horizon` noch 0, `weight(at:)` kehrt an seinem `horizon > 0`-Wächter um und
                           `up` entsteht gar nicht. Die Folgerung ist dort STÄRKER, nicht schwächer.)
                           Gemessen zusätzlich zum Argument, weil eine Algebra-Behauptung über
-                          ausgelieferten Code auch nur eine Behauptung ist: 6 000 zufällige Verläufe über
-                          die drei lebenden Fenster (5 s · 6 s · 90 s) ergaben **61 769 Neustarts**,
-                          kleinstes `up` an einem davon **1,000224**, und der größte Unterschied zur
-                          gefreezten Variante über alle Abtastwerte aller Verläufe war **exakt 0**.
-                          ⭐ Das Dreieck ist die Ausblendung selbst: `down` fällt mit `1/releaseSeconds`,
-                          die wiederaufgenommene Rampe steigt mit derselben Rate. Die Gipfel auf 1 sind
-                          für sich KEIN Fehler — jede dieser Messungen ist frisch. Sie ABKLINGEN zu
-                          lassen hieße, die RAMPENRATE bei der Wiederaufnahme zu ändern, und das ist eine
-                          Verhaltenspolitik, keine Reparatur; `testTheRampRateDoesNotRememberEarlierDropouts`
+                          ausgelieferten Code auch nur eine Behauptung ist: 6 000 zufällige Verläufe
+                          ergaben **61 769 Neustarts** und der größte Unterschied zur gefreezten Variante
+                          über alle Abtastwerte aller Verläufe war **exakt 0**; eine unabhängige
+                          gegnerische Wiederholung fand 102 921 Neustarts und ebenfalls 0.
+                          ⛔ Beide Läufe meldeten außerdem „kleinstes `up` an einem Neustart" (1,000224
+                          bzw. 1,0000009939619714), und die erste Fassung zitierte die erste Zahl hier
+                          wie eine MARGE. Sie ist keine Eigenschaft des Codes, sondern eine des
+                          Zufallsgenerators: die Neustart-Bedingung ist eine STRIKTE Ungleichung, das
+                          Infimum von `up` an einem Neustart ist also exakt 1 und wird nie angenommen —
+                          ein dichterer Sweep meldet für immer eine kleinere Zahl. Tragend ist das
+                          Theorem, nicht die Ziffer. ⚠️ Und die Abdeckung heißt jetzt, was sie ist:
+                          `BioSource.freshnessWindow` deklariert VIER verschiedene Werte über sechs Fälle
+                          (6 s · 90 s · 600 s für `.oura` · 5 s); gewischt wurden die drei mit einem
+                          Produzenten in `Sources/`. `half` kürzt sich aus dem Vergleich heraus, der
+                          ungewischte Wert ist also eine Abdeckungs-Notiz und kein Loch im Beweis.
+                          ⭐ Das Dreieck ist ANSTIEGSRATE == ABKLINGRATE, und das hat in dieser Datei
+                          nie jemand entschieden: `down` fällt mit `1/half`, `up` steigt mit
+                          `elapsed/half` — also mit derselben Rate, allein weil `up` denselben Teiler
+                          wiederverwendet. Der Dateikopf leitet die TEILUNG her (Gnadenfrist = Release =
+                          horizon/2, gekettet an das Frische-Fenster der Quelle); die ANSTIEGSRATE leitet
+                          er nirgends her — sie ist Nebenwirkung der Konstante, die für die Ablauf-Seite
+                          gewählt wurde. Die teure Folge ist nicht das Flackern, sondern das Handgelenk:
+                          90 s Horizont heißt 45 s Anstieg, eine HealthKit-Messung verbringt also ihr
+                          ganzes nutzbares Leben mit Steigen und Fallen (Mittel **0,4712**, Vollgewicht
+                          für EINEN Augenblick). ⛔ Damit ist auch die Zeile im #434-Kopf korrigiert, die
+                          „volles Gewicht für 45 s" behauptete — es ist ein Dreieck, kein Plateau; die
+                          Regressions-Aussage gegen die alte 2-s/4-s-Paarung überlebt trotzdem. Die
+                          Entkopplung ist eine eigene Scheibe. Die naheliegende Variante — eine
+                          abklingende Hülle, bei der eine ständig ausfallende Quelle weniger Vertrauen
+                          verdient — ist ABGELEHNT, nicht bloß vertagt: der Bus traut dem Frame weiter,
+                          ihren Einfluss zu senken erfindet also ein Misstrauen, das nichts gemessen hat
+                          (die #433-Begründung), und auf einer aufgezeichneten Spur ist das Ergebnis von
+                          einem wirklich unregelmäßiger atmenden Körper nicht zu unterscheiden;
+                          `testTheRampRateDoesNotRememberEarlierDropouts`
                           ist das Gegengewicht, das daraus einen roten Test macht statt einer Nebenwirkung.
                           ⛔ **Und der Formtest KONNTE seine wichtigste Behauptung in der ersten
                           Fassung nicht scheitern lassen — #367 in seiner leisesten Form.** Der Trog

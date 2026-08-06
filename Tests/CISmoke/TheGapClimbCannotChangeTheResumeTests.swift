@@ -29,19 +29,36 @@
 //
 //   Measured as well as argued, because an algebraic claim about shipped code is still a claim:
 //   6 000 randomised traces (bursts of 1–5 measurements separated by gaps drawn to straddle
-//   `half`, over the three live windows 5 s / 6 s / 90 s) produced **61 769 restarts**. The
-//   smallest `up` seen at any of them was **1.000224**, never below 1, and the largest difference
-//   between today's weight and the frozen variant over every sample of every trace was **exactly
-//   0**.
+//   `half`, over the windows 5 s / 6 s / 90 s) produced **61 769 restarts**, and the largest
+//   difference between today's weight and the frozen variant over every sample of every trace was
+//   **exactly 0**.
+//   (⛔ That sweep also reported "the smallest `up` seen at a restart" — 1.000224 — and the first
+//   draft quoted it here as though it were a MARGIN. It is a statistic about the random number
+//   generator, not about this code. The restart test is a STRICT inequality, so the infimum of
+//   `up` at a restart is exactly 1 and is never attained: a denser sweep reports a smaller number
+//   for ever, and the number therefore says nothing. The theorem above is what carries the claim.)
+//   (⚠️ Coverage: `BioSource.freshnessWindow` declares FOUR distinct values across six cases —
+//   6 s, 90 s, 600 s (`.oura`), 5 s. The sweep drove the three that have a producer in `Sources/`
+//   today. `half` cancels out of the restart comparison, so the window the sweep skipped is a
+//   coverage note rather than a hole in the proof.)
 //
-// ⭐ SO WHAT IS THE TRIANGLE, THEN? It is the fade itself, not `up`'s climb. `down` falls
-// linearly at `1/releaseSeconds`, the resumed ramp climbs at the same `1/releaseSeconds`, and a
-// source that flickers with a period longer than the horizon therefore traces a symmetric
-// triangle whose peaks all reach 1. `testAFlickeringSourceTracesASymmetricTriangle` measures
-// that shape instead of asserting it. Whether it should instead DECAY — a source that keeps
-// dropping out earning less trust each time — is a behaviour policy, not a bug fix, and it would
-// have to change the RAMP RATE on re-acquisition. `testTheRampRateDoesNotRememberEarlierDropouts`
-// is the counterweight that makes such a change a deliberate red test rather than a silent one.
+// ⭐ SO WHAT IS THE TRIANGLE, THEN? ATTACK RATE == RELEASE RATE — and nothing in `BreathHold`
+// ever decided that. `down` falls at `1/half`; `up` climbs at `elapsed / half`, i.e. also
+// `1/half`, purely because `up` reuses `half` as its divisor. The header of `BreathHold.swift`
+// derives the SPLIT (grace = release = horizon/2, chained to `BioSource.freshnessWindow`); it
+// never derives the ATTACK, which arrived as a side effect of the constant chosen for the expiry
+// side. A source flickering with a period longer than the horizon therefore traces a SYMMETRIC
+// triangle whose peaks all reach 1, and `testAFlickeringSourceTracesASymmetricTriangle` measures
+// that shape rather than asserting it. Decoupling the two rates is a behaviour change with a real
+// design question behind it, registered as its own slice.
+//   ⛔ And the obvious-looking version of that slice — a decaying envelope, so a source that keeps
+//   dropping out earns less trust each time — is rejected, not merely deferred. It fails on the
+//   ground #433 used to delete the fabricated calm: the bus still trusts the frame, so lowering
+//   its influence invents a distrust nothing measured, and on a recorded lane the result is
+//   indistinguishable from a body that actually breathed less regularly. It would also make the
+//   weight depend on history the caller cannot see, so two identical bodies read differently.
+//   `testTheRampRateDoesNotRememberEarlierDropouts` is the counterweight that makes such a change
+//   a deliberate red test rather than a silent side effect of a later tidy-up.
 //
 // ⚠️ WHICH OF THESE CAN ACTUALLY FAIL, stated up front because #367 is a law about a test's
 // self-description too:
@@ -164,10 +181,19 @@ final class TheGapClimbCannotChangeTheResumeTests: XCTestCase {
             Only \(expired.count) samples fall past the horizon, so the trough below is measured \
             on too little of the expiry region to mean anything.
             """)
+        // ⚠️ THE PEAK IS A CUSP, AND THIS ASSERTION ALSO DEPENDS ON THE SAMPLE GRID — said here
+        // because the next person to change a number in the loop above needs it. After the
+        // measurement at t = 7 the run restarts with `resumeWeight == 0`, so `up = elapsed / 3`
+        // reaches 1 at exactly t = 10, which is the same instant `down` starts falling (`age`
+        // hits `half`). Full weight is touched for ONE INSTANT, not held. The 0.5 s step happens
+        // to land on t = 10.0; a step that misses the cusp (0.7 s, say) would report a peak below
+        // 1 with the code completely unchanged. So this is a claim about the shape AND about the
+        // grid — it is not "the weight spends time at 1".
         XCTAssertEqual(peak, 1, accuracy: 1e-12, """
             The flicker peak is \(peak), not 1. Every one of those measurements is fresh, so a \
             peak below full weight means re-acquisition is being penalised — which is the \
-            envelope policy this file says is NOT in the code.
+            envelope policy this file says is NOT in the code. (If you changed the 0.5 s sample \
+            step, check the cusp note above first: the peak is an instant, not a plateau.)
             """)
         XCTAssertEqual(trough, 0, accuracy: 1e-12, """
             The flicker trough is \(trough), not 0. A gap longer than the source's own freshness \
