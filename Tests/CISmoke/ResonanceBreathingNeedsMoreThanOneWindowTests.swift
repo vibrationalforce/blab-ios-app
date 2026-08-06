@@ -42,11 +42,21 @@
 //     against the STRUCTURAL failure (one window never reaching the true rate), not quality
 //     judgements. Test 1 asserts `|rate − 6| > 1`, not `rate == 0` — see its own ⛔ note.
 //   · Nothing here sees the DEVICE's noise floor. `CameraAnalyzer` takes peak times at
-//     whole-sample resolution at 7.5–15 fps, so real intervals carry ±4 to ±8 bpm of
-//     quantisation aliasing — several times the 1.5 bpm scale the confidence floor is set to.
-//     These tests drive the pure estimator with exact timestamps, so they prove the
-//     arithmetic and say nothing about how well the shipped path separates a shallow breather
-//     from a still hand. That needs sub-sample peak timing first, and then a device run.
+//     whole-sample resolution at 7.5–15 fps, so real intervals are quantised to one frame
+//     period: 1.6 bpm RMS at 15 fps, 3.2 at 7.5, against the 1.5 bpm scale the confidence
+//     floor is set to. These tests drive the pure estimator with exact timestamps, so they
+//     prove the arithmetic and say nothing about how well the shipped path separates a
+//     shallow breather from a still hand — simulated, a MOTIONLESS hand clears the gate on
+//     quantisation alone in 86 of 120 sampled cases at 15 fps and 109 of 120 at 7.5.
+//     ⛔ THIS BULLET SAID "±4 to ±8 bpm … several times the 1.5 bpm scale" AND `d7e0424`
+//     RETRACTED THAT SENTENCE IN `RespirationEstimator.swift` WITHOUT TOUCHING THE COPY HERE.
+//     ±4/±8 is the PEAK; a floor responds to the RMS, so the honest ratio is 1.1–2.2×, not
+//     3–5×. Third time in this one epic that a corrected number survived in a second file —
+//     line 597 below already carries the lesson ("the fix belongs everywhere `grep` finds the
+//     number"), and the retraction commit itself walked past it. The old last clause ("that
+//     needs sub-sample peak timing first") is stale too: #421 has since measured naive
+//     3-point parabolic interpolation as WORSE than whole-sample at this signal's ≈4 dB SNR,
+//     so sub-sample timing is an open design question, not the standing plan.
 //   · ⛔ SEVEN OF THESE TWELVE TESTS COULD FAIL ON THE CODE THEY GUARD: the three source scans
 //     (the long-lived estimator, the paired `beatTimes`, the evidence-gated publish), the
 //     three staleness guards (`…ExpiresWhenTheBreathingStops`, `…WeakNoisySignal…`,
@@ -54,10 +64,13 @@
 //     read 0.284 against a 0.4 gate before the grace paid for the lag.
 //     TWO are counterweights — they hold bounds that must NOT move and could only fail if the
 //     grace were TIGHTENED: `…AgeingInsideTheGraceWindow…` and `…ContinuingSlowBreathNever…`.
-//     And `…AgesWithTheClock…` is the one test that bounds `pullLagAllowance` from above: it
-//     goes red once the constant passes ≈15.0 s under the shipped subtract-from-staleness form
-//     (≈9.4 s under the add-to-grace form the first version used). Nothing else in this file
-//     constrains that constant, so a session raising it should look here first.
+//     And the file brackets `pullLagAllowance` from BOTH sides, which is worth knowing before
+//     anyone moves it: `…AgesWithTheClock…` is the only upper bound (red once the constant
+//     passes ≈15.0 s under the shipped subtract-from-staleness form, ≈9.4 s under the
+//     add-to-grace form the first version used), and `…FastBreathers…` is the only lower one
+//     (red below ≈0.74 s). The shipped 1.8 therefore sits ≈1.06 s above the floor and ≈13.2 s
+//     below the ceiling. The other two staleness guards stay green past a 400 s allowance and
+//     constrain nothing here.
 //     The remaining three describe the pure estimator on inputs these commits
 //     leave bit-identical — they are green on both sides and exist to state the SHAPE of the
 //     defect, not to catch its return. That is NOT the same as "the arithmetic did not
@@ -89,9 +102,13 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// Well inside the estimator's 4…30/min band but far enough up it that the proportional
     /// grace has shrunk to the same order as the pipeline lag. NOT 30, but not for the reason
     /// the first version gave — see the ⚠️ on
-    /// `testAFastBreathersOwnMeasurementSurvivesThePipelineLag`: above ~28.5/min a growing share
-    /// of phases fails the gate for a reason nothing in this file fixes, so testing there would
-    /// pin a failure rather than a guarantee.
+    /// `testAFastBreathersOwnMeasurementSurvivesThePipelineLag`. Swept at the shipped 1.8 s
+    /// allowance and this test's 2.5 s wall, the worst-phase confidence is 0.4871 at 28.0/min,
+    /// 0.4046 at 28.7 and 0.3880 at 28.8 — so the last rate at which EVERY phase passes is
+    /// 28.7, and above it a growing share fails for a reason nothing in this file fixes.
+    /// Testing up there would pin a failure rather than a guarantee. (⛔ The first version of
+    /// this sentence said "~28.5", which no measurement supports; a rate boundary quoted
+    /// without the lag it depends on is the same shape as the thing this commit corrects.)
     private static let fastBreathsPerMinute = 28.0
     /// Delay between the last beat reaching `ingest` and `age(to:)` being called on it: two
     /// samples to confirm the peak, the ~4 Hz peak-scan throttle, and the ~1 Hz publish drain.
@@ -448,11 +465,16 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// ⚠️ THIS IS A COUNTERWEIGHT, NOT A CLAIM THAT THE WHOLE BAND WORKS, and the first version
     /// misdiagnosed the residual. It said 30/min is unreachable because the RSA sits at Nyquist
     /// and the rate aliases to ~10/min. That was written from ONE phase (phase 0) and the sweep
-    /// refutes it: at 30/min the measured rate is ~30 at 244 of 360 phases, 0 at 61 and ~10 at
-    /// 54 — the modal answer is the RIGHT one. What actually fails above ~28.5/min is the
-    /// CONFIDENCE, for the same lag-versus-shrinking-grace reason this test is about, and
-    /// neither this allowance nor a larger one closes it (29/min worst phase: 0.000 before,
-    /// 0.179 with the shipped 1.8, 0.266 with 2.5). Registered on the board; not fixed here.
+    /// refutes it: at 30/min the measured rate is ~30 at 244 of 360 phases, 0 at 61, ~10 at 53
+    /// and one phase each at 10.3 and 18.8 (244 + 61 + 53 + 2 = 360 — the first version wrote
+    /// "54" for the ~10 bucket and accounted for only 359, i.e. quoted a partial reading in the
+    /// paragraph about quoting a partial reading). The modal answer is the RIGHT one. What
+    /// actually fails above 28.7/min is the CONFIDENCE, for the same lag-versus-shrinking-grace
+    /// reason this test is about, and neither this allowance nor a larger one closes it
+    /// (29/min worst phase, all three under the gate: 0.000 with no allowance, 0.179 with the
+    /// shipped subtract-1.8, 0.266 with subtract-2.5 — and 0.318 under the previous commit's
+    /// add-2.5-to-grace form, which is the number a reader would otherwise assume the middle
+    /// column meant). Registered on the board as #424; not fixed here.
     /// Writing "Nyquist" in the file whose thesis is "swept, not sampled" — off one phase — is
     /// the exact habit this epic has now retracted three times.
     func testAFastBreathersOwnMeasurementSurvivesThePipelineLag() {

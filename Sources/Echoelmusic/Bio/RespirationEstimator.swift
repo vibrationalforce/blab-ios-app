@@ -42,6 +42,15 @@ public struct RespirationEstimator {
     /// this device range — the two frame-counted terms double to 1.80 s. This is the 7.5 fps
     /// figure, so the slower device is covered rather than the faster one.
     ///
+    /// ⚠️ IT IS A BUDGET, NOT AN EXACT SUM, and the "≈" is carrying two known errors in
+    /// opposite directions. The frame terms overcount by one frame (a peak at frame k is
+    /// confirmable at k+2 and the next `peakTick % 4 == 0` scan is at most k+5, so five frames,
+    /// not 2+4 = 6), and the capture hop is missing entirely (`sampleQueue.push` stamps
+    /// `systemUptime` and the 100 ms loop drains it on the next tick, ≤0.1 s). They roughly
+    /// cancel. Both errors are in the safe direction for an ALLOWANCE — an overpaid allowance
+    /// only widens the stale window slightly — but the line reads like three exact terms, and
+    /// this file has already paid for one budget that read exact and was not.
+    ///
     /// ⛔ A FOURTH TERM WAS IN THE FIRST VERSION AND DOES NOT BELONG: "the crossing is stamped
     /// at a beat (≈1 s at rest)". That quantisation is real, but it is already inside
     /// `lastBeat − lastCrossT`, so adding it to a lag measured FROM the last beat counts it
@@ -51,6 +60,12 @@ public struct RespirationEstimator {
     /// The correction narrows the case as well as the number: with the three real terms the
     /// worst phase at 28 breaths/min reads 0.457 at 15 fps — no defect — and 0.394 at 7.5 fps,
     /// under the 0.4 gate. This is a slow-device defect, and saying so is the point.
+    ///
+    /// Two tests in `ResonanceBreathingNeedsMoreThanOneWindowTests` bracket this constant and
+    /// nothing else does: `…FastBreathers…` goes red below ≈0.74 s, `…AgesWithTheClock…` above
+    /// ≈15.0 s. 1.8 therefore sits ≈1.06 s above the floor and ≈13.2 s below the ceiling —
+    /// deliberately close to the floor, because every second of allowance is a second the
+    /// estimator keeps claiming a rate it can no longer see.
     private static let pullLagAllowance = 1.8
 
     // MARK: Respiration band (breaths/min)
@@ -151,13 +166,17 @@ public struct RespirationEstimator {
     /// later behaves exactly as before.
     ///
     /// ⚠️ "Every publish" is deliberately NOT what the caller does, and the first version of
-    /// this line said it did. TWO paths through `CameraRPPGBioPublisher`'s 1 Hz block skip the
-    /// ageing, and a future reader deciding "can this estimator go stale?" needs both:
+    /// this line said it did. THREE paths through `CameraRPPGBioPublisher`'s 1 Hz block skip
+    /// the ageing, and a future reader deciding "can this estimator go stale?" needs all three:
     /// (1) the `shouldPublish` else-branch re-emits the last good frame for up to
     /// `bioHoldTicks` — bounded, and it carries the held frame's OWN timestamp, so
-    /// timestamp-dedup consumers treat it as a no-op; (2) the `inboundRateEMA` guard above it
-    /// `continue`s past the whole block, so nothing is published AND nothing is aged — benign,
-    /// because a claim that is never emitted cannot go stale. The first version named only (1).
+    /// timestamp-dedup consumers treat it as a no-op; (2) the `inboundRateEMA` guard `continue`s
+    /// past the whole block; (3) the `guard tick % 10 == 0, let bus = self.bus` at the top of
+    /// the block — `bus` is `weak`, so a released `EngineBus` also `continue`s. (2) and (3) are
+    /// benign for the same reason: a claim that is never emitted cannot go stale.
+    /// ⛔ The first version named only (1); the commit that corrected it named only (1) and (2)
+    /// while its own summary bullet read "named two of three". An exhaustiveness claim has to be
+    /// counted against the source each time it is edited, not extended by one.
     ///
     /// ⚠️ Nor can it be stated flatly that ageing never RAISES confidence — it holds for the
     /// case that matters and fails in two corners. (1) A fresh estimator with `lastT == nil`
@@ -255,25 +274,40 @@ public struct RespirationEstimator {
         // with no measured period yet, assuming the shortest one would expire a slow breather.
         //
         // ⭐ THE ALLOWANCE PAYS FOR A DELAY THIS TERM CANNOT SEE. While the estimator was only
-        // refreshed from inside `ingest`, `sinceCross` was measured at a BEAT time. `age(to:)`
-        // moved the evaluation to wall-clock now, which adds the camera pipeline between the
-        // beat and this call. That is measurement latency, not staleness, and charging it to
-        // the breather is wrong. Swept over all 360 whole-degree breathing phases at a 2.5 s
-        // lag: at 28 breaths/min the worst phase read confidence 0.284 WITHOUT the allowance —
-        // under the publisher's 0.4 gate, so a fast breather's own measurement flickered off —
-        // and 0.487 with it. The cost at the other end is negligible because the envelope veto
-        // dominates there: the 60 s-then-flat series that
+        // refreshed from inside `ingest`, the since-crossing age was measured at a BEAT time.
+        // `age(to:)` moved the evaluation to wall-clock now, which adds the camera pipeline
+        // between the beat and this call. That is measurement latency, not staleness, and
+        // charging it to the breather is wrong. Swept over all 360 whole-degree breathing
+        // phases at a 2.5 s lag: at 28 breaths/min the worst phase read confidence 0.284
+        // WITHOUT the allowance — under the publisher's 0.4 gate, so a fast breather's own
+        // measurement flickered off — and 0.487 with it. The cost at the other end is
+        // negligible because the envelope veto dominates there: the 60 s-then-flat series that
         // `testAMeasuredRateExpiresWhenTheBreathingStops` drives ends at 0.0054 instead of
         // 0.0019, both far under the gate.
         //
-        // ⛔ SUBTRACT FROM `sinceCross`, DO NOT ADD TO `grace` — the first version added it and
-        // the difference is not cosmetic, because `grace` appears TWICE: once as the flat
+        // ⛔ SUBTRACT FROM THE MEASURED AGE, DO NOT ADD TO `grace` — the first version added it
+        // and the difference is not cosmetic, because `grace` appears TWICE: once as the flat
         // window and once as the fade denominator. Adding a constant there therefore also
-        // STRETCHES the fade, which nothing about a fixed measurement lag justifies. Measured
-        // time from the last crossing to `confidence < 0.4`, before / added 2.5 / subtracted
-        // 1.8: 6/min 24.1 → 28.1 → 25.9 s · 15/min 9.0 → 12.8 → 10.8 s · 28/min 4.7 → 8.4 →
-        // 6.5 s. Subtracting buys the identical fast-end protection (0.487 at every phase, the
-        // same number) for a smaller extension of the stale window at every rate.
+        // STRETCHES the fade, which nothing about a fixed measurement lag justifies.
+        //
+        // The exact statement is analytic, not measured: subtracting A shifts the whole
+        // freshness curve later by EXACTLY A at every rate, while adding A to a grace that
+        // appears twice shifts it by A and then scales the fade by (1 + A/grace) — so the two
+        // forms agree only where the fade has not started. At 6/min the flat window ends
+        // 15 s after the crossing either way; the 0.4 crossing is what separates them. Time
+        // from the last crossing to `confidence < 0.4`, PHASE 0, this file's own generator,
+        // before / added 2.5 / subtracted 1.8: 6/min 24.00 → 28.00 → 25.80 s · 15/min
+        // 9.06 → 12.83 → 10.86 s · 28/min 4.53 → 8.14 → 6.34 s. Subtracting buys the identical
+        // fast-end protection (0.4871 at every phase — the same number to four decimals) for a
+        // smaller extension of the stale window at every rate.
+        //
+        // ⛔ AND THE PHASE HAD TO BE NAMED. The first version of that table wrote 24.1 / 28.1 /
+        // 25.9 for the 6/min row and 4.7 / 8.4 / 6.5 for the 28/min row, with no phase given.
+        // The 28/min row reproduces only near phase 19–20°, the 15/min row near 2°, and the
+        // 6/min row reproduces at NO phase at all — the achievable "before" values jump
+        // 24.001 → 24.247 and 24.1 falls in the gap. Three lines above, this same paragraph
+        // retracts a figure for exactly this reason ("when a table has two minima, name which
+        // one"). A phase-free table is the same defect with more digits.
         //
         // ⛔ AND THE FIRST VERSION MISREAD ITS OWN RETRACTION. It said "an earlier draft quoted
         // 0.313 off a 180-phase sweep". No phase set produces 0.313 here: 180 phases give
@@ -282,24 +316,36 @@ public struct RespirationEstimator {
         // in a paragraph about hand-picked figures was itself a number nobody could reproduce.
         // The lesson is narrower than "sweep": when a table has two minima, name which one.
         //
-        // ⚠️ ABOVE ~28.5/min A GROWING SHARE OF PHASES STILL FAILS THE GATE, and the first
+        // ⚠️ ABOVE 28.7/min A GROWING SHARE OF PHASES STILL FAILS THE GATE, and the first
         // version blamed Nyquist for it. That was written from ONE phase and the sweep refutes
-        // it: at 30 breaths/min the measured rate is 30 at 244 of 360 phases, 0 at 61 and ~10
-        // at 54 — the modal answer is the RIGHT one. So the residual is a CONFIDENCE problem of
-        // the same lag/freshness kind, not a sampling limit, and neither this allowance nor a
-        // larger one closes it (29/min worst phase at the same 2.5 s lag: 0.000 before, 0.179
-        // with 1.8, 0.266 with 2.5 — all under the gate). Two real causes sit under the 61
-        // zeros at 30/min and are
-        // registered on the board, not fixed here: `lastCrossT` is quantised to a beat, and
-        // line `r <= Self.maxRate` REJECTS a crossing whose jitter puts it a hair over 30/min
-        // instead of accepting the measurement into a wider band than it reports.
+        // it: at 30 breaths/min the measured rate is ~30 at 244 of 360 phases, 0 at 61, ~10 at
+        // 53, and one phase each at 10.3 and 18.8 — the modal answer is the RIGHT one. So the
+        // residual is a CONFIDENCE problem of the same lag/freshness kind, not a sampling
+        // limit, and neither this allowance nor a larger one closes it (29/min worst phase at
+        // the same 2.5 s lag: 0.000 before, 0.179 with subtract-1.8, 0.266 with subtract-2.5,
+        // 0.318 under the previous commit's add-2.5 — all under the gate). Two real causes sit
+        // under the 61 zeros at 30/min and are registered on the board, not fixed here:
+        // `lastCrossT` is quantised to a beat (#423), and `r <= Self.maxRate` REJECTS a
+        // crossing whose jitter puts it a hair over 30/min instead of accepting the measurement
+        // into a wider band than it reports (#424) — at every one of those 61 phases, EVERY
+        // crossing was rejected with r = 30.000000…x, so that cause is measured, not inferred.
+        //
+        // ⛔ THE HISTOGRAM ABOVE READ "244 / 61 / 54" FOR ONE COMMIT AND SUMMED TO 359. The
+        // ~10 bucket is 53; the two stragglers at 10.3 and 18.8 belonged to no named bucket and
+        // were silently dropped. A partial reading, quoted inside the paragraph that retracts a
+        // partial reading — the same shape, one level down. If a partition is offered as
+        // evidence, its parts have to add up to the sweep.
         let expectedPeriod = periodEMA > 0 ? periodEMA : 60.0 / Self.minRate
         let grace = expectedPeriod * 1.5
-        let measuredSince = lastCrossT.map { t - $0 } ?? 0
-        let sinceCross = Swift.max(0.0, measuredSince - Self.pullLagAllowance)
-        let freshness = sinceCross <= grace
+        // NAMED FOR WHAT IT IS: the raw age of the crossing, versus the age this term is
+        // allowed to CHARGE the breather after the pipeline's own delay is paid off. The
+        // earlier `sinceCross` held the raw value and then held the reduced one, which is
+        // exactly the stale-name trap this repo has already paid for once (#373/#374).
+        let rawSinceCross = lastCrossT.map { t - $0 } ?? 0
+        let chargeableSince = Swift.max(0.0, rawSinceCross - Self.pullLagAllowance)
+        let freshness = chargeableSince <= grace
             ? 1.0
-            : Swift.max(0.0, 1.0 - (sinceCross - grace) / grace)
+            : Swift.max(0.0, 1.0 - (chargeableSince - grace) / grace)
 
         confidence = Swift.max(0.0, Swift.min(1.0, 0.5 * envConf + 0.5 * countConf)) * freshness
     }
