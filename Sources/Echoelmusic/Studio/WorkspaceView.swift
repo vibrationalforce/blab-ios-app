@@ -990,21 +990,31 @@ struct CompositionHeaderStrip: View {
                     // scroll detuned the instrument and kept it detuned across relaunches.
                     // If another value field is ever added to this strip, it needs this too.
                     // ⛔ `decimals: 2` IS THE COMMENT ABOVE, MADE TRUE (#440). This row ran on
-                    // `EchoelValueField`'s default 4 while the line six above it promised
-                    // "exact to 0.01 Hz" — and `decimals` is the SNAP GRID, not a readout
-                    // preference (#430), so the row actually offered 0.0001 Hz. The founder's
-                    // own 2026-08-02 recording, quoted above, shows the result: `483.4352`
-                    // and `500.0000` on screen. Four digits made an accidental scroll look
-                    // like a deliberate setting.
+                    // `EchoelValueField`'s default 4 while the "exact to 0.01 Hz" promise at
+                    // the head of this block stood over it — and `decimals` is the SNAP GRID,
+                    // not a readout preference (#430), so the row actually offered 0.0001 Hz.
+                    // The founder's own 2026-08-02 recording, quoted above, shows the result:
+                    // `483.4352` and `500.0000` on screen. Four digits made an accidental
+                    // scroll look like a deliberate setting.
+                    // ⛔ This sentence said "the line six above it" and the distance was 29
+                    // lines — and the same wrong "six" had already been copied into the guard
+                    // and into CLAUDE.md twice before anyone re-derived it. A count of lines
+                    // between two points in a file is the most fragile kind of fact this repo
+                    // writes down: the very commit that states it moves the lines. Name the
+                    // block, not the offset.
                     // ⛔ AND CLAUDE.md's #427 ENTRY IS WRONG ABOUT THIS ROW. It lists A4 and
                     // the locked tempo as the two that "both say 'editable to 0.0001' in their
                     // own comment". Only `BodyTempoField` says that; this one says 0.01 and
                     // always did. That entry is corrected in the same commit.
-                    // ⚠️ It costs an existing user something, and the cost is measured: a
-                    // stored 442.3456 snaps to 442.35 on the first touch of this row. That is
-                    // 0.0197 cents at A4 — about 250× below the ~5-cent just-noticeable
-                    // difference for pitch, so it is inaudible; but it IS a write, and the
-                    // value is persisted.
+                    // ⚠️ It costs an existing user something, and the cost is measured. Worst
+                    // case is half a grid step, 0.005 Hz, which at 440 Hz is 0.0197 cents —
+                    // about 250× below the ~5-cent just-noticeable difference for pitch, so it
+                    // is inaudible; but it IS a write, and the value is persisted.
+                    // ⛔ The first draft pinned 0.0197 to a WORKED EXAMPLE — "a stored 442.3456
+                    // snaps to 442.35 … that is 0.0197 cents". That snap is 0.0044 Hz at
+                    // 442.3456 Hz, which is 0.0172 cents. The number was right and the sentence
+                    // attached it to the wrong event; an example is not a bound, and the bound
+                    // is what the claim needs.
                     EchoelValueField(label: "", value: $session.a4Hz, range: 380...500,
                                      unit: "Hz", decimals: 2,
                                      onCommit: {

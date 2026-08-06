@@ -328,10 +328,11 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// the box takes the whole row and more, the label is squeezed to its
     /// `minimumScaleFactor(0.7)` floor and then truncates to nothing, and the box itself runs
     /// past the screen edge. This is the ONE parameter control in the app —
-    /// `git grep -c "EchoelValueField(" -- Sources` is 65 lines, THREE of them comments — the one
-    /// in `Core/EchoelDecimalText.swift`, THIS one (which is why the count in that file said "the
-    /// only comment-line hit" and had to be corrected the same day), and `EchoelNumberPad.swift`'s
-    /// `NumberPadEntry` doc since #431. Still 62 call sites, and
+    /// `git grep -c "EchoelValueField(" -- Sources` is 64 lines, TWO of them comments — the one
+    /// in `Core/EchoelDecimalText.swift` and THIS one (which is why the count in that file said
+    /// "the only comment-line hit" and had to be corrected the same day). It read "65 / THREE"
+    /// until #440 re-ran the command: `EchoelNumberPad.swift`'s `NumberPadEntry` doc, counted as
+    /// the third since #431, no longer spells the token. Still 62 call sites, and
     /// exactly ONE of them renders label-less unconditionally (the chrome A4 box
     /// in `WorkspaceView`) with one more doing so only in its compact form (`BodyTempoField`).
     /// So at accessibility sizes essentially every parameter row in the instrument reads as an

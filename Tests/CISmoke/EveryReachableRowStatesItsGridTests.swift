@@ -8,8 +8,10 @@
 // rest of the app offers 101, and the number on screen reads "0.5000" beside a neighbour
 // reading "0.50".
 //
-// #427 fixed the visual panel (6 rows), #430 fixed the sound panel (21 rows, via the `param`
-// and `knob` helpers). #440 — this commit — fixes the last two REACHABLE stragglers and pins
+// #427 fixed the visual panel (6 rows), #430 fixed the sound panel (21 rows — 17 rendered
+// through the `param`/`knob` helpers plus 4 direct call sites; saying "via the helpers" of all
+// 21 is the same over-tidy summary that made `field`'s callers invisible below). #440 — this
+// commit — fixes the last two REACHABLE stragglers and pins
 // the result, because the interesting fact is no longer "which rows are wrong" but "which rows
 // are allowed to stay on the default, and why".
 //
@@ -64,18 +66,30 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
         try String(contentsOf: try repoRoot().appendingPathComponent(relative), encoding: .utf8)
     }
 
-    /// Comment lines are stripped before any scan. This repo's comments quote the very code
+    /// Comment lines are BLANKED before any scan. This repo's comments quote the very code
     /// they describe — including the broken forms they warn against — so a scan over raw source
-    /// can match prose and report a green (or a red) it did not earn. Same helper, same reason,
-    /// as `TheShownNumberIsTheKeptNumberTests` (#432) and the #404 lesson before it.
+    /// can match prose and report a green (or a red) it did not earn. Same reason as
+    /// `TheShownNumberIsTheKeptNumberTests` (#432) and the #404 lesson before it.
+    ///
+    /// ⛔ BLANKED, NOT DROPPED, and the difference is the whole reason `valueFieldCallSites`
+    /// can name a line a human can open. The first version of this file dropped the lines and
+    /// then counted newlines in the SHORTENED text — so it reported `BodyTempoField.swift:41`
+    /// for a row that lives at :131 and `PianoRollView.swift:1043` for one at :1766. In a repo
+    /// whose comments outweigh its code that is off by hundreds of lines, in exactly the string
+    /// a future session pastes into an editor. Blanking keeps one line per line.
+    ///
+    /// ⚠️ It only removes WHOLE-LINE `//`. A trailing comment or a `/* */` block quoting
+    /// `EchoelValueField(` would still be counted as a call site. True on today's tree (the
+    /// scan reproduces 62/2 exactly); stated because "comments stripped" reads broader than it
+    /// is.
     private func codeOnly(_ text: String) -> String {
         text.split(separator: "\n", omittingEmptySubsequences: false)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .map { $0.trimmingCharacters(in: .whitespaces).hasPrefix("//") ? "" : String($0) }
             .joined(separator: "\n")
     }
 
-    /// Every `EchoelValueField(` call in `Sources/`, paren-matched, comments stripped, as
-    /// (file, 1-based line, whitespace-collapsed argument text).
+    /// Every `EchoelValueField(` call in `Sources/`, paren-matched, comments blanked, as
+    /// (file, 1-based line IN THE ORIGINAL FILE, whitespace-collapsed argument text).
     ///
     /// ⚠️ PAREN-MATCHED AND NOT LINE-BASED, deliberately: these calls span two to eight lines,
     /// so `grep -c` counts LINES and not SITES. #431's first version shipped a count that was
@@ -97,6 +111,12 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
             let needle = Array("EchoelValueField(")
             var i = 0
             while i + needle.count <= code.count {
+                // First-character early-out. Without it the line below allocates a 17-element
+                // array at EVERY position across ~6 MB of `Sources/` — ~6 million allocations
+                // plus grapheme-aware comparisons in an unoptimised test build. It finished,
+                // but it made this the slowest file in the blocking bundle by an order of
+                // magnitude, and a test nobody wants to wait for is a test that gets disabled.
+                guard code[i] == "E" else { i += 1; continue }
                 guard Array(code[i..<(i + needle.count)]) == needle else { i += 1; continue }
                 var j = i + needle.count
                 var depth = 1
@@ -227,7 +247,14 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
     /// A grid that cannot express the value the app ships with is a defect on the first tap —
     /// the row would rewrite its own default. This is the #430 shape, applied to the one field
     /// #440 re-gridded: `FXModRoute`'s shipped `lfoRateHz` default and both of the row's bounds
-    /// must survive the grid bit-for-bit.
+    /// must survive the grid.
+    ///
+    /// ⚠️ "SURVIVE" IS WITHIN 1e-9, NOT BIT-FOR-BIT, and the first draft of this doc said
+    /// bit-for-bit. The default 0.5 and the upper bound 8.0 are exact; the LOWER bound is not —
+    /// `Double(Float(0.05))` is 0.05000000074505806 and grids to 0.05, a move of 7.45e-10. That
+    /// is 25 % of the tolerance this test uses, so the assertion passes on a margin rather than
+    /// on an identity. Saying "bit-for-bit" in a file whose whole subject is numbers that do not
+    /// mean what they say would have been the defect, one level up.
     ///
     /// The `Float`→`Double` step is part of the measurement and not noise: the model stores
     /// `Float`, the row is generic over `BinaryFloatingPoint` and the grid maths runs in
@@ -240,34 +267,66 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
             the new default before trusting the rest of this test.
             """)
 
-        for value in [shipped, Double(Float(0.05)), Double(Float(8.0))] {
+        // ⛔ THE BOUNDS ARE READ OUT OF THE ROW, not typed here. The first version hardcoded
+        // `0.05` and `8.0` in this file, so changing the row's range to `0.1...20` would have
+        // left every assertion below green while the numbers they justify became wrong. #431:
+        // a guard over a call must pin the argument that makes the call meaningful.
+        let fx = codeOnly(try source("Sources/Echoelmusic/Studio/EchoelFXView.swift"))
+        guard let label = fx.range(of: "\"LFO rate\""),
+              let rangeArg = fx.range(of: "range: ", range: label.upperBound..<fx.endIndex),
+              let dots = fx.range(of: "...", range: rangeArg.upperBound..<fx.endIndex),
+              // `String(...)` around both slices on purpose: `Double.init?` does take a
+              // `StringProtocol`, but there is no compiler in this session to confirm the
+              // overload resolves through a `Substring` of a `Substring`, and a build error
+              // here costs a whole CI round-trip. Cheap insurance, no behaviour change.
+              let lo = Double(String(fx[rangeArg.upperBound..<dots.lowerBound])),
+              let hi = Double(String(fx[dots.upperBound...]
+                  .prefix(while: { $0.isNumber || $0 == "." })))
+        else {
+            return XCTFail("""
+                could not read the FX "LFO rate" row's `range:` out of EchoelFXView — this test \
+                checked nothing, and the counter-measurement below would have been arithmetic \
+                about a range the app no longer has.
+                """)
+        }
+
+        for value in [shipped, Double(Float(lo)), Double(Float(hi))] {
             XCTAssertEqual(ScrubPrecision.gridded(value, decimals: 2), value, accuracy: 1e-9, """
                 \(value) does not survive a 2-decimal grid. The FX "LFO rate" row would rewrite \
                 it on the first touch — either the grid or the shipped value has to change.
                 """)
         }
 
-        // The counter-measurement, so the choice is a trade and not a preference: 4 decimals
-        // offered ~100× more settings across the same span, and the distinction they buy is
-        // below anything a rate can be heard to have. 0.5137 Hz and 0.51 Hz are periods of
-        // 1.9467 s and 1.9608 s — 0.72 % apart.
-        let coarse = (8.0 - 0.05) / 0.01
-        let fine = (8.0 - 0.05) / 0.0001
-        XCTAssertEqual(fine / coarse, 100, accuracy: 1e-6, """
-            The stated 100× resolution ratio between the old and new grid no longer holds — \
-            the range or one of the grids changed, so the justification in the source comment \
-            needs re-measuring too.
+        // The counter-measurement, so the choice reads as a trade and not a preference: over
+        // the row's OWN span, 4 decimals offered 79 501 settings where 2 offers 796, and the
+        // distinction the extra digits buy is below anything a rate can be heard to have —
+        // 0.5137 Hz and 0.51 Hz are periods of 1.9467 s and 1.9608 s, 0.72 % apart.
+        //
+        // ⛔ AND THE FIRST VERSION OF THIS COULD NOT FAIL. It asserted `(span/0.0001) /
+        // (span/0.01) == 100` — the span cancels, so it held for ANY range, including one this
+        // row never had. It is the #367 defect inside the file that cites #367. Counting the
+        // grid points instead keeps the span in the answer.
+        XCTAssertEqual((hi - lo) / 0.01 + 1, 796, accuracy: 0.5, """
+            The 2-decimal grid over \(lo)…\(hi) Hz no longer offers 796 settings. The row's \
+            range changed, so the "79 501 vs 796" justification in the source comment is stale \
+            and has to be re-measured in the same commit.
+            """)
+        XCTAssertEqual((hi - lo) / 0.0001 + 1, 79_501, accuracy: 0.5, """
+            The 4-decimal grid over \(lo)…\(hi) Hz no longer offers 79 501 settings — same \
+            reason, same fix. (This number was shipped as 79 951 in the first draft: a digit \
+            transposition that no assertion caught, which is why it is asserted now.)
             """)
     }
 
-    /// Concert pitch A4. The row promised "exact to 0.01 Hz" in its own comment six lines above
-    /// while running on the default 4 — so the app offered 0.0001 Hz, and the founder's
+    /// Concert pitch A4. The row promised "exact to 0.01 Hz" at the head of its own comment
+    /// block while running on the default 4 — so the app offered 0.0001 Hz, and the founder's
     /// 2026-08-02 recording (quoted in that same comment) shows `483.4352` and `500.0000` on
     /// screen after an accidental scroll. This pins BOTH halves: the comment and the grid.
     ///
     /// ⚠️ The 0.005 Hz worst-case snap this introduces is 0.0197 cents at A4 — roughly 250×
     /// below the ~5-cent just-noticeable difference — but it is a WRITE to a persisted value,
-    /// which is why it is stated in the source rather than waved through.
+    /// which is why it is stated in the source rather than waved through, and asserted below
+    /// rather than left as prose.
     func testConcertPitchGridMatchesItsOwnPromise() throws {
         let text = try source("Sources/Echoelmusic/Studio/WorkspaceView.swift")
         XCTAssertTrue(text.contains("exact to 0.01 Hz"), """
@@ -288,14 +347,40 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
             retunes every voice.
             """)
 
-        // The value the promise is about must survive its own grid.
-        XCTAssertEqual(ScrubPrecision.gridded(440.0, decimals: 2), 440.0, accuracy: 1e-9)
+        // ⛔ A LINE STOOD HERE THAT COULD NOT FAIL: `gridded(440.0, decimals: 2) == 440.0`. An
+        // integer on a 2-decimal grid is trivially exact — no change to `Sources/` could ever
+        // redden it, only a rewrite of `gridded` itself, which its own guards cover. Deleted
+        // rather than kept as reassurance; #367.
+        //
+        // What IS worth pinning is the cost, because it is the reason this row was not simply
+        // swept: the snap writes to a persisted value. Worst case is half a grid step, 0.005 Hz.
+        let worstCents = 1200 * log2((440.0 + 0.005) / 440.0)
+        XCTAssertEqual(worstCents, 0.0197, accuracy: 0.0002, """
+            The worst-case snap at A4 is now \(worstCents) cents, not the 0.0197 stated beside \
+            the row. Either the grid changed or the arithmetic in that comment is wrong — a \
+            number in a comment nobody re-derives is how this repo has been wrong before.
+            """)
+        XCTAssertLessThan(worstCents, 5.0 / 100, """
+            The snap is no longer at least 100× below the ~5-cent just-noticeable difference \
+            for pitch. Below that margin "inaudible" stops being a safe word for a write to a \
+            persisted tuning reference, and the row needs a founder decision, not a grid.
+            """)
     }
 
     /// The counter-weight, and the reason this file exists rather than a one-line diff: the
     /// locked-tempo row WANTS four decimals, and the tidy-looking next step is a sweep that
     /// sets every remaining site to 2. That sweep would coarsen the one control a performer
     /// uses to match an external clock — silently, because no other test looks at it.
+    ///
+    /// ⛔ ITS FIRST VERSION WAS RED ON THE TREE IT WAS WRITTEN FOR, and the mistake is the one
+    /// this file's own header names: a scan that matches text it was not aiming at. It asserted
+    /// `codeOnly(text).contains("decimals:") == false` over the WHOLE file — and
+    /// `BodyTempoField` has two unrelated code lines reading
+    /// `EchoelDecimalText.string(followingValue, decimals: 1)`, the FOLLOWING (unlocked) tempo's
+    /// readout, which #380 deliberately put on one decimal. The assertion failed, and its
+    /// message ("the locked-tempo row now states a grid") would have sent the next session
+    /// hunting a row that states nothing. The check is scoped to the CALL SITE now, through the
+    /// same walker the rest of the file uses.
     func testTheLockedTempoStillWantsFourDecimals() throws {
         let text = try source("Sources/Echoelmusic/Studio/BodyTempoField.swift")
         XCTAssertTrue(text.contains("editable to 0.0001 BPM"), """
@@ -304,10 +389,17 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
             sweep — if the intent changed, state the new one here AND update \
             `allowedToOmitDecimals` above.
             """)
-        XCTAssertFalse(codeOnly(text).contains("decimals:"), """
+
+        let rows = try valueFieldCallSites()
+            .filter { $0.file.hasSuffix("Studio/BodyTempoField.swift") }
+        XCTAssertEqual(rows.count, 1, """
+            Expected exactly one `EchoelValueField` row in BodyTempoField, found \(rows.count). \
+            The assertion below names ONE row; with two, "the locked-tempo row" is ambiguous.
+            """)
+        XCTAssertEqual(rows.first?.args.contains("decimals:"), false, """
             The locked-tempo row now states a grid. That may well be right — but it is a \
             deliberate reduction in a performer-facing resolution, not a cleanup, so it has to \
-            arrive together with an edit to this test.
+            arrive together with an edit to this test and to `allowedToOmitDecimals`.
             """)
     }
 }

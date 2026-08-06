@@ -256,10 +256,10 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           ⭐ Die zwei reparierten sind ungleich, und die zweite ist die schwerere.
                           Die FX-Bio-Mod-Zeile „LFO rate" (0,05…8 Hz) war eine reine Inkonsistenz —
                           die ANDERE Zeile desselben Namens (Patch-Filter-LFO, 0…20 Hz) steht seit
-                          jeher auf 2, der ausgelieferte Default `FXModRoute().lfoRateHz` = 0,5 liegt
+                          jeher auf 2, der ausgelieferte Default `lfoRateHz` = 0,5 (`FXModRoute.init`) liegt
                           exakt auf diesem Raster und beide Grenzen auch. Die KAMMERTON-Zeile
-                          (`WorkspaceView`, 380…500 Hz) war etwas anderes: ihr eigener Kommentar sechs
-                          Zeilen darüber verspricht „exact to 0.01 Hz", während `decimals` das SNAP-
+                          (`WorkspaceView`, 380…500 Hz) war etwas anderes: der Kopf ihres eigenen
+                          Kommentarblocks verspricht „exact to 0.01 Hz", während `decimals` das SNAP-
                           RASTER ist (#430) und die Zeile auf der Vorgabe 0,0001 Hz anbot. Das
                           Founder-Video vom 2026-08-02, im selben Kommentar zitiert, zeigt `483,4352`
                           auf dem Schirm — vier Stellen ließen ein versehentliches Scrollen wie eine
@@ -708,13 +708,23 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `BodyTempoField` sagt „editable to 0.0001 BPM" (drei Stellen, u. a. der
                           eigene Dateikopf). Der Kommentar der A4-Zeile sagt seit jeher
                           „exact to 0.01 Hz" (`WorkspaceView.swift`) — die Zeile war also nicht
-                          absichtlich auf vier Stellen, sondern lief auf der Vorgabe, während sechs
-                          Zeilen darüber zwei versprochen waren. Das ist keine Geschmacksfrage: der
+                          absichtlich auf vier Stellen, sondern lief auf der Vorgabe, während der Kopf
+                          desselben Kommentarblocks zwei versprach. Das ist keine Geschmacksfrage: der
                           Wert ist PERSISTIERT und stimmt jede Stimme, und das Founder-Video vom
                           2026-08-02 zeigt `483,4352` auf dem Schirm. #440 setzt die Zeile auf 2 und
                           macht damit ihren eigenen Kommentar wahr; der KOSTENPUNKT steht neben ihr
-                          (ein gespeichertes 442,3456 rastert beim ersten Antippen auf 442,35, also
-                          0,0197 Cent — hörbar nicht, ein Schreibvorgang schon). **Die Lehre ist
+                          (schlimmster Fall eine halbe Rasterstufe, 0,005 Hz, bei 440 Hz also
+                          0,0197 Cent — hörbar nicht, ein Schreibvorgang schon).
+                          ⛔ **Und an DIESER Stelle stand „sechs Zeilen darüber", an vier Stellen
+                          gleichzeitig** (hier, ein zweites Mal im #440-Eintrag oben, im Quellkommentar
+                          und im Wächter) — der Abstand ist 29 Zeilen, und er war schon vor der Scheibe
+                          13. **Ein Zeilenabstand INNERHALB einer Datei ist die brüchigste Tatsache,
+                          die dieses Repo aufschreibt: der Commit, der ihn behauptet, verschiebt ihn
+                          im selben Atemzug.** Ersetzt durch „der Kopf desselben Kommentarblocks" —
+                          eine Beschreibung, die eine Einfügung überlebt. Ebenfalls korrigiert: die
+                          0,0197 Cent standen an einem BEISPIEL (442,3456 → 442,35), dort sind es
+                          0,0172; die Zahl ist die obere SCHRANKE bei 440 Hz. Ein Beispiel ist keine
+                          Schranke, und gebraucht wird die Schranke. **Die Lehre ist
                           die des Absatzes über der Plattform-Tabelle in ihrer schärfsten Form: eine
                           Behauptung über ZWEI Dinge wird geprüft, indem man BEIDE nachschlägt — hier
                           stimmte eine Hälfte, und die zweite ist mitgereist, weil der Satz sich gut
