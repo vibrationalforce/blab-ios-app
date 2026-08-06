@@ -388,8 +388,8 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           nicht „ungemessen durch eine Fixtur, die sich seltsam verhielt", sondern
                           durch diesen Fixtur-Typ UNERREICHBAR. Niemanden auf die Glättung ansetzen.
                           ⚠️ Und die härteste Grenze zuerst, weil sie diesmal für die ganze Scheibe
-                          gilt: **KEIN Gate hat diesen Code gesehen** (#451 — GitHub legt seit
-                          18:33 UTC keine Läufe mehr an). Weder Kompilieren noch Ausführen ist
+                          gilt: **KEIN Gate hat diesen Code gesehen** (#451 — die Läufe stehen in
+                          der Warteschlange, siehe ⛔ unten). Weder Kompilieren noch Ausführen ist
                           belegt. ⛔ Und meine erste #451-Diagnose nannte als zweiten Beleg einen
                           „seit 17:49 laufenden, 2 h über seinem 40-Minuten-Timeout hängenden"
                           Compile-Check. Nachgeprüft: dieser Lauf ist `cancelled`, und der
@@ -397,10 +397,31 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           nur **1 h 51 min in der Warteschlange** (erstellt 17:49:58, „Build for
                           Testing" **success** 19:44:16, danach „Run Tests" rot = das bekannte
                           founder-gated #396). Zwei verschiedene Zustände, von mir zu einem
-                          verschmolzen. Der eigentliche Befund bleibt und ist jetzt schärfer:
-                          repo-WEIT null `push`-Läufe seit 18:33:27Z und null in `queued` — kein
-                          Rückstau, sondern gar keine Datensätze. Das ist die Signatur einer
-                          Actions-Quote/Abrechnungs-Sperre, keine Branch-Eigenheit),
+                          verschmolzen. ⛔ **UND DIE ZWEITE FASSUNG WAR AUCH FALSCH, und diesmal
+                          hat sie den Founder GELD gekostet — nicht in Euro, sondern in einer
+                          Frage, die er nie hätte beantworten sollen.** Sie lautete: „repo-WEIT
+                          null `push`-Läufe seit 18:33:27Z und null in `queued` … die Signatur
+                          einer Actions-Quote/Abrechnungs-Sperre". Daraus wurde eine Bitte an den
+                          Founder, Actions-Minuten/Billing zu prüfen; seine Antwort war **„Es
+                          sollen keine Kosten entstehen"**. Drei Messungen widerlegen die Diagnose
+                          vollständig: (1) das Repository ist **öffentlich** (`search_repositories`:
+                          `"private": false`, `"visibility": "public"`) — Standard-Runner sind
+                          damit kostenlos, es gibt kein Kontingent zum Ausschöpfen und nichts zu
+                          bezahlen; (2) **alle 28 Workflows** stehen auf `state: "active"`, sind
+                          also nicht einzeln abgeschaltet; (3) **die Läufe existieren**: `17e1f82`
+                          hat vier Läufe, angelegt **21:14:58Z**, alle in `queued`. Der wahre
+                          Befund ist eine LATENZ, keine Sperre — die Anlage kam rund eine
+                          halbe Stunde nach dem Push, und danach stand der CI/CD-Lauf desselben
+                          Tages schon einmal **1 h 51 min** in der Warteschlange, bevor ein
+                          macOS-Runner ihn nahm. Warten kostet nichts. **Die Lehre ist nicht die
+                          übliche Stale-Zahl-Lehre dieses Absatzes, sondern eine über
+                          ESKALATION: ich habe eine Ursache an den Founder gemeldet, ohne die EINE
+                          Eigenschaft nachzuschlagen, die sie entscheidet (Sichtbarkeit des
+                          Repos) — und die Eskalation hat nach Geld gefragt. Eine Frage an den
+                          Founder ist teurer als jede Messung; wer eskaliert, misst vorher.**
+                          Der überlebende Teil des Befunds ist schwächer und harmlos: die Gates
+                          hatten diesen Code beim Schreiben dieser Zeile noch nicht gesehen, weil
+                          sie in der Schlange standen),
                           davor „175"
                           nach `ThePacedRateMustBeReadableTests.swift` (#435 — der erste
                           Wächter in dieser Kette über einem WIDERSPRUCH ZWISCHEN ZWEI EIGENEN
