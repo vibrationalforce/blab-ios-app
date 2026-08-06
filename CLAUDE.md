@@ -242,8 +242,43 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**164** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheBreathEdgeReachesHealthTests.swift` (#426 — der erste
+                          `Tests/CISmoke` (**165** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `VisualPresetValuesAreReachableTests.swift` (#427 — der erste
+                          Wächter in dieser Kette über einer EINBAHNSTRASSE in der Oberfläche statt
+                          über einem falschen Wert: sechs der sieben Zeilen im Visual-Panel nahmen
+                          `EchoelValueField`s Vorgabe `decimals: 4`, und `decimals` ist nicht die
+                          Anzeige sondern das RASTER (`ScrubPrecision.snapped`). Auf 0…1 bot die App
+                          damit vier Nachkommastellen an, wo jeder FX-Parameter, die Master-Lautstärke
+                          und die Wetter-Mischer auf zwei stehen. Die Scheibe setzt die sechs auf 2 —
+                          und genau das kann eine Voreinstellung UNERREICHBAR machen: der Preset-Chip
+                          leuchtet nur, solange die Werte noch übereinstimmen, also wäre ein Preset mit
+                          einer dritten Nachkommastelle eine Tür, durch die man nur hinaus kommt, ohne
+                          dass irgendwo etwas rot wird. Heute liegt jeder Wert in `VisualPreset.factory`
+                          auf dem Zweier-Raster (Intensity 0,8·0,95·1,1·1,2·1,4 · Motion
+                          0,45·0,42·0,7·1,1·1,4 · Spread 1,35·1,2·1,0 · Vapors Palette 0,82/1,12);
+                          der Wächter macht den ersten, der es nicht tut, zu einem roten Test.
+                          ⚠️ Die `Float`→`Double`-Stufe gehört zur Messung und nicht zum Rauschen:
+                          `VisualPreset` speichert `Float`, die Zeilen sind `Double`, also hält die App
+                          nie die 0,45 sondern 0,44999998807907104. Der Versatz ist ~1e-8 und der
+                          Vergleich der App läuft auf 1e-4, vier Größenordnungen gröber — geprüft wird
+                          deshalb der KONVERTIERTE Wert, weil ein Test auf dem Literal eine Zahl misst,
+                          die die App nie hat. ⚠️ Was er NICHT kann: `sameOnDisplayGrid` ist `private`
+                          in `EchoelStudioView`, das Prädikat ist hier also NACHGEBILDET — ändert
+                          jemand die Vergleichs-Stellenzahl der App, bleibt diese Datei grün. Das ist
+                          eine echte Lücke und der Grund, warum die zweite Hälfte (Quelltext-Scan auf
+                          ein ausdrückliches `decimals:` in jeder der sieben Zeilen, rot vor #427)
+                          daneben steht: die beiden scheitern aus verschiedenen Gründen. Und die
+                          Scheibe ist bewusst auf EIN Panel begrenzt — mit einer Zahl, die größer
+                          ist als die naheliegende: es bleiben ZEHN Aufrufstellen auf der Vorgabe,
+                          aber zwei davon sind die Helfer `param`/`knob`, die zusammen SIEBZEHN
+                          Zeilen im Sound-Panel rendern (neun davon 0…1). Es sind also
+                          fünfundzwanzig ZEILEN, nicht zehn — vierundzwanzig erreichbare, weil
+                          `PianoRollView`s „Vel" in einer türlosen Datei sitzt. Von den acht direkten
+                          Stellen wollen zwei die vier Nachkommastellen ausdrücklich (Kammerton A4,
+                          gesperrtes Tempo, beide sagen „editable to 0.0001" im eigenen Kommentar) —
+                          genau deshalb ist das KEINE App-weite Regel, sondern die #364-Falle, wenn
+                          man sie dazu macht),
+                          davor „164" nach `TheBreathEdgeReachesHealthTests.swift` (#426 — der erste
                           Wächter in dieser Kette, der eine KONSTANTE an eine ANDERE Konstante kettet,
                           statt ein Verhalten oder eine Anzeige zu prüfen: `HealthWritePolicy`
                           verwarf jede Atemmessung unter 4,0/min, weil ihre untere Grenze aus
@@ -992,7 +1027,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTDREIUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 164 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTVIERUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 165 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

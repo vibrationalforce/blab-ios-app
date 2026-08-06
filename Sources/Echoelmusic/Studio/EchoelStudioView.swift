@@ -4837,9 +4837,22 @@ struct EchoelStudioView: View {
         clearedVisualPresetID = ""
     }
 
-    /// Equal as far as any of these rows can SHOW — `EchoelValueField`'s default `decimals: 4`.
-    /// Detail's row is `decimals: 0`, i.e. a coarser grid, so comparing all four at 4 places is
-    /// the stricter test for it, never the looser one.
+    /// Equal to four places — which since #427 is FINER than any of these rows can show, and
+    /// that is the safe direction. It used to be exactly the display grid (`EchoelValueField`'s
+    /// default `decimals: 4`); Intensity/Motion/Spread now pass `decimals: 2` and Detail has
+    /// always been `decimals: 0`, so all four are compared on a grid strictly finer than the one
+    /// they display on. Stricter never restores a chip it should not: two values that agree to
+    /// four places agree on any coarser grid too.
+    ///
+    /// ⚠️ THE DIRECTION IS WHAT MATTERS, so state the failing one: comparing on a grid COARSER
+    /// than a row can reach would restore the preset chip after an edit that genuinely left the
+    /// preset. The reason a 2-decimal row cannot break this is that every value in
+    /// `VisualPreset.factory` is representable at two places (intensity 0.8 · 0.95 · 1.1 · 1.2 ·
+    /// 1.4, motion 0.45 · 0.42 · 0.7 · 1.1 · 1.4, spread 1.35 · 1.2 · 1.0, and Vapor's palette
+    /// 0.82 / 1.12) — so the user can still land exactly on a preset by hand. A future preset
+    /// with a third decimal would be unreachable from the row that is supposed to reach it;
+    /// `VisualPresetValuesAreReachableTests` is the guard that makes that a red test rather than
+    /// a chip that silently stops coming back.
     private func sameOnDisplayGrid(_ a: Double, _ b: Double) -> Bool {
         (a * 10_000).rounded() == (b * 10_000).rounded()
     }
@@ -4896,7 +4909,7 @@ struct EchoelStudioView: View {
     /// The energy fields clear the preset selection on edit since they then diverge from it;
     /// Hue/Saturation are palette-only and leave the preset intact.
     @ViewBuilder private var visualAdjustFields: some View {
-        EchoelValueField(label: "Energy", value: visualEnergy, range: 0...1)
+        EchoelValueField(label: "Energy", value: visualEnergy, range: 0...1, decimals: 2)
         Text("Calm ↔ energetic, across the same range the presets span. Fine tune holds the individual parameters.")
             .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             .fixedSize(horizontal: false, vertical: true)
@@ -4925,7 +4938,7 @@ struct EchoelStudioView: View {
         .accessibilityHint("Shows or hides the individual visual parameters")
         if showVisualFineTune {
             EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                             onChange: { visualPresetDiverged() })
+                             decimals: 2, onChange: { visualPresetDiverged() })
             EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
                              onChange: { visualPresetDiverged() })
             // #269 — Detail only reaches the Metal field through the Rings look, and Rings is
@@ -4957,11 +4970,11 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
-                             onChange: { visualPresetDiverged() })
+                             decimals: 2, onChange: { visualPresetDiverged() })
             EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
-                             onChange: { visualPresetDiverged() })
-            EchoelValueField(label: "Hue", value: $visualHue, range: 0...1)
-            EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2)
+                             decimals: 2, onChange: { visualPresetDiverged() })
+            EchoelValueField(label: "Hue", value: $visualHue, range: 0...1, decimals: 2)
+            EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2, decimals: 2)
         }
     }
 
@@ -5136,11 +5149,16 @@ struct EchoelStudioView: View {
     /// the other six feed arithmetic where the third decimal is far under what an ear can separate.
     ///
     /// ⛔ THE FIRST VERSION OF THIS BLOCK SAID "the ONLY `0…1` fields in the app that never passed
-    /// a value", IN THREE PLACES AT ONCE. False: `EchoelValueField(label: "Energy", …, range: 0...1)`
-    /// and `EchoelValueField(label: "Hue", …, range: 0...1)` in the visual panel take the default 4
-    /// as well. They are image controls rather than composer parameters, so they were not swept in
-    /// with this slice — but "only" was a superlative nobody had counted, in the doc block whose
-    /// whole subject is a count. Registered as its own decision rather than quietly widened here.
+    /// a value", IN THREE PLACES AT ONCE. False: `Energy` and `Hue` in the visual panel took the
+    /// default 4 as well. They are image controls rather than composer parameters, so they were
+    /// not swept in with this slice — but "only" was a superlative nobody had counted, in the doc
+    /// block whose whole subject is a count. Registered as its own decision rather than quietly
+    /// widened here, and that decision SHIPPED as #427: all six visual rows (Energy · Intensity ·
+    /// Motion · Spread · Hue · Saturation) now pass `decimals: 2`, guarded by
+    /// `Tests/CISmoke/VisualPresetValuesAreReachableTests`. Ten `EchoelValueField` call sites in
+    /// `Sources/` still take the default — and two of them want it (A4 concert pitch and the
+    /// locked tempo both say "editable to 0.0001" in their own comments), so this is deliberately
+    /// NOT an app-wide rule. Count before writing "only" or "every".
     ///
     /// ⚠️ `decimals` is not only a DISPLAY setting: `EchoelValueField.apply(_:)` snaps the stored
     /// value to the same `10^-decimals` grid, so these eight now persist on 0.01 and a preset's
