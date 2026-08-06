@@ -11,6 +11,58 @@
 //  Design: Website-CI tokens, ≥44 pt keys, ≤8 px radius, no glow/scale. Pure UI.
 //
 
+import Foundation
+
+/// The keypad's one entry rule, kept pure (and outside the SwiftUI guard) so the blocking
+/// bundle can measure it — same shape as `ScrubPrecision` next door.
+///
+/// THE DEFECT IT CLOSES (#431). `commit()` snaps to the field's `10^-decimals` grid, and
+/// nothing stopped the buffer from growing past it. On a two-place row a player typed
+/// `0.375`, READ `0.375` in the 30 pt readout, tapped OK and got `0.38`. The readout was not
+/// a preview of the commit; it was a promise the commit did not keep. Reach, counted by
+/// paren-matching every `EchoelValueField(` construction in `Sources/`: **64 sites — 40 pass
+/// `decimals: 2`, 11 pass `0`, 10 take the 4-place default**, plus the two forwarding helpers
+/// (`EchoelFXView.param`, which itself defaults to 2, and `EchoelStudioView`'s `param`/`knob`)
+/// that render many more rows from one site. The `decimals: 0` rows were never exposed — their
+/// separator key is already disabled by `allowsDecimal`.
+///
+/// ⭐ WHY THE REFUSAL STOPS AT THE FRACTION AND DOES **NOT** EXTEND TO THE RANGE. `clamped`
+/// can also move a committed number away from the readout (type `999` on a `0…1` row, get
+/// `1.0`), and treating that the same way would be wrong, not merely bigger. A fraction digit
+/// past the grid can never be rescued by another keystroke — no continuation of `0.375` is
+/// representable at two places. An out-of-range PREFIX is the normal middle of typing a valid
+/// number: `8` is outside `20…18000` on the way to `800`. So the pad refuses what is already
+/// unreachable and keeps accepting what is merely incomplete. The clamp stays, deliberately.
+///
+/// ⚠️ THE TRADE THIS MAKES, stated because it changes a shipped number. Refusing the keystroke
+/// TRUNCATES where the snap used to ROUND: `0.375` on a two-place row committed `0.38` before
+/// this change and commits `0.37` after it. That is a real loss of one behaviour in exchange
+/// for another, and it was chosen on the repo's own standing rule — a control may not show one
+/// number and store a different one (#135, #416, #427). The user can still reach `0.38`; they
+/// just have to type it.
+enum NumberPadEntry {
+
+    /// The overflow cap that was already here — a fat-fingered run must not overflow the field.
+    /// Named so the guard and its test cannot drift apart.
+    static let maxLength = 9
+
+    /// Whether one more digit may join `buffer` on a field that displays `decimals` places.
+    ///
+    /// Digits BEFORE the separator are unrestricted (bounded only by `maxLength`): `decimals`
+    /// says how fine the grid is, never how large the number may be. Only the fraction is
+    /// capped, because only the fraction is what the commit would silently round away.
+    static func acceptsDigit(after buffer: String,
+                             decimals: Int,
+                             maxLength: Int = NumberPadEntry.maxLength) -> Bool {
+        guard buffer.count < maxLength else { return false }
+        guard let separator = buffer.firstIndex(of: ".") else { return true }
+        let typed = buffer.distance(from: buffer.index(after: separator), to: buffer.endIndex)
+        // `max(0,)` and not a precondition: a negative `decimals` is nonsense a caller could
+        // still pass, and the safe reading of it is "no fraction at all", not a crash.
+        return typed < Swift.max(0, decimals)
+    }
+}
+
 #if canImport(SwiftUI)
 import SwiftUI
 
@@ -210,8 +262,9 @@ struct EchoelNumberPad: View {
     // MARK: - Editing
 
     private func append(_ d: String) {
-        // Cap length so a fat-fingered run can't overflow the field.
-        guard buffer.count < 9 else { return }
+        // The length cap AND the fraction cap both live in `NumberPadEntry.acceptsDigit` —
+        // see its doc for why the refusal stops at the fraction and never at the range.
+        guard NumberPadEntry.acceptsDigit(after: buffer, decimals: decimals) else { return }
         buffer += d
     }
 
@@ -238,6 +291,14 @@ struct EchoelNumberPad: View {
     }
 
     /// Snap to the field's decimal grid so the committed number is exact.
+    ///
+    /// ⚠️ STILL LOAD-BEARING AFTER #431, and a future reader will be tempted to delete it as
+    /// redundant now that `NumberPadEntry` keeps the buffer on the grid. It is not: the buffer
+    /// can be EMPTY, in which case `pendingValue` returns `initial` — the live value, which a
+    /// scrub or a derived binding may well have left off the grid (`EchoelStudioView.visualEnergy`
+    /// recomputes its position and lands between grid units). The header already reads that
+    /// value through `fmt`, i.e. rounded; this is the line that makes tapping OK without typing
+    /// commit the number the header was showing.
     private func snapped(_ v: Double) -> Double {
         let f = pow(10.0, Double(decimals))
         return (v * f).rounded() / f
