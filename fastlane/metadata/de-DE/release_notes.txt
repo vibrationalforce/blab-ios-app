@@ -3,7 +3,7 @@ Echoel ist in aktiver Entwicklung. Feedback und Mitwirkende willkommen: echoel@t
 Neu in diesem Build
 
 Komposition
-- Acht kuratierte Genres: Self-Observation, Deep Ambient, Drift, Contemplation, Vaporwave, Sci-Fi, Classical und Dub Techno
+- Sechzehn kuratierte Genres: acht auf dem Ambient-/Meditativ-Regal (Self-Observation, Deep Ambient, Drift, Contemplation, Vaporwave, Sci-Fi, Still Drone, Ambient Pulse), sieben Techno, House und Trance (Dub Techno, Acid Techno, Deep House, Tech House, Minimal Techno, Detroit Techno, Uplifting Trance), dazu Classical
   (alle Genres sind derzeit schlagzeugfrei — Echoelmusic hat keine Drum-Engine; die Genres unterscheiden sich in Harmonik, Klangfarbe und Bewegung)
 - Charakter-Regler: Liveliness, Darkness, Tension, Romance, Weird
 - Kammerton (A4) exakt auf den Cent einstellbar; Tonart und optionaler BPM-Lock

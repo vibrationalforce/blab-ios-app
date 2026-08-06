@@ -24,11 +24,13 @@ with **Data** (OSC / MIDI 2.0 / MPE / AUv3) as the connective layer.
 
 - **Body as controller** — HR/HRV/breath/coherence via HealthKit + universal BLE
   (any 0x180D) + camera rPPG (locks on device) + Demo → 10 Hz bus snapshot.
-- **Bio-generative music** — in-key melody/rhythm/tempo, seeded/reproducible. **8 genres are
-  OFFERED** in the picker (`MusicStyle.offered`) out of 25 declared in the taxonomy
-  (`MusicStyle`) — the curation is the founder's 2026-07-24 call and 8 is the number the App
-  Store text claims. Source of truth: `Sources/Echoelmusic/Sequencer/MusicStyle.swift`.
-  ("12 genres" here was never true of either number.)
+- **Bio-generative music** — in-key melody/rhythm/tempo, seeded/reproducible. **16 genres are
+  OFFERED** in the picker (`MusicStyle.offered`) out of 33 declared in the taxonomy
+  (`MusicStyle`) — the 2026-07-24 curation set 8, #254 took it to 16 on 2026-07-30. Source of
+  truth: `Sources/Echoelmusic/Sequencer/MusicStyle.swift`; count it, do not read it.
+  ⛔ This said "8 … out of 25 … and 8 is the number the App Store text claims" — all three
+  wrong, and the third was made wrong BY #428, which recounted the store text without
+  touching the sentence that cites it. ("12 genres" here was never true of either number.)
 - **Synthesis & export** — DDSP harmonic-plus-noise + polyphonic pad/lead + sub-bass, FX
   chain, LUFS WAV, MIDI export. (`EchoelCellular` has ZERO production consumers and
   `EchoelModalBank`'s only caller was the deleted drum voice — neither makes a sound today.)

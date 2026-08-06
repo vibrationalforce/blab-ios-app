@@ -221,24 +221,66 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
 
     // MARK: - Counted claims (#428)
 
-    /// English number words this scan understands. A phrase whose quantifier is NOT in here
-    /// (`the genres`, `electronic genres`, `many scales`) is deliberately IGNORED — this guard
-    /// exists to catch a WRONG number, not to demand that every mention carry one.
+    /// Number words this scan understands, English AND German.
+    ///
+    /// ⛔ THE FIRST VERSION WAS ENGLISH-ONLY, AND THAT WAS NOT A GAP — IT WAS A BLIND SPOT WITH
+    /// A LIVE CONSEQUENCE. `fastlane/metadata/de-DE/release_notes.txt` is App Store copy that
+    /// `deliver` overwrites the live listing with, exactly like the en-US file — and it said
+    /// "Acht kuratierte Genres" for a week after the roster went to sixteen. The guard could not
+    /// see it twice over: the de-DE path was never a source, and `"Acht"` resolved to `nil`, so
+    /// even adding the file would have produced a SILENT green over stale store copy. A guard
+    /// that ignores what it cannot parse must be told every language it is expected to police.
+    ///
+    /// A phrase whose quantifier is genuinely absent (`the genres`, `many scales`) is still
+    /// deliberately IGNORED — this guard exists to catch a WRONG number, not to demand that
+    /// every mention carry one. The `checked` floor at the end of the test is what stops that
+    /// tolerance from decaying into a vacuous pass.
     private static let numberWords: [String: Int] = [
         "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
         "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
         "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
         "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
-        "seventy": 70, "eighty": 80, "ninety": 90
+        "seventy": 70, "eighty": 80, "ninety": 90,
+        // German. "ein"/"eine" are deliberately absent — as an article they would turn
+        // "eine Auswahl der Genres" into a claim of one.
+        "zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "fuenf": 5, "sechs": 6, "sieben": 7,
+        "acht": 8, "neun": 9, "zehn": 10, "elf": 11, "zwölf": 12, "zwoelf": 12,
+        "dreizehn": 13, "vierzehn": 14, "fünfzehn": 15, "fuenfzehn": 15, "sechzehn": 16,
+        "siebzehn": 17, "achtzehn": 18, "neunzehn": 19, "zwanzig": 20, "dreißig": 30,
+        "dreissig": 30, "vierzig": 40, "fünfzig": 50, "fuenfzig": 50, "sechzig": 60,
+        "siebzig": 70, "achtzig": 80, "neunzig": 90
     ]
+
+    /// Words that may sit between the number and the noun without breaking the claim.
+    /// `offered`/`curated` (and their German forms) additionally mark the number as the ROSTER
+    /// count rather than the taxonomy — see `counts(of:in:)`.
+    private static let rosterMarkers: Set<String> = [
+        "curated", "offered", "kuratierte", "kuratierten", "kuratierter", "angebotene",
+        "angebotenen"
+    ]
+
+    /// Determiners skipped when looking for an `of` in front of the number.
+    private static let determiners: Set<String> = ["the", "die", "der", "den", "dem"]
+
+    /// Words that CANNOT sit between a number and the noun it quantifies. Finding one means the
+    /// nearest number belongs to something else — "released in 2026 the genres" is not a claim
+    /// that there are 2026 genres. Adjectives (`curated`, `electronic`, `kuratierte`) are fine
+    /// and are exactly what the window exists to tolerate; a determiner or a preposition is not.
+    private static let claimBreakers: Set<String> =
+        determiners.union(["of", "von", "in", "for", "across", "with", "und", "and"])
 
     private static func number(_ token: String) -> Int? {
         let t = token.lowercased()
         if let n = Int(t) { return n }
         if let n = numberWords[t] { return n }
-        // "fifty-seven"
-        let parts = t.split(separator: "-").map(String.init)
-        if parts.count == 2, let tens = numberWords[parts[0]], let ones = numberWords[parts[1]],
+        // "fifty-seven" (English) and "siebenundfünfzig" (German, ones first).
+        let hyphen = t.split(separator: "-").map(String.init)
+        if hyphen.count == 2, let tens = numberWords[hyphen[0]], let ones = numberWords[hyphen[1]],
+           tens >= 20, ones < 10 {
+            return tens + ones
+        }
+        let und = t.components(separatedBy: "und")
+        if und.count == 2, let ones = numberWords[und[0]], let tens = numberWords[und[1]],
            tens >= 20, ones < 10 {
             return tens + ones
         }
@@ -247,30 +289,74 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
 
     /// Every quantified mention of `noun` in `text`, as (spelled token, value, isSubsetClaim).
     ///
-    /// ⭐ THE `of` PREFIX IS THE WHOLE DESIGN, and it was found by running this scan before
-    /// writing the assertion: `docs/architecture.html` says "22 of 33 genres carry their own
-    /// [reverb] values". That 33 is the TAXONOMY (`MusicStyle.allCases`), not the roster, and a
-    /// guard that compared it to `MusicStyle.offered.count` would have gone red on a correct
-    /// sentence — the #364 mistake this file's header already apologises for once. So a match
-    /// preceded by `of` is checked against the taxonomy instead of being skipped: still
-    /// guarded, just against the number it is actually claiming.
+    /// ⭐ THE TAXONOMY-vs-ROSTER SPLIT IS THE WHOLE DESIGN, and it was found by running this
+    /// scan before writing the assertion: `docs/architecture.html` says "22 of 33 genres carry
+    /// their own [reverb] values". That 33 is the TAXONOMY (`MusicStyle.allCases`), not the
+    /// roster, and a guard that compared it to `MusicStyle.offered.count` would have gone red on
+    /// a correct sentence — the #364 mistake this file's header already apologises for once.
+    ///
+    /// ⛔ THE FIRST VERSION DECIDED THAT SPLIT WITH A REGEX PREFIX `(of\s+)?` DIRECTLY IN FRONT
+    /// OF THE NUMBER, AND IT WAS UNSOUND IN BOTH DIRECTIONS — the reviewer found all three cases
+    /// and each is a phrasing already in use somewhere in this tree:
+    ///   · `"22 of the 33 genres"` — `the` is not a number, so the `of` could not bind and the
+    ///     33 was compared to the ROSTER. One inserted word turns the guard red on correct copy.
+    ///   · `"8 of 16 offered genres"` (the shape at `EchoelStudioView.swift:5201`) — `of` bound,
+    ///     so the 16 was compared to the TAXONOMY. Red on correct copy again, opposite cause.
+    ///   · `"16 electronic genres"` — `electronic` was not in the whitelist, the match consumed
+    ///     the phrase, and because `NSRegularExpression` matches are non-overlapping the number
+    ///     was never checked at all. An ordinary copy edit could silently disarm the guard.
+    ///
+    /// So the split is no longer positional. The scan takes a window of up to three words in
+    /// front of the noun, finds the NEAREST token that parses as a number (which tolerates any
+    /// adjectives), and then decides:
+    ///   1. a roster marker between the number and the noun (`offered`, `kuratierte`) ⇒ ROSTER;
+    ///   2. otherwise an `of`/`von` in front of the number, determiners skipped ⇒ TAXONOMY;
+    ///   3. otherwise ⇒ ROSTER.
+    /// Rule 1 is checked FIRST on purpose: "N offered genres" states the roster whatever
+    /// precedes it. The window cannot cross punctuation — only word characters and spaces match
+    /// — which is what keeps a list ("… — eight on the ambient shelf") out of the window.
+    ///
+    /// ⚠️ A THREE-WORD WINDOW INTRODUCES ITS OWN FALSE POSITIVE, AND IT WAS MEASURED, NOT
+    /// ASSUMED: `"released in 2026 the genres"` read 2026 as the quantifier. So a determiner or
+    /// a preposition between the number and the noun (`claimBreakers`) rejects the match
+    /// outright — an adjective may sit there, a `the` may not. Nothing in the scanned sources
+    /// hits this today; it is guarded because widening the window is what made it reachable.
     private static func counts(of noun: String, in text: String) -> [(String, Int, Bool)] {
-        let pattern = "(of\\s+)?([A-Za-z0-9-]+)\\s+(?:curated\\s+|offered\\s+)?" + noun + "\\b"
+        let word = "[A-Za-z0-9\u{00C0}-\u{024F}-]+"
+        // NOTE: `\\b` and `\\t` must reach ICU as escapes, so they are DOUBLE-escaped here.
+        // A single `\\b` in a Swift literal is not a valid Swift escape and does not compile.
+        let pattern = "((?:" + word + "[ \\t]+){1,3})" + noun + "\\b"
         guard let rx = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
         else { return [] }
         let ns = text as NSString
         return rx.matches(in: text, range: NSRange(location: 0, length: ns.length))
-            .compactMap { m in
-                let token = ns.substring(with: m.range(at: 2))
-                guard let value = number(token) else { return nil }
-                return (token, value, m.range(at: 1).location != NSNotFound)
+            .compactMap { m -> (String, Int, Bool)? in
+                let prefix = ns.substring(with: m.range(at: 1))
+                let tokens = prefix.split(whereSeparator: { $0 == " " || $0 == "\t" })
+                    .map(String.init)
+                guard let numberIndex = tokens.indices.reversed().first(where: {
+                    number(tokens[$0]) != nil
+                }), let value = number(tokens[numberIndex]) else { return nil }
+
+                let between = tokens[(numberIndex + 1)...].map { $0.lowercased() }
+                guard !between.contains(where: { claimBreakers.contains($0) }) else { return nil }
+                if between.contains(where: { rosterMarkers.contains($0) }) {
+                    return (tokens[numberIndex], value, false)
+                }
+                var before = tokens[..<numberIndex].map { $0.lowercased() }
+                while let last = before.last, determiners.contains(last) { before.removeLast() }
+                let isSubset = before.last == "of" || before.last == "von"
+                return (tokens[numberIndex], value, isSubset)
             }
     }
 
     /// Marketing copy that states HOW MANY genres or scales Echoel offers must agree with the
-    /// app. #254 added eight genres and #232's shelves took the scale list to 57; every public
-    /// "eight curated genres … 50 scales" went stale on the day of those commits and stayed
-    /// stale — across four site pages and the LIVE App Store release notes (#428).
+    /// app. #254 took the roster to sixteen and #232 J took the scale list to 57; every public
+    /// "eight curated genres … 50 scales" went stale on the day of those commits (both
+    /// 2026-07-30) and stayed stale until 2026-08-06 — across THREE site pages
+    /// (`brainstorming`, `press`, `tools`; `architecture` carried a correct taxonomy claim and
+    /// was right to be left alone) and the LIVE App Store release notes in BOTH locales (#428).
+    /// Measured: 10 of the 11 claims this scan finds were wrong on `5bcc000^`.
     ///
     /// The counts come from the SAME expressions the app uses — `MusicStyle.offered` and
     /// `Scale.Family.allCases.flatMap(\.scales)`, which is what the grouped picker iterates
@@ -285,10 +371,16 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
         let expectedScales = Scale.Family.allCases.flatMap(\.scales).count
 
         var sources = try pages().map { (name: "docs/\($0.name)", text: $0.html) }
-        let notes = try repoRoot()
-            .appendingPathComponent("fastlane/metadata/en-US/release_notes.txt")
-        if let text = try? String(contentsOf: notes, encoding: .utf8) {
-            sources.append((name: "fastlane/metadata/en-US/release_notes.txt", text: text))
+        // BOTH store locales. `fastlane/Deliverfile` ships en-US and de-DE with
+        // `skip_metadata false`, so both files ARE the live listing; only en-US was scanned
+        // until the de-DE notes were caught stale a week after the roster changed.
+        for locale in ["en-US", "de-DE"] {
+            let notes = try repoRoot()
+                .appendingPathComponent("fastlane/metadata/\(locale)/release_notes.txt")
+            if let text = try? String(contentsOf: notes, encoding: .utf8) {
+                sources.append((name: "fastlane/metadata/\(locale)/release_notes.txt",
+                                text: text))
+            }
         }
 
         let taxonomyGenres = MusicStyle.allCases.count
@@ -299,19 +391,25 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             for (token, value, isSubset) in Self.counts(of: "genres", in: source.text) {
                 checked += 1
                 let expected = isSubset ? taxonomyGenres : expectedGenres
+                // Hoisted, not folded into the literal: a newline INSIDE a `\( … )` segment is
+                // legal only in a multiline literal and has no precedent in this repo, and a
+                // ternary-of-literals inside an already-heavy message is the #287 type-check
+                // cost that turned the blocking gate red once.
+                let claim = isSubset ? "the taxonomy" : "the app's roster"
                 XCTAssertEqual(value, expected, """
                     \(source.name) says "\(isSubset ? "of " : "")\(token) genres"; \
-                    \(isSubset ? "the taxonomy holds \(taxonomyGenres) (`MusicStyle.allCases`)"
-                               : "the app offers \(expectedGenres) (`MusicStyle.offered`)"). \
-                    Published copy must be recounted in the same commit that changes the roster.
+                    \(claim) holds \(expected). Published copy must be recounted in the same \
+                    commit that changes the roster.
                     """)
             }
-            for (token, value, isSubset) in Self.counts(of: "scales", in: source.text) {
+            let scaleClaims = Self.counts(of: "scales", in: source.text)
+                + Self.counts(of: "skalen", in: source.text)
+            for (token, value, isSubset) in scaleClaims {
                 checked += 1
                 let expected = isSubset ? taxonomyScales : expectedScales
                 XCTAssertEqual(value, expected, """
                     \(source.name) says "\(isSubset ? "of " : "")\(token) scales"; the picker \
-                    offers \(expectedScales) (`Scale.Family.allCases.flatMap(\\.scales)`).
+                    offers \(expectedScales) and the enum holds \(taxonomyScales).
                     """)
             }
         }
@@ -320,9 +418,9 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
         // number — a green that was never earned, the failure mode this file's header names.
         XCTAssertGreaterThanOrEqual(checked, 6, """
             Only \(checked) quantified genre/scale claim(s) were found across \
-            \(sources.count) source(s). The site and the release notes carried nine before \
-            #428; if the copy legitimately stopped counting, lower this floor deliberately \
-            rather than letting the scan pass over nothing.
+            \(sources.count) source(s). The site and the two release-note locales carried \
+            eleven at #428, ten of them wrong; if the copy legitimately stopped counting, \
+            lower this floor deliberately rather than letting the scan pass over nothing.
             """)
     }
 }

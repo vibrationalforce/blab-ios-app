@@ -42,8 +42,9 @@ as the connective layer. See `memory/vision.md` for the LIVE / ROADMAP / NORTH-S
 - **Bio sources:** HealthKit + universal BLE 0x180D (Polar/Wahoo/Garmin/generic, auto-reconnect)
   + camera rPPG (locks on device) + Demo. Silent until user-armed; guaranteed launch silence.
 - **Composition:** BioComposer (seed-rotated progressions, borrowed chords, turnarounds,
-  phrase-arc velocity, grace-note ornamentation, octave climax), MusicalKey, MusicStyle (8 genres OFFERED in the picker out of 25
-  declared — see `MusicStyle.offered`; 8 is the number the App Store text claims), GenrePatches; mood model (liveliness/darkness/tension/romance/weird). Seamless
+  phrase-arc velocity, grace-note ornamentation, octave climax), MusicalKey, MusicStyle (16 genres OFFERED in the picker out of 33
+  declared — see `MusicStyle.offered`; #254 took the roster 8→16 on 2026-07-30 and this line
+  stayed on 8 until #428), GenrePatches; mood model (liveliness/darkness/tension/romance/weird). Seamless
   bar-boundary morph (pendingNotes/loadAtBoundary). Sound→light: tonic transposed ~40 octaves
   to visible wavelength→sRGB in MetalBioView.
 - **DSP:** EchoelDDSP (per-sample smoothed cutoff/harmonicity/noise/gain, denormal flush),

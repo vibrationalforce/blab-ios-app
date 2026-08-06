@@ -13,7 +13,7 @@ localization = post-launch follow-up.
 > was written 2026-07-10 against an app that has since lost, by founder decision, its
 > AUv3 target and host (#121 Slices 1+2), its drum apparatus (#166/#167), its note
 > editor (#178) and its clip/arrangement surfaces (#121 Slice 4). The genre roster was
-> curated down from 23 to the 8 in `MusicStyle.offered`. MIDI-file export and MPE output
+> curated down from the 33-case taxonomy to the 16 in `MusicStyle.offered` (⛔ this said "from 23 to the 8": BOTH numbers were wrong — 23 was never the taxonomy either, and #254 took the roster to 16. Recount with `MusicStyle.offered.count`). MIDI-file export and MPE output
 > are built but have no caller/writer, so they are not claimed. Shipping metadata that
 > claims a removed feature is an App Store 2.3 ("Accurate Metadata") rejection risk —
 > re-verify against `FEATURE_MATRIX.md` and the code before each submission anyway.
@@ -105,7 +105,7 @@ creative control and self-observation, not for medical use.
 
 ```
 The first release: your heartbeat makes music. Bio-reactive synthesis,
-eight-genre generative composer, MIDI input, WAV export,
+sixteen-genre generative composer, MIDI input, WAV and MIDI export,
 immersive visuals, OSC/ADM-OSC, Art-Net/sACN — free, private, no account.
 ```
 
@@ -236,8 +236,11 @@ fails on device, soften or cut that line before submitting.
 
 ⚠️ **Re-verified 2026-07-27** — the AUv3, drum-sequencer, piano-roll, 23-genre,
 MIDI-export and MPE-output entries were all removed from this block because the
-features are gone or unreachable. NOT claimed here, deliberately: MIDI file export
-(`exportMIDI()` has no caller), MPE out (`mpeEnabled` has no writer), drums, note
+features are gone or unreachable. ⛔ **The MIDI-export half of that is no longer true and
+was corrected 2026-08-06 (#428 follow-up):** #188 put the door back in the existing export
+slot (`EchoelStudioView.swift:6579`), and the LIVE description already claims it
+(`fastlane/metadata/en-US/description.txt:28`). Do not "remove the overclaim" — it is not
+one. NOT claimed here, deliberately: MPE out (`mpeEnabled` has no writer), drums, note
 editor, clips/arrangement, video edit, RTMP, AUv3. Re-run the whole claim check
 against `FEATURE_MATRIX.md` + the code before every submission.
 
