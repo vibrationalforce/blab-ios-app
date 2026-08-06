@@ -359,12 +359,20 @@ public struct RespirationEstimator {
     /// worth more than the correction itself. It called the window "the most reachable of the
     /// lot … called every step from `RecordController` on live bio … in the shipped path". It is
     /// DORMANT: `RecordController.onStep` opens with `guard armed else { return }` and `arm()`
-    /// has zero callers in `Sources/` (task #204 records the controller as doorless). And it did
-    /// not read 0 "across the whole HRV resonance band" — the old floor of 6.0 flattened 5…6,
-    /// while 8/10/12 gave 0.111/0.222/0.333. The true, sharper statement is that
-    /// `BreathPacer.defaultRate` is exactly 6.0, so the app's own default paced rate sat exactly
-    /// on the floor. A report written in the shape of the previous finding is not evidence; both
-    /// halves had to be re-derived from source.
+    /// has zero callers in `Sources/` (task #204 records the controller as doorless).
+    ///
+    /// ⛔ AND MY OWN REBUTTAL OF ITS SECOND HALF WAS A NON-SEQUITUR — caught by review, and the
+    /// worse error of the two because it was written in the middle of a correction. It answered
+    /// "reads 0 across the whole HRV resonance band" with "8/10/12 gave 0.111/0.222/0.333", and
+    /// **8, 10 and 12/min are outside every definition of that band in this repo**
+    /// (`BioScienceInfo` 4.5–7, `EntrainmentEngine.minBreathsPerMinute` 4.5–7,
+    /// `ResonanceFinder` 5–7, `ModulationMatrix` "~4,5–6"). Measured on the OLD window, the
+    /// breath TERM over that band was: 4.5 → 0, 5 → 0, 6 → 0, 6.5 → 0.0278, 7 → 0.0556. So the
+    /// report was an OVERSTATEMENT at the 6.5–7 edge, not a falsehood — and under this repo's
+    /// own narrowest definition (4.5–6) it was exactly right. (The three numbers are also the
+    /// TERM, which `bioNormalized` then halves.) What genuinely was false is the reachability
+    /// half. A report in the shape of the previous finding is not evidence — and neither is a
+    /// rebuttal that cites the wrong rates.
     ///
     /// That `ModSource` band WAS `4...30` — a copy of this file's
     /// `minRate`/`maxRate` — and #429 unpicked the copy rather than tightening it: its low bound

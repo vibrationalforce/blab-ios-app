@@ -108,14 +108,28 @@ public enum HealthWritePolicy {
     /// gate's LOW bound since #429 and keeps its own top), and this one is `3.7...40`. They are
     /// NOT redundant — writing into a health record is a stricter act than lighting a readout —
     /// but a reader asking "why not reuse the repo-wide band?" deserves the answer here rather
-    /// than a FIFTH definition of "plausible" appearing later (#416).
+    /// than a SIXTH definition of "plausible" appearing later (#416). (⛔ It said "FIFTH" while
+    /// the paragraph above it had just been edited to list five. The ordinal was made stale by
+    /// its own commit, six lines away — the shortest-lived of this file's stale numbers.)
+    ///
+    /// ⚠️ AND "FIVE" IS A CLAIM ABOUT THE MEASUREMENT/SCALING BANDS ONLY. At least four more
+    /// breath-rate bands exist for other purposes — `RespirationEstimator.minRate/maxRate`
+    /// (4…30, what the estimator TARGETS), `BreathPacer.minRate/maxRate` (5…12, which turns out
+    /// to constrain nothing — see `RecordAnchor.bioNormalized`), `ResonanceFinder` (5…7, the
+    /// search grid) and `EntrainmentEngine.minBreathsPerMinute` (4.5…7, the safe pacing band).
+    /// Those describe what we ASK a body to do; the five here describe what we BELIEVE a body
+    /// did. Stated because #433 turned a pacing band into a load-bearing input for one of the
+    /// five, and the sentence was silent about the distinction.
     ///
     /// ⛔ THIS SAID "THREE BANDS ... AND THIS IS THE NARROWEST" AND BOTH HALVES WERE WRONG
     /// (and the first correction said FOUR, still one short — see above).
     /// It omitted `reportableRange` while the same file chains to it, and it is not the
-    /// narrowest by span (36.3 here against 27 for `ModSource.breathRate.range`) nor even the
-    /// strictest low bound (3.7736 for `reportableRange` sits above this 3.7). What is true is
-    /// narrower and duller: this is the only one of the four that decides what enters a health
+    /// narrowest by span (36.3 here against 21 for `bioNormalized`'s arousal window and 27 for
+    /// `ModSource.breathRate.range` — ⛔ that 27 was cited as the minimum and stopped being one
+    /// when #433 added a 21, in the very sentence whose point is that an uncomputed superlative
+    /// rots) nor even the strictest low bound (3.7736 for `reportableRange` sits above this
+    /// 3.7). What is true is narrower and duller: this is the only one of the five that decides
+    /// what enters a health
     /// record, and its low bound sits DELIBERATELY below the estimator's floor — chain over
     /// fit, argued above. A superlative that survives four edits without being recomputed is
     /// exactly the shape this file keeps apologising for.

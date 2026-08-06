@@ -259,9 +259,16 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           voreingestellt genau auf den Boden, also las der Atem-Term am eigenen Ziel
                           exakt null. Ein Boden, der die gepacte Rate verschluckt, ist keine
                           Ruhe-Referenz, sondern ein blinder Fleck an der Stelle, auf die das Produkt
-                          zielt. Boden jetzt 3,0 (die Untergrenze von
-                          `BioSampleFrame.plausibleBreathRate`, als LITERAL — #426-Form: die Kettung an
-                          `BreathPacer.minRate` steht im Wächter, damit ein Zurückklettern rot wird).
+                          zielt. ⛔ Und meine erste Fassung schrieb hier „`BreathPacer.defaultRate` ist
+                          exakt 6,0" als TRÄGER der Aussage plus „die Spanne des Pacers ist 5…12" — die
+                          zweite Hälfte ist schlicht falsch und die erste hängt an einer toten Konstante:
+                          `BreathPacer.minRate`/`maxRate` haben außer `ResonanceFinder` KEINEN Verbraucher,
+                          `defaultRate` gar keinen, und `BreathPacer.tick` pact `pattern.cycleSeconds`. Der
+                          echte gepacte Satz ist `BreathPattern.curated`: **6,0 · 6,0 · 3,75 · 3,158**. Die
+                          Aussage stimmt also — Resonance UND Coherent sind exakt 6,0 —, aber aus den
+                          Segmenten, nicht aus der Konstante. Boden jetzt 3,0 (die Untergrenze von
+                          `BioSampleFrame.plausibleBreathRate`); der Wächter behauptet diese GLEICHHEIT
+                          und leitet die gepacten Raten aus den Mustern ab statt aus einem Band.
                           ⭐ Zweite Hälfte, vom Reviewer nicht genannt und beim Nachlesen gefunden:
                           `usableBio()` prüft nur die FRISCHE, nicht `hasMeasuredBreath`. Ein
                           Gurt-Frame trägt `breathRate: 0`, und das wurde als Ruhe EINGEMISCHT — es
@@ -270,13 +277,29 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           nicht zu unterscheiden"), einen Pfad weiter. Ohne Messung steht der Herz-Term
                           jetzt allein. Die Oberkante 24 bleibt absichtlich schmaler als das Tor (40):
                           Erregungsdecke, kein Gültigkeitstest — auf 40 zu weiten kostete jeder
-                          realistischen Rate pauschal ~43 % Reiseweg, dieselbe Asymmetrie und dieselbe
-                          Ablehnung wie bei #429.
+                          realistischen Rate ~43 % Reiseweg (⛔ „an JEDER Rate" stand hier und gilt nur
+                          unterhalb der heutigen Oberkante — darüber sättigt das schmale Fenster und der
+                          Verlust fällt auf 27 % bei 30/min, 13,5 % bei 35 und 0 bei 40), dieselbe
+                          Asymmetrie und dieselbe Ablehnung wie bei #429.
+                          ⚠️ Und die zweite Hälfte KOSTET etwas, das erst die Nachlese gemessen hat: die
+                          alte Funktion war STETIG in `breathRate`, die neue springt beim Erscheinen oder
+                          Verschwinden einer Messung um |hr − br|/2 — bei 6/min und 120 bpm **0,43**, also
+                          43 % des Spurbereichs, genau an der gepacten Rate. Aus einem glatten BIAS wird
+                          ein SPRUNG. Der Aussetzer ist real (`CameraRPPGBioPublisher` schaltet Atem hart
+                          bei `confidence >= 0.4`, und die Puls-Halte-Wiederholung nullt `breathRate`), und
+                          nichts glättet danach. Die richtige Vollendung ist HALTEN, nicht Glätten — als
+                          eigene Scheibe registriert. Gelandet wird trotzdem, weil eine erfundene Ruhe eine
+                          dauerhafte Lüge ist und der Sprung eine reparierbare.
                           ⚠️ Was er NICHT kann, und das steht als ERSTES im Dateikopf: zeigen, dass
                           irgendetwas davon heute HÖRBAR oder AUFGEZEICHNET wird. Der Pfad ist dormant;
                           repariert WIRD er deshalb, nicht trotzdem — dieselbe Arithmetik nach einer Tür
-                          bräuchte eine Hörprobe. Vier der sieben Tests sind auf dem alten Fenster rot,
-                          die anderen drei halten fest, was sich NICHT bewegen darf.
+                          bräuchte eine Hörprobe. FÜNF der ACHT Tests sind auf dem alten Fenster rot
+                          (⛔ „vier der sieben" stand an FÜNF Stellen gleichzeitig: `testTheHeartTermIsUntouched`
+                          stand unter „Gegengewichte, vorher wie nachher grün" und ist rot, weil es den Atem
+                          AUSSERHALB des Tors festnagelt — alter Wert bei (85, 0) war 0,25, nicht 0,5. Die
+                          eigenen Tests falsch einzuordnen ist derselbe Defekt wie ein Wächter, der nicht
+                          scheitern kann, nur schwerer zu sehen), die anderen drei halten fest, was sich
+                          NICHT bewegen darf.
                           ⛔ **Lehre, verschieden von der Stale-Zahl-Lehre dieses Absatzes: ein
                           Reviewer-Befund in der FORM des vorigen Befunds ist kein Beleg.** Dieser hier
                           war die perfekte Fortsetzung von #429 — gleiche Sache, größerer Einsatz — und
