@@ -29,18 +29,27 @@
 // honours the value it is handed. `ScrubPrecision.gridded` is the part that is testable, and
 // it is what the arithmetic half exercises.
 //
-// ⚠️ AND ONE BLIND SPOT WORTH NAMING RATHER THAN DISCOVERING LATER (#443). The scan walks
-// `EchoelValueField(` CALL SITES. Three of them sit inside forwarding helpers — `param` and
-// `knob` in `EchoelStudioView`, `field` in `EchoelFXView` — and all three write
+// ⭐ THE BLIND SPOT #440 NAMED IS NOW CLOSED (#443), AND THE MECHANISM IS THE LESSON. The scan
+// below walks `EchoelValueField(` CALL SITES. Three of them sit inside forwarding helpers —
+// `param` and `knob` in `EchoelStudioView`, `field` in `EchoelFXView` — and all three write
 // `decimals: decimals`, so the scan counts them as stating their grid and never looks at the
-// calls to the helpers themselves. `param`/`knob` are safe: #430 deliberately left `decimals`
-// REQUIRED there, so every one of their 17 rows writes it. `field` is not — its signature is
-// `decimals: Int = 2`, exactly the defaulted argument #430's guard forbids, one level up.
-// Paren-matched over `EchoelFXView` with comments stripped: 43 `field(` call sites, 33 of
-// them silent. It is harmless today because 2 is the house grid, so those 33 rows still get
-// the right number; but change that one default to 4 and all 33 are coarse again with nothing
-// here going red. Registered as #443, not folded in, because removing the default is a
-// 33-call-site edit and a judgement call, not a measurement.
+// calls to the HELPERS. `param`/`knob` were safe: #430 deliberately left `decimals` REQUIRED
+// there, so every one of their 17 rows writes it. `field` was not — its signature was
+// `decimals: Int = 2`, exactly the defaulted argument #430's guard forbids, one level up, and
+// 33 of its 43 call sites were silent. #443 removed the default and wrote the number at all 33.
+//
+// ⚠️ Honest about what was NOT wrong: those 33 rows were all CORRECT at 2. Measured before the
+// edit, comments stripped — both range endpoints of all 43 `field(` rows land on their own
+// stated grid, and of the 316 literal assignments to those 43 parameters across
+// `EchoelFXChain`, `FXCuratedLibrary` and `GenreFX`, zero are off the 0.01 grid. (The first
+// draft of this paragraph said "63 shipped assignments" and no statable method reproduces it;
+// a count nobody can re-derive is not a measurement, so every figure here names its scan.)
+// The change moves no pixel and no sound; it removes the
+// MECHANISM. What it buys is the NEXT row: this window already ships a `Cutoff` spanning
+// 80…18000 Hz that needs `decimals: 0`, and a new frequency row would have inherited 2 and
+// offered a 0.01 Hz grid across 18 kHz with nothing here going red. That is why the guard below
+// asserts the ABSENCE of a default and not just the presence of arguments — a default argument
+// never appears in a diff, which is the whole reason this family keeps recurring.
 
 import Foundation
 import XCTest
@@ -131,6 +140,52 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
                                       .joined(separator: " ")))
                 i = j
             }
+        }
+        return out
+    }
+
+    /// Every call to `EchoelFXView`'s private `field(` forwarder, paren-matched, comments
+    /// blanked, as (1-based line IN THE ORIGINAL FILE, whitespace-collapsed argument text).
+    ///
+    /// ⚠️ The DECLARATION is excluded by the token in FRONT of it (`func`), not by inspecting
+    /// its arguments. Recognising it by its arguments — "the one whose parameters mention
+    /// `ClosedRange<Float>`" — would tie the exclusion to the very text this file is asserting
+    /// about, so an edit to the signature would silently turn the declaration into a 44th
+    /// "call site" and redden a test that is measuring something else.
+    ///
+    /// ⚠️ The left-hand boundary matters as much as the paren matching: without it `textField(`
+    /// and any `.field(` method on some other type would be counted. This forwarder is only ever
+    /// called bare, so a leading `.` is excluded too.
+    private func fxFieldCallSites() throws -> [(line: Int, args: String)] {
+        let code = Array(codeOnly(try source("Sources/Echoelmusic/Studio/EchoelFXView.swift")))
+        let needle = Array("field(")
+        var out: [(line: Int, args: String)] = []
+        var i = 0
+        while i + needle.count <= code.count {
+            guard code[i] == "f" else { i += 1; continue }
+            guard Array(code[i..<(i + needle.count)]) == needle else { i += 1; continue }
+            if i > 0 {
+                let prev = code[i - 1]
+                guard !(prev.isLetter || prev.isNumber || prev == "_" || prev == ".") else {
+                    i += 1; continue
+                }
+            }
+            var j = i + needle.count
+            var depth = 1
+            while j < code.count && depth > 0 {
+                if code[j] == "(" { depth += 1 } else if code[j] == ")" { depth -= 1 }
+                j += 1
+            }
+            var k = i - 1
+            while k >= 0, code[k] == " " || code[k] == "\n" || code[k] == "\t" { k -= 1 }
+            let isDeclaration = k >= 3 && String(code[(k - 3)...k]) == "func"
+            if !isDeclaration {
+                let args = String(code[(i + needle.count)..<max(i + needle.count, j - 1)])
+                out.append((line: code[0..<i].filter { $0 == "\n" }.count + 1,
+                            args: args.split(whereSeparator: \.isWhitespace)
+                                      .joined(separator: " ")))
+            }
+            i = j
         }
         return out
     }
@@ -400,6 +455,83 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
             The locked-tempo row now states a grid. That may well be right — but it is a \
             deliberate reduction in a performer-facing resolution, not a cleanup, so it has to \
             arrive together with an edit to this test and to `allowedToOmitDecimals`.
+            """)
+    }
+
+    // MARK: - The forwarder #440 named as its blind spot (#443)
+
+    /// `EchoelFXView.field` must take `decimals` with NO default. This is the same law #430
+    /// wrote for `param`/`knob` — a forwarder that defaults the grid hides every one of its
+    /// call sites from the scan above, because the scan sees only the single
+    /// `EchoelValueField(` inside the forwarder and that one dutifully writes
+    /// `decimals: decimals`.
+    ///
+    /// ⛔ IT ANCHORS ON THE DECLARATION EXISTING FIRST, and that order is the point (#367). An
+    /// assertion shaped purely as "the text `decimals: Int = ` does not appear" is green on a
+    /// file that lost the helper, was renamed, or failed to be read at all — a guard that
+    /// cannot fail. The existence check is what makes the absence check mean something.
+    func testTheFXFieldHelperTakesADecimalsArgumentWithNoDefault() throws {
+        let code = codeOnly(try source("Sources/Echoelmusic/Studio/EchoelFXView.swift"))
+        guard let decl = code.range(of: "private func field(") else {
+            return XCTFail("""
+                `EchoelFXView` has no `private func field(` any more. If the forwarder was \
+                renamed or removed, move this test with it — as written it now checks nothing, \
+                and the row-level assertion below would be measuring a helper that is gone.
+                """)
+        }
+        // Paren-match the parameter list rather than reading N characters: the signature spans
+        // six lines today and a fixed window would silently stop covering it after one edit.
+        var j = decl.upperBound
+        var depth = 1
+        while j < code.endIndex, depth > 0 {
+            if code[j] == "(" { depth += 1 } else if code[j] == ")" { depth -= 1 }
+            j = code.index(after: j)
+        }
+        let signature = String(code[decl.upperBound..<j])
+        // Both hoisted out of the failure messages on purpose: XCTest's `message:` is a
+        // NON-throwing `@autoclosure`, so a `try` inside it does not compile, and a key path
+        // written inside an interpolation inside a multiline literal is exactly the kind of
+        // lexing question there is no compiler in this session to answer.
+        let collapsed = signature.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let rowCount = try fxFieldCallSites().count
+
+        XCTAssertTrue(signature.contains("decimals: Int"), """
+            `EchoelFXView.field` no longer takes a `decimals: Int` parameter. Every one of its \
+            rows then inherits `EchoelValueField`'s default grid of 4 with nothing here or in \
+            the scan above going red — the exact hole #443 closed.
+            """)
+        XCTAssertFalse(signature.contains("decimals: Int ="), """
+            `EchoelFXView.field` gives `decimals` a default again. That is the mechanism #430 \
+            legislated against and #440 named as its blind spot: a defaulted argument never \
+            appears in a diff, so changing that one number re-grids all \(rowCount) rows at \
+            once, invisibly. Signature found: \(collapsed)
+            """)
+    }
+
+    /// Every call to that forwarder must state its grid. Without the default there is no other
+    /// way to compile — so this is a guard against the default coming BACK together with new
+    /// silent rows, and against the count collapsing (a broken scan reporting a green).
+    ///
+    /// ⚠️ Honest about what #443 did NOT fix: all 33 previously-silent rows were CORRECT at 2.
+    /// Both range endpoints of all 43 rows are on their own stated grid, and of the 316 literal
+    /// assignments to those parameters across `EchoelFXChain`, `FXCuratedLibrary` and
+    /// `GenreFX`, zero are off the 0.01 grid. The slice removed the mechanism, not a defect —
+    /// what it buys is the next row, in a window that already ships a `Cutoff` spanning
+    /// 80…18000 Hz which needs `decimals: 0` and says so.
+    func testEveryFXFieldRowStatesItsGrid() throws {
+        let calls = try fxFieldCallSites()
+        XCTAssertGreaterThan(calls.count, 35, """
+            Only \(calls.count) `field(` call sites were found in EchoelFXView; there were 43 \
+            at #443. A collapsed count means the paren matcher, the word boundary, or the \
+            declaration exclusion broke, and the assertion below would be vacuous.
+            """)
+
+        let silent = calls.filter { !$0.args.contains("decimals:") }
+        let shown = silent.map { "EchoelFXView.swift:\($0.line)" }.joined(separator: ", ")
+        XCTAssertTrue(silent.isEmpty, """
+            \(silent.count) FX row(s) call `field(` without stating `decimals:`: \(shown). \
+            `decimals` is the SNAP GRID (#430), and this forwarder deliberately has no default \
+            (#443) — so this can only mean the default came back.
             """)
     }
 }

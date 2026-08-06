@@ -478,42 +478,42 @@ struct EchoelFXView: View {
                     }
                     .pickerStyle(.segmented)
                     field("Cutoff", $vm.filterCutoff, 80...18000, unit: "Hz", decimals: 0)
-                    field("Resonance", $vm.filterResonance, 0...0.95)
+                    field("Resonance", $vm.filterResonance, 0...0.95, decimals: 2)
                 }
 
                 effectSection("Saturation", isOn: $vm.saturationEnabled) {
-                    field("Drive", $vm.saturationDrive, 0...1)
-                    field("Mix", $vm.saturationMix, 0...1)
+                    field("Drive", $vm.saturationDrive, 0...1, decimals: 2)
+                    field("Mix", $vm.saturationMix, 0...1, decimals: 2)
                 }
 
                 effectSection("Tape / VHS", isOn: $vm.tapeEnabled) {
-                    field("Wow & Flutter", $vm.tapeDepth, 0...1)
-                    field("Saturation", $vm.tapeSaturation, 0...1)
-                    field("Brightness", $vm.tapeTone, 0...1)
+                    field("Wow & Flutter", $vm.tapeDepth, 0...1, decimals: 2)
+                    field("Saturation", $vm.tapeSaturation, 0...1, decimals: 2)
+                    field("Brightness", $vm.tapeTone, 0...1, decimals: 2)
                 }
 
                 effectSection("Bitcrush", isOn: $vm.bitcrushEnabled) {
                     field("Bits", $vm.bitcrushBits, 1...16, unit: "bit", decimals: 0)
                     field("Downsample", $vm.bitcrushDownsample, 1...64, unit: "×", decimals: 0)
-                    field("Mix", $vm.bitcrushMix, 0...1)
+                    field("Mix", $vm.bitcrushMix, 0...1, decimals: 2)
                 }
 
                 effectSection("Harmonizer", isOn: $vm.harmonizerEnabled) {
                     intervalRow("Voice 1", $vm.harmInterval1)
                     Toggle("Voice 2", isOn: $vm.harmVoice2).tint(EchoelTheme.accent)
                     intervalRow("Voice 2 interval", $vm.harmInterval2)
-                    field("Mix", $vm.harmMix, 0...1)
+                    field("Mix", $vm.harmMix, 0...1, decimals: 2)
                 }
 
                 effectSection("Reverb", isOn: $vm.reverbEnabled) {
-                    field("Size", $vm.reverbRoomSize, 0...1)
-                    field("Damping", $vm.reverbDamping, 0...1)
-                    field("Width", $vm.reverbWidth, 0...1)
-                    field("Mix", $vm.reverbMix, 0...1)
+                    field("Size", $vm.reverbRoomSize, 0...1, decimals: 2)
+                    field("Damping", $vm.reverbDamping, 0...1, decimals: 2)
+                    field("Width", $vm.reverbWidth, 0...1, decimals: 2)
+                    field("Mix", $vm.reverbMix, 0...1, decimals: 2)
                 }
 
                 effectSection("Stereo Width", isOn: $vm.widenerEnabled) {
-                    field("Width", $vm.widenerWidth, 0...2)
+                    field("Width", $vm.widenerWidth, 0...2, decimals: 2)
                 }
 
                 effectSection("Delay", isOn: $vm.delayEnabled) {
@@ -523,49 +523,49 @@ struct EchoelFXView: View {
                         Text("Ping-Pong").tag(EchoelDelay.Mode.pingPong)
                     }
                     .pickerStyle(.segmented)
-                    field("Time", $vm.delayTime, 0.02...1.5, unit: "s")
+                    field("Time", $vm.delayTime, 0.02...1.5, unit: "s", decimals: 2)
                     syncMenu($vm.delayTime, .seconds(0.02...1.5))
-                    field("Feedback", $vm.delayFeedback, 0...0.95)
-                    field("Mix", $vm.delayMix, 0...1)
-                    field("Tone", $vm.delayTone, 0...1)
+                    field("Feedback", $vm.delayFeedback, 0...0.95, decimals: 2)
+                    field("Mix", $vm.delayMix, 0...1, decimals: 2)
+                    field("Tone", $vm.delayTone, 0...1, decimals: 2)
                     // #251: the stereo image. Every character stamp and every preset load has
                     // been writing this since #246; this is the first time a user can see or
                     // set it. Range is the stage's own declared domain (`EchoelDelay.spread`,
                     // [0, 1] → the right tap offsets by up to 25 ms).
-                    field("Spread", $vm.delaySpread, 0...1)
+                    field("Spread", $vm.delaySpread, 0...1, decimals: 2)
                     if vm.delayMode == .tape {
-                        field("Wow/Flutter", $vm.delayWow, 0...1)
-                        field("Drive", $vm.delayDrive, 0...1)
+                        field("Wow/Flutter", $vm.delayWow, 0...1, decimals: 2)
+                        field("Drive", $vm.delayDrive, 0...1, decimals: 2)
                     }
                 }
 
                 effectSection("Chorus", isOn: $vm.chorusEnabled) {
-                    field("Rate", $vm.chorusRate, 0.05...8, unit: "Hz")
+                    field("Rate", $vm.chorusRate, 0.05...8, unit: "Hz", decimals: 2)
                     syncMenu($vm.chorusRate, .hertz(0.05...8))
-                    field("Depth", $vm.chorusDepth, 0...1)
-                    field("Mix", $vm.chorusMix, 0...1)
+                    field("Depth", $vm.chorusDepth, 0...1, decimals: 2)
+                    field("Mix", $vm.chorusMix, 0...1, decimals: 2)
                 }
 
                 effectSection("Flanger", isOn: $vm.flangerEnabled) {
-                    field("Rate", $vm.flangerRate, 0.05...8, unit: "Hz")
+                    field("Rate", $vm.flangerRate, 0.05...8, unit: "Hz", decimals: 2)
                     syncMenu($vm.flangerRate, .hertz(0.05...8))
-                    field("Depth", $vm.flangerDepth, 0...1)
-                    field("Feedback", $vm.flangerFeedback, -0.95...0.95)
-                    field("Mix", $vm.flangerMix, 0...1)
+                    field("Depth", $vm.flangerDepth, 0...1, decimals: 2)
+                    field("Feedback", $vm.flangerFeedback, -0.95...0.95, decimals: 2)
+                    field("Mix", $vm.flangerMix, 0...1, decimals: 2)
                 }
 
                 effectSection("Phaser", isOn: $vm.phaserEnabled) {
-                    field("Rate", $vm.phaserRate, 0.05...8, unit: "Hz")
+                    field("Rate", $vm.phaserRate, 0.05...8, unit: "Hz", decimals: 2)
                     syncMenu($vm.phaserRate, .hertz(0.05...8))
-                    field("Depth", $vm.phaserDepth, 0...1)
-                    field("Feedback", $vm.phaserFeedback, 0...0.95)
-                    field("Mix", $vm.phaserMix, 0...1)
+                    field("Depth", $vm.phaserDepth, 0...1, decimals: 2)
+                    field("Feedback", $vm.phaserFeedback, 0...0.95, decimals: 2)
+                    field("Mix", $vm.phaserMix, 0...1, decimals: 2)
                 }
 
                 effectSection("Tremolo", isOn: $vm.tremoloEnabled) {
-                    field("Rate", $vm.tremoloRate, 0.05...8, unit: "Hz")
+                    field("Rate", $vm.tremoloRate, 0.05...8, unit: "Hz", decimals: 2)
                     syncMenu($vm.tremoloRate, .hertz(0.05...8))
-                    field("Depth", $vm.tremoloDepth, 0...1)
+                    field("Depth", $vm.tremoloDepth, 0...1, decimals: 2)
                     Toggle("Auto-Pan", isOn: $vm.tremoloPan).tint(EchoelTheme.accent)
                 }
 
@@ -841,12 +841,35 @@ struct EchoelFXView: View {
     /// labelled numeric value with its unit, adjusted by a vertical-fader drag (a
     /// transient fader appears on press) or tap-to-type. Same component the Sound
     /// editor uses, so every parameter across the app reads and behaves the same.
+    ///
+    /// ⛔ `decimals` HAS NO DEFAULT, AND THAT IS THE POINT (#443). It used to be `= 2`, and
+    /// #430 had already legislated against exactly this on the Sound panel's `param`/`knob`
+    /// helpers — this forwarder was simply missed, and #440's own header named it as its
+    /// blind spot: its scan sees `EchoelValueField(` call sites, so the 33 rows that went
+    /// through here silently were invisible to it. `decimals` is not the display precision,
+    /// it is the SNAP GRID (`ScrubPrecision.snapped`), so a default here sets how coarsely a
+    /// finger can place a value — and a default argument never appears in a diff.
+    ///
+    /// ⚠️ Honest about what was NOT wrong: all 33 silent rows were CORRECT at 2 when the
+    /// default was removed. Measured before touching anything, comments stripped: both range
+    /// endpoints of all 43 `field(` rows land on their own stated grid, and of the 316 literal
+    /// assignments to those 43 parameters across `EchoelFXChain`, `FXCuratedLibrary` and
+    /// `GenreFX`, zero are off the 0.01 grid. So this change moves no pixel and no sound; it
+    /// removes the MECHANISM, not a defect. The live risk it closes is the NEXT row: this
+    /// window already has a `Cutoff` spanning 80…18000 Hz that needed `decimals: 0` and says
+    /// so — a new frequency row would have inherited 2 and offered a 0.01 Hz grid across
+    /// 18 kHz, silently.
+    ///
+    /// ⛔ THE FIRST DRAFT OF THIS PARAGRAPH SAID "63 shipped assignments", and I could not
+    /// reproduce it with any statable method — the re-measurement above finds 316. The number
+    /// was not the defect; the missing METHOD was, because a count nobody can re-derive is not
+    /// a measurement. Every figure here now names what was scanned.
     private func field(
         _ title: String,
         _ value: Binding<Float>,
         _ range: ClosedRange<Float>,
         unit: String = "",
-        decimals: Int = 2
+        decimals: Int
     ) -> some View {
         EchoelValueField(label: title, value: value, range: range, unit: unit, decimals: decimals)
     }

@@ -367,14 +367,28 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           ist ein Lauf. Vier sind Quelltext-Scans, einer ist Arithmetik auf
                           `ScrubPrecision.gridded`; dass eine Zeile RENDERT, dass ein Finger über sie
                           reist und dass 2 Stellen sich für einen LFO richtig ANFÜHLEN, ist eine
-                          Geräteprobe. **Und er hat eine benannte Blindstelle (#443):** der Scan sieht
-                          `EchoelValueField(`-Aufrufstellen, also auch die INNERHALB der drei
-                          weiterreichenden Helfer — `param`/`knob` sind sicher, weil #430 ihr
-                          `decimals` ausdrücklich PFLICHT gelassen hat, `EchoelFXView.field` nicht: es
-                          hat `decimals: Int = 2`, und seine 43 Aufrufstellen (33 davon still) sind
-                          dem Scan unsichtbar. Heute harmlos, weil 2 das Hausraster ist; eine Änderung
-                          dieser EINEN Zahl auf 4 vergröbert alle 33 auf einmal, ohne dass etwas rot
-                          wird),
+                          Geräteprobe. **Und er hatte eine benannte Blindstelle — sie ist mit #443
+                          GESCHLOSSEN, im selben Wächter:** der Scan sieht `EchoelValueField(`-Aufruf-
+                          stellen, also auch die INNERHALB der drei weiterreichenden Helfer.
+                          `param`/`knob` waren sicher, weil #430 ihr `decimals` ausdrücklich PFLICHT
+                          gelassen hat; `EchoelFXView.field` hatte `decimals: Int = 2`, und seine 43
+                          Aufrufstellen (33 davon still) waren dem Scan unsichtbar. #443 nimmt den
+                          Default weg und schreibt die Zahl an allen 33 hin, plus zwei Hälften in
+                          `EveryReachableRowStatesItsGridTests`: ein eigener paren-gematchter Scan über
+                          `field(` und eine Behauptung auf der DEKLARATION, dass `decimals` keinen
+                          Default hat. ⚠️ Ehrlich zum Umfang: die 33 Zeilen waren alle KORREKT bei 2 —
+                          gemessen mit abgestreiften Kommentaren liegen BEIDE Bereichsenden aller 43
+                          `field(`-Zeilen auf ihrem eigenen Raster, und von den 316 Literal-Zuweisungen
+                          an diese 43 Parameter in `EchoelFXChain`, `FXCuratedLibrary` und `GenreFX`
+                          liegt KEINE neben dem 0,01-Raster. ⛔ Die erste Fassung dieses Eintrags schrieb
+                          „63 ausgelieferte Zuweisungen" und keine angebbare Methode reproduziert das —
+                          eine Zahl, die niemand nachrechnen kann, ist keine Messung, und dieser Absatz
+                          trägt genau dafür schon vier Lehren. Die Scheibe entfernt den MECHANISMUS, keinen Defekt; was sie
+                          kauft, ist die NÄCHSTE Zeile, in einem Fenster, das schon eine
+                          `Cutoff`-Zeile über 80…18000 Hz mit `decimals: 0` ausliefert. **Die Lehre ist
+                          die von #430 in ihrer schärfsten Form: ein Argument, das keine Aufrufstelle
+                          schreibt, taucht in keinem Diff auf — und ein Scan über die Blätter sieht den
+                          Ast nicht, an dem sie hängen.**),
                           davor „171" nach `TheShownNumberIsTheKeptNumberTests.swift` (#432 — der erste
                           Wächter in dieser Kette über zwei RUNDUNGSREGELN für dieselbe Zahl, und der
                           Abschluss der #135/#416/#427/#431-Familie: das eine Parameter-Bedienelement
