@@ -4844,15 +4844,24 @@ struct EchoelStudioView: View {
     /// they display on. Stricter never restores a chip it should not: two values that agree to
     /// four places agree on any coarser grid too.
     ///
-    /// ⚠️ THE DIRECTION IS WHAT MATTERS, so state the failing one: comparing on a grid COARSER
-    /// than a row can reach would restore the preset chip after an edit that genuinely left the
-    /// preset. The reason a 2-decimal row cannot break this is that every value in
-    /// `VisualPreset.factory` is representable at two places (intensity 0.8 · 0.95 · 1.1 · 1.2 ·
-    /// 1.4, motion 0.45 · 0.42 · 0.7 · 1.1 · 1.4, spread 1.35 · 1.2 · 1.0, and Vapor's palette
-    /// 0.82 / 1.12) — so the user can still land exactly on a preset by hand. A future preset
-    /// with a third decimal would be unreachable from the row that is supposed to reach it;
-    /// `VisualPresetValuesAreReachableTests` is the guard that makes that a red test rather than
-    /// a chip that silently stops coming back.
+    /// ⚠️ THE LIVE RISK IS THE ROW, NOT THIS FUNCTION. A future preset carrying a THIRD decimal
+    /// would be unreachable from the two-decimal row that is supposed to reach it: the chip would
+    /// still apply on tap and could never be restored by hand.
+    /// `VisualPresetValuesAreReachableTests` makes that a red test rather than a door that only
+    /// opens outward. Every value this function COMPARES is representable at two places today —
+    /// intensity 0.8 · 0.95 · 1.1 · 1.2 · 1.4, motion 0.45 · 0.42 · 0.7 · 1.1 · 1.4, spread
+    /// 1.35 · 1.2 · 1.0, detail 14 · 24 · 28 · 32 · 86 (already a whole-number row).
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS PARAGRAPH GOT THE COMPARED SET WRONG IN BOTH DIRECTIONS: it
+    /// named Vapor's palette (0.82 / 1.12) and omitted Detail. `visualPresetDiverged` compares
+    /// FOUR values — intensity, detail, motion, spread — and never hue or saturation, which are
+    /// palette-only and deliberately leave the selection intact (three lines above). The count
+    /// that matters here is four, not six; the six is the number of ROWS the panel shows.
+    ///
+    /// The other direction is the one that cannot happen post-#427 and is written down so nobody
+    /// re-derives it: comparing on a grid COARSER than a row can reach would restore the chip
+    /// after an edit that genuinely left the preset. Four places is strictly finer than every
+    /// participating row (2, 2, 2, 0), so that failure is out of reach — keep it that way.
     private func sameOnDisplayGrid(_ a: Double, _ b: Double) -> Bool {
         (a * 10_000).rounded() == (b * 10_000).rounded()
     }
@@ -4871,6 +4880,19 @@ struct EchoelStudioView: View {
     /// centre, and the first drag pulls BOTH back onto the curve at the new position. That is
     /// what a macro control is; it is not a bug. The individual values remain one tap away
     /// under Fine tune.
+    ///
+    /// ⚠️ TWO CONSEQUENCES OF BEING DERIVED, both sharpened by #427's two-decimal grid.
+    ///  1. The getter RECOMPUTES rather than reading back what was written, so it returns the
+    ///     same number only to within rounding (bit-exact on 39 of the 101 two-decimal
+    ///     positions, worst residual 2.2e-16). A scrub's re-seed test therefore has to compare
+    ///     what the two sides SHOW — see `ScrubPrecision.carriesTarget`, which exists because
+    ///     raw equality stalled this exact row.
+    ///  2. The setter writes `visualIntensity`/`visualMotion` straight from the curve, bypassing
+    ///     `EchoelValueField.apply`, so those two rows can hold a value off their own grid: an
+    ///     Energy position of 0.37 puts intensity near 1.022, which the Intensity row displays
+    ///     as 1.02 and quantizes to 1.02 on first touch. That drift was ≤0.00005 before #427 and
+    ///     is ≤0.005 now — small, visible only as one step of the picture, and stated here
+    ///     rather than discovered.
     private var visualEnergy: Binding<Double> {
         Binding(
             get: { VisualEnergy.position(matching: visualIntensity, motion: visualMotion) },
@@ -5190,6 +5212,13 @@ struct EchoelStudioView: View {
     /// ⚠️ It does not change the DRAG either — `ScrubPrecision.advanced` holds an un-snapped
     /// running target since #376, so the grid stopped gating travel then. What moves is what the
     /// number pad accepts and what the row reads.
+    ///
+    /// ⛔ THAT SENTENCE IS TRUE FOR THESE ROWS AND WAS NOT TRUE IN GENERAL (#427 review). The
+    /// un-snapped target is only carried while it still names the value on screen, and until
+    /// #427 that test was raw equality — which holds for a STORED binding like this one and
+    /// fails for a DERIVED one, whose getter recomputes. `visualEnergy` is derived, so
+    /// coarsening its grid to 2 put it straight back in the pre-#376 dead zone. Fixed in
+    /// `ScrubPrecision.carriesTarget`; read that before quoting this paragraph at another row.
     private func moodKnob(_ label: String, _ value: Binding<Float>) -> some View {
         EchoelValueField(label: label, value: value, range: 0...1, decimals: 2,
                          onCommit: { recomposeIfRunning() })

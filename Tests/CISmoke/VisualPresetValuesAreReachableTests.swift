@@ -5,17 +5,34 @@
 // of the seven rows in `visualAdjustFields` were taking that default: Energy, Intensity, Motion,
 // Spread, Hue, Saturation all offered FOUR decimal places for values whose whole travel is 0…1
 // or 0…1.5. That is not a display nicety — `ScrubPrecision.snapped` uses `decimals` as the SNAP
-// GRID, so those rows stored to 0.0001 while every FX parameter, the master volume and the
-// weather mixers in this same app store to 0.01. #427 gives the six an explicit `decimals: 2`,
-// which is the value the rest of the app already uses for a 0…1 control.
+// GRID, so those rows stored to 0.0001. #427 gives the six an explicit `decimals: 2`, which is
+// the value this app's own scrub-precision doc names as its `0…1` idiom (`EchoelValueField`:
+// "a `0…1, decimals: 2` row — every FX parameter, the master volume, the weather mixers").
+//
+// ⛔ THAT SENTENCE USED TO END "…while every FX parameter, the master volume and the weather
+// mixers in this same app store to 0.01", WHICH READS AS A UNIVERSAL AND IS FALSE — in the file
+// whose subject is a count, and contradicted by its own HONEST LIMITS bullet below. TEN shipping
+// `0…1` rows are still on the 4-place default (Swell ↔ Strike · Sub level · Sub presence · Sub
+// heat · Brightness · Harmonics · Harm. level · Noise · Resonance · LFO→filter · LFO depth ·
+// Sustain · Reverb mix · Vibrato depth — fourteen rows through eight sites), and `EchoelFXView`'s
+// "LFO rate" takes the default too. The repo's original wording names a SET and asserts nothing
+// beyond it; hardening a set into "any other row" is exactly how it broke. Registered as #430.
 //
 // ⭐ THE RISK THE CHANGE INTRODUCES IS NOT "less precision", IT IS AN UNREACHABLE PRESET. The
-// visual preset chip stays lit only while the six values still MATCH the preset
-// (`sameOnDisplayGrid`, four places). Coarsening a row's grid means the row can no longer land
-// on a value that is not on that grid — so a preset carrying a third decimal would become a
-// chip the user can leave and never get back by hand, with nothing failing anywhere. Today all
-// of `VisualPreset.factory` is representable at two places; this file is what makes a future
-// preset that is not a RED TEST instead of a silent one-way door.
+// visual preset chip stays lit only while the FOUR COMPARED values still match the preset:
+// `visualPresetDiverged` checks intensity · detail · motion · spread through `sameOnDisplayGrid`
+// at four places, and never hue or saturation, which are palette-only and deliberately leave the
+// selection intact. (Six is the number of ROWS the panel shows and five is the number of controls
+// that CLEAR the chip — three different counts, and the first version of this file used the wrong
+// one twice.) Coarsening a row's grid means the row can no longer land on a value that is not on
+// that grid — so a preset carrying a third decimal in one of those four would become a chip the
+// user can leave and never get back by hand, with nothing failing anywhere. Today all of
+// `VisualPreset.factory` is representable at two places; this file is what makes a future preset
+// that is not on the grid a RED TEST instead of a silent one-way door.
+//
+// Hue and Saturation are checked here as well, for a DIFFERENT reason and with their own failure
+// message: they never reach the chip comparison, but Vapor APPLIES a palette (0.82 / 1.12), and a
+// value the user cannot re-type by hand is its own one-way door.
 //
 // ⚠️ THE FLOAT→DOUBLE STEP IS PART OF THE MEASUREMENT, not noise to wave away. `VisualPreset`
 // stores `Float`, the rows are `Double`, and `applyVisualPreset` writes `Double(p.intensity)` —
@@ -33,12 +50,18 @@
 //     other.
 //   · The scan is source text. It proves each row SPELLS a decimals value; it cannot prove the
 //     row renders, that the chip re-lights on a device, or that two places is the right choice
-//     for a human finger. NEEDS-FOUNDER-VERIFY: pick a visual preset, nudge Intensity, nudge it
-//     back — does the chip come back lit?
+//     for a human finger. NEEDS-FOUNDER-VERIFY, three things: pick a visual preset, nudge
+//     Intensity, nudge it back — does the chip come back lit? Drag Energy SLOWLY with the visual
+//     open — does it travel (that is the `ScrubPrecision.carriesTarget` fix)? And does Hue step
+//     visibly, now that one grid unit is 3.6° of rotation?
+//   · It cannot see the drag at all. The stall this slice's review found — a derived binding
+//     failing the scrub's re-seed test — is a grid×BINDING interaction, not a grid×preset one,
+//     and it lives in `ScrubPrecision.carriesTarget`'s own guard.
 //   · It says nothing about the OTHER rows in the app that still take the 4-place default, and
 //     the honest count is bigger than the obvious one: TEN call sites, but two of those are the
 //     `param`/`knob` helpers in `EchoelStudioView`, which render SEVENTEEN rows in the Sound
-//     panel between them (nine of those are `0…1`). So it is twenty-five rows, not ten —
+//     panel between them (TEN of those are `0…1` — nine `knob` plus `param("Sustain", …, 0...1)`,
+//     which the first version of this line missed). So it is twenty-five rows, not ten —
 //     twenty-four reachable, since `PianoRollView`'s "Vel" is in a doorless file. Of the eight
 //     direct sites, two want four decimals on purpose (A4 concert pitch and the locked tempo
 //     both say "editable to 0.0001" in their own comments), which is exactly why this is NOT
@@ -92,20 +115,25 @@ final class VisualPresetValuesAreReachableTests: XCTestCase {
         let grids = try decimalsByLabel()
 
         for preset in VisualPreset.factory {
+            // The four `visualPresetDiverged` compares — these decide whether the chip re-lights.
             try assertReachable(Double(preset.intensity), label: "Intensity",
-                                grids: grids, preset: preset.name)
+                                grids: grids, preset: preset.name, decidesTheChip: true)
             try assertReachable(Double(preset.detail), label: "Detail",
-                                grids: grids, preset: preset.name)
+                                grids: grids, preset: preset.name, decidesTheChip: true)
             try assertReachable(Double(preset.motion), label: "Motion",
-                                grids: grids, preset: preset.name)
+                                grids: grids, preset: preset.name, decidesTheChip: true)
             try assertReachable(Double(preset.spread), label: "Spread",
-                                grids: grids, preset: preset.name)
+                                grids: grids, preset: preset.name, decidesTheChip: true)
+            // The palette — applied by the preset, never compared by it. Same reachability
+            // question, different consequence, so it gets its own message rather than borrowing
+            // the chip's.
             if let hue = preset.hue {
-                try assertReachable(Double(hue), label: "Hue", grids: grids, preset: preset.name)
+                try assertReachable(Double(hue), label: "Hue",
+                                    grids: grids, preset: preset.name, decidesTheChip: false)
             }
             if let saturation = preset.saturation {
                 try assertReachable(Double(saturation), label: "Saturation",
-                                    grids: grids, preset: preset.name)
+                                    grids: grids, preset: preset.name, decidesTheChip: false)
             }
         }
     }
@@ -144,13 +172,15 @@ final class VisualPresetValuesAreReachableTests: XCTestCase {
         return (snapped * 10_000).rounded() == (value * 10_000).rounded()
     }
 
-    private func assertReachable(_ value: Double, label: String,
-                                 grids: [String: Int], preset: String) throws {
+    private func assertReachable(_ value: Double, label: String, grids: [String: Int],
+                                 preset: String, decidesTheChip: Bool) throws {
         let decimals = try XCTUnwrap(grids[label], """
-            No `EchoelValueField` labelled "\(label)" was found in `visualAdjustFields`, so this \
-            test cannot know which grid the value \(value) has to land on. Either the row was \
-            renamed (update this table in the same commit) or it is gone (then the preset field \
-            it edits is unreachable, which is the very thing this file exists to catch).
+            `visualAdjustFields` has no `EchoelValueField` labelled "\(label)" that states a \
+            `decimals:`, so this test cannot know which grid the value \(value) has to land on. \
+            Three ways to get here, and the sibling test above distinguishes them: the row lost \
+            its explicit `decimals:` (that test is the one to read), the row was renamed (update \
+            this call in the same commit), or the row is gone — and then the preset field it \
+            edits has no control at all, which is a bigger version of what this file catches.
             """)
 
         // Hoisted out of the message: this bundle has made the blocking gate red once already
@@ -158,17 +188,28 @@ final class VisualPresetValuesAreReachableTests: XCTestCase {
         let landed = ScrubPrecision.snapped(value, lowerBound: -.greatestFiniteMagnitude,
                                             upperBound: .greatestFiniteMagnitude,
                                             decimals: decimals)
+        let consequence = decidesTheChip
+            ? """
+              This one DECIDES THE CHIP. Tapping the preset still applies the value, but the \
+              moment any of the four compared rows is nudged the chip goes out, and no amount of \
+              dragging or typing brings it back: `visualPresetDiverged` compares intensity, \
+              detail, motion and spread at four places, and the row can only produce grid \
+              values. A door that opens outward only.
+              """
+            : """
+              This one is PALETTE-ONLY — `visualPresetDiverged` never compares it, so the chip is \
+              not at stake. What is at stake is that the preset applies a colour the user cannot \
+              dial back to by hand: the row would round \(value) away and there is no way to \
+              return to it except re-tapping the preset.
+              """
 
         XCTAssertTrue(landsOnPresetValue(value, decimals: decimals), """
             Preset "\(preset)" carries \(label) = \(value), which the row cannot land on: it \
             shows \(decimals) decimals, so `ScrubPrecision.snapped` moves the value to \(landed).
 
-            The consequence is a ONE-WAY DOOR in the UI and nothing else fails: tapping the \
-            preset chip still applies the value, but the moment the user nudges any of the six \
-            rows the chip goes out, and no amount of dragging brings it back — \
-            `sameOnDisplayGrid` compares at four places and the row can only produce grid \
-            values. Fix by choosing a preset value on the row's grid, not by widening the \
-            comparison.
+            \(consequence)
+
+            Fix by choosing a preset value on the row's grid, not by widening the comparison.
             """)
     }
 
@@ -249,6 +290,13 @@ final class VisualPresetValuesAreReachableTests: XCTestCase {
         quotedValue(after: "label:", in: call)
     }
 
+    /// The literal `decimals:` argument, or `nil` when the call does not state one.
+    ///
+    /// ⚠️ A NON-LITERAL ARGUMENT ALSO RETURNS `nil`, and that is a deliberate under-report rather
+    /// than a bug: `decimals: someValue` (the shape `EchoelFXView`'s `fxRow` helper uses) cannot
+    /// be resolved by a text scan. Reporting it as "states its grid" would be a green this file
+    /// did not earn; reporting it as "takes the default 4" would be a claim about a number the
+    /// scan never saw. It fails loudly instead, and the message above says which of the two it is.
     private func decimals(in call: String) -> Int? {
         guard let range = call.range(of: "decimals:") else { return nil }
         let digits = call[range.upperBound...]

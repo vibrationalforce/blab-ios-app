@@ -153,6 +153,54 @@ enum ScrubPrecision {
         Swift.min(Swift.max(raw, lowerBound), upperBound)
     }
 
+    /// Does the running scrub target still describe the number on screen?
+    ///
+    /// THE PREDICATE THE DRAG RE-SEEDS ON. A scrub carries its own un-snapped target (#376) so
+    /// travel below half a grid unit accumulates instead of being thrown away every frame. That
+    /// target may only be trusted while it still names the value the field is showing — a keypad
+    /// entry or any other foreign write must win, or an abandoned drag teleports the number back
+    /// on the next event (#375/#377).
+    ///
+    /// ⛔ IT COMPARED THE SNAPPED TARGET TO THE RAW STORED VALUE AND THAT WAS TOO STRICT FOR A
+    /// DERIVED BINDING (#427 review). A stored binding holds exactly what `apply` wrote, so raw
+    /// equality held on every event. A binding whose getter RECOMPUTES — `EchoelStudioView`'s
+    /// `visualEnergy`, the one visual control (#228), reads back through
+    /// `VisualEnergy.position(matching:motion:)` — returns the same number only to within
+    /// rounding: measured over the 101 two-decimal positions, the round trip is bit-exact on
+    /// **39** of them, worst residual 2.2e-16. So on 62 of 101 positions the check failed EVERY
+    /// event, the target was discarded, and the row fell back into the exact pre-#376 regime this
+    /// file exists to describe — whose measured dead zone for a `0…1, decimals: 2` row is
+    /// **≈135 pt/s at 60 Hz**. Simulated against the shipped constants, a 3 s drag from 0 reached
+    /// 0.01 and stopped at 10, 40, 60 and 120 pt/s, then jumped to 1.00 at 135: the one visual
+    /// control became a two-state control under the finger. At `decimals: 4` the same threshold
+    /// is ≈2.7 pt/s, which is why it was invisible until #427 coarsened the grid.
+    ///
+    /// The fix is to compare what the two sides SHOW, not what they store: snap both, then map
+    /// both through `V` exactly as before. Both halves are load-bearing.
+    ///  • Snapping the stored side is what admits a getter that round-trips within a grid cell.
+    ///  • Mapping through `V` is what keeps `Float` fields working, and dropping it would be the
+    ///    subtler regression: `Double(Float(17999.9)) = 17999.900390625` snaps to `17999.9004`
+    ///    at 4 decimals while the target snaps to `17999.9`, so a Double-side comparison would
+    ///    re-seed every event on the cutoff row. `V` collapses both to the same `Float`.
+    ///
+    /// This is strictly more permissive than raw equality and never less: a pair that was equal
+    /// before is a snapped, `V`-mapped number already, so snapping it again returns it unchanged.
+    /// What it gives up is precision the field cannot show — a foreign write landing INSIDE the
+    /// running target's grid cell no longer re-seeds. That write displays the same number, which
+    /// is the condition this predicate is written to test. Verified bit-identical on a stored
+    /// `0…1.5, decimals: 2` row at 10 / 60 / 120 / 300 pt/s.
+    ///
+    /// NaN is still healed rather than carried: it fails the equality against anything, including
+    /// itself, so the drag re-seeds from the stored value exactly as before.
+    static func carriesTarget<V: BinaryFloatingPoint>(_ running: Double, value: V,
+                                                      lowerBound: Double, upperBound: Double,
+                                                      decimals: Int) -> Bool {
+        let onScreen = V(snapped(Double(value), lowerBound: lowerBound,
+                                 upperBound: upperBound, decimals: decimals))
+        return V(snapped(running, lowerBound: lowerBound,
+                         upperBound: upperBound, decimals: decimals)) == onScreen
+    }
+
     /// Advances a scrub in progress by one event's travel.
     ///
     /// ⛔ WHY A SCRUB NEEDS ITS OWN TARGET AT ALL (#376). The drag used to add each event's delta
@@ -874,10 +922,16 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // and silently restore the #376 dead zone this file was written to remove.
                 // A NaN target also fails the test and is therefore healed rather than carried
                 // for the rest of the gesture.
+                //
+                // ⛔ AND IT MUST SNAP THE STORED SIDE TOO (#427 review). Raw equality held for a
+                // stored binding and failed on 62 of 101 positions for a DERIVED one, which put
+                // the one visual control back in the pre-#376 dead zone. The whole argument,
+                // with the measurements, is on `ScrubPrecision.carriesTarget`.
                 let base: Double
                 if let running = scrubTarget,
-                   V(ScrubPrecision.snapped(running, lowerBound: lo, upperBound: hi,
-                                            decimals: decimals)) == value {
+                   ScrubPrecision.carriesTarget(running, value: value,
+                                                lowerBound: lo, upperBound: hi,
+                                                decimals: decimals) {
                     base = running
                 } else {
                     base = Double(value)

@@ -242,8 +242,39 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**165** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `VisualPresetValuesAreReachableTests.swift` (#427 — der erste
+                          `Tests/CISmoke` (**166** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `ADerivedRowStillScrubsTests.swift` (#427 Nachlese — der erste
+                          Wächter in dieser Kette über einem Defekt, den die Scheibe SELBST erzeugt hat
+                          und ihr eigener Wächter nicht sehen konnte: `EchoelValueField` trägt seit #376
+                          ein ungerastertes Ziel durch die Ereignisse eines Zuges und vertraute ihm nur
+                          bei ROHER Gleichheit gegen den gespeicherten Wert. Das gilt für eine
+                          gespeicherte Bindung und NICHT für eine abgeleitete: `visualEnergy` — der EINE
+                          Bild-Regler (#228) — hat keinen eigenen Zustand, sein Getter rechnet
+                          `VisualEnergy.position(matching:motion:)` über die zwei Werte, die sein Setter
+                          geschrieben hat. Über die 101 Zweier-Raster-Stellen ist dieser Umlauf auf
+                          **39** bitgenau, schlimmster Rest 2,2e-16. An 62 von 101 Stellen wurde das
+                          Ziel also bei JEDEM Ereignis verworfen — genau das Vor-#376-Regime, dessen
+                          gemessene Totzone für eine 0…1-Zeile mit 2 Stellen bei ≈135 pt/s liegt.
+                          Simuliert gegen die ausgelieferten Konstanten kam ein 3-s-Zug bei 10, 40, 60
+                          und 120 pt/s auf **0,01 und blieb dort**, bei 135 sprang er auf **1,00**: der
+                          eine Bild-Regler war unter dem Finger ein Zwei-Zustands-Schalter. Bei
+                          `decimals: 4` liegt dieselbe Schwelle bei ≈2,7 pt/s — die Scheibe hat die
+                          Fragilität nicht erzeugt, sondern ERREICHBAR gemacht.
+                          ⭐ Die Reparatur sitzt im GETEILTEN Bedienelement, nicht in `visualEnergy`:
+                          im Getter zu rastern hätte funktioniert und eine zweite Kopie der
+                          Raster-Konstante neben `decimals: 2` gestellt — der Doppel-Definitions-Defekt
+                          aus #416. Das Prädikat war schlicht zu streng; es fragte „ist das Ziel der
+                          gespeicherte Wert", während sein eigener Kommentar „beschreibt das Ziel noch
+                          die Zahl auf dem SCHIRM" sagt. `ScrubPrecision.carriesTarget` rastert beide
+                          Seiten und bildet beide durch `V` ab — und die zweite Hälfte ist die, die eine
+                          spätere Vereinfachung fallen lassen würde: `Double(Float(17999,9))` rastert
+                          auf 4 Stellen zu 17999,9004, das Ziel auf 17999,9, ein Double-seitiger
+                          Vergleich würde also die Cutoff-Zeile bei JEDEM Ereignis neu ansetzen.
+                          ⚠️ Was er NICHT kann: beweisen, dass ein Finger auf dem Gerät reist. Die
+                          ≈135 pt/s und die 39/101 sind Simulation und Arithmetik, kein Lauf. Und nur
+                          EINER seiner sechs Tests ist auf dem alten Prädikat rot; die anderen fünf
+                          halten fest, was sich NICHT ändern darf, und sagen das im Dateikopf),
+                          davor „165" nach `VisualPresetValuesAreReachableTests.swift` (#427 — der erste
                           Wächter in dieser Kette über einer EINBAHNSTRASSE in der Oberfläche statt
                           über einem falschen Wert: sechs der sieben Zeilen im Visual-Panel nahmen
                           `EchoelValueField`s Vorgabe `decimals: 4`, und `decimals` ist nicht die
@@ -1027,7 +1058,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTVIERUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 165 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTFÜNFUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 166 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
