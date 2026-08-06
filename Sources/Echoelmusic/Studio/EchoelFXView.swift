@@ -1078,8 +1078,21 @@ private struct FXModRouteRow: View {
                 .pickerStyle(.menu).tint(EchoelTheme.text)
                 .accessibilityLabel("Response curve")
                 if route.carrier == .lfo {
+                    // `decimals` is the SNAP GRID, not just the readout (#430) — and this row
+                    // was the LAST reachable one still taking `EchoelValueField`'s default 4
+                    // (#440). Two is MEASURED, not chosen: the app's OTHER row with this exact
+                    // label — the patch filter LFO (`EchoelStudioView`, 0…20 Hz) — is on 2, the
+                    // shipped default `FXModRoute().lfoRateHz` = 0.5 sits exactly on that grid,
+                    // and so do both bounds. Four offered 79 951 settings across 0.05…8 Hz where
+                    // two offers 796; the extra digits buy a distinction nothing can hear
+                    // (0.5137 vs 0.51 Hz is a 1.947 s vs 1.961 s period, 0.7 %) and cost a
+                    // readout that disagrees with the "Depth" row directly above it.
+                    // ⚠️ NOT fixed here, and it is a different defect: `FXModRoute.init` floors
+                    // this field at 0.01 while this row's range starts at 0.05 — two definitions
+                    // of one bound (#441). Latent today, because this row is the only writer and
+                    // `FXBioModulator.routes` is never persisted.
                     EchoelValueField(label: "LFO rate", value: $route.lfoRateHz,
-                                     range: 0.05...8, unit: "Hz")
+                                     range: 0.05...8, unit: "Hz", decimals: 2)
                 }
             }
         }

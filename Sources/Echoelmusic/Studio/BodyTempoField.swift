@@ -109,7 +109,24 @@ struct BodyTempoField: View {
     var body: some View {
         HStack(spacing: compact ? 6 : 10) {
             if lockBPM {
-                // Locked: exact, editable to 0.0001 BPM (Echoel number pad), like Kammerton.
+                // Locked: exact, editable to 0.0001 BPM (Echoel number pad).
+                //
+                // ⛔ THIS LINE SAID "like Kammerton" UNTIL #440, and that comparison is now
+                // false: the concert-pitch row runs on `decimals: 2`. It was never a good
+                // anchor either — A4's own comment always promised "exact to 0.01 Hz", so the
+                // two rows agreed only by accident, because BOTH were silently inheriting
+                // `EchoelValueField`'s default of 4. Once one of them was made to match its
+                // own promise, the comparison broke. Anchor an intent to its OWN reason, not
+                // to a neighbour that might be wrong for a different one.
+                //
+                // WHY FOUR SURVIVES HERE, stated so a "consistency" sweep has to argue with
+                // it: locking is the moment this number stops being a reading and becomes a
+                // SETTING (`toggleLock` rounds to 1e-4 and persists it), and a performer
+                // matching an external clock needs that resolution. This is now the ONLY
+                // reachable row in the app on the default grid, and
+                // `Tests/CISmoke/EveryReachableRowStatesItsGridTests.swift` pins the sentence
+                // above so the intent cannot be lost first and swept away second.
+                //
                 // Compact chrome: empty label (box-only) so it fits next to Play.
                 EchoelValueField(label: compact ? "" : "Tempo", value: lockedBinding,
                                  range: Transport.minTempo...Transport.maxTempo, unit: "BPM",

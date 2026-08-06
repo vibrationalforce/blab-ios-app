@@ -242,8 +242,62 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**171** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheShownNumberIsTheKeptNumberTests.swift` (#432 — der erste
+                          `Tests/CISmoke` (**172** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `EveryReachableRowStatesItsGridTests.swift` (#440 — der erste
+                          Wächter in dieser Kette, dessen wichtigste Behauptung eine ERLAUBNIS ist und
+                          kein Verbot, und der deshalb den Abschluss der #427/#430-Familie bildet statt
+                          ihre Fortsetzung: nachdem #427 sechs Visual-Zeilen und #430 einundzwanzig
+                          Sound-Zeilen vom 4er-Default geholt haben, ist die interessante Frage nicht
+                          mehr „welche Zeile ist falsch", sondern „welche darf bleiben, und warum".
+                          Gemessen (paren-gematcht über `Sources/`, Kommentarzeilen entfernt — `git
+                          grep -c` zählt ZEILEN und nicht STELLEN, die #431-Falle): **62 Aufrufstellen,
+                          davon vier ohne eigenes `decimals:`**. Zwei sind repariert, zwei stehen
+                          begründet auf der Erlaubnisliste.
+                          ⭐ Die zwei reparierten sind ungleich, und die zweite ist die schwerere.
+                          Die FX-Bio-Mod-Zeile „LFO rate" (0,05…8 Hz) war eine reine Inkonsistenz —
+                          die ANDERE Zeile desselben Namens (Patch-Filter-LFO, 0…20 Hz) steht seit
+                          jeher auf 2, der ausgelieferte Default `FXModRoute().lfoRateHz` = 0,5 liegt
+                          exakt auf diesem Raster und beide Grenzen auch. Die KAMMERTON-Zeile
+                          (`WorkspaceView`, 380…500 Hz) war etwas anderes: ihr eigener Kommentar sechs
+                          Zeilen darüber verspricht „exact to 0.01 Hz", während `decimals` das SNAP-
+                          RASTER ist (#430) und die Zeile auf der Vorgabe 0,0001 Hz anbot. Das
+                          Founder-Video vom 2026-08-02, im selben Kommentar zitiert, zeigt `483,4352`
+                          auf dem Schirm — vier Stellen ließen ein versehentliches Scrollen wie eine
+                          Einstellung aussehen. Der Wert ist PERSISTIERT und stimmt jede Stimme.
+                          ⚠️ Und er KOSTET: ein gespeichertes 442,3456 rastert beim ersten Antippen
+                          auf 442,35, also 0,0197 Cent — rund 250× unter der ~5-Cent-Unterschieds-
+                          schwelle, damit unhörbar, aber ein SCHREIBVORGANG auf einem persistierten
+                          Wert, und als solcher neben der Zeile benannt statt durchgewunken.
+                          ⛔ **Und dieselbe Prüfung hat den #427-Eintrag in DIESER Datei widerlegt** —
+                          er zählte Kammerton und gesperrtes Tempo als die zwei, die „beide sagen
+                          „editable to 0.0001" im eigenen Kommentar". Nur `BodyTempoField` sagt das;
+                          die A4-Zeile sagte immer 0,01. Der #427-Eintrag oben trägt die Korrektur mit
+                          der Lehre: eine Behauptung über ZWEI Dinge wird geprüft, indem man BEIDE
+                          nachschlägt.
+                          ⭐ Das eigentliche Stück Arbeit ist deshalb der GEGENGEWICHTS-Test. Der
+                          aufgeräumt aussehende nächste Schritt ist ein Durchgang, der ALLE
+                          verbliebenen Stellen auf 2 setzt — und der würde still das eine Bedienelement
+                          vergröbern, mit dem ein Performer auf eine externe Uhr zieht (gesperrtes
+                          Tempo, `toggleLock` rundet auf 1e-4 und persistiert). Die Erlaubnisliste
+                          nennt beide Ausnahmen samt Grund (`BodyTempoField` absichtlich,
+                          `PianoRollView`s „Vel" unerreichbar seit #178) und prüft AUCH die
+                          Gegenrichtung: ein Eintrag, dessen Zeile es nicht mehr gibt, ist ein
+                          veralteter Freibrief und wird rot. Als Nebenwirkung fiel dabei
+                          `BodyTempoField`s Kommentar „…, like Kammerton" — die Gleichsetzung war nur
+                          zufällig wahr, weil BEIDE Zeilen still die 4 erbten.
+                          ⚠️ Was er NICHT kann, und das steht im Dateikopf: keine seiner Behauptungen
+                          ist ein Lauf. Vier sind Quelltext-Scans, einer ist Arithmetik auf
+                          `ScrubPrecision.gridded`; dass eine Zeile RENDERT, dass ein Finger über sie
+                          reist und dass 2 Stellen sich für einen LFO richtig ANFÜHLEN, ist eine
+                          Geräteprobe. **Und er hat eine benannte Blindstelle (#443):** der Scan sieht
+                          `EchoelValueField(`-Aufrufstellen, also auch die INNERHALB der drei
+                          weiterreichenden Helfer — `param`/`knob` sind sicher, weil #430 ihr
+                          `decimals` ausdrücklich PFLICHT gelassen hat, `EchoelFXView.field` nicht: es
+                          hat `decimals: Int = 2`, und seine 43 Aufrufstellen (33 davon still) sind
+                          dem Scan unsichtbar. Heute harmlos, weil 2 das Hausraster ist; eine Änderung
+                          dieser EINEN Zahl auf 4 vergröbert alle 33 auf einmal, ohne dass etwas rot
+                          wird),
+                          davor „171" nach `TheShownNumberIsTheKeptNumberTests.swift` (#432 — der erste
                           Wächter in dieser Kette über zwei RUNDUNGSREGELN für dieselbe Zahl, und der
                           Abschluss der #135/#416/#427/#431-Familie: das eine Parameter-Bedienelement
                           rundete, was es ZEIGT, anders als das, was es BEHÄLT. Behalten läuft über
@@ -648,7 +702,26 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Stellen wollen zwei die vier Nachkommastellen ausdrücklich (Kammerton A4,
                           gesperrtes Tempo, beide sagen „editable to 0.0001" im eigenen Kommentar) —
                           genau deshalb ist das KEINE App-weite Regel, sondern die #364-Falle, wenn
-                          man sie dazu macht),
+                          man sie dazu macht.
+                          ⛔ **UND DIE HÄLFTE DIESES SATZES ÜBER DEN KAMMERTON WAR FALSCH — geprüft
+                          bei #440, mit zwei `grep`s, die beim Schreiben nicht gemacht wurden.** Nur
+                          `BodyTempoField` sagt „editable to 0.0001 BPM" (drei Stellen, u. a. der
+                          eigene Dateikopf). Der Kommentar der A4-Zeile sagt seit jeher
+                          „exact to 0.01 Hz" (`WorkspaceView.swift`) — die Zeile war also nicht
+                          absichtlich auf vier Stellen, sondern lief auf der Vorgabe, während sechs
+                          Zeilen darüber zwei versprochen waren. Das ist keine Geschmacksfrage: der
+                          Wert ist PERSISTIERT und stimmt jede Stimme, und das Founder-Video vom
+                          2026-08-02 zeigt `483,4352` auf dem Schirm. #440 setzt die Zeile auf 2 und
+                          macht damit ihren eigenen Kommentar wahr; der KOSTENPUNKT steht neben ihr
+                          (ein gespeichertes 442,3456 rastert beim ersten Antippen auf 442,35, also
+                          0,0197 Cent — hörbar nicht, ein Schreibvorgang schon). **Die Lehre ist
+                          die des Absatzes über der Plattform-Tabelle in ihrer schärfsten Form: eine
+                          Behauptung über ZWEI Dinge wird geprüft, indem man BEIDE nachschlägt — hier
+                          stimmte eine Hälfte, und die zweite ist mitgereist, weil der Satz sich gut
+                          las.** Damit bleibt genau EINE Stelle, die die vier Stellen ausdrücklich
+                          will, und das ist der Grund, warum #440 sie in
+                          `Tests/CISmoke/EveryReachableRowStatesItsGridTests.swift` als
+                          Gegengewicht festnagelt statt sie mitzukehren),
                           davor „164" nach `TheBreathEdgeReachesHealthTests.swift` (#426 — der erste
                           Wächter in dieser Kette, der eine KONSTANTE an eine ANDERE Konstante kettet,
                           statt ein Verhalten oder eine Anzeige zu prüfen: `HealthWritePolicy`
@@ -1398,7 +1471,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 171 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTEINUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 172 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
