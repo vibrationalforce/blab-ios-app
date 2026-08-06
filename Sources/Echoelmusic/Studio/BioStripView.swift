@@ -708,7 +708,11 @@ struct BioStripView: View {
     /// readout and the EchoelAI narration share one answer to "is there a breath
     /// reading" — they had started to drift apart. `BreathGuideView` still owns a
     /// FOURTH, narrower test (`source == .cameraPPG && breathRate > 0`); it agrees today
-    /// only because `RespirationEstimator` clamps to 4…30, which sits inside this window.
+    /// only because `RespirationEstimator` reports inside 3.77…31.8, which sits inside this
+    /// window. (⛔ This line said "clamps to 4…30" — the clamp was REMOVED by #424, which
+    /// deliberately reports the raw EMA so a saturated value can never be mistaken for a
+    /// measurement. The agreement is now a property of the accept band, not of a clamp, and it
+    /// is narrower than it was: see `RespirationEstimator.reportableRange`.)
     private var breathString: String {
         guard let bio = bus.latestBio, bio.hasMeasuredBreath else { return "—" }
         return EchoelDecimalText.string(bio.breathRate, decimals: 1)

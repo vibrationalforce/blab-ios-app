@@ -36,9 +36,13 @@
 //   · They stop at `HealthWritePolicy.values(for:)`. Whether `HealthKitWriter` actually stores
 //     the sample needs HealthKit and a device; no CI host can answer it.
 //   · `values(for:)` is not the whole gate — `shouldWrite` decides whether anything is written
-//     at all, and it looks only at the heart rate. These tests deliberately do not restate that;
-//     `HealthWritePolicyTests` covers it, and a second weaker copy of a live claim is its own
-//     defect (#416).
+//     at all, and it checks `enabled`, `authorized`, the `minWriteGap`, **`isWritableSource`**
+//     and then the heart rate. (⛔ This bullet said "it looks only at the heart rate" for one
+//     commit, in the block whose job is the honest limits — and the omitted `isWritableSource`
+//     is the single fact that makes the widened bound safe, because it is what keeps
+//     `BioSimulator`'s flat 12 and `HealthKitBioPublisher`'s echo off this path.) These tests
+//     deliberately do not restate that gate; `HealthWritePolicyTests` covers it, and a second
+//     weaker copy of a live claim is its own defect (#416).
 //
 
 import Foundation
@@ -86,10 +90,19 @@ final class TheBreathEdgeReachesHealthTests: XCTestCase {
         return estimator
     }
 
-    /// A frame shaped exactly the way `CameraRPPGBioPublisher` builds one: the estimator's report
+    /// A frame shaped the way `CameraRPPGBioPublisher` builds one: the estimator's report
     /// narrowed to `Float`, source `.cameraPPG`. The narrowing matters — it is the only rounding
     /// on this path, and a test that compared against the `Double` would be testing a value the
     /// policy never sees.
+    ///
+    /// ⚠️ "EXACTLY THE WAY" WAS TOO STRONG FOR ONE COMMIT, and the gap is the kind this file is
+    /// about: the publisher gates on `resp.confidence >= 0.4 && resp.ratePerMinute > 0` before a
+    /// report becomes a `breathRate`, while the sweeps below gate only on `rate > 0`. So the
+    /// counts could in principle be measured over a superset of the shipped population. Measured:
+    /// at `minRate` the confidence gate does not bite at ANY of the nine pulses — 360 of 360
+    /// phases clear 0.4 at each — so every count in this file is identical on both populations.
+    /// The qualification stays because it will stop being true if the gate or the confidence
+    /// terms move.
     private static func cameraFrame(breathRate: Double, pulse: Double) -> BioSampleFrame {
         BioSampleFrame(timestamp: 1,
                        heartRateBPM: Float(pulse),
@@ -103,9 +116,10 @@ final class TheBreathEdgeReachesHealthTests: XCTestCase {
 
     // MARK: - The chain between the two constants
 
-    /// ⭐ THE STRUCTURAL GUARD. Red before #426 (`4.0 > 3.7736`) and red again the moment anyone
-    /// widens the estimator's acceptance band without deciding what that means for a health
-    /// record. It is the reason `respiratoryRange` may stay a literal.
+    /// ⭐ THE STRUCTURAL GUARD. Red if you revert only the constant (`4.0 > 3.7736`) — not
+    /// literally "before #426", since `reportableRange` arrived in the same commit — and red the
+    /// moment anyone widens the estimator's acceptance band without deciding what that means for
+    /// a health record. It is the reason `respiratoryRange` may stay a literal.
     func testThePolicyAdmitsEverythingTheEstimatorCanReport() {
         let reportable = RespirationEstimator.reportableRange
         let policy = HealthWritePolicy.respiratoryRange
@@ -127,8 +141,10 @@ final class TheBreathEdgeReachesHealthTests: XCTestCase {
 
     // MARK: - The behaviour that filter decides
 
-    /// ⭐ THE REGRESSION. Pre-#426 this failed at every one of the nine pulses (214/217/218/209/
-    /// 219/217/137/210/146 of 360 admitted). The rate swept is the estimator's own `minRate` —
+    /// ⭐ THE REGRESSION. Pre-#426 this failed at every one of the nine pulses — 214/217/218/209/
+    /// 219/217/137/210/146 of 360 ADMITTED, i.e. 146/143/142/151/141/143/223/150/210 dropped.
+    /// (Both directions are spelled out because the first version of the CLAUDE.md entry for this
+    /// slice printed the admitted counts as if they were the losses.) The rate swept is the estimator's own `minRate` —
     /// the resonance end the product is built around, not a contrived edge.
     func testTheSlowestBreathIsWrittenAtEveryRestingPulse() {
         for pulse in Self.restingPulses {

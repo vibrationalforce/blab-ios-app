@@ -249,10 +249,17 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           verwarf jede Atemmessung unter 4,0/min, weil ihre untere Grenze aus
                           `RespirationEstimator.minRate` abgeschrieben war — der Rate, die der
                           Schätzer ANZIELT, während er seit #424 im weiteren `reportableRange`
-                          (3,7736…31,8) MELDET. Ein Körper, der genau die Resonanzrate atmet, verlor
-                          damit auf dem Schreibweg **214 von 360** Phasen bei Puls 42 (217 bei 46,
-                          218 bei 50, 209 bei 55, 219 bei 62, 217 bei 70, 137 bei 84, 210 bei 90,
-                          146 bei 100) — neun Pulse, kein sauberer darunter.
+                          (3,7736…31,8) MELDET. Ein Körper, der genau die Resonanzrate atmet, kam
+                          damit auf dem Schreibweg nur mit **214 von 360** Phasen durch (Puls 42;
+                          217 bei 46, 218 bei 50, 209 bei 55, 219 bei 62, 217 bei 70, 137 bei 84,
+                          210 bei 90, 146 bei 100) — neun Pulse, kein sauberer darunter.
+                          ⛔ **Und diese neun Zahlen standen hier eine Fassung lang als VERLUSTE**
+                          („verlor 214 von 360"), während Commit-Text, Quelle und Testkopf sie
+                          übereinstimmend als DURCHGELASSENE führen — verloren gingen 146 bei Puls
+                          42. Derselbe Absatz zitiert zwei Bildschirme weiter oben im #424-Eintrag
+                          dieselben Zahlen richtig herum („von 344 auf 214"). Eine Zahl ohne ihre
+                          RICHTUNG ist keine Messung; wer eine Zählung überträgt, überträgt zuerst,
+                          was gezählt wurde.
                           ⭐ **Und der Schaden ist nicht „weniger Samples", sondern VERZERRUNG**, was
                           diesen Befund von einem konservativen Filter unterscheidet: der Schnitt lag
                           fast genau auf dem Mittelwert der korrigierten Verteilung, also überlebte
@@ -417,7 +424,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bandes als sichere Messung: bei 3,5 Atemzügen/min veröffentlichte der
                           Schätzer an **360 von 360** Phasen, davon an **358** mit `ratePerMinute`
                           exakt 4,000 (vorher: 37 Veröffentlichungen, nie auf der Grenze).
-                          `HealthWritePolicy.respiratoryRange` ist `4...40` und ENTHÄLT die 4,0 —
+                          `HealthWritePolicy.respiratoryRange` war `4...40` (seit #426 `3,7...40`) und ENTHÄLT die 4,0 —
                           die erfundene Zahl wäre als Atemfrequenz-Sample nach Apple Health
                           geschrieben und in `PerformerSignature` gelernt worden. Jetzt **ohne
                           Klemme** (und bei 1,02, was einen Commit später auf 1,055 korrigiert wurde

@@ -37,7 +37,7 @@
 // halves were wrong. 1.2 was ~180× the measured minimum repairing tolerance (1.00111); the
 // clamp turned the boundary into a rail — at 3.5 breaths/min the estimator published at 360 of
 // 360 phases with `ratePerMinute` exactly 4.000 at 358 of them, and
-// `HealthWritePolicy.respiratoryRange` (4...40) CONTAINS 4.0, so a fabricated value would have
+// `HealthWritePolicy.respiratoryRange` (4...40 then; 3.7...40 since #426) CONTAINS 4.0, so a fabricated value would have
 // been written to Apple Health. `testTheReportedRateIsAMeasurementAndNotARail` is the guard.
 //
 // ⛔ WHY THIS IS A GUARD AND NOT JUST A FIX. The obvious objection to widening an acceptance
@@ -255,7 +255,7 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
     /// body breathing BELOW the band published `ratePerMinute` exactly 4.000 at 358 of 360
     /// phases (at 3.5/min), confidently, where before #424 it published at 37 and never at the
     /// boundary. A saturating output on a measurement path invents data at the rail, and
-    /// `HealthWritePolicy.respiratoryRange` (4...40) contains that rail — it would have reached
+    /// `HealthWritePolicy.respiratoryRange` (4...40 then; 3.7...40 since #426) contains that rail — it would have reached
     /// Apple Health as a respiratory sample.
     ///
     /// So the property worth holding is not "inside the band" but "NOT PINNED TO THE BAND": a
@@ -350,7 +350,7 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
             The reported rate is clamped back into the advertised band again. That looks like \
             contract hygiene and is a fabrication: a breather outside the band then publishes \
             EXACTLY `minRate`/`maxRate` with full confidence, and \
-            `HealthWritePolicy.respiratoryRange` (4...40) contains those values, so the invented \
+            `HealthWritePolicy.respiratoryRange` (4...40 then; 3.7...40 since #426) contains those values, so the invented \
             number reaches Apple Health. Bound the overshoot instead — at the shipped tolerance \
             it is 0.064/min above `maxRate` at this fixture's 60 bpm pulse and 0.074 at 90.
             """)

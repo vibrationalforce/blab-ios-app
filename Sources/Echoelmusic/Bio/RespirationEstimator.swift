@@ -211,9 +211,12 @@ public struct RespirationEstimator {
     /// covers every pulse ≥ 31 with 0.0005 to spare over the worst one. Measured cost of the
     /// raise: **none.** Worst |error| at 5, 6, 10, 15, 20, 4.25, 21.5 and 24/min is bit-identical;
     /// the 4/min report at pulses 42, 60 and 90 is bit-identical (3.81204 / 3.99993 / 3.91234);
-    /// health-writable counts are identical (214 / 120 / 210 of 360); the 3.5/min out-of-band body
-    /// publishes at the same 61 phases with the same 37 in `respiratoryRange` and never on the
-    /// rail; the stale window is identical (22.687 s at 3.5/min); and the still-hand confidence is
+    /// health-writable counts are identical (214 / 120 / 210 of 360 — ⛔ those are the counts
+    /// under the OLD `respiratoryRange` of `4...40`; #426 widened it to `3.7...40` and they are
+    /// 360 / 360 / 360 today, so this line measures a comparison between two tolerances and no
+    /// longer a shipped count); the 3.5/min out-of-band body publishes at the same 61 phases
+    /// with the same 37 in `respiratoryRange` (⛔ likewise pre-#426: at the widened bound it is
+    /// **61 of 61**, and 115 of 115 at pulse 42, 62 of 62 at pulse 90) and never on the rail; the stale window is identical (22.687 s at 3.5/min); and the still-hand confidence is
     /// unchanged. It buys margin and four bpm of bradycardia for nothing measurable.
     ///
     /// ⭐ AND THE REAL ARGUMENT FOR THE WIDER VALUE IS NOT THE SILENCE, IT IS THE BIAS — found
@@ -227,6 +230,10 @@ public struct RespirationEstimator {
     /// made someone look; the bias is what was wrong.
     ///
     /// ⛔ THAT FACTOR IS THE CONSUMER-PATH ONE AND WAS QUOTED TO JUSTIFY A HEALTH-PATH TRADE.
+    /// (⭐ THE TRADE ITSELF IS GONE SINCE #426 — the bound moved to 3.7 and the written subset is
+    /// now the published population, so the health-path improvement over pre-#424 is ~5.2× after
+    /// all. The paragraph stays for its method, not its verdict: measure the improvement on the
+    /// population that PAYS the cost, and re-check that population when the cost moves.)
     /// The ⛔ below defends losing ~40 % of the health-writable samples with "each ~5× closer to
     /// the truth". Wrong population: what reaches Apple Health is the `≥ 4.0` subset, and
     /// `HealthWritePolicy` truncates at almost exactly the mean of the corrected distribution, so
@@ -240,7 +247,10 @@ public struct RespirationEstimator {
     /// choosing, not after: the out-of-band 3.5/min body publishes at 61 phases with 37 landing in
     /// `HealthWritePolicy.respiratoryRange` (the 37 is identical to pre-#424; the 61 is NOT — that
     /// is the widened band answering more often, and the first version of this line let one
-    /// "identical" cover both), the stale window is 22.687 s (identical), every interior
+    /// "identical" cover both. ⛔ AND THE 37 IS NOW PRE-#426 HISTORY TOO: the policy bound moved
+    /// to 3.7 in that commit and all 61 land in range. Two live figures about a constant an
+    /// adjacent commit edited — this file's own rule is that a correction is applied at every
+    /// site in the commit that makes it, and #426 missed both until review), the stale window is 22.687 s (identical), every interior
     /// worst-error is identical to the last digit, and the still-hand counterweight is unchanged
     /// under 1.0, 1.02, 1.055 and 1.06 alike. What DOES move is the silence: zero at 4/min and
     /// 30/min at every pulse from 37 to 118, and the worst 4/min error at pulse 46 falls
@@ -318,8 +328,25 @@ public struct RespirationEstimator {
     /// fraction of its (correct) measurements silently dropped on the write path, and the
     /// surviving ones were the high-biased half. See the ⛔ on the health path above.
     ///
+    /// ⚠️ THE OUTPUT SET IS `{0} ∪ reportableRange`, NOT THE RANGE ALONE. `ratePerMinute` is 0
+    /// until a full cycle has been measured (see its own doc below, and
+    /// `CameraRPPGBioPublisher`'s `ratePerMinute > 0` gate, which exists for exactly that). A
+    /// consumer that writes `reportableRange.contains(rate)` without checking `> 0` first gets
+    /// the right answer by luck, not by this contract.
+    ///
     /// ⚠️ This is a bound on what the arithmetic can EMIT, not a promise about accuracy. A
-    /// report at 31.8 is a badly-conditioned 30/min measurement, not a 31.8/min breather.
+    /// report at 31.8 is a badly-conditioned 30/min measurement, not a 31.8/min breather. (The
+    /// bound is convex-combination exact; in `Double` a rounding step can put the result one ulp
+    /// outside. Irrelevant against any real consumer's margin, but "cannot" would be too strong.)
+    ///
+    /// ⚠️ FOUR RESPIRATION BANDS NOW EXIST IN THIS REPO and they are deliberately different, so
+    /// nobody unifies them by reflex: this one (what the estimator can emit),
+    /// `EngineBus.plausibleBreathRate` `3...40` (is this frame a measurement at all — gates the
+    /// readout, OSC egress and `PerformerSignature`), `HealthWritePolicy.respiratoryRange`
+    /// `3.7...40` (may this be written into a health record — the strictest act, hence the
+    /// narrowest low end above this one), and `ModSource.breathRate.range` `4...30` (a modulation
+    /// SCALING range, not a validity test — and the one place the `minRate`/`maxRate` mistake is
+    /// still live; registered, not fixed here, because changing it changes shipped sound).
     public static var reportableRange: ClosedRange<Double> {
         (minRate / bandTolerance)...(maxRate * bandTolerance)
     }
