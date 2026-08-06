@@ -104,7 +104,46 @@ public struct RespirationEstimator {
             lastCrossT = t
         }
 
-        // Confidence: meaningful swing AND a few consistent cycles seen.
+        refreshConfidence(at: t)
+    }
+
+    /// Age `confidence` forward to `t` WITHOUT feeding a beat.
+    ///
+    /// ⭐ THE STALENESS TERMS ONLY RUN WHEN A BEAT ARRIVES, and that is not the same thing as
+    /// "when time passes". `ingest` is the only writer of `confidence`, so a host that keeps
+    /// publishing while the beat supply dries up freezes the last value indefinitely — the
+    /// very latch the freshness term and the envelope veto were written to prevent, reached by
+    /// a path neither of them can see.
+    ///
+    /// It is a real device state, not a thought experiment: `CameraAnalyzer` returns early
+    /// without touching `rrIntervals`/`beatTimes` when it finds fewer than three peaks, while
+    /// `fallbackBPM` keeps `estimatedBPM` and `bpmConfidence` alive off the autocorrelation.
+    /// The analyzer names that case itself ("peaks<3 with a strong acf → rounded waveform").
+    /// So the publisher goes on emitting bio frames at ~1 Hz with ZERO beats reaching here,
+    /// and a confidence of 1.0 earned a minute ago keeps certifying a breathing rate.
+    ///
+    /// Hence the pull: the host calls this every publish, and staleness becomes a function of
+    /// the clock rather than of the supply. Nothing else moves — the filters, the envelope and
+    /// the cycle count are untouched, so a beat that arrives later behaves exactly as before,
+    /// and because only the freshness factor depends on `t`, ageing can never RAISE confidence.
+    ///
+    /// `t` must be on the same clock as `ingest` (the camera path uses
+    /// `ProcessInfo.processInfo.systemUptime`). Ageing to a time before the last beat is
+    /// refused rather than clamped: it means the caller mixed clocks, and silently accepting
+    /// it would hide that.
+    public mutating func age(to t: Double) {
+        guard t.isFinite, t >= (lastT ?? t) else { return }
+        refreshConfidence(at: t)
+    }
+
+    /// The confidence expression, evaluated at time `t`. Split out of `ingest` so `age(to:)`
+    /// can run it without a sample; the arithmetic is unchanged.
+    private mutating func refreshConfidence(at t: Double) {
+        let e = Swift.max(env, 1e-6)
+
+        // Confidence: meaningful swing AND a few consistent cycles seen — but read the veto
+        // below before trusting that sentence: past four crossings the count term is dead and
+        // the expression is `envConf * freshness` exactly.
         let envConf = Swift.min(1.0, e / 1.5)                 // ~1.5 bpm RSA = decent
         // ⭐ THE ENVELOPE VETOES THE COUNT, so the whole expression obeys one stated
         // invariant: `confidence <= envConf * freshness`. We may never claim more certainty
@@ -122,11 +161,27 @@ public struct RespirationEstimator {
         // veto the same series ends at 0.048 and the gate closes.
         //
         // ⚠️ IT COSTS THE SHALLOWEST BREATHERS, and that is a deliberate trade, not an
-        // oversight. Measured on 60 s of clean 6/min: an RSA swing of 1.2 bpm reads 0.448
-        // (still measured), 1.0 bpm reads 0.373 — below the 0.4 gate, where the old blend
-        // would have said 0.686. Such a body now falls back to the paced guide instead of
-        // driving the ball. That is the designed fallback; narrating a rate read out of noise
-        // is not, and is the worse failure of the two.
+        // oversight. Measured on 60 s of clean 6/min: an RSA swing of ±1.2 bpm (2.6 bpm
+        // peak-to-peak) reads 0.448 (still measured), ±1.0 (2.1 p-p) reads 0.373 — below the
+        // 0.4 gate, where the old blend would have said 0.686. The gate closes below ±1.07 at
+        // phase 0 and ±1.28 at the worst phase. Such a body falls back to the paced guide
+        // instead of driving the ball. That is the designed fallback; narrating a rate read
+        // out of noise is not, and is the worse failure of the two.
+        //
+        // ⛔ The ± matters and the first version of this note omitted it. RSA is conventionally
+        // quoted PEAK-TO-PEAK, so a bare "1.0 bpm" understates the cost by a factor of two to
+        // anyone applying the convention. At the 6/min resonance rate — where the whole point
+        // is that RSA is MAXIMISED — a healthy adult sits far above 2.6 bpm p-p, which is why
+        // the trade is defensible on signal grounds and not merely on principle.
+        //
+        // ⚠️ AND IT DOES NOT YET DO THIS ON THE DEVICE. `CameraAnalyzer` takes peak times at
+        // whole-sample resolution (no sub-sample interpolation) and the camera runs at
+        // 7.5–15 fps, so every interval is quantised to 67–133 ms — ±4 to ±8 bpm of aliasing
+        // noise at 60 bpm, several times the 1.5 bpm scale this floor is set to. A still hand
+        // can therefore clear the gate on quantisation alone. The invariant here is right and
+        // strictly better than the old blend, but "separates a shallow breather from noise"
+        // only becomes true of the shipped path once peak timing is sub-sample. Do not quote
+        // this comment as evidence that it already does.
         let countConf = Swift.min(Swift.min(1.0, Double(crossingCount) / 4.0), envConf)
 
         // ⭐ FRESHNESS — a reported rate is only as good as the last cycle that produced it.

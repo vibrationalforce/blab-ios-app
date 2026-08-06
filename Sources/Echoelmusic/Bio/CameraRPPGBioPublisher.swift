@@ -597,7 +597,10 @@ public final class CameraRPPGBioPublisher {
     /// the refill, and cannot destabilise the exposure state machine because it never
     /// touches it. `displayBPM` is held by the publish loop across the refill (it never
     /// advances on bpm=0), so the SHOWN pulse holds instead of snapping to 0 — the same
-    /// contract the two existing `resetForRecovery()` call sites rely on.
+    /// contract every other `resetForRecovery()` call site relies on. (This said "the two
+    /// existing" call sites; with this one there are three, and the count is written out at
+    /// the `respiration.reset()` comment. Left as a relative statement so it cannot go stale
+    /// a second time.)
     ///
     /// 30 s of CONTINUED weakness *after* the budget ran out, self-rate-limited: the
     /// flush zeroes the counter and empties the window, so `weakTicksStep`'s
@@ -1080,8 +1083,22 @@ public final class CameraRPPGBioPublisher {
                         self.respiration.ingest(heartRate: 60_000.0 / ms, at: t)
                     }
                 }
+                // Age BEFORE reading. The estimator's staleness terms only run inside
+                // `ingest`, so without this a take whose beat supply dries up — `CameraAnalyzer`
+                // returns early on fewer than three peaks while `fallbackBPM` keeps the pulse
+                // alive, so this loop still publishes — would freeze `confidence` at whatever
+                // it last earned. Same clock as the beats (`systemUptime`, see the frame sink).
+                self.respiration.age(to: ProcessInfo.processInfo.systemUptime)
                 let resp = self.respiration
-                let measuredBreath = resp.confidence >= 0.4
+                // BOTH halves, and the second one is not redundant. `confidence` bounds the
+                // claim about the SWING; it says nothing about whether a period was ever
+                // measured. With zero crossings and a healthy envelope the expression is
+                // `0.5 * envConf`, which clears 0.4 — the original #343 symptom, "breath
+                // measured: yes, rate: zero". `breathRate` was harmless there (0 either way),
+                // but `breathPhase` published `resp.amplitude`: a real number carrying no
+                // measured period, straight into `BreathArp.direction` and `BioComposer`'s
+                // inhale bias. A rate of zero is not a measurement, so it is not published.
+                let measuredBreath = resp.confidence >= 0.4 && resp.ratePerMinute > 0
                 let frame = BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     heartRateBPM: Float(bpm),
@@ -1333,13 +1350,17 @@ public final class CameraRPPGBioPublisher {
         // estimator's state, or the first beats of the next take would be skipped.
         //
         // Deliberately NOT reset on any of the THREE `analyzer.resetForRecovery()` sites —
-        // two exposure re-locks in `manageExposure()` (a weak-signal re-lock and a
-        // finger-off/re-placement flush) and the stall recovery in
-        // `handleCameraSessionReset()`. An earlier version of this comment named only the
-        // third, which made the argument look narrower than it is and hid the one site where
-        // the obvious justification does NOT hold: at a re-placement the finger may have been
-        // off the lens entirely, so "the person is still breathing" is an assumption about the
-        // body, not about the signal.
+        // two in `manageExposure()`, guarded by `deadWindowNeedsFlush` and
+        // `weakLockNeedsResettle`, plus the stall recovery in `handleCameraSessionReset()`.
+        // Named by their guards on purpose: an earlier version described them in prose ("a
+        // weak-signal re-lock and a finger-off/re-placement flush") and got the two the wrong
+        // way round — `deadWindowNeedsFlush` fires with the finger ON the lens after minutes
+        // of conf 0.00, `weakLockNeedsResettle` is the re-placement one. It also named only
+        // the third site at all, which hid the one where the obvious justification does NOT
+        // hold: at a re-placement the finger may have been off the lens entirely, so "the
+        // person is still breathing" is an assumption about the body, not about the signal.
+        // (Not the full set of beat-supply interruptions either: `CameraAnalyzer` clears both
+        // arrays on a true lock loss without going through `resetForRecovery`.)
         //
         // The reason it is still right is not that assumption but the estimator's own ageing:
         // timestamps only move forward, and its freshness term plus the envelope veto let

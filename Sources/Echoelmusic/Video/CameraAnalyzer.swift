@@ -68,7 +68,11 @@ final class CameraAnalyzer {
     /// as a large `dt`, which is the consumer's business to handle.
     ///
     /// `@ObservationIgnored` on purpose, unlike `rrIntervals` right above: this array exists
-    /// for ONE non-view consumer (the publisher's 10 Hz drain) and is rewritten about once a
+    /// for ONE non-view consumer — the publisher's drain, which sits behind a `tick % 10`
+    /// guard inside a 100 ms loop and therefore runs at ~1 Hz, not the 10 Hz of the loop
+    /// itself. (That poll-rate-versus-apply-rate slip is the one CLAUDE.md blames for #315,
+    /// #332 and #336; the first version of THIS comment made it a fourth time, and
+    /// contradicted its own next sentence doing so.) The array is rewritten about once a
     /// second. Leaving it observed would put a ~1 Hz invalidation source in reach of any body
     /// that happened to touch it — the exact shape of the menu-freeze law in CLAUDE.md. It is
     /// cheaper to withhold observation from a property no view should ever read than to rely

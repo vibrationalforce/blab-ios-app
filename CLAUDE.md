@@ -251,12 +251,20 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           die Atemrate liest sich aus dem Abstand ZWEIER aufsteigender Nulldurchgänge, ein
                           Fenster über EINEN Atemzyklus enthält höchstens einen. Bei 6 Atemzügen/min — der
                           HRV-Resonanzrate, die `BioScienceInfo` zitiert und `BreathPacer` vorgibt — IST der
-                          Zyklus 10 s. Simuliert über die ausgelieferten Konstanten bei vier Startphasen:
-                          `ratePerMinute` jedes Mal 0, `confidence` 0,46–0,50 und damit ÜBER dem 0,4-Tor des
-                          Publishers. „Atem gemessen: ja. Rate: null." Bei 15/min war derselbe Code bei jeder
-                          Phase richtig — deshalb fiel es nie auf, und deshalb hat die Datei einen dritten
-                          Test, der genau das festhält: der Befund ist RATENABHÄNGIG, das Fenster war nie
-                          „zu kurz" im Allgemeinen. Die Reparatur ist NICHT ein längeres Fenster (#340 nennt
+                          Zyklus 10 s. Simuliert über die ausgelieferten Konstanten über ALLE 360
+                          Ganzgrad-Startphasen: `confidence` 0,458–0,625 und damit an JEDER ÜBER dem
+                          0,4-Tor, während `ratePerMinute` an 345 Phasen 0 blieb und an 15 eine erfundene
+                          7,4 meldete. „Atem gemessen: ja. Rate: null — oder falsch." Bei 15/min war
+                          derselbe Code an 278 von 360 Phasen richtig; deshalb fiel es nie auf, und deshalb
+                          hat die Datei einen dritten Test, der genau das festhält: der Befund ist
+                          RATENABHÄNGIG, das Fenster war nie „zu kurz" im Allgemeinen.
+                          ⛔ Und dieser Absatz stand bis 2026-08-06 auf „vier Startphasen · jedes Mal 0 ·
+                          0,46–0,50 · bei jeder Phase richtig" — VIER Behauptungen, alle aus vier
+                          Stichproben gezogen, alle vom Sweep widerlegt. Der Nullpunkt-Start von
+                          `smooth`/`prevSmooth` erzeugt an einem schmalen Phasenband einen Nulldurchgang,
+                          der kein Atemzug ist; vier Stichproben laufen daran vorbei. **Die Lehre ist
+                          nicht „mehr Stichproben", sondern: eine Aussage über ALLE Phasen darf nicht aus
+                          einer Handvoll gezogen werden — man wischt oder man formuliert schwächer.** Die Reparatur ist NICHT ein längeres Fenster (#340 nennt
                           die 10 s den größten Einzelposten im Bio→Audio-Budget), sondern EIN Schätzer pro
                           Take, jeder Herzschlag genau einmal eingespeist — wofür `CameraAnalyzer.beatTimes`
                           neu entsteht: die Fenster überlappen zu ~90 % und Intervall-WERTE tragen keine

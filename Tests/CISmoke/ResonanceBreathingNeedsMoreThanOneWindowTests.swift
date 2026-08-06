@@ -11,12 +11,19 @@
 // 6/min is not an arbitrary corner. It is the HRV-resonance rate this app cites in
 // `BioScienceInfo` (Lehrer/Vaschillo) and paces toward in `BreathPacer`. So the camera was
 // structurally blind exactly where the product aims, and it said so in the least useful way:
-// `confidence` still landed at 0.46–0.50 — ABOVE the 0.4 gate the publisher uses — while
-// `ratePerMinute` stayed 0. "Breath measured: yes. Rate: zero."
+// `confidence` still landed at 0.458–0.625 — ABOVE the 0.4 gate the publisher then used — at
+// EVERY one of 360 whole-degree phases, while `ratePerMinute` stayed 0 at 345 of them and
+// read a fabricated 7.4 at the other 15. "Breath measured: yes. Rate: zero, or wrong."
 //
-// It went unnoticed because it is RATE-DEPENDENT, which `testFasterBreathingAlwaysWorked`
-// pins: at 15 breaths/min a 10 s window holds two or three crossings and the old code was
-// right at every phase. Anyone testing by breathing normally saw a working feature.
+// ⛔ THIS PARAGRAPH IS WHERE THE FILE FIRST LIED TO ITSELF. It said "0.46–0.50 … rate stayed
+// 0", sampled from four hand-picked phases, and it survived a whole commit whose thesis was
+// that four phases are not a sweep — the corrected copy went into
+// `CameraRPPGBioPublisher.swift` while this one, the passage a reader meets FIRST, stood.
+// A header is not commentary on the tests below it; it is the claim they support.
+//
+// It went unnoticed because it is RATE-DEPENDENT, which `testFasterBreathingMostlyWorked`
+// pins: at 15 breaths/min a 10 s window usually holds two or three crossings, so the old code
+// was right at 278 of 360 phases. Anyone testing by breathing normally saw a working feature.
 //
 // THE FIX is not a longer window (that costs latency everywhere — see #340, which calls the
 // 10 s window the single largest item in the bio→audio budget). It is to stop throwing the
@@ -32,19 +39,34 @@
 //   · The wiring half is a source scan, so it can confirm that the estimator is long-lived
 //     and reset on stop, not that the values reach the ear.
 //   · Real RSA is noisier and shallower than a clean sine. The thresholds here are floors
-//     against the STRUCTURAL failure (rate identically 0), not quality judgements.
-//   · ⛔ ONLY FOUR OF THESE EIGHT TESTS COULD FAIL BEFORE THEIR FIX: the two source scans
-//     (the long-lived estimator, the paired `beatTimes`) and the two staleness guards
-//     (`…ExpiresWhenTheBreathingStops`, `…WeakNoisySignal…`). The other four describe the
-//     PURE estimator's arithmetic, which none of these commits changed — they are green on
-//     both sides and exist to state the SHAPE of the defect, not to catch its return.
-//     Saying so is the point: a file that reads as eight regression guards while holding
-//     four is the same kind of overclaim this repo keeps paying for.
+//     against the STRUCTURAL failure (one window never reaching the true rate), not quality
+//     judgements. Test 1 asserts `|rate − 6| > 1`, not `rate == 0` — see its own ⛔ note.
+//   · Nothing here sees the DEVICE's noise floor. `CameraAnalyzer` takes peak times at
+//     whole-sample resolution at 7.5–15 fps, so real intervals carry ±4 to ±8 bpm of
+//     quantisation aliasing — several times the 1.5 bpm scale the confidence floor is set to.
+//     These tests drive the pure estimator with exact timestamps, so they prove the
+//     arithmetic and say nothing about how well the shipped path separates a shallow breather
+//     from a still hand. That needs sub-sample peak timing first, and then a device run.
+//   · ⛔ SIX OF THESE ELEVEN TESTS COULD FAIL ON THE CODE THEY GUARD: the three source scans
+//     (the long-lived estimator, the paired `beatTimes`, the evidence-gated publish) and the
+//     three staleness guards (`…ExpiresWhenTheBreathingStops`, `…WeakNoisySignal…`,
+//     `…AgesWithTheClock…`). `…AgeingInsideTheGraceWindow…` is a counterweight — it holds a
+//     bound that must NOT move, and it could only fail if the grace were tightened later.
+//     The remaining four describe the pure estimator on inputs these commits
+//     leave bit-identical — they are green on both sides and exist to state the SHAPE of the
+//     defect, not to catch its return. That is NOT the same as "the arithmetic did not
+//     change": `32c3dcc` changed the confidence expression, which moved
+//     `testAccumulatingAcrossWindows…`'s worst-phase value from 0.9716 to 0.9432. Those
+//     assertions are live upper bounds on the veto; do not read this bullet as licence to
+//     loosen them.
 //   · The generator's ±3 bpm RSA swing is not incidental. The "harmful, not merely
-//     incomplete" half — that the publisher's 0.4 gate stands OPEN while the rate is wrong
-//     — needs a swing of roughly 2.5 bpm or more. At 1 bpm the same window reads confidence
-//     0.15–0.29 and the old behaviour was honest silence. The defect was always about a
-//     clearly breathing body, never about a faint signal.
+//     incomplete" half — that the 0.4 confidence gate stands open while the rate is wrong —
+//     holds at every phase only down to a swing of about ±2.62. At ±2.5, 134 of 360 phases
+//     already fall below the gate, so `testOneWindowCannotMeasureResonanceBreathing` would
+//     go red; at ±1 the window reads 0.15–0.29 and the old behaviour was honest silence.
+//     ⛔ The first version of this bullet said "roughly 2.5 bpm or more" — the last
+//     hand-picked figure in a file whose whole thesis is that hand-picked is not swept, and
+//     wrong in the direction that invites someone to lower the constant.
 
 import Foundation
 import XCTest
@@ -94,12 +116,16 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
                                  do not delete it, it is the reason the estimator is \
                                  long-lived.
                                  """)
-            // The half that makes it harmful rather than merely incomplete: the publisher's
-            // gate stands OPEN, so the frame is published as a measured breath regardless.
+            // The half that made it harmful rather than merely incomplete: the CONFIDENCE
+            // gate stands open, so the frame went out as a measured breath regardless.
+            // (The publisher now also requires `ratePerMinute > 0` — see
+            // `testThePublishGateAlsoRequiresARate`. This assertion is about the estimator,
+            // which is where the mismatch lives, and it is what that second condition exists
+            // to compensate for.)
             XCTAssertGreaterThanOrEqual(
                 estimator.confidence, Self.measuredBreathGate,
                 """
-                Phase \(phase): confidence \(estimator.confidence) fell below the publisher's \
+                Phase \(phase): confidence \(estimator.confidence) fell below the \
                 \(Self.measuredBreathGate) gate. That would make the old behaviour honest \
                 (no claim at all) and this test's premise wrong — recheck before trusting it.
                 """)
@@ -303,6 +329,111 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// `beatTimes` only works as a de-duplication key while it stays 1:1 with `rrIntervals`.
     /// The two are produced together today; this holds the pairing so a later edit to one
     /// side cannot silently desynchronise them into an off-by-one respiration signal.
+    // MARK: - Staleness the estimator cannot see from inside
+
+    /// ⭐ THE THIRD LATCH, and the one neither earlier term can reach. Both the freshness
+    /// factor and the envelope veto are evaluated inside `ingest`, so they measure "beats
+    /// since the last cycle", not "time since the last cycle". A take whose beat supply dries
+    /// up while the publisher keeps running therefore freezes `confidence` at whatever it last
+    /// earned — forever, with no breathing and no beats.
+    ///
+    /// It is a real device state: `CameraAnalyzer` returns early without touching
+    /// `rrIntervals`/`beatTimes` when it finds fewer than three peaks, while `fallbackBPM`
+    /// keeps the pulse alive off the autocorrelation and the publisher goes on emitting
+    /// frames. The analyzer names that case in its own source ("peaks<3 with a strong acf").
+    ///
+    /// The first half of this test is the defect; the second is the proof that the fix is the
+    /// PULL and not something the old code already did.
+    func testConfidenceAgesWithTheClockNotOnlyWithBeats() {
+        var aged = RespirationEstimator()
+        for beat in Self.rsaBeats(seconds: 60,
+                                  breathsPerMinute: Self.resonanceBreathsPerMinute,
+                                  phase: 0) {
+            aged.ingest(heartRate: beat.heartRate, at: beat.time)
+        }
+        var frozen = aged        // value type: an exact copy of the same earned state
+        XCTAssertGreaterThanOrEqual(aged.confidence, Self.measuredBreathGate,
+                                    "premise: 60 s of clean RSA must read as measured first")
+
+        // 30 s pass. No beats reach the estimator — only the clock moves.
+        aged.age(to: 90)
+        XCTAssertLessThan(aged.confidence, Self.measuredBreathGate,
+                          """
+                          30 s after the last beat, with the clock pulled forward, the \
+                          estimator still reports \(aged.confidence) — so a take whose beat \
+                          supply dried up keeps publishing \(aged.ratePerMinute) \
+                          breaths/min as MEASURED. `age(to:)` is what makes staleness a \
+                          function of time rather than of supply; do not remove it.
+                          """)
+        // And the copy that was never aged proves the old behaviour was the freeze, i.e. that
+        // the assertion above is not passing for some unrelated reason.
+        XCTAssertGreaterThanOrEqual(frozen.confidence, Self.measuredBreathGate,
+                                    """
+                                    Without the pull the value should still be frozen at what \
+                                    it earned; it reads \(frozen.confidence). If this fails, \
+                                    something else now ages the estimator and the test above \
+                                    is no longer measuring what it claims.
+                                    """)
+        // Silence the "never mutated" warning honestly: this IS the mutation under test —
+        // ageing backwards must be refused, so the copy stays exactly where it was.
+        frozen.age(to: 0)
+        XCTAssertGreaterThanOrEqual(frozen.confidence, Self.measuredBreathGate,
+                                    """
+                                    Ageing to a time BEFORE the last beat changed the value. \
+                                    That means a caller mixing clocks could silently revive a \
+                                    stale confidence; the guard in `age(to:)` must refuse it.
+                                    """)
+    }
+
+    /// The counterweight, and the reason the pull is safe to call on every publish: ageing to
+    /// a time inside the grace window must be a no-op, or a breather at the 6/min resonance
+    /// rate would be expired between their own cycles — 10 s apart, longer than most naive
+    /// timeouts, which is exactly the body this product is built around.
+    func testAgeingInsideTheGraceWindowChangesNothing() {
+        var estimator = RespirationEstimator()
+        for beat in Self.rsaBeats(seconds: 60,
+                                  breathsPerMinute: Self.resonanceBreathsPerMinute,
+                                  phase: 0) {
+            estimator.ingest(heartRate: beat.heartRate, at: beat.time)
+        }
+        let earned = estimator.confidence
+        estimator.age(to: 61)
+        XCTAssertEqual(estimator.confidence, earned, accuracy: 1e-12,
+                       """
+                       One second after the last beat the confidence moved from \(earned) to \
+                       \(estimator.confidence). The grace window is 1.5 expected periods for \
+                       a reason: a resonance breather is silent for 10 s at a time between \
+                       cycles, and expiring them inside that is the opposite defect.
+                       """)
+    }
+
+    /// ⭐ THE SURVIVING "MEASURED, RATE ZERO". `confidence` bounds the claim about the SWING;
+    /// it says nothing about whether a period was ever measured. With zero crossings and a
+    /// healthy envelope the expression is `0.5 * envConf`, which clears 0.4 — so 345 of the
+    /// 360 one-window phases in the first test would still have published as measured.
+    ///
+    /// `breathRate` was harmless there (0 either way), but `breathPhase` carried
+    /// `resp.amplitude` — a real number with no measured period — into `BreathArp.direction`
+    /// and `BioComposer`'s inhale bias. The publish gate therefore needs both halves.
+    ///
+    /// A source scan, so it holds the WIRING, not the arithmetic: the two behavioural halves
+    /// live in the tests above.
+    func testThePublishGateAlsoRequiresARate() throws {
+        let text = Self.codeOnly(try Self.source("Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift"))
+        XCTAssertTrue(text.contains("resp.confidence >= 0.4 && resp.ratePerMinute > 0"),
+                      """
+                      The publish gate no longer requires a measured RATE. Confidence alone \
+                      admits the zero-crossing case: `breathPhase` then publishes an \
+                      amplitude that no period supports, into the composer's inhale bias.
+                      """)
+        XCTAssertTrue(text.contains("respiration.age(to:"),
+                      """
+                      The publisher no longer ages the estimator before reading it. Without \
+                      that pull, a take whose beat supply dries up freezes `confidence` at \
+                      its last value — see `testConfidenceAgesWithTheClockNotOnlyWithBeats`.
+                      """)
+    }
+
     /// ⛔ ADJACENCY, not a head-count. The first version compared two totals, which two
     /// unrelated edits — one site losing its pairing while a third gained one — would leave
     /// perfectly balanced. It counted, it did not pair. This walks the lines and requires the
