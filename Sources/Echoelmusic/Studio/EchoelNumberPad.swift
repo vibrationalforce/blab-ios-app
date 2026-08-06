@@ -19,12 +19,24 @@ import Foundation
 /// THE DEFECT IT CLOSES (#431). `commit()` snaps to the field's `10^-decimals` grid, and
 /// nothing stopped the buffer from growing past it. On a two-place row a player typed
 /// `0.375`, READ `0.375` in the 30 pt readout, tapped OK and got `0.38`. The readout was not
-/// a preview of the commit; it was a promise the commit did not keep. Reach, counted by
-/// paren-matching every `EchoelValueField(` construction in `Sources/`: **64 sites — 40 pass
-/// `decimals: 2`, 11 pass `0`, 10 take the 4-place default**, plus the two forwarding helpers
-/// (`EchoelFXView.param`, which itself defaults to 2, and `EchoelStudioView`'s `param`/`knob`)
-/// that render many more rows from one site. The `decimals: 0` rows were never exposed — their
-/// separator key is already disabled by `allowsDecimal`.
+/// a preview of the commit; it was a promise the commit did not keep. Reach, paren-matched over
+/// `Sources/` with whole-line comments EXCLUDED: **62 construction sites — 40 pass `decimals: 2`,
+/// 11 pass `0`, 10 take the 4-place default, and 1 forwards** (`EchoelFXView.field`, itself
+/// `decimals: Int = 2`). Three of those 62 render many rows each — `field` here, `param` and
+/// `knob` in `EchoelStudioView` (both already inside the 10 defaults). The `decimals: 0` rows
+/// were never exposed: their separator key is disabled by `allowsDecimal`, so no `.` can enter
+/// those buffers and the fraction cap never applies.
+///
+/// ⛔ THE FIRST VERSION SAID "64 sites", AND 64 IS THE RAW `git grep -c` LINE COUNT — from
+/// BEFORE this comment added a third prose hit to it. That is the third edition of this repo to
+/// quote the line count as the site count, in a tree where `Core/EchoelDecimalText.swift` spends
+/// five lines saying the command counts LINES and that a doc quoting it must name WHICH comment
+/// hits it subtracts. Two further tells were in the same sentence and I missed both: the
+/// breakdown summed to 61, one short of its own total, and "plus the two forwarding helpers"
+/// double-counted rows already inside the 40/11/10 split. **Lesson, distinct from the usual
+/// stale-number one: the METHOD named in a doc is a claim too. Mine said "paren-matched" while
+/// the matcher swept comment lines in, so the sentence described a procedure that yields 62 and
+/// reported 64 — re-running it is what falsified it, not re-reading it.**
 ///
 /// ⭐ WHY THE REFUSAL STOPS AT THE FRACTION AND DOES **NOT** EXTEND TO THE RANGE. `clamped`
 /// can also move a committed number away from the readout (type `999` on a `0…1` row, get
@@ -35,15 +47,23 @@ import Foundation
 /// unreachable and keeps accepting what is merely incomplete. The clamp stays, deliberately.
 ///
 /// ⚠️ THE TRADE THIS MAKES, stated because it changes a shipped number. Refusing the keystroke
-/// TRUNCATES where the snap used to ROUND: `0.375` on a two-place row committed `0.38` before
-/// this change and commits `0.37` after it. That is a real loss of one behaviour in exchange
-/// for another, and it was chosen on the repo's own standing rule — a control may not show one
-/// number and store a different one (#135, #416, #427). The user can still reach `0.38`; they
-/// just have to type it.
+/// TRUNCATES where the snap used to ROUND, and the cost is bigger than the worked example above
+/// suggests: `0.375` is the TIE, where truncating and rounding both lose 0.005. The honest worst
+/// case is `0.379` — it used to commit `0.38` (error 0.001) and now commits `0.37` (error 0.009).
+/// **Maximum quantisation error therefore DOUBLES, from half a grid unit to just under a whole
+/// one.** Accepted on the repo's standing rule that a control may not show one number and store
+/// a different one (#135, #416, #427): the old error was smaller and INVISIBLE, the new one is
+/// on screen and one keystroke from being fixed. Quoting only `0.375` would have been the
+/// flattering half of the measurement.
 enum NumberPadEntry {
 
     /// The overflow cap that was already here — a fat-fingered run must not overflow the field.
     /// Named so the guard and its test cannot drift apart.
+    ///
+    /// ⚠️ It is enforced in `acceptsDigit` ONLY, so `appendDecimal` and `setSign` can still push
+    /// the buffer to 11 characters (`-` + 9 digits + `.`). That hole predates #431 — the old
+    /// `guard buffer.count < 9` lived in `append` too — and it cannot affect the grid, which
+    /// `acceptsDigit` measures from the separator rather than from the total length.
     static let maxLength = 9
 
     /// Whether one more digit may join `buffer` on a field that displays `decimals` places.
@@ -51,9 +71,13 @@ enum NumberPadEntry {
     /// Digits BEFORE the separator are unrestricted (bounded only by `maxLength`): `decimals`
     /// says how fine the grid is, never how large the number may be. Only the fraction is
     /// capped, because only the fraction is what the commit would silently round away.
-    static func acceptsDigit(after buffer: String,
-                             decimals: Int,
-                             maxLength: Int = NumberPadEntry.maxLength) -> Bool {
+    ///
+    /// ⛔ The first version took `maxLength` as a defaulted parameter. No caller and no test ever
+    /// passed a second value, so it was speculative generality — and it was also the one
+    /// construct in this slice with no precedent in `Sources/` (every `= OwnType.staticMember`
+    /// here is a property initialiser, never a default argument). Both reasons point the same
+    /// way: read the static.
+    static func acceptsDigit(after buffer: String, decimals: Int) -> Bool {
         guard buffer.count < maxLength else { return false }
         guard let separator = buffer.firstIndex(of: ".") else { return true }
         let typed = buffer.distance(from: buffer.index(after: separator), to: buffer.endIndex)
@@ -292,13 +316,28 @@ struct EchoelNumberPad: View {
 
     /// Snap to the field's decimal grid so the committed number is exact.
     ///
-    /// ⚠️ STILL LOAD-BEARING AFTER #431, and a future reader will be tempted to delete it as
-    /// redundant now that `NumberPadEntry` keeps the buffer on the grid. It is not: the buffer
-    /// can be EMPTY, in which case `pendingValue` returns `initial` — the live value, which a
-    /// scrub or a derived binding may well have left off the grid (`EchoelStudioView.visualEnergy`
-    /// recomputes its position and lands between grid units). The header already reads that
-    /// value through `fmt`, i.e. rounded; this is the line that makes tapping OK without typing
-    /// commit the number the header was showing.
+    /// ⛔ THE #431 REVIEW FOUND THIS DOC ASSERTING TWO THINGS, AND BOTH WERE WRONG. It claimed
+    /// the line is still load-bearing, and that it "makes tapping OK without typing commit the
+    /// number the header was showing".
+    ///
+    /// **On today's only caller it is REDUNDANT.** `EchoelNumberPad` is constructed in exactly
+    /// one place (`EchoelValueField`'s `.sheet`), whose `onCommit` runs `apply`, and `apply`
+    /// calls `ScrubPrecision.snapped` — the same clamp-then-`(v·10^d).rounded()/10^d` in the same
+    /// order. Removing this line would change nothing today. It stays as defence-in-depth for a
+    /// future direct caller of the pad, which is a weaker and truer claim than the one it
+    /// replaced. (A "do not delete" note with a false reason is worse than none: the next session
+    /// cannot refute it.)
+    ///
+    /// **And the header can still disagree with the commit, at exact ties.** `fmt` →
+    /// `EchoelDecimalText.string` → `String(format: "%.Nf", …)`, which is C `printf` and rounds
+    /// HALF-TO-EVEN on the exact binary value; this rounds HALF-AWAY-FROM-ZERO. They part company
+    /// wherever the value is an exact dyadic tie whose truncated integer is even — `0.125` at two
+    /// places reads "0.12" and commits `0.13`. Reachable, because `initial` is the live value and
+    /// a derived binding (`EchoelStudioView.visualEnergy`) lands off-grid by construction.
+    /// That is the #431 defect surviving on the empty-buffer path; it is a FORMATTER mismatch
+    /// rather than an entry one, so it is registered as its own item (#432) instead of being
+    /// bolted onto this slice — but it must not be claimed away here, which is what the first
+    /// version of this comment did.
     private func snapped(_ v: Double) -> Double {
         let f = pow(10.0, Double(decimals))
         return (v * f).rounded() / f

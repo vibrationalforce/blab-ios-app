@@ -5,8 +5,11 @@
 //  Every adjustable number in this app is read and typed through ONE control
 //  (`EchoelValueField` + `EchoelNumberPad`, the app-wide law in CLAUDE.md).
 //
-//  `git grep -c "EchoelValueField(" -- Sources` → 64 matching LINES, but **TWO of them are
-//  comments** — this one and `EchoelValueField.swift`'s own `stacksLabel` doc, added by #353e.
+//  `git grep -c "EchoelValueField(" -- Sources` → 65 matching LINES, but **THREE of them are
+//  comments** — this one, `EchoelValueField.swift`'s own `stacksLabel` doc (added by #353e), and
+//  `EchoelNumberPad.swift`'s `NumberPadEntry` doc (added by #431). It was 64 / TWO until #431,
+//  which is exactly the drift this paragraph predicts: the count moves whenever anyone WRITES
+//  about it, and #431's own edition then quoted the stale 64 as its site count.
 //  ⛔ THE PARENTHETICAL THAT STOOD HERE SAID "the only comment-line hit in the tree", and #353e
 //  falsified it the moment it landed: a doc that quotes the command has to say WHICH hits it
 //  subtracts, and "the only" is a claim about the whole tree that any future comment can break.

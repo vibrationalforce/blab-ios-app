@@ -249,11 +249,21 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           eine Lüge zu beenden: `EchoelNumberPad.commit()` rastert auf `10^-decimals`,
                           `append` deckelte aber nur die LÄNGE bei neun Zeichen. Auf einer Zwei-Stellen-
                           Zeile tippte man `0,375`, LAS `0,375` in der 30-pt-Anzeige und bekam `0,38`.
-                          Reichweite gezählt statt geschätzt (paren-gematcht über jede
-                          `EchoelValueField(`-Konstruktion in `Sources/`): **64 Stellen — 40 mit
-                          `decimals: 2`, 11 mit `0`, 10 auf dem 4er-Default**, dazu die zwei
-                          weiterreichenden Helfer. Die elf Null-Stellen-Zeilen waren nie betroffen,
-                          `allowsDecimal` sperrt dort schon die Trennzeichen-Taste.
+                          Reichweite paren-gematcht über `Sources/`, Kommentarzeilen AUSGENOMMEN:
+                          **62 Konstruktionsstellen — 40 mit `decimals: 2`, 11 mit `0`, 10 auf dem
+                          4er-Default, 1 weiterreichend** (`EchoelFXView.field`). Die elf
+                          Null-Stellen-Zeilen waren nie betroffen, `allowsDecimal` sperrt dort schon
+                          die Trennzeichen-Taste. ⛔ Hier stand „64 Stellen … gezählt statt
+                          geschätzt", und 64 ist die rohe `git grep -c`-ZEILEN-Zahl von VOR dem
+                          Kommentar, den dieselbe Scheibe hinzufügte — die dritte Auflage dieses
+                          Repos, die darauf hereinfällt, in einem Baum, dessen
+                          `Core/EchoelDecimalText.swift` fünf Zeilen davor warnt. Zwei weitere
+                          Verräter standen im selben Satz: die Aufschlüsselung summierte auf 61
+                          statt auf ihre eigene Gesamtzahl, und „dazu die zwei weiterreichenden
+                          Helfer" zählte Zeilen doppelt, die schon in den 40/11/10 stecken. **Lehre,
+                          verschieden von der üblichen Stale-Zahl-Lehre: die METHODE in einem Satz
+                          ist auch eine Behauptung — meine sagte „paren-gematcht", während der
+                          Matcher Kommentare mitnahm.**
                           ⭐ Der Punkt ist die GRENZE der Reparatur, nicht die Reparatur: `clamped` kann
                           die festgeschriebene Zahl ebenfalls von der Anzeige wegbewegen (`999` auf einer
                           0…1-Zeile gibt `1,0`), und das GENAUSO zu behandeln wäre falsch statt bloß
@@ -266,13 +276,35 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           und schreibt jetzt `0,37`. Dazu blockiert sie gelegentlich einen harmlosen
                           Tastendruck (eine dritte `0` in `0,500` rastert auf sich selbst zurück). Beides
                           angenommen, weil ein Bedienelement nicht eine Zahl zeigen und eine andere
-                          speichern darf (#135, #416, #427). ⚠️ Was er NICHT kann: nur EINER seiner
-                          sechs Tests ist auf dem alten Code rot (der Verdrahtungs-Scan); die anderen
-                          messen eine reine Funktion, die es vorher nicht gab, und stehen gegen ihre
-                          spätere Lockerung. Und `EchoelNumberPad.snapped` ist `private`, die
-                          Commit-Arithmetik ist hier also NACHGEBILDET — dieselbe Lücke wie beim
+                          speichern darf (#135, #416, #427). Und der Preis ist GRÖSSER als das
+                          Musterbeispiel nahelegt — `0,375` ist der GLEICHSTAND, wo beide Verfahren
+                          0,005 verlieren; der ehrliche schlimmste Fall ist `0,379`: vorher `0,38`
+                          (Fehler 0,001), jetzt `0,37` (Fehler 0,009). **Der maximale
+                          Quantisierungsfehler VERDOPPELT sich**, von einer halben Rasterstufe auf
+                          knapp eine ganze. Angenommen, weil der alte Fehler kleiner und UNSICHTBAR
+                          war und der neue auf dem Schirm steht. ⚠️ Was er NICHT kann: nur EINER
+                          seiner sieben Tests ist auf dem alten Code rot (der Verdrahtungs-Scan); die
+                          anderen messen eine reine Funktion, die es vorher nicht gab, und stehen
+                          gegen ihre spätere Lockerung. Und `EchoelNumberPad.snapped` ist `private`,
+                          die Commit-Arithmetik ist hier also NACHGEBILDET — dieselbe Lücke wie beim
                           #427-Wächter, und der Grund, warum der Quelltext-Scan als eigene Hälfte
-                          danebensteht), davor „166" nach `ADerivedRowStillScrubsTests.swift` (#427 Nachlese — der erste
+                          danebensteht.
+                          ⛔ **Und der Scan hatte in seiner ersten Fassung ein Loch, durch das die
+                          Nachlese sofort gelaufen ist:** er verlangte nur die Zeichenkette
+                          `NumberPadEntry.acceptsDigit`. Wer `decimals: 4` fest verdrahtet hätte —
+                          eine Konstante statt des Rasters der Zeile — hätte ALLE Tests grün gelassen,
+                          während jede `decimals: 2`-Zeile den Defekt zurück hat. **Ein Wächter über
+                          einem AUFRUF muss das Argument festnageln, das den Aufruf bedeutungsvoll
+                          macht**, sonst prüft er nur, dass irgendwo ein Name steht. Zweite Hälfte
+                          jetzt: `decimals: decimals`. Dazu zurückgenommen: die Behauptung, `snapped`
+                          im Tastenfeld sei weiter tragend — auf dem EINZIGEN heutigen Aufrufer ist
+                          sie redundant, weil `EchoelValueField.apply` dieselbe Klemm-dann-Raster-
+                          Operation in derselben Reihenfolge fährt; und die Behauptung, das Tippen
+                          von OK schreibe „die Zahl, die die Anzeige zeigte" — `%.Nf` rundet
+                          HALF-TO-EVEN, `snapped` HALF-AWAY, sie trennen sich an jedem exakten
+                          dyadischen Gleichstand (`0,125` liest „0,12", schreibt `0,13`). Das ist der
+                          #431-Defekt, der auf dem Leer-Puffer-Pfad ÜBERLEBT, als eigener Posten
+                          registriert (#432) statt in diese Scheibe gezogen), davor „166" nach `ADerivedRowStillScrubsTests.swift` (#427 Nachlese — der erste
                           Wächter in dieser Kette über einem Defekt, den die Scheibe SELBST erzeugt hat
                           und ihr eigener Wächter nicht sehen konnte: `EchoelValueField` trägt seit #376
                           ein ungerastertes Ziel durch die Ereignisse eines Zuges und vertraute ihm nur
