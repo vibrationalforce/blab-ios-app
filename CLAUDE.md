@@ -242,8 +242,50 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**161** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheBandEdgeIsMeasurableTests.swift` (#424 — der erste
+                          `Tests/CISmoke` (**162** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `TheBandHoldsAtEveryRestingPulseTests.swift` (#424 dritte
+                          Fassung — der erste Wächter in dieser Kette, der eine ACHSE hinzufügt statt
+                          eines Falls, und er entstand, weil die zweite Fassung eine Konstante an
+                          EINEN Puls angepasst hatte. Alle Sweeps von #424 liefen auf `meanBPM: 60`,
+                          und 60 ist bei 4 Atemzügen/min der EINE entartete Puls: der Zyklus sind
+                          exakt 15 Schläge, der Nulldurchgang landet auf der Grenzperiode punktgenau,
+                          und 1,00002 räumt ihn ab. Daneben ist der Mechanismus schlichte
+                          Schlag-Quantisierung — bei N Schlägen pro Atemzyklus rundet der Durchgang
+                          auf `floor(N)`/`ceil(N)`, die Forderung ist also ≈ 1 + 1/(2N), am langsamen
+                          Rand **1 + 2/Puls**. Gemessen bei 4/min: Puls 46 → 1,0439 · 50 → 1,0403 ·
+                          58 → 1,0347 · 70 → 1,0287 · 90 → 1,0223; **16 der 66 ganzzahligen Pulse in
+                          45…110 brauchen mehr als 1,02**, und an genau denen hat die ausgelieferte
+                          1,02 NICHTS geräumt: 19 von 360 Phasen weiter still bei Puls 46, 21 bei 50,
+                          27 bei 62, 32 bei 70, 44 bei 90 — bitgleich mit dem Zustand VOR #424. Die
+                          Reparatur wirkte bei 60 und 110 bpm und nirgends sonst.
+                          ⭐ **Und das eigentliche Argument für den breiteren Wert ist nicht die
+                          Stille, sondern eine VERZERRUNG, die vorher niemand gesehen hat:** das enge
+                          Band war am langsamen Rand ein EINSEITIGER Filter — von den zwei
+                          quantisierten Perioden, auf die ein 4/min-Zyklus fallen kann, nahm es nur
+                          die SCHNELLE an. Mittlerer Report auf einem exakt 4,0/min atmenden Körper
+                          über alle 360 Phasen, 1,02 → 1,055: Puls 42 **+0,259 → +0,050** · 46 +0,239
+                          → +0,049 · 62 +0,190 → +0,046 · 90 +0,152 → +0,042. Faktor 4–5 auf dem
+                          Fehler, der beim Verbraucher ankommt. Der ausgelieferte Wert **1,055** ist
+                          deshalb aus einem FENSTER abgeleitet und nicht aus einem Minimum: unten
+                          Physiologie (jeder Puls bis ~37 bpm braucht 1 + 2/37 ≈ 1,054), oben
+                          Messqualität (der 4/min-Report hält 3,99993 bis 1,067 und fällt bei 1,068
+                          auf 3,8197, weil das Band dann eine Periode annimmt, die nicht der
+                          Atemzyklus ist). ⚠️ **Und er kostet etwas, das nur ABSEITS des Fixture-Pulses
+                          existiert und deshalb fast unterschlagen worden wäre:** weil der Report dort
+                          knapp UNTER 4,0 landet und `HealthWritePolicy` nicht klemmt sondern
+                          VERWIRFT, fallen die health-schreibbaren Samples eines 4/min-Körpers von
+                          344 auf 214 von 360 (Puls 42), 341 → 217 (46), 316 → 210 (90). Weniger
+                          Samples, jedes ~5× näher an der Wahrheit — ein Tausch, und er steht als
+                          Tausch da. **Lehre, und sie ist die Schwester der #424-Lehre eine Zeile
+                          weiter unten: die sagt „ist eine Grenze an einem ENDE falsch, miss das
+                          andere ENDE". Diese sagt: miss die andere ACHSE.** Ein Phasen-Sweep an
+                          einem einzigen Puls ist eine Stichprobe, wie viele Phasen er auch hat.
+                          ⚠️ Was er NICHT kann: beweisen, dass der Kamerapfad an irgendeinem Puls
+                          einen echten 4/min-Atmer trägt (#304/#410), und ein konstanter Puls ist
+                          selbst eine Fixtur — ein echter Take driftet, und Drift bewegt N stetig.
+                          Er behauptet die schwächere, prüfbare Aussage: bei FESTEM Puls irgendwo im
+                          Bereich sind die beworbenen Grenzen messbar),
+                          davor „161" nach `TheBandEdgeIsMeasurableTests.swift` (#424 — der erste
                           Wächter in dieser Kette über einem Defekt an BEIDEN Enden eines Bandes,
                           von denen die Diagnose nur EINES nannte: `RespirationEstimator` warb mit
                           4…30 Atemzügen/min und VERWARF einen Nulldurchgang komplett, wenn dessen
@@ -260,16 +302,21 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           DSP-Reviewer gesehen.** Sie nahm `tol = 1,2` und KLEMMTE den Report auf
                           `[minRate, maxRate]` zurück, „damit der veröffentlichte Vertrag gleich
                           bleibt". Beides falsch. Die kleinste Toleranz, die die Stille an BEIDEN
-                          Rändern beseitigt, ist per Bisektion **1,00111** — 1,2 war das ~180-fache
-                          davon; und zusammen mit der Klemme las sich ein Körper UNTERHALB des
+                          Rändern beseitigt, ist per Bisektion **1,00111** (⛔ und AUCH diese Zahl
+                          gilt nur für den 60-bpm-Fixture — der Eintrag über diesem misst den
+                          langsamen Rand über die Puls-Achse und findet dort 1,0439; die 1,00111 ist
+                          die Forderung des SCHNELLEN Randes und die bindet nie) — 1,2 war das
+                          ~180-fache davon; und zusammen mit der Klemme las sich ein Körper UNTERHALB des
                           Bandes als sichere Messung: bei 3,5 Atemzügen/min veröffentlichte der
                           Schätzer an **360 von 360** Phasen, davon an **358** mit `ratePerMinute`
                           exakt 4,000 (vorher: 37 Veröffentlichungen, nie auf der Grenze).
                           `HealthWritePolicy.respiratoryRange` ist `4...40` und ENTHÄLT die 4,0 —
                           die erfundene Zahl wäre als Atemfrequenz-Sample nach Apple Health
-                          geschrieben und in `PerformerSignature` gelernt worden. Jetzt **1,02 ohne
-                          Klemme**: 3,5/min veröffentlicht an 61 Phasen, nie auf der Grenze; der
-                          Report überschießt `maxRate` um höchstens 0,064/min. **Lehre, und sie ist
+                          geschrieben und in `PerformerSignature` gelernt worden. Jetzt **ohne
+                          Klemme** (und bei 1,02, was einen Commit später auf 1,055 korrigiert wurde
+                          — siehe den Eintrag darüber): 3,5/min veröffentlicht an 61 Phasen, nie auf
+                          der Grenze; der Report überschießt `maxRate` um höchstens 0,064/min am
+                          Fixture-Puls und 0,074 bei 90 bpm. **Lehre, und sie ist
                           allgemeiner als dieser Parameter: ein SÄTTIGENDER Ausgang auf einem
                           Messpfad erfindet Daten am Anschlag — und wie weit diese Erfindung reicht,
                           entscheidet genau die Konstante daneben.** ⛔ Zweitens war „im Bandinneren
@@ -277,8 +324,12 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           sich der Report bei 4,0–4,75 und ab 20,5 bis 30 — Jitter schiebt auch eine
                           INNERE Rate über die alte Grenze. Wahr ist die engere Aussage, die der
                           Test festnagelt: bit-identisch bei 5, 6, 10, 15 und 20, und wo es sich
-                          bewegt, wird es besser (4,25: 0,4226 → 0,3661; 24: 4,9626 → 2,2217; nur
-                          21,5 ist um 0,0044/min schlechter). ⛔ Drittens ging dabei eine Klammer
+                          bewegt, wird es besser (4,25: 0,4226 → 0,3661; 24: 4,9626 → 2,2217; von den
+                          43 Raten, die sich bewegen, werden 36 besser, 6 sind im schlimmsten Fehler
+                          bitgleich und EINE ist schlechter: 21,5/min um 0,0108/min. ⛔ Hier stand
+                          „0,0044", an vier Stellen gleichzeitig, weil ich 90 Phasen abgetastet und
+                          es einen Sweep genannt habe — im selben Absatz, der eine unter-gewischte
+                          Behauptung zurücknimmt). ⛔ Drittens ging dabei eine Klammer
                           eines FREMDEN Parameters still kaputt: die untere Schranke von
                           `pullLagAllowance` wird bei 28/min gemessen, nah genug am Rand, dass die
                           neue Toleranz sie von ≈0,74 s auf ≈0,87 s schiebt. Eine Konstante, die als
@@ -827,7 +878,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 161 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTEINUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 162 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

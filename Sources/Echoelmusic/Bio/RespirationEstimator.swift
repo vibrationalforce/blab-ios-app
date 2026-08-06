@@ -84,7 +84,22 @@ public struct RespirationEstimator {
     private static let pullLagAllowance = 1.8
 
     // MARK: Respiration band (breaths/min)
-    /// The band this estimator ADVERTISES and REPORTS in. `ratePerMinute` never leaves it.
+    /// The band this estimator ADVERTISES and REPORTS in.
+    ///
+    /// ⛔ THIS LINE ENDED "`ratePerMinute` never leaves it" AND THAT WAS ONLY TRUE WHILE THE
+    /// CLAMP EXISTED — the sentence survived the commit that removed the clamp, sitting on the
+    /// public constants, which is the first thing anyone reads about the band. Measured on the
+    /// shipped form: over bodies 4…35/min the report exceeds `maxRate` by up to 0.064/min at a
+    /// 60 bpm pulse and 0.074/min at 90, and at a body breathing exactly `minRate` it lands BELOW
+    /// 4.0 — by 0.000075 at 60 bpm, and by up to 0.19 off that pulse (3.812 at 42 bpm, 3.912 at
+    /// 90). Jitter on a correct measurement, not a contract change — but "never leaves it" is
+    /// false and the consumer that notices is named in the ⛔ two paragraphs down.
+    ///
+    /// ⛔ AND EVERY NUMBER IN THE SENTENCE ABOVE WAS A 60 bpm NUMBER FOR ONE COMMIT — quoted as a
+    /// property of the estimator, in the paragraph whose whole job is to say the band claim is not
+    /// exact. That is the same one-fixture error the `bandTolerance` doc below spends four
+    /// paragraphs retracting, committed one screen away from it and on the same day. **A bound
+    /// measured at one pulse is quoted with that pulse or it is not quoted.**
     public static let minRate = 4.0
     public static let maxRate = 30.0
 
@@ -105,9 +120,15 @@ public struct RespirationEstimator {
     /// from both ends. What is true is the narrower claim the tests actually pin: at 5, 6, 10,
     /// 15 and 20/min — the rates the product targets — the sweep is bit-identical, and where it
     /// does move it moves the right way. Worst |error| over 360 phases, before → after: 4.25/min
-    /// 0.4226 → 0.3661 · 24/min 4.9626 → 2.2217, and better at every changed rate except 21.5,
-    /// where it is 0.0044/min worse. So: an edge repair that reaches inward, not a retune — and
-    /// stating it as "nothing else changed" was the kind of claim this file exists to retract.
+    /// 0.4226 → 0.3661 · 24/min 4.9626 → 2.2217. Of the 43 rates that change, 36 improve, 6 are
+    /// bit-identical in worst error (4.5 · 4.75 · 20.5 · 20.75 · 21.0 · 21.25 — the REPORT moves
+    /// at 27–70 phases each but the extreme does not) and ONE is worse: 21.5/min, by 0.0108/min.
+    /// So: an edge repair that reaches inward, not a retune — and stating it as "nothing else
+    /// changed" was the kind of claim this file exists to retract.
+    ///
+    /// ⛔ THAT 0.0108 READ "0.0044" IN FOUR PLACES AT ONCE (here, the test header, `CLAUDE.md`,
+    /// the commit body) BECAUSE I SAMPLED 90 PHASES AND CALLED IT A SWEEP. In the same paragraph
+    /// that retracts an under-swept claim. Every |error| figure in this file is over all 360.
     ///
     /// ⚠️ THE LOW EDGE IS THE WORSE ONE and was found only by sweeping it. The review that
     /// raised this named 30/min; 4/min is four times worse and nobody had looked. When a bound
@@ -122,11 +143,60 @@ public struct RespirationEstimator {
     /// ⛔ IT SHIPPED AT 1.2 FOR ONE COMMIT, WITH THE JUSTIFICATION "roughly one jittered beat of
     /// slack at either end". That sentence described neither end — at a 60 bpm pulse one beat is
     /// 1 s, and 1.2 buys +3.0 beats at the slow end and −0.33 at the fast one. Worse, it was
-    /// ~180× more slack than the repair needs, and the surplus was not free. Measured: the
-    /// smallest tolerance that removes the silence at BOTH edges is **1.00111** (binary search,
-    /// 360 phases; 1.00002 at 4/min, 1.00111 at 30/min), and 1.003 also covers pulse 45–100.
-    /// 1.02 is that minimum with ~18× margin — chosen for the margin, not because it is the
-    /// smallest value that passes.
+    /// ~180× more slack than the repair needs at a 60 bpm pulse, and the surplus was not free.
+    ///
+    /// ⛔ AND THEN 1.02 WAS FITTED TO THAT ONE PULSE. The replacement claimed "the smallest
+    /// tolerance that removes the silence at BOTH edges is 1.00111, so 1.02 is the minimum with
+    /// ~18× margin". Both halves are properties of the FIXTURE, not of the estimator. The whole
+    /// sweep ran at `meanBPM: 60`, and 60 is the one degenerate pulse at the low edge: 4/min is
+    /// exactly 15 beats per breath cycle there, so the crossing lands on the boundary period
+    /// dead-on. Off that pulse the mechanism is plain beat quantisation — with N beats per cycle
+    /// the crossing rounds to `floor(N)` or `ceil(N)`, so the requirement is ≈ 1 + 1/(2N), i.e.
+    /// **1 + 2/pulse** at 4 breaths/min. Measured requirement at 4/min: pulse 46 → 1.0439,
+    /// 50 → 1.0403, 58 → 1.0347, 70 → 1.0287, 90 → 1.0223. **Sixteen of the 66 integer pulses in
+    /// 45…110 need more than 1.02**, and at those pulses 1.02 removed NONE of the silence — 19 of
+    /// 360 phases still silent at pulse 46, 21 at 50, 27 at 62, 32 at 70, 44 at 90, exactly as
+    /// before #424. The published fix worked at 60 bpm and 110 bpm (the two degenerate pulses)
+    /// and nowhere else.
+    ///
+    /// **Lesson, and it is the sibling of the one three paragraphs up:** that one says "when a
+    /// bound is wrong at one END, measure the other END". This one says measure the other AXIS.
+    /// A phase sweep at a single pulse is a sample, however many phases it has.
+    ///
+    /// ⭐ SO THE SHIPPED VALUE IS DERIVED FROM A WINDOW, NOT FROM A MINIMUM. Lower bound is
+    /// physiology: covering every pulse down to ~37 bpm needs 1 + 2/37 ≈ 1.054 (measured worst
+    /// requirement 1.0532 at pulse 38, 1.0481 at 42, 1.0439 at 46). Upper bound is measurement
+    /// quality, measured at the fixture: the 4/min report holds at 3.99993 up to **1.067** and
+    /// drops to 3.8197 at 1.068 — that is where the band starts admitting a period that is not
+    /// the breath cycle. **1.055** sits inside `[1.054, 1.067]`. The high edge needs only 1.00111
+    /// (worst over pulse 45…110) and is not what binds.
+    ///
+    /// ⭐ AND THE REAL ARGUMENT FOR THE WIDER VALUE IS NOT THE SILENCE, IT IS THE BIAS — found
+    /// only by measuring the pulse axis, and the strongest thing in this doc. The narrow band was
+    /// a ONE-SIDED filter at the low edge: of the two quantised periods a 4/min cycle can land on,
+    /// it accepted only the one that runs FAST and threw the slow one away. So the surviving
+    /// population was skewed high. Mean report on a body breathing exactly 4.0/min, over all 360
+    /// phases, 1.02 → 1.055: pulse 42 **+0.259 → +0.050**, 46 +0.239 → +0.049, 50 +0.224 → +0.047,
+    /// 62 +0.190 → +0.046, 70 +0.175 → +0.044, 90 +0.152 → +0.042. A factor of 4–5 on the error
+    /// that actually reaches a consumer, at every pulse except the degenerate fixture. The silence
+    /// was the symptom that made someone look; the bias is what was wrong.
+    ///
+    /// ⚠️ The cost axes do not move AT THE FIXTURE PULSE between 1.02 and 1.055 — checked before
+    /// choosing, not after: the out-of-band 3.5/min body publishes at 61 phases with 37 landing in
+    /// `HealthWritePolicy.respiratoryRange` (identical, and identical to pre-#424), the stale
+    /// window is 22.4 s (identical), every interior worst-error is identical to the last digit,
+    /// and the still-hand counterweight reads 0.150317 at pulses 46 · 60 · 90 under 1.0, 1.02 and
+    /// 1.055 alike. What DOES move is the silence: zero at 4/min and 30/min at every pulse from
+    /// 37 to 118, and the worst 4/min error at pulse 46 falls 0.7696 → 0.3877.
+    ///
+    /// ⛔ ONE COST DOES MOVE, AND IT ONLY EXISTS OFF THE FIXTURE — so the paragraph above would
+    /// have hidden it if it had been left saying "the cost axes do not move". Because the report
+    /// now lands slightly UNDER 4.0 at those pulses, and `HealthWritePolicy` DROPS rather than
+    /// clamps, the number of health-writable samples on a 4/min body falls with the tolerance:
+    /// pulse 42 **344 → 214** of 360, 46 341 → 217, 62 333 → 219, 90 316 → 210. Fewer samples,
+    /// each ~5× closer to the truth — a trade, and a defensible one, but it is a trade and it is
+    /// written down. The clean end-state is the follow-up already named two ⛔s down (widen
+    /// `respiratoryRange` or round at the writer); until then this is the honest reading.
     ///
     /// ⛔ AND THE SURPLUS BOUGHT A FABRICATION. Paired with the rate clamp the first version
     /// also shipped, a body breathing BELOW the band read as a confident rail: at 3.5 breaths/min
@@ -135,18 +205,31 @@ public struct RespirationEstimator {
     /// measurement, and `HealthWritePolicy.respiratoryRange` (4...40) CONTAINS it — so a
     /// saturated number would have been written to Apple Health as a respiratory sample, and
     /// learned into `PerformerSignature`. The clamp is gone (the reported rate is now the raw
-    /// EMA) and the tolerance is small enough that the accept floor sits at 3.92/min. The lesson
+    /// EMA) and the tolerance is small enough that the accept floor sits at 3.79/min. The lesson
     /// is not "clamps are bad": it is that a saturating output on a measurement path invents data
     /// at the rail, and the reach of that invention is exactly this constant.
+    ///
+    /// ⛔ AND REMOVING THE CLAMP MOVED THE HEALTH-PATH PROBLEM RATHER THAN ENDING IT — the first
+    /// version of this ⛔ claimed the range claim "survives in practice", which is not what the
+    /// downstream code does. `HealthWritePolicy.values(for:)` DROPS an out-of-range respiratory
+    /// value (`respiratoryRange.contains(br) ? br : nil`); it does not clamp. At a body breathing
+    /// exactly `minRate` the report lands 0.000075 below 4.0 at 240 of 360 phases, so those
+    /// measurements are silently discarded on the write path — at the very rate this whole fix
+    /// is named after. That is the RIGHT trade (a dropped sample beats an invented one) and it
+    /// is a decision, not a side effect: if the edge should reach Apple Health, widen
+    /// `respiratoryRange` or round at the writer, deliberately and in its own slice.
     ///
     /// ⚠️ IT DOES STILL COST SOMETHING, AND THE COST IS STALE-WINDOW, NOT ACCURACY. Accepting a
     /// period the old band rejected also keeps `lastCrossT` and `periodEMA` alive on bodies just
     /// outside the band, so a published rate survives longer after the beats stop. Longest
-    /// survival past the last beat, swept: at 3.5 breaths/min 20.0 s before → 39.0 s at the
-    /// shipped-for-one-commit 1.2 → 22.5 s at 1.02; at 4.0/min 32.5 → 36.5 → 36.5 s. That is the
-    /// second reason the tolerance is 1.02 and not 1.2 — the freshness term is what bounds this,
-    /// and a wide band hands it a longer expected period to be patient with.
-    private static let bandTolerance = 1.02
+    /// survival past the last beat, bisected: at 3.5 breaths/min 19.8 s before → 40.9 s at the
+    /// shipped-for-one-commit 1.2 → 22.4 s at 1.055; at 4.0/min 32.4 → 36.4 → 36.4 s. That is the
+    /// second reason the tolerance is not 1.2 — the freshness term is what bounds this, and a
+    /// wide band hands it a longer expected period to be patient with. (⛔ The first version
+    /// wrote 20.0 / 39.0 / 22.5 and 32.5 / 36.5 / 36.5, four of them the fine value rounded UP
+    /// to a 0.5 grid, one rounded DOWN, and 39.0 reproducible under no convention at all. The
+    /// grid was my search step, not a measurement. Bisected values, three digits.)
+    private static let bandTolerance = 1.055
 
     // MARK: State
     private var lastT: Double?
@@ -215,10 +298,12 @@ public struct RespirationEstimator {
                     // ⛔ DO NOT CLAMP THIS. The first version of #424 clamped to
                     // [minRate, maxRate] to keep the reported range identical, and that turned
                     // the boundary into a rail that INVENTS a measurement — see the second ⛔ on
-                    // `bandTolerance`. The report is the raw EMA. With the shipped tolerance it
-                    // overshoots `maxRate` by at most 0.064/min and never falls below `minRate`
-                    // at any rate in the band, so the range claim survives in practice without a
-                    // saturating output; `TheBandEdgeIsMeasurableTests` measures both bounds.
+                    // `bandTolerance`. The report is the raw EMA, so it leaves the advertised band
+                    // by a hair in BOTH directions — up to +0.074/min above `maxRate` and 0.19
+                    // below `minRate`, depending on the pulse. That is jitter on a measurement
+                    // rather than a rail, which is the whole point; the bounds and the pulse they
+                    // were measured at are on `minRate`, and the tests that hold them are
+                    // `TheBandEdgeIsMeasurableTests` + `TheBandHoldsAtEveryRestingPulseTests`.
                     if periodEMA > 0 { ratePerMinute = 60.0 / periodEMA }
                     crossingCount += 1
                 }

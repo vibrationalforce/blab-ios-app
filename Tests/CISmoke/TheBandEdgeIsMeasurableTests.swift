@@ -296,9 +296,24 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
     /// 0.9` would satisfy every assertion here while INVERTING the design (accept narrower than
     /// you report). The name says "wider" and this scan cannot see that; the magnitude is held
     /// behaviourally instead, by the two edge tests (a tolerance below 1 puts 4/min and 30/min
-    /// straight back into silence) and by `testTheReportedRateIsAMeasurementAndNotARail` at the
-    /// top end. Saying so here is the point: a source scan that reads like more than it proves
-    /// is how a green bundle certifies a property nobody measured.
+    /// straight back into silence) and, for the pulse axis, by
+    /// `TheBandHoldsAtEveryRestingPulseTests`. Saying so here is the point: a source scan that
+    /// reads like more than it proves is how a green bundle certifies a property nobody measured.
+    ///
+    /// ⛔ AND THE SENTENCE ABOVE NAMED THE WRONG END FOR ONE COMMIT. It said the upper magnitude
+    /// is held by `testTheReportedRateIsAMeasurementAndNotARail` "at the top end". Measured: the
+    /// 30/min report saturates at 30.0345 for EVERY tolerance from 1.02 to 3.0 — the ceiling
+    /// cannot go red however wide the band gets, so nothing up there constrains anything. The
+    /// ceiling on the tolerance is at the FLOOR: a 4/min body reads 3.99993 up to 1.067 and drops
+    /// to 3.8197 at 1.068, which is `testAWiderBandStillRejectsPeriodsThatAreNotTheCycle` in the
+    /// pulse-axis file. Naming a bound is only useful if the named test can actually fail there.
+    ///
+    /// ⛔ AND `XCTAssertFalse` BELOW FORBIDS ONE SPELLING, NOT ONE BEHAVIOUR.
+    /// `min(max(v, Self.minRate), Self.maxRate)` reintroduces the exact rail this file was
+    /// written to retract and passes green — and that spelling is the one this repo's own
+    /// NaN-order law would push a session towards. The behavioural half is
+    /// `testTheReportedRateIsAMeasurementAndNotARail`; this line is a tripwire for the literal
+    /// that was there, not a proof that no clamp exists.
     func testTheAcceptBandIsWiderThanTheReportBand() throws {
         let source = try estimatorSource()
         let code = codeOnly(source)
@@ -326,8 +341,8 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
             contract hygiene and is a fabrication: a breather outside the band then publishes \
             EXACTLY `minRate`/`maxRate` with full confidence, and \
             `HealthWritePolicy.respiratoryRange` (4...40) contains those values, so the invented \
-            number reaches Apple Health. Bound the overshoot instead — it is 0.064/min at the \
-            shipped tolerance.
+            number reaches Apple Health. Bound the overshoot instead — at the shipped tolerance \
+            it is 0.064/min above `maxRate` at this fixture's 60 bpm pulse and 0.074 at 90.
             """)
     }
 

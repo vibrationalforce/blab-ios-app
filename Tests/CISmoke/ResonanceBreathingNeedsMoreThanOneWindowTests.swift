@@ -476,10 +476,16 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// no-allowance figures were 0.394 / 0.284, the 15 fps figure 0.457, and the rate span
     /// 24.6–28.7 — all measured before the acceptance band widened. Only the with-allowance
     /// 0.4871 is unchanged. The span is the one worth staring at, and only one thing about it is
-    /// measured: the worst deviation from the true 28/min shrank from 3.418 to 2.217/min. It now
-    /// overshoots slightly ABOVE 28 where it never used to, so "tighter", not "shifted up", is
-    /// the honest reading — and the premise assertion below keys on the LOW end, which is why
-    /// the two numbers are quoted rather than summarised.
+    /// measured: the worst deviation from the true 28/min shrank from 3.418 to 2.217/min.
+    ///
+    /// ⛔ AND THE JUSTIFICATION THAT STOOD HERE WAS REFUTED BY THE LINE TWO ABOVE IT. It read "it
+    /// now overshoots slightly ABOVE 28 where it never used to, so 'tighter', not 'shifted up',
+    /// is the honest reading" — while the pre-#424 span quoted two lines up is 24.582–28.675,
+    /// i.e. it ALREADY read above 28. The conclusion happens to be right (the span narrowed on
+    /// both sides), the reason given for it is false, and it was false against a number in the
+    /// same paragraph. The honest version needs no story: the deviation shrank, and the premise
+    /// assertion below keys on the LOW end, which is why both numbers are quoted rather than
+    /// summarised.
     ///
     /// ⚠️ THIS IS A COUNTERWEIGHT, NOT A CLAIM THAT THE WHOLE BAND WORKS, and the first version
     /// misdiagnosed the residual. It said 30/min is unreachable because the RSA sits at Nyquist
