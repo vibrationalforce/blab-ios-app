@@ -61,16 +61,21 @@
 //     (the long-lived estimator, the paired `beatTimes`, the evidence-gated publish), the
 //     three staleness guards (`…ExpiresWhenTheBreathingStops`, `…WeakNoisySignal…`,
 //     `…AgesWithTheClock…`) and `…FastBreathersOwnMeasurementSurvivesThePipelineLag`, which
-//     read 0.284 against a 0.4 gate before the grace paid for the lag.
+//     read 0.2582 against a 0.4 gate before the grace paid for the lag.
 //     TWO are counterweights — they hold bounds that must NOT move and could only fail if the
 //     grace were TIGHTENED: `…AgeingInsideTheGraceWindow…` and `…ContinuingSlowBreathNever…`.
 //     And the file brackets `pullLagAllowance` from BOTH sides, which is worth knowing before
 //     anyone moves it: `…AgesWithTheClock…` is the only upper bound (red once the constant
 //     passes ≈15.0 s under the shipped subtract-from-staleness form, ≈9.4 s under the
 //     add-to-grace form the first version used), and `…FastBreathers…` is the only lower one
-//     (red below ≈0.74 s). The shipped 1.8 therefore sits ≈1.06 s above the floor and ≈13.2 s
+//     (red below ≈0.87 s). The shipped 1.8 therefore sits ≈0.93 s above the floor and ≈13.2 s
 //     below the ceiling. The other two staleness guards stay green past a 400 s allowance and
 //     constrain nothing here.
+//     ⛔ THE FLOOR READ ≈0.74 s (MARGIN ≈1.06 s) UNTIL #424, which touched a DIFFERENT constant.
+//     `…FastBreathers…` runs at 28/min, near enough to the band edge that widening ACCEPTANCE
+//     changes which crossings feed `periodEMA` and therefore the grace; `…AgesWithTheClock…`
+//     runs at 6/min and did not move. One of the two brackets on `pullLagAllowance` went stale
+//     without anything touching `pullLagAllowance` — re-measure both after any band change.
 //     The remaining three describe the pure estimator on inputs these commits
 //     leave bit-identical — they are green on both sides and exist to state the SHAPE of the
 //     defect, not to catch its return. That is NOT the same as "the arithmetic did not
@@ -117,7 +122,12 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// This test deliberately uses a LARGER value than `RespirationEstimator`'s allowance
     /// (1.8 s) so it asserts margin, not the constant: a missed peak or a slow drain pushes the
     /// real delay past the derived figure, and the gate must still hold. It stays red without
-    /// the allowance at either value (0.394 at 1.8 s, 0.284 at 2.5 s).
+    /// the allowance at either value (0.3725 at 1.8 s, 0.2582 at 2.5 s).
+    ///
+    /// ⛔ THOSE READ 0.394 / 0.284 UNTIL #424 and it was not this constant that moved them —
+    /// widening the estimator's ACCEPTANCE band changed which crossings feed `periodEMA` at
+    /// 28/min, hence `grace`, hence this confidence. A number measured on a neighbouring
+    /// constant's behaviour goes stale when THAT constant moves, and nothing warns you.
     ///
     /// ⛔ It said "worst-case delay … one beat interval, plus …". The beat interval does NOT
     /// belong: the delay is measured FROM the last beat, so beat quantisation is already inside
@@ -455,26 +465,43 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
     /// breather never noticed (15 s of grace at 6/min); a fast one did, because their grace
     /// shrinks while the pipeline delay does not.
     ///
-    /// Swept over all 360 phases at 28 breaths/min, the worst phase read confidence 0.394 at
-    /// the 7.5 fps delay and 0.284 at the 2.5 s wall this test uses — both UNDER the
-    /// publisher's 0.4 gate. Their own, correctly measured breath (rate 24.6–28.7 at EVERY
+    /// Swept over all 360 phases at 28 breaths/min, the worst phase read confidence 0.3725 at
+    /// the 7.5 fps delay and 0.2582 at the 2.5 s wall this test uses — both UNDER the
+    /// publisher's 0.4 gate. Their own, correctly measured breath (rate 25.783–29.653 at EVERY
     /// phase) flickered off and on at their breathing rate. With `pullLagAllowance` it reads
-    /// 0.487. At 15 fps the worst phase is 0.457 and there is no defect — this is a slow-device
-    /// failure, and the test says so rather than implying the fix was always needed.
+    /// 0.4871. At 15 fps the worst phase is 0.4378 and there is no defect — this is a
+    /// slow-device failure, and the test says so rather than implying the fix was always needed.
+    ///
+    /// ⛔ FOUR OF THOSE FIVE NUMBERS MOVED WITH #424, WHICH IS IN A DIFFERENT CONSTANT. The
+    /// no-allowance figures were 0.394 / 0.284, the 15 fps figure 0.457, and the rate span
+    /// 24.6–28.7 — all measured before the acceptance band widened. Only the with-allowance
+    /// 0.4871 is unchanged. The span is the one worth staring at, and only one thing about it is
+    /// measured: the worst deviation from the true 28/min shrank from 3.418 to 2.217/min. It now
+    /// overshoots slightly ABOVE 28 where it never used to, so "tighter", not "shifted up", is
+    /// the honest reading — and the premise assertion below keys on the LOW end, which is why
+    /// the two numbers are quoted rather than summarised.
     ///
     /// ⚠️ THIS IS A COUNTERWEIGHT, NOT A CLAIM THAT THE WHOLE BAND WORKS, and the first version
     /// misdiagnosed the residual. It said 30/min is unreachable because the RSA sits at Nyquist
     /// and the rate aliases to ~10/min. That was written from ONE phase (phase 0) and the sweep
-    /// refutes it: at 30/min the measured rate is ~30 at 244 of 360 phases, 0 at 61, ~10 at 53
+    /// refutes it: at 30/min the measured rate WAS ~30 at 244 of 360 phases, 0 at 61, ~10 at 53
     /// and one phase each at 10.3 and 18.8 (244 + 61 + 53 + 2 = 360 — the first version wrote
     /// "54" for the ~10 bucket and accounted for only 359, i.e. quoted a partial reading in the
     /// paragraph about quoting a partial reading). The modal answer is the RIGHT one. What
     /// actually fails above 28.7/min is the CONFIDENCE, for the same lag-versus-shrinking-grace
     /// reason this test is about, and neither this allowance nor a larger one closes it
-    /// (29/min worst phase, all three under the gate: 0.000 with no allowance, 0.179 with the
-    /// shipped subtract-1.8, 0.266 with subtract-2.5 — and 0.318 under the previous commit's
+    /// (29/min worst phase, all three under the gate: 0.000 with no allowance, 0.1685 with the
+    /// shipped subtract-1.8, 0.2572 with subtract-2.5 — and 0.3134 under the previous commit's
     /// add-2.5-to-grace form, which is the number a reader would otherwise assume the middle
-    /// column meant). Registered on the board as #424; not fixed here.
+    /// column meant).
+    ///
+    /// ⭐ THE "REGISTERED ON THE BOARD AS #424; NOT FIXED HERE" THAT CLOSED THIS PARAGRAPH IS
+    /// DONE. The acceptance band was widened, and the same sweep now reads ~30 at 358 of 360
+    /// phases with NO zeros — both the 61-strong silent bucket and the 53-strong half-rate one
+    /// are gone; only the two stragglers at 10.3 and 18.8 remain, which is exactly why the
+    /// original count insisted on naming them. The histogram above is kept in the past tense as
+    /// the record of the defect. What is NOT fixed is the confidence residual: the 29/min column
+    /// is measured on today's band and still sits under the gate.
     /// Writing "Nyquist" in the file whose thesis is "swept, not sampled" — off one phase — is
     /// the exact habit this epic has now retracted three times.
     func testAFastBreathersOwnMeasurementSurvivesThePipelineLag() {

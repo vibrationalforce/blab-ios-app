@@ -13,14 +13,29 @@
 // generator, resting pulse:
 //   ·  4 breaths/min — the LOW edge: `ratePerMinute == 0` at 240 of 360 phases (67 %).
 //   · 30 breaths/min — the HIGH edge: 0 at 61 of 360 (17 %), plus 53 phases reading ~10.
-// At every rate strictly inside the band the behaviour is bit-identical. The defect is
-// entirely a band-edge artefact, and the LOW edge — which nobody had looked at, including the
-// review that found this — is four times worse than the high one.
+// The LOW edge — which nobody had looked at, including the review that found this — is four
+// times worse than the high one.
 //
-// ⭐ THE FIX, in one sentence: ACCEPT into a wider band than you REPORT. Acceptance now uses
-// `[minRate / bandTolerance, maxRate * bandTolerance]`; the reported `ratePerMinute` is clamped
-// to `[minRate, maxRate]`, so the published contract is unchanged. A measurement at 30.4/min is
-// a 30/min breath with jitter, not nonsense — refusing it is not conservative, it is blind.
+// ⛔ "AT EVERY RATE STRICTLY INSIDE THE BAND THE BEHAVIOUR IS BIT-IDENTICAL" STOOD HERE FOR ONE
+// COMMIT AND IS FALSE AS A UNIVERSAL. Swept at 0.25/min steps, the reported rate moves at
+// 4.0–4.75 and again from 20.5 to 30: jitter can push an INTERIOR rate's implied period outside
+// the old band, so the repair reaches inward from both ends. The true, narrower claim is the one
+// `testInsideTheBandNothingMoved` pins — bit-identical at 5, 6, 10, 15 and 20 — and where it
+// does move, it improves (4.25/min worst error 0.4226 → 0.3661, 24/min 4.9626 → 2.2217; better
+// at every changed rate except 21.5, which is 0.0044/min worse). This is the same defect the
+// file's own ⛔s keep retracting: a sweep was run, and the conclusion was stated wider than it.
+//
+// ⭐ THE FIX, in one sentence: ACCEPT into a wider band than you REPORT. Acceptance uses
+// `[minRate / bandTolerance, maxRate * bandTolerance]` with a tolerance of 1.02; the reported
+// `ratePerMinute` is the raw EMA and is NOT clamped back. A measurement at 30.4/min is a 30/min
+// breath with jitter, not nonsense — refusing it is not conservative, it is blind.
+//
+// ⛔ THE FIRST VERSION OF THAT SENTENCE SHIPPED A TOLERANCE OF 1.2 *AND* A CLAMP, and both
+// halves were wrong. 1.2 was ~180× the measured minimum repairing tolerance (1.00111); the
+// clamp turned the boundary into a rail — at 3.5 breaths/min the estimator published at 360 of
+// 360 phases with `ratePerMinute` exactly 4.000 at 358 of them, and
+// `HealthWritePolicy.respiratoryRange` (4...40) CONTAINS 4.0, so a fabricated value would have
+// been written to Apple Health. `testTheReportedRateIsAMeasurementAndNotARail` is the guard.
 //
 // ⛔ WHY THIS IS A GUARD AND NOT JUST A FIX. The obvious objection to widening an acceptance
 // band is that it lets noise in. That objection is the reason `testAStillHandStillPublishesNothing`
@@ -34,13 +49,19 @@
 //   · This drives the PURE estimator with exact timestamps. It proves the arithmetic and the
 //     band logic; it does not prove the camera path measures a real 4/min breather (that is
 //     #304/#410, and 4/min is 15 s per cycle — the acquisition has to survive that long).
-//   · The `tolerance` value (1.2) is a judgement, not a derivation. What is derived is the
-//     SHAPE: accept-band ⊋ report-band. The tests below pin the shape and the two edges, not
-//     the constant — a later session may widen or narrow it and only the source-scan test
-//     will notice, deliberately.
+//   · The `tolerance` value (1.02) is a judgement WITH a derived floor under it: the smallest
+//     tolerance that removes the silence at both edges is 1.00111 (binary search over 360
+//     phases), so 1.02 is that minimum with ~18× margin. What is derived outright is the SHAPE:
+//     accept-band ⊋ report-band. The tests below pin the shape, the two edges and the
+//     no-rail property — the constant itself only has a floor, not a proof.
 //   · Nothing here says the reading at the edge is GOOD. At 30/min the RMS error is 1.19/min
-//     after the fix (8.52 before, dominated by the zeros). It says the estimator answers
-//     instead of going silent.
+//     after the fix, against 8.52 before.
+//     ⛔ That "before" figure carried the parenthetical "dominated by the zeros" for one commit
+//     and the zeros are not in it at all: 8.52 is the RMS over the 299 phases that ANSWERED,
+//     and the 61 silent ones are excluded by construction. Counting them as full 30/min errors
+//     gives 14.59. What actually dominates the 8.52 is the 55 half-rate reads — they carry
+//     99.995 % of its sum of squares, and without them the 299 answering phases sit at 0.066.
+//     A one-word attribution, wrong, inside the bullet whose job is to keep the claim modest.
 
 import Foundation
 import XCTest
@@ -53,7 +74,10 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
     /// Deliberately a private copy of the generator in
     /// `ResonanceBreathingNeedsMoreThanOneWindowTests` rather than a shared helper: these two
     /// files pin different properties of the same struct, and a shared fixture means a tweak
-    /// for one silently moves the other's numbers. The duplication is eleven lines.
+    /// for one silently moves the other's numbers. The duplication is fifteen lines — fourteen
+    /// for the generator plus the one-line `Beat`. ("Eleven" stood here for one commit and was
+    /// never counted; a cost stated to justify a design decision has to be measured like any
+    /// other number in this file.)
     private static func rsaBeats(seconds: Double,
                                  breathsPerMinute: Double,
                                  phase: Double,
@@ -163,8 +187,16 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
     }
 
     /// The interior of the band must be untouched — this change is an edge repair, not a
-    /// retune. These are the rates the product actually targets (6 is the resonance rate
-    /// `BioScienceInfo` cites), and all five were bit-identical in simulation before and after.
+    /// retune. The first five rates are the ones the product actually targets (6 is the
+    /// resonance rate `BioScienceInfo` cites) and were bit-identical in simulation before and
+    /// after.
+    ///
+    /// ⛔ THE LAST TWO ARE HERE BECAUSE "BIT-IDENTICAL INSIDE THE BAND" WAS FALSE — see the ⛔ in
+    /// the header. 4.25 and 24 are the two places the sweep says the repair reaches INWARD, and
+    /// they are pinned at their post-#424 values so a later widening cannot quietly undo the
+    /// improvement while the five untouched rates go on passing. Both got better (4.25:
+    /// 0.4226 → 0.3661; 24: 4.9626 → 2.2217), so these two bounds would be RED on the pre-#424
+    /// code — unlike the other five, which are green on both sides by construction.
     ///
     /// ⛔ THE BOUNDS BELOW ARE MEASURED, AND THE FIRST VERSION'S WERE NOT. It asserted a flat
     /// `< 1.0` at every rate "because the simulated worst was under 0.4", which was true of
@@ -181,11 +213,13 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
         // rate : worst |error| over all 360 phases, simulated identically on both sides of
         // #424, + ~15 % margin.
         let measuredWorst: [(rate: Double, bound: Double)] = [
-            (5.0, 0.42),     // measured 0.357
-            (6.0, 0.34),     // measured 0.285
-            (10.0, 0.40),    // measured 0.337
-            (15.0, 1.30),    // measured 1.123
-            (20.0, 2.55)     // measured 2.190
+            (5.0, 0.42),     // measured 0.357  — identical before/after
+            (6.0, 0.34),     // measured 0.285  — identical before/after
+            (10.0, 0.40),    // measured 0.337  — identical before/after
+            (15.0, 1.30),    // measured 1.123  — identical before/after
+            (20.0, 2.55),    // measured 2.190  — identical before/after
+            (4.25, 0.42),    // measured 0.366  — was 0.423, so this bound is red pre-#424
+            (24.0, 2.55)     // measured 2.222  — was 4.963, so this bound is red pre-#424
         ]
         for (rate, bound) in measuredWorst {
             var worst = 0.0
@@ -204,19 +238,48 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
         }
     }
 
-    /// The published contract is `[minRate, maxRate]`. Accepting wider must never leak a
-    /// wider REPORT — that would silently change what every consumer of
-    /// `/echoelmusic/bio/breath/rate` receives.
-    func testTheReportedRateNeverLeavesTheAdvertisedBand() {
-        for rate in [RespirationEstimator.minRate, 6.0, 15.0, RespirationEstimator.maxRate] {
+    /// ⭐ THE SECOND COUNTERWEIGHT, and it replaced a test that could not fail. The first
+    /// version of this file asserted `minRate <= rate <= maxRate` — a property a `clamped(to:)`
+    /// call three lines away enforced unconditionally, so it could only go red in the one case
+    /// the source scan also caught. Worse, the clamp it was pinning was itself the defect: a
+    /// body breathing BELOW the band published `ratePerMinute` exactly 4.000 at 358 of 360
+    /// phases (at 3.5/min), confidently, where before #424 it published at 37 and never at the
+    /// boundary. A saturating output on a measurement path invents data at the rail, and
+    /// `HealthWritePolicy.respiratoryRange` (4...40) contains that rail — it would have reached
+    /// Apple Health as a respiratory sample.
+    ///
+    /// So the property worth holding is not "inside the band" but "NOT PINNED TO THE BAND": a
+    /// reported rate that lands exactly on a boundary across a whole sweep is a saturating
+    /// output, not a measurement. The overshoot is bounded separately, from the sweep.
+    func testTheReportedRateIsAMeasurementAndNotARail() {
+        // Swept 4…30/min: max report above `maxRate` is 0.064/min, and nothing lands below
+        // `minRate` at all. A hair over a boundary is honest; sitting ON it is not.
+        let overshootAllowance = 0.15
+        for rate in [RespirationEstimator.minRate, 6.0, 15.0, 24.0, RespirationEstimator.maxRate] {
+            var atFloor = 0
+            var atCeiling = 0
+            var answered = 0
             for phase in Self.sweptPhases {
                 let r = Self.measure(breathsPerMinute: rate, phase: phase).ratePerMinute
                 guard r > 0 else { continue }
-                XCTAssertGreaterThanOrEqual(r, RespirationEstimator.minRate,
-                                            "reported \(r)/min, below the advertised floor")
-                XCTAssertLessThanOrEqual(r, RespirationEstimator.maxRate,
-                                         "reported \(r)/min, above the advertised ceiling")
+                answered += 1
+                if r == RespirationEstimator.minRate { atFloor += 1 }
+                if r == RespirationEstimator.maxRate { atCeiling += 1 }
+                XCTAssertGreaterThan(r, RespirationEstimator.minRate - overshootAllowance,
+                                     "\(rate)/min reported \(r) — further below the floor than " +
+                                     "the swept \(overshootAllowance)/min allowance")
+                XCTAssertLessThan(r, RespirationEstimator.maxRate + overshootAllowance,
+                                  "\(rate)/min reported \(r) — further above the ceiling than " +
+                                  "the swept \(overshootAllowance)/min allowance")
             }
+            XCTAssertGreaterThan(answered, 0, "premise: \(rate)/min must answer at some phase")
+            XCTAssertLessThanOrEqual(atFloor + atCeiling, 1, """
+                \(rate)/min reported EXACTLY the band boundary at \(atFloor + atCeiling) of \
+                \(answered) answering phases. An exact repeat of `minRate`/`maxRate` across a \
+                sweep is a saturating output — the rail this test exists to prevent. A clamp \
+                was reintroduced, or the tolerance grew far enough to admit bodies that are \
+                genuinely outside the band.
+                """)
         }
     }
 
@@ -228,6 +291,14 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
     ///
     /// This is what stops a later session from "simplifying" the two bands back into one: the
     /// value may move, the shape may not.
+    ///
+    /// ⛔ AND IT ONLY CHECKS THE SHAPE — IT SAYS NOTHING ABOUT THE MAGNITUDE. `bandTolerance =
+    /// 0.9` would satisfy every assertion here while INVERTING the design (accept narrower than
+    /// you report). The name says "wider" and this scan cannot see that; the magnitude is held
+    /// behaviourally instead, by the two edge tests (a tolerance below 1 puts 4/min and 30/min
+    /// straight back into silence) and by `testTheReportedRateIsAMeasurementAndNotARail` at the
+    /// top end. Saying so here is the point: a source scan that reads like more than it proves
+    /// is how a green bundle certifies a property nobody measured.
     func testTheAcceptBandIsWiderThanTheReportBand() throws {
         let source = try estimatorSource()
         let code = codeOnly(source)
@@ -242,11 +313,21 @@ final class TheBandEdgeIsMeasurableTests: XCTestCase {
             bare `minRate`/`maxRate` is the shipped-until-#424 behaviour and is what this file \
             exists to prevent.
             """)
-        XCTAssertTrue(code.contains("clamped(to: Self.minRate...Self.maxRate)"), """
-            The reported rate is no longer clamped to the advertised band. Accepting wider \
-            without clamping the report changes the published contract of \
-            `/echoelmusic/bio/breath/rate`. (Comments are stripped before this scan, so a \
-            mention of the clamp in prose cannot satisfy it — the expression has to be there.)
+        // ⛔ THE OPPOSITE OF WHAT THIS ASSERTION SAID FOR ONE COMMIT. It demanded
+        // `clamped(to: Self.minRate...Self.maxRate)` on the reported rate, "so the published
+        // contract is unchanged" — and that clamp is exactly what made a body outside the band
+        // read as a confident rail on the boundary value (see the header ⛔ and
+        // `testTheReportedRateIsAMeasurementAndNotARail`). The report is now the raw EMA, so
+        // the clamp must NOT come back; the band claim is held by the no-rail test plus the
+        // measured overshoot, not by saturating the output. Comments are stripped first, so
+        // this ⛔ naming the forbidden expression cannot itself trip the scan.
+        XCTAssertFalse(code.contains("clamped(to: Self.minRate...Self.maxRate)"), """
+            The reported rate is clamped back into the advertised band again. That looks like \
+            contract hygiene and is a fabrication: a breather outside the band then publishes \
+            EXACTLY `minRate`/`maxRate` with full confidence, and \
+            `HealthWritePolicy.respiratoryRange` (4...40) contains those values, so the invented \
+            number reaches Apple Health. Bound the overshoot instead — it is 0.064/min at the \
+            shipped tolerance.
             """)
     }
 

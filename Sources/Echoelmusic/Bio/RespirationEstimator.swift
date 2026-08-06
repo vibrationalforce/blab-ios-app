@@ -58,14 +58,29 @@ public struct RespirationEstimator {
     /// pull introduced. That mistake put the constant at 2.5 s and the comment opened with
     /// "THE ALLOWANCE IS NOT PADDING", which was then exactly what the extra second was.
     /// The correction narrows the case as well as the number: with the three real terms the
-    /// worst phase at 28 breaths/min reads 0.457 at 15 fps — no defect — and 0.394 at 7.5 fps,
+    /// worst phase at 28 breaths/min reads 0.4378 at 15 fps — no defect — and 0.3725 at 7.5 fps,
     /// under the 0.4 gate. This is a slow-device defect, and saying so is the point.
     ///
+    /// ⛔ THOSE TWO NUMBERS WERE 0.457 / 0.394 UNTIL #424 AND ARE NOT THE SAME MEASUREMENT ANY
+    /// MORE. Widening the acceptance band changes which crossings feed `periodEMA` at 28/min,
+    /// which changes `grace`, which changes this confidence — so every 28–30/min figure in this
+    /// file moved with that commit even though nothing in THIS constant was touched. The
+    /// conclusion is unchanged (15 fps clears the gate, 7.5 fps does not) and the margin got
+    /// slightly thinner, which is the direction that matters for a slow-device claim.
+    ///
     /// Two tests in `ResonanceBreathingNeedsMoreThanOneWindowTests` bracket this constant and
-    /// nothing else does: `…FastBreathers…` goes red below ≈0.74 s, `…AgesWithTheClock…` above
-    /// ≈15.0 s. 1.8 therefore sits ≈1.06 s above the floor and ≈13.2 s below the ceiling —
+    /// nothing else does: `…FastBreathers…` goes red below ≈0.87 s, `…AgesWithTheClock…` above
+    /// ≈15.0 s. 1.8 therefore sits ≈0.93 s above the floor and ≈13.2 s below the ceiling —
     /// deliberately close to the floor, because every second of allowance is a second the
     /// estimator keeps claiming a rate it can no longer see.
+    ///
+    /// ⛔ THE FLOOR READ ≈0.74 s (MARGIN ≈1.06 s) UNTIL #424 AND NEITHER FIGURE WAS RE-DERIVED
+    /// WHEN THE ACCEPTANCE BAND MOVED. The lower bracket is measured at 28/min, which is close
+    /// enough to the band edge that `bandTolerance` changes which crossings feed `periodEMA`;
+    /// the ceiling is measured at 6/min and did not move at all. So a constant documented as
+    /// bracketed "from both sides" had one of its two brackets silently invalidated by an edit
+    /// to a DIFFERENT constant twenty lines below. The margin is now ≈0.93 s — still comfortable,
+    /// and worth re-measuring after any change to either band.
     private static let pullLagAllowance = 1.8
 
     // MARK: Respiration band (breaths/min)
@@ -74,15 +89,25 @@ public struct RespirationEstimator {
     public static let maxRate = 30.0
 
     /// ⭐ ACCEPT WIDER THAN YOU REPORT (#424). A candidate period is accepted if its implied
-    /// rate falls in `[minRate / bandTolerance, maxRate * bandTolerance]`; the reported rate is
-    /// then clamped back into `[minRate, maxRate]`.
+    /// rate falls in `[minRate / bandTolerance, maxRate * bandTolerance]`. The reported rate is
+    /// the raw EMA and is NOT clamped back — see the second ⛔ below for why that mattered.
     ///
     /// Until #424 there was ONE band doing both jobs, and a measurement whose jitter put it a
     /// hair outside was discarded entirely — no period, no crossing count, no rate. That is not
     /// conservative at the edges, it is blind: swept over all 360 whole-degree phases with 60 s
     /// takes at a resting pulse, `ratePerMinute` stayed 0 at **240 of 360 phases at 4/min** and
-    /// **61 of 360 at 30/min** — the estimator's own advertised limits. At every rate strictly
-    /// inside the band the behaviour is bit-identical, so this is an edge repair, not a retune.
+    /// **61 of 360 at 30/min** — the estimator's own advertised limits.
+    ///
+    /// ⛔ "AT EVERY RATE STRICTLY INSIDE THE BAND THE BEHAVIOUR IS BIT-IDENTICAL" IS WHAT THIS
+    /// LINE SAID FOR ONE COMMIT, AND IT IS FALSE AS A UNIVERSAL. Swept at 0.25/min steps, the
+    /// reported rate moves at 4.0–4.75 and at 20.5–30: near an edge a breath cycle's JITTER can
+    /// push an interior rate's implied period outside the old band, so the repair reaches inward
+    /// from both ends. What is true is the narrower claim the tests actually pin: at 5, 6, 10,
+    /// 15 and 20/min — the rates the product targets — the sweep is bit-identical, and where it
+    /// does move it moves the right way. Worst |error| over 360 phases, before → after: 4.25/min
+    /// 0.4226 → 0.3661 · 24/min 4.9626 → 2.2217, and better at every changed rate except 21.5,
+    /// where it is 0.0044/min worse. So: an edge repair that reaches inward, not a retune — and
+    /// stating it as "nothing else changed" was the kind of claim this file exists to retract.
     ///
     /// ⚠️ THE LOW EDGE IS THE WORSE ONE and was found only by sweeping it. The review that
     /// raised this named 30/min; 4/min is four times worse and nobody had looked. When a bound
@@ -94,9 +119,34 @@ public struct RespirationEstimator {
     /// `TheBandEdgeIsMeasurableTests.testAStillHandStillPublishesNothing` holds that, and it is
     /// the test to read before changing this constant.
     ///
-    /// 1.2 is a judgement — roughly "one jittered beat of slack at either end". What is derived
-    /// is the SHAPE (accept ⊋ report), and that is what the guard pins.
-    private static let bandTolerance = 1.2
+    /// ⛔ IT SHIPPED AT 1.2 FOR ONE COMMIT, WITH THE JUSTIFICATION "roughly one jittered beat of
+    /// slack at either end". That sentence described neither end — at a 60 bpm pulse one beat is
+    /// 1 s, and 1.2 buys +3.0 beats at the slow end and −0.33 at the fast one. Worse, it was
+    /// ~180× more slack than the repair needs, and the surplus was not free. Measured: the
+    /// smallest tolerance that removes the silence at BOTH edges is **1.00111** (binary search,
+    /// 360 phases; 1.00002 at 4/min, 1.00111 at 30/min), and 1.003 also covers pulse 45–100.
+    /// 1.02 is that minimum with ~18× margin — chosen for the margin, not because it is the
+    /// smallest value that passes.
+    ///
+    /// ⛔ AND THE SURPLUS BOUGHT A FABRICATION. Paired with the rate clamp the first version
+    /// also shipped, a body breathing BELOW the band read as a confident rail: at 3.5 breaths/min
+    /// the estimator published at 360 of 360 phases with `ratePerMinute` exactly 4.000 at 358 of
+    /// them, where before #424 it published at 37 and never at the boundary. That value is not a
+    /// measurement, and `HealthWritePolicy.respiratoryRange` (4...40) CONTAINS it — so a
+    /// saturated number would have been written to Apple Health as a respiratory sample, and
+    /// learned into `PerformerSignature`. The clamp is gone (the reported rate is now the raw
+    /// EMA) and the tolerance is small enough that the accept floor sits at 3.92/min. The lesson
+    /// is not "clamps are bad": it is that a saturating output on a measurement path invents data
+    /// at the rail, and the reach of that invention is exactly this constant.
+    ///
+    /// ⚠️ IT DOES STILL COST SOMETHING, AND THE COST IS STALE-WINDOW, NOT ACCURACY. Accepting a
+    /// period the old band rejected also keeps `lastCrossT` and `periodEMA` alive on bodies just
+    /// outside the band, so a published rate survives longer after the beats stop. Longest
+    /// survival past the last beat, swept: at 3.5 breaths/min 20.0 s before → 39.0 s at the
+    /// shipped-for-one-commit 1.2 → 22.5 s at 1.02; at 4.0/min 32.5 → 36.5 → 36.5 s. That is the
+    /// second reason the tolerance is 1.02 and not 1.2 — the freshness term is what bounds this,
+    /// and a wide band hands it a longer expected period to be patient with.
+    private static let bandTolerance = 1.02
 
     // MARK: State
     private var lastT: Double?
@@ -162,12 +212,14 @@ public struct RespirationEstimator {
                 // Accept into a band wider than the one we report in — see `bandTolerance`.
                 if r >= Self.minRate / Self.bandTolerance, r <= Self.maxRate * Self.bandTolerance {
                     periodEMA = periodEMA == 0 ? period : periodEMA + 0.3 * (period - periodEMA)
-                    if periodEMA > 0 {
-                        // The published contract of `/echoelmusic/bio/breath/rate` is
-                        // [minRate, maxRate]; accepting wider must never widen the REPORT.
-                        ratePerMinute = (60.0 / periodEMA)
-                            .clamped(to: Self.minRate...Self.maxRate)
-                    }
+                    // ⛔ DO NOT CLAMP THIS. The first version of #424 clamped to
+                    // [minRate, maxRate] to keep the reported range identical, and that turned
+                    // the boundary into a rail that INVENTS a measurement — see the second ⛔ on
+                    // `bandTolerance`. The report is the raw EMA. With the shipped tolerance it
+                    // overshoots `maxRate` by at most 0.064/min and never falls below `minRate`
+                    // at any rate in the band, so the range claim survives in practice without a
+                    // saturating output; `TheBandEdgeIsMeasurableTests` measures both bounds.
+                    if periodEMA > 0 { ratePerMinute = 60.0 / periodEMA }
                     crossingCount += 1
                 }
             }
@@ -310,9 +362,11 @@ public struct RespirationEstimator {
         // `age(to:)` moved the evaluation to wall-clock now, which adds the camera pipeline
         // between the beat and this call. That is measurement latency, not staleness, and
         // charging it to the breather is wrong. Swept over all 360 whole-degree breathing
-        // phases at a 2.5 s lag: at 28 breaths/min the worst phase read confidence 0.284
+        // phases at a 2.5 s lag: at 28 breaths/min the worst phase read confidence 0.2582
         // WITHOUT the allowance — under the publisher's 0.4 gate, so a fast breather's own
-        // measurement flickered off — and 0.487 with it. The cost at the other end is
+        // measurement flickered off — and 0.4871 with it. (Pre-#424 those were 0.2837 and the
+        // same 0.4871; the no-allowance case moved because the acceptance band did, the
+        // allowance case did not move at all.) The cost at the other end is
         // negligible because the envelope veto dominates there: the 60 s-then-flat series that
         // `testAMeasuredRateExpiresWhenTheBreathingStops` drives ends at 0.0054 instead of
         // 0.0019, both far under the gate.
@@ -329,11 +383,20 @@ public struct RespirationEstimator {
         // 15 s after the crossing either way; the 0.4 crossing is what separates them. Time
         // from the last crossing to `confidence < 0.4`, PHASE 0, this file's own generator,
         // before / added 2.5 / subtracted 1.8: 6/min 24.00 → 28.00 → 25.80 s · 15/min
-        // 9.06 → 12.83 → 10.86 s · 28/min 4.53 → 8.14 → 6.34 s. Subtracting buys the identical
+        // 9.06 → 12.83 → 10.86 s · 28/min 4.44 → 8.04 → 6.24 s. Subtracting buys the identical
         // fast-end protection (0.4871 at every phase — the same number to four decimals) for a
         // smaller extension of the stale window at every rate.
         //
-        // ⛔ AND THE PHASE HAD TO BE NAMED. The first version of that table wrote 24.1 / 28.1 /
+        // ⚠️ THE 28/min ROW MOVED WITH #424 (it read 4.53 → 8.14 → 6.34 on the narrower
+        // acceptance band); the 6 and 15/min rows are unchanged to three decimals, because
+        // neither rate has a crossing anywhere near a band edge. The SHAPE of the comparison —
+        // subtracting extends the stale window less than adding, at every rate — is what the
+        // paragraph argues, and it survives the shift intact.
+        //
+        // ⛔ AND THE PHASE HAD TO BE NAMED. (Everything in this ⛔ and the next one is quoted on
+        // the PRE-#424 acceptance band, because both are about what an earlier draft of this
+        // comment claimed — restating them on today's band would make the retraction unreadable
+        // against the drafts it retracts.) The first version of that table wrote 24.1 / 28.1 /
         // 25.9 for the 6/min row and 4.7 / 8.4 / 6.5 for the 28/min row, with no phase given.
         // The 28/min row reproduces only near phase 19–20°, the 15/min row near 2°, and the
         // 6/min row reproduces at NO phase at all — the achievable "before" values jump
@@ -350,17 +413,24 @@ public struct RespirationEstimator {
         //
         // ⚠️ ABOVE 28.7/min A GROWING SHARE OF PHASES STILL FAILS THE GATE, and the first
         // version blamed Nyquist for it. That was written from ONE phase and the sweep refutes
-        // it: at 30 breaths/min the measured rate is ~30 at 244 of 360 phases, 0 at 61, ~10 at
+        // it: at 30 breaths/min the measured rate WAS ~30 at 244 of 360 phases, 0 at 61, ~10 at
         // 53, and one phase each at 10.3 and 18.8 — the modal answer is the RIGHT one. So the
         // residual is a CONFIDENCE problem of the same lag/freshness kind, not a sampling
         // limit, and neither this allowance nor a larger one closes it (29/min worst phase at
-        // the same 2.5 s lag: 0.000 before, 0.179 with subtract-1.8, 0.266 with subtract-2.5,
-        // 0.318 under the previous commit's add-2.5 — all under the gate). Two real causes sit
-        // under the 61 zeros at 30/min and are registered on the board, not fixed here:
-        // `lastCrossT` is quantised to a beat (#423), and `r <= Self.maxRate` REJECTS a
-        // crossing whose jitter puts it a hair over 30/min instead of accepting the measurement
-        // into a wider band than it reports (#424) — at every one of those 61 phases, EVERY
-        // crossing was rejected with r = 30.000000…x, so that cause is measured, not inferred.
+        // the same 2.5 s lag: 0.000 before, 0.1685 with subtract-1.8, 0.2572 with subtract-2.5,
+        // 0.3134 under the previous commit's add-2.5 — all under the gate).
+        //
+        // ⭐ ONE OF THE TWO CAUSES UNDER THAT HISTOGRAM IS NOW FIXED and this paragraph would
+        // otherwise send the next reader after it again. It listed two, both "registered on the
+        // board, not fixed here": `lastCrossT` is quantised to a beat (#423, still open), and
+        // `r <= Self.maxRate` REJECTED a crossing whose jitter put it a hair over 30/min instead
+        // of accepting the measurement into a wider band than it reports — at every one of those
+        // 61 phases, EVERY crossing was rejected with r = 30.000000…x, so that cause was
+        // measured, not inferred. #424 did exactly that widening, and the same sweep now reads
+        // ~30 at 358 of 360 phases with NO zeros — the 61-strong zero bucket and the 53-strong
+        // half-rate bucket are both gone, and only the two stragglers at 10.3 and 18.8 survive
+        // (which is why they are worth naming). The confidence residual above 28.7/min is NOT
+        // fixed; the 29/min column is measured on today's band and still sits under the gate.
         //
         // ⛔ THE HISTOGRAM ABOVE READ "244 / 61 / 54" FOR ONE COMMIT AND SUMMED TO 359. The
         // ~10 bucket is 53; the two stragglers at 10.3 and 18.8 belonged to no named bucket and

@@ -253,8 +253,37 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Phasen null (das war der berichtete Fall) und bei **4/min an 240 von
                           360** — dem LANGSAMEN Rand, den niemand angesehen hatte, viermal
                           schlimmer. Die Reparatur ist eine Formregel und keine Zahl: ANNEHMEN in
-                          einem weiteren Band als man MELDET (`[minRate/1.2, maxRate*1.2]`,
-                          Report auf `[minRate, maxRate]` geklemmt). Im Bandinneren bit-identisch.
+                          einem weiteren Band als man MELDET (`[minRate/tol, maxRate*tol]`).
+                          ⛔ **UND DIE ERSTE FASSUNG DIESER SCHEIBE HAT DABEI SELBST EINEN DEFEKT
+                          AUSGELIEFERT — den einzigen in dieser Kette, der auf einem
+                          GESUNDHEITSDATEN-Pfad landet, und ich habe ihn erst durch den
+                          DSP-Reviewer gesehen.** Sie nahm `tol = 1,2` und KLEMMTE den Report auf
+                          `[minRate, maxRate]` zurück, „damit der veröffentlichte Vertrag gleich
+                          bleibt". Beides falsch. Die kleinste Toleranz, die die Stille an BEIDEN
+                          Rändern beseitigt, ist per Bisektion **1,00111** — 1,2 war das ~180-fache
+                          davon; und zusammen mit der Klemme las sich ein Körper UNTERHALB des
+                          Bandes als sichere Messung: bei 3,5 Atemzügen/min veröffentlichte der
+                          Schätzer an **360 von 360** Phasen, davon an **358** mit `ratePerMinute`
+                          exakt 4,000 (vorher: 37 Veröffentlichungen, nie auf der Grenze).
+                          `HealthWritePolicy.respiratoryRange` ist `4...40` und ENTHÄLT die 4,0 —
+                          die erfundene Zahl wäre als Atemfrequenz-Sample nach Apple Health
+                          geschrieben und in `PerformerSignature` gelernt worden. Jetzt **1,02 ohne
+                          Klemme**: 3,5/min veröffentlicht an 61 Phasen, nie auf der Grenze; der
+                          Report überschießt `maxRate` um höchstens 0,064/min. **Lehre, und sie ist
+                          allgemeiner als dieser Parameter: ein SÄTTIGENDER Ausgang auf einem
+                          Messpfad erfindet Daten am Anschlag — und wie weit diese Erfindung reicht,
+                          entscheidet genau die Konstante daneben.** ⛔ Zweitens war „im Bandinneren
+                          bit-identisch" als Allaussage FALSCH: gewischt in 0,25er-Schritten bewegt
+                          sich der Report bei 4,0–4,75 und ab 20,5 bis 30 — Jitter schiebt auch eine
+                          INNERE Rate über die alte Grenze. Wahr ist die engere Aussage, die der
+                          Test festnagelt: bit-identisch bei 5, 6, 10, 15 und 20, und wo es sich
+                          bewegt, wird es besser (4,25: 0,4226 → 0,3661; 24: 4,9626 → 2,2217; nur
+                          21,5 ist um 0,0044/min schlechter). ⛔ Drittens ging dabei eine Klammer
+                          eines FREMDEN Parameters still kaputt: die untere Schranke von
+                          `pullLagAllowance` wird bei 28/min gemessen, nah genug am Rand, dass die
+                          neue Toleranz sie von ≈0,74 s auf ≈0,87 s schiebt. Eine Konstante, die als
+                          „von beiden Seiten geklammert" dokumentiert war, verlor eine Klammer durch
+                          eine Änderung zwanzig Zeilen weiter unten.
                           ⚠️ Seine wichtigste Hälfte ist der Gegengewichts-Test, nicht die
                           Regression: der naheliegende Einwand gegen ein weiteres Annahme-Band ist
                           „dann kommt Rauschen rein", und `testAStillHandStillPublishesNothing`
