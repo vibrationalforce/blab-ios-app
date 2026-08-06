@@ -63,10 +63,53 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     }
 
     /// Natural input range of the raw field, used for [0..1] normalization.
+    ///
+    /// ⭐ THIS IS A SCALING RANGE, NOT A VALIDITY TEST. `isMeasured` decides whether a
+    /// channel carries a reading; this decides how much of a route's depth a given
+    /// reading spends. A value outside it is not rejected — it SATURATES, which is a
+    /// different failure and a quieter one.
+    ///
+    /// ⭐ BREATH'S LOW BOUND IS THE GATE'S LOW BOUND, DELIBERATELY (#429). It was `4`,
+    /// copied from `RespirationEstimator.minRate` — and that file and the `isMeasured`
+    /// doc below both named it as the last live instance of that copy. The set of values
+    /// that can EVER reach `normalizedValue` on a gated route is exactly
+    /// `BioSampleFrame.plausibleBreathRate` (`3...40`), because `isMeasured` drops everything
+    /// else. So a scale starting at 4 left `[3, 4)` admitted-and-dead: a slow breather the
+    /// gate called a measurement spent exactly zero depth, indistinguishable from a body
+    /// that is not breathing. Chaining to the GATE closes that and mints no new constant;
+    /// chaining to `reportableRange` (3.7736…) would have minted a fifth respiration number
+    /// and still left `[3, 3.7736)` dead — HealthKit forwards whatever the watch reports,
+    /// it is not bounded by our camera estimator.
+    ///
+    /// ⚠️ THE TOP IS NOT WIDENED TO MATCH, AND THAT ASYMMETRY IS THE DECISION, NOT AN
+    /// OVERSIGHT. The gate admits to 40; above 30 this scale saturates at 1.0 and stays
+    /// there. Widening to `3...40` would cost 0.27 of travel at 20/min — squeezing every
+    /// rate a seated performer actually breathes at — to give resolution to panting.
+    /// Saturating a rate above 30 at full depth is the right answer, not a rounding error.
+    /// If you widen the top, delete this paragraph in the same commit or it becomes a lie.
+    ///
+    /// ⚠️ IT MOVES SHIPPED ARITHMETIC, AND HERE IS THE SIZE OF IT: `(v−3)/27` against
+    /// `(v−4)/26`. The shift is +0.037037 at 4/min and falls monotonically to EXACTLY zero
+    /// at 30 (and above — both scales clamp). 6/min 0.0769 → 0.1111, 12/min 0.3077 → 0.3333,
+    /// 20/min 0.6154 → 0.6296. It moves in the direction the product wants: the HRV-resonance
+    /// band (~4.5–6/min, what `BreathPacer` paces and `BioScienceInfo` cites) sat in the
+    /// bottom 8% of every breath route and gains +44% of travel at 6/min, +189% at 4.5 —
+    /// one number would understate it at one end and overstate it at the other. No SHIPPED
+    /// route binds `.breathRate` — the enum case appears only in this file's own switches —
+    /// so nothing a user hears today changes; this is the mapping a built route will get.
+    ///
+    /// ⚠️ WHAT THIS DOES NOT FIX, so the next session does not read it as fixed: the scale
+    /// is LINEAR over a 10× span, and rate is perceived roughly logarithmically, so the
+    /// resonance band still occupies a small slice of it. That is deliberately NOT solved
+    /// by bending this range, because a per-route stage for exactly this already exists —
+    /// `ModRoute.curve` runs AFTER normalization and `ResponseCurve.logarithmic` (√x)
+    /// expands the bottom. Baking a curve into the range would apply it to every route
+    /// whether or not that route wants it, and would double up on the routes that do. (It
+    /// is user-facing on the bio-mod routes today; `ModRoute`'s own UI is #136.)
     public var range: ClosedRange<Float> {
         switch self {
         case .heartRate:   return 40...200
-        case .breathRate:  return 4...30
+        case .breathRate:  return 3...30
         case .hrv, .breathPhase, .coherence, .motion,
              .faceSmile, .faceBrow, .faceJaw: return 0...1
         }
@@ -130,10 +173,12 @@ public enum ModSource: String, Codable, Sendable, CaseIterable {
     /// Breath is the channel whose gate reads a DIFFERENT field than its value:
     /// `breathPhase` has no unknown sentinel (0 is a real position, exhale start), so
     /// both breath sources ride `BioSampleFrame.hasMeasuredBreath`, which gates on
-    /// `breathRate`. Note that band (3…40) is WIDER than `ModSource.breathRate.range`
-    /// (4…30), so a 3.5/min resonance breather passes the gate and still normalizes to
-    /// exactly 0 — the same excursion, surviving inside the gate. Narrow, pre-existing,
-    /// and not worth changing the mapping curve for every route to close blind.
+    /// `breathRate`. That band (`3...40`) and `ModSource.breathRate.range` (`3...30`) now
+    /// share a LOW bound, which is the point of #429: a 3.5/min resonance breather used to
+    /// pass this gate and still normalize to exactly 0 — the same full excursion, surviving
+    /// INSIDE the gate. They still differ at the TOP (40 vs 30) and that half is deliberate;
+    /// the reason is written at `range`. Saturating above 30 is a bounded answer, spending
+    /// zero depth below 4 was not.
     ///
     /// The face channels gate on PROVENANCE rather than a sentinel, because a tracked,
     /// genuinely neutral face reads 0 and must stay a reading — widen this if a future

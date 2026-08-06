@@ -341,12 +341,16 @@ public struct RespirationEstimator {
     ///
     /// ⚠️ FOUR RESPIRATION BANDS NOW EXIST IN THIS REPO and they are deliberately different, so
     /// nobody unifies them by reflex: this one (what the estimator can emit),
-    /// `EngineBus.plausibleBreathRate` `3...40` (is this frame a measurement at all — gates the
+    /// `BioSampleFrame.plausibleBreathRate` `3...40` (is this frame a measurement at all — gates the
     /// readout, OSC egress and `PerformerSignature`), `HealthWritePolicy.respiratoryRange`
     /// `3.7...40` (may this be written into a health record — the strictest act, hence the
-    /// narrowest low end above this one), and `ModSource.breathRate.range` `4...30` (a modulation
-    /// SCALING range, not a validity test — and the one place the `minRate`/`maxRate` mistake is
-    /// still live; registered, not fixed here, because changing it changes shipped sound).
+    /// narrowest low end above this one), and `ModSource.breathRate.range` `3...30` (a modulation
+    /// SCALING range, not a validity test). That fourth one WAS `4...30` — a copy of this file's
+    /// `minRate`/`maxRate` — and #429 unpicked the copy rather than tightening it: its low bound
+    /// is now `BioSampleFrame.plausibleBreathRate`'s, because a scaling range should span what the
+    /// GATE admits, not what this estimator can emit. Its top stays 30 on purpose. Do not
+    /// re-derive any of those four from these two constants; a DSP retune must not silently move
+    /// a health record's admissibility or a modulation curve.
     public static var reportableRange: ClosedRange<Double> {
         (minRate / bandTolerance)...(maxRate * bandTolerance)
     }

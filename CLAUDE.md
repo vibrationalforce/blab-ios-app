@@ -242,8 +242,47 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**167** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `TheKeypadCannotTypeWhatItCannotKeepTests.swift` (#431 — der
+                          `Tests/CISmoke` (**168** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-06 nach `TheBreathScaleSpansWhatTheGateAdmitsTests.swift` (#429 — der
+                          erste Wächter in dieser Kette, der eine SKALA an ein TOR kettet statt an eine
+                          Messung: `ModSource.breathRate.range` war `4...30`, abgeschrieben von
+                          `RespirationEstimator.minRate`/`maxRate` — und ZWEI Quelldateien nannten genau
+                          diese Stelle als die letzte lebende Kopie und lehnten die Reparatur je ab
+                          („nicht wert, die Abbildungskurve für jede Route blind zu ändern"). Der Defekt
+                          ist einer der REICHWEITE: die Menge der Werte, die je bei `normalizedValue`
+                          ankommen kann, ist exakt `BioSampleFrame.plausibleBreathRate` (`3...40`), weil
+                          `isMeasured` alles andere vorher verwirft. Eine Skala ab 4 ließ `[3, 4)` also
+                          zugelassen-und-tot: das Tor nannte den Frame eine Messung, die Skala gab ihm
+                          NULL Tiefe — ununterscheidbar von einem Körper, der nicht atmet. Gemessen:
+                          3,5/min → 0,000000, 3,9/min ebenso.
+                          ⭐ Der Punkt ist, an WAS gekettet wird. Nach #426 wäre `reportableRange`
+                          (3,7736…) der naheliegende Griff gewesen und ist zweifach falsch: er prägt eine
+                          FÜNFTE Atem-Zahl und lässt `[3, 3.7736)` weiter tot — HealthKit reicht durch,
+                          was die Uhr meldet, und ist von unserem Kamera-Schätzer nicht begrenzt. Das
+                          Tor ist das einzige Band, das die Frage „was kann hier überhaupt ankommen"
+                          beantwortet. Die untere Grenze bleibt ein LITERAL, die Kettung steht im
+                          Wächter — dieselbe Form wie `HealthWritePolicy` seit #426.
+                          ⚠️ Die OBERE Grenze ist absichtlich NICHT mitgezogen, und das ist der Grund,
+                          warum die Asymmetrie als eigener Test dasteht statt als Kommentar: `3...40`
+                          würde bei 20/min 0,27 Reiseweg kosten — jede Rate, die ein sitzender Performer
+                          wirklich atmet — um Auflösung fürs Hecheln zu kaufen. Der gemessene Preis der
+                          Änderung, die WIRKLICH passiert ist: +0,037037 bei 4/min, monoton fallend auf
+                          EXAKT null bei 30 und darüber (6/min 0,0769 → 0,1111, 12/min 0,3077 → 0,3333).
+                          Sie bewegt sich in die Richtung, die das Produkt will: das HRV-Resonanzband
+                          (~4,5–6/min, das `BreathPacer` vorgibt) lag in den unteren 8 % jeder Atem-Route.
+                          ⚠️ Was er NICHT kann, und das ist hier die Hauptsache: KEINE ausgelieferte
+                          Route bindet `.breathRate` — der Enum-Case kommt nur in den eigenen `switch`es
+                          seiner Datei vor. Es ändert sich also nichts, was heute jemand hört, und
+                          folglich kann auch keine Hörprobe bestätigen, dass die Kurve die RICHTIGE ist.
+                          Die tiefere Frage bleibt offen und steht in beiden Dateien: die Skala ist
+                          LINEAR über einen 10×-Bereich, während Rate ungefähr logarithmisch empfunden
+                          wird. Und nur ZWEI der sechs Tests sind auf der alten Konstante rot; die
+                          anderen vier halten fest, was sich NICHT bewegen darf, und sagen das im
+                          Dateikopf. ⛔ Beim Schreiben stand `EngineBus.plausibleBreathRate` in DREI
+                          Quell-Doks und wanderte von dort in meinen Testcode — die Konstante gehört
+                          `BioSampleFrame`, `EngineBus` ist nur die DATEI. Ohne Compiler in dieser
+                          Sitzung fängt so etwas kein Gate vor dem Push; korrigiert, auch in den drei
+                          Alt-Stellen), davor „167" nach `TheKeypadCannotTypeWhatItCannotKeepTests.swift` (#431 — der
                           erste Wächter in dieser Kette über der EINGABE statt über der Anzeige oder dem
                           Zug, und der erste, der eine ausgelieferte Zahl absichtlich VERSCHLECHTERT, um
                           eine Lüge zu beenden: `EchoelNumberPad.commit()` rastert auf `10^-decimals`,
@@ -1119,7 +1158,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSECHSUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 167 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSIEBENUNDZWANZIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 168 ist hier NICHT mitgezählt, anders als im Sources-Absatz oben (167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

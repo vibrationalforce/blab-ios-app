@@ -95,10 +95,11 @@ public enum HealthWritePolicy {
     /// have to be re-fitted after every DSP change — which is the maintenance failure this file's
     /// neighbours document at length. Chain over fit, deliberately.
     ///
-    /// ⚠️ THERE ARE THREE RESPIRATION BANDS IN THIS REPO AND THIS IS THE NARROWEST. `EngineBus
+    /// ⚠️ THERE ARE THREE RESPIRATION BANDS IN THIS REPO AND THIS IS THE NARROWEST. `BioSampleFrame
     /// .plausibleBreathRate` is `3...40` (it gates `hasMeasuredBreath`, OSC egress and what
-    /// `PerformerSignature` learns), `ModSource.breathRate.range` is `4...30` (a modulation
-    /// scaling range, not a validity test), and this one is `3.7...40`. They are NOT redundant —
+    /// `PerformerSignature` learns), `ModSource.breathRate.range` is `3...30` (a modulation
+    /// scaling range, not a validity test — it shares the gate's LOW bound since #429 and keeps
+    /// its own top), and this one is `3.7...40`. They are NOT redundant —
     /// writing into a health record is a stricter act than lighting a readout — but a reader
     /// asking "why not reuse the repo-wide band?" deserves the answer here rather than a fourth
     /// definition of "plausible" appearing later (#416).
