@@ -69,8 +69,34 @@ public struct RespirationEstimator {
     private static let pullLagAllowance = 1.8
 
     // MARK: Respiration band (breaths/min)
+    /// The band this estimator ADVERTISES and REPORTS in. `ratePerMinute` never leaves it.
     public static let minRate = 4.0
     public static let maxRate = 30.0
+
+    /// ⭐ ACCEPT WIDER THAN YOU REPORT (#424). A candidate period is accepted if its implied
+    /// rate falls in `[minRate / bandTolerance, maxRate * bandTolerance]`; the reported rate is
+    /// then clamped back into `[minRate, maxRate]`.
+    ///
+    /// Until #424 there was ONE band doing both jobs, and a measurement whose jitter put it a
+    /// hair outside was discarded entirely — no period, no crossing count, no rate. That is not
+    /// conservative at the edges, it is blind: swept over all 360 whole-degree phases with 60 s
+    /// takes at a resting pulse, `ratePerMinute` stayed 0 at **240 of 360 phases at 4/min** and
+    /// **61 of 360 at 30/min** — the estimator's own advertised limits. At every rate strictly
+    /// inside the band the behaviour is bit-identical, so this is an edge repair, not a retune.
+    ///
+    /// ⚠️ THE LOW EDGE IS THE WORSE ONE and was found only by sweeping it. The review that
+    /// raised this named 30/min; 4/min is four times worse and nobody had looked. When a bound
+    /// turns out to be wrong at one end, measure the other end before writing the fix.
+    ///
+    /// ⚠️ WIDENING THIS DOES NOT LET NOISE IN, and it is worth knowing why before touching it:
+    /// the band is not the noise filter. `envConf` is — a hand with no respiratory swing has no
+    /// envelope, so `confidence` stays far under the publish gate no matter what the band says.
+    /// `TheBandEdgeIsMeasurableTests.testAStillHandStillPublishesNothing` holds that, and it is
+    /// the test to read before changing this constant.
+    ///
+    /// 1.2 is a judgement — roughly "one jittered beat of slack at either end". What is derived
+    /// is the SHAPE (accept ⊋ report), and that is what the guard pins.
+    private static let bandTolerance = 1.2
 
     // MARK: State
     private var lastT: Double?
@@ -133,9 +159,15 @@ public struct RespirationEstimator {
             if let lc = lastCrossT {
                 let period = t - lc
                 let r = period > 0 ? 60.0 / period : 0
-                if r >= Self.minRate, r <= Self.maxRate {
+                // Accept into a band wider than the one we report in — see `bandTolerance`.
+                if r >= Self.minRate / Self.bandTolerance, r <= Self.maxRate * Self.bandTolerance {
                     periodEMA = periodEMA == 0 ? period : periodEMA + 0.3 * (period - periodEMA)
-                    if periodEMA > 0 { ratePerMinute = 60.0 / periodEMA }
+                    if periodEMA > 0 {
+                        // The published contract of `/echoelmusic/bio/breath/rate` is
+                        // [minRate, maxRate]; accepting wider must never widen the REPORT.
+                        ratePerMinute = (60.0 / periodEMA)
+                            .clamped(to: Self.minRate...Self.maxRate)
+                    }
                     crossingCount += 1
                 }
             }
