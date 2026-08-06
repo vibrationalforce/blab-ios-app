@@ -5489,7 +5489,11 @@ struct EchoelStudioView: View {
             // a peer of A/D/S/R instead of the control that sets them.
             AdaptiveCardGrid(spacing: 14) {
                 param("Attack", $currentPatch.attack, 0...5, unit: "s", decimals: 3)
-                param("Decay", $currentPatch.decay, 0...5, unit: "s", decimals: 2)
+                // 0…10 (the Release row's range), not 0…5: `Drone Bed` ships a 6.0 s decay
+                // (`GenrePatches.swift:145`) and the field CLAMPS before it rounds, so on the
+                // old range one touch rewrote it as 5.0 s — a fifth of the row's span, on a
+                // value a designer typed. Widen the control, never round the patch (#430/#424).
+                param("Decay", $currentPatch.decay, 0...10, unit: "s", decimals: 2)
                 param("Sustain", $currentPatch.sustain, 0...1, decimals: 2)
                 param("Release", $currentPatch.release, 0...10, unit: "s", decimals: 2)
             }

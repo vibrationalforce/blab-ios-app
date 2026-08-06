@@ -256,23 +256,45 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           ⭐ Der Punkt ist NICHT „überall 2", und genau das unterscheidet diese
                           Scheibe von #427/#354 A: DREI Zeilen müssen abweichen, und WELCHE wurde
                           aus dem ausgelieferten Bestand GEMESSEN, nicht gewählt. `attack` liefert
-                          0,003/0,004/0,005/0,008 s (`PatchLibrary` + `SynthPatch.factory`) und
-                          `noiseLevel` einmal 0,006 (`SynthPatch.swift:424`) — ein Zweier-Raster
-                          würde vier Werksanschläge runden, einen davon auf null, also 3 Stellen.
-                          `filterCutoff` spannt 20…18000 Hz und ALLE 29 ausgelieferten Werte sind
-                          ganzzahlig, also 0 — was die drei ANDEREN Cutoff-Zeilen der App
-                          (`EchoelFXView:480`, `EchoelStudioView:2475`/`:2503`) längst sagen.
-                          ⚠️ Der Wächter hat zwei Hälften und die erste ist die tragende: 496
-                          ausgelieferte Literale über `SynthPatch.factory` + `PatchLibrary.all` +
-                          `MusicStyle.allCases` gehen durch das Raster ihrer eigenen Zeile und
-                          müssen bitgleich zurückkommen (Float→Double→Raster→Float, weil die
-                          Bindung `Float` ist und ein reiner Double-Vergleich eine Umwandlung
-                          verstecken würde, die wirklich passiert). Die zweite verbietet, dass
-                          `decimals` je wieder einen DEFAULT bekommt — denn genau das war der
-                          Mechanismus: ein Argument, das keine Aufrufstelle schreibt, taucht in
-                          keinem Diff auf. ⚠️ Was er NICHT kann: beweisen, dass die Zeilen
-                          rendern, und beurteilen, ob 3 Stellen sich für eine Hüllkurve richtig
-                          ANFÜHLEN — das ist eine Geräteprobe. Steht so im Dateikopf), davor „169"
+                          0,002/0,003/0,004/0,005/0,008 s und `noiseLevel` 0,006
+                          (`SynthPatch.swift:424`) UND 0,008 (`GenrePatches.swift:228`) — ein
+                          Zweier-Raster lässt VIER Anschläge auf null zusammenfallen (0,005
+                          eingeschlossen, weil `Float(0,005)` = 0,004999999888 unter der halben
+                          Stufe liegt) und bildet beide Rauschböden auf dieselbe 0,01 ab, also je
+                          3 Stellen. `filterCutoff` spannt 20…18000 Hz und ALLE 44 ausgelieferten
+                          Werte (160…8000) sind ganzzahlig, also 0 — was die drei ANDEREN
+                          Cutoff-Zeilen der App (`EchoelFXView:480`, `EchoelStudioView:2474` und
+                          `:2502`) längst sagen.
+                          ⛔ **Und die erste Fassung dieser Scheibe behauptete „0 daneben,
+                          gemessen" über 496 Literale — falsch, und die Ursache ist eine METHODE,
+                          keine Zahl.** Die 496 deckten nur `SynthPatch.swift` und
+                          `PatchLibrary.swift`; die dritte GENANNTE Quelle, `MusicStyle.synthPatch`,
+                          war dem Scan zweifach unsichtbar — `GenrePatches.patch(...)` reicht jedes
+                          Feld unter einem ANDEREN Argumentnamen durch (`d:`, `bright:`,
+                          `revDecay:`) und BERECHNET zwei davon (`GenrePatches.swift:363-364`).
+                          Neu gemessen mit paren-gematchtem Parser über alle 34 `patch(`-Aufrufe
+                          UND mit den `SynthPatch.init`-Vorgaben für jedes ausgelassene Feld: **78
+                          Patches, 1326 Wert/Zeile-Paare**. Derselbe Defekt wie bei der
+                          #431-Zählung — die Methode in einem Satz ist auch eine Behauptung.
+                          ⭐ Was die ehrliche Messung fand, und warum der Wächter jetzt DREI
+                          Ansprüche stellt statt einem: **EIN** ausgelieferter Wert lag außerhalb
+                          seiner Zeile (`Drone Bed` `d: 6.0` gegen eine Decay-Zeile 0…5; `snapped`
+                          klemmt VOR dem Runden, ein Antippen hätte 6,0 s als 5,0 s
+                          zurückgeschrieben) — behoben durch WEITEN auf 0…10, nie durch Runden des
+                          Patches, die #424-Lehre auf einem anderen Pfad. **65** Werte liegen
+                          neben dem Raster und ALLE 65 sind BERECHNET (32 Helligkeiten, 33
+                          Obertonpegel, alle aus dem Genre-Lift); sie dürfen runden, und Anspruch 3
+                          BEGRENZT das Runden auf eine halbe Rasterstufe statt es zu verbieten —
+                          on-grid zu erzwingen hieße, in den Sound-Design-Code zu runden und 33
+                          ausgelieferte Genres um ungehörte Beträge zu ändern. Alle **1261**
+                          AUTORIERTEN Literale sind exakt auf dem Raster ihrer Zeile; das ist der
+                          Anspruch, der Attacks 0,002…0,008 s und die zwei Rauschböden schützt.
+                          Die vierte Hälfte verbietet, dass `decimals` je wieder einen DEFAULT
+                          bekommt — denn genau das war der Mechanismus: ein Argument, das keine
+                          Aufrufstelle schreibt, taucht in keinem Diff auf. ⚠️ Was er NICHT kann:
+                          beweisen, dass die Zeilen rendern, und beurteilen, ob 3 Stellen sich für
+                          eine Hüllkurve richtig ANFÜHLEN — das ist eine Geräteprobe. Steht so im
+                          Dateikopf), davor „169"
                           nach `TheArousalFloorSitsBelowThePacedBreathTests.swift` (#433 — der
                           erste Wächter in dieser Kette über einem Defekt, den ein REVIEWER-BERICHT
                           eingeführt hat und dessen Korrektur die halbe Scheibe ist. Der #429-Reviewer
