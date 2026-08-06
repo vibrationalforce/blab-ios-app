@@ -203,3 +203,19 @@ notes: |
   Sound-Panel im Querformat · die Aufnahme-Stopp-Zeile im Video-Panel · und die AKQUISE der
   Pulsmessung: jeder Stopp tötet die Kamera und kostet danach rund 19 Sekunden, bis der Puls
   wieder greift.
+
+  ── RE-TRIGGER 1 VON 3 (2026-08-06 18:4x UTC) ──────────────────────────────
+
+  Der erste Anlauf (Lauf 31124762898) hat den Build NICHT hochgeladen, und der Grund liegt
+  nicht im Code: die zwei ubuntu-Jobs `Preflight` und `Summary` stehen auf `cancelled` mit
+  `runner_id: 0`, leerem Runner-Namen und `started_at == created_at` — sie haben in 17 bzw.
+  15 Minuten NIE einen Runner bekommen. `Compile Check` und `iOS` wurden daraufhin
+  `skipped`. Es wurde also nichts gebaut, nichts signiert und nichts abgelehnt.
+
+  Dieselbe Erscheinungsform wie auf c0e5b0d (#446). Version bleibt bewusst v10.79.370 —
+  neue Build-Nummer, gleiche Version, damit eindeutig bleibt, dass es derselbe Inhalt ist.
+  Re-Run-APIs sind für diesen Token 403, ein Bump hier ist der einzige Hebel.
+
+  ⚠ Wenn auch dieser Anlauf ohne Runner abbricht: NICHT weiter bumpen. Zwei Fehlschläge mit
+  `runner_id: 0` hintereinander sind kein Transient mehr, sondern eine Kapazitäts- oder
+  Kontingentfrage im Konto — und die gehört dem Founder, nicht einem dritten Commit.
