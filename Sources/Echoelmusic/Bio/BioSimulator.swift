@@ -86,7 +86,43 @@ public final class BioSimulator {
             source: .fallback,
             // Synthetic but plausible HRV metrics for the labeled Demo source so
             // the precise readouts have believable values to show.
-            hrvRMSSDms: hrvNormalized * 120,
+            //
+            // ⛔ RMSSD USED TO BE `hrvNormalized * 120`, AND THAT IS THE COPY-DRIFT DEFECT
+            // #97 ALREADY FIXED — surviving here because #97 audited the three LIVE sources
+            // and nobody looked at the demo. `HRVNormalization` exists to be the ONE ceiling
+            // ("was ÷200 on the camera, ÷100 on the strap, ÷100 on HealthKit"), and this file
+            // quietly carried a fourth divisor.
+            //
+            // Why it is a real inconsistency and not just an arbitrary constant: on EVERY real
+            // source the published pair satisfies `hrvNormalized == HRVNormalization.normalize(
+            // <that source's ms metric>)` EXACTLY — camera (`hrvNormalized = normalize(
+            // analyzer.rmssd)`, `hrvRMSSDms = analyzer.rmssd`), Polar (same two lines), and
+            // HealthKit (against SDNN, since it has no beat-to-beat RR). The demo published a
+            // pair no converter in this app can reconcile: at `hrvNormalized` 0.5 it shipped
+            // 60 ms, while the house rule says 60 ms IS 0.60. Measured across the whole walk
+            // band (0.2…0.9): a flat **+20 % relative**, worst **+0.167 absolute on a 0…1
+            // knob** — and it saturated to +11 % at the top only because `normalize` clamps.
+            // A receiver that recomputes the knob from the ms value (several consumers do)
+            // got a different number than the one on the wire beside it.
+            //
+            // The anchor is RMSSD, not SDNN, because that is the RR-source convention and the
+            // demo imitates an RR source (it publishes RMSSD and pNN50, which only an RR
+            // source has).
+            hrvRMSSDms: hrvNormalized * Float(HRVNormalization.ceilingMs),
+            // ⚠️ SDNN AND pNN50 DELIBERATELY DO **NOT** ROUND-TRIP, and the symmetrical-looking
+            // tidy-up is the trap. On the camera and the strap `normalize(hrvSDNNms)` does not
+            // equal `hrvNormalized` either — the knob is anchored on RMSSD there too — so
+            // giving SDNN the same ceiling would not be consistency, it would make demo SDNN
+            // EXACTLY equal to demo RMSSD, a pair no body produces and one that makes the demo
+            // useless for a receiver plotting the two against each other. pNN50 is a percentage
+            // and no source ties it to the knob at all.
+            //
+            // ⚠️ WHAT IS STILL WRONG HERE AND IS **NOT** FIXED, named rather than left for the
+            // next reader: 90 < 100, so the demo publishes SDNN BELOW RMSSD at every point,
+            // and at rest the standard short-term relationship runs the other way (Task Force
+            // 1996 reports resting SDNN above RMSSD over 5-minute records). Changing it means
+            // choosing a ratio, i.e. inventing physiology to make a demo prettier — that is a
+            // separate decision with its own evidence, not a rider on an arithmetic fix.
             hrvSDNNms: hrvNormalized * 90,
             hrvPNN50: hrvNormalized * 40
         )

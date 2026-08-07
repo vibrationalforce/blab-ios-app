@@ -242,8 +242,59 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**187** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `VisualFineTuneReflowsTests.swift` (#292 Slice 4 — der erste
+                          `Tests/CISmoke` (**188** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `TheDemoSourceAgreesWithItsOwnKnobTests.swift` (#461 — der erste
+                          Wächter in dieser Kette über einer Quelle, die GAR NICHTS MISST, und der erste,
+                          dessen Defekt eine bereits BEZAHLTE Lehre war, die eine Quelle übersprungen hat.
+                          `HRVNormalization` existiert, weil #97 fand, dass die drei LIVE-Quellen je einen
+                          EIGENEN Teiler für dasselbe `hrvNormalized`-Feld trugen (Kamera ÷200, Gurt ÷100,
+                          HealthKit ÷100); es faltete sie auf EINE 100-ms-Decke. **Die Demo-Quelle war in
+                          dieser Prüfung nicht dabei und behielt einen VIERTEN Teiler** — 120 für RMSSD.
+                          ⭐ **Und es ist keine bloß willkürliche Konstante, sondern ein Bruch einer
+                          Invariante, die jede echte Quelle exakt einhält:** `hrvNormalized ==
+                          HRVNormalization.normalize(<die ms-Metrik DIESER Quelle>)` — Kamera
+                          (`normalize(analyzer.rmssd)` neben `hrvRMSSDms: analyzer.rmssd`), Polar (dieselben
+                          zwei Zeilen), HealthKit (gegen SDNN, weil es kein Schlag-zu-Schlag-RR hat). Die
+                          Demo veröffentlichte ein Paar, das KEIN Konverter dieser App versöhnen kann: bei
+                          `hrvNormalized` 0,50 schickte sie 60 ms, während die Hausregel sagt, 60 ms IST
+                          0,60.
+                          ⚠️ GEMESSEN über das ganze Wanderband (0,2…0,9): **flach +20 % relativ**,
+                          schlimmstenfalls **+0,167 absolut auf einem 0…1-Regler** — und die +11 % an der
+                          Oberkante entstehen nur, weil `normalize` klemmt. Nach der Reparatur ist der
+                          größte Rest **5,96e-8** (reine `Float`-Darstellung). Ein Empfänger, der den
+                          Regler aus dem ms-Wert NEU rechnet — mehrere Verbraucher tun das —, bekam eine
+                          andere Zahl als die daneben auf der Leitung.
+                          ⭐ Der Anker ist RMSSD und nicht SDNN, weil das die RR-Quellen-Konvention ist und
+                          die Demo eine RR-Quelle imitiert: sie veröffentlicht RMSSD und pNN50, Größen, die
+                          nur eine RR-Quelle hat. Auf SDNN zu ankern wäre eine DRITTE Regel gewesen.
+                          ⚠️ **SDNN und pNN50 laufen ABSICHTLICH NICHT rund, und das symmetrisch aussehende
+                          Aufräumen ist die Falle.** Auch auf Kamera und Gurt ist `normalize(hrvSDNNms) !=
+                          hrvNormalized` — der Regler hängt dort ebenfalls an RMSSD. SDNN dieselbe Decke zu
+                          geben wäre keine Konsistenz, sondern machte Demo-SDNN BITGLEICH mit Demo-RMSSD:
+                          ein Paar, das kein Körper erzeugt, und eines, das die Demo für einen Empfänger
+                          unbrauchbar macht, der beide gegeneinander plottet. Genau dafür steht die dritte
+                          Behauptung da, und sie ist ein GEGENGEWICHT — auf beiden Seiten grün.
+                          ⛔ **Was hier NICHT repariert ist und deshalb am Ort steht: 90 < 100**, die Demo
+                          veröffentlicht SDNN also an jedem Punkt UNTER RMSSD, während die kurzfristige
+                          Ruhe-Beziehung andersherum läuft (Task Force 1996: Ruhe-SDNN über RMSSD auf
+                          5-Minuten-Aufzeichnungen). Das zu ändern hieße ein VERHÄLTNIS zu wählen, also
+                          Physiologie zu erfinden, damit eine Demo hübscher aussieht — eine eigene
+                          Entscheidung mit eigener Evidenz, kein Anhängsel an eine Arithmetik-Reparatur.
+                          ⚠️ Was der Wächter NICHT kann, und das steht als ERSTES in seinem Kopf:
+                          `BioSimulator.nextFrame()` ist `private` und die Klasse `@MainActor` — es gibt
+                          KEINEN Weg, den ausgelieferten Generator hier zu treiben. Jede Behauptung ist
+                          entweder Arithmetik auf `HRVNormalization` oder ein QUELLTEXT-SCAN darauf, dass
+                          `BioSimulator.swift` diese Arithmetik wirklich schreibt; tragend sind sie nur
+                          GEMEINSAM (die #431/#440-Form). Gemessen: die zwei Regressionen sind auf dem
+                          alten Baum rot (0,167 bzw. das Literal `* 120`), die drei anderen sind
+                          Prämissen/Gegengewichte und beidseitig grün — so gesagt, statt sie als
+                          Regressionstests zu verkleiden.
+                          ⚠️ Und die härteste Grenze: nichts davon ist am Gerät gesehen. Die zwei
+                          Verbraucher von `hrvRMSSDms` sind der OSC-Ausgang
+                          (`/echoelmusic/bio/heart/rmssd`) und die Zahl in `BioStripView`; ob je jemand auf
+                          die Demo-Zahl schaut, ist eine Geräte-Frage. Die Arithmetik ist so oder so
+                          falsch, und deshalb wird sie repariert und nicht vertagt),
+                          davor „187" nach `VisualFineTuneReflowsTests.swift` (#292 Slice 4 — der erste
                           Wächter in dieser Kette über einer Fläche, die von ZWEI Wirten mit
                           VERSCHIEDENEM Innenabstand gerendert wird, und deshalb der erste, dessen
                           schärfste Behauptung ein FEHLENDER Default ist. `visualAdjustFields` läuft
@@ -2617,7 +2668,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTFÜNFUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 187 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSECHSUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 188 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
