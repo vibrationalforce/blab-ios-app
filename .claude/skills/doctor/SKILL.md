@@ -69,6 +69,24 @@ Freigabe die Log-Zeile statt der Conclusion:
 gh-Log der Full Test Suite → "- build-for-testing:" / "- test-without-building:"
 ```
 
+**Und die Gegenrichtung, seit 2026-08-07 belegt: ein rotes Gate kann über die SCHULD lügen,
+nicht nur ein grünes über den Lauf.** `** TEST BUILD FAILED **` liest sich wie „dein Commit
+kompiliert nicht" und ist manchmal Infrastruktur. Der Diskriminator ist eine einzige Frage
+an den Job-Log:
+
+```
+nennt IRGENDEINE `error:`-Zeile eine Datei unter Sources/ oder Tests/ ?
+```
+
+Null Treffer → nicht dein Commit. Gemessen an `998af71` (Lauf 31186349705): 4 `error:`-Zeilen,
+**0** mit einer Repo-Datei, alle vier gegen `Xcode_26.2.app/…/SDKs/…` bzw.
+`DerivedData/ModuleCache.noindex`. Der unmittelbar davor liegende Commit (`1118b55`) baute
+mit **demselben Runner-Image und demselben zurückgespielten Cache-Schlüssel** — also ein
+FLAKE, und die Antwort ist ein erneuter Lauf, keine Code-Änderung. Wer stattdessen die
+eigene Scheibe debuggt, debuggt korrekten Code; das ist die teuerste Reaktion auf ein
+unehrliches Messgerät. Ausführliche Fassung samt latentem Cache-Schlüssel-Defekt: der
+CI-Abschnitt in `CLAUDE.md`.
+
 ### B — TOOLING: beschreiben unsere eigenen Kommandos noch dieses Repo?
 Prüft Pfade in `.claude/commands/*.md` und `.claude/skills/*/SKILL.md`, die es nicht mehr
 gibt, und Kommandos, die `swift build`/`swift test` verlangen, obwohl hier keine Toolchain
