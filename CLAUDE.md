@@ -304,8 +304,68 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**199** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `TheBreathingPracticeIsInTheMainViewTests.swift` (#486 — der erste
+                          `Tests/CISmoke` (**200** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `RadiusHasOneSpellingTests.swift` (#483 — der erste Wächter in
+                          dieser Kette über einer ZAHL, die in einer Konstante längst einen NAMEN hatte, und
+                          der erste, dessen Regel WERT-basiert statt zeichenketten-basiert ist. `EchoelTheme`
+                          deklariert `radiusSmall` 4 · `radius` 8 · `radiusLarge` 12 — und NEUNZEHN
+                          `cornerRadius:`-Aufrufstellen in sieben Dateien buchstabierten die Zahl (10×`8`,
+                          3×`4`, 6×`12`). Render-neutral per Konstruktion: jedes Literal war GLEICH der
+                          Konstante, in die es faltet.
+                          ⛔ **NEUNZEHN GEFALTET, ACHTZEHN SCAN-SICHTBAR — und die Differenz ist ein Defekt,
+                          den DIESE SCHEIBE SELBST ERZEUGT HAT.** Der Parser des Wächters sieht ein Literal
+                          nur UNMITTELBAR hinter `cornerRadius:` (über Leerzeichen hinweg); ein Ternär
+                          versteckt es. Die erste Fassung faltete deshalb in `FloatingVisualWindow` den
+                          RAHMEN auf `EchoelTheme.radiusLarge` und ließ die `clipShape`-Zeile zwei Zeilen
+                          darüber als `windowSize.isFullscreen ? 0 : 12` stehen — also genau die Spaltung,
+                          die der Commit überall sonst entfernt, mit sichtbarer Folge: wer das Token auf 14
+                          setzt, bewegt den Rand und nicht den Beschnitt, ein Haarriss auf der schwebenden
+                          Karte. Vom #483-Reviewer gefunden, von Hand nachgefaltet. **Die Lehre gehört dem
+                          SCAN, nicht der Zeile: eine wert-basierte Prüfung ist nur so breit wie ihre Syntax**
+                          — die drei blinden Flecken (Ternär, Tabulator, berechneter Ausdruck) stehen deshalb
+                          im Kopf des Wächters, statt sich still auf sie zu verlassen.
+                          ⭐ **Warum ausgerechnet hier und nicht irgendwo im Repo: die Referenz des Founders
+                          war eine der achtzehn.** #481/#482 setzen die Kopfzeilen-Kacheln als das eine
+                          Knopf-Format („orientiere dich an denen oben rechts"); `HeaderMonitors.swift` —
+                          genau diese Kacheln — schrieb `8`, während `EchoelIconTile`, die eigens danach
+                          gebaute KOPIE, die Konstante liest. Ein Verschieben des Tokens hätte also die KOPIE
+                          bewegt und die REFERENZ auf 8 stehen lassen: das eine Paar, dessen Auseinanderlaufen
+                          der Founder wörtlich verboten hat, und die #416-Form in ihrer leisesten Ausprägung.
+                          ⭐ Die Regel pflegt sich selbst, weil sie auf den WERT sieht: verboten ist ein
+                          `cornerRadius:`-Literal, das GLEICH einer benannten Konstante ist. Wer `radius` von
+                          8 auf 10 setzt, macht damit jedes `10` illegal und jedes `8` wieder legal — der
+                          Wächter folgt der Entscheidung, statt einen Zeitpunkt einzufrieren.
+                          ⚠️ Die WERTE der drei Konstanten sind ABSICHTLICH nicht festgenagelt, und das ist
+                          die #364-Bedingung: ein Test, der 8/4/12 behauptet, färbt jede gewöhnliche
+                          Design-Anpassung rot — und so wird ein Wächter gelöscht.
+                          ⚠️ ACHT Literale bleiben stehen (4×`6`, 3×`2`, 1×`1`), weil es für sie kein Token
+                          gibt; `testAnUnnamedValueIsStillAllowed` ist das Gegengewicht gegen das
+                          naheliegende Aufräumen „dann benenne eben alle", das für jede Ein-Ort-Zahl eine
+                          app-weite Konstante prägen würde.
+                          ⛔ **EHRLICHE BENOTUNG — und die erste Fassung hatte sie in der schmeichelhaften
+                          Richtung falsch, also den #433-Defekt, gefangen beim Transkribieren VOR dem Commit
+                          und nicht im Review.** Sie schrieb „EINE Regression, drei Gegengewichte beidseitig
+                          grün". Gegen den Elternbaum gemessen sind es **ZWEI** Regressionen — der
+                          Wert-Scan (auf dem Elternteil an den 18 für ihn sichtbaren Stellen rot, NICHT an
+                          19 — die neunzehnte ist das Ternär aus dem ⛔-Block oben)
+                          UND `testTheReferenceAndTheCopyReadTheSameToken`, dessen
+                          Kopfzeilen-Hälfte dort ebenfalls rot ist. Und `testAnUnnamedValueIsStillAllowed`
+                          trug eine zweite Behauptung (`unnamed.count == literals.count`), die auf dem
+                          Elternteil bei 8 von 26 rot war — sie war also gar kein Gegengewicht, sondern eine
+                          dritte, schwächere Kopie der Regression. Gelöscht statt gelockert, mit ⛔-Vermerk an
+                          ihrer Stelle. Stand: zwei Regressionen, eine Prämisse (#367-Anker: die drei
+                          Konstanten müssen überhaupt existieren), zwei Gegengewichte.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und nicht Prophylaxe, gemessen statt
+                          behauptet: `cornerRadius: 8` steht nach dem Falten noch **genau einmal** in
+                          `Sources/` — im ⛔-Kommentar, den derselbe Commit über die zwei Kopfzeilen-Modifier
+                          schreibt, um das Gesetz festzuhalten. Ein Rohtext-Scan wäre also auf KORREKTEM Code
+                          rot. Dieselbe Kollision wie in #486: dieses Repo schreibt auf, was es entfernt hat,
+                          und ein negativer Scan trifft zwangsläufig auf seinen eigenen Nachruf.
+                          ⚠️ Und die Grenze zuerst: JEDE Behauptung ist ein QUELLTEXT-SCAN. Dass die neunzehn
+                          Stellen unverändert RENDERN, folgt aus der Gleichheit von Literal und Konstante und
+                          nicht aus einer Messung; dass die Kacheln am Gerät gleich aussehen, bleibt eine
+                          Sichtprobe.),
+                          davor „199" nach `TheBreathingPracticeIsInTheMainViewTests.swift` (#486 — der erste
                           Wächter in dieser Kette über einer Fläche, die eine FOUNDER-ENTSCHEIDUNG umsetzt,
                           indem sie KEINE Tür baut. Founder 2026-08-07 verlangte „Training für kohärentes
                           Atmen" neben der Chanten/Summen/Tönen/Singen-Hälfte, die #485 aufs Mischpult
@@ -3687,7 +3747,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSIEBENUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 199 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTACHTUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 200 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

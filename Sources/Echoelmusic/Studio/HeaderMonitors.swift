@@ -163,8 +163,25 @@ struct PulseMonitorMini: View {
         // subtree is vertically flexible: the trace is pinned at 34 and `Text` reports its ideal
         // height, so this reports a finite `max(content, 48)` rather than ∞.
         .padding(.horizontal, 10).frame(maxWidth: .infinity).frame(minHeight: 48)
-        .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.fill))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
+        // ⛔ #483: these two read `EchoelTheme.radius`; until 2026-08-07 they spelled
+        // `cornerRadius: 8` — the literal the constant holds. That is the #416 shape at its
+        // quietest, and it mattered HERE more than anywhere else in the app: the founder named
+        // this file as the reference ("orientiere dich an denen oben rechts", #481/#482), and
+        // `EchoelIconTile` — the copy written to match it — reads the constant. So a designer
+        // moving `EchoelTheme.radius` moved the COPY and left the REFERENCE at 8, i.e. the one
+        // pair the founder asked to keep identical was the one pair that could silently split.
+        // Ten literals folded here and in three other files, plus 3 × `4` and 6 × `12`; all
+        // nineteen equalled a constant `EchoelTheme` already names, so nothing moved a pixel.
+        // Guard: `Tests/CISmoke/RadiusHasOneSpellingTests.swift` — it forbids a `cornerRadius:`
+        // literal EQUAL to a named radius WHERE IT CAN SEE ONE (immediately after the label, past
+        // spaces), and stays quiet about the eight (1, 2, 6) that have no constant to fold into.
+        // Inventing a token for those is a design decision, not a fold. The "where it can see
+        // one" is not hedging: the first draft said "any literal", and the nineteenth site — a
+        // ternary in `FloatingVisualWindow` — was invisible to the scan and got left behind,
+        // splitting a card's clip from its border. Folded by hand; blind spots named in the
+        // guard's own header rather than relied on.
+        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // This leaf owns the pulse element (it reads the live BPM; WorkspaceView can't,
         // per the freeze rule).
         .accessibilityElement(children: .ignore)
@@ -408,8 +425,8 @@ struct ImmersiveMonitorMini: View {
             }
         }
         .frame(width: 54, height: EchoelTheme.controlHeight)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // 44 pt HIG tap height (#113): the visible chip stays 32, the hit area grows
         // vertically only — the header row is 8 pt-spaced, so NO horizontal expansion
         // (that would overlap the neighbour tiles). Chip stays centred = no visible change.
@@ -521,8 +538,8 @@ struct EchoelLuxMonitorMini: View {
                 }
             }
             .frame(width: 38, height: EchoelTheme.controlHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8)
+            .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                 .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
             // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
             // horizontal growth); the 38×32 chip stays centred, no visible change.
@@ -579,8 +596,8 @@ struct EchoelClipsMonitorMini: View {
                 }
             }
             .frame(width: 38, height: EchoelTheme.controlHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8)
+            .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                 // #367: the idle branch used the decorative token while every other
                 // always-on chrome element in this file already used `borderStrong` —
                 // `PulseMonitorMini`, Immersive and Lux. This was the one outlined like a

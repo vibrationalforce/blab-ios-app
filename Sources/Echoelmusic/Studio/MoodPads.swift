@@ -47,14 +47,14 @@ struct MoodXYPad: View {
                 let px = (dragging ? localX : x) * w
                 let py = (1 - (dragging ? localY : y)) * h
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12).fill(EchoelTheme.surface)
+                    RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge).fill(EchoelTheme.surface)
                     // Hairline axis cross — orientation, not decoration.
                     Path { p in
                         p.move(to: CGPoint(x: w / 2, y: 0)); p.addLine(to: CGPoint(x: w / 2, y: h))
                         p.move(to: CGPoint(x: 0, y: h / 2)); p.addLine(to: CGPoint(x: w, y: h / 2))
                     }
                     .stroke(EchoelTheme.border.opacity(0.6), lineWidth: 1)
-                    RoundedRectangle(cornerRadius: 12).stroke(EchoelTheme.border, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge).stroke(EchoelTheme.border, lineWidth: 1)
                     Circle()
                         .fill(EchoelTheme.accent)
                         .frame(width: 14, height: 14)

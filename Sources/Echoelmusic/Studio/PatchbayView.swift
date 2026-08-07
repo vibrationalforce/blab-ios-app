@@ -414,7 +414,7 @@ struct PatchbayView: View {
             Text("soon")
                 .font(EchoelTheme.font(9, .semibold)).foregroundStyle(EchoelTheme.dim)
                 .padding(.horizontal, 5).frame(height: 16)
-                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(EchoelTheme.border, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall).strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
     }
 

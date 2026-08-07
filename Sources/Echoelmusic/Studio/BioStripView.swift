@@ -539,7 +539,7 @@ struct BioStripView: View {
         Text("No signal")
             .lineLimit(1)
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .overlay(RoundedRectangle(cornerRadius: 4)
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                 .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
             .foregroundStyle(EchoelTheme.dim)
             .accessibilityLabel(Text("No body signal yet"))
@@ -624,7 +624,7 @@ struct BioStripView: View {
             }
             .lineLimit(1)
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .overlay(RoundedRectangle(cornerRadius: 4)
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                 .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
             .foregroundStyle(EchoelTheme.dim)
         }

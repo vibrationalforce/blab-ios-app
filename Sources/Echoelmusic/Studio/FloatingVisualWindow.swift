@@ -771,10 +771,19 @@ struct FloatingVisualWindow: View {
         }
         .background(Color.black)
         // No rounded corners / border in fullscreen — a true edge-to-edge picture.
-        .clipShape(RoundedRectangle(cornerRadius: windowSize.isFullscreen ? 0 : 12))
+        // ⛔ #483: the `12` here was a LITERAL until 2026-08-07 while the border two lines below
+        // already read `EchoelTheme.radiusLarge`. The first draft of #483 folded the border and
+        // left THIS one, because the guard's parser only sees a literal immediately after
+        // `cornerRadius:` and a ternary hides it — i.e. the fold INTRODUCED the very split it
+        // removes elsewhere: move the token to 14 and the stroke follows while the clip stays 12,
+        // a visible hairline mismatch on the floating card. Found by the #483 reviewer.
+        // The lesson is the parser's, not this line's: a value-based scan is only as wide as its
+        // syntax, so the blind spots are named in `RadiusHasOneSpellingTests`' header instead of
+        // being quietly relied on.
+        .clipShape(RoundedRectangle(cornerRadius: windowSize.isFullscreen ? 0 : EchoelTheme.radiusLarge))
         .overlay {
             if !windowSize.isFullscreen {
-                RoundedRectangle(cornerRadius: 12).strokeBorder(EchoelTheme.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge).strokeBorder(EchoelTheme.border, lineWidth: 1)
             }
         }
         // Shadow is for the FLOATING card only. In fullscreen a blurred shadow forces an
@@ -1275,8 +1284,8 @@ private struct InstrumentHintOverlay: View {
                 .foregroundStyle(.white.opacity(0.92))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 11)
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color.black.opacity(0.5)))
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.12), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge).fill(Color.black.opacity(0.5)))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge).strokeBorder(.white.opacity(0.12), lineWidth: 1))
                 .opacity(visible ? 1 : 0)
                 .allowsHitTesting(false)
                 .accessibilityElement(children: .combine)

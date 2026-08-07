@@ -1984,7 +1984,7 @@ struct EchoelStudioView: View {
                 // overflow menus), and a FIXED height clips the label once Dynamic Type grows
                 // it — the #353 class. A minimum floors the target without capping the text.
                 .padding(.horizontal, 12).frame(minHeight: 44)
-                .background(RoundedRectangle(cornerRadius: 8).fill(EchoelTheme.text))
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
                 .buttonStyle(.plain)
                 .accessibilityHint("Returns to 12-tone equal temperament at A4 = 440 hertz")
             }

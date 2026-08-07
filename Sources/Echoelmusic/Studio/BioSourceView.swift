@@ -189,7 +189,7 @@ struct BioSourceView: View {
                 .font(EchoelTheme.font(12, .semibold))
                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
                 .padding(.horizontal, 12).padding(.vertical, 7)
-                .background(RoundedRectangle(cornerRadius: 8)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .fill(selected ? EchoelTheme.accent : EchoelTheme.fill))
         }
         .buttonStyle(.plain)
