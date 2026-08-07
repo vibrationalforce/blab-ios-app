@@ -445,22 +445,67 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         """)
 
         // The half that is actually the budget. `var body` is declared at 4 spaces, so every
-        // modifier on ITS chain sits at exactly 8 — measured 2026-08-07, all 14 of them resolve
-        // to the `var body: some View` declaration and nothing else does. Anchoring to the body
-        // BLOCK rather than to the indent alone is the difference between a guard and the #364
-        // trap: a `.sheet` at 8 spaces inside some other `var …: some View` is not on this chain
-        // and must not count against this ceiling.
-        guard let bodyStart = lines.firstIndex(where: { $0.hasPrefix("    var body: some View") }),
-              let bodyEnd = lines[bodyStart...].dropFirst().firstIndex(of: "    }")
+        // modifier on ITS chain sits at exactly 8. Anchoring to the body BLOCK rather than to the
+        // indent alone is the difference between a guard and the #364 trap: a `.sheet` at 8 spaces
+        // inside some other `var …: some View` is not on this chain and must not count here.
+        //
+        // ⛔ AND THE FIRST VERSION OF THIS ANCHOR HAD TWO FAIL-OPEN PATHS, both found in review,
+        // both verified against the tree. They matter more than the assertion itself because
+        // `<=` cannot see EITHER of them — both make the measured chain SMALLER.
+        //   1. It took the first 4-indent `var body: some View` FILE-WIDE. There are SEVEN in this
+        //      file (873, 9056, 9095, 9183, 9231, 9282, 9361); `EchoelStudioView`'s won only
+        //      because the struct happens to start at :47. A helper `View` inserted above it would
+        //      silently move the anchor and collapse the count to green. Now anchored to
+        //      `struct EchoelStudioView: View` first.
+        //   2. It matched the terminator by exact equality with `"    }"`. `codeLines` truncates a
+        //      trailing comment BEFORE the `//`, so `    } // end body` becomes `"    } "` and
+        //      misses — the slice would run on to the next 4-indent close. Now: indent exactly 4
+        //      and the remainder, trailing space removed, is `}`.
+        // Both directions are still only detectable because of the sentinel below.
+        //
+        // ⚠️ ACCEPTED, NOT ACCIDENTAL: indent is the ONLY thing separating a nested modifier from
+        // a chained one — `.sheet(item: $visualShare)` sits at indent 12 INSIDE this same block.
+        // A reformat flips the count with no semantic change. And this is a TEXT scan: a future
+        // `#if/#else` with a modifier in each arm would count both while any one build compiles
+        // one. Neither is a live defect (measured: no `#else` anywhere in this block today), and
+        // both are named so the next session does not rediscover them as bugs.
+        func isBodyClose(_ line: String) -> Bool {
+            var indent = 0
+            var rest = Substring(line)
+            while rest.first == " " { indent += 1; rest = rest.dropFirst() }
+            while rest.last == " " { rest = rest.dropLast() }
+            return indent == 4 && rest == "}"
+        }
+
+        guard let structStart = lines.firstIndex(where: {
+                  $0.hasPrefix("struct EchoelStudioView: View")
+              }),
+              let bodyStart = lines[structStart...].firstIndex(where: {
+                  $0.hasPrefix("    var body: some View")
+              }),
+              let bodyEnd = lines[bodyStart...].dropFirst().firstIndex(where: isBodyClose)
         else {
             return XCTFail("""
-            could not find the `var body: some View` block in EchoelStudioView.swift. The chain \
-            ceiling below is the black-screen budget (10.76.34) and it just stopped being \
-            measurable — fix this scan, do not delete it.
+            could not find `struct EchoelStudioView: View` and its `var body: some View` block in \
+            EchoelStudioView.swift. The chain ceiling below is the black-screen budget (10.76.34) \
+            and it just stopped being measurable — fix this scan, do not delete it.
             """)
         }
 
-        let chain = lines[bodyStart..<bodyEnd].filter { line in
+        let bodyBlock = lines[bodyStart..<bodyEnd]
+
+        // The sentinel that turns both fail-open paths into red. A mis-anchored or truncated slice
+        // produces a SMALLER chain, which `<=` waves through; it cannot, however, still contain the
+        // LAST modifier on the chain. `$showSavePatchAs` occurs exactly once in the whole file
+        // (measured), so this pins the far end of the block rather than merely something inside it.
+        XCTAssertTrue(bodyBlock.contains { $0.contains("$showSavePatchAs") }, """
+        the scanned `var body` block no longer reaches its last presentation modifier \
+        (`.alert("Save sound", isPresented: $showSavePatchAs)`), so the ceiling below is being \
+        measured over a TRUNCATED slice and is meaningless. Either the anchor or the terminator \
+        stopped matching — fix the scan; do NOT relax the ceiling.
+        """)
+
+        let chain = bodyBlock.filter { line in
             let indent = line.prefix(while: { $0 == " " }).count
             guard indent == 8 else { return false }
             let token = line.dropFirst(8)
@@ -474,6 +519,16 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         // the prescribed fix (consolidate into one `.sheet(item:)` enum), so it must NOT — an
         // equality here would make the repair itself fail the guard, which is how a guard gets
         // deleted instead of obeyed.
+        //
+        // ⭐ AND `<=` GIVES UP NOTHING, which is a proof rather than the preference the first
+        // version of this comment stated. `chain` is a SUBSET of `modals` — every body-chain
+        // modifier is also a file-wide match — so any shrink of `chain` is also a shrink of
+        // `modals`, and the `== 16` assertion above goes red and forces the bookkeeping update
+        // anyway. A second `==` here would be the #416 double-definition defect, not extra safety.
+        // All five transitions resolve: add-to-chain 15/17 both red · add-nested 14/17 file-wide
+        // red · MOVE nested→chain 15/16 only this one red (the hole) · move chain→nested 13/16
+        // both green and correctly so (the metadata cost really did shrink) · consolidate 1/3
+        // file-wide red as bookkeeping, not as a ceiling breach.
         XCTAssertLessThanOrEqual(chain.count, 14, """
         `EchoelStudioView.body` now carries \(chain.count) presentation modifiers, over the \
         ceiling of 14.
@@ -489,7 +544,9 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         numbers are checked.
 
         Reuse an existing slot — `showVisual`, `showMeditation` and `midiImportPresented` have no \
-        setter at all — or consolidate the chain into one `.sheet(item:)` enum FIRST.
+        setter that can OPEN them (⛔ "no setter at all" is the inherited, wrong phrasing: \
+        `showVisual = false` exists on the close button; what is missing is any writer of `true`) \
+        — or consolidate the chain into one `.sheet(item:)` enum FIRST.
 
         On the chain: \(chain.map { $0.trimmingCharacters(in: .whitespaces).prefix(44) })
         """)
