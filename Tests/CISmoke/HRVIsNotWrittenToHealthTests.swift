@@ -2,22 +2,32 @@
 // Echoel — #463. A correct decision was defended with a refutable reason.
 //
 // ⭐ THE DEFECT WAS PROSE, NOT BEHAVIOUR. Echoel does not write HRV to Apple Health, and that
-// is right. But the REASON written next to the decision — "we don't have real SDNN ms"
-// (`HealthKitWriter` header) and "our `hrvNormalized` is a 0…1 control value, not SDNN in ms"
-// (`HealthWritePolicy` header) — is false, and it was false in TWO files at once, which is how
-// it survived: neither copy could contradict the other. Three producers write real SDNN in
-// milliseconds into `BioSampleFrame.hrvSDNNms`, and Apple's own quantity type is literally
-// `heartRateVariabilitySDNN` in ms. CLAUDE.md names this class: a "do NOT do X" note with a
+// is right. But the REASON written next to the decision was refutable, in two files at once —
+// and the two failed DIFFERENTLY, which is the part worth keeping. `HealthKitWriter`'s header
+// said "we don't have real SDNN ms": flatly false. `HealthWritePolicy` said "our
+// `hrvNormalized` is a 0…1 control value, not SDNN in ms": literally TRUE, and misleading only
+// by implicature — it named the one HRV field that is NOT in milliseconds and let a reader
+// conclude there was no other. "Both were false" is the flattering version; a true sentence
+// standing in for a reason is the harder one to catch, because nothing contradicts it.
+// Three producers of a MEASURED value write real SDNN in milliseconds into
+// `BioSampleFrame.hrvSDNNms` — camera, Polar strap, HealthKit's native — and Apple's own
+// quantity type is literally `heartRateVariabilitySDNN` in ms. (⚠️ "Three" counts MEASURED
+// producers. `git grep -n "hrvSDNNms:" -- Sources` returns FIVE construction sites: the other
+// two are `BioSimulator`, which derives a synthetic value from its own walk (#464), and the
+// camera's dropout hold-repeat, which forwards `held.hrvSDNNms`. Written out because a bare
+// "three" beside a grep that says five is the enumeration defect #461 retracted twice.)
+// CLAUDE.md names this class: a "do NOT do X" note with a
 // refutable reason is worse than no note, because the next session refutes the reason and then
 // does X. The danger is one-way and concrete — a camera-derived number in a health record.
 //
 // ⭐ WHAT THIS FILE IS FOR. The prose is now correct (the real reason: SDNN is an INTERVAL
-// statistic stamped `start == end` by `HealthKitWriter.write`, and our two producers compute it
-// over different windows — camera 10 s, strap ≈ 1 min — so they are not the same quantity as
-// each other or as the Watch's, #458). Prose does not go red. These claims do.
+// statistic stamped `start == end` by `HealthKitWriter.write`, and our two producers do not
+// compute the same quantity — different window LENGTH, a strap window that is beat-counted
+// rather than timed, and different ESTIMATORS, `sdnn(rrMs:)` flat vs `sdnn(segments:)`
+// excluding isolated beats; #458). Prose does not go red. These claims do.
 //
 // ⛔ HONEST GRADING, BECAUSE THE FLATTERING VERSION IS AVAILABLE AND WRONG: **NONE of the five
-// claims below is a regression.** Every one of them is green on the pre-#463 tree too — SDNN
+// tests below is a regression.** Every one of them is green on the pre-#463 tree too — SDNN
 // already existed (that is precisely why the old comment was false), and the write path already
 // omitted HRV. This slice corrects prose and installs FORWARD guards; it fixes no runtime
 // behaviour and pretending otherwise would be the #433 defect. What the guards buy is that the
@@ -71,6 +81,18 @@ final class HRVIsNotWrittenToHealthTests: XCTestCase {
     /// COUNTERWEIGHT to the claim above: a negative scan is also green on a file that lost its
     /// write path entirely. Pin what we DO write, and pin it as the whole `toShare:` list so a
     /// third element cannot slip in beside the two.
+    ///
+    /// ⚠️ THE LIST PIN ALONE IS NOT ENOUGH, and saying otherwise would overstate it: the needle
+    /// ends in `]`, so a third element INSIDE this array breaks it — but a SECOND
+    /// `requestAuthorization(toShare:)` call elsewhere in the file leaves it green. The claims
+    /// are jointly load-bearing: this one pins the shape of the call we have,
+    /// `testNoHRVTypeIsRequestedOrWritten` catches the HRV type wherever it appears.
+    ///
+    /// ⚠️ AND THE TWO TYPE NEEDLES ARE NOT UNIQUE TO THE WRITE PATH — they appear once in
+    /// `requestAuthorization` and again in `write(_:)`, so deleting the whole sample-building
+    /// half would leave both green: exactly the #343 hole this test exists to close, reopened
+    /// one level down. The last two assertions anchor on tokens that occur ONLY inside
+    /// `write(_:)`.
     func testTheTwoTypesWeDoWriteAreStillRequested() throws {
         let code = try writerSource()
         XCTAssertTrue(code.contains("quantityType(forIdentifier: .heartRate)"),
@@ -81,6 +103,14 @@ final class HRVIsNotWrittenToHealthTests: XCTestCase {
             the authorization request is no longer exactly the two physical readings. Adding a \
             third share type is the move rule 2 argues against; removing one silently drops a \
             measurement the user opted in to.
+            """)
+        XCTAssertTrue(code.contains("HealthWritePolicy.values(for: frame)"), """
+            the writer no longer asks the pure policy layer what to write. Rule 2 is enforced \
+            in `values(for:)`; a writer that builds its own quantities has routed around it.
+            """)
+        XCTAssertTrue(code.contains("store.save(samples)"), """
+            nothing is saved any more — the two type scans above are then green over a writer \
+            that authorizes and writes nothing, which is the #343 shape of a vacuous guard.
             """)
     }
 
@@ -112,9 +142,17 @@ final class HRVIsNotWrittenToHealthTests: XCTestCase {
             rule 2 retracts "we don't have real SDNN ms" on the strength of this — if SDNN is \
             really gone, rule 2's ⛔ block has to be rewritten, not left standing.
             """)
+        // ⚠️ HONEST ABOUT WHAT THIS SECOND ASSERTION IS: `sdnn(segments:)` is literally
+        // `sdnn(rrMs: segments.filter { $0.count >= 2 }.flatMap { $0 })`, so for ONE un-gapped
+        // segment the filter and flatMap are the identity and the two agree BIT-FOR-BIT, not
+        // within a tolerance. It is a premise test that the delegation still exists — it cannot
+        // see a change to the multi-segment arithmetic, which is what #425 actually cares about.
         XCTAssertEqual(pooled, flat, accuracy: 1e-9, """
-            one un-gapped segment must pool to the flat reading — the two entry points are the \
-            camera's and the strap's, and #458 is about their WINDOWS, not their arithmetic
+            one un-gapped segment no longer delegates to the flat reading. That delegation is \
+            the ONLY thing this assertion sees — it is deliberately blind to the difference \
+            #458 is actually about, which shows up only when a segment list has GAPS: the \
+            camera publishes `sdnn(rrMs:)` flat, the strap publishes `sdnn(segments:)`, which \
+            excludes isolated beats. Do not read a green here as the two agreeing.
             """)
     }
 

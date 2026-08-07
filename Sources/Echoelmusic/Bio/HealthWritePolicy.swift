@@ -13,14 +13,31 @@
 //   2. POINT-IN-TIME PHYSICAL VALUES ONLY: we write heart rate (BPM) and
 //      respiratory rate (breaths/min). We do NOT write HRV.
 //
-//      ⛔ THE REASON GIVEN FOR THAT UNTIL #463 WAS FALSE — and it was false in
-//      TWO files at once: here ("our `hrvNormalized` is a 0…1 control value,
-//      not SDNN in ms") and in `HealthKitWriter`'s header ("we don't have real
-//      SDNN ms"). We DO have real SDNN in milliseconds, from three producers:
-//      `HRVMetrics.sdnn(rrMs:)` (camera), `HRVMetrics.sdnn(segments:)` (Polar
-//      strap) and HealthKit's own native SDNN — all three land in
-//      `BioSampleFrame.hrvSDNNms`, and one of them is already on the wire
-//      (`/echoelmusic/bio/heart/sdnn`). Apple's quantity type is literally
+//      ⛔ THE REASON GIVEN FOR THAT UNTIL #463 WAS REFUTABLE, in two files at
+//      once — and the two failed DIFFERENTLY, which is worth writing down
+//      because "both were false" is the flattering version and not what
+//      happened. `HealthKitWriter`'s header said "we don't have real SDNN ms":
+//      flatly false. This file said "our `hrvNormalized` is a 0…1 control
+//      value, not SDNN in ms": literally TRUE — `hrvNormalized` really is a
+//      0…1 control value — and misleading only by implicature, because it
+//      named the one HRV field that is NOT in milliseconds and let a reader
+//      conclude we had no other. A true sentence standing in for a reason is
+//      harder to catch than a false one: nothing contradicts it.
+//      We DO have real SDNN in milliseconds, from three producers of a
+//      MEASURED value: `HRVMetrics.sdnn(rrMs:)` (camera),
+//      `HRVMetrics.sdnn(segments:)` (Polar strap) and HealthKit's own native
+//      SDNN — all three land in `BioSampleFrame.hrvSDNNms`, and TWO of them
+//      are already on the wire (`/echoelmusic/bio/heart/sdnn`; the HealthKit
+//      one is not, because `BioEgressPolicy.allowsEgress` refuses
+//      `.healthKit`/`.watch`/`.oura` — we do not re-broadcast someone else's
+//      measurement).
+//      ⚠️ "Three" is the count of MEASURED producers, and it is written that way
+//      on purpose: `git grep -n "hrvSDNNms:" -- Sources` returns FIVE
+//      construction sites. The other two are `BioSimulator` (a synthetic value
+//      derived from its own walk, #464) and the camera's dropout hold-repeat,
+//      which forwards `held.hrvSDNNms` rather than deriving one. A bare "three"
+//      next to a grep that says five is the enumeration defect the #461 entry in
+//      CLAUDE.md had to retract twice. Apple's quantity type is literally
 //      `heartRateVariabilitySDNN` in ms, so the platform wants exactly the
 //      thing the comment claimed we lacked. CLAUDE.md names this class by name:
 //      a "do NOT do X" note with a refutable reason is worse than no note,
@@ -34,30 +51,54 @@
 //      against a 5-minute SDNN index of 54±15 ms in the same population.
 //      `HealthKitWriter.write` stamps `start: date, end: date` — correct for a
 //      heart rate, which really is an instantaneous reading, and a lie for an
-//      interval statistic. Nothing downstream can undo a zero-length stamp.
+//      interval statistic. Nothing downstream can undo a zero-length stamp,
+//      and a HealthKit sample HAS the field to say it honestly: Apple's own
+//      samples carry a real `startDate`/`endDate` span, so a zero-length one
+//      is not a limitation of the API, it is us declining to state the
+//      interval we actually used.
 //
-//      ⭐ PART 2 — OUR TWO PRODUCERS DO NOT COMPUTE THE SAME STATISTIC. The
-//      camera's intervals come from a 10 s analysis window (`CameraAnalyzer`);
-//      the strap's from `maxRRIntervals = 64` ≈ 1 min, chosen there precisely
-//      so 0.04 Hz LF resolves. A 10 s window cannot hold a full cycle of
-//      anything slower than 0.1 Hz, so the VLF band is absent from it entirely
-//      and most of LF with it — bands that a 1-minute SDNN does contain. They
-//      are two different quantities under one field name (#458), and Apple
-//      Health's own series, built from ~1-minute Watch windows, is a third.
-//      Adding ours to that one timeline is not an accuracy question; it is a
-//      different measurement wearing the same label, in a record a clinician
-//      may read.
+//      ⭐ PART 2 — OUR TWO PRODUCERS DO NOT COMPUTE THE SAME STATISTIC, and
+//      that is true on THREE independent axes.
+//      (a) WINDOW LENGTH. The camera's intervals come from a 10 s analysis
+//      window (`CameraAnalyzer`); the strap's from `maxRRIntervals = 64`,
+//      chosen there precisely so 0.04 Hz LF resolves. A 10 s window cannot
+//      hold a full cycle of anything slower than 0.1 Hz — so of the LF band
+//      (0.04…0.15 Hz) under half survives (0.10…0.15 of 0.04…0.15 is ~45%
+//      by bandwidth; the arithmetic is stated so it is checkable), and the
+//      ~0.1 Hz resonance peak this whole product aims at sits exactly ON that
+//      floor rather than safely inside it. VLF (below 0.04 Hz) is not
+//      represented at all in a 10 s window as a resolved oscillation.
+//      (b) WINDOW STABILITY. The strap's 64 is a BEAT count, not a duration:
+//      ~38 s at 100 bpm, ~85 s at 45 bpm. So the strap's own interval moves
+//      with the wearer's heart rate — which does not weaken Part 1, it
+//      strengthens it: there is no single number we could put in an
+//      `endDate` for the strap either without computing it per sample.
+//      (c) ESTIMATOR. `sdnn(rrMs:)` reads the interval list flat;
+//      `sdnn(segments:)` excludes isolated beats. `CameraRPPGBioPublisher`
+//      records this in place — "SDNN is the ONLY remaining definitional split
+//      … Registered, not fixed here — closing it is a measurement (does the
+//      exclusion suit rPPG gaps?), not an edit."
+//      They are two different quantities under one field name (#458). Adding
+//      ours to Apple Health's one timeline is not an accuracy question; it is
+//      a different measurement wearing the same label, in a record a
+//      clinician may read.
 //
 //      ⚠️ HONEST LIMIT: the DIRECTION above is structural (a window cannot
 //      contain an oscillation longer than itself). The MAGNITUDE — how much
 //      lower a 10 s SDNN reads than a 60 s one on a real take — is not
 //      measured anywhere in this repo, and no number here should be read as if
-//      it were.
+//      it were. One asymmetry that is NOT about magnitude and does belong
+//      here: the strap gates HRV publication on `RRIntervalHygiene.canStateHRV`
+//      (`PolarH10BioPublisher`), the camera path publishes SDNN with no
+//      equivalent gate — so the two also differ in WHEN they speak.
 //
-//      This decision does not expire when #458 closes. Stamping a real interval
-//      and unifying the two windows would remove the objections above; whether
-//      Echoel should contribute to a health HRV series AT ALL is a founder
-//      call, not a consequence.
+//      This decision does not expire when #458 closes, and #458 is not a
+//      checklist that unlocks it. Stamping a real interval would fix Part 1;
+//      unifying the windows would fix (a) and (b); neither touches (c), and
+//      (c) is a MEASUREMENT question (a device take decides whether the
+//      strap's exclusion rule suits rPPG gaps), not an edit. Even with all
+//      three closed, whether Echoel should contribute to a health HRV series
+//      AT ALL is a founder call, not a consequence.
 //
 
 import Foundation

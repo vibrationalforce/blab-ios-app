@@ -247,12 +247,20 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           dieser Kette über einer ENTSCHEIDUNG statt über einem Wert, und der erste, dessen
                           Grading ehrlich lautet: **KEINE der fünf Behauptungen ist eine Regression, alle
                           fünf sind auf dem Vor-#463-Baum grün.** Der Defekt war reine PROSA — und zwar in
-                          zwei Dateien gleichzeitig, was der Grund ist, warum er überlebt hat: keine der
-                          beiden Kopien konnte die andere widerlegen. `HealthKitWriter`s Kopf sagte „we
-                          don't have real SDNN ms", `HealthWritePolicy`s Regel 2 sagte „our `hrvNormalized`
-                          is a 0…1 control value, not SDNN in ms". Beides falsch: DREI Erzeuger schreiben
-                          echte Millisekunden-SDNN in `BioSampleFrame.hrvSDNNms`, einer davon liegt schon
-                          auf der Leitung (`/echoelmusic/bio/heart/sdnn`), und Apples Typ heißt buchstäblich
+                          zwei Dateien gleichzeitig. ⛔ **Die erste Fassung nannte als Grund „keine der
+                          beiden Kopien konnte die andere widerlegen" und schrieb „Beides falsch" — und das
+                          ist die schmeichelhafte Fassung, nicht die zutreffende.** `HealthKitWriter`s Kopf
+                          sagte „we don't have real SDNN ms": schlicht falsch. `HealthWritePolicy`s Regel 2
+                          sagte „our `hrvNormalized` is a 0…1 control value, not SDNN in ms": buchstäblich
+                          WAHR — `hrvNormalized` IST ein 0…1-Regelwert — und irreführend nur durch
+                          Implikatur, weil sie das eine HRV-Feld nennt, das NICHT in Millisekunden ist, und
+                          den Leser schließen lässt, es gebe kein anderes. **Ein wahrer Satz als Begründung
+                          ist schwerer zu fangen als ein falscher: ihm widerspricht nichts.** DREI Erzeuger
+                          eines GEMESSENEN Wertes schreiben echte Millisekunden-SDNN in
+                          `BioSampleFrame.hrvSDNNms`, ZWEI davon liegen schon
+                          auf der Leitung (`/echoelmusic/bio/heart/sdnn` — der HealthKit-Erzeuger nicht,
+                          weil `BioEgressPolicy.allowsEgress` `.healthKit`/`.watch`/`.oura` verweigert;
+                          ⛔ die erste Fassung schrieb „einer davon"), und Apples Typ heißt buchstäblich
                           `heartRateVariabilitySDNN` in ms — die Plattform will exakt das, was der Kommentar
                           als fehlend behauptete. Die ENTSCHEIDUNG steht und ist richtig; nur ihre Begründung
                           war widerlegbar, und CLAUDE.md nennt genau diese Klasse: ein „NICHT tun"-Vermerk
@@ -266,16 +274,36 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           5-Minuten-SDNN-Index von 54±15 ms in derselben Population. `HealthKitWriter.write`
                           stempelt `start: date, end: date`. Für eine Herzfrequenz ist das richtig, für eine
                           Intervall-Statistik ist es eine Lüge, die stromabwärts niemand rückgängig machen
-                          kann. (2) Unsere zwei Erzeuger rechnen nicht dieselbe Größe: die Kamera aus einem
-                          10-s-Analysefenster, der Gurt aus `maxRRIntervals = 64` ≈ 1 min, dort ausdrücklich
-                          gewählt, damit 0,04 Hz LF auflöst. Ein 10-s-Fenster kann keinen vollen Zyklus von
-                          etwas Langsamerem als 0,1 Hz enthalten — das VLF-Band fehlt darin ganz und das
-                          meiste von LF mit. Zwei Größen unter einem Feldnamen (#458), und Apple Healths
-                          eigene ~1-Minuten-Serie ist eine dritte.
+                          kann — und Apples eigene Samples tragen sehr wohl eine echte
+                          `startDate`/`endDate`-Spanne, die Null-Länge ist also KEINE Grenze der API,
+                          sondern unser Verzicht darauf, das benutzte Intervall zu nennen. (2) Unsere zwei
+                          Erzeuger rechnen nicht dieselbe Größe, und zwar auf DREI unabhängigen Achsen:
+                          **(a) Fensterlänge** — Kamera 10 s, Gurt `maxRRIntervals = 64`, dort ausdrücklich
+                          gewählt, damit 0,04 Hz LF auflöst; ein 10-s-Fenster kann keinen vollen Zyklus von
+                          etwas Langsamerem als 0,1 Hz enthalten, vom LF-Band (0,04…0,15 Hz) überlebt also
+                          knapp die Hälfte (0,10…0,15 sind ~45 % der Bandbreite), und der ~0,1-Hz-Resonanz-
+                          gipfel, auf den dieses Produkt zielt, sitzt exakt AUF diesem Boden statt sicher
+                          darin. **(b) Fenster-Stabilität** — die 64 ist eine SCHLAG-Zahl, keine Dauer:
+                          ~38 s bei 100 bpm, ~85 s bei 45 bpm. Das schwächt (1) nicht ab, es verstärkt es —
+                          es gäbe auch für den Gurt keine einzelne Zahl, die man ohne Rechnung je Sample in
+                          ein `endDate` schreiben könnte. **(c) Schätzer** — `sdnn(rrMs:)` liest flach,
+                          `sdnn(segments:)` schließt isolierte Schläge aus; `CameraRPPGBioPublisher` hält
+                          genau das am Ort fest („SDNN is the ONLY remaining definitional split …
+                          Registered, not fixed here"). Zwei Größen unter einem Feldnamen (#458), und Apple
+                          Healths eigene Serie ist eine dritte.
                           ⚠️ **Die RICHTUNG ist strukturell, die GRÖSSE ist NICHT gemessen** — nirgends in
                           diesem Repo steht, wie viel tiefer ein 10-s-SDNN auf einem echten Take liest, und
                           keine Zahl in diesem Absatz darf so gelesen werden. Das steht auch am Ort, in
-                          Regel 2 selbst.
+                          Regel 2 selbst. Eine Asymmetrie, die NICHT von der Größe handelt und deshalb
+                          dazugehört: der Gurt torrt seine HRV-Veröffentlichung auf
+                          `RRIntervalHygiene.canStateHRV`, der Kamerapfad veröffentlicht SDNN ohne jedes
+                          Äquivalent — sie unterscheiden sich also auch darin, WANN sie sprechen.
+                          ⛔ **Und der Schlusssatz der ersten Fassung war eine ABHAK-LISTE:** „Stamping a
+                          real interval and unifying the two windows would remove the objections above". Wer
+                          beides erledigt, hat (c) nicht angefasst — und (c) ist eine MESSFRAGE (passt der
+                          Gurt-Ausschluss zu rPPG-Lücken?), keine Bearbeitung. #458 ist kein Schlüssel, der
+                          die Entscheidung aufsperrt; ob Echoel überhaupt zu einer Gesundheits-HRV-Serie
+                          beitragen soll, bleibt eine Founder-Frage.
                           ⭐ **Das Gegengewicht ist die Hälfte, die zählt** — die #343-Falle: ein nackter
                           „der HRV-Bezeichner ist abwesend"-Scan ist auch auf einer Datei grün, die ihren
                           ganzen Schreibpfad verloren hat. Derselbe Wächter nagelt deshalb `toShare:
@@ -283,6 +311,14 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           prüft in einer eigenen Behauptung, dass echte SDNN überhaupt noch existiert: würde
                           eine spätere Scheibe `HRVMetrics.sdnn` löschen, würde der zurückgenommene Kommentar
                           wieder WAHR und der neue falsch — und diese Datei wäre das Einzige, was es merkt.
+                          ⛔ **Und die erste Fassung dieses Gegengewichts hatte die #343-Falle EINE Ebene
+                          tiefer wieder offen:** die zwei Typ-Nadeln (`.heartRate`, `.respiratoryRate`)
+                          stehen JE ZWEIMAL in der Datei — einmal in `requestAuthorization`, einmal in
+                          `write(_:)`. Wer die ganze Sample-Bau-Hälfte löscht, lässt alle drei Behauptungen
+                          grün: ein Schreiber, der autorisiert und nichts schreibt. Zwei zusätzliche Nadeln
+                          ankern jetzt auf Token, die NUR in `write(_:)` vorkommen
+                          (`HealthWritePolicy.values(for: frame)`, `store.save(samples)`) — je 1× im Code,
+                          nachgezählt statt angenommen.
                           ⚠️ `SourceText.codeOnly` ist hier TRAGEND und nicht Prophylaxe (#453), gemessen:
                           `heartRateVariabilitySDNN` steht im Rohtext **1×** und im Code **0×** — der
                           korrigierte `HealthKitWriter`-Kopf nennt den Bezeichner absichtlich als Wegweiser
