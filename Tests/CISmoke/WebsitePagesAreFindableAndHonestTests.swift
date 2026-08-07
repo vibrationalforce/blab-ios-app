@@ -225,11 +225,16 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     ///     MIDI export too, and so must both store descriptions.
     ///
     /// ⚠️ Comments are stripped before counting, and that is load-bearing here rather than
-    /// prophylactic. `exportMIDI` occurs EIGHT times across `Sources/**` — all eight in
+    /// prophylactic. `exportMIDI` occurs SIX times across `Sources/**` — all six in
     /// `EchoelStudioView.swift`, which is the only file that mentions it today: two in code
-    /// (the declaration plus the one caller) and SIX in comments — three `///` doc comments and
-    /// three `//` inline ones, including one whose whole subject is the period when it had NO
-    /// caller. On raw text the premise would read "eight" and could never fail.
+    /// (the declaration plus the one caller) and FOUR in comments, including one whose whole
+    /// subject is the period when it had NO caller. On raw text the premise would read "six"
+    /// and could never fail. (⛔ It said EIGHT — "two in code and SIX in comments" — until
+    /// #482's Nachlese re-counted. #482 deleted the old full-width MIDI button and the comment
+    /// block that explained it, and changed this neighbouring guard's prose without touching
+    /// it: the assertion is `>= 2` so nothing went red, and the number is the load-bearing
+    /// half of the argument for why stripping comments matters here. #456's rule — a commit
+    /// that reshapes a surface pulls its guards along — applies to PROSE as well.)
     /// (⛔ An earlier version of this sentence said "six DOC comments". Three of the six are
     /// plain `//`. The claim was about a count I had, and a kind I had not looked at — the
     /// cheapest possible version of the mistake this whole file exists to catch.)

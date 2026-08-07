@@ -770,7 +770,19 @@ struct EchoelStudioView: View {
             // #359 step 3 added the place toggle to this panel — it shapes the very file
             // name the Save button writes — so the spoken name has to carry it too, or the
             // control is once again behind a door that does not mention it.
-            case .export:      return "Save, record and export — sessions, WAV loop, MIDI, and the city in the name"
+            //
+            // ⛔ AND #482 MADE THAT WHOLE PARAGRAPH FALSE WITHOUT TOUCHING THIS LINE. The
+            // five controls it promised — Save, Open, Record, keep-last, MIDI — moved OUT
+            // to `quickActionRow`, permanently visible one line under the transport. #482
+            // rewrote the panel's VISIBLE subtitle for exactly that reason and left the
+            // SPOKEN name of the same door saying "Save, record and export — sessions, WAV
+            // loop, MIDI, and the city in the name". So a sighted user was told the truth
+            // and a VoiceOver user was sent into a panel to look for four controls that are
+            // not in it — the #272 report, inverted, on the one surface with no visual
+            // fallback. Found by the #482 reviewer. The name now lists what the panel
+            // actually holds; `SaveDoorNamingTests` moved with it in the same commit,
+            // because until then that guard REQUIRED the false words.
+            case .export:      return "Save and export settings — loop length, place in the name, reset sound, diagnostics"
             // Was "EchoelSynth — immersive visual window", which named the wrong half and
             // collided with the patch editor behind "Sound". This panel governs ONE thing
             // from two sides: the field's look, and the field's voice under your fingers.
@@ -1686,10 +1698,21 @@ struct EchoelStudioView: View {
     ///
     /// ⚠️ THE COST IS THE LABELS, AND IT IS PAID RATHER THAN HIDDEN. "Record 64 bars → send"
     /// and "Keep last: 8 bars or fewer at this tempo" were full-width sentences; they are now
-    /// glyphs. Two things carry that weight: every tile takes its old sentence as its
-    /// `accessibilityLabel` (so VoiceOver loses nothing at all), and the panel renders the two
-    /// STATEFUL sentences as text next to the picker that produces them. A mute disabled chip
-    /// with its reason deleted would be the lying-control class.
+    /// glyphs. Two things carry that weight: every tile carries its sentence as its
+    /// `accessibilityLabel` (so VoiceOver loses nothing at all — Save and Open gained wording,
+    /// the other four kept theirs), and the panel keeps `KeepLastAvailabilityNote` as text
+    /// next to the picker that produces it. A mute disabled chip with its reason deleted
+    /// would be the lying-control class.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THAT SENTENCE SAID "the two STATEFUL sentences", WHICH IS
+    /// WRONG IN BOTH DIRECTIONS. The place-row caption is a STATIC string, not state. And
+    /// `exportLabel` — which really does carry four states ("Record 8 bars → send" / "Stop and
+    /// discard this take" / "Recording loop…" / "Writing .wav…") — is rendered as text
+    /// NOWHERE any more. So a sighted user mid-take sees only a glyph swap to `stop.circle`,
+    /// and the bar count is gone from the screen entirely. That cost is real, it is NOT paid,
+    /// and it is written here rather than in a sentence claiming it was. Whether the row
+    /// deserves a state line under it is a founder-visible layout call, not a tidy-up: a
+    /// fourth line in this stack is exactly the height #456 just reclaimed.
     ///
     /// ⚠️ FREEZE LAW. Nothing here reads a high-frequency `@Observable` in this body:
     /// `exporter.status` changes at the start and end of a take, `hasComposed` is `@State`,
@@ -1755,8 +1778,10 @@ struct EchoelStudioView: View {
 
             // The two entries that are not panels and therefore cannot be chips (#290): Live
             // Colabo and Learn present full sheets. It keeps its `Menu`, and since #482 it
-            // wears the same tile as the five buttons beside it. NOT `expands` — it is the one
-            // fixed-width child, so the five actions share the remaining width evenly.
+            // wears the same tile as the five buttons beside it — INCLUDING `expands`, so all
+            // six are one width. ⛔ The first version left it fixed-width "so the five actions
+            // share the remaining width evenly", which produced 5 × 51.8 pt next to one 44 pt
+            // chip in the row whose whole brief was *"die sollen immer gleichgroß sein"*.
             TransportOverflowMenu()
         }
     }
@@ -6747,8 +6772,12 @@ struct EchoelStudioView: View {
               isExpanded: $showExport) {
         VStack(spacing: 10) {
             if !hasComposed {
-                // The export/keep/save buttons below are disabled until there's a take —
-                // say WHY, so a first-run user doesn't read the greyed buttons as broken.
+                // The export/keep/save tiles in the row under the transport are disabled until
+                // there's a take — say WHY, so a first-run user doesn't read them as broken.
+                // ⛔ This said "the buttons BELOW" until #482 moved them out of this panel; a
+                // hint that locates a control by its old POSITION is the class this file keeps
+                // retracting. It stays HERE rather than following them, because the row has no
+                // room for a sentence and this panel is where the loop settings live.
                 // Name the REAL button (audit 2026-07-09: no "Generate" exists — first-run
                 // users hunted for it and read the greyed buttons as broken). Video
                 // recording lives in the floating visual window, not here.
@@ -6830,9 +6859,13 @@ struct EchoelStudioView: View {
             // is no second copy here, because two doors to one action is the defect this file
             // keeps retracting. Every hint and disabled rule travelled with them unchanged.
             //
-            // What stays here is precisely what a 44 pt glyph cannot say — and this sentence
-            // is the first of the two:
-            KeepLastAvailabilityNote(pattern: beatPlayer.pattern, bars: loopBars)
+            // What stays here is precisely what a 44 pt glyph cannot say. ⛔ The first version
+            // called this "the first of the two" stateful sentences; there is only ONE (the
+            // place-row caption below is static, and `exportLabel`'s four states are rendered
+            // as text nowhere — see the ⛔ block on `quickActionRow`):
+            KeepLastAvailabilityNote(pattern: beatPlayer.pattern, bars: loopBars,
+                                     isExporting: isExporting, hasComposed: hasComposed,
+                                     busyLabel: busyStatusLabel)
 
             // #359 step 3 — THE PLACE TOGGLE BELONGS BESIDE THE THING IT NAMES, and that is
             // the whole argument for it living in this panel rather than some other one.
@@ -9296,14 +9329,23 @@ private struct KeepLastLoopButton: View {
         let fits = LoopExporter.canKeepLast(bars: bars.rawValue, bpm: bpm)
         // The dim state must track `.disabled` EXACTLY. A full-brightness chip that is inert
         // is the same lie in a quieter register — it just moves the disappointment to the tap.
-        let live = isExporting || (fits && hasComposed)
+        //
+        // ⛔ AND IT DID NOT, FOR AS LONG AS THIS COMMENT HAS EXISTED — the divergence was on
+        // `isExporting`: `live` was `isExporting || (fits && hasComposed)`, so during a take
+        // the chip was lit AND `.disabled(true)`. It was COVERED rather than harmless: the old
+        // control rendered `busyLabel` ("Recording loop…") as visible text, so full brightness
+        // read as "busy", not "tappable". #482 replaced that text with a glyph and uncovered it.
+        // Now it is the exact negation of the `.disabled` expression below — one definition,
+        // not two that happen to agree in three of four states. (Found by the #482 reviewer.)
+        let inert = isExporting || !hasComposed || !fits
+        let live = !inert
         Button(action: action) {
             EchoelIconTile(systemImage: "clock.arrow.circlepath", expands: true, enabled: live)
         }
         .buttonStyle(.plain)
-        .disabled(isExporting || !hasComposed || !fits)
-        .accessibilityLabel(KeepLastCopy.title(bars: bars, bpm: bpm,
-                                               isExporting: isExporting, busyLabel: busyLabel))
+        .disabled(inert)
+        .accessibilityLabel(KeepLastCopy.title(bars: bars, bpm: bpm, isExporting: isExporting,
+                                               hasComposed: hasComposed, busyLabel: busyLabel))
         .accessibilityHint(fits
             ? "Keeps the last bars you just heard as a WAV loop, without replaying them"
             : "This length is longer than the 30 second capture buffer at the current tempo")
@@ -9313,12 +9355,25 @@ private struct KeepLastLoopButton: View {
 /// The sentence the keep-last chip can no longer wear (#482), rendered where the loop-length
 /// picker that decides it already lives. Its own `struct` for the same freeze reason as the
 /// button: `pattern.tempo` is read HERE, not in the panel's enclosing body.
+///
+/// ⛔ THE FIRST VERSION PASSED `isExporting: false, busyLabel: ""` AND NO `hasComposed`, which
+/// broke the one property it exists for. The commit that added it claimed "one wording
+/// definition feeds the chip and the sentence, so they cannot disagree" — they did, in two
+/// states at once: mid-take the chip's VoiceOver label read "Recording loop…" while this line
+/// still read "Keep last 8 bars (just played)", and on a FIRST RUN it said "(just played)"
+/// with nothing ever played, four rows under a hint explaining that nothing has. One
+/// definition with two call sites that feed it different facts is not one definition (#416).
+/// Both are now forwarded, so the sentence is the chip's label rendered as text.
 private struct KeepLastAvailabilityNote: View {
     let pattern: PatternEngine
     let bars: LoopBarLength
+    let isExporting: Bool
+    let hasComposed: Bool
+    let busyLabel: String
 
     var body: some View {
-        Text(KeepLastCopy.title(bars: bars, bpm: pattern.tempo, isExporting: false, busyLabel: ""))
+        Text(KeepLastCopy.title(bars: bars, bpm: pattern.tempo, isExporting: isExporting,
+                                hasComposed: hasComposed, busyLabel: busyLabel))
             .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
@@ -9330,10 +9385,17 @@ private struct KeepLastAvailabilityNote: View {
 /// and the refusal is the half a user actually needs.
 private enum KeepLastCopy {
     static func title(bars: LoopBarLength, bpm: Double,
-                      isExporting: Bool, busyLabel: String) -> String {
+                      isExporting: Bool, hasComposed: Bool, busyLabel: String) -> String {
         if isExporting { return busyLabel }
         if LoopExporter.canKeepLast(bars: bars.rawValue, bpm: bpm) {
-            return "Keep last \(bars.label) (just played)"
+            // ⛔ "(just played)" WAS UNCONDITIONAL AND SO WAS A FALSE STATEMENT ON EVERY FIRST
+            // RUN — rendered four rows under the hint that explains nothing has played yet.
+            // On the chip it was covered (the button was `.disabled`, so no one read the label
+            // as a claim); #482 rendered the same sentence as free-floating prose and uncovered
+            // it. The tempo refusal below is checked FIRST on purpose: it is true whether or
+            // not anything has played, and it is the more useful half.
+            return hasComposed ? "Keep last \(bars.label) (just played)"
+                               : "Keep last \(bars.label) — once something has played"
         }
         // Name a length the PICKER ACTUALLY OFFERS. The raw ring capacity (14 bars at
         // 120 BPM) is not a `LoopBarLength` case, so naming it would send the user hunting

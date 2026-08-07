@@ -92,9 +92,11 @@ final class CopyNamesTheLiveControlTests: XCTestCase {
             \(line.file):\(line.line) no longer tells the user to press Play: \
             \(line.text.trimmingCharacters(in: .whitespaces))
 
-            The greyed Save/Record/Export buttons in that panel are the first thing a new user \
-            meets, and this is the only sentence that says why. It has to name the control that \
-            actually starts a session.
+            The greyed Save/Record/Export tiles in the row under the transport are the first \
+            thing a new user meets, and this is the only sentence that says why. It has to \
+            name the control that actually starts a session. (⛔ Said "in that panel" until \
+            #482 moved those five controls out of Save & Export into `quickActionRow`; the \
+            sentence itself deliberately stayed behind, because the row has no space for it.)
             """)
         }
     }

@@ -53,9 +53,13 @@ final class OneChromeControlHeightTests: XCTestCase {
         return root
     }
 
-    /// Code lines only. Load-bearing here and not prophylaxis (#453): the prose written for
-    /// #481 QUOTES every old literal it replaced — "44 × 48", "height: 56" — inside the very
-    /// comments that explain the new spelling, so a raw-text scan would fail on correct code.
+    /// Code lines only. Load-bearing for #481's needles and not prophylaxis (#453): the prose
+    /// written for #481 QUOTES every old literal it replaced — "44 × 48", "height: 56" —
+    /// inside the very comments that explain the new spelling, so a raw-text scan would fail
+    /// on correct code. ⚠️ Measured for #482's OWN needles and stated honestly rather than
+    /// inherited: the three tile anchors and `EchoelIconTile(systemImage: "ellipsis"` are each
+    /// unique in RAW text too, so for those the stripper is prophylaxis. Both facts are true
+    /// at once; the file keeps one stripper because two would be the #416 shape.
     private func codeLines(_ path: String) throws -> [String] {
         let url = try repoRoot().appendingPathComponent(path)
         return SourceText.codeOnly(try String(contentsOf: url, encoding: .utf8))
@@ -230,12 +234,24 @@ final class OneChromeControlHeightTests: XCTestCase {
         }) else {
             return XCTFail("""
                 EchoelIconTile lost its `minHeight: EchoelTheme.controlTapHeight`. That frame \
-                IS the 44 pt floor for six chrome controls at once, and for the "•••" it is \
-                the ONLY thing that works: a `Menu` presents from its label's layout bounds, \
-                so the `contentShape` outset it carried before #482 was almost certainly a \
-                no-op (`TapTargetFloorTests` says so in its own header).
+                IS the 44 pt floor for six chrome controls at once. ⛔ This message used to \
+                add "and for the '•••' it is the ONLY thing that works … the outset it \
+                carried before #482 was almost certainly a no-op". That was wrong: the outset \
+                sat on the `Menu` ITSELF, the level \
+                `TapTargetFloorTests.testBothPresetOverflowMenusCarryTheHitAreaOutset` \
+                certifies as correct, and it worked (42 × 44). Only a `contentShape` INSIDE \
+                a `label:` closure is the no-op. The frame is chosen because it survives six \
+                adjacent chips; do not read this as licence to drop the two pinned outsets.
                 """)
         }
+        XCTAssertTrue(lines.contains { $0.contains(".contentShape(Rectangle())") }, """
+            EchoelIconTile lost its `.contentShape(Rectangle())`, and it looks redundant next \
+            to the 44 pt frame above — that is exactly why this assertion exists. For the five \
+            `.plain` Buttons the hit area is the LABEL's content shape, so without this line \
+            the transparent margin the frame creates is not hittable and all five fall back to \
+            the ~38 × 32 glyph while every other check in this file stays green. It IS \
+            redundant for the `Menu`, whose bounds are its label's layout size.
+            """)
         XCTAssertGreaterThan(tap, paint, """
             EchoelIconTile's 44 pt frame moved ABOVE its background. That does not enlarge \
             the hit area — it enlarges the PICTURE, and it does so for every chip in the row \
@@ -277,7 +293,13 @@ final class OneChromeControlHeightTests: XCTestCase {
             builds one inside `TransportOverflowMenu`. A different count means an action was \
             added or removed without this expectation moving with it.
             """)
-        for bad in [".background(", ".overlay(", "cornerRadius", "RoundedRectangle"] {
+        // ⛔ THE FIRST VERSION BANNED FOUR MODIFIERS AND ITS OWN DOC NAMED THREE EDITS —
+        // "wider / rounder / brighter". Only "rounder" was covered. `.frame(width:` (wider)
+        // and `.font(`/`.foregroundStyle(` (brighter) passed every assertion while
+        // re-introducing exactly the non-uniformity #481/#482 closed. Found by the #482
+        // reviewer; the list now matches the sentence that motivates it.
+        for bad in [".background(", ".overlay(", "cornerRadius", "RoundedRectangle",
+                    ".frame(width:", ".font(", ".foregroundStyle("] {
             XCTAssertFalse(row.contains { $0.contains(bad) }, """
                 `quickActionRow` spells `\(bad)` itself. The whole point of `EchoelIconTile` \
                 is that the chip is declared ONCE — a call site that paints its own \

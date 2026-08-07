@@ -79,6 +79,18 @@ final class SaveDoorNamingTests: XCTestCase {
     /// guard is re-pointed at what carries the naming today — the chip label, its VoiceOver
     /// `fullName`, and the fact that `.export` is actually IN the standing strip. Take any
     /// of the three away and the founder is back to hunting for controls that exist.
+    ///
+    /// ⛔ AND THE WORD "RECORD" WAS REQUIRED HERE UNTIL #482 (2026-08-07), one commit AFTER
+    /// it stopped being true. #482 moved Record, keep-last, Export MIDI, Save and Open out
+    /// of this panel into `quickActionRow` — permanent tiles that name themselves — and left
+    /// `fullName` promising four controls the panel no longer holds. **The guard had flipped
+    /// from protecting an honest string to pinning a false one, silently green**, which is
+    /// worse than no guard: the next session reads a passing assertion as evidence. The
+    /// asserted words now name what the panel really settles, and "record" is not among them
+    /// BY DESIGN — the recording control moved to a place where it needs no door to announce
+    /// it. "loop" replaces it because the loop length Record uses is still in here and is the
+    /// one thing that tile cannot say about itself. (#272's protection is unchanged: the
+    /// door names what is behind it. Only what is behind it changed.)
     func testTheSaveExportChipNamesSavingAndRecording() throws {
         let label = try exportReturn(inProperty: "label")
         XCTAssertTrue(label.lowercased().contains("save"), """
@@ -88,11 +100,11 @@ final class SaveDoorNamingTests: XCTestCase {
         """)
 
         let fullName = try exportReturn(inProperty: "fullName")
-        for word in ["save", "record"] {
+        for word in ["save", "loop"] {
             XCTAssertTrue(fullName.lowercased().contains(word), """
             the Save/Export chip's VoiceOver name no longer says "\(word)": \(fullName)
-            The 12 pt chip cannot carry all three of saving, recording and exporting, so \
-            `fullName` is where a VoiceOver user learns that loop recording lives behind it.
+            The 12 pt chip cannot carry everything behind it, so `fullName` is where a \
+            VoiceOver user learns what the panel actually settles before opening it.
             """)
         }
     }
@@ -195,8 +207,9 @@ final class SaveDoorNamingTests: XCTestCase {
         // Stopping there is what keeps `fullName`'s region from running to end-of-file.
         let end = lines[(start + 1)...].firstIndex { $0 == "        }" } ?? lines.endIndex
         guard let hit = lines[start..<end].first(where: { $0.contains("case .export:") }) else {
-            XCTFail("`StudioMenu.\(property)` has no `.export` case any more. That panel holds "
-                    + "Save, Open, Record and keep-last; an unnamed door to it is #272.")
+            XCTFail("`StudioMenu.\(property)` has no `.export` case any more. Since #482 that "
+                    + "panel holds the loop length, the place-in-the-name toggle, Reset sound "
+                    + "and Diagnostics; an unnamed door to them is #272.")
             return ""
         }
         return hit.trimmingCharacters(in: .whitespaces)

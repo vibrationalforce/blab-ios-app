@@ -78,7 +78,12 @@ final class PrimaryFillIsMonochromeTests: XCTestCase {
         "Sources/Echoelmusic/Studio/EchoelValueField.swift",
         "Sources/Echoelmusic/Studio/HeaderMonitors.swift",
         "Sources/Echoelmusic/Studio/BioStripView.swift",
-        "Sources/Echoelmusic/Studio/BodyTempoField.swift"
+        "Sources/Echoelmusic/Studio/BodyTempoField.swift",
+        // #482 — the one shared chip format, six call sites. Added by the #482 Nachlese: it
+        // is clean today (`EchoelTheme.text`/`fill`, no accent), and it is the single most
+        // repeated chrome surface in the app, so leaving it out of this sweep would mean an
+        // accent fill reached six controls at once with nothing looking.
+        "Sources/Echoelmusic/Studio/EchoelIconTile.swift"
     ]
 
     // MARK: - The one violation, pinned

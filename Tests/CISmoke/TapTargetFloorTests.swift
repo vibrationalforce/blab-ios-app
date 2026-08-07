@@ -16,10 +16,13 @@
 //
 // ⛔ "the transport bar's '•••'" and "between them" WERE TRUE UNTIL #456. The bar dissolved;
 // the "•••" now sits on line 2 of `EchoelStudioView.startControlRow` and the lock on line 1,
-// so they are no longer one row and no longer flank anything. The assertions below are
-// unaffected — they scan for the outset repo-file-wide, not for an adjacency — but a reader
-// who trusts this paragraph would go looking for a row that does not exist. The LESSON is
-// what survives: a list of controls beats a per-file review.
+// so they are no longer one row and no longer flank anything. ⛔ AND THE SENTENCE THAT
+// FOLLOWED — "the assertions below are unaffected, they scan for the outset repo-file-wide" —
+// stopped being true one commit later: #482 re-pointed the first assertion at a TYPE NAME in
+// `WorkspaceView`, because the "•••" reaches 44 through `EchoelIconTile`'s frame now and has
+// no outset to scan for. A reader who trusts either paragraph goes looking for a row that
+// does not exist, or for a repo-wide scan that is now file-and-symbol specific. The LESSON is
+// what survives both: a list of controls beats a per-file review.
 //
 // ⚠️ WHY A SOURCE SCAN AND NOT A LAYOUT TEST — the same honest limit `ChromeDynamicTypeTests`
 // states, repeated rather than cross-referenced because a reader arriving here must not have
@@ -91,10 +94,17 @@ final class TapTargetFloorTests: XCTestCase {
     /// ⛔ RENAMED FROM `testBothTransportBarChipsCarryTheHitAreaOutset` (#482) — there is only
     /// ONE outset in this pair now, and a name promising "both" would send its reader looking
     /// for a modifier that was deliberately removed. `TransportOverflowMenu`'s "•••" reaches
-    /// the 44 pt floor through `EchoelIconTile`'s layout frame instead, and that is a fix
-    /// rather than a loss: this file's own header records that a `contentShape` inside a
-    /// `Menu`'s `label:` closure is almost certainly a no-op, because a Menu presents from its
-    /// own bounds and a descendant cannot widen them. A FRAME changes those bounds. It also
+    /// the 44 pt floor through `EchoelIconTile`'s layout frame instead.
+    ///
+    /// ⛔ AND THE REASON GIVEN FOR THAT SWAP WAS WRONG, IN THE DIRECTION THAT COSTS MOST. It
+    /// read: "this file's own header records that a `contentShape` inside a `Menu`'s `label:`
+    /// closure is almost certainly a no-op". Two errors. (a) The no-op claim lives in
+    /// `testBothPresetOverflowMenusCarryTheHitAreaOutset`'s doc below, not in the header.
+    /// (b) The removed modifier was NOT inside the label closure — `git show 39f112b` puts it
+    /// after the closing brace, on the `Menu` itself, which is precisely the placement that
+    /// same test certifies as CORRECT for the two preset overflows. It worked; the chip was
+    /// 42 × 44. Left standing, the sentence was a ready-made argument for deleting those two
+    /// pinned outsets. The HONEST reason for the frame: it is bigger (42 → 44 wide) and it
     /// survives repetition — six −6 outsets at 8 pt spacing overlap by 4 pt, which is exactly
     /// the geometry `quickActionRow` now has.
     ///
@@ -102,7 +112,10 @@ final class TapTargetFloorTests: XCTestCase {
     /// pinned from the other side by `OneChromeControlHeightTests`.
     func testTheTempoLockKeepsTheOutsetAndTheOverflowGotAFrame() throws {
         let bar = try codeLines(Self.workspace)
-        XCTAssertTrue(bar.contains { $0.contains("EchoelIconTile(systemImage: \"ellipsis\")") }, """
+        // Anchored on the glyph argument only, NOT the full call: #482's Nachlese added
+        // `expands: true` so all six chips are one width, and a whole-call needle would have
+        // gone red on that. The claim is "the '•••' is built from the shared tile".
+        XCTAssertTrue(bar.contains { $0.contains("EchoelIconTile(systemImage: \"ellipsis\"") }, """
             The transport "•••" overflow no longer builds `EchoelIconTile`. It carried a \
             `contentShape(Rectangle().inset(by: -6))` until #482, and that modifier is GONE — \
             so if the tile went too, the only door to Live Colabo and Learn is a 30×32 chip \
@@ -118,9 +131,13 @@ final class TapTargetFloorTests: XCTestCase {
             smallest target in the always-visible chrome, and a missed tap lands on the \
             tempo value's scrub gesture instead. ⛔ The neighbour this message used to cite \
             as precedent — the "•••", "carrying the identical modifier since #113" — no \
-            longer does: #482 gave it `EchoelIconTile`'s 44 pt frame instead. The lock is now \
-            the ONLY outset in the chrome, so nothing corroborates it any more; that is a \
-            reason to keep this assertion, not a reason to relax it.
+            longer does: #482 gave it `EchoelIconTile`'s 44 pt frame instead. ⛔ And the \
+            sentence that followed THAT, "the lock is now the ONLY outset in the chrome", was \
+            false in the same breath: `git grep "inset(by: -6)" -- Sources` on code lines \
+            finds FOUR — this lock, `BioStripView`, and the two preset overflows pinned by \
+            `testBothPresetOverflowMenusCarryTheHitAreaOutset` in this same file. The idiom is \
+            alive and corroborated; keep this assertion because the lock is the smallest \
+            always-visible target, not because it stands alone.
             """)
     }
 

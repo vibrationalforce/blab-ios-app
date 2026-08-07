@@ -763,15 +763,26 @@ struct TransportOverflowMenu: View {
             // the five action tiles beside it in `startControlRow`. Nothing about the menu
             // changed; only who owns fill/border/radius/glyph/tap floor (one declaration
             // instead of a hand-spelled copy per call site).
-            EchoelIconTile(systemImage: "ellipsis")
+            EchoelIconTile(systemImage: "ellipsis", expands: true)
         }
-        // ⛔ THE `-6` OUTSET IS GONE, AND IT IS REPLACED BY SOMETHING THAT WORKS RATHER THAN
-        // DROPPED. `EchoelIconTile` carries a 44 × 44 layout FRAME, and for a `Menu` that is
-        // the only form with an effect: a Menu presents from its own bounds, which are its
-        // label's layout size — a `contentShape` applied INSIDE the label cannot widen them.
-        // `TapTargetFloorTests` had already written that down about these menus and pinned the
-        // modifier anyway. A frame also survives being repeated six times in a row, where two
-        // adjacent −6 outsets at 8 pt spacing would overlap by 4 pt.
+        // ⛔ THE `-6` OUTSET IS GONE, AND THE FIRST VERSION OF THIS NOTE GOT ITS REASON WRONG
+        // IN THE DANGEROUS DIRECTION. It claimed the removed modifier "was inside the `Menu`'s
+        // `label:` closure and therefore almost certainly a no-op". It was NOT: `git show
+        // 39f112b` puts it AFTER the closing brace of `label:`, applied to the `Menu` itself —
+        // which is exactly the level `TapTargetFloorTests.testBothPresetOverflowMenusCarryThe`
+        // `HitAreaOutset` certifies as CORRECT for the two preset overflows. The outset worked;
+        // it gave this chip 42 × 44. **Left standing, that sentence was a ready-made argument
+        // for deleting the two preset outsets** — which are at the same correct level, are
+        // pinned, and each guard the only door to save/favourite/delete/submit. (Found by the
+        // #482 reviewer.)
+        //
+        // The real reason it is gone: `EchoelIconTile`'s 44 × 44 layout FRAME is strictly
+        // bigger (42 → 44 wide) and, unlike an outset, survives being repeated six times in a
+        // row — two adjacent −6 outsets at 8 pt spacing would overlap by 4 pt. A frame works
+        // for a `Menu` for the same reason the outset did: both sit on the label's own layout,
+        // and a Menu presents from its label's layout size. What genuinely IS a no-op is a
+        // `contentShape` placed INSIDE the `label:` closure — that is the claim
+        // `TapTargetFloorTests` records, about a placement this code never used.
         //
         // The retracted note that stood here follows, because its measurement is still the
         // reason the outset was SAFE in this one spot and would not have been in the new row:

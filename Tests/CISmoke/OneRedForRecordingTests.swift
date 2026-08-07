@@ -64,7 +64,10 @@ final class OneRedForRecordingTests: XCTestCase {
         "Sources/Echoelmusic/Studio/EchoelStudioView.swift",
         "Sources/Echoelmusic/Studio/FloatingVisualWindow.swift",
         "Sources/Echoelmusic/Studio/HeaderMonitors.swift",
-        "Sources/Echoelmusic/Studio/BioStripView.swift"
+        "Sources/Echoelmusic/Studio/BioStripView.swift",
+        // #482 — the shared chip. It draws the RECORD tile among five others, so a system
+        // red creeping in here is exactly this file's subject. Added by the #482 Nachlese.
+        "Sources/Echoelmusic/Studio/EchoelIconTile.swift"
     ]
 
     private static let theme = "Sources/Echoelmusic/Studio/EchoelTheme.swift"
