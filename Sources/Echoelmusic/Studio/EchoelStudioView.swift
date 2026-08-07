@@ -1718,7 +1718,23 @@ struct EchoelStudioView: View {
                 // control-band block) so the docked visual's lift and this control cannot
                 // drift apart; that dependency is real and CI-tested.
                 .frame(width: 64)
-                .frame(height: FloatingVisualLayout.startButtonHeight)
+                // ⛔ HEIGHT WAS `FloatingVisualLayout.startButtonHeight` (56) UNTIL #481.
+                // Founder 2026-08-07: *"die sollen immer gleichgroß sein. Orientiere dich an
+                // denen oben rechts."* The header tiles are 32 visible / 44 tap, so this is
+                // too, and the WIDTH stays 64 — a primary transport reads as primary by being
+                // wider than its 30–38 pt neighbours, which is exactly the distinction the
+                // "64 is a CHOICE, not a fit" paragraph above was making.
+                //
+                // ⚠️ `FloatingVisualLayout` IS DELIBERATELY NOT CHANGED WITH IT, and that is a
+                // decision rather than an oversight. `studioControlBandHeight` (= 56 + 4 + 10)
+                // is what `FloatingVisualWindow.defaultCenter` lifts the docked card by; since
+                // #288 moved this button to the TOP of the stack, that sum buys a bottom MARGIN
+                // and no longer clears anything. Feeding the new 32 into it would slide the
+                // docked visual up 24 pt on the founder's device in a commit about button size.
+                // Whether the card should drop those points is a look decision that belongs to
+                // the founder — it is filed, not taken here. The honest consequence is that the
+                // constant's NAME now overstates its job; that note lives at the declaration.
+                .frame(height: EchoelTheme.controlHeight)
                 // Website CI: primary action = off-white fill, black glyph (.btn-primary).
                 // Green is reserved for live bio signal, not chrome. Stop = neutral fill with
                 // a border, so the running state still reads as a raised control rather than
@@ -1727,6 +1743,13 @@ struct EchoelStudioView: View {
                     .fill(running ? EchoelTheme.fill : EchoelTheme.text))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(running ? EchoelTheme.borderStrong : Color.clear, lineWidth: 1))
+                // The 44 pt tap frame sits AFTER background+overlay, exactly as the header
+                // tiles spell it — put it before them and the chip would be PAINTED 44 tall,
+                // i.e. the picture would grow instead of the hit area, which is the opposite
+                // of the #113 idiom. Vertical only: the row is 8 pt-spaced and horizontal
+                // growth would overlap the ⏸ beside it.
+                .frame(height: EchoelTheme.controlTapHeight)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // Mandatory now that the label is gone — and deliberately NOT the same words as the

@@ -161,11 +161,23 @@ final class FloatingVisualLayoutTests: XCTestCase {
     /// The card once parked on top of the "Create from Within"/Stop button, covering ~40 %
     /// of it — and because the card is the PLAY SURFACE, a tap in the covered strip played
     /// a synth note instead of starting biofeedback. `FloatingVisualWindow.defaultCenter`
-    /// lifts the card by `studioControlBandHeight`, and `EchoelStudioView` builds the button
+    /// lifts the card by `studioControlBandHeight`, and `EchoelStudioView` built the button
     /// from the SAME three constants. This test is what makes that agreement non-silent:
     /// neither `defaultCenter` nor the button is reachable from a Foundation-level test
     /// (both live behind `#if canImport(SwiftUI) && canImport(MetalKit) && canImport(UIKit)`),
     /// so the shared constants are the only surface a CI test can hold still.
+    ///
+    /// ⛔ THE SECOND HALF OF THAT SENTENCE IS PAST TENSE SINCE #481, AND THE TEST IS KEPT
+    /// ANYWAY. The button no longer reads `startButtonHeight`; it reads
+    /// `EchoelTheme.controlHeight` (32) like every other chrome control, after the founder
+    /// asked on 2026-08-07 for one uniform button size taken from the header tiles. So the
+    /// three constants now have exactly ONE job — summing to the docked card's bottom margin
+    /// — and the arithmetic below is the whole of what they mean.
+    ///
+    /// It is corrected rather than deleted because the sum is still a real dependency
+    /// (`FloatingVisualWindow.defaultCenter` reads it) and because a test whose stated
+    /// subject has silently gone is the #456 defect: the next reader finds a guard pointing
+    /// at an agreement that no longer exists and concludes the rule was withdrawn.
     func testStudioControlBand_isExactlyTheButtonPlusItsPadding() {
         XCTAssertEqual(FloatingVisualLayout.studioControlBandHeight,
                        FloatingVisualLayout.startButtonHeight
@@ -175,11 +187,20 @@ final class FloatingVisualLayoutTests: XCTestCase {
                        "the band must be the button's full vertical footprint, or the docked card covers it")
     }
 
-    /// A restyle that shrinks the button toward nothing would quietly stop the card from
-    /// clearing it. Pin the band to a range that keeps a 44 pt HIG-sized control plus air.
+    /// A restyle that shrinks the band toward nothing would quietly stop the card from
+    /// clearing the bottom of the screen. Pin it to a range that keeps a HIG-sized control's
+    /// worth of room plus air.
+    ///
+    /// ⛔ THE MESSAGE BELOW USED TO SAY "the primary control must stay at least HIG tap size"
+    /// AND THAT IS NO LONGER WHAT IT MEASURES (#481). `startButtonHeight` stopped sizing the
+    /// button; the button's own floor is `EchoelTheme.controlTapHeight`, pinned by
+    /// `OneChromeControlHeightTests` in the BLOCKING bundle. What survives here is the
+    /// weaker, still-useful claim: the margin the docked card is lifted by must stay worth
+    /// lifting. Same numbers, honest subject.
     func testStudioControlBand_staysBigEnoughToBeWorthClearing() {
         XCTAssertGreaterThanOrEqual(FloatingVisualLayout.startButtonHeight, 44,
-                                    "the primary control must stay at least HIG tap size")
+                                    "the docked card's bottom margin must stay at least a "
+                                    + "HIG tap target's worth of room")
         XCTAssertGreaterThan(FloatingVisualLayout.studioControlBandHeight,
                              FloatingVisualLayout.startButtonHeight,
                              "the band must include the paddings, not just the button")
@@ -188,6 +209,13 @@ final class FloatingVisualLayoutTests: XCTestCase {
     /// The clearance the fix actually buys, expressed as the arithmetic it comes from:
     /// the card's own margin plus the band, minus the half-card offset the dock already
     /// applied. Container-independent, which is why it can be asserted without a device.
+    ///
+    /// ⚠️ "clearsTheButton" IN THE NAME IS STALE, AND NOT BY #481 — by #288, which moved the
+    /// start button to the TOP of the studio stack months earlier; `FloatingVisualLayout`
+    /// says so at the constants. There is no button down there to clear. The arithmetic is
+    /// unchanged and still meaningful (the card must not run off the bottom), so the name is
+    /// left alone rather than renamed in a commit about something else — churn is what hides
+    /// a real change. Recorded here so the next reader does not go looking for the button.
     func testDockedCard_clearsTheButton_atTheSmallStep() {
         let bounds = CGSize(width: 393, height: 759)   // portrait iPhone, inside app chrome
         let c = card(bounds, FloatingVisualLayout.smallStep)

@@ -140,7 +140,7 @@ struct BodyTempoField: View {
                     .font(EchoelTheme.font(14, .semibold).monospacedDigit())
                     .foregroundStyle(liveBodyBPM > 0 ? EchoelTheme.accent : EchoelTheme.text)
                     .lineLimit(1).minimumScaleFactor(0.7)
-                    .frame(width: 76, height: 32)
+                    .frame(width: 76, height: EchoelTheme.controlHeight)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
@@ -174,7 +174,7 @@ struct BodyTempoField: View {
                 Image(systemName: lockBPM ? "lock.fill" : "lock.open")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(lockBPM ? EchoelTheme.accent : EchoelTheme.dim)
-                    .frame(width: compact ? 30 : 34, height: 32)
+                    .frame(width: compact ? 30 : 34, height: EchoelTheme.controlHeight)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         // #367: same correction as the transport button. Note what is NOT

@@ -585,7 +585,20 @@ struct PlaybackToggleButton: View {
                     // A reviewer called the claim out and was right. (2) 44×48 clears the HIG
                     // touch floor on its OWN geometry, so the hit area no longer has to be
                     // faked by outsetting the shape into the 8 pt gaps between neighbours.
-                    .frame(width: 44, height: 48)
+                    //
+                    // ⛔ 44×48 UNTIL #481, AND THE COMMENT ABOVE WAS ALREADY FALSE WHEN IT WAS
+                    // WRITTEN. It justified 48 with "Ableton's transport strip is UNIFORM-height
+                    // — ours was 56 / 32 / 48 centred" — and then picked a FOURTH number, so the
+                    // row read 56 / 44×48 / 32 / 48 / 32. The observation was right and the fix
+                    // did not follow from it. The founder said the same thing again on
+                    // 2026-08-07 with the row circled, and named the reference this time: the
+                    // header tiles. `EchoelTheme.controlHeight` is that size, and it is now the
+                    // one definition (#416) rather than a fifth literal.
+                    //
+                    // Reason (2) of the old comment survives intact and is why the tap frame
+                    // below exists: this clears the HIG floor on its OWN geometry, so the hit
+                    // area is never faked by outsetting into a neighbour's gap.
+                    .frame(width: 44, height: EchoelTheme.controlHeight)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         // #367: idle used `border`, the DECORATIVE token whose own doc says
@@ -607,14 +620,20 @@ struct PlaybackToggleButton: View {
                         // a ~46-way tie: `border` is ONE opacity. What was true, and is the whole
                         // argument, is that it was the LARGEST control still at 1.16:1.
                         .strokeBorder(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.borderStrong, lineWidth: 1))
+                    // AFTER background+overlay, the header-tile spelling: the picture stays
+                    // `controlHeight`, only the hit area grows (#113/#481). Before them it
+                    // would paint the chip 44 tall instead.
+                    .frame(height: EchoelTheme.controlTapHeight)
             }
             .buttonStyle(.plain)
             // ⛔ The outset is GONE (`inset(by: -6)`), and deliberately, not by oversight: it
             // existed only to lift a 38×32 chip to the 44 pt HIG floor by borrowing 6 pt from
             // each side — which meant this button's hit area reached into the gaps beside its
-            // neighbours. The chip is 44×48 now, so the floor is met by the control itself.
-            // A plain `contentShape` keeps the whole frame hit-testable (the background fill
-            // already covers it; this makes it explicit rather than implied).
+            // neighbours. The floor is met by the control itself: 44 pt wide by its own frame,
+            // 44 pt tall by the `controlTapHeight` frame INSIDE the label above — which is
+            // where it has to be, because a `Button`'s tap area is its LABEL's content shape.
+            // (⛔ The sentence here said "the chip is 44×48 now" until #481 shrank the picture
+            // to the header tiles' 32; the floor argument is unchanged, its source moved.)
             .contentShape(Rectangle())
             // `Text` on both ternary branches, as a forward guard — NOT a bug fix. Be
             // precise, because the sibling comment in `OnboardingView` was written as if it
@@ -743,7 +762,7 @@ struct TransportOverflowMenu: View {
             Image(systemName: "ellipsis")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(EchoelTheme.text)
-                .frame(width: 30, height: 32)
+                .frame(width: 30, height: EchoelTheme.controlHeight)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))

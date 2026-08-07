@@ -407,13 +407,13 @@ struct ImmersiveMonitorMini: View {
                 }
             }
         }
-        .frame(width: 54, height: 32)
+        .frame(width: 54, height: EchoelTheme.controlHeight)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         // 44 pt HIG tap height (#113): the visible chip stays 32, the hit area grows
         // vertically only — the header row is 8 pt-spaced, so NO horizontal expansion
         // (that would overlap the neighbour tiles). Chip stays centred = no visible change.
-        .frame(height: 44)
+        .frame(height: EchoelTheme.controlTapHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Immersive visual monitor")
@@ -520,13 +520,13 @@ struct EchoelLuxMonitorMini: View {
                     }
                 }
             }
-            .frame(width: 38, height: 32)
+            .frame(width: 38, height: EchoelTheme.controlHeight)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
             // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
             // horizontal growth); the 38×32 chip stays centred, no visible change.
-            .frame(height: 44)
+            .frame(height: EchoelTheme.controlTapHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -578,7 +578,7 @@ struct EchoelClipsMonitorMini: View {
                         .foregroundStyle(recorder.isRecording ? EchoelTheme.text : EchoelTheme.dim)
                 }
             }
-            .frame(width: 38, height: 32)
+            .frame(width: 38, height: EchoelTheme.controlHeight)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8)
                 // #367: the idle branch used the decorative token while every other
@@ -591,7 +591,7 @@ struct EchoelClipsMonitorMini: View {
                     lineWidth: 1))
             // 44 pt HIG tap height (#113): vertical-only (8 pt header spacing forbids
             // horizontal growth); the 38×32 chip stays centred, no visible change.
-            .frame(height: 44)
+            .frame(height: EchoelTheme.controlTapHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

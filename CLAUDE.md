@@ -304,8 +304,42 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**195** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `TheFXDoorNamesAControlThatExistsTests.swift` (#480 — der erste
+                          `Tests/CISmoke` (**196** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `OneChromeControlHeightTests.swift` (#481 — der erste Wächter in
+                          dieser Kette über einer GRÖSSE, und der erste, dessen Auslöser eine Behauptung war,
+                          die der Quelltext selbst schon widerlegte. Founder 2026-08-07, zwei Screenshots, die
+                          Transport-Zeile eingekreist: *„Die größe der Buttons anpassen, die sollen immer
+                          gleichgroß sein. Orientiere dich an denen oben rechts."* Gemessen vor der Änderung:
+                          `startButton` 64×56 · `PlaybackToggleButton` 44×48 · `BodyTempoField` 76×32 und Sperre
+                          30×32 · `TransportOverflowMenu` 30×32 · die drei Header-Kacheln 38/38/54×32 mit
+                          44er-Trefferrahmen. **Drei Höhen in EINER Zeile** — und der Kommentar an der 48
+                          begründete sie mit *„Ableton's transport strip is UNIFORM-height — ours was 56 / 32 /
+                          48"*, wählte dann aber eine VIERTE Zahl. Die Beobachtung war richtig, die Reparatur
+                          folgte nicht aus ihr; das ist die #416-Form (eine Entscheidung, sechs Schreibstellen,
+                          nichts das ihr Auseinanderlaufen merkt).
+                          ⭐ Die REFERENZ ist nicht gewählt, sondern benannt: die drei Header-Kacheln waren
+                          untereinander schon einig, also wird IHRE Geometrie zur einen Definition
+                          (`EchoelTheme.controlHeight` 32 / `controlTapHeight` 44) und jeder Chrome-Knopf liest
+                          sie. Der Trefferrahmen sitzt in der Header-Schreibweise NACH Hintergrund und Rand —
+                          davor gestellt wüchse das BILD statt der Trefferfläche, also genau das Gegenteil des
+                          #113-Idioms, und es sähe im Diff wie eine Reparatur aus.
+                          ⚠️ Die Hälfte, die die Datei verdient, ist das GEGENGEWICHT und nicht der Pin: das
+                          naheliegende Aufräumen danach ist „mach die Analyse-Pille auch gleich groß", und das
+                          wäre doppelt falsch — ihr Puls-Trace ist auf 34 pt festgenagelt (passt nicht in 32),
+                          und der Founder hat EINE WOCHE ZUVOR (#305, *„etwas größere Anzeige für Analyse ist
+                          besser"*) genau diese Anzeige GRÖSSER verlangt. Eine Anzeige zwischen Bedienelementen
+                          ist die Hardware-Grammatik, die diese Zeile kopiert. Dazu ein zweites Gegengewicht:
+                          die Tempo-Sperre erreicht die 44 als EINZIGE per Outset (32 + 6 + 6), hängt also still
+                          an der Konstante — steht in keiner der beiden Dateien, jetzt aber im Wächter.
+                          ⚠️ `FloatingVisualLayout.startButtonHeight` ist ABSICHTLICH nicht mitgezogen: seine
+                          Summe ist der Bodenabstand der angedockten Visual-Karte, und die neue 32 hineinzugeben
+                          schöbe das Bild in einem Knopfgrößen-Commit um 24 pt. Der Name überschreibt damit seine
+                          Aufgabe — Vermerk steht an der Deklaration und in `FloatingVisualLayoutTests`, dessen
+                          Prosa („`EchoelStudioView` builds the button from the SAME three constants") sonst die
+                          #456-Klasse geworden wäre.
+                          ⚠️ ALLE Behauptungen sind QUELLTEXT-SCANS: dass die Zeile am Gerät EBEN aussieht und
+                          dass ein Finger die 44 trifft, bleiben Sichtproben.), davor „195" nach
+                          `TheFXDoorNamesAControlThatExistsTests.swift` (#480 — der erste
                           Wächter in dieser Kette über einer ACCESSIBILITY-Zeichenkette, und der erste, dessen
                           Defekt VIER ZEILEN unter seiner eigenen Widerlegung stand. Der „All parameters"-Knopf
                           in `effectsPanel` sagte VoiceOver „every parameter as a slider"; `EchoelFXView.swift`
@@ -3244,7 +3278,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTDREIUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 195 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTVIERUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 196 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

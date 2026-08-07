@@ -171,6 +171,49 @@ enum EchoelTheme {
     static let radius:      CGFloat = 8
     static let radiusLarge: CGFloat = 12
 
+    // MARK: - One chrome-control size (#481)
+    //
+    // ⭐ FOUNDER 2026-08-07, two screenshots, the transport row circled: *"Die größe der
+    // Buttons anpassen, die sollen immer gleichgroß sein. Orientiere dich an denen oben
+    // rechts."* The reference is the three header tiles — clips · Lux · immersive — and
+    // they already agreed with each other: a 32 pt visible chip inside a 44 pt tap frame,
+    // `radius` corners, `fill` behind, `borderStrong` around. Nothing else did. Measured on
+    // the row the founder circled, before anything was changed:
+    //
+    //     startButton              64 × 56      ← FloatingVisualLayout.startButtonHeight
+    //     PlaybackToggleButton     44 × 48      ← #307's Nachlese, "uniform-height like Ableton"
+    //     BodyTempoField (compact) 76 × 32 · lock 30 × 32
+    //     TransportOverflowMenu    30 × 32
+    //     header tiles             38/38/54 × 32, tap 44
+    //
+    // Three heights in one row, and the #307 comment beside the 48 claims the row is
+    // "UNIFORM-height" — a claim that was already false when it was written, because the ▶
+    // beside it was 56. This is the #416 shape in its plainest form: one decision (how tall
+    // is a chrome control) written down in six places, with nothing that notices when they
+    // disagree. `OneChromeControlHeightTests` is the thing that notices now.
+    //
+    // ⚠️ WHAT THIS IS *NOT* THE SIZE OF, stated here because the naming invites the mistake:
+    // `PulseMonitorMiniLive` — the analysis readout that shares that row — is NOT a button
+    // and deliberately keeps its own `minHeight: 48`. Two independent reasons, either alone
+    // sufficient: its pulse trace is pinned at 34 pt and would not fit in 32; and the founder
+    // asked one week earlier (#305, *"etwas größere Anzeige für Analyse ist besser"*) for
+    // that readout to be BIGGER. A display among controls is the hardware grammar this row
+    // is copying, not an oversight. Do not "finish the job" by shrinking it.
+    //
+    // ⚠️ AND IT IS NOT A DYNAMIC-TYPE FLOOR. These are hard chip sizes for icon-only chrome;
+    // anything that carries TEXT uses `.frame(minHeight:)` so it can grow (the #262 idiom).
+    // Applying `controlHeight` as a hard height to a text-bearing row would re-open the
+    // spill-past-the-border defect #262 closed.
+
+    /// The visible height of an icon-only chrome control — the header tiles' size, now the
+    /// one definition for every chrome button in the app.
+    static let controlHeight: CGFloat = 32
+
+    /// The hit height the same control claims. 44 pt is the HIG floor (#113); the picture
+    /// stays `controlHeight` and only the tap area grows, vertically only — the chrome rows
+    /// are 8 pt-spaced, so horizontal growth would overlap a neighbour.
+    static let controlTapHeight: CGFloat = 44
+
     // MARK: Brand typography — Atkinson Hyperlegible (mirrors echoelmusic.com)
     // The site uses this accessibility-first typeface; the app now bundles it
     // (Resources/Fonts + UIAppFonts). Atkinson ships Regular / Bold / Italic only,

@@ -98,6 +98,25 @@ public enum FloatingVisualLayout {
     // Safe as a constant: `StudioZoom` scales via `dynamicTypeSize`, not `scaleEffect`, and
     // the button's height is a hard `.frame(height:)` — so the band does NOT grow at
     // accessibility text sizes. If that ever changes, this is the thing to make dynamic.
+    // ⛔ SECOND WIDENING OF THE SAME GAP (#481, founder 2026-08-07 *"die sollen immer
+    // gleichgroß sein"*). `startButtonHeight` no longer sizes the start button either — the
+    // button now reads `EchoelTheme.controlHeight` / `controlTapHeight` like every other
+    // chrome control. So of the two jobs the block above lists, the FIRST one is gone too,
+    // and all three constants exist for exactly one purpose now: to sum to
+    // `studioControlBandHeight`, the docked card's bottom margin.
+    //
+    // WHY THEY ARE NOT COLLAPSED TO A SINGLE `70`. Two reasons, and the second is the one
+    // that decides it. (1) `FloatingVisualLayoutTests` pins the SUM, so the arithmetic is the
+    // thing under test; replacing it with a literal would delete the test's subject. (2) The
+    // number must not move in a commit about button size — feeding the new 32 into the sum
+    // would slide the docked visual up 24 pt on the founder's device as a side effect of a
+    // chrome tidy-up. Whether the card should now drop those points is a LOOK decision and
+    // belongs to the founder; it is filed, not taken.
+    //
+    // ⚠️ THE NAME IS NOW WRONG AND IS KEPT ANYWAY — same reasoning as the block above, one
+    // step further along: a rename touches `FloatingVisualWindow` and the test in a commit
+    // that is not about either, and churn is what hides a real change. This paragraph is the
+    // compensation. Do NOT read the name as "the start button is 56 tall"; it is 32.
     public static let startButtonHeight: CGFloat = 56
     public static let startButtonTopPadding: CGFloat = 4
     public static let startButtonBottomPadding: CGFloat = 10
