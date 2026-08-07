@@ -103,6 +103,24 @@ creative control and self-observation, not for medical use.
 
 ## What's New (v1.0)
 
+⚠️ **THIS TEXT IS NOT LIVE, AND THE LIVE ONE CONTRADICTS IT.** `fastlane/Deliverfile`
+ships `fastlane/metadata/{en-US,de-DE}/release_notes.txt` with `skip_metadata false`, so
+those two files — not this block — are what every upload sends. They open with **"New in
+this build" / "Neu in diesem Build"**, which is right for a TestFlight increment and wrong
+for a first App Store release. Both framings are correct for their own moment; nothing in
+the repo said which moment each belongs to, which is how they came to read as a
+contradiction (#439).
+
+**What has to happen at submission, in ONE commit:** replace the body of BOTH
+`release_notes.txt` files with the v1.0 text below (translated for de-DE), so the store
+does not describe a first release as an increment. Keep the incremental version in git
+history — do not keep a second copy of it anywhere, or the next session inherits the same
+two competing texts.
+
+⚠️ The **framing** ("first release" vs "new in this build") is a bookkeeping fact and is
+settled here. The **wording and positioning** of the shipped store copy is a founder call
+and is not being pre-empted by this note.
+
 ```
 The first release: your heartbeat makes music. Bio-reactive synthesis,
 sixteen-genre generative composer, MIDI input, WAV and MIDI export,

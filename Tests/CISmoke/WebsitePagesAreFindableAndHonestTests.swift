@@ -207,6 +207,76 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             """)
     }
 
+    /// ⭐ #439 — THE PRESS KIT UNDERSTATED WHAT SHIPS, and understating is the direction this
+    /// repo keeps failing to notice.
+    ///
+    /// `press.html`'s "What ships today" list said "stamped WAV export … plus MIDI **input**
+    /// from an external controller" — no MIDI FILE export at all — while BOTH App Store
+    /// descriptions have claimed `.mid` export since #188 put the door back in the existing
+    /// export drawer. Two published surfaces, opposite claims, and the press kit is the one a
+    /// journalist copies. #428 already wrote the rule this test enforces: *"understating is not
+    /// an App Store 2.3 rejection the way overstating is — but it is still a false claim."*
+    ///
+    /// The chain is the point, in BOTH directions:
+    ///   · Premise — MIDI export is REACHABLE (`exportMIDI()` has a caller, not just a
+    ///     declaration). If a future slice removes the door, this fails FIRST and names the
+    ///     three published places that then have to stop claiming it.
+    ///   · Claim — given that premise, the press kit and both store descriptions must say so.
+    ///
+    /// ⚠️ Comments are stripped before counting, and that is load-bearing here rather than
+    /// prophylactic: `EchoelStudioView.swift` mentions `exportMIDI()` in SIX doc comments —
+    /// including one whose whole subject is the period when it had no caller — against exactly
+    /// two code occurrences. On raw text the premise would read "eight callers" and could never
+    /// fail.
+    func testTheSiteAndTheStoreAgreeThatMIDIExportShips() throws {
+        let studio = try repoRoot()
+            .appendingPathComponent("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        let code = SourceText.codeOnly(try String(contentsOf: studio, encoding: .utf8))
+        let mentions = code.components(separatedBy: "exportMIDI").count - 1
+        XCTAssertGreaterThanOrEqual(mentions, 2, """
+            `exportMIDI` appears \(mentions) time(s) in the CODE of EchoelStudioView.swift. \
+            Two is the floor: the declaration plus at least one caller.
+
+            One means the door was removed and MIDI export is unreachable again — which is \
+            exactly the state #188 was opened to end. If that removal is deliberate, the \
+            SAME commit must strike the claim from `docs/press.html`, \
+            `fastlane/metadata/en-US/description.txt` and \
+            `fastlane/metadata/de-DE/description.txt`, because a shipped store description \
+            promising an export the app cannot perform is an App Store 2.3 rejection, not a \
+            stale sentence.
+            """)
+
+        // Given the premise, every published surface has to carry it. Spellings rather than one
+        // needle: the press kit writes prose, the store files write a bullet, and pinning one
+        // phrasing would make an ordinary copy edit red — the #364 trap.
+        let spellings = ["MIDI file export", "MIDI export", "als MIDI", "as MIDI", "(.mid",
+                         ".mid)", "MIDI-Datei"]
+        let surfaces = ["docs/press.html",
+                        "fastlane/metadata/en-US/description.txt",
+                        "fastlane/metadata/de-DE/description.txt"]
+        for surface in surfaces {
+            let url = try repoRoot().appendingPathComponent(surface)
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+                XCTFail("""
+                    \(surface) is missing while the tree is present — it was renamed or moved. \
+                    Re-anchor this scan; do not let it pass silently.
+                    """)
+                continue
+            }
+            XCTAssertTrue(spellings.contains { text.contains($0) }, """
+                \(surface) does not mention MIDI file export, but the app ships it \
+                (`exportMIDI()` has a caller — see the assertion above).
+
+                This is the #439 defect in the direction that is easy to miss: the page \
+                UNDERSTATES. `press.html` carried "WAV export … plus MIDI input" for weeks \
+                while both store descriptions promised `.mid` export — two published \
+                surfaces disagreeing, with the press kit being the one a journalist copies.
+
+                Spellings accepted: \(spellings.joined(separator: ", ")).
+                """)
+        }
+    }
+
     /// The scan has to actually reach the site. A directory listing that yields nothing would
     /// report a perfect green over an empty list — the silent-pass failure this repo has
     /// already paid for once in `full-tests.yml`.
