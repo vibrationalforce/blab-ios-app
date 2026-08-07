@@ -1,4 +1,4 @@
-build: v10.79.372 — Was die Zeile anbietet, behält die App jetzt auch; und der Screenshot vom 371er ist abgearbeitet
+build: v10.79.373 — Deine Stimme steht auf dem Mischpult, das Atem-Training im Bio-Panel, und eine Messung, die aufgehört hat zu funktionieren, sagt das jetzt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,150 +6,145 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.371 (2488).
+  Der Vorgänger auf Deinem Gerät ist 10.79.372 (2489).
 
-  30 Commits, 10 neue Wächter im blockierenden Bündel (gezählt, nicht geschätzt:
-  `git diff --name-status 0d32172..HEAD -- Tests/CISmoke | awk '$1=="A"'`). Zwei davon
-  kommen direkt aus DEINEM Screenshot; der Rest ist die letzte Runde an den Zahlenfeldern
-  und am Atem.
+  33 Commits, 11 neue Wächter im blockierenden Bündel (gezählt, nicht geschätzt:
+  `git diff --name-status ed087cf..HEAD -- Tests/CISmoke | awk '$1=="A"'`). ZWEI davon
+  setzen direkt um, was Du am 07.08. verlangt hast.
 
-  ── 1. DEIN SCREENSHOT (10.79.371, Build 2488) IST ABGEARBEITET ────────────
+  ── 1. DEINE ZWEI ASKS VOM 07.08. SIND DRIN ────────────────────────────────
 
-  Drei rote Markierungen waren drauf. Alle drei sind erledigt.
+  Du hast nach Training für kohärentes Atmen gefragt, dazu Chanten · Summen · Tönen ·
+  Singen, und gesagt: das „braucht einen zusätzlichen Mixer-Slot für Audio-in".
 
-  **Das durchgestrichene Tempo-Feld.** Im LOOP-Modus stand die Box rund ein Drittel des
-  Bildschirms hoch, während Schloss und Puls-Pille daneben auf ihren normalen 32 pt saßen.
-  Ursache: die Zieh-Fläche des Feldes ist ein nacktes Rechteck, das JEDE angebotene Höhe
-  annimmt. Bisher hat die Chrome-Leiste sie gedeckelt — und als das Feld auf Deinen Wunsch
-  (#411) ins Instrument gewandert ist, ist dieser Deckel nicht mitgereist. Er sitzt jetzt am
-  BEDIENELEMENT selbst, nicht an der Leiste: die nächste Leiste, in der es landet, erbt ihn.
-  Nur der GESPERRTE Zweig war je betroffen — im Flow-Modus hättest Du nichts gesehen.
+  **Der Mixer-Slot ist da.** Das Mikrofon ist der fünfte Streifen auf dem Mischpult, neben
+  den vier, die klingen. Die FÄHIGKEIT gab es längst — Monitoring mit Rückkopplungsschutz,
+  Pegel, Latenzhinweis pro Route —, aber ihre einzige Tür saß hinter dem MASTER-Panel, also
+  UNTER der Summe statt NEBEN den Ebenen. Die eine Ebene, die ein Performer mit dem eigenen
+  Körper macht, war die einzige klingende Ebene, die auf dem Brett fehlte. Es sind ZWEI
+  Türen auf EINE Engine, keine zweite Kopie: beide Zeilen lesen und schreiben dieselbe.
+  Der Schalter kann Dich nicht anlügen — wenn die Mikrofon-Berechtigung fehlt, fällt er
+  zurück UND sagt warum. Der Pegel ist bewusst NICHT gespeichert: ein Monitor-Gain ist ein
+  Rückkopplungsrisiko, jeder Start beginnt konservativ statt bei dem, was ein anderer Raum
+  gebraucht hat.
 
-  **Die zwei Pfeile.** Das „•••"-Überlaufmenü und die `1.1.1 / loop 1/32`-Positionsanzeige
-  sind in die Transport-Zeile des Instruments migriert, und die Leiste, die sie hielt — die
-  letzte Chrome-Transport-Leiste — ist GELÖSCHT, nicht leer stehen geblieben. Eine geleerte
-  Hülle liest sich wie ein Platz, an den man Dinge zurücklegt.
+  **Das Atem-Training ist im Bio-Panel**, direkt unter den gemessenen Zahlen — die
+  gemessene Hälfte und die aktive Hälfte in EINEM Panel. Auch hier war die Fähigkeit da,
+  sogar doppelt (eine gepacte Kreisführung und eine Meditations-Ansicht), beide ohne Tür.
+  Und türlos war hier keine Schlamperei, sondern Deine eigene Entscheidung vom 12.07.:
+  „Meditation View nicht extra. Alles findet in der Main View statt und ist Teil des
+  Produktionsprozesses." Eine eigene Tür zu einem eigenen Atem-Bildschirm wäre genau das
+  gewesen, was Du abgelehnt hast. Deshalb ein Streifen, kein Sheet.
 
-  Es sind ZWEI Zeilen geworden, nicht eine, und die Begründung stand schon im Code: sechs
-  Kinder in einer Zeile lassen der Analyse-Pille auf einem 393-pt-Telefon fast nichts übrig —
-  und genau die sollte nach Deiner Ansage vom 31.07. GRÖSSER werden. Zeile 1 ist deshalb
-  bitgleich mit vorher. Netto gewinnt die spielbare Fläche ~4 pt.
+  Der Bildschirm bleibt während der Übung wach — diese Entscheidung war schon getroffen,
+  nur an der unerreichbaren Fläche. Sicherheitshinweise (sanft atmen, aufhören bei
+  Schwindel) stehen UNBEDINGT da, auch während der Übung; die erste Fassung hat sie beim
+  Start ausgeblendet, und ein Reviewer hat es gefangen: „hör auf, wenn Dir schwindlig wird"
+  ist eine WÄHREND-Anweisung.
 
-  ── 2. WAS DIE ZEILE ANBIETET, BEHÄLT DIE APP JETZT AUCH ───────────────────
+  ── 2. DEIN SCREENSHOT: DIE KNOPFGRÖSSEN ───────────────────────────────────
 
-  Drei Defekte derselben Familie, alle in den Parameterzeilen.
+  „Die Größe der Buttons anpassen, die sollen immer gleichgroß sein. Orientiere dich an
+  denen oben rechts." Gemessen vorher: 64×56 · 44×48 · 76×32 · 30×32 · 30×32 — DREI Höhen
+  in EINER Zeile. Die REFERENZ ist nicht gewählt, sondern benannt: die drei Kopfzeilen-
+  Kacheln waren untereinander schon einig, also wird IHRE Geometrie die eine Definition und
+  jeder Chrome-Knopf liest sie (32 pt sichtbar, 44 pt Trefferfläche).
 
-  **Ein Bereich stand dreimal im Code.** Jeder der 17 Sound-Parameter hatte seine Grenzen als
-  Literal an der Zeile, noch einmal in „Describe it", und ein drittes Mal in einem Test. Der
-  eine, der wirklich etwas gekostet hat: die Filter-LFO-Rate. Die Zeile ließ Dich bis 20 Hz
-  ziehen, „Describe it" klemmte auf 12 — und zwar bei JEDEM Text, auch bei einem, den die
-  Engine gar nicht versteht. Ein auf 19 Hz gezogener Wert kam als 12 zurück. Jetzt EINE
-  Definition; wo die zwei sich widersprachen, gewinnt die ZEILE und der Prompt weitet.
-  Nebenbei: `Drone Bed` hat 6,0 s Decay, die Zeile ging bis 5,0 — ein Antippen hätte den
-  ausgelieferten Klang auf 5,0 zurückgeschrieben.
+  Die Analyse-Pille ist ABSICHTLICH nicht mit eingeebnet: Du hast sie am 31.07. ausdrücklich
+  GRÖSSER verlangt, und ihr Puls-Trace passt nicht in 32. Eine Anzeige zwischen
+  Bedienelementen ist Hardware-Grammatik, kein Ausrutscher.
 
-  **Rasten führte aus dem Bereich heraus.** Ein Wert wurde erst geklemmt und dann gerastet,
-  und Rasten geht zum NÄCHSTEN Gitterpunkt — auf einer 0…0,995-Zeile wurde aus 0,995 also
-  1,00, eine halbe Stufe ÜBER dem deklarierten Maximum. Heute ändert das auf keiner
-  ausgelieferten Zeile etwas (alle 74 Grenzen liegen schon auf ihrem Raster); entfernt ist
-  der MECHANISMUS, und der kauft die nächste Zeile.
+  ── 3. EINE MESSUNG, DIE AUFGEHÖRT HAT ZU FUNKTIONIEREN, SAGT DAS JETZT ────
 
-  **Und die HRV-Zahl auf dem Kamerapfad war zu hoch.** RMSSD und pNN50 lesen
-  AUFEINANDERFOLGENDE Herzschläge — die Liste, über die sie liefen, ist aber zweimal
-  verdichtet (Ausreißer werden entfernt), also wurden Differenzen über entfernte Schläge
-  hinweg mitgerechnet. Auf sauberem Kontakt ist es ein NO-OP — exakt, nicht ungefähr. Mit
-  Artefakten (an einer 60-bpm-Atemreihe modelliert, je 600 Durchläufe, Raten als
-  „verlorene/erfundene Schläge"): 5 %/5 % → RMSSD +2,8 %, 15 %/10 % → +4,9 %, 35 %/20 % →
-  +9,6 %. ⚠ Diese Artefaktraten sind ANGENOMMEN — nirgends ist gemessen, wie oft ein echter
-  Take einen Schlag verliert. Belastbar ist die FORM (immer zu hoch, null bei null), nicht
-  die einzelne Prozentzahl. SDNN bleibt ABSICHTLICH flach — es ist ein Spread und hat keine
-  Nachbarschaftsforderung.
+  Aus Deinem Gerätelog 2490: 97 Sekunden Kamera-Akquise ohne Lock und ohne dass sich die
+  Meldung geändert hätte. Das Aufschlussreichste daran: die Oberfläche hat NICHT gelogen.
+  Jede einzelne gezeigte Sache war ehrlich. Gefehlt hat nicht Wahrheit, sondern ZEIT —
+  keine Fläche wusste, wie lange die ehrliche Meldung schon dieselbe war.
 
-  ── 3. DER ATEM: ZWEI ANKER, DIE EINEN TAKE ÜBERLEBT HABEN ─────────────────
+  Nach 45 s ohne Fortschritt sagt die Kachel es jetzt und schlägt etwas anderes vor. Ein
+  Lock setzt das Fenster zurück, der Berechtigungsdialog zählt nicht mit, und wer eine
+  Minute gegen zu helles Licht kämpft, beginnt seine 45 s ab dem Moment, in dem der Kontakt
+  endlich gut wird.
 
-  Beides Fehler, die nur beim Wechsel zwischen Takes auftreten.
+  Die 45 s sind eine WAHL in einem gemessenen Fenster, kein hergeleitetes Optimum: von unten
+  begrenzt durch Akquisen, die GELINGEN (~19 s Neu-Akquise, ~32 s kalt), von oben durch den
+  Fehlschlag, den sie benennt (97 s).
 
-  **Ein Frame, der GAR NICHTS misst, konnte den Atem-Halt zerstören.** Beim Puls-Aussetzer
-  wiederholt die Kamera absichtlich den letzten Frame mit eingefrorenem Zeitstempel und ohne
-  Atemwert. Die Rückwärtsuhr-Erkennung lief VOR der Prüfung „ist hier überhaupt eine
-  Messung" — also setzte genau dieser Frame Rate, Horizont und Gewicht auf null. Gemessen:
-  das Gewicht fiel in EINEM Schritt von 1,0 auf 0,0 und blieb dort.
+  ⚠ Und das repariert die AKQUISE nicht. Die App hört nur auf, so zu tun, als sei nichts.
 
-  **Und ein neuer Take begann mit dem Frame des vorigen.** `stop()` räumte 25 Felder auf und
-  ließ drei stehen. Die harmlose Hälfte war maskiert; die nicht maskierte: eine
-  Kohärenz-Zahl aus dem VORIGEN Take reiste in jeden frischen, lebenden Frame mit.
+  ── 4. VOICEOVER WURDE ÜBER DIE FX-FLÄCHE BELOGEN ──────────────────────────
 
-  ── 4. DIE DEMO-QUELLE WIDERSPRACH SICH SELBST ─────────────────────────────
+  Der „All parameters"-Knopf sagte VoiceOver „jeden Parameter als Schieberegler". Die
+  FX-Fläche hat NULL Schieberegler — und der Kommentar direkt über dem Knopf war eigens
+  geschrieben worden, um genau diese Formulierung zu streichen. Jemand hat die Prosa
+  korrigiert und den gesprochenen Text stehen lassen.
 
-  Die Demo-Herzfrequenz (die ohne Kamera und ohne Gurt) veröffentlichte ein Zahlenpaar, das
-  kein Umrechner dieser App versöhnen kann: bei Regler 0,50 schickte sie 60 ms, während die
-  Hausregel sagt, 60 ms IST 0,60. Ein flacher Fehler von +20 %. Und ihr SDNN lag UNTER ihrem
-  RMSSD, während die Ruhe-Beziehung andersherum läuft. Beides korrigiert — die Demo ist eine
-  Demo, aber sie darf keine Physiologie behaupten, die es nicht gibt.
+  Das ist KOPIE, kein kaputtes Bedienelement: die Zahlenfelder lassen sich per Wischen genau
+  wie ein Schieberegler verstellen. Verborgen hat das falsche Wort das, was ein Schieberegler
+  NICHT hat — Doppeltippen zum Tippen einer exakten Zahl.
 
-  ── 5. QUERFORMAT: DIE BILD-FEINREGLER BRECHEN JETZT UM ────────────────────
+  Was das interessant macht, ist die SCHICHT: ein VoiceOver-Hinweis ist unsichtbar, solange
+  VoiceOver aus ist. Kein Screenshot und kein Design-Durchgang hätte ihn je gezeigt.
 
-  Die sechs Feinregler unter „Fine tune" im Visual-Panel stapeln im Hochformat wie bisher und
-  laufen im Querformat zweispaltig — genau wie Mixer, Sound und Mood es seit #292 tun. Der
-  VJ-Overlay im Vollbild rendert dieselbe Definition und reflowt mit; er behält dabei seinen
-  eigenen, engeren Innenabstand.
+  ── 5. AUFGERÄUMT (ohne Fähigkeitsverlust) ─────────────────────────────────
 
-  ── 6. WAHRHEIT ────────────────────────────────────────────────────────────
-
-  · Presse-Kit und Ideen-Seite: der MIDI-Export war untertrieben, ein abgelehnter Preis stand
-    noch drin. Beides korrigiert — und die erste Korrektur hatte die Untertreibung durch eine
-    ÜBERTREIBUNG ersetzt, was ein Reviewer gefangen hat.
-  · Apple Health bekommt weiterhin KEINE HRV von uns, und das bleibt richtig. Die BEGRÜNDUNG
-    daneben war widerlegbar („wir haben gar keine echte SDNN in Millisekunden" — falsch, drei
-    Quellen liefern sie). Ersetzt durch die tragfähige: SDNN ist eine Intervall-Statistik, und
-    unser Schreiber stempelt sie als Momentwert.
-  · Elf Kopien desselben Kommentar-Entferners im Testbündel sind auf EINE Definition gefaltet.
+  · Der Noten-Editor, den Du am 26.07. gestrichen hast, ist jetzt auch als Code weg — 987
+    Zeilen. Die Notenmaschine dahinter BLEIBT: sie ist es, die Visual, Licht und Raum
+    speist. Klar gesagt: es gibt keinen Noten-Editor mehr in der App. Der erzeugte Take
+    lässt sich hören, mischen und exportieren — nicht korrigieren.
+  · Eine unmontierte Automations-Zeile ist gelöscht, ihre Arithmetik vorher herausgehoben,
+    weil der Rest der App sie liest.
+  · Die Epilepsie-Blitzgrenze (3 Hz) hatte DREI unabhängige Deklarationen. Kein heutiger
+    Defekt — aber eine Lockerung an EINER Stelle wäre unbemerkt geblieben, und das an der
+    einen Konstante, die unter SICHERHEITSWARNUNGEN steht. Drift wird jetzt rot.
+  · 19 Stellen buchstabierten eine Eckenrundung als Zahl, obwohl eine Konstante sie längst
+    benennt — darunter genau die Kacheln, die Du als Referenz benannt hast. Nichts bewegt
+    sich um ein Pixel; ohne die Faltung hätte ein Verschieben des Werts die KOPIE bewegt und
+    die REFERENZ stehen gelassen.
+  · 22 MIDI-Export-Tests standen in keinem Target und sind nie gelaufen.
 
   ── WAS ICH MIR SELBST VORWERFE ────────────────────────────────────────────
 
-  Diese Runde hat mehr eigene Fehler gefunden als fremde. Das gehört hierher, weil Du sonst
-  eine Zuverlässigkeit annimmst, die die Notizen nicht haben:
+  Auch diese Runde hat mehr eigene Fehler gefunden als fremde:
 
-  · Bei #454 standen FÜNF Behauptungen in meinem eigenen Text, die der Quelltext nicht deckt —
-    darunter eine Größenangabe, die um das Achtfache danebenlag, und eine, bei der ich das
-    Wort „unmaskierbar" benutzt habe für einen Fall, der bei jedem RUHEPULS gar nicht
-    eintritt.
-  · Bei #456 habe ich eine Zahl ZITIERT und dabei erfunden („rund ein Drittel der Breite"),
-    obwohl die zitierte Quelle „die Hälfte" sagt — und eine angebliche 2-pt-Überlappung
-    gemessen, die es nicht gibt, weil ein Abstandshalter dazwischensteht. Eine erfundene
-    KOSTEN-Angabe ist gefährlicher als eine erfundene Nutzen-Angabe: sie lädt zum „Reparieren"
-    von etwas ein, das heil ist.
-  · Bei #464 waren fünf Behauptungen falsch, darunter eine erfundene Oberfläche — ich habe
-    geschrieben, die SDNN-Zahl stehe im Bio-Streifen auf dem Schirm. Sie steht dort nicht; sie
-    geht nur über OSC hinaus. Der Satz war von einem benachbarten, WAHREN Satz über eine
-    andere Zahl abgeschrieben.
-  · Und #456 hat einen Wächter im blockierenden Bündel rot gemacht, weil ich eine Leiste
-    gelöscht habe, ohne vorher `git grep` über die Tests laufen zu lassen. Im selben Commit
-    mitgezogen — aber gefunden hat es der Reviewer, nicht ich.
+  · Bei #475 standen NEUN falsche Behauptungen in meinem eigenen Text zur Löschung des
+    Noten-Editors — die teuerste erklärte einen LEBENDEN Mechanismus für tot.
+  · Bei #484 habe ich VIER unabhängige Belege aufgezählt; es waren DREI (zwei davon waren
+    dieselbe Tatsache). Eine Beleg-Liste mit einer Dublette belegt weniger, als sie aussieht.
+  · Bei #480 habe ich einen Überclaim mit einem Überclaim in der Gegenrichtung repariert
+    („die App hat gar keinen Schieberegler" — sie hat zwei, absichtlich).
+  · Bei #483 hat meine eigene Aufräum-Aktion eine neue Spaltung ERZEUGT: ein Ternär blieb als
+    Zahl stehen, während der Nachbar zwei Zeilen tiefer die Konstante las. Ein Reviewer hat
+    es gefunden. Eine wert-basierte Prüfung ist nur so breit wie ihre Syntax.
+  · Und bei #477 stellte sich heraus: ein Wächter war ab seinem ersten Commit ROT, und
+    niemand hat die Antwort abgeholt — weil das Test-Gate auf diesem Branch ohnehin jedes
+    Mal rot meldet.
 
   ── PRÜFSTAND ──────────────────────────────────────────────────────────────
 
-  Auf dem aktuellen Stand (50204b0): „Xcode Compile Check" = success. Im CI/CD-Lauf ist
+  Auf dem aktuellen Stand (77417b5): „Xcode Compile Check" = success. Im CI/CD-Lauf ist
   „Build for Testing" = success — das blockierende Testbündel kompiliert also nachweislich,
-  inklusive der 10 neuen Wächter. „Run Tests" stirbt weiterhin am bekannten Simulator-Start;
-  das ist der founder-gated CI-Punkt und nicht der Code.
+  inklusive der 11 neuen Wächter; im Log stehen NULL `error:`-Zeilen. „Run Tests" stirbt
+  weiterhin am bekannten Simulator-Start (ein Klon stirbt, der andere läuft weiter). Das ist
+  der founder-gated CI-Punkt, nicht der Code.
 
-  Der Vollständigkeits-Audit dieses Bumps hat KEINEN fehlenden Baustein gefunden: alle 348
-  Swift-Dateien sind in einem Target, jede deklarierte Ressource existiert, jede Berechtigung
-  hat ihren Erklärungstext. Was NICHT im Build ist, ist es absichtlich und dokumentiert (die
-  Watch-App ist nicht eingebettet, weil die Export-Phase unter XcodeGen+Xcode 26 keine gültige
-  Distributionsmethode erzeugt).
+  ⚠ Ehrlich zur Reichweite: ein Testname IM Log beweist „gelaufen", sein FEHLEN beweist
+  nichts — der überlebende Klon leert nur eine nicht-deterministische Teilmenge. Von den 11
+  neuen Wächtern ist deshalb belegt, dass sie KOMPILIEREN; dass jeder einzelne AUSGEFÜHRT
+  wurde, ist es nicht.
 
   ── WAS VON DIR GEBRAUCHT WIRD (Sichtproben, 5 Minuten) ────────────────────
 
-  1. LOOP-Modus einschalten: ist die Tempo-Box jetzt normal hoch?
-  2. Transport: stehen „•••" und die Positionsanzeige in einer ZWEITEN Zeile im Instrument,
-     und ist die Analyse-Pille in Zeile 1 spürbar breiter?
-  3. Telefon quer drehen, Visual-Panel → „Fine tune": zwei Spalten?
-  4. Sound-Panel → Filter-LFO auf 19 Hz ziehen, dann „Describe it" mit irgendeinem Text:
-     bleibt die 19?
+  1. Mischpult öffnen: steht das Mikrofon als fünfter Streifen da? Einschalten — hörst Du
+     Dich, und duckt die Musik, wenn es zu koppeln droht? (Kopfhörer benutzen.)
+  2. Bio-Panel öffnen: steht unter den Zahlen ein Atem-Streifen? Start drücken — pact der
+     Kreis in etwa 6 Atemzügen pro Minute, und kannst Du ihm folgen?
+  3. Transport-Zeile: sind die Knöpfe jetzt alle gleich hoch, und passt es zu den Kacheln
+     oben rechts?
+  4. Puls per Kamera starten und absichtlich NICHT locken lassen (Finger locker auflegen):
+     sagt die Kachel nach ~45 s etwas anderes als vorher?
   5. Klingt es weiter so, wie Du es zuletzt hattest? Nichts in dieser Runde SOLLTE den Klang
-     ändern — außer den HRV-ZAHLEN, die jetzt niedriger und richtiger sind.
+     ändern.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
   weiterhin Dein Ohr und Dein Auge.
