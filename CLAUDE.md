@@ -263,9 +263,19 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           chrome bar as well and give this row a second line — NOT to send the tempo back
                           up."* Der Grund ist eine Messung: die Analyse-Pille ist das einzige flexible
                           Kind, eine einzelne Zeile gibt ihr also auf einem 393-pt-Telefon nur, was nach
-                          ▶ + ⏸ + Tempo + Schloss + „•••" + Positionsanzeige übrig ist — rund ein Drittel
-                          ihrer Breite, sobald der Pause-Knopf erscheint —, und der Founder hat am
-                          2026-07-31 ausdrücklich verlangt, diese Pille GRÖSSER zu machen (#305/#307).
+                          ▶ + ⏸ + Tempo + Schloss + „•••" + Positionsanzeige übrig ist — und der Founder
+                          hat am 2026-07-31 ausdrücklich verlangt, diese Pille GRÖSSER zu machen
+                          (#305/#307).
+                          ⛔ **UND DIE ZAHL, DIE HIER STAND, WAR ERFUNDEN — beim ZITIEREN einer Zahl.**
+                          Sie lautete „rund ein Drittel ihrer Breite" und berief sich auf genau den
+                          Doc-Kommentar, der eine Zeile höher zitiert wird. Der sagt etwas anderes:
+                          **rund 150 pt statt 300**, also die HÄLFTE — und er sagt es über die Zeile mit
+                          VIER Kindern, nicht über die mit sechs. Beide Hälften des Zitats waren falsch,
+                          und es stand in vier Dateien gleichzeitig (Quelle, Wächter, Commit-Text, hier).
+                          Was die Quelle wirklich trägt: vier Kinder halbieren die Pille bereits; die zwei
+                          Zuwanderer nehmen zusätzlich ~30 pt Chip, ~100 pt Anzeige und zwei weitere
+                          8-pt-Lücken — eine einzelne Zeile lässt also deutlich WENIGER als ein Drittel.
+                          Die Schlussfolgerung (zwei Zeilen) überlebt, die Zahl nicht.
                           Zeile 1 ist deshalb bitgleich mit vorher, und DAS ist es, was den Satz „nichts,
                           was heute existiert, lässt sich noch zusammendrücken" zu einer Tatsache statt zu
                           einer Hoffnung macht. Behauptung 2 des Wächters ist die Hälfte, die das
@@ -280,11 +290,33 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           kanonische Fassung auf einem gelöschten Wirt lag, ist schlimmer als kein
                           Gesetz** — die nächste Sitzung liest zwei Verweise ins Leere und schließt daraus,
                           die Regel sei zurückgezogen worden.
-                          ⚠️ **Die Höhen-Arithmetik geht auf, aber sie ist Quelltext und keine Messung:**
-                          entfernt werden ≥44 pt Chrome (der `minHeight` der Leiste plus ihr Abstand),
-                          hinzu kommt eine ~32 pt hohe zweite Zeile IM Instrument. Die spielbare Fläche
-                          gewinnt also. Ob sie sich auf einem 393-pt-Telefon RICHTIG liest, ist eine
-                          Geräteprobe und steht so in beiden Dateien.
+                          ⛔ **UND DIE LÖSCHUNG HAT EINEN WÄCHTER IM BLOCKIERENDEN BUNDLE ROT GEMACHT —
+                          das ist der teuerste Befund dieser Scheibe und BEIDE Reviewer fanden ihn
+                          unabhängig.** `ChromeDynamicTypeTests` führte eine Tabelle der drei Chrome-Leisten
+                          und nagelte pro Leiste DREI Dinge fest: den Mount (`TransportBar()`), die
+                          `.frame(minHeight: 44)` und das `.fixedSize` direkt darüber. #456 hat alle drei
+                          entfernt, also feuerten drei Behauptungen gleichzeitig — **der Wächter hat
+                          funktioniert**, nicht versagt, und sein eigener Doc-Kommentar sagte schon
+                          „aktualisiere diese Erwartung im selben Commit — lösche die Prüfung nicht".
+                          ⚠️ **Und der Preis des späten Findens ist die eigentliche Lehre:** solange #396
+                          lebt, meldet `Echoelmusic CI/CD Pipeline` auf JEDEM Push `failure`, dieses Rot
+                          war also von der Wirt-Leiche nicht zu unterscheiden, ohne die Testnamen im
+                          Job-Log zu lesen. **Vor dem Löschen eines Chrome-Elements: `git grep` es in
+                          `Tests/CISmoke`, nicht nur in `Sources/`.** Ein Commit, der eine Fläche
+                          entfernt, muss die Wächter über dieser Fläche im selben Atemzug mitziehen —
+                          sonst hat man einen Wächter gegen die eigene Änderung geschrieben, während man
+                          einen anderen gegen sie ins Messer laufen ließ.
+                          ⚠️ **Die Höhen-Arithmetik geht auf, aber knapper als zuerst behauptet — und sie
+                          ist Quelltext, keine Messung.** Entfernt werden die 44 pt `minHeight` der
+                          Leiste; hinzu kommen eine ~32 pt hohe zweite Zeile IM Instrument **plus die
+                          8 pt Abstand des neuen `VStack`**, also ~40 pt. Netto gewinnt die spielbare
+                          Fläche ~4 pt, nicht ~12. ⛔ Die erste Fassung schrieb „≥44 pt (der `minHeight`
+                          der Leiste **plus ihr Abstand**)" und ließ die 8 pt auf der Gegenseite weg —
+                          zweimal in dieselbe Richtung daneben: die Chrome ist ein `VStack(spacing: 0)`,
+                          es gibt dort gar keinen Abstand dazuzurechnen, und der Abstand, den es WIRKLICH
+                          gibt, entsteht durch die Änderung selbst. Die RICHTUNG stimmt weiterhin, die
+                          Marge war um den Faktor drei zu großzügig. Ob sich die Zeile auf einem
+                          393-pt-Telefon RICHTIG liest, bleibt eine Geräteprobe.
                           ⚠️ **Eine Begründung ist mit dem Umzug ABGELAUFEN, und sie steht am Ort statt
                           still weiterzugelten:** `TransportOverflowMenu` verschickt seine Türöffnungen
                           weiter über `.echoelChromeDoor`, obwohl es jetzt in derselben Ansicht sitzt, die
@@ -293,11 +325,22 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           mehr. Behalten wird es trotzdem, weil `.echoelChromeDoor` ANDERE Erzeuger hat
                           (die Monitor-Kacheln im Header): sie durch eine direkte Bindung zu ersetzen
                           machte aus einer Definition zwei — die #416-Bedingung.
-                          ⚠️ Und eine Kleinigkeit, die nur bei DIESEM Abstand harmlos ist: die
-                          `.contentShape(Rectangle().inset(by: -6))` des Menüs überlappt bei 8 pt
-                          Zeilenabstand seine Nachbarn um 2 pt. Das spätere Geschwister gewinnt die
-                          Treffer-Prüfung, und die Positionsanzeige trägt gar keine Geste — heute also
-                          folgenlos. Es ist eine Tatsache über eine bestimmte Zahl, keine allgemeine.
+                          ⛔ **UND EINE „GEMESSENE" ZAHL DIESER SCHEIBE WAR ERFUNDEN, gefunden von der
+                          Nachlese — die einzige Sorte Fehler, vor der dieser Absatz zwanzigmal warnt.**
+                          Hier stand, die `.contentShape(Rectangle().inset(by: -6))` des Menüs überlappe
+                          bei 8 pt Zeilenabstand seine Nachbarn um 2 pt, das spätere Geschwister gewinne
+                          die Treffer-Prüfung, folgenlos. Nachgesehen statt angenommen: zwischen den zwei
+                          Kindern der zweiten Zeile steht ein `Spacer(minLength: 0)`. Der Abstand nach
+                          rechts ist der ganze freie Platz der Zeile (~300 pt auf einem 393-pt-Telefon),
+                          nach links die `.padding(.horizontal, 16)` der Zeile selbst. **Es überlappt
+                          nichts.** Senkrecht reicht die −6 in die 8-pt-Lücke des VStack, und das Kind
+                          darüber (`startButton`) trägt gar keine eigene Trefferform. Die Zahl war nicht
+                          veraltet — sie ist nie gemessen worden, sie klang nur plausibel, weil 12 pt
+                          minus 6 minus 8 sich rechnen lässt, wenn man den Spacer nicht ansieht. **Und
+                          die Gefahr ist die umgekehrte der üblichen: eine erfundene KOSTEN-Angabe lädt
+                          die nächste Sitzung ein, eine Überlappung „zu reparieren", die es nicht gibt —
+                          und das Verkleinern der −6 setzt den Knopf unter die 44-pt-Grenze, für die
+                          #113 existiert.** Die Rücknahme steht auch am Bedienelement selbst.
                           ⚠️ Was der Wächter NICHT kann, und das steht als ERSTES in seinem Kopf: alle
                           fünf Behauptungen sind QUELLTEXT-SCANS. SwiftUI-Layout ist von hier nicht
                           erreichbar, „die Zeile liest sich gut" und „die Chrome ist jetzt kürzer" bleiben

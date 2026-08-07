@@ -170,23 +170,29 @@ struct WorkspaceView: View {
                 // floor) — a new defect introduced by the fix, not an old one left alone.
                 //
                 // ⚠️ THE CEILING IS RAISED, NOT REMOVED, AND THE REASON IS HONEST: the
-                // chrome is 134 pt today (50 + 44 + 40). At `.accessibility5` a naive 3.12×
-                // gives 418 pt and a bottom-up estimate lands nearer 270 pt, because much of
-                // each bar is fixed-size children that never scale — three defensible
-                // numbers, which means the only honest statement is "somewhere between
-                // roughly 270 and 420 pt, unmeasured". This environment has no simulator.
-                // `.accessibility1` (~1.65× vs the old ~1.24×) is the largest step
-                // verifiable by reasoning alone. Raising it further is a founder device
-                // look, and it needs the fixed heights INSIDE the bars converted first
+                // chrome is 90 pt today (50 + 40). ⛔ IT READ "134 pt (50 + 44 + 40)" UNTIL
+                // #456 dissolved the transport bar — and the commit that removed the 44
+                // edited the sentence four lines above this one without touching it. Every
+                // number that used to hang off the 134 (a naive `.accessibility5` 3.12×
+                // "418 pt", a bottom-up "nearer 270 pt") is therefore WITHDRAWN rather than
+                // rescaled: they were an estimate of a three-bar chrome, and re-deriving
+                // them for two bars is arithmetic I have not done. What survives unchanged
+                // is the SHAPE of the argument — much of each bar is fixed-size children
+                // that never scale, so top-down and bottom-up disagree, and this
+                // environment has no simulator to settle it. `.accessibility1` (~1.65× vs
+                // the old ~1.24×) remains the largest step verifiable by reasoning alone.
+                // Raising it further is a founder device look, and it needs the fixed
+                // heights INSIDE the bars converted first
                 // (⛔ `BodyTempoField` 76×32 was named here and LEFT with #411 — like
-                // `HeaderMonitors.PulseMonitorMini` before it (#289), it now lives in the
-                // instrument's `startControlRow`, so neither is part of this ceiling's
-                // arithmetic any more. What is still fixed-size in the chrome:
-                // `EchoelValueField`'s A4 box in `CompositionHeaderStrip` and the "•••"
-                // 30×32. TWO named examples have now migrated out of this list without the
-                // list noticing, which is the argument for re-measuring rather than
-                // re-quoting it) — those
-                // hold at AX1 and overflow from AX2 up, so "the layout is ready" is true
+                // `HeaderMonitors.PulseMonitorMini` before it (#289) and the "•••" overflow
+                // after it (#456), it now lives in the instrument's `startControlRow`, so
+                // none of the three is part of this ceiling's arithmetic any more. What is
+                // still fixed-size in the chrome: `EchoelValueField`'s A4 box in
+                // `CompositionHeaderStrip`, and nothing else. THREE named examples have now
+                // migrated out of this list without the list noticing — the third one
+                // migrated in the very commit that had to correct the count from TWO, which
+                // is the argument for re-measuring rather than re-quoting it) — that box
+                // holds at AX1 and overflows from AX2 up, so "the layout is ready" is true
                 // only for the step actually taken. Do NOT read this as "accessibility is
                 // done": a user on AX4/AX5 still gets AX1 in the chrome.
                 //
@@ -428,8 +434,11 @@ struct WorkspaceView: View {
         .padding(.horizontal, 12)
         // ⚠️ `fixedSize` + `minHeight` ARE A PAIR, and `fixedSize` comes FIRST. This is the
         // canonical statement of the rule for every chrome bar in this file; it used to live
-        // on `TransportBar`'s frame and moved here when #456 dissolved that bar, because two
-        // other frames point at it ("read that note first").
+        // on `TransportBar`'s frame and moved here when #456 dissolved that bar, because
+        // another frame points at it by name ("read that note first"). ⛔ THAT COUNT WAS
+        // WRITTEN AS "two other frames" IN THE MOVE ITSELF: it was two while `TransportBar`
+        // existed, and moving the note onto `topBar` turned one of the two citers INTO the
+        // host. `CompositionHeaderStrip`'s frame is the one that remains.
         //
         // `.frame(height: h)` reports `h` whatever the child does. `.frame(minHeight: h)`
         // forwards the incoming proposal downward and reports `max(child, h)` — so it only
@@ -447,7 +456,10 @@ struct WorkspaceView: View {
         // child falls back to its ideal and the bar takes its true content height; the
         // `minHeight` then floors it at the design size. Flexibility is back to zero, which is
         // what a fixed height gave us — this time without capping the text. Removing either half
-        // re-opens the split. 44 pt is also the HIG tap-target floor.
+        // re-opens the split. (⛔ This paragraph ended on "44 pt is also the HIG tap-target
+        // floor" — true of the DELETED bar's design height, meaningless above the 50 below.
+        // A note that moves keeps its rule and drops its host's numbers. Every chrome design
+        // height in this file is at or above the 44 pt floor, which is the general form.)
         .fixedSize(horizontal: false, vertical: true)
         // minHeight, not height: the bar keeps its 50 pt design size at every normal text
         // size and GROWS instead of overflowing at accessibility sizes (see the Dynamic
@@ -677,9 +689,11 @@ struct PlaybackToggleButton: View {
 // GAINS height rather than losing it.
 //
 // ⚠️ THE `fixedSize` + `minHeight` NOTE THAT LIVED ON THIS STRUCT'S FRAME MOVED to `topBar`'s
-// frame. Two other frames in this file point at it by name ("read that note first"), and it
-// is a rule about every chrome bar rather than about this one — deleting the bar would have
-// deleted the canonical statement of a law that still governs two live frames.
+// frame. It is a rule about every chrome bar rather than about this one — deleting the bar
+// would have deleted the canonical statement of a law that still governs live frames. (⛔ Both
+// this sentence and the note itself said "two other frames" on arrival. Two was right while
+// this struct existed; hosting the note on `topBar` converted one citer into the host, so the
+// answer is ONE: `CompositionHeaderStrip`. A count taken before a move does not survive it.)
 //
 // ⛔ `toggle()` WENT FROM HERE EARLIER, not merely unused: it moved with the ■ into
 // `PlaybackToggleButton` (#289). A private method with no caller compiles silently in Swift
@@ -734,13 +748,21 @@ struct TransportOverflowMenu: View {
                     .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         }
         // 44 pt HIG tap target (#113): the visible chip stays 30×32 and the hit area grows
-        // symmetrically (−6 → 42×44). It had the transport bar's 12 pt spacing to grow into;
-        // `startControlRow` gives it 8 pt, so the outset now overlaps its neighbour by 2 pt on
-        // each side. That is deliberate and it is the cheap side of the trade: SwiftUI hit-tests
-        // front-to-back in declaration order, so the LATER sibling wins the overlap — the
-        // readout beside it is a plain `Text` with no gesture, and the earlier siblings keep
-        // their own shapes. Shrinking the outset instead would put this chip back under the
-        // 44 pt floor #113 exists to hold.
+        // symmetrically (−6 → 42×44).
+        //
+        // ⛔ THE FIRST VERSION OF THIS NOTE INVENTED A COST AND THEN JUSTIFIED PAYING IT. It
+        // said the outset "now overlaps its neighbour by 2 pt on each side" because
+        // `startControlRow` spaces at 8 pt where the transport bar spaced at 12. Measured
+        // instead of assumed: line 2 of that row is `TransportOverflowMenu()`, `Spacer(minLength:
+        // 0)`, `TransportPositionView()` — a SPACER stands between them, so the trailing
+        // clearance is the row's whole slack (~300 pt on a 393 pt phone), and the leading side
+        // has the row's own `.padding(.horizontal, 16)`. Nothing is overlapped horizontally.
+        // Vertically the −6 reaches 6 pt into the VStack's 8 pt gap, and the child directly
+        // above is `startButton`, which carries no `contentShape` outset of its own. The outset
+        // is SAFER than the retracted note claimed — which is the danger: a future session would
+        // have "fixed" a 2 pt overlap that does not exist, and shrinking it puts this chip back
+        // under the 44 pt floor #113 exists to hold. Written down because a plausible geometry
+        // sentence is exactly the kind this repo copies forward without checking.
         .contentShape(Rectangle().inset(by: -6))
         .accessibilityLabel("More — Live Colabo; Learn and news")
     }
@@ -766,6 +788,17 @@ struct TransportOverflowMenu: View {
 /// only its own body reads `transport.position`, so the ~10 Hz churn stays here. That is the
 /// same argument #411 made for `BodyTempoField`, and the freeze law (10.76.41/50) is about
 /// exactly the mistake of inlining these two lines instead. Do not inline them.
+///
+/// ⚠️ AND IT LEFT TWO CEILINGS ON THE WAY DOWN, unstated in the move itself. The chrome Group
+/// in `body` carries `.dynamicTypeSize(...DynamicTypeSize.accessibility1)`; `SurfaceHost` is
+/// its SIBLING, not a descendant, so this leaf is now UNCLAMPED — and it is inside
+/// `StudioZoom`'s pinch scope for the same reason. Its labels are `EchoelTheme.font(14)`/`(10)`,
+/// which resolve `relativeTo: .body` and therefore DO scale, while the loop capsule beside them
+/// is a hard `44×4`. Text that grows next to a bar that does not is the shape that overflows at
+/// AX4/AX5. Being unclamped is arguably the right outcome for a control that now belongs to the
+/// instrument — but it is an unmeasured device look, not a verified improvement, and nobody
+/// chose it. (`TransportOverflowMenu` made the same trip with no effect: its `.system(size: 13)`
+/// does not respond to Dynamic Type at all inside a fixed `30×32`.)
 @MainActor
 struct TransportPositionView: View {
     @Environment(Transport.self) private var transport

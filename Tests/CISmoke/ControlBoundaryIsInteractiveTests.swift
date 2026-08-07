@@ -11,11 +11,15 @@
 //     control in the app. It renders in `EchoelStudioView.startControlRow` beside
 //     `startButton` and `PulseMonitorMiniLive`, and BOTH of those already used
 //     `borderStrong`. (⛔ The first version of this line, and the fix comment in
-//     `WorkspaceView` itself, named the 30×32 "•••" as its neighbour. That control lives in
+//     `WorkspaceView` itself, named the 30×32 "•••" as its neighbour. That control lived in
 //     `TransportBar`, two rows and a divider above — the adjacency was read off the FILE,
 //     not off the screen. Same defect as the grid this session attributed to the wrong panel
 //     three times; being about a token instead of a layout did not make it a different
-//     mistake.);
+//     mistake. ⚠️ AND THE FACT IN THAT CORRECTION HAS SINCE EXPIRED WHILE ITS LESSON HAS NOT:
+//     #456 dissolved `TransportBar` and the "•••" now sits one line BELOW this row inside
+//     `startControlRow`, so it genuinely is a near neighbour today. The reason the original
+//     claim was wrong is unchanged — it was inferred from file order, not measured — and that
+//     is why the retraction stays here instead of being deleted as "now true anyway".);
 //   · the tempo lock (`BodyTempoField`);
 //   · the Clips tile (`HeaderMonitors`), whose two sibling tiles were already correct.
 // So the founder's chrome screenshot had, in one row, tiles outlined like buttons next to

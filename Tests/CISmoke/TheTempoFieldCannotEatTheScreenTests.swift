@@ -33,6 +33,13 @@ import Foundation
 import XCTest
 @testable import Echoelmusic
 
+/// Thrown when a scan anchor is gone. An uncaught error in a `throws` test method FAILS,
+/// which is the point — `XCTSkip` would have been green (the #454 lesson).
+private struct AnchorMissing: Error, CustomStringConvertible {
+    let reason: String
+    var description: String { reason }
+}
+
 final class TheTempoFieldCannotEatTheScreenTests: XCTestCase {
 
     // MARK: - 1. the control carries its own non-greediness
@@ -128,19 +135,42 @@ final class TheTempoFieldCannotEatTheScreenTests: XCTestCase {
 
     /// Comment-stripped source, or a skip when the tree is not present.
     ///
-    /// `SourceText.codeOnly` (#453) is load-bearing rather than hygienic here: the block this
-    /// slice added to `BodyTempoField` quotes `.fixedSize(horizontal: false, vertical: true)`,
-    /// `EchoelValueField` and `Rectangle()` in prose, and `WorkspaceView` quotes the modifier in
-    /// a comment one line above the real one (line 754 vs 759). Under a scanner that kept
-    /// comments, three of the five assertions here would pass on the explanation instead of the
-    /// code.
+    /// `SourceText.codeOnly` (#453) is kept as a PROPHYLACTIC here, and the honest measurement
+    /// says so.
+    ///
+    /// ⛔ THIS PARAGRAPH CLAIMED "three of the five assertions here would pass on the
+    /// explanation instead of the code" — an unmeasured "load-bearing" claim, which is the same
+    /// defect this file family has retracted numbers for three times. Measured at `d8bf125`,
+    /// every needle of both this file's five claims and the #456 guard's, raw text vs stripped:
+    /// **one of ten outcomes differs**, and it is a false RED it prevents, not a false green —
+    /// `EchoelStudioView` quotes `transport.position` in a doc comment, so #456's claim 4b
+    /// ("the studio must NOT read it") would fail on prose without stripping. None of this
+    /// file's own five change either way.
+    ///
+    /// The helper stays: this repo writes comments that quote the code they explain, so the
+    /// next needle may well need it. But "prophylactic" is what it is today.
+    ///
+    /// ⛔ AND A LINE-NUMBER PAIR STOOD HERE ("line 754 vs 759", called "one line above"): five
+    /// lines apart, not one — and #456, the very next commit, moved both. CLAUDE.md strikes
+    /// this pattern by name: a quoted phrase survives an insertion, a line number does not.
+    /// The real one now lives in the note above `topBar`'s frame in `WorkspaceView`.
     private func source(_ relativePath: String) throws -> String {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
+        // ⛔ THE SKIP IS SCOPED TO THE TREE, NOT THE FILE. The first version skipped whenever
+        // the FILE was missing, so renaming or moving any scanned file turned every claim in
+        // this file green at once — the #454 lesson (a skip PASSES CI) one level out.
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
+        else {
+            throw XCTSkip("source tree not present under \(root.path)")
+        }
         let path = root.appendingPathComponent(relativePath)
         guard FileManager.default.fileExists(atPath: path.path) else {
-            throw XCTSkip("source tree not present under \(root.path)")
+            throw AnchorMissing(reason: """
+                \(relativePath) is missing while the tree is present — it was renamed or moved. \
+                Re-anchor this scan; do not let it skip.
+                """)
         }
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
     }
@@ -153,8 +183,17 @@ final class TheTempoFieldCannotEatTheScreenTests: XCTestCase {
     private func structBody(named name: String, in relativePath: String) throws -> String {
         let text = try source(relativePath)
         let key = "struct \(name): View {"
+        // ⛔ THIS THREW `XCTSkip` ON ARRIVAL, and `ControlBoundaryIsInteractiveTests` already
+        // spelled out why that is wrong: "A source-text guard may skip when the TREE is absent;
+        // it must never skip because the THING IT GUARDS moved." Renaming the type would have
+        // turned the counterweight — the claim this file calls the one that earns its place
+        // going forward — silently green forever. `TheTransportBarIsDissolvedTests`, written an
+        // hour later, got this right; this one did not, in the same session.
         guard let start = text.range(of: key) else {
-            throw XCTSkip("`\(key)` not found — the type was renamed or removed")
+            throw AnchorMissing(reason: """
+                `\(key)` not found in \(relativePath) — renamed, reflowed or removed. \
+                Re-anchor this scan; do not leave it silent.
+                """)
         }
         // `start.upperBound` sits just past the opening brace, so the depth starts at 1.
         var depth = 1

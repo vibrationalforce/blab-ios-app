@@ -9,10 +9,17 @@
 // giving the control a frame that matches its row.
 //
 // The defect this file exists for is not "a control is small". It is that the SAME row
-// already contains the fix and one member was skipped: the transport bar's "•••" was
-// outset by #113 and the playback ⏸ grown to 44×48 by #307's Nachlese, while the tempo
-// LOCK between them stayed a bare 30×32 for months. A per-file review never catches that,
-// because each file looks locally reasonable. A list does.
+// already contains the fix and one member was skipped: the "•••" was outset by #113 and
+// the playback ⏸ grown to 44×48 by #307's Nachlese, while the tempo LOCK between them
+// stayed a bare 30×32 for months. A per-file review never catches that, because each file
+// looks locally reasonable. A list does.
+//
+// ⛔ "the transport bar's '•••'" and "between them" WERE TRUE UNTIL #456. The bar dissolved;
+// the "•••" now sits on line 2 of `EchoelStudioView.startControlRow` and the lock on line 1,
+// so they are no longer one row and no longer flank anything. The assertions below are
+// unaffected — they scan for the outset repo-file-wide, not for an adjacency — but a reader
+// who trusts this paragraph would go looking for a row that does not exist. The LESSON is
+// what survives: a list of controls beats a per-file review.
 //
 // ⚠️ WHY A SOURCE SCAN AND NOT A LAYOUT TEST — the same honest limit `ChromeDynamicTypeTests`
 // states, repeated rather than cross-referenced because a reader arriving here must not have

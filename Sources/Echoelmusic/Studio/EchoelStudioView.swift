@@ -929,8 +929,13 @@ struct EchoelStudioView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .echoelSelectBioSource)) { note in
                     selectBioSource(note.object as? String)
                 }
-                // Chrome doors: the header monitors and the "•••" overflow reach the plate
-                // without touching studio state directly.
+                // Chrome doors: the header monitors reach the plate without touching studio
+                // state directly. (⛔ This line named the "•••" overflow as a chrome producer
+                // and that half expired with #456 — the overflow now lives in THIS view and
+                // posts to itself, a same-view round trip. It is kept on the notification
+                // because the header monitors are still real chrome producers of the same
+                // name; converting only the overflow to a binding would leave two ways into
+                // one door. The rationale is stated at the producer too.)
                 //
                 // ⛔ FOUR CASES WERE DELETED HERE, NOT LEFT "just in case" (#290): "master",
                 // "export", "tempo" and "session". Those four panels are chips now, and a chip
@@ -1201,8 +1206,10 @@ struct EchoelStudioView: View {
             // with no producer, so this read always returned false and `.pausePlayback` was
             // unreachable. The comment here said so and added that the ordering "becomes
             // load-bearing again the instant anything re-acquires the ability to request a
-            // playback-only stop". That instant is now: the transport bar's ■ raises the
-            // request (#234/#179 — `WorkspaceView.TransportBar.toggle()`).
+            // playback-only stop". That instant is now: the chrome ■ raises the request
+            // (#234/#179 — it lived in `WorkspaceView.TransportBar.toggle()` until #289
+            // extracted it into `PlaybackToggleButton`, which is where it is today; the bar
+            // itself dissolved with #456).
             //
             // What made it urgent rather than tidy: while the request had no producer, the
             // chrome ■ silently ended the whole bio session, camera and all. The founder's
@@ -1605,13 +1612,25 @@ struct EchoelStudioView: View {
     ///
     /// ⚠️ TWO LINES, NOT ONE, AND THE REASON IS THE MEASUREMENT ABOVE — not taste. One line
     /// would have to fit ▶ + ⏸ + tempo + lock + "•••" + the readout AND the analysis pill the
-    /// founder asked to make BIGGER (#305/#307); the paragraph above already priced that at
-    /// roughly a third of the pill's width on a 393 pt phone, and adding two more children
-    /// makes it worse, not better. **Line 1 is bit-for-bit what it was**, so nothing that
-    /// exists today can be squeezed by this change. The height arithmetic goes the right way
-    /// too: the deleted bar was ≥44 pt of chrome, the new line is ~32 pt inside the
-    /// instrument, so the playable area GAINS. If the founder still wants one line, that is a
-    /// device look at the pill's width, not a guess from here.
+    /// founder asked to make BIGGER (#305/#307). ⛔ THE FIRST VERSION CITED "roughly a third of
+    /// the pill's width" and attributed it to the paragraph above. That paragraph says
+    /// something else — **roughly 150 pt instead of 300** — and it says it about the FOUR-child
+    /// row, not this six-child one. The number was invented in the act of quoting a number,
+    /// which is the defect this file family keeps paying for. What the source actually
+    /// supports: four children already halve the pill; the two migrants add about 30 pt of
+    /// chip, ~100 pt of readout and two more 8 pt gaps, so a single line leaves the pill a
+    /// fraction of even that 150 — worse than half, and worse than a third.
+    ///
+    /// **Line 1 is bit-for-bit what it was**, so nothing that
+    /// exists today can be squeezed by this change.
+    ///
+    /// ⚠️ THE HEIGHT ARITHMETIC GOES THE RIGHT WAY, BUT BARELY, and the first version of this
+    /// paragraph overstated it by roughly 3×. Removed: the deleted bar's `minHeight: 44` — and
+    /// NOT "plus its spacing", because the chrome stack is `VStack(spacing: 0)`. Added: a
+    /// ~32 pt second line PLUS this `VStack`'s own 8 pt gap, so ~40 pt. Net ≈ **4 pt**, not
+    /// ~12. The direction survives; the margin does not, and a margin that thin is a device
+    /// look rather than a claim. If the founder still wants one line, that is also a device
+    /// look at the pill's width, not a guess from here.
     ///
     /// ⚠️ FREEZE LAW, EXTENDED TO A FIFTH CHILD, and this one carries the ~10 Hz playhead.
     /// `TransportPositionView` reads `transport.position` in its OWN body — that is why it was
@@ -7296,7 +7315,10 @@ struct EchoelStudioView: View {
     /// product
     /// decision — and as of #234 it is a SHIPPED one, reachable by every user who presses ■
     /// during a take. Flagged to the founder rather than buried: if "■ should end everything"
-    /// is what he wants, the change is one line in `TransportBar.toggle()`.
+    /// is what he wants, the change is one line in `PlaybackToggleButton.toggle()`. (⛔ This
+    /// pointed at `TransportBar.toggle()` until #456. The method left with #289 and the struct
+    /// with #456, so the instruction named a place a session could not go — the expensive kind
+    /// of stale note, because it reads as actionable.)
     ///
     /// `running` deliberately stays TRUE: the take is paused, not ended. The chrome's ■ is
     /// still the one full Stop.

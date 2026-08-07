@@ -2,10 +2,16 @@
 // Echoel — the always-visible chrome must not cap the text size a low-vision user set.
 //
 // WHAT THIS GUARDS (#232 C). `WorkspaceView` clamps its chrome Group — brand header,
-// TransportBar, CompositionHeaderStrip — with `.dynamicTypeSize(...)`. Behind that clamp sit
-// Play/Stop, tempo, Genre, Key, Scale, Tone system and A4: the controls that are on screen at
-// all times. Until 2026-07-30 the ceiling was `.xxLarge`, the largest NON-accessibility size,
-// so a user on AX1…AX5 got no enlargement at all there.
+// CompositionHeaderStrip — with `.dynamicTypeSize(...)`. Behind that clamp sit Genre, Key,
+// Scale, Tone system and A4: controls that are on screen at all times. Until 2026-07-30 the
+// ceiling was `.xxLarge`, the largest NON-accessibility size, so a user on AX1…AX5 got no
+// enlargement at all there.
+//
+// ⛔ THE LIST WAS THREE BARS UNTIL #456 and it named Play/Stop and tempo as living behind the
+// clamp. Both statements are now false, and they went false in two steps rather than one:
+// #289 took Play/Stop into the instrument, #411 took the tempo field, and #456 dissolved the
+// bar that had held them. Everything that migrated is now OUTSIDE this ceiling — see the note
+// on `TransportPositionView` in `WorkspaceView.swift`, which records what that costs.
 //
 // ⛔ THE FIRST VERSION OF THIS HEADER ALSO SAID the clamp capped the app's own pinch zoom.
 // FALSE: `StudioZoom` is applied inside `EchoelStudioView`, which mounts under `SurfaceHost`
@@ -104,8 +110,19 @@ final class ChromeDynamicTypeTests: XCTestCase {
     /// stays green while the guarded thing is deleted is worse than no guard, and without it
     /// removing `CompositionHeaderStrip()` from the Group would pass as long as some
     /// `.frame(minHeight: 40)` survived anywhere in this 800-line file.
+    ///
+    /// ⛔ THE TABLE HELD THREE ROWS UNTIL #456 AND IT WENT RED WHEN ONE OF THEM WAS DELETED —
+    /// which is the guard working, not failing. `TransportBar` dissolved on the founder's
+    /// 2026-08-07 arrows; its `.frame(minHeight: 44)` and its `TransportBar()` mount both
+    /// left the file, so three assertions here fired at once. The row is removed in the
+    /// commit that answers them, per this doc's own instruction ("update this expectation in
+    /// the same commit — do not delete the check").
+    ///
+    /// ⚠️ AND THE COST OF FINDING IT LATE IS THE REAL LESSON: `Echoelmusic CI/CD Pipeline`
+    /// reports `failure` on EVERY push while #396 lives, so this red was indistinguishable
+    /// from the host death without reading per-test names in the job log. Before deleting a
+    /// chrome element, `git grep` it in `Tests/CISmoke` — not only in `Sources/`.
     private static let chromeBars = [(bar: "topBar", height: 50, mount: "topBar"),
-                                     (bar: "TransportBar", height: 44, mount: "TransportBar()"),
                                      (bar: "CompositionHeaderStrip", height: 40,
                                       mount: "CompositionHeaderStrip()")]
 

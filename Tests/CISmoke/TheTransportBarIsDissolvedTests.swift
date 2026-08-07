@@ -6,10 +6,13 @@
 // that held them — the last chrome transport bar — is deleted rather than left empty.
 //
 // ⭐ TWO LINES AND NOT ONE, and the reason is a measurement that was already written down.
-// `startControlRow`'s own doc priced the one-line version: folding everything onto one line
-// leaves the analysis pill — which the founder asked to make BIGGER on 2026-07-31
-// (#305/#307) — with roughly a third of its width on a 393 pt phone once the pause button
-// appears, and it named the answer for exactly that case: *"the cheapest answer is to move
+// `startControlRow`'s own doc priced the one-line version: the analysis pill — which the
+// founder asked to make BIGGER on 2026-07-31 (#305/#307) — already drops to roughly 150 pt
+// of its 300 on a 393 pt phone with only FOUR children in the row, and the two migrants add
+// a ~30 pt chip, a ~100 pt readout and two more 8 pt gaps on top of that. (⛔ The first
+// version of this header said "roughly a third of its width" and credited that doc; the doc
+// says 150-of-300 and says it about the four-child row. Quoting a number is where numbers
+// get invented.) The same doc named the answer for exactly this case: *"the cheapest answer is to move
 // `TransportPositionView` and the '•••' overflow OUT of the chrome bar as well and give this
 // row a second line — NOT to send the tempo back up."* Line 1 is therefore bit-for-bit what
 // it was, which is what makes "nothing that exists today can be squeezed" a fact rather than
@@ -62,22 +65,27 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
     /// change the measurement above rules out, and it is invisible in a diff that merely
     /// deletes a `VStack`. All four original children must still share ONE `HStack` with the
     /// two newcomers in a different one.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS TEST COULD NOT FAIL FOR THE REASON IT STATED — found by a
+    /// reviewer, reproduced by me. It checked membership in the WHOLE row and counted
+    /// `HStack(spacing: 8)` occurrences, so swapping `PulseMonitorMiniLive()` down into line 2
+    /// and `TransportPositionView()` up into line 1 left every assertion green while "line 1 is
+    /// bit-for-bit unchanged" — the single fact the slice rests on — was false and the pill was
+    /// squeezed exactly as feared. Membership is now asserted PER LINE, in both directions.
     func testTheFirstLineStillHoldsExactlyTheFourOriginals() throws {
         let row = try declarationBody(of: "private var startControlRow: some View {",
                                       in: "Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        for child in ["startButton", "PlaybackToggleButton()", "BodyTempoField(",
-                      "PulseMonitorMiniLive()"] {
-            XCTAssertTrue(row.contains(child), "`startControlRow` no longer builds `\(child)`.")
-        }
-        // Two HStacks inside the row is the shape; one means the lines were merged.
+        // Two HStacks inside the row is the shape; fewer means the lines were merged. `>=`
+        // rather than `==`: a future THIRD line is a different change with a different
+        // argument, and it must not fail under a message that says "the lines were merged".
         let hstacks = row.components(separatedBy: "HStack(spacing: 8) {").count - 1
-        XCTAssertEqual(hstacks, 2, """
-            `startControlRow` has \(hstacks) inner `HStack(spacing: 8)`, expected 2.
+        XCTAssertGreaterThanOrEqual(hstacks, 2, """
+            `startControlRow` has \(hstacks) inner `HStack(spacing: 8)`, expected at least 2.
 
-            One means the two lines were merged. That is the change #456's own measurement \
-            rules out: the analysis pill is the only flexible child, so a single line hands \
-            it whatever is left after ▶ + ⏸ + tempo + lock + "•••" + the position readout — \
-            and the founder asked for that pill to be BIGGER (#305/#307), not smaller.
+            Fewer than two means the lines were merged. That is the change #456's own \
+            measurement rules out: the analysis pill is the only flexible child, so a single \
+            line hands it whatever is left after ▶ + ⏸ + tempo + lock + "•••" + the position \
+            readout — and the founder asked for that pill to be BIGGER (#305/#307).
 
             If a device look says one line is fine after all, make that the founder's call and \
             rewrite this test with the evidence. Do not merge them because the code looks \
@@ -86,6 +94,32 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
             Row scanned (comments blanked by SourceText.codeOnly):
             \(row)
             """)
+
+        let lineOne = try firstInnerRow(of: row)
+        for child in ["startButton", "PlaybackToggleButton()", "BodyTempoField(",
+                      "PulseMonitorMiniLive()"] {
+            XCTAssertTrue(lineOne.contains(child), """
+                Line 1 of `startControlRow` no longer builds `\(child)`.
+
+                Line 1 is the row as it stood before #456. Its being untouched is what makes \
+                "nothing that exists today can be squeezed" a fact rather than a hope — the \
+                whole argument for two lines instead of one.
+
+                Line 1 scanned: \(lineOne)
+                """)
+        }
+        // The other direction, which is what the first version was missing: the two migrants
+        // must NOT be on line 1. Without this, moving one up passes every check above.
+        for migrant in ["TransportOverflowMenu()", "TransportPositionView()"] {
+            XCTAssertFalse(lineOne.contains(migrant), """
+                `\(migrant)` moved up into line 1 of `startControlRow`.
+
+                That is the one-line layout by another name, and it squeezes the analysis pill \
+                — see the message above.
+
+                Line 1 scanned: \(lineOne)
+                """)
+        }
     }
 
     // MARK: - 3. both migrants have exactly one home
@@ -134,10 +168,16 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
     /// statement used to sit on the frame of the bar #456 deleted — while two other frames in
     /// the same file point at it by name. Deleting the bar without moving the note would have
     /// left two live frames citing an explanation that no longer exists.
+    ///
+    /// ⛔ THE FIRST VERSION SCANNED THE WHOLE FILE and could not fail for its stated reason:
+    /// `.fixedSize(horizontal: false, vertical: true)` also appears on a `Text` inside
+    /// `SessionNamePreview`, which is not a bar at all — so both chrome bars could lose the pin
+    /// while this stayed green on that `Text`. Scoped to the surviving bar's own declaration.
     func testTheChromeGeometryLawStillHasItsCanonicalStatement() throws {
-        let workspace = try source("Sources/Echoelmusic/Studio/WorkspaceView.swift")
-        XCTAssertTrue(workspace.contains(".fixedSize(horizontal: false, vertical: true)"), """
-            No chrome bar pins its own height any more.
+        let strip = try declarationBody(of: "struct CompositionHeaderStrip: View {",
+                                        in: "Sources/Echoelmusic/Studio/WorkspaceView.swift")
+        XCTAssertTrue(strip.contains(".fixedSize(horizontal: false, vertical: true)"), """
+            `CompositionHeaderStrip` no longer pins its own height.
 
             `.frame(minHeight:)` alone forwards the proposal downward, so a bar hosting any \
             vertically greedy child (an `EchoelValueField`'s bare scrub `Rectangle()`, for one) \
@@ -150,19 +190,68 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
 
     /// Comment-stripped source, or a skip when the tree is not present.
     ///
-    /// `SourceText.codeOnly` (#453) is load-bearing here, not hygienic: this slice's own
-    /// comments quote `TransportBar`, `TransportBar()`, `TransportPositionView()` and
-    /// `transport.position` in prose — at least four of the five claims below would pass on an
-    /// explanation instead of on code without it.
+    /// `SourceText.codeOnly` (#453) earns its place here for exactly ONE claim, and the
+    /// measurement is stated rather than assumed.
+    ///
+    /// ⛔ THIS SAID "at least four of the five claims below would pass on an explanation
+    /// instead of on code without it." Measured at `d8bf125` over every needle of this file and
+    /// its #455 sibling, raw vs stripped: **one of ten outcomes differs**, and it is the
+    /// opposite of what the sentence claimed — stripping prevents a false RED, not four false
+    /// greens. `EchoelStudioView` quotes `transport.position` in a doc comment, so claim 4b
+    /// ("the studio must NOT read it") fails on prose without it. The negative claims about
+    /// `TransportBar` are unaffected: the replacement note says "TransportBar stood here",
+    /// without the parentheses the scan looks for. An unmeasured "load-bearing" claim is the
+    /// same defect as an unmeasured number, and this file family has retracted three of those.
+    ///
+    /// ⛔ THE SKIP IS SCOPED TO THE TREE, NOT THE FILE — the first version skipped whenever the
+    /// FILE was missing, which meant renaming or moving `WorkspaceView.swift` turned every claim
+    /// in this file green at once. That is the #454 lesson (a skip PASSES CI) applied one level
+    /// out: "no checkout" is a legitimate skip, "the thing I guard moved" is a FAILURE.
     private func source(_ relativePath: String) throws -> String {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
-        let path = root.appendingPathComponent(relativePath)
-        guard FileManager.default.fileExists(atPath: path.path) else {
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
+        else {
             throw XCTSkip("source tree not present under \(root.path)")
         }
+        let path = root.appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw MissingAnchor(reason: """
+                \(relativePath) is missing while the tree is present — it was renamed or moved. \
+                Re-anchor this scan; do not let it skip.
+                """)
+        }
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
+    }
+
+    /// The first inner `HStack(spacing: 8) { … }` of an already-extracted row body.
+    ///
+    /// Line 1 is the pre-#456 row; asserting on the WHOLE row body cannot tell line 1 from
+    /// line 2, which is exactly the hole the first version of claim 2 had.
+    private func firstInnerRow(of row: String) throws -> String {
+        let key = "HStack(spacing: 8) {"
+        guard let start = row.range(of: key) else {
+            throw MissingAnchor(reason: """
+                No inner `\(key)` in `startControlRow` — the row was restructured. Re-anchor \
+                this scan; do not leave it silent.
+                """)
+        }
+        var depth = 1
+        var body = ""
+        var i = start.upperBound
+        while i < row.endIndex, depth > 0 {
+            let c = row[i]
+            if c == "{" { depth += 1 }
+            if c == "}" {
+                depth -= 1
+                if depth == 0 { break }
+            }
+            body.append(c)
+            i = row.index(after: i)
+        }
+        XCTAssertEqual(depth, 0, "unbalanced braces inside `startControlRow` — scan is unsound")
+        return body
     }
 
     /// The brace-matched body that follows `key`, which must end in its opening brace.
