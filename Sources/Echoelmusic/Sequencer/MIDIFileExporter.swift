@@ -142,7 +142,9 @@ public enum MIDIFileExporter {
     ///   seamlessly on the grid (no truncated tail at the loop point).
     /// - `keyRootPitchClass` (0=C…11=B, <0 = unknown/omit) + `keyIsMinor` write a real key-
     ///   signature meta so the DAW shows the Tonart.
-    /// - `accents` (parallel to `steps`) map accented drum cells to a louder velocity.
+    /// - `accents` (parallel to `steps`) map accented drum cells to a louder velocity: when it
+    ///   is non-empty the drum track splits ±20 around `velocity`, when it is EMPTY every hit
+    ///   is written at `velocity` itself (#474 — no accent information, no dynamic to invent).
     /// - `program` (0…127 GM program, `nil` = omit) writes a Program Change (0xC0) at tick 0
     ///   on the melody channel, so the take opens on a DEFINED instrument in Ableton/any DAW
     ///   instead of whatever sound the target track happens to hold. `nil` → byte-identical.
@@ -296,22 +298,37 @@ public enum MIDIFileExporter {
         // Accented cells hit harder; non-accented sit back — so the beat's dynamics survive
         // the export instead of every hit landing at one flat velocity.
         //
-        // ⭐ SO ON THIS PATH `velocity` IS THE ACCENT CENTRE, NOT THE EMITTED BYTE — the ±20
-        // split straddles it. The Type-0 `export(steps:tempo:velocity:)` overload above has NO
-        // accents and therefore emits `velocity` literally; the two overloads mean different
-        // things by the same argument name. Written down because three tests asserted the
-        // literal here and nobody could see them fail: the file they live in was in no target
-        // until #469, and the drum-export path itself has no live caller (`export(clip:)` has
-        // zero call sites in `Sources/`, and the ONE live `exportCombined` call passes
-        // `steps: []`). Dormant, so this is a contract note, not a bug report.
+        // ⭐ WHEN THE CALLER SUPPLIES ACCENTS, `velocity` IS THE ACCENT CENTRE AND NOT THE
+        // EMITTED BYTE — the ±20 split straddles it. When it supplies NONE, `velocity` is
+        // emitted literally (#474). That second half is the repair: with no accent
+        // information there is no dynamic to preserve, so the old uniform −20 was not
+        // "dynamics survive", it was an invented quiet, and a caller asking for 100 got 80
+        // everywhere while the number it asked for appeared nowhere in the file. #471 found
+        // it while repairing three test assertions and deliberately left it — this is that
+        // slice, so the change is the behaviour and not a comment.
         //
-        // ⚠️ AND THE ASYMMETRY IS REAL, stated rather than smoothed: with an EMPTY `accents`
-        // array every cell takes the `normalVel` branch, so a caller asking for 100 gets 80
-        // everywhere and the requested number never appears in the file. That is not the
-        // "dynamics survive" the comment above promises — with no accent information there is
-        // no dynamic to preserve, only a uniform −20. Deliberately NOT changed here: it would
-        // alter shipped export bytes, which is its own slice with its own reasoning (#471),
-        // not a side effect of repairing a test.
+        // ⚠️ THE SEAM IS `accents.isEmpty` AND NOTHING FINER, stated because the next
+        // plausible step is to widen it. A PRESENT accent array whose cells are all `false`
+        // still takes the −20: the caller declared accent information and said "none of these
+        // are accented", which is a different statement from not having any. Rows past
+        // `accents.count` likewise keep the −20 — the pattern carries accent information even
+        // where a row does not. Only total absence changes meaning.
+        //
+        // ⭐ AND THIS IS WHAT MAKES THE TWO OVERLOADS AGREE. The Type-0
+        // `export(steps:tempo:velocity:)` above has no accents at all and always emitted
+        // `velocity` literally; until #474 the same argument name meant two different things
+        // on two exporters of the same grid. Now they differ only where the caller opted into
+        // accents.
+        //
+        // ⚠️ NO EXPORT A USER CAN PRODUCE TODAY CHANGES — measured, not assumed: `export(clip:)`
+        // has zero call sites in `Sources/`, and the ONE live `exportCombined` call
+        // (`Studio/EchoelStudioView.swift`, the MIDI export door) passes `steps: []`, so
+        // `drumEvents` emits nothing at all. What changes is the CONTRACT of a dormant API.
+        // ⛔ The note this replaces claimed the opposite ("it would alter shipped export
+        // bytes") three paragraphs after establishing that the path has no live caller — a
+        // claim standing next to its own refutation, which is the class this repo keeps
+        // paying for.
+        let hasAccentInfo = !accents.isEmpty
         let accentVel = UInt8(Swift.min(127, Int(velocity) + 20))
         let normalVel = UInt8(Swift.max(1, Int(velocity) - 20))
         for (t, row) in steps.enumerated() {
@@ -322,7 +339,7 @@ public enum MIDIFileExporter {
                 hitIndex += 1
                 let onTick = Swift.max(0, s * ticksPerStep + tickDelta)
                 let isAccent = s < accentRow.count && accentRow[s]
-                let base = isAccent ? accentVel : normalVel
+                let base = hasAccentInfo ? (isAccent ? accentVel : normalVel) : velocity
                 let vel = UInt8(Swift.min(127, Swift.max(1, Int(Float(base) * velScale))))
                 events.append(MIDIEvent(tick: onTick, on: true, status: 0x99, note: note, vel: vel))
                 events.append(MIDIEvent(tick: onTick + gate, on: false, status: 0x89, note: note, vel: 0))

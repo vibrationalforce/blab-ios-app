@@ -26,24 +26,30 @@ final class MIDIFileExporterTests: XCTestCase {
     }
 
     /// The drum note-on byte a TYPE-1 export actually writes when the caller asks for
-    /// velocity 100 and supplies no accents.
+    /// velocity 100 and supplies NO accents.
     ///
-    /// ⛔ THREE TESTS ASSERTED 100 HERE AND WERE WRONG FOR MONTHS — the first thing #469
-    /// found once this file finally reached a target. On the Type-1 path `velocity:` is the
-    /// ACCENT CENTRE, not the emitted byte: `drumEvents` splits ±20 around it, and with an
-    /// empty `accents` array every cell takes the quiet side. `Humanizer.tight` is
-    /// `velocityJitter: 0`, so there is no rounding to hide behind — the byte is exactly 80.
-    /// (The Type-0 `export(steps:tempo:velocity:)` overload has no accents and does emit the
-    /// literal, which is why the sibling test asserting 100 there was always green.)
+    /// ⛔ THIS NUMBER HAS BEEN WRONG IN BOTH DIRECTIONS, AND THAT IS THE WHOLE STORY OF THE
+    /// CONSTANT. Three tests asserted 100 for months and nobody could see them fail — the file
+    /// sat in a directory that was in no target until #469. #469's first real run turned them
+    /// red, and #471 pinned the 80 the code actually emitted: `drumEvents` split ±20 around
+    /// `velocity` and an empty `accents` array sent every cell to the quiet side. #471 wrote
+    /// down that this was probably wrong and refused to change shipped behaviour inside a
+    /// test repair. #474 is that change: with no accent information there is no dynamic to
+    /// preserve, so the requested byte is emitted literally and this constant is 100 again —
+    /// the number the original authors expected, arrived at by fixing the code rather than by
+    /// assuming it.
     ///
-    /// ⭐ A LITERAL ON PURPOSE, not `velocity - 20`. Deriving it from the same rule the code
-    /// applies would make this unable to catch a change to that rule — the #441 defect. If
-    /// the split moves, this number is supposed to go red and be re-decided by hand.
+    /// ⭐ A LITERAL ON PURPOSE, not `velocity`. Every site below passes 100 explicitly, so
+    /// deriving the expectation from the argument would still catch a regression to 80 — but
+    /// it would read as identity-by-construction, and the point here is that ONE specific
+    /// byte reaches the file. If the rule moves, this number is supposed to go red and be
+    /// re-decided by hand (#441).
     ///
-    /// ⚠️ Pinning it is NOT an endorsement: a caller asking for 100 and receiving 80
-    /// everywhere is an open question, recorded at the declaration in `MIDIFileExporter` and
-    /// registered as #471. This file says what ships today; it does not say it is right.
-    private let unaccentedVelocity: UInt8 = 80
+    /// ⚠️ It covers exactly ONE half of the rule: no accents. The ±20 split that still applies
+    /// when a caller DOES supply accents is pinned in the blocking bundle
+    /// (`Tests/CISmoke/RequestedDrumVelocityIsTheEmittedByteTests.swift`), because this file
+    /// is in the NON-blocking suite (#208) and cannot make a merge red.
+    private let noAccentsVelocity: UInt8 = 100
 
     func test_header_isValidSMFType0() {
         let data = MIDIFileExporter.export(steps: emptyGrid(), tempo: 120)
@@ -120,7 +126,7 @@ final class MIDIFileExporterTests: XCTestCase {
         let data = MIDIFileExporter.exportCombined(notes: notes, steps: grid, tempo: 120, velocity: 100)
         XCTAssertTrue(contains(data, [0x90, 60]))            // melody note-on, channel 1
         XCTAssertTrue(contains(data, [0x80, 60, 0]))         // melody note-off, channel 1
-        XCTAssertTrue(contains(data, [0x99, 36, unaccentedVelocity]))   // drum note-on, ch 10
+        XCTAssertTrue(contains(data, [0x99, 36, noAccentsVelocity]))   // drum note-on, ch 10
         XCTAssertTrue(contains(data, [0x89, 36, 0]))         // drum note-off, channel 10
     }
 
@@ -163,7 +169,7 @@ final class MIDIFileExporterTests: XCTestCase {
         let clip = Clip(name: "Beat", kind: .midi,
                         drums: DrumPattern(steps: activeGrid(), accents: []))
         let data = MIDIFileExporter.export(clip: clip, tempo: 120, velocity: 100)
-        XCTAssertTrue(contains(data, [0x99, 36, unaccentedVelocity]))   // drum note-on, ch 10
+        XCTAssertTrue(contains(data, [0x99, 36, noAccentsVelocity]))   // drum note-on, ch 10
         XCTAssertFalse(data.contains(0x90), "a drums-only clip must not emit melody (channel 1) note-ons")
     }
 
@@ -173,7 +179,7 @@ final class MIDIFileExporterTests: XCTestCase {
                         melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 1.0)]))
         let data = MIDIFileExporter.export(clip: clip, tempo: 120, velocity: 100)
         XCTAssertTrue(contains(data, [0x90, 60]))            // melody, channel 1
-        XCTAssertTrue(contains(data, [0x99, 36, unaccentedVelocity]))   // drums, channel 10
+        XCTAssertTrue(contains(data, [0x99, 36, noAccentsVelocity]))   // drums, channel 10
     }
 
     func test_clip_emptyMidiClip_isWellFormed() {

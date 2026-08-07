@@ -279,8 +279,16 @@ Sources/Echoelmusic/
   Tools/               ← PolySynthVoice, SubBassVoice, breath/vocal tools
   Views/               ← MetalBioView + OnboardingView ONLY (the old deprecated-view list is deleted)
 Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l`,
-                          2026-08-07 nach `MIDIFileExporterDrumTests.swift` (#469 — die 24
+                          2026-08-07 nach `MIDIFileExporterTests.swift` (#469 — die 24
                           MIDI-Export-Tests, die in keinem Target standen und nie gelaufen sind).
+                          ⛔ **Hier stand `MIDIFileExporterDrumTests.swift`, eine Datei, die es
+                          NIE gegeben hat** — #469 hat `Tests/EchoelmusicCoreTests/MIDIFileExporterTests.swift`
+                          VERSCHOBEN, nicht eine neue angelegt. Gefunden bei #474, als der
+                          Befehl `ls Tests/EchoelmusicTests | grep -i midi` den Namen nicht
+                          lieferte. **Die ZAHL war richtig und der NAME erfunden**, und das ist
+                          die Sorte, die dieser Absatz sonst nicht kennt: seine ganze Disziplin
+                          zielt auf veraltete Zahlen, während der Name daneben ungeprüft
+                          durchläuft. Ein Name ist genauso ein `git ls-files` wert wie eine Zahl.
                           ⛔ Hier stand „313", ein Stand vom 2026-07-31, und der Commit, der die
                           Datei anlegte, hat DIESE Zeile nicht nachgeführt — derselbe Fehler, den
                           der Sources-Absatz oben dreiundzwanzigmal protokolliert, nur in der Suite,
@@ -289,8 +297,38 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**193** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `TheNoteEngineOutlivedItsEditorTests.swift` (#475 — der erste Wächter in dieser
+                          `Tests/CISmoke` (**194** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `RequestedDrumVelocityIsTheEmittedByteTests.swift` (#474 — der erste
+                          Wächter in dieser Kette, der GANZ VERHALTENSBASIERT ist: `MIDIFileExporter` ist
+                          `public`, Foundation-only und deterministisch, also treibt jede der sechs
+                          Behauptungen die ausgelieferte Funktion und liest die ausgelieferten Bytes. Kein
+                          Quelltext-Scan, und das ist selten genug, um es hinzuschreiben.
+                          ⭐ **Der Defekt war eine ARGUMENT-BEDEUTUNG, die sich zwischen zwei Überladungen
+                          gespalten hatte.** `drumEvents` teilte ±20 um `velocity`, damit die Dynamik einer
+                          akzentuierten Figur den Export überlebt — bei LEERER `accents`-Liste nahm aber jede
+                          Zelle den leisen Zweig, ein Aufrufer mit 100 bekam überall 80, und die verlangte
+                          Zahl stand nirgends in der Datei. Die Type-0-Überladung `export(steps:tempo:velocity:)`
+                          hat gar keine Akzente und lieferte `velocity` immer wörtlich: **zwei Exporter
+                          desselben Rasters, ein Argumentname, zwei Bedeutungen.** Ohne Akzent-Information gibt
+                          es keine Dynamik zu bewahren, nur ein erfundenes Leiser.
+                          ⚠️ Die NAHT ist `accents.isEmpty` und nichts Feineres, und ein Gegengewicht nagelt
+                          genau das fest: ein VORHANDENES Akzent-Array, dessen Zellen alle `false` sind, behält
+                          die −20. Der Aufrufer hat etwas gesagt („keine davon ist akzentuiert"); wer gar keins
+                          liefert, hat nichts gesagt. Die Naht zu weiten ist eine zweite Entscheidung.
+                          ⚠️ EHRLICHE BENOTUNG: von sechs Behauptungen sind ZWEI Regressionen (der Defekt und
+                          seine Property-Fassung), vier sind GEGENGEWICHTE und beidseitig grün — denn das
+                          naheliegende Aufräumen danach lautet „der Exporter liefert, was man verlangt, weg mit
+                          dem Split", und das würde jede wirklich akzentuierte Figur still einebnen.
+                          ⚠️ Und die Grenze zuerst: **kein Export, den ein Nutzer heute erzeugen kann, ändert
+                          sich** — gemessen, nicht angenommen: `export(clip:)` hat null Aufrufstellen in
+                          `Sources/`, und der EINE lebende `exportCombined`-Aufruf (die MIDI-Export-Tür in
+                          `Studio/EchoelStudioView.swift`) übergibt `steps: []`, `drumEvents` sendet also gar
+                          nichts. Geändert wird der VERTRAG einer schlafenden API.
+                          ⛔ Der Quellkommentar, den #474 ersetzt, behauptete das Gegenteil („it would alter
+                          shipped export bytes") — drei Absätze nachdem er selbst festgestellt hatte, dass der
+                          Pfad keinen lebenden Aufrufer hat. Eine Behauptung neben ihrer eigenen Widerlegung,
+                          die Klasse, die diese Datei überall sonst zurücknimmt),
+                          davor „193" nach `TheNoteEngineOutlivedItsEditorTests.swift` (#475 — der erste Wächter in dieser
                           Kette über einer LÖSCHUNG, deren gefährliche Hälfte das ÜBERLEBENDE ist. Der Founder hat den
                           Noten-Editor am 2026-07-26 gestrichen; #178 nahm die Tür, #470 hob das eine Gesetz heraus, das
                           die Löschung sonst mitgenommen hätte, und #475 löscht die 987-Zeilen-`struct PianoRollView: View`
@@ -3152,7 +3190,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 192 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTZWEIUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 194 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
