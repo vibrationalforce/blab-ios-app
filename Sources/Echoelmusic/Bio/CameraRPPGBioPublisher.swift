@@ -1383,6 +1383,33 @@ public final class CameraRPPGBioPublisher {
         // one filter step and ages nothing.
         respiration.reset()
         lastRespirationBeatTime = 0
+        // THE HOLD ANCHORS ARE PER-TAKE TOO, and these three were missing here — the same
+        // omission the block at the end of this method already records for four other fields
+        // (#145). `tick` is a LOCAL of `publishTask`, so a new take restarts it at 0 while
+        // `lastGoodPublishTick` still carried the previous take's count: `tick -
+        // lastGoodPublishTick` was hugely NEGATIVE, hence `<= bioHoldTicks`, hence the hold
+        // branch fired from the first tick of a fresh take and re-published the PREVIOUS
+        // take's frame — for the whole re-acquisition window (#415 measured ~19 s).
+        //
+        // ⭐ THE HALF THAT NOTHING ELSE MASKS is `lastValidCoherence`, and it is not on the
+        // hold path at all. The success path publishes `coherence.valid ? … :
+        // lastValidCoherence * 0.9` and writes back ONLY when valid, so at the start of a
+        // take — when there is not yet enough RR for a valid coherence — every genuinely
+        // live frame, with a genuinely new timestamp, carried the PREVIOUS take's coherence
+        // scaled once. Not a decay: a constant, because the write-back is gated. No
+        // freshness gate and no timestamp dedupe can catch that one; the frame really is
+        // fresh, only the number in it belongs to a different take. The comment above that
+        // line says what it is for — "hold coherence across TRANSIENT invalidity" — and a
+        // stop/start is not transient.
+        //
+        // ⚠️ THE TWO ANCHORS MUST BE CLEARED TOGETHER, and that is not tidiness. `Int.min`
+        // is a sentinel inside a SUBTRACTION: `tick - Int.min` traps on overflow. The only
+        // thing that has ever prevented it is the `if let held` short-circuit in front of
+        // it — cold start pairs `nil` with `Int.min`, so the subtraction is unreachable.
+        // Restoring exactly that pair is why this is two lines and not one.
+        lastGoodBioFrame = nil
+        lastGoodPublishTick = Int.min
+        lastValidCoherence = 0
         isRunning = false
         fingerDetected = false
         signalQuality = 0

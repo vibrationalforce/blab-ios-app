@@ -242,8 +242,59 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**182** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `AHeldFrameCannotResetTheHoldTests.swift` (#447 — der erste
+                          `Tests/CISmoke` (**183** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `AFreshTakeStartsWithNoHeldFrameTests.swift` (#454 — der
+                          Zwilling des Eintrags direkt darunter, eine Ebene TIEFER: #447 hat den
+                          VERBRAUCHER dagegen gehärtet, dass ein messungsloser Frame Zustand zerstört,
+                          und beim Nachlesen fiel auf, dass der ERZEUGER denselben Frame nach einem
+                          Stopp gar nicht hätte schicken dürfen. `CameraRPPGBioPublisher.stop()` setzt
+                          rund zwanzig Pro-Take-Felder zurück und ließ DREI stehen.
+                          ⚠️ EHRLICHE REIHENFOLGE, weil die naheliegende Hälfte die harmlosere ist:
+                          `tick` ist eine LOKALE Variable von `publishTask`, ein neuer Take beginnt
+                          also wieder bei 0, während `lastGoodPublishTick` den Zählerstand des VORIGEN
+                          Takes trug — `tick - lastGoodPublishTick` war stark NEGATIV, damit
+                          `<= bioHoldTicks`, damit feuerte der Ausfall-Halt ab dem ersten Tick eines
+                          frischen Takes und veröffentlichte den Frame des vorigen Takes für das ganze
+                          Neu-Akquise-Fenster (#415 hat dort ~19 s gemessen). **Das ist zu großen
+                          Teilen MASKIERT** und wird hier so gesagt: der gehaltene Frame trägt den
+                          Stempel des vorigen Takes, also lässt `usableBio()` ihn nach 6 s verfallen,
+                          stempel-deduplizierende Verbraucher sehen einen No-op, und `latestBio` wurde
+                          von einem Stopp ohnehin nie geleert. Ein Neustart später als 6 s kostet
+                          messbar nichts.
+                          ⭐ **Die Hälfte, die NICHTS maskiert, liegt gar nicht auf dem Halte-Pfad.**
+                          Der ERFOLGS-Pfad veröffentlicht
+                          `coherence.valid ? coherence.coherence : lastValidCoherence * 0.9` und
+                          schreibt den Wert NUR bei gültigem Fenster zurück. Am Anfang eines Takes gibt
+                          es noch nicht genug RR für eine gültige Kohärenz — also trug JEDER
+                          wirklich lebende Frame, mit neuem Stempel, echtem Puls und durch jedes
+                          Frische-Tor, die Kohärenz des VORIGEN Takes, einmal skaliert. Kein Abklingen:
+                          eine KONSTANTE, weil der Rückschreiber gegated ist. Nichts stromabwärts kann
+                          das fangen — der Frame IST frisch, nur diese eine Zahl gehört zu einem anderen
+                          Take. Der Kommentar über der Zeile nennt die Absicht, die dabei verletzt wird
+                          („Kohärenz über TRANSIENTE Ungültigkeit halten"), und ein Stopp/Start ist nicht
+                          transient.
+                          ⚠️ **Die beiden Anker müssen GEMEINSAM geräumt werden, und das ist keine
+                          Ordnungsliebe:** `Int.min` ist ein Sentinel INNERHALB einer Subtraktion.
+                          `tick - Int.min` läuft über und bringt Swift zum Absturz. Das Einzige, was
+                          das je verhindert hat, ist die Auswertungsreihenfolge — die Bindung
+                          `if let held = self.lastGoodBioFrame` steht davor und schließt kurz, und die
+                          zwei Felder sind nur gemeinsam `nil`/`Int.min`. Das Vertauschen der zwei
+                          Bedingungen liest sich wie Aufräumen und macht aus einem frischen Start einen
+                          Absturz; genau dafür steht die vierte Behauptung des Wächters da, und sie ist
+                          ein GEGENGEWICHT — auf dem alten Code war sie schon grün.
+                          ⚠️ Was der Wächter NICHT kann, und das steht als ERSTES in seinem Kopf: alle
+                          Behauptungen sind QUELLTEXT-SCANS. Die drei Felder sind `private`, der
+                          Publisher liegt hinter `#if canImport(AVFoundation)`, und ihn zu treiben
+                          braucht eine Kamera — es gibt hier keinen Verhaltenstest zu schreiben, und die
+                          Zahlen oben stammen aus dem Lesen des Codes, nicht aus einem Lauf.
+                          ⚠️ Und er HÄTTE DEN FEHLER NICHT GEFUNDEN: ein Scan kann nur die Form
+                          behaupten, für die sich schon jemand entschieden hat. Der Defekt war eine
+                          AUSLASSUNG in einer Methode, die zwanzig andere Felder zurücksetzt — kein
+                          Wächter über den zurückgesetzten Feldern hätte das bemerkt. Gemessen vor und
+                          nach der Reparatur: die drei Zuweisungs-Behauptungen sind auf `880eb1c` alle
+                          FALSCH und danach alle wahr, die vier Prämissen-Behauptungen auf beiden Seiten
+                          wahr),
+                          davor „182" nach `AHeldFrameCannotResetTheHoldTests.swift` (#447 — der erste
                           Wächter in dieser Kette über einem Frame, das GAR NICHTS MISST und trotzdem
                           alles zerstören konnte: `observe` führte den Rückwärtsuhr-Reset VOR dem
                           `guard let measured` aus, also konnte JEDER Frame mit einem älteren Stempel
@@ -2238,7 +2289,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 182 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTEINUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 183 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
