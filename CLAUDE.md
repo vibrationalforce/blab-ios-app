@@ -364,6 +364,26 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           (`testAtLeastOneShippedRowCanStillGoNegative`), und **VIER** sind
                           VORWÄRTS-Wächter auf einem Symbol, das derselbe Commit anlegt — sie konnten nie
                           rot sein, und sie als Regressionen zu verbuchen wäre der #433-Defekt.
+                          ⛔ **UND DIE GANZE BENOTUNG DARÜBER WAR EINE ANTWORT AUF DIE FALSCHE FRAGE —
+                          die Datei kompilierte auch gegen den EIGENEN Baum nicht.** Der Absatz erklärt
+                          sorgfältig, warum sie gegen den ELTERNTEIL kein Verdikt hat, und setzt dabei
+                          stillschweigend voraus, dass sie DANACH baut. Sie tat es nicht: CI/CD auf
+                          `fdca36f` meldete `** TEST BUILD FAILED **` mit drei `error:`-Zeilen, alle in
+                          `TheSignKeysSayWhatTheyDoTests.swift:206-207`. Ursache ist reine Syntax und
+                          nicht Logik — **Swift erlaubt keinen Zeilenumbruch zwischen einem
+                          Optional-Chaining-`?` und dem folgenden Subscript**; `)?` + Umbruch + `["de"]`
+                          parst als frisches Array-Literal („expected ',' separator"). Der
+                          i18n-Katalog-Lesevorgang war vierfach verschachtelt und über zwei Zeilen
+                          umbrochen. Jetzt schrittweise, mit dem Grund an der Stelle. ⭐ **Und der
+                          #478-Diskriminator hat GENAU SO funktioniert, wie er aufgeschrieben ist:**
+                          `TEST BUILD FAILED` plus eine `error:`-Zeile, die eine Repo-Datei nennt =
+                          mein Commit, kein Infrastruktur-Flake — die Unterscheidung, die einen Tag
+                          zuvor eingeführt wurde, hat beim ersten echten Anwendungsfall die Stunde
+                          Fehlersuche gespart. ⚠️ **Die Lehre ist NICHT „Syntax prüfen" — ohne lokale
+                          Toolchain kann ich das nicht. Sie ist: eine Benotungs-Prosa, die eine
+                          Compile-Frage beantwortet, muss sagen, gegen WELCHEN Baum** — „gegen den
+                          Elternbaum nicht benotbar" liest sich wie „gegen den eigenen grün", und
+                          genau diese Lücke hat einen roten Merge-Gate einen Zyklus lang getragen.
                           ⚠️ `SourceText.codeOnly` ist hier TRAGEND und gemessen, nicht prophylaktisch
                           (#453/#484/#485): derselbe Commit schreibt einen ⛔-Block über `signKey`, der
                           `"minus"`, `"plus"` UND das zurückgenommene `negative ? allowsNegative : true`

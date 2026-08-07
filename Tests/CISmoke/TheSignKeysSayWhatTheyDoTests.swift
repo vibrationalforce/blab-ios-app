@@ -203,8 +203,16 @@ final class TheSignKeysSayWhatTheyDoTests: XCTestCase {
             return XCTFail("`Localizable.xcstrings` has no `strings` object")
         }
         for key in ["Make negative", "Make positive"] {
-            let german = ((((strings[key] as? [String: Any])?["localizations"] as? [String: Any])?
-                ["de"] as? [String: Any])?["stringUnit"] as? [String: Any])?["value"] as? String
+            // ⛔ NOT one chained expression. Swift does not allow a line break between an
+            // optional-chaining `?` and the subscript that follows it — `)?` + newline + `["de"]`
+            // parses as a fresh array literal ("expected ',' separator"), which is exactly how
+            // #488 shipped a test file that could not compile. Stepwise is the only safe shape
+            // at this nesting depth.
+            let entry = strings[key] as? [String: Any]
+            let localizations = entry?["localizations"] as? [String: Any]
+            let deLocalization = localizations?["de"] as? [String: Any]
+            let unit = deLocalization?["stringUnit"] as? [String: Any]
+            let german = unit?["value"] as? String
             XCTAssertFalse(german?.isEmpty ?? true, """
                 "\(key)" has no German translation in `Localizable.xcstrings`. A bare literal
                 binds to the `LocalizedStringKey` overload, so an uncatalogued one ships as
