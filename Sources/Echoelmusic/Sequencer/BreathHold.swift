@@ -305,7 +305,13 @@ public struct BreathHold: Sendable, Equatable {
         // demo and HealthKit alike (`HealthKitBioPublisher` says so at its own `timestamp:`,
         // and #98c2 is why). So real measurements are monotone ACROSS sources; the hold
         // republish is the one stamp in the system that deliberately goes backwards. With one
-        // source it is harmless, because the frozen stamp equals the last measurement. With a
+        // source it is harmless, because the frozen stamp is never LESS THAN the last
+        // measurement — `held.timestamp` is the last successfully PUBLISHED camera frame while
+        // `lastMeasuredAt` is the last frame with MEASURED breath, and a camera frame publishes
+        // with `breathRate: 0` whenever `resp.confidence < 0.4`, so the two diverge routinely —
+        // and the reset needs a strict `<`. (⛔ The first draft wrote "equals" here, which is the
+        // stronger and FALSE version; the conclusion survives, but a session that checks the
+        // equality finds it false and may wrongly conclude one source is unsafe.) With a
         // SECOND source running — and `healthBio.startIfAlreadyAuthorized` runs at app level,
         // independent of the pill's camera/BLE/sim choice — a wrist frame advances
         // `lastMeasuredAt` past the frozen stamp, and the next hold republish resets everything.
@@ -327,9 +333,26 @@ public struct BreathHold: Sendable, Equatable {
         // later frame, `rate` never updates again, and `weight` returns a partial, permanent
         // weight on a rate nobody is breathing any more — the fabricated-number failure #433
         // removed, through the back door. It now fires only when a REAL measurement proves the
-        // clock moved, which is the only moment it can do anything anyway: a nil frame cannot
-        // advance state, so deferring the check costs nothing. Starting over still loses the
-        // hold and still costs one fade — the honest price, now paid only for a real cause.
+        // clock moved. Starting over still loses the hold and still costs one fade — the honest
+        // price, now paid only for a real cause.
+        //
+        // ⛔ AND "DEFERRING THE CHECK COSTS NOTHING" WAS ONLY HALF AN ARGUMENT — the reviewer
+        // took it apart and was right. "A nil frame cannot advance state" covers the STATE; it
+        // does not cover the WEIGHT READ. During a dropout with a backwards clock step the old
+        // order zeroed the hold via a nil frame, while the new order keeps the held rate at full
+        // weight (`age` goes negative → `down == 1`). What actually makes the deferral free is
+        // one file over: `EngineBus.usableBio()` requires `age >= -1`, so a backwards step of
+        // more than a second makes it return nil and neither `observe` nor `weight` is called at
+        // all. The claim survives; the reasoning that used to stand here did not carry it, and a
+        // sentence that overreaches its own proof is the thing this repo keeps paying for.
+        //
+        // ⚠️ ONE MORE PRECISION, because the obvious phrasing is false: the reorder is
+        // behaviour-preserving for `measured != nil` AND finite AND a finite window. A non-nil
+        // but non-finite `measured` (or a non-finite window) used to reset and then return; now
+        // it returns without resetting. Unreachable from the one caller — `hasMeasuredBreath`
+        // rejects NaN and `freshnessWindow` is a literal set — and the new behaviour is the
+        // better one, but it is a difference and is written down rather than left to be
+        // re-derived.
         //
         // ⚠️ WHAT THIS DOES NOT FIX, so nobody reads it as more than it is: two real
         // measurements from different sources can still arrive out of stamp order through a

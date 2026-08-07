@@ -18,8 +18,8 @@
 // `CFAbsoluteTimeGetCurrent()` at RECEIPT — camera, BLE, demo and HealthKit alike (#98c2 is why
 // the wrist path does too). Real measurements are therefore monotone ACROSS sources, and the
 // hold republish is the one stamp in the system that intentionally moves backwards. With a
-// single source it is harmless, because the frozen stamp EQUALS the last measurement and the
-// reset needs a strict `<`. It takes a SECOND source to open the gap — and
+// single source it is harmless, because the frozen stamp is never LESS THAN the last
+// measurement and the reset needs a strict `<`. It takes a SECOND source to open the gap — and
 // `healthBio.startIfAlreadyAuthorized` runs at app level, independent of the pulse pill's
 // camera/BLE/sim choice, so a wrist frame can advance `lastMeasuredAt` past the frozen stamp at
 // any time.
@@ -31,7 +31,15 @@
 // That is the full step #434 built this type to remove, in the exact case it was built for,
 // arriving through a guard written for a different problem.
 //
-// ⭐ WHY THE COUNTERWEIGHT IS HALF THE FILE. The reset is not junk — wall clock can move
+// ⛔ AND "EQUALS" WAS WRONG IN THE FIRST DRAFT, in the sentence that carries the whole
+// single-source argument. `held.timestamp` is the stamp of the last successfully PUBLISHED
+// camera frame; `lastMeasuredAt` is the stamp of the last frame with a MEASURED breath. A
+// camera frame publishes with `breathRate: 0` whenever `resp.confidence < 0.4`, so the two
+// diverge routinely and the relation is `>=`, not `==`. The conclusion is unchanged and in fact
+// STRONGER (`>=` ⇒ the strict `<` can never fire on one source) — but a session that checks the
+// equality finds it false and may wrongly conclude the single-source case is unsafe.
+//
+// ⭐ WHY THE COUNTERWEIGHT IS A THIRD OF THE FILE. The reset is not junk — wall clock can move
 // backwards under NTP, and without the reset `lastMeasuredAt` sits in the future and the
 // `now > lastMeasuredAt` guard below it rejects EVERY later frame for ever: `rate` freezes on a
 // rate nobody is breathing any more and `weight` keeps certifying it. That is the
@@ -177,9 +185,13 @@ final class AHeldFrameCannotResetTheHoldTests: XCTestCase {
     /// step and the type latches on a rate nobody is breathing — #433's fabricated number,
     /// through the back door.
     ///
-    /// The load-bearing assertion is the LAST one: a later frame is still accepted. Under a
-    /// hypothetical no-reset version `lastMeasuredAt` would still be 105, so a frame at 91
-    /// would be rejected for ever and `rate` would stay 6.
+    /// ⛔ THE FIRST DRAFT SAID "the load-bearing assertion is the LAST one" AND THAT IS FALSE —
+    /// the reviewer derived it, and it is the same class of error as the one this file already
+    /// retracts above, one function down. Under a hypothetical no-reset version the FIRST
+    /// assertion already fails: `observe(7, at: 90)` would hit `guard now > lastMeasuredAt` with
+    /// `lastMeasuredAt == 105`, return, and leave `rate == 6`. The assertions here are redundant
+    /// BY DESIGN — every one of them catches a missing reset — and saying otherwise tells a
+    /// later session which ones it may delete.
     func testARealBackwardsMeasurementStillResetsAndUnlatches() {
         var hold = warmedCameraHold()
         XCTAssertEqual(hold.rate, paced, accuracy: 1e-12)
