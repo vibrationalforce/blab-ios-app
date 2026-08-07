@@ -305,58 +305,131 @@ struct WorkspaceView: View {
         #endif
     }
 
-    /// Persistent brand header — always on screen. LEFT: the live output spectrum. CENTRE: the
-    /// brand block (mark + wordmark + running version/build) as ONE control. RIGHT: the output
-    /// monitors. Uncodixfy-compliant.
+    /// Persistent brand header — always on screen. LEFT: the loop length + playhead. RIGHT: the
+    /// output monitors, then the brand block (mark + wordmark + running version/build) as ONE
+    /// control. Uncodixfy-compliant.
     ///
-    /// ⭐ THE TITLE IS CENTRED AGAIN — founder, 2026-08-02, with the wordmark circled and an
-    /// arrow to the right: *"Echoelmusic wieder in die Mitte. Die Farbbalken links oben neben
-    /// Echoelmusic in angepasster Form."* Both halves of that sentence are one change, and the
-    /// second is what makes the first honest.
+    /// ⭐ FOUNDER, 2026-08-07, screenshot of v10.79.374 (2491) with a scribble over the colour
+    /// bars, a circle around the mark and a long arrow down to the position readout: *"E Logo
+    /// wieder nach rechts, die bunten Balken weg stattdessen die Anzeige für die Loop Länge und
+    /// der Balken."* All three clauses are ONE change and the arrow is what disambiguates it —
+    /// the readout does not get copied here, it MOVES here (a second copy would be #416).
     ///
-    /// ⛔ IT SUPERSEDES A DECISION THAT IS ONE DAY OLD, and the previous reasoning is kept below
-    /// rather than deleted, because it was not wrong — it was answering a different question.
-    /// On 2026-08-01 the founder circled the empty space left of the title and asked *"Was kann
-    /// hier jetzt noch hin?"*; the answer was **nothing**, on the grounds that the UI rules ban
-    /// decorative tiles and "control-room cosplay", that every status a performer needs already
-    /// had a home (transport and tempo in the transport bar of the day, key/scale/tone system/A4 in
-    /// `CompositionHeaderStrip`, the three output monitors on the right), and that the live pulse
-    /// pill had been deliberately moved OUT of this bar days earlier (#289). So the wordmark
-    /// moved left to close the gap instead. That still holds for a TILE. It does not hold for
-    /// what actually arrived: a live spectrum of the master output is a MEASUREMENT, the one
-    /// class of content the science-first rule asks for by name. The gap now has real content,
-    /// so the wordmark no longer has to stand in for it.
+    /// ⛔ IT SUPERSEDES #384, WHICH IS FIVE DAYS OLD, and the previous reasoning is kept below
+    /// rather than deleted because it was not wrong. On 2026-08-02 the founder asked for the
+    /// Field panel's colour bars up here and for the wordmark back in the middle; the argument
+    /// recorded then was that a live spectrum is a MEASUREMENT rather than a decorative tile,
+    /// which is the one class of content the science-first rule asks for by name. That argument
+    /// still holds — and it holds even better for what replaced it. The loop readout is also a
+    /// measurement, it is the ONE fact a performer needs at a glance while both hands are busy,
+    /// and unlike the spectrum it exists nowhere else on screen. **The spectrum was a SECOND
+    /// copy**: `AnalysisSpectrumView` in the Field panel is the same ring, the same bands and
+    /// the same frequency→visible-light colours, at a size where the number beside it is
+    /// readable. So this removes a duplicate, not a capability — which is the fact that made
+    /// deleting `HeaderSpectrumStrip.swift` outright the honest move rather than unmounting it
+    /// and leaving a doorless leaf behind.
     ///
-    /// ⚠️ THE CENTRING MUST NOT GO BACK TO A `ZStack`, and that is the load-bearing half of
-    /// yesterday's note. A `ZStack` gives its layers NO collision avoidance: the old centred
-    /// title sat on a layer ABOVE the row holding the mark and the monitors, so as the text grew
-    /// it grew straight THROUGH them, with `minimumScaleFactor(0.7)` only bounding how far. The
-    /// centring here is the three-column `HStack` form instead — both flanks take
-    /// `.frame(maxWidth: .infinity)` and align to their outer edges, so they split the leftover
-    /// space evenly and the brand block sits geometrically in the middle. When the text grows the
-    /// FLANKS give way; nothing can overlap at any size, which matters because the chrome is
-    /// capped at `.accessibility1`, not at `.xxLarge`, since #262. `HeaderSpectrumStrip` draws
-    /// nothing at all below 36 pt of width, so the strip fails to empty rather than to a smear.
+    /// ⚠️ THE BRAND BLOCK IS NO LONGER CENTRED, AND THE CENTRING MACHINERY WENT WITH IT. The
+    /// three-column form (two greedy flanks splitting the slack) existed to put the wordmark in
+    /// the geometric middle. There is exactly ONE greedy flank now — the readout — so the
+    /// monitors and the brand pack against the trailing edge, which is what "nach rechts" asks
+    /// for. Two things from that machinery MUST survive, and both are pinned:
+    ///   · **NO `ZStack`.** It gives its layers no collision avoidance, so a title on its own
+    ///     layer grows straight THROUGH the mark and the tiles as Dynamic Type raises it, with
+    ///     `minimumScaleFactor(0.7)` only bounding how far. The chrome is capped at
+    ///     `.accessibility1` (#262), not `.xxLarge`, so that overlap is reachable. In an
+    ///     `HStack` the slack yields first and nothing can overlap at any size.
+    ///   · **NO `Spacer`.** The one greedy flank already owns the leftover width; a `Spacer`
+    ///     would compete with it for the same slack and move the layout by an amount that
+    ///     depends on how much slack there happens to be. Place with the flank's alignment.
     ///
-    /// ⚠️ THE STRIP IS A LEAF AND MUST STAY ONE. It reads the live audio ring in its own body.
-    /// Inlining its `TimelineView`/`Canvas` here — or passing any value it computes down from
-    /// this body — re-creates the 10.76.50 freeze exactly: a live read in the ROOT header tore
-    /// down every open `.menu` Picker in the surface below, once per frame.
+    /// ⚠️ THE READOUT IS A LEAF AND MUST STAY ONE — and this placement is the highest-stakes
+    /// instance of that law in the app, exactly as the spectrum's was. `TransportPositionView`
+    /// reads `transport.position`, ~10 Hz at 120 BPM, in ITS OWN body. CONSTRUCTING it here
+    /// registers nothing. Inlining its two labels — the tempting "simplification" for a
+    /// two-label view — would put a 10 Hz read in the ROOT chrome, an ancestor of every surface,
+    /// and every rebuild tears down any open `.menu` Picker in the instrument below: the
+    /// 10.76.50 freeze, which took four attempts to find because three audits scoped to
+    /// `EchoelStudioView` while the read was one level up. `AnyView` is not an observation
+    /// boundary; only a separate `View` struct is.
+    ///
+    /// ⭐ ONE THING GOT BETTER BY ACCIDENT AND IS WORTH NAMING, because the note on
+    /// `TransportPositionView` recorded it as an unmeasured cost when it went the other way:
+    /// down in `EchoelStudioView` the readout was UNCLAMPED (the chrome's `.accessibility1` cap
+    /// is on this Group, and `SurfaceHost` is its sibling) and inside `StudioZoom`'s pinch
+    /// scope. Back up here it is clamped again, next to a hard `44×4` capsule it has to live
+    /// with. That is the outcome that note wanted; it is still a device look, not a proof.
     private var topBar: some View {
         HStack(spacing: 8) {
-            // LEFT: the founder's "Farbbalken … in angepasster Form" — same ring, same bands,
-            // same frequency→visible-light colours as the Field panel's meter, at chrome size.
+            // LEFT: the loop length + the playhead inside it — the founder's "die Anzeige für
+            // die Loop Länge und der Balken", moved here from the instrument's third line
+            // (which is why that line is gone: one readout, one address).
             //
-            // ⚠️ NO `#if canImport(AVFoundation)` HERE, deliberately, and the first draft had one.
-            // It would have been decoration: `HeaderSpectrumStrip` reads `AudioEngine`, which is
-            // itself declared inside `#if canImport(AVFoundation)`, so on a platform without it
-            // the TYPE does not exist and the guard around the call site saves nothing. Worse,
-            // its `#else` branch was a `Spacer`, which would fight the trailing flank's
-            // `maxWidth: .infinity` over the same slack and quietly move the "centre".
-            // `AnalysisSpectrumView` — the panel meter this is adapted from — is guarded on
-            // SwiftUI alone for the same reason and compiles green.
-            HeaderSpectrumStrip()
+            // ⚠️ NO `#if canImport(AVFoundation)` HERE and none is needed — this leaf reads
+            // `Transport` and `@AppStorage` only. (The strip it replaces carried a note about
+            // NOT guarding it, because its `#else` branch would have been a `Spacer` fighting
+            // the trailing flank for the same slack. That hazard is unchanged and is why the
+            // `Spacer` ban above is pinned rather than remembered.)
+            TransportPositionView()
                 .frame(maxWidth: .infinity, alignment: .leading)
+            // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
+            // around this pill and the transport ■: "könnte ja alles in dem Create From
+            // within Button drin sein … Führe intelligent zusammen"). It now sits
+            // immediately left of "Create from Within" in `EchoelStudioView`, so the
+            // feedback appears ON the control that produces it instead of at the other
+            // end of the window.
+            //
+            // ⛔ This supersedes the founder's 2026-07-12 placement ("Der Pulsmonitor
+            // kommt nach oben zwischen Logo und Echoelmusic"), whose note in
+            // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
+            // This IS that ask, from the same person, with a drawing. The pill itself is
+            // unchanged — same leaf, same tap (Bio panel), same long-press (source
+            // picker) — only its address changed. The space it left was circled again on
+            // 2026-08-02 and now holds the output spectrum; see this property's own doc.
+            //
+            // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
+            // (The former video-lane monitor tile was retired with the DAW video
+            // editing — pure-instrument cut; the tile now surfaces the recorded
+            // performance clips + REC state.) Each is a LEAF that reads its own
+            // live state (freeze rule); taps go through the chrome-door
+            // notification, never into studio state directly.
+            //
+            // ⚠️ GROUPED IN ITS OWN `HStack`, and that is not cosmetic: it makes the three tiles
+            // ONE child of the bar, so the bar's `spacing: 8` puts a single gap between them and
+            // the brand block. Applied per tile, a width modifier would give each one its own
+            // share of the leftover width and spread them across the bar. ⛔ THE `.frame(maxWidth:
+            // .infinity, alignment: .trailing)` THAT SAT HERE IS GONE, and it is the deliberate
+            // half of this slice: it was the RIGHT flank of the three-column centring, and with
+            // the brand block no longer in the middle there is nothing left to balance. Leaving it
+            // would have made the cluster and the readout split the slack evenly and pushed the
+            // brand — the thing the founder asked to move RIGHT — back towards the centre. One
+            // greedy flank, and it is the readout. Still no `Spacer` (see the property's doc).
+            HStack(spacing: 8) {
+                #if canImport(AVFoundation) && canImport(Metal)
+                EchoelClipsMonitorMini()
+                #endif
+                EchoelLuxMonitorMini()
+                // The immersive-visual monitor. (No purchase chip in v1.0 —
+                // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
+                // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
+                // live waveform stays in its own leaf.
+                #if canImport(AVFoundation)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
+                } label: {
+                    ImmersiveMonitorMini(active: cameraRPPG.isRunning)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
+                #endif
+            }
+            // TRAILING-MOST: the brand block — *"E Logo wieder nach rechts"*. It sits AFTER the
+            // monitors rather than before them, which is the only reading of that sentence that
+            // changes anything: before this slice it already stood between the greedy flank and
+            // the monitor cluster, so "right of where it is" and "right of the tiles" are the
+            // same instruction. The tiles keep the trailing EDGE because they are controls with a
+            // 44 pt tap floor (#113) and the brand is a link; putting a link where the thumb
+            // expects the visual toggle would be the worse trade.
             Button { openWebsite() } label: {
                 HStack(spacing: 8) {
                     EchoelLogoMark().frame(width: 22, height: 22)
@@ -381,55 +454,6 @@ struct WorkspaceView: View {
             // redundant and at worst rebuilds the element without its activation.
             .accessibilityLabel("Echoelmusic \(Self.versionString)")
             .accessibilityHint("Opens echoelmusic.com — release notes and support")
-            // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
-            // around this pill and the transport ■: "könnte ja alles in dem Create From
-            // within Button drin sein … Führe intelligent zusammen"). It now sits
-            // immediately left of "Create from Within" in `EchoelStudioView`, so the
-            // feedback appears ON the control that produces it instead of at the other
-            // end of the window.
-            //
-            // ⛔ This supersedes the founder's 2026-07-12 placement ("Der Pulsmonitor
-            // kommt nach oben zwischen Logo und Echoelmusic"), whose note in
-            // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
-            // This IS that ask, from the same person, with a drawing. The pill itself is
-            // unchanged — same leaf, same tap (Bio panel), same long-press (source
-            // picker) — only its address changed. The space it left was circled again on
-            // 2026-08-02 and now holds the output spectrum; see this property's own doc.
-            //
-            // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
-            // (The former video-lane monitor tile was retired with the DAW video
-            // editing — pure-instrument cut; the tile now surfaces the recorded
-            // performance clips + REC state.) Each is a LEAF that reads its own
-            // live state (freeze rule); taps go through the chrome-door
-            // notification, never into studio state directly.
-            //
-            // ⚠️ GROUPED IN ITS OWN `HStack`, and that is not cosmetic: the `maxWidth: .infinity`
-            // has to sit on the whole cluster, not on each tile. Applied per tile it would give
-            // each one an equal share of the leftover width and spread them across the bar; on
-            // the cluster it makes the cluster ONE flank that mirrors the strip on the left, which
-            // is what puts the brand block in the geometric middle. The `Spacer` that used to sit
-            // here is gone for the same reason — a `Spacer` plus two `.infinity` flanks would
-            // fight over the same slack.
-            HStack(spacing: 8) {
-                #if canImport(AVFoundation) && canImport(Metal)
-                EchoelClipsMonitorMini()
-                #endif
-                EchoelLuxMonitorMini()
-                // The immersive-visual monitor. (No purchase chip in v1.0 —
-                // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
-                // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
-                // live waveform stays in its own leaf.
-                #if canImport(AVFoundation)
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
-                } label: {
-                    ImmersiveMonitorMini(active: cameraRPPG.isRunning)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
-                #endif
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 12)
         // ⚠️ `fixedSize` + `minHeight` ARE A PAIR, and `fixedSize` comes FIRST. This is the
@@ -818,23 +842,25 @@ struct TransportOverflowMenu: View {
 /// keeping the read here means only this tiny label rebuilds, never its siblings or
 /// (crucially) the instrument below. Monospaced so width is steady.
 ///
-/// ⚠️ THE LEAF IS NOW LOAD-BEARING IN A HARDER PLACE, and that is why it stopped being
-/// `private` (#456). Its home is `EchoelStudioView.startControlRow` — inside the body that
-/// hosts every `.menu` Picker in the instrument. Mounting a leaf there registers NOTHING;
-/// only its own body reads `transport.position`, so the ~10 Hz churn stays here. That is the
-/// same argument #411 made for `BodyTempoField`, and the freeze law (10.76.41/50) is about
-/// exactly the mistake of inlining these two lines instead. Do not inline them.
+/// ⚠️ THE LEAF IS LOAD-BEARING IN THE HARDEST PLACE THERE IS, and that is why it stopped being
+/// `private` (#456) and stays that way. Its home since #490 is `WorkspaceView.topBar` — the ROOT
+/// chrome, an ancestor of every surface in the app. Mounting a leaf there registers NOTHING;
+/// only its own body reads `transport.position`, so the ~10 Hz churn stays here. Inlining these
+/// two labels into the header instead is the 10.76.50 freeze exactly: the root body would rebuild
+/// ten times a second and tear down any open `.menu` Picker in the instrument below. That took
+/// four attempts to find, because three audits scoped to `EchoelStudioView` while the read was one
+/// level up. Do not inline them.
 ///
-/// ⚠️ AND IT LEFT TWO CEILINGS ON THE WAY DOWN, unstated in the move itself. The chrome Group
-/// in `body` carries `.dynamicTypeSize(...DynamicTypeSize.accessibility1)`; `SurfaceHost` is
-/// its SIBLING, not a descendant, so this leaf is now UNCLAMPED — and it is inside
-/// `StudioZoom`'s pinch scope for the same reason. Its labels are `EchoelTheme.font(14)`/`(10)`,
-/// which resolve `relativeTo: .body` and therefore DO scale, while the loop capsule beside them
-/// is a hard `44×4`. Text that grows next to a bar that does not is the shape that overflows at
-/// AX4/AX5. Being unclamped is arguably the right outcome for a control that now belongs to the
-/// instrument — but it is an unmeasured device look, not a verified improvement, and nobody
-/// chose it. (`TransportOverflowMenu` made the same trip with no effect: its `.system(size: 13)`
-/// does not respond to Dynamic Type at all inside a fixed `30×32`.)
+/// ⭐ IT WENT DOWN INTO THE INSTRUMENT AND CAME BACK, AND THE ROUND TRIP FIXED A COST. The
+/// retracted note here recorded that `EchoelStudioView` left it UNCLAMPED — the chrome Group in
+/// `body` carries `.dynamicTypeSize(...DynamicTypeSize.accessibility1)` and `SurfaceHost` is its
+/// SIBLING, not a descendant — and inside `StudioZoom`'s pinch scope. Its labels are
+/// `EchoelTheme.font(14)`/`(10)`, which resolve `relativeTo: .body` and therefore DO scale, while
+/// the loop capsule beside them is a hard `44×4`; text that grows next to a bar that does not is
+/// the shape that overflows at AX4/AX5. Back in the header it is clamped again. That is the
+/// outcome the old note wanted — and it is still an unmeasured device look, not a proof.
+/// (`TransportOverflowMenu` made the trip down with no effect and stayed: its `.system(size: 13)`
+/// does not respond to Dynamic Type at all inside its tile.)
 @MainActor
 struct TransportPositionView: View {
     @Environment(Transport.self) private var transport

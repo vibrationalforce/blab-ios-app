@@ -75,21 +75,24 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
     func testTheFirstLineStillHoldsExactlyTheFourOriginals() throws {
         let row = try declarationBody(of: "private var startControlRow: some View {",
                                       in: "Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        // Two HStacks inside the row is the shape; fewer means the lines were merged. `>=`
-        // rather than `==`: a future THIRD line is a different change with a different
-        // argument, and it must not fail under a message that says "the lines were merged".
+        // ⛔ THIS COUNT WAS `>= 2` UNTIL #490 AND IT HAD TO COME DOWN, not because the law
+        // weakened but because one of the two lines it counted is gone. #456 put the readout on
+        // a third line of its own; the founder's 2026-08-07 arrow moved that readout into
+        // `WorkspaceView.topBar`, so the row is line 1 (the four originals) + `quickActionRow`
+        // (a MEMBER REFERENCE, not an inner `HStack`). One inner stack is now the correct shape.
+        //
+        // The merge this test exists to catch is still caught, and by a stronger assertion than
+        // a count: `quickActionRow`'s six tiles reach line 1 only by being spelled there, and
+        // the per-line membership loop below rejects `TransportOverflowMenu()` on line 1 by
+        // name. A count of stacks never could distinguish "merged" from "restructured"; the
+        // membership checks always did the real work.
         let hstacks = row.components(separatedBy: "HStack(spacing: 8) {").count - 1
-        XCTAssertGreaterThanOrEqual(hstacks, 2, """
-            `startControlRow` has \(hstacks) inner `HStack(spacing: 8)`, expected at least 2.
+        XCTAssertGreaterThanOrEqual(hstacks, 1, """
+            `startControlRow` has \(hstacks) inner `HStack(spacing: 8)`, expected at least 1.
 
-            Fewer than two means the lines were merged. That is the change #456's own \
-            measurement rules out: the analysis pill is the only flexible child, so a single \
-            line hands it whatever is left after ▶ + ⏸ + tempo + lock + "•••" + the position \
-            readout — and the founder asked for that pill to be BIGGER (#305/#307).
-
-            If a device look says one line is fine after all, make that the founder's call and \
-            rewrite this test with the evidence. Do not merge them because the code looks \
-            tidier that way.
+            Zero means line 1 itself is gone — the four originals (▶ ⏸ tempo+lock, analysis \
+            pill) no longer share a row. That row is the instrument's transport; if it was \
+            deliberately restructured, rewrite this file with the change rather than deleting it.
 
             Row scanned (comments blanked by SourceText.codeOnly):
             \(row)
@@ -147,9 +150,21 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
             The "•••" overflow is not in `quickActionRow`. One of the founder's two arrows \
             pointed into this row; if it went back to the chrome header, that is #456 undone.
             """)
-        XCTAssertTrue(row.contains("TransportPositionView()"), """
-            The position/loop readout is not in `startControlRow`. The founder's other arrow \
-            pointed here.
+        // ⛔ THE SECOND MIGRANT MIGRATED AGAIN (#490) and this assertion is INVERTED rather
+        // than deleted. The founder's 2026-08-07 screenshot ran an arrow from the scribbled-out
+        // colour bars in the header down to the circled `1.1.1 / loop 1/8`: the readout's home
+        // is `WorkspaceView.topBar` now. What must not happen is a SECOND copy appearing back
+        // here — one readout, one address (#416) — and that is what this checks.
+        // `TheHeaderShowsTheLoopTests` owns the positive half.
+        XCTAssertFalse(row.contains("TransportPositionView()"), """
+            `TransportPositionView()` is back in `startControlRow`.
+
+            Since #490 it lives in `WorkspaceView.topBar` — the founder drew the arrow from the \
+            header's colour bars to this readout. Two mounts would put the same loop position on \
+            screen twice, which is the duplicate-definition shape this repo keeps paying for, \
+            and the instrument would lose the ~40 pt of plate the move gave back.
+
+            If the founder asks for it down here again, move it — do not add it.
             """)
     }
 

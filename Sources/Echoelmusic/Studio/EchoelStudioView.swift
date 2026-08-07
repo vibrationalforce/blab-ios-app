@@ -1668,12 +1668,22 @@ struct EchoelStudioView: View {
     /// look rather than a claim. If the founder still wants one line, that is also a device
     /// look at the pill's width, not a guess from here.
     ///
-    /// ⚠️ FREEZE LAW, EXTENDED TO A FIFTH CHILD, and this one carries the ~10 Hz playhead.
-    /// `TransportPositionView` reads `transport.position` in its OWN body — that is why it was
-    /// a separate `struct` in the chrome and why it can be mounted here at all. CONSTRUCTING
-    /// it registers nothing. Inlining its two labels into this body instead would put a 10 Hz
-    /// read in the body that hosts every `.menu` Picker in the instrument, which is the exact
-    /// shape of 10.76.41/50. It stopped being `private` for this move and for nothing else.
+    /// ⛔ AND ONE OF THE TWO MIGRANTS LEFT AGAIN (#490, founder 2026-08-07, screenshot of
+    /// v10.79.374). `TransportPositionView` now lives in `WorkspaceView.topBar`, where the
+    /// colour bars used to be — the founder's arrow ran from the scribbled-out spectrum down to
+    /// the circled readout. The "•••" stays. So this row is TWO lines, and the height sum from
+    /// #456 has to be read backwards: the ~40 pt that line 3 cost comes back, which is the only
+    /// reason the analysis pill is not squeezed by anything in this slice.
+    ///
+    /// ⚠️ THE FREEZE ARGUMENT MOVED WITH IT AND GOT HARDER, so do not read its absence here as
+    /// "no longer relevant". `TransportPositionView` reads `transport.position` (~10 Hz at
+    /// 120 BPM) in its OWN body; that is why it was a separate `struct` in the chrome, why it
+    /// could be mounted here, and why it can be mounted in the ROOT header now. Its new host is
+    /// an ancestor of every surface in the app, so inlining its two labels there would be the
+    /// 10.76.50 freeze at full strength. It stopped being `private` for the #456 move and stays
+    /// non-`private` for this one. What survives HERE is the same law for the row's own
+    /// children: `PulseMonitorMiniLive` and `PlaybackToggleButton` read live state in their own
+    /// bodies, and this body must keep reading none of it.
     private var startControlRow: some View {
         VStack(alignment: .leading, spacing: 8) {
             // LINE 1 — unchanged since #411. Do not add to it; that is what makes the claim
@@ -1691,14 +1701,14 @@ struct EchoelStudioView: View {
             }
             // LINE 2 — the actions (#482). See `quickActionRow`.
             quickActionRow
-            // LINE 3 — the readout, alone. It was beside the "•••" until #482 put five action
-            // tiles on that line; a ~100 pt monospaced label plus six 44 pt targets does not
-            // fit a 375 pt phone (6×44 + 5×8 = 304 of 343 usable), so the readout takes the
-            // line rather than squeezing the row the founder asked for.
-            HStack(spacing: 8) {
-                Spacer(minLength: 0)
-                TransportPositionView()
-            }
+            // ⛔ LINE 3 IS GONE (#490, founder 2026-08-07). It held `TransportPositionView`
+            // alone — the loop capsule plus `1.1.1 / loop 1/8` — because a ~100 pt monospaced
+            // label plus six 44 pt targets does not fit a 375 pt phone (6×44 + 5×8 = 304 of 343
+            // usable), so the readout took a line of its own rather than squeezing the row.
+            // The founder's arrow moved it into the brand header instead: *"die bunten Balken
+            // weg stattdessen die Anzeige für die Loop Länge und der Balken."* It is one
+            // readout with one address — a copy here as well would be #416 — so the line is
+            // deleted rather than emptied, and the instrument gets ~32 pt of its plate back.
         }
     }
 

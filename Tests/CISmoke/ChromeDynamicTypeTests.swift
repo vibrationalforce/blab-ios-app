@@ -206,9 +206,18 @@ final class ChromeDynamicTypeTests: XCTestCase {
     /// with those flanks for the same slack and quietly pull the "centre" off centre. So the
     /// assertion is inverted rather than deleted: the SUBJECT (title and monitors can never
     /// overlap) is unchanged and still carried by the two assertions above it; what is banned is
-    /// now the `Spacer`, not its absence. The exact flank COUNT is pinned once, in
-    /// `HeaderSpectrumIsALeafTests.testTheTitleIsCentredWithoutAZStack` — not duplicated here,
-    /// so a future layout change has one number to update and not two.
+    /// now the `Spacer`, not its absence. The exact flank COUNT is pinned once, elsewhere — not
+    /// duplicated here, so a future layout change has one number to update and not two.
+    ///
+    /// ⛔ THAT POINTER NAMED `HeaderSpectrumIsALeafTests.testTheTitleIsCentredWithoutAZStack`
+    /// UNTIL #490, and the file it named no longer exists — the founder asked for the colour
+    /// bars to go and the guard went with its subject. The count lives in
+    /// `TheHeaderShowsTheLoopTests` now, and it is **ONE** flank, not two: with the brand block
+    /// moved to the trailing edge there is nothing left to centre, so only the loop readout is
+    /// greedy. The `Spacer` ban below is UNCHANGED and is now the load-bearing half — a single
+    /// greedy flank owns all the slack, and a `Spacer` would take half of it back.
+    /// (A live file pointing at a deleted explanation reads as "the rule was withdrawn"; that
+    /// is the #456 lesson, and re-pointing it in the same commit is the whole discipline.)
     func testTheHeaderLaysOutInARowSoTheTitleCannotOverlapTheMonitors() throws {
         let bar = try topBarSource()
         XCTAssertFalse(bar.contains { $0.contains("ZStack") }, """
