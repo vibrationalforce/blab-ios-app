@@ -412,10 +412,17 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         """)
 
         // ⚠️ FILE-WIDE, DELIBERATELY, and the decomposition is what makes the number meaningful:
-        // 14 sit on the root body's chain, `.sheet(item: $visualShare)` sits INSIDE the
-        // fullScreenCover's content, and one `.fileImporter` hangs off a different view. Only the
-        // first group counts against the metadata limit — but a file-wide count is the one a
-        // source scan can take honestly, and any new modal lands in it whichever group it joins.
+        // 14 sit on the root body's chain; the other two sit INSIDE another modifier's content —
+        // `.sheet(item: $visualShare)` inside the `showVisual` fullScreenCover, and
+        // `.fileImporter(isPresented: $projectImportPresented)` inside `openSheet`. Only the FIRST
+        // group counts against the metadata limit — but a file-wide count is the one a source scan
+        // can take honestly, and any new modal lands in it whichever group it joins.
+        //
+        // ⛔ AND FILE-WIDE ALONE HAS A HOLE THAT IS EXACTLY THE SHAPE OF THE SHIP-BLOCKER. Moving
+        // one of those two nested modifiers OUT onto the body chain keeps this number at 16 and
+        // grows the aggregate generic type by one — the 10.76.34 crash, with a green test. The
+        // second assertion below closes it. Neither replaces the other: file-wide catches ADDING,
+        // body-chain catches MOVING, and the pair is the only way to catch both.
         let modals = lines.filter {
             $0.contains(".sheet(") || $0.contains(".fullScreenCover(")
                 || $0.contains(".alert(") || $0.contains(".confirmationDialog(")
@@ -435,6 +442,56 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         supposed to be one fact; they have been three different numbers before.
 
         Found: \(modals.map { $0.trimmingCharacters(in: .whitespaces).prefix(48) })
+        """)
+
+        // The half that is actually the budget. `var body` is declared at 4 spaces, so every
+        // modifier on ITS chain sits at exactly 8 — measured 2026-08-07, all 14 of them resolve
+        // to the `var body: some View` declaration and nothing else does. Anchoring to the body
+        // BLOCK rather than to the indent alone is the difference between a guard and the #364
+        // trap: a `.sheet` at 8 spaces inside some other `var …: some View` is not on this chain
+        // and must not count against this ceiling.
+        guard let bodyStart = lines.firstIndex(where: { $0.hasPrefix("    var body: some View") }),
+              let bodyEnd = lines[bodyStart...].dropFirst().firstIndex(of: "    }")
+        else {
+            return XCTFail("""
+            could not find the `var body: some View` block in EchoelStudioView.swift. The chain \
+            ceiling below is the black-screen budget (10.76.34) and it just stopped being \
+            measurable — fix this scan, do not delete it.
+            """)
+        }
+
+        let chain = lines[bodyStart..<bodyEnd].filter { line in
+            let indent = line.prefix(while: { $0 == " " }).count
+            guard indent == 8 else { return false }
+            let token = line.dropFirst(8)
+            return token.hasPrefix(".sheet(") || token.hasPrefix(".fullScreenCover(")
+                || token.hasPrefix(".alert(") || token.hasPrefix(".confirmationDialog(")
+                || token.hasPrefix(".fileImporter(") || token.hasPrefix(".popover(")
+        }
+
+        // ⚠️ `<=`, NOT `==`, and the asymmetry is the whole design. GROWING this chain is the one
+        // edit that has taken the app down at first render, so it must go red. SHRINKING it is
+        // the prescribed fix (consolidate into one `.sheet(item:)` enum), so it must NOT — an
+        // equality here would make the repair itself fail the guard, which is how a guard gets
+        // deleted instead of obeyed.
+        XCTAssertLessThanOrEqual(chain.count, 14, """
+        `EchoelStudioView.body` now carries \(chain.count) presentation modifiers, over the \
+        ceiling of 14.
+
+        This is the metadata budget, not a style rule. The aggregate generic type of the root \
+        body is at the SwiftUI metadata-decoder limit; 10.76.34 grew this chain by three and \
+        SIGSEGV'd at first render, before any view appeared — a black screen. An `AnyView` split \
+        does NOT save it (10.76.35 still crashed); only reverting the count did.
+
+        Note the file-wide assertion above can be GREEN while this one is red: moving one of the \
+        two nested modifiers (`$visualShare`, `$projectImportPresented`) out onto the chain keeps \
+        the file-wide total at 16 and still grows the generic type. That is exactly why both \
+        numbers are checked.
+
+        Reuse an existing slot — `showVisual`, `showMeditation` and `midiImportPresented` have no \
+        setter at all — or consolidate the chain into one `.sheet(item:)` enum FIRST.
+
+        On the chain: \(chain.map { $0.trimmingCharacters(in: .whitespaces).prefix(44) })
         """)
     }
 

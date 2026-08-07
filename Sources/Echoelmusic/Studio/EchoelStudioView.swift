@@ -2256,8 +2256,16 @@ struct EchoelStudioView: View {
     ///
     /// METADATA (black-screen law): NO presentation modifier is added, removed or moved —
     /// the body's count stays at 14 (8 sheet + 2 cover + 3 alert + 1 fileImporter; counted
-    /// again 2026-07-28, and the `.sheet(item: $visualShare)` at :881 is deliberately NOT
-    /// in it — it sits INSIDE the fullScreenCover's content, not on the body chain). The
+    /// again 2026-07-28, and TWO modifiers are deliberately NOT in it — they sit INSIDE
+    /// another modifier's content, not on the body chain: `.sheet(item: $visualShare)`
+    /// inside the `showVisual` fullScreenCover, and `.fileImporter(isPresented:
+    /// $projectImportPresented)` inside `openSheet`. ⛔ This line said "at :881" for the
+    /// first of them; the actual site is ~500 lines away, because a line NUMBER inside a
+    /// file is invalidated by every insertion above it — the same lesson this repo has
+    /// already paid for twice. Named, not numbered. File-wide the count is therefore 16,
+    /// and `ResetSoundClearsWhatTheLaunchLineReportsTests` now asserts BOTH numbers: the
+    /// file-wide 16 and the body-chain ceiling of 14. Only the second one is the metadata
+    /// budget, and only the second one catches a modifier being MOVED onto the chain.) The
     /// figure said 16 here until today, and its own parts summed to 16 only because the
     /// sheet term had drifted to 10; two of those went with `SampleBrowserView` and the
     /// craft-editor slot. Overstating the count is the safe direction for a WARNING but the
