@@ -98,8 +98,8 @@
 
         <div class="faq-section">
             <h2>Boilerplate (long)</h2>
-            <p>Echoelmusic — Physical Computing · Biofeedback · Multimedial &amp; Multidimensional — is an immersive, iPhone-first instrument and production platform where the body drives sound, image and light in real time. A fingertip on the camera measures the pulse (photoplethysmography); research-grade frequency analysis derives heart-rate-variability coherence; one tap generates music in the player's own key across sixteen curated genres. Under the hood is a polyphonic synthesizer with a live patch editor, 57 scales, a production FX chain, and stamped WAV export straight into Ableton, Logic or FL Studio.</p>
-            <p>For stage and installation work, Echoelmusic speaks open standards only: MIDI input, OSC and ADM-OSC object streams for immersive audio rigs, and Art-Net/sACN for stage lighting — no vendor lock-in. Biosignals are treated as a science-based modulation source, presented numbers-first for self-observation, never as medical diagnosis; visual flash rates are capped at 3&nbsp;Hz per W3C WCAG guidance. The app is free, with no account, no ads, and no data collection.</p>
+            <p>Echoelmusic — Physical Computing · Biofeedback · Multimedial &amp; Multidimensional — is an immersive, iPhone-first instrument and production platform where the body drives sound, image and light in real time. A fingertip on the camera measures the pulse (photoplethysmography); research-grade frequency analysis derives heart-rate-variability coherence; one tap generates music in the player's own key across sixteen curated genres. Under the hood is a polyphonic synthesizer with a live patch editor, 57 scales, a production FX chain, and stamped WAV plus MIDI file export straight into Ableton, Logic or FL Studio.</p>
+            <p>For stage and installation work, Echoelmusic speaks open standards only: MIDI in and note out, OSC and ADM-OSC object streams for immersive audio rigs, and Art-Net/sACN for stage lighting — no vendor lock-in. Biosignals are treated as a science-based modulation source, presented numbers-first for self-observation, never as medical diagnosis; visual flash rates are capped at 3&nbsp;Hz per W3C WCAG guidance. The app is free, with no account, no ads, and no data collection.</p>
         </div>
 
         <div class="faq-section">
@@ -109,7 +109,7 @@
                 <strong>What:</strong> Bio-reactive performance instrument (music · visuals · light)<br>
                 <strong>Platform:</strong> iPhone, iOS 18 or later (iPad, Mac, Watch, Vision planned)<br>
                 <strong>Price:</strong> Free · no account · no ads · no tracking<br>
-                <strong>Privacy:</strong> All biosignal processing on-device. Nothing is sent anywhere unless you switch on an output yourself (OSC / lighting to your own local network, or writing to Apple Health). No account, no analytics, no third-party SDKs.<br>
+                <strong>Privacy:</strong> All biosignal processing on-device. No account, no analytics, no third-party SDKs — Echoelmusic ships with zero external dependencies. Nothing leaves the phone unless you switch it on: OSC / lighting to your own local network, writing to Apple Health, nearby session sharing, or the optional weather and place features, which ask Apple for a forecast and a city name.<br>
                 <strong>Developer:</strong> Echoel (Michael Terbuyken), Hamburg, Germany<br>
                 <strong>Availability:</strong> Coming soon to the App Store (TestFlight now)<br>
                 <strong>Website:</strong> <a href="https://echoelmusic.com">echoelmusic.com</a><br>
@@ -125,7 +125,7 @@
                     <li>Real HRV coherence from research-grade frequency analysis (Lomb-Scargle, Welch) — numbers first, always visible.</li>
                     <li>One-tap generative composition: sixteen curated genres, 57 scales, your key, concert pitch A4 432–444&nbsp;Hz, tempo locked or flowing with the heart.</li>
                     <li>A real instrument: polyphonic synth with a live patch editor and preset library, sub-bass voice, loop cutter, production FX chain.</li>
-                    <li>Studio handoff: stamped WAV export (artist · date · key · BPM · tuning) <em>and</em> MIDI file export (.mid, carrying tempo, 4/4 and the key signature, spanning whole bars), plus MIDI in and out with an external controller (notes, pitch bend, CC&nbsp;74; output is switched on in the routing panel).</li>
+                    <li>Studio handoff: stamped WAV export (artist · date · key · BPM · tuning) <em>and</em> MIDI file export (.mid, carrying tempo, 4/4 and the key signature, spanning whole bars). Live MIDI: <em>input</em> from an external controller including pitch bend and CC&nbsp;74, and <em>note</em> output to your rig (MIDI&nbsp;1.0, switched on in the routing panel). MPE output is on the roadmap, not in this build.</li>
                     <li>Immersive GPU visuals, flash-safe (≤3&nbsp;Hz) and Reduce-Motion aware, recordable as share-ready MP4 clips.</li>
                     <li>Open-standard stage I/O: OSC, ADM-OSC immersive objects, Art-Net and sACN lighting.</li>
                     <li>Nearby session sharing between two iPhones (peer-to-peer, no server).</li>

@@ -220,41 +220,105 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     /// The chain is the point, in BOTH directions:
     ///   · Premise — MIDI export is REACHABLE (`exportMIDI()` has a caller, not just a
     ///     declaration). If a future slice removes the door, this fails FIRST and names the
-    ///     three published places that then have to stop claiming it.
-    ///   · Claim — given that premise, the press kit and both store descriptions must say so.
+    ///     published places that then have to stop claiming it.
+    ///   · Claim — given that premise, every page that already claims WAV export must claim
+    ///     MIDI export too, and so must both store descriptions.
     ///
     /// ⚠️ Comments are stripped before counting, and that is load-bearing here rather than
-    /// prophylactic: `EchoelStudioView.swift` mentions `exportMIDI()` in SIX doc comments —
-    /// including one whose whole subject is the period when it had no caller — against exactly
-    /// two code occurrences. On raw text the premise would read "eight callers" and could never
-    /// fail.
+    /// prophylactic. `exportMIDI` occurs EIGHT times across `Sources/**` — all eight in
+    /// `EchoelStudioView.swift`, which is the only file that mentions it today: two in code
+    /// (the declaration plus the one caller) and SIX in comments — three `///` doc comments and
+    /// three `//` inline ones, including one whose whole subject is the period when it had NO
+    /// caller. On raw text the premise would read "eight" and could never fail.
+    /// (⛔ An earlier version of this sentence said "six DOC comments". Three of the six are
+    /// plain `//`. The claim was about a count I had, and a kind I had not looked at — the
+    /// cheapest possible version of the mistake this whole file exists to catch.)
+    ///
+    /// ⚠️ Two limits stated rather than hidden:
+    ///   · The premise scans ALL of `Sources/**`, not one file. Pinning the path would make an
+    ///     ordinary extraction (`exportMIDI` moving into a helper) red, and the obvious repair
+    ///     would then be to delete a TRUE claim from the website.
+    ///   · The claim side is substring-matching and therefore NEGATION-BLIND: a page that said
+    ///     "MIDI file export is not in this build" would satisfy it. That is acceptable here
+    ///     because the failure mode being guarded is silence, not denial — and denial is what
+    ///     `testTheSiteDoesNotClaimAUv3` already handles, with the surrounding-window machinery
+    ///     this assertion deliberately does not duplicate.
+    ///   · `pages()` enumerates `docs/*.html` only, so the Markdown under `docs/dev/**` — which
+    ///     IS published and indexed — is NOT covered. `docs/dev/APP_STORE_LISTING_v1.md` was in
+    ///     fact stale on both halves when this was written, and was fixed by hand rather than
+    ///     by widening the scan: those files are drafts and internal notes whose claims are
+    ///     deliberately provisional, so a green/red verdict over them would mean something
+    ///     different than it does over a live page.
     func testTheSiteAndTheStoreAgreeThatMIDIExportShips() throws {
-        let studio = try repoRoot()
-            .appendingPathComponent("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        let code = SourceText.codeOnly(try String(contentsOf: studio, encoding: .utf8))
-        let mentions = code.components(separatedBy: "exportMIDI").count - 1
+        let sources = try repoRoot().appendingPathComponent("Sources")
+        guard let walk = FileManager.default.enumerator(atPath: sources.path) else {
+            throw XCTSkip("`Sources/` is not present — a docs-only checkout cannot judge the premise")
+        }
+        var mentions = 0
+        for case let rel as String in walk where rel.hasSuffix(".swift") {
+            let text = try String(contentsOf: sources.appendingPathComponent(rel), encoding: .utf8)
+            mentions += SourceText.codeOnly(text).components(separatedBy: "exportMIDI").count - 1
+        }
         XCTAssertGreaterThanOrEqual(mentions, 2, """
-            `exportMIDI` appears \(mentions) time(s) in the CODE of EchoelStudioView.swift. \
-            Two is the floor: the declaration plus at least one caller.
+            `exportMIDI` appears \(mentions) time(s) in the CODE of `Sources/**` (comments \
+            stripped). Two is the floor: the declaration plus at least one caller.
 
-            One means the door was removed and MIDI export is unreachable again — which is \
-            exactly the state #188 was opened to end. If that removal is deliberate, the \
-            SAME commit must strike the claim from `docs/press.html`, \
-            `fastlane/metadata/en-US/description.txt` and \
-            `fastlane/metadata/de-DE/description.txt`, because a shipped store description \
-            promising an export the app cannot perform is an App Store 2.3 rejection, not a \
-            stale sentence.
+            Zero means the symbol was renamed — re-anchor this scan, do not weaken it. One \
+            means the door was removed and MIDI export is unreachable again, which is exactly \
+            the state #188 was opened to end. If that removal is deliberate, the SAME commit \
+            must strike the claim from every surface listed below, because a shipped store \
+            description promising an export the app cannot perform is an App Store 2.3 \
+            rejection, not a stale sentence.
             """)
 
         // Given the premise, every published surface has to carry it. Spellings rather than one
         // needle: the press kit writes prose, the store files write a bullet, and pinning one
         // phrasing would make an ordinary copy edit red — the #364 trap.
         let spellings = ["MIDI file export", "MIDI export", "als MIDI", "as MIDI", "(.mid",
-                         ".mid)", "MIDI-Datei"]
-        let surfaces = ["docs/press.html",
-                        "fastlane/metadata/en-US/description.txt",
-                        "fastlane/metadata/de-DE/description.txt"]
-        for surface in surfaces {
+                         ".mid)", "MIDI-Datei", "MIDI file"]
+
+        // ⭐ THE RULE, not a list of three files. The first version of this test hard-coded
+        // `press.html` plus the two store descriptions — and this file's own header prescribes
+        // the opposite ("When a claim is corrected on the site, grep the WHOLE repo for it").
+        // Measured at the time: EIGHT pages claim WAV export; only `press.html` was covered, so
+        // seven could have gone stale green — and THREE of them actually were. `privacy.html`'s
+        // Portability bullet offered "export your takes as WAV" and nothing else.
+        //
+        // The needle is a bare, CASE-SENSITIVE "WAV", which is both broader and safer than the
+        // phrase list I first wrote. Broader: an intermediate version listed "WAV export",
+        // "as WAV", "(WAV)" and ".wav" — and `tools.html` fell OUT of the set the moment its
+        // copy was reworded to "WAV and MIDI file export", i.e. the needle list tracked MY
+        // phrasing rather than the site's claim. Safer than lowercase: "wav" is a substring of
+        // "Vaporwave", a genre name that appears on two pages; "WAV" is not.
+        var checked: [String] = []
+        for page in try pages() where page.html.contains("WAV") {
+            checked.append(page.name)
+            XCTAssertTrue(spellings.contains { page.html.contains($0) }, """
+                `docs/\(page.name)` claims WAV export and says nothing about MIDI file export, \
+                but the app ships both (`exportMIDI()` has a caller — see the assertion above).
+
+                This is the #439 defect in the direction that is easy to miss: the page \
+                UNDERSTATES. `press.html` carried "WAV export … plus MIDI input" for weeks \
+                while both store descriptions promised `.mid` export — two published surfaces \
+                disagreeing, with the press kit being the one a journalist copies.
+
+                Spellings accepted: \(spellings.joined(separator: ", ")).
+                """)
+        }
+        XCTAssertGreaterThanOrEqual(checked.count, 6, """
+            Only \(checked.count) page(s) mention WAV: \(checked.joined(separator: ", ")). \
+            EIGHT did when this rule was written. A needle that suddenly matches almost nothing \
+            is how this assertion goes quiet without anyone editing it — the silent-pass \
+            failure `full-tests.yml` already cost this repo. The floor is 6 rather than 8 on \
+            purpose: two pages may legitimately stop discussing export, but a drop below that \
+            means the needle broke, not the copy.
+            """)
+
+        // The store descriptions are not pages and are checked by name: they are the two files
+        // `deliver` overwrites the LIVE listing with, so a stale one is a 2.3 rejection rather
+        // than a stale sentence.
+        for surface in ["fastlane/metadata/en-US/description.txt",
+                        "fastlane/metadata/de-DE/description.txt"] {
             let url = try repoRoot().appendingPathComponent(surface)
             guard let text = try? String(contentsOf: url, encoding: .utf8) else {
                 XCTFail("""
@@ -264,13 +328,8 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
                 continue
             }
             XCTAssertTrue(spellings.contains { text.contains($0) }, """
-                \(surface) does not mention MIDI file export, but the app ships it \
-                (`exportMIDI()` has a caller — see the assertion above).
-
-                This is the #439 defect in the direction that is easy to miss: the page \
-                UNDERSTATES. `press.html` carried "WAV export … plus MIDI input" for weeks \
-                while both store descriptions promised `.mid` export — two published \
-                surfaces disagreeing, with the press kit being the one a journalist copies.
+                \(surface) does not mention MIDI file export, but the app ships it. This file \
+                is uploaded verbatim to the App Store listing.
 
                 Spellings accepted: \(spellings.joined(separator: ", ")).
                 """)

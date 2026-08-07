@@ -77,9 +77,11 @@ COMPOSE FROM YOUR BODY
   (tape delay, chorus, filter, dynamics).
 
 TAKE IT TO YOUR STUDIO AND YOUR SHOW
-• Export stamped WAV files (artist · date · key · BPM · tuning) straight
-  into Ableton, Logic or FL Studio.
-• MIDI input — play the instrument from your own controller.
+• Export stamped WAV files (artist · date · key · BPM · tuning) or a MIDI
+  file (.mid) straight into Ableton, Logic or FL Studio.
+• MIDI note input and output — play the instrument from your own
+  controller, and send its notes on to your rig (output is switched on in
+  the routing panel).
 • Stream your live bio data as OSC and ADM-OSC objects into immersive
   audio rigs, and drive stage lights over Art-Net and sACN — open
   standards, no vendor lock-in.
@@ -103,23 +105,41 @@ creative control and self-observation, not for medical use.
 
 ## What's New (v1.0)
 
-⚠️ **THIS TEXT IS NOT LIVE, AND THE LIVE ONE CONTRADICTS IT.** `fastlane/Deliverfile`
-ships `fastlane/metadata/{en-US,de-DE}/release_notes.txt` with `skip_metadata false`, so
-those two files — not this block — are what every upload sends. They open with **"New in
-this build" / "Neu in diesem Build"**, which is right for a TestFlight increment and wrong
-for a first App Store release. Both framings are correct for their own moment; nothing in
-the repo said which moment each belongs to, which is how they came to read as a
-contradiction (#439).
+⚠️ **THIS TEXT IS NOT LIVE — AND NEITHER IS THE ONE THAT CONTRADICTS IT.** Three "What's
+New" texts exist and **none of them reaches a tester today** (#439):
 
-**What has to happen at submission, in ONE commit:** replace the body of BOTH
-`release_notes.txt` files with the v1.0 text below (translated for de-DE), so the store
-does not describe a first release as an increment. Keep the incremental version in git
-history — do not keep a second copy of it anywhere, or the next session inherits the same
-two competing texts.
+| Where | Says | Actually uploaded? |
+|---|---|---|
+| this block | "The first release: your heartbeat makes music…" | **no** — nothing reads this file |
+| `fastlane/metadata/{en-US,de-DE}/release_notes.txt` | "New in this build" / "Neu in diesem Build" | **no** — see below |
+| `fastlane/Fastfile:167` and its four platform twins | the literal `"iOS Build #{BUILD_NUMBER}"` | **YES** — this is what testers see |
 
-⚠️ The **framing** ("first release" vs "new in this build") is a bookkeeping fact and is
-settled here. The **wording and positioning** of the shipped store copy is a founder call
-and is not being pre-empted by this note.
+⛔ **THE FIRST VERSION OF THIS NOTE GOT THE MECHANISM WRONG, and it is the kind of error
+that hands the next session a false lever.** It said `skip_metadata false` in
+`fastlane/Deliverfile` makes those two files "what every upload sends". `skip_metadata
+false` is real (`Deliverfile:38`), but nothing consumes it: `upload_to_app_store` appears
+**once** in the whole repo (`Fastfile:269`), inside `lane :upload_screenshots`, which
+**raises `UI.user_error!` on its first executable line** (`Fastfile:266`, disarmed
+deliberately so it cannot wipe the live screenshots) and which would pass its own
+`skip_metadata: true` anyway. Every real upload goes through
+`upload_to_testflight_with_retry`, whose changelog argument is a **literal string**. No
+workflow in `.github/workflows/**` invokes `deliver`. The `Deliverfile`'s own header says
+it is "effectively dormant" — the note contradicted the file it cited.
+
+**What has to happen at submission, and it is more than one edit:**
+1. Decide which text ships, and put it in BOTH `release_notes.txt` files (translated for
+   de-DE) — "New in this build" is wrong for a first App Store release.
+2. Give those files an uploader. Either re-arm a `deliver` lane (and then
+   `skip_metadata false` finally means something), or set the App Store "What's New" by
+   hand in App Store Connect. Until one of those happens, editing `release_notes.txt`
+   changes nothing a human will ever read.
+3. Decide what the TestFlight changelog should say. `"iOS Build 2488"` is the only text a
+   tester sees today, and it is not a decision anyone made — it is the default that
+   survived.
+
+⚠️ The **framing** ("first release" vs "new in this build") and the **plumbing** above are
+bookkeeping facts and are settled here. The **wording and positioning** of the shipped
+store copy is a founder call and is not being pre-empted by this note.
 
 ```
 The first release: your heartbeat makes music. Bio-reactive synthesis,
