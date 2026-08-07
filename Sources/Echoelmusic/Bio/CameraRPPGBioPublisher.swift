@@ -282,9 +282,23 @@ public final class CameraRPPGBioPublisher {
     private var lastGoodPublishTick = Int.min
     private var lastValidCoherence: Float = 0
 
-    /// WALL-CLOCK start of the current UNLOCKED stretch — set when a take starts and reset
-    /// forward on every trustworthy reading. `0` means no take is running. Read by
-    /// `acquisitionCue` to tell a normal warm-up from a stall (#484).
+    /// WALL-CLOCK start of the current uninterrupted `.finding` stretch — set when a take
+    /// starts and reset forward on every tick whose `placementCue` is NOT `.finding` (and on
+    /// every tick the capture session is interrupted). `0` means no take is running.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS LINE SAID "reset forward on every TRUSTWORTHY READING",
+    /// and the line below said "moves on every trustworthy tick". Both are false, in the
+    /// direction that HIDES the feature's main cost: the resetting cases are dominated by
+    /// the UNtrustworthy ones (`.coverLens`, `.tooBright`, `.holdStill`, `.pressGently`).
+    /// The comment at the reset site had it right, so the file disagreed with itself — the
+    /// #416 shape, in prose, inside the commit whose banner is ONE DEFINITION.
+    ///
+    /// ⚠️ AND THE COST THE WRONG WORDING HID: any momentary blip above the motion-amplitude
+    /// line or below the 0.0008 amplitude floor restarts the FULL window. A struggling
+    /// contact that flickers `.finding` ↔ `.holdStill` can burn five minutes and never see
+    /// the message — in exactly the population `.stalled` was written for. Whether device
+    /// log 2490's 97 s were CONTINUOUSLY `.finding` is therefore a load-bearing premise for
+    /// the feature firing at all on the take that motivated it, and it is not established.
     ///
     /// ⚠️ ONE field, not a `takeStartedAt` plus a `lastTrustworthyAt`, and the reason is that
     /// two fields would have to agree about which of them wins at the start of a take, when
@@ -300,14 +314,33 @@ public final class CameraRPPGBioPublisher {
     /// rather than reading stalled immediately.
     ///
     /// ⚠️ `@ObservationIgnored` ON PURPOSE, and it is not an oversight even though
-    /// `acquisitionCue` reads it: this field moves on every trustworthy tick, so tracking it
-    /// would add a 10 Hz invalidation source to a publisher the freeze law (10.76.41/50) is
-    /// already careful about. It does not need to notify — the cue is re-derived from
+    /// `acquisitionCue` reads it: this field moves on most ticks, so tracking it would add a
+    /// 10 Hz invalidation source to a publisher the freeze law (10.76.41/50) is already
+    /// careful about. It does not need to notify — the cue is re-derived from
     /// `confidence`/`detectedBPM`/`fingerDetected`, which ARE tracked and DO churn at 10 Hz,
     /// so every reader re-evaluates on its own. The cost is bounded and named: nothing
     /// invalidates at the instant the 45 s elapses; the message appears on the next tick,
     /// i.e. within ~100 ms.
     @ObservationIgnored private var acquisitionSince: CFAbsoluteTime = 0
+
+    /// WHICH stall it is, LATCHED at the instant the window first elapses. `nil` = the
+    /// window has not elapsed (or was reset), which is also what `acquisitionCue` guards on.
+    ///
+    /// ⭐ A LATCH AND NOT A COMPUTED SPLIT, and this is the correction the #484 review
+    /// forced. The first version re-evaluated `conf`/`acf` on EVERY read of
+    /// `acquisitionCue`, i.e. ~10 Hz on a leaf that re-renders at that rate. Both inputs sit
+    /// right at their thresholds in this band — `CameraAnalyzer.isUncorroboratedRipple`
+    /// actively bleeds `bpmConfidence *= 0.9` per peak pass THROUGH the 0.6 line — so a
+    /// stuck take flipped the header between two labels and the card between two OPPOSITE
+    /// instructions several times a second. Every other classifier in this file uses a
+    /// counter or a window (`settleSince`, `saturatedTicks`, `weakAcfTicks`,
+    /// `fingerLostTicks`); this one had none.
+    ///
+    /// ⚠️ Deciding it in the TICK rather than in the cue also keeps it ONE definition: the
+    /// split is written once, here, and `acquisitionCue` only reads the answer. A computed
+    /// property that re-derived it would be a second copy of a threshold pair the trust gate
+    /// already owns (#416).
+    @ObservationIgnored private var stallWasRhythmless: Bool?
 
     /// ⭐ ONE respiration estimator for the whole take (#343). It used to be rebuilt from
     /// scratch on EVERY publish and fed only the newest 10 s analysis window — and that is
@@ -368,17 +401,11 @@ public final class CameraRPPGBioPublisher {
     /// specific instruction for a vaguer one.
     public var acquisitionCue: PulseCue {
         let base = placementCue
-        // `acquisitionSince == 0` means no take is running — a cue read from an idle
-        // publisher must never claim a stall that no clock was measuring.
-        guard base == .finding, acquisitionSince > 0,
-              CFAbsoluteTimeGetCurrent() - acquisitionSince >= PulseCue.stalledAfterSeconds
-        else { return base }
-        // Confidence at display grade with autocorrelation below the corroboration floor is
-        // the exact band `pulseTrustworthy` rejects: a peak counter agreeing with itself on
-        // something that is not periodic. Asked from the SAME two constants the trust gate
-        // uses, so a retune of either cannot leave this classification behind (#416).
-        let rhythmless = confidence >= Self.displayThreshold
-            && analyzer.lastAutoStrength < Self.trustAutoFloor
+        // `stallWasRhythmless == nil` means the publish tick has not latched a stall — which
+        // covers "no take is running" (both anchors are cleared together in `stop()`) and
+        // "the window has not elapsed yet". A cue read from an idle publisher can therefore
+        // never claim a stall that no clock was measuring.
+        guard base == .finding, let rhythmless = stallWasRhythmless else { return base }
         return .stalled(hasRhythmlessSignal: rhythmless)
     }
 
@@ -765,6 +792,14 @@ public final class CameraRPPGBioPublisher {
             // superseded us during the await owns the state now — don't clobber it).
             if gen == startGeneration {
                 isRunning = false
+                // Undo the stall clock armed above, in the SAME branch that undoes
+                // `isRunning` — otherwise an idle publisher carries a non-zero anchor, and
+                // `acquisitionSince`'s own doc says 0 means "no take is running". The latch
+                // goes with it: the two are only ever cleared as a pair (#454's law, one
+                // field over — a per-take anchor a failed start forgets is a previous take's
+                // number, and here it would be a take that never began).
+                acquisitionSince = 0
+                stallWasRhythmless = nil
                 capture.setOnFrame(nil)
                 capture.setOnSessionReset(nil)
                 // Denied/restricted access is a SYSTEM fact, read fresh (not inferred
@@ -1011,7 +1046,38 @@ public final class CameraRPPGBioPublisher {
                 //   · a user who spends a minute fighting `.tooBright` and finally achieves
                 //     a clean contact starts their 45 s from THAT moment, which is the only
                 //     honest reading of "a good contact has produced nothing for 45 s".
-                if self.placementCue != .finding { self.acquisitionSince = nowT }
+                //
+                // ⛔ `capture.isInterrupted` IS THE ONE CASE THAT DID NOT FALL OUT FOR FREE,
+                // and the first version of this line missed it. Nothing stops this publisher
+                // on `scenePhase`; when iOS holds the session the stall branch deliberately
+                // does nothing (breadcrumb only, no analyzer reset), and `isFingerDetected`
+                // only changes when frames are PROCESSED — so every input to `placementCue`
+                // freezes at its last value. A take frozen in `.finding` while the user
+                // takes a call or opens Control Centre accrued the ENTIRE interruption into
+                // the window, and came back reading "still nothing to read — try another
+                // finger" for a gap iOS caused. That is the same "blame the body for a
+                // system fact" this case exists to remove, one layer down. The suppressing
+                // information is computed in this same tick, ~100 lines above.
+                if self.placementCue != .finding || self.capture.isInterrupted {
+                    self.acquisitionSince = nowT
+                    self.stallWasRhythmless = nil
+                } else if self.stallWasRhythmless == nil, self.acquisitionSince > 0,
+                          nowT - self.acquisitionSince >= PulseCue.stalledAfterSeconds {
+                    // LATCHED ONCE, here — see `stallWasRhythmless`. At least one channel
+                    // carrying something means "the lens has a signal and it is the wrong
+                    // shape" (re-place the finger); neither carrying anything means the
+                    // reading is absent, not misshapen (another finger / warm the hand).
+                    // Asked from the SAME two constants the trust gate uses, so a retune of
+                    // either cannot leave this classification behind (#416).
+                    //
+                    // ⛔ `||`, NOT `&&`. The first version tested `conf >= display && acf <
+                    // trust`, making the FALSE branch a catch-all that swept up conf 0.5 /
+                    // acf 0.5 — genuine corroborated periodicity that merely had not cleared
+                    // the strong-only clause, i.e. exactly what `strongAutoFloor` exists
+                    // for — and told those users to warm their hands.
+                    self.stallWasRhythmless = self.confidence >= Self.displayThreshold
+                        || self.analyzer.lastAutoStrength >= Self.trustAutoFloor
+                }
 
                 // EXPOSURE: lock once the finger has covered the lens for ~1.2 s (so
                 // the AGC settled on the bright fingertip), and RE-SETTLE if the lock
@@ -1031,14 +1097,20 @@ public final class CameraRPPGBioPublisher {
                     // `auto` = the independent autocorrelation BPM. If bpm ≈ auto/2 with a
                     // decent acf, the peak-count rate is HALVED (octave error); if they
                     // agree, the rate is genuine. Diagnoses the halving without a reference.
+                    // `cue` = the label the SCREEN is showing right now (#484). Without it a
+                    // device log cannot answer "was this take continuously `.finding`, and
+                    // did `.stalled` ever fire" — the exact question log 2490 left open and
+                    // that `stalledAfterSeconds`' own doc had to answer by INFERENCE from
+                    // amp/bright/finger. One argument; it makes the next log decisive.
                     EchoelCrashLog.breadcrumb(String(format:
-                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f auto=%.0f rate=%.1f in=%.1f win=%d bpm=%.0f conf=%.2f",
+                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f auto=%.0f rate=%.1f in=%.1f win=%d bpm=%.0f conf=%.2f cue=%@",
                         self.fingerDetected ? "yes" : "no",
                         self.analyzer.redChannel, self.analyzer.brightness, self.signalQuality,
                         self.analyzer.lastFilteredAmplitude, self.analyzer.lastPeakCount,
                         self.analyzer.lastAutoStrength, self.analyzer.lastAutoBPM,
                         self.analyzer.lastActualRate, self.inboundRateEMA,
-                        self.analyzer.lastWindowSize, self.detectedBPM, self.confidence))
+                        self.analyzer.lastWindowSize, self.detectedBPM, self.confidence,
+                        self.acquisitionCue.shortLabel))
                 }
                 // TRUTH GATE (2026-07-25). The stall ladder above detects a dead RGB pipe
                 // and drives recovery, but it did NOT stop this publish path — and the
@@ -1561,6 +1633,7 @@ public final class CameraRPPGBioPublisher {
         // wall-clock value here would let an IDLE publisher accumulate a 45 s stall and then
         // report one the moment the next take places a finger.
         acquisitionSince = 0
+        stallWasRhythmless = nil
         isRunning = false
         fingerDetected = false
         signalQuality = 0

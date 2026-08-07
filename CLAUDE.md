@@ -310,14 +310,24 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           zeigen kann. Gerätelog 2490 lief 97 s Kamera-Akquise ohne Lock und ohne
                           Wechsel der Meldung. ⭐ **Und das Aufschlussreichste ist, dass die OBERFLÄCHE NICHT
                           GELOGEN HAT** — meine erste Lesung des Logs behauptete das Gegenteil und war
-                          nachprüfbar falsch: die Zeile „exposure locked on finger" ist ein
-                          `EchoelCrashLog.breadcrumb` (nur Logdatei, nie gerendert), `signalQuality` hat null
-                          Verbraucher, `displayBPM` ist nie vorgerückt und `isLocked` war durchgehend falsch.
-                          Jede gezeigte Sache war ehrlich. Gefehlt hat nicht Wahrheit, sondern ZEIT: keine
-                          Fläche wusste, wie lange die ehrliche Meldung schon dieselbe war. **Lehre,
-                          verschieden von den Wahrheits-Scheiben dieses Absatzes: eine Reihe für sich wahrer
-                          Aussagen kann als Gruppe irreführen, und kein Wächter über einer EINZELNEN
-                          Behauptung sieht das.**
+                          nachprüfbar falsch. Jede gezeigte Sache war ehrlich. Gefehlt hat nicht Wahrheit,
+                          sondern ZEIT: keine Fläche wusste, wie lange die ehrliche Meldung schon dieselbe
+                          war. **Lehre, verschieden von den Wahrheits-Scheiben dieses Absatzes: eine Reihe
+                          für sich wahrer Aussagen kann als Gruppe irreführen, und kein Wächter über einer
+                          EINZELNEN Behauptung sieht das.**
+                          ⛔ **UND DIE BELEG-LISTE DIESER SCHEIBE WAR SELBST ZU STARK — in drei Artefakten
+                          gleichzeitig (hier, Dateikopf des Wächters, Quellkommentar).** Sie zählte VIER
+                          unabhängige Prüfungen auf; es sind **DREI**. (1) „nur Logdatei, **nie gerendert**"
+                          ist falsch: die erreichbare „Diagnostics"-Zeile in `EchoelStudioView` rendert
+                          `EchoelCrashLog.currentLog()`, `SafeModeView` die Vorsitzung — die schärfere Lesung
+                          ist, dass das opt-in-Diagnose-Blatt plausibel der WEG war, auf dem diese Zeile einen
+                          Menschen erreicht und in die Irre geführt hat. (2) „`signalQuality` hat null
+                          Verbraucher": zu stark — null **UI**-Verbraucher, einen Breadcrumb-Verbraucher.
+                          (3) `displayBPM` nie vorgerückt UND `isLocked` durchgehend falsch sind **DIESELBE
+                          Tatsache**: beide sind byteweise `pulseTrustworthy`, können also gar nicht
+                          auseinandergehen. **Eine Korroborations-Liste mit einer Dublette korroboriert
+                          weniger, als sie aussieht** — und diese Liste stand ausgerechnet unter der
+                          Überschrift „ich habe geprüft statt angenommen".
                           ⭐ EINE DEFINITION: `acquisitionCue` ist jetzt zwei Schichten — `placementCue`
                           (augenblicklich: was stimmt mit dem Kontakt gerade nicht) plus die Dauer-Aufwertung
                           darüber. Der Publish-Tick setzt die Stall-Uhr zurück, indem er
@@ -329,22 +339,73 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           beginnt seine 45 s ab dem Augenblick, in dem der Kontakt endlich gut wird.
                           ⚠️ WANDUHR, nicht `frame.timestamp` — #434 hat genau diese Verwechslung eine Datei
                           weiter bezahlt: ein Frame-Stempel steht still, genau wenn eine Dauer gebraucht wird.
-                          Und `stop()` räumt den Anker auf seinen „kein Take"-Sentinel, #454s Gesetz ein Feld
-                          später.
+                          Und `stop()` räumt die Anker auf ihren „kein Take"-Sentinel, #454s Gesetz ein Feld
+                          später — seit der Nachlese ebenso der FEHLGESCHLAGENE Start: der Zweig, der
+                          `isRunning` zurücknimmt, muss die Uhr mitnehmen, sonst trägt ein untätiger
+                          Publisher einen Anker ungleich null, während das Feld-Doc „0 heißt: kein Take
+                          läuft" behauptet.
                           ⚠️ 45 s ist eine WAHL in einem gemessenen Fenster, kein hergeleitetes Optimum: von
                           unten begrenzt durch Akquisen, die GELINGEN (#415s ~19 s Neu-Akquise, ~32 s kalt in
                           Log 2490), von oben durch den Fehlschlag, den sie benennt (97 s). Der Wächter
                           verteidigt das FENSTER, nicht die Zahl.
-                          ⚠️ ABSICHTLICH NICHT GESAGT: „nimm einen Brustgurt". `bioPanel` — das Panel, das die
-                          Messkarte beherbergt — trägt diese Route schon wörtlich, und ein VoiceOver-Nutzer
-                          erreicht sie unmittelbar VOR der Karte. Die Kette dorthin ist `isActionable`: die
-                          Header-Kachel wird bernsteinfarben, und genau das öffnet das Panel.
-                          ⚠️ EHRLICHE BENOTUNG: nur die QUELLTEXT-SCANS konnten vor diesem Commit rot sein.
-                          Jede Verhaltens-Behauptung treibt einen Case, den DERSELBE Commit anlegt — sie als
-                          Regressionen zu verbuchen wäre der #433-Defekt. Der Rest sind GEGENGEWICHTE gegen
-                          die naheliegenden Aufräumarbeiten: `.finding` auch actionable machen (was die
-                          Unterscheidung einebnet — ein Bernstein, das immer an ist, trägt keine Information)
-                          und die Quellen-Route im Hinweis wiederholen.
+                          ⚠️ ABSICHTLICH NICHT GESAGT: „nimm einen Brustgurt". `bioPanel` trägt diese Route
+                          schon wörtlich. ⛔ Die erste Fassung nannte es „das Panel, das die Messkarte
+                          beherbergt" und behauptete, ein VoiceOver-Nutzer erreiche die Route „unmittelbar VOR
+                          der Karte" — beides falsch: das Panel beherbergt `BioStripView`, und der Gurt-Satz
+                          kommt DANACH; das „unmittelbar davor" war aus einem Kommentar über den
+                          Routing-Knopf geborgt. Ebenso falsch: „die Header-Kachel wird bernsteinfarben, und
+                          genau das öffnet das Panel" — die FARBE öffnet nichts, sie zieht den Blick; das
+                          ANTIPPEN öffnet.
+                          ⭐ **DER TEUERSTE BEFUND DER NACHLESE IST EINE COMPLIANCE-KANTE, und sie war
+                          unsichtbar, weil sie in einer VoiceOver-Schicht saß (#480s Lehre, eine Woche
+                          später erneut bezahlt).** Die ausgelieferte erste Fassung sagte „Signal, but no
+                          steady rhythm" mit dem Kurz-Etikett „No rhythm" — gerendert in einer Kachel, deren
+                          Accessibility-Etikett *Heart rate* lautet. VoiceOver sprach also „Heart rate.
+                          Signal, but no steady rhythm." Das ist eine Lesart von „dein Herzschlag ist
+                          unregelmäßig" — und niedrige Autokorrelation bei weiter feuerndem Peak-Zähler ist
+                          *auch* das, was ein unregelmäßiger Rhythmus auf einer PPG-Spur erzeugt: der Satz
+                          konnte als kardiologische Beobachtung MISSVERSTANDEN und dabei zufällig RICHTIG
+                          sein. Die schlechteste verfügbare Kombination für ein nicht-medizinisches
+                          Instrument, und das Wort „Rhythmus" brauchte der Entwurf nie. **Subjekt beider
+                          Sätze ist seither das SIGNAL, nie der Körper** (`Tests/CISmoke`-Wächter
+                          `testNeitherStallVariantMakesTheBodyTheSubject`).
+                          ⭐ **ZWEITER BEFUND, von beiden Reviewern unabhängig: die Klassifikation war ein
+                          `&&` und musste ein `||` sein.** Sie testete `conf ≥ 0,6 && acf < 0,4`, der
+                          FALSE-Zweig war damit ein Auffangbecken, das conf 0,5 / acf 0,5 mitnahm — also
+                          echte korroborierte Periodizität, die bloß die Nur-Stark-Klausel nicht erreicht
+                          hatte, genau das Band, für das `strongAutoFloor` existiert — und schickte diese
+                          Nutzer „die Hand wärmen".
+                          ⭐ **DRITTER: die Aufteilung wurde ~10 Hz NEU GERECHNET.** Beide Eingaben liegen in
+                          diesem Band auf ihren Schwellen, und `CameraAnalyzer.isUncorroboratedRipple` treibt
+                          die Konfidenz aktiv DURCH die 0,6-Linie (`*= 0.9` je Peak-Durchgang) — ein
+                          festhängender Take wechselte also mehrmals pro Sekunde zwischen zwei Etiketten und
+                          zwei ENTGEGENGESETZTEN Anweisungen. Jetzt eine LATCH (`stallWasRhythmless`), einmal
+                          im Tick entschieden. Jeder andere Klassifikator dieser Datei benutzt einen Zähler
+                          oder ein Fenster; dieser hatte keins.
+                          ⭐ **VIERTER: `capture.isInterrupted` fiel NICHT gratis heraus.** Nichts stoppt
+                          diesen Publisher auf `scenePhase`; während iOS die Session hält, friert JEDE
+                          Eingabe von `placementCue` ein — ein in `.finding` eingefrorener Take rechnete die
+                          GANZE Unterbrechung ins Fenster und kam mit „still nothing to read — try another
+                          finger" für eine Lücke zurück, die das System verursacht hat. Dieselbe „gib dem
+                          Körper die Schuld für eine System-Tatsache", die der Case entfernen soll, eine
+                          Schicht tiefer.
+                          ⛔ **EHRLICHE BENOTUNG — und die erste Fassung war hier schmeichelhaft.** Sie sagte
+                          „nur die QUELLTEXT-SCANS konnten vor diesem Commit rot sein". Wahr ist das
+                          Härtere: die Wächter-Datei lässt sich gegen den Vor-#484-Baum **überhaupt nicht**
+                          benoten — jede Behauptung nennt `PulseCue.stalled`, das dort nicht existiert, das
+                          Bundle kompiliert also nicht und KEINE Behauptung hat ein Verdikt. Das ist die
+                          #464-Lage, klar gesagt statt verkleidet. Der Wert der Datei liegt vorwärts: die
+                          Scans fangen eine spätere Entfernung, die Verhaltensfälle sind GEGENGEWICHTE gegen
+                          die naheliegenden Aufräumarbeiten — `.finding` auch actionable machen (ein
+                          Bernstein, das immer an ist, trägt keine Information), die Quellen-Route im Hinweis
+                          wiederholen, die zwei Etiketten zusammenlegen, und zu einer Formulierung
+                          zurückkehren, deren Subjekt der Körper ist.
+                          ⚠️ Und `SourceText.codeOnly` ist in diesem Wächter **PROPHYLAKTISCH**, nicht
+                          tragend — die erste Fassung nannte es „LOAD-BEARING". Gemessen statt behauptet:
+                          gestreift gegen roh unterscheiden sich die Verdikte von **0 der 18** Quelltext-
+                          Behauptungen. Es bleibt, weil #453 EINE Definition von „Code, nicht Prosa" für das
+                          ganze blockierende Bundle geschaffen hat und eine private Ausnahme genau der Defekt
+                          ist, den jene Scheibe entfernt hat.
                           ⚠️ Und die Grenze zuerst: die Verdrahtungs-Hälfte ist Quelltext, kein Lauf —
                           `CameraRPPGBioPublisher` liegt hinter `#if canImport(AVFoundation)`,
                           `acquisitionSince` ist `private`, und es zu treiben braucht eine Kamera. Dass 45 s

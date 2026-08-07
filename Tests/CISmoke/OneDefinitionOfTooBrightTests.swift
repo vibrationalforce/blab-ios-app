@@ -41,8 +41,9 @@
 //     cue cannot be STEERED. Naming the wrong blocker sends the next session to a device for
 //     what is a one-line test seam.) House pattern: `SoundPromptHasADoorTests`,
 //     `SoundPanelReflowsTests`.
-//   · The scan is scoped to ONE property. A helper `private var brightnessCue` carrying its own
-//     literal, one function away, passes both assertions.
+//   · The scan is scoped to TWO named properties (`placementCue` and, since #484, the duration
+//     layer `acquisitionCue` that must consult it). A helper `private var brightnessCue` carrying
+//     its own literal, one function away, still passes every assertion here.
 //   · `codeLines` strips `//` only, not `/* */`. A block comment containing a brace inside the
 //     cue would truncate the extracted body silently.
 //   · The behavioural half is green on BOTH sides of #416 — see its own header. Only the scan
@@ -135,20 +136,30 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
 
     // MARK: - The coaching must ASK, not re-decide
 
-    /// ⭐ THE DRIFT GUARD. `acquisitionCue` must reach its brightness verdict by calling
+    /// ⭐ THE DRIFT GUARD. The instantaneous cue must reach its brightness verdict by calling
     /// `isWashedOut`, and must not compare a brightness or red value itself. Comments are
     /// stripped first, so the ⛔ block above the call — which quotes the old numbers on purpose —
     /// cannot stand in for code. Reverting #416 makes this red.
+    ///
+    /// ⛔ THIS GUARD WENT RED ON #484 AND THE MESSAGE NAMED THE WRONG CAUSE — the exact failure
+    /// CLAUDE.md's #456 entry warns about in one sentence ("before changing a surface, `git grep`
+    /// it in `Tests/CISmoke`, not just in `Sources/`"). #484 split the property in two: the
+    /// duration layer kept the name `acquisitionCue`, and the instantaneous classification —
+    /// including the `isWashedOut` call — moved down into `placementCue`. The anchor stayed
+    /// unique, so `anchors.count == 1` passed and the assertion fired for real, telling the next
+    /// session that "#416 is back" when the delegation was intact one layer down. The anchor now
+    /// names the layer that OWNS the verdict, and a second assertion below pins the delegation
+    /// itself — so this file cannot be satisfied by a cue that stops asking EITHER one.
     func testTheCoachingAsksTheStateMachineInsteadOfCarryingItsOwnNumber() throws {
-        let body = try acquisitionCueBody()
-        // An empty body means `acquisitionCueBody()` already recorded the REAL failure (anchor
+        let body = try placementCueBody()
+        // An empty body means `placementCueBody()` already recorded the REAL failure (anchor
         // missing or ambiguous). Running the two assertions below on it would add two more
         // messages that name the wrong cause — "no longer calls isWashedOut" is misleading when
         // the truth is that the property could not be located at all.
         guard !body.isEmpty else { return }
 
         XCTAssertTrue(body.contains { $0.contains("isWashedOut(") }, """
-        `acquisitionCue` no longer calls `isWashedOut` — it decides "too bright" on its own again.
+        `placementCue` no longer calls `isWashedOut` — it decides "too bright" on its own again.
 
         That is the #416 state exactly. The two definitions then drift apart silently, and the \
         direction of the last drift had the screen contradicting the recovery path. If the cue \
@@ -163,11 +174,43 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
             Self.comparisonMarkers.contains { line.contains($0) }
         }
         XCTAssertTrue(comparisons.isEmpty, """
-        `acquisitionCue` compares a brightness/red value directly:
+        `placementCue` compares a brightness/red value directly:
         \(comparisons.joined(separator: "\n"))
 
         A second threshold here is how #416 happened. Route the question through a named \
         predicate so the state machine and the sentence on screen cannot disagree.
+        """)
+    }
+
+    /// ⭐ THE HALF THE #484 SPLIT MADE NECESSARY, and it is a GEGENGEWICHT, not a regression:
+    /// it is green on both sides of #484 (before the split there was one property, and it both
+    /// asked and answered). Its job is the tidy-up AFTER: the guard above now measures
+    /// `placementCue`, so a later change that makes `acquisitionCue` stop consulting it — an
+    /// inlined brightness test in the duration layer, or a cue that returns `.finding` without
+    /// asking — would leave the file entirely green while the screen and the exposure recovery
+    /// drift apart again. That is #416 by a different door.
+    ///
+    /// Deliberately asserts the DELEGATION and not the absence of comparisons in
+    /// `acquisitionCue`: the duration layer legitimately compares a TIME
+    /// (`>= PulseCue.stalledAfterSeconds`), so a blanket "no comparisons" rule here would be a
+    /// guard that fails for the wrong reason (#367).
+    func testTheDurationLayerStillAsksTheInstantaneousOne() throws {
+        let body = try acquisitionCueBody()
+        guard !body.isEmpty else { return }
+
+        XCTAssertTrue(body.contains { $0.contains("placementCue") }, """
+        `acquisitionCue` no longer reads `placementCue`, so the brightness/placement verdict this \
+        file guards cannot reach the screen at all — and the assertion above would stay green, \
+        because it measures `placementCue` in isolation.
+
+        Since #484 the two layers are: `placementCue` = what is wrong with the contact RIGHT NOW \
+        (the #416 delegation), `acquisitionCue` = that answer, upgraded to `.stalled` once it has \
+        been the same one for `PulseCue.stalledAfterSeconds`. The upgrade must be built ON the \
+        instantaneous answer — that is what keeps the tick and the screen from disagreeing about \
+        what `.finding` means.
+
+        The body it found was:
+        \(body.joined(separator: "\n"))
         """)
     }
 
@@ -180,7 +223,16 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
     /// caught by running — "THE FIRST VERSION OF THIS TEST FAILED", says its own header. The
     /// first version of this line said "#408 shipped" it, which is the opposite of the record: it
     /// anchored on a name that matched the declaration before the call site).
-    private static let cueAnchor = "var acquisitionCue: PulseCue {"
+    ///
+    /// ⛔ SINCE #484 THIS NAMES `placementCue`, NOT `acquisitionCue`. The split kept the OLD name
+    /// on the OUTER (duration) layer, so the previous anchor stayed unique and kept resolving —
+    /// to a body that no longer contains the delegation. A unique anchor is not a correct one.
+    private static let cueAnchor = "private var placementCue: PulseCue {"
+
+    /// The outer, duration layer. Separate anchor because
+    /// `testTheDurationLayerStillAsksTheInstantaneousOne` must read a DIFFERENT body than the two
+    /// assertions above — one guard per layer, or the split silently halves the coverage.
+    private static let durationAnchor = "public var acquisitionCue: PulseCue {"
 
     /// A brightness/red comparison written INSIDE the cue — the thing #416 removed. Hoisted to a
     /// stored constant rather than a literal inside the `filter` closure: this bundle already
@@ -191,15 +243,20 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
         "brightness >", "brightness <", "redChannel >", "redChannel <"
     ]
 
-    /// The statements inside `acquisitionCue`, comments stripped, braces balanced from the
-    /// anchor. Brace counting runs on the STRIPPED lines on purpose: a brace inside a comment
-    /// would otherwise close the body early and the scan would silently look at three lines.
-    private func acquisitionCueBody() throws -> [String] {
+    /// The statements inside `placementCue` — comments stripped, braces balanced from the anchor.
+    private func placementCueBody() throws -> [String] { try body(after: Self.cueAnchor) }
+
+    /// The statements inside `acquisitionCue` (the duration layer).
+    private func acquisitionCueBody() throws -> [String] { try body(after: Self.durationAnchor) }
+
+    /// Brace counting runs on the STRIPPED lines on purpose: a brace inside a comment would
+    /// otherwise close the body early and the scan would silently look at three lines.
+    private func body(after anchor: String) throws -> [String] {
         let lines = try codeLines(Self.publisher)
-        let anchors = lines.indices.filter { lines[$0].contains(Self.cueAnchor) }
+        let anchors = lines.indices.filter { lines[$0].contains(anchor) }
         guard anchors.count == 1, let start = anchors.first else {
             XCTFail("""
-            expected exactly one line containing "\(Self.cueAnchor)" in \(Self.publisher), \
+            expected exactly one line containing "\(anchor)" in \(Self.publisher), \
             found \(anchors.count).
 
             With zero, the property was renamed and this file is measuring nothing. With more \
@@ -218,7 +275,7 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
             if wasOpen { out.append(line) }
             if wasOpen && depth <= 0 { return out }
         }
-        XCTFail("`acquisitionCue`'s braces never balanced — the body could not be read")
+        XCTFail("the braces after \"\(anchor)\" never balanced — the body could not be read")
         return out
     }
 
@@ -240,7 +297,10 @@ final class OneDefinitionOfTooBrightTests: XCTestCase {
     /// Non-empty lines with whole-line and trailing comments removed. The quote-parity check
     /// approximates "is this `//` inside a string literal"; it is imperfect in both directions
     /// (see `SoundPromptHasADoorTests` for the measured cases), which is tolerable here because
-    /// `acquisitionCue` contains no string literals at all.
+    /// NEITHER scanned body — `placementCue` nor `acquisitionCue` — contains a string literal.
+    /// (⚠️ A private stripper, i.e. one of the ~60 `codeLines` copies #460 leaves open on purpose.
+    /// Folding it into `SourceText.codeOnly` is that task, not this one — the needle change would
+    /// touch ~70 files in one commit.)
     private func codeLines(_ path: String) throws -> [String] {
         let url = try repoRoot().appendingPathComponent(path)
         let text = try String(contentsOf: url, encoding: .utf8)
