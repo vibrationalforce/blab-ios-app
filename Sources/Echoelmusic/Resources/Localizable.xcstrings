@@ -19,6 +19,42 @@
         }
       }
     },
+    "Make negative" : {
+      "comment" : "VoiceOver label for the − key on the Echoel number pad. It sets the SIGN of the value being entered and never changes the magnitude; without this label SwiftUI names the button after its SF Symbol (\"minus\"), i.e. the word for the arithmetic the key does not do.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negativ machen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make negative"
+          }
+        }
+      }
+    },
+    "Make positive" : {
+      "comment" : "VoiceOver label for the + key on the Echoel number pad. It sets the SIGN of the value being entered and never changes the magnitude; without this label SwiftUI names the button after its SF Symbol (\"plus\"), i.e. the word for the arithmetic the key does not do.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Positiv machen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make positive"
+          }
+        }
+      }
+    },
     "Breathe, lock a key and BPM, and let your body compose. Export to your DAW." : {
       "comment" : "Onboarding, page 3 body.",
       "extractionState" : "manual",

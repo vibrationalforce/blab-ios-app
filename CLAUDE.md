@@ -304,8 +304,77 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**201** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `EveryPitchedVoiceFollowsTheToneSystemTests.swift` (#338 — der
+                          `Tests/CISmoke` (**202** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `TheSignKeysSayWhatTheyDoTests.swift` (#488 — der erste Wächter in
+                          dieser Kette über einer ACCESSIBILITY-Zeichenkette, die es GAR NICHT GAB, und der
+                          erste, dessen Defekt auf dem EINEN app-weiten Bedienelement saß. Die − und +
+                          Tasten von `EchoelNumberPad` — geöffnet von jedem `EchoelValueField`, also von
+                          **118** Parameter-Zeilen — trugen kein `.accessibilityLabel`. SwiftUI benennt
+                          einen solchen Knopf nach seinem SF-Symbol, VoiceOver sprach also „minus" und
+                          „plus": die Wörter für genau die Arithmetik, die diese Tasten NICHT tun. Sie
+                          setzen das VORZEICHEN und lassen den Betrag unberührt.
+                          ⭐ **Und die Wörter waren nicht bloß falsch, sie waren VERGEBEN.** Diese App HAT
+                          ein echtes Inkrement/Dekrement — `EchoelValueField`s
+                          `accessibilityAdjustableAction`, mit dem Wischen hoch/runter den Wert wirklich
+                          verstellt (#480 hat genau das gemessen). Zwei verschiedene Affordanzen unter
+                          einem Satz Wörter, und die falsche trug sie.
+                          ⭐ **Die Schicht ist die Lehre, und #480 hat sie EINE WOCHE ZUVOR schon einmal
+                          bezahlt:** ein Accessibility-Etikett ist unsichtbar, solange VoiceOver aus ist —
+                          kein Screenshot, kein Design-Durchgang, kein UI-Review zeigt es je. Deshalb
+                          konnte diese Auslassung auf dem meistbenutzten Bedienelement der App überleben,
+                          während dieselbe Klasse im sichtbaren Text regelmäßig gefangen wird.
+                          ⭐ **DER ZWEITE, STÄRKERE DEFEKT KAM ERST BEIM MESSEN — und er ist die
+                          #135-Klasse.** Das Tor war `negative ? allowsNegative : true`: das `+` war
+                          IMMER aktiv. Auf einer Zeile ohne negative Untergrenze kann aber gar kein
+                          führendes Minus existieren (`−` ist gesperrt, `append` schreibt nur Ziffern,
+                          `appendDecimal` schreibt keins) — die Taste war dort ein beweisbarer No-op, der
+                          live aussah. Gemessen statt geschätzt: von **118** `EchoelValueField`-Zeilen in
+                          `Sources/` haben **DREI** eine negative Untergrenze (`EchoelFXView`: Flanger
+                          Feedback −0,95…0,95 · Comp Threshold −48…0 · Limiter Ceiling −12…0). Auf **115
+                          von 118** war das `+` also ein lügendes Control. Jetzt hängt das PAAR an
+                          `allowsNegative` und dimmt gemeinsam.
+                          ⛔ **UND DIE ERSTE MESSUNG SAGTE „NULL negative Zeilen" — der #443-Defekt in
+                          seiner leisesten Form.** Mein Scan suchte ein `range:`-Argument;
+                          `EchoelFXView.field`, `EchoelStudioView.param` und `knob` reichen den Bereich
+                          POSITIONELL durch (drittes Argument). Ein Scan, der nach einem Label sucht, das
+                          die Aufrufstellen nicht schreiben, meldet nicht „ich sehe nichts", sondern
+                          „es gibt nichts" — und daraus wäre „das Paar ist überall tot, weg damit"
+                          geworden. Die METHODE in einem Satz ist auch eine Behauptung.
+                          ⭐ Die Regel selbst ist deshalb in `NumberPadEntry.signed` GEHOBEN, wie
+                          `acceptsDigit` davor: eine `private`-Methode auf einem SwiftUI-`View` ist vom
+                          blockierenden Bündel nicht messbar, und was diese zwei Tasten tun, ist genau
+                          das, was ein Nutzer missverstehen kann. Idempotent per Konstruktion (der Rumpf
+                          wird ohne führendes Minus genommen, bevor eines gesetzt wird), also kann
+                          zweimal Drücken weder stapeln noch umschalten.
+                          ⚠️ Der PREIS ist zwei gedimmte Zellen auf 115 von 118 Zeilen statt einer. Das ist
+                          der Tausch: ein sichtbar totes Bedienelement ist ehrlicher als eines, das live
+                          aussieht und nichts kann. **Absichtlich KEIN `accessibilityHint`** — der Hinweis
+                          gehört der Zeile, die den Pad geöffnet hat (#416: eine Entscheidung, ein Ort).
+                          ⛔ **EHRLICHE BENOTUNG, und sie ist die #464-Lage, klar gesagt statt verkleidet:
+                          die Datei lässt sich gegen den Elternbaum ÜBERHAUPT NICHT benoten** — vier ihrer
+                          neun Methoden treiben `NumberPadEntry.signed`, das dort nicht existiert, das
+                          Bündel kompiliert also nicht und KEINE Behauptung hat ein Verdikt. Von Hand
+                          transkribiert: **ZWEI** sind Regressionen aus ihrem GENANNTEN Grund
+                          (`testBothSignKeysCarryASpokenLabel`, `testPlusIsGatedLikeMinus`), **EINE** auf
+                          der i18n-Hälfte (`testBothLabelsAreInTheCatalogWithGerman`, Schlüssel abwesend),
+                          **EINE** rot durch ANKER-Abwesenheit statt aus ihrem Grund
+                          (`testTheLabelsDoNotClaimArithmetic` wirft, weil `.accessibilityLabel(` dort
+                          fehlt — die #486-Form, und sie gehört gezählt, nicht als Befund verbucht),
+                          **EINE** echtes Gegengewicht beidseitig grün
+                          (`testAtLeastOneShippedRowCanStillGoNegative`), und **VIER** sind
+                          VORWÄRTS-Wächter auf einem Symbol, das derselbe Commit anlegt — sie konnten nie
+                          rot sein, und sie als Regressionen zu verbuchen wäre der #433-Defekt.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und gemessen, nicht prophylaktisch
+                          (#453/#484/#485): derselbe Commit schreibt einen ⛔-Block über `signKey`, der
+                          `"minus"`, `"plus"` UND das zurückgenommene `negative ? allowsNegative : true`
+                          wörtlich zitiert — ein Rohtext-Scan wäre auf KORREKTEM Code rot. Wieder die
+                          Kollision aus #486: dieses Repo schreibt auf, was es entfernt hat.
+                          ⚠️ Und die Grenze zuerst: die vier Verhaltensfälle rechnen eine reine Funktion,
+                          alles andere sind QUELLTEXT-SCANS plus ein JSON-Lesevorgang auf dem Katalog.
+                          Dass VoiceOver den Satz wirklich SPRICHT, dass er sich vorgelesen gut liest und
+                          dass die zwei gedimmten Zellen am Gerät als gesperrt erkennbar sind, sind alle
+                          drei Geräteproben und alle drei offen.),
+                          davor **201** nach `EveryPitchedVoiceFollowsTheToneSystemTests.swift` (#338 — der
                           erste Wächter in dieser Kette über einem FÄCHER: nicht „ist dieser Wert richtig",
                           sondern „bekommen ihn ALLE, die ihn brauchen". `applyTuning()` reichte die
                           12-Eintrag-Cent-Tabelle an den globalen PolySynth und den Sub, aber NICHT an
@@ -3775,7 +3844,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTNEUNUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 201 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSECHZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 202 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

@@ -87,6 +87,22 @@ enum NumberPadEntry {
         // still pass, and the safe reading of it is "no fraction at all", not a crash.
         return typed < Swift.max(0, decimals)
     }
+
+    /// The SIGN rule, and the whole reason it is a value function rather than three lines
+    /// inside the view: what the − and + keys do is the one thing about this keypad a user
+    /// can get wrong, so it has to be drivable from the blocking bundle.
+    ///
+    /// **They set the sign; they never change the magnitude.** `−` prepends a leading minus
+    /// (on an empty buffer it seeds `"-"` so the next digit lands negative), `+` strips one.
+    /// Neither adds nor subtracts anything — which is exactly what their glyphs say in every
+    /// other numeric context, and why #488 gave them spoken labels that name the EFFECT.
+    ///
+    /// Idempotent on both sides by construction: the body is taken without any leading minus
+    /// first, so pressing the same key twice cannot stack or toggle.
+    static func signed(_ buffer: String, negative: Bool) -> String {
+        let body = buffer.hasPrefix("-") ? String(buffer.dropFirst()) : buffer
+        return negative ? "-" + body : body
+    }
 }
 
 #if canImport(SwiftUI)
@@ -201,15 +217,54 @@ struct EchoelNumberPad: View {
         }
     }
 
-    /// − (negative) / + (positive): set the sign of the value being entered. − is disabled
-    /// where the range can't go below zero. This is the founder's "Vorzeichen unten links".
+    /// − (negative) / + (positive): set the sign of the value being entered. This is the
+    /// founder's "Vorzeichen unten links".
+    ///
+    /// ⛔ IT HAD NO SPOKEN LABEL, AND THE GLYPH IS THE ONE THING ON THIS PAD THAT MEANS
+    /// SOMETHING ELSE EVERYWHERE ELSE (#488). With no `accessibilityLabel`, SwiftUI names an
+    /// `Image(systemName:)` button after its symbol — "minus" / "plus" — so a VoiceOver user
+    /// on a keypad hears the words for SUBTRACT and ADD on two keys that never change the
+    /// magnitude. It is not a hypothetical confusion either: `EchoelValueField` installs an
+    /// `accessibilityAdjustableAction`, so swipe-up/down on the very row that opened this pad
+    /// genuinely DOES increment and decrement. The app has both affordances and these two keys
+    /// were wearing the other one's words. The labels now name the EFFECT.
+    ///
+    /// ⚠️ NO HINT, deliberately — do not "complete" this later. The label already says the key
+    /// sets a sign rather than performing arithmetic, and a hint repeating that would be a
+    /// second spelling of one fact (#416) plus extra spoken latency on a 15-key grid.
+    ///
+    /// ⭐ AND `+` IS NOW GATED THE SAME WAY `−` ALWAYS WAS, which is a behaviour change and is
+    /// the honest half of this slice. `setSign(negative: false)` only ever strips a leading
+    /// minus, and on a non-negative range no minus can exist: `−` is disabled, `append` adds
+    /// digits only, and `appendDecimal` never writes one. So on those rows `+` was a key a
+    /// finger could press that provably could not change anything — the lying-control class
+    /// (#135/#160/#164). Measured before changing it, paren-matched over `Sources/` with
+    /// comment lines excluded and the three forwarding helpers resolved (`field`, `param`,
+    /// `knob` take the range as their THIRD POSITIONAL argument, which is why a `range:` scan
+    /// reports zero and is wrong): **118 rows carry a resolvable range and exactly 3 can go
+    /// negative** — Flanger Feedback (−0.95…0.95), Compressor Threshold (−48…0 dB) and Limiter
+    /// Ceiling (−12…0 dB), all in `EchoelFXView`. On those three both keys stay live and
+    /// nothing about them changes. On the other 115 the PAIR now dims together, which reads as
+    /// "this field has no sign" — true, and legible — instead of one dim key beside a live
+    /// one that does nothing.
+    ///
+    /// ⚠️ The trade, stated because it is visible: two dimmed cells instead of one on almost
+    /// every field. Accepted on the house rule that a control may not offer an action it
+    /// cannot perform; `TheSignKeysSayWhatTheyDoTests` pins the 3-row premise so that if the
+    /// last signed row ever goes away, the guard turns red rather than leaving a sign pair
+    /// that is dead everywhere.
     private func signKey(negative: Bool) -> some View {
-        let enabled = negative ? allowsNegative : true
+        let enabled = allowsNegative
         return keyButton(action: { setSign(negative: negative) }, enabled: enabled) {
             Image(systemName: negative ? "minus" : "plus")
                 .font(EchoelTheme.font(20, .semibold))
                 .foregroundStyle(enabled ? EchoelTheme.text : EchoelTheme.dim.opacity(0.4))
         }
+        // Bare literals, like `decimalKey` below: the non-generic `LocalizedStringKey`
+        // overload wins over the generic `StringProtocol` one, and both keys are in
+        // `Localizable.xcstrings` with a German translation — the #267 rule that an i18n
+        // commit adding an untranslated string is a regression wearing the right label.
+        .accessibilityLabel(negative ? "Make negative" : "Make positive")
     }
 
     /// The key is LABELLED in the reader's locale ("," in German) while what it appends
@@ -295,11 +350,12 @@ struct EchoelNumberPad: View {
         buffer += buffer.isEmpty || buffer == "-" ? "0." : "."
     }
 
-    /// − prepends a leading minus (works on an in-progress number or, if empty, seeds it so
-    /// the next digit lands negative); + strips the leading minus. Sign-only, never a digit.
+    /// Sign-only, never a digit. The rule itself lives in `NumberPadEntry.signed` so the
+    /// blocking bundle can drive it — the same reason `acceptsDigit` is up there, and the
+    /// reason this method is now two lines: a `private` method on a SwiftUI `View` cannot be
+    /// measured, and what these two keys do is precisely the thing a user can misread.
     private func setSign(negative: Bool) {
-        let body = buffer.hasPrefix("-") ? String(buffer.dropFirst()) : buffer
-        buffer = negative ? "-" + body : body
+        buffer = NumberPadEntry.signed(buffer, negative: negative)
     }
 
     private func deleteLast() {
