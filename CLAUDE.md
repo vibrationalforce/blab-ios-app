@@ -304,8 +304,62 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**197** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `AStalledAcquisitionSaysSoTests.swift` (#484 — der erste Wächter in
+                          `Tests/CISmoke` (**198** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `TheVoiceIsOnTheBoardTests.swift` (#485 — der erste Wächter in dieser
+                          Kette über einer TÜR statt über einem Wert, einer Größe oder einer Dauer, und der
+                          erste, dessen ehrliche Benotung lautet: **er fängt rückwärts fast nichts.** Founder
+                          2026-08-07: Training für kohärentes Atmen plus Chanten · Summen · Tönen · Singen,
+                          und das „braucht einen zusätzlichen Mixer-Slot für Audio-in".
+                          ⭐ **Die FÄHIGKEIT war seit #298/#299 fertig — Monitoring mit FeedbackGuard-Duck,
+                          Session-Claim, Pegel, Latenz-Hinweis pro Route.** Gefehlt hat, dass ihre einzige Tür
+                          hinter dem MASTER-Panel saß, also UNTER der Summe der Ebenen statt NEBEN ihnen. Damit
+                          war die eine Ebene, die ein Performer mit dem eigenen Körper macht, die einzige
+                          klingende Ebene, die auf dem Brett fehlte, das #330 gebaut hat, um jede klingende
+                          Ebene zu halten. Die Scheibe fügt eine TÜR hinzu, keine zweite Kopie: beide Zeilen
+                          lesen und schreiben die EINE `AudioEngine`, genau wie der Click-Streifen die EINE
+                          `MetronomeVoice`.
+                          ⚠️ **`feedbackGuardActive` wird ABSICHTLICH nicht gelesen, und das ist die teuerste
+                          Zeile der Scheibe.** `AudioInputPickerView` zeigt einen lebenden „duckt gerade"-Punkt,
+                          und ihn hierher zu kopieren liest sich als offensichtliche Verbesserung. Es ist der
+                          10.76.41/50-Freeze wörtlich: die Flagge wird aus dem ~15-Hz-Meter-Poll geschrieben,
+                          und `mixStripCard` nimmt einen NICHT-escaping `@ViewBuilder` — der Inhalt wird also
+                          INNERHALB `mixerPanel` ausgewertet, also innerhalb des Rumpfes, der jeden
+                          `.menu`-Picker des Instruments beherbergt. Dieselbe Zahl, zwei Wirte, nur einer davon
+                          sicher; das Picker-Sheet ist ein Blatt ohne Picker, das Mischpult nicht.
+                          ⭐ Und der Toggle darf nicht lügen: `setInputMonitoring` gibt `Bool` zurück und
+                          `isInputMonitoring` ist `private(set)`, bleibt bei verweigerter Mikrofon-Berechtigung
+                          also false — ohne einen Schreibvorgang auf beobachtbaren Zustand zeigte der Schalter
+                          weiter „an" über einem Mikrofon, das niemand liest. Ein `@State micMonitorRefused`
+                          invalidiert den Rumpf, die Bindung liest neu, der Schalter fällt zurück UND sagt
+                          warum. (`AudioInputPickerView` bekommt dieselbe Invalidierung gratis aus dem
+                          `inputs.refresh()`, das es aus einem ANDEREN Grund ruft — wissenswert, bevor jemand
+                          das hier per Kopieren jener Aufrufstelle „vereinfacht".)
+                          ⚠️ Das Pegel-Feld steht auch bei ausgeschaltetem Monitoring da, und das ist kein
+                          totes Bedienelement: `inputMonitorGain`s `didSet` schreibt den Mixer nur im Betrieb,
+                          `setInputMonitoring(true)` wendet den gespeicherten Wert beim Einschalten an — die
+                          Zahl IST also der Pegel, den man bekommt. NICHT persistiert, und das ist eine
+                          Entscheidung: ein Monitor-Gain ist ein Rückkopplungsrisiko, jeder Start beginnt beim
+                          konservativen 0,6 statt bei dem, was ein anderer Raum gebraucht hat.
+                          ⛔ **EHRLICHE BENOTUNG, und die schmeichelhafte Fassung wäre „drei Regressionen, drei
+                          Gegengewichte" gewesen.** Gezählt statt erinnert: **FÜNF der sechs Methoden sind gegen
+                          den Vor-#485-Baum rot, und alle fünf aus DEMSELBEN billigen Grund** — `micMixStrip`
+                          existiert dort nicht, der Extraktor liefert "", und die Nichtleer-Behauptung feuert
+                          zuerst. Das sind keine fünf Befunde, das ist EINE Abwesenheit, fünfmal gemeldet. Der
+                          Wert der Datei liegt vollständig VORWÄRTS.
+                          ⛔ **UND `SourceText.codeOnly` STAND IM ERSTEN ENTWURF ALS „LOAD-BEARING" — der exakte
+                          Überclaim, den #484 EINEN Commit zuvor zurücknehmen musste, wiederholt in der Datei,
+                          die ihn zitiert.** Gemessen statt behauptet: gestreift gegen roh unterscheiden sich
+                          die Verdikte von **0 der 15** Behauptungen. Der Grund gehört aufgeschrieben, weil er
+                          nicht offensichtlich ist und aufhören wird zu gelten: der Extraktor ankert auf der
+                          DEKLARATIONS-Zeile, und der Doc-Block — der die Flagge sehr wohl nennt, zweimal —
+                          steht DARÜBER, also außerhalb jedes extrahierten Blocks. Der Rumpf trägt heute keine
+                          Kommentare. Wer einen hinzufügt, der die Flagge nennt, macht den Stripper zum
+                          Einzigen zwischen diesem Wächter und einem durch Prosa erkauften Grün.
+                          ⚠️ Und die Grenze zuerst: alle Behauptungen sind QUELLTEXT-SCANS. Dass der Streifen
+                          rendert, dass der Schalter ein echtes Mikrofon fasst, dass der Duck hörbar ist und
+                          dass Selbstmonitoring über diese Route latenz-erträglich ist, sind Geräteproben —
+                          alle offen.),
+                          davor „197" nach `AStalledAcquisitionSaysSoTests.swift` (#484 — der erste Wächter in
                           dieser Kette über einer DAUER: über etwas, das kein Einzelbild und kein Einzelwert
                           zeigen kann. Gerätelog 2490 lief 97 s Kamera-Akquise ohne Lock und ohne
                           Wechsel der Meldung. ⭐ **Und das Aufschlussreichste ist, dass die OBERFLÄCHE NICHT
@@ -3385,7 +3439,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTFÜNFUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 197 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSECHSUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 198 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

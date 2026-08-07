@@ -575,6 +575,17 @@ struct EchoelStudioView: View {
     // or cleared: a stale bool costs nothing, a delete-on-launch is a destructive write
     // for no gain.
     @State private var showInput = false
+    /// #485. Set when `setInputMonitoring(true)` REFUSED (mic permission denied, or the
+    /// route publishes no valid input format). It is not decoration and it is not only a
+    /// message: `isInputMonitoring` is `private(set)` and stays false on refusal, so with
+    /// nothing else mutating observable state the Mix board's `Toggle` would keep SHOWING
+    /// "on" — a lying control (#135/#164/#227) on the one row where "it says it is
+    /// listening" is the worst thing in the app to be wrong about. Writing this `@State`
+    /// invalidates the body, the binding re-reads the engine, and the toggle falls back.
+    /// (`AudioInputPickerView`'s toggle gets the same invalidation for free from the
+    /// `inputs.refresh()` it calls for a different reason — worth knowing before anyone
+    /// "simplifies" this away by copying that call site.)
+    @State private var micMonitorRefused = false
     @State private var showRouting = false
     @State private var showLearn = false
     // Dead-duplicate sheets removed (v10.79.207): PianoRoll / PatchEditor / Automation
@@ -2661,9 +2672,13 @@ struct EchoelStudioView: View {
             // never a decode to break. Neither is read for sound again (`mixer.drums` is
             // still WRITTEN by `resetToUnity()`, which is harmless and has no reader).
             // The strips reflow to 2 columns in landscape / iPad (leaf reads the size
-            // class, not the root body → render-safe). There are FOUR since #330 — Bass,
-            // Melodic, Field and Click — because the founder asked to see all the sounding
-            // layers at once, not because the grid needed filling.
+            // class, not the root body → render-safe). There are FIVE since #485 — Bass,
+            // Melodic, Field, Click and Voice — because the founder asked to see all the
+            // sounding layers at once, not because the grid needed filling. (It was FOUR
+            // from #330 until #485 added the mic; the count is written down only so that
+            // adding a strip forces a reader past this paragraph, not as an invariant —
+            // `MixBoardOwnsEveryLevelTests` deliberately refuses to pin it, because a test
+            // that goes red on an honest addition teaches nothing.)
             AdaptiveCardGrid {
                 mixStripCard("Bass") {
                     // range 0...1, NOT `MixerStore.range` (which runs to 1.5). Above unity
@@ -2742,6 +2757,7 @@ struct EchoelStudioView: View {
                         set: { metronome.level = Float($0) }),
                         range: 0...1, unit: "", decimals: 2)
                 }
+                micMixStrip
             }
 
             // WHAT IS DELIBERATELY NOT ON THIS BOARD, said out loud rather than left to be
@@ -2750,6 +2766,14 @@ struct EchoelStudioView: View {
             // (breath → synth) is absent because it cannot be armed at all today — a strip
             // for it would be a control for silence (#277). Secondary MIDI lanes went with
             // the timeline (#121 Slice 4).
+            //
+            // ⛔ "THE MIC" STOOD IN THAT LIST UNTIL #485 AND IT WAS THE ONE ENTRY THAT WAS
+            // WRONG — not stale, wrong from the start. It is the only layer named here that
+            // both SOUNDS today and is switchable today; the reason it was off the board was
+            // that its door happened to live behind the master panel, which is a fact about
+            // where a sheet was mounted, not about what belongs on a mixer. #330's own
+            // charter is "every audible layer on one board", and a board that omits the
+            // performer's own voice fails it in exactly the way the founder named.
             Text("Master level lives in the Master panel — it is the sum of these, not one of them.")
                 .font(EchoelTheme.font(11))
                 .foregroundStyle(EchoelTheme.dim)
@@ -2830,6 +2854,79 @@ struct EchoelStudioView: View {
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
             .strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    /// VOICE — the microphone strip on the Mix board (#485, founder 2026-08-07: coherent
+    /// breathing plus chanting / humming / toning / singing "braucht einen zusätzlichen
+    /// Mixer-Slot für Audio-in").
+    ///
+    /// ⭐ WHAT WAS ACTUALLY MISSING, because it was NOT the capability. Live monitoring with
+    /// the FeedbackGuard duck has been built and reachable since #298/#299 — engine path,
+    /// session claim, level, latency advice per route. What was missing is that its only
+    /// door sat behind the MASTER panel, i.e. under the sum of the layers rather than beside
+    /// them, so the one layer the performer makes with their own body was the only audible
+    /// layer absent from the board that #330 built to hold every audible layer. This adds a
+    /// DOOR, not a second copy: both rows read and write the one `AudioEngine`, exactly as
+    /// the Click strip does with the one `MetronomeVoice`.
+    ///
+    /// ⚠️ `feedbackGuardActive` IS DELIBERATELY NOT READ HERE, and the reason is structural,
+    /// not taste. It is assigned from the ~15 Hz meter poll (gated on change since #298's
+    /// Nachlese, but a howl toggles it repeatedly), and `mixStripCard` takes a NON-escaping
+    /// `@ViewBuilder` — this content is evaluated inside `mixerPanel`, i.e. inside the body
+    /// that hosts every `.menu` Picker of the instrument. That is the 10.76.41/50 freeze
+    /// verbatim. The live guard indicator stays in `AudioInputPickerView`, which is a leaf
+    /// sheet with no Picker in it. Static text here says what the guard does; it claims no
+    /// live state.
+    ///
+    /// ⚠️ THE LEVEL FIELD IS SHOWN WITH MONITORING OFF ON PURPOSE — it is a pre-set, not a
+    /// dead control. `inputMonitorGain`'s `didSet` only writes the mixer while monitoring
+    /// runs, and `setInputMonitoring(true)` applies the stored value on the way in, so a
+    /// number dialled while off IS the level you get when you switch on. It is NOT
+    /// persisted, and that is a decision rather than an oversight: a monitor gain is a
+    /// feedback risk, so every launch starts at the conservative 0.6 rather than at whatever
+    /// a previous room needed. Persisting it is a separate call.
+    ///
+    /// ⚠️ Choosing WHICH input (built-in / wired / USB / Bluetooth, with its latency advice)
+    /// is not duplicated here — the row hands off to the existing `showInput` sheet. That
+    /// slot already exists, so this adds NO presentation modifier to the body chain (the
+    /// 10.76.34 black-screen law).
+    @ViewBuilder
+    private var micMixStrip: some View {
+        #if os(iOS)
+        mixStripCard("Voice · your microphone") {
+            Toggle("Monitor", isOn: Binding(
+                get: { audioEngine.isInputMonitoring },
+                set: { on in
+                    let engaged = audioEngine.setInputMonitoring(on)
+                    micMonitorRefused = on && !engaged
+                }))
+                .font(EchoelTheme.font(12))
+                .tint(EchoelTheme.accent)
+                .accessibilityHint("Hear your own voice through the output while you hum, tone or sing")
+            EchoelValueField(label: "Level",
+                             value: Binding(get: { audioEngine.inputMonitorGain },
+                                            set: { audioEngine.inputMonitorGain = $0 }),
+                             range: 0...1, unit: "", decimals: 2)
+            if micMonitorRefused {
+                Text("Monitoring could not start — check microphone access in Settings, or pick another input.")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Use headphones. On the speaker the feedback guard ducks a howl automatically.")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button { showInput = true } label: {
+                Text("Choose input…")
+                    .font(EchoelTheme.font(12))
+                    .foregroundStyle(EchoelTheme.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Pick the microphone or audio interface, with its monitoring latency")
+        }
+        #endif
     }
 
     /// Bass-bus filter cutoff. Full-open (max) disengages the filter; lower engages a
