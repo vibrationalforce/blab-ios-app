@@ -1,4 +1,4 @@
-build: v10.79.373 — Deine Stimme steht auf dem Mischpult, das Atem-Training im Bio-Panel, und eine Messung, die aufgehört hat zu funktionieren, sagt das jetzt
+build: v10.79.374 — jede Stimme folgt jetzt der Tonart, die Du gewählt hast (nicht nur zwei davon)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,145 +6,75 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.372 (2489).
+  Der Vorgänger auf Deinem Gerät ist 10.79.373 (2490).
 
-  33 Commits, 11 neue Wächter im blockierenden Bündel (gezählt, nicht geschätzt:
-  `git diff --name-status ed087cf..HEAD -- Tests/CISmoke | awk '$1=="A"'`). ZWEI davon
-  setzen direkt um, was Du am 07.08. verlangt hast.
+  ZWEI Commits. Eine Sache, und sie ist eine, die Du HÖREN kannst.
 
-  ── 1. DEINE ZWEI ASKS VOM 07.08. SIND DRIN ────────────────────────────────
+  ── DAS TONSYSTEM ERREICHTE NUR ZWEI VON VIER STIMM-FAMILIEN ───────────────
 
-  Du hast nach Training für kohärentes Atmen gefragt, dazu Chanten · Summen · Tönen ·
-  Singen, und gesagt: das „braucht einen zusätzlichen Mixer-Slot für Audio-in".
+  Wenn Du eine Stimmung wählst, die nicht 12-TET ist — Maqām, Gamelan, eine der indischen
+  Skalen —, dann ist das eine Tabelle mit zwölf Cent-Abweichungen, eine pro Tonklasse. Diese
+  Tabelle ging an den globalen Poly-Synth und an den Sub. Sie ging NICHT an die Bio-Stimme
+  und NICHT an das Lane-Rack — also an keine Stimme, die eine Spur spielt.
 
-  **Der Mixer-Slot ist da.** Das Mikrofon ist der fünfte Streifen auf dem Mischpult, neben
-  den vier, die klingen. Die FÄHIGKEIT gab es längst — Monitoring mit Rückkopplungsschutz,
-  Pegel, Latenzhinweis pro Route —, aber ihre einzige Tür saß hinter dem MASTER-Panel, also
-  UNTER der Summe statt NEBEN den Ebenen. Die eine Ebene, die ein Performer mit dem eigenen
-  Körper macht, war die einzige klingende Ebene, die auf dem Brett fehlte. Es sind ZWEI
-  Türen auf EINE Engine, keine zweite Kopie: beide Zeilen lesen und schreiben dieselbe.
-  Der Schalter kann Dich nicht anlügen — wenn die Mikrofon-Berechtigung fehlt, fällt er
-  zurück UND sagt warum. Der Pegel ist bewusst NICHT gespeichert: ein Monitor-Gain ist ein
-  Rückkopplungsrisiko, jeder Start beginnt konservativ statt bei dem, was ein anderer Raum
-  gebraucht hat.
+  Das ist wörtlich dieselbe Lücke, die am 31.07. beim Sub repariert wurde, nur eine Ebene
+  tiefer. Der Sub war damals „die einzige Stimme, die dem Tonsystem nicht folgt" — er war es
+  nicht, es war nur die einzige, die jemand gezählt hatte.
 
-  **Das Atem-Training ist im Bio-Panel**, direkt unter den gemessenen Zahlen — die
-  gemessene Hälfte und die aktive Hälfte in EINEM Panel. Auch hier war die Fähigkeit da,
-  sogar doppelt (eine gepacte Kreisführung und eine Meditations-Ansicht), beide ohne Tür.
-  Und türlos war hier keine Schlamperei, sondern Deine eigene Entscheidung vom 12.07.:
-  „Meditation View nicht extra. Alles findet in der Main View statt und ist Teil des
-  Produktionsprozesses." Eine eigene Tür zu einem eigenen Atem-Bildschirm wäre genau das
-  gewesen, was Du abgelehnt hast. Deshalb ein Streifen, kein Sheet.
+  Konkret: Du stellst Maqām Rāst ein, die globale Stimme spielt Rāst, eine Lane spielt
+  weiter 12-TET. Zwei Stimmungen gleichzeitig. Das ist kein subtiler Effekt.
 
-  Der Bildschirm bleibt während der Übung wach — diese Entscheidung war schon getroffen,
-  nur an der unerreichbaren Fläche. Sicherheitshinweise (sanft atmen, aufhören bei
-  Schwindel) stehen UNBEDINGT da, auch während der Übung; die erste Fassung hat sie beim
-  Start ausgeblendet, und ein Reviewer hat es gefangen: „hör auf, wenn Dir schwindlig wird"
-  ist eine WÄHREND-Anweisung.
+  ⚠ Wichtig für Deine Hörprobe: in 12-TET ändert sich GAR NICHTS, und zwar exakt nichts.
+  Die Tabelle ist dort eine Null-Tabelle, der Faktor ist 1.0, das Ergebnis bitgleich. Genau
+  das macht die Reparatur sicher — sie kann nur dort etwas tun, wo sie etwas tun soll.
 
-  ── 2. DEIN SCREENSHOT: DIE KNOPFGRÖSSEN ───────────────────────────────────
+  ── DER TEURE BEFUND KAM VON BEIDEN PFLICHT-REVIEWERN, UNABHÄNGIG ──────────
 
-  „Die Größe der Buttons anpassen, die sollen immer gleichgroß sein. Orientiere dich an
-  denen oben rechts." Gemessen vorher: 64×56 · 44×48 · 76×32 · 30×32 · 30×32 — DREI Höhen
-  in EINER Zeile. Die REFERENZ ist nicht gewählt, sondern benannt: die drei Kopfzeilen-
-  Kacheln waren untereinander schon einig, also wird IHRE Geometrie die eine Definition und
-  jeder Chrome-Knopf liest sie (32 pt sichtbar, 44 pt Trefferfläche).
+  Meine erste Fassung wäre beim Start ein garantierter Leerlauf gewesen. Die Stelle, die die
+  Stimmung an das Rack weiterreicht, läuft im ersten Zeichendurchlauf der Ansicht; die
+  Stimmen des Racks werden erst später aus dem asynchronen Start aufgebaut. Zum Zeitpunkt
+  der Weitergabe existierten sie also gar nicht — die Zeile hätte gut ausgesehen und nichts
+  bewirkt.
 
-  Die Analyse-Pille ist ABSICHTLICH nicht mit eingeebnet: Du hast sie am 31.07. ausdrücklich
-  GRÖSSER verlangt, und ihr Puls-Trace passt nicht in 32. Eine Anzeige zwischen
-  Bedienelementen ist Hardware-Grammatik, kein Ausrutscher.
+  Das Rack MERKT sich die Stimmung jetzt und wendet sie an, sobald seine Stimmen da sind.
+  Und zwar BEIDE Achsen — auch den Kammerton (A4), der seit jeher an derselben Stelle
+  weitergereicht wurde und dieselbe Aussetzung geerbt hatte, nur hatte sie nie jemand
+  gemessen. Das heißt: wenn Du 432 Hz eingestellt hast, folgten die Lanes dem beim Start
+  vermutlich ebenfalls nicht. Auch das ist mit repariert.
 
-  ── 3. EINE MESSUNG, DIE AUFGEHÖRT HAT ZU FUNKTIONIEREN, SAGT DAS JETZT ────
+  ── EINE BEGRÜNDUNG, DIE SEIT MONATEN FALSCH IM CODE STAND ─────────────────
 
-  Aus Deinem Gerätelog 2490: 97 Sekunden Kamera-Akquise ohne Lock und ohne dass sich die
-  Meldung geändert hätte. Das Aufschlussreichste daran: die Oberfläche hat NICHT gelogen.
-  Jede einzelne gezeigte Sache war ehrlich. Gefehlt hat nicht Wahrheit, sondern ZEIT —
-  keine Fläche wusste, wie lange die ehrliche Meldung schon dieselbe war.
+  Warum die Bio-Stimme bisher übersprungen wurde, stand in drei Dateien: „die Stimme klingt
+  ohnehin nie, es gibt keinen Aufrufer für ihr Einschalten." Das ist falsch, und zwar
+  prüfbar: das Einschalten tort nur den ATEM-Trigger. Der MIDI-Pfad ist ungetort, und sein
+  Empfänger wird beim App-Start installiert. Ein angeschlossenes Keyboard spielt diese
+  Stimme also heute schon.
 
-  Nach 45 s ohne Fortschritt sagt die Kachel es jetzt und schlägt etwas anderes vor. Ein
-  Lock setzt das Fenster zurück, der Berechtigungsdialog zählt nicht mit, und wer eine
-  Minute gegen zu helles Licht kämpft, beginnt seine 45 s ab dem Moment, in dem der Kontakt
-  endlich gut wird.
-
-  Die 45 s sind eine WAHL in einem gemessenen Fenster, kein hergeleitetes Optimum: von unten
-  begrenzt durch Akquisen, die GELINGEN (~19 s Neu-Akquise, ~32 s kalt), von oben durch den
-  Fehlschlag, den sie benennt (97 s).
-
-  ⚠ Und das repariert die AKQUISE nicht. Die App hört nur auf, so zu tun, als sei nichts.
-
-  ── 4. VOICEOVER WURDE ÜBER DIE FX-FLÄCHE BELOGEN ──────────────────────────
-
-  Der „All parameters"-Knopf sagte VoiceOver „jeden Parameter als Schieberegler". Die
-  FX-Fläche hat NULL Schieberegler — und der Kommentar direkt über dem Knopf war eigens
-  geschrieben worden, um genau diese Formulierung zu streichen. Jemand hat die Prosa
-  korrigiert und den gesprochenen Text stehen lassen.
-
-  Das ist KOPIE, kein kaputtes Bedienelement: die Zahlenfelder lassen sich per Wischen genau
-  wie ein Schieberegler verstellen. Verborgen hat das falsche Wort das, was ein Schieberegler
-  NICHT hat — Doppeltippen zum Tippen einer exakten Zahl.
-
-  Was das interessant macht, ist die SCHICHT: ein VoiceOver-Hinweis ist unsichtbar, solange
-  VoiceOver aus ist. Kein Screenshot und kein Design-Durchgang hätte ihn je gezeigt.
-
-  ── 5. AUFGERÄUMT (ohne Fähigkeitsverlust) ─────────────────────────────────
-
-  · Der Noten-Editor, den Du am 26.07. gestrichen hast, ist jetzt auch als Code weg — 987
-    Zeilen. Die Notenmaschine dahinter BLEIBT: sie ist es, die Visual, Licht und Raum
-    speist. Klar gesagt: es gibt keinen Noten-Editor mehr in der App. Der erzeugte Take
-    lässt sich hören, mischen und exportieren — nicht korrigieren.
-  · Eine unmontierte Automations-Zeile ist gelöscht, ihre Arithmetik vorher herausgehoben,
-    weil der Rest der App sie liest.
-  · Die Epilepsie-Blitzgrenze (3 Hz) hatte DREI unabhängige Deklarationen. Kein heutiger
-    Defekt — aber eine Lockerung an EINER Stelle wäre unbemerkt geblieben, und das an der
-    einen Konstante, die unter SICHERHEITSWARNUNGEN steht. Drift wird jetzt rot.
-  · 19 Stellen buchstabierten eine Eckenrundung als Zahl, obwohl eine Konstante sie längst
-    benennt — darunter genau die Kacheln, die Du als Referenz benannt hast. Nichts bewegt
-    sich um ein Pixel; ohne die Faltung hätte ein Verschieben des Werts die KOPIE bewegt und
-    die REFERENZ stehen gelassen.
-  · 22 MIDI-Export-Tests standen in keinem Target und sind nie gelaufen.
-
-  ── WAS ICH MIR SELBST VORWERFE ────────────────────────────────────────────
-
-  Auch diese Runde hat mehr eigene Fehler gefunden als fremde:
-
-  · Bei #475 standen NEUN falsche Behauptungen in meinem eigenen Text zur Löschung des
-    Noten-Editors — die teuerste erklärte einen LEBENDEN Mechanismus für tot.
-  · Bei #484 habe ich VIER unabhängige Belege aufgezählt; es waren DREI (zwei davon waren
-    dieselbe Tatsache). Eine Beleg-Liste mit einer Dublette belegt weniger, als sie aussieht.
-  · Bei #480 habe ich einen Überclaim mit einem Überclaim in der Gegenrichtung repariert
-    („die App hat gar keinen Schieberegler" — sie hat zwei, absichtlich).
-  · Bei #483 hat meine eigene Aufräum-Aktion eine neue Spaltung ERZEUGT: ein Ternär blieb als
-    Zahl stehen, während der Nachbar zwei Zeilen tiefer die Konstante las. Ein Reviewer hat
-    es gefunden. Eine wert-basierte Prüfung ist nur so breit wie ihre Syntax.
-  · Und bei #477 stellte sich heraus: ein Wächter war ab seinem ersten Commit ROT, und
-    niemand hat die Antwort abgeholt — weil das Test-Gate auf diesem Branch ohnehin jedes
-    Mal rot meldet.
+  Eine „nicht anfassen"-Notiz mit falscher Begründung ist schlimmer als gar keine — die
+  nächste Runde widerlegt die Begründung und tut es dann. Zurückgenommen, wo sie stand.
 
   ── PRÜFSTAND ──────────────────────────────────────────────────────────────
 
-  Auf dem aktuellen Stand (77417b5): „Xcode Compile Check" = success. Im CI/CD-Lauf ist
-  „Build for Testing" = success — das blockierende Testbündel kompiliert also nachweislich,
-  inklusive der 11 neuen Wächter; im Log stehen NULL `error:`-Zeilen. „Run Tests" stirbt
-  weiterhin am bekannten Simulator-Start (ein Klon stirbt, der andere läuft weiter). Das ist
-  der founder-gated CI-Punkt, nicht der Code.
+  „Xcode Compile Check" = success. Im CI/CD-Lauf ist „Build for Testing" = success, das
+  blockierende Testbündel kompiliert also nachweislich inklusive des neuen Wächters (zwölf
+  Behauptungen). „Run Tests" stirbt weiterhin am bekannten Simulator-Start — der
+  founder-gated CI-Punkt, nicht der Code.
 
-  ⚠ Ehrlich zur Reichweite: ein Testname IM Log beweist „gelaufen", sein FEHLEN beweist
-  nichts — der überlebende Klon leert nur eine nicht-deterministische Teilmenge. Von den 11
-  neuen Wächtern ist deshalb belegt, dass sie KOMPILIEREN; dass jeder einzelne AUSGEFÜHRT
-  wurde, ist es nicht.
+  ⚠ Und die ehrlichste Zeile dieses Deploys: der Wächter lässt sich gegen den vorherigen
+  Stand ÜBERHAUPT NICHT benoten, weil die Methode, die er treibt, dort noch nicht existiert
+  — die Datei hätte gar nicht kompiliert. Von Hand nachgerechnet wären neun der zwölf
+  Nadeln rot gewesen, drei sind Anker auf Voraussetzungen. Das ist eine Herleitung, kein
+  Lauf, und es steht so im Kopf der Datei.
 
-  ── WAS VON DIR GEBRAUCHT WIRD (Sichtproben, 5 Minuten) ────────────────────
+  ── WAS VON DIR GEBRAUCHT WIRD (Hörprobe, 3 Minuten) ───────────────────────
 
-  1. Mischpult öffnen: steht das Mikrofon als fünfter Streifen da? Einschalten — hörst Du
-     Dich, und duckt die Musik, wenn es zu koppeln droht? (Kopfhörer benutzen.)
-  2. Bio-Panel öffnen: steht unter den Zahlen ein Atem-Streifen? Start drücken — pact der
-     Kreis in etwa 6 Atemzügen pro Minute, und kannst Du ihm folgen?
-  3. Transport-Zeile: sind die Knöpfe jetzt alle gleich hoch, und passt es zu den Kacheln
-     oben rechts?
-  4. Puls per Kamera starten und absichtlich NICHT locken lassen (Finger locker auflegen):
-     sagt die Kachel nach ~45 s etwas anderes als vorher?
-  5. Klingt es weiter so, wie Du es zuletzt hattest? Nichts in dieser Runde SOLLTE den Klang
-     ändern.
+  1. Eine nicht-westliche Stimmung wählen (Maqām oder Gamelan sind am deutlichsten).
+     Generieren, spielen. Klingt der ganze Take in dieser Stimmung — oder hörst Du zwei
+     Systeme gegeneinander?
+  2. Kammerton auf etwas anderes als 440 stellen, App komplett beenden, neu starten,
+     generieren. Ist der neue Kammerton sofort da, oder erst nachdem Du ihn nochmal anfasst?
+  3. Zurück auf die westliche Standardstimmung: klingt alles genau so wie zuletzt? Es MUSS
+     bitgleich sein — wenn nicht, ist das ein Befund.
 
-  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
-  weiterhin Dein Ohr und Dein Auge.
+  NICHT geräteverifiziert. Dass eine Lane-Note wirklich in Maqām klingt, entscheidet Dein
+  Ohr; von hier aus ist nur belegt, dass die Zahl ankommt.
