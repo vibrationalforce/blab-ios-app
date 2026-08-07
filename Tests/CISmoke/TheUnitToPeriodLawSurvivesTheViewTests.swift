@@ -156,8 +156,10 @@ final class TheUnitToPeriodLawSurvivesTheViewTests: XCTestCase {
                        encoding: .utf8))
         XCTAssertFalse(view.contains("func occurrencePeriod(forUnit"), """
             PianoRollView.swift declares the unit→period law again. The view that used to \
-            own it was doorless (#178) and is now DELETED (#475) — this file holds only \
-            PianoRollModel. A second copy here is unreachable AND authoritative-looking, \
+            own it was doorless (#178) and is now DELETED (#475) — this file's top level is \
+            now `protocol NoteVoice` + its two conformances, `PianoRollModel`, and the \
+            test-only `enum RollSelection`. A second copy here is unreachable AND \
+            authoritative-looking, \
             which is how one decision quietly becomes two (#416). Call RollHitTest instead.
             """)
         // ⛔ A THIRD ASSERTION STOOD HERE AND #475 RETIRED IT — following the instruction its
@@ -168,9 +170,17 @@ final class TheUnitToPeriodLawSurvivesTheViewTests: XCTestCase {
         //      the hoist — if the call site went away too, this assertion should be deleted
         //      together with the lane, deliberately, not left to rot."
         //
-        // The lane went away: #475 (2026-08-07) deleted the 988-line `PianoRollView` struct,
-        // and `git grep -n "occurrencePeriod(forUnit" -- Sources` now returns exactly ONE hit,
-        // the declaration in `RollHitTest.swift`. **The law has zero production callers.**
+        // The lane went away: #475 (2026-08-07) deleted the 987-line `PianoRollView` struct,
+        // and the law now has **exactly one declaration and zero callers of any kind** — the
+        // declaration lives in `RollHitTest.swift`.
+        // ⛔ THAT FACT WAS FIRST WRITTEN AS A GREP RECIPE AND THE RECIPE FALSIFIED ITSELF:
+        // `git grep -n "occurrencePeriod(forUnit" -- Sources` "returns exactly ONE hit". It
+        // returns THREE, because the same commit added two header lines to
+        // `PianoRollView.swift` that spell the searched string out in prose. The `EchoelModalBank`
+        // trap CLAUDE.md records, twice in one changeset — a note that QUOTES a grep corrupts
+        // its own evidence, and the next reader runs it, sees 3, and reads a contradiction where
+        // there is none. To re-measure, exclude prose:
+        // `git grep -n "occurrencePeriod(forUnit" -- Sources | grep -v '://'`.
         // That is stated here rather than asserted, and the distinction is the point: a
         // "must have zero callers" check would go red the day someone re-doors a note editor,
         // which is correct work — the #364 trap of a rule that fires on the future.

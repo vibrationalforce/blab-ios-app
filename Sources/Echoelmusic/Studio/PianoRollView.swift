@@ -7,7 +7,7 @@ import Foundation
 //
 // ⭐ READ THE NAME AS HISTORY, NOT AS CONTENTS (#475). The founder removed the note
 // editor on 2026-07-26 ("Pianoroll soll raus"); #178 took its door, and #475 deleted the
-// 988-line `PianoRollView` struct itself, which by then had no caller of ANY kind — the
+// 987-line `PianoRollView` struct itself, which by then had no caller of ANY kind — the
 // last one was a test reaching for its static `occurrencePeriod(forUnit:)`, and #470
 // hoisted that into `RollHitTest`. The file keeps its name because renaming it is a
 // separate, reviewable move; what it CONTAINS is `PianoRollModel`.
@@ -21,39 +21,65 @@ import Foundation
 // *"`PianoRollView` = the editor, removed. `PianoRollModel` = the note engine +
 // `MusicalFrame` publisher, KEPT" — that one is genuinely load-bearing.*
 //
-// ⚠️ WHAT THE DELETION LEFT BEHIND, said plainly rather than discovered later. SEVEN
+// ⚠️ WHAT THE DELETION LEFT BEHIND, said plainly rather than discovered later. SIX
 // `PianoRollModel` members had the view as their only caller and are now callerless:
-// `audition(pitch:velocity:role:)` · `stampChord` · `stampArp` · `pitchCount` ·
+// `audition(pitch:velocity:role:)` · `stampChord` · `stampArp` ·
 // `bioHumanize` · `isSharp(pitch:)` · `isC(pitch:)`. They are NOT removed here, for
 // #470's reason — changing what a deletion commit deletes is how a scoped claim stops
 // being true. Retiring them is its own pass.
 //
-// ⛔ AND HOW THAT SEVEN WAS COUNTED MATTERS MORE THAN THE SEVEN. A `\b<name>\b` sweep
-// gave a different, wrong answer: `audition` alone showed 37 hits across `Sources`, all
-// of them unrelated prose about `BeatPlayer`'s sample-audition path, and `musicalKey`
-// showed six that are a LOCAL VARIABLE in `NoteNamingTests`. Each member here was
-// re-checked on its literal CALL form (`audition(pitch:`, `stampChord(`, …) and the one
-// remaining `isSharp(` hit turned out to be a test METHOD NAME
+// ⛔ AND HOW THAT COUNT WAS MADE MATTERS MORE THAN THE COUNT — twice over, because the
+// first version got it wrong in BOTH directions. A `\b<name>\b` sweep over-counted:
+// `audition` alone showed 37 hits across `Sources`, all of them unrelated prose about
+// `BeatPlayer`'s sample-audition path, and `musicalKey` showed six that are a LOCAL
+// VARIABLE in `NoteNamingTests`. Each member was therefore re-checked on its literal
+// CALL form (`audition(pitch:`, `stampChord(`, …), and the one remaining `isSharp(` hit
+// turned out to be a test METHOD NAME
 // (`BioHapticsTests.testBreathPulse_lowCoherence_isSharp`), not a caller. A name-shaped
 // grep answers a question about NAMES; "does anyone call this" is a different question.
 //
+// ⛔ AND THEN THAT SAME DISCIPLINE UNDER-COUNTED ON THE ONE MEMBER IT DOES NOT FIT.
+// The list said SEVEN and included `pitchCount`. `pitchCount` is a stored `let`, not a
+// func — it has no "call form" — and it is READ, one line below its own declaration, by
+// `public static var highPitch: Int { lowPitch + pitchCount - 1 }`. `highPitch` is very
+// much alive: `move`, `stampChord`, `stampArp` and `foldToBar` all read it, and
+// `foldToBar` is on the LIVE MIDI-import path (`EchoelStudioView.importMIDI`), plus
+// `RollHitTest`, `RollNoteOps` and three test files. Found by the #475 reviewer, verified
+// here with `git grep -c highPitch`. **The lesson is not "count more carefully" — it is
+// that a rule tuned against over-counting produces false negatives on the members it was
+// not designed for. A property is not a function; measure it as a property.**
+//
 // ⚠️ AND THE ORPHANING REACHES THREE NEIGHBOURING FILES, which is the part a
 // file-local header would have missed. `Studio/RollHitTest.swift` and
-// `Studio/RollFitMath.swift` were the view's pure geometry; `git grep -n
-// "RollHitTest\.\|RollFitMath\." -- Sources` now returns only their own declarations —
-// **zero production callers each**. `Studio/RollNoteOps.swift` is the exception and
-// survives with one: `PianoRollModel` calls `RollNoteOps.stableSeed(for:)`. None of the
-// three is deleted here, and the reason is not caution:
+// `Studio/RollFitMath.swift` were the view's pure geometry, and both now have **zero
+// production callers**. `Studio/RollNoteOps.swift` is the exception and survives with
+// one: `PianoRollModel` calls `RollNoteOps.stableSeed(for:)` at `bioHumanize`.
+// ⛔ A GREP RECIPE STOOD HERE AND THIS COMMIT FALSIFIED IT IN THE ACT OF WRITING IT:
+// `git grep -n "RollHitTest\.\|RollFitMath\." -- Sources` "returns only their own
+// declarations". It returns four lines, and not ONE of them is a declaration — two are
+// these very header lines, two are the `// RollFitMath.swift` filename banners. A
+// declaration reads `public enum RollHitTest {` and does not contain the dot. Exactly the
+// `EchoelModalBank` trap CLAUDE.md records — a note that QUOTES a grep ages faster than
+// one that states a fact, because the note corrupts its own evidence — and here it did
+// not survive its own commit. The FACT is stated above; to re-measure it, exclude prose:
+// `git grep -n "RollHitTest\.\|RollFitMath\." -- Sources | grep -v '://'`.
+// None of the three is deleted here, and the reason is not caution:
 //   · `RollHitTest` holds `occurrencePeriod(forUnit:)`, the law #470 hoisted OUT of the
 //     deleted view precisely so a deletion could not take it by accident, and
 //     `Tests/CISmoke/TheUnitToPeriodLawSurvivesTheViewTests` pins it in the BLOCKING
 //     bundle. #475 is the deletion that hoist was insuring against; removing the core in
 //     the same breath would spend the insurance on the accident it prevented.
 //   · Deleting files is a founder-visible slice, not a side effect of deleting a struct.
+// ⚠️ And `RollNoteOps`' one surviving caller is itself ONE HOP FROM DEAD: `stableSeed` is
+// called from `bioHumanize`, which the list above records as callerless. So the natural
+// next cleanup — "retire the callerless members" — silently orphans a third file. Said
+// here so that pass starts knowing it, instead of discovering it afterwards (#472).
 // `enum RollSelection` at the bottom of THIS file is in the same position: nothing in
 // `Sources/` reads it since the view went, and it stays because `Tests/EchoelmusicTests/
-// NoteTests.swift` makes nine assertions on it — the `WaveformReducer` shape (#132
-// Slice 5), test-only with the reason written down rather than inferred.
+// NoteTests.swift` makes eight assertions on it — the `WaveformReducer` shape (#132
+// Slice 5), test-only with the reason written down rather than inferred. (⛔ "nine" stood
+// here and in CLAUDE.md; nine is `grep -c RollSelection`, which counts the
+// `func testRollSelection_…` name as well. Counting the assertions gives eight.)
 //
 // The model itself is unchanged: notes have a pitch, a start step, a length in steps
 // (legato/sustain across boundaries) and a per-note velocity; note-offs fire at note END,
@@ -185,22 +211,34 @@ public final class PianoRollModel {
 
     /// ONE-SHOT: "the stop that is about to happen is a PAUSE, not the end of the session."
     ///
-    /// ⚠ DORMANT since 2026-07-26. The only producer is `PianoRollView.transport`, and the
-    /// founder had the roll's door removed ("Pianoroll soll raus"), so no view mounts it and
-    /// this flag can no longer be raised. The mechanism is kept, not deleted, because the
-    /// invariant below is the expensive part and would have to be re-derived the moment any
-    /// surface can request a playback-only stop again. Retiring it is its own slice (#180).
+    /// ⛔ THIS CARRIED A "⚠ DORMANT since 2026-07-26" NOTE UNTIL THE #475 REVIEW, AND IT WAS
+    /// FALSE — the exact defect CLAUDE.md warns about, in the exact shape it warns about it.
+    /// The note said "the only producer is `PianoRollView.transport` … this flag can no longer
+    /// be raised". BOTH halves were wrong by the time #475 read them: `PianoRollView` does not
+    /// exist any more, so it produces nothing, and the flag has had a LIVE producer since
+    /// #234/#179 — `WorkspaceView`'s `PlaybackToggleButton` calls `requestPlaybackOnlyStop()`
+    /// on the ⏸ path. `EchoelStudioView`'s consumer says so in its own words ("That instant is
+    /// now"); this declaration never got the memo. A note naming a DELETED producer as the
+    /// current one is worse than no note: the next session reads "cannot be raised" and treats
+    /// the ordering invariant below as dead weight it may reorder freely.
+    ///
+    /// ⚠️ SO READ THE INVARIANT AS LIVE, not as archaeology. The mechanism is not kept "in case
+    /// a surface returns" — a surface HAS returned. Retiring it (#180) would mean removing a
+    /// working pause.
     ///
     /// The app has ONE Stop by law: whenever the shared transport stops from anywhere, the
     /// Studio ends the bio session too, so nothing is left armed behind a stopped clock. That
-    /// is right for the chrome's ■ — and punishing for the roll's own transport button, which
-    /// a user presses to hear an edit standing still. It tore down the camera and the pulse
-    /// lock, so re-starting cost another finger-on-lens re-lock; the Notes editor was
-    /// effectively unusable during a live take (ship gate 2 "Kontrolle").
+    /// is right for the labelled Stop — and punishing for a PAUSE, which a user presses to
+    /// drop the music without dropping the body. It tore down the camera and the pulse lock, so
+    /// resuming cost another finger-on-lens re-lock (~19 s, #415).
+    /// ⚠️ THE ORIGINAL MOTIVATING CASE WAS THE ROLL'S OWN TRANSPORT BUTTON — "the Notes editor
+    /// was unusable during a live take (ship gate 2)". That editor is gone (#178/#475), so the
+    /// SENTENCE is history; the LAW is not. The cost it names is what the chrome ⏸ would pay
+    /// today if this flag stopped working.
     ///
-    /// The roll therefore RAISES this flag before it stops the transport, and the Studio's stop
-    /// cascade CONSUMES it: flag up ⇒ pause playback and keep the body session; flag down ⇒ the
-    /// full stop, unchanged.
+    /// The producer therefore RAISES this flag before it stops the transport, and the Studio's
+    /// stop cascade CONSUMES it: flag up ⇒ pause playback and keep the body session; flag down
+    /// ⇒ the full stop, unchanged. Today's producer is `WorkspaceView.PlaybackToggleButton`.
     ///
     /// THE ONE INVARIANT THAT MATTERS: the consumer must read this UNCONDITIONALLY, ahead of
     /// every guard. The first version of #161 read it after a `guard running`, so a pause

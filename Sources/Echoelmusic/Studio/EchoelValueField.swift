@@ -375,11 +375,20 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// the box takes the whole row and more, the label is squeezed to its
     /// `minimumScaleFactor(0.7)` floor and then truncates to nothing, and the box itself runs
     /// past the screen edge. This is the ONE parameter control in the app —
-    /// `git grep -c "EchoelValueField(" -- Sources` is **61** lines, **FOUR** of them comments —
-    /// the one in `Core/EchoelDecimalText.swift`, THIS one, `EchoelFXView.swift`'s #443 note, and
-    /// the `stacksLabel` doc below. It read "65 / THREE" until #440 re-ran the command, then
-    /// "64 / TWO", and the comment count reached four before anyone re-ran it again — which is
-    /// this paragraph's own warning arriving on schedule. **57 call sites** now, down from 62
+    /// **57 CALL SITES.** That is the only figure worth writing down here, and the raw
+    /// `git grep -c "EchoelValueField(" -- Sources` total is deliberately NOT quoted any more.
+    /// ⛔ Four editions of this paragraph quoted it — "65 / THREE", then "64 / TWO", then
+    /// "61 / FOUR" — and the #475 review's own correction of the FOUR pushed it to SEVEN in the
+    /// act of writing the correction, because the fix had to spell the searched string out three
+    /// more times. The `EchoelModalBank` law CLAUDE.md records, demonstrated on itself twice in
+    /// one commit: a note that quotes a grep corrupts its own evidence, and here the corruption
+    /// was CAUSED by correcting it. A total that any prose edit moves is not a measurement.
+    /// The call-site count does not move when someone writes about it. To re-derive either:
+    ///   `git grep -n 'EchoelValueField(' -- Sources | grep -vE ':[0-9]+: *(//|///)' | wc -l`
+    /// ⚠️ The retired enumeration is worth one line, because it was wrong in a way a re-count
+    /// would not have caught: it double-counted this paragraph (as both "THIS one" and one of the
+    /// four) and named a fourth that has never contained the string — `stacksLabel`'s doc.
+    /// Enumerate the comment hits, never recall them. **57 call sites** now, down from 62
     /// because #475 deleted the five rows inside the unreachable piano-roll view; the REACHABLE
     /// figure did not move. Exactly ONE of them renders label-less unconditionally (the chrome A4 box
     /// in `WorkspaceView`) with one more doing so only in its compact form (`BodyTempoField`).

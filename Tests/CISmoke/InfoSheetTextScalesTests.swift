@@ -24,9 +24,10 @@
 //
 //     git grep -n '\.font(\.system(size:' -- Sources
 //
-// 92 hits AS MEASURED WHEN THIS BLOCK WAS WRITTEN — **77 since #475** (see the struck bullet
-// below). The classification that follows is the 92-era one and is kept intact so the
-// subtraction is checkable. 2 of them whole-line comments. Each remaining hit was classified by whether it, or
+// 92 hits AS MEASURED WHEN THIS BLOCK WAS WRITTEN — **93 immediately before #475, 77 after**
+// (see the struck bullet below, which retracts a wrong subtraction). The classification that
+// follows is the 92-era one and is kept intact so the drift is visible rather than papered
+// over. 2 of them whole-line comments. Each remaining hit was classified by whether it, or
 // the nearest preceding non-blank non-comment line, owns an `Image(systemName:`. That leaves 17
 // non-icon hits, and one of those (`FloatingVisualWindow.swift:935`) is the multi-line-ternary
 // resize glyph this file's next paragraph already calls out — so 16 real ones:
@@ -37,10 +38,19 @@
 //     glyph at `52 * s`. Same reason: artwork, not reading matter.
 //   · ⛔ `Studio/PianoRollView.swift` (8) — GONE. This bullet said "doorless and unmounted
 //     since the founder's 'Pianoroll soll raus' (2026-07-26)", and #475 (2026-08-07) finished
-//     that sentence: the 988-line `PianoRollView` struct is deleted, so the file's
-//     `.font(.system(size:` count is now **0** (re-measured, not assumed — the whole-tree
-//     figure fell 92 → 77, i.e. the roll held 15 hits, 8 of which were the non-icon ones
-//     counted here). The bullet is kept as an obituary rather than removed, because the
+//     that sentence: the 987-line `PianoRollView` struct is deleted, so the file's
+//     `.font(.system(size:` count is now **0**. The whole-tree figure fell **93 → 77**, i.e.
+//     the roll held **16** hits, 8 of which were the non-icon ones counted here.
+//     ⛔ THE #475 EDIT TO THIS BULLET SAID "92 → 77, the roll held 15", UNDER THE WORDS
+//     "re-measured, not assumed" — and that was exactly the lie those words are supposed to
+//     prevent. Re-run against the pre-#475 tree,
+//     `git grep -c '\.font(\.system(size:' f303bff -- Sources` reads **93**, and the same
+//     command scoped to the roll file reads **16**. Both halves of the delta were one low,
+//     which is what an unchecked subtraction from a remembered total looks like. The 92 above
+//     is left standing as the figure of ITS OWN era rather than back-dated: it cannot be
+//     re-measured now, and silently rewriting it would destroy the only evidence that the
+//     era-92 classification and the era-93 delta are two different measurements.
+//     The bullet is kept as an obituary rather than removed, because the
 //     paragraph's arithmetic below ("16 real ones") is only checkable if the reader can see
 //     which line left. **The live figure is EIGHT non-icon hits, not sixteen.** The rest of
 //     the classification is untouched; nothing else moved.

@@ -391,8 +391,8 @@ public final class PatternEngine {
     /// mis-mapping this block exists to prevent.
     ///   REACHABLE — `.transportButton`, `.generate`, `.loopExport`.
     ///   UNREACHABLE — `.pianoRoll` (the `PianoRollView` struct had zero instantiations
-///   since #178 and was DELETED by #475; `PianoRollModel` is what survives, and it
-///   never sets this case),
+    ///     since #178 and was DELETED by #475; `PianoRollModel` is what survives, and it
+    ///     never sets this case),
     ///   `.arrangement` (`ArrangementPlayer.play(store:…)` has no caller since
     ///   `ArrangementView` went with #121 Slice 4), and `.timelineRegion`, whose only
     ///   writer is `TimelineRegionPlayer.play(document:)` — that method lost its last

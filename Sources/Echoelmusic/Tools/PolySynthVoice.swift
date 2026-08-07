@@ -353,7 +353,12 @@ public final class PolySynthVoice {
     /// `noteOn(pitch:velocity:cutoffScale:)`, which stopped witnessing the protocol's
     /// `noteOn(pitch:velocity:)` and broke `extension PolySynthVoice: NoteVoice`
     /// (declared in `PianoRollView.swift`, next to `protocol NoteVoice` — NAMED, not by
-    /// line, because #475 deleted 1013 lines of that file and every number in it moved).
+    /// line, because #475 removed 1020 lines from that file and every number in it moved.
+    /// ⛔ This said "deleted 1013 lines" and no measurement produces that: `git show --stat`
+    /// on the deletion commit reads 54 insertions / 1020 deletions, i.e. **966 net** — the
+    /// file went 2291 → 1325. Neither figure is 1013. The POINT of the sentence — name the
+    /// neighbour, never cite its line — survives intact; the number was decoration, and a
+    /// decorative number in a sentence arguing against numbers is the whole joke.)
     /// The Xcode gate caught it on 4655323; this two-parameter
     /// entry point is the witness, not a redundant convenience. Do not merge the two back
     /// together by re-defaulting `cutoffScale` below.

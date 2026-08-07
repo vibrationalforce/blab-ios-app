@@ -91,7 +91,10 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
     /// ⛔ BLANKED, NOT DROPPED, and the difference is the whole reason `valueFieldCallSites`
     /// can name a line a human can open. The first version of this file dropped the lines and
     /// then counted newlines in the SHORTENED text — so it reported `BodyTempoField.swift:41`
-    /// for a row that lives at :131 and `PianoRollView.swift:1043` for one at :1766. In a repo
+    /// for a row that lives at :131 and `PianoRollView.swift:1043` for one at :1766 (both of
+    /// those are HISTORICAL: the roll's rows went with #475 and neither number resolves to
+    /// anything today — they are kept because the SIZE of the drift is the evidence, and a
+    /// re-anchored example would be a smaller lie about a bigger bug). In a repo
     /// whose comments outweigh its code that is off by hundreds of lines, in exactly the string
     /// a future session pastes into an editor. Blanking keeps one line per line.
     ///

@@ -5,42 +5,33 @@
 //  Every adjustable number in this app is read and typed through ONE control
 //  (`EchoelValueField` + `EchoelNumberPad`, the app-wide law in CLAUDE.md).
 //
-//  `git grep -c "EchoelValueField(" -- Sources` → **61** matching LINES, of which **FOUR are
-//  comments**: this one, `EchoelValueField.swift`'s `stacksLabel` doc and its own quoting of
-//  this command, and `EchoelFXView.swift`'s #443 note about the scan's blind spot.
-//  It was 64 / TWO before #431, 65 / THREE after it, 64 / TWO again after #440, and 61 / FOUR
-//  now. That is exactly the drift this paragraph predicts, and the FOUR is its sharpest data
-//  point yet: the comment count had ALREADY doubled from two to four before anyone re-ran the
-//  command, purely because two later slices wrote prose about this scan. The count moves
-//  whenever anyone WRITES about it — and it moves BACK when someone rewrites a comment for an
-//  unrelated reason, which is worse, because nothing looks like it changed.
-//  #431's own edition then quoted the stale 64 as its SITE count, conflating the two numbers.
-//  ⛔ THE PARENTHETICAL THAT STOOD HERE SAID "the only comment-line hit in the tree", and #353e
-//  falsified it the moment it landed: a doc that quotes the command has to say WHICH hits it
-//  subtracts, and "the only" is a claim about the whole tree that any future comment can break.
-//  Count the comment hits, do not assume there is one. So: **57** call sites (61 lines − 4
-//  comments), and since #475 **all 57 are reachable**.
-//  ⛔ THAT LAST CLAUSE IS NEW AND IT REPLACES A SUBTRACTION. Until #475 this read "**62** call
-//  sites, of which **57** are reachable — the 5 in `PianoRollView`, doorless per CLAUDE.md, are
-//  the only unreachable ones." Both numbers were right; what changed is that the five
-//  unreachable rows are GONE rather than excluded — #475 deleted the piano-roll view struct
-//  they lived in. The reachable figure is therefore unchanged at 57 while the total fell to
-//  match it, which is the one way a count can move without any row being added or removed.
-//  ⛔ Two editions in a row quoted the raw grep output as the call-site
-//  count and were off by exactly one, because the line that documents the number is itself
-//  matched by the command it documents. `git grep -c` counts lines, not call sites.
-//  ⛔ This line first said "58", which was neither number and had no command beside it — in
-//  a repo whose CLAUDE.md spends a paragraph on exactly that failure. The command is here so
-//  the next reader re-runs it instead of quoting me. It then said "62" and went stale anyway.
-//  The RAW LINE COUNT went 64 (at #281) → 66 → 63 → 64, the drop because #132 Slice 6 deleted
-//  `PatchEditorView.swift` and its 4 fields, the rise because #353e added a second comment hit:
-//  a count can FALL as well as rise, AND it can rise without a single new call site, so "it only
-//  ever grows" and "it grew, so someone added a field" are both wrong.
-//  Re-run the command, subtract every comment line, and do
-//  not quote any of those numbers. Nothing asserts it, so it drifts silently — the count is
-//  context for the law, not the law itself.
+//  **57 call sites.** The raw matching-LINE total that stood here is retired, not updated —
+//  ⛔ it read 65, then 64, then 61, and the #475 review's correction of its companion figure
+//  pushed it to 64 again purely by writing three more sentences containing the searched string.
+//  A number that every edit to the prose around it changes is not a measurement of the code.
+//  The same wrong entry ("`EchoelValueField.swift`'s `stacksLabel` doc", which has never
+//  contained the string) stood in BOTH copies of the old list, because the second was written
+//  by reading the first rather than by running anything. Re-derive, never recall:
+//    `git grep -n 'EchoelValueField(' -- Sources | grep -vE ':[0-9]+: *(//|///)' | wc -l`
+//  ⛔ THIRTY-ONE LINES OF NUMBER-ARCHAEOLOGY STOOD HERE AND ARE DELETED, not summarised.
+//  They tracked the raw total across 64 → 66 → 63 → 64 → 65 → 61, each edition correcting the
+//  last, each one going stale to the next comment anyone wrote in this file — including three
+//  editions that quoted the raw line count AS the call-site count and were off by exactly the
+//  number of comments that mention it. Every lesson they carried survives above in one
+//  sentence: the number moved because writing about it moved it. Keeping the ledger of a
+//  measurement that should never have been recorded is the same mistake at one remove, and it
+//  cost more lines than the control it documents.
+//  TWO facts from it are worth keeping because neither is re-derivable from the code:
+//   · A count can FALL as well as rise (#132 Slice 6 deleted `PatchEditorView.swift`'s 4
+//     fields) and can rise with no new call site (a slice writing prose). So neither "it only
+//     grows" nor "it grew, so someone added a field" is a safe inference.
+//   · Since #475 ALL 57 call sites are reachable. Until then the figure was 62 with 5
+//     unreachable — the rows inside the doorless `PianoRollView` struct. The reachable count
+//     never moved; the total fell to meet it. That is the one way this number can change
+//     without a row being added or removed anywhere.
+//  Nothing asserts any of it, so it drifts silently — context for the law, not the law itself.
 //
-//  Both of them printed `String(format: "%.Nf", …)`, which is C's `printf` and therefore
+//  Both of those two controls printed `String(format: "%.Nf", …)` — C's `printf`, and therefore
 //  hard-wired to a decimal POINT regardless of who is holding the phone. A German,
 //  French, Spanish, Italian, Brazilian, Russian or Turkish player — most of continental
 //  Europe and most of South America — reads "0.50" where their entire life writes "0,50".
