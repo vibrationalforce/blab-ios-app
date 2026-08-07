@@ -3637,19 +3637,41 @@ struct EchoelStudioView: View {
         // instead of ageing this line.) 12-TET (the default) is an all-zero table and stays
         // bit-identical, so this fan is unconditional.
         subBass.setTuningCents(cents)
-        // STILL NOT FANNED, and this time with a reason that is about behaviour rather than
-        // API surface: THIS VIEW's `bioVoice` instance never sounds — nothing calls `arm()`
-        // on it (task #277), so its notes stay in launch-silence. ⛔ The first version of this
-        // sentence said "`BioReactiveSynthVoice.playNote` has no caller", which is a claim
-        // about the TYPE and is false: `LaneVoiceRack.swift:331` calls it on every rack bio
-        // voice. `EchoelDDSP.swift:1932` already had the careful wording — "`bioVoice.playNote`
-        // has no caller in `Sources/`", the instance, not the method — and this line dropped
-        // the qualifier that was carrying the whole argument. It matters because the sentence
-        // exists to justify an omission: a type-level "no caller" would later read as proof
-        // that fanning tuning here can never be needed. And `laneVoiceRack` holds BOTH
-        // `PolySynthVoice`s (which have the method) and those sounding bio voices, so a lane
-        // note is the same defect one level down — #338, a separate slice against a separate
-        // surface, not a correctness claim about this one.
+        // ⛔ AND THE BIO VOICE, AND THE WHOLE LANE RACK (#338). This fan stopped here, and the
+        // reason written down for stopping was: "THIS VIEW's `bioVoice` instance never sounds —
+        // nothing calls `arm()` on it (task #277), so its notes stay in launch-silence." The
+        // `arm()` fact is TRUE and the conclusion does not follow. (⛔ This sentence used to end
+        // "…which makes it the THIRD time in this one function that something checkable stood in
+        // for a reason (API surface for the LEAD, API surface for the sub, a latch for this
+        // voice)". The lead third is false, and the excuse quoted six lines up says so itself:
+        // "exists on exactly three reachable objects (all `PolySynthVoice`)" — `leadSynth` IS a
+        // `PolySynthVoice?`, so it was INSIDE that set. `PolySynthVoice.setTuningCents` has
+        // always existed; the lead was an omission with no stated reason at all. Honest count:
+        // TWO.) `arm()` gates ONLY the
+        // BREATH trigger — `consumeBioEventsIfFresh`'s `guard isArmed, …`. The MIDI path is
+        // `apply(controller:)` and has no such guard, deliberately, because the performer leads;
+        // `bioVoice.start(subscribing: bus)` runs at launch (`EchoelmusicApp`) and installs the
+        // controller drain. Plug a keyboard in and the global bio voice sounds today.
+        bioVoice.setTuningCents(cents)
+        // The RACK is the louder half and was never in doubt: `LaneVoiceRack.noteOn` routes each
+        // multi-roll lane note to EXACTLY ONE unit — it is a switch over the slot's binding, not
+        // a broadcast — and `feature.multiRoll` is REGISTERED ON, so the poly/sub half is a
+        // default install, not a flag hunt. (The BIO units additionally need `voiceKindRouting`
+        // and a track the user set to `TrackInstrument.bioVoice`; both flags are registered ON,
+        // but that is a condition and it belongs written down.)
+        // Its own `setTuning(a4Hz:)` fan has existed all along — only the tone-system axis was
+        // missing, which is why the two could drift apart unnoticed.
+        //
+        // ⚠️ THIS CALL IS A NO-OP AT LAUNCH AND THAT IS HANDLED IN THE RACK, NOT HERE. `onAppear`
+        // runs during the first SYNCHRONOUS appear pass; `laneVoiceRack.attachAll` runs later,
+        // from `EchoelmusicApp`'s async startup task, so at this instant the rack's three voice
+        // arrays are EMPTY and both fans iterate zero times. `LaneVoiceRack` therefore LATCHES
+        // the tuning and re-applies it to the voices it creates (see its `tuningCents` doc) —
+        // the alternative was a third copy of the `"toneSystemID"` key and its default inside
+        // `EchoelmusicApp`, i.e. the same one-decision-three-places split this fan is fixing.
+        // The pre-existing `laneVoiceRack.setTuning(a4Hz:)` in `applyConcertPitch` below has
+        // always had the identical exposure; the latch covers both axes.
+        laneVoiceRack.setTuningCents(cents)
     }
 
     /// Push the concert pitch to every voice that has one. Split out of the three inline

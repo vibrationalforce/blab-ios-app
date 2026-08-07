@@ -99,6 +99,30 @@ public final class LaneVoiceRack {
     /// a held note (offs arrive raw too).
     @ObservationIgnored private var bioHeldPitchBySlot: [Int: Int] = [:]
 
+    /// ⭐ THE TUNING THIS RACK IS ON — latched, because the rack does not exist yet when the
+    /// instrument decides its tuning (#338 reviewer finding, and it is the half a source scan
+    /// cannot see).
+    ///
+    /// `EchoelStudioView.onAppear` calls `applyTuning()` / `applyConcertPitch(_:)` during the
+    /// first SYNCHRONOUS appear pass; `attachAll(to:)` runs later, from `EchoelmusicApp`'s async
+    /// startup task. `EchoelmusicApp` states that ordering twice in its own words. So at the
+    /// moment the fan runs, `voices`/`subs`/`bios` are EMPTY and all three loops iterate zero
+    /// times — the call is a guaranteed no-op on the launch path, and the user hears every
+    /// multi-roll lane in plain 12-TET until they next touch the Key or Tuning picker.
+    ///
+    /// The fix is the shape already used for the melodic insert: seed at attach. It lives HERE
+    /// rather than at the call site because the alternative is a third copy of the
+    /// `"toneSystemID"` key plus its default in `EchoelmusicApp` — and one decision in three
+    /// places is the split this whole task exists to close. The rack owns "which tuning am I
+    /// on"; both setters write it, `attachAll` applies it to the voices it just created.
+    ///
+    /// ⚠️ BOTH AXES, deliberately. The A4 fan (`setTuning(a4Hz:)`) has had the identical
+    /// exposure since it was written — it is an inherited gap, not one #338 created — and
+    /// seeding only the tone system would leave the rack's two tuning axes able to disagree at
+    /// launch, which is the exact failure mode this task is named after.
+    @ObservationIgnored private var tuningA4Hz: Double = 440
+    @ObservationIgnored private var tuningCents: [Float] = Array(repeating: 0, count: 12)
+
     public init(capacity: Int = 4, maxVoicesPerSlot: Int = 8) {
         self.capacity = Swift.max(1, capacity)
         self.maxVoicesPerSlot = Swift.max(1, maxVoicesPerSlot)
@@ -144,6 +168,13 @@ public final class LaneVoiceRack {
             bio.attach(to: audioEngine)
             bios = [bio]
         }
+        // Seed the freshly-created voices with the tuning the instrument already decided
+        // (see the `tuningA4Hz`/`tuningCents` doc): `onAppear`'s fan ran before this task,
+        // against empty arrays. Both axes, in the same order the setters use. 440 + an
+        // all-zero table are the defaults, so an install that never left 12-TET at A=440
+        // is bit-identical.
+        setTuning(a4Hz: tuningA4Hz)
+        setTuningCents(tuningCents)
         attached = true
     }
 
@@ -198,6 +229,7 @@ public final class LaneVoiceRack {
     /// gets this; without it a lane sub droned off-pitch at e.g. A=432). No-op
     /// while flag OFF (subs empty). Control-path (setTuning writes an atomic).
     public func setTuning(a4Hz: Double) {
+        tuningA4Hz = a4Hz
         // The lane MELODIC voices (the PolySynthVoice pool) must follow A4 too — they
         // were skipped here and every lane MIDI note played at the hardcoded 440 while
         // subs/bios/global synth retuned, so a melodic lane droned off-pitch at e.g.
@@ -208,6 +240,40 @@ public final class LaneVoiceRack {
         // unit played every MIDI note at a hardcoded 440 and drifted off-pitch at e.g.
         // A=432 while the rest of the instrument retuned. Same atomic control-path.
         for b in bios { b.setTuning(a4Hz: a4Hz) }
+    }
+
+    /// #338: match every lane voice to the selected TONE SYSTEM's per-pitch-class retune
+    /// table — the second tuning axis, and the one the rack was missing entirely.
+    ///
+    /// ⭐ WHY THIS IS THE SAME DEFECT AS #312, ONE LEVEL DOWN. `applyTuning()` fanned the
+    /// table to the four PRIMARY voices (synth, touch, lead, sub) and stopped there, so a
+    /// secondary lane played plain 12-TET against a retuned primary — up to 300 cents apart
+    /// in Hirajōshi. The rack is live, not latent: `feature.multiRoll` is registered ON
+    /// (`EchoelmusicApp`), so a multi-roll lane sounds on a default install.
+    ///
+    /// Deliberately the SAME shape as `setTuning(a4Hz:)` directly above — one fan, three
+    /// voice families — rather than a second pattern: two ways to push a tuning is exactly
+    /// the split that let the A4 axis and the tone-system axis drift apart in the first
+    /// place. 12-TET is an all-zero table, so this is bit-identical until a deviating system
+    /// is chosen.
+    ///
+    /// ⛔ This doc used to end "No-op while unattached (all three arrays empty ⇒ flag OFF)",
+    /// which named the harmless reason and missed the one that bites: the arrays are ALSO
+    /// empty on the launch path, before `attachAll`. That is why the value is latched — see
+    /// the `tuningCents` field doc.
+    ///
+    /// ⚠️ THE FINITE CHECK LIVES HERE, not in the three voice families. `SubBassVoice` and
+    /// `EchoelPolyDDSP` guard the SIZE only; `BioReactiveSynthVoice` guards size AND finiteness.
+    /// One NaN entry would therefore have retuned poly + sub and been REJECTED by bio, leaving
+    /// the rack split across two tuning tables with nothing watching. Unreachable today
+    /// (`TuningSystem.pitchClassCents(root:)` is a table lookup), so this is shape and not a
+    /// live defect — but one gate in front of all three is cheaper than three that disagree.
+    public func setTuningCents(_ cents: [Float]) {
+        guard cents.count == 12, cents.allSatisfy({ $0.isFinite }) else { return }
+        tuningCents = cents
+        for v in voices { v.setTuningCents(cents) }
+        for s in subs { s.setTuningCents(cents) }
+        for b in bios { b.setTuningCents(cents) }
     }
 
     // MARK: - S2-W2-3 kind-routing facade

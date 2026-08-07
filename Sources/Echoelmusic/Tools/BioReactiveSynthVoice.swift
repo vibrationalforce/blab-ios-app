@@ -251,12 +251,71 @@ public final class BioReactiveSynthVoice {
     /// on the MainActor) — never touched by the render block, so no atomic needed.
     @ObservationIgnored private var tuningA4Hz: Float = 440
 
+    /// Per-pitch-class (0=C…11=B) cent deviation from 12-TET — the SELECTED TONE SYSTEM's
+    /// intonation, the same table `EchoelPolyDDSP`/`SubBassVoice` get.
+    ///
+    /// ⭐ WHY THIS VOICE NEEDS IT (#338, the #312 gap one level down). Two reachable paths
+    /// already play this type's notes today, and both went through `soundingFrequency`,
+    /// which knew only the Kammerton: external MIDI note-on on the GLOBAL instance
+    /// (`apply(controller:)` — NOT gated by `isArmed`, the performer always leads), and the
+    /// sequencer gate on every RACK bio unit (`LaneVoiceRack.noteOn`). So with a non-12-TET
+    /// system selected, every
+    /// other pitched voice moved and these played plain 12-TET against them — the founder's
+    /// "Bass teilweise nicht in tune" (#312), same shape, different voice.
+    ///
+    /// ⚠️ THE TWO PATHS ARE NOT EQUALLY UNCONDITIONAL, and the first draft of this block said
+    /// they were ("live because `feature.multiRoll` is registered ON"). The GLOBAL instance
+    /// needs nothing but a plugged-in keyboard. A RACK bio unit needs `multiRoll` AND
+    /// `voiceKindRouting` (both registered ON, but it is two flags, `LaneVoiceRack.attachAll`)
+    /// AND a track whose instrument the user set to `TrackInstrument.bioVoice` — `EchoelDDSP`
+    /// states that user-assignment condition and this block had dropped it. The poly/sub half
+    /// of the rack fan is the genuinely default-install one.
+    ///
+    /// ⛔ AND THE COMMENT IN `applyTuning()` CALLED THAT ABSENCE CORRECT, on the ground that
+    /// "THIS VIEW's `bioVoice` instance never sounds — nothing calls `arm()` on it (#277)".
+    /// The `arm()` half is true and the CONCLUSION does not follow: `arm()` gates only the
+    /// BREATH trigger (`consumeBioEventsIfFresh`), never the MIDI path.
+    ///
+    /// ⛔ AND THE FIRST DRAFT OF THIS SENTENCE MISCOUNTED, in three files at once: it said
+    /// "the THIRD time in this one fan that a fact stood in for a reason — API surface for the
+    /// LEAD, API surface for the sub, and a latch for this voice." The lead half is FALSE and
+    /// the excuse it cites says so: "exists on exactly three reachable objects (all
+    /// `PolySynthVoice`)" — `leadSynth` IS a `PolySynthVoice?`, so it was INSIDE that set, not
+    /// excluded by it, and `PolySynthVoice.setTuningCents` has always existed. The lead was an
+    /// omission with NO stated reason at all. Honest count: TWO — API surface (which covered
+    /// sub, this voice and the rack together), and this latch. Written down because a session
+    /// that greps for the lead's supposed excuse finds nothing and then discounts the whole
+    /// block, including the half that is true.
+    ///
+    /// CONTROL-PATH ONLY, exactly like `tuningA4Hz` above: written in `setTuningCents`, read
+    /// in `soundingFrequency`, both on the MainActor. The render block never sees it (the
+    /// mono `EchoelDDSP` is handed a finished Hz), so unlike `SubBassVoice.tuningCents` this
+    /// needs no `nonisolated(unsafe)` and no in-place-mutation discipline.
+    @ObservationIgnored private var tuningCents: [Float] = Array(repeating: 0, count: 12)
+
     /// This voice's SOUNDING frequency for a MIDI note, honoring the concert pitch
     /// (Kammerton) set via `setTuning`, so external-MIDI and lane-gate notes stay in tune
     /// with the rest of the instrument instead of pinning to 440. (Was a hardcoded-440
     /// static that made the bio voices ignore the user's Kammerton.)
+    ///
+    /// Since #338 it also honors the tone system's per-pitch-class retune. 12-TET is an
+    /// all-zero table, so the default is bit-identical — which is what makes the fan in
+    /// `applyTuning()` safe to apply unconditionally.
     public func soundingFrequency(forMIDINote note: UInt8) -> Float {
-        tuningA4Hz * powf(2, (Float(note) - 69) / 12)
+        // Defensive on SIZE as well as on the setter. ⛔ The reason first written here was
+        // "this is the branch a future caller could reach without going through
+        // `setTuningCents` at all (the lesson `SubBassFollowsTheToneSystemTests` pins for the
+        // sub)" — and that parallel does NOT hold, which matters because in this repo the
+        // stated reason is what a later session cites. `SubBassVoice.feltFrequency` is a
+        // STATIC taking `cents` as a parameter, so an arbitrary caller really can hand it a
+        // 3-entry array, and its test drives exactly that. Here `tuningCents` is `private`
+        // with one writer, itself size-guarded, so the false arm is dead by construction.
+        // The ternary stays because it is free and a `private` field can gain a second writer
+        // in one edit; the honest scope is "cheap belt on a MainActor read", not "a caller
+        // can reach this today" — and a trap here would be a main-thread trap, not the
+        // render-thread crash the sub's version guards.
+        let deviation = tuningCents.count == 12 ? tuningCents[Int(note) % 12] : 0
+        return tuningA4Hz * powf(2, (Float(note) - 69) / 12) * exp2f(deviation / 1200)
     }
 
     /// Set the concert pitch (Kammerton) this voice tunes to — A4 in Hz, clamped to a
@@ -268,6 +327,27 @@ public final class BioReactiveSynthVoice {
         // failure class as the pitch-bend isFinite guard).
         guard a4Hz.isFinite else { return }
         tuningA4Hz = Float(Swift.min(Swift.max(a4Hz, 380), 500))
+    }
+
+    /// Install the tone system's 12-entry pitch-class retune table (#338). All zeros
+    /// (12-TET, the default) leaves playback bit-identical. Concert pitch and tone system
+    /// are INDEPENDENT axes and compose — this never touches `tuningA4Hz`.
+    ///
+    /// No-op if the table is not exactly 12 entries, and no-op on a non-finite entry: a
+    /// partial apply would retune the wrong pitch classes, and a NaN cent value would make
+    /// `soundingFrequency` return NaN → the stuck-silent-oscillator failure class the
+    /// `setTuning` guard above exists for. Staying on the last good tuning beats both.
+    ///
+    /// ⚠️ COPIED IN PLACE, not reseated — the same discipline as `SubBassVoice` and
+    /// `EchoelPolyDDSP`, and deliberately so even though nothing needs it TODAY. Reseating an
+    /// array is an ARC retain/release on the storage; that is harmless while every reader is
+    /// on the MainActor (it is — see the field doc), and it becomes an audio-thread race the
+    /// moment someone marks `soundingFrequency` `nonisolated`, which is exactly what
+    /// `SubBassVoice.frequency(forMIDINote:)` is. Three identical shapes cost nothing; one
+    /// that is "fine for now" is an invitation with a doc comment next to it.
+    public func setTuningCents(_ cents: [Float]) {
+        guard cents.count == 12, cents.allSatisfy({ $0.isFinite }) else { return }
+        for i in 0..<12 { tuningCents[i] = cents[i] }
     }
 
     // MARK: - Lane mixer stage (BodyVibe B1 — rack-unit use)
@@ -362,6 +442,11 @@ public final class BioReactiveSynthVoice {
             releaseNote()
         case .pitchBend:
             let semis = event.value * 2.0
+            // ⚠️ PRE-EXISTING SHAPE, newly consequential since #338: note 0 falls back to 69,
+            // so a bend that arrives without a note now picks up pitch class A's deviation
+            // rather than none. Left alone deliberately — choosing the right fallback (last
+            // sounding note? no deviation?) is a decision, not a tidy-up, and this slice is
+            // about fanning the table, not about redefining the bend base.
             let base = soundingFrequency(forMIDINote: event.note > 0 ? event.note : 69)
             let bent = base * powf(2, semis / 12)
             // A NaN/inf controller value would set synth.frequency to NaN, which the

@@ -2025,8 +2025,22 @@ public final class EchoelDDSP: @unchecked Sendable {
         // voice", which points at the global `bioVoice` — a voice that CANNOT BE HEARD:
         // `BioReactiveSynthVoice.playNote` is the only thing that flips `hasEverSounded`,
         // and `bioVoice.playNote` has no caller in `Sources/` (attach/start/onPollTick/
-        // setTuning only), so its render block returns zeros. The sentinel voice that DOES
-        // sound is a different object: `LaneVoiceRack.bios`, one per rack, reached when a
+        // setTuning only), so its render block returns zeros.
+        //
+        // ⛔ AND THAT CORRECTION WAS ITSELF WRONG IN ITS SECOND HALF (#338). "No caller in
+        // `Sources/`" is a claim about TEXTUAL `bioVoice.playNote(` call sites and it holds;
+        // "CANNOT BE HEARD" does not follow from it, because the caller is INSIDE the type:
+        // `apply(controller:)` calls `playNote(frequency:)` on an external MIDI `.noteOn`,
+        // and `bioVoice.start(subscribing: bus)` (run at launch in `EchoelmusicApp`) is what
+        // installs the drain that reaches it. Plug a keyboard in and the global bio voice
+        // sounds. `isArmed` does not stop it either — that latch gates only the BREATH
+        // trigger. So the global instance takes the SENTINEL branch too, for the same reason
+        // as the rack ones: nothing routes a patch to it. This is the most expensive shape of
+        // stale note in this repo — one that declares a live mechanism dead — and it earned
+        // its keep by being the stated reason the #338 tuning fan skipped this voice.
+        //
+        // The sentinel voice that ALSO sounds, and the louder one, is a different object:
+        // `LaneVoiceRack.bios`, one per rack, reached when a
         // user assigns a track `TrackInstrument.bioVoice` under `FeatureFlags.multiRoll`.
         // It never receives a patch (`applyPatch` routes to the poly slot, never to `bios`),
         // so it takes the sentinel branch. The sentence was materially true and its
