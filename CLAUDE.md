@@ -304,8 +304,55 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**194** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `RequestedDrumVelocityIsTheEmittedByteTests.swift` (#474 — der erste
+                          `Tests/CISmoke` (**195** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `TheFXDoorNamesAControlThatExistsTests.swift` (#480 — der erste
+                          Wächter in dieser Kette über einer ACCESSIBILITY-Zeichenkette, und der erste, dessen
+                          Defekt VIER ZEILEN unter seiner eigenen Widerlegung stand. Der „All parameters"-Knopf
+                          in `effectsPanel` sagte VoiceOver „every parameter as a slider"; `EchoelFXView.swift`
+                          deklariert NULL `Slider(` (gemessen), und der Kommentar direkt über dem Knopf war
+                          eigens geschrieben worden, um genau diese Formulierung zu streichen — „NOT 'as
+                          sliders' — numeric parameters are `EchoelValueField`s". Jemand hat die Prosa
+                          korrigiert und den String stehen lassen.
+                          ⭐ **Was diese Scheibe von den übrigen Wahrheits-Scheiben unterscheidet, ist die
+                          SCHICHT.** Ein Accessibility-Hinweis ist unsichtbar, solange VoiceOver aus ist — kein
+                          Screenshot, kein Design-Durchgang und kein UI-Review hätte ihn je gezeigt. Deshalb
+                          konnte eine Behauptung neben ihrer eigenen Widerlegung monatelang überleben, während
+                          dieselbe Klasse im sichtbaren Text regelmäßig gefangen wird.
+                          ⚠️ EHRLICHE GRÖSSE, weil „VoiceOver wurde belogen" größer klingt als es ist: das ist
+                          KOPIE, kein kaputtes Affordance. `EchoelValueField` installiert eine
+                          `accessibilityAdjustableAction`, Wischen hoch/runter verstellt es also exakt so wie
+                          einen `Slider`. Verborgen hat das falsche Wort das, was ein Slider NICHT hat —
+                          Doppeltipp zum Tippen einer exakten Zahl. Jedes Feld sagt das in seinem EIGENEN
+                          Hinweis, die Tür wiederholt es deshalb bewusst nicht (#416).
+                          ⛔ **UND DIE KORREKTUR, DIE DEN DEFEKT GEFANGEN HAT, WAR SELBST ÜBERZOGEN** — in die
+                          andere Richtung: „the app has no raw `Slider`", unqualifiziert. Es sind **ZWEI**, beide
+                          der Look-Scrub (`EchoelStudioView` + `FloatingVisualWindow`), beide absichtlich und am
+                          Ort begründet. Das UI-Gesetz sagt „no raw `Slider`/`Stepper` **for parameters**", und
+                          ein stufenloser Morph zwischen BENANNTEN Looks ist keine Parameter-Zeile —
+                          `FloatingVisualWindow` schreibt das wörtlich an seine Stelle („a live VJ control over
+                          the visual, not a Studio parameter row"). Die GESCOPETE Behauptung überlebt, die
+                          absolute nicht.
+                          ⭐ Und die neue Formulierung ist nicht erfunden: das Panel beschreibt sich in seinem
+                          eigenen sichtbaren Blurb als „filter → modulation → delay → dynamics" — dieselben vier
+                          Stufen in derselben Reihenfolge. Die Accessibility-Schicht sagt seit #480 also das,
+                          was die sichtbare Schicht sagt, statt etwas Drittes.
+                          ⚠️ EHRLICHE BENOTUNG: von vier Behauptungen ist **genau EINE** eine Regression
+                          (gemessen: auf `HEAD` rot an exakt der genannten Zeile, danach grün). Die anderen drei
+                          sind GEGENGEWICHTE gegen das naheliegende Aufräumen „streich das Wort ‚Slider' aus der
+                          Kopie" — das nähme die EHRLICHE Look-Scrub-Kopie mit und ließe den einen echten
+                          `Slider` des Instruments für VoiceOver unbenannt. Eines davon nagelt das UI-Gesetz
+                          selbst fest: genau ZWEI rohe `Slider(` in `Sources/`, beide auf `lookScrub`, und NULL
+                          `Stepper(`.
+                          ⚠️ Alle vier sind QUELLTEXT-SCANS: dass VoiceOver den Satz spricht, dass der Knopf am
+                          Gerät erreichbar ist und dass die neue Formulierung sich VORGELESEN gut liest, bleiben
+                          Geräteproben. Die Erreichbarkeit ist stattdessen von Hand gemessen — `effectsPanel`
+                          kommt aus `dropdownContent` für `.effects` (Effects-Chip), und `showAllFX` hat genau
+                          einen Setzer.
+                          ⚠️ Der SF-Symbol-Name `slider.horizontal.3` auf dem Knopf ist ausdrücklich erlaubt und
+                          KEIN Defekt: es ist das übliche Glyph für „Parameter" (SF Symbols hat keines für ein
+                          Zahlenfeld), und ein Symbolname ist keine Behauptung über einen Bedienelement-Typ.
+                          Nicht auf Grundlage dieser Datei „reparieren"),
+                          davor „194" nach `RequestedDrumVelocityIsTheEmittedByteTests.swift` (#474 — der erste
                           Wächter in dieser Kette, der GANZ VERHALTENSBASIERT ist: `MIDIFileExporter` ist
                           `public`, Foundation-only und deterministisch, also treibt jede der sechs
                           Behauptungen die ausgelieferte Funktion und liest die ausgelieferten Bytes. Kein
@@ -3197,7 +3244,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTZWEIUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 194 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTDREIUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 195 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

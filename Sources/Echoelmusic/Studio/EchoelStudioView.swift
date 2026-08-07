@@ -657,7 +657,10 @@ struct EchoelStudioView: View {
     @State private var floatingWasVisible = false
     @State private var showMeditation = false
     @State private var showLiveColabo = false
-    /// Presents the full per-stage FX panel (every parameter as a slider).
+    /// Presents the full per-stage FX panel (every parameter exposed).
+    /// ⛔ Said "as a slider" until #480. `EchoelFXView` declares zero `Slider(` — measured, and
+    /// the comment above its own door said so while this line and the VoiceOver hint went on
+    /// claiming it. See the ⛔ block at the `showAllFX` button in `effectsPanel`.
     @State private var showAllFX = false
     // The sample-browser slot (`sampleBrowserTrack` + its `.sheet(item:)` + `TrackRef`)
     // is GONE with `SampleBrowserView` itself (#167, founder "Drums sollen erstmal gar
@@ -6184,9 +6187,29 @@ struct EchoelStudioView: View {
             }
             // Full control: open every stage (filter, delay, chorus, flanger,
             // phaser, tremolo, compressor, limiter) with all parameters exposed.
-            // NOT "as sliders" — the app has no raw `Slider`: numeric parameters are
-            // `EchoelValueField`s, and a parameter whose values have NAMES is a picker
-            // (filter mode, delay mode, and since 2026-07-29 the two harmony intervals).
+            //
+            // ⛔ THIS COMMENT WAS WRITTEN TO CORRECT THE HINT AT THE BOTTOM OF THIS BUTTON, AND
+            // THE HINT WAS LEFT STANDING (#480). It said: NOT "as sliders" — numeric parameters
+            // are `EchoelValueField`s, and a parameter whose values have NAMES is a picker
+            // (filter mode, delay mode, and since 2026-07-29 the two harmony intervals). Every
+            // word of that is true of what this button opens — measured, `Slider(` occurs 0
+            // times in `Studio/EchoelFXView.swift` — and the VoiceOver hint below it went on
+            // saying "every parameter as a slider". A claim standing next to its own refutation,
+            // in the one layer a sighted reviewer never reads.
+            //
+            // ⛔ AND THE CORRECTION OVERSHOT: "the app has no raw `Slider`", unqualified. There
+            // are TWO — the look scrub, here in `visualLookRow` and again in
+            // `FloatingVisualWindow` — and both are deliberate. The UI law's own word is "for
+            // parameters"; a continuous morph between NAMED looks is not a parameter row, and
+            // `FloatingVisualWindow` says exactly that at its site ("a live VJ control over the
+            // visual, not a Studio parameter row"). The SCOPED claim survives, the absolute one
+            // does not, and `TheFXDoorNamesAControlThatExistsTests` pins both halves.
+            //
+            // ⚠️ HONEST SIZE — this is copy, not a broken affordance. `EchoelValueField` installs
+            // an `accessibilityAdjustableAction`, so swipe-up/down behaves exactly as it would on
+            // a `Slider`. What the wrong word hid is the affordance a slider does NOT have:
+            // double-tap to type an exact number. Each field states that in its own hint, so this
+            // door does not repeat it — one definition per fact (#416).
             Button { showAllFX = true } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "slider.horizontal.3")
@@ -6201,7 +6224,7 @@ struct EchoelStudioView: View {
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Open the full effects chain — every parameter as a slider")
+            .accessibilityHint("Open every effect stage — filter, delay, modulation and dynamics, with every parameter exposed")
         }
     }
 
