@@ -276,8 +276,53 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**189** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `HRVIsNotWrittenToHealthTests.swift` (#463 — der erste Wächter in
+                          `Tests/CISmoke` (**191** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `TheUnitToPeriodLawSurvivesTheViewTests.swift` (#470 — der erste
+                          Wächter in dieser Kette über einem HOIST statt über einem Wert oder einer Fläche,
+                          und deshalb der erste, bei dem der Beweis vor dem Schreiben eine falsche eigene
+                          Behauptung gefangen hat. `PianoRollView.occurrencePeriod(forUnit:)` war korrekte
+                          Arithmetik am falschen Ort: ein `@MainActor`-View-Static in einer Ansicht, die seit
+                          #178 niemand instanziiert; CLAUDE.md hält seit Wochen fest, dass genau dieses Hoisten
+                          die Löschung der Ansicht entblockt. Neues Zuhause ist `RollHitTest` und nicht
+                          `NoteOperators`, weil `velocity(forY:laneHeight:)` dort der EINE Erzeuger der Einheit
+                          ist, die die Funktion verbraucht — Y → Einheit → Periode ist EINE Kette, und beide
+                          Enden waren schon rein. Die RANGE bleibt bei `NoteOperators`: der Boden FRAGT sie,
+                          statt 64 zu wiederholen.
+                          ⛔ **UND DIE ERSTE FASSUNG DES WÄCHTERS WÄRE AUF KORREKTEM CODE ROT GEWESEN.** Sie
+                          behauptete, JEDE nicht-endliche Einheit nehme den Boden-Zweig — „NaN-sicher per
+                          Argument-Reihenfolge". Für NaN und −∞ stimmt das; **+∞ passiert den Guard**, und
+                          `Int((1/∞).rounded())` ist **0**, also UNTER `periodRange`. Dasselbe gilt für jede
+                          Einheit über 2. Gefunden beim Nachrechnen vor dem Commit, nicht im Review — und der
+                          Doc-Kommentar an der Deklaration trug denselben Fehler. Beide sind jetzt ehrlich; die
+                          Arithmetik ist ABSICHTLICH unverändert, weil #470 ein Umzug ist und eine
+                          Verhaltensänderung in einem Umzugs-Commit die „nichts ändert sich"-Behauptung genau
+                          dann aufhebt, wenn niemand mehr hinsieht. Gedeckt ist der ausgelieferte Pfad trotzdem:
+                          `NoteOperators`' init klemmt, und `testTheShippedChainIsLegalWhereTheMapAloneIsNot`
+                          nagelt genau diese Rettung fest.
+                          ⚠️ EHRLICHE BENOTUNG: von den sechs Behauptungen ist **genau EINE** eine Regression
+                          (`testTheViewNoLongerDeclaresItsOwnCopy`). Alle Verhaltensfälle treiben ein Symbol,
+                          das DERSELBE Commit anlegt — sie konnten nie rot sein, und sie als Regressionen zu
+                          verbuchen wäre der #433-Defekt in der Datei, die #433 zitiert.
+                          ⚠️ Und die Grenze: die Ansicht bleibt türlos, diese Arithmetik ist aus der App also
+                          weiterhin unerreichbar. Gehoben wird sie nicht, weil ein Nutzer wartet, sondern weil
+                          eine türlose Kopie genau der Ort ist, an dem eine spätere Löschung aus Versehen eine
+                          Entscheidung mitnimmt. Die ~995-Zeilen-Ansicht selbst zu löschen ist eine eigene,
+                          founder-sichtbare Scheibe — kein Nebeneffekt eines Hoists),
+                          davor „190" nach `TheFlashCeilingIsOneNumberTests.swift` (#466 — die WCAG-Blitzgrenze
+                          hatte DREI unabhängige Deklarationen (`FlashGuard.maxFlashHz` kanonisch per
+                          DESIGNATION, `EntrainmentEngine.maxVisualFlashHz`, `BioEntrainmentDirector.maxVisualHz`),
+                          alle auf 3.0. **Kein heutiger Defekt — der Defekt ist die FORM**: eine Lockerung in
+                          EINER Datei bliebe unbemerkt, und das an der einen Konstante, die CLAUDE.md unter
+                          SAFETY WARNINGS führt. NICHT zusammengeführt, weil das Layering es verbietet: `Bio/`
+                          referenziert kein `Studio/`, und `DSP/` ist per Hygiene Foundation-only, kann also
+                          gar nicht ketten. Drift wird stattdessen ROT. ⛔ Ehrliche Benotung: zwei der vier
+                          Behauptungen sind KEINE Regressionen, sie sind auf dem Vor-#466-Baum grün. Mitgenommen
+                          wurde eine FALSCHE Paritäts-Behauptung an `EntrainmentEngine.minBreathsPerMinute`
+                          („Matches BreathPacer/ResonanceFinder" — 4,5 gegen 5,0; nur die 7,0-Decke fällt
+                          zusammen). Die ZAHL blieb absichtlich stehen: `breathTargetHz` KLEMMT auf dieses
+                          Fenster, ein Anheben auf 5,0 ließe einen echt 4,6/min atmenden Körper als 5,0 lesen —
+                          erfundene Zahl, Klasse #424/#426),
+                          davor „189" nach `HRVIsNotWrittenToHealthTests.swift` (#463 — der erste Wächter in
                           dieser Kette über einer ENTSCHEIDUNG statt über einem Wert, und der erste, dessen
                           Grading ehrlich lautet: **KEINE der fünf Behauptungen ist eine Regression, alle
                           fünf sind auf dem Vor-#463-Baum grün.** Der Defekt war reine PROSA — und zwar in
@@ -2934,7 +2979,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSIEBENUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 189 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTNEUNUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 191 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

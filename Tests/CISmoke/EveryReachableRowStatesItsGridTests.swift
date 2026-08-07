@@ -219,10 +219,14 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
     ///   is corrected for an unrelated reason.
     /// · `PianoRollView` — the "Vel" field. UNREACHABLE, not deliberate. The founder removed
     ///   the note editor on 2026-07-26 ("Pianoroll soll raus") and `git grep 'PianoRollView('`
-    ///   over `Sources/` outside its own file returns nothing. The struct survives only because
-    ///   a test calls its static `occurrencePeriod(forUnit:)`. Nothing a user can reach renders
+    ///   over `Sources/` outside its own file returns nothing. Nothing a user can reach renders
     ///   this row, so its grid decides nothing — it is listed to keep the count honest, not
     ///   because it is right.
+    ///   ⛔ This entry used to end "The struct survives only because a test calls its static
+    ///   `occurrencePeriod(forUnit:)`." That was true and is not any more: #470 hoisted that one
+    ///   pure function into `RollHitTest`, so the struct now has NO caller of any kind. It is
+    ///   kept here because the "Vel" row still exists inside it — deleting the ~995-line view
+    ///   half is a separate, founder-visible call, not a side effect of a hoist.
     private static var allowedToOmitDecimals: [String: String] {
         ["Studio/BodyTempoField.swift": "deliberate — locked tempo is exact to 0.0001 BPM",
          "Studio/PianoRollView.swift": "unreachable — the note editor was removed (#178)"]

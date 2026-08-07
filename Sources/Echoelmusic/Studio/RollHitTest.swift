@@ -88,6 +88,34 @@ public enum RollHitTest {
         return Float(Swift.max(0, Swift.min(1, 1 - y / laneHeight)))
     }
 
+    /// Map a paint-lane unit [0…1] to an occurrence PERIOD: the bar draws the 1:N
+    /// ratio, so the inverse recovers N (top = 1:1 = every loop, half = 1:2, …). The
+    /// caller still passes the result through `NoteOperators`, whose init clamps it to
+    /// `periodRange` — this is only the unit→period law.
+    ///
+    /// It lives HERE, next to `velocity(forY:laneHeight:)`, because that is the one
+    /// producer of the unit it consumes: Y → unit → period is one chain, and both ends
+    /// were already pure. Hoisted out of the doorless note editor (#470) so the law
+    /// survives the view; it is not a new decision and the arithmetic is unchanged.
+    ///
+    /// ⚠️ Three edges, stated rather than smoothed. All are pre-existing and none is reachable
+    /// from the live producer, which clamps to 0…1 — they are written down because the next
+    /// caller may not clamp:
+    ///   · the `> 0.02` floor is a STEP, not a taper: 0.0201 maps to 50, 0.02 to 64.
+    ///     Anything at or below it reads as "the sparsest the range allows".
+    ///   · NaN and −∞ fail the comparison and therefore take that same floor branch —
+    ///     NaN-safe by argument order, the law `clamped(to:)` exists for.
+    ///   · ⛔ +∞ does NOT. It passes the guard, and `Int((1/∞).rounded())` is **0** — below
+    ///     `periodRange`. So does any unit above 2. Today `NoteOperators`' init clamps that
+    ///     back to 1, so the shipped chain is safe; this function ALONE is not, and the first
+    ///     draft of its own doc claimed otherwise ("a non-finite unit … yields the floor
+    ///     branch"). Left as-is on purpose: #470 is a hoist, and changing the arithmetic in a
+    ///     move commit is how a "no behaviour change" claim stops being true.
+    public static func occurrencePeriod(forUnit unit: Double) -> Int {
+        guard unit > 0.02 else { return NoteOperators.periodRange.upperBound }
+        return Int((1.0 / unit).rounded())
+    }
+
     /// The note whose velocity a lane drag at `step` should paint: the TOPMOST
     /// (last-drawn) note covering that step, matching `classify`'s topmost-wins
     /// rule, or nil if the column is empty. #58 Slice 4.

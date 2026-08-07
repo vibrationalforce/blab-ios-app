@@ -1945,15 +1945,6 @@ struct PianoRollView: View {
         }
     }
 
-    /// Map a paint-lane unit [0…1] to an occurrence PERIOD (1…): the bar draws the
-    /// 1:N ratio, so the inverse recovers N (top = 1:1 = every loop, half = 1:2, …).
-    /// Clamped again by NoteOperators' init (periodRange). A unit at/near 0 → the
-    /// sparsest period the range allows.
-    static func occurrencePeriod(forUnit unit: Double) -> Int {
-        guard unit > 0.02 else { return NoteOperators.periodRange.upperBound }
-        return Int((1.0 / unit).rounded())
-    }
-
     /// Paint-lane: one bar per note (height = the active parameter), drag vertically
     /// to set that parameter for the note under the finger (#58 Slice 4; A1 adds the
     /// chance mode). Reuses the pure `RollHitTest` laws + the existing setters; no bio
@@ -1994,7 +1985,8 @@ struct PianoRollView: View {
                 switch laneMode {
                 case .velocity:   model.setVelocity(id: id, unit)
                 case .chance:     model.setChance(id: id, Double(unit))
-                case .occurrence: model.setOccurrence(id: id, Self.occurrencePeriod(forUnit: Double(unit)))
+                case .occurrence: model.setOccurrence(
+                    id: id, RollHitTest.occurrencePeriod(forUnit: Double(unit)))
                 }
                 selection = .single(id)
             }
