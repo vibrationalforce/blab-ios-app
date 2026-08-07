@@ -127,6 +127,10 @@ struct EchoelStudioView: View {
     @AppStorage(StudioDefaultKeys.fieldArpRhythmPush.key)
     private var fieldArpPush = StudioDefaultKeys.fieldArpRhythmPush.value
     @Environment(SubBassVoice.self) private var subBass
+    /// Only `isRunning` is read here, and only for keep-awake (#486) — it flips twice per
+    /// session. The ~30 Hz `guidance` read stays inside `BreathCoachStrip`, which is why
+    /// that is a `View` struct.
+    @Environment(BreathPacer.self) private var breathPacer
     /// S2-W1: the Multi-Roll slot voices — the Melodic insert must reach them
     /// too, or a secondary lane's "Sound & FX" edit changes nothing it plays.
     @Environment(LaneVoiceRack.self) private var laneVoiceRack
@@ -1273,7 +1277,13 @@ struct EchoelStudioView: View {
                 floatingVisualVisible = floatingWasVisible
             }
         }
-        .onChange(of: showMeditation) { _, _ in updateKeepAwake() }
+        // ONE modifier for both keep-awake flags, deliberately — the chain does not grow
+        // (#486). `showMeditation` alone was dead weight (no setter anywhere); OR-ing the
+        // reachable flag in keeps the unreachable one wired for the day it is re-doored,
+        // instead of silently dropping it. `isRunning` flips twice per session, so reading
+        // it in `body` is nowhere near the 10.76.41/50 freeze law — it is `pacer.guidance`
+        // that is ~30 Hz, and that read stays inside `BreathCoachStrip`.
+        .onChange(of: showMeditation || breathPacer.isRunning) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(reason: "unmount"); disableKeepAwake() }
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
@@ -2528,6 +2538,41 @@ struct EchoelStudioView: View {
             Text("Press Play to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse display and pick \u{201C}Play with a Bluetooth strap — scans for one\u{201D}; Apple Watch feeds in through Health.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // #486 — the ACTIVE half of the loop, directly under the measured half.
+            // `BioStripView` above says what the body is doing; this paces the breathing
+            // that moves those numbers. Founder 2026-08-07 asked for "Training für
+            // kohärentes Atmen" next to the chanting/humming/toning/singing half that #485
+            // put on the mix board.
+            //
+            // NO DOOR, and that is a decision rather than an omission: the founder's ruling
+            // (decisions.csv 2026-07-12) is *"Meditation View nicht extra. Alles findet in
+            // der Main View statt und ist Teil des Produktionsprozesses."* A door to a
+            // separate breathing screen is the exact thing that was refused, which is why
+            // `BreathGuideView` and `MeditationView` stay doorless (#276) and this strip
+            // comes into the panel instead.
+            //
+            // ⚠️ IT IS A `View` STRUCT AND MUST STAY ONE — and here that is not a precaution,
+            // it is the only thing standing between this strip and the shipped freeze.
+            // `pacer.guidance` is rewritten ~30×/s by its tick loop.
+            //
+            // ⛔ THE FIRST DRAFT OF THIS NOTE GOT THE MECHANISM WRONG, in the direction that
+            // makes the rule sound softer than it is. It said an inlined read "would land on
+            // `EchoelPanel`, because `panel(_:_:)`'s builder is `@escaping`". `bioPanel` has
+            // NO `panel(...)` wrapper at its top level — measured: the only `panel(` inside
+            // this whole declaration was that sentence itself. Its `VStack` is reached through
+            // `dropdownContent`, whose own FREEZE RULE note says it plainly: evaluated in the
+            // ROOT body PERMANENTLY. So inlining this fragment would put a 30 Hz read directly
+            // on `EchoelStudioView.body` — the body that hosts every `.menu` Picker of the
+            // instrument — at THREE TIMES the rate that caused 10.76.41/50. Not one hop away
+            // from the freeze; the freeze.
+            //
+            // And the argument that does NOT save it: "this panel hosts no Picker today". True
+            // of today's tree, useless as a rule — the read would be on the root body, not on
+            // this panel. `AnyView(bioPanel)` is not a boundary either (10.76.50). A separate
+            // `View` struct is, which is why the strip is one.
+            BreathCoachStrip()
+
             Button {
                 showRouting = true
             } label: {
@@ -5106,8 +5151,14 @@ struct EchoelStudioView: View {
     /// is re-applied on scene-active too. No-op off UIKit.
     private func updateKeepAwake() {
         #if canImport(UIKit)
+        // `breathPacer.isRunning` (#486): the repo had ALREADY decided a paced breathing
+        // session needs the screen awake — `showMeditation` is in this list — but that flag
+        // has no setter, so the decision was only ever applied to an unreachable surface.
+        // `BreathCoachStrip` is the reachable one, and a training session with the transport
+        // STOPPED is exactly the case where nothing else here is true: the screen would dim
+        // and lock mid-session. Read in a method, not in `body`, so nothing is observed here.
         UIApplication.shared.isIdleTimerDisabled =
-            running || showVisual || showMeditation
+            running || showVisual || showMeditation || breathPacer.isRunning
         #endif
     }
 

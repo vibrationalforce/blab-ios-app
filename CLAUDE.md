@@ -304,8 +304,211 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**198** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `TheVoiceIsOnTheBoardTests.swift` (#485 — der erste Wächter in dieser
+                          `Tests/CISmoke` (**199** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `TheBreathingPracticeIsInTheMainViewTests.swift` (#486 — der erste
+                          Wächter in dieser Kette über einer Fläche, die eine FOUNDER-ENTSCHEIDUNG umsetzt,
+                          indem sie KEINE Tür baut. Founder 2026-08-07 verlangte „Training für kohärentes
+                          Atmen" neben der Chanten/Summen/Tönen/Singen-Hälfte, die #485 aufs Mischpult
+                          gelegt hat. Wie bei #485 war die FÄHIGKEIT längst da — sogar doppelt:
+                          `BreathGuideView` (gepacter Kreis, Kontraindikationen, Halte-Bestätigungstor) und
+                          `MeditationView` (Dauer, Sitzungsaufnahme, Historie). Beide türlos (#276).
+                          ⭐ **Und türlos ist hier kein Versäumnis, sondern die Entscheidung selbst — deshalb
+                          fügt diese Scheibe einen Streifen hinzu und keine Tür.** `decisions.csv` Zeile 200,
+                          2026-07-12, wörtlich: *„Meditation View nicht extra. Alles findet in der Main View
+                          statt und ist Teil des Produktionsprozesses."* Eine Chip- oder Sheet-Tür zu einem
+                          eigenen Atem-Bildschirm ist exakt das, was abgelehnt wurde; der Ask wäre erfüllt und
+                          die Entscheidung gebrochen. Die Übung kommt stattdessen IN `bioPanel`, direkt unter
+                          `BioStripView` — die gemessene Hälfte und die aktive Hälfte in EINEM Panel.
+                          ⭐ **Der Streifen liegt in `BreathGuideView.swift` statt in einer neuen Datei, und
+                          das ist eine Entscheidung mit zwei Gründen.** (1) Die Sources-Zahl bleibt bei 349 —
+                          diese Scheibe bewegt sie nicht, was der Absatz darüber als eigene Lehre führt: aus
+                          zwei aufeinanderfolgenden Ständen lässt sich keine Richtung ableiten, weil
+                          verschiedene VORGÄNGE dieselbe Zahl verschieden bewegen. (2) Wichtiger: die
+                          #416-Spannung bleibt SICHTBAR. Zwei Atemführungen in einer Datei sind schwerer zu
+                          vergessen als zwei in zwei Dateien.
+                          ⚠️ **`BreathCoachStrip` MUSS ein `View`-`struct` bleiben, und das ist die teuerste
+                          Zeile der Scheibe.** `pacer.guidance` wird ~30×/s neu geschrieben — das DREIFACHE
+                          der Rate, die den 10.76.41/50-Freeze verursacht hat. Die naheliegende spätere
+                          Vereinfachung („ist doch nur ein Streifen, falte ihn als `@ViewBuilder`-Fragment in
+                          `bioPanel`") ist genau dieser Freeze. **Und das Argument, das NICHT trägt, gehört
+                          mitgeschrieben, weil es sich richtig anfühlt:** „`bioPanel` beherbergt heute keinen
+                          `Picker`, also kann nichts zerrissen werden." Das ist eine Aussage über den
+                          heutigen Baum, keine Regel.
+                          ⛔ **UND DIE ERSTE FASSUNG DIESER BEGRÜNDUNG WAR FALSCH, in DREI Artefakten
+                          gleichzeitig (Quellkommentar, Wächter-Kopf, hier) — und zwar in der Richtung, die
+                          die Regel WEICHER klingen lässt, als sie ist.** Sie lautete: „`panel(_:_:)` nimmt
+                          einen `@escaping` Builder, der in `EchoelPanel`s EIGENEM Rumpf ausgewertet wird —
+                          ein eingefalteter Lesezugriff landete also auf `EchoelPanel`." Gemessen statt
+                          behauptet: **`bioPanel` hat auf seiner obersten Ebene GAR KEINEN
+                          `panel(...)`-Wirt** — der einzige `panel(`-Treffer in der ganzen Deklaration war
+                          dieser Satz selbst, den ich in den Montage-Kommentar geschrieben hatte. Sein
+                          `VStack` erreicht den Schirm über `dropdownContent`, dessen eigener
+                          FREEZE-RULE-Vermerk es wörtlich sagt: **im WURZEL-Rumpf ausgewertet, DAUERHAFT.**
+                          Ein eingefalteter Lesezugriff landet also unmittelbar auf `EchoelStudioView.body`
+                          — dem Rumpf, der JEDEN `.menu`-Picker des Instruments hält. Nicht einen Sprung vom
+                          Freeze entfernt, sondern der Freeze. **Der Nachbar-Eintrag #485 zwei Bildschirme
+                          weiter oben beschreibt den GEGENFALL korrekt** (`mixerPanel` geht sehr wohl durch
+                          `panel("Mix", …)`), und genau daher stammt der Fehler: die Form eines wahren
+                          Satzes über ein ANDERES Panel wurde übernommen, ohne den Wirt dieses Panels
+                          nachzuschlagen — dieselbe Klasse wie der zurückgenommene #461-Satz über
+                          `BioStripView`. `AnyView(bioPanel)` ist ebenfalls keine Grenze (10.76.50). Ein
+                          `View`-`struct` ist unter jedem dieser Fälle eine; die Abwesenheit eines Pickers
+                          unter keinem.
+                          ⭐ **Die Sicherheits-Hälfte ist ABSICHTLICH zwei Behauptungen und nicht eine.**
+                          `BreathPattern` schreibt sein Gesetz selbst auf: die UI hält Resonanz vorgewählt und
+                          wählt NIE selbsttätig ein Halte-Muster. Dieser Streifen hat keinen Muster-Picker,
+                          also muss er (a) `.resonance` erzwingen und (b) `BreathPacer.contraindications`
+                          rendern — die GETEILTE Konstante, nie eine lokale Kopie, damit der Wortlaut nicht
+                          von der Führung darüber wegdriften kann. Eine einzelne Behauptung auf einer der
+                          beiden Hälften ließe die andere zum „Vereinfachen" frei.
+                          ⛔ **UND BEIDE HÄLFTEN WAREN IN DER ERSTEN FASSUNG FALSCH GEBAUT — drei Reviewer
+                          fanden es unabhängig, jeder Punkt nachgemessen.** (a) Die Erzwingung war
+                          `if pacer.pattern.hasHolds`, begründet mit „wenn die TÜRLOSE Vollbild-Führung sie
+                          auf Box stehen gelassen hat" — ein Satz, der seine eigene Widerlegung enthält: eine
+                          türlose Fläche kann nichts stehen lassen. Gemessen sind es DREI Schreiber von
+                          `pacer.pattern` in `Sources/` — `BreathGuideView`s Picker (nur aus `BioSourceView`,
+                          NULL Instanziierungen), `MeditationView` (nur über `showMeditation`, gar kein
+                          Setzer) und diese Zeile. **Heute kann kein erreichbarer Pfad ein Halte-Muster
+                          hierher reichen.** Die Erzwingung bleibt — sie ist es, was diesem Streifen erlaubt,
+                          die Einverständnis-Karte ehrlich wegzulassen, sobald eine der beiden wieder eine Tür
+                          bekommt —, aber sie ist jetzt UNBEDINGT: `hasHolds` ist für `.coherent` (5/5)
+                          falsch, die bedingte Form ließ also ein Muster durch, das die Bildunterschrift nicht
+                          beschreibt. (b) Die Karte hing an `if !pacer.isRunning`, gestützt auf den
+                          Doc-Kommentar der Konstante („vor einer Sitzung gezeigt"). **Man lese die vier
+                          Zeilen statt des Kommentars:** „atme sanft, nie pressen" und „hör auf, wenn dir
+                          schwindlig wird" sind WÄHREND-Anweisungen, die zweite ist die einzige, die ein
+                          unerwünschtes Ereignis benennt, und die vierte ist der von CLAUDE.md
+                          vorgeschriebene Selbstbeobachtungs-Hinweis. Alle vier verschwanden genau während
+                          der Sitzung. Dazu schoben sie bei jedem Start/Stopp ~7 umbrochene Zeilen ins Layout
+                          — der #382-Schub, in genau dem Panel, für das #382 geschrieben wurde. Jetzt
+                          unbedingt, wie in `BreathGuideView`. **Lehre: die Garantie „kann nicht vom Wortlaut
+                          der Führung abweichen" deckte den WORTLAUT und nicht die SICHTBARKEIT — und die
+                          Abweichung saß in der Sichtbarkeit.**
+                          ⛔ **UND DIE SCHEIBE HAT DEN #485-DEFEKT EINEN COMMIT NACH #485 WIEDERHOLT.** Der
+                          Start/Stopp-Knopf stand auf `.frame(minHeight: 34)` OHNE `.contentShape`, begründet
+                          mit „der Nachbar-Knopf eine Zeile tiefer pinnt auch 34" — dieselbe Form falscher
+                          Referenz wie #485 (`masterDoorButton`): der Nachbar hat dieselbe Auslassung und ist
+                          nur nie geprüft worden. Unter `.buttonStyle(.plain)` trifft der Hit-Test den
+                          GLYPHEN-Lauf des Etiketts (~15–17 pt, in #485 gemessen), der Rahmen vergrößert also
+                          das LAYOUT und nicht das Ziel — unter WCAG 2.5.8s 24-pt-Boden, von HIGs 44 ganz zu
+                          schweigen. Jetzt 44 + `contentShape`, mit eigenem Wächter, weil
+                          `TapTargetFloorTests` eine gepinnte Liste auf ANDERE Dateien ist und nichts rot
+                          geworden wäre. **Und dies ist die EINZIGE Tür zum Anhalten des Pacers.**
+                          ⭐ **Der Bildschirm bleibt jetzt wach — und die Entscheidung dazu war schon
+                          getroffen, nur an der unerreichbaren Fläche.** `updateKeepAwake()` führt
+                          `showMeditation` in seiner ODER-Kette; diese Flagge hat keinen Setzer. Eine
+                          Atem-Sitzung mit GESTOPPTEM Transport ist genau der Fall, in dem jeder andere Term
+                          falsch ist — der Schirm dimmte und sperrte mitten in der Übung. `breathPacer.isRunning`
+                          ist ergänzt, und zwar in EINEM Modifier (`.onChange(of: showMeditation ||
+                          breathPacer.isRunning)`) statt in einem zweiten: die Kette wächst nicht (10.76.34),
+                          und die tote Flagge bleibt verdrahtet statt still zu verschwinden. `isRunning`
+                          kippt zweimal pro Sitzung, das Freeze-Gesetz ist also nicht berührt — es ist
+                          `guidance` mit ~30 Hz, und das bleibt im Blatt.
+                          ⛔ **ZWEI TEXTE WAREN ÜBERZOGEN, und der laufende war der schlimmere.** Er sagte
+                          „Die Zahlen oben sind Dein Körper, der antwortet" — eine BEHAUPTUNG, an keine
+                          Messung gebunden. `start` pact; es startet die Kamera nicht, und `BioStripView`
+                          rendert ohne Quelle für ALLE VIER Metriken „—". Die erreichbare Folge ist: Bio-Panel
+                          auf → Start → „Dein Körper, der antwortet" über vier Gedankenstrichen. Das ist
+                          genau der Zustand, in dem ein App-Store-Prüfer landet (kein Gurt, keine
+                          HealthKit-Freigabe, rPPG-Akquise fragil per #304/#410/#484) — die lügendes-Control-
+                          Klasse, die #435 und #480 zurückgenommen haben. Jetzt „Watch HRV and coherence
+                          above as you settle": eine Einladung kann nicht falsch sein. Der gestoppte Text
+                          nannte 6/min „die Rate, auf die die Herzfrequenz-Zahlen oben am stärksten
+                          reagieren" — was die EIGENE zitierte Wissensseite dieser App widerlegt
+                          (`BioScienceInfo`: „Die genau beste Rate ist individuell — meist zwischen 4,5 und 7
+                          … Echoelmusic pact und misst sie; es verordnet sie nicht"). Drei Fehler in einem
+                          Nebensatz: er stülpte eine Populations-Aussage über DIESEN Nutzer, er nannte die
+                          eine angezeigte Metrik, die bei 0,1 Hz NICHT gipfelt (mittlere HF in bpm — es
+                          gipfelt die AMPLITUDE der Schwingung, also HRV und Kohärenz), und er ließ die
+                          Absicherung weg, die die zitierte Seite bewusst trägt. Dazu nannte er ein ZWEITES
+                          kuratiertes Muster: `.resonance` (4 s ein / 6 s aus) ist nicht `.coherent` (5/5) —
+                          Titel und Text sagten zwei Namen für eine Sache. Jetzt wird die TECHNIK beschrieben
+                          statt benannt, mit „usually" und mit „Deine eigene beste Rate ist individuell".
+                          ⛔ **EHRLICHE BENOTUNG — und die erste Fassung dieses Absatzes hatte sie in der
+                          SCHMEICHELHAFTEN Richtung falsch, also den #433-Defekt in genau dem Absatz, der
+                          „ehrliche Benotung" überschrieben ist.** Sie behauptete „VIER rot durch Abwesenheit,
+                          EINE echte Montage-Erkenntnis, DREI beidseitig grün". Die drei angeblich grünen
+                          öffnen jeweils mit dem Extrahieren von `BreathCoachStrip`, das es auf dem
+                          Vor-#486-Baum nicht gibt — ihre Nichtleer-Behauptung feuert zuerst, sie sind
+                          ebenfalls rot, und zwar aus dem billigen Grund statt aus dem genannten. Gezählt
+                          statt erinnert: **ALLE Methoden sind rot, und alle strip-lesenden wegen DERSELBEN
+                          einen Abwesenheit** — eine Abwesenheit vielfach gemeldet, nicht viele Befunde.
+                          (⛔ Hier stand „ALLE ACHT"; die Reviewer-Nachlese hat zwei Methoden HINZUGEFÜGT,
+                          also war die Ordinalzahl einen Commit später falsch — dieselbe Lehre wie im
+                          #461-Eintrag: eine Ordnungszahl überlebt nicht einmal eine Umsortierung, eine
+                          Anzahl nicht einmal eine Ergänzung.) **EINE**
+                          ist eine echte Montage-Erkenntnis (`testTheStripIsMountedInTheBioPanel` extrahiert
+                          `bioPanel`, das auf dem Elternteil existiert, besteht seine Nichtleer-Behauptung und
+                          wird auf `.contains("BreathCoachStrip()")` rot, also aus genau dem Grund, den sein
+                          Name nennt).
+                          ⛔ **UND DIESE BENOTUNG WAR IN DREI WEITEREN PUNKTEN FALSCH — gefunden von zwei
+                          Reviewern, die den Scanner nachgebaut und jede Behauptung gegen BEIDE Bäume
+                          getrieben haben.** (1) Sie zitierte „6849 Zeichen roh, 2280 gestreift" als BELEG
+                          ÜBER DEN ELTERNTEIL; das sind die NACH-Zahlen, der Elternteil ist 5255/1987. Die
+                          Schlussfolgerung überlebt, die Zahlen beschrieben den Baum, den der Commit gerade
+                          erzeugt hatte — dieselbe Klasse wie die #473-Zeilenzahl am falschen Objekt. (2)
+                          „GENAU ZWEI beidseitig grün" — es sind DREI, und der Satz zwei Zeilen darüber sagt
+                          es selbst („besteht seine Nichtleer-Behauptung"). Eine Tatsache behauptet und im
+                          eigenen Zähler weggelassen, in der schmeichelhaften Richtung. (3) Der Mechanismus
+                          „die Nichtleer-Behauptung feuert" galt für FÜNF von sieben; eine feuerte früher (am
+                          Struct-Scan), eine hatte GAR KEINE Nichtleer-Klammer — die eine strip-lesende
+                          Methode ohne #367-Bracket, jetzt nachgerüstet. **Eine Behauptungs-Zählung wird hier
+                          bewusst NICHT mehr genannt: die Datei ist nach ihrer Benotung zweimal bearbeitet
+                          worden, und eine Pro-Behauptung-Bilanz ist eine Zahl, die beim nächsten Schnitt
+                          abläuft.** Was nicht abläuft, ist die FORM — eine Abwesenheit, vielfach gemeldet,
+                          plus eine echte Montage-Erkenntnis.
+                          ⛔ **UND `SourceText.codeOnly` HAT IN DREI FASSUNGEN DREI VERSCHIEDENE URTEILE
+                          BEKOMMEN, jedes zum Zeitpunkt des Schreibens gemessen und keines dauerhaft.** (1)
+                          Der Entwurf schrieb, der Montage-Kommentar nenne `BreathCoachStrip` in Prosa, der
+                          Stripper sei damit tragend — falsch, der ROHE Text enthielt den Namen genau einmal,
+                          und das war der echte Aufruf; das ist der exakte Überclaim, den #484 EINEN Zyklus
+                          zuvor zurücknehmen musste. (2) Die Rücknahme schrieb „prophylaktisch, gestreift
+                          gegen roh 0 Abweichungen" — beim Schreiben wahr. (3) **Heute ist er TRAGEND, und
+                          zwar gemessen:** der Wächter behauptet die ABWESENHEIT von
+                          `if pacer.pattern.hasHolds`, und dieselbe Scheibe schreibt genau diese Zeichenkette
+                          in einen Rücknahme-Kommentar in `BreathGuideView.swift`, der erklärt, warum die
+                          bedingte Form ersetzt wurde. Roh: vorhanden. Gestreift: abwesend. Ohne den Stripper
+                          ist die Behauptung auf KORREKTEM Code rot. **Die Lehre ist die Umkehrung der
+                          üblichen: ein negativer Scan und ein Rücknahme-Kommentar, der das Zurückgenommene
+                          BEIM NAMEN nennt, kollidieren per Konstruktion — weil dieses Repo aufschreibt, was
+                          es entfernt hat. #453s geteilte Definition ist es, was das Schreiben von beidem
+                          überhaupt zulässt.**
+                          ⚠️ **Und die Grenze zuerst: JEDE Behauptung ist ein QUELLTEXT-SCAN.**
+                          `BreathCoachStrip` liegt hinter `#if canImport(SwiftUI)` und bezieht `pacer` per
+                          `@Environment`; von hier ist nichts renderbar. Dass der Streifen am Gerät erscheint,
+                          dass der Kreis sich wie ein Atem liest, dass ~6/min sich richtig anfühlt und dass
+                          ein Mensch ihm folgen kann, sind ALLE Geräteproben und ALLE offen. Nichts hier sagt,
+                          dass die Übung wirkt — nur, dass sie da ist, vom geteilten Pacer gepact wird und
+                          quelltext-seitig sicher ist.
+                          ⚠️ Und eine EHRLICHE GRENZE der Fähigkeit selbst, festgenagelt statt behoben: die
+                          Führung stoppt auf `onDisappear`, man kann also nicht mit eingeklapptem Panel
+                          weiteratmen. Das ist die sichere Richtung — ein unsichtbar laufender Pacer ist ein
+                          Zustand, den niemand sehen oder stoppen kann —, aber es IST eine Grenze.
+                          `testTheGuideCannotRunInvisibly` macht ihr Entfernen zu einer Entscheidung statt zu
+                          einer Nebenwirkung.
+                          ⚠️ **DREI WEITERE GRENZEN, alle von der Nachlese gefunden, alle benannt statt
+                          behoben.** (1) `onDisappear` deckt NICHT alles: SwiftUI feuert es nicht für eine
+                          Ansicht hinter einem präsentierten `.sheet`/`.fullScreenCover`, und
+                          `EchoelStudioView` trägt 14 davon — eines zu öffnen lässt den Pacer laufen, mit
+                          seinem einzigen Stopp-Knopf unerreichbar. Löst sich beim Schließen von selbst,
+                          gehört aber genannt, weil der Absatz darüber die Eigenschaft ALLGEMEIN behauptet
+                          hatte. (2) **VoiceOver kann der Führung überhaupt nicht folgen:** der Kreis ist
+                          korrekt `accessibilityHidden`, die Takt-Information lebt damit ganz in
+                          `pacer.instruction`, und das trägt weder `.updatesFrequently` noch eine
+                          Live-Region — ein blinder Nutzer bekommt einen Start-Knopf und einen Satz. Von
+                          `BreathGuideView` geerbt, nicht hier eingeführt. (3) Reduce Motion ist GRÖBER als
+                          im Vorbild: die Vollbild-Führung hält eine lebende Prozentzahl im statischen Kreis,
+                          hier bleibt nur die Phasen-Anweisung (alle 4 s / 6 s) — man weiß OB, nicht WO.
+                          ⚠️ **FOUNDER-FRAGE, die diese Scheibe ERST BEANTWORTBAR macht (#487):** CLAUDE.mds
+                          Sicherheits-Liste bindet „nicht beim Führen von Fahrzeugen" und „nicht unter
+                          Alkohol/Drogen" an BRAINWAVE-ENTRAINMENT, und `EntrainmentEngine` ist unmontiert —
+                          strikt gelesen gelten sie also nicht. Aber #486 ändert die Prämisse, auf der diese
+                          Lesart ruhte: **zum ersten Mal ist überhaupt ein entspannungs-induzierender Pacer
+                          erreichbar, und zwar aus der HAUPT-Performance-Ansicht**, also im Auto, auf der
+                          Bühne, überall. Ich behaupte nicht, dass die Zeilen nötig sind; ich behaupte, dass
+                          die Frage vorher gegenstandslos war und es jetzt nicht mehr ist. Gehört neben #450
+                          (ob der kuratierte Satz überhaupt einen Raten-Boden haben soll).),
+                          davor „198" nach `TheVoiceIsOnTheBoardTests.swift` (#485 — der erste Wächter in dieser
                           Kette über einer TÜR statt über einem Wert, einer Größe oder einer Dauer, und der
                           erste, dessen ehrliche Benotung lautet: **er fängt rückwärts fast nichts.** Founder
                           2026-08-07: Training für kohärentes Atmen plus Chanten · Summen · Tönen · Singen,
@@ -3484,7 +3687,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSECHSUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 198 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSIEBENUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 199 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
