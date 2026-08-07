@@ -65,7 +65,7 @@ extension Notification.Name {
 // the brief 2026-07-06A shell flip) is REMOVED from navigation — the code
 // stays in the tree, compiling and reversible, but nothing presents it.
 //
-// Shell = brand header (topBar) + persistent TransportBar + SurfaceHost — which
+// Shell = brand header (topBar) + CompositionHeaderStrip + SurfaceHost — which
 // IS the one main view (founder 2026-07-10: the Ableton-arrangement layout,
 // timeline over instrument zone; the 4-chip surface switcher is unmounted) +
 // the floating immersive visual.
@@ -146,7 +146,8 @@ struct WorkspaceView: View {
                 // SINGLE rule below separates the whole chrome from the timeline content.
                 //
                 // Dynamic Type (a11y). The three chrome bars used to be FIXED-height
-                // (topBar 50 / TransportBar 44 / CompositionHeaderStrip 40 pt) and were
+                // (topBar 50 / TransportBar 44 / CompositionHeaderStrip 40 pt — the middle
+                // one is dissolved since #456) and were
                 // therefore clamped to `.xxLarge` so their text could not overrun the box
                 // it sits in. That clamp is the single largest accessibility defect in the
                 // app: it covers Play/Stop, tempo, Genre, Key, Scale, Tone system and A4 —
@@ -194,7 +195,11 @@ struct WorkspaceView: View {
                 // adds no sheet, reads nothing.
                 Group {
                     topBar
-                    TransportBar()
+                    // (TransportBar stood here and is DISSOLVED — #456. Its two remaining
+                    // children, the "•••" overflow and the position/loop readout, moved into
+                    // `EchoelStudioView.startControlRow` on the founder's 2026-08-07 screenshot
+                    // arrows. The chrome is two bars now, not three; see the note where the
+                    // struct used to be for why they landed on a SECOND line rather than one.)
                     // Step 2b of the bottom-bar dissolve (founder 2026-07-14: "Unten die
                     // Leiste sollte längst aufgelöst sein und sich an anderer Stelle
                     // wieder finden"): the musical identity — Genre · Key · Scale ·
@@ -308,7 +313,7 @@ struct WorkspaceView: View {
     /// On 2026-08-01 the founder circled the empty space left of the title and asked *"Was kann
     /// hier jetzt noch hin?"*; the answer was **nothing**, on the grounds that the UI rules ban
     /// decorative tiles and "control-room cosplay", that every status a performer needs already
-    /// had a home (transport and tempo in `TransportBar`, key/scale/tone system/A4 in
+    /// had a home (transport and tempo in the transport bar of the day, key/scale/tone system/A4 in
     /// `CompositionHeaderStrip`, the three output monitors on the right), and that the live pulse
     /// pill had been deliberately moved OUT of this bar days earlier (#289). So the wordmark
     /// moved left to close the gap instead. That still holds for a TILE. It does not hold for
@@ -421,8 +426,28 @@ struct WorkspaceView: View {
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 12)
-        // `fixedSize` BEFORE `minHeight`, and the order is load-bearing — see the shared
-        // note above `TransportBar`'s frame for why the pair is not optional.
+        // ⚠️ `fixedSize` + `minHeight` ARE A PAIR, and `fixedSize` comes FIRST. This is the
+        // canonical statement of the rule for every chrome bar in this file; it used to live
+        // on `TransportBar`'s frame and moved here when #456 dissolved that bar, because two
+        // other frames point at it ("read that note first").
+        //
+        // `.frame(height: h)` reports `h` whatever the child does. `.frame(minHeight: h)`
+        // forwards the incoming proposal downward and reports `max(child, h)` — so it only
+        // preserves the old geometry if the subtree is vertically INFLEXIBLE. A chrome subtree
+        // is not automatically that: `EchoelValueField`'s scrub layer is a bare `Rectangle()`,
+        // which accepts any proposed height (see the note at that Rectangle). A bar hosting one
+        // therefore starts reporting ∞ — and its sibling `SurfaceHost` is `maxHeight: .infinity`
+        // too, so a VStack ranking both as infinitely flexible SPLITS the free space between
+        // them. That is exactly what the founder photographed in v10.79.371 once #411 moved the
+        // tempo field out from under a bar that carried this pair (#455): the control itself now
+        // carries `fixedSize`, so it is safe in any bar — but a bar that hosts ANY future greedy
+        // child still needs this pair of its own.
+        //
+        // `.fixedSize(horizontal: false, vertical: true)` proposes nil downward, so a greedy
+        // child falls back to its ideal and the bar takes its true content height; the
+        // `minHeight` then floors it at the design size. Flexibility is back to zero, which is
+        // what a fixed height gave us — this time without capping the text. Removing either half
+        // re-opens the split. 44 pt is also the HIG tap-target floor.
         .fixedSize(horizontal: false, vertical: true)
         // minHeight, not height: the bar keeps its 50 pt design size at every normal text
         // size and GROWS instead of overflowing at accessibility sizes (see the Dynamic
@@ -456,7 +481,7 @@ struct WorkspaceView: View {
 /// tempo); the ~10 Hz position lives in its own `TransportPositionView` leaf so the
 /// buttons/field don't churn (freeze rule). Play/Stop drives PatternEngine — the clock that
 /// RELAYS into Transport — so the position/tempo shown stay authoritative.
-/// #289 — the playback ■/▶, EXTRACTED from `TransportBar` so it can sit in the studio's
+/// #289 — the playback ■/▶, EXTRACTED from the then-existing `TransportBar` so it can sit in the studio's
 /// one control block beside "Create from Within" (founder 2026-07-31: the pulse pill and
 /// this button "könnte ja alles in dem Create From within Button drin sein … Führe
 /// intelligent zusammen").
@@ -559,9 +584,10 @@ struct PlaybackToggleButton: View {
                         //
                         // ⛔ THE FIRST VERSION OF THIS COMMENT CALLED THE "•••" ITS "30x32
                         // NEIGHBOUR … 140 lines down". The 140 lines are right and the
-                        // neighbourhood is invented: the "•••" lives in `TransportBar`, two rows
-                        // and a divider above the studio, and the note at the top of that struct
-                        // says so in as many words. I derived adjacency from FILE ORDER — the
+                        // neighbourhood was invented: at the time the "•••" lived in
+                        // `TransportBar`, two rows and a divider above the studio, and the note at
+                        // the top of that struct said so in as many words. I derived adjacency from
+                        // FILE ORDER — the
                         // exact mistake CLAUDE.md had just been amended about, in the same
                         // session, over a grid attributed to the wrong panel for the same reason.
                         // It also called this "the lowest-contrast control in the app", which was
@@ -630,140 +656,96 @@ struct PlaybackToggleButton: View {
     }
 }
 
+// ⛔ `TransportBar` IS DISSOLVED (#456, founder 2026-08-07, screenshot of v10.79.371 with
+// the "•••" and the `1.1.1 / loop 1/32` readout each circled and an arrow drawn INTO the
+// transport row below them). It was the last chrome bar, and since #411 took the tempo
+// field out it held exactly two children — this menu and `TransportPositionView`. Both now
+// live in `EchoelStudioView.startControlRow`; the struct is deleted rather than left as an
+// empty container, so there is no bar to "put something back into".
+//
+// ⭐ WHY TWO LINES AND NOT ONE, which is what the arrows most literally ask for. The note
+// that stood on this struct measured it and said no, and that measurement still holds:
+// folding all four of the row's children plus these two onto one line leaves the analysis
+// pill — which the founder asked to make BIGGER on 2026-07-31 (#305/#307) — with roughly a
+// third of its width on a 393 pt phone once the pause button appears. Two founder asks pull
+// against each other. `startControlRow`'s own doc had already written down the answer for
+// exactly that case: *"the cheapest answer is to move `TransportPositionView` and the '•••'
+// overflow OUT of the chrome bar as well and give this row a second line — NOT to send the
+// tempo back up."* #456 is that sentence carried out. Line 1 is bit-for-bit unchanged, so
+// nothing can be squeezed, and the arithmetic goes the right way: this bar was ≥44 pt of
+// chrome and the new second line is ~32 pt inside the instrument, so the playable area
+// GAINS height rather than losing it.
+//
+// ⚠️ THE `fixedSize` + `minHeight` NOTE THAT LIVED ON THIS STRUCT'S FRAME MOVED to `topBar`'s
+// frame. Two other frames in this file point at it by name ("read that note first"), and it
+// is a rule about every chrome bar rather than about this one — deleting the bar would have
+// deleted the canonical statement of a law that still governs two live frames.
+//
+// ⛔ `toggle()` WENT FROM HERE EARLIER, not merely unused: it moved with the ■ into
+// `PlaybackToggleButton` (#289). A private method with no caller compiles silently in Swift
+// — no warning, no gate — so leaving it would have been a second, divergent copy of the
+// playback-stop path waiting for someone to "restore" a button onto it. The four
+// `@Environment` values it needed went with it for the same reason.
+
+/// The global-doors overflow — the "•••" chip. A LEAF that reads NOTHING at all, which is why
+/// it can be mounted inside `EchoelStudioView` (the body hosting every `.menu` Picker in the
+/// instrument) without contributing an observer.
+///
+/// ⚠️ IT STILL POSTS `.echoelChromeDoor` RATHER THAN TAKING A BINDING, and since #456 that is
+/// a same-view round trip — the studio both posts and receives. Say it plainly rather than
+/// leave the old "the chrome never reaches into studio state" line standing, because that
+/// reason expired when the bar dissolved. The path is kept because it costs nothing at this
+/// rate (a menu tap), and because `.echoelChromeDoor` still has OTHER producers — the header
+/// monitor tiles in `topBar`. Converting only this one to a binding would leave two ways into
+/// the same doors, which is the shape this repo keeps paying for.
+///
+/// Founder 2026-07-12 put Master · Export · Live · Learn "oben in die Leiste"; collapsing
+/// them into one "•••" freed the width for the tempo without touching the brand header.
+///
+/// ⛔ FOUR OF THE SIX ENTRIES LEFT THIS MENU (#290, founder 2026-07-31, red circle around the
+/// open overflow: "Lässt sich das alles intelligent unterbringen in der Reihe mit den ganzen
+/// Funktionen?"). Master, Save/Export, Tempo and Weather & place became CHIPS — they always
+/// were full `StudioMenu` cases with working panels, merely filtered out of the strip, so
+/// moving them cost no new surface and no new modal. (The "Weather & place" chip is gone
+/// again since #359: the weather half moved into Mood and Field, the place half into
+/// "Save & Export", one line above the Save button whose file name it shapes.)
+///
+/// ⛔ WHY THESE TWO STAYED, because the honest answer is not "they did not fit": Live Colabo
+/// and Learn are the only two that are NOT panels. They present full sheets (`showLiveColabo`,
+/// `showLearn`). The chip strip's grammar is "this chip selects what the plate shows" — a
+/// chip that opens a modal instead would be a lying tab, and it would add two entries to the
+/// presentation chain the black-screen law tells us not to grow.
 @MainActor
-private struct TransportBar: View {
+struct TransportOverflowMenu: View {
     var body: some View {
-        HStack(spacing: 12) {
-            // ⬆ THE PLAYBACK ■/▶ MOVED OUT (#289, founder 2026-07-31: the pulse pill and
-            // this button "könnte ja alles in dem Create From within Button drin sein …
-            // Führe intelligent zusammen"). It now sits in `EchoelStudioView`'s one control
-            // row, beside "Create from Within", as `PlaybackToggleButton` — the leaf defined
-            // above this struct, which carries its full #179 rationale. Nothing about WHAT it
-            // does changed; it stopped being on the far side of the window from the control
-            // it belongs to.
-
-            // (The transport pulse button is GONE — founder 2026-07-15 video: "zu viele
-            //  Play Knöpfe, einer reicht." Its job moved to the header pulse pill, and
-            //  with #234 it moved on again: the pill is a MONITOR whose tap opens the Bio
-            //  panel, and starting the session is the front plate's "Create from Within"
-            //  alone. Same founder complaint, answered twice — the second time by removing
-            //  the duplicate rather than relocating it.)
-
-            // ⛔ THE TEMPO FIELD + ITS LOCK LEFT THIS BAR (#411, founder 2026-08-05,
-            // screenshot with the row circled and an arrow pointing down at the play row:
-            // *"Die Zeile mit den bpm und Schloss in rot umrandet soll dort hin wo der rote
-            // Pfeil hinzeigt migrieren."*). It now sits in `EchoelStudioView.startControlRow`,
-            // between the transport buttons and the analysis pill — the Ableton ordering that
-            // row already follows (controls left, readout right), which is what #307 built it
-            // for. Nothing about the control changed: same `BodyTempoField(compact: true)`,
-            // same "tempoLock" post, same shared `@AppStorage` keys. It is THE musical-tempo
-            // control and there is still exactly one of it.
-            //
-            // ⚠️ WHY THE MOVE IS FREEZE-SAFE, since this is the bar that used to host it:
-            // `BodyTempoField` reads the ~10 Hz pulse in its OWN body and always did. That
-            // isolation is the reason it can be mounted anywhere — including inside
-            // `EchoelStudioView`, the body that hosts every `.menu` Picker in the instrument.
-            // Constructing it there registers nothing; only its own body reads state.
-            //
-            // ⚠️ WHAT DID NOT MOVE, and it is a measurement rather than an oversight: the
-            // "•••" overflow and `TransportPositionView` stay here. The founder named the row
-            // by "bpm und Schloss"; folding all four children into one line would leave the
-            // analysis pill — which he asked to make BIGGER on 2026-07-31 (#305/#307) — with
-            // roughly a third of its width on a 393 pt phone once the pause button appears.
-            // Two founder asks pull against each other there, and that one needs a device
-            // look, not a guess.
-
-            // Global doors, grouped into ONE overflow menu (founder 2026-07-12 placed
-            // Master · Export · Live · Learn "oben in die Leiste"; collapsing them to a
-            // single "•••" frees the width for the tempo WITHOUT touching the brand
-            // header — fully reversible). Each entry still posts its chrome-door
-            // notification; the studio opens its dropdown/sheet.
-            // ⛔ FOUR OF THE SIX ENTRIES LEFT THIS MENU (#290, founder 2026-07-31, red circle
-            // around the open overflow: "Lässt sich das alles intelligent unterbringen in der
-            // Reihe mit den ganzen Funktionen?"). Master, Save/Export, Tempo and Weather &
-            // place became CHIPS — they always were full `StudioMenu` cases with working
-            // panels, merely filtered out of the strip, so moving them cost no new surface and
-            // no new modal. Their `.echoelChromeDoor` cases in `EchoelStudioView` went with
-            // them; a case whose only poster was deleted is dead code that reads like a hook.
-            //
-            // ⛔ WHY THESE TWO STAYED, because the honest answer is not "they did not fit":
-            // Live Colabo and Learn are the only two that are NOT panels. They present full
-            // sheets (`showLiveColabo`, `showLearn`). The chip strip's grammar is "this chip
-            // selects what the plate shows" — a chip that opens a modal instead would be a
-            // lying tab, and it would add two entries to the presentation chain the
-            // black-screen law tells us not to grow. Two entries in an overflow is a small
-            // price for a strip where every chip means the same thing.
-            //
-            // ⛔ AND THE "Weather & place" CHIP IS GONE AGAIN (#359, 2026-08-01) — the whole
-            // `.session` case with it. This paragraph is left in the past tense rather than
-            // rewritten, because it is an argument about what #290 did, and #290 really did
-            // promote four entries. Where those four are TODAY: Master, Save/Export and Tempo
-            // are still chips; the weather half of the fourth moved into Mood (sound
-            // influences) and Field (image influences), and the place half into "Save &
-            // Export", one line above the Save button whose file name it shapes.
-            //
-            // The #272 lesson is carried into the Save/Export CHIP label rather than lost: the
-            // founder reported "Session speichern und Loops aufnehmen fehlt" about controls
-            // that were behind an entry named only "Export". And the #202/#59 lesson — name
-            // what weather DOES (it salts the harmonic skeleton and blends darkness/
-            // liveliness/tension into the composer's mood) instead of calling it a naming
-            // gimmick — now lives in `StudioMenu.mood.fullName`, which is the door that
-            // actually holds those knobs. It was in `.session.fullName` until #359 step 3
-            // deleted that case; this line was the only pointer to it in the repo, so it is
-            // corrected rather than dropped.
-            Menu {
-                #if canImport(MultipeerConnectivity)
-                doorMenuButton("Live Colabo — play together nearby",
-                               icon: "dot.radiowaves.left.and.right", door: "live")
-                #endif
-                doorMenuButton("Learn and news", icon: "book", door: "learn")
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(EchoelTheme.text)
-                    .frame(width: 30, height: 32)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
-            }
-            // 44 pt HIG tap target (#113): the visible chip stays 30×32; the transport
-            // bar's 12 pt spacing lets the hit area grow symmetrically (−6 → 42×44)
-            // without overlapping the tempo field, matching the Play button's idiom.
-            .contentShape(Rectangle().inset(by: -6))
-            .accessibilityLabel("More — Live Colabo; Learn and news")
-
-            Spacer(minLength: 0)
-
-            TransportPositionView()
+        Menu {
+            #if canImport(MultipeerConnectivity)
+            doorMenuButton("Live Colabo — play together nearby",
+                           icon: "dot.radiowaves.left.and.right", door: "live")
+            #endif
+            doorMenuButton("Learn and news", icon: "book", door: "learn")
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(EchoelTheme.text)
+                .frame(width: 30, height: 32)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         }
-        .padding(.horizontal, 12)
-        // ⚠️ `fixedSize` + `minHeight` ARE A PAIR. `minHeight` alone would have been a
-        // regression for EVERY user, not only accessibility users, and the mechanism is
-        // worth stating once here for all three bars:
-        //
-        // `.frame(height: h)` reports `h` whatever the child does. `.frame(minHeight: h)`
-        // forwards the incoming proposal downward and reports `max(child, h)` — so it only
-        // preserves the old geometry if the subtree is vertically INFLEXIBLE. This subtree is
-        // not: `EchoelValueField`'s scrub layer is a bare `Rectangle()`, which accepts any
-        // proposed height (see the note at that Rectangle). In Loop mode the tempo control IS
-        // an `EchoelValueField`, so this bar would have started reporting ∞ — and its sibling
-        // `SurfaceHost` is `maxHeight: .infinity` too, so a VStack ranking both as infinitely
-        // flexible SPLITS the free space between them. The transport bar would have taken
-        // roughly half the screen at the DEFAULT text size.
-        //
-        // `.fixedSize(horizontal: false, vertical: true)` proposes nil downward, so the
-        // Rectangle falls back to its ideal and the bar takes its true content height; the
-        // `minHeight` then floors it at the design size. Flexibility is back to zero, which
-        // is what the old fixed height gave us — this time without capping the text.
-        // Removing either half re-opens the split. 44 pt is also the HIG tap-target floor.
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(minHeight: 44)
-        .background(EchoelTheme.bg)
+        // 44 pt HIG tap target (#113): the visible chip stays 30×32 and the hit area grows
+        // symmetrically (−6 → 42×44). It had the transport bar's 12 pt spacing to grow into;
+        // `startControlRow` gives it 8 pt, so the outset now overlaps its neighbour by 2 pt on
+        // each side. That is deliberate and it is the cheap side of the trade: SwiftUI hit-tests
+        // front-to-back in declaration order, so the LATER sibling wins the overlap — the
+        // readout beside it is a plain `Text` with no gesture, and the earlier siblings keep
+        // their own shapes. Shrinking the outset instead would put this chip back under the
+        // 44 pt floor #113 exists to hold.
+        .contentShape(Rectangle().inset(by: -6))
+        .accessibilityLabel("More — Live Colabo; Learn and news")
     }
 
-    /// One chrome-door entry inside the transport bar's "•••" overflow menu: posts
-    /// the studio's door notification (same decoupling as before — the chrome never
-    /// reaches into studio state).
+    /// One chrome-door entry: posts the studio's door notification.
     private func doorMenuButton(_ title: String, icon: String, door: String) -> some View {
         Button {
             NotificationCenter.default.post(name: .echoelChromeDoor, object: door)
@@ -771,20 +753,21 @@ private struct TransportBar: View {
             Label(title, systemImage: icon)
         }
     }
-
-    // ⛔ `toggle()` IS GONE FROM HERE, not merely unused: it moved with the ■ into
-    // `PlaybackToggleButton` (#289). A private method with no caller compiles silently in
-    // Swift — no warning, no gate — so leaving it would have been a second, divergent copy
-    // of the playback-stop path waiting for someone to "restore" a button onto it. The four
-    // `@Environment` values it needed went with it for the same reason.
 }
 
 /// The moving playhead — bars.beats.sixteenths (1-based, DAW convention). Isolated in
 /// its OWN leaf because `transport.position` updates on every step (~10 Hz at 120 BPM);
-/// keeping the read here means only this tiny label rebuilds, never the transport bar's
-/// buttons/field or (crucially) the instrument below. Monospaced so width is steady.
+/// keeping the read here means only this tiny label rebuilds, never its siblings or
+/// (crucially) the instrument below. Monospaced so width is steady.
+///
+/// ⚠️ THE LEAF IS NOW LOAD-BEARING IN A HARDER PLACE, and that is why it stopped being
+/// `private` (#456). Its home is `EchoelStudioView.startControlRow` — inside the body that
+/// hosts every `.menu` Picker in the instrument. Mounting a leaf there registers NOTHING;
+/// only its own body reads `transport.position`, so the ~10 Hz churn stays here. That is the
+/// same argument #411 made for `BodyTempoField`, and the freeze law (10.76.41/50) is about
+/// exactly the mistake of inlining these two lines instead. Do not inline them.
 @MainActor
-private struct TransportPositionView: View {
+struct TransportPositionView: View {
     @Environment(Transport.self) private var transport
     /// The loop size (shared @AppStorage with the Compose panel). Read here so the chrome
     /// always SHOWS how big the loop is + where we are inside it (founder: "optische Anzeige,
@@ -834,8 +817,8 @@ private struct TransportPositionView: View {
 /// (PLAN_DISSOLVE_BOTTOM_BAR_2026-07-14 steps 2b/2c — these rows lived in the
 /// bottom menu bar's Composition/Session dropdowns; founder 2026-07-14: "Unten die
 /// Leiste sollte längst aufgelöst sein und sich an anderer Stelle wieder finden").
-/// THE tempo control is NOT duplicated here — it already lives in the TransportBar
-/// (BodyTempoField, "einer reicht").
+/// THE tempo control is NOT duplicated here — it lives in
+/// `EchoelStudioView.startControlRow` since #411 (BodyTempoField, "einer reicht").
 ///
 /// RENDER SAFETY (skill: swiftui-render-safety):
 ///  • A LEAF view reading ONLY low-frequency state — the shared @AppStorage keys
@@ -1049,7 +1032,7 @@ struct CompositionHeaderStrip: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 4)
         }
-        // Same `fixedSize` + `minHeight` pair as `TransportBar` — read that note first.
+        // Same `fixedSize` + `minHeight` pair as `topBar` — read that note first.
         //
         // This one sits on a HORIZONTAL ScrollView, and the correction to my first comment
         // here is worth keeping: a ScrollView's cross axis does NOT clamp to some intrinsic

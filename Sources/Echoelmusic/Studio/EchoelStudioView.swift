@@ -1597,17 +1597,50 @@ struct EchoelStudioView: View {
     /// If it reads too cramped, the cheapest answer is to move `TransportPositionView` and the
     /// "•••" overflow OUT of the chrome bar as well and give this row a second line — NOT to
     /// send the tempo back up.
+    ///
+    /// ⭐ #456 — THAT SENTENCE WAS CARRIED OUT (founder 2026-08-07, screenshot of v10.79.371
+    /// with the "•••" and the `1.1.1 / loop 1/32` readout each circled and an arrow drawn INTO
+    /// this row). `TransportBar` held exactly those two children after #411 took the tempo
+    /// field; both are here now and the bar is deleted. The chrome is two bars, not three.
+    ///
+    /// ⚠️ TWO LINES, NOT ONE, AND THE REASON IS THE MEASUREMENT ABOVE — not taste. One line
+    /// would have to fit ▶ + ⏸ + tempo + lock + "•••" + the readout AND the analysis pill the
+    /// founder asked to make BIGGER (#305/#307); the paragraph above already priced that at
+    /// roughly a third of the pill's width on a 393 pt phone, and adding two more children
+    /// makes it worse, not better. **Line 1 is bit-for-bit what it was**, so nothing that
+    /// exists today can be squeezed by this change. The height arithmetic goes the right way
+    /// too: the deleted bar was ≥44 pt of chrome, the new line is ~32 pt inside the
+    /// instrument, so the playable area GAINS. If the founder still wants one line, that is a
+    /// device look at the pill's width, not a guess from here.
+    ///
+    /// ⚠️ FREEZE LAW, EXTENDED TO A FIFTH CHILD, and this one carries the ~10 Hz playhead.
+    /// `TransportPositionView` reads `transport.position` in its OWN body — that is why it was
+    /// a separate `struct` in the chrome and why it can be mounted here at all. CONSTRUCTING
+    /// it registers nothing. Inlining its two labels into this body instead would put a 10 Hz
+    /// read in the body that hosts every `.menu` Picker in the instrument, which is the exact
+    /// shape of 10.76.41/50. It stopped being `private` for this move and for nothing else.
     private var startControlRow: some View {
-        HStack(spacing: 8) {
-            startButton
-            PlaybackToggleButton()
-            BodyTempoField(onLockChanged: {
-                NotificationCenter.default.post(name: .echoelCompositionEdited,
-                                                object: "tempoLock")
-            }, compact: true)
-            #if canImport(AVFoundation)
-            PulseMonitorMiniLive()
-            #endif
+        VStack(alignment: .leading, spacing: 8) {
+            // LINE 1 — unchanged since #411. Do not add to it; that is what makes the claim
+            // above ("nothing that exists today can be squeezed") true rather than hopeful.
+            HStack(spacing: 8) {
+                startButton
+                PlaybackToggleButton()
+                BodyTempoField(onLockChanged: {
+                    NotificationCenter.default.post(name: .echoelCompositionEdited,
+                                                    object: "tempoLock")
+                }, compact: true)
+                #if canImport(AVFoundation)
+                PulseMonitorMiniLive()
+                #endif
+            }
+            // LINE 2 — the two children that came down from the dissolved chrome bar, in the
+            // same left-to-right order they had up there (doors left, readout right).
+            HStack(spacing: 8) {
+                TransportOverflowMenu()
+                Spacer(minLength: 0)
+                TransportPositionView()
+            }
         }
     }
 
