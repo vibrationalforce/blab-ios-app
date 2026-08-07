@@ -6185,8 +6185,17 @@ struct EchoelStudioView: View {
                 }
                 .accessibilityLabel("Delay note value")
             }
-            // Full control: open every stage (filter, delay, chorus, flanger,
-            // phaser, tremolo, compressor, limiter) with all parameters exposed.
+            // Full control: open every stage with all parameters exposed.
+            //
+            // ⛔ AND THE FIRST #480 PASS LEFT THIS VERY LINE FALSE WHILE REWRITING EVERYTHING
+            // AROUND IT. It read "open every stage (filter, delay, chorus, flanger, phaser,
+            // tremolo, compressor, limiter)" — EIGHT of the FOURTEEN `effectSection(` calls in
+            // `EchoelFXView`. Missing: Saturation · Tape / VHS · Bitcrush · Harmonizer · Reverb ·
+            // Stereo Width. So the commit whose whole thesis is "somebody corrected the prose and
+            // left the claim" corrected the prose and left THIS claim, three lines above the ⛔
+            // that says so. Do not re-enumerate here: a list that names a subset under the word
+            // "every" is the same defect in a new shape, and it needs re-counting every time a
+            // stage is added. Say "every stage" and let the panel be the inventory.
             //
             // ⛔ THIS COMMENT WAS WRITTEN TO CORRECT THE HINT AT THE BOTTOM OF THIS BUTTON, AND
             // THE HINT WAS LEFT STANDING (#480). It said: NOT "as sliders" — numeric parameters
@@ -6224,7 +6233,14 @@ struct EchoelStudioView: View {
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Open every effect stage — filter, delay, modulation and dynamics, with every parameter exposed")
+            // ⛔ The first #480 hint read "Open every effect stage — filter, delay, modulation and
+            // dynamics, with every parameter exposed". It traded a false CONTROL-TYPE claim for a
+            // false COMPLETENESS one: those four categories cover 8 of the 14 stages, and its
+            // order was wrong too (`EchoelFXChain.processStereo` runs modulation BEFORE delay).
+            // A sighted user can glance at the sheet; a VoiceOver user has only this sentence.
+            // No enumeration here — `TheFXDoorNamesAControlThatExistsTests` derives the stage
+            // names from `EchoelFXView` and goes red if any of them reappears in this string.
+            .accessibilityHint("Opens every effect stage with all of its parameters")
         }
     }
 

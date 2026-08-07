@@ -465,7 +465,16 @@ struct EchoelFXView: View {
                     }
                     .accessibilityHint("Apply a production sound like Underwater or Telephone, then tweak below")
                 } footer: {
-                    Text("Applies the EchoelFX chain: filter → modulation → delay → dynamics. Stamp a character (Underwater, Telephone, Cassette…) for an instant sound, then tweak. Off by default.")
+                    // ⛔ #480 follow-up: this read "the EchoelFX chain: filter → modulation →
+                    // delay → dynamics", which is FOUR of the fourteen `effectSection(` calls
+                    // below it — Saturation, Tape / VHS, Bitcrush, Harmonizer, Reverb and
+                    // Stereo Width fell outside all four, and Reverb is the one a musician
+                    // notices missing. The relative ORDER was right (checked against
+                    // `EchoelFXChain.processStereo`), the completeness was not. Replaced with a
+                    // claim that stays true when a stage is added: the two ENDS of the real
+                    // signal path, which are stable, instead of a middle that has to be
+                    // re-counted. Do not turn this back into a list.
+                    Text("Applies the EchoelFX chain — every stage in signal order, filter first, limiter last. Stamp a character (Underwater, Telephone, Cassette…) for an instant sound, then tweak. Off by default.")
                 }
                 .listRowBackground(EchoelTheme.fill)
 
@@ -680,8 +689,13 @@ struct EchoelFXView: View {
         } header: {
             Text("Macro morph").font(EchoelTheme.font(13, .bold)).textCase(nil)
         } footer: {
+            // ⛔ #480 follow-up, the same defect one screen behind the door that slice
+            // relabelled: this said "with one fader". The control it describes is the
+            // `EchoelValueField(label: "Morph", …)` directly above — there is no fader in this
+            // panel, and no raw `Slider` either. Named by its LABEL now, so the sentence cannot
+            // drift from the control again.
             Text(morphTarget == nil
-                 ? "Blend the current sound continuously toward any preset with one fader — for live transitions."
+                 ? "Blend the current sound continuously toward any preset with the Morph control — for live transitions."
                  : "0 = current sound · 1 = the target preset. Every parameter glides between them.")
         }
         .listRowBackground(EchoelTheme.fill)

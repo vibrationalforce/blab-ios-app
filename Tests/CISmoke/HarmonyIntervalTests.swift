@@ -188,10 +188,13 @@ final class HarmonyIntervalTests: XCTestCase {
 
     // MARK: - The premise, measured rather than assumed
 
-    /// ⛔ WHY `curated` MAY NOT SNAP — proven, not argued. The macro-morph fader calls
+    /// ⛔ WHY `curated` MAY NOT SNAP — proven, not argued. The macro-morph control calls
     /// `FXPreset.morphed(to:amount:)`, which LERPs both harmonizer intervals; the result is
     /// written straight to the live chain (`FXViewModel.morph`). So a fractional interval is
-    /// reachable in the shipped app by dragging one fader, and the row must be able to show it.
+    /// reachable in the shipped app by dragging ONE control, and the row must be able to show it.
+    /// (It is the `EchoelValueField(label: "Morph", …)` — the #480 follow-up renamed the panel's
+    /// own footer for the same reason: there is no fader in `EchoelFXView`, and calling it one
+    /// sends the next session looking for a `Slider` that does not exist.)
     ///
     /// If a future change quantises the morph, this test fails — and the right response is to
     /// rewrite this file's rationale, not to start snapping.
