@@ -257,8 +257,13 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           zwei Zeilen), HealthKit (gegen SDNN, weil es kein Schlag-zu-Schlag-RR hat) und
                           `FaceExpressionBioPublisher`, das sie LEER erfüllt (es veröffentlicht
                           `hrvNormalized: 0` und gar keine ms-Metrik). ⛔ Die erste Fassung schrieb „die drei
-                          LIVE-Quellen" und „jede echte Quelle EXAKT": es sind **VIER** Erzeuger, einer davon
-                          besteht nur trivial, und „exakt" ist auf keiner Quelle wörtlich wahr — Kamera und
+                          LIVE-Quellen" und „jede echte Quelle EXAKT", die zweite „es sind **VIER** Erzeuger"
+                          — und war damit in dem Satz um eins daneben, der eine Aufzählung korrigiert.
+                          `git grep -n "BioSampleFrame(" -- Sources` findet **SECHS** Konstruktionsstellen über
+                          **FÜNF** Erzeuger-Typen: die vier oben plus die Demo selbst, und die Kamera baut zwei
+                          (die Ausfall-Halte-Wiederholung KOPIERT die Felder des gehaltenen Frames, erhält die
+                          Invariante also, statt sie herzuleiten). Einer der vier besteht nur trivial. Und
+                          „exakt" ist auf keiner Quelle wörtlich wahr — Kamera und
                           Gurt runden zweimal unabhängig (`Float(normalize(Double))` neben `Float(Double)`),
                           sind also ebenfalls nur bis auf Darstellung gleich, dieselbe Klasse wie die neuen
                           5,96e-8 der Demo. Die Schlussfolgerung überlebt beide Korrekturen; die AUFZÄHLUNG
@@ -275,8 +280,14 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           sondern `normalize`, das klemmt. Nach der Reparatur ist der größte Rest **5,96e-8**
                           (reine `Float`-Darstellung). ⛔ Und „mehrere Verbraucher tun das" ist GESTRICHEN:
                           `HRVNormalization.normalize` hat in `Sources/` genau DREI Aufrufstellen und alle
-                          drei sind ERZEUGER. Kein App-interner Verbraucher rechnet den Regler neu — die zwei
-                          Leser von `hrvRMSSDms` lesen ihn direkt. Belastbar ist nur die Aussage über einen
+                          drei liegen auf der ERZEUGER-Seite (zwei Publisher plus `EchoelBioEngine`, das den
+                          Schnappschuss schreibt, den `HealthKitBioPublisher` später veröffentlicht — „alle
+                          drei sind ERZEUGER" war die lockere zweite Fassung; tragend ist, dass keine davon
+                          den Regler aus einem Leitungswert NEU rechnet). Kein App-interner Verbraucher tut
+                          das: die zwei VERBRAUCHER von `hrvRMSSDms` lesen ihn direkt, und der einzige weitere
+                          Lesezugriff in `Sources/` ist die Ausfall-Halte-Wiederholung der Kamera, die
+                          `held.hrvRMSSDms` weiterträgt — ein Durchreichen, kein Verbrauch. Belastbar ist nur
+                          die Aussage über einen
                           EXTERNEN OSC-Empfänger, und die ist hypothetisch. Eine erfundene Stützbehauptung
                           ausgerechnet in dem Satz, der die Schwere begründet, ist die Klasse, die diese
                           Datei überall sonst zurücknimmt.
@@ -288,8 +299,15 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           hrvNormalized` — der Regler hängt dort ebenfalls an RMSSD. SDNN dieselbe Decke zu
                           geben wäre keine Konsistenz, sondern machte Demo-SDNN BITGLEICH mit Demo-RMSSD:
                           ein Paar, das kein Körper erzeugt, und eines, das die Demo für einen Empfänger
-                          unbrauchbar macht, der beide gegeneinander plottet. Genau dafür steht die dritte
-                          Behauptung da, und sie ist ein GEGENGEWICHT — auf beiden Seiten grün.
+                          unbrauchbar macht, der beide gegeneinander plottet. Genau dafür steht
+                          `testSDNNAndPNN50AreDeliberatelyNotRoundTripped` da, und es ist ein GEGENGEWICHT
+                          — auf beiden Seiten grün. ⛔ Hier stand „die dritte Behauptung", und das war beim
+                          Schreiben richtig und einen Commit später falsch: die Reviewer-Nachlese hat einen
+                          Test EINGEFÜGT und die Reihenfolge geändert, womit die Ordnungszahl still auf
+                          einen anderen Test zeigte. **Eine ORDNUNGSZAHL ist noch brüchiger als eine
+                          Zeilennummer** — die Datei sagt an anderer Stelle, eine zitierte Phrase sei
+                          belastbar und eine Zeilennummer nicht; eine Ordnungszahl überlebt nicht einmal
+                          eine Umsortierung innerhalb derselben Datei. Ab jetzt steht überall der NAME.
                           ⛔ **Was hier NICHT repariert ist und deshalb am Ort steht: 90 < 100**, die Demo
                           veröffentlicht SDNN also an jedem Punkt UNTER RMSSD, während die Ruhe-Beziehung
                           andersherum läuft. ⛔ Die ZUORDNUNG war falsch — hier stand „Task Force 1996:
@@ -340,6 +358,19 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           das Gegengewicht daneben steht. Jetzt ist der ganze Ausdruck festgenagelt. Der
                           Wächter war in seiner strengen Hälfte (SDNN, zeilengenau) rigoros und in seiner
                           TRAGENDEN locker.
+                          ⛔ **Und der Verifikations-Satz der Nachlese war selbst falsch — in dem Absatz,
+                          dessen Aufgabe es ist, Verifikation zu behaupten.** Der Commit-Text sagte
+                          „`hrvRMSSDms: hrvNormalized * 120` … im Quelltext abwesend UND im Rücknahme-
+                          Kommentar vorhanden". Der Kommentar zitiert `hrvNormalized * 120` OHNE das
+                          `hrvRMSSDms:`-Präfix, enthält die gesuchte Zeichenkette also gar nicht — sie steht
+                          nirgends in der Datei. Meine Python-Prüfung hatte das FRAGMENT gemessen und ich
+                          habe das Ergebnis auf die NADEL übertragen. Folgenlos für den Test (beide Formen
+                          sind abwesend), aber es ist dieselbe Klasse wie alles andere hier: eine Messung,
+                          die etwas anderes misst als der Satz behauptet, in dem sie zitiert wird. **Als
+                          Nebenwirkung ist auch der `codeOnly`-Grund in diesem Wächter abgelaufen:** mit der
+                          engen Nadel liefern Rohtext und `codeOnly` auf beiden Bäumen IDENTISCHE Ergebnisse,
+                          der Stripper ist dort also Prophylaxe und nicht mehr tragend — was am Ort steht,
+                          statt als „load-bearing" weiterbehauptet zu werden.
                           ⚠️ Und die härteste Grenze: nichts davon ist am Gerät gesehen. Die zwei
                           Verbraucher von `hrvRMSSDms` sind der OSC-Ausgang
                           (`/echoelmusic/bio/heart/rmssd`) und die Zahl in `BioStripView`; ob je jemand auf

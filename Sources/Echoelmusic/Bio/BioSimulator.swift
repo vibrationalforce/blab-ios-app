@@ -14,8 +14,10 @@
 //
 //  ⛔ THIS BLOCK USED TO CLAIM "the bio strip always labels it 'Demo'". THAT IS
 //  FALSE, and it was false seventy lines above a comment block asserting honesty.
-//  There is no user-facing "Demo" string anywhere in `Sources/` — the two hits are
-//  both doc comments (this file and `EchoelmusicApp`). What the strip actually does:
+//  There is no user-facing "Demo" string anywhere in `Sources/` — every hit is a
+//  comment. (⛔ The first version of this retraction said "the two hits", counted from
+//  a grep run BEFORE it added three more of its own. `git grep -nw Demo -- Sources`
+//  is the check; the count is not worth restating, the property is.) The strip:
 //  `BioStripView.sourceLabel(.fallback)` returns "—" and `sourceText` returns
 //  "No signal" for `.fallback`, while `hrString`/`hrvString` render `bus.latestBio`
 //  with NO source filter. So a demo session shows a confident heart rate and
@@ -97,8 +99,11 @@ public final class BioSimulator {
             coherence: coherence,
             motionEnergy: 0,
             source: .fallback,
-            // Synthetic but plausible HRV metrics for the labeled Demo source so
-            // the precise readouts have believable values to show.
+            // Synthetic but plausible HRV metrics for the Demo source so the precise
+            // readouts have believable values to show. (⛔ "the labeled Demo source"
+            // until the #461 reviewer pass — the retraction 85 lines above was written
+            // and this restatement of the retracted claim was left standing in the SAME
+            // file. Second place, every time.)
             //
             // ⛔ RMSSD USED TO BE `hrvNormalized * 120`, AND THAT IS THE COPY-DRIFT DEFECT
             // #97 ALREADY FIXED — surviving here because #97 audited the LIVE sources and
@@ -113,10 +118,15 @@ public final class BioSimulator {
             // lines), HealthKit (against SDNN, since it has no beat-to-beat RR), and
             // `FaceExpressionBioPublisher`, which satisfies it VACUOUSLY (it publishes
             // `hrvNormalized: 0` and no ms metric at all — `normalize(0) == 0`). ⛔ The first
-            // version of this block said "the three LIVE sources" and "EVERY real source":
-            // there are FOUR producers, and one of them only passes trivially. The conclusion
-            // survived the miscount; the enumeration did not, and an enumeration is exactly
-            // what a later session greps.
+            // version of this block said "the three LIVE sources" and "EVERY real source";
+            // the second said "there are FOUR producers" and was off by one in the sentence
+            // fixing an enumeration. `git grep -n "BioSampleFrame(" -- Sources` finds SIX
+            // construction sites across FIVE producer types — the four named above plus THIS
+            // file, and the camera builds one twice (the dropout hold-repeat copies the held
+            // frame's fields, so it preserves the invariant rather than deriving it). One of
+            // the four passes only trivially. The conclusion survived both miscounts; the
+            // enumeration did not, twice — and an enumeration is exactly what a later session
+            // greps, which is why the command is written next to it now.
             //
             // The demo published a pair no converter in this app can reconcile: at
             // `hrvNormalized` 0.5 it shipped 60 ms, while the house rule says 60 ms IS 0.60.
@@ -125,12 +135,17 @@ public final class BioSimulator {
             // 701-point sweep in the guard never lands on 5/6 and reaches **0.16660**. Above
             // 5/6 the relative error falls to +11 %, which looks like improvement and is really
             // `normalize` clamping. ⛔ "several consumers do" stood here and is CUT: there are
-            // exactly three `HRVNormalization.normalize` call sites in `Sources/` and all three
-            // are PUBLISHERS. No in-app consumer recomputes the knob — the two readers of
-            // `hrvRMSSDms` (`BioStripView`, `OSCSender`) read it directly. The defensible claim
-            // is about an EXTERNAL OSC receiver, which is hypothetical; inventing a supporting
-            // fact inside the sentence that carries the severity argument is the class this
-            // repo retracts everywhere else.
+            // exactly three `HRVNormalization.normalize` call sites in `Sources/`, and all three
+            // are on the PRODUCTION side — two publishers plus `EchoelBioEngine`, which writes
+            // the snapshot `HealthKitBioPublisher` later publishes. ("all three are PUBLISHERS"
+            // was the loose second version; the load-bearing part is that none of them recomputes
+            // the knob from a wire value.) No in-app consumer recomputes it: the two CONSUMERS of
+            // `hrvRMSSDms` (`BioStripView`'s readout, `OSCSender`'s egress) read it directly, and
+            // the only other read in `Sources/` is the camera's dropout hold-repeat carrying
+            // `held.hrvRMSSDms` forward — a carry, not a consumer. The defensible claim is about
+            // an EXTERNAL OSC receiver, which is hypothetical; inventing a supporting fact inside
+            // the sentence that carries the severity argument is the class this repo retracts
+            // everywhere else.
             //
             // The anchor is RMSSD, not SDNN, because that is the RR-source convention and the
             // demo imitates an RR source (it publishes RMSSD and pNN50, which only an RR

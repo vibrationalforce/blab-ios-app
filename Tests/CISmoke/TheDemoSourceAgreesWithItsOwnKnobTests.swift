@@ -22,19 +22,26 @@
 // because everything is green either way.
 //
 // ⛔ WHICH CLAIMS CAN FAIL, re-counted against the old tree instead of against how they read:
+// (Listed in DECLARATION order, so the list and the file cannot drift apart. The first version
+// listed them in a different order than it declared them — harmless on its own, except that
+// CLAUDE.md pointed at "the third claim" and the reorder silently moved which test that was.
+// Nothing here is referred to by ordinal any more, in this file or in CLAUDE.md.)
 //   · `testTheDemoChainsToTheCeilingInsteadOfCopyingIt`  — THE REGRESSION. The old source held
 //     the literal `* 120` and never named `HRVNormalization`.
 //   · `testTheKnobRoundTripsThroughTheSharedCeiling`     — PREMISE. Green both sides. It states
 //     what the right answer IS and binds it to the shipped converter; the scan states that the
 //     source computes it. Only together do they mean anything.
-//   · `testTheOldDivisorDisagreedWithTheKnob`            — MUSEUM. Green both sides by
-//     construction (it computes the removed formula itself). It exists so the SIZE of the fixed
-//     defect stays a number in the repo and not a sentence in a commit message.
+//   · `testTheCeilingIsTheOneHouseCeiling`               — PREMISE. Green both sides. Without it
+//     this file could drift from the app's converter and keep passing on its own arithmetic.
+//   · `testTheOldDivisorDisagreedWithTheKnob`            — MUSEUM. It exists so the SIZE of the
+//     fixed defect stays a number in the repo and not a sentence in a commit message. ⚠️ It is
+//     NOT green "by construction", as the first version claimed: it calls the real
+//     `normalize(60)` and expects 0.60, so moving the house ceiling — which the premise above
+//     explicitly declares allowed — turns it red. That is a real coupling, and its failure
+//     message says so instead of misdirecting to "the museum is wrong, not the app".
 //   · `testSDNNAndPNN50AreDeliberatelyNotRoundTripped`   — COUNTERWEIGHT. Green before AND after.
 //     It exists so the symmetrical-looking "tidy-up" (give SDNN the same ceiling) turns red
 //     instead of silently making demo SDNN identical to demo RMSSD.
-//   · `testTheCeilingIsTheOneHouseCeiling`               — PREMISE. Green both sides. Without it
-//     this file could drift from the app's converter and keep passing on its own arithmetic.
 //   · `testThePublishedMillisecondsStayInsideTheReadoutBand` — COUNTERWEIGHT. Green both sides
 //     (24…108 was inside too). It pins the thing a *different* anchor choice would have broken:
 //     `BioStripView` blanks the HRV readout outside 3…300 ms, so a fix that anchored to a small
@@ -53,8 +60,10 @@
 // quantities only an RR source has — so it belongs to the RR convention. Anchoring it on SDNN
 // would have been a third rule.
 //
-// ⚠️ NOT PROVEN HERE: that any of this is visible or audible. The two readers of `hrvRMSSDms`
-// app-wide are the OSC egress (`/echoelmusic/bio/heart/rmssd`) and `BioStripView`'s readout;
+// ⚠️ NOT PROVEN HERE: that any of this is visible or audible. The two CONSUMERS of `hrvRMSSDms`
+// are the OSC egress (`/echoelmusic/bio/heart/rmssd`) and `BioStripView`'s readout (a third read
+// exists — the camera's dropout hold-repeat carrying `held.hrvRMSSDms` forward — but that is a
+// carry, not a consumer; "the two readers app-wide" was the loose first wording);
 // whether a lighting desk or a founder ever looks at the demo's number is a device question.
 // The arithmetic is wrong either way, which is why it is fixed rather than deferred.
 
@@ -153,9 +162,15 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
 
     // MARK: - Museum
 
-    /// MUSEUM — green both sides by construction, because it computes the removed formula itself.
-    /// It is documentation, not a regression, and is labelled so rather than counted as one.
+    /// MUSEUM — documentation, not a regression, and labelled so rather than counted as one.
     /// It exists because the SIZE of a fixed defect otherwise survives only in a commit message.
+    ///
+    /// ⚠️ It is NOT "green by construction", which is what the first version claimed. It computes
+    /// the REMOVED formula itself (so `BioSimulator` cannot break it), but it then feeds the
+    /// result to the REAL `HRVNormalization.normalize` and expects 0.60 — so it is coupled to
+    /// `ceilingMs == 100`, and `testTheCeilingIsTheOneHouseCeiling` twenty lines up explicitly
+    /// says moving that ceiling is allowed. If both go red together, the ceiling moved and BOTH
+    /// expectations need updating; only this one red means the museum is wrong.
     ///
     /// Two numbers, both carrying their setup (#448), because the first write-up quoted one and
     /// called it the other: at `hrvNormalized` 0.5 the old formula published 60 ms, which the
@@ -174,7 +189,9 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
         XCTAssertEqual(Double(abs(backToKnob - h)), 0.1, accuracy: 1e-6,
                        """
                        0.1 absolute at the middle of the walk band — the number this slice \
-                       removed. If this assertion is ever red, the museum is wrong, not the app.
+                       removed. ⚠️ If this is red TOGETHER WITH testTheCeilingIsTheOneHouseCeiling, \
+                       the house ceiling moved (which that test says is allowed) and BOTH \
+                       expectations need updating. If it is red ALONE, the museum is wrong.
                        """)
     }
 
@@ -205,8 +222,13 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
             reason.
             """)
 
-        // And the arithmetic half, so the intent is pinned and not just the spelling:
-        // a hypothetical ceiling-anchored SDNN would collide with RMSSD exactly.
+        // ⚠️ THE LINE BELOW IS NOT A SECOND, INDEPENDENT CHECK — the first version's doc said
+        // it "pins the intent and not just the spelling", and that is false: the 90 is a literal
+        // HERE, not read from the source, so a tree that anchored SDNN to the ceiling would
+        // leave it green (45 ≠ 50) and only the spelling scan above would go red. It can fail
+        // only if `ceilingMs` itself moves to 90. Kept because it states the collision the
+        // scan exists to prevent; the SCAN does all the work. (Mis-labelling a claim's strength
+        // is the same defect this whole file exists to correct, one method further down.)
         let h: Float = 0.5
         XCTAssertNotEqual(
             h * 90, demoRMSSDms(h),
@@ -240,9 +262,16 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
     private func demoSource() throws -> String {
         let url = try repoRoot()
             .appendingPathComponent("Sources/Echoelmusic/Bio/BioSimulator.swift")
-        // Comments stripped through the ONE shared scanner (#453): this file's own prose quotes
-        // both `* 120` and `HRVNormalization.ceilingMs`, and the source's ⛔ block quotes `* 120`
-        // as the thing it removed — a raw scan would find the retraction and call it the defect.
+        // Comments stripped through the ONE shared scanner (#453).
+        // ⚠️ HONEST ABOUT WHAT THIS BUYS TODAY: nothing. Measured on both trees, raw text and
+        // `codeOnly` give IDENTICAL results for all four needles, because the needles are
+        // whole expressions (`hrvRMSSDms: hrvNormalized * 120`) and the source's ⛔ block only
+        // quotes the fragment `hrvNormalized * 120`. The first version claimed the stripper was
+        // load-bearing — true of the LOOSE needle it had before the #408 tightening, false now.
+        // It stays because it is the house scanner and the next edit to that comment block is
+        // one keystroke from re-introducing the collision; it is prophylaxis, not a fix.
+        // (The same sentence also said "this file's own prose quotes both" — irrelevant in any
+        // version: the scan reads `BioSimulator.swift`, never this file.)
         return SourceText.codeOnly(try String(contentsOf: url, encoding: .utf8))
     }
 

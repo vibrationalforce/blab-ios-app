@@ -156,8 +156,15 @@ struct EchoelmusicApp: App {
     /// window's output + persistence.
     @State private var loopExporter = LoopExporter()
     @State private var projectStore = ProjectStore()
-    /// Clearly-labeled "Demo" bio source so every user hears the instrument
-    /// without paired hardware (owned here now the single window is the root).
+    /// Synthetic bio source so every user hears the instrument without paired
+    /// hardware (owned here now the single window is the root).
+    /// ⛔ THIS USED TO SAY «Clearly-labeled "Demo"». It is NOT labeled: there is no
+    /// user-facing "Demo" string in `Sources/`, and `BioStripView` shows this source's
+    /// numbers beside a cell reading "No signal" — which reads as ABSENCE, not as
+    /// SYNTHETIC. The same false claim sat in `BioSimulator`'s header; retracting it
+    /// there and leaving it here is exactly the "look for the SECOND place" failure
+    /// CLAUDE.md records about its own H1. Whether to add the label (and an OSC
+    /// synthetic marker) is #462.
     @State private var demoSource = BioSimulator()
 
     // Resonance-breathing guide (the active half of the coherence loop).
