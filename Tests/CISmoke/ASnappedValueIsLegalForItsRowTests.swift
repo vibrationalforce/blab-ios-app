@@ -32,9 +32,24 @@
 // shipped-shaped ranges × 2001 samples each — 46 023 in total — the new rule and the old one
 // agree on every single value. This removes a mechanism and buys the NEXT row, in a file that
 // already ships an 80…18000 Hz cutoff at `decimals: 0`.
+//
+// ⛔ AND THE FIRST VERSION OF THIS FILE DID NOT COMPILE — it was missing `@testable import
+// Echoelmusic`, so all nine `ScrubPrecision` references failed with "cannot find … in scope"
+// and the blocking bundle died at `** TEST BUILD FAILED **` (run 31138211848). The measured
+// sweeps above were all done in a transcription; nothing here had ever been through a compiler,
+// because there is none in this container. The reason that is worth a paragraph rather than a
+// silent fix is the READING problem it exposes: with #396 alive, `Echoelmusic CI/CD Pipeline`
+// reports `failure` on EVERY push, so the conclusion alone cannot distinguish "the known
+// founder-gated test-host death" from "your new file does not build". The two are one line
+// apart in the log and nowhere else — `** TEST EXECUTE FAILED **` is #396 and harmless,
+// `** TEST BUILD FAILED **` is yours. A cycle that reads the conclusion and stops has not
+// checked anything. **A blanket guard was measured and rejected:** 61 of the 180 files in
+// `Tests/CISmoke` legitimately have no such import (they are pure source scans), so a rule
+// requiring it everywhere would turn 61 correct files red — the #364 trap.
 
 import Foundation
 import XCTest
+@testable import Echoelmusic
 
 final class ASnappedValueIsLegalForItsRowTests: XCTestCase {
 
