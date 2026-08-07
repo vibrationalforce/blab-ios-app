@@ -5405,10 +5405,10 @@ struct EchoelStudioView: View {
             // content spacing, so the rhythm the founder sees today is preserved exactly.
             groupHeader("Tone")
             AdaptiveCardGrid(spacing: 14) {
-                knob("Brightness", $currentPatch.brightness, 0...1, decimals: 2)
-                knob("Harmonics", $currentPatch.harmonicity, 0...1, decimals: 2)
-                knob("Harm. level", $currentPatch.harmonicLevel, 0...1, decimals: 2)
-                knob("Noise", $currentPatch.noiseLevel, 0...1, decimals: 3)
+                knob("Brightness", $currentPatch.brightness, SynthPatch.Bounds.brightness, decimals: 2)
+                knob("Harmonics", $currentPatch.harmonicity, SynthPatch.Bounds.harmonicity, decimals: 2)
+                knob("Harm. level", $currentPatch.harmonicLevel, SynthPatch.Bounds.harmonicLevel, decimals: 2)
+                knob("Noise", $currentPatch.noiseLevel, SynthPatch.Bounds.noiseLevel, decimals: 3)
                 // ⛔ THE TWO PICKERS BELONG IN THIS GRID, and leaving them out was the same
                 // defect one level down. The first version put them after it, so Tone rendered
                 // as two 2-up rows followed by two FULL-WIDTH picker rows — the exact ragged
@@ -5465,11 +5465,11 @@ struct EchoelStudioView: View {
 
             groupHeader("Filter")
             AdaptiveCardGrid(spacing: 14) {
-                knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz", decimals: 0)
-                knob("Resonance", $currentPatch.filterResonance, 0...1, decimals: 2)
-                knob("LFO→filter", $currentPatch.lfoToFilterDepth, 0...1, decimals: 2)
-                knob("LFO rate", $currentPatch.filterLFORate, 0...20, unit: "Hz", decimals: 2)
-                knob("LFO depth", $currentPatch.filterLFODepth, 0...1, decimals: 2)
+                knob("Cutoff", $currentPatch.filterCutoff, SynthPatch.Bounds.filterCutoff, unit: "Hz", decimals: 0)
+                knob("Resonance", $currentPatch.filterResonance, SynthPatch.Bounds.filterResonance, decimals: 2)
+                knob("LFO→filter", $currentPatch.lfoToFilterDepth, SynthPatch.Bounds.lfoToFilterDepth, decimals: 2)
+                knob("LFO rate", $currentPatch.filterLFORate, SynthPatch.Bounds.filterLFORate, unit: "Hz", decimals: 2)
+                knob("LFO depth", $currentPatch.filterLFODepth, SynthPatch.Bounds.filterLFODepth, decimals: 2)
             }
 
             groupHeader("Envelope")
@@ -5488,22 +5488,22 @@ struct EchoelStudioView: View {
             // WRITES the four fields below it, so pairing it beside one of them would read as
             // a peer of A/D/S/R instead of the control that sets them.
             AdaptiveCardGrid(spacing: 14) {
-                param("Attack", $currentPatch.attack, 0...5, unit: "s", decimals: 3)
+                param("Attack", $currentPatch.attack, SynthPatch.Bounds.attack, unit: "s", decimals: 3)
                 // 0…10 (the Release row's range), not 0…5: `Drone Bed` ships a 6.0 s decay
                 // (`GenrePatches.swift:145`) and the field CLAMPS before it rounds, so on the
                 // old range one touch rewrote it as 5.0 s — a fifth of the row's span, on a
                 // value a designer typed. Widen the control, never round the patch (#430/#424).
-                param("Decay", $currentPatch.decay, 0...10, unit: "s", decimals: 2)
-                param("Sustain", $currentPatch.sustain, 0...1, decimals: 2)
-                param("Release", $currentPatch.release, 0...10, unit: "s", decimals: 2)
+                param("Decay", $currentPatch.decay, SynthPatch.Bounds.decay, unit: "s", decimals: 2)
+                param("Sustain", $currentPatch.sustain, SynthPatch.Bounds.sustain, decimals: 2)
+                param("Release", $currentPatch.release, SynthPatch.Bounds.release, unit: "s", decimals: 2)
             }
 
             groupHeader("Space & vibrato")
             AdaptiveCardGrid(spacing: 14) {
-                knob("Reverb mix", $currentPatch.reverbMix, 0...1, decimals: 2)
-                knob("Reverb decay", $currentPatch.reverbDecay, 0...10, unit: "s", decimals: 2)
-                knob("Vibrato rate", $currentPatch.vibratoRate, 0...12, unit: "Hz", decimals: 2)
-                knob("Vibrato depth", $currentPatch.vibratoDepth, 0...1, decimals: 2)
+                knob("Reverb mix", $currentPatch.reverbMix, SynthPatch.Bounds.reverbMix, decimals: 2)
+                knob("Reverb decay", $currentPatch.reverbDecay, SynthPatch.Bounds.reverbDecay, unit: "s", decimals: 2)
+                knob("Vibrato rate", $currentPatch.vibratoRate, SynthPatch.Bounds.vibratoRate, unit: "Hz", decimals: 2)
+                knob("Vibrato depth", $currentPatch.vibratoDepth, SynthPatch.Bounds.vibratoDepth, decimals: 2)
             }
 
             // #286 — THE LAST PORTED ROW, and the one that was held back longest. See

@@ -242,8 +242,51 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**180** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `ASnappedValueIsLegalForItsRowTests.swift` (#442 — der erste
+                          `Tests/CISmoke` (**181** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `OneDefinitionOfAParameterRangeTests.swift` (#441 — der erste
+                          Wächter in dieser Kette über einer DREIFACHEN Definition, und der erste, der
+                          eine davon ABSICHTLICH stehen lässt. Jeder der 17 Sound-Panel-Parameter hatte
+                          seinen Bereich dreimal aufgeschrieben: als Literal an der
+                          `param(`/`knob(`-Aufrufstelle, noch einmal in `SoundPrompt.clamp`, und ein
+                          drittes Mal in der handgeschriebenen Modelltabelle des #430-Wächters nebenan.
+                          Die ersten beiden sind jetzt EINE Konstante (`SynthPatch.Bounds`); die dritte
+                          bleibt von Hand, weil ein Wächter, der die geprüfte Konstante liest, eine
+                          falsche Konstante nicht fangen kann.
+                          ⭐ **Der eine, der wirklich etwas gekostet hat, ist `filterLFORate`:** Zeile
+                          0…20 Hz, Prompt klemmte auf 0…12. #430 hat genau diesen Unterschied gesehen
+                          und als harmlos abgetan, weil die ausgelieferte Bank bei 1,2 Hz endet — und
+                          damit auf die FALSCHE Population geschaut. Die Zeile lässt einen FINGER bis 20,
+                          und `SoundPrompt.apply` endet mit einem UNBEDINGTEN `clamp(&p)`. Ein auf 19 Hz
+                          gezogener Wert kam als 12 zurück — **nicht nur bei erkannten Wörtern**: ein
+                          völlig unbekannter Prompt formt nichts und klemmt trotzdem, der Wert starb also
+                          an Text, den die Engine ignoriert. Das ist der `Drone Bed`-Defekt aus #430, ein
+                          Feld weiter und in der schwerer zu bemerkenden Richtung: **eine Fixtur hält
+                          keinen nutzergesetzten Wert, also wurde nie etwas rot.**
+                          ⚠️ Die zweite Abweichung ist KOSMETISCH und steht als solche da: der Prompt
+                          hatte für `attack` einen Boden von 0,001 s, die Zeile beginnt bei 0. Gemessen
+                          statt angenommen — `EchoelDDSP`s Hüllkurve erzwingt in ihrer `.attack`-Stufe
+                          ohnehin eine ~3-ms-Mindestrampe (`minAttackSamples`), 0 und 0,001 sind also
+                          derselbe Klang, und der erklärte Zweck des Bodens („ein musikalisches Minimum
+                          unter jedem ausgelieferten Onset") war eine Schicht tiefer längst erfüllt.
+                          ⭐ Die RICHTUNG ist eine Regel und keine Einzelfallentscheidung: wo die zwei
+                          sich widersprachen, gewinnt die ZEILE und der Prompt WEITET. Weiten kann keinen
+                          ausgelieferten oder nutzergesetzten Wert abschneiden — genau die Invariante,
+                          die #430s `decay`-Reparatur sicher machte —, während das Verengen einer Zeile
+                          einem Bedienelement still Reichweite nimmt, die der Nutzer schon hat.
+                          ⛔ **Und diese Scheibe ERZEUGT eine Lücke, die sie selbst schließen muss:**
+                          alle Verhaltens-Behauptungen lesen `Bounds` auf BEIDEN Seiten, ein VERENGEN
+                          bewegt also Zeile und Prompt gemeinsam und nichts wird rot — während die Zeile
+                          dann einen Patch abschneidet, den sie vorher erreichte. Vor #441 standen dem
+                          die vier Volltext-Pins des #430-Wächters im Weg; #441 ersetzt deren
+                          Bereichs-Hälfte durch eine Bindung. Die Konstante wird deshalb den DATEN
+                          verantwortlich gemacht: jeder ausgelieferte Patch-Wert muss in seinen eigenen
+                          Bereich passen (`testEveryShippedPatchFitsInsideItsOwnBound`, und `Drone Bed`s
+                          6,0-s-Decay ist der Wert, der das beißen lässt).
+                          ⚠️ Was der Wächter NICHT kann: zeigen, dass irgendetwas davon HÖRBAR ist — ob
+                          19 Hz besser klingt als 12, ist eine Geräteprobe. Prüfbar ist nur, dass die
+                          Zahl, die die Zeile anbietet, die Zahl ist, die die App behält),
+                          davor „180"
+                          nach `ASnappedValueIsLegalForItsRowTests.swift` (#442 — der erste
                           Wächter in dieser Kette über einem RUNDUNGSFEHLER, der einen Wert AUS
                           SEINEM EIGENEN BEREICH herausträgt: `ScrubPrecision.snapped` klemmte und
                           RASTETE DANN, und Rasten geht zum NÄCHSTEN Gitterpunkt — auf einer
@@ -2108,7 +2151,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSIEBENUNDDREISSIG FRÜHERE Stände in neun Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-06-Stand sind es neun, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 179 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTNEUNUNDDREISSIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 181 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

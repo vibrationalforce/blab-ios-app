@@ -151,42 +151,58 @@ public enum SoundPrompt {
 
     // MARK: - Clamp to valid ranges
 
-    /// ⚠️ THESE BOUNDS MUST AGREE WITH THE SOUND PANEL'S ROWS, and two of them did not.
-    /// "Describe it" writes straight back into `currentPatch` (`EchoelStudioView.applySoundPrompt`)
-    /// and lives in the SAME panel as the rows that render those numbers, so a bound here that is
-    /// NARROWER than its row silently destroys a shipped value, and one that is WIDER lets the
-    /// prompt produce a value the row rewrites on first touch. Both were live (#430 follow-up):
+    /// ⭐ THESE BOUNDS ARE NOT WRITTEN HERE ANY MORE — they are `SynthPatch.Bounds`, the same
+    /// constants the Sound panel's rows are built from (#441). "Describe it" writes straight back
+    /// into `currentPatch` (`EchoelStudioView.applySoundPrompt`) and lives in the SAME panel as
+    /// the rows that render those numbers, so a bound here that is NARROWER than its row silently
+    /// destroys a value the user set with a finger, and one that is WIDER produces a value the row
+    /// rewrites on first touch. Both failure modes had been live:
     ///
-    ///   · `decay` clamped to 5 while the row spans 0…10 — `Drone Bed` ships 6.0 s
-    ///     (`GenrePatches.swift:146`), so ANY recognised descriptor typed into the same panel
-    ///     rewrote it as 5.0. The row was widened for exactly this value; the prompt still cut it.
-    ///   · `reverbDecay` clamped to 12 while the row spans 0…10 — "lush"/"huge" adds up to 1.5,
-    ///     and the bank ships 8.5 (`GenrePatches`), so 10.0 was reachable here and unreachable
-    ///     there.
+    ///   · `decay` clamped to 5 while the row spans 0…10 — `Drone Bed` ships 6.0 s, so ANY
+    ///     recognised descriptor typed into the same panel rewrote it as 5.0 (fixed by #430,
+    ///     by WIDENING here — never by rounding the patch).
+    ///   · `reverbDecay` clamped to 12 while the row spans 0…10 (also #430).
+    ///   · `filterLFORate` clamped to 12 while the row spans 0…20 — this one survived #430 and
+    ///     was written off as harmless because the shipped bank tops out at 1.2. That reasoning
+    ///     looked at the wrong population: the row lets a FINGER reach 20, and every recognised
+    ///     descriptor then rewrote that as 12. A user-set value being destroyed is the harder
+    ///     kind to notice than a shipped one, because no test fixture holds it.
     ///
-    /// The remaining differences are deliberate and harmless TODAY, stated so the next reader does
-    /// not have to re-derive it: `attack`'s 0.001 floor is a musical minimum below every shipped
-    /// onset (0.002); `filterLFORate`'s 12 is narrower than the row's 20 but the bank's maximum is
-    /// 1.2. Two definitions of one range is still the #416 condition — single-sourcing them is
-    /// registered, not done here.
+    /// `attack`'s old 0.001 floor is gone from THIS function, and the reason is measured rather
+    /// than assumed: `EchoelDDSP`'s envelope enforces a ~3 ms minimum attack ramp in its `.attack`
+    /// stage, so 0 and 0.001 are the same sound and the floor's stated purpose ("a musical
+    /// minimum below every shipped onset") was already served one layer down. Nothing here can
+    /// produce a zero-length onset.
+    ///
+    /// ⚠️ TO BE EXACT, because "the floor is gone" would otherwise read wider than it is: the
+    /// `"hard"/"punchy"/"plucky"` case in `shape` keeps its own `max(0.001, …)`. That one is not
+    /// a range bound — it is a SHAPING decision (a multiplicative shortening that must not walk
+    /// to zero over repeated words), it sits inside the range either way, and it is deliberately
+    /// left where it is.
+    ///
+    /// ⚠️ `clamped(to:)` rather than `min(max(…))`: the NaN-safe one. A prompt cannot produce a
+    /// non-finite value from a finite patch today — every `shape` case is `+`/`*` on finite
+    /// literals — but this function is the LAST thing between "Describe it" and the audio thread,
+    /// and `min(max(x, lo), hi)` passes NaN straight through by argument order (the house rule in
+    /// `Core/FloatingPointClamp.swift`, which has cost this repo shipped permanent silence).
     private static func clamp(_ p: inout SynthPatch) {
-        func c01(_ x: Float) -> Float { min(max(x, 0), 1) }
-        p.brightness = c01(p.brightness)
-        p.harmonicity = c01(p.harmonicity)
-        p.harmonicLevel = c01(p.harmonicLevel)
-        p.noiseLevel = c01(p.noiseLevel)
-        p.sustain = c01(p.sustain)
-        p.reverbMix = c01(p.reverbMix)
-        p.filterResonance = c01(p.filterResonance)
-        p.lfoToFilterDepth = c01(p.lfoToFilterDepth)
-        p.filterLFODepth = c01(p.filterLFODepth)
-        p.vibratoDepth = c01(p.vibratoDepth)
-        p.attack = min(max(p.attack, 0.001), 5)
-        p.decay = min(max(p.decay, 0.0), 10)      // was 5 — cut Drone Bed's 6.0 s (#430)
-        p.release = min(max(p.release, 0.0), 10)
-        p.filterCutoff = min(max(p.filterCutoff, 20), 18_000)
-        p.filterLFORate = min(max(p.filterLFORate, 0), 12)
-        p.reverbDecay = min(max(p.reverbDecay, 0), 10)   // was 12 — wider than its row (#430)
-        p.vibratoRate = min(max(p.vibratoRate, 0), 12)
+        typealias B = SynthPatch.Bounds
+        p.brightness = p.brightness.clamped(to: B.brightness)
+        p.harmonicity = p.harmonicity.clamped(to: B.harmonicity)
+        p.harmonicLevel = p.harmonicLevel.clamped(to: B.harmonicLevel)
+        p.noiseLevel = p.noiseLevel.clamped(to: B.noiseLevel)
+        p.sustain = p.sustain.clamped(to: B.sustain)
+        p.reverbMix = p.reverbMix.clamped(to: B.reverbMix)
+        p.filterResonance = p.filterResonance.clamped(to: B.filterResonance)
+        p.lfoToFilterDepth = p.lfoToFilterDepth.clamped(to: B.lfoToFilterDepth)
+        p.filterLFODepth = p.filterLFODepth.clamped(to: B.filterLFODepth)
+        p.vibratoDepth = p.vibratoDepth.clamped(to: B.vibratoDepth)
+        p.attack = p.attack.clamped(to: B.attack)
+        p.decay = p.decay.clamped(to: B.decay)
+        p.release = p.release.clamped(to: B.release)
+        p.filterCutoff = p.filterCutoff.clamped(to: B.filterCutoff)
+        p.filterLFORate = p.filterLFORate.clamped(to: B.filterLFORate)
+        p.reverbDecay = p.reverbDecay.clamped(to: B.reverbDecay)
+        p.vibratoRate = p.vibratoRate.clamped(to: B.vibratoRate)
     }
 }

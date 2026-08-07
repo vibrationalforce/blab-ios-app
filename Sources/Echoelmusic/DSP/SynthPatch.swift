@@ -105,6 +105,62 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     /// Effective warmth drive (nil → clean).
     public var warmth: Float { warmthDrive ?? 0 }
 
+    /// THE range of every patch parameter the Sound panel renders — one definition, read by
+    /// the row that shows the number AND by every writer that clamps into it.
+    ///
+    /// ⛔ IT USED TO BE THREE DEFINITIONS OF EACH RANGE, AND TWO OF THEM DISAGREED (#441).
+    /// The `param(…)`/`knob(…)` call site in `EchoelStudioView.soundPanel` spelled a literal;
+    /// `SoundPrompt.clamp` spelled its own; and `SoundRowsCanReachTheShippedPatchesTests` keeps
+    /// a hand-written model table (that third one is DELIBERATE and stays — a guard that reads
+    /// the constant it is guarding cannot catch a wrong constant). "Describe it" writes straight
+    /// back into `currentPatch` from the SAME panel as the rows, so a prompt bound NARROWER than
+    /// its row silently destroys a value the user set with a finger, and one WIDER produces a
+    /// value the row rewrites on first touch. #430 already paid this once (`decay` clamped to 5
+    /// while its row spans 0…10, cutting `Drone Bed`'s shipped 6.0 s) and its own follow-up note
+    /// said single-sourcing was "registered, not done here". This is that.
+    ///
+    /// ⭐ THE DIRECTION IS FIXED, NOT CHOSEN CASE BY CASE: where the two disagreed, the ROW wins
+    /// and the prompt WIDENS. A prompt that refuses what a finger can already set is the
+    /// lying-control class, and widening can never cut a shipped value — which is exactly the
+    /// invariant that made #430's `decay` fix safe. Two disagreements existed and both widen:
+    ///   · `filterLFORate` — the prompt clamped to 12 while the row spans 0…20. This is a REAL
+    ///     defect, the `Drone Bed` shape one field over: scrub the row to 19, type any recognised
+    ///     descriptor, and the value is rewritten as 12. Nothing shipped is above 1.2, so it is a
+    ///     USER-set value that was being destroyed — which is the harder kind to notice.
+    ///   · `attack` — the prompt floored at 0.001 while the row starts at 0. Cosmetic, and the
+    ///     reason is measured rather than assumed: `EchoelDDSP`'s envelope enforces a ~3 ms
+    ///     minimum attack ramp in the `.attack` stage (`minAttackSamples`), so 0 and 0.001 are
+    ///     the same sound. The old floor's stated purpose ("a musical minimum below every shipped
+    ///     onset") was already served by that ramp. Nothing here creates a zero-length onset.
+    ///
+    /// `filterCutoff` is CHAINED rather than restated — `EchoelDDSP.cutoffRange` is where the
+    /// engine already decides that question, and its own doc records the last time a second
+    /// spelling of it drifted (a "[20-20000 Hz]" comment against an 18000 clamp).
+    public enum Bounds {
+        public static let attack: ClosedRange<Float> = 0...5
+        public static let decay: ClosedRange<Float> = 0...10
+        public static let sustain: ClosedRange<Float> = 0...1
+        public static let release: ClosedRange<Float> = 0...10
+
+        public static let harmonicity: ClosedRange<Float> = 0...1
+        public static let harmonicLevel: ClosedRange<Float> = 0...1
+        public static let brightness: ClosedRange<Float> = 0...1
+        public static let noiseLevel: ClosedRange<Float> = 0...1
+
+        /// Chained to the engine's own cutoff domain — see the note above.
+        public static let filterCutoff: ClosedRange<Float> = EchoelDDSP.cutoffRange
+        public static let filterResonance: ClosedRange<Float> = 0...1
+        public static let lfoToFilterDepth: ClosedRange<Float> = 0...1
+        public static let filterLFORate: ClosedRange<Float> = 0...20
+        public static let filterLFODepth: ClosedRange<Float> = 0...1
+
+        public static let reverbMix: ClosedRange<Float> = 0...1
+        public static let reverbDecay: ClosedRange<Float> = 0...10
+
+        public static let vibratoRate: ClosedRange<Float> = 0...12
+        public static let vibratoDepth: ClosedRange<Float> = 0...1
+    }
+
     public init(
         id: UUID = UUID(),
         name: String,

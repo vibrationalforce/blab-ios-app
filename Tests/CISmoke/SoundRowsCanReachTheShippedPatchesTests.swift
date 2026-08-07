@@ -369,15 +369,25 @@ final class SoundRowsCanReachTheShippedPatchesTests: XCTestCase {
             .appendingPathComponent("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         let text = try String(contentsOf: url, encoding: .utf8)
 
+        // ⛔ THE RANGE HALF OF THESE PINS MOVED WITH #441 AND THE `why` COLUMN HAD TO MOVE WITH
+        // IT. The rows no longer spell a range literal — they read `SynthPatch.Bounds.<field>`,
+        // the same constants `SoundPrompt.clamp` uses, because three spellings of one range is
+        // what let the prompt cut a value the row could reach. Decay's reason therefore no longer
+        // lives at this call site at all; what protects `Drone Bed`'s 6.0 s now is
+        // `SynthPatch.Bounds.decay` plus `testEveryShippedValueIsInsideItsOwnRow` above, whose
+        // model table stays HAND-WRITTEN on purpose (a guard that reads the constant it guards
+        // cannot catch a wrong constant). So this test keeps pinning `decimals` — the thing that
+        // is still written here — and pins the BINDING to the shared constant instead of a
+        // number. Leaving the old literals in place would have been the easier edit and a lie.
         let pinned: [(row: String, call: String, why: String)] = [
-            ("Noise", #"knob("Noise", $currentPatch.noiseLevel, 0...1, decimals: 3)"#,
+            ("Noise", #"knob("Noise", $currentPatch.noiseLevel, SynthPatch.Bounds.noiseLevel, decimals: 3)"#,
              "0.006 and 0.008 both map onto 0.01 on a 2-decimal grid"),
-            ("Cutoff", #"knob("Cutoff", $currentPatch.filterCutoff, 20...18000, unit: "Hz", decimals: 0)"#,
+            ("Cutoff", #"knob("Cutoff", $currentPatch.filterCutoff, SynthPatch.Bounds.filterCutoff, unit: "Hz", decimals: 0)"#,
              "all 44 shipped cutoffs are whole Hz, and the app's three other cutoff rows say 0"),
-            ("Attack", #"param("Attack", $currentPatch.attack, 0...5, unit: "s", decimals: 3)"#,
+            ("Attack", #"param("Attack", $currentPatch.attack, SynthPatch.Bounds.attack, unit: "s", decimals: 3)"#,
              "0.002/0.003/0.004/0.005 s all collapse to 0.00 on a 2-decimal grid"),
-            ("Decay", #"param("Decay", $currentPatch.decay, 0...10, unit: "s", decimals: 2)"#,
-             "0...5 clamped Drone Bed's 6.0 s down to 5.0 on first touch")
+            ("Decay", #"param("Decay", $currentPatch.decay, SynthPatch.Bounds.decay, unit: "s", decimals: 2)"#,
+             "the row must read the shared bound, not a fourth spelling of 0...10")
         ]
 
         for pin in pinned {
