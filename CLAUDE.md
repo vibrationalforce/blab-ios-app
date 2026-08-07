@@ -304,8 +304,54 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**196** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `OneChromeControlHeightTests.swift` (#481 — der erste Wächter in
+                          `Tests/CISmoke` (**197** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `AStalledAcquisitionSaysSoTests.swift` (#484 — der erste Wächter in
+                          dieser Kette über einer DAUER: über etwas, das kein Einzelbild und kein Einzelwert
+                          zeigen kann. Gerätelog 2490 lief 97 s Kamera-Akquise ohne Lock und ohne
+                          Wechsel der Meldung. ⭐ **Und das Aufschlussreichste ist, dass die OBERFLÄCHE NICHT
+                          GELOGEN HAT** — meine erste Lesung des Logs behauptete das Gegenteil und war
+                          nachprüfbar falsch: die Zeile „exposure locked on finger" ist ein
+                          `EchoelCrashLog.breadcrumb` (nur Logdatei, nie gerendert), `signalQuality` hat null
+                          Verbraucher, `displayBPM` ist nie vorgerückt und `isLocked` war durchgehend falsch.
+                          Jede gezeigte Sache war ehrlich. Gefehlt hat nicht Wahrheit, sondern ZEIT: keine
+                          Fläche wusste, wie lange die ehrliche Meldung schon dieselbe war. **Lehre,
+                          verschieden von den Wahrheits-Scheiben dieses Absatzes: eine Reihe für sich wahrer
+                          Aussagen kann als Gruppe irreführen, und kein Wächter über einer EINZELNEN
+                          Behauptung sieht das.**
+                          ⭐ EINE DEFINITION: `acquisitionCue` ist jetzt zwei Schichten — `placementCue`
+                          (augenblicklich: was stimmt mit dem Kontakt gerade nicht) plus die Dauer-Aufwertung
+                          darüber. Der Publish-Tick setzt die Stall-Uhr zurück, indem er
+                          `placementCue != .finding` FRAGT, statt Helligkeit / Bewegung / Amplitude / Lock
+                          erneut zu prüfen — Tick und Schirm können also nie uneins darüber sein, was
+                          `.finding` ist (#416). Drei Verhaltensweisen fallen aus dieser einen Zeile heraus,
+                          statt eigenen Code zu brauchen: ein Lock setzt das Fenster zurück, der
+                          Berechtigungsdialog zählt nicht mit, und wer eine Minute gegen `.tooBright` kämpft,
+                          beginnt seine 45 s ab dem Augenblick, in dem der Kontakt endlich gut wird.
+                          ⚠️ WANDUHR, nicht `frame.timestamp` — #434 hat genau diese Verwechslung eine Datei
+                          weiter bezahlt: ein Frame-Stempel steht still, genau wenn eine Dauer gebraucht wird.
+                          Und `stop()` räumt den Anker auf seinen „kein Take"-Sentinel, #454s Gesetz ein Feld
+                          später.
+                          ⚠️ 45 s ist eine WAHL in einem gemessenen Fenster, kein hergeleitetes Optimum: von
+                          unten begrenzt durch Akquisen, die GELINGEN (#415s ~19 s Neu-Akquise, ~32 s kalt in
+                          Log 2490), von oben durch den Fehlschlag, den sie benennt (97 s). Der Wächter
+                          verteidigt das FENSTER, nicht die Zahl.
+                          ⚠️ ABSICHTLICH NICHT GESAGT: „nimm einen Brustgurt". `bioPanel` — das Panel, das die
+                          Messkarte beherbergt — trägt diese Route schon wörtlich, und ein VoiceOver-Nutzer
+                          erreicht sie unmittelbar VOR der Karte. Die Kette dorthin ist `isActionable`: die
+                          Header-Kachel wird bernsteinfarben, und genau das öffnet das Panel.
+                          ⚠️ EHRLICHE BENOTUNG: nur die QUELLTEXT-SCANS konnten vor diesem Commit rot sein.
+                          Jede Verhaltens-Behauptung treibt einen Case, den DERSELBE Commit anlegt — sie als
+                          Regressionen zu verbuchen wäre der #433-Defekt. Der Rest sind GEGENGEWICHTE gegen
+                          die naheliegenden Aufräumarbeiten: `.finding` auch actionable machen (was die
+                          Unterscheidung einebnet — ein Bernstein, das immer an ist, trägt keine Information)
+                          und die Quellen-Route im Hinweis wiederholen.
+                          ⚠️ Und die Grenze zuerst: die Verdrahtungs-Hälfte ist Quelltext, kein Lauf —
+                          `CameraRPPGBioPublisher` liegt hinter `#if canImport(AVFoundation)`,
+                          `acquisitionSince` ist `private`, und es zu treiben braucht eine Kamera. Dass 45 s
+                          sich für einen Wartenden richtig anfühlen und dass die bernsteinfarbene Kachel
+                          wirklich zum Panel führt, sind Geräteproben. Und die AKQUISE ist damit NICHT
+                          repariert (#304/#410) — die App hört nur auf, so zu tun, als sei nichts.),
+                          davor „196" nach `OneChromeControlHeightTests.swift` (#481 — der erste Wächter in
                           dieser Kette über einer GRÖSSE, und der erste, dessen Auslöser eine Behauptung war,
                           die der Quelltext selbst schon widerlegte. Founder 2026-08-07, zwei Screenshots, die
                           Transport-Zeile eingekreist: *„Die größe der Buttons anpassen, die sollen immer
@@ -3278,7 +3324,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTVIERUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 196 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTFÜNFUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 197 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
