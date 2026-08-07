@@ -242,8 +242,61 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**179** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-06 nach `SourceText.swift` + `OneDefinitionOfCodeNotProseTests.swift`
+                          `Tests/CISmoke` (**180** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `ASnappedValueIsLegalForItsRowTests.swift` (#442 — der erste
+                          Wächter in dieser Kette über einem RUNDUNGSFEHLER, der einen Wert AUS
+                          SEINEM EIGENEN BEREICH herausträgt: `ScrubPrecision.snapped` klemmte und
+                          RASTETE DANN, und Rasten geht zum NÄCHSTEN Gitterpunkt — auf einer
+                          `0…0,995`-Zeile mit 2 Stellen wird aus dem geklemmten 0,995 also 1,00,
+                          eine halbe Rasterstufe ÜBER dem deklarierten Maximum; auf `0,4…0,6` bei
+                          ganzen Zahlen wird 1,0 festgeschrieben, also zwei Drittel des Bereichs
+                          daneben.
+                          ⭐ **Und das Vertauschen der zwei Zeilen ist NICHT die Reparatur** — das
+                          ist der Grund, warum es eine eigene Datei gibt und keinen Ein-Zeilen-Diff.
+                          Rastern-dann-Klemmen landet exakt AUF einer nicht-gerasterten Grenze, und
+                          die Anzeige formatiert seit #432 den GERASTERTEN Wert: die Zeile zeigte
+                          dann eine Zahl und behielte eine andere — genau der Defekt, den #432
+                          geschlossen hat. Keine der beiden Reihenfolgen erfüllt beide
+                          Versprechen. Gerastert wird deshalb nach INNEN: nächster Gitterpunkt,
+                          eine Stufe zurück nach innen, falls der draußen lag.
+                          ⛔ **Und die erste Fassung dieser Reparatur hätte `0,95` von FÜNF
+                          ausgelieferten Zeilen genommen** — deshalb trägt der Vergleich ein
+                          `slack` und ist kein nacktes `>`. Eine Grenze kommt als
+                          `Double(range.upperBound)` an, und für eine `Float`-Zeile ist das nicht
+                          das Literal: `Float(0.95)` ist `0,9499999880790710`. #430 hat 11 von 86
+                          Grenzen in diesem Zustand gemessen. Ein nacktes `landed > upperBound`
+                          liest `0,95 > 0,94999998…` als echten Überschuss und senkt das Maximum
+                          der Zeile auf `0,94`. Die ALTE Reihenfolge war dagegen aus Versehen
+                          immun, weil sie zuerst klemmte — und genau deshalb ist die naheliegend
+                          aussehende Änderung die gefährliche.
+                          ⚠️ GEMESSENER UMFANG, bevor irgendetwas geändert wurde: auf dem
+                          heutigen Baum ändert die Scheibe NICHTS. Alle 74 aus Literalen
+                          erreichbaren Bereichsgrenzen in `Sources/` liegen schon auf dem Raster
+                          ihrer eigenen Zeile, und wo die Grenze auf dem Raster liegt, kann
+                          monotones Runden sie nicht überschreiten. Über 23 ausgeliefert-geformte
+                          Bereiche × 2001 Abtastwerte — **46 023 Vergleiche, 0 Abweichungen**; die
+                          `Float`-Umlauf-Grenzen ebenfalls 0; 200 000 Zufallsfälle inklusive
+                          absichtlich nicht-gerasterter Grenzen: 0 Bereichs- und 0
+                          Raster-Verletzungen. Entfernt einen MECHANISMUS, keinen heutigen Defekt —
+                          und kauft die NÄCHSTE Zeile, in einer Datei, die schon eine
+                          `Cutoff`-Zeile über 80…18000 Hz mit `decimals: 0` ausliefert.
+                          ⚠️ Das Versprechen heißt deshalb „auf dem Raster UND im Bereich bis auf
+                          `slack`" und nicht exakte Enthaltung; und wo ein Bereich GAR KEINEN
+                          Gitterpunkt enthält (`0,4…0,6` bei ganzen Zahlen), gewinnt IM-BEREICH
+                          über AUF-DEM-RASTER: eine Zahl außerhalb des Bereichs erreicht eine
+                          Engine, eine nicht-gerasterte kann nur falsch angezeigt werden.
+                          ⛔ **Nebenbefund derselben Runde, und er ist die #445-Klasse in einer
+                          Zeile:** `ScrubNotifiesOnlyOnRealChangeTests` suchte
+                          `V(ScrubPrecision.snapped(running,` — diese Schreibweise gibt es seit
+                          #427 nicht mehr (der Vergleich zog nach `ScrubPrecision.carriesTarget`,
+                          wo der Aufruf unqualifiziert `snapped(...)` heißt). Der Wächter war
+                          also seit #427 ROT und **niemand konnte es sehen, weil #396 das
+                          blockierende Bundle vor jedem Testlauf tötet**. Gefunden beim Prüfen
+                          der #442-Reichweite, nicht durch einen Lauf. Jetzt zwei Nadeln, weil die
+                          Eigenschaft eine KETTE ist: der Zug muss das Prädikat fragen, und das
+                          Prädikat muss in `V` vergleichen),
+                          davor „179"
+                          nach `SourceText.swift` + `OneDefinitionOfCodeNotProseTests.swift`
                           (#453 — die erste Scheibe dieser Kette, die ZWEI Dateien auf einmal legt und
                           von der ich vorher wusste, dass sie es tut: eine DEFINITION und ihr Waechter.
                           Registriert war sie als „`codeOnly`-Helfer ist ZWEIMAL im blockierenden

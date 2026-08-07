@@ -141,9 +141,56 @@ enum ScrubPrecision {
     /// including NaN, so a field that ever holds NaN reports "moved" on every event and the
     /// guard this whole commit installs is defeated for it. The binding-level `isFinite` checks
     /// are what keep that unreachable today.
+    ///
+    /// ⛔ IT USED TO CLAMP AND THEN GRID, AND THOSE TWO ORDERS ARE NOT THE SAME PROMISE (#442).
+    /// Gridding rounds to NEAREST, so it can move a value OUTWARD: clamping into a `0…0.995` row
+    /// gives `0.995`, which at two places grids to `1.00` — a committed value half a grid step
+    /// ABOVE the row's declared maximum, written into a binding whose type is the range. Swapping
+    /// the order does not fix it, it only moves the lie: grid-then-clamp lands exactly ON an
+    /// off-grid bound, and the readout formats the GRIDDED value (#432), so the row would show one
+    /// number and keep another — the defect #432 closed. Neither order satisfies both promises, so
+    /// this rounds toward the INTERIOR: nearest grid point, stepped one unit back inside if that
+    /// landed outside. What is given up is reaching an off-grid bound EXACTLY, which the row
+    /// cannot display anyway.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THAT STEP WOULD HAVE TAKEN `0.95` OFF FIVE SHIPPED ROWS — the
+    /// reason the comparison carries a `slack` and is not a bare `>`. A bound reaches here as
+    /// `Double(range.upperBound)`, and for a `Float` row that is not the literal: `Float(0.95)` is
+    /// `0.9499999880790710`. #430 measured 11 of 86 bounds in that state. A bare `landed >
+    /// upperBound` reads `0.95 > 0.94999998…` as a real overshoot and steps the row's maximum down
+    /// to `0.94`. The OLD order was immune by accident (it clamped first, so it never produced a
+    /// grid point above the bound at all) — which is exactly why "just swap the two lines" is not
+    /// the safe-looking change it appears to be. `slack` is one hundredth of a grid step: orders of
+    /// magnitude above any `Float` round-trip error at these magnitudes, orders of magnitude below
+    /// the half-step a genuinely off-grid bound sits at.
+    ///
+    /// ⚠️ MEASURED SCOPE, because this repo strikes fixes that oversell themselves: on today's
+    /// tree it changes NOTHING. Every bound reachable from a literal in `Sources/` — 74 checks
+    /// across both `EchoelValueField(` and `EchoelFXView.field(` call sites, plus the named
+    /// constants they use (`TrackFXStore.cutoffRange` 40…18000, `RoleRhythm.minGate` 0.05 /
+    /// `maxPush` 0.45, `EchoelDDSP.cutoffRange` 20…18000, the Patchbay universes) — is already on
+    /// its own row's grid, and where the bound is on the grid, monotone rounding cannot cross it.
+    /// This buys the NEXT row, in a file that already ships an 80…18000 Hz cutoff at `decimals: 0`.
+    ///
+    /// ⚠️ THE PROMISE IS THEREFORE "on the grid, and inside the range to within `slack`" — not an
+    /// exact containment. And when a range holds NO grid point at all (`0.4…0.6` at whole numbers)
+    /// neither neighbour fits and the clamped raw value is returned instead: IN-RANGE wins over
+    /// ON-GRID, because an out-of-range number reaches an engine while an off-grid one can only
+    /// misdisplay. Unreachable today by the same measurement, and stated rather than left to be
+    /// discovered.
     static func snapped(_ raw: Double, lowerBound: Double, upperBound: Double,
                         decimals: Int) -> Double {
-        gridded(clamped(raw, lowerBound: lowerBound, upperBound: upperBound), decimals: decimals)
+        let step = pow(10.0, -Double(decimals))
+        let slack = step * 1e-2
+        let inRange = clamped(raw, lowerBound: lowerBound, upperBound: upperBound)
+        let nearest = gridded(inRange, decimals: decimals)
+        if nearest >= lowerBound - slack, nearest <= upperBound + slack { return nearest }
+        // Re-grid after the step: `nearest ± step` is only approximately a grid point in binary,
+        // and several callers compare this result for exact equality.
+        let inward = gridded(nearest > upperBound ? nearest - step : nearest + step,
+                             decimals: decimals)
+        if inward >= lowerBound - slack, inward <= upperBound + slack { return inward }
+        return inRange
     }
 
     /// The GRID half of `snapped`, without the clamp — and the app's ONE definition of what

@@ -197,7 +197,19 @@ final class ScrubNotifiesOnlyOnRealChangeTests: XCTestCase {
         // replacement — the base is re-seeded whenever the target no longer describes the
         // number on screen. Without it a CANCELLED gesture (#377) leaves a target standing that
         // the next drag builds on, throwing away any keypad or VoiceOver edit made in between.
-        XCTAssertTrue(squashed.contains("V(ScrubPrecision.snapped(running,"), """
+        // ⛔ THIS NEEDLE WAS `V(ScrubPrecision.snapped(running,` AND HAD STOPPED MATCHING. #427
+        // moved the comparison out of the drag closure and into `ScrubPrecision.carriesTarget`,
+        // where the call is `snapped(...)` unqualified — so the guard was RED from that commit
+        // onward and nobody could see it, because #396 stops the blocking bundle before any test
+        // runs. Found while checking #442's blast radius, not by a run. That is #445 in one line:
+        // a source scan whose needle names a spelling can rot silently, and a dead gate hides it.
+        // Two needles now, because the property is a CHAIN: the drag must consult the predicate,
+        // and the predicate must compare in `V`.
+        XCTAssertTrue(squashed.contains("ScrubPrecision.carriesTarget(running,"), """
+            The drag no longer asks whether its target still describes the number on screen, so a \
+            cancelled gesture (#377) leaves a stale target that the next drag builds on.
+            """)
+        XCTAssertTrue(squashed.contains("V(snapped(running,"), """
             The drag's base is no longer checked against the live value in `V`'s OWN precision. \
             In `Double` this check is worse than none: `Double(Float(0.57)) != 0.57`, so every \
             `Float` field would re-seed every event and the #376 dead zone would be back with \

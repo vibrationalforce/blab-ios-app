@@ -177,23 +177,38 @@ final class TheShownNumberIsTheKeptNumberTests: XCTestCase {
 
     /// What the row SHOWS is the string of what the row would KEEP.
     ///
-    /// True by construction since `snapped` became `gridded(clamped(…))` — kept as the statement
-    /// of the contract, not as a regression (the header says so). It still earns its place: it
-    /// fails if someone re-inlines a second rounding into either half.
+    /// True by construction while the grid point stays inside the row — kept as the statement of
+    /// the contract, not as a regression (the header says so). It still earns its place: it fails
+    /// if someone re-inlines a second rounding into either half.
     ///
-    /// ⚠️ WHAT ITS GREEN DOES NOT MEAN. `snapped` clamps and THEN grids, so a commit can land up
-    /// to half a grid step OUTSIDE its own bound: `snapped(1.5, lowerBound: 0, upperBound: 1.5,
-    /// decimals: 0)` is `2.0`. This test includes exactly that pair and passes, because both sides
-    /// render "2" — the test is about the two ROUNDINGS agreeing, not about the commit landing in
-    /// range. The overshoot is pre-existing (`EchoelValueField.swift`, untouched by #432) and
-    /// unreachable today: every shipped `0...1.5` row is `decimals: 2`. Registered as its own item
-    /// rather than fixed here, because grid-then-clamp changes what `apply` writes.
+    /// ⛔ THE CAVEAT THAT USED TO STAND HERE IS NOW A SECOND ASSERTION, because #442 fixed what it
+    /// described. It read: "`snapped` clamps and THEN grids, so a commit can land up to half a grid
+    /// step OUTSIDE its own bound — `snapped(1.5, lowerBound: 0, upperBound: 1.5, decimals: 0)` is
+    /// `2.0`; this test includes exactly that pair and passes, because both sides render '2'."
+    /// `snapped` now rounds toward the INTERIOR, so that pair keeps `1.0` and the two strings
+    /// legitimately differ: the row cannot show `1.5` at whole numbers, and keeping a legal value
+    /// beats keeping a matching one. So the equality is claimed exactly where the grid point is
+    /// still inside the row, and the OTHER branch is asserted too — the kept value must be in
+    /// range. Without that second half this test would have been "fixed" by deleting the pair,
+    /// which is how a caveat becomes a blind spot.
     func testTheGridAndTheCommitAgreeInRange() {
         let ranges: [(Double, Double)] = [(0, 1), (0, 20), (20, 18000), (0, 10), (0, 12), (0, 1.5)]
+        var reachedTheOffGridBranch = 0
         for d in Self.decimalSettings {
             for (lo, hi) in ranges {
                 for t in Self.ties(decimals: d) where t >= lo && t <= hi {
                     let kept = ScrubPrecision.snapped(t, lowerBound: lo, upperBound: hi, decimals: d)
+                    let nearest = ScrubPrecision.gridded(t, decimals: d)
+                    guard nearest >= lo, nearest <= hi else {
+                        reachedTheOffGridBranch += 1
+                        XCTAssertGreaterThanOrEqual(kept, lo, "\(d) places, range \(lo)…\(hi)")
+                        XCTAssertLessThanOrEqual(kept, hi, """
+                            \(d) places, range \(lo)…\(hi): committing \(t) kept \(kept), which the \
+                            row does not admit. Rounding to the nearest grid point carried it out \
+                            of range — the #442 defect.
+                            """)
+                        continue
+                    }
                     XCTAssertEqual(Self.shown(t, d),
                                    EchoelDecimalText.string(kept, decimals: d, locale: Self.posix), """
                         \(d) places, range \(lo)…\(hi): the row would DRAW \(Self.shown(t, d)) for \
@@ -203,6 +218,11 @@ final class TheShownNumberIsTheKeptNumberTests: XCTestCase {
                 }
             }
         }
+        XCTAssertGreaterThan(reachedTheOffGridBranch, 0, """
+            No tie in this sweep rounded outside its own range, so the in-range guard above never \
+            ran. `(0, 1.5)` at `decimals: 0` is the pair that reaches it — if it was dropped, the \
+            #442 half of this test proves nothing.
+            """)
     }
 
     /// EVERYTHING THAT IS NOT A TIE RENDERS EXACTLY AS BEFORE.

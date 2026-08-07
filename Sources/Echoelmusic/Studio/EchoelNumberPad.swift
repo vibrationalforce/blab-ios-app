@@ -39,8 +39,9 @@ import Foundation
 /// the matcher swept comment lines in, so the sentence described a procedure that yields 62 and
 /// reported 64 — re-running it is what falsified it, not re-reading it.**
 ///
-/// ⭐ WHY THE REFUSAL STOPS AT THE FRACTION AND DOES **NOT** EXTEND TO THE RANGE. `clamped`
-/// can also move a committed number away from the readout (type `999` on a `0…1` row, get
+/// ⭐ WHY THE REFUSAL STOPS AT THE FRACTION AND DOES **NOT** EXTEND TO THE RANGE. The range
+/// clamp (inside `ScrubPrecision.snapped` since #442, a local property before that) can also
+/// move a committed number away from the readout (type `999` on a `0…1` row, get
 /// `1.0`), and treating that the same way would be wrong, not merely bigger. A fraction digit
 /// past the grid can never be rescued by another keystroke — no continuation of `0.375` is
 /// representable at two places. An out-of-range PREFIX is the normal middle of typing a valid
@@ -124,10 +125,6 @@ struct EchoelNumberPad: View {
             return initial
         }
         return Double(cleaned) ?? initial
-    }
-
-    private var clamped: Double {
-        Swift.min(Swift.max(pendingValue, range.lowerBound), range.upperBound)
     }
 
     var body: some View {
@@ -311,7 +308,7 @@ struct EchoelNumberPad: View {
     }
 
     private func commit() {
-        onCommit(snapped(clamped))
+        onCommit(snapped(pendingValue))
         dismiss()
     }
 
@@ -323,11 +320,17 @@ struct EchoelNumberPad: View {
     ///
     /// **On today's only caller it is REDUNDANT.** `EchoelNumberPad` is constructed in exactly
     /// one place (`EchoelValueField`'s `.sheet`), whose `onCommit` runs `apply`, and `apply`
-    /// calls `ScrubPrecision.snapped` — the same clamp-then-`(v·10^d).rounded()/10^d` in the same
-    /// order. Removing this line would change nothing today. It stays as defence-in-depth for a
-    /// future direct caller of the pad, which is a weaker and truer claim than the one it
-    /// replaced. (A "do not delete" note with a false reason is worse than none: the next session
-    /// cannot refute it.)
+    /// calls `ScrubPrecision.snapped`. Removing this line would change nothing today. It stays as
+    /// defence-in-depth for a future direct caller of the pad, which is a weaker and truer claim
+    /// than the one it replaced. (A "do not delete" note with a false reason is worse than none:
+    /// the next session cannot refute it.)
+    ///
+    /// ⛔ IT USED TO BE ITS OWN COMPOSITION AND #442 MADE THAT WRONG. This called
+    /// `ScrubPrecision.gridded` on a separately clamped value — clamp-then-grid, the exact order
+    /// #442 replaced because rounding to nearest can carry a value OUTWARD past an off-grid
+    /// bound. Two spellings of "where a value lands" is the #416 defect, and it was invisible
+    /// while the two spellings agreed. It now calls the one definition, which does the clamping
+    /// itself — so the local `clamped` property is gone with it and `pendingValue` goes in raw.
     ///
     /// **The header could also disagree with the commit, at exact ties — CLOSED BY #432.** `fmt`
     /// → `EchoelDecimalText.string` → `String(format: "%.Nf", …)` is C `printf` and rounds
@@ -338,7 +341,8 @@ struct EchoelNumberPad: View {
     /// construction. `fmt` now grids before it formats, and this function no longer keeps its own
     /// copy of the arithmetic: there is ONE definition of the grid, `ScrubPrecision.gridded`.
     private func snapped(_ v: Double) -> Double {
-        ScrubPrecision.gridded(v, decimals: decimals)
+        ScrubPrecision.snapped(v, lowerBound: range.lowerBound,
+                               upperBound: range.upperBound, decimals: decimals)
     }
 
     /// The pad's own readout and its "Range …–…" line. Same helper as `EchoelValueField`, so

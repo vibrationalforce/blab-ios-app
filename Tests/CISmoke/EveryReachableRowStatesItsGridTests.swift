@@ -2,7 +2,9 @@
 // Echoel — the closing guard of the #427/#430/#440 decimals family.
 //
 // WHAT THIS FAMILY WAS ABOUT. `EchoelValueField.decimals` is not a readout preference: it is
-// the SNAP GRID (`ScrubPrecision.snapped` clamps, then rounds to 10^-decimals), and since #416
+// the SNAP GRID (`ScrubPrecision.snapped` lands every commit on a 10^-decimals point inside the
+// row — clamp-then-round until #442 showed that order can carry a value past an off-grid bound),
+// and since #416
 // it is the display too. Its default is 4. Every call site that omits it therefore quietly
 // offers four decimal places of resolution — on a 0…1 row that is 10 001 settings where the
 // rest of the app offers 101, and the number on screen reads "0.5000" beside a neighbour
