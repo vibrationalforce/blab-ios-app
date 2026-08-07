@@ -282,6 +282,33 @@ public final class CameraRPPGBioPublisher {
     private var lastGoodPublishTick = Int.min
     private var lastValidCoherence: Float = 0
 
+    /// WALL-CLOCK start of the current UNLOCKED stretch — set when a take starts and reset
+    /// forward on every trustworthy reading. `0` means no take is running. Read by
+    /// `acquisitionCue` to tell a normal warm-up from a stall (#484).
+    ///
+    /// ⚠️ ONE field, not a `takeStartedAt` plus a `lastTrustworthyAt`, and the reason is that
+    /// two fields would have to agree about which of them wins at the start of a take, when
+    /// there has never been a trustworthy reading. "When did the current unlocked stretch
+    /// begin" answers both questions with one value and cannot disagree with itself.
+    ///
+    /// ⚠️ WALL CLOCK, not `frame.timestamp` — #434 paid for this exact confusion one file
+    /// over. A frame stamp stands still in precisely the situation a duration is needed
+    /// (the pulse-hold republish re-emits `held.timestamp`), so a duration measured on it
+    /// reads zero for as long as the thing it is measuring lasts.
+    ///
+    /// Advanced during a LOCK as well, so losing a lock at t = 200 s starts a fresh 45 s
+    /// rather than reading stalled immediately.
+    ///
+    /// ⚠️ `@ObservationIgnored` ON PURPOSE, and it is not an oversight even though
+    /// `acquisitionCue` reads it: this field moves on every trustworthy tick, so tracking it
+    /// would add a 10 Hz invalidation source to a publisher the freeze law (10.76.41/50) is
+    /// already careful about. It does not need to notify — the cue is re-derived from
+    /// `confidence`/`detectedBPM`/`fingerDetected`, which ARE tracked and DO churn at 10 Hz,
+    /// so every reader re-evaluates on its own. The cost is bounded and named: nothing
+    /// invalidates at the instant the 45 s elapses; the message appears on the next tick,
+    /// i.e. within ~100 ms.
+    @ObservationIgnored private var acquisitionSince: CFAbsoluteTime = 0
+
     /// ⭐ ONE respiration estimator for the whole take (#343). It used to be rebuilt from
     /// scratch on EVERY publish and fed only the newest 10 s analysis window — and that is
     /// not a settling-time nuisance, it is a structural blind spot exactly where this app
@@ -332,7 +359,34 @@ public final class CameraRPPGBioPublisher {
     /// The typed coaching state (single source of truth for `coachingHint` and the
     /// compact header amber cue). Derived from the live analyzer signals on the main
     /// actor; the string/label/actionable mapping is the pure, tested `PulseCue`.
+    ///
+    /// TWO LAYERS since #484: `placementCue` answers "what is wrong with the contact RIGHT
+    /// NOW" from the instantaneous signals, and this property adds the one thing an
+    /// instantaneous read cannot know — HOW LONG the answer has been "nothing is wrong and
+    /// nothing is locking". Only `.finding` is upgraded, because every other case already
+    /// names a correctable blocker and replacing that with a duration message would trade a
+    /// specific instruction for a vaguer one.
     public var acquisitionCue: PulseCue {
+        let base = placementCue
+        // `acquisitionSince == 0` means no take is running — a cue read from an idle
+        // publisher must never claim a stall that no clock was measuring.
+        guard base == .finding, acquisitionSince > 0,
+              CFAbsoluteTimeGetCurrent() - acquisitionSince >= PulseCue.stalledAfterSeconds
+        else { return base }
+        // Confidence at display grade with autocorrelation below the corroboration floor is
+        // the exact band `pulseTrustworthy` rejects: a peak counter agreeing with itself on
+        // something that is not periodic. Asked from the SAME two constants the trust gate
+        // uses, so a retune of either cannot leave this classification behind (#416).
+        let rhythmless = confidence >= Self.displayThreshold
+            && analyzer.lastAutoStrength < Self.trustAutoFloor
+        return .stalled(hasRhythmlessSignal: rhythmless)
+    }
+
+    /// The instantaneous placement classification — everything `acquisitionCue` knew before
+    /// #484 added a clock. Kept separate (and non-public) so the stall clock in the publish
+    /// tick can ask "is the contact currently clean" without restating any of these tests:
+    /// one definition, and the tick and the UI can never disagree about what `.finding` is.
+    private var placementCue: PulseCue {
         // Denied access wins over EVERYTHING — no placement coaching can help,
         // and "Cover camera" for a permission dead end misleads (UX-1).
         if permissionDenied { return .cameraDenied }
@@ -654,6 +708,12 @@ public final class CameraRPPGBioPublisher {
         startGeneration += 1
         let gen = startGeneration
         isRunning = true
+        // Arm the stall clock (#484) synchronously with `isRunning`, so it can never be
+        // zero — i.e. "no take" — while a take is running. Its VALUE here barely matters:
+        // the publish tick resets it on every tick whose cue is not `.finding`, and before
+        // the first frame arrives the cue is `.coverLens`. What matters is that it is
+        // non-zero, because that is what `acquisitionCue` guards on.
+        acquisitionSince = CFAbsoluteTimeGetCurrent()
         self.bus = bus
 
         let sampleQueue = self.sampleQueue
@@ -938,6 +998,20 @@ public final class CameraRPPGBioPublisher {
                     self.isSettled = false
                 }
                 self.waveform = self.analyzer.recentWaveform
+                // THE STALL CLOCK (#484) measures uninterrupted time in `.finding` — a
+                // placed, dark-enough, steady, firm-enough contact that is producing
+                // nothing. Anything else resets it, which is stated ONCE, here, by asking
+                // the same classification the screen shows rather than re-testing brightness
+                // / motion / amplitude / lock. Consequences that fall out for free:
+                //   · a lock advances it (`.locked` ≠ `.finding`), so losing a lock starts a
+                //     fresh window instead of reading stalled the same second;
+                //   · the permission dialog and the pre-contact wait do not count, because
+                //     the cue is `.cameraDenied` / `.coverLens` there — a user who took a
+                //     minute to answer the dialog does not meet "still no pulse" on contact;
+                //   · a user who spends a minute fighting `.tooBright` and finally achieves
+                //     a clean contact starts their 45 s from THAT moment, which is the only
+                //     honest reading of "a good contact has produced nothing for 45 s".
+                if self.placementCue != .finding { self.acquisitionSince = nowT }
 
                 // EXPOSURE: lock once the finger has covered the lens for ~1.2 s (so
                 // the AGC settled on the bright fingertip), and RE-SETTLE if the lock
@@ -1481,6 +1555,12 @@ public final class CameraRPPGBioPublisher {
         lastGoodBioFrame = nil
         lastGoodPublishTick = Int.min
         lastValidCoherence = 0
+        // #454's law, applied to the field #484 adds: a per-take anchor that stop() forgets
+        // is a previous take's number read as this one's. Zero — not "now" — because zero is
+        // this field's "no take is running" sentinel, and `acquisitionCue` guards on it; a
+        // wall-clock value here would let an IDLE publisher accumulate a 45 s stall and then
+        // report one the moment the next take places a finger.
+        acquisitionSince = 0
         isRunning = false
         fingerDetected = false
         signalQuality = 0
