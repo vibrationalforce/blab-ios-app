@@ -51,6 +51,13 @@ final class OneDefinitionOfAParameterRangeTests: XCTestCase {
     /// which is what makes `testTheChangeIsInertExceptForTheTwoNamedFields` exact without
     /// reimplementing `shape`: clamping is monotone and idempotent, so applying the OLD bounds to
     /// the NEW result is bit-identical to what the old `clamp` produced from the same raw shape.
+    ///
+    /// ⚠️ AND THE PRICE OF THAT ARGUMENT, said rather than left for a reader to notice: on the
+    /// fifteen fields where old == new, re-clamping is the IDENTITY, so that test cannot fail on
+    /// today's tree. It is a counterweight against a future mis-transcription, not evidence about
+    /// this change — and it is blind in the NARROWING direction for the same reason (a value
+    /// already inside a smaller range comes back unchanged). The narrowing direction is guarded by
+    /// the data sweep and the one hand-written ceiling further down, not here.
     private func applyOldPromptBounds(_ p: SynthPatch) -> SynthPatch {
         var q = p
         func c01(_ x: Float) -> Float { min(max(x, 0), 1) }
@@ -216,6 +223,23 @@ final class OneDefinitionOfAParameterRangeTests: XCTestCase {
             """)
     }
 
+    /// The three shipped banks, named separately so the floor below can notice that ONE of them
+    /// went empty — a single flat count cannot, because the factory bank alone clears any
+    /// plausible total. Same three the sibling guard sweeps, for the same reason.
+    private enum Bank: String, CaseIterable {
+        case factory = "SynthPatch.factory"
+        case library = "PatchLibrary.all"
+        case genres  = "MusicStyle.allCases.synthPatch"
+
+        func patches() -> [SynthPatch] {
+            switch self {
+            case .factory: return SynthPatch.factory
+            case .library: return PatchLibrary.all.map { $0.patch }
+            case .genres:  return MusicStyle.allCases.map { $0.synthPatch }
+            }
+        }
+    }
+
     /// ⛔ THE GAP THIS CLOSES WAS FOUND BY ASKING WHAT THE TESTS ABOVE CANNOT SEE, and it is a
     /// gap #441 CREATED. Every check so far reads `Bounds` on both sides, so NARROWING a bound
     /// moves the row and the prompt together and nothing goes red — while the row would then clip
@@ -225,19 +249,67 @@ final class OneDefinitionOfAParameterRangeTests: XCTestCase {
     /// DATA instead: every shipped patch value must fit inside its own bound. That is the same
     /// shape of claim the sibling guard makes against its hand-written table, and the two are not
     /// redundant — that one catches "the row drifted from the model", this one catches "the model
-    /// AND the row drifted together". `Drone Bed`'s 6.0 s decay is the value that makes it bite.
+    /// AND the row drifted together".
+    ///
+    /// ⛔ AND THE FIRST VERSION SWEPT ONLY `SynthPatch.factory` WHILE CLAIMING — here, in the
+    /// commit message, and in the sibling's comment — that "`Drone Bed`'s 6.0 s decay is the value
+    /// that makes it bite". `Drone Bed` is NOT in that bank. It is built by
+    /// `GenrePatches.patch("EE", "Drone Bed", … d: 6.0, …)` and reached through
+    /// `MusicStyle.synthPatch`, a separate population that lands in `currentPatch` just the same.
+    /// The factory bank's decay maximum is 1.5, so the guard had 85% slack on the one field it
+    /// named and `Bounds.decay` could have been narrowed to `0...5` — the literal #430 defect —
+    /// with every test in the repo green. **That is the same methodology error the sibling's own
+    /// header records** ("the third source it NAMED, `MusicStyle.synthPatch`, was invisible to the
+    /// scan"), committed in the slice that cites it, one paragraph after calling #430's reasoning
+    /// "the wrong population". Measured over all three banks the maxima are: decay 6.0 (Drone Bed),
+    /// release 7.5, reverbDecay 8.5, filterCutoff 8000, attack 3.5, vibratoRate 6.2.
     func testEveryShippedPatchFitsInsideItsOwnBound() {
         var outside: [String] = []
-        for patch in SynthPatch.factory {
-            for f in fields where !f.bound.contains(f.read(patch)) {
-                outside.append("\(patch.name).\(f.name) = \(f.read(patch)) ∉ \(f.bound)")
+        for bank in Bank.allCases {
+            let patches = bank.patches()
+            XCTAssertFalse(patches.isEmpty, """
+                \(bank.rawValue) is empty — a bank that vanishes takes its coverage with it and \
+                leaves the remaining ones looking sufficient.
+                """)
+            for patch in patches {
+                for f in fields where !f.bound.contains(f.read(patch)) {
+                    outside.append("\(bank.rawValue)/\(patch.name).\(f.name) = \(f.read(patch)) ∉ \(f.bound)")
+                }
             }
         }
-        XCTAssertFalse(SynthPatch.factory.isEmpty, "No shipped patches — the sweep proves nothing.")
         XCTAssertEqual(outside.count, 0, """
             \(outside.prefix(5).joined(separator: ", ")) — a shipped patch holds a value its own \
             row cannot reach. Widen the bound; NEVER round the patch (#430 paid that once: a \
             narrower bound rewrote `Drone Bed`'s 6.0 s decay as 5.0 on first touch).
+            """)
+    }
+
+    /// ⚠️ AND THE DATA SWEEP ABOVE CANNOT GUARD THE FIELD THIS SLICE EXISTS FOR. Measured across
+    /// all three banks, the highest shipped `filterLFORate` is **1.2 Hz** — so re-narrowing the
+    /// bound to the old `0...12` leaves every patch comfortably inside and every other test in
+    /// this file green, while the row silently loses 8 Hz of reach. The value #441 rescued was a
+    /// USER-SET 19 Hz, and no fixture holds a user-set value; that is the whole shape of the
+    /// defect. So this one ceiling is pinned by hand, as the independent authority the data
+    /// cannot be.
+    ///
+    /// ⚠️ DELIBERATELY ONE FIELD AND NOT SEVENTEEN. #430 recorded the reason in this same bundle:
+    /// pinning every constant makes an ordinary panel edit red, and that is how a guard gets
+    /// deleted rather than obeyed. Pinned here is the single bound whose shipped maximum sits far
+    /// enough below it that nothing else would notice the loss.
+    func testTheLFORateCeilingIsPinnedBecauseNoShippedPatchReachesIt() {
+        XCTAssertEqual(SynthPatch.Bounds.filterLFORate.upperBound, 20, accuracy: 1e-6, """
+            The patch filter-LFO row's ceiling moved. If it went back to 12, that is #441 undone: \
+            a finger can set 19 Hz, `SoundPrompt.apply` ends in an unconditional clamp, and no \
+            shipped patch goes above 1.2 Hz — so nothing else in this repo would go red.
+            """)
+        let shippedMax = Bank.allCases
+            .flatMap { $0.patches() }
+            .map(\.filterLFORate)
+            .max() ?? 0
+        XCTAssertLessThan(shippedMax, 12, """
+            A shipped patch now reaches \(shippedMax) Hz, at or above the OLD prompt ceiling. The \
+            premise of this hand-written pin — that the data cannot see a re-narrowing — no longer \
+            holds, so fold this back into the data sweep instead of keeping a second copy.
             """)
     }
 
@@ -272,10 +344,15 @@ final class OneDefinitionOfAParameterRangeTests: XCTestCase {
     }
 
     /// The chain, in the #426 form: the cutoff bound is not restated here, it IS the engine's.
-    /// Both halves matter — the value, so a drift is caught, and the SPELLING, because a literal
-    /// that happens to be equal today is a second definition that can drift tomorrow. That is
-    /// not hypothetical for this constant: `EchoelDDSP.cutoffRange`'s own doc records a
-    /// "[20-20000 Hz]" comment that survived next to an 18000 clamp.
+    /// The load-bearing half is the SPELLING — a literal that happens to be equal today is a
+    /// second definition that can drift tomorrow, and that is not hypothetical for this constant:
+    /// `EchoelDDSP.cutoffRange`'s own doc records a "[20-20000 Hz]" comment that survived next to
+    /// an 18000 clamp.
+    ///
+    /// ⚠️ The value assertion below CANNOT FAIL while the spelling holds — `Bounds.filterCutoff`
+    /// is *defined* as `cutoffRange`, so the equality is definitional (#367). It stays as the
+    /// thing that keeps meaning something if a later slice replaces the chain with a literal for
+    /// portability (see the Accelerate note on `Bounds` itself); it is not a second detector.
     func testTheCutoffBoundIsChainedNotCopied() throws {
         XCTAssertEqual(SynthPatch.Bounds.filterCutoff, EchoelDDSP.cutoffRange,
                        "The panel's cutoff row and the engine's cutoff domain disagree.")
@@ -288,8 +365,19 @@ final class OneDefinitionOfAParameterRangeTests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// ⚠️ `SourceText.codeOnly`, not the raw file. This repo answers a removal with a ⛔ block that
+    /// QUOTES the token it removed — `// ⛔ this row used to read SynthPatch.Bounds.decay` would
+    /// satisfy every needle below over a reverted row. #453 made that one definition two commits
+    /// before this slice, and the first version of this file scanned the raw text anyway.
+    /// ⭐ AND IT STOPPED BEING PROPHYLACTIC IN THE SAME COMMIT THAT ADDED IT. Correcting the
+    /// stale range note beside the Decay row put the literal string `SynthPatch.Bounds.decay`
+    /// into a COMMENT in `EchoelStudioView.swift`. Measured: that needle now appears twice in the
+    /// raw file and once in the code. Every other needle is 1/1, and all 17 clamp needles plus
+    /// the chain needle survive stripping — so the guard is unchanged in verdict today, and one
+    /// row away from having been satisfied by prose.
     private func source(_ relative: String) throws -> String {
-        try String(contentsOf: repoRoot().appendingPathComponent(relative), encoding: .utf8)
+        let raw = try String(contentsOf: repoRoot().appendingPathComponent(relative), encoding: .utf8)
+        return SourceText.codeOnly(raw)
     }
 
     private func repoRoot() throws -> URL {

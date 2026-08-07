@@ -348,10 +348,15 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// because it is on the LIVE path (`applyTakeSound`, every Generate and every preset
     /// recall) and multiplies the cutoff by up to 1.12 BEFORE the value ever becomes
     /// `bioBaseFilterCutoff`. The render clamp now reads from here, and the bio assignment is
-    /// the new fifth site. `SoundPrompt` and the knob keep their literals — folding a UI range
-    /// and a prompt sanitiser into a DSP constant is a separate errand — and
-    /// `FilterCutoffClampTests` asserts the `SoundPrompt` agreement behaviourally. ⚠️ It does
-    /// NOT yet assert `RoleRhythm`'s; that copy is guarded by nothing but this paragraph.
+    /// the new fifth site.
+    ///
+    /// ⛔ AND THE NEXT SENTENCE HERE — "`SoundPrompt` and the knob keep their literals — folding a
+    /// UI range and a prompt sanitiser into a DSP constant is a separate errand" — WAS TRUE UNTIL
+    /// #441 AND SURVIVED IT. That errand is done: both now read `SynthPatch.Bounds.filterCutoff`,
+    /// which is defined as this constant, so the only remaining spellings are the render clamp
+    /// below and the bio assignment. ⚠️ `RoleRhythm.swift`'s `TimbreTrim.trimmed` is STILL a
+    /// separate copy on the LIVE path, and it is still guarded by nothing but this paragraph —
+    /// that half of the note has not aged, and it is the one that matters.
     ///
     /// The doc on `filterCutoff` said "[20-20000 Hz]" while every clamp in the codebase used
     /// 18000. Nothing depended on the wrong upper bound, which is exactly why it survived.

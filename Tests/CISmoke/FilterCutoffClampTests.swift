@@ -171,13 +171,21 @@ final class FilterCutoffClampTests: XCTestCase {
         """)
     }
 
-    // MARK: - The domain has four copies; they must agree
+    // MARK: - The domain used to have four copies; two of them are folded now
 
-    /// ⛔ `SoundPrompt` holds its own `min(max(x, 20), 18_000)` and the Sound panel's knob holds
-    /// its own `20...18000`. Folding those into `EchoelDDSP.cutoffRange` is a separate errand
-    /// (a DSP constant should not be dragged into a UI range on a robustness slice), so this
-    /// asserts the AGREEMENT behaviourally instead of leaving it to hope. If it reddens, the
-    /// copies drifted — reconcile them, do not relax this.
+    /// ⛔ THIS PARAGRAPH DESCRIBED A WORLD #441 DELETED, AND IT SURVIVED THAT COMMIT. It read:
+    /// "`SoundPrompt` holds its own `min(max(x, 20), 18_000)` and the Sound panel's knob holds its
+    /// own `20...18000`. Folding those into `EchoelDDSP.cutoffRange` is a separate errand … If it
+    /// reddens, the copies drifted." #441 IS that errand — both copies now go through
+    /// `SynthPatch.Bounds.filterCutoff`, which is defined AS `EchoelDDSP.cutoffRange`.
+    ///
+    /// ⚠️ SO THE TEST BELOW IS NEAR-TAUTOLOGICAL NOW and says so rather than reading as a live
+    /// drift detector: `SoundPrompt.clamp` reads the chained constant, so it cannot disagree with
+    /// the engine while the chain holds. It is kept because it is the thing that starts detecting
+    /// again the day the chain is replaced by a literal (the Accelerate-portability escape route
+    /// written out at `SynthPatch.Bounds`), and because it exercises the sanitiser end-to-end
+    /// through the public `apply` rather than trusting the constant alone. The copy that is
+    /// STILL unguarded by anything but prose is `RoleRhythm.swift`'s `TimbreTrim.trimmed`.
     ///
     /// The sanitiser itself is `private`, which `@testable` does NOT reach; it runs
     /// unconditionally at the end of `apply(_:to:)`, so an EMPTY prompt is the honest way in —

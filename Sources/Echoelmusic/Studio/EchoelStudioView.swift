@@ -5489,10 +5489,12 @@ struct EchoelStudioView: View {
             // a peer of A/D/S/R instead of the control that sets them.
             AdaptiveCardGrid(spacing: 14) {
                 param("Attack", $currentPatch.attack, SynthPatch.Bounds.attack, unit: "s", decimals: 3)
-                // 0…10 (the Release row's range), not 0…5: `Drone Bed` ships a 6.0 s decay
-                // (`GenrePatches.swift:145`) and the field CLAMPS before it rounds, so on the
-                // old range one touch rewrote it as 5.0 s — a fifth of the row's span, on a
-                // value a designer typed. Widen the control, never round the patch (#430/#424).
+                // The 0…10 here (not 0…5) is `SynthPatch.Bounds.decay` since #441, so the number
+                // this note explains no longer lives on this line — it is stated once, next to
+                // the constant. Kept because the REASON belongs where a session edits the row:
+                // `Drone Bed` ships a 6.0 s decay (`GenrePatches.swift:145`) and the field CLAMPS
+                // before it rounds, so on the old range one touch rewrote it as 5.0 s — a fifth
+                // of the row's span, on a value a designer typed. Widen, never round (#430/#424).
                 param("Decay", $currentPatch.decay, SynthPatch.Bounds.decay, unit: "s", decimals: 2)
                 param("Sustain", $currentPatch.sustain, SynthPatch.Bounds.sustain, decimals: 2)
                 param("Release", $currentPatch.release, SynthPatch.Bounds.release, unit: "s", decimals: 2)

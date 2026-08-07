@@ -280,8 +280,51 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           die vier Volltext-Pins des #430-Wächters im Weg; #441 ersetzt deren
                           Bereichs-Hälfte durch eine Bindung. Die Konstante wird deshalb den DATEN
                           verantwortlich gemacht: jeder ausgelieferte Patch-Wert muss in seinen eigenen
-                          Bereich passen (`testEveryShippedPatchFitsInsideItsOwnBound`, und `Drone Bed`s
-                          6,0-s-Decay ist der Wert, der das beißen lässt).
+                          Bereich passen (`testEveryShippedPatchFitsInsideItsOwnBound`).
+                          ⛔ **UND DIESER WÄCHTER WISCHTE IN SEINER ERSTEN FASSUNG DIE FALSCHE
+                          POPULATION — während er, der Commit-Text und der Nachbar-Wächter gleichlautend
+                          behaupteten, „`Drone Bed`s 6,0-s-Decay ist der Wert, der das beißen lässt".**
+                          `Drone Bed` liegt gar nicht in `SynthPatch.factory`; es wird von
+                          `GenrePatches.patch("EE", "Drone Bed", … d: 6.0, …)` gebaut und über
+                          `MusicStyle.synthPatch` erreicht — eine eigene Population, die genauso in
+                          `currentPatch` landet. Das Decay-Maximum der Werksbank ist **1,5**, der Wächter
+                          hatte auf dem einen Feld, das er NANNTE, also 85 % Luft: `Bounds.decay` ließe
+                          sich auf `0...5` verengen — der wörtliche #430-Defekt — bei grünem Repo.
+                          **Das ist derselbe Methodenfehler, den der Nachbar-Wächter im eigenen Kopf
+                          festhält** („die dritte GENANNTE Quelle, `MusicStyle.synthPatch`, war dem Scan
+                          unsichtbar"), begangen in der Scheibe, die ihn zitiert, einen Absatz nachdem
+                          sie #430 „die falsche Population" vorgeworfen hat. Jetzt über alle DREI Bänke,
+                          mit Nichtleer-Boden pro Bank; gemessene Maxima: decay 6,0 · release 7,5 ·
+                          reverbDecay 8,5 · cutoff 8000 · attack 3,5 · vibratoRate 6,2 — kein Wert
+                          außerhalb.
+                          ⭐ **Und die Daten können ausgerechnet das Feld nicht schützen, für das die
+                          Scheibe existiert:** der höchste ausgelieferte `filterLFORate` ist über alle
+                          drei Bänke **1,2 Hz**, ein Zurück-Verengen auf `0...12` bliebe also unbemerkt.
+                          Der gerettete Wert war ein NUTZER-gesetztes 19 Hz, und keine Fixtur hält so
+                          etwas — das ist die ganze Form des Defekts. Diese EINE Decke ist deshalb von
+                          Hand festgenagelt, mit einer zweiten Behauptung, die rot wird, sobald ein
+                          ausgelieferter Patch die 12 erreicht und die Prämisse damit entfällt. Bewusst
+                          EIN Feld und nicht siebzehn (#430s eigene Lehre: alles festnageln macht jede
+                          gewöhnliche Panel-Änderung rot, und so wird ein Wächter gelöscht).
+                          ⚠️ Vier weitere Nachlese-Befunde, alle Prosa-Wahrheit: `FilterCutoffClampTests`
+                          und `EchoelDDSP.cutoffRange` trugen beide weiter „`SoundPrompt` und der Knopf
+                          behalten ihre Literale — das Einfalten ist eine eigene Aufgabe", während #441
+                          genau diese Aufgabe war (der überlebende, WAHRE Teil: `RoleRhythm.swift`s
+                          `TimbreTrim.trimmed` ist weiter eine ungeschützte Kopie auf dem LEBENDEN Pfad);
+                          der Nachbar-Wächter widersprach sich zwischen Doc-Kommentar und Innenkommentar
+                          derselben Funktion; `Bounds` behauptete „jeder Parameter, den das Panel
+                          rendert" statt der ÜBERSCHNEIDUNG mit `SoundPrompt` (`unisonVoices`,
+                          `unisonDetuneCents`, `outputLevel` fehlen absichtlich); und die zwei
+                          Quelltext-Scans lasen den ROHTEXT, obwohl #453 zwei Commits zuvor genau dafür
+                          `SourceText.codeOnly` geschaffen hat.
+                          ⭐ Letzteres war beim Schreiben prophylaktisch und ist es **im selben Commit
+                          nicht mehr**: die Korrektur der veralteten Bereichs-Notiz neben der
+                          Decay-Zeile setzt `SynthPatch.Bounds.decay` in einen KOMMENTAR — gemessen 2×
+                          roh, 1× im Code, alle anderen 1/1.
+                          ⚠️ Und die Kettung kostet eine Plattform: `EchoelDDSP.swift` liegt vollständig
+                          in `#if canImport(Accelerate)`, `SynthPatch` ist damit Accelerate-only. Kein
+                          Workflow kompiliert Swift woanders (`quick-test.yml` sagt das über sich
+                          selbst), die Entscheidung steht mit ihrem Fluchtweg neben der Konstante.
                           ⚠️ Was der Wächter NICHT kann: zeigen, dass irgendetwas davon HÖRBAR ist — ob
                           19 Hz besser klingt als 12, ist eine Geräteprobe. Prüfbar ist nur, dass die
                           Zahl, die die Zeile anbietet, die Zahl ist, die die App behält),

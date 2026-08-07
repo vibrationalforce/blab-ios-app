@@ -42,7 +42,8 @@
 //
 //  ⭐ WHAT THE HONEST MEASUREMENT FOUND:
 //    · ONE authored value was outside its row's RANGE — `Drone Bed`'s `d: 6.0`
-//      (`GenrePatches.swift:146`) against a Decay row of 0…5. `snapped` clamps before it
+//      (`GenrePatches.swift:145` — this said `:146`, off by one) against a Decay row of 0…5.
+//      `snapped` clamps before it
 //      rounds, so touching that row rewrote 6.0 s as 5.0 s: a fifth of the row's span, on a
 //      value a designer typed. That is the real #427 defect in this bank, and it is fixed by
 //      WIDENING the row to 0…10 (the Release row's range) — never by rounding the patch. The
@@ -357,9 +358,18 @@ final class SoundRowsCanReachTheShippedPatchesTests: XCTestCase {
     ///
     /// Only the four rows that DEVIATE are pinned, and deliberately so: asserting all seventeen
     /// would make every ordinary panel edit red for no reason, which is how a guard gets deleted.
-    /// Three deviate in `decimals` (each earned by shipped data, see the header) and one in
-    /// RANGE — Decay's 0…10 is what makes `Drone Bed`'s 6.0 s reachable, so narrowing it back is
-    /// the defect returning, not a style change.
+    /// Three deviate in `decimals` (each earned by shipped data, see the header).
+    ///
+    /// ⛔ A FOURTH USED TO DEVIATE IN RANGE AND THIS LINE STILL SAID SO ONE COMMIT AFTER IT DID
+    /// NOT: "one in RANGE — Decay's 0…10 is what makes `Drone Bed`'s 6.0 s reachable". #441 moved
+    /// every range out of these call sites into `SynthPatch.Bounds`, so the pins below carry a
+    /// BINDING and no number, and this function no longer guards Decay's range at all — the inner
+    /// comment beside the pins said exactly that while this doc above it kept claiming the
+    /// opposite. What protects the 6.0 s now is `SynthPatch.Bounds.decay` plus the shipped-data
+    /// sweeps: `testEveryShippedValueIsInsideItsOwnRow` here (hand-written table) and
+    /// `testEveryShippedPatchFitsInsideItsOwnBound` in
+    /// `OneDefinitionOfAParameterRangeTests` (all three banks — `Drone Bed` lives in the GENRE
+    /// bank, which is why sweeping `SynthPatch.factory` alone did not touch it).
     ///
     /// ⚠️ A scan: it pins the literal text of four call sites and can go red for a harmless
     /// reformat. That is the trade — a false red here costs one edit, a silent drift costs the

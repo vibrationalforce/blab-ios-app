@@ -4,6 +4,11 @@
 // so it persists and round-trips independent of any audio framework. The
 // capture/apply bridge to EchoelDDSP lives in an Accelerate-guarded extension.
 //
+// ⚠️ "independent of any audio framework" stopped being literally true with #441:
+// `Bounds.filterCutoff` chains to `EchoelDDSP.cutoffRange`, and that type is inside
+// `#if canImport(Accelerate)`. Nothing else in this file leaves the guard. The trade
+// and the escape route are written out at `Bounds` itself rather than here.
+//
 // Pitch (frequency) and amplitude are intentionally NOT part of a patch — those
 // come from the note path (piano roll / MIDI), not the sound design.
 
@@ -105,8 +110,15 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     /// Effective warmth drive (nil → clean).
     public var warmth: Float { warmthDrive ?? 0 }
 
-    /// THE range of every patch parameter the Sound panel renders — one definition, read by
-    /// the row that shows the number AND by every writer that clamps into it.
+    /// THE range of every patch parameter that BOTH the Sound panel and `SoundPrompt` touch —
+    /// one definition, read by the row that shows the number AND by the writer that clamps into it.
+    ///
+    /// ⚠️ NOT "every parameter the panel renders", which is what this line first said. Three rows
+    /// of the same panel are absent here on purpose because `SoundPrompt.clamp` does not write
+    /// them, so they have only ever had ONE definition and folding them in would buy nothing:
+    /// `unisonVoices`, `unisonDetuneCents` and `outputLevel` still spell their ranges at the call
+    /// site. A session adding a fourth row should read this as an inventory of the OVERLAP, not of
+    /// the panel.
     ///
     /// ⛔ IT USED TO BE THREE DEFINITIONS OF EACH RANGE, AND TWO OF THEM DISAGREED (#441).
     /// The `param(…)`/`knob(…)` call site in `EchoelStudioView.soundPanel` spelled a literal;
@@ -136,6 +148,17 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     /// `filterCutoff` is CHAINED rather than restated — `EchoelDDSP.cutoffRange` is where the
     /// engine already decides that question, and its own doc records the last time a second
     /// spelling of it drifted (a "[20-20000 Hz]" comment against an 18000 clamp).
+    ///
+    /// ⚠️ THE CHAIN COSTS A PLATFORM, AND THAT IS A CHOICE RATHER THAN AN OVERSIGHT: all of
+    /// `EchoelDDSP.swift` sits inside `#if canImport(Accelerate)`, so this line makes `SynthPatch`
+    /// — and transitively `SoundPrompt` — Accelerate-only. Every earlier reference to `EchoelDDSP`
+    /// from this file was already inside its own Accelerate-guarded extension further down; this
+    /// one is not. Taken because the shipped platform set is the Apple ecosystem (CLAUDE.md's
+    /// platform ladder) and no workflow in `.github/workflows/` compiles Swift anywhere else —
+    /// `quick-test.yml` says so about itself. The day a non-Apple build matters, the escape is a
+    /// literal here plus the value assertion in
+    /// `Tests/CISmoke/OneDefinitionOfAParameterRangeTests.swift`, which is the #426 form and is
+    /// already written; it is weaker than the chain, which is why it is not taken pre-emptively.
     public enum Bounds {
         public static let attack: ClosedRange<Float> = 0...5
         public static let decay: ClosedRange<Float> = 0...10
