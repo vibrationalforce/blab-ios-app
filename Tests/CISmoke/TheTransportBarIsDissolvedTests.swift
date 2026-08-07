@@ -124,12 +124,28 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
 
     // MARK: - 3. both migrants have exactly one home
 
+    /// ⛔ THE "•••" MOVED ONE DECLARATION DEEPER WITH #482 and this test moved with it, in the
+    /// same commit. `startControlRow` is now three lines, and line 2 is `quickActionRow` — the
+    /// six-tile action row the founder asked for on 2026-08-07. The overflow is the last tile
+    /// in it. That is still "inside the instrument, under the transport", which is what the
+    /// founder's arrow meant; what changed is that the row it lives in got a name.
+    ///
+    /// Asserting the two SEPARATELY is deliberate: a single scan over `startControlRow` would
+    /// no longer see the overflow at all (it is behind a member reference), and widening the
+    /// scan to the whole file would let either migrant drift back into the chrome header while
+    /// staying green.
     func testBothMigrantsAreMountedInTheStudioRow() throws {
-        let row = try declarationBody(of: "private var startControlRow: some View {",
-                                      in: "Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertTrue(row.contains("TransportOverflowMenu()"), """
-            The "•••" overflow is not in `startControlRow`. One of the founder's two arrows \
-            pointed here.
+        let path = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+        let row = try declarationBody(of: "private var startControlRow: some View {", in: path)
+        let actions = try declarationBody(of: "private var quickActionRow: some View {", in: path)
+        XCTAssertTrue(row.contains("quickActionRow"), """
+            `startControlRow` no longer builds `quickActionRow`. That row IS the founder's \
+            2026-08-07 ask — "alles … in eine Reihe unter dem Play etc zusammengefasst" — and \
+            it carries the "•••" the first of his two arrows pointed at.
+            """)
+        XCTAssertTrue(actions.contains("TransportOverflowMenu()"), """
+            The "•••" overflow is not in `quickActionRow`. One of the founder's two arrows \
+            pointed into this row; if it went back to the chrome header, that is #456 undone.
             """)
         XCTAssertTrue(row.contains("TransportPositionView()"), """
             The position/loop readout is not in `startControlRow`. The founder's other arrow \

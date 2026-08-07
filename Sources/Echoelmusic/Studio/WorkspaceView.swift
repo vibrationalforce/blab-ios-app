@@ -759,16 +759,22 @@ struct TransportOverflowMenu: View {
             #endif
             doorMenuButton("Learn and news", icon: "book", door: "learn")
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(EchoelTheme.text)
-                .frame(width: 30, height: EchoelTheme.controlHeight)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                    .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
+            // #482 — the chip is `EchoelIconTile` now, so the "•••" wears the SAME format as
+            // the five action tiles beside it in `startControlRow`. Nothing about the menu
+            // changed; only who owns fill/border/radius/glyph/tap floor (one declaration
+            // instead of a hand-spelled copy per call site).
+            EchoelIconTile(systemImage: "ellipsis")
         }
-        // 44 pt HIG tap target (#113): the visible chip stays 30×32 and the hit area grows
-        // symmetrically (−6 → 42×44).
+        // ⛔ THE `-6` OUTSET IS GONE, AND IT IS REPLACED BY SOMETHING THAT WORKS RATHER THAN
+        // DROPPED. `EchoelIconTile` carries a 44 × 44 layout FRAME, and for a `Menu` that is
+        // the only form with an effect: a Menu presents from its own bounds, which are its
+        // label's layout size — a `contentShape` applied INSIDE the label cannot widen them.
+        // `TapTargetFloorTests` had already written that down about these menus and pinned the
+        // modifier anyway. A frame also survives being repeated six times in a row, where two
+        // adjacent −6 outsets at 8 pt spacing would overlap by 4 pt.
+        //
+        // The retracted note that stood here follows, because its measurement is still the
+        // reason the outset was SAFE in this one spot and would not have been in the new row:
         //
         // ⛔ THE FIRST VERSION OF THIS NOTE INVENTED A COST AND THEN JUSTIFIED PAYING IT. It
         // said the outset "now overlaps its neighbour by 2 pt on each side" because
@@ -783,7 +789,6 @@ struct TransportOverflowMenu: View {
         // have "fixed" a 2 pt overlap that does not exist, and shrinking it puts this chip back
         // under the 44 pt floor #113 exists to hold. Written down because a plausible geometry
         // sentence is exactly the kind this repo copies forward without checking.
-        .contentShape(Rectangle().inset(by: -6))
         .accessibilityLabel("More — Live Colabo; Learn and news")
     }
 

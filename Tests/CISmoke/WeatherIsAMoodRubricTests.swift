@@ -402,27 +402,51 @@ final class WeatherIsAMoodRubricTests: XCTestCase {
             """)
     }
 
-    /// The place toggle shapes the name the Save button writes, so it must sit ABOVE that
-    /// button. Ordering is the entire argument for choosing this panel over any other, and
-    /// a source-text guard can check it where it cannot check that the panel looks right.
-    func testThePlaceRowSitsAboveSave() throws {
+    /// ⛔ THIS TEST USED TO BE `testThePlaceRowSitsAboveSave`, AND ITS SUBJECT HAS LEFT THE
+    /// PANEL (#482). The old claim was an ORDERING one: `placeRow` must appear above the Save
+    /// button's `saveName = session.sessionName(` action, because a user scanning down stops
+    /// at the first button that does what they came for. On 2026-08-07 the founder asked for
+    /// every red-marked control to be gathered *"im selben Button Format in eine Reihe unter
+    /// dem Play etc"*, so Save is now a tile in `quickActionRow` and there is no Save button
+    /// in `utilityRow` to be above. Left as written, the old test would have failed at its
+    /// `guard` with "utilityRow lost either `placeRow` or the Save button's action" — pointing
+    /// a reader at an innocent, still-present row (the exact failure mode this file's own
+    /// header documents twice).
+    ///
+    /// ⭐ THE PURPOSE SURVIVES THE ORDERING, so this is re-aimed rather than deleted. The
+    /// purpose was: the user learns what shapes the file name BEFORE committing to it. With
+    /// Save on another surface, adjacency cannot carry that — NAMING it can, and the sibling
+    /// test three declarations down already established the principle by noting that an
+    /// `accessibilityHint` "would satisfy just as well". So the panel must carry copy that
+    /// names the control, and the anchor is the word `Save` in a `Text(` on the line-range
+    /// after `placeRow`.
+    ///
+    /// ⚠️ WHAT THIS CANNOT SEE, unchanged from the old version: that the caption renders,
+    /// that anyone reads it, or that the two surfaces read as connected on a device. It sees
+    /// that the connection is still WRITTEN somewhere a user can meet it. Save's own
+    /// `accessibilityHint` in `quickActionRow` names the place row from the other direction;
+    /// that half is deliberately not asserted here, because a guard over two files that can
+    /// each satisfy it alone is a guard that fails for the wrong reason.
+    func testThePlaceRowNamesTheControlItFeeds() throws {
         let source = try lines(Self.studio)
         let utility = code(try window(source,
                                       opening: "private var utilityRow: some View {",
                                       closing: Self.memberClosing))
-        let placeAt = utility.firstIndex { $0.contains("placeRow") }
-        let saveAt = utility.firstIndex { $0.contains("saveName = session.sessionName(") }
-        guard let placeAt, let saveAt else {
+        guard let placeAt = utility.firstIndex(where: { $0.contains("placeRow") }) else {
             return XCTFail("""
-                `utilityRow` lost either `placeRow` or the Save button's \
-                `saveName = session.sessionName(` action — see the sibling test.
+                `utilityRow` lost `placeRow` — see the sibling test, which is the one that \
+                explains why this panel is its only door.
                 """)
         }
-        XCTAssertLessThan(placeAt, saveAt, """
-            #359 step 3: `placeRow` moved BELOW the Save button. It is the control that puts \
-            the city into `session.sessionName(bpm:)`, which is literally what that button \
-            reads — a user scanning down stops at the first button that does what they came \
-            for, so a naming control underneath it is never seen before the file is written.
+        let below = utility[placeAt...]
+        XCTAssertTrue(below.contains { $0.contains("Text(") && $0.contains("Save") }, """
+            #482: the place row no longer names the control it feeds. Save left this panel for \
+            `quickActionRow` (founder 2026-08-07), so the adjacency that used to carry the \
+            connection — place row directly above the Save button — is gone. Something below \
+            `placeRow` must say, in visible text, that this toggle shapes the name Save \
+            writes; otherwise the only remaining hint that the two are related is a VoiceOver \
+            string on a different surface, and a sighted user is left with a naming toggle \
+            attached to nothing.
             """)
     }
 

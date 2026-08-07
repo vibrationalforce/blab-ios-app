@@ -1656,13 +1656,108 @@ struct EchoelStudioView: View {
                 PulseMonitorMiniLive()
                 #endif
             }
-            // LINE 2 — the two children that came down from the dissolved chrome bar, in the
-            // same left-to-right order they had up there (doors left, readout right).
+            // LINE 2 — the actions (#482). See `quickActionRow`.
+            quickActionRow
+            // LINE 3 — the readout, alone. It was beside the "•••" until #482 put five action
+            // tiles on that line; a ~100 pt monospaced label plus six 44 pt targets does not
+            // fit a 375 pt phone (6×44 + 5×8 = 304 of 343 usable), so the readout takes the
+            // line rather than squeezing the row the founder asked for.
             HStack(spacing: 8) {
-                TransportOverflowMenu()
                 Spacer(minLength: 0)
                 TransportPositionView()
             }
+        }
+    }
+
+    /// ⭐ THE ROW THE FOUNDER ASKED FOR (#482, 2026-08-07, second screenshot): *"alles aus dem
+    /// zweiten Bild was rot markiert ist, intelligent und übersichtlich im selben Button Format
+    /// in eine Reihe unter dem Play etc zusammengefasst"*. Red-marked there: the "•••" entries,
+    /// the position readout, the "Save & Export" chip and that panel's whole body. What was
+    /// scattered over a menu, a chip and a dropdown is now six equal chips one line under the
+    /// transport, all `EchoelIconTile` — the "selbe Button Format", literally one declaration.
+    ///
+    /// Left to right: Record/abort · Keep last · Export MIDI · Save · Open · More.
+    ///
+    /// ⚠️ THEY MOVED, THEY WERE NOT COPIED. The panel does not keep a second Save button; two
+    /// doors to one action is the shape this repo keeps paying for (#416), and a row that only
+    /// duplicates a panel is not a consolidation. What the panel KEEPS is everything a glyph
+    /// cannot say: the loop length these buttons act on, the keep-last availability sentence,
+    /// the failure line, the place toggle, Reset sound and Diagnostics.
+    ///
+    /// ⚠️ THE COST IS THE LABELS, AND IT IS PAID RATHER THAN HIDDEN. "Record 64 bars → send"
+    /// and "Keep last: 8 bars or fewer at this tempo" were full-width sentences; they are now
+    /// glyphs. Two things carry that weight: every tile takes its old sentence as its
+    /// `accessibilityLabel` (so VoiceOver loses nothing at all), and the panel renders the two
+    /// STATEFUL sentences as text next to the picker that produces them. A mute disabled chip
+    /// with its reason deleted would be the lying-control class.
+    ///
+    /// ⚠️ FREEZE LAW. Nothing here reads a high-frequency `@Observable` in this body:
+    /// `exporter.status` changes at the start and end of a take, `hasComposed` is `@State`,
+    /// `projects.projects` is a store. The one tempo-derived value — whether "keep last" fits
+    /// in the ring at the current BPM — is read inside `KeepLastLoopButton`'s OWN body, which
+    /// is why that control has been a separate `struct` since it was written and stays one.
+    /// The Save action reads `beatPlayer.pattern.tempo` inside its CLOSURE, which registers no
+    /// observation at all.
+    private var quickActionRow: some View {
+        HStack(spacing: 8) {
+            // ONE button, two jobs — start the take and abort it (founder 2026-07-28,
+            // *"wichtig das man die Aufnahme dann auch abbrechen kann"*). `exportIcon` already
+            // carried all three states as glyphs before this move
+            // (`square.and.arrow.up` → `stop.circle` → `hourglass`), which is the reason this
+            // control survives becoming icon-only without inventing anything.
+            Button {
+                if exporter.isCancellable { exporter.cancel() } else { Task { await exportWav() } }
+            } label: {
+                EchoelIconTile(systemImage: exportIcon, prominent: true, expands: true,
+                               enabled: !isRecordButtonInert)
+            }
+            .buttonStyle(.plain)
+            .disabled(isRecordButtonInert)
+            .accessibilityLabel(exportLabel)
+            .accessibilityHint(exporter.isCancellable
+                ? "Stops this take and discards it. Nothing is saved."
+                : "Records one loop and exports a WAV to share")
+
+            KeepLastLoopButton(pattern: beatPlayer.pattern, bars: loopBars,
+                               isExporting: isExporting, hasComposed: hasComposed,
+                               busyLabel: busyStatusLabel) { Task { await keepLastLoop() } }
+
+            Button { exportMIDI() } label: {
+                EchoelIconTile(systemImage: "pianokeys", expands: true,
+                               enabled: !isExporting && hasComposed)
+            }
+            .buttonStyle(.plain)
+            // `isExporting` is a WAV concern, but both writers land in the ONE `share` slot, so
+            // a MIDI export mid-record would silently replace the WAV the user is waiting for.
+            .disabled(isExporting || !hasComposed)
+            .accessibilityLabel("Export MIDI for your DAW")
+            .accessibilityHint("Exports the take as a MIDI file to open in a DAW, with tempo and key")
+
+            Button {
+                saveName = session.sessionName(bpm: beatPlayer.pattern.tempo)
+                showSaveDialog = true
+            } label: {
+                EchoelIconTile(systemImage: "tray.and.arrow.down", expands: true,
+                               enabled: hasComposed)
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasComposed)
+            .accessibilityLabel("Save this session")
+            .accessibilityHint("Names the session and saves it. The place row in Save & Export decides whether your city is in that name")
+
+            Button { showOpen = true } label: {
+                EchoelIconTile(systemImage: "tray.and.arrow.up", expands: true,
+                               enabled: !projects.projects.isEmpty)
+            }
+            .buttonStyle(.plain)
+            .disabled(projects.projects.isEmpty)
+            .accessibilityLabel("Open a saved session")
+
+            // The two entries that are not panels and therefore cannot be chips (#290): Live
+            // Colabo and Learn present full sheets. It keeps its `Menu`, and since #482 it
+            // wears the same tile as the five buttons beside it. NOT `expands` — it is the one
+            // fixed-width child, so the five actions share the remaining width evenly.
+            TransportOverflowMenu()
         }
     }
 
@@ -6639,8 +6734,16 @@ struct EchoelStudioView: View {
         // type-check COST, not an arity error, and 10 is nowhere near where that bites.
         // The ceiling this file DOES have is the presentation-modifier chain (14) — that one
         // is measured, has crashed a shipped build, and is a different thing entirely.
+        // ⛔ THE SUBTITLE PROMISED FIVE BUTTONS THAT LEFT WITH #482 ("Save and open a session ·
+        // record the loop as WAV · MIDI for your DAW · keep what just played · put your city
+        // in the name"). Four of those five are now tiles in `quickActionRow`, so as written
+        // it sent a user INTO a panel to find controls that are permanently visible one line
+        // under the transport — the #272 defect inverted. What this panel really is now: the
+        // settings and explanations those tiles act on. The title stays, because that is still
+        // the topic and `SaveDoorNamingTests` pins the chip, the VoiceOver name and the panel
+        // heading as one decision.
         panel("Save & Export",
-              "Save and open a session · record the loop as WAV · MIDI for your DAW · keep what just played · put your city in the name",
+              "Set the loop length the Record tile uses · see what can be kept · put your city in the name · reset the sound",
               isExpanded: $showExport) {
         VStack(spacing: 10) {
             if !hasComposed {
@@ -6720,101 +6823,38 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel("Export failed. \(reason). Nothing was saved.")
             }
-            // ONE button, two jobs: start the take, and abort it — founder 2026-07-28
-            // ("wichtig das man die Aufnahme dann auch abbrechen kann, wenn man sich
-            // verspielt hat"). Deliberately NOT a second button next to it: the abort is
-            // only meaningful while this exact take runs, and a permanent Cancel that is
-            // dead 99 % of the time is more clutter than help. Once the capture ends it
-            // stops offering the abort — during the rendering seconds it reads "Writing
-            // .wav…", disabled, because that pass cannot be interrupted (see
-            // `LoopExporter.isCancellable`).
-            Button {
-                if exporter.isCancellable { exporter.cancel() } else { Task { await exportWav() } }
-            } label: {
-                Label(exportLabel, systemImage: exportIcon)
-                    .font(EchoelTheme.font(15, .semibold)).foregroundStyle(.black)
-                    .frame(maxWidth: .infinity).frame(height: 48)
-                    // Website CI primary action (off-white fill, black label).
-                    // The fill must track `.disabled` EXACTLY — same law the keep-last
-                    // button already carries. `!hasComposed` was missing here, so a dead
-                    // button sat at full brightness under an inviting "Record 8 bars" label.
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .fill(isRecordButtonInert ? EchoelTheme.dim : EchoelTheme.text))
-            }
-            .buttonStyle(.plain)
-            .disabled(isRecordButtonInert)
-            .accessibilityHint(exporter.isCancellable
-                ? "Stops this take and discards it. Nothing is saved."
-                : "Records one loop and exports a WAV to share")
-
-            KeepLastLoopButton(pattern: beatPlayer.pattern, bars: loopBars,
-                               isExporting: isExporting, hasComposed: hasComposed,
-                               busyLabel: busyStatusLabel) { Task { await keepLastLoop() } }
-
-            // MIDI export — RESTORED (#188, founder 2026-07-27). It was removed 2026-07-02
-            // ("Midi Quatsch kann auch weg"); the exporter itself was never deleted and
-            // stayed tested, so `exportMIDI()` sat here with no caller while the App Store
-            // text still promised it. Export is explicitly inside the product boundary
-            // (unlike arrangement / multitrack / video), and carrying a bio-take into a DAW
-            // is what separates an instrument from a toy.
+            // ⛔ FIVE BUTTONS LEFT THIS PANEL WITH #482 — Record/abort, Keep last, Export
+            // MIDI, Save and Open are now the six-tile row directly under the transport
+            // (`quickActionRow`), on the founder's ask *"alles … im selben Button Format in
+            // eine Reihe unter dem Play etc zusammengefasst"* (2026-08-07). They MOVED; there
+            // is no second copy here, because two doors to one action is the defect this file
+            // keeps retracting. Every hint and disabled rule travelled with them unchanged.
             //
-            // ⛔ NO NEW `.sheet`. This flows through the SAME `share` slot the WAV export
-            // already uses (`exportMIDI` ends in `share = ExportedFile(url:)`), so the
-            // presentation-modifier chain on this body does not grow by one — that chain is
-            // the metadata ceiling the app already crashed into (black screen, 10.76.34).
-            // Zero new state, zero new modifier: a button, nothing else.
-            // ⛔ NO bar count in this label. `loopBars` drives the WAV capture length, but
-            // the MIDI region length comes from `pianoRoll.arrangementForExport()`, and
-            // after `open(_:)` those disagree: `PianoRollModel.load(_:)` clears
-            // `arrangementBars`, so `arrangementForExport()` returns 1 bar while `loopBars`
-            // still reads 8 — a label promising "8 bars" over a 1-bar file. Naming no number
-            // is honest; naming the wrong one is the lying-control class again.
-            Button { exportMIDI() } label: {
-                Label("Export MIDI for your DAW", systemImage: "pianokeys")
-                    .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            // `isExporting` is a WAV concern, but both writers land in the ONE `share` slot,
-            // so a MIDI export mid-record would silently replace the WAV the user is waiting
-            // for. Disabled together for that reason, not because MIDI export is slow.
-            .disabled(isExporting || !hasComposed)
-            .accessibilityHint("Exports the take as a MIDI file to open in a DAW, with tempo and key")
+            // What stays here is precisely what a 44 pt glyph cannot say — and this sentence
+            // is the first of the two:
+            KeepLastAvailabilityNote(pattern: beatPlayer.pattern, bars: loopBars)
 
-            // #359 step 3 — THE PLACE TOGGLE SITS DIRECTLY ABOVE SAVE, and the adjacency is
-            // the whole argument for moving it here rather than picking some other panel.
-            // The Save button one line down opens with `session.sessionName(bpm:)`, and
-            // `locationNamer` is what puts the city INTO that string. The control that
-            // shapes the name is now the line before the button that uses it — read top to
-            // bottom, the panel says "here is what your file will be called, now save it".
+            // #359 step 3 — THE PLACE TOGGLE BELONGS BESIDE THE THING IT NAMES, and that is
+            // the whole argument for it living in this panel rather than some other one.
+            // `locationNamer` is what puts the city INTO `session.sessionName(bpm:)`, which is
+            // the string the Save action opens with.
             //
-            // Above the HStack and not below it because a user scanning down stops at the
-            // first button that does what they came for; anything under Save/Open is read
-            // as an afterthought (the same reason `moodPanel`'s caption must stay last).
+            // ⛔ THE ADJACENCY ARGUMENT AS WRITTEN IS SPENT, and saying so is the point: it
+            // read "the Save button one line down" and "anything under Save/Open is read as an
+            // afterthought". #482 moved Save into `quickActionRow`, so there is no button
+            // below this row to be above. The PURPOSE of the adjacency — the user sees what
+            // shapes the file name before committing to it — is kept by naming the control in
+            // the caption below and in Save's own accessibility hint, which is the substitute
+            // `WeatherIsAMoodRubricTests` itself proposed when it pinned the ordering.
             #if canImport(CoreLocation)
             placeRow
+            // The second of the two sentences a glyph cannot carry. It names the control it
+            // feeds, so the connection survives the two now being on different surfaces.
+            Text("Included in the name the Save button writes.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
             #endif
-
-            HStack(spacing: 10) {
-                Button { saveName = session.sessionName(bpm: beatPlayer.pattern.tempo); showSaveDialog = true } label: {
-                    Label("Save", systemImage: "tray.and.arrow.down")
-                        .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-                        .frame(maxWidth: .infinity).frame(height: 44)
-                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                }
-                .buttonStyle(.plain)
-                .disabled(!hasComposed)
-                Button { showOpen = true } label: {
-                    Label("Open", systemImage: "tray.and.arrow.up")
-                        .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
-                        .frame(maxWidth: .infinity).frame(height: 44)
-                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                }
-                .buttonStyle(.plain)
-                .disabled(projects.projects.isEmpty)
-            }
 
             soundResetRow
 
@@ -9242,36 +9282,70 @@ private struct KeepLastLoopButton: View {
     let busyLabel: String
     let action: () -> Void
 
+    /// ⚠️ AN ICON-ONLY TILE SINCE #482 (founder: *"im selben Button Format in eine Reihe unter
+    /// dem Play etc"*). The sentence this control used to WEAR did not disappear — it is the
+    /// `accessibilityLabel` here, and it is rendered as text by `KeepLastAvailabilityNote` in
+    /// the Save & Export panel, next to the loop-length picker that produces it. One copy of
+    /// the wording feeds both (`KeepLastCopy`), so the chip and the sentence cannot disagree.
+    ///
+    /// ⚠️ IT STAYS A SEPARATE `struct` FOR THE FREEZE LAW, not for tidiness: it reads
+    /// `pattern.tempo` in its OWN body. Inlined into `quickActionRow` that read would land in
+    /// `EchoelStudioView.body`, which hosts every `.menu` Picker in the instrument.
     var body: some View {
         let bpm = pattern.tempo
         let fits = LoopExporter.canKeepLast(bars: bars.rawValue, bpm: bpm)
+        // The dim state must track `.disabled` EXACTLY. A full-brightness chip that is inert
+        // is the same lie in a quieter register — it just moves the disappointment to the tap.
+        let live = isExporting || (fits && hasComposed)
         Button(action: action) {
-            Label(title(fits: fits, bpm: bpm), systemImage: "clock.arrow.circlepath")
-                .font(EchoelTheme.font(14, .semibold))
-                // The dim state must track `.disabled` EXACTLY. A full-brightness button
-                // carrying the inviting "just played" label while inert is the same lie in
-                // a quieter register — it just moves the disappointment to the tap.
-                .foregroundStyle(isExporting || (fits && hasComposed) ? EchoelTheme.text : EchoelTheme.dim)
-                .frame(maxWidth: .infinity).frame(height: 44)
-                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            EchoelIconTile(systemImage: "clock.arrow.circlepath", expands: true, enabled: live)
         }
         .buttonStyle(.plain)
         .disabled(isExporting || !hasComposed || !fits)
+        .accessibilityLabel(KeepLastCopy.title(bars: bars, bpm: bpm,
+                                               isExporting: isExporting, busyLabel: busyLabel))
         .accessibilityHint(fits
             ? "Keeps the last bars you just heard as a WAV loop, without replaying them"
             : "This length is longer than the 30 second capture buffer at the current tempo")
     }
+}
 
-    private func title(fits: Bool, bpm: Double) -> String {
+/// The sentence the keep-last chip can no longer wear (#482), rendered where the loop-length
+/// picker that decides it already lives. Its own `struct` for the same freeze reason as the
+/// button: `pattern.tempo` is read HERE, not in the panel's enclosing body.
+private struct KeepLastAvailabilityNote: View {
+    let pattern: PatternEngine
+    let bars: LoopBarLength
+
+    var body: some View {
+        Text(KeepLastCopy.title(bars: bars, bpm: pattern.tempo, isExporting: false, busyLabel: ""))
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// ONE wording for "can we keep the last bars", read by the chip (as its VoiceOver label) and
+/// by the panel note (as visible text). Two spellings of the same refusal is the #416 shape,
+/// and the refusal is the half a user actually needs.
+private enum KeepLastCopy {
+    static func title(bars: LoopBarLength, bpm: Double,
+                      isExporting: Bool, busyLabel: String) -> String {
         if isExporting { return busyLabel }
-        if fits { return "Keep last \(bars.label) (just played)" }
-        // Name a length the PICKER ABOVE ACTUALLY OFFERS. The raw ring capacity (14 bars
-        // at 120 BPM) is not a `LoopBarLength` case, so naming it would send the user
-        // hunting for a segment that does not exist — a refusal that lies while refusing.
+        if LoopExporter.canKeepLast(bars: bars.rawValue, bpm: bpm) {
+            return "Keep last \(bars.label) (just played)"
+        }
+        // Name a length the PICKER ACTUALLY OFFERS. The raw ring capacity (14 bars at
+        // 120 BPM) is not a `LoopBarLength` case, so naming it would send the user hunting
+        // for a segment that does not exist — a refusal that lies while refusing.
         // `nil` only when the tempo is unusable; then point at the door that does work.
+        //
+        // ⛔ "use Record above" WAS TRUE UNTIL #482 AND IS NOT ANY MORE. Record is no longer
+        // above this text — it is the first tile in the row under the transport. A refusal
+        // that redirects to a control by its old POSITION is the class this file keeps
+        // retracting, so it names the control instead of pointing at a place.
         guard let keepable = LoopExporter.longestKeepable(bpm: bpm) else {
-            return "Keep last: unavailable — use Record above"
+            return "Keep last: unavailable — use the Record tile instead"
         }
         return "Keep last: \(keepable.label) or fewer at this tempo"
     }

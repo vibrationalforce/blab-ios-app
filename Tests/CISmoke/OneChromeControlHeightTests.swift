@@ -67,6 +67,7 @@ final class OneChromeControlHeightTests: XCTestCase {
     private static let studio   = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
     private static let workspace = "Sources/Echoelmusic/Studio/WorkspaceView.swift"
     private static let tempo    = "Sources/Echoelmusic/Studio/BodyTempoField.swift"
+    private static let tile     = "Sources/Echoelmusic/Studio/EchoelIconTile.swift"
 
     // MARK: - The definition
 
@@ -105,8 +106,14 @@ final class OneChromeControlHeightTests: XCTestCase {
              "the start ▶/■ button (was FloatingVisualLayout.startButtonHeight = 56)"),
             (Self.workspace, ".frame(width: 44, height: EchoelTheme.controlHeight)",
              "the playback ⏸ button (was 44×48)"),
-            (Self.workspace, ".frame(width: 30, height: EchoelTheme.controlHeight)",
-             #"the "•••" overflow menu"#),
+            // ⛔ THE `"•••"` CASE MOVED FILES WITH #482, not away. It used to be
+            // `.frame(width: 30, height: EchoelTheme.controlHeight)` spelled inside
+            // `TransportOverflowMenu`; the chip is now `EchoelIconTile`, so the height is read
+            // once in the tile and the menu reads the tile. That is the same decision in a
+            // smaller number of places, which is what #481 was for — but it means the anchor
+            // has to follow the geometry rather than the control.
+            (Self.tile,      ".frame(height: EchoelTheme.controlHeight)",
+             "the shared chrome tile (the \"•••\" and the five action chips read it)"),
             (Self.tempo,     ".frame(width: 76, height: EchoelTheme.controlHeight)",
              "the compact tempo readout"),
             (Self.tempo,     ".frame(width: compact ? 30 : 34, height: EchoelTheme.controlHeight)",
@@ -196,6 +203,88 @@ final class OneChromeControlHeightTests: XCTestCase {
             as the start button above: the chip gets painted 44 tall instead of the hit area \
             growing.
             """)
+    }
+
+    // MARK: - The shared tile (#482)
+
+    /// `EchoelIconTile` is the row the founder asked for, in one declaration: *"alles … im
+    /// selben Button Format in eine Reihe unter dem Play etc zusammengefasst"* (2026-08-07).
+    /// Six chips read it — Record, Keep last, Export MIDI, Save, Open, "•••" — so a literal
+    /// creeping back in here re-sizes six controls at once and nothing else would notice.
+    ///
+    /// Three claims, and the ORDER one is the load-bearing one for the same reason it is on
+    /// the two transport buttons: written before the paint, the chip is DRAWN 44 tall instead
+    /// of the hit area growing.
+    func testTheSharedTileReadsBothConstantsInTheRightOrder() throws {
+        let lines = try codeLines(Self.tile)
+        guard let paint = lines.firstIndex(where: { $0.contains(".background(RoundedRectangle") })
+        else {
+            return XCTFail("""
+                EchoelIconTile lost its `.background(RoundedRectangle…)`. If the chip was \
+                restyled, re-anchor here in the same commit — this test's ordering claim has \
+                nothing to measure against otherwise.
+                """)
+        }
+        guard let tap = lines.firstIndex(where: {
+            $0.contains("minHeight: EchoelTheme.controlTapHeight")
+        }) else {
+            return XCTFail("""
+                EchoelIconTile lost its `minHeight: EchoelTheme.controlTapHeight`. That frame \
+                IS the 44 pt floor for six chrome controls at once, and for the "•••" it is \
+                the ONLY thing that works: a `Menu` presents from its label's layout bounds, \
+                so the `contentShape` outset it carried before #482 was almost certainly a \
+                no-op (`TapTargetFloorTests` says so in its own header).
+                """)
+        }
+        XCTAssertGreaterThan(tap, paint, """
+            EchoelIconTile's 44 pt frame moved ABOVE its background. That does not enlarge \
+            the hit area — it enlarges the PICTURE, and it does so for every chip in the row \
+            at once. Put it back after the background and the border.
+            """)
+        XCTAssertTrue(lines.contains { $0.contains(".frame(height: EchoelTheme.controlHeight)") }, """
+            EchoelIconTile no longer pins its visible height to `EchoelTheme.controlHeight`. \
+            That constant is the size of the three header tiles the founder pointed at on \
+            2026-08-07 ("Orientiere dich an denen oben rechts"); a literal here silently \
+            un-does #481 for the whole action row.
+            """)
+    }
+
+    /// COUNTERWEIGHT. The point of the tile is that call sites stop spelling the chip. The
+    /// obvious next edit — "this one needs to be a bit wider / rounder / brighter, I'll just
+    /// add the modifiers at the call site" — is how the transport row grew three heights in
+    /// the first place, and it would pass every assertion above.
+    func testTheActionRowDoesNotRespellTheChip() throws {
+        let studio = try codeLines(Self.studio)
+        guard let open = studio.firstIndex(where: {
+            $0.contains("private var quickActionRow: some View {")
+        }) else {
+            return XCTFail("""
+                `quickActionRow` is gone from EchoelStudioView. That is the row the founder \
+                asked for on 2026-08-07 ("in eine Reihe unter dem Play etc zusammengefasst"); \
+                if it was renamed, move this anchor in the same commit rather than deleting \
+                the check — five actions and the "•••" live in it.
+                """)
+        }
+        // Terminate on the next member declaration, not on a brace count: the row is long and
+        // comment-heavy, and a brace counter over comment-stripped lines is the fragile half.
+        let end = studio[(open + 1)...].firstIndex { $0.contains("    private var ") || $0.contains("    private func ") }
+            ?? studio.endIndex
+        let row = studio[(open + 1)..<end]
+        XCTAssertEqual(row.filter { $0.contains("EchoelIconTile(") }.count, 4, """
+            `quickActionRow` should construct `EchoelIconTile` exactly four times (Record, \
+            Export MIDI, Save, Open). Keep last builds its own inside `KeepLastLoopButton` \
+            because it reads `pattern.tempo` in its own body (freeze law), and the "•••" \
+            builds one inside `TransportOverflowMenu`. A different count means an action was \
+            added or removed without this expectation moving with it.
+            """)
+        for bad in [".background(", ".overlay(", "cornerRadius", "RoundedRectangle"] {
+            XCTAssertFalse(row.contains { $0.contains(bad) }, """
+                `quickActionRow` spells `\(bad)` itself. The whole point of `EchoelIconTile` \
+                is that the chip is declared ONCE — a call site that paints its own \
+                background is how this row ended up with three different heights before \
+                #481, and it would pass every other assertion in this file.
+                """)
+        }
     }
 
     // MARK: - Counterweight: the readout is NOT a button

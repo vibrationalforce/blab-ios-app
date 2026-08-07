@@ -80,27 +80,47 @@ final class TapTargetFloorTests: XCTestCase {
 
     // MARK: - The transport bar
 
-    /// The tempo lock and the "•••" overflow sit in one row, 12 pt apart, and must BOTH carry
-    /// the outset. Checking them together is the point: the defect was one of them having it.
+    /// The tempo lock and the "•••" overflow both reach the 44 pt floor, by two DIFFERENT
+    /// means since #482. Checking them together is still the point: the original defect was
+    /// one of them lacking a floor while looking identical to the other.
     ///
     /// This asserts the enlargement is spelled in each file. It cannot assert the resulting
-    /// rectangle — see the header — so read a failure as "someone removed the outset", which
+    /// rectangle — see the header — so read a failure as "someone removed the floor", which
     /// is the only way this regresses textually.
-    func testBothTransportBarChipsCarryTheHitAreaOutset() throws {
+    ///
+    /// ⛔ RENAMED FROM `testBothTransportBarChipsCarryTheHitAreaOutset` (#482) — there is only
+    /// ONE outset in this pair now, and a name promising "both" would send its reader looking
+    /// for a modifier that was deliberately removed. `TransportOverflowMenu`'s "•••" reaches
+    /// the 44 pt floor through `EchoelIconTile`'s layout frame instead, and that is a fix
+    /// rather than a loss: this file's own header records that a `contentShape` inside a
+    /// `Menu`'s `label:` closure is almost certainly a no-op, because a Menu presents from its
+    /// own bounds and a descendant cannot widen them. A FRAME changes those bounds. It also
+    /// survives repetition — six −6 outsets at 8 pt spacing overlap by 4 pt, which is exactly
+    /// the geometry `quickActionRow` now has.
+    ///
+    /// The tempo lock keeps the outset, and its arithmetic is unchanged: 32 + 6 + 6 = 44,
+    /// pinned from the other side by `OneChromeControlHeightTests`.
+    func testTheTempoLockKeepsTheOutsetAndTheOverflowGotAFrame() throws {
+        let bar = try codeLines(Self.workspace)
+        XCTAssertTrue(bar.contains { $0.contains("EchoelIconTile(systemImage: \"ellipsis\")") }, """
+            The transport "•••" overflow no longer builds `EchoelIconTile`. It carried a \
+            `contentShape(Rectangle().inset(by: -6))` until #482, and that modifier is GONE — \
+            so if the tile went too, the only door to Live Colabo and Learn is a 30×32 chip \
+            with nothing holding it to the 44 pt floor. Restore the tile, or restore the \
+            outset in the same commit; do not leave neither.
+            """)
+
         let lock = try codeLines(Self.tempoField)
         XCTAssertTrue(lock.contains { $0.contains(Self.outset6) }, """
             BodyTempoField's lock button lost its `\(Self.outset6)`. The visible chip is \
             30×32 (compact), which is 47% of the HIG 44×44 floor by area — without the \
             outset the control that decides whether the tempo follows the body is the \
             smallest target in the always-visible chrome, and a missed tap lands on the \
-            tempo value's scrub gesture instead. Its neighbour two controls over has \
-            carried the identical modifier since #113.
-            """)
-
-        let bar = try codeLines(Self.workspace)
-        XCTAssertTrue(bar.contains { $0.contains(Self.outset6) }, """
-            The transport bar's "•••" overflow lost its `\(Self.outset6)` (#113). It is the \
-            only door to Live Colabo and Learn, and it is a 30×32 chip.
+            tempo value's scrub gesture instead. ⛔ The neighbour this message used to cite \
+            as precedent — the "•••", "carrying the identical modifier since #113" — no \
+            longer does: #482 gave it `EchoelIconTile`'s 44 pt frame instead. The lock is now \
+            the ONLY outset in the chrome, so nothing corroborates it any more; that is a \
+            reason to keep this assertion, not a reason to relax it.
             """)
     }
 

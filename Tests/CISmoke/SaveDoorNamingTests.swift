@@ -111,9 +111,14 @@ final class SaveDoorNamingTests: XCTestCase {
         }
         XCTAssertTrue(strip.contains(".export"), """
         `.export` is no longer in the standing chip strip: \(strip.trimmingCharacters(in: .whitespaces))
-        Since #290 removed the transport-bar "•••" entry, this array is the ONLY door to the \
-        panel that holds Save, Open, Record and keep-last. Dropping it here does not hide a \
-        chip — it makes those four controls unreachable, which is #272 exactly.
+        Since #290 removed the transport-bar "•••" entry, this array is the ONLY door to that \
+        panel. ⛔ This message used to add "…the panel that holds Save, Open, Record and \
+        keep-last"; #482 moved those four into `quickActionRow`, so dropping the chip no \
+        longer strands them. What it DOES strand is everything they need and cannot say \
+        themselves: the loop length Record uses, the keep-last availability sentence, the \
+        place toggle that shapes the save name, Reset sound and Diagnostics. Still #272, \
+        smaller blast radius — and the tiles would keep working while their settings became \
+        unreachable, which is the harder version to notice.
         """)
     }
 
