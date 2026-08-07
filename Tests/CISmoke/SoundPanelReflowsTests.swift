@@ -118,10 +118,17 @@ final class SoundPanelReflowsTests: XCTestCase {
         expected BOTH of `EchoelPanel`'s content stacks (the force-open branch and the \
         DisclosureGroup branch) to use `spacing: \(Self.panelContentSpacing)`, found \(hits.count).
 
-        `soundPanel` copies this number into every `AdaptiveCardGrid(spacing:)` call so its \
-        portrait rhythm matches every other panel. If the panel rhythm changed, update \
-        `panelContentSpacing` here AND the calls in `soundPanel` — otherwise portrait drifts \
-        on one surface only, and nothing else fails.
+        Every reflowing panel copies this number so its portrait rhythm matches the rest. If the \
+        panel rhythm changed, update `panelContentSpacing` here AND every copier in the same \
+        commit — otherwise portrait drifts on some surfaces only, and nothing else fails.
+
+        THE COPIERS, named because a message that lists one sends the reader to the wrong file: \
+        `soundPanel` (7 grids) · `moodPanel` (2, since #292 Slice 3) · `visualPanel` (which passes \
+        14 into `visualAdjustFields(spacing:)`, whose 2 grids then forward it — #292 Slice 4). \
+        NOT `visualVJOverlay`: it hosts the same rows in its own 8 pt stack and correctly passes \
+        8, which is why that argument exists at all. Re-derive the list with \
+        `grep -n "AdaptiveCardGrid(spacing" EchoelStudioView.swift` and follow each hit to its \
+        CALLER — this file has already been wrong about which member owns a grid.
         """)
     }
 

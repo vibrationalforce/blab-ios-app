@@ -4,9 +4,12 @@
 //
 // WHAT WAS WRONG. `visualAdjustFields` renders seven `EchoelValueField` rows and was one column at
 // ANY width — the same defect `SoundPanelReflowsTests` and `MoodPanelReflowsTests` describe for
-// their panels: the field is `HStack { label; Spacer(minLength: 8); valueBox }` inside a container
-// offering `maxWidth: .infinity`, so a landscape row puts a name against the far left edge and the
-// number it names against the far right.
+// their panels: the field is `HStack { label; Spacer(minLength: 8); valueBox }`, so a wide row puts
+// a name against the far left edge and the number it names against the far right. (⛔ That sentence
+// said "inside a container offering `maxWidth: .infinity`" and it was inherited from
+// `SoundPanelReflowsTests` without being re-read against the SECOND host this slice adds: the
+// overlay is capped at `.frame(maxWidth: 560)`. The defect is the same; the reason given for it was
+// only half true, which matters because that cap is what finding 3 below turns on.)
 //
 // ⭐ WHAT MAKES THIS SLICE DIFFERENT FROM THE OTHER TWO, and the reason it is worth a file of its
 // own rather than a third copy: this ViewBuilder has **two hosts with different container
@@ -48,9 +51,23 @@
 //
 // ⛔ HONEST LIMIT — read before trusting a green. Every claim here is a SOURCE SCAN. SwiftUI
 // layout is not reachable from this bundle, so "two columns are legible on a device", "the column
-// break lands between sensible parameters" and "the overlay still fits its 360 pt cap in
-// landscape" are all device checks. Device-verify is open, landscape and the VJ overlay
-// specifically.
+// break lands between sensible parameters" and "the overlay still fits its cap in landscape" are
+// all device checks. Device-verify is open, landscape and the VJ overlay specifically.
+//
+// ⚠️ AND THE OVERLAY'S BINDING CAP IS ITS WIDTH, NOT ITS HEIGHT — the first draft of the line
+// above named only `.frame(maxHeight: 360)`, which is the cap you notice, not the one that
+// decides whether two columns read. `visualVJOverlay` is also `.frame(maxWidth: 560)`. From the
+// shipped constants: content width `560 − 28` (its `.padding(14)`) = 532; two `.flexible()`
+// columns with `AdaptiveCardGrid`'s 10 pt gutter = **261 pt each**. An `EchoelValueField` row
+// below the accessibility threshold costs `valueWidth(150) + HStack spacing(12) + Spacer
+// minLength(8) + the box's own padding` before the label gets anything, so the label band is
+// **tight but workable at default type and narrow at large type** — and `columns` only falls back
+// to 1 at `typeSize.isAccessibilitySize`, so a LARGE-but-not-accessibility size (`.xxxLarge`)
+// still draws two columns into 261 pt with a `@ScaledMetric` box that has grown ~35 %. The inline
+// panel is uncapped and has no such band (~425 pt columns in landscape on a Pro Max); this
+// exposure is new and specific to the overlay. Numbers are ARITHMETIC FROM CONSTANTS, not a
+// measurement — the point is that the band is nameable and belongs in front of a device, not that
+// it is proven to break.
 
 import Foundation
 import XCTest
@@ -196,14 +213,36 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         """)
 
         // The other end of the coupling, and the one nothing else in this bundle holds.
+        //
+        // ⛔ IT WALKS BACK TO THE HOSTING STACK RATHER THAN SCANNING THE MEMBER. The first draft
+        // asserted the literal appeared SOMEWHERE in `visualVJOverlay`. It is unique there today,
+        // but that is luck: `VStack(alignment: .leading, spacing: 8)` occurs several times
+        // elsewhere in this file, so a second one arriving in the overlay would let someone
+        // re-space the ACTUAL hosting stack while the claim stayed green — precisely the drift
+        // this file's header calls "the coupling that can drift silently".
         let overlay = try memberBody(startingWith: "private var visualVJOverlay")
-        XCTAssertTrue(overlay.contains { $0.contains("VStack(alignment: .leading, spacing: 8)") },
-                      """
-                      `visualVJOverlay` no longer stacks its content at `spacing: 8`, but still \
-                      passes 8 into `visualAdjustFields`. In one column the grids inside adopt \
-                      that number, so the fine-tune rows would sit at a different rhythm than \
-                      every other child of the overlay. Move both, or neither.
-                      """)
+        guard let callIndex = overlay.firstIndex(where: {
+            $0.contains("visualAdjustFields(spacing:") && !$0.contains("func ")
+        }) else {
+            XCTFail("`visualVJOverlay` no longer calls `visualAdjustFields(spacing:)`. If the "
+                    + "overlay was removed (open task #270), delete this half with it.")
+            return
+        }
+        guard let stackIndex = overlay[..<callIndex].lastIndex(where: { $0.contains("VStack(") })
+        else {
+            XCTFail("no `VStack(` above the `visualAdjustFields(spacing:)` call in "
+                    + "`visualVJOverlay` — this half assumes the call has a stack host.")
+            return
+        }
+        XCTAssertTrue(overlay[stackIndex].contains("spacing: 8"), """
+        the stack HOSTING the fine-tune rows in `visualVJOverlay` is \
+        `\(overlay[stackIndex].trimmingCharacters(in: .whitespaces))`, which does not carry \
+        `spacing: 8` — while the call below it still passes 8.
+
+        In one column the grids inside adopt the argument, so the fine-tune rows would sit at a \
+        different rhythm from every other child of the overlay; in two columns the seam between \
+        the two grids would become visible. Move both, or neither.
+        """)
     }
 
     // MARK: - Helpers

@@ -5009,9 +5009,26 @@ struct EchoelStudioView: View {
     /// single card, and a grid that orders one card orders nothing (#359 step 2 removed one
     /// for exactly that reason). The Detail caveat caption stays outside too: a sentence in a
     /// half-width cell beside a parameter row is the ragged layout `MoodPanelReflowsTests`
-    /// condemns. That is why the six are split across TWO grids with the caption between them
-    /// — and it costs nothing to look at, because two cards fill exactly one two-column row,
-    /// so the rendered result is identical to one six-card grid in both column counts.
+    /// condemns. That is why the six are split across TWO grids with the caption between them.
+    ///
+    /// ⛔ AND THE FIRST DRAFT PRICED THAT SPLIT AS FREE, WHICH IT IS NOT — it said "the rendered
+    /// result is identical to one six-card grid in both column counts", and that is false on a
+    /// FRESH INSTALL. The #269 caveat is not an edge case there, it is the default:
+    /// `LookBlendMap` says so itself ("With the shipped defaults — primary style 5 (Aurora),
+    /// styleB 0, blend 0 — that share is ZERO"), so `detailReach < 0.001` and the paragraph
+    /// between the grids RENDERS. Six cards separated by a wrapping paragraph are not identical
+    /// to six cards in one grid. What survives is the weaker, true claim: the cards land in the
+    /// SAME PAIRS and the same row order a six-card grid would produce, and the seam is
+    /// invisible only while the caveat is hidden.
+    ///
+    /// ⭐ AND EVEN THEN THE SEAM IS INVISIBLE FOR A REASON THE FIRST DRAFT DID NOT NAME. "Two
+    /// cards fill exactly one two-column row" is necessary and not sufficient: the gap between
+    /// grid 1's row and grid 2's first row is the HOST stack's spacing, while inside a single
+    /// six-card grid it would be `LazyVGrid`'s own. They coincide only because the argument
+    /// EQUALS the host's spacing. So `spacing == host stack spacing` is doing double duty — it
+    /// is what makes portrait bit-identical AND what makes the two-grid split seamless in
+    /// landscape. Passing some other number would not merely re-space portrait; it would make
+    /// the split visible.
     @ViewBuilder private func visualAdjustFields(spacing: CGFloat) -> some View {
         EchoelValueField(label: "Energy", value: visualEnergy, range: 0...1, decimals: 2)
         Text("Calm ↔ energetic, across the same range the presets span. Fine tune holds the individual parameters.")

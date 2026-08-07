@@ -255,9 +255,24 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           ein Argument, das keine Aufrufstelle schreibt, taucht in keinem Diff auf
                           (#440/#443).
                           ⭐ Zwei Gitter statt eines, und der Grund ist die Bildunterschrift dazwischen:
-                          der #269-Hinweis zur Detail-Zeile wrappt und will die volle Breite. Es kostet
-                          NICHTS anzusehen — zwei Karten füllen in zwei Spalten exakt eine Zeile, das
-                          Ergebnis ist in beiden Spaltenzahlen identisch mit einem Sechser-Gitter.
+                          der #269-Hinweis zur Detail-Zeile wrappt und will die volle Breite.
+                          ⛔ **Und die erste Fassung pries diese Teilung als GRATIS, was sie nicht ist.**
+                          Sie schrieb „das Ergebnis ist in beiden Spaltenzahlen identisch mit einem
+                          Sechser-Gitter" — auf einer FRISCHEN INSTALLATION falsch. Der #269-Hinweis ist
+                          dort kein Randfall, sondern der Normalfall: `LookBlendMap` sagt es selbst
+                          („Mit den ausgelieferten Defaults — Stil 5 (Aurora), styleB 0, blend 0 — ist
+                          dieser Anteil NULL"), also ist `detailReach < 0.001` und der Absatz zwischen den
+                          Gittern WIRD gerendert. Sechs Karten mit einem umbrechenden Absatz dazwischen
+                          sind nicht identisch mit sechs Karten in einem Gitter. Wahr bleibt das
+                          Schwächere: die Karten landen in DENSELBEN PAAREN und derselben Zeilenfolge, und
+                          die Naht ist unsichtbar, solange der Hinweis verborgen ist.
+                          ⭐ **Und selbst dann ist sie unsichtbar aus einem Grund, den die erste Fassung
+                          nicht nannte.** „Zwei Karten füllen eine Zeile" ist notwendig und nicht
+                          hinreichend: der Abstand zwischen der Zeile von Gitter 1 und der ersten Zeile
+                          von Gitter 2 ist der Abstand des WIRTS, in einem Sechser-Gitter wäre es
+                          `LazyVGrid`s eigener. Sie fallen nur zusammen, weil das Argument GLEICH dem
+                          Wirtsabstand ist. `spacing == Wirtsabstand` leistet also zweierlei — es macht
+                          das Hochformat bitgleich UND die Zwei-Gitter-Naht im Querformat unsichtbar.
                           ⚠️ Energy bleibt bewusst DRAUSSEN: es steht allein zwischen zwei
                           vollbreiten Kindern, ein Gitter darum ordnete EINE Karte an — und ein Gitter,
                           das eine Karte anordnet, ordnet nichts an (#359 Schritt 2 hat aus genau
@@ -274,7 +289,15 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           QUELLTEXT-SCANS. SwiftUI-Layout ist von hier nicht erreichbar — „zwei
                           Spalten lesen sich auf dem Gerät gut", „der Spaltenbruch sitzt zwischen
                           sinnvollen Parametern" und „das Overlay passt im Querformat noch in seine
-                          360-pt-Decke" sind alle drei Geräteproben. Dazu ein Nebenbefund, der NICHT
+                          Decke" sind alle drei Geräteproben. ⚠️ Und die bindende Decke des Overlays ist
+                          die BREITE, nicht die Höhe — die erste Fassung nannte nur `maxHeight: 360`, also
+                          die auffällige. `visualVJOverlay` ist auch `maxWidth: 560`; abzüglich seiner
+                          14-pt-Polsterung und der 10-pt-Rinne des Gitters sind das **261 pt je Spalte**,
+                          während `AdaptiveCardGrid` erst bei `isAccessibilitySize` auf eine Spalte
+                          zurückfällt — eine GROSSE, aber nicht barrierefreie Textgröße zeichnet dort also
+                          weiter zwei Spalten mit einer `@ScaledMetric`-Wertebox, die mitgewachsen ist.
+                          Das inline-Panel hat diese Enge nicht. Arithmetik aus Konstanten, keine Messung:
+                          der Punkt ist, dass das Band benennbar ist und vors Gerät gehört. Dazu ein Nebenbefund, der NICHT
                           mitrepariert ist: dieselbe Änderung machte zwei Nachbar-Wächter rot
                           (`VisualPresetValuesAreReachableTests` ankerte auf `private var …: some View`,
                           `SectionHeadingIsOneTreatmentTests` auf Gleichheit mit dem nackten Namen).
