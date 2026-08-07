@@ -9036,3 +9036,72 @@ verlieren ein aufgezwungenes Zittern).
 
 **Report-only, founder-gated:** #252, #208, #210, `fastlane/Fastfile:245-255` (tote
 `screenshots_ipad`-Bahn).
+
+## 2026-08-07 (cron, 24h-Mandat) — Die Stimme auf dem Brett (#485) und die Atem-Übung in der Haupt-Ansicht (#486)
+
+**BRANCH-KORREKTUR, in jedem Delta zu wiederholen:** der Heartbeat nennt
+`claude/piano-roll-clip-view-wozlie-5kxnrl`. Der tatsächliche Branch ist
+`claude/echoelmusic-neustart-auv3-6ri2ek` (per `git branch --show-current`). Nicht wechseln.
+
+**Auslöser war EINE Founder-Bitte, und sie hatte zwei Hälften.** Wörtlich: Training für
+kohärentes Atmen plus Chanten · Summen · Tönen · Singen, und das „braucht einen zusätzlichen
+Mixer-Slot für Audio-in", dazu „suche was es dazu bisher gab in der history und was schon im
+Code zu finden ist" — die Bitte selbst sagte also, dass es kein Bauauftrag ist, sondern ein
+Suchauftrag. Beide Hälften waren gebaut und beide waren türlos.
+
+- **#485 (e95ac86 + 335fe08):** die Mikrofon-Route bekommt eine eigene Zeile im Mischpult.
+  Die FÄHIGKEIT war seit #298/#299 fertig — Monitoring mit FeedbackGuard-Duck, Session-Claim,
+  Pegel, Latenz-Hinweis pro Route. Gefehlt hat, dass ihre einzige Tür hinter dem MASTER-Panel
+  saß, also UNTER der Summe der Ebenen statt NEBEN ihnen: die eine Ebene, die ein Performer
+  mit dem eigenen Körper macht, war die einzige klingende Ebene, die auf dem Brett fehlte,
+  das #330 gebaut hat, um jede klingende Ebene zu halten. Keine zweite Kopie — beide Zeilen
+  lesen und schreiben die EINE `AudioEngine`, wie der Click-Streifen die EINE `MetronomeVoice`.
+  `feedbackGuardActive` wird ABSICHTLICH nicht gelesen: ~15-Hz-Schreiber, und `mixStripCard`
+  nimmt einen NICHT-escaping ViewBuilder, der Inhalt wird also innerhalb `mixerPanel`
+  ausgewertet — dem Rumpf, der jeden `.menu`-Picker beherbergt (10.76.41/50).
+- **#486 (e50b626):** das Training selbst. `BreathPacer`, `BreathPattern` und `BreathGuideView`
+  existierten seit Monaten vollständig und getestet; ihre einzigen zwei Türender —
+  `BioSourceView` und `MeditationView` — sind BEIDE unerreichbar. `decisions.csv:200`
+  (2026-07-12, aktiv) sagt wörtlich „Meditation View nicht extra. Alles findet in der Main View
+  statt und ist Teil des Produktionsprozesses", also gehört die Tür ins **Bio-Panel**, neben
+  HRV und Kohärenz — dorthin, wo die Wirkung der Übung ablesbar ist.
+
+**Die teuerste Lehre dieser zwei Zyklen ist eine Beobachtungs-Grenze, die strenger ist als sie
+geschrieben stand.** Meine erste Begründung behauptete in DREI Artefakten, ein eingebetteter
+~30-Hz-`pacer.guidance`-Read lande auf `EchoelPanel`s `@escaping`-Grenze. Nachgemessen:
+`bioPanel` ist das EINE Dropdown-Panel OHNE `panel(...)`/`EchoelPanel`-Wrapper — die Kette ist
+`body → AnyView(menuPanelHost) → ScrollView → AnyView(bioPanel)`, und `AnyView` ist keine
+Beobachtungsgrenze (10.76.50). Der Read landete also HEUTE auf `EchoelStudioView.body`. Alle
+drei Reviewer haben es unabhängig als HIGH gemeldet; die Korrektur steht am Ort, im
+Wächter-Kopf und in CLAUDE.md.
+
+**Und der #485-Trefferflächen-Defekt ist EINEN Commit später wiederholt worden** (34 pt ohne
+`contentShape`, begründet mit einem ungeprüften Nachbarn) — in #486 repariert auf 44 pt +
+`contentShape`, mit eigenem Wächter. Eine Regel, die man gerade selbst geschrieben hat,
+schützt nicht davor, sie zu brechen; was schützt, ist der Wächter.
+
+**Weitere eigene Fehler dieser Runde, alle selbst oder per Reviewer gefunden und korrigiert:**
+die eigene Benotung des Wächters war dreifach falsch (8/19/ZWEI statt 10/27/DREI, #433-Klasse);
+die zitierten Eltern-Zahlen waren Nach-Änderungs-Zahlen; `SourceText.codeOnly` wurde dreimal
+benotet (überzogen → zurückgenommen → jetzt wirklich LOAD-BEARING, weil die eigene
+Rücknahme-Prosa die negativ gescannten Zeichenketten wörtlich in die Quelle schreibt); ein
+fehlendes `import Foundation` (1 von 199 CISmoke-Dateien); und eine invertierte
+`Timer`-Begründung.
+
+**Gates:** `335fe08` = CI/CD `failure` mit `** TEST EXECUTE FAILED **`, also #396 und harmlos —
+`▸ Test build Succeeded`, und einzelne Testnamen stehen als `passed` im Job-Log. `e50b626`
+läuft beim Schreiben dieser Zeile noch. Xcode Compile Check beweist über eine TESTDATEI nichts.
+
+**Ehrliche Verifikations-Grenze, wörtlich aus dem #486-Commit:** jede Behauptung ist ein
+QUELLTEXT-SCAN — dass der Streifen rendert, dass der Kreis als Atem liest und dass ein Mensch
+ihm folgen kann, sind Geräteproben und alle offen.
+
+**Neu offen an den Founder (#487):** mit #486 ist ZUM ERSTEN MAL ein entspannungs-induzierender
+Pacer aus der HAUPT-Performance-Ansicht erreichbar. CLAUDE.mds SAFETY WARNINGS nennen „NOT while
+operating vehicles" und „NOT under influence of alcohol/drugs" für Brainwave Entrainment;
+`BreathPacer.contraindications` rendert (seit #486 ungated), enthält die FAHR-Zeile aber nicht.
+Gehört sie dazu, oder ist ein Atem-Pacer bewusst eine andere Kategorie? Nicht selbst entschieden,
+weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
+
+**Report-only, founder-gated (unverändert):** #396, `|| true` auf `ci.yml:165`, #208, #210,
+#478 (DerivedData-Cache-Schlüssel ohne SDK-Version, `ci.yml:127`/`:349`).
