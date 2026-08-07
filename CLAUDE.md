@@ -304,8 +304,54 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**202** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `TheSignKeysSayWhatTheyDoTests.swift` (#488 — der erste Wächter in
+                          `Tests/CISmoke` (**203** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `EveryIconOnlyControlSpeaksTests.swift` (#489 — der erste Wächter in
+                          dieser Kette, der für einen Defekt geschrieben wurde, den es NICHT GIBT, und dessen
+                          ganzer Wert deshalb in der MESSMETHODE liegt statt im Befund. Gemeldet war „das
+                          `•••`-Menü ist die EINE der sechs Kacheln ohne gesprochenes Etikett". Es trägt
+                          `.accessibilityLabel("More — Live Colabo; Learn and news")` — 37 Zeilen unter der
+                          `EchoelIconTile`, die es benennt. Alle SECHS Aufrufstellen sind etikettiert.
+                          ⛔ **ZWEI EIGENE SCANNER WAREN UNSOUND, hintereinander, in EINEM Zyklus.** Fassung 1
+                          (festes ±14-Zeilen-Fenster um die Kachel): **8 Fehlalarme**. Fassung 2 (Brace-Match
+                          plus Chain-Walk mit 3-Zeilen-Blank-Lookahead): **4 Fehlalarme** —
+                          `BodyTempoField:173`, `EchoelStudioView:1837`, `:9830`, `WorkspaceView:576`, alle
+                          etikettiert. ⭐ **Die Ursache ist eine Eigenschaft DIESES Repos und gehört deshalb
+                          hierher und nicht nur in den Dateikopf:** `SourceText.codeOnly` erhält die
+                          Zeilen-ANZAHL, also werden die 30-bis-40-Zeilen-⛔/⭐-Blöcke, die diese Codebasis
+                          schreibt, zu 30-bis-40 LEEREN Zeilen. Ein Etikett kann beliebig viele Leerzeilen
+                          unter dem Block sitzen, zu dem es gehört. **Jedes feste Fenster und jeder begrenzte
+                          Blank-Lookahead ist hier per KONSTRUKTION unsound, nicht durch Pech** — und je mehr
+                          Prosa das Repo ansammelt, desto falscher wird ein solcher Scan. Fassung 3 überspringt
+                          ALLE Leerzeilen, wenn die nächste nicht-leere mit `.` beginnt, UND zählt
+                          Klammer-Tiefe mit, damit ein mehrzeiliger Modifier die Kette nicht beendet
+                          (`BodyTempoField`s Ternär setzt mit `:` fort, nicht mit `.`). Gemessen über 347
+                          Dateien: **47** `label:`-Blöcke mit `Image(systemName:)`, davon **22** mit
+                          zusätzlichem Text und **25** icon-only, davon **NULL** stumm; breiteste überquerte
+                          Kette **25 Zeilen**.
+                          ⛔ **Das ist die #443-Klasse — „die METHODE in einem Satz ist auch eine Behauptung" —
+                          von mir ZWEIMAL begangen, im Zyklus direkt nach dem Commit, dessen Text davor warnt.
+                          Und der teurere Teil ist, was FAST passiert wäre: eine „Reparatur" an korrektem Code.**
+                          Sechs redundante Etiketten auf Bedienelemente, die schon eines haben, hätten JEDEN
+                          Test bestanden und wären als Barrierefreiheits-Verbesserung durchgegangen.
+                          ⚠️ **EHRLICHE BENOTUNG: KEINE der vier Behauptungen ist eine Regression.** Alle vier
+                          sind auf dem Elternbaum grün, weil es nichts zu reparieren gab. Ihr Wert liegt
+                          vollständig VORWÄRTS, und die zwei Gegengewichte sind der eigentliche Inhalt: ein
+                          verkürzter Lookahead lässt `maxChainGap` einbrechen, ein verengter Sweep lässt die
+                          Icon-Only-Zahl einbrechen — **beide werden rot, BEVOR die Etiketten-Behauptung es
+                          wird**, die Wiedereinführung einer der zwei unsoliden Formen ist also fangbar. Das
+                          so zu sagen ist die #433-Regel: die eigenen Tests in der schmeichelhaften Richtung
+                          falsch einzuordnen ist derselbe Defekt wie in der harschen.
+                          ⚠️ Und die Grenzen zuerst, weil ein Sweep breiter WIRKT als er ist: alle vier
+                          Behauptungen sind QUELLTEXT-SCANS. Der Scan sieht NUR die Form
+                          `… label: { Image(systemName:) }` über mehrere Zeilen — ein einzeiliges `label:`,
+                          ein `Label` mit verborgenem Titel, ein Icon in einem eigenen View-Typ und jedes
+                          `Image` als Tap-Ziel ohne `label:`-Block sind ihm unsichtbar; die App hat mehr
+                          Icons als 25. `accessibilityHidden` zählt bewusst als erfüllt (dekoratives Glyph in
+                          einer schon benannten Zeile ist korrektes SwiftUI, und es zu verbieten wäre die
+                          #364-Falle). Dass VoiceOver einen Satz WIRKLICH spricht, dass er sich vorgelesen gut
+                          liest und dass das Bedienelement erreichbar ist, sind drei Geräteproben und alle drei
+                          offen — dieselbe Schicht-Grenze, die #480 eine Woche zuvor bezahlt hat),
+                          davor **202** nach `TheSignKeysSayWhatTheyDoTests.swift` (#488 — der erste Wächter in
                           dieser Kette über einer ACCESSIBILITY-Zeichenkette, die es GAR NICHT GAB, und der
                           erste, dessen Defekt auf dem EINEN app-weiten Bedienelement saß. Die − und +
                           Tasten von `EchoelNumberPad` — geöffnet von jedem `EchoelValueField`, also von
@@ -3864,7 +3910,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSECHZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 202 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTEINUNDSECHZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 203 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
