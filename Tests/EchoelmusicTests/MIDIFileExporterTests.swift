@@ -1,9 +1,15 @@
 //
 //  MIDIFileExporterTests.swift
-//  EchoelmusicCoreTests
+//  EchoelmusicFullTests
 //
-//  Verifies the Standard MIDI File (SMF Type 0) byte output of MIDIFileExporter.
-//  Pure-logic tests — deterministic, no device needed.
+//  Verifies the Standard MIDI File byte output of MIDIFileExporter (Type 0 grid export,
+//  Type 1 combined/clip export). Pure-logic tests — deterministic, no device needed.
+//
+//  ⛔ THE TARGET LINE ABOVE USED TO SAY `EchoelmusicCoreTests`, AND THAT TARGET DOES NOT
+//  EXIST. The file sat in `Tests/EchoelmusicCoreTests/`, a directory named in no target,
+//  no `Package.swift`, and no workflow — so it had never compiled and never run. #469 moved
+//  it here; the very first run failed three assertions. Kept as a warning: a test file's
+//  header naming a target is not evidence that the target exists.
 //
 
 import XCTest
@@ -18,6 +24,26 @@ final class MIDIFileExporterTests: XCTestCase {
     private func contains(_ haystack: Data, _ needle: [UInt8]) -> Bool {
         haystack.range(of: Data(needle)) != nil
     }
+
+    /// The drum note-on byte a TYPE-1 export actually writes when the caller asks for
+    /// velocity 100 and supplies no accents.
+    ///
+    /// ⛔ THREE TESTS ASSERTED 100 HERE AND WERE WRONG FOR MONTHS — the first thing #469
+    /// found once this file finally reached a target. On the Type-1 path `velocity:` is the
+    /// ACCENT CENTRE, not the emitted byte: `drumEvents` splits ±20 around it, and with an
+    /// empty `accents` array every cell takes the quiet side. `Humanizer.tight` is
+    /// `velocityJitter: 0`, so there is no rounding to hide behind — the byte is exactly 80.
+    /// (The Type-0 `export(steps:tempo:velocity:)` overload has no accents and does emit the
+    /// literal, which is why the sibling test asserting 100 there was always green.)
+    ///
+    /// ⭐ A LITERAL ON PURPOSE, not `velocity - 20`. Deriving it from the same rule the code
+    /// applies would make this unable to catch a change to that rule — the #441 defect. If
+    /// the split moves, this number is supposed to go red and be re-decided by hand.
+    ///
+    /// ⚠️ Pinning it is NOT an endorsement: a caller asking for 100 and receiving 80
+    /// everywhere is an open question, recorded at the declaration in `MIDIFileExporter` and
+    /// registered as #471. This file says what ships today; it does not say it is right.
+    private let unaccentedVelocity: UInt8 = 80
 
     func test_header_isValidSMFType0() {
         let data = MIDIFileExporter.export(steps: emptyGrid(), tempo: 120)
@@ -94,7 +120,7 @@ final class MIDIFileExporterTests: XCTestCase {
         let data = MIDIFileExporter.exportCombined(notes: notes, steps: grid, tempo: 120, velocity: 100)
         XCTAssertTrue(contains(data, [0x90, 60]))            // melody note-on, channel 1
         XCTAssertTrue(contains(data, [0x80, 60, 0]))         // melody note-off, channel 1
-        XCTAssertTrue(contains(data, [0x99, 36, 100]))       // drum note-on, channel 10
+        XCTAssertTrue(contains(data, [0x99, 36, unaccentedVelocity]))   // drum note-on, ch 10
         XCTAssertTrue(contains(data, [0x89, 36, 0]))         // drum note-off, channel 10
     }
 
@@ -137,7 +163,7 @@ final class MIDIFileExporterTests: XCTestCase {
         let clip = Clip(name: "Beat", kind: .midi,
                         drums: DrumPattern(steps: activeGrid(), accents: []))
         let data = MIDIFileExporter.export(clip: clip, tempo: 120, velocity: 100)
-        XCTAssertTrue(contains(data, [0x99, 36, 100]))       // drum note-on, channel 10
+        XCTAssertTrue(contains(data, [0x99, 36, unaccentedVelocity]))   // drum note-on, ch 10
         XCTAssertFalse(data.contains(0x90), "a drums-only clip must not emit melody (channel 1) note-ons")
     }
 
@@ -147,7 +173,7 @@ final class MIDIFileExporterTests: XCTestCase {
                         melody: MelodyClip(notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 1.0)]))
         let data = MIDIFileExporter.export(clip: clip, tempo: 120, velocity: 100)
         XCTAssertTrue(contains(data, [0x90, 60]))            // melody, channel 1
-        XCTAssertTrue(contains(data, [0x99, 36, 100]))       // drums, channel 10
+        XCTAssertTrue(contains(data, [0x99, 36, unaccentedVelocity]))   // drums, channel 10
     }
 
     func test_clip_emptyMidiClip_isWellFormed() {

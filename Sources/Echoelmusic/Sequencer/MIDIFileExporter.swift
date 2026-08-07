@@ -295,6 +295,23 @@ public enum MIDIFileExporter {
         var hitIndex = 0
         // Accented cells hit harder; non-accented sit back — so the beat's dynamics survive
         // the export instead of every hit landing at one flat velocity.
+        //
+        // ⭐ SO ON THIS PATH `velocity` IS THE ACCENT CENTRE, NOT THE EMITTED BYTE — the ±20
+        // split straddles it. The Type-0 `export(steps:tempo:velocity:)` overload above has NO
+        // accents and therefore emits `velocity` literally; the two overloads mean different
+        // things by the same argument name. Written down because three tests asserted the
+        // literal here and nobody could see them fail: the file they live in was in no target
+        // until #469, and the drum-export path itself has no live caller (`export(clip:)` has
+        // zero call sites in `Sources/`, and the ONE live `exportCombined` call passes
+        // `steps: []`). Dormant, so this is a contract note, not a bug report.
+        //
+        // ⚠️ AND THE ASYMMETRY IS REAL, stated rather than smoothed: with an EMPTY `accents`
+        // array every cell takes the `normalVel` branch, so a caller asking for 100 gets 80
+        // everywhere and the requested number never appears in the file. That is not the
+        // "dynamics survive" the comment above promises — with no accent information there is
+        // no dynamic to preserve, only a uniform −20. Deliberately NOT changed here: it would
+        // alter shipped export bytes, which is its own slice with its own reasoning (#471),
+        // not a side effect of repairing a test.
         let accentVel = UInt8(Swift.min(127, Int(velocity) + 20))
         let normalVel = UInt8(Swift.max(1, Int(velocity) - 20))
         for (t, row) in steps.enumerated() {
