@@ -38,9 +38,19 @@
 //  that arrives later must not land on a contract that contradicts its own sibling overload.
 //
 //  ⚠️ The byte assertions search the WHOLE file for a three-byte triple rather than parsing
-//  the drum MTrk chunk. A coincidental match is conceivable in principle; each positive is
-//  therefore paired with the NEGATIVE of the value it replaced, so a test cannot pass on an
-//  accidental substring while the real note-on carries the wrong number.
+//  the drum MTrk chunk. A coincidental match is conceivable in principle. ⛔ The first version
+//  of this line claimed the mitigation was that "each positive is paired with the NEGATIVE of
+//  the value it replaced" — false for the assertion this file is NAMED after. THREE of the
+//  five `contains`-based methods pair theirs; `testAnExportWithoutAccentsWritesTheRequested-
+//  Velocity` and `testTheTypeZeroExporterStillEmitsTheLiteral` do not, because there the
+//  replaced value is a function of the loop variable and at `requested: 1` the negative would
+//  be `-19`, which is not a `UInt8`. A claim standing next to its own refutation, written into
+//  the very commit that retracts one from `drumEvents` — the class this repo keeps paying for.
+//  What actually holds is a MEASUREMENT: in every file these tests build, `0x99` occurs only
+//  as the drum note-on status (once per single-hit export, twice in the kick+snare file). The
+//  other chunks are ASCII names plus fixed meta (`FF 51 03 …`, `FF 58 04 …`, `FF 03 <len>`)
+//  and chunk lengths of the form `00 00 00 XX` with XX < 40. That is a property of THESE
+//  small files, not of the technique — a future file with richer meta needs the parser.
 //
 
 import XCTest
@@ -85,7 +95,13 @@ final class RequestedDrumVelocityIsTheEmittedByteTests: XCTestCase {
 
     // MARK: - The two regressions
 
-    /// RED before #474: the file carried 80 and never carried 100.
+    /// RED before #474 at `requested` 15/100/127 — the file carried 1/1/80/107 for the four
+    /// values below. ⛔ The first version said "the file carried 80 and never carried 100",
+    /// which describes ONE iteration and was presented as describing all four. At
+    /// `requested: 1` the old `max(1, v - 20)` floor already produced 1, so that iteration is
+    /// bit-identical on both trees and asserts nothing about #474 — it is here for the floor.
+    /// The method is still a genuine regression: `XCTAssertTrue` records and continues, so the
+    /// other three iterations fail it against the old code.
     ///
     /// `Humanizer.tight` is `(timingTicks: 0, velocityJitter: 0)` and `jitter` returns
     /// `(0, 1)` for it, so there is no rounding to hide behind — the byte is exact.

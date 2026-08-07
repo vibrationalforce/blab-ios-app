@@ -279,8 +279,15 @@ Sources/Echoelmusic/
   Tools/               ← PolySynthVoice, SubBassVoice, breath/vocal tools
   Views/               ← MetalBioView + OnboardingView ONLY (the old deprecated-view list is deleted)
 Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l`,
-                          2026-08-07 nach `MIDIFileExporterTests.swift` (#469 — die 24
-                          MIDI-Export-Tests, die in keinem Target standen und nie gelaufen sind).
+                          2026-08-07 nach `MIDIFileExporterTests.swift` (#469 — die **22**
+                          MIDI-Export-Tests, die in keinem Target standen und nie gelaufen sind.
+                          ⛔ Hier stand „24", und diese Zahl stammt aus #469s eigener
+                          Commit-Betreffzeile — sie war NIE eine Zählung: `grep -c "func test"`
+                          liefert 22, und auf `6a8deb8` selbst auch 22, denn #469 war ein reiner
+                          `git mv` mit null Einfügungen. Beim Reparieren des erfundenen
+                          Dateinamens ist die falsche ZAHL unangetastet mitgereist, in genau dem
+                          Satz, der „ein Name ist genauso ein `git ls-files` wert wie eine Zahl"
+                          festhält.).
                           ⛔ **Hier stand `MIDIFileExporterDrumTests.swift`, eine Datei, die es
                           NIE gegeben hat** — #469 hat `Tests/EchoelmusicCoreTests/MIDIFileExporterTests.swift`
                           VERSCHOBEN, nicht eine neue angelegt. Gefunden bei #474, als der

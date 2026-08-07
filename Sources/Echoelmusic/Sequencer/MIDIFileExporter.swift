@@ -314,6 +314,17 @@ public enum MIDIFileExporter {
         // `accents.count` likewise keep the −20 — the pattern carries accent information even
         // where a row does not. Only total absence changes meaning.
         //
+        // ⚠️ AND `[]` IS RARER THAN IT LOOKS — measured, because the seam is worth nothing if
+        // nobody can land on the side it fixes. `git grep -c "DrumPattern(" -- Sources` = 0, so
+        // `Clip.drums` has no producer at all. `BioComposer.silentBeat()` returns
+        // `(emptyGrid(), emptyGrid())` — a FULL 8×16 all-false grid, never `[]` — every genre
+        // beat starts from the same `emptyGrid()`, and `PatternEngine.load` rejects anything
+        // that is not exactly `trackCount × stepCount`. So an empty `accents` reaches here from
+        // exactly two literal sites: the export door and the tests. **If that door is ever
+        // rewired to pass `beatPlayer.pattern.accents` instead of `[]` it hands over a FULL
+        // grid, takes the branch below, and a caller asking for 100 gets 80 again.** That is
+        // the moment to re-decide the seam — not a tidy-up, and not something #474 pre-answers.
+        //
         // ⭐ AND THIS IS WHAT MAKES THE TWO OVERLOADS AGREE. The Type-0
         // `export(steps:tempo:velocity:)` above has no accents at all and always emitted
         // `velocity` literally; until #474 the same argument name meant two different things
@@ -328,6 +339,16 @@ public enum MIDIFileExporter {
         // bytes") three paragraphs after establishing that the path has no live caller — a
         // claim standing next to its own refutation, which is the class this repo keeps
         // paying for.
+        // ⚠️ AND THE ±20 ITSELF IS A SECOND, DIFFERENTLY-SHAPED STATEMENT OF A DECISION THE
+        // ENGINE ALSO MAKES — recorded here so whoever re-decides it has both numbers, not one.
+        // `PatternEngine.normalVelocity` = 0.82 and `accentVelocity` = 1.0: a RATIO at or below
+        // unity, where the accent IS the requested value and the unaccented cell sits at 82 % of
+        // it. This symmetric ±20 window pushes the ACCENTED cell ABOVE what the caller asked for
+        // (100 → 120), so on the accented branch the two exporters still disagree — #474 removes
+        // the disagreement only where there are no accents. A ratio-preserving rule
+        // (`accented = velocity`, `unaccented = 0.82 · velocity`) would close both branches AND
+        // match the engine. Not done here: it changes the accented branch, which is a separate
+        // decision with its own reasoning, and this slice is about the branch that had none.
         let hasAccentInfo = !accents.isEmpty
         let accentVel = UInt8(Swift.min(127, Int(velocity) + 20))
         let normalVel = UInt8(Swift.max(1, Int(velocity) - 20))
