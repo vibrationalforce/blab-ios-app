@@ -234,7 +234,7 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
         // proof needs the poll driven from a test, which needs an engine, which this bundle
         // cannot start. The comment strip below is belt-and-braces on top of anchors already
         // chosen to be unique in code.
-        let source = Self.codeOnly(try Self.read("Sources/Echoelmusic/Audio/AudioEngine.swift"))
+        let source = SourceText.codeOnly(try Self.read("Sources/Echoelmusic/Audio/AudioEngine.swift"))
         guard let publish = source.range(of: "lastTimingLine = tally.screenLine("),
               let gate = source.range(of: "Self.shouldReportTimingWindow(firstWindow:") else {
             return XCTFail("""
@@ -259,7 +259,7 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
         // and a raw `contains` stays green over a view that is gone from the UI.
         // `NoDoorlessStudioViewsTests` has a test named for exactly this — prose about a view
         // does not count as mounting it — and strips comments for the same reason.
-        let source = Self.codeOnly(try Self.read("Sources/Echoelmusic/Studio/EchoelStudioView.swift"))
+        let source = SourceText.codeOnly(try Self.read("Sources/Echoelmusic/Studio/EchoelStudioView.swift"))
         XCTAssertTrue(source.contains("private struct AudioTimingRow: View"), """
             The timing readout is no longer its own View. Read from `masterPanel` directly it \
             enrols the root body as an observer of an AudioEngine property — the class the \
@@ -271,16 +271,32 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
             """)
     }
 
-    /// Drops `//` comment tails so a scan cannot be satisfied by prose about the code. Line
-    /// comments only — that is what a tombstone is, and a block-comment stripper would need a
-    /// nesting-aware parser for a case this file does not have.
-    private static func codeOnly(_ source: String) -> String {
-        source.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
-            guard let slashes = line.range(of: "//") else { return String(line) }
-            return String(line[line.startIndex..<slashes.lowerBound])
-        }.joined(separator: "\n")
-    }
-
+    // ⛔ A PRIVATE `codeOnly` STOOD HERE AND IT MADE THE #453 GUARD RED FROM THE DAY IT WAS
+    // WRITTEN. #453 (2026-08-06) folded eleven comment-strippers into `SourceText.codeOnly` and
+    // installed `OneDefinitionOfCodeNotProseTests.testNoUnlistedFileDeclaresItsOwnStripper` to
+    // stop a TWELFTH appearing. The twelfth was already here — this file (#408) predates #453 —
+    // and the guard's own anchor, `func codeOnly` without `SourceText.codeOnly`, named it on the
+    // first run. So the guard did not miss it: NOBODY RAN THE GUARD. #396 makes every CI/CD
+    // conclusion `failure`, so a real red is indistinguishable from the host death unless the
+    // job log is read — and a red assertion sat in the blocking bundle for a day (#445).
+    //
+    // ⭐ THE LESSON IS NOT "the survey was sloppy" — it is sharper than that. #453's survey and
+    // #453's guard used DIFFERENT detection methods, and the guard was the better one. When the
+    // two disagree, the guard is the measurement and the survey is the memory. Trusting the
+    // narrative ("eleven, all folded in") over the executable check is the same shape as every
+    // stale number CLAUDE.md records, except that here a machine had already written down the
+    // right answer and no one collected it (#445).
+    //
+    // ⚠️ THE SWAP IS VERDICT-NEUTRAL, MEASURED RATHER THAN ASSUMED, because the two shapes are
+    // NOT interchangeable in general — `testEveryScanningGuardDelegates` names the exact place
+    // they disagree. Both files this test scans were run through both strippers before the edit:
+    // `AudioEngine.swift` differs on **0 lines** (so the two `range(of:)` byte offsets that the
+    // ordering assertion compares are bit-identical, 32771 and 33257 under either shape), and
+    // `EchoelStudioView.swift` differs on **exactly 1** — the WeatherKit attribution line,
+    // `URL(string: "https://developer.apple.com/…")`, which the naive shape truncated at the
+    // `//` inside the string literal. (Named, not numbered: the line index moves with every
+    // insertion above it, the phrase does not.) It holds none of the four anchors. The ordered
+    // scanner keeps it, which is the correct reading and the reason #453 exists.
     private static func read(_ relativePath: String) throws -> String {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // Tests/CISmoke

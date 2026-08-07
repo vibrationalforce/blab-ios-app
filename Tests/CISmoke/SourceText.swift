@@ -7,21 +7,47 @@
 // that quote the exact tokens the guards forbid — #404 already had to solve "a scan cannot tell
 // code from prose" on the source side.
 //
-// ⛔ IT WAS SOLVED ELEVEN TIMES. Counted 2026-08-06 across `Tests/CISmoke`: eleven private
-// `codeOnly` helpers, in FIVE materially different shapes —
+// ⛔ IT WAS SOLVED TWELVE TIMES, AND THE COUNT BELOW SAID ELEVEN FOR A DAY. The survey that
+// produced "eleven" ran on 2026-08-06; the guard this slice shipped alongside it
+// (`OneDefinitionOfCodeNotProseTests.testNoUnlistedFileDeclaresItsOwnStripper`) disagreed on
+// its very first run and named the twelfth — `TimingVerdictReachesTheScreenTests` (#408),
+// which predates this file. Nobody collected that answer, because #396 makes every CI/CD
+// conclusion `failure` and a conclusion is not a result (#445). #477 folded it in.
+// ⭐ THE LESSON IS ABOUT PRECEDENCE, not carefulness: when a hand survey and an executable
+// guard disagree, the guard is the measurement and the survey is a memory of one. This file
+// spent a paragraph warning that eleven shapes drift apart without anything noticing — and
+// then shipped a count that a check in the same commit already contradicted.
+//
+// ⚠️ AND THE TRUE COPY COUNT IS HIGHER STILL, because the guard detects by NAME. Measured
+// 2026-08-07: 8 files declare `stripComment`, 3 declare `stripComments`, 2 `sourceLines`, and
+// 60 declare `codeLines` — 58 of which strip comments themselves and none of which delegate.
+// That is #460; widening the anchor would red ~70 files at once and is a migration, not a
+// guard change. The twelve below are the `codeOnly` family only.
+//
+// The twelve were, in FIVE materially different shapes —
 //   1. drop the whole line            (`filter { !hasPrefix("//") }`)  · 3 files
 //   2. blank the whole line           (`map { … ? "" : line }`)        · 1 file
-//   3. truncate at the first `//`                                      · 4 files
+//   3. truncate at the first `//`                                      · 5 files
 //   4. trim leading spaces, then blank-or-truncate                     · 1 file
 //   5. strip `/* … */` FIRST, then truncate at `//`                    · 2 files
-// This is the #416 defect at its widest: one decision, eleven places to edit, and nothing that
+// This is the #416 defect at its widest: one decision, twelve places to edit, and nothing that
 // notices when they drift apart. Two of them already scan the SAME file (`RespirationEstimator`)
 // with different shapes.
 //
-// ⚠️ AND THE MEASUREMENT MATTERS MORE THAN THE COUNT: on today's tree the eleven AGREE for every
-// `contains`-style assertion. No file any of them scans holds a real `/* … */`, and no scanned
-// line holds `//` inside a string literal. So this is a latent defect, not a live one, and the
-// migration below is prophylactic — said plainly rather than dressed up as a bug fix.
+// ⚠️ AND THE MEASUREMENT MATTERS MORE THAN THE COUNT: on today's tree all twelve AGREE for every
+// `contains`-style assertion. So this is a latent defect, not a live one, and the migration
+// below is prophylactic — said plainly rather than dressed up as a bug fix.
+//
+// ⛔ BUT THE REASON GIVEN FOR THAT AGREEMENT WAS FALSE, and the twelfth copy is what proves it.
+// This paragraph used to say "no scanned line holds `//` inside a string literal". One does:
+// `EchoelStudioView.swift:3096` carries the WeatherKit attribution
+// `URL(string: "https://developer.apple.com/…")`, and `TimingVerdictReachesTheScreenTests`
+// scans that file. Its shape-3 stripper truncated the line at the `//` inside the literal;
+// this scanner keeps it. Measured before the #477 migration: `AudioEngine.swift` differs on
+// 0 lines under the two shapes, `EchoelStudioView.swift` on exactly that 1. Still
+// verdict-neutral, because that line holds none of that file's four anchors — so the
+// CONCLUSION survives and the PREMISE does not. The honest statement is "they agree on every
+// assertion made today", which is a claim about the anchors, not about the sources.
 //
 // ⭐ THE PART THAT IS NOT PROPHYLACTIC: shape 5 — the one that looks most careful — is the
 // DANGEROUS one, and in the opposite direction from the others. It strips `/* … */` BEFORE line

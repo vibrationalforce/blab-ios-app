@@ -1335,6 +1335,33 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Verhalten, und eine Regel, die ihn dafuer rot macht, waere die
                           #364-Falle. Die Gegenrichtung haelt `testNoUnlistedFileDeclaresItsOwnStripper`,
                           das von einer ZWOELFTEN privaten Kopie handelt und gar keine Liste braucht.
+                          ⛔ **UND DIE ZWOELFTE WAR SCHON DA — der Waechter war ab seinem ERSTEN Commit
+                          ROT, und niemand hat es gesehen (#477, 2026-08-07).** `TimingVerdictReachesTheScreenTests`
+                          (#408) ist aelter als #453 und trug ein privates `func codeOnly`, das nicht
+                          einfaltete; die Erkennungs-Nadel des Waechters — `func codeOnly` ohne
+                          `SourceText.codeOnly` — hat es beim ersten Lauf namentlich genannt. Die
+                          Handzaehlung sagte ELF, der ausfuehrbare Test sagte ZWOELF, und die Zahl in
+                          allen drei Artefakten (hier, Dateikopf, Commit-Text) kam von der Zaehlung.
+                          ⭐ **Die Lehre ist eine ueber VORRANG, nicht ueber Sorgfalt: wenn eine
+                          Handzaehlung und ein ausfuehrbarer Waechter sich widersprechen, ist der
+                          Waechter die MESSUNG und die Zaehlung eine Erinnerung.** Und der Grund, warum
+                          die Antwort ein Tag lang liegen blieb, ist #445 in seiner teuersten Form: #396
+                          faerbt JEDEN CI/CD-Lauf `failure`, eine Conclusion ist damit kein Ergebnis,
+                          und dieser rote Wächter war von der Wirt-Leiche nur durch Lesen des Job-Logs
+                          zu unterscheiden. Ein Wächter, der eine richtige Antwort gibt, die niemand
+                          abholt, ist kein Wächter.
+                          ⚠️ Die Migration ist VERDIKT-NEUTRAL und das ist gemessen, nicht angenommen:
+                          von den zwei Dateien, die dieser Test scannt, unterscheiden sich die beiden
+                          Streif-Formen auf `AudioEngine.swift` in **0 Zeilen** (die zwei Byte-Offsets
+                          der Reihenfolge-Behauptung sind bitgleich) und auf `EchoelStudioView.swift`
+                          in **genau 1** — der WeatherKit-URL-Zeile aus dem Absatz oben, die keinen der
+                          vier Anker traegt.
+                          ⚠️ Und die WAHRE Kopienzahl liegt weit ueber zwoelf, weil der Waechter nach
+                          NAMEN erkennt (gemessen 2026-08-07): 8 Dateien deklarieren `stripComment`,
+                          3 `stripComments`, 2 `sourceLines` und **60** `codeLines` — davon streifen
+                          **58** selbst und **keine** faltet ein. Das ist #460 und bleibt bewusst
+                          offen: die Nadel zu weiten faerbt ~70 Dateien in EINEM Commit rot, und das
+                          ist eine Migration, keine Waechter-Aenderung.
                           ⭐ **Was NICHT prophylaktisch ist, und es steht andersherum als man erwartet:
                           die GRUENDLICHSTE Form ist die gefaehrlichste.** Zwei der elf strippen
                           `/* … */` VOR den Zeilenkommentaren. Ein `/*`, das gar kein Blockanfang ist —

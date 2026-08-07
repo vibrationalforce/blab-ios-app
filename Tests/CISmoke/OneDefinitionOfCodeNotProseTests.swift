@@ -59,6 +59,14 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
         "TheManifestArgumentOrderIsTheCompilersTests.swift",
         "ThePacedRateMustBeReadableTests.swift",
         "TheShownNumberIsTheKeptNumberTests.swift",
+        // ⛔ THE TWELFTH, AND IT WAS ALREADY HERE WHEN THIS LIST WAS WRITTEN. #453 surveyed
+        // eleven strippers and folded eleven in; `TimingVerdictReachesTheScreenTests` (#408)
+        // predates #453 and carried a private `func codeOnly` that did NOT delegate — so
+        // `testNoUnlistedFileDeclaresItsOwnStripper` below returned exactly one offender and
+        // was RED from its first commit until #477. The guard was right and the survey was
+        // wrong; nobody ran the guard, because #396 makes every CI/CD conclusion `failure` and
+        // the only way to tell a real red from the host death is to read the job log (#445).
+        "TimingVerdictReachesTheScreenTests.swift",
     ]
 
     // MARK: - The scanner itself
@@ -145,7 +153,28 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
         }
     }
 
-    /// A twelfth private copy must not be able to appear unnoticed.
+    /// A further private copy must not be able to appear unnoticed.
+    ///
+    /// ⚠️ IT DETECTS BY NAME, AND THAT IS A MEASURED BLIND SPOT, NOT A THEORETICAL ONE. The
+    /// anchor is `func codeOnly`, so a copy under any other name is invisible to it. Counted
+    /// across `Tests/CISmoke` on 2026-08-07: **8** files declare `stripComment`, **3** declare
+    /// `stripComments`, **2** declare `sourceLines`, and **60** declare `codeLines` — of which
+    /// **58** strip comments themselves or via a private sibling and **none** delegate. So the
+    /// true copy count is far above twelve; this guard covers the `codeOnly` family only.
+    ///
+    /// Widening the anchor is #460 and is deliberately NOT done here: it would turn ~70 files
+    /// red in one commit, and each needs its own read (some `codeLines` also filter blanks or
+    /// keep line numbers, so they are not drop-in replaceable). A guard that reds on correct
+    /// work until someone does a week of migration gets deleted, which is the #364 trap. What
+    /// this file can honestly claim is stated in its own name.
+    ///
+    /// ⚠️ AND THE EXEMPTION IS RAW-TEXT, so it can be satisfied by PROSE: a file that keeps its
+    /// private copy and merely writes `SourceText.codeOnly` in a comment passes. `read` returns
+    /// raw text on purpose — this file and `SourceText.swift` both quote `func codeOnly` in
+    /// prose and would otherwise report themselves — so the looseness is the price of the
+    /// self-exemption, not an oversight. Stated rather than tightened: the tight version needs
+    /// to tell a call site from a mention, which is the "code, not prose" problem this whole
+    /// file exists to solve, applied to itself.
     func testNoUnlistedFileDeclaresItsOwnStripper() throws {
         let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
@@ -169,8 +198,16 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
         }
         XCTAssertEqual(offenders, [], """
             \(offenders.joined(separator: ", ")) declare their own comment stripper without \
-            delegating to SourceText. That is a TWELFTH copy of a decision this bundle already \
-            made eleven times, and the eleven were not interchangeable (#453).
+            delegating to SourceText. That is one more copy of a decision this bundle already \
+            made twelve times, and the twelve were not interchangeable (#453). Call \
+            SourceText.codeOnly, or — if the new shape genuinely differs — say so at the \
+            declaration and add the file to `scanningGuards` above so the difference is a \
+            stated choice rather than a drift.
+
+            ⛔ Do NOT satisfy this by renaming the helper. The anchor is the string \
+            `func codeOnly`; `stripComment`, `codeLines` and friends are already invisible to \
+            it, which is #460 and is measured in this test's doc comment. Renaming to hide \
+            from a guard is worse than the copy it hides.
             """)
     }
 
