@@ -251,7 +251,14 @@ final class SectionHeadingIsOneTreatmentTests: XCTestCase {
         // `visualLookStrip`. The defensive reasoning holds; the example was invented.)
         let strays = mounts.filter { i in
             i + 1 >= studio.count
-                || studio[i + 1].trimmingCharacters(in: .whitespaces) != "visualAdjustFields"
+                // `hasPrefix`, not `==`: since #292 Slice 4 the member takes its host's container
+                // spacing (`visualAdjustFields(spacing: 14)` inline, `8` in the overlay), so an
+                // equality here would report an ORDERING regression for an ARGUMENT change — a
+                // guard failing with the wrong diagnosis, which costs more than one that does not
+                // fail. Adjacency is what this test is about; the argument belongs to
+                // `VisualFineTuneReflowsTests`.
+                || !studio[i + 1].trimmingCharacters(in: .whitespaces)
+                    .hasPrefix("visualAdjustFields")
         }
         XCTAssertTrue(strays.isEmpty, """
             \(strays.count) mount(s) of `visualPresetRow` are no longer followed directly by \

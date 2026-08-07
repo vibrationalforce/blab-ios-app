@@ -77,7 +77,12 @@ import XCTest
 final class VisualPresetValuesAreReachableTests: XCTestCase {
 
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
-    private static let fieldsDeclaration = "private var visualAdjustFields: some View"
+    /// ⚠️ IT IS A `func` SINCE #292 SLICE 4, not a `var`. The member takes the host container's
+    /// spacing so the reflow grids inside it cannot impose one rhythm on both of its two hosts —
+    /// see `VisualFineTuneReflowsTests`. The anchor is pinned to the SIGNATURE rather than the
+    /// bare name on purpose: a guard that matched only `visualAdjustFields` would also match the
+    /// two call sites, and the brace scan below would then bracket the wrong block.
+    private static let fieldsDeclaration = "private func visualAdjustFields(spacing:"
 
     /// Every row in the visual panel states its own grid instead of inheriting one.
     ///

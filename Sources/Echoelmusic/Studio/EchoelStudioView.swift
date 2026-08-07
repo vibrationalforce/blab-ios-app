@@ -3911,7 +3911,10 @@ struct EchoelStudioView: View {
             // another top-level child — see `signalSection`'s doc block for what that costs
             // and what it does NOT cost.
             visualPresetRow
-            visualAdjustFields
+            // 14 = `EchoelPanel`'s own content spacing. Passed rather than defaulted so the
+            // one-column (portrait) rendering of the grids inside is bit-identical to the
+            // stack it replaced — see the ⭐ block on `visualAdjustFields(spacing:)`.
+            visualAdjustFields(spacing: 14)
             MusicColourRowView()
             Text("Colour defaults to the heard tone octave-transposed into visible light (its frequency doubled until it reaches the visible band, rendered via CIE 1931); Hue/Saturation rotate the palette for VJ/performance use. Motion is capped so the flash rate always stays under the 3 Hz safety limit.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -4769,7 +4772,11 @@ struct EchoelStudioView: View {
                     // SAME definitions as the inline panel (visualPresetRow +
                     // visualAdjustFields) so the two surfaces can never drift apart.
                     visualPresetRow
-                    visualAdjustFields
+                    // 8 = THIS overlay's own `VStack(spacing: 8)` a few lines up, NOT the
+                    // panel's 14. The overlay is height-capped at 360 pt for stage use, so a
+                    // wider row rhythm is the wrong trade here — and in one column the grid's
+                    // spacing REPLACES the stack's, which is exactly why this is an argument.
+                    visualAdjustFields(spacing: 8)
                     // Projection output: this chrome-free, keep-awake canvas IS the beamer
                     // image — mirror it to a projector/TV via AirPlay (Control Center →
                     // Screen Mirroring). Tap the canvas to hide these controls for a clean
@@ -4982,7 +4989,30 @@ struct EchoelStudioView: View {
     ///
     /// The energy fields clear the preset selection on edit since they then diverge from it;
     /// Hue/Saturation are palette-only and leave the preset intact.
-    @ViewBuilder private var visualAdjustFields: some View {
+    /// #292 Slice 4 — the fine-tune rows reflow to two columns in landscape / on a regular
+    /// width, on the same `AdaptiveCardGrid` primitive as `soundPanel` and `moodPanel`.
+    ///
+    /// ⭐ `spacing` IS A PARAMETER AND HAS NO DEFAULT, and that is the whole design of this
+    /// slice rather than a detail. This ViewBuilder has TWO hosts with DIFFERENT container
+    /// spacings — `visualPanel` renders inside `EchoelPanel` (`spacing: 14`) and
+    /// `visualVJOverlay` inside its own `VStack(spacing: 8)`. In ONE column an
+    /// `AdaptiveCardGrid` renders a `VStack` whose spacing REPLACES the host's, so any fixed
+    /// literal here would silently re-space one of the two surfaces in PORTRAIT — the primary
+    /// surface, which does not reflow at all and would therefore pay the whole cost for none
+    /// of the benefit. Passing the host's own number keeps both bit-identical in one column.
+    /// A DEFAULT would reintroduce exactly that risk invisibly: an argument no call site
+    /// writes appears in no diff (#440/#443).
+    ///
+    /// ⚠️ ENERGY IS DELIBERATELY OUTSIDE THE GRID, and this is the half a grep-for-
+    /// `AdaptiveCardGrid` guard cannot see. It is separated from the six by a caption and the
+    /// disclosure Button — both full-width prose/controls — so a grid around it would order a
+    /// single card, and a grid that orders one card orders nothing (#359 step 2 removed one
+    /// for exactly that reason). The Detail caveat caption stays outside too: a sentence in a
+    /// half-width cell beside a parameter row is the ragged layout `MoodPanelReflowsTests`
+    /// condemns. That is why the six are split across TWO grids with the caption between them
+    /// — and it costs nothing to look at, because two cards fill exactly one two-column row,
+    /// so the rendered result is identical to one six-card grid in both column counts.
+    @ViewBuilder private func visualAdjustFields(spacing: CGFloat) -> some View {
         EchoelValueField(label: "Energy", value: visualEnergy, range: 0...1, decimals: 2)
         Text("Calm ↔ energetic, across the same range the presets span. Fine tune holds the individual parameters.")
             .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -5011,10 +5041,12 @@ struct EchoelStudioView: View {
         .accessibilityValue(showVisualFineTune ? "Shown" : "Hidden")
         .accessibilityHint("Shows or hides the individual visual parameters")
         if showVisualFineTune {
-            EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                             decimals: 2, onChange: { visualPresetDiverged() })
-            EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
-                             onChange: { visualPresetDiverged() })
+            AdaptiveCardGrid(spacing: spacing) {
+                EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
+                                 decimals: 2, onChange: { visualPresetDiverged() })
+                EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
+                                 onChange: { visualPresetDiverged() })
+            }
             // #269 — Detail only reaches the Metal field through the Rings look, and Rings is
             // not in the shipped look set. Say so instead of letting the row read as broken.
             //
@@ -5043,12 +5075,14 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
-                             decimals: 2, onChange: { visualPresetDiverged() })
-            EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
-                             decimals: 2, onChange: { visualPresetDiverged() })
-            EchoelValueField(label: "Hue", value: $visualHue, range: 0...1, decimals: 2)
-            EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2, decimals: 2)
+            AdaptiveCardGrid(spacing: spacing) {
+                EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
+                                 decimals: 2, onChange: { visualPresetDiverged() })
+                EchoelValueField(label: "Spread", value: $visualSpread, range: 0.5...1.5,
+                                 decimals: 2, onChange: { visualPresetDiverged() })
+                EchoelValueField(label: "Hue", value: $visualHue, range: 0...1, decimals: 2)
+                EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2, decimals: 2)
+            }
         }
     }
 
