@@ -38,14 +38,26 @@ import XCTest
 
 final class TheAutomationRowLawHasItsOwnFileTests: XCTestCase {
 
+    /// ⛔ THE SKIP GATES ON THE DIRECTORY, NOT ON THE FILE, and the first version got that
+    /// backwards — caught by the #472 reviewer. It read
+    /// `guard FileManager.default.fileExists(atPath: url.path) else { throw XCTSkip(...) }`,
+    /// which means a COMPLETE REVERT of #472 — deleting `Sequencer/TimelineAutomationRowMath.swift`
+    /// and putting the law back in the view — makes this guard SKIP instead of FAIL. A guard whose
+    /// failure mode is "quietly not run" is the #367 class in its most expensive form: the exact
+    /// event it exists to catch is the one event it cannot report.
+    ///
+    /// The directory check only distinguishes "no source tree here" (a packaging question) from
+    /// "the source tree lost something" (the thing being guarded). Past it, the read is `try` and
+    /// unguarded, so a missing file is a hard failure with the path in the message.
     private func source(_ relative: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let url = root.appendingPathComponent(relative)
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw XCTSkip("source tree not present at \(url.path) — this half reads source text")
+        let sources = root.appendingPathComponent("Sources/Echoelmusic")
+        guard FileManager.default.isReadableFile(atPath: sources.path) else {
+            throw XCTSkip("source tree not present at \(sources.path) — this half reads source text")
         }
-        return SourceText.codeOnly(try String(contentsOf: url, encoding: .utf8))
+        return SourceText.codeOnly(
+            try String(contentsOf: root.appendingPathComponent(relative), encoding: .utf8))
     }
 
     // MARK: - The regression (positive anchor first — #367)

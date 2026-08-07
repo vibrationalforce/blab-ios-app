@@ -51,7 +51,7 @@ Capabilities (all routed through one typed bus): **bio-reactive synthesis** · *
   · **`AnalysisScopeView`** (#347 Slice 1) und **`AnalysisPoincareView`** (#347 Slice 3b): `git grep -n "AnalysisScopeView(\|AnalysisPoincareView(" -- Sources` außerhalb der eigenen Dateien = **0**. Ihre zwei Geschwister derselben Epic sind sehr wohl montiert (`AnalysisSpectrumView` und `AnalysisWavefrontView`, beide in `EchoelStudioView`). **Das ist KEIN Defekt und muss so dastehen:** die Entscheidung ist am 2026-08-02 per Founder-Screenshot mit rotem X gefallen und im Quelltext an der Montagestelle festgehalten. Also türlos ABSICHTLICH, wie `ImmersiveStageView` und `BroadcastView` — nur stand es nirgends im Register, und genau das ist der Zustand, den der Doctor-Sektion-C-Text „unerreichbar UND nirgends aufgeschrieben" nennt.
   · **`TimelineAutomationRow`** (`Studio/`, seit #472 **406** Zeilen, davor 464): die ANSICHT ist unmontiert und sagt das im eigenen Dateikopf. ⚠️ **Die Datei war NICHT löschbar, und das ist der Grund, warum der Eintrag hierher gehörte statt auf eine Löschliste:** `TimelineAutomationRowMath` stand in DERSELBEN Datei und ist LIVE — `Core/TimelineStore.swift` ruft `TimelineAutomationRowMath.sameParameter(...)`. Ein „lösch die türlose Datei"-Aufräumen hätte den Store gebrochen. **Lehre: „türlos" ist eine Eigenschaft einer ANSICHT, „löschbar" eine Eigenschaft einer DATEI, und dieses Repo legt beide regelmäßig nebeneinander.**
     ⭐ **KERN-HÄLFTE ERLEDIGT (#472, 2026-08-07):** der reine Kern liegt jetzt in `Sequencer/TimelineAutomationRowMath.swift` — dieselbe Form wie `WaveformReducer` (#132 Slice 5) und `PianoRollView.occurrencePeriod` (#470). Der Store kann nicht mehr über eine Ansichts-Löschung brechen.
-    ⛔ **UND DIE ANSICHTS-HÄLFTE BLEIBT TROTZDEM STEHEN, aus einem Grund, den DIESER Eintrag nicht kannte, als er „die richtige Scheibe ist … dann die Löschung" schrieb.** Beim Ausführen der Entblockung gefunden: **FÜNF Quelldateien zitieren die Ansicht in Prosa, zwei davon tragend.** `Studio/EchoelValueField.swift` — das EINE app-weite Parameter-Bedienelement — zeigt ZWEIMAL auf `TimelineAutomationRow.handleEnded` als kanonischen Beleg dafür, dass SwiftUI `onEnded` NACH einem `@GestureState`-Reset liefern kann (die Prämisse seines #377/#378-Entwurfs); `DSP/EchoelDDSP.swift` benutzt die Türlosigkeit als Prämisse seiner `outputLevel`-Erreichbarkeits-Argumentation; `Core/AutomationPlayer.swift` trägt eine ⛔-Rücknahme, die die Zeile namentlich nennt. Löschen ohne vorherige Umsiedlung dieser Prosa ist der #456-Defekt in dreifacher Größe. **Zweite Lehre, allgemeiner als die erste: eine registrierte Entblockung ist erst dann eine, wenn man NACH dem Ausführen noch einmal grept.**
+    ⛔ **UND DIE ANSICHTS-HÄLFTE BLEIBT TROTZDEM STEHEN, aus einem Grund, den DIESER Eintrag nicht kannte, als er „die richtige Scheibe ist … dann die Löschung" schrieb.** Beim Ausführen der Entblockung gefunden: **FÜNF Quelldateien zitieren die Ansicht in Prosa, zwei davon tragend.** `Studio/EchoelValueField.swift` — das EINE app-weite Parameter-Bedienelement — zitiert die Zeile ZWEIMAL, ⛔ **und die erste Fassung dieses Satzes hat die FORM davon falsch gehabt, in vier Artefakten gleichzeitig** (hier, im Kopf der neuen Quelle, im Kopf der Ansicht und in der Beschreibung von #473): sie sagte, beide Zitate zeigten auf `handleEnded`. Nur EINES tut das. Es sind **zwei Zitate mit zwei VERSCHIEDENEN Prämissen** — im Block, der mit `REVERT — one main-actor turn later` beginnt, steht `TimelineAutomationRow.handleEnded` als kanonischer Beleg dafür, dass SwiftUI `onEnded` NACH einem `@GestureState`-Reset liefern kann (die Prämisse des #377/#378-Entwurfs); im Block `⚠️ HONEST LIMIT (unchanged):` wird die Ansicht OHNE Mitglied genannt, für eine andere Eigenschaft — dass SwiftUI die Ansicht beim Zurücksetzen eines `@GestureState` NEU AUSWERTET, die erklärte Grenze desselben Entwurfs. **Zwei Prämissen blockieren die Löschung HÄRTER als ein doppeltes Zitat**, die Korrektur weicht also nichts auf; aber ein „ZWEIMAL", das an EIN Mitglied geheftet ist, schickt den nächsten Leser auf die Suche nach einer zweiten `handleEnded`-Stelle, die es nicht gibt. (Beide per PHRASE zitiert und nicht per Zeilennummer — derselbe Commit hat aus `Core/PerTrackParameterKeyPath.swift` eine `TimelineAutomationRow:11-16`-Zeilenspanne entfernt, weil sie veraltet war; frische Nummern zu prägen wäre derselbe Defekt.) `DSP/EchoelDDSP.swift` benutzt die Türlosigkeit als Prämisse seiner `outputLevel`-Erreichbarkeits-Argumentation; `Core/AutomationPlayer.swift` trägt eine ⛔-Rücknahme, die die Zeile namentlich nennt. Löschen ohne vorherige Umsiedlung dieser Prosa ist der #456-Defekt in dreifacher Größe. **Zweite Lehre, allgemeiner als die erste: eine registrierte Entblockung ist erst dann eine, wenn man NACH dem Ausführen noch einmal grept.**
 - **P1 "Sound complete" — ALREADY BUILT (audited 2026-07-01; corrects the old "Clips/Arrangement UI not wired" note):** the melodic/DAW core is done and wired — **polyphonic synth** (`PolySynthVoice`) + **bass** (`SubBassVoice`) + ~~hybrid sample/synth drums~~ (`BeatPlayer` + `DrumSynthVoice` — **entfernt 2026-07-26, #166/#167; klingt nicht mehr**); **full patch editor + presets** (`SynthPatch`/`PatchStore` + `soundPanel`, favorites/community/save-as, live-apply, tested. ⛔ Hier stand `PatchEditorView` als der Editor „DOORLESS since 2026-07-25" — die Datei ist mit #132 Slice 6 gelöscht; der Editor war die ganze Zeit `soundPanel` hinter dem Sound-Chip); **breakbeat loop-cut** (`LoopCutter`/`LoopBarLength` in the Studio UI); **MIDI export** — **AUSGELIEFERT** (korrigiert 2026-07-28): `exportMIDI()` wird wieder aufgerufen, aus dem Export-Schacht heraus (#188 hat die Tür in den VORHANDENEN Slot zurückgeholt, kein neuer Sheet). `MIDIFileExporter` intakt und getestet. Der App-Store-Text behauptet den MIDI-Export — nicht entfernen, ohne `fastlane/metadata` mitzuziehen; Clips + Arrangement UI **DELETED** by the pure-instrument epic (#121 Slice 4 — `ClipView` 807dc0d, `ArrangeTimelineView` eb58e7a; `ClipStore`/`ArrangementStore`/`AutomationLane` model retires in Slice 5).
   **CRAFT-TOOL DOORS — the #131a craft-editor slot is GONE again (2026-07-26).** It was shipped 2026-07-25 (`f2cbf34`/`bda8f41`) to door the piano roll, and it held exactly ONE case; when the founder said *"Pianoroll soll raus"* the honest move was to take the slot with it rather than leave an undoored enum (the lying-`toolItems` trap). **Body presentation-modifier count = 14** (8 sheet + 2 cover + 3 alert + 1 fileImporter), verified by grep 2026-07-27 — the sample-browser `.sheet(item:)` went with `SampleBrowserView` (#167). It was 15 the day before — it was 16 the day before, and the "= 12" before that counted only `.sheet`+`.fullScreenCover` and read as headroom that does not exist. Alerts and the file importer sit on the same chain and carry the same metadata cost. **The NEXT editor re-introduces the slot as `enum` + `@State` + ONE `.sheet(item:)` + an out-of-body content builder — NEVER a bare appended modifier**, and a case is added ONLY together with its door. Three of the 14 slots (`showVisual`, `showMeditation`, `midiImportPresented`) have no setter at all and are the first place to look for room. `sampleBrowserTrack` was the fourth and is DELETED (2026-07-27): once `SampleBrowserView` itself went, the slot pointed at a type that no longer compiles — a slot is only reusable while its content still builds.
   · **`PianoRollView` = GELÖSCHT (#475, 2026-08-07).** Der Eintrag stand hier als „DOORLESS AND UNMOUNTED" samt der Entblockungs-Bedingung („hoisting that one pure function into a core file is what unblocks deleting the struct") — **#470 hat gehoben, #475 hat gelöscht**: 988 Zeilen `struct PianoRollView: View` plus die zwei privaten Gesten-Typen `RollDragAnchor`/`RollDrag`. Die Datei `Studio/PianoRollView.swift` BLEIBT (2291 → 1278 Zeilen), weil sie `PianoRollModel` enthält — die Notenmaschine UND den `MusicalFrame`-Publisher, also die Wirbelsäule der Ausgabestufe (Visual · Licht · Raum). `RollSelection` ist ebenfalls geblieben, jetzt test-only (neun Behauptungen in `Tests/EchoelmusicTests/NoteTests.swift`), die `WaveformReducer`-Form. **Consequence to state plainly: there is NO note editor in the app any more** — the generated take can be heard, mixed and exported, not corrected.
@@ -275,10 +275,15 @@ Sources/Echoelmusic/
   Sync/                ← OSCSender, ADMOSCSender, Art-Net/sACN (EchoelLux), CloudSync
   Tools/               ← PolySynthVoice, SubBassVoice, breath/vocal tools
   Views/               ← MetalBioView + OnboardingView ONLY (the old deprecated-view list is deleted)
-Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l`,
-                          2026-07-31 nach `DrumNoteMapTests.swift` (#167)). ⛔ Drei Zahlen
+Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l`,
+                          2026-08-07 nach `MIDIFileExporterDrumTests.swift` (#469 — die 24
+                          MIDI-Export-Tests, die in keinem Target standen und nie gelaufen sind).
+                          ⛔ Hier stand „313", ein Stand vom 2026-07-31, und der Commit, der die
+                          Datei anlegte, hat DIESE Zeile nicht nachgeführt — derselbe Fehler, den
+                          der Sources-Absatz oben dreiundzwanzigmal protokolliert, nur in der Suite,
+                          die niemand blockiert und deshalb niemand nachzählt. ⛔ Drei Zahlen
                           kursierten für DIESE eine Suite: 305 hier, 294 in den Schrittnamen von
-                          `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
+                          `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
                           `Tests/CISmoke` (**193** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
@@ -330,10 +335,17 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           seit #121, sie „retires in the Slice 6 cleanup". Beide sind älter als das, was
                           wirklich blockiert: **FÜNF Quelldateien zitieren diese Ansicht in Prosa, und zwei
                           der Zitate tragen Code, der ausgeliefert wird.** `Studio/EchoelValueField.swift` —
-                          das EINE app-weite Parameter-Bedienelement — zeigt ZWEIMAL auf
-                          `TimelineAutomationRow.handleEnded`, als kanonischen Beleg dafür, dass SwiftUI
-                          `onEnded` NACH einem `@GestureState`-Reset liefern kann; das ist die Prämisse
-                          seines #377/#378-Revert-bei-Abbruch-Entwurfs. `DSP/EchoelDDSP.swift` benutzt die
+                          das EINE app-weite Parameter-Bedienelement — zitiert die Ansicht ZWEIMAL, mit
+                          ZWEI VERSCHIEDENEN Prämissen. ⛔ Hier stand „zeigt ZWEIMAL auf
+                          `TimelineAutomationRow.handleEnded`"; nur EINES der beiden tut das (der Block
+                          `REVERT — one main-actor turn later`, dessen Prämisse ist, dass `onEnded` NACH
+                          einem `@GestureState`-Reset geliefert werden kann — die Grundlage des
+                          #377/#378-Revert-bei-Abbruch-Entwurfs). Das andere (`⚠️ HONEST LIMIT
+                          (unchanged):`) nennt die Ansicht ohne Mitglied, für die Eigenschaft, dass SwiftUI
+                          beim Zurücksetzen eines `@GestureState` NEU AUSWERTET — die erklärte Grenze
+                          desselben Entwurfs. Zwei Prämissen blockieren HÄRTER als ein doppeltes Zitat; die
+                          Korrektur weicht nichts auf, sie verhindert die Suche nach einer zweiten
+                          `handleEnded`-Stelle, die es nicht gibt. `DSP/EchoelDDSP.swift` benutzt die
                           Türlosigkeit der Zeile als Prämisse in seiner `outputLevel`-Erreichbarkeits-
                           Argumentation, und `Core/AutomationPlayer.swift` trägt eine ⛔-Rücknahme, die die
                           Zeile NAMENTLICH nennt — eine Rücknahme, deren ganzer Wert das Benennen ist. Den
@@ -348,8 +360,16 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           gewöhnlichen Sinn (`testTheLawHasItsOwnFileAndTheViewNoLongerDeclaresIt`, deren
                           erste Hälfte eine Datei liest, die es vor diesem Commit nicht gab). Der Rest sind
                           Pins: die lebende Aufrufstelle, das Alias-Verhalten, und ein COMPILE-Pin auf die
-                          fünf Mitglieder, die mit der Ansicht ihren einzigen Aufrufer verlieren. Keine
-                          davon konnte gestern rot sein.
+                          **sieben** Mitglieder, die mit der Ansicht ihren einzigen Aufrufer verlieren. Keine
+                          davon konnte gestern rot sein. ⛔ Hier stand „fünf", und der Widerspruch war
+                          INNERHALB dieser Datei: der #475-Eintrag zwei Bildschirme weiter oben sagt an
+                          derselben Sache „**sieben**", und der Wächter selbst nennt sie SEVEN und zählt sie
+                          im eigenen Doc-Kommentar auf. Gemessen statt erinnert:
+                          `grep -n "public static" Sources/Echoelmusic/Sequencer/TimelineAutomationRowMath.swift`
+                          liefert ACHT, davon ist `sameParameter` der eine mit Produktions-Aufrufer — also
+                          sieben. **Der Fehler ist nicht die veraltete Zahl, sondern dass sie neben ihrer
+                          eigenen korrekten Fassung stand**: zwei Stellen desselben Absatzes über dieselbe
+                          Messung, und nur eine wurde beim Schreiben nachgezählt.
                           ⚠️ Und die Verhaltens-Hälfte DOPPELT `Tests/EchoelmusicTests/TimelineAutomationRowTests`
                           mit Absicht — normalerweise der #416-Defekt. Der Grund, warum sie es hier nicht
                           ist: jene Suite ist die NICHT-blockierende (#208), und `sameParameter` ist das
@@ -3264,7 +3284,7 @@ Language-level notes that ARE still true and worth keeping:
 
 ---
 
-## KEY TESTS (313 files under `Tests/EchoelmusicTests/` — `git ls-files` re-run 2026-07-31 nach #167)
+## KEY TESTS (314 files under `Tests/EchoelmusicTests/` — `git ls-files` re-run 2026-08-07 nach #469)
 
 Run `swift test` (or rely on the CI gates) before ANY commit. Highest-value areas:
 DSP (`EchoelDDSPTests` · `DSPTests` · `VDSPTests`) · protected triad

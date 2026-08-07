@@ -2,7 +2,12 @@
 // Automation-in-Spur L2/L4 spine (per-track targeting). Today automation
 // keyPaths are engine-GLOBAL ("ddsp.filter.cutoff"), so two tracks that pick
 // the same parameter edit the SAME curve — the honesty debt documented in
-// TimelineAutomationRow:11-16. This pure namespace makes a parameter
+// `Studio/TimelineAutomationRow.swift`, in the block beginning `DATA MODEL (honest):`.
+// ⛔ That used to read "TimelineAutomationRow:11-16". A line range is the most brittle
+// fact this repo writes down — #472 moved that file's contents and the range was wrong
+// the same day. A quoted PHRASE survives an insertion; a number does not.
+//
+// This pure namespace makes a parameter
 // addressable PER TRACK by folding the lane's UUID into the keyPath:
 //
 //     "track.<laneID>.ddsp.filter.cutoff"

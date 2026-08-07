@@ -26,9 +26,18 @@
 // what unblocked that. Both predate the real blocker, found while doing the hoist:
 // FIVE source files cite this view in prose, and two of them are load-bearing for
 // code that ships. `Studio/EchoelValueField.swift` — the one parameter control used
-// app-wide — points at `handleEnded` below TWICE, as the canonical evidence that
-// SwiftUI may deliver `onEnded` AFTER a `@GestureState` reset; that is the premise
-// its #377/#378 revert-on-cancel design rests on. `DSP/EchoelDDSP.swift` uses this
+// app-wide — cites this view TWICE, with TWO DISTINCT premises. ⛔ The first version of
+// this sentence said both point at `handleEnded`; only one does — the block beginning
+// `REVERT — one main-actor turn later`, whose premise is that `onEnded` may be delivered
+// AFTER a `@GestureState` reset, and which the #377/#378 revert-on-cancel design rests
+// on. The other, the block beginning `⚠️ HONEST LIMIT (unchanged):`, names this view
+// without a member, for a different property: that SwiftUI RE-EVALUATES the view when it
+// resets a `@GestureState`. Two premises blocks the deletion HARDER than one repeated
+// citation — the correction is not a softening — but "TWICE" pinned to one member sends
+// the next reader hunting a reference that is not there. (Cited by PHRASE, not by line
+// number: the same commit retired a `TimelineAutomationRow:11-16` range elsewhere for
+// having gone stale, so minting fresh line numbers here would be the same defect.)
+// `DSP/EchoelDDSP.swift` uses this
 // row's doorlessness as a premise in its `outputLevel` reachability argument, and
 // `Core/AutomationPlayer.swift` carries a ⛔ retraction that names the row (a
 // retraction whose whole value is naming what it corrects). Deleting the host before

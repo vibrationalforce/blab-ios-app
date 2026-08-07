@@ -32,9 +32,15 @@
 //   · `sameParameter`  — LIVE (`Core/TimelineStore.swift`, alias-aware lane lookup).
 //   · `x(forTick:)` · `tick(forX:)` · `nearestPoint` · `hitPointID` ·
 //     `displayPoints` · `touchRadius` · `tapSlopPoints` — their only caller is
-//     `TimelineAutomationRow`, which nothing mounts (`git grep
-//     "TimelineAutomationRow("` over `Sources`/`Tests` = 0). They are already
-//     unreachable from the app; the hoist neither helps nor harms that.
+//     `TimelineAutomationRow`, which nothing mounts. They are already unreachable from
+//     the app; the hoist neither helps nor harms that.
+//     ⛔ A RECIPE STOOD HERE AND IT FALSIFIED ITSELF: `git grep "TimelineAutomationRow("`
+//     over `Sources`/`Tests` "= 0" — but the sentence quoting it CONTAINS the searched
+//     string, so running it returns this line and reads as a contradiction. Exactly the
+//     `EchoelModalBank` trap CLAUDE.md records: a note that QUOTES a grep ages faster than
+//     one that states a fact, because every comment written about the thing corrupts its own
+//     evidence. Stated as a fact instead. To measure it, exclude prose:
+//     `git grep -n "TimelineAutomationRow(" -- Sources Tests | grep -v '://'`.
 // They are kept, not because they are used, but because deleting them is a SECOND
 // decision and #470 paid for the rule the hard way: changing the arithmetic inside a
 // move commit is how a "no behaviour change" claim stops being true. The tick↔px law
@@ -47,10 +53,27 @@
 // cleanup", and CLAUDE.md's register says the core hoist is what unblocks that. Both
 // were written before the thing that actually blocks it: FIVE source files cite that
 // view in prose, and two of the citations are load-bearing for code that ships.
-// `Studio/EchoelValueField.swift` — the ONE parameter control app-wide — points at
-// `TimelineAutomationRow.handleEnded` TWICE, as the canonical evidence that SwiftUI
-// may deliver `onEnded` after a `@GestureState` reset, which is the premise its
-// #377/#378 revert-on-cancel design rests on. `DSP/EchoelDDSP.swift` uses the row's
+// `Studio/EchoelValueField.swift` — the ONE parameter control app-wide — cites the row
+// TWICE, and ⛔ the first version of this sentence got the SHAPE of that wrong in four
+// artifacts at once (here, the view's header, CLAUDE.md, and task #473): it said the two
+// citations both point at `handleEnded`. They do not. They are TWO citations with TWO
+// DISTINCT premises, and only ONE of them names `handleEnded`:
+//   · in the `REVERT — one main-actor turn later` block: SwiftUI may deliver `onEnded`
+//     AFTER a `@GestureState` reset. This one names `TimelineAutomationRow.handleEnded`
+//     as the canonical evidence, and it is the premise the #377/#378 revert-on-cancel
+//     design rests on.
+//   · in the `⚠️ HONEST LIMIT (unchanged):` block: SwiftUI RE-EVALUATES the view when it
+//     resets a `@GestureState` — "this repo already depends on it in
+//     `TimelineAutomationRow`", no member named. That is the stated limit of the same
+//     design, not its premise.
+// Two premises is a STRONGER blocker than one repeated citation, so the correction does
+// not soften anything — but "TWICE" attached to a single member would send the next
+// reader looking for a second `handleEnded` reference that does not exist.
+// ⚠️ Both sites are cited by PHRASE and not by line number, deliberately: the same
+// commit that wrote this removed a `TimelineAutomationRow:11-16` range from
+// `Core/PerTrackParameterKeyPath.swift` for going stale. Writing new line numbers while
+// retiring old ones is the defect, not the fix.
+// `DSP/EchoelDDSP.swift` uses the row's
 // doorlessness as a premise in its `outputLevel` reachability argument.
 // `Core/AutomationPlayer.swift` carries a ⛔ retraction that names the row — a
 // retraction whose whole value is naming what it corrects. Deleting the host without
