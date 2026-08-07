@@ -291,31 +291,63 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           VERBRAUCHER dagegen gehärtet, dass ein messungsloser Frame Zustand zerstört,
                           und beim Nachlesen fiel auf, dass der ERZEUGER denselben Frame nach einem
                           Stopp gar nicht hätte schicken dürfen. `CameraRPPGBioPublisher.stop()` setzt
-                          rund zwanzig Pro-Take-Felder zurück und ließ DREI stehen.
+                          fünfundzwanzig ANDERE Pro-Take-Felder zurück und ließ DREI stehen (gezählt, nicht
+                          geschätzt: 29 Zuweisungen im klammer-gematchten Rumpf, minus `publishTask`
+                          und minus diese drei).
                           ⚠️ EHRLICHE REIHENFOLGE, weil die naheliegende Hälfte die harmlosere ist:
                           `tick` ist eine LOKALE Variable von `publishTask`, ein neuer Take beginnt
                           also wieder bei 0, während `lastGoodPublishTick` den Zählerstand des VORIGEN
                           Takes trug — `tick - lastGoodPublishTick` war stark NEGATIV, damit
-                          `<= bioHoldTicks`, damit feuerte der Ausfall-Halt ab dem ersten Tick eines
-                          frischen Takes und veröffentlichte den Frame des vorigen Takes für das ganze
-                          Neu-Akquise-Fenster (#415 hat dort ~19 s gemessen). **Das ist zu großen
+                          `<= bioHoldTicks`, damit veröffentlichte der Ausfall-Halt den Frame des
+                          vorigen Takes für das ganze
+                          Neu-Akquise-Fenster (#415 hat dort ~19 s gemessen). ⛔ **NICHT „ab dem ersten
+                          Tick", wie die erste Fassung schrieb:** der Veröffentlichungspfad liegt hinter
+                          `tick % 10 == 0` UND hinter dem Wahrheits-Tor
+                          `inboundRateEMA >= minMeasurableInboundHz`, der früheste Republish ist also
+                          `tick == 10`, rund 1 s hinein — und eine frameslose erste Sekunde drückt den
+                          neu gesäten EMA auf 15·0,9^10 ≈ 5,2, unter die 6,0, und überspringt auch den.
+                          **Das ist zu großen
                           Teilen MASKIERT** und wird hier so gesagt: der gehaltene Frame trägt den
                           Stempel des vorigen Takes, also lässt `usableBio()` ihn nach 6 s verfallen,
-                          stempel-deduplizierende Verbraucher sehen einen No-op, und `latestBio` wurde
+                          jeder Verbraucher, der darauf HANDELT, dedupliziert auf dem Stempel oder tort
+                          auf Frische, und `latestBio` wurde
                           von einem Stopp ohnehin nie geleert. Ein Neustart später als 6 s kostet
                           messbar nichts.
-                          ⭐ **Die Hälfte, die NICHTS maskiert, liegt gar nicht auf dem Halte-Pfad.**
-                          Der ERFOLGS-Pfad veröffentlicht
-                          `coherence.valid ? coherence.coherence : lastValidCoherence * 0.9` und
-                          schreibt den Wert NUR bei gültigem Fenster zurück. Am Anfang eines Takes gibt
-                          es noch nicht genug RR für eine gültige Kohärenz — also trug JEDER
+                          ⭐ **Die Hälfte, die NICHTS maskiert, ist `lastValidCoherence` auf dem
+                          ERFOLGS-Pfad.** ⛔ Die erste Fassung schrieb „liegt gar nicht auf dem
+                          Halte-Pfad" — falsch, und zwanzig Zeilen über dem Code, der es widerlegt: der
+                          Halte-Zweig klingt das Feld ab (`*= 0.9`) UND veröffentlicht es. Nicht auf dem
+                          Halte-Pfad liegt der ERFOLGS-Rückfall
+                          `coherence.valid ? coherence.coherence : lastValidCoherence * 0.9`, dessen
+                          Rückschreiber NUR bei gültigem Fenster läuft. Solange die Kohärenz ungültig
+                          ist, trägt also JEDER
                           wirklich lebende Frame, mit neuem Stempel, echtem Puls und durch jedes
-                          Frische-Tor, die Kohärenz des VORIGEN Takes, einmal skaliert. Kein Abklingen:
-                          eine KONSTANTE, weil der Rückschreiber gegated ist. Nichts stromabwärts kann
+                          Frische-Tor, eine Zahl aus dem VORIGEN Take. Nichts stromabwärts kann
                           das fangen — der Frame IST frisch, nur diese eine Zahl gehört zu einem anderen
                           Take. Der Kommentar über der Zeile nennt die Absicht, die dabei verletzt wird
                           („Kohärenz über TRANSIENTE Ungültigkeit halten"), und ein Stopp/Start ist nicht
                           transient.
+                          ⛔ **UND ZWEI GRÖSSENANGABEN IN DIESEM ABSATZ WAREN FALSCH, in
+                          entgegengesetzte Richtungen.** (a) „einmal skaliert" lag um ~8× daneben, weil
+                          die beiden Hälften NICHT unabhängig sind: `lastValidCoherence > 0` setzt eine
+                          gültige Erfolgs-Veröffentlichung voraus, und derselbe Pfad setzt auch
+                          `lastGoodBioFrame` — der Halte-Zweig aus Hälfte 1 feuert also bei JEDEM
+                          Publish-Tick des neuen Takes und klingt das Feld jedes Mal um 0,9 ab. Bei den
+                          hier zitierten ~19 s ist das `0,9^19 ≈ 0,135`, dann noch einmal skaliert:
+                          **≈12 % des alten Wertes, nicht 90 %.** Was überlebt, ist der tragende Teil —
+                          sobald der Halt aufhört zu feuern, klingt nichts mehr ab, es ist also eine
+                          abgestandene KONSTANTE. (b) „Am Anfang eines Takes gibt es noch nicht genug
+                          RR" hat die DAUER unterschätzt und die HÄUFIGKEIT überschätzt.
+                          `HRVCoherence.minIntervals` ist 16, und die Kamera SAMMELT keine RR-Reihe —
+                          `CameraAnalyzer` baut sie bei jedem Durchgang komplett aus einem festen
+                          10-s-Peakfenster neu, 16 Intervalle brauchen also ≥17 saubere Peaks in 10 s,
+                          d. h. anhaltend ≳102 bpm. Der `OSCSender`-Kopf hält das längst fest („auf der
+                          KAMERA wird sie vielleicht nie erreicht"). Bei jedem RUHEPULS bleibt
+                          `lastValidCoherence` damit für die ganze Prozesslebensdauer 0 und diese Hälfte
+                          ist GEGENSTANDSLOS — und wenn ein Anstrengungs-Take sie doch schreibt, dauert
+                          der Defekt den GANZEN nächsten Take. **Lehre: eine Hälfte, die ich „die
+                          unmaskierbare" genannt habe, war gleichzeitig schlimmer und viel seltener als
+                          behauptet — beide Richtungen gehören gemessen, bevor eine Größenangabe steht.**
                           ⚠️ **Die beiden Anker müssen GEMEINSAM geräumt werden, und das ist keine
                           Ordnungsliebe:** `Int.min` ist ein Sentinel INNERHALB einer Subtraktion.
                           `tick - Int.min` läuft über und bringt Swift zum Absturz. Das Einzige, was

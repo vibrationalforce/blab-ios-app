@@ -8,25 +8,44 @@
 //   1. `lastGoodBioFrame` + `lastGoodPublishTick`. `tick` is a LOCAL of `publishTask`, so a
 //      new take restarts it at 0 while `lastGoodPublishTick` still held the previous take's
 //      count. `tick - lastGoodPublishTick` was therefore hugely NEGATIVE — hence
-//      `<= bioHoldTicks`, hence the dropout-hold branch fired from the very first tick of a
-//      fresh take, re-emitting the previous take's frame for the whole re-acquisition window
-//      (#415 measured ~19 s of that). This half is LARGELY masked downstream and the honest
-//      statement says so: the held frame carries the previous take's own timestamp, so
-//      `EngineBus.usableBio()` expires it after `BioSource.cameraPPG.freshnessWindow` (6 s),
-//      timestamp-deduping consumers treat it as a no-op, and `EngineBus.latestBio` was never
-//      cleared by a stop anyway. A restart more than 6 s after the last good frame costs
+//      `<= bioHoldTicks`, hence the dropout-hold branch re-emitted the previous take's frame
+//      for the whole re-acquisition window (#415 measured ~19 s of that). ⛔ NOT "from the
+//      very first tick", which is what the first version of this header wrote: the publish
+//      path is behind `tick % 10 == 0` AND behind `inboundRateEMA >= minMeasurableInboundHz`,
+//      so the earliest republish is `tick == 10` — about 1 s in — and a frameless first second
+//      decays the re-seeded EMA to 15·0.9^10 ≈ 5.2, under the 6.0 threshold, skipping even
+//      that one. This half is LARGELY masked downstream and the honest statement says so: the
+//      held frame carries the previous take's own timestamp, so `EngineBus.usableBio()`
+//      expires it after `BioSource.cameraPPG.freshnessWindow` (6 s), every consumer that ACTS
+//      on it either dedupes on timestamp or gates on freshness, and `EngineBus.latestBio` was
+//      never cleared by a stop anyway. A restart more than 6 s after the last good frame costs
 //      nothing measurable. It is still wrong — state named per-take that survives the take —
 //      and it is the reachable path to the trap in claim 4.
 //
-//   2. `lastValidCoherence`, and this one is NOT on the hold path. The SUCCESS path publishes
-//      `coherence.valid ? coherence.coherence : lastValidCoherence * 0.9` and writes the value
-//      back ONLY when valid. At the start of a take there is not yet enough RR for a valid
-//      coherence, so every genuinely live frame — new timestamp, real heart rate, passes every
-//      freshness gate — carried the PREVIOUS take's coherence scaled once. Not a decay: a
-//      CONSTANT, because the gated write-back never lowers it. Nothing downstream can catch
-//      this; the frame really is fresh, only that one number belongs to a different take. The
-//      comment on that line states the intent it violates — "hold coherence across TRANSIENT
-//      invalidity" — and a stop/start is not transient.
+//   2. `lastValidCoherence` on the SUCCESS path. ⛔ The first version of this header said the
+//      field "is NOT on the hold path" — false: the hold branch both decays it (`*= 0.9`) and
+//      publishes it. What is not on the hold path is the success-path FALLBACK,
+//      `coherence.valid ? coherence.coherence : lastValidCoherence * 0.9`, whose write-back
+//      runs ONLY when valid. So while coherence is invalid, every genuinely live frame — new
+//      timestamp, real heart rate, past every freshness gate — carried a number from the
+//      PREVIOUS take. Nothing downstream can catch this; the frame really is fresh, only that
+//      one field belongs elsewhere. The comment on that line states the intent it violates —
+//      "hold coherence across TRANSIENT invalidity" — and a stop/start is not transient.
+//
+//      ⛔ TWO MAGNITUDE CLAIMS IN THAT PARAGRAPH WERE ALSO WRONG, in opposite directions.
+//      (a) "scaled once" was off by ~8×: the two halves are NOT independent —
+//      `lastValidCoherence > 0` requires a valid success publish, and that same path also sets
+//      `lastGoodBioFrame`, so half 1's hold branch fires on every publish tick of the new take
+//      and decays the field by 0.9 each time. At the cited ~19 s that is `0.9^19 ≈ 0.135`, then
+//      scaled once more — ≈12 % of the old value. What survives is the part that matters: once
+//      the hold stops firing nothing decays it further, so it is a stale CONSTANT.
+//      (b) "at the start of a take there is not yet enough RR" understated how long it lasts
+//      and overstated how often it happens. `HRVCoherence.minIntervals` is 16 and the camera
+//      does not ACCUMULATE RR — `CameraAnalyzer` rebuilds the series whole from a fixed 10 s
+//      peak window, so 16 intervals needs ≥17 clean peaks in 10 s, i.e. a sustained ≳102 bpm.
+//      `OSCSender`'s header already records this ("on the CAMERA it may never be reached"). At
+//      any resting pulse `lastValidCoherence` stays 0 for the whole process and this half is
+//      VACUOUS — and when an exertion take does write it, the defect lasts the WHOLE next take.
 //
 // ⚠️ WHAT THIS FILE CANNOT DO, said first. Every assertion here is a SOURCE SCAN. The three
 // fields are `private`, the publisher lives behind `#if canImport(AVFoundation)`, and driving
@@ -35,13 +54,21 @@
 // the premises the reasoning rests on are still true.
 //
 // ⚠️ AND IT WOULD NOT HAVE CAUGHT THE BUG ON ITS OWN. A scan can only assert the shape someone
-// already decided on. The defect was an OMISSION in a method that resets ~20 other fields; no
-// guard over the fields that WERE reset would have noticed. Claim 4 is the part that earns its
-// place going forward, because it fails on a change nobody would connect to this file.
+// already decided on. The defect was an OMISSION in a method that resets twenty-five other
+// per-take fields; no guard over the fields that WERE reset would have noticed. Claim 4 is
+// the part that earns its place going forward, because it fails on a change nobody would
+// connect to this file.
 
 import Foundation
 import XCTest
 @testable import Echoelmusic
+
+/// Thrown when a scan anchor is gone. An uncaught error in a `throws` test method is a
+/// FAILURE, which is the point — `XCTSkip` would have been green.
+private struct AnchorMissing: Error, CustomStringConvertible {
+    let reason: String
+    var description: String { reason }
+}
 
 final class AFreshTakeStartsWithNoHeldFrameTests: XCTestCase {
 
@@ -51,16 +78,21 @@ final class AFreshTakeStartsWithNoHeldFrameTests: XCTestCase {
     /// dozen more, and none of these three.
     func testStopClearsAllThreeHoldAnchors() throws {
         let body = try stopBody()
+        // Whole-line equality, not `contains`. `"lastValidCoherence = 0"` is a PREFIX of
+        // `"lastValidCoherence = 0.5"`, so a substring scan would accept a reset that seeds
+        // the wrong value — the one thing this claim is here to prevent.
+        let lines = Set(body.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) })
         for assignment in ["lastGoodBioFrame = nil",
                            "lastGoodPublishTick = Int.min",
                            "lastValidCoherence = 0"] {
-            XCTAssertTrue(body.contains(assignment), """
+            XCTAssertTrue(lines.contains(assignment), """
                 `CameraRPPGBioPublisher.stop()` no longer contains `\(assignment)`.
 
                 These three are PER-TAKE state. Leaving any of them behind lets a new take \
                 begin with the previous take's held frame, its tick anchor, or — the half \
                 nothing downstream can mask — the previous take's coherence riding on \
-                genuinely live frames until the RR series is long enough to be valid.
+                genuinely live frames for as long as the RR series stays too short to be \
+                valid, which on the camera at a resting pulse is the whole take.
 
                 Body scanned (comments blanked by SourceText.codeOnly):
                 \(body)
@@ -173,7 +205,16 @@ final class AFreshTakeStartsWithNoHeldFrameTests: XCTestCase {
     private func stopBody() throws -> String {
         let source = try publisherSource()
         guard let start = source.range(of: "public func stop() {") else {
-            throw XCTSkip("`public func stop()` not found — the method was renamed or removed")
+            // ⛔ FAIL, DO NOT SKIP. The first version threw `XCTSkip` here, and a skip PASSES
+            // CI: renaming `stop()`, making it `async`, or merely reflowing its signature
+            // would have silently disarmed all three assertions in claim 1 — the only ones in
+            // this file that are red on the old code. The skip in `publisherSource()` is a
+            // different kind (the whole tree is absent, so there is nothing to assert about)
+            // and stays.
+            throw AnchorMissing(reason: """
+                `public func stop() {` not found — renamed, reflowed or removed. \
+                Re-anchor this scan; do not leave it silent.
+                """)
         }
         // `start.upperBound` sits just past the opening brace, so the depth starts at 1.
         var depth = 1

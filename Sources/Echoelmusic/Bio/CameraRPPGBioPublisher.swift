@@ -1384,23 +1384,50 @@ public final class CameraRPPGBioPublisher {
         respiration.reset()
         lastRespirationBeatTime = 0
         // THE HOLD ANCHORS ARE PER-TAKE TOO, and these three were missing here — the same
-        // omission the block at the end of this method already records for four other fields
-        // (#145). `tick` is a LOCAL of `publishTask`, so a new take restarts it at 0 while
-        // `lastGoodPublishTick` still carried the previous take's count: `tick -
+        // omission the re-lock block further down already records for four other fields
+        // (device log 2465). `tick` is a LOCAL of `publishTask`, so a new take restarts it
+        // at 0 while `lastGoodPublishTick` still carried the previous take's count: `tick -
         // lastGoodPublishTick` was hugely NEGATIVE, hence `<= bioHoldTicks`, hence the hold
-        // branch fired from the first tick of a fresh take and re-published the PREVIOUS
-        // take's frame — for the whole re-acquisition window (#415 measured ~19 s).
+        // branch re-published the PREVIOUS take's frame for the whole re-acquisition window
+        // (#415 measured ~19 s). This method clears twenty-five OTHER per-take fields; these
+        // three were simply left out.
         //
-        // ⭐ THE HALF THAT NOTHING ELSE MASKS is `lastValidCoherence`, and it is not on the
-        // hold path at all. The success path publishes `coherence.valid ? … :
-        // lastValidCoherence * 0.9` and writes back ONLY when valid, so at the start of a
-        // take — when there is not yet enough RR for a valid coherence — every genuinely
-        // live frame, with a genuinely new timestamp, carried the PREVIOUS take's coherence
-        // scaled once. Not a decay: a constant, because the write-back is gated. No
-        // freshness gate and no timestamp dedupe can catch that one; the frame really is
-        // fresh, only the number in it belongs to a different take. The comment above that
-        // line says what it is for — "hold coherence across TRANSIENT invalidity" — and a
-        // stop/start is not transient.
+        // ⚠️ NOT "from the first tick", which is what the first version of this block wrote.
+        // The publish path sits behind `tick % 10 == 0` AND behind the inbound-rate truth
+        // gate (`inboundRateEMA >= minMeasurableInboundHz`), so the earliest republish is
+        // `tick == 10`, about 1 s in — and a frameless first second decays the re-seeded EMA
+        // to 15·0.9^10 ≈ 5.2, under the 6.0 threshold, skipping even that one.
+        //
+        // ⭐ THE HALF NOTHING DOWNSTREAM CAN MASK is `lastValidCoherence` on the SUCCESS
+        // path. ⛔ The first version of this block said the field "is not on the hold path at
+        // all" — false, and twenty lines above the code that disproves it: the hold branch
+        // both decays it (`lastValidCoherence *= 0.9`) and publishes it. What is not on the
+        // hold path is the SUCCESS-path fallback `coherence.valid ? … : lastValidCoherence *
+        // 0.9`, whose write-back runs ONLY when valid — so while coherence is invalid every
+        // genuinely live frame, with a genuinely new timestamp, carries a number from the
+        // PREVIOUS take. No freshness gate and no timestamp dedupe can catch that; the frame
+        // really is fresh, only that one field belongs elsewhere. The comment above that line
+        // states the intent it violates — "hold coherence across TRANSIENT invalidity" — and
+        // a stop/start is not transient.
+        //
+        // ⛔ AND "scaled once" WAS WRONG BY ~8×, because the two halves are not independent:
+        // `lastValidCoherence > 0` requires a valid success publish, and that same path also
+        // sets `lastGoodBioFrame`, so half 1's hold branch fires on every publish tick of the
+        // new take and decays the field by 0.9 each time. At the ~19 s this block itself
+        // cites that is `0.9^19 ≈ 0.135`, then scaled once more on the first live frame —
+        // ≈12 % of the old value, not 90 %. What survives of the original wording is the part
+        // that matters: once the hold stops firing nothing decays it further, so it is a
+        // stale CONSTANT rather than a decay.
+        //
+        // ⛔ AND IT IS FAR LESS REACHABLE THAN THE FIRST VERSION CLAIMED, which said "at the
+        // start of a take there is not yet enough RR". `HRVCoherence.minIntervals` is 16 and
+        // the camera does not ACCUMULATE its RR series — `CameraAnalyzer` rebuilds it whole
+        // from a fixed 10 s peak window, so 16 intervals needs ≥17 clean peaks in 10 s, i.e.
+        // a sustained ≳102 bpm. `OSCSender`'s header already records this ("on the CAMERA it
+        // may never be reached"). So: at any resting pulse `lastValidCoherence` stays 0 for
+        // the whole process and this half is VACUOUS — and when an exertion take does write
+        // it, the defect lasts the WHOLE next take rather than an acquisition window, because
+        // the field never becomes valid again at rest. Both directions were wrong at once.
         //
         // ⚠️ THE TWO ANCHORS MUST BE CLEARED TOGETHER, and that is not tidiness. `Int.min`
         // is a sentinel inside a SUBTRACTION: `tick - Int.min` traps on overflow. The only
