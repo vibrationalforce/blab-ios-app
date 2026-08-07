@@ -1129,6 +1129,17 @@ public final class CameraRPPGBioPublisher {
                     // definitional split, so an integrator switching camera→strap sees a step in
                     // it that no body produced. Registered, not fixed here — closing it is a
                     // measurement (does the exclusion suit rPPG gaps?), not an edit.
+                    //
+                    // ⚠️ AND #459 MADE THIS LINE'S INPUT DIVERGE FROM ITS NEIGHBOUR'S, which is
+                    // worth naming because the divergence is now invisible. SDNN reads the LOCAL
+                    // `rrMs` snapshot; pNN50 one field down reads `analyzer.rrSegments`. They are
+                    // the same beats today only because `rrMs` IS `analyzer.rrIntervals` and the
+                    // runs were derived from it in the same tick. Change `rrMs` to anything else
+                    // — `rawIntervalsMs`, a hygiene pass — and SDNN silently describes a
+                    // different set of beats than pNN50 and RMSSD, in the same frame. That is the
+                    // exact class #459 removed one layer up, re-entering through the back door.
+                    // `testSDNNDeliberatelyStaysFlat` pins the FORM (`sdnn(rrMs:`), not the
+                    // argument, so nothing goes red if it happens.
                     hrvSDNNms: Float(HRVMetrics.sdnn(rrMs: rrMs)),
                     // pNN50 DOES read consecutive pairs, so it gets the same treatment as
                     // RMSSD one layer up: pooled only within runs of genuinely adjacent

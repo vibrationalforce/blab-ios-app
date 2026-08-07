@@ -161,7 +161,21 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
 
     // MARK: - 2c. COUNTERWEIGHT — the shared runs cannot outlive their inputs
 
-    /// GREEN before and after; present because #459 CREATES the failure mode it guards.
+    /// ⛔ HONEST GRADING — THE FIRST VERSION GOT ITS OWN CATEGORY WRONG, in three artifacts at
+    /// once (here, the `60af6fd` commit body, and the `decisions.csv` row). It said "GREEN before
+    /// and after". It is **RED** on the parent tree: `rrSegments.removeAll()` does not exist
+    /// there, so the loop below fails at BOTH clear sites. And it is not saved by the #461 escape
+    /// hatch either — this is a pure TEXT scan that never references the symbol, so it compiles
+    /// and runs on the old tree and genuinely fails.
+    ///
+    /// But it is not a REGRESSION test, and calling it one would be the other half of the same
+    /// error. Its redness there is VACUOUS: it fails because the property did not exist, not
+    /// because a defect did. That is the signature-shaped red CLAUDE.md's #427 entry already
+    /// retracts once ("eine signaturbedingte Rotfärbung als Regression zu verbuchen wäre dieselbe
+    /// Selbst-Fehleinordnung"), and #433's lesson is that mis-grading your own tests is HARDER to
+    /// see than a guard that cannot fail, because either way everything is green.
+    /// The accurate label: **a forward guard, green from #459 onward, present because #459
+    /// CREATES the failure mode it guards.**
     ///
     /// Deriving the runs at publish time had one property worth naming: they could not be
     /// stale, because they did not exist between publishes. Caching them on the analyzer trades
@@ -176,9 +190,25 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
     /// `#if canImport(AVFoundation)` and both clear sites are `private`. It asserts the pairing
     /// rather than a count: every line that empties `rrIntervals` must be within a few lines of
     /// one that empties `rrSegments`.
+    ///
+    /// ⚠️ THE ±3 IS A REAL CONSTRAINT ON THE SOURCE, not a free constant, and it is written on
+    /// `rrSegments` too so the coupling is visible from the other end. `SourceText.codeOnly`
+    /// blanks a comment but KEEPS its line (#453), so a three-line explanatory block above either
+    /// clear would push it out of range and turn a CORRECT file red. That is why both site notes
+    /// are trailing comments. Widening the window is the wrong repair: it is what keeps the three
+    /// statements one block instead of three scattered ones.
+    ///
+    /// ⚠️ AND IT ONLY RECOGNISES `.removeAll()`. A future clear written `rrIntervals = []` is
+    /// invisible to the DETECTOR — so it is matched here as well, purely forward-looking (there
+    /// are zero such lines today, so this changes nothing on the current tree). Note the
+    /// companion guard in `ResonanceBreathingNeedsMoreThanOneWindowTests` has the same blind
+    /// spot and is NOT widened here; naming it is cheaper than editing a guard this slice does
+    /// not otherwise touch.
     func testTheSharedRunsAreClearedWithTheArraysTheyCameFrom() throws {
         let lines = try analyzerSource().split(separator: "\n", omittingEmptySubsequences: false)
-        let clearIndices = lines.indices.filter { lines[$0].contains("rrIntervals.removeAll()") }
+        let clearIndices = lines.indices.filter {
+            lines[$0].contains("rrIntervals.removeAll()") || lines[$0].contains("rrIntervals = []")
+        }
         XCTAssertGreaterThanOrEqual(clearIndices.count, 2, """
             expected both places that empty `rrIntervals` (lock loss + `resetPulseState`), \
             found \(clearIndices.count). If a clear site was removed, the arrays now survive a \
@@ -186,7 +216,9 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
             """)
         for i in clearIndices {
             let near = lines[max(0, i - 3)...min(lines.count - 1, i + 3)]
-            XCTAssertTrue(near.contains { $0.contains("rrSegments.removeAll()") }, """
+            XCTAssertTrue(near.contains {
+                $0.contains("rrSegments.removeAll()") || $0.contains("rrSegments = []")
+            }, """
                 `rrIntervals` is emptied at line \(i + 1) without emptying `rrSegments`. The \
                 cached runs would then outlive the beats they describe and the next publish \
                 would carry a pNN50 for a window that no longer exists. Neighbourhood:

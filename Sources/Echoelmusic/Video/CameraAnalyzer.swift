@@ -56,9 +56,13 @@ final class CameraAnalyzer {
     /// interval in `rrIntervals` — always the same length, always in the same order.
     ///
     /// It exists for the one thing `rrIntervals` alone cannot support: accumulating across
-    /// windows. The analysis window is 10 s and re-runs about once a second, so consecutive
-    /// publications overlap by ~90 %, and the interval VALUES carry no identity — two beats
-    /// 40 s apart can produce byte-identical doubles. A consumer holding long-lived state
+    /// windows. The analysis window is 10 s and the one consumer DRAINS it once per publish
+    /// (~1 Hz), so consecutive publications overlap by ~90 %, and the interval VALUES carry no
+    /// identity — two beats 40 s apart can produce byte-identical doubles. (⛔ The ~90 % used
+    /// to be derived from "the window re-runs about once a second". The window re-runs at
+    /// ~3.75 Hz — see the ⛔ block below — so the figure was right about PUBLICATIONS and the
+    /// premise underneath it was about something else. Do not restore the re-run wording.)
+    /// A consumer holding long-lived state
     /// (respiration, #343) needs to ingest each beat exactly once; comparing against the last
     /// time it consumed is the only exact way to do that.
     ///
@@ -72,9 +76,17 @@ final class CameraAnalyzer {
     /// guard inside a 100 ms loop and therefore runs at ~1 Hz, not the 10 Hz of the loop
     /// itself. (That poll-rate-versus-apply-rate slip is the one CLAUDE.md blames for #315,
     /// #332 and #336; the first version of THIS comment made it a fourth time, and
-    /// contradicted its own next sentence doing so.) The array is rewritten about once a
-    /// second. Leaving it observed would put a ~1 Hz invalidation source in reach of any body
-    /// that happened to touch it — the exact shape of the menu-freeze law in CLAUDE.md. It is
+    /// contradicted its own next sentence doing so.)
+    ///
+    /// ⛔ AND IT MADE IT A FIFTH TIME, in the sentence that followed: "the array is rewritten
+    /// about once a second". That is the READ rate, reused for the WRITE rate. The array is
+    /// assigned in `detectPeaks`, which sits behind `peakTick % 4` on a feed capped at 15 fps
+    /// (`CameraCapture`), so it is rewritten at **~3.75 Hz** — nearly 4× the number that stood
+    /// here. The direction is SAFE (the real rate is higher, so withholding observation is
+    /// MORE justified, not less), which is exactly why nothing would ever have caught it: a
+    /// wrong premise under a surviving conclusion. Leaving it observed would put a ~3.75 Hz
+    /// invalidation source in reach of any body that happened to touch it — the exact shape of
+    /// the menu-freeze law in CLAUDE.md. It is
     /// cheaper to withhold observation from a property no view should ever read than to rely
     /// on nobody reading it.
     @ObservationIgnored var beatTimes: [Double] = []
@@ -88,8 +100,12 @@ final class CameraAnalyzer {
     /// either one — a hygiene pass, `rawIntervalsMs` instead of `rrIntervals` — would have
     /// left RMSSD and pNN50 disagreeing about which beats are adjacent, silently, in the
     /// same frame. Making those two agree is the whole point of #425; two hand-copied
-    /// definitions of it is the #416 shape. The recompute cost was never the argument: this
-    /// is O(30) about once a second.
+    /// definitions of it is the #416 shape. The recompute cost was never the argument: the
+    /// duplicate that was REMOVED ran O(30) once per publish (~1 Hz). (⛔ That sentence first
+    /// said "this is O(30) about once a second", where "this" reads as the derivation right
+    /// here — which runs ~4× faster than that, see below. The conclusion is unchanged either
+    /// way; the referent was wrong, and a doc that names the wrong subject is the class this
+    /// repo keeps paying for.)
     ///
     /// ⚠️ THE INVARIANT THIS BUYS AND THE ONE IT OWES. It is assigned in exactly one place,
     /// `calculateRMSSD()`, which BOTH sites that write `rrIntervals`/`beatTimes` call
@@ -99,9 +115,22 @@ final class CameraAnalyzer {
     /// beside empty arrays would publish a pNN50 for beats that no longer exist — a failure
     /// mode the previous recompute-at-publish shape could not have.
     ///
-    /// `@ObservationIgnored` for the same reason as `beatTimes` above: rewritten ~1 Hz, read
-    /// by one non-view consumer. Observing it would put a ~1 Hz invalidation source in reach
-    /// of any body that touched it — the menu-freeze law in CLAUDE.md.
+    /// ⚠️ THE CLEARS MUST STAY AFTER `beatTimes.removeAll()`, not between it and
+    /// `rrIntervals.removeAll()`. `ResonanceBreathingNeedsMoreThanOneWindowTests`
+    /// (`testEveryRRAssignmentCarriesItsBeatTimes`) requires `beatTimes.removeAll()` to be the
+    /// immediately-next non-empty line after `rrIntervals.removeAll()`, so a tidy-looking
+    /// reflow that groups the three differently takes the BLOCKING bundle down with a
+    /// respiration-flavoured message that names none of this. And the pairing guard
+    /// (`RMSSDReadsOnlyAdjacentBeatsTests`) scans a ±3-LINE window, which is why the notes at
+    /// the two clear sites are TRAILING comments and not a block above: `SourceText.codeOnly`
+    /// blanks a comment but keeps its LINE (#453), so three lines of explanation would push
+    /// the clear out of range and turn a correct file red.
+    ///
+    /// `@ObservationIgnored` for the same reason as `beatTimes` above, and at the same rate it
+    /// really has: assigned from `calculateRMSSD()`, called only from `detectPeaks`, which is
+    /// throttled `peakTick % 4` on a 15 fps feed — **~3.75 Hz**, not the ~1 Hz at which the
+    /// publisher READS it. Observing it would put a ~3.75 Hz invalidation source in reach of
+    /// any body that touched it — the menu-freeze law in CLAUDE.md.
     @ObservationIgnored private(set) var rrSegments: [[Double]] = []
 
     /// Every peak-to-peak difference of the newest window, in ms, with NOTHING removed —
@@ -361,7 +390,7 @@ final class CameraAnalyzer {
                 rmssd = 0
                 rrIntervals.removeAll()
                 beatTimes.removeAll()    // stays 1:1 with rrIntervals, including when both are empty
-                rrSegments.removeAll()   // derived from the two above — a run list must not outlive them
+                rrSegments.removeAll()   // derived from the two above; KEEP LAST — see its doc
                 recentBPMs.removeAll()   // don't seed the next lock from a stale median
             }
         }
@@ -425,7 +454,7 @@ final class CameraAnalyzer {
         peakIndices.removeAll()
         rrIntervals.removeAll()
         beatTimes.removeAll()   // stays 1:1 with rrIntervals, including when both are empty
-        rrSegments.removeAll()  // derived from the two above — a run list must not outlive them
+        rrSegments.removeAll()  // derived from the two above; KEEP LAST — see its doc
         bpState = BandpassState()
         dcEstimate = 0
         dcWarmupCount = 0
