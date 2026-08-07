@@ -319,8 +319,8 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           einem BENANNTEN Verhältnis 1,25 — dem KONSERVATIVEN Ende der schon hier zitierten
                           Klammer (Kurzzeit-Ruhestudien ≈1,25, Task-Force-SDNN-Index/RMSSD ≈2,0), weil eine
                           Demo eine Spanne nicht überzeichnen darf, die niemand gemessen hat. Gemessen vor
-                          dem Schreiben: das veröffentlichte Band wandert **18…81 ms → 25…112,5 ms**, beide
-                          Enden weiter innerhalb `BioStripView`s 3…300-Fenster, und das OSC-Tor ist
+                          dem Schreiben: das veröffentlichte Band wandert **18…81 ms → 25…112,5 ms**, und
+                          das OSC-Tor ist
                           `hrvSDNNms > 0`, das 25 so sicher nimmt wie 18. Die NICHT-Rundreise bleibt per
                           Konstruktion kaputt (1,25·h ≠ h auf dem ganzen 0,2…0,9-Band, darüber sättigt
                           `normalize` auf 1,0) — das Gegengewicht ist also nicht aufgeweicht, es hat nur
@@ -328,8 +328,47 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           ⚠️ Und die ehrliche Einordnung der zwei NEUEN Behauptungen, weil die naheliegende
                           schmeichelhafter wäre: `restingSDNNOverRMSSD > 1` und der Richtungs-Sweep sind
                           KEINE Regressionen — sie hätten auf dem alten Baum nicht einmal kompiliert, die
-                          Konstante gab es nicht. Es gibt pro Baseline genau EINE rote Behauptung: den
-                          RMSSD-Scan gegen den Vor-#461-Baum, den SDNN-Scan gegen den Vor-#464-Baum.
+                          Konstante gab es nicht.
+                          ⛔ **UND DIE ERSTE FASSUNG DIESES ABSATZES HAT IHRE EIGENE BENOTUNG DREIMAL
+                          FALSCH GEMACHT — beide Reviewer fanden es unabhängig, ich habe jede Zahl
+                          nachgeschlagen.** Sie schrieb „pro Baseline genau EINE rote Behauptung: den
+                          RMSSD-Scan gegen den Vor-#461-Baum, den SDNN-Scan gegen den Vor-#464-Baum", und
+                          zwei Zeilen davor „hätten nicht einmal kompiliert" — **zwei Sätze, von denen der
+                          zweite den ersten aufhebt.** (1) `git show c93ae1b^` trägt `* 120` UND `* 90`,
+                          der heutige SDNN-Scan ist dort also ebenfalls rot: **ZWEI** gegen Vor-#461. (2)
+                          `demoSDNNms` ist ein DATEIWEITER Helfer auf der neuen Konstante — die Datei
+                          kompiliert gegen KEINEN der beiden alten Bäume, es kann dort also gar nichts
+                          benotet werden. (3) Es sind **VIER** symbolabhängige Stellen, nicht zwei (der
+                          Verhältnis-Test, beide Schleifen-Behauptungen, das `("SDNN", …)`-Tupel im
+                          Band-Test). Die ehrliche Fassung: das ist eine HISTORISCHE ERZÄHLUNG, keine
+                          ausführbare Prüfung — jede Baseline ist still mit der ZEITGENÖSSISCHEN Fassung
+                          des Wächters gepaart, und nur unter dieser Paarung stimmt „genau eine". Die
+                          Vorwärts-Wächter-Einordnung überlebt, die Zählung und die Ausführbarkeit nicht.
+                          ⛔ **Und die dritte Falschstelle desselben Commits war eine erfundene
+                          OBERFLÄCHE, in FÜNF Artefakten gleichzeitig** (Quelle, Wächter, Commit-Text,
+                          hier, decisions.csv): „der Wert, den `BioStripView` zeigt" und „beide Enden
+                          innerhalb `BioStripView`s 3…300-Fenster". `git grep -n hrvSDNNms --
+                          Sources/Echoelmusic/Studio` liefert NICHTS — die „HRV"-Zelle IST RMSSD, und
+                          `plausibleHRVms` gilt nur für dieses Feld. **In `Sources/` begrenzt GAR KEIN
+                          Plausibilitätsfenster `hrvSDNNms`**; das einzige Tor ist `> 0`. Der einzige
+                          Verbraucher ist `OSCSender`. ⭐ Die Lehre ist schärfer als die übliche
+                          Stale-Zahl-Lehre, weil der RICHTIGE Satz vierzig Zeilen höher in DERSELBEN
+                          Datei stand („die zwei VERBRAUCHER von `hrvRMSSDms`") — wahr, über RMSSD. Der
+                          neue Satz hat seine FORM für ein anderes Feld wiederverwendet und die
+                          Verbraucherliste behalten: **ein Satz, der von einem benachbarten wahren Satz
+                          abgeschrieben ist, erbt dessen Glaubwürdigkeit und nicht dessen Subjekt.**
+                          ⛔ Und die Bezifferung des Verhältnisses war ebenfalls zu stark: „das
+                          KONSERVATIVE Ende der zitierten Klammer" — zitiert ist genau EIN Ende (Task
+                          Force, ≈2,0); das untere stand als unbelegte Prosa da („Größenordnung 50 gegen
+                          40 ms"). Ein Reviewer setzt die übliche Kurzzeit-Norm (Nunan et al. 2010) auf
+                          50/42 ≈ 1,19, was 1,25 leicht DARÜBER legt statt darauf — **nicht verifiziert**,
+                          der Proxy sperrt die Journale. 1,25 ist damit eine GEWÄHLTE runde Zahl nahe dem
+                          unteren Rand einer 1,2…2,0-Klammer, keine zitierte Größe.
+                          ⛔ Nebenbefund derselben Runde, pre-existing und in zwei Dateien: `BioSimulator`s
+                          Kopf sagte „(oder, in DEBUG, auto-on)" und `docs/architecture.html` „in DEBUG
+                          builds only" — beides falsch, `start(publishing:)` hat EINE Aufrufstelle im
+                          Quellen-Dropdown der Puls-Pille, ohne jedes `#if DEBUG`. Beide gestrichen; die
+                          zweite stand auf der VERÖFFENTLICHTEN Seite.
                           ⛔ Die ZUORDNUNG war falsch — hier stand „Task Force 1996:
                           Ruhe-SDNN über RMSSD auf 5-Minuten-Aufzeichnungen", und das ist die falsche
                           Tabelle: das Normwert-Paar SDNN 141±39 ms / RMSSD 27±12 ms stammt aus

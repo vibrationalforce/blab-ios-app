@@ -50,11 +50,24 @@
 //     push the SDNN walk past 300 — would silently empty the Demo readout rather than correct it.
 //
 // ⚠️ TWO BASELINES, because this file now guards TWO slices and "is it red?" has no answer
-// without saying red against WHAT. Against the pre-#461 tree exactly one claim fails: the RMSSD
-// scan. Against the pre-#464 tree exactly one claim fails: the SDNN scan (which then pinned the
-// inverted `* 90`). Everything else is a premise, a museum piece or a counterweight, and the two
-// #464 arithmetic claims could not even have COMPILED on the older tree — `restingSDNNOverRMSSD`
-// did not exist. Calling those regressions would be the #433 self-mis-filing again.
+// without saying red against WHAT. ⛔ AND THE FIRST VERSION OF THIS PARAGRAPH GOT ITS OWN
+// GRADING WRONG THREE WAYS — both #464 reviewers found it independently, and every count is
+// verified below. It said "Against the pre-#461 tree exactly one claim fails: the RMSSD scan",
+// and it said the two new arithmetic claims "could not even have COMPILED" — two sentences that
+// cannot both be operative, because the second destroys the first.
+//   · `git show c93ae1b^:…/BioSimulator.swift` carries **both** `* 120` and `* 90`, so today's
+//     SDNN scan is red there too: **two** red against pre-#461, not one.
+//   · `demoSDNNms` is a FILE-LEVEL helper reading `BioSimulator.restingSDNNOverRMSSD`, so as
+//     written **this file compiles against NEITHER older tree** and no claim in it can be graded
+//     against either. The runnable statement needs the constant references deleted first.
+//   · There are **FOUR** new symbol-dependent sites, not two: the ratio check, the two loop
+//     claims (both via `demoSDNNms`), and the `("SDNN", demoSDNNms(h))` tuple in the band test.
+// The honest form: **this is a historical narrative, not a reproducible check.** Each baseline
+// is silently paired with its CONTEMPORANEOUS version of this guard — pre-#461 with the version
+// that pinned `* 120` and `* 90`, pre-#464 with the version that pinned `* 90`. Under that
+// pairing, and only under it, each baseline has exactly one red claim. The forward-guard
+// classification stands (calling the new arithmetic "regressions" would be the #433
+// self-mis-filing); the counts and the executability did not.
 //
 // ⭐ THE DEFECT. `HRVNormalization` exists because #97 found the live sources each carrying their
 // OWN divisor for the SAME `hrvNormalized` field (camera ÷200, strap ÷100, HealthKit ÷100). It
@@ -233,11 +246,20 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
     /// and is unchanged; only the direction was wrong. The pin moved in the same commit as the
     /// source, with the reason — it was not deleted.
     ///
-    /// ⚠️ HONEST GRADING OF THE FOUR CLAIMS BELOW. The SDNN scan is a real regression against the
-    /// pre-#464 tree. The pNN50 scan is green on both. The direction check and the ratio check
-    /// COULD NOT HAVE RUN on the old tree at all — `restingSDNNOverRMSSD` did not exist, so the
-    /// file would not have compiled; they are forward guards, not proof of a fixed defect, and
-    /// calling them regressions would be the #433 self-mis-filing this file already paid for once.
+    /// ⚠️ HONEST GRADING OF THE **FIVE** CLAIMS BELOW — ⛔ the first version said FOUR and left out
+    /// the `XCTAssertNotEqual` at the end of the loop, i.e. the one this method is NAMED for. An
+    /// enumeration is what a later session greps, so: (1) SDNN scan, (2) pNN50 scan, (3) ratio
+    /// `> 1`, (4) direction per band point, (5) non-round-trip per band point.
+    /// Claim 1 is a real regression against the pre-#464 tree. Claim 2 is green on both. Claims
+    /// 3–5 COULD NOT HAVE RUN on the old tree at all — `restingSDNNOverRMSSD` did not exist, so
+    /// the file would not have compiled; they are forward guards, not proof of a fixed defect,
+    /// and calling them regressions would be the #433 self-mis-filing this file already paid for.
+    ///
+    /// ⚠️ Claims 3 and 4 are near-duplicates and the prose used to imply the wrong ordering:
+    /// because `demoSDNNms` READS the module constant, they agree for every ratio distinguishable
+    /// in `Float`. They part only within ~1e-8 of 1.0, and there claim 3 PASSES while claim 4
+    /// FAILS — so the DIRECTION check is the stronger one, not the ratio check. Both stay: claim 3
+    /// names the intent in the failure message, claim 4 is the one that actually holds the line.
     func testSDNNAndPNN50AreDeliberatelyNotRoundTripped() throws {
         let source = try demoSource()
         XCTAssertTrue(
@@ -248,7 +270,10 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
             literal (which is how it came to sit below RMSSD in the first place) and not the \
             ceiling neat (which would make demo SDNN == demo RMSSD). If this line changed on \
             purpose, update this expectation in the SAME commit and say why; do not delete the \
-            check.
+            check. ⚠️ The needle pins the `Self.` spelling too (#408 wants a token unique to the \
+            intended site) — so rewriting the source as `BioSimulator.restingSDNNOverRMSSD` turns \
+            the blocking bundle red for a purely cosmetic edit. That red is spelling, not \
+            regression.
             """)
         XCTAssertTrue(
             source.contains("hrvPNN50: hrvNormalized * 40"),
@@ -285,18 +310,29 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
         }
     }
 
-    /// COUNTERWEIGHT — green across #461 AND #464. `BioStripView` blanks the HRV readout for
-    /// values outside 3…300 ms. Every band this file has shipped sits inside it — RMSSD 24…108
-    /// before #461 and 20…90 after; SDNN 18…81 before #464 and 25…112.5 after — so this is not
-    /// what either fix repaired. It pins what a DIFFERENT choice would have broken: a smaller
-    /// ceiling, or a resting ratio large enough to push the top of the SDNN walk past 300, would
-    /// have emptied the Demo readout instead of correcting it. That is a live constraint now that
-    /// SDNN is derived rather than literal — at the cited upper bracket (≈2.0) the top would read
-    /// 180 ms, still inside; it is the reason to check rather than assume.
+    /// COUNTERWEIGHT — green across #461 AND #464. Every band this file has shipped sits inside
+    /// 3…300 ms: RMSSD 24…108 before #461 and 20…90 after; SDNN 18…81 before #464 and 25…112.5
+    /// after. So this is not what either fix repaired — it pins what a DIFFERENT anchor choice
+    /// would have broken.
     ///
-    /// ⚠️ The band is a HAND COPY. `BioStripView.plausibleHRVms` is `private static`, so nothing
-    /// binds these two together — if the strip narrows its window, this test stays green and the
-    /// Demo readout goes blank without a red anywhere. Stated rather than papered over.
+    /// ⛔ THE TWO HALVES ARE NOT THE SAME KIND OF CLAIM, and the first version said they were.
+    /// It wrote that an out-of-band SDNN "would have emptied the Demo readout", which is false:
+    /// `git grep -n hrvSDNNms -- Sources/Echoelmusic/Studio` returns NOTHING. `BioStripView`'s
+    /// "HRV" cell IS RMSSD — `hrvString` reads `hrvRMSSDms`, and `plausibleHRVms` is applied to
+    /// that field only; `BioMetricInfo` says out loud that SDNN is a sub-measure of that cell and
+    /// never a cell of its own. **No plausibility window constrains `hrvSDNNms` anywhere in
+    /// `Sources/`.** So the SDNN half could fail numerically but not for its stated reason — the
+    /// #367 defect, introduced by the very commit that pins it, in a file whose header polices
+    /// exactly that. Both #464 reviewers caught it.
+    ///   · RMSSD half: pins a REAL UI constraint (the strip blanks outside the band).
+    ///   · SDNN half: pins a HAND-CHOSEN sanity bound on the OSC egress
+    ///     (`/echoelmusic/bio/heart/sdnn`), whose only real gate is `hrvSDNNms > 0`. Kept because
+    ///     a 300+ ms demo SDNN on a foreign console is implausible on its own terms — but it
+    ///     mirrors no window, and at the cited upper bracket (≈2.0) the top would read 180 ms.
+    ///
+    /// ⚠️ The RMSSD band is a HAND COPY. `BioStripView.plausibleHRVms` is `private static`, so
+    /// nothing binds these two together — if the strip narrows its window, this test stays green
+    /// and the Demo readout goes blank without a red anywhere. Stated rather than papered over.
     func testThePublishedMillisecondsStayInsideTheReadoutBand() {
         let readable: ClosedRange<Float> = 3...300
         for h in [Self.walkBand.lowerBound, 0.5, Self.walkBand.upperBound] {
@@ -304,9 +340,11 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
                 XCTAssertTrue(
                     readable.contains(ms),
                     """
-                    Demo \(name) \(ms) ms at hrvNormalized \(h) falls outside BioStripView's \
-                    plausibility band 3…300 ms, so the readout would show "—" for a source whose \
-                    whole purpose is to give the readouts something to display.
+                    Demo \(name) \(ms) ms at hrvNormalized \(h) falls outside 3…300 ms. For \
+                    RMSSD that IS BioStripView's window, so the readout would show "—" for a \
+                    source whose whole purpose is to give the readouts something to display. \
+                    For SDNN nothing in Sources/ constrains the value — this is a hand-chosen \
+                    sanity bound on the OSC egress, not a mirror of a UI window.
                     """)
             }
         }
