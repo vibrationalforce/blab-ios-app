@@ -1,4 +1,4 @@
-build: v10.79.371 — Der Atem wird endlich gemessen, und jede Zahl auf dem Schirm ist die, die bleibt
+build: v10.79.372 — Was die Zeile anbietet, behält die App jetzt auch; und der Screenshot vom 371er ist abgearbeitet
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,269 +6,150 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.369.
+  Der Vorgänger auf Deinem Gerät ist 10.79.371 (2488).
 
-  71 Commits, 27 neue Wächter. Der größte Sprung seit Wochen, mit zwei Schwerpunkten: die
-  MESSUNG Deines Atems, die an der wichtigsten Stelle gar nicht funktioniert hat — und die
-  ZAHLENFELDER, bei denen die App gezeigt hat, was sie nicht behält.
+  30 Commits, 10 neue Wächter im blockierenden Bündel (gezählt, nicht geschätzt:
+  `git diff --name-status 0d32172..HEAD -- Tests/CISmoke | awk '$1=="A"'`). Zwei davon
+  kommen direkt aus DEINEM Screenshot; der Rest ist die letzte Runde an den Zahlenfeldern
+  und am Atem.
 
-  ── 1. DIE RESONANZATMUNG WAR FÜR DIE KAMERA UNSICHTBAR ────────────────────
+  ── 1. DEIN SCREENSHOT (10.79.371, Build 2488) IST ABGEARBEITET ────────────
 
-  Der schwerste Fund dieser Runde, und er trifft genau die Rate, auf die das Produkt zielt.
+  Drei rote Markierungen waren drauf. Alle drei sind erledigt.
 
-  Die Atemfrequenz wird aus dem Abstand zweier Nulldurchgänge der Herzschlag-Modulation
-  gelesen. Der Schätzer bekam pro Veröffentlichung ein FRISCHES 10-Sekunden-Fenster — und
-  bei 6 Atemzügen pro Minute IST ein Atemzyklus 10 Sekunden lang. In so einem Fenster liegt
-  höchstens EIN Durchgang, und aus einem lässt sich kein Abstand bilden. Über alle 360
-  Startphasen simuliert: die App meldete „Atem gemessen: ja" bei voller Konfidenz, während
-  die Rate an 345 Phasen NULL war und an 15 eine erfundene 7,4.
+  **Das durchgestrichene Tempo-Feld.** Im LOOP-Modus stand die Box rund ein Drittel des
+  Bildschirms hoch, während Schloss und Puls-Pille daneben auf ihren normalen 32 pt saßen.
+  Ursache: die Zieh-Fläche des Feldes ist ein nacktes Rechteck, das JEDE angebotene Höhe
+  annimmt. Bisher hat die Chrome-Leiste sie gedeckelt — und als das Feld auf Deinen Wunsch
+  (#411) ins Instrument gewandert ist, ist dieser Deckel nicht mitgereist. Er sitzt jetzt am
+  BEDIENELEMENT selbst, nicht an der Leiste: die nächste Leiste, in der es landet, erbt ihn.
+  Nur der GESPERRTE Zweig war je betroffen — im Flow-Modus hättest Du nichts gesehen.
 
-  Bei 15 Atemzügen/min war derselbe Code an 278 von 360 Phasen richtig. Deshalb ist es nie
-  aufgefallen: der Fehler war ratenabhängig und traf ausgerechnet die ruhige Atmung.
+  **Die zwei Pfeile.** Das „•••"-Überlaufmenü und die `1.1.1 / loop 1/32`-Positionsanzeige
+  sind in die Transport-Zeile des Instruments migriert, und die Leiste, die sie hielt — die
+  letzte Chrome-Transport-Leiste — ist GELÖSCHT, nicht leer stehen geblieben. Eine geleerte
+  Hülle liest sich wie ein Platz, an den man Dinge zurücklegt.
 
-  Repariert NICHT durch ein längeres Fenster — das ist der teuerste Einzelposten im ganzen
-  Bio→Audio-Budget —, sondern durch EINEN Schätzer pro Take, dem jeder Herzschlag genau
-  einmal zugeführt wird. Sechs Reviewer-Nachlesen hängen an dieser einen Scheibe; jede hat
-  einen echten Rest gefunden.
+  Es sind ZWEI Zeilen geworden, nicht eine, und die Begründung stand schon im Code: sechs
+  Kinder in einer Zeile lassen der Analyse-Pille auf einem 393-pt-Telefon fast nichts übrig —
+  und genau die sollte nach Deiner Ansage vom 31.07. GRÖSSER werden. Zeile 1 ist deshalb
+  bitgleich mit vorher. Netto gewinnt die spielbare Fläche ~4 pt.
 
-  ── 2. DER SCHÄTZER SCHWIEG AN BEIDEN GRENZEN, MIT DENEN ER WIRBT ──────────
+  ── 2. WAS DIE ZEILE ANBIETET, BEHÄLT DIE APP JETZT AUCH ───────────────────
 
-  Er nennt 4 bis 30 Atemzüge/min als seinen Bereich und VERWARF einen Durchgang komplett,
-  sobald dessen Zittern die Rate einen Hauch darüber oder darunter schob. Gemessen: bei
-  30/min an 61 von 360 Phasen keine Rate — und bei 4/min an 240 von 360. Der langsame Rand,
-  den niemand angesehen hatte, war viermal schlimmer als der berichtete.
+  Drei Defekte derselben Familie, alle in den Parameterzeilen.
 
-  Die Reparatur ist eine Formregel: in einem WEITEREN Band annehmen, als man MELDET.
+  **Ein Bereich stand dreimal im Code.** Jeder der 17 Sound-Parameter hatte seine Grenzen als
+  Literal an der Zeile, noch einmal in „Describe it", und ein drittes Mal in einem Test. Der
+  eine, der wirklich etwas gekostet hat: die Filter-LFO-Rate. Die Zeile ließ Dich bis 20 Hz
+  ziehen, „Describe it" klemmte auf 12 — und zwar bei JEDEM Text, auch bei einem, den die
+  Engine gar nicht versteht. Ein auf 19 Hz gezogener Wert kam als 12 zurück. Jetzt EINE
+  Definition; wo die zwei sich widersprachen, gewinnt die ZEILE und der Prompt weitet.
+  Nebenbei: `Drone Bed` hat 6,0 s Decay, die Zeile ging bis 5,0 — ein Antippen hätte den
+  ausgelieferten Klang auf 5,0 zurückgeschrieben.
 
-  Und dabei habe ich mir selbst einen Defekt gebaut, den erst der DSP-Reviewer gesehen hat.
-  Meine erste Fassung KLEMMTE den Report auf die alte Grenze zurück, „damit der
-  veröffentlichte Vertrag gleich bleibt". Damit hätte sich ein Körper UNTERHALB des Bandes
-  als saubere Messung gelesen: bei 3,5 Atemzügen/min an 358 von 360 Phasen exakt 4,000 —
-  eine erfundene Zahl, die als Atemfrequenz nach Apple Health geschrieben worden wäre. Ein
-  sättigender Ausgang auf einem Messpfad erfindet Daten am Anschlag. Klemme raus, drei
-  weitere Runden, bis die Konstante nicht mehr an einen einzelnen Puls angepasst war.
+  **Rasten führte aus dem Bereich heraus.** Ein Wert wurde erst geklemmt und dann gerastet,
+  und Rasten geht zum NÄCHSTEN Gitterpunkt — auf einer 0…0,995-Zeile wurde aus 0,995 also
+  1,00, eine halbe Stufe ÜBER dem deklarierten Maximum. Heute ändert das auf keiner
+  ausgelieferten Zeile etwas (alle 74 Grenzen liegen schon auf ihrem Raster); entfernt ist
+  der MECHANISMUS, und der kauft die nächste Zeile.
 
-  ── 3. DER ATEM ERREICHTE APPLE HEALTH NICHT MEHR ──────────────────────────
+  **Und die HRV-Zahl auf dem Kamerapfad war zu hoch.** RMSSD und pNN50 lesen
+  AUFEINANDERFOLGENDE Herzschläge — die Liste, über die sie liefen, ist aber zweimal
+  verdichtet (Ausreißer werden entfernt), also wurden Differenzen über entfernte Schläge
+  hinweg mitgerechnet. Auf sauberem Kontakt ist es ein NO-OP — exakt, nicht ungefähr. Mit
+  Artefakten (an einer 60-bpm-Atemreihe modelliert, je 600 Durchläufe, Raten als
+  „verlorene/erfundene Schläge"): 5 %/5 % → RMSSD +2,8 %, 15 %/10 % → +4,9 %, 35 %/20 % →
+  +9,6 %. ⚠ Diese Artefaktraten sind ANGENOMMEN — nirgends ist gemessen, wie oft ein echter
+  Take einen Schlag verliert. Belastbar ist die FORM (immer zu hoch, null bei null), nicht
+  die einzelne Prozentzahl. SDNN bleibt ABSICHTLICH flach — es ist ein Spread und hat keine
+  Nachbarschaftsforderung.
 
-  Der Schreibpfad verwarf jede Messung unter 4,0/min, weil seine Grenze von der Rate
-  abgeschrieben war, die der Schätzer ANZIELT statt von der, die er MELDET. Ein Körper, der
-  genau die Resonanzrate atmet, kam nur mit 214 von 360 Phasen durch.
+  ── 3. DER ATEM: ZWEI ANKER, DIE EINEN TAKE ÜBERLEBT HABEN ─────────────────
 
-  Der Schaden ist nicht „weniger Daten", sondern VERZERRUNG: der Schnitt lag fast genau auf
-  dem Mittelwert, also überlebte die hohe Hälfte. Der mittlere Fehler dessen, was in Deiner
-  Gesundheitsakte landete, war rund DREIMAL so groß wie der der ganzen Messung.
+  Beides Fehler, die nur beim Wechsel zwischen Takes auftreten.
 
-  ── 4. UNGEMESSENER ATEM WURDE ALS RUHE EINGEMISCHT ────────────────────────
+  **Ein Frame, der GAR NICHTS misst, konnte den Atem-Halt zerstören.** Beim Puls-Aussetzer
+  wiederholt die Kamera absichtlich den letzten Frame mit eingefrorenem Zeitstempel und ohne
+  Atemwert. Die Rückwärtsuhr-Erkennung lief VOR der Prüfung „ist hier überhaupt eine
+  Messung" — also setzte genau dieser Frame Rate, Horizont und Gewicht auf null. Gemessen:
+  das Gewicht fiel in EINEM Schritt von 1,0 auf 0,0 und blieb dort.
 
-  Ein Gurt-Frame trägt „Atemrate 0". Das wurde behandelt wie ein sehr ruhig atmender
-  Mensch und halbierte den Erregungswert für einen Körper, dessen Herz das Gegenteil sagte.
-  Ohne Messung steht der Herz-Term jetzt allein. Und der Ruhe-Boden lag exakt auf 6,0/min,
-  also genau auf der Rate, die die Atemführung der App vorgibt: am eigenen Ziel las der
-  Atem-Term null.
+  **Und ein neuer Take begann mit dem Frame des vorigen.** `stop()` räumte 25 Felder auf und
+  ließ drei stehen. Die harmlose Hälfte war maskiert; die nicht maskierte: eine
+  Kohärenz-Zahl aus dem VORIGEN Take reiste in jeden frischen, lebenden Frame mit.
 
-  Dazu die Folge-Scheibe: wenn eine Messung ERSCHEINT oder VERSCHWINDET, sprang der Wert
-  vorher hart. Jetzt wird die letzte gemessene Rate GEHALTEN und nur ihr Einfluss
-  ausgeblendet — genau so lange, wie der Bus dem Frame überhaupt noch traut (Kamera 6 s,
-  Handgelenk 90 s). Bewusst gehalten und nicht geglättet: eine Glättung würde Erregungs-
-  werte erfinden, die kein Körper erzeugt hat.
+  ── 4. DIE DEMO-QUELLE WIDERSPRACH SICH SELBST ─────────────────────────────
 
-  ⚠ EHRLICH DAZU: Punkt 4 sitzt auf dem Aufnahme-Pfad, und der ist heute TÜRLOS — es gibt
-  keinen Knopf, der ihn scharf schaltet. Repariert wird er deshalb, nicht trotzdem. Punkte
-  1 bis 3 sitzen dagegen auf dem LEBENDEN Kamerapfad und auf dem Health-Schreibweg.
+  Die Demo-Herzfrequenz (die ohne Kamera und ohne Gurt) veröffentlichte ein Zahlenpaar, das
+  kein Umrechner dieser App versöhnen kann: bei Regler 0,50 schickte sie 60 ms, während die
+  Hausregel sagt, 60 ms IST 0,60. Ein flacher Fehler von +20 %. Und ihr SDNN lag UNTER ihrem
+  RMSSD, während die Ruhe-Beziehung andersherum läuft. Beides korrigiert — die Demo ist eine
+  Demo, aber sie darf keine Physiologie behaupten, die es nicht gibt.
 
-  ── 5. JEDE ZAHL AUF DEM SCHIRM IST JETZT DIE, DIE BLEIBT ──────────────────
+  ── 5. QUERFORMAT: DIE BILD-FEINREGLER BRECHEN JETZT UM ────────────────────
 
-  Bei den Parameterfeldern steuert eine Einstellung nicht die Anzeige, sondern das RASTER,
-  auf das ein Wert einrastet. Das war an sechs Stellen falsch oder gar nicht gesetzt:
+  Die sechs Feinregler unter „Fine tune" im Visual-Panel stapeln im Hochformat wie bisher und
+  laufen im Querformat zweispaltig — genau wie Mixer, Sound und Mood es seit #292 tun. Der
+  VJ-Overlay im Vollbild rendert dieselbe Definition und reflowt mit; er behält dabei seinen
+  eigenen, engeren Innenabstand.
 
-  · Das Visual-Panel bot vier Nachkommastellen an, wo der Rest der App zwei zeigt.
-  · Das Sound-Panel: EINUNDZWANZIG Zeilen zeigten „0.5000" und „2400.0000 Hz". Drei müssen
-    bewusst feiner bleiben, und WELCHE wurde aus dem ausgelieferten Klangbestand GEMESSEN,
-    nicht gewählt — sonst wären vier verschiedene Anschlagzeiten auf null zusammengefallen.
-  · Das Zahlenfeld nahm Ziffern an, die es beim OK nicht behalten konnte: Du tipptest
-    `0,375`, LASEST `0,375`, gespeichert wurde `0,38`.
-  · Anzeigen und Behalten rundeten nach ZWEI verschiedenen Regeln und liefen an jedem
-    exakten Gleichstand auseinander — auf der Cutoff-Zeile allein bei jeder zweiten
-    Halbzahl.
-  · Der Kammerton A4 versprach im eigenen Kommentar „genau auf 0,01 Hz" und bot 0,0001 an.
-    Dein Video vom 2. August zeigt `483,4352` auf dem Schirm nach einem Scrollen.
-  · Und der Bild-Regler blieb unter dem Finger stehen: unterhalb von etwa 135 pt/s bewegte
-    er sich gar nicht, darüber sprang er auf Anschlag — ein Zwei-Zustands-Schalter, wo ein
-    Regler sein sollte.
+  ── 6. WAHRHEIT ────────────────────────────────────────────────────────────
 
-  Ein Wächter hält jetzt fest, welche Zeile aus welchem Grund abweichen DARF — inklusive
-  der einen, die die vier Stellen wirklich braucht: das gesperrte Tempo, mit dem Du auf eine
-  externe Uhr ziehst. Der aufgeräumt aussehende Rundumschlag „überall zwei Stellen" hätte
-  genau die still vergröbert.
-
-  ── 6. INDIVIDUALITÄT: DEIN KÖRPER, NICHT MEHR ZUFALL ──────────────────────
-
-  Deine Bitte war: „Mir wäre wichtig, dass man nicht das Gefühl hat, die Kompositionen
-  klingen gleich." Dafür ist zuerst ein MESSGERÄT entstanden, das den Abstand zweier Takes
-  beziffert — bevor irgendjemand mehr Variation baut. Darauf sitzt eine Handschrift, die
-  aus Deiner GEWOHNTEN Herzratenvariabilität kommt und nicht aus dem Moment. Sie kippt das
-  Tempo INNERHALB des Genre-Fensters und die BALANCE zwischen Bass und Fläche.
-
-  Warum Balance und nicht Lautstärke: die erste Fassung kippte die Anschlagstärke, und die
-  Master-Automatik hätte einen reinen Pegelversatz teilweise wieder weggeregelt. Ein
-  VERHÄLTNIS rührt keine Regelstufe an. Der DSP-Reviewer hat das widerlegt, ich habe es
-  nachgerechnet, die Scheibe wurde umgedreht.
-
-  Dazu: der Regler „Liveliness" hatte DREI Schreiber und NULL erreichbare Leser — er tat
-  buchstäblich nichts, quer durch fünfzehn ausgelieferte Stimmungs-Presets. Er erreicht
-  jetzt die Notendichte und, in einer zweiten Scheibe, auch die Flächen-Genres. Darunter
-  das ausgelieferte Standard-Genre, also der Klang, den ein Erstnutzer hört.
-
-  ── 7. KNACKEN: ZWEI MECHANISMEN, KEINE DIAGNOSE ───────────────────────────
-
-  Zu „teilweise extremes Knacken": zwei echte Ursachen sind weg. Beim Stimmenklau wird
-  jetzt die LEISESTE Stimme wiederverwendet statt der ältesten, und der Master-Pegel landete
-  alle 200 ms in EINEM ungerampten Schritt statt zu gleiten. Beides sind MECHANISMEN, die
-  knacken können. Ob es DEIN Knacken war, ist damit nicht bewiesen — das entscheidet Dein
-  Ohr, und fünf weitere Mechanismen stehen unangetastet auf der Liste.
-
-  ── 8. SICHTBARES ──────────────────────────────────────────────────────────
-
-  · Das Tempofeld und seine Sperre sind in die Transportzeile gewandert.
-  · Das Master-Panel zeigt ein Timing-Urteil der letzten 60 Sekunden — und sagt
-    ausdrücklich, wenn es zu wenige Messungen für ein Urteil hatte.
-  · Die generate-Zeile im Log nennt jetzt alle Treiber ihrer Notendichte.
-  · Der Kamera-Hinweis „zu hell" hatte ZWEI verschiedene Definitionen in EINER Datei; es
-    ist jetzt eine.
-
-  ── 9. WAHRHEIT NACH AUSSEN ────────────────────────────────────────────────
-
-  Die Website behauptete RTMP-Streaming als gebaut-und-wieder-entfernt; es war nie gebaut.
-  „motion" stand als Kompositions-Eingang, obwohl das Wort gestrichen ist. Und die
-  Store-Zahlen für Genres und Skalen waren zu NIEDRIG angegeben, in beiden Sprachen. Eine
-  falsche Behauptung im Store ist ein Ablehnungsgrund — in beide Richtungen.
-
-  ── 10. DER BAU SELBST WAR KAPUTT, UND EINE MASKE HAT ES VERSTECKT ─────────
-
-  `Package.swift` hat nicht geparst, mit ZWEI Fehlern hintereinander, von denen immer nur
-  der vorderste sichtbar war. Gemerkt hat es niemand, weil der CI-Schritt mit `|| true`
-  läuft: ein ungültiges Manifest kann damit gar nichts rot färben. Beide Fehler sind weg.
-  Die Maske selbst liegt in der CI-Konfiguration, und die fasse ich ohne Dich nicht an.
+  · Presse-Kit und Ideen-Seite: der MIDI-Export war untertrieben, ein abgelehnter Preis stand
+    noch drin. Beides korrigiert — und die erste Korrektur hatte die Untertreibung durch eine
+    ÜBERTREIBUNG ersetzt, was ein Reviewer gefangen hat.
+  · Apple Health bekommt weiterhin KEINE HRV von uns, und das bleibt richtig. Die BEGRÜNDUNG
+    daneben war widerlegbar („wir haben gar keine echte SDNN in Millisekunden" — falsch, drei
+    Quellen liefern sie). Ersetzt durch die tragfähige: SDNN ist eine Intervall-Statistik, und
+    unser Schreiber stempelt sie als Momentwert.
+  · Elf Kopien desselben Kommentar-Entferners im Testbündel sind auf EINE Definition gefaltet.
 
   ── WAS ICH MIR SELBST VORWERFE ────────────────────────────────────────────
 
-  Drei Dinge, alle von Pflicht-Reviewern gefunden, bevor sie Dich erreicht haben:
+  Diese Runde hat mehr eigene Fehler gefunden als fremde. Das gehört hierher, weil Du sonst
+  eine Zuverlässigkeit annimmst, die die Notizen nicht haben:
 
-  1. Die Atemband-Reparatur hat in ihrer ersten Fassung selbst einen Defekt auf den
-     GESUNDHEITSDATEN-Pfad gelegt (Punkt 2). Der einzige in dieser Runde, der in eine echte
-     Akte geschrieben hätte.
-  2. Die Ausblendung des Atem-Terms war in ihrer ersten Fassung auf ihrem HAUPTFALL ein
-     No-op — mit acht grünen Tests. Sie las die Zeit vom Frame-Stempel, und der steht genau
-     dann still, wenn die Ausblendung gebraucht wird. Keiner der acht Tests konnte das
-     sehen, weil alle beide Uhren aus derselben Variable speisten.
-  3. Eine Zahl, die ich Dir als „korrigiert" gemeldet hatte, war immer noch nicht
-     nachrechenbar. Beim dritten Anlauf habe ich sie durch eine Aussage ersetzt, die sich
-     beim Umzählen nicht bewegt.
+  · Bei #454 standen FÜNF Behauptungen in meinem eigenen Text, die der Quelltext nicht deckt —
+    darunter eine Größenangabe, die um das Achtfache danebenlag, und eine, bei der ich das
+    Wort „unmaskierbar" benutzt habe für einen Fall, der bei jedem RUHEPULS gar nicht
+    eintritt.
+  · Bei #456 habe ich eine Zahl ZITIERT und dabei erfunden („rund ein Drittel der Breite"),
+    obwohl die zitierte Quelle „die Hälfte" sagt — und eine angebliche 2-pt-Überlappung
+    gemessen, die es nicht gibt, weil ein Abstandshalter dazwischensteht. Eine erfundene
+    KOSTEN-Angabe ist gefährlicher als eine erfundene Nutzen-Angabe: sie lädt zum „Reparieren"
+    von etwas ein, das heil ist.
+  · Bei #464 waren fünf Behauptungen falsch, darunter eine erfundene Oberfläche — ich habe
+    geschrieben, die SDNN-Zahl stehe im Bio-Streifen auf dem Schirm. Sie steht dort nicht; sie
+    geht nur über OSC hinaus. Der Satz war von einem benachbarten, WAHREN Satz über eine
+    andere Zahl abgeschrieben.
+  · Und #456 hat einen Wächter im blockierenden Bündel rot gemacht, weil ich eine Leiste
+    gelöscht habe, ohne vorher `git grep` über die Tests laufen zu lassen. Im selben Commit
+    mitgezogen — aber gefunden hat es der Reviewer, nicht ich.
 
-  ── EHRLICH ZUM PRÜFSTAND ──────────────────────────────────────────────────
+  ── PRÜFSTAND ──────────────────────────────────────────────────────────────
 
-  Der Compile-Prüfstand ist grün, auch auf den letzten Commits.
+  Auf dem aktuellen Stand (50204b0): „Xcode Compile Check" = success. Im CI/CD-Lauf ist
+  „Build for Testing" = success — das blockierende Testbündel kompiliert also nachweislich,
+  inklusive der 10 neuen Wächter. „Run Tests" stirbt weiterhin am bekannten Simulator-Start;
+  das ist der founder-gated CI-Punkt und nicht der Code.
 
-  Der Test-Prüfstand ist weiter rot, und diesmal habe ich einen NEUEN Grund gefunden, den
-  ich vorher fälschlich dem alten zugeschlagen hätte: auf einem der letzten Commits hat der
-  Test-Job GAR NICHT GEBAUT. Ein unbeteiligter Sicherheits-Scan starb an einer
-  GitHub-Störung („Service Unavailable"), und die Build- und Testjobs wurden daraufhin
-  übersprungen. Das sieht im Ergebnisfeld exakt aus wie der bekannte Simulator-Tod, ist aber
-  etwas anderes. Konsequenz für mich: eine rote Meldung wird ab jetzt auf JOB-Ebene
-  aufgelöst, bevor ich ihr einen Grund gebe.
+  Der Vollständigkeits-Audit dieses Bumps hat KEINEN fehlenden Baustein gefunden: alle 348
+  Swift-Dateien sind in einem Target, jede deklarierte Ressource existiert, jede Berechtigung
+  hat ihren Erklärungstext. Was NICHT im Build ist, ist es absichtlich und dokumentiert (die
+  Watch-App ist nicht eingebettet, weil die Export-Phase unter XcodeGen+Xcode 26 keine gültige
+  Distributionsmethode erzeugt).
 
-  NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
-  Dein Ohr und Dein Auge.
+  ── WAS VON DIR GEBRAUCHT WIRD (Sichtproben, 5 Minuten) ────────────────────
 
-  Rausch-Triad unberührt, kein Heilungs-Claim, Audio-Weg weiterhin sperr- und
-  allokationsfrei.
-
-  ── WAS ICH VON DIR BRAUCHE, IN DIESER REIHENFOLGE ────────────────────────
-
-  1. ATMEN, LANGSAM, MIT LOG. Finger auf die Kamera, ruhig atmen — etwa sechs Atemzüge pro
-     Minute — zwei, drei Minuten lang. Dann Diagnose-Log schicken. Das ist der direkte Test
-     für Punkt 1: vorher konnte die App genau diese Atmung nicht messen. Steht im Log eine
-     Atemrate um 6 statt einer Null, ist der wichtigste Fund dieser Runde bestätigt.
-  2. DIE ZAHLENFELDER ANFASSEN. Sound-Panel und Visual-Panel öffnen: stehen die Werte jetzt
-     mit zwei Nachkommastellen da statt mit vier? Und der Bild-Regler „Energy" — lässt er
-     sich LANGSAM ziehen, oder springt er? Das war der Zwei-Zustands-Schalter.
-  3. DAS TEMPOFELD in der Transportzeile: findest Du es dort, und lässt sich die Sperre wie
-     vorher setzen?
-  4. UND DIE EIGENTLICHE FRAGE: klingt es unterschiedlicher als vorher? Zwei, drei Takes
-     hintereinander generieren. Und knackt es noch?
-
-  Weiter offen aus 369: der Kammerton-Hinweis auf der Startfläche · die zweite FX-Kette ·
-  Kopf und Wellenfront · der Sub-Bass bei Maqām oder Gamelan · die drei Messansichten im
-  Field-Panel · das Mischpult · die sechs Genres mit Swing · MIDI-Sync gegen Ableton · das
-  Sound-Panel im Querformat · die Aufnahme-Stopp-Zeile im Video-Panel · und die AKQUISE der
-  Pulsmessung: jeder Stopp tötet die Kamera und kostet danach rund 19 Sekunden, bis der Puls
-  wieder greift.
-
-  ── WAS SEIT DER 370-NOTIZ DAZUGEKOMMEN IST ────────────────────────────────
-
-  Vier Scheiben, alle nach dem Schreiben der Notiz oben gelandet, alle im selben Thema:
-
-  · DIE ATEMRATE RASTETE EIN. Wenn Dein Atem ein Tempo hat, das unser Band gar nicht lesen
-    kann — Box-Atmung und 4-7-8 liegen BEIDE darunter, und beide gibt die App Dir selbst
-    vor —, wurden die Nulldurchgänge verworfen, aber der Frische-Anker lief weiter. Die App
-    hat daraufhin den letzten Wert der VORIGEN Technik unbegrenzt weiterbehauptet, bei voller
-    Konfidenz. Gemessen über alle 66 ganzzahligen Ruhepulse von 45 bis 110: sie meldete im
-    Mittel 5,985/min, während der Körper mit 3,158 atmete — ein Fehler von +89,5 %,
-    zertifiziert. Jetzt schweigt sie an dieser Stelle, statt eine fremde Zahl zu wiederholen.
-    Erholung nach Rückkehr zur Resonanzatmung: 3,7 Sekunden.
-
-  · DIE ANSTIEGSRATE DES ATEM-EINFLUSSES war nie gewählt worden — sie hatte einfach den
-    Teiler übernommen, den die ABLAUF-Seite benutzt. Für die Uhr am Handgelenk hieß das:
-    90-Sekunden-Fenster, also 45 Sekunden Anstieg, und eine Handgelenks-Atemrate verbringt
-    ihr ganzes nutzbares Leben mit Steigen und Fallen — mittleres Gewicht exakt die Hälfte.
-    Jetzt auf 3 Sekunden gedeckelt, das ist, worüber Kamera und Gurt ohnehin ansteigen; das
-    mittlere Gewicht steigt auf 11/15. Kamera und Gurt bleiben dabei BITGLEICH.
-
-  · EINE REGISTRIERTE REPARATUR WAR EIN NO-OP. In der Doku stand ein Artefakt samt benannter
-    Ursache und vorgeschlagener Reparatur. Das Artefakt ist echt, die Ursache nicht: die
-    vorgeschlagene Änderung ändert auf KEINER Eingabe irgendetwas — bewiesen algebraisch und
-    an 61.769 zufälligen Neustarts mit Abweichung exakt null. Die Kausalkette ist gestrichen.
-    Eine registrierte Folgearbeit mit falscher Ursache ist die teuerste Sorte Notiz in diesem
-    Projekt: die nächste Sitzung kann ihr nicht widersprechen, sie setzt sie um.
-
-  · UND EINE ENTSCHULDIGUNG. Ich habe Dir gemeldet, GitHub blockiere unsere Prüfläufe, und
-    Dich gebeten, Actions-Minuten und Abrechnung zu prüfen. Das war falsch, und ich hätte es
-    mit einer einzigen Abfrage vorher wissen können: das Repository ist ÖFFENTLICH, also sind
-    die Standard-Runner kostenlos — es gibt kein Kontingent zum Ausschöpfen und nichts zu
-    bezahlen. Alle 28 Workflows sind aktiv, die Läufe existierten, sie standen nur in der
-    Warteschlange. Es entstehen keine Kosten. Eine Frage an Dich ist teurer als jede Messung;
-    wer eskaliert, misst vorher.
-
-  ── WARUM DIESER ANLAUF UND WARUM 371 STATT 370 ───────────────────────────
-
-  Anlauf 1 (Lauf 31124762898, 18:00 UTC): der Lauf wurde angelegt, aber die beiden
-  ubuntu-Jobs `Preflight` und `Summary` bekamen NIE einen Runner (`runner_id: 0`, leerer
-  Runner-Name, `started_at == created_at`). `Compile Check` und `iOS` wurden daraufhin
-  übersprungen. Es wurde nichts gebaut, nichts signiert und nichts abgelehnt.
-
-  Anlauf 2 (Commit fa12a45, 19:13 UTC): **es wurde überhaupt kein Lauf angelegt.** Nachgeprüft
-  in der Lauf-Liste des TestFlight-Workflows — der letzte Eintrag ist weiterhin der von
-  18:00 UTC. GitHub hat in diesem Zeitraum für die meisten Pushes dieses Repos gar keine
-  Läufe erzeugt; erst um 22:54 UTC kam wieder ein Satz, und der lief sauber durch.
-
-  ⚠ Die Warnung oben — „bei zwei Fehlschlägen mit `runner_id: 0` nicht weiter bumpen" — ist
-  damit NICHT erfüllt: es gab EINEN Fehlschlag und EIN Nicht-Ereignis. Das ist ein Unterschied
-  und wird hier hingeschrieben, damit dieser dritte Bump nicht wie ein Überschreiben der
-  eigenen Bremse aussieht. Ist auch dieser Anlauf ohne Runner: dann sind es zwei, und dann
-  gehört die Frage Dir.
-
-  Die Version steigt auf 10.79.371, weil der INHALT sich geändert hat — seit der 370-Notiz
-  sind vier weitere Scheiben gelandet. Dieselbe Nummer bei anderem Inhalt wäre genau die
-  Sorte stiller Unwahrheit, die diese Notiz an zehn Stellen aufräumt.
-
-  ── PRÜFSTAND, STAND DIESES BUMPS ──────────────────────────────────────────
-
-  Auf dem aktuellen Stand (631d01e) sind BEIDE echten Gates weiter, als sie es seit Tagen
-  waren: „Xcode Compile Check" = success, und im CI/CD-Lauf ist der Schritt „Build for
-  Testing" = success — damit ist auch das blockierende Testbündel nachweislich kompiliert,
-  inklusive der neuen Wächter. Der Schritt „Run Tests" stirbt weiterhin am bekannten
-  Simulator-Start (`FBSOpenApplicationServiceErrorDomain Code=1`); das ist der founder-gated
-  CI-Punkt und nicht der Code.
+  1. LOOP-Modus einschalten: ist die Tempo-Box jetzt normal hoch?
+  2. Transport: stehen „•••" und die Positionsanzeige in einer ZWEITEN Zeile im Instrument,
+     und ist die Analyse-Pille in Zeile 1 spürbar breiter?
+  3. Telefon quer drehen, Visual-Panel → „Fine tune": zwei Spalten?
+  4. Sound-Panel → Filter-LFO auf 19 Hz ziehen, dann „Describe it" mit irgendeinem Text:
+     bleibt die 19?
+  5. Klingt es weiter so, wie Du es zuletzt hattest? Nichts in dieser Runde SOLLTE den Klang
+     ändern — außer den HRV-ZAHLEN, die jetzt niedriger und richtiger sind.
 
   NICHT geräteverifiziert. Alles, was klingt, sich anfühlt oder Platz einnimmt, entscheidet
   weiterhin Dein Ohr und Dein Auge.
