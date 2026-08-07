@@ -1111,13 +1111,24 @@ public final class CameraRPPGBioPublisher {
                     motionEnergy: 0,
                     source: .cameraPPG,
                     hrvRMSSDms: rmssdMs,
-                    // SDNN pools FLAT and that is correct, not an oversight: it is a spread
-                    // over the accepted NN intervals and has no adjacency requirement — the
-                    // point `HRVMetrics` makes where it introduces the `segments:` overloads.
-                    // (The strap calls `sdnn(segments:)` to get the ISOLATED-beat exclusion,
-                    // a different and separate judgment. Whether that exclusion is right for
-                    // the camera's gap structure is unmeasured here, so it is not copied over
-                    // on the strength of looking symmetric — #268's lesson.)
+                    // SDNN pools FLAT. "A spread has no adjacency requirement" is true and is
+                    // NOT the load-bearing reason — it explains why segmenting buys nothing,
+                    // not why segmenting would cost. The cost is that `sdnn(segments:)` also
+                    // carries the ISOLATED-beat exclusion (the compensatory-pause case), and on
+                    // an rPPG take with bad contact almost every run is length 1: measured on
+                    // the guard's fixture, `sdnn(rrMs:)` reads 50.0 ms where `sdnn(segments:)`
+                    // reads 0.0. Publishing 0 for a take that HAS real intervals is worse than
+                    // the artifact it would remove, and whether the strap's exclusion suits the
+                    // camera's gap structure is unmeasured. #268's lesson: do not copy a
+                    // judgment across because the call sites look symmetric.
+                    //
+                    // ⚠️ THE PRICE, named rather than left for the next reader to discover:
+                    // `PolarH10BioPublisher` publishes `sdnn(segments:)` into the SAME field and
+                    // the SAME OSC address (`/echoelmusic/bio/heart/sdnn`). Since #425 made
+                    // RMSSD and pNN50 agree across the two sources, SDNN is the ONLY remaining
+                    // definitional split, so an integrator switching camera→strap sees a step in
+                    // it that no body produced. Registered, not fixed here — closing it is a
+                    // measurement (does the exclusion suit rPPG gaps?), not an edit.
                     hrvSDNNms: Float(HRVMetrics.sdnn(rrMs: rrMs)),
                     // pNN50 DOES read consecutive pairs, so it gets the same treatment as
                     // RMSSD one layer up: pooled only within runs of genuinely adjacent

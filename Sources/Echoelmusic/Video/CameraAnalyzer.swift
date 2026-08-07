@@ -677,7 +677,9 @@ final class CameraAnalyzer {
             lastEstimateTimestamp = timestamp
             rrIntervals = cleanIntervals.map { $0 * 1000.0 }
             beatTimes = cleanEndTimes
-            if rrIntervals.count >= 3 { calculateRMSSD() }
+            // Unconditional: a count gate here would leave `rmssd` stale beside a freshly
+            // computed `hrvPNN50` — see the ⛔ block on `calculateRMSSD`.
+            calculateRMSSD()
             return
         }
 
@@ -742,7 +744,8 @@ final class CameraAnalyzer {
 
         rrIntervals = cleanIntervals.map { $0 * 1000.0 }
         beatTimes = cleanEndTimes
-        if rrIntervals.count >= 3 { calculateRMSSD() }
+        // Unconditional — same reason as the sibling site above.
+        calculateRMSSD()
     }
 
     /// Octave-fold a raw window BPM toward the running estimate, then return the
@@ -1065,18 +1068,69 @@ final class CameraAnalyzer {
     /// bit-identical to the old loop. Measured magnitudes and their honest limits are in
     /// that file's header.
     ///
-    /// Keeps the old early-return shape on purpose: with fewer than two intervals, and now
-    /// also when no run holds a pair, `rmssd` KEEPS ITS PREVIOUS VALUE rather than dropping
-    /// to 0. Zeroing here would flap the on-screen readout and the `/bio/heart/rmssd` OSC
-    /// egress to 0 and back on any window that happens to be all gaps; the two `removeAll`
-    /// sites that end a take are what clear it.
+    /// ⛔ AND THE FIRST VERSION OF THIS FIX ADDED A `guard value > 0 else { return }` — a hold
+    /// that looked kind and BROKE THE ONE SENTINEL RULE THE BUS WRITES DOWN. `BioSampleFrame`
+    /// says of `hrvPNN50`: "`0` may mean 'not available' or a genuine 0 %; pair with
+    /// `hrvRMSSDms > 0` to know a real sensor is present", and `OSCSender` implements exactly
+    /// that — `/bio/heart/pnn50` is gated on RMSSD, not on its own value. Meanwhile the
+    /// publisher's pNN50 goes through `pnn50(segments:)`, which returns **0** when no run holds
+    /// a pair. So on an all-isolated window the hold published `hrvRMSSDms > 0` beside
+    /// `hrvPNN50 == 0`, the gate opened, and TouchDesigner/Resolume received a confident
+    /// **genuine 0 %** that no body produced. Two layers, two different unavailability
+    /// policies, one invented number on someone else's lighting desk.
+    ///
+    /// So it assigns unconditionally — which is also what the code did BEFORE this slice (the
+    /// old `guard count > 0` was dead under the `>= 3` caller gate). `0` is the "unknown"
+    /// convention `HRVMetrics` states at the top of its own file, every consumer already reads
+    /// it that way, and it makes both layers agree by construction with no new state:
+    /// `hrvNormalized` becomes 0 so `/bio/heart/hrv` closes on its own sentinel, `/rmssd` and
+    /// `/pnn50` close together, `BioStripView` falls back rather than printing a number, and
+    /// `PerformerSignature.measured` rejects 0 so nothing is learned.
+    ///
+    /// ⚠️ HOLDING WAS THE WORSE HALF OF THAT TRADE, and it is worth saying why rather than just
+    /// reverting. `rmssd` is only cleared at the two `removeAll` sites and by
+    /// `resetPulseState`, none of which fire while `bpmConfidence` stays above 0.05 — so a
+    /// stale value could persist for the rest of a take while frames carried a FRESH
+    /// `CFAbsoluteTimeGetCurrent()` stamp, which is precisely the shape no downstream freshness
+    /// policy can detect. And the regime is not exotic: one dropped beat every two beats leaves
+    /// every accepted interval isolated while the surviving mean still passes the 40…200 gate.
+    ///
+    /// ⚠️ THE BLAST RADIUS IS BIGGER THAN "a readout and an OSC address", which is what the
+    /// first version of this doc claimed. `rmssd` feeds `HRVNormalization.normalize` →
+    /// `BioSampleFrame.hrvNormalized`, which is `ModSource.hrv` — an OFFERED modulation carrier
+    /// with a producer, so it reaches the FX bio-modulation — and which `PerformerSignature`
+    /// learns into a PERSISTED running mean every 30 s.
+    ///
+    /// ⛔ AND REMOVING THE HOLD FROM THE BODY WAS NOT ENOUGH: THE SAME HOLD LIVED TWICE MORE,
+    /// UNDER OTHER NAMES, AND A REVIEWER FOUND IT AFTER I HAD ALREADY WRITTEN THE PARAGRAPH
+    /// ABOVE. The call sites read `if rrIntervals.count >= 3 { calculateRMSSD() }` and this body
+    /// opened with `guard rrIntervals.count >= 2 else { return }`. Both are minimum-sample
+    /// gates, and a minimum-sample gate whose failure branch is `return` is a HOLD: the arrays
+    /// were refreshed, `rmssd` was not, so the very next publish carried a stale
+    /// `hrvRMSSDms > 0` beside a freshly computed `hrvPNN50 == 0` — the exact sentinel split,
+    /// one frame up. Both counts are reachable (`guard intervals.count >= 2` runs BEFORE the
+    /// IQR pass, and IQR can leave one survivor).
+    ///
+    /// ⭐ The repair is not "lower the minimum", it is **whose minimum it is**. `HRVMetrics`
+    /// already owns that decision and states it as `pairs > 0`; `pnn50(segments:)` uses exactly
+    /// that, so letting the caller keep a second, unstated threshold is the #416 defect — one
+    /// decision, three definitions, nothing noticing when they disagree. With all three gone,
+    /// RMSSD and pNN50 become unavailable at precisely the same instant, by construction rather
+    /// than by two matching literals.
+    ///
+    /// ⚠️ THE PRICE, named rather than buried: a window with exactly two ADJACENT intervals now
+    /// publishes an RMSSD built from ONE successive difference. That is a high-variance
+    /// estimator (unbiased in the squared domain, but a single sample of it), and it is
+    /// accepted because the alternative is not "a better number" — it is last window's number
+    /// wearing this window's timestamp, which nothing downstream can detect. A two-interval
+    /// window is a 10 s take with three accepted peaks; every number from it is poor, and the
+    /// honest failure is a noisy one, not a confident one. `PolarH10BioPublisher` has had no
+    /// such minimum since it grew `acceptedSegments`, so this also stops the two sources
+    /// disagreeing about when RMSSD exists.
     private func calculateRMSSD() {
-        guard rrIntervals.count >= 2 else { return }
         let runs = RRAdjacency.segments(intervalsMs: rrIntervals,
                                         endTimesSeconds: beatTimes)
-        let value = HRVMetrics.rmssd(segments: runs)
-        guard value > 0 else { return }
-        rmssd = value
+        rmssd = HRVMetrics.rmssd(segments: runs)
     }
 
     // MARK: - Signal Quality

@@ -13,7 +13,16 @@
 // acceptance policy to a series whose adjacency is already destroyed, and Malik's 20 % step is
 // tuned for a chest strap. `RRAdjacency` instead derives the runs from evidence the analyzer
 // already keeps for #343: `beatTimes`, the absolute time of each interval's SECOND beat. Nothing
-// is accepted or rejected; availability cannot drop.
+// is accepted or rejected.
+//
+// ⛔ AND THE SENTENCE THAT FOLLOWED THAT ONE — "availability cannot drop" — WAS FALSE, in three
+// places at once (here, the commit body, and the CLAUDE.md entry). It is true of ACCEPTANCE
+// decisions and false of the published NUMBERS, which is the half a reader cares about:
+// `pnn50(segments:)` returns 0 where the flat walk returned a percentage, and `rmssd` now goes to
+// 0 on a window whose intervals are all isolated, where the flat walk always produced something.
+// That drop is the CORRECTION — the old number was manufactured by the removal — but calling it
+// "cannot drop" made the slice claim a free lunch while the `calculateRMSSD` doc, in the same
+// commit, described the drop at length. A slice must not contain both a claim and its refutation.
 //
 // ⚠️ WHICH CLAIMS HERE CAN ACTUALLY FAIL, said first, because most of them cannot fail TODAY.
 //
@@ -22,11 +31,24 @@
 //     `pnn50(rrMs: rrMs)`; both assertions were false. That is established by reading the old
 //     code, not by a run — `RRAdjacency` does not exist on the old tree, so this FILE could not
 //     compile there. Same honesty as every other scan guard in this bundle.
-//   • Claim 3 (SDNN stays flat) and claim 6 (the 1:1 invariant) are COUNTERWEIGHTS: green on
-//     both sides, present so that the tidy-looking next edit goes red instead of silent.
+//   • Claim 2b is the regression for the FIRST version of this slice, which added a
+//     `guard value > 0 else { return }` and left two count gates at the call sites. All three
+//     were holds; see the ⛔ on that test.
+//   • Claim 3 (SDNN stays flat) is a COUNTERWEIGHT: green on both sides, present so that the
+//     tidy-looking next edit goes red instead of silent.
 //   • Claims 4 and 5 exercise a type this commit introduces, so they were never red. They pin
 //     behaviour a later simplification would take away, which is the only thing a test over new
 //     code can honestly claim.
+//
+// ⛔ THERE IS NO CLAIM 6, AND ITS ABSENCE IS DELIBERATE. The first version carried a
+// "the two arrays are written and cleared together" test that counted `rrIntervals = …` against
+// `beatTimes = …` and compared totals. `ResonanceBreathingNeedsMoreThanOneWindowTests`
+// (`testEveryRRAssignmentCarriesItsBeatTimes`) already holds that invariant and holds it
+// STRICTLY BETTER — it walks the lines, requires the partner to be the next non-empty statement,
+// and pins the site count at 4 — and its own ⛔ block retracts the head-count form by name:
+// "two unrelated edits … would leave perfectly balanced. It counted, it did not pair." Adding a
+// weaker second copy of a live guard is the #416 defect committed by a file whose header invokes
+// #416. The invariant IS load-bearing for `RRAdjacency`; it is simply already guarded.
 //
 // ⭐ CLAIM 3 IS THE EXPENSIVE ONE AND IT IS WORTH ITS SPACE. The symmetric-looking follow-up is
 // "make SDNN segment-aware too". `HRVMetrics.sdnn(segments:)` deliberately EXCLUDES length-1
@@ -40,9 +62,13 @@
 //
 // ⚠️ THE FIXTURE NUMBERS BELOW ARE A FIXTURE, NOT A DEVICE MEASUREMENT. The gapped series in
 // claim 5 is deliberately harsh (one ~85 ms step across the hole among nine pairs) and inflates
-// flat RMSSD by +159 %. The honest device-scale figures — 0 % on a clean take, up to ~+9.6 %
-// RMSSD and +2…4 pp pNN50 on poor contact — are in `RRAdjacency`'s header, together with the
-// note that the artifact RATES driving them are assumptions rather than recorded measurements.
+// flat RMSSD by +159 %. The honest device-scale figures — exactly 0 on a GAP-FREE series (which
+// claim 4 pins bit-for-bit, and which is arithmetic, not a model run), up to ~+9.6 % RMSSD and
+// +2…4 pp pNN50 on poor contact — are in `RRAdjacency`'s header, together with the note that the
+// artifact RATES driving them are assumptions rather than recorded measurements. ⛔ This line
+// said "0 % on a clean take" and cited the model's zero-injection row for it; that row still has
+// band/IQR holes and reads −0.03 %. The exact zero comes from the one-run identity, not the
+// model — see the ⛔ block beside that table.
 
 import Foundation
 import XCTest
@@ -109,6 +135,71 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
             """)
     }
 
+    // MARK: - 2b. the two layers share ONE unavailability policy
+
+    /// RED on the first version of #425, which added `guard value > 0 else { return }`.
+    ///
+    /// ⛔ THAT HOLD BROKE THE ONE SENTINEL RULE THE BUS WRITES DOWN, and it is the reason this
+    /// assertion exists rather than the tidier-looking hold. `BioSampleFrame.hrvPNN50` says
+    /// "`0` may mean 'not available' or a genuine 0 %; pair with `hrvRMSSDms > 0`", and
+    /// `OSCSender` gates `/bio/heart/pnn50` on RMSSD, not on pNN50's own value. The publisher's
+    /// pNN50 goes through `pnn50(segments:)`, which returns 0 when no run holds a pair. So on
+    /// an all-isolated window a held RMSSD published `hrvRMSSDms > 0` beside `hrvPNN50 == 0`,
+    /// the gate opened, and an external integrator received a confident **genuine 0 %**.
+    ///
+    /// Two layers must not answer "not available" two different ways. Assigning
+    /// unconditionally is the cheap half of that: both go to 0 together, all three heart
+    /// addresses close together, and no new state is needed. The scan is deliberately a
+    /// NEGATIVE one on the assignment site rather than a behavioural test, because
+    /// `calculateRMSSD` is `private` on a type behind `#if canImport(AVFoundation)`.
+    ///
+    /// ⛔ AND SCANNING ONLY THE BODY WAS NOT ENOUGH — a reviewer found the same hold surviving
+    /// TWICE at the CALL SITES (`if rrIntervals.count >= 3 { calculateRMSSD() }`) plus once more
+    /// as this body's own `guard rrIntervals.count >= 2 else { return }`. A minimum-sample gate
+    /// whose failure branch is `return` IS a hold: the arrays refresh, `rmssd` does not, and the
+    /// next publish carries a stale `hrvRMSSDms > 0` beside a fresh `hrvPNN50 == 0`. Both counts
+    /// are reachable — `guard intervals.count >= 2` runs before the IQR pass and IQR can leave
+    /// one survivor. `calculateRMSSDBody()` is brace-matched to the method, so it could not see
+    /// any of it. **A guard over a policy must cover every site that can enforce the policy, not
+    /// just the one the fix happened to touch** — hence the second half below, which is why this
+    /// test names the call sites explicitly.
+    func testTheAnalyzerDoesNotHoldAStaleRMSSD() throws {
+        let body = try calculateRMSSDBody()
+        XCTAssertTrue(body.contains("rmssd = HRVMetrics.rmssd(segments:"), """
+            `calculateRMSSD()` no longer assigns unconditionally. If a hold was reintroduced, \
+            the publisher's `hrvPNN50` must gain the SAME policy in the same commit — \
+            otherwise `hrvRMSSDms > 0` beside `hrvPNN50 == 0` opens the OSC gate on a number \
+            no body produced. Body scanned:
+            \(body)
+            """)
+        let bodyLines = body.split(separator: "\n", omittingEmptySubsequences: false)
+        let bodyGuards = bodyLines.filter { $0.contains("guard") || $0.contains("return") }
+        XCTAssertTrue(bodyGuards.isEmpty, """
+            `calculateRMSSD()` grew an early return again: \(bodyGuards).
+            See the ⛔ block on this test — any conditional return here leaves `rmssd` stale \
+            while `hrvPNN50` is recomputed, which is what publishes a fabricated 0 %.
+            """)
+
+        // The call sites. `HRVMetrics` owns the minimum-sample decision (`pairs > 0`); a second
+        // one here is the #416 defect and, because its failure branch skips the call entirely,
+        // it is the identical hold one frame up.
+        let code = try analyzerSource()
+        let callLines = code.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { $0.contains("calculateRMSSD()") && !$0.contains("func ") }
+        XCTAssertGreaterThanOrEqual(callLines.count, 2, """
+            expected both publication sites to still call `calculateRMSSD()`, found \
+            \(callLines.count). A site that stops calling it leaves `rmssd` stale for that path.
+            """)
+        let gatedCalls = callLines.filter { $0.contains("if ") || $0.contains("count") }
+        XCTAssertTrue(gatedCalls.isEmpty, """
+            `calculateRMSSD()` is called behind a condition again: \(gatedCalls).
+            The minimum-sample decision belongs to `HRVMetrics` (`pairs > 0`), which \
+            `pnn50(segments:)` already uses — a second threshold here makes the two metrics \
+            become unavailable at different moments, which is exactly the split this file exists \
+            to close.
+            """)
+    }
+
     // MARK: - 3. COUNTERWEIGHT — SDNN deliberately stays flat
 
     /// Green before AND after. Present so the symmetric-looking follow-up is a red test rather
@@ -163,7 +254,8 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
     /// Below it, the only error in play is floating point: the times are `systemUptime` seconds
     /// and the interval makes a ×1000/÷1000 round trip through milliseconds, so the residue is
     /// a few ulps. Above it, the smallest hole a real dropped beat can leave is one peak
-    /// spacing, and `CameraAnalyzer`'s refractory refuses peaks closer than ~0.2 s. The 2e-4
+    /// spacing, and `CameraAnalyzer`'s refractory refuses peaks closer than **0.3 s**
+    /// (`refractorySeconds` clamps with `max(0.3, …)` and falls back to 0.3). The 2e-4
     /// case below is therefore NOT a physical scenario — it is the mechanism, checked just past
     /// the line, three orders of magnitude below the smallest real hole.
     func testTheToleranceSeparatesFloatResidueFromARealHole() {
@@ -188,7 +280,7 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
         XCTAssertEqual(runs.map(\.count), [1, 1, 1], "every interval is isolated here")
         XCTAssertEqual(RRAdjacency.gapCount(intervalsMs: intervals, endTimesSeconds: endTimes), 2)
         XCTAssertEqual(HRVMetrics.rmssd(segments: runs), 0,
-                       "no run holds a pair, so RMSSD is unknown — and `calculateRMSSD` keeps its previous value")
+                       "no run holds a pair, so RMSSD is unknown — 0 is the documented sentinel")
         // The measured cost quoted in the ⭐ block, pinned so the number cannot rot.
         XCTAssertEqual(HRVMetrics.sdnn(rrMs: intervals), 50.0, accuracy: 1e-9)
         XCTAssertEqual(HRVMetrics.sdnn(segments: runs), 0,
@@ -234,33 +326,6 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
                        HRVMetrics.sdnn(segments: runs), accuracy: 1e-9)
     }
 
-    // MARK: - 6. COUNTERWEIGHT — the 1:1 invariant the whole thing rests on
-
-    /// Green before AND after. `RRAdjacency` is only as good as the promise that `beatTimes` and
-    /// `rrIntervals` describe the same beats, and that promise lives in `CameraAnalyzer`: they
-    /// are assigned together at both build sites and cleared together at both teardown sites.
-    /// A future edit that clears one without the other would leave the segmentation reading
-    /// last take's timestamps — and the mismatch guard in claim 4 only catches it when the
-    /// LENGTHS happen to differ.
-    func testTheTwoArraysAreWrittenAndClearedTogether() throws {
-        // Hoisted rather than interpolated inline: #287 made the blocking gate RED because a
-        // failure message built too much expression for the type-checker to price.
-        let code = try analyzerSource()
-        let intervalAssigns = count(of: "rrIntervals = cleanIntervals", in: code)
-        let timeAssigns = count(of: "beatTimes = cleanEndTimes", in: code)
-        let assignMessage = "assigned \(intervalAssigns) vs \(timeAssigns) times — "
-            + "they must be written together or the segmentation reads mismatched beats"
-        XCTAssertEqual(timeAssigns, intervalAssigns, assignMessage)
-        XCTAssertGreaterThanOrEqual(intervalAssigns, 2, "both build sites must still be present")
-
-        let intervalClears = count(of: "rrIntervals.removeAll()", in: code)
-        let timeClears = count(of: "beatTimes.removeAll()", in: code)
-        let clearMessage = "cleared \(intervalClears) vs \(timeClears) times — a take that "
-            + "clears one and not the other carries the previous take's timestamps"
-        XCTAssertEqual(timeClears, intervalClears, clearMessage)
-        XCTAssertGreaterThanOrEqual(intervalClears, 2, "both teardown sites must still be present")
-    }
-
     // MARK: - fixtures
 
     /// Build a series plus the absolute time of each interval's second beat.
@@ -268,7 +333,10 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
     /// - Parameters:
     ///   - gapsBefore: indices at which a beat was dropped immediately before that interval —
     ///     0.85 s of unaccounted time, comfortably past `toleranceSeconds` and past the
-    ///     analyzer's ~0.2 s refractory.
+    ///     analyzer's **0.3 s** refractory floor (`refractorySeconds` clamps with `max(0.3, …)`
+    ///     and falls back to 0.3). ⛔ This line read "~0.2 s" in the first version — the same
+    ///     wrong number `RRAdjacency`'s tolerance doc carried, copied across, and wrong in the
+    ///     SAFE direction on both sides so nothing could have caught it.
     ///   - extraGapSeconds: an explicit hole width per index, for the tolerance test.
     private func take(intervalsMs: [Double],
                       gapsBefore: Set<Int>,
@@ -383,7 +451,4 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
         return String(code[start.lowerBound..<end.lowerBound])
     }
 
-    private func count(of needle: String, in haystack: String) -> Int {
-        haystack.components(separatedBy: needle).count - 1
-    }
 }
