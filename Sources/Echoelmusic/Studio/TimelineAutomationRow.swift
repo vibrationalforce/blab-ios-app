@@ -6,9 +6,35 @@
 // (x = tick · pxPerTick, pxPerTick = ppb / 480), with the A3 canvas gesture law
 // (tap adds, drag moves, double-tap deletes). The precision-editor sheet that
 // once complemented this row (typed values, curve/hold, segment bend) was deleted
-// with the DAW UI (#121, Slice 4 / 4d); this row itself is now unmounted too and
-// retires in the Slice 6 cleanup — only `TimelineAutomationRowMath` stays (live,
-// read by `Core/TimelineStore.swift`).
+// with the DAW UI (#121, Slice 4 / 4d); this row itself is now unmounted too —
+// `git grep "TimelineAutomationRow("` over `Sources`/`Tests` returns 0, and the two
+// helpers below (`TimelineAutomationTargetOption`, `TimelineAutomationHeadCell`)
+// have no reference outside this file either.
+//
+// ⭐ THE LIVE HALF HAS MOVED OUT (#472). `TimelineAutomationRowMath` — pure,
+// Foundation-only, and read in production by `Core/TimelineStore.swift` — now lives
+// in `Sequencer/TimelineAutomationRowMath.swift`, next to `AutomationCanvasMath` and
+// `AutomationPoint` (its `AutomationTarget` dependency is in `Core/AutomationPlayer`,
+// so that is two of three, not a clean sweep — the first draft of this sentence said
+// otherwise in three files at once). Everything remaining in THIS file is the
+// unmounted view. That was the point: "doorless" was a property of the view and
+// "deletable" a property of the file, and until #472 a plausible cleanup of the one
+// would have broken the store through the other.
+//
+// ⛔ SO WHY IS THIS FILE STILL HERE? An older version of this header said it
+// "retires in the Slice 6 cleanup", and CLAUDE.md's register said the core hoist was
+// what unblocked that. Both predate the real blocker, found while doing the hoist:
+// FIVE source files cite this view in prose, and two of them are load-bearing for
+// code that ships. `Studio/EchoelValueField.swift` — the one parameter control used
+// app-wide — points at `handleEnded` below TWICE, as the canonical evidence that
+// SwiftUI may deliver `onEnded` AFTER a `@GestureState` reset; that is the premise
+// its #377/#378 revert-on-cancel design rests on. `DSP/EchoelDDSP.swift` uses this
+// row's doorlessness as a premise in its `outputLevel` reachability argument, and
+// `Core/AutomationPlayer.swift` carries a ⛔ retraction that names the row (a
+// retraction whose whole value is naming what it corrects). Deleting the host before
+// relocating those is the #456 defect at three times the size: a live file pointing
+// at an explanation that no longer exists reads as "the rule was withdrawn". The
+// deletion is a slice of its own with that prose work costed in.
 //
 // DATA MODEL (honest): timeline automation lives in `TimelineDocument.automation`
 // — parameter-keyed, DOCUMENT-wide, song-absolute. GLOBAL targets (master level,
@@ -28,95 +54,11 @@
 // through @GestureState (auto-reset on a stolen/cancelled drag, jitter audit
 // #56 C2).
 //
-// The geometry/touch law is pure (`TimelineAutomationRowMath`, Foundation-only,
-// Linux-CI-tested — pattern: RollFitMath / AutomationCanvasMath); value↔y reuses
+// The geometry/touch law is pure and no longer lives here: see
+// `Sequencer/TimelineAutomationRowMath.swift` (#472). Value↔y still reuses
 // AutomationCanvasMath's tested mapping.
 
 import Foundation
-
-/// Pure geometry + touch law for the song-wide inline automation row.
-/// x is song-absolute: `x = tick · pxPerTick` — the exact scale of the clip
-/// grid (`pxPerTick = pointsPerBeat / TimelineTime.ticksPerBeat`), so curve and
-/// clips stay aligned by construction at every zoom.
-public enum TimelineAutomationRowMath {
-
-    /// Same touch radius as the sheet canvas (A3).
-    public static let touchRadius = 28.0
-    /// A finished drag below this travel counts as a TAP (shared A3 law).
-    public static var tapSlopPoints: Double { AutomationCanvasMath.tapSlopPoints }
-
-    // MARK: Coordinate mapping (song-absolute)
-
-    public static func x(forTick tick: Int, pxPerTick: Double) -> Double {
-        guard pxPerTick > 0, pxPerTick.isFinite else { return 0 }
-        return Double(max(0, tick)) * pxPerTick
-    }
-
-    /// x → song tick, clamped into [0, maxTick]. Degenerate scale → 0.
-    public static func tick(forX x: Double, pxPerTick: Double, maxTick: Int) -> Int {
-        guard pxPerTick > 0, pxPerTick.isFinite, x.isFinite, maxTick > 0 else { return 0 }
-        return min(max(0, Int((x / pxPerTick).rounded())), maxTick)
-    }
-
-    // MARK: Hit-testing
-
-    /// The keyframe nearest to a canvas location, with its screen distance —
-    /// the caller applies `touchRadius`. nil for an empty lane. Height maps
-    /// value→y via the tested AutomationCanvasMath law.
-    public static func nearestPoint(toX x: Double, y: Double,
-                                    points: [AutomationPoint],
-                                    pxPerTick: Double, height: Double)
-        -> (id: UUID, distance: Double)? {
-        var best: (UUID, Double)?
-        for p in points {
-            let dx = Self.x(forTick: p.tick, pxPerTick: pxPerTick) - x
-            let dy = AutomationCanvasMath.y(forValue: p.value, height: height) - y
-            let d = (dx * dx + dy * dy).squareRoot()
-            if best == nil || d < best!.1 { best = (p.id, d) }
-        }
-        return best.map { (id: $0.0, distance: $0.1) }
-    }
-
-    /// Classify a touch-down: the keyframe id to MOVE when the start lands
-    /// within `touchRadius` of one, else nil (a tap-in-waiting that adds).
-    /// Deterministic — the gesture calls it at touch-down AND again at release,
-    /// so a cancelled @GestureState never strands a stale mode.
-    public static func hitPointID(atX x: Double, y: Double,
-                                  points: [AutomationPoint],
-                                  pxPerTick: Double, height: Double) -> UUID? {
-        guard let hit = nearestPoint(toX: x, y: y, points: points,
-                                     pxPerTick: pxPerTick, height: height),
-              hit.distance <= touchRadius else { return nil }
-        return hit.id
-    }
-
-    // MARK: Drag preview
-
-    /// The points array with ONE keyframe substituted at a preview tick/value —
-    /// what the canvas renders mid-drag (the store commits only on release).
-    /// Kept sorted so the curve evaluation stays correct while dragging.
-    public static func displayPoints(_ points: [AutomationPoint], movingID: UUID?,
-                                     toTick tick: Int, value: Double) -> [AutomationPoint] {
-        guard let movingID else { return points }
-        var out = points
-        if let i = out.firstIndex(where: { $0.id == movingID }) {
-            out[i].tick = max(0, tick)
-            out[i].value = min(1, max(0, value))
-        }
-        return out.sorted { $0.tick < $1.tick }
-    }
-
-    // MARK: Parameter identity
-
-    /// Alias-aware parameter equality: a legacy enum rawValue ("masterLevel")
-    /// and its registry keyPath ("master.amp.level") name the SAME lane — the
-    /// law AutomationPlayer's layerValue already applies at playback.
-    public static func sameParameter(_ a: String, _ b: String) -> Bool {
-        if a == b { return true }
-        guard let ta = AutomationTarget.forParameter(a) else { return false }
-        return ta == AutomationTarget.forParameter(b)
-    }
-}
 
 #if canImport(SwiftUI)
 import SwiftUI
