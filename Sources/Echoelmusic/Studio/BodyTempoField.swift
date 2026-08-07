@@ -216,6 +216,42 @@ struct BodyTempoField: View {
             .accessibilityLabel(lockBPM ? "Tempo locked — tap to follow your pulse again"
                                         : "Lock tempo at this value")
         }
+        // ⛔ THIS CONTROL CARRIES ITS OWN NON-GREEDINESS NOW, and #455 is why (founder
+        // 2026-08-07, v10.79.371 screenshot with the tempo box scribbled out): in LOOP mode
+        // the box stood roughly a third of the screen tall, with the lock and the pulse pill
+        // beside it at their normal 32 pt.
+        //
+        // THE MECHANISM WAS ALREADY WRITTEN DOWN, in two places, before it happened.
+        // `EchoelValueField`'s scrub layer is a bare `Rectangle()`, which accepts ANY proposed
+        // height — its own comment says so and ends with "Do not remove that without removing
+        // this greediness at the source". `WorkspaceView`'s transport bar says the same from
+        // the other side: a VStack ranks children by flexibility, so a row hosting this field
+        // reports ∞ and starts SPLITTING free space with the instrument below it.
+        //
+        // ⭐ WHAT ACTUALLY WENT WRONG IS NOT THAT SOMEONE IGNORED THOSE COMMENTS. The
+        // protection was a property of the BAR (`.fixedSize` + `.frame(minHeight: 44)` on
+        // `WorkspaceView.transportBar`), not of the CONTROL. #411 moved this field OUT of that
+        // bar and into `EchoelStudioView.startControlRow` on a founder ask — a move whose whole
+        // point was that the control is mountable anywhere, and every word of its
+        // freeze-safety argument was correct. The layout half simply did not travel with it,
+        // because nothing said it had to. That is the #416 shape: one decision, two owners, and
+        // no way to notice when they come apart.
+        //
+        // So the fix is placed HERE and not on the new row: whichever bar this lands in next
+        // inherits it. `startControlRow` is deliberately left untouched, so this file is the
+        // single answer to "why does the tempo field not stretch".
+        //
+        // ⚠️ ONLY THE LOCKED BRANCH WAS EVER GREEDY. The following branches pin their own
+        // frames (compact: `76×32`; wide: padded Texts). So this was a LOOP-mode-only defect,
+        // and a Flow-mode screenshot would have shown nothing — worth knowing before reading a
+        // report that says "the tempo field looks fine here".
+        //
+        // ⚠️ NO `minHeight` TWIN HERE, unlike the three chrome bars. Theirs floors the whole
+        // BAR at the 44 pt HIG tap target; this view is a control inside a row whose height is
+        // already pinned by its siblings (the ▶ button's `FloatingVisualLayout.startButtonHeight`,
+        // the lock's own 32). Adding a floor here would be a second opinion about a height this
+        // view does not own.
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Locking adopts the SHOWN value (the body rate, 4-decimal exact) as the musical

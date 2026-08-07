@@ -242,8 +242,51 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**183** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `AFreshTakeStartsWithNoHeldFrameTests.swift` (#454 — der
+                          `Tests/CISmoke` (**184** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `TheTempoFieldCannotEatTheScreenTests.swift` (#455 — der
+                          erste Wächter in dieser Kette über einem LAYOUT-Defekt, und der einzige,
+                          dessen Mechanismus vor dem Eintreten schon ZWEIMAL im Repo aufgeschrieben
+                          war. Founder-Screenshot v10.79.371 (2488), das Tempo-Feld durchgestrichen:
+                          im LOOP-Modus stand die Box rund ein Drittel des Bildschirms hoch, während
+                          Schloss und Puls-Pille daneben auf ihren normalen 32 pt saßen.
+                          ⭐ **Und niemand hat einen Kommentar ignoriert — DAS ist der Befund.**
+                          `EchoelValueField`s Scrub-Schicht ist ein nacktes `Rectangle()`, das JEDE
+                          angebotene Höhe annimmt (sein eigener Kommentar endet mit „Do not remove
+                          that without removing this greediness at the source"), und `WorkspaceView`
+                          sagt von der anderen Seite, dass ein VStack seine Kinder nach Flexibilität
+                          sortiert und eine solche Zeile deshalb ∞ meldet und den freien Platz mit dem
+                          Instrument darunter TEILT. Beides stimmt. Nur war der Schutz eine Eigenschaft
+                          der LEISTE (`.fixedSize` + `.frame(minHeight: 44)` auf den drei Chrome-Bars)
+                          und nicht des BEDIENELEMENTS — und #411 hat das Feld auf Founder-Wunsch aus
+                          der Transport-Leiste in `EchoelStudioView.startControlRow` verschoben. Jedes
+                          Wort der Freeze-Sicherheits-Begründung dieses Umzugs war richtig; die
+                          LAYOUT-Hälfte ist einfach nicht mitgereist, weil nichts sagte, dass sie muss.
+                          **Die #416-Form in ihrer leisesten Ausprägung: eine Entscheidung, zwei
+                          Besitzer, und nichts, das ihr Auseinanderlaufen bemerkt.**
+                          ⚠️ Nur der GESPERRTE Zweig war je gierig — die folgenden Zweige pinnen ihre
+                          eigenen Rahmen (kompakt `76×32`, breit: gepolsterte Texte). Ein
+                          Flow-Modus-Screenshot hätte nichts gezeigt.
+                          ⭐ Die Reparatur sitzt deshalb am BEDIENELEMENT und nicht an der neuen Zeile:
+                          die nächste Leiste, in der es landet, erbt sie. `startControlRow` bleibt
+                          bewusst unberührt, damit es genau EINE Antwort auf „warum dehnt sich das
+                          Tempo-Feld nicht" gibt.
+                          ⚠️ **Der Gegengewichts-Test ist der teure Teil:** das naheliegende Aufräumen
+                          danach ist „das Bedienelement schützt sich jetzt selbst, die Leisten brauchen
+                          es nicht mehr" — und das wäre still falsch. `CompositionHeaderStrip` beherbergt
+                          das A4-Kammerton-Feld, ein ANDERES gieriges Control, von dem `BodyTempoField`
+                          nichts weiß; ihm den Pin zu nehmen öffnet dieselbe Spaltung eine Leiste höher,
+                          auf genau dem Feld, dessen versehentliche Verstellung #391, #392 und #440
+                          gekostet hat.
+                          ⚠️ Was der Wächter NICHT kann, und es steht als ERSTES im Dateikopf: alle fünf
+                          Behauptungen sind Quelltext-Scans. SwiftUI-Layout ist von hier nicht erreichbar,
+                          „die Box ist 35 pt und nicht 217" bleibt eine Geräte-Sichtprobe. Gemessen: nur
+                          Behauptung 1 ist auf `7415421` rot, die vier anderen sind Prämissen und
+                          Gegengewichte und beidseitig grün — so gesagt statt als Regressionstests
+                          verkleidet. Und die `codeOnly`-Streifung (#453) ist hier tragend, nicht
+                          hygienisch: die Prosa dieser Scheibe zitiert alle drei gesuchten Zeichenketten,
+                          und `WorkspaceView` nennt den Modifier in einem Kommentar fünf Zeilen über dem
+                          echten),
+                          davor „183" nach `AFreshTakeStartsWithNoHeldFrameTests.swift` (#454 — der
                           Zwilling des Eintrags direkt darunter, eine Ebene TIEFER: #447 hat den
                           VERBRAUCHER dagegen gehärtet, dass ein messungsloser Frame Zustand zerstört,
                           und beim Nachlesen fiel auf, dass der ERZEUGER denselben Frame nach einem
@@ -2289,7 +2332,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTEINUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 183 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTZWEIUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 184 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
