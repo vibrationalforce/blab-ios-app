@@ -310,12 +310,17 @@ public struct BreathHold: Sendable, Equatable {
         // independent of the pill's camera/BLE/sim choice — a wrist frame advances
         // `lastMeasuredAt` past the frozen stamp, and the next hold republish resets everything.
         //
-        // ⚠️ MEASURED, because "it resets" understates it: 20 s of camera breath, one HealthKit
-        // frame, then hold republishes at 1 Hz — the weight went 1.0 → **0.0 in a single lane
-        // sample** and stayed there, with `rate` and `horizon` wiped to 0 as well. Nothing can
-        // recover until a new MEASURED frame arrives, and during a pulse dropout none does. That
-        // is the full step #434 built this type to remove, in the exact case it was built for,
-        // arriving through a guard written for a different problem.
+        // ⚠️ MEASURED, because "it resets" understates it: six 1 Hz camera frames (enough for the
+        // climb to reach full weight), one HealthKit frame, then hold republishes — the weight
+        // went 1.0 → **0.0 in a single lane sample** and stayed there, with `rate` and `horizon`
+        // wiped to 0 as well. Nothing can recover until a new MEASURED frame arrives, and during
+        // a pulse dropout none does. That is the full step #434 built this type to remove, in the
+        // exact case it was built for, arriving through a guard written for a different problem.
+        // ⛔ The first draft wrote "20 s of camera breath" here, and that setup appears NOWHERE
+        // else — not in the commit, not in CLAUDE.md, and not in the guard, whose fixture uses
+        // six frames. The result does not depend on the warm-up length once the climb has topped
+        // out, so the claim was not wrong; but by this file's own #448 rule a measured number
+        // carries the setup that reproduces it, and the only reproducible one is the fixture's.
         //
         // The NTP protection itself is unchanged and still needed: wall clock can move
         // backwards, `lastMeasuredAt` then sits in the future, the guard below rejects EVERY

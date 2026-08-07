@@ -113,7 +113,13 @@ final class AHeldFrameCannotResetTheHoldTests: XCTestCase {
     /// hold to full weight, ONE wrist frame lands and advances the stamp, then the camera's
     /// pulse-hold republish arrives carrying the older frozen stamp and no breath.
     ///
-    /// Pre-#447 every assertion here reads 0.
+    /// ⛔ THE FIRST DRAFT SAID "Pre-#447 every assertion here reads 0" AND THAT WAS AN
+    /// OVERSTATEMENT of exactly the kind this repo keeps retracting — the reviewer found it. The
+    /// first four assertions run BEFORE the hold republish and pass on the old order too; they
+    /// are the PREMISE, not the finding. Only the four after the republish read 0 pre-#447. The
+    /// distinction is not cosmetic: it is the line a later session reads to decide whether this
+    /// test is load-bearing, and "every assertion" would let it delete the republish and still
+    /// believe it was testing something.
     func testTheWristFrameDoesNotArmTheHoldRepublishToWipeEverything() {
         var hold = warmedCameraHold()
         XCTAssertEqual(hold.weight(at: 105), 1, accuracy: 1e-12,
