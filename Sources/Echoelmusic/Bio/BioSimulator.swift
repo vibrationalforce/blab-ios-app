@@ -39,6 +39,36 @@ import Observation
 @Observable
 public final class BioSimulator {
 
+    /// Resting **SDNN / RMSSD** ratio, used to derive the Demo source's SDNN from the RMSSD it
+    /// publishes so the pair keeps the direction a resting body actually shows (SDNN above RMSSD).
+    ///
+    /// ⛔ THIS REPLACES A BARE `* 90` (#464). That constant was derived nowhere and was
+    /// **inverted**: 90 sits below the 100 ms house ceiling, so the demo published SDNN BELOW
+    /// RMSSD at every point of its walk band, while every resting reference runs the other way.
+    /// The previous slice (#461) left it standing on a reason that undermined itself — "changing
+    /// it means choosing a ratio, i.e. inventing physiology" — while the incumbent WAS a chosen
+    /// ratio, and an inverted one. Replacing an invented, inverted number with a cited,
+    /// direction-correct one is not a new invention; it is the smaller of two fictions, and it is
+    /// labelled as fiction here rather than dressed up as a measurement.
+    ///
+    /// ⚠️ WHY 1.25 AND NOT SOMETHING LARGER. The two references this file already carried BRACKET
+    /// the ratio, they do not fix it: Task Force 1996's short-term figure (SDNN index 54±15 ms
+    /// against RMSSD 27±12 ms) is ≈2.0; short-term resting studies put the pair closer, order
+    /// 50 vs 40 ms, ≈1.25. The DIRECTION is robust across all of them; the RATIO is not, so this
+    /// takes the conservative end — the smallest separation any of the cited work supports —
+    /// because a demo must not overstate a spread nobody measured. A plausible resting pair, not
+    /// a claim about any person.
+    ///
+    /// ⚠️ IT MUST STAY > 1, and that is the one property a guard can actually defend:
+    /// `TheDemoSourceAgreesWithItsOwnKnobTests` asserts it, because a ratio of exactly 1 makes
+    /// demo SDNN bit-identical to demo RMSSD — a pair no body produces, and one that makes the
+    /// Demo source useless to a receiver plotting the two against each other.
+    ///
+    /// ⚠️ NOT a resurrection of the retired `* 120`: that was a divisor on RMSSD contradicting the
+    /// house ceiling (#461). This is a multiplier on a DIFFERENT field, derived FROM that ceiling,
+    /// and it happens to land on 125 ms — numeric neighbourhood, not restoration.
+    nonisolated static let restingSDNNOverRMSSD: Double = 1.25
+
     public private(set) var isRunning = false
 
     @ObservationIgnored
@@ -152,36 +182,38 @@ public final class BioSimulator {
             // source has).
             hrvRMSSDms: hrvNormalized * Float(HRVNormalization.ceilingMs),
             // ⚠️ SDNN AND pNN50 DELIBERATELY DO **NOT** ROUND-TRIP, and the symmetrical-looking
-            // tidy-up is the trap. On the camera and the strap `normalize(hrvSDNNms)` does not
-            // equal `hrvNormalized` either — the knob is anchored on RMSSD there too — so
-            // giving SDNN the same ceiling would not be consistency, it would make demo SDNN
-            // EXACTLY equal to demo RMSSD, a pair no body produces and one that makes the demo
-            // useless for a receiver plotting the two against each other. pNN50 is a percentage
-            // and no source ties it to the knob at all.
+            // tidy-up is still the trap it always was — #464 did not soften it. On the camera and
+            // the strap `normalize(hrvSDNNms)` does not equal `hrvNormalized` either (the knob is
+            // anchored on RMSSD there too), so dropping the ratio and letting SDNN take the
+            // ceiling NEAT would not be consistency: it would make demo SDNN bit-identical to
+            // demo RMSSD, a pair no body produces and one that makes the demo useless to a
+            // receiver plotting the two against each other. Read the line below as
+            // "ceiling TIMES A RATIO" — the ratio is the whole point, and `> 1` is asserted in
+            // `TheDemoSourceAgreesWithItsOwnKnobTests`. With 1.25 the round trip stays broken by
+            // construction: `normalize(1.25·h)` is `1.25·h` below the clamp and `1.0` above it,
+            // and neither equals `h` anywhere in the 0.2…0.9 walk band. pNN50 is a percentage and
+            // no source ties it to the knob at all.
             //
-            // ⚠️ WHAT IS STILL WRONG HERE AND IS **NOT** FIXED, named rather than left for the
-            // next reader: 90 < 100, so the demo publishes SDNN BELOW RMSSD at every point,
-            // while at rest the relationship runs the other way. Attribution, corrected —
-            // the first version cited the wrong table: Task Force 1996's headline normative
-            // pair (SDNN 141±39 ms, RMSSD 27±12 ms) is from **24-hour** recordings; the
-            // short-term figure in that same document is the **SDNN index** (mean of the
-            // 5-minute SDNNs), 54±15 ms, against RMSSD 27±12 ms. Short-term resting studies
-            // put the two closer (order 50 vs 40 ms). The DIRECTION is robust across all of
-            // them; the ratio is not, and only the direction is needed here.
+            // ⭐ THE INVERSION IS FIXED (#464) — it was registered here as "still wrong and NOT
+            // fixed", and that entry was the whole point of writing it down. `* 90` sat BELOW the
+            // 100 ms ceiling, so the demo shipped SDNN under RMSSD at every point of the walk
+            // band while every resting reference runs the other way. Attribution, corrected in
+            // #461 and kept: Task Force 1996's headline pair (SDNN 141±39 ms, RMSSD 27±12 ms) is
+            // from **24-hour** recordings; the short-term figure in that same document is the
+            // **SDNN index** (mean of the 5-minute SDNNs), 54±15 ms against RMSSD 27±12 ms
+            // (≈2.0), and short-term resting studies put the pair closer, order 50 vs 40 ms
+            // (≈1.25). The DIRECTION is robust across all of them; the RATIO is not — see
+            // `restingSDNNOverRMSSD` for why the conservative end is the one taken.
             //
-            // ⛔ AND THE REASON THIS SLICE LEAVES IT ALONE WAS SELF-UNDERMINING AS FIRST
-            // WRITTEN. It said changing `* 90` "means choosing a ratio, i.e. inventing
-            // physiology to make a demo prettier". But `* 90` IS a chosen ratio — invented by
-            // nobody-knows-who, never derived anywhere, and inverted against every reference
-            // above. Refusing to move a fabricated constant on the grounds that moving it
-            // would fabricate treats the incumbent as evidence-free-neutral when it is exactly
-            // as invented as any replacement, and the evidence the decision supposedly lacks
-            // is cited two lines up. The honest statement is narrower: **the incumbent is also
-            // invented and it is inverted; replacing it is cheap and the evidence is above,
-            // but it changes shipped output and belongs in its own slice.** Keeping this fix
-            // to arithmetic is scope discipline, not an evidentiary verdict — do not read it
-            // as "there is no evidence" and leave the inverted pair standing forever.
-            hrvSDNNms: hrvNormalized * 90,
+            // ⚠️ WHY IT IS A SEPARATE SLICE FROM #461 AND NOT A CARRY-ALONG: #461 was pure
+            // arithmetic consistency (a number that contradicted its own knob). This CHANGES
+            // SHIPPED OUTPUT — the value `BioStripView` renders and `OSCSender` puts on
+            // `/echoelmusic/bio/heart/sdnn` for a foreign console. Measured before writing:
+            // the published band moves 18…81 ms → 25…112.5 ms, both ends still inside
+            // `BioStripView`'s 3…300 plausibility window, and the OSC gate is `hrvSDNNms > 0`,
+            // which 25 clears as surely as 18 did. Nothing downstream compares the two metrics,
+            // so the only observable change is that the pair now points the right way.
+            hrvSDNNms: hrvNormalized * Float(HRVNormalization.ceilingMs * Self.restingSDNNOverRMSSD),
             hrvPNN50: hrvNormalized * 40
         )
     }

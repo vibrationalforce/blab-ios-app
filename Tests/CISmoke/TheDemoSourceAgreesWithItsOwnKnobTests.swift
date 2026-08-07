@@ -39,13 +39,22 @@
 //     `normalize(60)` and expects 0.60, so moving the house ceiling — which the premise above
 //     explicitly declares allowed — turns it red. That is a real coupling, and its failure
 //     message says so instead of misdirecting to "the museum is wrong, not the app".
-//   · `testSDNNAndPNN50AreDeliberatelyNotRoundTripped`   — COUNTERWEIGHT. Green before AND after.
-//     It exists so the symmetrical-looking "tidy-up" (give SDNN the same ceiling) turns red
-//     instead of silently making demo SDNN identical to demo RMSSD.
-//   · `testThePublishedMillisecondsStayInsideTheReadoutBand` — COUNTERWEIGHT. Green both sides
-//     (24…108 was inside too). It pins the thing a *different* anchor choice would have broken:
-//     `BioStripView` blanks the HRV readout outside 3…300 ms, so a fix that anchored to a small
-//     ceiling would have silently emptied the Demo readout rather than corrected it.
+//   · `testSDNNAndPNN50AreDeliberatelyNotRoundTripped`   — COUNTERWEIGHT for #461, and since
+//     #464 also the REGRESSION for a SECOND baseline (see the note below). It exists so the
+//     symmetrical-looking "tidy-up" (give SDNN the ceiling neat) turns red instead of silently
+//     making demo SDNN identical to demo RMSSD.
+//   · `testThePublishedMillisecondsStayInsideTheReadoutBand` — COUNTERWEIGHT. Green across both
+//     slices (every band this file has shipped was inside). It pins the thing a *different*
+//     anchor choice would have broken: `BioStripView` blanks the HRV readout outside 3…300 ms,
+//     so a fix that anchored to a small ceiling — or, after #464, a resting ratio big enough to
+//     push the SDNN walk past 300 — would silently empty the Demo readout rather than correct it.
+//
+// ⚠️ TWO BASELINES, because this file now guards TWO slices and "is it red?" has no answer
+// without saying red against WHAT. Against the pre-#461 tree exactly one claim fails: the RMSSD
+// scan. Against the pre-#464 tree exactly one claim fails: the SDNN scan (which then pinned the
+// inverted `* 90`). Everything else is a premise, a museum piece or a counterweight, and the two
+// #464 arithmetic claims could not even have COMPILED on the older tree — `restingSDNNOverRMSSD`
+// did not exist. Calling those regressions would be the #433 self-mis-filing again.
 //
 // ⭐ THE DEFECT. `HRVNormalization` exists because #97 found the live sources each carrying their
 // OWN divisor for the SAME `hrvNormalized` field (camera ÷200, strap ÷100, HealthKit ÷100). It
@@ -85,6 +94,14 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
     /// The REMOVED expression, reproduced for the museum test only. Nothing else may use it.
     private func retiredDemoRMSSDms(_ hrvNormalized: Float) -> Float {
         hrvNormalized * 120
+    }
+
+    /// The shipped SDNN expression, reproduced. Unlike the RMSSD twin above this READS the
+    /// source's own constant rather than restating a number, so moving the ratio moves this file
+    /// with it instead of leaving a stale hand copy behind (the failure mode the pre-#464 version
+    /// of the counterweight admitted to in its own comment).
+    private func demoSDNNms(_ hrvNormalized: Float) -> Float {
+        hrvNormalized * Float(HRVNormalization.ceilingMs * BioSimulator.restingSDNNOverRMSSD)
     }
 
     // MARK: - The regression
@@ -197,22 +214,41 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
 
     // MARK: - Counterweights
 
-    /// COUNTERWEIGHT — green before and after. The tidy-up that looks like consistency is to
-    /// give SDNN the same ceiling. It is not consistency: on camera and Polar SDNN does not
-    /// round-trip either (the knob is anchored on RMSSD there too), and doing it here would make
-    /// the demo's SDNN bit-identical to its RMSSD — a pair no body produces, and one that makes
-    /// the Demo source useless for testing a receiver that plots the two separately. pNN50 is a
-    /// percentage and no source ties it to the knob at all; it is pinned here too, because the
-    /// first version argued for it in prose and asserted nothing, so the symmetrical tidy-up on
-    /// pNN50 would have gone through under a test whose name promised to stop it.
+    /// REGRESSION (against the pre-#464 tree) + COUNTERWEIGHT, in one method because the two
+    /// claims are the same decision seen from both sides.
+    ///
+    /// The tidy-up that looks like consistency is to give SDNN the ceiling NEAT. It is not
+    /// consistency: on camera and Polar SDNN does not round-trip either (the knob is anchored on
+    /// RMSSD there too), and doing it here would make the demo's SDNN bit-identical to its RMSSD
+    /// — a pair no body produces, and one that makes the Demo source useless for testing a
+    /// receiver that plots the two separately. pNN50 is a percentage and no source ties it to the
+    /// knob at all; it is pinned here too, because the first version argued for it in prose and
+    /// asserted nothing, so the symmetrical tidy-up on pNN50 would have gone through under a test
+    /// whose name promised to stop it.
+    ///
+    /// ⭐ WHAT #464 CHANGED HERE, stated so the update is a decision and not a silent re-pin: the
+    /// scan used to pin `hrvSDNNms: hrvNormalized * 90`, and 90 sits BELOW the 100 ms ceiling, so
+    /// the guard was faithfully defending an INVERTED pair (demo SDNN under demo RMSSD at every
+    /// point, against every resting reference). The non-round-trip property was never the problem
+    /// and is unchanged; only the direction was wrong. The pin moved in the same commit as the
+    /// source, with the reason — it was not deleted.
+    ///
+    /// ⚠️ HONEST GRADING OF THE FOUR CLAIMS BELOW. The SDNN scan is a real regression against the
+    /// pre-#464 tree. The pNN50 scan is green on both. The direction check and the ratio check
+    /// COULD NOT HAVE RUN on the old tree at all — `restingSDNNOverRMSSD` did not exist, so the
+    /// file would not have compiled; they are forward guards, not proof of a fixed defect, and
+    /// calling them regressions would be the #433 self-mis-filing this file already paid for once.
     func testSDNNAndPNN50AreDeliberatelyNotRoundTripped() throws {
         let source = try demoSource()
         XCTAssertTrue(
-            source.contains("hrvSDNNms: hrvNormalized * 90"),
+            source.contains(
+                "hrvSDNNms: hrvNormalized * Float(HRVNormalization.ceilingMs * Self.restingSDNNOverRMSSD)"),
             """
-            The demo's SDNN is deliberately NOT anchored to the knob. If this line changed on \
-            purpose, update this expectation in the SAME commit and say why — do not delete the \
-            check, it is the only thing standing between here and demo SDNN == demo RMSSD.
+            The demo's SDNN must be the house ceiling TIMES the named resting ratio — not a bare \
+            literal (which is how it came to sit below RMSSD in the first place) and not the \
+            ceiling neat (which would make demo SDNN == demo RMSSD). If this line changed on \
+            purpose, update this expectation in the SAME commit and say why; do not delete the \
+            check.
             """)
         XCTAssertTrue(
             source.contains("hrvPNN50: hrvNormalized * 40"),
@@ -222,23 +258,41 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
             reason.
             """)
 
-        // ⚠️ THE LINE BELOW IS NOT A SECOND, INDEPENDENT CHECK — the first version's doc said
-        // it "pins the intent and not just the spelling", and that is false: the 90 is a literal
-        // HERE, not read from the source, so a tree that anchored SDNN to the ceiling would
-        // leave it green (45 ≠ 50) and only the spelling scan above would go red. It can fail
-        // only if `ceilingMs` itself moves to 90. Kept because it states the collision the
-        // scan exists to prevent; the SCAN does all the work. (Mis-labelling a claim's strength
-        // is the same defect this whole file exists to correct, one method further down.)
-        let h: Float = 0.5
-        XCTAssertNotEqual(
-            h * 90, demoRMSSDms(h),
-            "Demo SDNN and demo RMSSD must remain distinguishable values.")
+        // The ratio is the ONE property of #464 a guard can defend without inventing physiology:
+        // above 1 the pair points the way a resting body does, at exactly 1 the two metrics
+        // collapse into the same number. This reads the SOURCE's constant, so it is not the
+        // tautology the pre-#464 version of this block honestly admitted to being (it compared a
+        // literal 90 it had written itself).
+        XCTAssertGreaterThan(
+            BioSimulator.restingSDNNOverRMSSD, 1.0,
+            """
+            Demo SDNN must stay ABOVE demo RMSSD. At a ratio of exactly 1 the two are \
+            bit-identical; below 1 the demo publishes the inverted pair #464 removed.
+            """)
+
+        for h in [Self.walkBand.lowerBound, 0.5, Self.walkBand.upperBound] {
+            XCTAssertGreaterThan(
+                demoSDNNms(h), demoRMSSDms(h),
+                "at hrvNormalized \(h) the demo must publish SDNN above RMSSD, not below it")
+            // And the non-round-trip survives the fix: 1.25·h never equals h on this band, and
+            // above the clamp `normalize` saturates to 1.0, which is not h either.
+            XCTAssertNotEqual(
+                Float(HRVNormalization.normalize(Double(demoSDNNms(h)))), h,
+                """
+                Demo SDNN now round-trips through the knob — that is the collision this \
+                counterweight exists to prevent, not a consistency win.
+                """)
+        }
     }
 
-    /// COUNTERWEIGHT — green both sides. `BioStripView` blanks the HRV readout for values
-    /// outside 3…300 ms. The old range (24…108) and the new one (20…90) both sit inside, so this
-    /// is not what the fix repaired — it pins what a DIFFERENT anchor choice would have broken:
-    /// a smaller ceiling would have emptied the Demo readout instead of correcting it.
+    /// COUNTERWEIGHT — green across #461 AND #464. `BioStripView` blanks the HRV readout for
+    /// values outside 3…300 ms. Every band this file has shipped sits inside it — RMSSD 24…108
+    /// before #461 and 20…90 after; SDNN 18…81 before #464 and 25…112.5 after — so this is not
+    /// what either fix repaired. It pins what a DIFFERENT choice would have broken: a smaller
+    /// ceiling, or a resting ratio large enough to push the top of the SDNN walk past 300, would
+    /// have emptied the Demo readout instead of correcting it. That is a live constraint now that
+    /// SDNN is derived rather than literal — at the cited upper bracket (≈2.0) the top would read
+    /// 180 ms, still inside; it is the reason to check rather than assume.
     ///
     /// ⚠️ The band is a HAND COPY. `BioStripView.plausibleHRVms` is `private static`, so nothing
     /// binds these two together — if the strip narrows its window, this test stays green and the
@@ -246,14 +300,15 @@ final class TheDemoSourceAgreesWithItsOwnKnobTests: XCTestCase {
     func testThePublishedMillisecondsStayInsideTheReadoutBand() {
         let readable: ClosedRange<Float> = 3...300
         for h in [Self.walkBand.lowerBound, 0.5, Self.walkBand.upperBound] {
-            let ms = demoRMSSDms(h)
-            XCTAssertTrue(
-                readable.contains(ms),
-                """
-                Demo RMSSD \(ms) ms at hrvNormalized \(h) falls outside BioStripView's \
-                plausibility band 3…300 ms, so the readout would show "—" for a source whose \
-                whole purpose is to give the readouts something to display.
-                """)
+            for (name, ms) in [("RMSSD", demoRMSSDms(h)), ("SDNN", demoSDNNms(h))] {
+                XCTAssertTrue(
+                    readable.contains(ms),
+                    """
+                    Demo \(name) \(ms) ms at hrvNormalized \(h) falls outside BioStripView's \
+                    plausibility band 3…300 ms, so the readout would show "—" for a source whose \
+                    whole purpose is to give the readouts something to display.
+                    """)
+            }
         }
     }
 

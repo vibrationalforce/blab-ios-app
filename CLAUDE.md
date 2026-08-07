@@ -300,17 +300,37 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           geben wäre keine Konsistenz, sondern machte Demo-SDNN BITGLEICH mit Demo-RMSSD:
                           ein Paar, das kein Körper erzeugt, und eines, das die Demo für einen Empfänger
                           unbrauchbar macht, der beide gegeneinander plottet. Genau dafür steht
-                          `testSDNNAndPNN50AreDeliberatelyNotRoundTripped` da, und es ist ein GEGENGEWICHT
-                          — auf beiden Seiten grün. ⛔ Hier stand „die dritte Behauptung", und das war beim
+                          `testSDNNAndPNN50AreDeliberatelyNotRoundTripped` da. ⛔ **Und der Halbsatz „auf
+                          beiden Seiten grün", der hier stand, gilt seit #464 nicht mehr** — dieselbe Methode
+                          ist gegen den Vor-#464-Baum ROT, weil ihre Nadel dort das invertierte `* 90`
+                          festnagelte. Ein Gegengewicht kann zum Regressionstest werden, sobald die Zeile,
+                          die es festhält, sich bewegt; „grün auf beiden Seiten" ist eine Aussage über EINE
+                          Baseline und altert genau wie eine Zahl. ⛔ Hier stand „die dritte Behauptung", und das war beim
                           Schreiben richtig und einen Commit später falsch: die Reviewer-Nachlese hat einen
                           Test EINGEFÜGT und die Reihenfolge geändert, womit die Ordnungszahl still auf
                           einen anderen Test zeigte. **Eine ORDNUNGSZAHL ist noch brüchiger als eine
                           Zeilennummer** — die Datei sagt an anderer Stelle, eine zitierte Phrase sei
                           belastbar und eine Zeilennummer nicht; eine Ordnungszahl überlebt nicht einmal
                           eine Umsortierung innerhalb derselben Datei. Ab jetzt steht überall der NAME.
-                          ⛔ **Was hier NICHT repariert ist und deshalb am Ort steht: 90 < 100**, die Demo
-                          veröffentlicht SDNN also an jedem Punkt UNTER RMSSD, während die Ruhe-Beziehung
-                          andersherum läuft. ⛔ Die ZUORDNUNG war falsch — hier stand „Task Force 1996:
+                          ⭐ **Was #461 hier als „NICHT repariert" registriert hat, ist mit #464 repariert —
+                          und genau dafür wurde es aufgeschrieben.** `* 90` lag UNTER der 100-ms-Decke, die
+                          Demo veröffentlichte SDNN also an jedem Punkt UNTER RMSSD, während die
+                          Ruhe-Beziehung andersherum läuft. Jetzt `ceilingMs * restingSDNNOverRMSSD` mit
+                          einem BENANNTEN Verhältnis 1,25 — dem KONSERVATIVEN Ende der schon hier zitierten
+                          Klammer (Kurzzeit-Ruhestudien ≈1,25, Task-Force-SDNN-Index/RMSSD ≈2,0), weil eine
+                          Demo eine Spanne nicht überzeichnen darf, die niemand gemessen hat. Gemessen vor
+                          dem Schreiben: das veröffentlichte Band wandert **18…81 ms → 25…112,5 ms**, beide
+                          Enden weiter innerhalb `BioStripView`s 3…300-Fenster, und das OSC-Tor ist
+                          `hrvSDNNms > 0`, das 25 so sicher nimmt wie 18. Die NICHT-Rundreise bleibt per
+                          Konstruktion kaputt (1,25·h ≠ h auf dem ganzen 0,2…0,9-Band, darüber sättigt
+                          `normalize` auf 1,0) — das Gegengewicht ist also nicht aufgeweicht, es hat nur
+                          seine Nadel mitbewegt, im SELBEN Commit und mit Begründung.
+                          ⚠️ Und die ehrliche Einordnung der zwei NEUEN Behauptungen, weil die naheliegende
+                          schmeichelhafter wäre: `restingSDNNOverRMSSD > 1` und der Richtungs-Sweep sind
+                          KEINE Regressionen — sie hätten auf dem alten Baum nicht einmal kompiliert, die
+                          Konstante gab es nicht. Es gibt pro Baseline genau EINE rote Behauptung: den
+                          RMSSD-Scan gegen den Vor-#461-Baum, den SDNN-Scan gegen den Vor-#464-Baum.
+                          ⛔ Die ZUORDNUNG war falsch — hier stand „Task Force 1996:
                           Ruhe-SDNN über RMSSD auf 5-Minuten-Aufzeichnungen", und das ist die falsche
                           Tabelle: das Normwert-Paar SDNN 141±39 ms / RMSSD 27±12 ms stammt aus
                           **24-Stunden**-Aufzeichnungen; die Kurzzeit-Größe desselben Dokuments ist der
@@ -328,7 +348,13 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           ist billig und die Evidenz steht oben, aber es ändert ausgelieferten Output und
                           gehört in eine eigene Scheibe.** Diese Scheibe auf Arithmetik zu begrenzen ist
                           Umfangsdisziplin, kein Beweisurteil — nicht als „es gibt keine Evidenz" lesen und
-                          das invertierte Paar für immer stehen lassen (#464).
+                          das invertierte Paar für immer stehen lassen. ⭐ **Und das ist der Punkt, an dem
+                          dieser Absatz sich selbst bewährt hat: #464 ist die eigene Scheibe, EINEN Zyklus
+                          später, und sie hat exakt die Begründung benutzt, die hier korrigiert wurde.** Die
+                          LEHRE ist deshalb nicht „Vermerke veralten", sondern die Umkehrung: eine
+                          Nicht-Reparatur, deren Begründung ehrlich als schwach ausgewiesen ist, wird
+                          eingelöst — eine, die sich als Prinzip tarnt („das wäre Erfinden"), bleibt für
+                          immer stehen.
                           ⚠️ Was der Wächter NICHT kann, und das steht als ERSTES in seinem Kopf:
                           `BioSimulator.nextFrame()` ist `private` und die Klasse `@MainActor` — es gibt
                           KEINEN Weg, den ausgelieferten Generator hier zu treiben. Jede Behauptung ist
