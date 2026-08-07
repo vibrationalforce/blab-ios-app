@@ -292,17 +292,49 @@ public struct BreathHold: Sendable, Equatable {
     public mutating func observe(measured: Double?, at now: TimeInterval, usableFor window: TimeInterval) {
         guard now.isFinite else { return }
 
-        // ⛔ A BACKWARDS CLOCK STEP USED TO LATCH THIS TYPE FOREVER, and the first draft's doc
-        // reasoned about re-ordered stamps in a way that made it read as covered. These
-        // timestamps ride `CFAbsoluteTimeGetCurrent` — wall clock, which an NTP correction or a
-        // user can move backwards. `lastMeasuredAt` then sits in the future, the guard below
-        // rejects EVERY later frame, `rate` never updates again, and `weight` returns a
-        // partial, permanent weight on a rate nobody is breathing any more. That is the
-        // fabricated-number failure #433 removed, arriving through the back door. Starting over
-        // loses the hold, which costs one fade — the honest price.
-        if now < lastMeasuredAt { self = BreathHold() }
-
+        // ⛔ AND THE ORDER OF THE NEXT TWO STATEMENTS WAS THE OTHER WAY ROUND, WHICH MADE A
+        // NON-MEASUREMENT ABLE TO DESTROY THE HOLD (#447). The backwards-clock reset ran BEFORE
+        // the `guard let measured`, so ANY frame with a stamp older than the last measurement
+        // wiped the whole type — including the one frame the system produces on purpose with a
+        // frozen stamp and no breath: `CameraRPPGBioPublisher`'s pulse-HOLD republish carries
+        // `held.timestamp` ("do not re-stamp", its own comment) together with `breathRate: 0`.
+        //
+        // ⭐ THE TRIGGER IS NARROWER AND MORE SPECIFIC THAN "SOURCES INTERLEAVE", and getting
+        // that right is what makes this a one-statement move instead of a redesign. EVERY real
+        // measurement in this app stamps `CFAbsoluteTimeGetCurrent()` at RECEIPT — camera, BLE,
+        // demo and HealthKit alike (`HealthKitBioPublisher` says so at its own `timestamp:`,
+        // and #98c2 is why). So real measurements are monotone ACROSS sources; the hold
+        // republish is the one stamp in the system that deliberately goes backwards. With one
+        // source it is harmless, because the frozen stamp equals the last measurement. With a
+        // SECOND source running — and `healthBio.startIfAlreadyAuthorized` runs at app level,
+        // independent of the pill's camera/BLE/sim choice — a wrist frame advances
+        // `lastMeasuredAt` past the frozen stamp, and the next hold republish resets everything.
+        //
+        // ⚠️ MEASURED, because "it resets" understates it: 20 s of camera breath, one HealthKit
+        // frame, then hold republishes at 1 Hz — the weight went 1.0 → **0.0 in a single lane
+        // sample** and stayed there, with `rate` and `horizon` wiped to 0 as well. Nothing can
+        // recover until a new MEASURED frame arrives, and during a pulse dropout none does. That
+        // is the full step #434 built this type to remove, in the exact case it was built for,
+        // arriving through a guard written for a different problem.
+        //
+        // The NTP protection itself is unchanged and still needed: wall clock can move
+        // backwards, `lastMeasuredAt` then sits in the future, the guard below rejects EVERY
+        // later frame, `rate` never updates again, and `weight` returns a partial, permanent
+        // weight on a rate nobody is breathing any more — the fabricated-number failure #433
+        // removed, through the back door. It now fires only when a REAL measurement proves the
+        // clock moved, which is the only moment it can do anything anyway: a nil frame cannot
+        // advance state, so deferring the check costs nothing. Starting over still loses the
+        // hold and still costs one fade — the honest price, now paid only for a real cause.
+        //
+        // ⚠️ WHAT THIS DOES NOT FIX, so nobody reads it as more than it is: two real
+        // measurements from different sources can still arrive out of stamp order through a
+        // publish race (both stamp receipt time, on different actors, microseconds apart). That
+        // case still resets, and it still should — nothing here can tell it from a clock step.
+        // Removing it needs per-source state (`BioEventPublisher`'s shape), which is a design
+        // decision about which hold wins, not a reordering. Task #447 keeps that half.
         guard let measured, measured.isFinite, window.isFinite else { return }
+
+        if now < lastMeasuredAt { self = BreathHold() }
         guard now > lastMeasuredAt else { return }
 
         // A gap longer than the grace window ENDS the run. Restarting the climb from the weight

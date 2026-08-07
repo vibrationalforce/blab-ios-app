@@ -242,8 +242,52 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**181** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `OneDefinitionOfAParameterRangeTests.swift` (#441 — der erste
+                          `Tests/CISmoke` (**182** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `AHeldFrameCannotResetTheHoldTests.swift` (#447 — der erste
+                          Wächter in dieser Kette über einem Frame, das GAR NICHTS MISST und trotzdem
+                          alles zerstören konnte: `observe` führte den Rückwärtsuhr-Reset VOR dem
+                          `guard let measured` aus, also konnte JEDER Frame mit einem älteren Stempel
+                          `rate`, `horizon` und das Gewicht löschen — auch der eine, den das System
+                          ABSICHTLICH mit eingefrorenem Stempel und ohne Atem erzeugt
+                          (`CameraRPPGBioPublisher`s Puls-Halte-Wiederholung, `held.timestamp` +
+                          `breathRate: 0`).
+                          ⭐ Der Auslöser ist ENGER als „Quellen verschachteln", und genau das macht
+                          daraus eine Ein-Anweisungs-Verschiebung statt eines Umbaus: JEDE echte
+                          Messung stempelt `CFAbsoluteTimeGetCurrent()` beim EMPFANG — Kamera, BLE,
+                          Demo und HealthKit gleichermaßen (#98c2 ist der Grund für die
+                          Handgelenks-Hälfte). Echte Messungen sind also quellenübergreifend monoton;
+                          die Halte-Wiederholung ist der EINE Stempel im System, der absichtlich
+                          rückwärts geht. Mit einer Quelle ist das harmlos, weil der eingefrorene
+                          Stempel GLEICH der letzten Messung ist und der Reset ein striktes `<`
+                          braucht. Erst eine ZWEITE Quelle öffnet die Lücke — und
+                          `healthBio.startIfAlreadyAuthorized` läuft auf App-Ebene, unabhängig von der
+                          Quellenwahl der Puls-Pille.
+                          ⚠️ GEMESSEN, weil „es setzt zurück" untertreibt: 1-Hz-Kamera-Frames, EIN
+                          HealthKit-Frame, dann Halte-Wiederholungen — das Gewicht ging **1,0 → 0,0 in
+                          EINEM Spur-Sample** und blieb dort, `rate` und `horizon` auf 0. Nichts
+                          erholt sich, bis ein neuer GEMESSENER Frame kommt, und während eines
+                          Puls-Aussetzers kommt keiner. Das ist der volle Sprung, den #434 mit diesem
+                          Typ entfernt hat, im exakten Fall, für den er gebaut wurde — angekommen
+                          durch einen Wächter, der für ein anderes Problem geschrieben war.
+                          ⭐ Deshalb ist die halbe Datei ein GEGENGEWICHT: der Reset ist kein Müll.
+                          Ohne ihn sitzt `lastMeasuredAt` nach einem NTP-Rücksprung in der Zukunft,
+                          der `now > lastMeasuredAt`-Wächter darunter verwirft JEDEN späteren Frame
+                          für immer, und `weight` zertifiziert weiter eine Rate, die niemand mehr
+                          atmet — die #433-Erfundene-Zahl durch die Hintertür. Die Reparatur MUSS
+                          eine Verschiebung sein, und beide Hälften stehen als Test da.
+                          ⚠️ Was sie NICHT abdeckt, und das steht als eigener Block im Dateikopf: zwei
+                          ECHTE Messungen verschiedener Quellen können durch ein Veröffentlichungs-
+                          Rennen weiter in falscher Stempel-Reihenfolge ankommen (beide stempeln
+                          Empfangszeit, auf verschiedenen Actors, Mikrosekunden auseinander). Dieser
+                          Fall setzt weiter zurück, und er SOLL es — nichts hier kann ihn von einem
+                          Uhrsprung unterscheiden. Ihn zu entfernen braucht Zustand PRO QUELLE
+                          (`BioEventPublisher`s Form), also eine Entwurfsentscheidung darüber, welcher
+                          Halt gewinnt, keine Umsortierung. #447 behält diese Hälfte.
+                          ⚠️ Und die härteste Grenze, unverändert seit #433/#434/#444/#448: nichts
+                          davon ist hörbar oder aufgezeichnet — `RecordController.onStep` beginnt mit
+                          `guard armed else { return }`, `arm()` hat null Aufrufer (#204). Repariert
+                          WIRD es deshalb, nicht trotzdem),
+                          davor „181" nach `OneDefinitionOfAParameterRangeTests.swift` (#441 — der erste
                           Wächter in dieser Kette über einer DREIFACHEN Definition, und der erste, der
                           eine davon ABSICHTLICH stehen lässt. Jeder der 17 Sound-Panel-Parameter hatte
                           seinen Bereich dreimal aufgeschrieben: als Literal an der
@@ -2194,7 +2238,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTNEUNUNDDREISSIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 181 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 182 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
@@ -2416,6 +2460,7 @@ list named 11 files that never existed — do not reintroduce it.)
 - **`Xcode Compile Check`** ist `xcodebuild build` auf Scheme `Echoelmusic` (`xcode-compile-check.yml:57`) — **NICHT** `build-for-testing`. Das kompiliert **nur `Sources/`**, und der Beleg steht im Schema selbst: `project.yml:379-382` gibt Scheme `Echoelmusic` unter `build.targets` **ausschließlich** `Echoelmusic`; `EchoelmusicTests` (Sources = `Tests/CISmoke`, `project.yml:304-310`) steht dort nur unter `test.targets`, und `xcodebuild build` baut die `build`-Targets. Ein grünes Compile-Check-Häkchen beweist über eine neue oder geänderte TESTDATEI also **nichts** — nicht einmal, dass sie kompiliert. (Der Schritt selbst ist ehrlich: er fängt `${PIPESTATUS[0]}` ab und gibt es weiter, trotz des `set +eo pipefail` davor. Sein Blindfleck ist die Reichweite, nicht die Maskierung.)
 - **`Echoelmusic CI/CD Pipeline`** macht `build-for-testing` (`ci.yml:175`) **und** `test-without-building` (`ci.yml:190`), beide mit `set -o pipefail` und ohne `continue-on-error` (ein Kommentar bei `ci.yml:198-202` verbietet die frühere `|| cat`-Maske ausdrücklich). **Auf `push` ist es das EINZIGE Gate, das `Tests/CISmoke` kompiliert UND ausführt.** (⛔ Ohne das „auf `push`" war der Satz falsch: `pr-check.yml:106` baut dasselbe Scheme mit `build-for-testing` und `:129` würde es ausführen — auf PRs nach `main`/`develop`. Es kommt dort nie an, weil der Schritt dazwischen, `:118`, das nicht existierende Scheme `Echoelmusic-macOS` baut und den Job vorher tötet. Die Exklusivität ist also eine **Nebenwirkung von #210**, nicht der Entwurf; wer #210 repariert, muss diesen Satz mitziehen.)
 - ⛔ **ZWEI ROTS, DIE GLEICH AUSSEHEN — und solange #396 lebt, ist das die einzige Unterscheidung, die zählt.** `Echoelmusic CI/CD Pipeline` meldet auf JEDEM Push `failure`, also sagt die Conclusion allein NICHTS. Im Job-Log stehen die beiden Fälle EINE Zeile auseinander und nirgendwo sonst: **`** TEST EXECUTE FAILED **` = #396** (kompiliert, Host stirbt beim Ausführen, harmlos) · **`** TEST BUILD FAILED **` = DEIN Commit** (etwas in `Tests/CISmoke` kompiliert nicht). Umgekehrt ist **`▸ Test build Succeeded`** der einzige Beleg, dass eine neue Testdatei überhaupt baut. Belegt am 2026-08-07 an `f489a6e`: `ASnappedValueIsLegalForItsRowTests.swift` fehlte `@testable import Echoelmusic`, neun „cannot find 'ScrubPrecision' in scope", Bundle tot — bei einer Conclusion, die von #396 nicht zu unterscheiden war. **Wer die Conclusion liest und aufhört, hat nichts geprüft.**
+- ⭐ **UND #396 IST EIN TEILWEISER HOST-TOD, NICHT EIN TOTALER — das ändert, was ein Zyklus über einen neuen Wächter behaupten darf.** Der Log zeigt `NSMachErrorDomain Code=-308 "(ipc/mig) server died"` auf **Clone 2**, während **Clone 1 weiterläuft und einzelne `passed`-Zeilen druckt**. Belegt am 2026-08-07 an `a5aafe2`: alle 10 Fälle von `OneDefinitionOfAParameterRangeTests` und alle 6 des Nachbarn stehen dort namentlich als `passed`, bei `** TEST EXECUTE FAILED **` als Gesamtverdikt. **Also ist „lief grün“ für einen neuen Wächter belegbar — man liest die Testnamen im Job-Log, nicht die Conclusion und nicht nur `▸ Test build Succeeded`.** Die schwächere Formulierung („kompiliert nachweislich, Ausführung durch #396 unbelegt“) war bis hierher richtig und ist ab jetzt zu schwach, wenn die Namen im Log stehen.
 - Konsequenz für die Sprache in jedem Status-Delta: „beide echten Gates grün" ist als Kurzform für „das blockierende Bundle lief" nur deshalb richtig, **weil CI/CD dabei ist**. Für eine reine Testdatei ist CI/CD allein maßgeblich; Compile-Check-grün allein heißt nur `Sources/`-grün.
 - **`Echoel Full Test Suite (non-blocking)` beweist gar nichts** — es meldete am 2026-07-31 `success` auf `bc35248`, während beide echten Gates an 12 Compile-Fehlern scheiterten. Ursache und Reparatur: #208 (founder-gated, `.github/workflows/**` ist berichten-nicht-editieren).
 
