@@ -304,8 +304,36 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**200** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `RadiusHasOneSpellingTests.swift` (#483 — der erste Wächter in
+                          `Tests/CISmoke` (**201** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `EveryPitchedVoiceFollowsTheToneSystemTests.swift` (#338 — der
+                          erste Wächter in dieser Kette über einem FÄCHER: nicht „ist dieser Wert richtig",
+                          sondern „bekommen ihn ALLE, die ihn brauchen". `applyTuning()` reichte die
+                          12-Eintrag-Cent-Tabelle an den globalen PolySynth und den Sub, aber NICHT an
+                          `bioVoice` und NICHT an `LaneVoiceRack` — also an keine Stimme, die eine Lane
+                          spielt. Dieselbe Lücke wie #312, eine Ebene tiefer.
+                          ⭐ **Und der teuerste Befund kam von BEIDEN Pflicht-Reviewern unabhängig: mein
+                          Rack-Fächer wäre beim Start ein garantierter NO-OP gewesen.**
+                          `EchoelStudioView.onAppear` läuft im ersten SYNCHRONEN appear-Pass,
+                          `LaneVoiceRack.attachAll` erst später aus dem asynchronen Start-Task von
+                          `EchoelmusicApp` — zum Zeitpunkt des Fächers existieren die Stimmen gar nicht.
+                          Das Rack LATCHT deshalb beide Achsen und sät sie am Ende von `attachAll`.
+                          **BEIDE, nicht nur die neue**: die schon vorhandene
+                          `setTuning(a4Hz:)`-Aufrufstelle trug dieselbe geerbte Aussetzung, sie war nur
+                          nie gemessen worden. Der Latch liegt im RACK und nicht in `EchoelmusicApp`,
+                          weil das eine dritte Kopie des Schlüssels `"toneSystemID"` gewesen wäre (#416).
+                          ⛔ **Die BEGRÜNDUNG, die den `bioVoice`-Fächer bisher blockierte, war falsch —
+                          und sie stand in drei Dateien.** Sie lautete „die Stimme klingt nie, `arm()`
+                          hat keinen Aufrufer". `arm()` tort nur den ATEM-Trigger; der MIDI-Pfad
+                          (`apply(controller:)` → `playNote`) ist ungetort, und sein Drain wird beim
+                          Start installiert. Zurückgenommen, wo sie stand.
+                          ⚠️ EHRLICHE BENOTUNG: das Bundle lässt sich gegen den Elternbaum ÜBERHAUPT
+                          NICHT benoten — `BioReactiveSynthVoice.setTuningCents` existiert dort nicht,
+                          die Datei kompiliert also gar nicht (#464-Lage). Von Hand transkribiert wären
+                          NEUN der zwölf Nadeln rot, drei sind Prämissen-Anker.
+                          ⚠️ Und die Grenze zuerst: 12-TET ist eine Null-Tabelle, also Faktor exakt 1.0
+                          und bitgleich — genau das macht den unbedingten Fächer sicher. Dass eine
+                          Lane-Note am Gerät wirklich in Maqām oder Gamelan klingt, ist eine Hörprobe
+                          und offen.), davor **200** nach `RadiusHasOneSpellingTests.swift` (#483 — der erste Wächter in
                           dieser Kette über einer ZAHL, die in einer Konstante längst einen NAMEN hatte, und
                           der erste, dessen Regel WERT-basiert statt zeichenketten-basiert ist. `EchoelTheme`
                           deklariert `radiusSmall` 4 · `radius` 8 · `radiusLarge` 12 — und NEUNZEHN
@@ -3747,7 +3775,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTACHTUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 200 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTNEUNUNDFÜNFZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 201 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
