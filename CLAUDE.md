@@ -242,8 +242,57 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, heute 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**188** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `TheDemoSourceAgreesWithItsOwnKnobTests.swift` (#461 — der erste
+                          `Tests/CISmoke` (**189** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-07 nach `HRVIsNotWrittenToHealthTests.swift` (#463 — der erste Wächter in
+                          dieser Kette über einer ENTSCHEIDUNG statt über einem Wert, und der erste, dessen
+                          Grading ehrlich lautet: **KEINE der fünf Behauptungen ist eine Regression, alle
+                          fünf sind auf dem Vor-#463-Baum grün.** Der Defekt war reine PROSA — und zwar in
+                          zwei Dateien gleichzeitig, was der Grund ist, warum er überlebt hat: keine der
+                          beiden Kopien konnte die andere widerlegen. `HealthKitWriter`s Kopf sagte „we
+                          don't have real SDNN ms", `HealthWritePolicy`s Regel 2 sagte „our `hrvNormalized`
+                          is a 0…1 control value, not SDNN in ms". Beides falsch: DREI Erzeuger schreiben
+                          echte Millisekunden-SDNN in `BioSampleFrame.hrvSDNNms`, einer davon liegt schon
+                          auf der Leitung (`/echoelmusic/bio/heart/sdnn`), und Apples Typ heißt buchstäblich
+                          `heartRateVariabilitySDNN` in ms — die Plattform will exakt das, was der Kommentar
+                          als fehlend behauptete. Die ENTSCHEIDUNG steht und ist richtig; nur ihre Begründung
+                          war widerlegbar, und CLAUDE.md nennt genau diese Klasse: ein „NICHT tun"-Vermerk
+                          mit falscher Begründung ist schlimmer als keiner, weil die nächste Sitzung die
+                          Begründung widerlegt und es dann TUT — hier: ein kamera-abgeleiteter Wert in einer
+                          Gesundheitsakte.
+                          ⭐ **Die WAHRE Begründung ist zweiteilig und beide Hälften sind im Baum prüfbar.**
+                          (1) SDNN ist kein Punktwert, sondern ein Spread über ein GENANNTES Intervall, und
+                          sein Wert skaliert mit dessen Länge — dieselbe Task-Force-Tabelle, die der
+                          #461-Eintrag oben schon zitiert, liest 24-h-SDNN 141±39 ms gegen einen
+                          5-Minuten-SDNN-Index von 54±15 ms in derselben Population. `HealthKitWriter.write`
+                          stempelt `start: date, end: date`. Für eine Herzfrequenz ist das richtig, für eine
+                          Intervall-Statistik ist es eine Lüge, die stromabwärts niemand rückgängig machen
+                          kann. (2) Unsere zwei Erzeuger rechnen nicht dieselbe Größe: die Kamera aus einem
+                          10-s-Analysefenster, der Gurt aus `maxRRIntervals = 64` ≈ 1 min, dort ausdrücklich
+                          gewählt, damit 0,04 Hz LF auflöst. Ein 10-s-Fenster kann keinen vollen Zyklus von
+                          etwas Langsamerem als 0,1 Hz enthalten — das VLF-Band fehlt darin ganz und das
+                          meiste von LF mit. Zwei Größen unter einem Feldnamen (#458), und Apple Healths
+                          eigene ~1-Minuten-Serie ist eine dritte.
+                          ⚠️ **Die RICHTUNG ist strukturell, die GRÖSSE ist NICHT gemessen** — nirgends in
+                          diesem Repo steht, wie viel tiefer ein 10-s-SDNN auf einem echten Take liest, und
+                          keine Zahl in diesem Absatz darf so gelesen werden. Das steht auch am Ort, in
+                          Regel 2 selbst.
+                          ⭐ **Das Gegengewicht ist die Hälfte, die zählt** — die #343-Falle: ein nackter
+                          „der HRV-Bezeichner ist abwesend"-Scan ist auch auf einer Datei grün, die ihren
+                          ganzen Schreibpfad verloren hat. Derselbe Wächter nagelt deshalb `toShare:
+                          [hr, resp]` als GANZE Liste fest (ein drittes Element passt nicht mehr hinein) und
+                          prüft in einer eigenen Behauptung, dass echte SDNN überhaupt noch existiert: würde
+                          eine spätere Scheibe `HRVMetrics.sdnn` löschen, würde der zurückgenommene Kommentar
+                          wieder WAHR und der neue falsch — und diese Datei wäre das Einzige, was es merkt.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und nicht Prophylaxe (#453), gemessen:
+                          `heartRateVariabilitySDNN` steht im Rohtext **1×** und im Code **0×** — der
+                          korrigierte `HealthKitWriter`-Kopf nennt den Bezeichner absichtlich als Wegweiser
+                          für die nächste Sitzung, ein Rohtext-Scan wäre also auf KORREKTEM Code rot.
+                          ⚠️ Und die Grenze: nichts hier ruft HealthKit auf. `HealthKitWriter` liegt in
+                          `#if canImport(HealthKit)` und braucht ein Gerät; die Schreibpfad-Behauptungen sind
+                          QUELLTEXT-SCANS, und `testTheWrittenValuesAreStillAPairOfPhysicalReadings` ist ein
+                          COMPILE-Pin im Testgewand — er scheitert durch Nicht-Bauen, nicht durch Assertion.
+                          Steht so im Dateikopf, damit sein Grün nicht als Laufzeit-Tatsache gelesen wird),
+                          davor „188" nach `TheDemoSourceAgreesWithItsOwnKnobTests.swift` (#461 — der erste
                           Wächter in dieser Kette über einer Quelle, die GAR NICHTS MISST, und der erste,
                           dessen Defekt eine bereits BEZAHLTE Lehre war, die eine Quelle übersprungen hat.
                           `HRVNormalization` existiert, weil #97 fand, dass die drei LIVE-Quellen je einen
@@ -2815,7 +2864,7 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSECHSUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 188 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSIEBENUNDVIERZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 189 ist hier NICHT mitgezählt (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

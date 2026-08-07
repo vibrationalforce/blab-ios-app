@@ -10,9 +10,54 @@
 //  Two honesty/safety rules are encoded here:
 //   1. NON-CIRCULAR: only write readings WE measured (camera rPPG / BLE strap) —
 //      never echo HealthKit/Watch data back into Health (that would duplicate).
-//   2. TRUSTWORTHY UNITS ONLY: we write heart rate (BPM) and respiratory rate
-//      (breaths/min), which we have as real physical values. We do NOT write HRV
-//      (our `hrvNormalized` is a 0…1 control value, not SDNN in ms).
+//   2. POINT-IN-TIME PHYSICAL VALUES ONLY: we write heart rate (BPM) and
+//      respiratory rate (breaths/min). We do NOT write HRV.
+//
+//      ⛔ THE REASON GIVEN FOR THAT UNTIL #463 WAS FALSE — and it was false in
+//      TWO files at once: here ("our `hrvNormalized` is a 0…1 control value,
+//      not SDNN in ms") and in `HealthKitWriter`'s header ("we don't have real
+//      SDNN ms"). We DO have real SDNN in milliseconds, from three producers:
+//      `HRVMetrics.sdnn(rrMs:)` (camera), `HRVMetrics.sdnn(segments:)` (Polar
+//      strap) and HealthKit's own native SDNN — all three land in
+//      `BioSampleFrame.hrvSDNNms`, and one of them is already on the wire
+//      (`/echoelmusic/bio/heart/sdnn`). Apple's quantity type is literally
+//      `heartRateVariabilitySDNN` in ms, so the platform wants exactly the
+//      thing the comment claimed we lacked. CLAUDE.md names this class by name:
+//      a "do NOT do X" note with a refutable reason is worse than no note,
+//      because the next session refutes the reason and then does X. The danger
+//      here is concrete and one-way — "so once we have SDNN we may write HRV",
+//      and a camera-derived number lands in a health record.
+//
+//      ⭐ THE REAL REASON, PART 1 — SDNN IS NOT A POINT VALUE. It is a spread
+//      over a stated recording interval, and its value scales with that
+//      interval: the Task Force 1996 norms put 24-hour SDNN at 141±39 ms
+//      against a 5-minute SDNN index of 54±15 ms in the same population.
+//      `HealthKitWriter.write` stamps `start: date, end: date` — correct for a
+//      heart rate, which really is an instantaneous reading, and a lie for an
+//      interval statistic. Nothing downstream can undo a zero-length stamp.
+//
+//      ⭐ PART 2 — OUR TWO PRODUCERS DO NOT COMPUTE THE SAME STATISTIC. The
+//      camera's intervals come from a 10 s analysis window (`CameraAnalyzer`);
+//      the strap's from `maxRRIntervals = 64` ≈ 1 min, chosen there precisely
+//      so 0.04 Hz LF resolves. A 10 s window cannot hold a full cycle of
+//      anything slower than 0.1 Hz, so the VLF band is absent from it entirely
+//      and most of LF with it — bands that a 1-minute SDNN does contain. They
+//      are two different quantities under one field name (#458), and Apple
+//      Health's own series, built from ~1-minute Watch windows, is a third.
+//      Adding ours to that one timeline is not an accuracy question; it is a
+//      different measurement wearing the same label, in a record a clinician
+//      may read.
+//
+//      ⚠️ HONEST LIMIT: the DIRECTION above is structural (a window cannot
+//      contain an oscillation longer than itself). The MAGNITUDE — how much
+//      lower a 10 s SDNN reads than a 60 s one on a real take — is not
+//      measured anywhere in this repo, and no number here should be read as if
+//      it were.
+//
+//      This decision does not expire when #458 closes. Stamping a real interval
+//      and unifying the two windows would remove the objections above; whether
+//      Echoel should contribute to a health HRV series AT ALL is a founder
+//      call, not a consequence.
 //
 
 import Foundation

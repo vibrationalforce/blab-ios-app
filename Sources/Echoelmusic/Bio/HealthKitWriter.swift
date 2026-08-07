@@ -6,8 +6,17 @@
 //  Echoel saves the heart rate + respiratory rate IT measures (camera rPPG / BLE
 //  strap) into Apple Health, so those readings live alongside the rest of the
 //  user's health data. Off by default; decisions live in HealthWritePolicy
-//  (pure, unit-tested). Never writes HRV (we don't have real SDNN ms) and never
-//  echoes HealthKit/Watch data back (non-circular — see HealthWritePolicy).
+//  (pure, unit-tested). Never writes HRV, and never echoes HealthKit/Watch data
+//  back (non-circular — see HealthWritePolicy).
+//
+//  ⛔ "(we don't have real SDNN ms)" STOOD HERE AS THE REASON FOR THE HRV HALF
+//  AND WAS FALSE (#463): three producers write real SDNN in ms into
+//  `BioSampleFrame.hrvSDNNms`. The DECISION stands; its reason lives in
+//  `HealthWritePolicy` rule 2 and is not restated here, because one decision
+//  with two written reasons is how this one drifted in the first place (#416).
+//  If you came here to add `heartRateVariabilitySDNN` to `toShare:` or a sample
+//  to `write(_:)`, read that rule first — `HRVIsNotWrittenToHealthTests` will
+//  go red, on purpose.
 //
 
 #if canImport(HealthKit)
