@@ -61,11 +61,14 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
         "TheShownNumberIsTheKeptNumberTests.swift",
         // ⛔ THE TWELFTH, AND IT WAS ALREADY HERE WHEN THIS LIST WAS WRITTEN. #453 surveyed
         // eleven strippers and folded eleven in; `TimingVerdictReachesTheScreenTests` (#408)
-        // predates #453 and carried a private `func codeOnly` that did NOT delegate — so
-        // `testNoUnlistedFileDeclaresItsOwnStripper` below returned exactly one offender and
-        // was RED from its first commit until #477. The guard was right and the survey was
-        // wrong; nobody ran the guard, because #396 makes every CI/CD conclusion `failure` and
-        // the only way to tell a real red from the host death is to read the job log (#445).
+        // predates #453 and carried a private `func codeOnly` that did NOT delegate. The guard
+        // below selects it deterministically — replicating its logic against the tree returns
+        // exactly that one file — so the survey missed what the guard could not.
+        // ⚠️ Said precisely: it WOULD have failed on any run that reached it, and whether any
+        // run reached it is unknowable. It appears in no flushed CI log, and under #445 that
+        // absence proves nothing: #396 kills one simulator clone mid-suite and the survivor
+        // flushes a non-deterministic subset. A verdict nobody can observe is the shape this
+        // bundle exists to avoid, and it stood from #453 until #477.
         "TimingVerdictReachesTheScreenTests.swift",
     ]
 

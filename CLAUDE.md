@@ -1335,13 +1335,22 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Verhalten, und eine Regel, die ihn dafuer rot macht, waere die
                           #364-Falle. Die Gegenrichtung haelt `testNoUnlistedFileDeclaresItsOwnStripper`,
                           das von einer ZWOELFTEN privaten Kopie handelt und gar keine Liste braucht.
-                          ⛔ **UND DIE ZWOELFTE WAR SCHON DA — der Waechter war ab seinem ERSTEN Commit
-                          ROT, und niemand hat es gesehen (#477, 2026-08-07).** `TimingVerdictReachesTheScreenTests`
-                          (#408) ist aelter als #453 und trug ein privates `func codeOnly`, das nicht
-                          einfaltete; die Erkennungs-Nadel des Waechters — `func codeOnly` ohne
-                          `SourceText.codeOnly` — hat es beim ersten Lauf namentlich genannt. Die
-                          Handzaehlung sagte ELF, der ausfuehrbare Test sagte ZWOELF, und die Zahl in
-                          allen drei Artefakten (hier, Dateikopf, Commit-Text) kam von der Zaehlung.
+                          ⛔ **UND DIE ZWOELFTE WAR SCHON DA (#477, 2026-08-07).**
+                          `TimingVerdictReachesTheScreenTests` (#408) ist aelter als #453 und trug ein
+                          privates `func codeOnly`, das nicht einfaltete; die Erkennungs-Nadel des
+                          Waechters — `func codeOnly` ohne `SourceText.codeOnly` — waehlt es
+                          DETERMINISTISCH aus (die Logik gegen den Baum nachgebaut liefert genau diese
+                          eine Datei). Die Handzaehlung sagte ELF, der ausfuehrbare Test haette ZWOELF
+                          gesagt, und die Zahl in allen drei Artefakten (hier, Dateikopf, Commit-Text)
+                          kam von der Zaehlung.
+                          ⚠️ **GENAU GESAGT, weil die schmeichelhafte Fassung „der Waechter hat es beim
+                          ersten Lauf genannt" lautet und das eine Behauptung ueber einen LAUF ist:** die
+                          Behauptung WAERE auf jedem Lauf gescheitert, der sie erreicht hat — ob ein Lauf
+                          sie je erreicht hat, ist UNWISSBAR. Sie taucht in keinem geleerten CI-Log auf,
+                          und nach #445 beweist diese Abwesenheit nichts (#396 toetet einen Simulator-Klon
+                          mitten in der Suite, der ueberlebende leert eine nicht-deterministische
+                          Teilmenge). Das ist SCHLIMMER als ein uebersehenes Rot, nicht besser: ein
+                          Wächter, dessen Verdikt niemand beobachten kann, ist noch keiner.
                           ⭐ **Die Lehre ist eine ueber VORRANG, nicht ueber Sorgfalt: wenn eine
                           Handzaehlung und ein ausfuehrbarer Waechter sich widersprechen, ist der
                           Waechter die MESSUNG und die Zaehlung eine Erinnerung.** Und der Grund, warum

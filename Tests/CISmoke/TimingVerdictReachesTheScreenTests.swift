@@ -275,17 +275,22 @@ final class TimingVerdictReachesTheScreenTests: XCTestCase {
     // WRITTEN. #453 (2026-08-06) folded eleven comment-strippers into `SourceText.codeOnly` and
     // installed `OneDefinitionOfCodeNotProseTests.testNoUnlistedFileDeclaresItsOwnStripper` to
     // stop a TWELFTH appearing. The twelfth was already here — this file (#408) predates #453 —
-    // and the guard's own anchor, `func codeOnly` without `SourceText.codeOnly`, named it on the
-    // first run. So the guard did not miss it: NOBODY RAN THE GUARD. #396 makes every CI/CD
-    // conclusion `failure`, so a real red is indistinguishable from the host death unless the
-    // job log is read — and a red assertion sat in the blocking bundle for a day (#445).
+    // and the guard's own anchor, `func codeOnly` without `SourceText.codeOnly`, selects it
+    // deterministically: replicating that logic against the tree returns exactly
+    // `["TimingVerdictReachesTheScreenTests.swift"]`.
+    //
+    // ⚠️ SAID EXACTLY, because the flattering phrasing was "the guard named it on the first run"
+    // and that is a claim about a RUN, which cannot be supported. The assertion appears in no
+    // flushed CI log, and under #445 that absence proves nothing either way — #396 kills one
+    // simulator clone mid-suite and the surviving clone flushes a non-deterministic subset. So
+    // the honest statement is: the guard WOULD have failed on every run that reached it, and
+    // whether any run reached it is unknowable. That is worse than a missed red, not better —
+    // a guard whose verdict cannot be observed is not yet a guard.
     //
     // ⭐ THE LESSON IS NOT "the survey was sloppy" — it is sharper than that. #453's survey and
-    // #453's guard used DIFFERENT detection methods, and the guard was the better one. When the
-    // two disagree, the guard is the measurement and the survey is the memory. Trusting the
-    // narrative ("eleven, all folded in") over the executable check is the same shape as every
-    // stale number CLAUDE.md records, except that here a machine had already written down the
-    // right answer and no one collected it (#445).
+    // #453's guard used DIFFERENT detection methods, and the guard's was the better one. When
+    // the two disagree, the guard is the measurement and the survey is a memory of one. Here the
+    // check that would have settled it was written, shipped, and never readable.
     //
     // ⚠️ THE SWAP IS VERDICT-NEUTRAL, MEASURED RATHER THAN ASSUMED, because the two shapes are
     // NOT interchangeable in general — `testEveryScanningGuardDelegates` names the exact place

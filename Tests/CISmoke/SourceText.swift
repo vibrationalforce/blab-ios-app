@@ -9,10 +9,11 @@
 //
 // ⛔ IT WAS SOLVED TWELVE TIMES, AND THE COUNT BELOW SAID ELEVEN FOR A DAY. The survey that
 // produced "eleven" ran on 2026-08-06; the guard this slice shipped alongside it
-// (`OneDefinitionOfCodeNotProseTests.testNoUnlistedFileDeclaresItsOwnStripper`) disagreed on
-// its very first run and named the twelfth — `TimingVerdictReachesTheScreenTests` (#408),
-// which predates this file. Nobody collected that answer, because #396 makes every CI/CD
-// conclusion `failure` and a conclusion is not a result (#445). #477 folded it in.
+// (`OneDefinitionOfCodeNotProseTests.testNoUnlistedFileDeclaresItsOwnStripper`) disagrees:
+// its anchor selects a twelfth deterministically — `TimingVerdictReachesTheScreenTests` (#408),
+// which predates this file. ⚠️ Precisely: it WOULD have failed on any run that reached it, and
+// whether any run reached it is unknowable, because #396 kills a simulator clone mid-suite and
+// the surviving one flushes a non-deterministic subset of the log (#445). #477 folded it in.
 // ⭐ THE LESSON IS ABOUT PRECEDENCE, not carefulness: when a hand survey and an executable
 // guard disagree, the guard is the measurement and the survey is a memory of one. This file
 // spent a paragraph warning that eleven shapes drift apart without anything noticing — and
