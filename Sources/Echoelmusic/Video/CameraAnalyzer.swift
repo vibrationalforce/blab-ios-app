@@ -1048,21 +1048,35 @@ final class CameraAnalyzer {
 
     // MARK: - HRV Calculation
 
-    /// Calculate RMSSD from successive RR interval differences
+    /// RMSSD over successive RR differences — pooled only WITHIN runs of genuinely
+    /// consecutive beats.
+    ///
+    /// ⛔ THIS USED TO WALK `rrIntervals` FLAT, AND THAT ARRAY IS COMPACTED TWICE. The loop
+    /// above `continue`s past every peak difference outside 0.3…1.5 s, then the IQR pass
+    /// rejects more, and both write into fresh arrays — so two entries that are neighbours
+    /// here can be seconds apart in the body, and their difference is an artifact of the
+    /// removal rather than a beat-to-beat change. `rrWindowMs`'s doc in the publisher has
+    /// named this file as the offender since July ("Do NOT read the camera path as the good
+    /// example"); the strap has pooled within runs since it grew `acceptedSegments`.
+    ///
+    /// The fix changes NOTHING about which beats are accepted — see `RRAdjacency`, which
+    /// derives the runs from `beatTimes`, already kept 1:1 with `rrIntervals` for #343. On a
+    /// clean take there are no holes, the segmentation returns one run, and this is
+    /// bit-identical to the old loop. Measured magnitudes and their honest limits are in
+    /// that file's header.
+    ///
+    /// Keeps the old early-return shape on purpose: with fewer than two intervals, and now
+    /// also when no run holds a pair, `rmssd` KEEPS ITS PREVIOUS VALUE rather than dropping
+    /// to 0. Zeroing here would flap the on-screen readout and the `/bio/heart/rmssd` OSC
+    /// egress to 0 and back on any window that happens to be all gaps; the two `removeAll`
+    /// sites that end a take are what clear it.
     private func calculateRMSSD() {
         guard rrIntervals.count >= 2 else { return }
-
-        var sumSquaredDiffs: Double = 0
-        var count = 0
-
-        for i in 1..<rrIntervals.count {
-            let diff = rrIntervals[i] - rrIntervals[i - 1]
-            sumSquaredDiffs += diff * diff
-            count += 1
-        }
-
-        guard count > 0 else { return }
-        rmssd = sqrt(sumSquaredDiffs / Double(count))
+        let runs = RRAdjacency.segments(intervalsMs: rrIntervals,
+                                        endTimesSeconds: beatTimes)
+        let value = HRVMetrics.rmssd(segments: runs)
+        guard value > 0 else { return }
+        rmssd = value
     }
 
     // MARK: - Signal Quality

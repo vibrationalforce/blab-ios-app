@@ -1111,8 +1111,23 @@ public final class CameraRPPGBioPublisher {
                     motionEnergy: 0,
                     source: .cameraPPG,
                     hrvRMSSDms: rmssdMs,
+                    // SDNN pools FLAT and that is correct, not an oversight: it is a spread
+                    // over the accepted NN intervals and has no adjacency requirement — the
+                    // point `HRVMetrics` makes where it introduces the `segments:` overloads.
+                    // (The strap calls `sdnn(segments:)` to get the ISOLATED-beat exclusion,
+                    // a different and separate judgment. Whether that exclusion is right for
+                    // the camera's gap structure is unmeasured here, so it is not copied over
+                    // on the strength of looking symmetric — #268's lesson.)
                     hrvSDNNms: Float(HRVMetrics.sdnn(rrMs: rrMs)),
-                    hrvPNN50: Float(HRVMetrics.pnn50(rrMs: rrMs))
+                    // pNN50 DOES read consecutive pairs, so it gets the same treatment as
+                    // RMSSD one layer up: pooled only within runs of genuinely adjacent
+                    // beats. `rrMs` is twice-compacted (see `RRAdjacency`), so a flat walk
+                    // counts a difference across a dropped beat — and a cross-gap difference
+                    // is exactly the kind that clears the 50 ms threshold, which is why the
+                    // relative error here is larger than on RMSSD.
+                    hrvPNN50: Float(HRVMetrics.pnn50(
+                        segments: RRAdjacency.segments(intervalsMs: rrMs,
+                                                       endTimesSeconds: beatTimes)))
                 )
                 bus.publish(bio: frame)
                 // Anchor the hold to this good frame (see lastGoodBioFrame docs).
