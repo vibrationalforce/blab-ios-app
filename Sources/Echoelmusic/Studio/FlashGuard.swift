@@ -17,6 +17,19 @@ import Foundation
 public enum FlashGuard {
 
     /// WCAG 2.3.1 hard limit: at most three flashes per second.
+    ///
+    /// ⭐ THIS IS THE CANONICAL DECLARATION, and it is canonical by DESIGNATION rather than by
+    /// being the only one — there are two more, and `maxPulseRateHz` below argues against
+    /// exactly that shape ("two symbols for one number is the drift surface this whole hoist
+    /// exists to remove"). That argument was written about the 2.5 Hz pulse ceiling and it
+    /// was right; the 3 Hz ceiling it sits next to had escaped the same hoist.
+    ///
+    /// The other two are `EntrainmentEngine.maxVisualFlashHz` (`Bio/`) and
+    /// `BioEntrainmentDirector.maxVisualHz` (`DSP/`). Neither can chain to this symbol today:
+    /// `Bio/` references no `Studio/` type, and `DSP/` is kept Foundation-only by hygiene
+    /// (`project.yml`). Folding them means MOVING this type to a layer all three can see —
+    /// a decision about where visual-safety law lives, deliberately not taken in passing.
+    /// Until then `Tests/CISmoke/TheFlashCeilingIsOneNumberTests` makes any divergence red.
     public static let maxFlashHz: Double = 3.0
 
     /// The app's OWN, stricter ceiling on the rate at which the bio pulse phase advances.

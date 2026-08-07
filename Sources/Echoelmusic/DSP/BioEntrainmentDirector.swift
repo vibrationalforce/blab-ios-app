@@ -40,6 +40,13 @@ public struct BioEntrainmentDirector: Sendable {
     /// Never modulate harder than this — a subtle stimulus, not an overwhelming pulse.
     public static let maxDepth: Float = 0.6
     /// W3C WCAG epilepsy ceiling for ANY visual flicker (Hz).
+    ///
+    /// ⚠️ THIRD COPY of one number. The canonical declaration is `FlashGuard.maxFlashHz`;
+    /// `EntrainmentEngine.maxVisualFlashHz` is the second, and its header carries the full
+    /// reasoning. Short version: `FlashGuard` is in `Studio/` and this file is in `DSP/`, which
+    /// is kept Foundation-only by hygiene (`project.yml`), so this one CANNOT chain even if the
+    /// other two did. `Tests/CISmoke/TheFlashCeilingIsOneNumberTests` asserts all three agree —
+    /// relaxing this alone turns the blocking bundle red, which is the point.
     public static let maxVisualHz: Double = 3.0
     /// Below this pulse-lock quality we emit NO stimulus (don't entrain on a bad signal).
     public static let qualityFloor: Float = 0.35

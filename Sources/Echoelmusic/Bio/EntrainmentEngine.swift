@@ -75,6 +75,24 @@ public enum EntrainmentEngine {
 
     /// WCAG 2.x general flash threshold + photosensitive research: no more than three
     /// flashes in any one-second period.
+    ///
+    /// ⚠️ THE CANONICAL DECLARATION IS `FlashGuard.maxFlashHz`, and this is a SECOND COPY of
+    /// it. A third lives at `BioEntrainmentDirector.maxVisualHz`. `FlashGuard`'s own header
+    /// argues against exactly this shape — *"two symbols for one number is the drift surface
+    /// this whole hoist exists to remove"* — and it was right; the ceiling itself had escaped
+    /// the hoist that removed the 2.5 Hz literals.
+    ///
+    /// It is NOT folded into one symbol here, and the reason is layering, not oversight:
+    /// `FlashGuard` lives in `Studio/`, and `Bio/` references no `Studio/` type today
+    /// (`git grep -ln FlashGuard -- Sources` lists Core · Studio · Sync · Views, no Bio).
+    /// `BioEntrainmentDirector` is worse off — `DSP/` is kept Foundation-only by hygiene
+    /// (`project.yml`), so it may not reach `Studio/` at all. Moving `FlashGuard` to a layer
+    /// all three can see is a real decision about where visual-safety law lives, not a tidy-up,
+    /// and it is not this slice.
+    ///
+    /// What IS this slice: the drift is now RED. `Tests/CISmoke/TheFlashCeilingIsOneNumberTests`
+    /// asserts all three are equal, so relaxing one alone fails the blocking bundle. Change all
+    /// three together, or change none — and a bio-safety review comes first either way.
     public static let maxVisualFlashHz: Double = 3.0
     /// Flicker anywhere in this band can provoke photosensitive seizures — the visual
     /// layer must never operate here (audio is exempt; it is not a flash hazard).
@@ -86,9 +104,25 @@ public enum EntrainmentEngine {
 
     // MARK: - Personal target (cardiac/respiratory — never cortical)
 
-    /// Resonance-breathing window, breaths per minute. Matches BreathPacer/ResonanceFinder
-    /// so the whole loop shares one safe range. ~4.5–7/min is the evidence-based calming
-    /// target; we widen slightly to the pacer's own bounds for continuity.
+    /// Resonance-breathing window, breaths per minute. ~4.5–7/min is the evidence-based
+    /// calming target (Lehrer/Vaschillo resonance range), and that is where these two come
+    /// from — not from another file.
+    ///
+    /// ⛔ THE SENTENCE THAT STOOD HERE WAS FALSE, and it was a claim of PARITY, which is the
+    /// expensive kind: *"Matches BreathPacer/ResonanceFinder so the whole loop shares one safe
+    /// range."* It does not. `BreathPacer.minRate` is **5.0** and `ResonanceFinder.minRate`
+    /// chains to it, so the floors differ by 0.5/min. Only the ceiling coincides
+    /// (`ResonanceFinder.maxRate` is also 7.0) — and it coincides, it is not chained.
+    ///
+    /// The number is NOT changed to 5.0, because the number is not the defect: 4.5 has a stated
+    /// evidence basis right here, and `BreathPacer`'s 5.0 answers a different question (it is
+    /// the RESONANCE-SEARCH sweep floor and nothing more — that file retracted its own safety
+    /// framing in #435, and `ResonanceFinder` still carries the retracted wording). Two ranges
+    /// that legitimately differ need a sentence saying so, not a silent merge.
+    ///
+    /// ⚠️ The one-way risk if a later slice "unifies" these: `breathTargetHz` CLAMPS to this
+    /// window, so raising the floor to 5.0 makes a genuinely-4.6/min breather read as 5.0 —
+    /// an invented rate, the class #424/#426 has already paid for twice on the measurement side.
     public static let minBreathsPerMinute: Double = 4.5
     public static let maxBreathsPerMinute: Double = 7.0
 
